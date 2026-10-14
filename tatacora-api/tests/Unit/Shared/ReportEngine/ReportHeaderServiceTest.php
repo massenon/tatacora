@@ -65,8 +65,11 @@ final class ReportHeaderServiceTest extends TestCase
         // Directive PO du 02/09/2026 : l'enseigne s'imprime EN MINUSCULES,
         // sous la raison sociale, sur tous les documents.
         $this->assertSame('gîte chez noël', $entete->enseigne);
-        $this->assertStringContainsString('gîte chez noël', $entete->sousTitre);
-        $this->assertStringNotContainsString('Gîte Chez Noël', $entete->sousTitre);
+        $this->assertStringStartsWith("gîte chez noël\n", $entete->sousTitre);
+        // Directive PO du 14/10/2026 : la seconde ligne est le libellé
+        // « Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin) »,
+        // qui nomme l'enseigne avec sa casse — voulu, pas une répétition.
+        $this->assertStringEndsWith(__('rapports.entete.localisation'), $entete->sousTitre);
     }
 
     /**
