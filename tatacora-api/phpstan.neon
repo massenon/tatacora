@@ -1,0 +1,17 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    # Niveau 6 minimum — 06_DEVELOPMENT_STANDARDS.md §2.1.
+    # Tout code qui echoue l'analyse statique bloque le merge.
+    level: 6
+
+    paths:
+        - app
+        - database
+        - tests
+
+    # Les migrations sont des classes anonymes retournees, sans type a analyser :
+    # les inclure produit du bruit sans valeur de detection.
+    excludePaths:
+        - database/migrations/*

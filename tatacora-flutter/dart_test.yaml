@@ -1,0 +1,13 @@
+# Le tag `integration` est simplement DÉCLARÉ ici : sans cette déclaration,
+# `package:test` refuse un tag inconnu.
+#
+# Le filtrage ne se fait PAS ici. Le test d'intégration se garde lui-même :
+# sans la variable d'environnement `TATACORA_FIXTURE`, il s'ignore. Un seul
+# mécanisme, pas deux — la version précédente cumulait un `skip` de
+# configuration et le garde-fou du test, si bien que `--tags integration`
+# n'exécutait toujours rien.
+#
+#   flutter test                                    # tout, sauf l'intégration
+#   TATACORA_FIXTURE=... flutter test test/integration/
+tags:
+  integration:

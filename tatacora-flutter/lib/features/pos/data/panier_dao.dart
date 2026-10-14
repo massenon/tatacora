@@ -1,0 +1,724 @@
+import 'package:drift/drift.dart';
+import 'package:uuid/uuid.dart';
+
+import '../../../core/database/app_database.dart';
+// Les classes de tables doivent être dans la portée du fichier : `@DriftAccessor`
+// les résout par leur type, et un import de `app_database.dart` seul ne les
+// réexporte pas. Sans ces lignes, le mixin généré est VIDE — sans erreur de
+// génération, ce qui rend le diagnostic trompeur (leçon `reservation_dao.dart`).
+import '../../../core/database/tables/bar_tables.dart';
+import '../../../core/database/tables/caisse_tables.dart';
+import '../../../core/database/tables/hebergement_tables.dart';
+import '../../../core/database/tables/panier_tables.dart';
+import '../../../core/database/tables/tourisme_tables.dart';
+import '../../../core/database/tables/vehicules_tables.dart';
+import '../../caisse/data/sessions_caisse_dao.dart';
+import '../../caisse/domain/entities/session_caisse.dart';
+import '../../caisse/domain/messages_caisse.dart';
+import '../../caisse/domain/regles_caisse.dart';
+import '../../comptabilite/data/comptabilite_dao.dart';
+import '../../comptabilite/data/moteur_comptable.dart';
+import '../../comptabilite/domain/calcul_tva.dart';
+import '../../parametres/data/parametres_dao.dart';
+import '../domain/entities/article_vendable.dart';
+import '../domain/entities/mode_reglement.dart';
+import '../domain/entities/panier.dart';
+import '../domain/entities/reference_catalogue.dart';
+import '../domain/messages_ventes.dart';
+import '../domain/repositories/panier_repository.dart';
+import '../domain/unicite_panier_ouvert.dart';
+import 'piece_de_la_vente.dart';
+
+part 'panier_dao.g.dart';
+
+/// Accès Drift aux paniers.
+///
+/// ⚠ **Portage d'une PROPOSITION** (`docs/PROPOSITION_MODELE_PANIER_POS.md`),
+/// non ratifiée : Q1, Q2 et Q3 restent ouvertes. Ce fichier porte deux des
+/// trois points nommés — Q1 dans [_verifierCatalogue], Q2 dans [ouvrir].
+///
+/// ## Le DAO ne parle qu'entités
+///
+/// Aucune méthode ne rend un `PaniersLocalData`. La forme des tables ne
+/// franchit pas cette frontière : sans quoi renommer une colonne casserait un
+/// widget, et la couche présentation saurait qu'une base existe.
+///
+/// ## Aucune entrée n'est mise en file de synchronisation
+///
+/// C'est délibéré et vérifié par un test. `SynchronisationService::
+/// TABLES_SYNCHRONISABLES` ne connaît que `reservations` et `clients` : une
+/// opération sur `paniers` serait refusée à chaque tentative, et le poste
+/// afficherait « en attente de synchronisation » sur quelque chose qui ne
+/// partira jamais. C'est la famille de défauts PA-59 / PA-60 / PA-61 — un
+/// indicateur qui dit que tout va bien pendant que rien n'a lieu.
+@DriftAccessor(
+  tables: [
+    PaniersLocal,
+    LignesPanierLocal,
+    SessionsCaisseLocal,
+    ReservationsLocal,
+    CartesBoissonLocal,
+    VehiculesLocal,
+    CircuitsLocal,
+  ],
+)
+class PanierDao extends DatabaseAccessor<AppDatabase> with _$PanierDaoMixin {
+  PanierDao(
+    super.db, {
+    Uuid? uuid,
+    DateTime Function()? maintenant,
+    this.moteur,
+  }) : _uuid = uuid ?? const Uuid(),
+       _maintenant = maintenant ?? DateTime.now;
+
+  final Uuid _uuid;
+
+  /// Injectable : la règle 5 dépend du jour courant, et un test qui dépend de
+  /// l'heure réelle échoue un jour sur mille — celui du départ.
+  final DateTime Function() _maintenant;
+
+  /// Le résolveur du moteur comptable, qui écrit la PIÈCE de la vente.
+  ///
+  /// Un résolveur et non une instance : `moteurComptableProvider` attend
+  /// l'installation du référentiel, et un moteur construit trop tôt servirait un
+  /// plan vide. **Sans résolveur, clôturer LÈVE** (`StateError`) : jamais une
+  /// vente sans sa pièce par omission (règle du PO du 31/08/2026). Les lectures
+  /// et les autres gestes du panier n'en ont pas besoin.
+  final Future<MoteurComptable> Function()? moteur;
+
+  Future<MoteurComptable> _moteurObligatoire() {
+    final resolveur = moteur;
+    if (resolveur == null) {
+      throw StateError(
+        'PanierDao sans moteur comptable : une vente ne s’encaisse jamais '
+        'sans sa pièce.',
+      );
+    }
+    return resolveur();
+  }
+
+  /* ================================================================== */
+  /* Lecture                                                             */
+  /* ================================================================== */
+
+  Future<List<Panier>> paniers({
+    StatutPanier? statut,
+    TypeVente? typeVente,
+  }) async {
+    final requete = select(paniersLocal);
+    if (statut != null) {
+      requete.where((p) => p.statut.equals(statut.code));
+    }
+    if (typeVente != null) {
+      requete.where((p) => p.typeVente.equals(typeVente.code));
+    }
+    // Départage par identifiant après l'horodatage : deux paniers ouverts dans
+    // la même milliseconde auraient sinon un ordre indéfini, et la liste
+    // changerait d'ordre à chaque rafraîchissement sans qu'aucune donnée n'ait
+    // bougé (même raison que `ReservationDao.reservations`).
+    requete.orderBy([
+      (p) => OrderingTerm.desc(p.ouvertLe),
+      (p) => OrderingTerm.desc(p.id),
+    ]);
+
+    final entetes = await requete.get();
+    return Future.wait(entetes.map(_avecLignes));
+  }
+
+  Future<Panier?> parId(String id) async {
+    final entete = await (select(
+      paniersLocal,
+    )..where((p) => p.id.equals(id))).getSingleOrNull();
+    if (entete == null) return null;
+    return _avecLignes(entete);
+  }
+
+  /// ⚠ **Q2** — le panier ouvert d'un séjour, s'il existe.
+  ///
+  /// C'est aussi le garde-fou de [ouvrir], et il n'y en a pas d'autre : voir
+  /// `unicite_panier_ouvert.dart` pour ce que cette garantie couvre, et ce
+  /// qu'elle ne couvre pas.
+  Future<Panier?> panierOuvertPour(String reservationId) async {
+    final entete =
+        await (select(paniersLocal)..where(
+              (p) =>
+                  p.reservationId.equals(reservationId) &
+                  p.statut.equals(StatutPanier.ouvert.code),
+            ))
+            .getSingleOrNull();
+    if (entete == null) return null;
+    return _avecLignes(entete);
+  }
+
+  /* ================================================================== */
+  /* Écriture                                                            */
+  /* ================================================================== */
+
+  /// Ouvre un panier.
+  ///
+  /// ⚠ **Q2 atterrit ici.** La lecture du panier existant et l'écriture du
+  /// nouveau sont dans la **même transaction** : les séparer ouvrirait une
+  /// fenêtre — courte, mais réelle — où deux ouvertures simultanées passeraient
+  /// toutes les deux, ce qui est exactement ce que la règle 1 interdit.
+  ///
+  /// C'est le patron de `VerificationChevauchementService` (RG-01), transposé.
+  Future<Panier> ouvrir({
+    required TypeVente typeVente,
+    String? reservationId,
+    String? clientNom,
+    String? pointVente,
+    DateTime? dateDepartPrevue,
+    String? tableId,
+    String? espace,
+  }) async {
+    // Un panier sur séjour EXIGE un séjour, et un panier au comptant n'en a
+    // pas. Sans cette contrainte, un panier de séjour orphelin verrait ses
+    // consommations n'atteindre jamais la facture de départ.
+    if (typeVente == TypeVente.surSejour && reservationId == null) {
+      throw ArgumentError.value(
+        reservationId,
+        'reservationId',
+        'Un panier de séjour doit être rattaché à une réservation.',
+      );
+    }
+    if (typeVente == TypeVente.comptant && reservationId != null) {
+      throw ArgumentError.value(
+        reservationId,
+        'reservationId',
+        'Un panier au comptant ne se rattache à aucun séjour.',
+      );
+    }
+
+    final id = _uuid.v4();
+    final ouvertLe = _maintenant();
+
+    await transaction(() async {
+      if (reservationId != null) {
+        final existant =
+            await (select(paniersLocal)..where(
+                  (p) =>
+                      p.reservationId.equals(reservationId) &
+                      p.statut.equals(StatutPanier.ouvert.code),
+                ))
+                .getSingleOrNull();
+        if (existant != null) {
+          throw PanierDejaOuvertException(
+            reservationId: reservationId,
+            panierExistantId: existant.id,
+          );
+        }
+      }
+
+      // Une TABLE ne porte qu'un panier ouvert a la fois — meme raison que
+      // l'unicite par sejour : deux paniers sur une table scinderaient
+      // l'addition, et la moitie manquerait au depart du client. La garde vit
+      // DANS la transaction, sans quoi deux ouvertures simultanees passeraient
+      // toutes les deux.
+      if (tableId != null) {
+        final surLaTable =
+            await (select(paniersLocal)..where(
+                  (p) =>
+                      p.tableId.equals(tableId) &
+                      p.statut.equals(StatutPanier.ouvert.code),
+                ))
+                .getSingleOrNull();
+        if (surLaTable != null) {
+          throw TableDejaServie(
+            tableId: tableId,
+            panierExistantId: surLaTable.id,
+          );
+        }
+      }
+
+      await into(paniersLocal).insert(
+        PaniersLocalCompanion.insert(
+          id: id,
+          typeVente: typeVente.code,
+          tableId: Value(tableId),
+          espace: Value(espace),
+          reservationId: Value(reservationId),
+          clientNom: Value(clientNom),
+          pointVente: Value(pointVente),
+          dateDepartPrevue: Value(dateDepartPrevue),
+          statut: Value(StatutPanier.ouvert.code),
+          ouvertLe: Value(ouvertLe),
+        ),
+      );
+    });
+
+    return (await parId(id))!;
+  }
+
+  /// Ajoute une consommation — prix ET libellé **copiés** (règle 3).
+  ///
+  /// [quantite] à `null` signifie « non précisée » et vaut 1. Une quantité
+  /// explicitement nulle ou négative est **refusée**, jamais ramenée à 1 :
+  /// c'est le défaut `Number(quantite) || 1` du prototype, qui facturait une
+  /// unité pour une saisie à zéro.
+  Future<Panier> ajouterLigne(
+    String panierId,
+    ArticleVendable article, {
+    int? quantite,
+  }) async {
+    final prix = article.prix;
+    if (prix == null) {
+      // Un montant deviné est une perte à chaque service.
+      throw PrixInconnu(article.libelle);
+    }
+
+    final q = quantite ?? 1;
+    if (q <= 0) {
+      throw ArgumentError.value(
+        quantite,
+        'quantite',
+        'La quantité doit être un nombre positif.',
+      );
+    }
+
+    await transaction(() async {
+      final entete = await _enteteModifiable(panierId);
+      await _verifierCatalogue(article.reference);
+
+      // Regroupement : réajouter le même article **au même prix** incrémente
+      // la ligne au lieu d'en créer une seconde. Deux lignes identiques sur une
+      // addition font douter le client, et douter d'une addition suffit à
+      // gâcher un départ.
+      //
+      // Le prix fait partie de la clé de regroupement : un article dont la
+      // carte a changé pendant le séjour crée une ligne DISTINCTE, sans quoi
+      // l'incrément écraserait l'ancien prix — c'est-à-dire réécrirait une
+      // consommation déjà servie (règle 3).
+      final existante =
+          await (select(lignesPanierLocal)..where(
+                (l) =>
+                    l.panierId.equals(entete.id) &
+                    l.moduleSource.equals(article.reference.module.code) &
+                    l.codeArticle.equals(article.reference.code) &
+                    l.prixUnitaire.equals(prix),
+              ))
+              .getSingleOrNull();
+
+      if (existante != null) {
+        await (update(
+          lignesPanierLocal,
+        )..where((l) => l.id.equals(existante.id))).write(
+          LignesPanierLocalCompanion(quantite: Value(existante.quantite + q)),
+        );
+        return;
+      }
+
+      await into(lignesPanierLocal).insert(
+        LignesPanierLocalCompanion.insert(
+          id: _uuid.v4(),
+          panierId: entete.id,
+          moduleSource: article.reference.module.code,
+          codeArticle: article.reference.code,
+          libelle: article.libelle,
+          prixUnitaire: prix,
+          quantite: q,
+          categorie: Value(article.categorie),
+          ajouteeLe: Value(_maintenant()),
+        ),
+      );
+    });
+
+    return (await parId(panierId))!;
+  }
+
+  Future<Panier> retirerLigne(String panierId, String ligneId) async {
+    await transaction(() async {
+      final entete = await _enteteModifiable(panierId);
+      final supprimees =
+          await (delete(lignesPanierLocal)..where(
+                (l) => l.id.equals(ligneId) & l.panierId.equals(entete.id),
+              ))
+              .go();
+      // `go()` rend 0 sans lever quand rien ne correspond : sans ce contrôle,
+      // retirer une ligne d'un AUTRE panier passerait pour un succès.
+      if (supprimees == 0) throw LigneIntrouvable(ligneId);
+    });
+
+    return (await parId(panierId))!;
+  }
+
+  /// Retire **toutes** les lignes sans fermer le panier — « Vider » du maître.
+  ///
+  /// `pos.html:1012` : `panier = []; rendrePanier();`. Le panier reste
+  /// **ouvert** et la table reste occupée ; c'est ce qui distingue ce geste
+  /// d'« Abandonner », qui ferme et libère.
+  ///
+  /// En une seule transaction, et non une boucle sur [retirerLigne] : une
+  /// coupure au milieu d'une boucle laisserait un panier à moitié vidé, que
+  /// l'utilisateur croirait vide en voyant l'écran se rafraîchir.
+  ///
+  /// Passe par [_enteteModifiable], comme tous les autres gestes d'écriture :
+  /// un panier clôturé est immuable (règle 2), et le vider serait une
+  /// modification d'une vente déjà encaissée.
+  Future<Panier> vider(String panierId) async {
+    await transaction(() async {
+      final entete = await _enteteModifiable(panierId);
+      await (delete(
+        lignesPanierLocal,
+      )..where((l) => l.panierId.equals(entete.id))).go();
+    });
+
+    // Aucun contrôle de « 0 ligne supprimée » ici, contrairement à
+    // `retirerLigne` : vider un panier déjà vide est un geste sans effet, pas
+    // une erreur. Le refuser ferait échouer un clic anodin.
+    return (await parId(panierId))!;
+  }
+
+  Future<Panier> modifierQuantite(
+    String panierId,
+    String ligneId,
+    int quantite,
+  ) async {
+    if (quantite <= 0) {
+      throw ArgumentError.value(
+        quantite,
+        'quantite',
+        'La quantité doit être un nombre positif.',
+      );
+    }
+
+    await transaction(() async {
+      final entete = await _enteteModifiable(panierId);
+      final modifiees =
+          await (update(lignesPanierLocal)..where(
+                (l) => l.id.equals(ligneId) & l.panierId.equals(entete.id),
+              ))
+              .write(LignesPanierLocalCompanion(quantite: Value(quantite)));
+      if (modifiees == 0) throw LigneIntrouvable(ligneId);
+    });
+
+    return (await parId(panierId))!;
+  }
+
+  /// Clôture le panier, **fige** son montant et **passe la pièce comptable de
+  /// la vente** — dans la MÊME transaction (règle du PO du 31/08/2026 : tout
+  /// mouvement d'argent produit son écriture, et une pièce refusée n'écrit
+  /// RIEN).
+  ///
+  /// Règle 5 : pour un panier de séjour, clôturer avant le jour du départ exige
+  /// [anticipe]. Refuser en silence serait pire ; laisser passer sans rien dire
+  /// aussi. La question se pose à l'écran, elle ne se tranche pas ici.
+  ///
+  /// ## Le déroulement est celui du SERVEUR, étage par étage
+  ///
+  /// Au comptoir, `PosComptant::encaissementReel` : panier vide, mode « note de
+  /// chambre » refusé, caisse ouverte, puis `VenteService::enregistrer` — mode
+  /// connu, chaque ligne (module encaissable, référence au catalogue), TVA, puis
+  /// la pièce (journal, exercice, compte, centre). Pour un séjour,
+  /// `PosHeberges::cloturerEtFacturer` enregistre la vente EN NOTE DE CHAMBRE,
+  /// toujours : la consommation devient une créance (`4111`), aucune trésorerie
+  /// ne bouge, et c'est l'encaissement de la facture qui la soldera.
+  /// `test/features/pos/ventes_contre_serveur_test.dart` rejoue les VRAIS
+  /// service et composant sur MySQL et compare chaque refus, sa phrase et chaque
+  /// ligne de la pièce.
+  ///
+  /// ## Ce que le serveur fait ici et que le poste NE fait PAS (écarts nommés)
+  ///
+  /// * **Aucune sortie de stock** (RG-05/06). Le serveur sort les boissons du
+  ///   stock du bar (`quantité / unites_vendables_par_unite_stock`) et crée puis
+  ///   transmet une commande de cuisine pour les plats. Le poste détient le
+  ///   stock M6, mais `cartes_boisson_local` ne porte pas le facteur de
+  ///   conditionnement, et le poste n'a ni commande de cuisine ni dialogue
+  ///   « Vendre quand même » : sortir « une unité par unité vendue » serait
+  ///   inventer ce facteur. Le refus de rupture du serveur n'existe donc pas
+  ///   ici. Lot à ordonner.
+  /// * **Aucun numéro `V-AAAA-NNNNN`** : voir [libelleDeLaPiece].
+  /// * **Aucune remise** : le panier du poste n'en porte pas, le net est le
+  ///   total.
+  /// * **Le prix est celui de l'AJOUT** (règle 3), là où le serveur relit le
+  ///   catalogue à l'encaissement : la pièce suit l'argent réellement annoncé au
+  ///   client et figé dans `montantCloture`.
+  ///
+  /// [auteurId] nomme celui qui encaisse (RG-15) : une pièce sans auteur est
+  /// refusée par le moteur.
+  Future<Panier> cloturer(
+    String panierId, {
+    bool anticipe = false,
+    String? modePaiement,
+    required String auteurId,
+  }) async {
+    // Avant toute lecture : un câblage manquant est une erreur de programme,
+    // pas un refus métier, et elle ne doit dépendre d'aucune donnée.
+    final moteurComptable = await _moteurObligatoire();
+
+    await transaction(() async {
+      final entete = await _enteteModifiable(panierId);
+      final panier = await _avecLignes(entete);
+
+      final estSejour = panier.typeVente == TypeVente.surSejour;
+
+      // Le serveur ne dit pas la même chose au comptoir (« rien à encaisser »)
+      // et au séjour (« Le panier du séjour est vide »).
+      if (panier.lignes.isEmpty) {
+        throw estSejour
+            ? const PanierVide.duSejour()
+            : const PanierVide.auComptoir();
+      }
+
+      // LE MODE. Un séjour est TOUJOURS porté sur la note de chambre
+      // (`PosHeberges` écrit `'mode_paiement' => 'note_chambre'` en dur) : le
+      // mode que l'écran aurait gardé en mémoire n'a aucun sens pour lui, et
+      // l'enregistrer en espèces ferait entrer en caisse un argent que personne
+      // n'a remis. Au comptoir, le mode vient de l'écran.
+      final ModeReglement? mode = estSejour
+          ? ModeReglement.noteChambre
+          : ModeReglement.values
+                .where((m) => m.code == modePaiement)
+                .firstOrNull;
+
+      // `PosComptant` refuse la note de chambre AVANT de regarder la caisse :
+      // aucune chambre n'y porte de note.
+      if (!estSejour && mode == ModeReglement.noteChambre) {
+        throw const RefusVente(MessagesVentes.noteChambreAuComptoir);
+      }
+
+      // L'ENCAISSEMENT AU COMPTANT SE RATTACHE À UNE CAISSE OUVERTE — comme
+      // `PosComptant::encaissementReel` (D221 option a, décision du PO). Le
+      // serveur lit la session ouverte du point `bar`, REFUSE s'il n'y en a pas
+      // (« Aucune caisse n'est ouverte à ce point de vente. »), puis écrit
+      // `ventes.session_id`. Cette lecture et l'écriture ci-dessous sont dans la
+      // MÊME transaction : une caisse close entre les deux ne laisserait pas
+      // une vente rattachée à un tiroir fermé. L'ordre est celui du serveur :
+      // panier vide d'abord, caisse ensuite.
+      //
+      // Un panier de SÉJOUR n'est pas concerné : il se porte sur la note de
+      // chambre et le serveur n'écrit pas `session_id` dans `PosHeberges`.
+      String? sessionId;
+      if (!estSejour) {
+        final session = await SessionsCaisseDao(
+          attachedDatabase,
+        ).sessionOuverte(pointDeCaisseDuComptoir);
+        if (session == null) {
+          throw const RefusCaisse(MessagesCaisse.refusSansCaisse);
+        }
+        sessionId = session.id;
+      }
+
+      if (!anticipe && panier.clotureEstAnticipee(_maintenant())) {
+        throw ClotureAnticipeeNonConfirmee(panier.dateDepartPrevue!);
+      }
+
+      // ---- `VenteService::enregistrer` ------------------------------------
+      //
+      // Le mode d'abord. ⚠ ÉCART du poste : le serveur, appelé sans mode,
+      // retombe sur les espèces ; ce poste REFUSE. Son journal des ventes
+      // distingue « non renseigné » d'« espèces » exprès (`vente.dart`) : faire
+      // entrer en caisse un argent que personne n'a compté est le défaut que ce
+      // registre existe pour empêcher. L'écran envoie toujours un mode.
+      if (mode == null) {
+        throw RefusVente(
+          modePaiement == null
+              ? MessagesVentes.modeReglementAbsent
+              : MessagesVentes.modeInconnu(modePaiement),
+        );
+      }
+
+      // Chaque ligne, dans l'ordre du panier : le module d'abord, puis la
+      // référence au catalogue — c'est l'ordre de `resoudreLignes`.
+      final parModule = <String, int>{};
+      for (final ligne in panier.lignes) {
+        final code = ligne.reference.module.code;
+        if (!modulesEncaissables.contains(code)) {
+          throw RefusVente(
+            MessagesVentes.moduleNonEncaissable(
+              MessagesVentes.modulesDuServeur[code] ?? code,
+            ),
+          );
+        }
+        if (!await _articleExiste(ligne.reference)) {
+          throw RefusVente(
+            MessagesVentes.referenceInconnue(ligne.reference.code),
+          );
+        }
+        parModule[code] =
+            (parModule[code] ?? 0) + centimesDeFrancs(ligne.montant);
+      }
+
+      final comptabilite = ComptabiliteDao(attachedDatabase);
+      final centres = <String, String?>{
+        for (final module in parModule.keys)
+          module: (await comptabilite.centreParLibelle(
+            centresParModule[module] ?? '',
+          ))?.id,
+      };
+      final tva = ParametresTva.depuis(
+        await ParametresDao(attachedDatabase).lireTout(),
+      );
+
+      final maintenant = _maintenant();
+      await moteurComptable.passerEtValider(
+        pieceDeLaVente(
+          libelle: libelleDeLaPiece(entete.id),
+          dateIso: formaterDateIso(maintenant),
+          mode: mode,
+          montantsParModule: parModule,
+          tva: tva,
+          centreDuModule: (module) => centres[module],
+        ),
+        auteurId: auteurId,
+      );
+
+      await (update(paniersLocal)..where((p) => p.id.equals(entete.id))).write(
+        PaniersLocalCompanion(
+          statut: Value(StatutPanier.cloture.code),
+          clotureLe: Value(maintenant),
+          modePaiement: Value(mode.code),
+          // Figé : le total d'un panier clôturé ne se recalcule plus.
+          montantCloture: Value(panier.total),
+          sessionEncaissementId: Value(sessionId),
+        ),
+      );
+    });
+
+    return (await parId(panierId))!;
+  }
+
+  /// Annule un panier ouvert. **Les lignes sont conservées.**
+  ///
+  /// Un panier annulé sans ses lignes ne dit plus ce qui avait été servi : on
+  /// garde la trace pour que la question « qu'est-ce qui a été consommé ? »
+  /// reste répondable après coup.
+  Future<Panier> annuler(String panierId, String motif) async {
+    final motifNet = motif.trim();
+    if (motifNet.isEmpty) {
+      throw ArgumentError.value(
+        motif,
+        'motif',
+        'Un motif est requis : un panier annulé sans raison est '
+            'indistinguable d’une erreur de manipulation.',
+      );
+    }
+
+    await transaction(() async {
+      final entete = await _enteteModifiable(panierId);
+      await (update(paniersLocal)..where((p) => p.id.equals(entete.id))).write(
+        PaniersLocalCompanion(
+          statut: Value(StatutPanier.annule.code),
+          clotureLe: Value(_maintenant()),
+          motifAnnulation: Value(motifNet),
+        ),
+      );
+    });
+
+    return (await parId(panierId))!;
+  }
+
+  /* ================================================================== */
+  /* Gardes internes                                                     */
+  /* ================================================================== */
+
+  /// L'en-tête du panier, à condition qu'il soit encore modifiable (règle 2).
+  Future<PaniersLocalData> _enteteModifiable(String panierId) async {
+    final entete = await (select(
+      paniersLocal,
+    )..where((p) => p.id.equals(panierId))).getSingleOrNull();
+    if (entete == null) throw PanierIntrouvable(panierId);
+
+    final statut = StatutPanier.depuisCode(entete.statut);
+    if (statut != StatutPanier.ouvert) throw PanierNonModifiable(statut);
+    return entete;
+  }
+
+  /// ⚠ **Q1 atterrit ici.** L'existence de l'article, vérifiée avant écriture.
+  ///
+  /// C'est ce qui remplace, sur ce client, la clé étrangère de l'option A du
+  /// document — et c'est ce qui distingue ce modèle de l'identifiant polymorphe
+  /// libre qu'il exclut (PA-76 : un champ qui peut viser une cible qui
+  /// n'existe pas).
+  ///
+  /// **M4 Restaurant est vérifié comme les autres** depuis le 09/10/2026 :
+  /// `plats_local` existe (schéma v14), et un code qui ne désigne aucun plat est
+  /// refusé comme le ferait une clé étrangère. Jusqu'à cette date la ligne M4
+  /// était acceptée sans rien vérifier — le seul écart avec l'option A, écrit
+  /// plutôt que découvert plus tard, et désormais refermé.
+  Future<void> _verifierCatalogue(ReferenceCatalogue reference) async {
+    if (!await _articleExiste(reference)) {
+      throw ArticleHorsCatalogue(reference.toString());
+    }
+  }
+
+  /// L'article désigné figure-t-il au catalogue local ? Une seule lecture, deux
+  /// appelants : l'ajout au panier ([_verifierCatalogue]) et la clôture, qui
+  /// relit la référence comme `VenteService::resoudreLignes`.
+  Future<bool> _articleExiste(ReferenceCatalogue reference) async {
+    return switch (reference.module) {
+      ModuleVendable.m5Bar =>
+        await (select(
+              cartesBoissonLocal,
+            )..where((c) => c.id.equals(reference.code))).getSingleOrNull() !=
+            null,
+      ModuleVendable.m8Vehicules =>
+        await (select(
+              vehiculesLocal,
+            )..where((v) => v.id.equals(reference.code))).getSingleOrNull() !=
+            null,
+      ModuleVendable.m9Tourisme =>
+        await (select(
+              circuitsLocal,
+            )..where((c) => c.id.equals(reference.code))).getSingleOrNull() !=
+            null,
+      // Par `attachedDatabase` et non par le mixin : l'accesseur n'a pas
+      // `PlatsLocal` dans sa liste de tables, et l'y ajouter ferait regénérer
+      // un mixin pour une seule lecture.
+      ModuleVendable.m4Restaurant =>
+        await (select(
+              attachedDatabase.platsLocal,
+            )..where((p) => p.id.equals(reference.code))).getSingleOrNull() !=
+            null,
+    };
+  }
+
+  /* ================================================================== */
+  /* Correspondances                                                    */
+  /* ================================================================== */
+
+  Future<Panier> _avecLignes(PaniersLocalData entete) async {
+    final lignes =
+        await (select(lignesPanierLocal)
+              ..where((l) => l.panierId.equals(entete.id))
+              ..orderBy([
+                (l) => OrderingTerm.asc(l.ajouteeLe),
+                (l) => OrderingTerm.asc(l.id),
+              ]))
+            .get();
+
+    return Panier(
+      id: entete.id,
+      typeVente: TypeVente.depuisCode(entete.typeVente),
+      statut: StatutPanier.depuisCode(entete.statut),
+      ouvertLe: entete.ouvertLe,
+      lignes: lignes.map(_versLigne).toList(growable: false),
+      reservationId: entete.reservationId,
+      clientNom: entete.clientNom,
+      pointVente: entete.pointVente,
+      tableId: entete.tableId,
+      espace: entete.espace,
+      dateDepartPrevue: entete.dateDepartPrevue,
+      clotureLe: entete.clotureLe,
+      modePaiement: entete.modePaiement,
+      montantCloture: entete.montantCloture,
+      motifAnnulation: entete.motifAnnulation,
+      sessionEncaissementId: entete.sessionEncaissementId,
+      statutTransmission: StatutTransmissionPanier.depuisCode(
+        entete.statutTransmission,
+      ),
+    );
+  }
+
+  LignePanier _versLigne(LignesPanierLocalData d) => LignePanier(
+    id: d.id,
+    reference: ReferenceCatalogue(
+      module: ModuleVendable.depuisCode(d.moduleSource),
+      code: d.codeArticle,
+    ),
+    libelle: d.libelle,
+    prixUnitaire: d.prixUnitaire,
+    quantite: d.quantite,
+    categorie: d.categorie,
+    ajouteeLe: d.ajouteeLe,
+  );
+}

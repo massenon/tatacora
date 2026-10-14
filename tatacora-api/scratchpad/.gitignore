@@ -1,0 +1,9 @@
+# Le jeu d'essai produit par `fixture_m1.php` contient des JETONS Sanctum.
+# Ils n'ouvrent qu'un compte jetable d'une base de developpement, mais un jeton
+# n'a rien a faire dans un depot : la regle ne souffre pas d'exception « c'est
+# juste du test » — c'est exactement la formule qui fait committer le suivant.
+*.json
+
+# Le script, lui, est versionne : sans lui, les quatre parcours de D1 ne sont
+# pas rejouables, et un test qu'on ne peut pas relancer n'est plus une preuve.
+!.gitignore

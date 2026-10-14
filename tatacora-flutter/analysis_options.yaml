@@ -1,0 +1,64 @@
+# Analyse statique — TATACORA AFRIQUE
+#
+# `06_DEVELOPMENT_STANDARDS.md` §3.1 impose `flutter_lints` en mode strict.
+#
+# Le point qui compte : **`warning` est bloquant, pas seulement `error`**
+# (`SDLC_FLUTTER.md` §5.2). Dart classe en `warning` des choses qui cassent en
+# production — un `null` non vérifié, un `await` oublié, une branche de `switch`
+# non couverte. Les tolérer revient à s'habituer au bruit, et le jour où une
+# vraie erreur apparaît, elle se perd dans les cinquante avertissements
+# existants.
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  errors:
+    # Ce qui casse silencieusement en production, remonté au rang d'erreur.
+    missing_return: error
+    unused_import: error
+    unused_local_variable: error
+    dead_code: error
+    invalid_use_of_protected_member: error
+    # Un `Future` non attendu produit un ordre d'exécution imprévisible :
+    # l'écriture locale peut partir après l'appel réseau qui la lit.
+    unawaited_futures: error
+    # Une chaîne littérale dans l'interface contourne l'i18n ARB.
+    prefer_const_constructors: warning
+
+  exclude:
+    # Code généré par Drift : il n'est ni relu ni versionné.
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - "build/**"
+
+  language:
+    strict-casts: true
+    strict-inference: true
+    strict-raw-types: true
+
+linter:
+  rules:
+    # --- Cohérence de style
+    always_declare_return_types: true
+    prefer_single_quotes: true
+    require_trailing_commas: true
+    sort_child_properties_last: true
+
+    # --- Sécurité et exactitude
+    avoid_dynamic_calls: true
+    avoid_slow_async_io: true
+    cancel_subscriptions: true
+    close_sinks: true
+    only_throw_errors: true
+    test_types_in_equals: true
+    throw_in_finally: true
+
+    # --- Architecture
+    # Un `print` en production ne va nulle part et masque un vrai besoin de log.
+    avoid_print: true
+    # Les identifiants sont en anglais, le contenu visible en français.
+    camel_case_types: true
+    library_private_types_in_public_api: true
+
+    # --- Documentation des règles de gestion
+    # Tout cas d'usage implémentant une RG porte un `///` avec @see EF/RG.
+    public_member_api_docs: false # activé module par module, pas d'emblée
