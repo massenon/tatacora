@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/format/formats.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../shared_widgets/bouton_standard.dart';
 // Le maître ne possède qu'UN moteur CRUD pour tout le dépôt — `crud-ui.js` et
 // `crud-engine.js` —, et `m5-bar.html` le configure exactement comme
 // `m4-restauration.html`. Son portage Flutter vit dans `features/restaurant/`
@@ -363,11 +364,12 @@ class _BarreOutilsState extends ConsumerState<_BarreOutils> {
           icon: const Icon(Icons.upload_outlined, size: AppLayout.iconeChamp),
           label: const Text('Importer', style: TextesRestaurant.petitCrud),
         ),
-        OutlinedButton.icon(
+        // Le bouton standard (PO, 14/10/2026) : le même « Exporter » que sur
+        // les autres écrans.
+        BoutonStandard(
           key: const Key('boissons-exporter'),
+          libelle: 'Exporter',
           onPressed: () => _exporter(context),
-          icon: const Icon(Icons.download_outlined, size: AppLayout.iconeChamp),
-          label: const Text('Exporter', style: TextesRestaurant.petitCrud),
         ),
         FilledButton.icon(
           key: const Key('boissons-ajouter'),

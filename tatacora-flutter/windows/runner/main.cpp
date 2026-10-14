@@ -27,7 +27,12 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   FlutterWindow window(project);
   Win32Window::Point origin(10, 10);
   Win32Window::Size size(1280, 720);
-  if (!window.Create(L"tatacora_flutter", origin, size)) {
+  // Window title decided by the Product Owner on 14/10/2026. Non-ASCII
+  // characters are written as backslash-u escapes so this source stays pure ASCII
+  // whatever code page the compiler assumes.
+  if (!window.Create(L"Syst\u00e8me de gestion Int\u00e9gr\u00e9 \u2014 "
+                     L"G\u00eete Chez No\u00ebl, Natitingou (B\u00e9nin)",
+                     origin, size)) {
     return EXIT_FAILURE;
   }
   window.SetQuitOnClose(true);

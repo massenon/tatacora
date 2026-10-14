@@ -12,12 +12,14 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/mesures_transverses.dart';
+import '../../../shared_widgets/bouton_standard.dart';
 import '../../../shared_widgets/pied_pagination.dart';
 import '../../transverse/presentation/widgets/briques_transverses.dart';
 import '../domain/consultation_comptable.dart';
 import '../domain/entities/comptabilite.dart';
 import '../domain/montant_comptable.dart';
 import 'providers_consultation_comptable.dart';
+import 'widgets/modale_ecriture.dart';
 
 /// Le hub **Comptabilité — SYSCOHADA révisé** — lot D du plan du Product
 /// Owner (14/10/2026), lecture du moteur M10 LOCAL (`MoteurComptable`,
@@ -39,9 +41,9 @@ import 'providers_consultation_comptable.dart';
 ///   sur ce poste — « — », et une ligne qui le dit (jamais un zéro).
 ///   L'alerte « Comptabilité déséquilibrée » de la vue en dépend : non rendue.
 /// - **Passer écriture** : l'encadré des contrôles est rendu ; « + Nouvelle
-///   écriture » DIT que la saisie manuelle n'est pas portée (le moteur ne
-///   passe ici que les pièces des ventes, dépenses, règlements et
-///   encaissements).
+///   écriture » ouvre la modale « Passer une écriture » (PO, 14/10/2026,
+///   `widgets/modale_ecriture.dart`), écrite par le moteur LOCAL — en
+///   brouillon, ou passée et validée — sous le droit d'écriture M10.
 /// - **Grand livre, Compte de résultat, Bilan, Analytique, Immobilisations,
 ///   Plan comptable, Clôtures** : l'onglet est cliquable et DIT qu'il n'est pas
 ///   calculé sur ce poste — aucun chiffre plutôt qu'un chiffre faux.
@@ -112,10 +114,8 @@ abstract final class TextesComptabilite {
   static const String indicateursSurCePoste =
       'Sur ce poste : les six indicateurs ne sont pas calculés — seuls le '
       'journal et la balance générale sont lus.';
-  static const String saisieNonPortee =
-      "La saisie manuelle d'une écriture n'est pas portée sur ce poste : seules "
-      'les pièces des ventes, dépenses, règlements et encaissements y sont '
-      "passées. Rien n'a été enregistré.";
+  static const String saisieSansDroit =
+      "Votre profil n'a pas le droit de passer une écriture comptable.";
   static const String exportNonProduit =
       "Aucun export comptable n'est produit sur ce poste : rien n'a été "
       'exporté.';
@@ -660,12 +660,12 @@ class _BarreFiltres extends StatelessWidget {
             padding: bouton,
             onTap: onReinitialiser,
           ),
-          BoutonTransverse(
-            cle: const Key('compta-exporter'),
+          // Le bouton standard (PO, 14/10/2026) : le même « Exporter » que
+          // sur les autres écrans.
+          BoutonStandard(
+            key: const Key('compta-exporter'),
             libelle: TextesComptabilite.exporter,
-            taille: TaillesContenu.t12,
-            padding: bouton,
-            onTap: () => direTransverse(
+            onPressed: () => direTransverse(
               context,
               TextesComptabilite.exportNonProduit,
               cle: const Key('compta-export-non-produit'),
@@ -704,7 +704,13 @@ class _Panneau extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (onglet == 'saisie') return _Saisie(exercice: exercice);
+    if (onglet == 'saisie') {
+      return _Saisie(
+        exercice: exercice,
+        journaux: donnees.journaux,
+        centres: donnees.centres,
+      );
+    }
     final ex = exercice;
     if (ex == null) return _AucunExercice(vide: donnees.exercices.isEmpty);
     switch (onglet) {
@@ -795,13 +801,19 @@ class _AucunExercice extends StatelessWidget {
 
 /// L'onglet « Passer écriture » : l'encadré gris des contrôles, puis
 /// l'encadré rouge sans exercice ouvert, ou la carte du bouton.
-class _Saisie extends StatelessWidget {
-  const _Saisie({required this.exercice});
+class _Saisie extends ConsumerWidget {
+  const _Saisie({
+    required this.exercice,
+    required this.journaux,
+    required this.centres,
+  });
 
   final ExerciceComptable? exercice;
+  final List<JournalComptable> journaux;
+  final List<CentreDeCout> centres;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final ouvert = exercice?.statut == StatutExercice.ouvert;
     final gris = styleTransverse(TaillesContenu.t13, couleur: Ardoise.c700);
     return Column(
@@ -875,11 +887,23 @@ class _Saisie extends StatelessWidget {
                     horizontal: AppSpacing.md,
                     vertical: AppSpacing.xsPlus,
                   ),
-                  onTap: () => direTransverse(
-                    context,
-                    TextesComptabilite.saisieNonPortee,
-                    cle: const Key('compta-saisie-non-portee'),
-                  ),
+                  // La modale « Passer une écriture » (PO, 14/10/2026), écrite
+                  // par le moteur LOCAL. Le moteur ne connaît pas le RBAC :
+                  // le droit d'écriture M10 se vérifie ICI.
+                  onTap: () =>
+                      ref
+                          .read(droitsProvider)
+                          .peutEcrire(ModuleTatacora.m10Comptabilite)
+                      ? ouvrirModaleEcriture(
+                          context,
+                          journaux: journaux,
+                          centres: centres,
+                        )
+                      : direTransverse(
+                          context,
+                          TextesComptabilite.saisieSansDroit,
+                          cle: const Key('compta-saisie-sans-droit'),
+                        ),
                 ),
               ],
             ),

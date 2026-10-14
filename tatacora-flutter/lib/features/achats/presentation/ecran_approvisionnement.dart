@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../shared_widgets/bouton_standard.dart';
 import '../../caisse/domain/montant_caisse.dart' show formaterCentimesEnFcfa;
 import '../domain/messages_reglement.dart';
 import '../impression/etat_liste_achats.dart';
@@ -263,11 +264,12 @@ class _EnTete extends StatelessWidget {
               spacing: AppSpacing.xs, // gap-2
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                _Bouton(
-                  cle: const Key('appro-exporter'),
+                // Le bouton standard (PO, 14/10/2026) : le même « Exporter »
+                // que sur les autres écrans.
+                BoutonStandard(
+                  key: const Key('appro-exporter'),
                   libelle: 'Exporter',
-                  icone: Icons.file_download_outlined,
-                  onTap: onExporter,
+                  onPressed: onExporter,
                 ),
                 _Bouton(
                   cle: const Key('besoins-commander'),
@@ -288,13 +290,11 @@ class _Bouton extends StatelessWidget {
     required Key cle,
     required this.libelle,
     required this.onTap,
-    this.icone,
     this.plein = false,
   }) : super(key: cle);
 
   final String libelle;
   final VoidCallback onTap;
-  final IconData? icone;
   final bool plein;
 
   @override
@@ -315,22 +315,13 @@ class _Bouton extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppRadius.roundedLg),
             border: plein ? null : Border.all(color: AppColors.neutre200),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (icone != null) ...[
-                Icon(icone, size: AppLayout.iconeChamp, color: texte),
-                const SizedBox(width: AppSpacing.xs),
-              ],
-              Text(
-                libelle,
-                style: _t(
-                  TaillesContenu.t12,
-                  poids: FontWeight.w600,
-                  couleur: texte,
-                ),
-              ),
-            ],
+          child: Text(
+            libelle,
+            style: _t(
+              TaillesContenu.t12,
+              poids: FontWeight.w600,
+              couleur: texte,
+            ),
           ),
         ),
       ),

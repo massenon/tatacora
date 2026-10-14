@@ -326,11 +326,14 @@ class _EnTete extends ConsumerWidget {
                   plein: true,
                   onTap: () => _nouveauClient(context, ref),
                 ),
-              _Bouton(
-                cle: const Key('clients-exporter'),
-                libelle: 'Exporter',
-                onTap: () => _exporter(context),
-              ),
+              // PO, 14/10/2026 : « Exporter » n'est AFFICHÉ que sur l'onglet
+              // « Liste des clients », le seul que l'export sait servir.
+              if (onglet == 'clients')
+                _Bouton(
+                  cle: const Key('clients-exporter'),
+                  libelle: 'Exporter',
+                  onTap: () => _exporter(context),
+                ),
             ],
           ),
         ],
@@ -361,19 +364,9 @@ class _EnTete extends ConsumerWidget {
 
   /// UN bouton « Exporter » (dérogation du Product Owner du 01/09/2026,
   /// `DerogationsMaquette::export_bouton_unique`) : le format s'y choisit.
-  /// L'export n'est offert que sur la liste, comme dans la vue.
+  /// L'export n'est offert que sur la liste : le bouton n'est affiché que sur
+  /// cet onglet (PO, 14/10/2026), d'où l'absence de refus ici.
   void _exporter(BuildContext context) {
-    if (onglet != 'clients') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'L’export n’est offert que sur l’onglet Liste des clients.',
-          ),
-        ),
-      );
-      return;
-    }
-
     showDialog<void>(
       context: context,
       builder: (_) => AlertDialog(

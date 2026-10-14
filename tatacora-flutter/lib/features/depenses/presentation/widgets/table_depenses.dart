@@ -13,6 +13,7 @@ import '../../../restaurant/presentation/widgets/corps_carte_commun.dart'
 import '../../../restaurant/presentation/widgets/tableau_restaurant.dart';
 import '../../domain/entities/depense.dart';
 import '../providers_depenses.dart';
+import 'modale_comptabiliser_depense.dart';
 
 /// Le libellé du bouton de rattrapage — `rattrapage_action` de
 /// `lang/fr/depenses_pwa.php` (vue l.294), confronté au traducteur PHP.
@@ -259,7 +260,19 @@ class _Pieces extends ConsumerWidget {
               InkWell(
                 key: Key('depense-comptabiliser-${depense.id}'),
                 borderRadius: BorderRadius.circular(AppRadius.rounded),
-                onTap: () => comptabiliserLaDepense(ref, depense),
+                // Le centre de coût se choisit dans une fenêtre (PO,
+                // 14/10/2026) : le bandeau ambre qui le portait est retiré.
+                onTap: () async {
+                  final centreId = await demanderCentreComptabilisation(
+                    context,
+                  );
+                  if (centreId == null) return;
+                  await comptabiliserLaDepense(
+                    ref,
+                    depense,
+                    centreId: centreId,
+                  );
+                },
                 child: Container(
                   // `px-2 py-0.5` — 8 px et 2 px.
                   padding: const EdgeInsets.symmetric(

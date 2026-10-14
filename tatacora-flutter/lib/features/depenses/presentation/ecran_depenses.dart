@@ -49,22 +49,31 @@ import 'widgets/table_depenses.dart';
 ///
 /// ## La pièce comptable est rendue depuis la v16 (10/10/2026)
 ///
-/// Le bandeau de rattrapage (l.120-125), la pastille « non comptabilisée » et le
-/// bouton « Comptabiliser » (l.283-287), le refus de rattrapage (l.107-111) et
-/// l'indicateur « Sans écriture » (l.196-200) sont RENDUS : le poste a un moteur
+/// La pastille « non comptabilisée » et le bouton « Comptabiliser »
+/// (l.283-287), le refus de rattrapage (l.107-111) et l'indicateur « Sans
+/// écriture » (l.196-200) sont RENDUS : le poste a un moteur
 /// comptable, et chacun se lit de `Depense.estComptabilisee` (la clé étrangère
 /// vers la pièce), jamais d'un drapeau. Le champ « Centre de coût » est dans la
 /// modale (l.481-490).
 ///
+/// ## Le bandeau de rattrapage n'est plus rendu (PO, 14/10/2026)
+///
+/// Directive du Product Owner du 14/10/2026 : le bandeau ambre « N dépense(s)
+/// ne portent aucune écriture comptable… » (vue l.120-133) est RETIRÉ de
+/// l'écran. Son `<select>` « Centre de coût de la pièce (obligatoire pour
+/// comptabiliser) » (vue l.126-131) passe dans une fenêtre « Comptabiliser la
+/// dépense » (`widgets/modale_comptabiliser_depense.dart`), ouverte par le
+/// bouton « Comptabiliser » de la ligne.
+///
 /// ## Le rattrapage exige un centre EXPLICITE (10/10/2026)
 ///
-/// Le bandeau porte le `<select>` « Centre de coût de la pièce (obligatoire pour
-/// comptabiliser) » (vue l.126-131). Il démarre sur « Choisir un centre » : la
-/// dépense ne mémorise aucun centre, et aucun compte de charge n'en porte par
-/// défaut. Le centre choisi va aux lignes de charge ET de trésorerie ; sans
-/// centre, le moteur refuse avec la phrase de RG-12. Cela remplace le D209 du
-/// ticket (« ne peut aboutir que si le compte porte un centre par défaut »),
-/// périmé depuis que le serveur a changé `DepenseService::comptabiliser`.
+/// La fenêtre démarre sur « Choisir un centre » : la dépense ne mémorise aucun
+/// centre, et aucun compte de charge n'en porte par défaut ; « Comptabiliser »
+/// y reste grisé tant qu'aucun centre n'est choisi. Le centre choisi va aux
+/// lignes de charge ET de trésorerie ; sans centre, le moteur refuse avec la
+/// phrase de RG-12. Cela remplace le D209 du ticket (« ne peut aboutir que si
+/// le compte porte un centre par défaut »), périmé depuis que le serveur a
+/// changé `DepenseService::comptabiliser`.
 ///
 /// ⚠ **Un libellé de la vue n'est pas rendu, et ce n'est pas un oubli** :
 /// « TATACORA AFRIQUE » (vue l.80-83, `<h2>` de l'en-tête d'impression,
@@ -99,11 +108,6 @@ class EcranDepenses extends ConsumerWidget {
     final filtre = ref.watch(filtreDepensesProvider);
     final succes = ref.watch(messageSuccesDepenseProvider);
     final refusRattrapage = ref.watch(refusRattrapageDepenseProvider);
-    // Le choix du centre du bandeau vit autant que l'écran (le composant
-    // Livewire vit autant que la page) : un simple abonnement, sans
-    // reconstruction, l'empêche d'être oublié quand le bandeau disparaît un
-    // instant pendant le rechargement de la liste.
-    ref.listen(centreRattrapageProvider, (_, _) {});
     final largeur = MediaQuery.sizeOf(context).width;
 
     return SingleChildScrollView(
@@ -135,15 +139,8 @@ class EcranDepenses extends ConsumerWidget {
                 _BandeauRefusRattrapage(message: refusRattrapage),
                 const SizedBox(height: AppSpacing.md),
               ],
-              // Le bandeau de rattrapage n'apparaît QUE s'il y a réellement
-              // quelque chose à reprendre (vue l.120-125, Article 7).
-              if (depenses != null &&
-                  depenses.any((d) => !d.estComptabilisee)) ...[
-                _BandeauRattrapage(
-                  nombre: depenses.where((d) => !d.estComptabilisee).length,
-                ),
-                const SizedBox(height: AppSpacing.md),
-              ],
+              // Le bandeau ambre de rattrapage de la vue (l.120-133) n'est
+              // plus rendu : directive du Product Owner du 14/10/2026.
               _Indicateurs(depenses: depenses),
               const SizedBox(height: AppSpacing.mdPlus),
               CadreTableauRestaurant(
@@ -611,6 +608,10 @@ class _CarteIndicateur extends StatelessWidget {
 /// — et un test les confronte au VRAI traducteur PHP
 /// (`depenses_contre_serveur_test.dart`, opération `libelles`) plutôt que de les
 /// figer deux fois.
+///
+/// Le bandeau n'est plus rendu (PO, 14/10/2026) : [centre] et [choisir]
+/// servent la fenêtre « Comptabiliser la dépense » ; [bandeau] est gardé parce
+/// que ce test le lit encore.
 abstract final class LibellesRattrapage {
   /// `rattrapage_centre` : le libellé du `<select>`.
   static const String centre =
@@ -624,125 +625,6 @@ abstract final class LibellesRattrapage {
       '$nombre dépense(s) ne portent aucune écriture comptable : elles '
       'manquent au grand livre, à la balance et au compte de résultat tant '
       'que la pièce n\'a pas été passée.';
-}
-
-/// Le bandeau ambre du rattrapage (l.120-133) : N dépenses sans pièce, et le
-/// centre de coût de la pièce à passer.
-///
-/// ## Le centre est un choix de l'opérateur, jamais une valeur devinée
-///
-/// Le serveur a corrigé son rattrapage le 10/10/2026 :
-/// `DepenseService::comptabiliser(Depense, string $centreId)` exige un centre
-/// EXPLICITE, passé aux lignes de charge ET de trésorerie, et aucun compte de
-/// charge n'en porte par défaut. La dépense ne mémorise aucun centre : le
-/// `<select>` démarre donc sur « Choisir un centre » (option vide), et cliquer
-/// « Comptabiliser » sans choisir est REFUSÉ par le moteur avec la phrase de
-/// RG-12 — l'écran n'écrit pas cette phrase, il affiche celle du moteur.
-///
-/// Les options sont les libellés des sept centres, dans l'ordre de la vue
-/// (`orderBy('libelle')`) — la même liste que le champ « Centre de coût » de la
-/// modale de saisie.
-class _BandeauRattrapage extends ConsumerWidget {
-  const _BandeauRattrapage({required this.nombre});
-
-  final int nombre;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final centres = ref.watch(centresDeCoutProvider).value ?? const [];
-    final choisi = ref.watch(centreRattrapageProvider);
-    final largeur = MediaQuery.sizeOf(context).width;
-
-    return Container(
-      key: const Key('depenses-bandeau-rattrapage'),
-      // `px-4 py-3` (l.122).
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm,
-      ),
-      decoration: BoxDecoration(
-        color: AppColors.reserveGoldFond,
-        borderRadius: BorderRadius.circular(AppRadius.roundedXl),
-        border: Border.all(color: AppColors.bordureReserveGold),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            '$nombre dépense(s) ne portent aucune écriture comptable : elles '
-            'manquent au grand livre, à la balance et au compte de résultat '
-            'tant que la pièce n\'a pas été passée.',
-            style: styleContenuCarte(
-              TaillesContenu.t13,
-              couleur: AppColors.gold,
-            ),
-          ),
-          // `mt-2` — 8 px (l.125).
-          const SizedBox(height: AppSpacing.xs),
-          // `block mt-2 text-[12px] font-semibold` (l.125).
-          Text(
-            LibellesRattrapage.centre,
-            style: styleContenuCarte(
-              TaillesContenu.t12,
-              poids: FontWeight.w600,
-              couleur: AppColors.gold,
-            ),
-          ),
-          // `mt-1` — 4 px.
-          const SizedBox(height: AppSpacing.unit),
-          // `block w-full sm:w-72 border border-slate-300 rounded-lg px-2
-          // py-1.5 text-[13px] bg-white text-slate-700` (l.126).
-          SizedBox(
-            width: largeur >= AppBreakpoints.sm
-                ? AppLayout.choixCentreRattrapage
-                : double.infinity,
-            child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.xs,
-                vertical: AppSpacing.xxs,
-              ),
-              decoration: BoxDecoration(
-                color: AppColors.neutre0,
-                borderRadius: BorderRadius.circular(AppRadius.roundedLg),
-                border: Border.all(color: Ardoise.c300),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  key: const Key('depenses-centre-rattrapage'),
-                  // Une valeur hors de la liste (centres pas encore lus) ne
-                  // doit pas lever : elle retombe sur l'option vide.
-                  value: centres.any((c) => c.id == choisi) ? choisi : '',
-                  isExpanded: true,
-                  isDense: true,
-                  itemHeight: null,
-                  iconSize: AppLayout.iconeChamp,
-                  style: styleContenuCarte(
-                    TaillesContenu.t13,
-                    couleur: Ardoise.c700,
-                  ),
-                  items: [
-                    const DropdownMenuItem<String>(
-                      value: '',
-                      child: Text(LibellesRattrapage.choisir),
-                    ),
-                    for (final c in centres)
-                      DropdownMenuItem<String>(
-                        value: c.id,
-                        child: Text(c.libelle),
-                      ),
-                  ],
-                  onChanged: (v) => ref
-                      .read(centreRattrapageProvider.notifier)
-                      .choisir(v ?? ''),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 /// Le refus d'un rattrapage (`@error('rattrapage')`, l.107-111) : la phrase du

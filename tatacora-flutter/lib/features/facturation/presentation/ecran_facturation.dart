@@ -371,14 +371,12 @@ class _Bouton extends StatelessWidget {
   final String libelle;
   final VoidCallback onTap;
 
-  /// Le bouton standard (PO, 14/10/2026), `px-3 py-1.5`.
+  /// Le bouton standard (PO, 14/10/2026) aux réglages PAR DÉFAUT — le même
+  /// « Exporter » que sur les autres écrans (40 px, rayon 6), et non plus le
+  /// `px-3 py-1.5` de la vue.
   @override
-  Widget build(BuildContext context) => BoutonStandard(
-    libelle: libelle,
-    margeHorizontale: AppSpacing.sm,
-    margeVerticale: AppSpacing.xxs,
-    onPressed: onTap,
-  );
+  Widget build(BuildContext context) =>
+      BoutonStandard(libelle: libelle, onPressed: onTap);
 }
 
 /// La rangée de compteurs (`px-4 py-2.5 border-b bg-slate-50`) : pièces,

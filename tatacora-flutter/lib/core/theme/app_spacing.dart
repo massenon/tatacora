@@ -822,6 +822,30 @@ abstract final class AppLayout {
   /// remplissage pour que la hauteur mesuree coincide.
   static const double bordureControle = 1;
 
+  /// La hauteur FIXE du bouton d'action standard (`BoutonStandard`),
+  /// bordure comprise — décision du Product Owner du 14/10/2026 (40 px,
+  /// rayon `AppRadius.roundedMd`), en écart assumé des ~37 px de la vue.
+  static const double hauteurBoutonStandard = 40;
+
+  /// La fenêtre « Modifier » d'un paramètre — compacte (PO, 14/10/2026) :
+  /// l'`AlertDialog` d'avant sortait trop haute (« Raison sociale »).
+  static const double modaleParametre = 440;
+
+  /// La hauteur maximale de la fenêtre « Modifier » d'un paramètre.
+  static const double hauteurMaxModaleParametre = 420;
+
+  /// La modale « Passer une écriture » de la comptabilité (PO, 14/10/2026) :
+  /// assez large pour la grille Compte / Libellé / Débit / Crédit.
+  static const double modaleEcriture = 900;
+
+  /// La hauteur maximale de la modale « Passer une écriture » — les lignes
+  /// défilent au-delà.
+  static const double hauteurMaxModaleEcriture = 640;
+
+  /// La hauteur maximale de la liste des comptes proposés à la frappe dans
+  /// cette modale — elle défile au-delà.
+  static const double hauteurMaxPropositionsCompte = 240;
+
   /// L'icone de l'ecran d'accueil de l'apercu — `<svg width="48"
   /// height="48" stroke="#CBD5E1">` (`m14-etats-studio.js` l.120).
   ///
