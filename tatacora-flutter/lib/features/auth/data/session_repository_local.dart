@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:uuid/uuid.dart';
 
@@ -160,6 +161,69 @@ final class SessionRepositoryLocal implements SessionRepository {
             dateMotDePasse: maintenant,
           ),
         );
+  }
+
+  /// Change le mot de passe de [login] — écran « Mon profil » (demande du PO
+  /// du 14/10/2026), réplique LOCALE de `MonProfil::changerMotDePasse()`.
+  ///
+  /// Mêmes règles, même ordre que le serveur : 8 caractères au moins (la
+  /// règle de [creerCompte]), nouveau différent de l'ancien, ancien VÉRIFIÉ
+  /// contre le dérivé stocké. Le nouveau est dérivé par le MÊME
+  /// [VerificateurHorsLigne.creer] que la création du compte — sel neuf,
+  /// PBKDF2 — et seul ce dérivé est écrit. La session n'est pas fermée.
+  ///
+  /// La confirmation (« les deux saisies correspondent ») est un contrôle de
+  /// SAISIE : elle reste au formulaire, comme au serveur.
+  Future<void> changerMotDePasse({
+    required String login,
+    required String ancien,
+    required String nouveau,
+    DateTime? maintenant,
+  }) async {
+    if (nouveau.length < 8) {
+      throw const EchecConnexion(
+        'Le mot de passe doit compter au moins 8 caractères.',
+      );
+    }
+    if (nouveau == ancien) {
+      throw const EchecConnexion(
+        "Le nouveau mot de passe est identique à l'ancien.",
+      );
+    }
+
+    final ligne = await (_base.select(
+      _base.utilisateursLocal,
+    )..where((u) => u.login.equals(login))).getSingleOrNull();
+    if (ligne == null || !ligne.actif) {
+      throw const EchecConnexion("L'ancien mot de passe est incorrect.");
+    }
+    final verificateur = VerificateurHorsLigne(
+      login: ligne.login,
+      sel: ligne.sel,
+      empreinte: ligne.empreinte,
+      iterations: ligne.iterations,
+      derniereConnexionEnLigne: ligne.dateMotDePasse,
+    );
+    if (!verificateur.correspond(ancien)) {
+      throw const EchecConnexion("L'ancien mot de passe est incorrect.");
+    }
+
+    final date = maintenant ?? DateTime.now();
+    final v = VerificateurHorsLigne.creer(
+      login: ligne.login,
+      motDePasse: nouveau,
+      maintenant: date,
+    );
+    await (_base.update(
+      _base.utilisateursLocal,
+    )..where((u) => u.id.equals(ligne.id))).write(
+      UtilisateursLocalCompanion(
+        sel: Value(v.sel),
+        empreinte: Value(v.empreinte),
+        iterations: Value(v.iterations),
+        dateMotDePasse: Value(date),
+      ),
+    );
   }
 
   @override

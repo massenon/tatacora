@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/format/formats.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../shared_widgets/liste_paginee.dart';
 import '../../../achats/presentation/widgets/modale_archivage_achats.dart';
 import '../../../restaurant/presentation/widgets/coquille_restaurant.dart';
 import '../../../restaurant/presentation/widgets/tableau_restaurant.dart';
@@ -144,49 +145,55 @@ class _Corps extends ConsumerWidget {
             titre:
                 'Parc — du ${dateFrVehicules(periode.debut)} '
                 'au ${dateFrVehicules(periode.fin)}',
-            corps: TableauRestaurant(
-              gabarit: GabaritTableau.carte,
-              colonnes: VueParc.colonnes(jours),
-              clesLignes: [
-                for (final v in vehicules) Key('vehicules-ligne-${v.id}'),
-              ],
-              lignes: [
-                for (final v in vehicules)
-                  [
-                    _CelluleVehicule(vehicule: v),
-                    Text(
-                      v.categorieLibelle ?? CarteIndicateurRestaurant.absent,
-                      style: TextesRestaurant.corps,
-                    ),
-                    // Aucune colonne `capacite` sur ce poste — « — », jamais 0.
-                    Tooltip(
-                      message:
-                          'Le nombre de places n’est pas enregistré sur ce '
-                          'poste.',
-                      child: Text(
-                        v.capacite?.toString() ??
+            // Dix véhicules par page (PO, 14/10/2026).
+            corps: ListePaginee<Vehicule>(
+              elements: vehicules,
+              prefixeCle: 'vehicules-parc-pagination',
+              cleRemiseAZero: (ref.watch(rechercheVehiculesProvider), periode),
+              constructeur: (_, page) => TableauRestaurant(
+                gabarit: GabaritTableau.carte,
+                colonnes: VueParc.colonnes(jours),
+                clesLignes: [
+                  for (final v in page) Key('vehicules-ligne-${v.id}'),
+                ],
+                lignes: [
+                  for (final v in page)
+                    [
+                      _CelluleVehicule(vehicule: v),
+                      Text(
+                        v.categorieLibelle ?? CarteIndicateurRestaurant.absent,
+                        style: TextesRestaurant.corps,
+                      ),
+                      // Aucune colonne `capacite` sur ce poste — « — », jamais 0.
+                      Tooltip(
+                        message:
+                            'Le nombre de places n’est pas enregistré sur ce '
+                            'poste.',
+                        child: Text(
+                          v.capacite?.toString() ??
+                              CarteIndicateurRestaurant.absent,
+                          style: TextesRestaurant.corps,
+                        ),
+                      ),
+                      _PastillePermis(exige: v.exigePermis),
+                      Text(
+                        formaterMontantDecimal(v.tarifJour, suffixe: 'FCFA') ??
                             CarteIndicateurRestaurant.absent,
                         style: TextesRestaurant.corps,
                       ),
-                    ),
-                    _PastillePermis(exige: v.exigePermis),
-                    Text(
-                      formaterMontantDecimal(v.tarifJour, suffixe: 'FCFA') ??
-                          CarteIndicateurRestaurant.absent,
-                      style: TextesRestaurant.corps,
-                    ),
-                    Text(
-                      formaterMontantDecimal(
-                            _montantPeriode(v.tarifJour, jours),
-                            suffixe: 'FCFA',
-                          ) ??
-                          CarteIndicateurRestaurant.absent,
-                      style: TextesRestaurant.corpsFort,
-                    ),
-                    _Disponibilite(vehicule: v),
-                    _ActionsLigne(vehicule: v),
-                  ],
-              ],
+                      Text(
+                        formaterMontantDecimal(
+                              _montantPeriode(v.tarifJour, jours),
+                              suffixe: 'FCFA',
+                            ) ??
+                            CarteIndicateurRestaurant.absent,
+                        style: TextesRestaurant.corpsFort,
+                      ),
+                      _Disponibilite(vehicule: v),
+                      _ActionsLigne(vehicule: v),
+                    ],
+                ],
+              ),
             ),
           ),
       ],

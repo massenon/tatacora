@@ -349,19 +349,11 @@ class _BarreOutilsState extends ConsumerState<_BarreOutils> {
         ),
         OutlinedButton.icon(
           key: const Key('boissons-importer'),
-          // Aucune route n'accepte d'import : le bouton dit pourquoi au lieu
-          // d'ouvrir une modale qui n'enregistrerait rien (Article 6).
-          onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              key: Key('boissons-import-refuse'),
-              content: Text(
-                // Réécrit le 14/10/2026 (directive du PO) : la modale
-                // d'import de la vue n'est pas portée, aucune route n'existe.
-                'L’import de boissons n’est pas disponible sur ce poste : un '
-                'fichier déposé ici ne créerait aucune boisson.',
-              ),
-            ),
-          ),
+          // L'import de la carte du bar passe par l'onglet « Importer les
+          // données » de l'écran Import & Export (14/10/2026) : contrôle,
+          // rapport, puis une transaction unique — le module y est
+          // présélectionné.
+          onPressed: () => context.go('/import-export?module=m5-bar'),
           icon: const Icon(Icons.upload_outlined, size: AppLayout.iconeChamp),
           label: const Text('Importer', style: TextesRestaurant.petitCrud),
         ),

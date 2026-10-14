@@ -102,11 +102,6 @@ abstract final class TextesAide {
   static const String contactDetail =
       "Contactez l'éditeur : assistance technique, suggestions d'évolution et signalement d'anomalies.";
   static const String contactBouton = "Contacter l'éditeur";
-
-  /// AJOUT déclaré : la vue rend la carte inerte, ce poste DIT pourquoi.
-  static const String modelesImportSurCePoste =
-      "Sur ce poste, aucun import n'existe : il n'y a donc aucun modèle à "
-      'télécharger.';
 }
 
 /// Une carte de module : `pwa.aide.modules.<code>`, la route de CE poste.
@@ -303,7 +298,9 @@ const List<_EntreeFaq> _faq = [
     question: "Mon fichier d'import est refusé. Que dois-je faire ?",
     reponse:
         "Téléchargez d'abord le modèle du module concerné dans Import & Export › Importer : il porte les colonnes et les libellés exacts attendus. Après dépôt, un contrôle de cohérence compare votre fichier au référentiel et liste les écarts ligne par ligne — colonne manquante, valeur hors liste, doublon, montant illisible. Corrigez le fichier et redéposez-le : rien n'est importé tant qu'une erreur bloquante subsiste.",
-    surCePoste: "Sur ce poste : aucun import n'existe.",
+    surCePoste:
+        'Sur ce poste : les modules importables sont ceux dont la table est '
+        'tenue ici ; une ligne déjà présente est ignorée, jamais dupliquée.',
   ),
   (
     categorie: 'Import & export',
@@ -311,7 +308,9 @@ const List<_EntreeFaq> _faq = [
     reponse:
         "Une sauvegarde est générée automatiquement chaque semaine et vous êtes averti de la télécharger. Une sauvegarde qui reste sur la machine ne protège de rien : c'est le téléchargement qui la met à l'abri. Vous pouvez en générer une à tout moment depuis Import & Export › Sauvegardes, avant une opération sensible par exemple.",
     surCePoste:
-        "Sur ce poste : l'application ne génère aucune sauvegarde de sa base.",
+        'Sur ce poste : aucune sauvegarde automatique — « Générer une '
+        'sauvegarde de la base » enregistre une copie complète, à '
+        "l'emplacement que vous choisissez.",
   ),
   (
     categorie: 'Comptabilité',
@@ -1113,8 +1112,11 @@ class _Ressources extends StatelessWidget {
               trace: TracesCoquille.importExport,
               titre: TextesAide.modelesImportTitre,
               detail: TextesAide.modelesImportDetail,
-              onTap: () =>
-                  direTransverse(context, TextesAide.modelesImportSurCePoste),
+              // ÉCART NOMMÉ (14/10/2026) : la vue rend cette carte inerte
+              // (« hors périmètre ») ; sur ce poste l'import existe — onglet
+              // « Importer les données » d'Import & Export, où chaque module
+              // a son modèle. La carte y mène.
+              onTap: () => aller(ModuleTatacora.parametres, '/import-export'),
             ),
             carte(
               cle: const Key('aide-ressource-journal-audit'),

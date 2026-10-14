@@ -12,7 +12,7 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../../../shared_widgets/bouton_standard.dart';
 import '../../../restaurant/presentation/widgets/coquille_modale_restaurant.dart';
 import '../../../restaurant/presentation/widgets/textes_modale_restaurant.dart';
-import '../../data/stocks_api.dart';
+import '../../data/service_import_articles.dart';
 import '../../domain/import_articles.dart';
 import '../providers_stocks.dart';
 
@@ -93,16 +93,7 @@ class _ModaleImportState extends ConsumerState<_ModaleImport> {
       contenu: contenu,
       points: points,
       nouvelId: uuid.v4,
-      enregistrer: (saisie) async {
-        final r = await api.enregistrerArticle(saisie);
-        return switch (r) {
-          ArticleEnregistre() => const LigneImportee(),
-          ArticleRefuse(:final motif) => LigneRefusee(motif),
-          ArticleInjoignable() => const LigneRefusee(
-            "L'article n'a pas pu être écrit sur ce poste.",
-          ),
-        };
-      },
+      enregistrer: (saisie) => enregistrerArticleImporte(api, saisie),
     );
     if (!mounted) return;
     _creesCumules += bilan.crees;

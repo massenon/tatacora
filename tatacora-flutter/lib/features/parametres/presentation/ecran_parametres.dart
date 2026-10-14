@@ -13,6 +13,7 @@ import '../domain/enregistrer_parametres.dart';
 import '../domain/entities/parametre.dart';
 import '../domain/resultats_parametres.dart';
 import 'widgets/champ_parametre.dart';
+import 'widgets/onglet_espaces_tables.dart';
 
 // Les refus de la vue, DITS dans le code plutôt qu'affichés (la vue n'a plus de
 // section de refus à l'écran — directive du 31/08/2026). Ce sont des champs ou
@@ -250,10 +251,18 @@ class _PageState extends ConsumerState<_Page> {
               _Cellule(enfant: ligne(d)),
           ],
         );
+      case 'tables':
+        // Le référentiel des tables de salle du poste (`tables_local`, seul
+        // écrivain `TablesPosDao`) — le même que lit le point de vente.
+        return OngletEspacesTables(peutEcrire: peutEcrire);
       default:
-        // Logo & Apparence, Canaux de réservation, Espaces & tables : leur
-        // contenu (téléversement, canaux, tables de salle) n'a pas encore de
-        // source sur ce poste. Dit en une ligne, jamais un onglet vide.
+        // Logo & Apparence, Canaux de réservation : leur contenu n'a pas de
+        // source sur ce poste. Logo et favicon sont des FICHIERS téléversés
+        // (aucune clé de `parametres_systeme_local`, aucun stockage de
+        // fichier) ; les canaux sont un référentiel du serveur
+        // (`canaux_reservation`) sans table locale — le poste ne connaît que
+        // la liste fermée de la fiche de réservation. Dit en une ligne,
+        // jamais un onglet vide.
         return const _Grille(
           enfants: [
             _Cellule(

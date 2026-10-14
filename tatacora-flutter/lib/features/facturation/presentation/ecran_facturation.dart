@@ -7,6 +7,7 @@ import '../../../core/format/formats.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../shared_widgets/bouton_standard.dart';
+import '../../../shared_widgets/liste_paginee.dart';
 import '../../../shared_widgets/modale_export.dart';
 import '../../../shared_widgets/tableau_tatacora.dart';
 import '../../../shared_widgets/toast_export.dart';
@@ -85,9 +86,20 @@ class EcranFacturation extends ConsumerWidget {
                         padding: const EdgeInsets.all(AppSpacing.xl),
                         child: Center(child: Text('$e')),
                       ),
-                      data: (liste) => _Registre(pieces: liste),
+                      // Dix pièces par page (PO, 14/10/2026) — le pied
+                      // commun remplace « Affichage de 1-N sur N ». Les
+                      // exports lisent `registreProvider`, la liste ENTIÈRE.
+                      data: (liste) => ListePaginee<PieceFacturation>(
+                        elements: liste,
+                        prefixeCle: 'factures-pagination',
+                        cleRemiseAZero: (
+                          ref.watch(origineFiltreeProvider),
+                          ref.watch(moduleFiltreProvider),
+                          ref.watch(rechercheFactureProvider),
+                        ),
+                        constructeur: (_, page) => _Registre(pieces: page),
+                      ),
                     ),
-                    _PiedRegistre(total: pieces.length),
                   ],
                 ),
               ),
@@ -667,47 +679,6 @@ class _Rangee extends StatelessWidget {
             ),
           ),
       ],
-    );
-  }
-}
-
-/// `px-4 py-3 border-t border-slate-100 text-xs` — le décompte de la vue.
-/// Le registre n'est pas paginé ici : tout ce qui correspond est affiché.
-class _PiedRegistre extends StatelessWidget {
-  const _PiedRegistre({required this.total});
-
-  final int total;
-
-  @override
-  Widget build(BuildContext context) {
-    Widget fort(String t) => Text(
-      t,
-      style: _t(
-        TaillesContenu.t12,
-        poids: FontWeight.bold,
-        couleur: AppColors.neutre500,
-      ),
-    );
-    final base = _t(TaillesContenu.t12, couleur: AppColors.neutre500);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm,
-      ),
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: AppColors.neutre100)),
-      ),
-      child: Row(
-        children: [
-          Text('Affichage de ', style: base),
-          fort(total == 0 ? '0' : '1'),
-          Text('-', style: base),
-          fort('$total'),
-          Text(' sur ', style: base),
-          fort('$total'),
-        ],
-      ),
     );
   }
 }

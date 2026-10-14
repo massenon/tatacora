@@ -235,7 +235,14 @@ class _PageAvecDonnees extends ConsumerWidget {
           OngletCarte.carteDuJour =>
             carte.lignes.isEmpty
                 ? const EtatVideCarteRestaurant()
-                : VueCarteDuJour(lignes: carte.lignes),
+                : VueCarteDuJour(
+                    lignes: carte.lignes,
+                    cleFiltre: (
+                      ref.watch(rechercheCarteRestaurantProvider),
+                      ref.watch(categorieCarteRestaurantProvider),
+                      ref.watch(etatCarteRestaurantProvider),
+                    ),
+                  ),
           OngletCarte.couvertureDuStock => VueCouverture(
             couverture: carte.couverture,
             indicateurs: carte.indicateurs,

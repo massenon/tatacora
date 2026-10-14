@@ -180,6 +180,54 @@ class TablesPosDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
+  /// Renumérote une table — « Renuméroter » de Paramètres › Espaces & tables.
+  /// Le libellé SUIT le numéro (`table_aide_renumerotation`). Un numéro déjà
+  /// porté par une autre table du même espace est refusé : la contrainte
+  /// d'unicité (espace, numéro) lèverait de toute façon, avec un message
+  /// technique.
+  Future<TablePos> renumeroter(String id, int numero) async {
+    if (numero < 1) {
+      throw ArgumentError.value(
+        numero,
+        'numero',
+        'Le numéro de table doit être un entier positif.',
+      );
+    }
+    return transaction(() async {
+      final ligne = await (select(
+        tablesLocal,
+      )..where((t) => t.id.equals(id))).getSingleOrNull();
+      if (ligne == null) {
+        throw ArgumentError.value(id, 'id', 'Table introuvable.');
+      }
+      final espace = EspacePos.parCode(ligne.espace);
+      final homonyme =
+          await (select(tablesLocal)..where(
+                (t) =>
+                    t.espace.equals(ligne.espace) &
+                    t.numero.equals(numero) &
+                    t.id.equals(id).not(),
+              ))
+              .getSingleOrNull();
+      if (homonyme != null) {
+        throw ArgumentError.value(
+          numero,
+          'numero',
+          'La table ${espace.prefixe}$numero existe déjà dans cet espace.',
+        );
+      }
+      await (update(tablesLocal)..where((t) => t.id.equals(id))).write(
+        TablesLocalCompanion(
+          numero: Value(numero),
+          libelle: Value('${espace.prefixe}$numero'),
+        ),
+      );
+      return _versDomaine(
+        await (select(tablesLocal)..where((t) => t.id.equals(id))).getSingle(),
+      );
+    });
+  }
+
   /// Active ou désactive. **Jamais de suppression.**
   ///
   /// Et une table dont le panier est **ouvert** ne se désactive pas : les

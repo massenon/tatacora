@@ -5,6 +5,7 @@ import '../../../../core/format/formats.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../shared_widgets/liste_paginee.dart';
 import '../../domain/entities/carte_restaurant.dart';
 import '../../domain/messages_restaurant.dart';
 import '../../impression/etat_carte_restaurant.dart';
@@ -86,9 +87,13 @@ const List<ColonneRestaurant> colonnesCarteDuJour = [
 /// ([MessagesRestaurant.stockSansLesVentes]) — un indicateur qui affirme un
 /// état qu'il n'a pas vérifié est le défaut que ce dépôt a rencontré dix fois.
 class VueCarteDuJour extends StatelessWidget {
-  const VueCarteDuJour({super.key, required this.lignes});
+  const VueCarteDuJour({super.key, required this.lignes, this.cleFiltre});
 
   final List<LigneCarteRestaurant> lignes;
+
+  /// La recherche et les filtres : les changer ramène la pagination à la
+  /// page 1.
+  final Object? cleFiltre;
 
   @override
   Widget build(BuildContext context) {
@@ -105,35 +110,42 @@ class VueCarteDuJour extends StatelessWidget {
             titre: '${lignes.length} article(s)',
             // `carte_pwa.commun.tableau_aside` (l.307).
             aside: 'Le stock vendable est calculé, jamais saisi.',
-            corps: TableauRestaurant(
-              gabarit: GabaritTableau.carteVue,
-              pleineLargeur: true,
-              colonnes: colonnesCarteDuJour,
-              clesLignes: [
-                for (final l in lignes) Key('carte-restaurant-ligne-${l.id}'),
-              ],
-              lignes: [
-                for (final l in lignes)
-                  [
-                    _Article(ligne: l),
-                    Text(
-                      l.categorieLibelle,
-                      style: TextesRestaurant.secondaire,
-                    ),
-                    _Prix(ligne: l),
-                    const _SansSource(
-                      cle: Key('carte-restaurant-disponible-inconnu'),
-                      quoi: 'Les disponibilités du jour',
-                    ),
-                    _ArticleDeStock(ligne: l),
-                    _StockVendable(ligne: l),
-                    const _SansSource(
-                      cle: Key('carte-restaurant-reserve-inconnue'),
-                      quoi: 'Les réserves hors point de vente',
-                    ),
-                    _Actions(ligne: l),
-                  ],
-              ],
+            // Dix articles par page (PO, 14/10/2026) ; les exports lisent la
+            // carte ENTIÈRE.
+            corps: ListePaginee<LigneCarteRestaurant>(
+              elements: lignes,
+              prefixeCle: 'carte-restaurant-pagination',
+              cleRemiseAZero: cleFiltre,
+              constructeur: (_, page) => TableauRestaurant(
+                gabarit: GabaritTableau.carteVue,
+                pleineLargeur: true,
+                colonnes: colonnesCarteDuJour,
+                clesLignes: [
+                  for (final l in page) Key('carte-restaurant-ligne-${l.id}'),
+                ],
+                lignes: [
+                  for (final l in page)
+                    [
+                      _Article(ligne: l),
+                      Text(
+                        l.categorieLibelle,
+                        style: TextesRestaurant.secondaire,
+                      ),
+                      _Prix(ligne: l),
+                      const _SansSource(
+                        cle: Key('carte-restaurant-disponible-inconnu'),
+                        quoi: 'Les disponibilités du jour',
+                      ),
+                      _ArticleDeStock(ligne: l),
+                      _StockVendable(ligne: l),
+                      const _SansSource(
+                        cle: Key('carte-restaurant-reserve-inconnue'),
+                        quoi: 'Les réserves hors point de vente',
+                      ),
+                      _Actions(ligne: l),
+                    ],
+                ],
+              ),
             ),
           ),
           if (avecChiffre)

@@ -11,6 +11,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../shared_widgets/bouton_standard.dart';
+import '../../../shared_widgets/liste_paginee.dart';
 import '../../../shared_widgets/modale_export.dart';
 import '../../../shared_widgets/toast_export.dart';
 import '../../restaurant/presentation/widgets/coquille_restaurant.dart'
@@ -1005,24 +1006,30 @@ class _Panneau extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Consumer(
-      builder: (context, ref, _) => switch (ref.watch(
-        ongletNotificationsProvider,
-      )) {
-        OngletNotifications.file => _PanneauFile(
-          groupes: vue.groupes,
-          peutEcrire: peutEcrire,
-        ),
-        OngletNotifications.modeles => _PanneauModeles(
-          modeles: vue.modeles,
-          peutEcrire: peutEcrire,
-        ),
-        OngletNotifications.declencheurs => _PanneauDeclencheurs(
-          declencheurs: vue.declencheurs,
-          tousModeles: vue.tousModeles,
-        ),
-        OngletNotifications.journal => _PanneauJournal(journal: vue.journal),
-        OngletNotifications.canaux => _PanneauCanaux(enFile: vue.enFile),
-      },
+      builder: (context, ref, _) =>
+          switch (ref.watch(ongletNotificationsProvider)) {
+            OngletNotifications.file => _PanneauFile(
+              groupes: vue.groupes,
+              peutEcrire: peutEcrire,
+            ),
+            OngletNotifications.modeles => _PanneauModeles(
+              modeles: vue.modeles,
+              peutEcrire: peutEcrire,
+            ),
+            OngletNotifications.declencheurs => _PanneauDeclencheurs(
+              declencheurs: vue.declencheurs,
+              tousModeles: vue.tousModeles,
+            ),
+            OngletNotifications.journal => _PanneauJournal(
+              journal: vue.journal,
+              cleFiltre: (
+                ref.watch(rechercheNotificationsProvider),
+                ref.watch(canalFiltreProvider),
+                ref.watch(publicFiltreProvider),
+              ),
+            ),
+            OngletNotifications.canaux => _PanneauCanaux(enFile: vue.enFile),
+          },
     );
   }
 }
@@ -1744,9 +1751,12 @@ class _PanneauDeclencheurs extends StatelessWidget {
 /* --------------------------------------------------------------- journal */
 
 class _PanneauJournal extends StatelessWidget {
-  const _PanneauJournal({required this.journal});
+  const _PanneauJournal({required this.journal, required this.cleFiltre});
 
   final List<MessageNotification> journal;
+
+  /// La recherche et les filtres : les changer ramène à la page 1.
+  final Object cleFiltre;
 
   @override
   Widget build(BuildContext context) {
@@ -1796,80 +1806,13 @@ class _PanneauJournal extends StatelessWidget {
         ],
       ),
       enfants: [
-        _Tableau(
-          colonnes: const [
-            'Date',
-            'Destinataire',
-            'Déclencheur',
-            'Canal',
-            'Statut',
-            'Envoi système',
-            'Par',
-            'Commentaire',
-          ],
-          lignes: [
-            for (final m in journal)
-              DataRow(
-                cells: [
-                  DataCell(Text(formaterDate(m.traiteLe ?? m.composeLe))),
-                  DataCell(
-                    Text(
-                      m.destinataire,
-                      key: Key('notifications-journal-${m.id}'),
-                      style: styleContenuCarte(
-                        TaillesContenu.t13,
-                        poids: FontWeight.w600,
-                        couleur: Ardoise.c800,
-                      ),
-                    ),
-                  ),
-                  DataCell(Text(m.declencheur?.libelle ?? '')),
-                  DataCell(Text(m.canal?.libelle ?? '')),
-                  DataCell(
-                    m.statut == StatutMessageNotification.transmisALaMain
-                        ? _Pastille(
-                            texte: m.statut.libelle,
-                            fond: PaletteMaitre.emeraude50,
-                            texteCouleur: PaletteMaitre.emeraude700,
-                            taille: TaillesContenu.t11,
-                            horizontal: AppSpacing.xs,
-                          )
-                        : _Pastille(
-                            texte: m.statut.libelle,
-                            fond: Ardoise.c100,
-                            texteCouleur: Ardoise.c500,
-                            taille: TaillesContenu.t11,
-                            horizontal: AppSpacing.xs,
-                          ),
-                  ),
-                  DataCell(
-                    // Dérivé du STATUT, jamais écrit en dur : le jour où un
-                    // transport écrira, la colonne suivra (PA-61).
-                    _Pastille(
-                      cle: Key('notifications-envoi-systeme-${m.id}'),
-                      texte: m.statut.estUnEnvoiDuSysteme ? 'oui' : 'non',
-                      fond: m.statut.estUnEnvoiDuSysteme
-                          ? PaletteMaitre.emeraude50
-                          : PaletteMaitre.rouge50,
-                      texteCouleur: m.statut.estUnEnvoiDuSysteme
-                          ? PaletteMaitre.emeraude700
-                          : PaletteMaitre.rouge900,
-                      taille: TaillesContenu.t11,
-                      horizontal: AppSpacing.xs,
-                    ),
-                  ),
-                  DataCell(Text(m.auteurAffiche)),
-                  DataCell(
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        maxWidth: AppLayout.bulleMessageNotification,
-                      ),
-                      child: Text(m.commentaireAffiche),
-                    ),
-                  ),
-                ],
-              ),
-          ],
+        // Dix messages par page (PO, 14/10/2026).
+        ListePaginee<MessageNotification>(
+          elements: journal,
+          prefixeCle: 'notifications-journal-pagination',
+          cleRemiseAZero: cleFiltre,
+          masquerSiVide: true,
+          constructeur: (_, page) => _tableauJournal(page),
         ),
         if (journal.isEmpty)
           const _LigneVide(
@@ -1887,6 +1830,83 @@ class _PanneauJournal extends StatelessWidget {
       ],
     );
   }
+
+  /// Le tableau du journal pour [page] — les lignes de la page affichée.
+  static Widget _tableauJournal(List<MessageNotification> page) => _Tableau(
+    colonnes: const [
+      'Date',
+      'Destinataire',
+      'Déclencheur',
+      'Canal',
+      'Statut',
+      'Envoi système',
+      'Par',
+      'Commentaire',
+    ],
+    lignes: [
+      for (final m in page)
+        DataRow(
+          cells: [
+            DataCell(Text(formaterDate(m.traiteLe ?? m.composeLe))),
+            DataCell(
+              Text(
+                m.destinataire,
+                key: Key('notifications-journal-${m.id}'),
+                style: styleContenuCarte(
+                  TaillesContenu.t13,
+                  poids: FontWeight.w600,
+                  couleur: Ardoise.c800,
+                ),
+              ),
+            ),
+            DataCell(Text(m.declencheur?.libelle ?? '')),
+            DataCell(Text(m.canal?.libelle ?? '')),
+            DataCell(
+              m.statut == StatutMessageNotification.transmisALaMain
+                  ? _Pastille(
+                      texte: m.statut.libelle,
+                      fond: PaletteMaitre.emeraude50,
+                      texteCouleur: PaletteMaitre.emeraude700,
+                      taille: TaillesContenu.t11,
+                      horizontal: AppSpacing.xs,
+                    )
+                  : _Pastille(
+                      texte: m.statut.libelle,
+                      fond: Ardoise.c100,
+                      texteCouleur: Ardoise.c500,
+                      taille: TaillesContenu.t11,
+                      horizontal: AppSpacing.xs,
+                    ),
+            ),
+            DataCell(
+              // Dérivé du STATUT, jamais écrit en dur : le jour où un
+              // transport écrira, la colonne suivra (PA-61).
+              _Pastille(
+                cle: Key('notifications-envoi-systeme-${m.id}'),
+                texte: m.statut.estUnEnvoiDuSysteme ? 'oui' : 'non',
+                fond: m.statut.estUnEnvoiDuSysteme
+                    ? PaletteMaitre.emeraude50
+                    : PaletteMaitre.rouge50,
+                texteCouleur: m.statut.estUnEnvoiDuSysteme
+                    ? PaletteMaitre.emeraude700
+                    : PaletteMaitre.rouge900,
+                taille: TaillesContenu.t11,
+                horizontal: AppSpacing.xs,
+              ),
+            ),
+            DataCell(Text(m.auteurAffiche)),
+            DataCell(
+              ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: AppLayout.bulleMessageNotification,
+                ),
+                child: Text(m.commentaireAffiche),
+              ),
+            ),
+          ],
+        ),
+    ],
+  );
 }
 
 /* ---------------------------------------------------------------- canaux */

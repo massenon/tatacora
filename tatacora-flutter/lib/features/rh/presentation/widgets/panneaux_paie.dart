@@ -28,6 +28,7 @@ import '../../../../core/theme/app_breakpoints.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../shared_widgets/liste_paginee.dart';
 import '../../../restaurant/presentation/widgets/corps_carte_commun.dart'
     show EncadreCarte, styleContenuCarte;
 import '../../../restaurant/presentation/widgets/tableau_restaurant.dart';
@@ -503,74 +504,88 @@ class PanneauPersonnel extends ConsumerWidget {
               onPressed: () => onArchiver(null),
             )
           : null,
-      enfant: _TableauPaie(
-        vide: const _EtatVide(
-          titre: 'Aucun résultat',
-          detail: 'Aucun employé ne correspond à ces critères.',
+      // Dix employés par page (PO, 14/10/2026) ; la ligne TOTAL et la case
+      // « tout » portent TOUT l'effectif filtré, jamais la seule page.
+      enfant: ListePaginee<Employe>(
+        elements: employes,
+        prefixeCle: 'paie-personnel-pagination',
+        cleRemiseAZero: (
+          ref.watch(recherchePersonnelProvider),
+          ref.watch(filtreServicePaieProvider),
+          ref.watch(filtreContratProvider),
+          ref.watch(filtreStatutPaieProvider),
         ),
-        colonnes: [
-          if (peutArchiver)
-            ColonneRestaurant(
-              '',
-              enteteSpecial: _CaseACocher(
-                cle: const Key('paie-case-tout'),
-                etiquette: 'Sélectionner tout le personnel affiché',
-                valeur:
-                    archivables.isNotEmpty &&
-                    archivables.every(selection.contains),
-                onChanged: (coche) {
-                  final notifier = ref.read(selectionPaieProvider.notifier);
-                  if (coche) {
-                    notifier.definir(archivables.toSet());
-                  } else {
-                    notifier.vider();
-                  }
-                },
+        masquerSiVide: true,
+        constructeur: (_, page) => _TableauPaie(
+          vide: const _EtatVide(
+            titre: 'Aucun résultat',
+            detail: 'Aucun employé ne correspond à ces critères.',
+          ),
+          colonnes: [
+            if (peutArchiver)
+              ColonneRestaurant(
+                '',
+                enteteSpecial: _CaseACocher(
+                  cle: const Key('paie-case-tout'),
+                  etiquette: 'Sélectionner tout le personnel affiché',
+                  valeur:
+                      archivables.isNotEmpty &&
+                      archivables.every(selection.contains),
+                  onChanged: (coche) {
+                    final notifier = ref.read(selectionPaieProvider.notifier);
+                    if (coche) {
+                      notifier.definir(archivables.toSet());
+                    } else {
+                      notifier.vider();
+                    }
+                  },
+                ),
               ),
-            ),
-          const ColonneRestaurant('Matricule'),
-          const ColonneRestaurant('Employé'),
-          const ColonneRestaurant('Contrat', aDroite: true),
-          const ColonneRestaurant('Embauche', aDroite: true),
-          const ColonneRestaurant('N° CNSS', aDroite: true),
-          const ColonneRestaurant('Salaire de base', aDroite: true),
-          const ColonneRestaurant('Coût employeur', aDroite: true),
-          // La colonne d'actions n'a PAS d'en-tête : le maître termine ses
-          // tableaux par une chaîne vide.
-          const ColonneRestaurant('', aDroite: true),
-        ],
-        clesLignes: [for (final e in employes) Key('paie-employe-${e.id}')],
-        lignes: [
-          for (final employe in employes)
-            _ligneEmploye(
-              ref: ref,
-              employe: employe,
-              cout: couts[employe.id],
-              bulletin: bulletins[employe.id],
-              peutEcrire: peutEcrire,
-              peutArchiver: peutArchiver,
-              coche: selection.contains(employe.id),
-            ),
-        ],
-        ligneTotal: employes.isEmpty
-            ? null
-            : [
-                _EtiquetteEtendue(
-                  'TOTAL — ${employes.length} employé(s)',
-                  styleTotal,
-                ),
-                for (var i = 1; i < avantSalaire; i++) const SizedBox.shrink(),
-                Text(formaterFcfa(masse), style: styleTotal),
-                Text(
-                  fourchetteCout(coutMasse),
-                  style: _t(
-                    TaillesContenu.t12,
-                    poids: FontWeight.bold,
-                    couleur: AppColors.neutre0,
+            const ColonneRestaurant('Matricule'),
+            const ColonneRestaurant('Employé'),
+            const ColonneRestaurant('Contrat', aDroite: true),
+            const ColonneRestaurant('Embauche', aDroite: true),
+            const ColonneRestaurant('N° CNSS', aDroite: true),
+            const ColonneRestaurant('Salaire de base', aDroite: true),
+            const ColonneRestaurant('Coût employeur', aDroite: true),
+            // La colonne d'actions n'a PAS d'en-tête : le maître termine ses
+            // tableaux par une chaîne vide.
+            const ColonneRestaurant('', aDroite: true),
+          ],
+          clesLignes: [for (final e in page) Key('paie-employe-${e.id}')],
+          lignes: [
+            for (final employe in page)
+              _ligneEmploye(
+                ref: ref,
+                employe: employe,
+                cout: couts[employe.id],
+                bulletin: bulletins[employe.id],
+                peutEcrire: peutEcrire,
+                peutArchiver: peutArchiver,
+                coche: selection.contains(employe.id),
+              ),
+          ],
+          ligneTotal: employes.isEmpty
+              ? null
+              : [
+                  _EtiquetteEtendue(
+                    'TOTAL — ${employes.length} employé(s)',
+                    styleTotal,
                   ),
-                ),
-                const SizedBox.shrink(),
-              ],
+                  for (var i = 1; i < avantSalaire; i++)
+                    const SizedBox.shrink(),
+                  Text(formaterFcfa(masse), style: styleTotal),
+                  Text(
+                    fourchetteCout(coutMasse),
+                    style: _t(
+                      TaillesContenu.t12,
+                      poids: FontWeight.bold,
+                      couleur: AppColors.neutre0,
+                    ),
+                  ),
+                  const SizedBox.shrink(),
+                ],
+        ),
       ),
     );
   }
@@ -901,51 +916,57 @@ class PanneauBulletins extends ConsumerWidget {
         CartePaie(
           titre: 'Bulletins — ${periode.libelleLong}',
           note: '* hors risques professionnels, taux non confirmé',
-          enfant: _TableauPaie(
-            vide: _EtatVide(
-              titre: 'Aucun résultat',
-              detail: 'Aucun bulletin sur ${periode.libelleLong}.',
+          // Dix bulletins par page (PO, 14/10/2026) ; la ligne TOTAL porte
+          // le livre du mois entier.
+          enfant: ListePaginee<BulletinPaie>(
+            elements: bulletins,
+            prefixeCle: 'paie-bulletins-pagination',
+            cleRemiseAZero: periode,
+            masquerSiVide: true,
+            constructeur: (_, page) => _TableauPaie(
+              vide: _EtatVide(
+                titre: 'Aucun résultat',
+                detail: 'Aucun bulletin sur ${periode.libelleLong}.',
+              ),
+              colonnes: const [
+                ColonneRestaurant('Matricule'),
+                ColonneRestaurant('Employé'),
+                ColonneRestaurant('Brut', aDroite: true),
+                ColonneRestaurant('CNSS 3,6 %', aDroite: true),
+                ColonneRestaurant('ITS', aDroite: true),
+                ColonneRestaurant('Autres retenues', aDroite: true),
+                ColonneRestaurant('Net à payer', aDroite: true),
+                ColonneRestaurant('Charges patronales', aDroite: true),
+                ColonneRestaurant('', aDroite: true),
+              ],
+              clesLignes: [for (final b in page) Key('paie-bulletin-${b.id}')],
+              lignes: [
+                for (final bulletin in page)
+                  _ligneBulletin(ref, bulletin, peutEcrire),
+              ],
+              ligneTotal: totaux == null || totaux.effectif == 0
+                  ? null
+                  : [
+                      _EtiquetteEtendue(
+                        'TOTAL — ${totaux.effectif} bulletin(s)',
+                        styleTotal,
+                      ),
+                      const SizedBox.shrink(),
+                      Text(formaterFcfa(totaux.brut), style: styleTotal),
+                      Text(formaterFcfa(totaux.cnssSalarie), style: styleTotal),
+                      Text(formaterFcfa(totaux.its), style: styleTotal),
+                      Text(
+                        formaterFcfa(totaux.autresRetenues),
+                        style: styleTotal,
+                      ),
+                      Text(formaterFcfa(totaux.net), style: styleTotal),
+                      Text(
+                        '${formaterFcfa(totaux.patronalesConfirmees)}*',
+                        style: styleTotal,
+                      ),
+                      const SizedBox.shrink(),
+                    ],
             ),
-            colonnes: const [
-              ColonneRestaurant('Matricule'),
-              ColonneRestaurant('Employé'),
-              ColonneRestaurant('Brut', aDroite: true),
-              ColonneRestaurant('CNSS 3,6 %', aDroite: true),
-              ColonneRestaurant('ITS', aDroite: true),
-              ColonneRestaurant('Autres retenues', aDroite: true),
-              ColonneRestaurant('Net à payer', aDroite: true),
-              ColonneRestaurant('Charges patronales', aDroite: true),
-              ColonneRestaurant('', aDroite: true),
-            ],
-            clesLignes: [
-              for (final b in bulletins) Key('paie-bulletin-${b.id}'),
-            ],
-            lignes: [
-              for (final bulletin in bulletins)
-                _ligneBulletin(ref, bulletin, peutEcrire),
-            ],
-            ligneTotal: totaux == null || totaux.effectif == 0
-                ? null
-                : [
-                    _EtiquetteEtendue(
-                      'TOTAL — ${totaux.effectif} bulletin(s)',
-                      styleTotal,
-                    ),
-                    const SizedBox.shrink(),
-                    Text(formaterFcfa(totaux.brut), style: styleTotal),
-                    Text(formaterFcfa(totaux.cnssSalarie), style: styleTotal),
-                    Text(formaterFcfa(totaux.its), style: styleTotal),
-                    Text(
-                      formaterFcfa(totaux.autresRetenues),
-                      style: styleTotal,
-                    ),
-                    Text(formaterFcfa(totaux.net), style: styleTotal),
-                    Text(
-                      '${formaterFcfa(totaux.patronalesConfirmees)}*',
-                      style: styleTotal,
-                    ),
-                    const SizedBox.shrink(),
-                  ],
           ),
         ),
       ],

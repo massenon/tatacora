@@ -8,10 +8,12 @@ import '../../../core/rbac/garde_acces.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../shared_widgets/liste_paginee.dart';
 import '../../crm/presentation/providers_crm.dart';
 import '../../crm/presentation/widgets/modale_nouveau_client.dart';
 import '../../caisse/domain/montant_caisse.dart' show formaterCentimesEnFcfa;
 import '../domain/entities/annulation_enregistree.dart';
+import '../domain/entities/carte_reservation.dart';
 import '../domain/entities/fiche_reservation.dart';
 import '../domain/entities/reservation.dart';
 import 'fiche_reservation.dart';
@@ -415,35 +417,42 @@ class _Grille extends ConsumerWidget {
         ];
         if (liste.isEmpty) return const _CarteVide(cle: Key('grille-vide'));
 
-        return LayoutBuilder(
-          builder: (context, contraintes) {
-            // `lg:grid-cols-2` : deux colonnes au-delà de 1024 px.
-            final colonnes = contraintes.maxWidth >= 1024 ? 2 : 1;
-            final largeur =
-                (contraintes.maxWidth - AppSpacing.md * (colonnes - 1)) /
-                colonnes;
+        // Dix réservations par page (PO, 14/10/2026) ; les exports lisent
+        // le provider, la liste ENTIÈRE.
+        return ListePaginee<CarteReservation>(
+          elements: liste,
+          prefixeCle: 'reservations-pagination',
+          cleRemiseAZero: ref.watch(rechercheReservationProvider),
+          constructeur: (_, page) => LayoutBuilder(
+            builder: (context, contraintes) {
+              // `lg:grid-cols-2` : deux colonnes au-delà de 1024 px.
+              final colonnes = contraintes.maxWidth >= 1024 ? 2 : 1;
+              final largeur =
+                  (contraintes.maxWidth - AppSpacing.md * (colonnes - 1)) /
+                  colonnes;
 
-            // ⚠ Un `Wrap`, et NON un `GridView` à hauteur fixe : la carte la
-            // plus fournie déborderait de 22 px et cacherait le reste dû et le
-            // bouton d'annulation. Les lignes de grille CSS de la vue ont une
-            // hauteur libre ; c'est ce que fait un `Wrap`.
-            return Wrap(
-              spacing: AppSpacing.md,
-              runSpacing: AppSpacing.md,
-              children: [
-                for (final carte in liste)
-                  SizedBox(
-                    width: largeur,
-                    child: VueCarteReservation(
-                      carte: carte,
-                      peutAnnuler: peutAnnuler,
-                      onAnnuler: () =>
-                          _annuler(context, ref, carte.reservation),
+              // ⚠ Un `Wrap`, et NON un `GridView` à hauteur fixe : la carte la
+              // plus fournie déborderait de 22 px et cacherait le reste dû et le
+              // bouton d'annulation. Les lignes de grille CSS de la vue ont une
+              // hauteur libre ; c'est ce que fait un `Wrap`.
+              return Wrap(
+                spacing: AppSpacing.md,
+                runSpacing: AppSpacing.md,
+                children: [
+                  for (final carte in page)
+                    SizedBox(
+                      width: largeur,
+                      child: VueCarteReservation(
+                        carte: carte,
+                        peutAnnuler: peutAnnuler,
+                        onAnnuler: () =>
+                            _annuler(context, ref, carte.reservation),
+                      ),
                     ),
-                  ),
-              ],
-            );
-          },
+                ],
+              );
+            },
+          ),
         );
       },
     );
@@ -642,25 +651,30 @@ class _EtatOngletAnnulations extends ConsumerState<_OngletAnnulations> {
                 message: 'Aucune réservation annulée pour le moment.',
               );
             }
-            return _Table(
-              titres: _titres,
-              droite: _droite,
-              parts: _parts,
-              // Les deux couleurs de la vue : la commission retenue en rouge
-              // sombre, le remboursé en vert (`reservations.blade.php` l.316-317).
-              couleurs: const {
-                4: AppColors.annulationTexteRouge,
-                5: PaletteMaitre.emeraude700,
-              },
-              lignes: [
-                for (final r in lignes)
-                  [
-                    r.clientNom,
-                    '${formaterDate(r.periode.arrivee)} → '
-                        '${formaterDate(r.periode.depart)}',
-                    ..._cellulesDAnnulation(r.annulation),
-                  ],
-              ],
+            return ListePaginee<Reservation>(
+              elements: lignes,
+              prefixeCle: 'annulations-pagination',
+              cleRemiseAZero: (terme, _canal),
+              constructeur: (_, page) => _Table(
+                titres: _titres,
+                droite: _droite,
+                parts: _parts,
+                // Les deux couleurs de la vue : la commission retenue en rouge
+                // sombre, le remboursé en vert (`reservations.blade.php` l.316-317).
+                couleurs: const {
+                  4: AppColors.annulationTexteRouge,
+                  5: PaletteMaitre.emeraude700,
+                },
+                lignes: [
+                  for (final r in page)
+                    [
+                      r.clientNom,
+                      '${formaterDate(r.periode.arrivee)} → '
+                          '${formaterDate(r.periode.depart)}',
+                      ..._cellulesDAnnulation(r.annulation),
+                    ],
+                ],
+              ),
             );
           },
         ),

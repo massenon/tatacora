@@ -10,6 +10,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../shared_widgets/bouton_standard.dart';
+import '../../../shared_widgets/liste_paginee.dart';
 import '../../../shared_widgets/modale_export.dart';
 import '../../../shared_widgets/toast_export.dart';
 import '../data/stocks_api.dart';
@@ -157,6 +158,12 @@ class _Corps extends ConsumerWidget {
         ),
         _CarteTableau(
           lignes: lignes,
+          cleFiltre: (
+            ref.watch(rechercheStockProvider),
+            ref.watch(categorieStockProvider),
+            ref.watch(suiviStockProvider),
+            ref.watch(etatFiltreProvider),
+          ),
           onFiche: (l) => _ouvrirFiche(context, ref, l),
           onMouvement: (l) => _ouvrirMouvement(context, ref, l),
           onModifier: (l) => _modifier(context, ref, l),
@@ -826,12 +833,16 @@ class _Liste<T> extends StatelessWidget {
 class _CarteTableau extends StatelessWidget {
   const _CarteTableau({
     required this.lignes,
+    required this.cleFiltre,
     required this.onFiche,
     required this.onMouvement,
     required this.onModifier,
   });
 
   final List<LigneStock> lignes;
+
+  /// Les filtres posés : les changer ramène la pagination à la page 1.
+  final Object cleFiltre;
   final void Function(LigneStock) onFiche;
   final void Function(LigneStock) onMouvement;
   final void Function(LigneStock) onModifier;
@@ -900,11 +911,18 @@ class _CarteTableau extends StatelessWidget {
               ),
             )
           else
-            TableStocks(
-              lignes: lignes,
-              onFiche: onFiche,
-              onMouvement: onMouvement,
-              onModifier: onModifier,
+            // Dix articles par page (PO, 14/10/2026) ; l'export reçoit la
+            // liste filtrée ENTIÈRE (`_exporter`).
+            ListePaginee<LigneStock>(
+              elements: lignes,
+              prefixeCle: 'stocks-pagination',
+              cleRemiseAZero: cleFiltre,
+              constructeur: (_, page) => TableStocks(
+                lignes: page,
+                onFiche: onFiche,
+                onMouvement: onMouvement,
+                onModifier: onModifier,
+              ),
             ),
         ],
       ),

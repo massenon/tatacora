@@ -6,6 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/di/providers.dart';
 import '../../../../core/rbac/garde_acces.dart';
+import '../../../../shared_widgets/liste_paginee.dart';
 import '../../data/achats_api.dart';
 import '../../domain/dettes_fournisseurs.dart';
 import '../../domain/decimal_texte.dart';
@@ -279,7 +280,17 @@ class _VueCommandesState extends ConsumerState<VueCommandes> {
                     ),
                   ),
                 )
-              : _table(page.elements),
+              // Dix commandes par page (PO, 14/10/2026) ; l'export emporte
+              // toutes les lignes reçues (`_liste`), jamais la seule page.
+              : ListePaginee<CommandeAchat>(
+                  elements: page.elements,
+                  prefixeCle: 'commandes-pagination',
+                  cleRemiseAZero: (
+                    ref.watch(rechercheCommandeProvider),
+                    ref.watch(statutCommandeProvider),
+                  ),
+                  constructeur: (_, tranche) => _table(tranche),
+                ),
         ),
         // Le bloc « Ce que cet onglet ne rend pas » qui suivait est RETIRÉ
         // (directive absolue du PO, 14/10/2026). Écarts toujours vrais, nommés

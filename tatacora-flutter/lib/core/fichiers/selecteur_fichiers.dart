@@ -29,7 +29,14 @@ final class FichierLu {
 /// « Enregistrer sous » (14/10/2026 : les exports PDF passent aussi par elle).
 enum TypeFichierEnregistre {
   csv('CSV', ['csv', 'txt']),
-  pdf('PDF', ['pdf']);
+  pdf('PDF', ['pdf']),
+
+  /// La copie de la base du poste (Import & Export, « Générer une sauvegarde
+  /// de la base »).
+  sauvegarde('Base SQLite', ['sqlite']),
+
+  /// L'export d'une table (Import & Export, « Exporter une table existante »).
+  json('JSON', ['json']);
 
   const TypeFichierEnregistre(this.libelle, this.extensions);
 

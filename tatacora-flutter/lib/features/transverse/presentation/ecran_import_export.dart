@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/di/providers.dart';
+import '../../../core/fichiers/enregistrement_export.dart';
+import '../../../core/fichiers/selecteur_fichiers.dart';
 import '../../../core/navigation/coquille_vue.dart';
 import '../../../core/navigation/trace_svg.dart';
 import '../../../core/rbac/garde_acces.dart';
@@ -12,8 +14,14 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/mesures_transverses.dart';
+import '../../../shared_widgets/bouton_standard.dart';
 import '../../../shared_widgets/cadre_tirete.dart';
+import '../../../shared_widgets/toast_export.dart';
+import '../data/importeurs_locaux.dart';
 import '../data/reinitialisation_locale.dart';
+import '../data/sauvegarde_locale.dart';
+import '../domain/import_referentiels.dart';
+import 'providers_import_export.dart';
 import 'widgets/briques_transverses.dart';
 
 /// L'écran **Import & Export** — lot D du plan du Product Owner (14/10/2026).
@@ -25,18 +33,26 @@ import 'widgets/briques_transverses.dart';
 /// ## Ce que le poste détient, et ce qu'il n'a pas (D419)
 ///
 /// - **Tables en base** : MESURÉ — le nombre de tables de la base locale.
-/// - **Import** : aucun moteur d'import n'existe sur ce poste (le registre
-///   `ReferentielsImport` et le contrôle de cohérence vivent au serveur). Les
-///   trois cartes et la démarche sont rendues ; le sélecteur de module est
-///   inactif et dit pourquoi ; « Télécharger le modèle », la zone de dépôt et
-///   « Valider et contrôler le fichier » DISENT au clic qu'aucun import n'a
-///   lieu (Article 3.3). L'historique rend l'état vide de la vue — vrai ici.
-/// - **Sauvegardes** : l'application ne sauvegarde pas la base du poste. Les
-///   indicateurs sans source affichent « — » (jamais « 0 », jamais
-///   « Quotidien (02h00) », qui décrit le serveur) ; les deux boutons DISENT
-///   qu'ils n'ont pas de geste ; les trois phrases de la vue qui décrivent le
+/// - **Import** : RÉEL depuis le 14/10/2026 (demande du PO). Le sélecteur
+///   liste les modules qui ont un importeur sur ce poste
+///   (`data/importeurs_locaux.dart` : M3, M1, M5, M4, M6, M7, M8, M9, l'ordre
+///   du registre du serveur) et dont la session a le droit d'écriture. Le
+///   modèle s'enregistre par « Enregistrer sous » ; la zone de dépôt ouvre la
+///   fenêtre « Ouvrir » (aucun glisser-déposer : aucune dépendance ne le
+///   porte, la zone le dit) ; « Valider et contrôler le fichier » rend le
+///   rapport du serveur (ERREUR / AVERTIS., plafonnés) en SIMULANT l'écriture
+///   dans une transaction annulée ; « Confirmer l'import » recontrôle et écrit
+///   tout dans UNE transaction. Écart nommé : une ligne déjà présente (clé
+///   naturelle) est IGNORÉE, jamais dupliquée. L'historique est celui de la
+///   session (aucune table `journal_imports` sur le poste), et le dit.
+/// - **Sauvegardes** : « Générer une sauvegarde de la base » enregistre une
+///   copie cohérente de la base (`VACUUM INTO`, `data/sauvegarde_locale.dart`)
+///   par « Enregistrer sous » ; « Exporter une table existante » rend une
+///   table en JSON (comptes exclus). Le poste n'en CONSERVE aucune : les
+///   indicateurs sans source affichent « — » (jamais « Quotidien (02h00) »,
+///   qui décrit le serveur), et les phrases de la vue qui décrivent le
 ///   serveur (rythme, liste vide, rétention) sont REMPLACÉES par la phrase
-///   vraie (piège 13 : jamais une affirmation fausse sur ce que le poste fait).
+///   vraie (piège 13).
 /// - **Restaurer** : aucun registre d'archives sur ce poste ; un élément
 ///   archivé s'y réintègre depuis l'écran de son module. L'encadré de la vue
 ///   est rendu, suivi d'une ligne « Sur ce poste ».
@@ -51,7 +67,11 @@ import 'widgets/briques_transverses.dart';
 ///
 /// Droit : la route de la vue exige PARAM en lecture (`module:PARAM,L`).
 class EcranImportExport extends ConsumerStatefulWidget {
-  const EcranImportExport({super.key});
+  const EcranImportExport({this.moduleInitial, super.key});
+
+  /// La clé d'un module importable (`m5-bar`…) à présélectionner — le bouton
+  /// « Importer » d'un écran de module y renvoie (`?module=`).
+  final String? moduleInitial;
 
   @override
   ConsumerState<EcranImportExport> createState() => _EcranImportExportState();
@@ -121,18 +141,105 @@ abstract final class TextesImportExport {
       'Cette fonction vide les jeux de données de démonstration. Elle reste fermée par défaut : laissée ouverte sur une base d\'exploitation réelle, elle détruirait le travail de l\'entreprise.';
   static const String tiret = '—';
 
-  /// AJOUTS et REMPLACEMENTS déclarés (D419).
-  static const String sansImport =
-      "Ce poste n'a aucun moteur d'import : aucun module ne s'y alimente par "
-      "fichier, aucun modèle n'est produit et rien n'est importé.";
-  static const String sansSauvegarde =
-      "Ce poste ne génère ni n'exporte aucune sauvegarde de sa base : aucun "
-      "fichier n'a été produit.";
+  // L'onglet « Importer les données », RÉEL depuis le 14/10/2026 — les mots
+  // de la vue (`pwa.import_export.*`, `imports.*`).
+  static const String colonnesAttendues = 'Colonnes attendues';
+  static const String colColonne = 'COLONNE';
+  static const String colObligatoire = 'OBLIGATOIRE';
+  static const String colValeursAttendues = 'VALEURS ATTENDUES';
+  static const String badgeObligatoire = 'OBLIGATOIRE';
+  static const String badgeFacultatif = 'facultatif';
+  static String exemple(String exemple) => 'ex. $exemple';
+  static String fichierSelectionne(String nom, int octets) =>
+      'Fichier sélectionné : $nom (${(octets / 1024).round() < 1 ? 1 : (octets / 1024).round()} Ko)';
+  static const String rapportConforme = 'Fichier conforme au référentiel';
+  static const String rapportNonConforme =
+      "Fichier non conforme — rien n'a été importé";
+  static String rapportResume(int total) => '$total ligne(s) lue(s) ·';
+  static const String rapportResumeExploitables = 'exploitable(s) ·';
+  static const String rapportResumeErreurs = 'en erreur ·';
+  static String rapportResumeAvertissements(int nombre) =>
+      '$nombre avertissement(s)';
+  static const String rapportBadgeErreur = 'ERREUR';
+  static const String rapportBadgeAvertissement = 'AVERTIS.';
+  static String rapportLigne(int numero) => 'Ligne $numero';
+  static String rapportSuiteErreurs(int nombre) =>
+      '… et $nombre autre(s) erreur(s).';
+  static const String rapportAucuneAnomalie =
+      'Aucune anomalie relevée. Toutes les colonnes et toutes les valeurs '
+      'correspondent au référentiel.';
+  static String rapportConfirmer(int nombre) =>
+      "Confirmer l'import de $nombre ligne(s)";
+  static const String rapportCorriger =
+      'Corrigez les lignes ci-dessus dans votre fichier, enregistrez-le à '
+      'nouveau en CSV UTF-8, puis redéposez-le. Le contrôle se relance à '
+      'chaque dépôt.';
+  static String historiqueLignes(int nombre) => '$nombre ligne(s) importée(s)';
+  static String importFait(int nombre, String module, int ignorees) =>
+      '$nombre ligne(s) importée(s) dans $module.'
+      '${ignorees > 0 ? ' $ignorees ligne(s) déjà présente(s), ignorée(s).' : ''}';
+
+  /// AJOUTS et REMPLACEMENTS déclarés (D419, puis 14/10/2026).
+  ///
+  /// Mots de la vue NON RENDUS, et pourquoi :
+  ///  - [importerModeleAide1] (« Le modèle porte les colonnes exactes et une
+  ///    ligne d'exemple ») : le modèle du poste n'a AUCUNE ligne d'exemple
+  ///    (décision du PO du 14/10/2026 pour l'import d'articles, étendue à tous
+  ///    les modules : une ligne d'exemple oubliée s'importerait comme une
+  ///    vraie fiche) — [importerModeleAideSurCePoste] dit le vrai ;
+  ///  - [importerDepotGlisser] / [importerDepotCliquer] : aucune dépendance du
+  ///    poste ne porte le glisser-déposer de Windows — la zone se clique, et
+  ///    [importerDepotCliquerSurCePoste] le dit ;
+  ///  - [historiqueVide] : le poste ne tient pas de journal des imports d'une
+  ///    ouverture à l'autre — [historiqueVideSurCePoste] le dit.
+  static const String importerModeleAideSurCePoste =
+      "Le modèle porte les colonnes exactes, sans ligne d'exemple : les "
+      'exemples sont dans « Colonnes attendues ». Il est généré depuis la même '
+      "déclaration que le contrôle : il ne peut pas s'en écarter. Ouvrez-le "
+      "dans Excel, ajoutez vos données sous la ligne d'en-tête, conservez-la, "
+      'puis enregistrez en';
+  static const String importerDepotCliquerSurCePoste =
+      'Cliquez ici pour choisir le fichier';
+  static const String importerDepotSansGlisser =
+      "Fenêtre « Ouvrir » de Windows — le glisser-déposer n'est pas pris en "
+      'charge sur ce poste.';
+  static const String importerDepotSansModule =
+      "Choisissez d'abord le module : le fichier se contrôle contre ses "
+      'colonnes.';
+  static const String aucunModuleImportable =
+      "Votre profil n'a le droit d'écriture sur aucun des modules importables.";
+  static const String rapportFichier = 'Fichier';
+  static String rapportIgnorees(int nombre) =>
+      '$nombre ligne(s) déjà présente(s) — ignorée(s) : un import ne crée '
+      'jamais de doublon sur ce poste.';
+  static const String rapportRienANouveau =
+      'Rien à importer : toutes les lignes existent déjà';
+  static const String importAucuneNouvelle =
+      "Aucune ligne nouvelle : toutes existent déjà, rien n'a été importé.";
+  static const String historiqueVideSurCePoste =
+      "Aucun import pendant cette session : ce poste ne garde pas l'historique "
+      "des imports d'une ouverture de l'application à l'autre.";
+
+  // L'onglet « Sauvegardes de la base » — « Générer une sauvegarde » et
+  // « Exporter une table existante », RÉELS depuis le 14/10/2026.
+  static String sauvegardeGeneree(String fichier, String taille) =>
+      'Sauvegarde générée : $fichier ($taille).';
+  static String sauvegardeEchec(Object erreur) =>
+      'La sauvegarde a échoué : $erreur';
+  static const String exportTableTitre = 'Exporter une table existante';
+  static const String exportTableAide =
+      'Le contenu actuel de la table, au format JSON.';
+  static const String exportTableInvite = '-- Sélectionner une table --';
+  static const String exportTableChoisir = 'Sélectionnez une table.';
+  static const String actionTelecharger = 'Télécharger';
+
   static const String rythmeSurCePoste =
       "Sur ce poste : aucune sauvegarde automatique n'a lieu, et aucune n'est "
       'conservée.';
   static const String sauvegardesVideSurCePoste =
-      "Aucune sauvegarde : l'application n'en produit pas sur ce poste.";
+      'Aucune sauvegarde conservée sur ce poste : « Générer une sauvegarde de '
+      "la base » enregistre une copie complète à l'emplacement que vous "
+      "choisissez — c'est cet emplacement qui la met à l'abri.";
   static const String restaurerSurCePoste =
       "Sur ce poste : aucun registre d'archives n'est tenu ici — un élément "
       "archivé se réintègre depuis l'écran de son module.";
@@ -228,7 +335,10 @@ class _EcranImportExportState extends ConsumerState<EcranImportExport> {
         ),
         const SizedBox(height: AppSpacing.mdPlus), // mb-5
         switch (_onglet) {
-          0 => _PanneauImporter(peutEcrire: peutEcrire),
+          0 => _PanneauImporter(
+            peutEcrire: peutEcrire,
+            moduleInitial: widget.moduleInitial,
+          ),
           1 => _PanneauSauvegardes(
             peutEcrire: peutEcrire,
             nombreTables: nombreTables,
@@ -253,20 +363,165 @@ TextStyle get _titreCarte => styleTransverse(
 TextStyle get _aide =>
     styleTransverse(TaillesContenu.t13, couleur: Ardoise.c500);
 
-void _direSansImport(BuildContext context) => direTransverse(
-  context,
-  TextesImportExport.sansImport,
-  cle: const Key('ie-sans-import'),
-);
-
-class _PanneauImporter extends StatelessWidget {
-  const _PanneauImporter({required this.peutEcrire});
+/// L'onglet « Importer les données » — la démarche de la vue, RÉELLE :
+/// module, modèle, dépôt, rapport de contrôle, confirmation.
+///
+/// Le sélecteur ne liste que les modules qui ont un importeur sur ce poste
+/// (`importeursLocauxProvider`) ET dont la session a le droit d'écriture — le
+/// même droit que l'écran du module exige pour créer une fiche.
+class _PanneauImporter extends ConsumerStatefulWidget {
+  const _PanneauImporter({required this.peutEcrire, this.moduleInitial});
 
   final bool peutEcrire;
+  final String? moduleInitial;
+
+  @override
+  ConsumerState<_PanneauImporter> createState() => _PanneauImporterState();
+}
+
+class _PanneauImporterState extends ConsumerState<_PanneauImporter> {
+  late String? _cle = widget.moduleInitial;
+  FichierLu? _fichier;
+
+  /// Le dernier rapport — il porte la clé du module contrôlé : changer de
+  /// module ou de fichier le rend caduc.
+  ({String cle, RapportImport rapport})? _rapport;
+  String? _erreur;
+  bool _enCours = false;
+
+  List<ImporteurLocal> _disponibles() {
+    final droits = ref.watch(droitsProvider);
+    return [
+      for (final i in ref.watch(importeursLocauxProvider))
+        if (droits.peutEcrire(i.module)) i,
+    ];
+  }
+
+  ImporteurLocal? _choisi(List<ImporteurLocal> disponibles) {
+    for (final i in disponibles) {
+      if (i.cle == _cle) return i;
+    }
+    return null;
+  }
+
+  Future<void> _telechargerModele(ImporteurLocal importeur) async {
+    await executerExport(
+      context,
+      () => ref
+          .read(enregistrementExportProvider)
+          .enregistrer(
+            nomSuggere: importeur.nomModele,
+            octets: importeur.modeleOctets(),
+            type: TypeFichierEnregistre.csv,
+          ),
+      cleSucces: const Key('ie-modele-enregistre'),
+    );
+  }
+
+  Future<void> _choisirFichier() async {
+    final lu = await ref.read(selecteurFichiersProvider).ouvrirCsv();
+    if (lu == null || !mounted) return;
+    setState(() {
+      _fichier = lu;
+      _rapport = null;
+      _erreur = null;
+    });
+  }
+
+  Future<void> _controler(ImporteurLocal importeur) async {
+    final fichier = _fichier;
+    if (fichier == null || _enCours) return;
+    setState(() {
+      _enCours = true;
+      _erreur = null;
+    });
+    try {
+      final rapport = await ref
+          .read(moteurImportProvider)
+          .controler(importeur, fichier.octets);
+      if (!mounted) return;
+      setState(() => _rapport = (cle: importeur.cle, rapport: rapport));
+    } on Object catch (e) {
+      if (mounted) setState(() => _erreur = '$e');
+    } finally {
+      if (mounted) setState(() => _enCours = false);
+    }
+  }
+
+  Future<void> _confirmer(ImporteurLocal importeur) async {
+    final fichier = _fichier;
+    if (fichier == null || _enCours) return;
+    setState(() {
+      _enCours = true;
+      _erreur = null;
+    });
+    final messager = ScaffoldMessenger.of(context);
+    try {
+      final issue = await ref
+          .read(moteurImportProvider)
+          .appliquer(importeur, fichier.octets);
+      if (!mounted) return;
+      switch (issue) {
+        case ImportFait(:final importees, :final ignorees):
+          relireApresImport(ref, importeur.cle);
+          ref
+              .read(historiqueImportsProvider.notifier)
+              .ajouter(
+                EntreeHistoriqueImport(
+                  module: importeur.nom,
+                  lignes: importees,
+                  le: DateTime.now(),
+                  par: ref.read(sessionProvider)?.login,
+                ),
+              );
+          setState(() {
+            _fichier = null;
+            _rapport = null;
+          });
+          messager
+            ..hideCurrentSnackBar()
+            ..showSnackBar(
+              SnackBar(
+                behavior: SnackBarBehavior.floating,
+                backgroundColor: AppColors.succes,
+                content: Text(
+                  importees == 0
+                      ? TextesImportExport.importAucuneNouvelle
+                      : TextesImportExport.importFait(
+                          importees,
+                          importeur.nom,
+                          ignorees,
+                        ),
+                  key: const Key('ie-import-fait'),
+                ),
+              ),
+            );
+        case ImportNonConforme(:final rapport):
+          setState(() => _rapport = (cle: importeur.cle, rapport: rapport));
+        case ImportAnnule(:final message):
+          setState(() => _erreur = message);
+      }
+    } on Object catch (e) {
+      if (mounted) setState(() => _erreur = '$e');
+    } finally {
+      if (mounted) setState(() => _enCours = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final peutEcrire = widget.peutEcrire;
+    final disponibles = _disponibles();
+    final importeur = _choisi(disponibles);
+    final rapport = _rapport != null && _rapport!.cle == importeur?.cle
+        ? _rapport!.rapport
+        : null;
     final large = MediaQuery.sizeOf(context).width >= AppBreakpoints.lg;
+    final bordure = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      borderSide: const BorderSide(color: Ardoise.c200),
+    );
+
     final gauche = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -278,28 +533,49 @@ class _PanneauImporter extends StatelessWidget {
               const SizedBox(height: AppSpacing.unit),
               Text(TextesImportExport.importerModuleAide, style: _aide),
               const SizedBox(height: AppSpacing.smPlus),
-              Tooltip(
-                message: TextesImportExport.sansImport,
-                child: Container(
-                  key: const Key('ie-module-import'),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm,
-                    vertical: AppSpacing.xsPlus,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.neutre0,
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                    border: Border.all(color: Ardoise.c200),
-                  ),
-                  child: Text(
-                    TextesImportExport.importerModuleInvite,
-                    style: styleTransverse(
-                      TaillesContenu.sm,
-                      couleur: Ardoise.c400,
-                    ),
+              DropdownButtonFormField<String>(
+                key: const Key('ie-module-import'),
+                initialValue: importeur?.cle,
+                isExpanded: true,
+                hint: Text(
+                  TextesImportExport.importerModuleInvite,
+                  style: styleTransverse(
+                    TaillesContenu.sm,
+                    couleur: Ardoise.c400,
                   ),
                 ),
+                style: styleTransverse(TaillesContenu.sm),
+                decoration: InputDecoration(
+                  isDense: true,
+                  filled: true,
+                  fillColor: AppColors.neutre0,
+                  border: bordure,
+                  enabledBorder: bordure,
+                ),
+                items: [
+                  for (final i in disponibles)
+                    DropdownMenuItem(
+                      value: i.cle,
+                      child: Text('${i.module.code} — ${i.nom}'),
+                    ),
+                ],
+                onChanged: _enCours
+                    ? null
+                    : (cle) => setState(() {
+                        _cle = cle;
+                        _rapport = null;
+                        _erreur = null;
+                      }),
               ),
+              if (disponibles.isEmpty) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  TextesImportExport.aucunModuleImportable,
+                  key: const Key('ie-aucun-module'),
+                  style: _aide,
+                ),
+              ],
+              if (importeur != null) _FicheModule(importeur: importeur),
             ],
           ),
         ),
@@ -318,16 +594,23 @@ class _PanneauImporter extends StatelessWidget {
                     ),
                   ),
                   if (peutEcrire)
-                    BoutonTransverse(
-                      cle: const Key('ie-modele'),
-                      libelle: TextesImportExport.importerModeleBouton,
-                      fond: AppColors.gold,
-                      trace: TracesCoquille.importExport,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.smPlus,
-                        vertical: AppSpacing.xs,
+                    Opacity(
+                      opacity: importeur == null
+                          ? AppColors.opaciteDesactive
+                          : 1,
+                      child: BoutonTransverse(
+                        cle: const Key('ie-modele'),
+                        libelle: TextesImportExport.importerModeleBouton,
+                        fond: AppColors.gold,
+                        trace: TracesCoquille.importExport,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.smPlus,
+                          vertical: AppSpacing.xs,
+                        ),
+                        onTap: () {
+                          if (importeur != null) _telechargerModele(importeur);
+                        },
                       ),
-                      onTap: () => _direSansImport(context),
                     ),
                 ],
               ),
@@ -336,7 +619,8 @@ class _PanneauImporter extends StatelessWidget {
                 TextSpan(
                   children: [
                     const TextSpan(
-                      text: '${TextesImportExport.importerModeleAide1} ',
+                      text:
+                          '${TextesImportExport.importerModeleAideSurCePoste} ',
                     ),
                     TextSpan(
                       text: TextesImportExport.importerModeleAideFormat,
@@ -359,9 +643,13 @@ class _PanneauImporter extends StatelessWidget {
               const SizedBox(height: AppSpacing.unit),
               Text(TextesImportExport.importerDepotAide, style: _aide),
               const SizedBox(height: AppSpacing.smPlus),
+              // Aucun glisser-déposer : aucune dépendance du poste ne le
+              // porte sous Windows. La zone se CLIQUE, et elle le dit.
               InkWell(
                 key: const Key('ie-zone-depot'),
-                onTap: () => _direSansImport(context),
+                onTap: importeur != null && peutEcrire && !_enCours
+                    ? _choisirFichier
+                    : null,
                 borderRadius: BorderRadius.circular(AppRadius.md),
                 child: CadreTirete(
                   couleur: JetonsCssMaitre.neutre200,
@@ -380,7 +668,7 @@ class _PanneauImporter extends StatelessWidget {
                       ),
                       const SizedBox(height: AppSpacing.xs),
                       Text(
-                        TextesImportExport.importerDepotGlisser,
+                        TextesImportExport.importerDepotCliquerSurCePoste,
                         textAlign: TextAlign.center,
                         style: styleTransverse(
                           TaillesContenu.t15,
@@ -390,7 +678,9 @@ class _PanneauImporter extends StatelessWidget {
                       ),
                       const SizedBox(height: AppSpacing.demi),
                       Text(
-                        TextesImportExport.importerDepotCliquer,
+                        importeur == null
+                            ? TextesImportExport.importerDepotSansModule
+                            : TextesImportExport.importerDepotSansGlisser,
                         textAlign: TextAlign.center,
                         style: styleTransverse(
                           TaillesContenu.t13,
@@ -401,24 +691,65 @@ class _PanneauImporter extends StatelessWidget {
                   ),
                 ),
               ),
+              if (_fichier != null) ...[
+                const SizedBox(height: AppSpacing.smPlus),
+                Text(
+                  TextesImportExport.fichierSelectionne(
+                    _fichier!.nom,
+                    _fichier!.octets.length,
+                  ),
+                  key: const Key('ie-fichier-selectionne'),
+                  style: styleTransverse(
+                    TaillesContenu.t13,
+                    poids: FontWeight.w600,
+                    couleur: Ardoise.c600,
+                  ),
+                ),
+              ],
+              if (_erreur != null) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  _erreur!,
+                  key: const Key('ie-import-erreur'),
+                  style: styleTransverse(
+                    TaillesContenu.t12,
+                    couleur: PaletteMaitre.rouge600,
+                  ),
+                ),
+              ],
               if (peutEcrire) ...[
                 const SizedBox(height: AppSpacing.md),
-                BoutonTransverse(
-                  cle: const Key('ie-valider'),
-                  libelle: TextesImportExport.importerValider,
-                  fond: AppColors.navy,
-                  taille: TaillesContenu.sm,
-                  pleineLargeur: true,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.mdPlus,
-                    vertical: AppSpacing.xsPlus,
+                Opacity(
+                  opacity: importeur != null && _fichier != null && !_enCours
+                      ? 1
+                      : AppColors.opaciteDesactive,
+                  child: BoutonTransverse(
+                    cle: const Key('ie-valider'),
+                    libelle: TextesImportExport.importerValider,
+                    fond: AppColors.navy,
+                    taille: TaillesContenu.sm,
+                    pleineLargeur: true,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.mdPlus,
+                      vertical: AppSpacing.xsPlus,
+                    ),
+                    onTap: () {
+                      if (importeur != null) _controler(importeur);
+                    },
                   ),
-                  onTap: () => _direSansImport(context),
                 ),
               ],
             ],
           ),
         ),
+        if (rapport != null && importeur != null) ...[
+          const SizedBox(height: AppSpacing.mdPlus),
+          _RapportControle(
+            rapport: rapport,
+            peutConfirmer: peutEcrire && !_enCours,
+            onConfirmer: () => _confirmer(importeur),
+          ),
+        ],
       ],
     );
     final droite = Column(
@@ -426,42 +757,7 @@ class _PanneauImporter extends StatelessWidget {
       children: [
         const _Demarche(),
         const SizedBox(height: AppSpacing.mdPlus),
-        CarteTransverse(
-          padding: EdgeInsets.zero,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.mdPlus,
-                  vertical: AppSpacing.smPlus,
-                ),
-                decoration: const BoxDecoration(
-                  border: Border(bottom: BorderSide(color: Ardoise.c100)),
-                ),
-                child: Text(
-                  TextesImportExport.historiqueTitre,
-                  style: _titreCarte,
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.mdPlus,
-                  vertical: AppSpacing.xl,
-                ),
-                child: Text(
-                  TextesImportExport.historiqueVide,
-                  key: const Key('ie-historique-vide'),
-                  textAlign: TextAlign.center,
-                  style: styleTransverse(
-                    TaillesContenu.t13,
-                    couleur: Ardoise.c400,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+        const _HistoriqueImports(),
       ],
     );
     return large
@@ -481,6 +777,547 @@ class _PanneauImporter extends StatelessWidget {
               droite,
             ],
           );
+  }
+}
+
+/// La fiche du module : description, puis « Colonnes attendues » — COLONNE,
+/// OBLIGATOIRE, VALEURS ATTENDUES — tirée de la MÊME déclaration que le
+/// modèle et le contrôle.
+class _FicheModule extends StatelessWidget {
+  const _FicheModule({required this.importeur});
+
+  final ImporteurLocal importeur;
+
+  @override
+  Widget build(BuildContext context) {
+    final entete = styleTransverse(
+      TaillesContenu.t12,
+      poids: FontWeight.bold,
+      couleur: Ardoise.c500,
+    );
+    Widget badge(bool requis) => Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xxs,
+        vertical: AppSpacing.demi,
+      ),
+      decoration: BoxDecoration(
+        color: requis ? AppColors.badgeRougeFond : Ardoise.c100,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+      ),
+      child: Text(
+        requis
+            ? TextesImportExport.badgeObligatoire
+            : TextesImportExport.badgeFacultatif,
+        style: styleTransverse(
+          TaillesContenu.t11,
+          poids: FontWeight.bold,
+          couleur: requis ? AppColors.erreur : Ardoise.c400,
+        ),
+      ),
+    );
+
+    return Container(
+      key: Key('ie-fiche-${importeur.cle}'),
+      margin: const EdgeInsets.only(top: AppSpacing.md),
+      padding: const EdgeInsets.only(top: AppSpacing.md),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: Ardoise.c100)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(importeur.description, style: _aide),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            TextesImportExport.colonnesAttendues,
+            style: styleTransverse(
+              TaillesContenu.t13,
+              poids: FontWeight.bold,
+              couleur: Ardoise.c700,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Container(
+            color: Ardoise.c50,
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: AppSpacing.xs,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 3,
+                  child: Text(TextesImportExport.colColonne, style: entete),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(TextesImportExport.colObligatoire, style: entete),
+                ),
+                Expanded(
+                  flex: 4,
+                  child: Text(
+                    TextesImportExport.colValeursAttendues,
+                    style: entete,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          for (final c in importeur.colonnes)
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: AppSpacing.xs,
+              ),
+              decoration: const BoxDecoration(
+                border: Border(bottom: BorderSide(color: Ardoise.c100)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          c.libelle,
+                          style: styleTransverse(
+                            TaillesContenu.t13,
+                            poids: FontWeight.w600,
+                            couleur: Ardoise.c700,
+                          ),
+                        ),
+                        Text(
+                          c.champ,
+                          style: styleTransverse(
+                            TaillesContenu.t12,
+                            couleur: Ardoise.c400,
+                            police: AppTextStyles.policeMonospace,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: badge(c.requis),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 4,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (c.valeurs != null)
+                          Wrap(
+                            spacing: AppSpacing.unit,
+                            runSpacing: AppSpacing.unit,
+                            children: [
+                              for (final v in c.valeurs!)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: AppSpacing.xxs,
+                                    vertical: AppSpacing.demi,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: Ardoise.c200),
+                                    borderRadius: BorderRadius.circular(
+                                      AppRadius.sm,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    v,
+                                    style: styleTransverse(
+                                      TaillesContenu.t12,
+                                      couleur: Ardoise.c500,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          )
+                        else
+                          Text(
+                            c.type.libelle,
+                            style: styleTransverse(
+                              TaillesContenu.t13,
+                              couleur: Ardoise.c500,
+                            ),
+                          ),
+                        if (c.exemple.isNotEmpty)
+                          Text(
+                            TextesImportExport.exemple(c.exemple),
+                            style: styleTransverse(
+                              TaillesContenu.t12,
+                              couleur: Ardoise.c400,
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Le rapport de contrôle — bandeau conforme / non conforme, décompte, lignes
+/// ERREUR / AVERTIS. plafonnées comme au serveur, puis l'action.
+class _RapportControle extends StatelessWidget {
+  const _RapportControle({
+    required this.rapport,
+    required this.peutConfirmer,
+    required this.onConfirmer,
+  });
+
+  final RapportImport rapport;
+  final bool peutConfirmer;
+  final VoidCallback onConfirmer;
+
+  /// `ImportExport::PLAFOND_ERREURS` / `PLAFOND_AVERTISSEMENTS`.
+  static const int plafondErreurs = 60;
+  static const int plafondAvertissements = 40;
+
+  @override
+  Widget build(BuildContext context) {
+    final ok = rapport.ok;
+    final couleur = ok ? AppColors.succes : AppColors.erreur;
+    final texte = styleTransverse(TaillesContenu.t13, couleur: Ardoise.c600);
+    final fort = texte.copyWith(fontWeight: FontWeight.bold);
+    final erreurs = rapport.erreurs.take(plafondErreurs).toList();
+    final avertissements = rapport.avertissements
+        .take(plafondAvertissements)
+        .toList();
+
+    Widget anomalie(AnomalieImport a, {required bool erreur}) => Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.mdPlus,
+        vertical: AppSpacing.xs,
+      ),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Ardoise.c100)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            margin: const EdgeInsets.only(top: AppSpacing.unit),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.xxs,
+              vertical: AppSpacing.demi,
+            ),
+            decoration: BoxDecoration(
+              color: erreur ? AppColors.badgeRougeFond : PaletteMaitre.ambre50,
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+            ),
+            child: Text(
+              erreur
+                  ? TextesImportExport.rapportBadgeErreur
+                  : TextesImportExport.rapportBadgeAvertissement,
+              style: styleTransverse(
+                TaillesContenu.t10,
+                poids: FontWeight.bold,
+                couleur: erreur ? AppColors.erreur : PaletteTransverse.texteOr,
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xsPlus),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: a.ligne == 0
+                            ? TextesImportExport.rapportFichier
+                            : TextesImportExport.rapportLigne(a.ligne),
+                        style: fort.copyWith(
+                          fontFamily: AppTextStyles.policeMonospace,
+                          color: Ardoise.c700,
+                        ),
+                      ),
+                      if (a.colonne != null) ...[
+                        const TextSpan(text: ' · '),
+                        TextSpan(
+                          text: a.colonne,
+                          style: fort.copyWith(color: Ardoise.c700),
+                        ),
+                      ],
+                    ],
+                  ),
+                  style: texte.copyWith(color: Ardoise.c700),
+                ),
+                Text(a.message, style: texte.copyWith(color: Ardoise.c500)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+
+    return CarteTransverse(
+      key: const Key('ie-rapport'),
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            color: ok ? AppColors.badgeVertFond : AppColors.badgeRougeFond,
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.mdPlus,
+              vertical: AppSpacing.md,
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                IconeTrace(
+                  trace: ok
+                      ? '<path stroke-linecap="round" stroke-linejoin="round" d="M20 6L9 17l-5-5"/>'
+                      : '<circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M15 9l-6 6M9 9l6 6"/>',
+                  taille: MesuresTransverses.iconeModule,
+                  couleur: couleur,
+                  epaisseur: MesuresTransverses.traitAppuye,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        ok
+                            ? TextesImportExport.rapportConforme
+                            : TextesImportExport.rapportNonConforme,
+                        key: const Key('ie-rapport-verdict'),
+                        style: styleTransverse(
+                          TaillesContenu.sm,
+                          poids: FontWeight.bold,
+                          couleur: couleur,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.demi),
+                      Text.rich(
+                        TextSpan(
+                          children: [
+                            TextSpan(
+                              text:
+                                  '${TextesImportExport.rapportResume(rapport.total)} ',
+                            ),
+                            TextSpan(text: '${rapport.valides}', style: fort),
+                            const TextSpan(
+                              text:
+                                  ' ${TextesImportExport.rapportResumeExploitables} ',
+                            ),
+                            TextSpan(text: '${rapport.enErreur}', style: fort),
+                            const TextSpan(
+                              text:
+                                  ' ${TextesImportExport.rapportResumeErreurs} ',
+                            ),
+                            TextSpan(
+                              text:
+                                  TextesImportExport.rapportResumeAvertissements(
+                                    rapport.avertissements.length,
+                                  ),
+                            ),
+                          ],
+                        ),
+                        key: const Key('ie-rapport-resume'),
+                        style: texte,
+                      ),
+                      if (rapport.ignorees > 0)
+                        Text(
+                          TextesImportExport.rapportIgnorees(rapport.ignorees),
+                          key: const Key('ie-rapport-ignorees'),
+                          style: texte,
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxHeight: MesuresTransverses.hauteurRapportImport,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (final a in erreurs) anomalie(a, erreur: true),
+                  for (final a in avertissements) anomalie(a, erreur: false),
+                  if (rapport.erreurs.length > erreurs.length)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.mdPlus,
+                        vertical: AppSpacing.xs,
+                      ),
+                      child: Text(
+                        TextesImportExport.rapportSuiteErreurs(
+                          rapport.erreurs.length - erreurs.length,
+                        ),
+                        style: texte.copyWith(color: Ardoise.c400),
+                      ),
+                    ),
+                  if (rapport.erreurs.isEmpty && rapport.avertissements.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.mdPlus,
+                        vertical: AppSpacing.md,
+                      ),
+                      child: Text(
+                        TextesImportExport.rapportAucuneAnomalie,
+                        style: texte.copyWith(color: Ardoise.c500),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.mdPlus,
+              vertical: AppSpacing.md,
+            ),
+            decoration: const BoxDecoration(
+              border: Border(top: BorderSide(color: Ardoise.c100)),
+            ),
+            child: ok
+                ? Opacity(
+                    opacity: peutConfirmer ? 1 : AppColors.opaciteDesactive,
+                    child: BoutonTransverse(
+                      cle: const Key('ie-confirmer-import'),
+                      libelle: rapport.lignes.isEmpty
+                          ? TextesImportExport.rapportRienANouveau
+                          : TextesImportExport.rapportConfirmer(
+                              rapport.lignes.length,
+                            ),
+                      fond: AppColors.succes,
+                      taille: TaillesContenu.sm,
+                      pleineLargeur: true,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.mdPlus,
+                        vertical: AppSpacing.xsPlus,
+                      ),
+                      onTap: () {
+                        if (peutConfirmer && rapport.lignes.isNotEmpty) {
+                          onConfirmer();
+                        }
+                      },
+                    ),
+                  )
+                : Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.smPlus,
+                      vertical: AppSpacing.xsPlus,
+                    ),
+                    decoration: BoxDecoration(
+                      color: PaletteMaitre.ambre50,
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                    child: Text(
+                      TextesImportExport.rapportCorriger,
+                      style: styleTransverse(
+                        TaillesContenu.t13,
+                        couleur: PaletteTransverse.texteOr,
+                      ),
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// « Historique des imports » — ceux de CETTE session de l'application.
+class _HistoriqueImports extends ConsumerWidget {
+  const _HistoriqueImports();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final entrees = ref.watch(historiqueImportsProvider);
+    String deux(int n) => n.toString().padLeft(2, '0');
+    return CarteTransverse(
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.mdPlus,
+              vertical: AppSpacing.smPlus,
+            ),
+            decoration: const BoxDecoration(
+              border: Border(bottom: BorderSide(color: Ardoise.c100)),
+            ),
+            child: Text(TextesImportExport.historiqueTitre, style: _titreCarte),
+          ),
+          if (entrees.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.mdPlus,
+                vertical: AppSpacing.xl,
+              ),
+              child: Text(
+                TextesImportExport.historiqueVideSurCePoste,
+                key: const Key('ie-historique-vide'),
+                textAlign: TextAlign.center,
+                style: styleTransverse(
+                  TaillesContenu.t13,
+                  couleur: Ardoise.c400,
+                ),
+              ),
+            )
+          else
+            for (final e in entrees)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.mdPlus,
+                  vertical: AppSpacing.sm,
+                ),
+                decoration: const BoxDecoration(
+                  border: Border(bottom: BorderSide(color: Ardoise.c100)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      e.module,
+                      style: styleTransverse(
+                        TaillesContenu.t15,
+                        poids: FontWeight.w600,
+                        couleur: Ardoise.c700,
+                      ),
+                    ),
+                    Text(
+                      TextesImportExport.historiqueLignes(e.lignes),
+                      style: styleTransverse(
+                        TaillesContenu.t13,
+                        couleur: Ardoise.c500,
+                      ),
+                    ),
+                    Text(
+                      '${deux(e.le.day)}/${deux(e.le.month)}/${e.le.year} '
+                      '${deux(e.le.hour)}:${deux(e.le.minute)} · '
+                      '${e.par ?? TextesImportExport.tiret}',
+                      style: styleTransverse(
+                        TaillesContenu.t12,
+                        couleur: Ardoise.c400,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+        ],
+      ),
+    );
   }
 }
 
@@ -577,7 +1414,11 @@ class _Demarche extends StatelessWidget {
   }
 }
 
-class _PanneauSauvegardes extends StatelessWidget {
+/// L'onglet « Sauvegardes de la base » — « Générer une sauvegarde de la
+/// base » enregistre une copie COHÉRENTE (`VACUUM INTO`) de la base du poste
+/// par la fenêtre « Enregistrer sous » ; « Exporter une table existante »
+/// rend le contenu d'une table en JSON (`data/sauvegarde_locale.dart`).
+class _PanneauSauvegardes extends ConsumerStatefulWidget {
   const _PanneauSauvegardes({
     required this.peutEcrire,
     required this.nombreTables,
@@ -587,7 +1428,91 @@ class _PanneauSauvegardes extends StatelessWidget {
   final int nombreTables;
 
   @override
+  ConsumerState<_PanneauSauvegardes> createState() =>
+      _PanneauSauvegardesState();
+}
+
+class _PanneauSauvegardesState extends ConsumerState<_PanneauSauvegardes> {
+  bool _enCours = false;
+
+  static String _taille(int octets) {
+    if (octets >= 1024 * 1024) {
+      return '${(octets / (1024 * 1024)).toStringAsFixed(1)} Mo';
+    }
+    return '${(octets / 1024).ceil()} Ko';
+  }
+
+  Future<void> _generer() async {
+    if (_enCours) return;
+    setState(() => _enCours = true);
+    final messager = ScaffoldMessenger.of(context);
+    void dire(String texte, Color fond, Key cle) => messager
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: fond,
+          content: Text(texte, key: cle),
+        ),
+      );
+    try {
+      final octets = await ref.read(sauvegardeLocaleProvider).composer();
+      final chemin = await ref
+          .read(enregistrementExportProvider)
+          .enregistrer(
+            nomSuggere: SauvegardeLocale.nomSuggere(),
+            octets: octets,
+            type: TypeFichierEnregistre.sauvegarde,
+          );
+      // Annulé dans la fenêtre : rien n'est écrit, rien n'est dit.
+      if (chemin != null && messager.mounted) {
+        dire(
+          TextesImportExport.sauvegardeGeneree(
+            nomDuFichier(chemin),
+            _taille(octets.length),
+          ),
+          AppColors.succes,
+          const Key('ie-sauvegarde-generee'),
+        );
+      }
+    } on Object catch (e) {
+      if (messager.mounted) {
+        dire(
+          TextesImportExport.sauvegardeEchec(e),
+          AppColors.erreur,
+          const Key('ie-sauvegarde-echec'),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _enCours = false);
+    }
+  }
+
+  Future<void> _exporterTable() async {
+    final service = ref.read(sauvegardeLocaleProvider);
+    final table = await showDialog<String>(
+      context: context,
+      barrierColor: AppColors.voileModale,
+      builder: (_) => _ModaleExportTable(tables: service.tablesExportables()),
+    );
+    if (table == null || !mounted) return;
+    await executerExport(
+      context,
+      () async => ref
+          .read(enregistrementExportProvider)
+          .exporter(
+            base: table,
+            type: TypeFichierEnregistre.json,
+            octets: await service.exporterTableJson(table),
+          ),
+      cleSucces: const Key('ie-export-table-enregistre'),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final peutEcrire = widget.peutEcrire;
+    final nombreTables = widget.nombreTables;
     final largeur = MediaQuery.sizeOf(context).width;
     Widget kpi(String libelle, String valeur, {Key? cle}) => CarteTransverse(
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -612,12 +1537,6 @@ class _PanneauSauvegardes extends StatelessWidget {
         ],
       ),
     );
-    void dire() => direTransverse(
-      context,
-      TextesImportExport.sansSauvegarde,
-      cle: const Key('ie-sans-sauvegarde'),
-    );
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -643,16 +1562,19 @@ class _PanneauSauvegardes extends StatelessWidget {
           runSpacing: AppSpacing.xsPlus,
           children: [
             if (peutEcrire)
-              BoutonTransverse(
-                cle: const Key('ie-generer-sauvegarde'),
-                libelle: TextesImportExport.sauvegardesGenerer,
-                fond: AppColors.navy,
-                taille: TaillesContenu.sm,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.mdPlus,
-                  vertical: AppSpacing.xsPlus,
+              Opacity(
+                opacity: _enCours ? AppColors.opaciteDesactive : 1,
+                child: BoutonTransverse(
+                  cle: const Key('ie-generer-sauvegarde'),
+                  libelle: TextesImportExport.sauvegardesGenerer,
+                  fond: AppColors.navy,
+                  taille: TaillesContenu.sm,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.mdPlus,
+                    vertical: AppSpacing.xsPlus,
+                  ),
+                  onTap: _generer,
                 ),
-                onTap: dire,
               ),
             BoutonTransverse(
               cle: const Key('ie-exporter-table'),
@@ -665,7 +1587,7 @@ class _PanneauSauvegardes extends StatelessWidget {
                 horizontal: AppSpacing.mdPlus,
                 vertical: AppSpacing.xsPlus,
               ),
-              onTap: dire,
+              onTap: _exporterTable,
             ),
           ],
         ),
@@ -698,6 +1620,119 @@ class _PanneauSauvegardes extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// La modale « Exporter une table existante » : la liste des tables, puis
+/// Annuler / « Télécharger ». Rend la table choisie, `null` : annulé.
+class _ModaleExportTable extends StatefulWidget {
+  const _ModaleExportTable({required this.tables});
+
+  final List<String> tables;
+
+  @override
+  State<_ModaleExportTable> createState() => _ModaleExportTableState();
+}
+
+class _ModaleExportTableState extends State<_ModaleExportTable> {
+  String? _table;
+  String? _erreur;
+
+  @override
+  Widget build(BuildContext context) {
+    final bordure = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      borderSide: const BorderSide(color: Ardoise.c200),
+    );
+    return Dialog(
+      key: const Key('ie-modale-export-table'),
+      backgroundColor: AppColors.neutre0,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: Largeurs.maxMd),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                TextesImportExport.exportTableTitre,
+                style: styleTransverse(
+                  TaillesContenu.base,
+                  poids: FontWeight.bold,
+                  couleur: AppColors.navy,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.unit),
+              Text(TextesImportExport.exportTableAide, style: _aide),
+              const SizedBox(height: AppSpacing.md),
+              DropdownButtonFormField<String>(
+                key: const Key('ie-export-table-choix'),
+                initialValue: _table,
+                isExpanded: true,
+                hint: Text(
+                  TextesImportExport.exportTableInvite,
+                  style: styleTransverse(
+                    TaillesContenu.sm,
+                    couleur: Ardoise.c400,
+                  ),
+                ),
+                style: styleTransverse(TaillesContenu.sm),
+                decoration: InputDecoration(
+                  isDense: true,
+                  border: bordure,
+                  enabledBorder: bordure,
+                ),
+                items: [
+                  for (final t in widget.tables)
+                    DropdownMenuItem(value: t, child: Text(t)),
+                ],
+                onChanged: (t) => setState(() {
+                  _table = t;
+                  _erreur = null;
+                }),
+              ),
+              if (_erreur != null) ...[
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  _erreur!,
+                  style: styleTransverse(
+                    TaillesContenu.t12,
+                    couleur: PaletteMaitre.rouge600,
+                  ),
+                ),
+              ],
+              const SizedBox(height: AppSpacing.mdPlus),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  BoutonStandard(
+                    key: const Key('ie-export-table-annuler'),
+                    libelle: TextesImportExport.annuler,
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  BoutonStandard(
+                    key: const Key('ie-export-table-telecharger'),
+                    variante: VarianteBouton.primaire,
+                    libelle: TextesImportExport.actionTelecharger,
+                    onPressed: () {
+                      if (_table == null) {
+                        setState(
+                          () => _erreur = TextesImportExport.exportTableChoisir,
+                        );
+                        return;
+                      }
+                      Navigator.of(context).pop(_table);
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

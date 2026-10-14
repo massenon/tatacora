@@ -395,7 +395,9 @@ final routeurProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/import-export',
-            builder: (context, state) => const EcranImportExport(),
+            builder: (context, state) => EcranImportExport(
+              moduleInitial: state.uri.queryParameters['module'],
+            ),
           ),
           GoRoute(
             path: '/roles-permissions',

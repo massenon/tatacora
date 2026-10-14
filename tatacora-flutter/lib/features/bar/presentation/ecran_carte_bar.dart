@@ -8,6 +8,7 @@ import '../../../core/rbac/garde_acces.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../shared_widgets/liste_paginee.dart';
 import '../../restaurant/presentation/widgets/coquille_restaurant.dart';
 import '../../restaurant/presentation/widgets/corps_carte_commun.dart';
 import '../domain/entities/boisson.dart';
@@ -536,23 +537,34 @@ class _PanneauCarte extends StatelessWidget {
         // `carte_pwa.commun.tableau_titre` / `tableau_aside` (l.306-307).
         titre: '${lignes.length} article(s)',
         aside: 'Le stock vendable est calculé, jamais saisi.',
-        corps: TableCarte(
-          lignes: lignes,
-          onModifierPrix: peutEcrire
-              ? (l) => ouvrirModalePrixBoisson(context, l)
-              : null,
-          onLierAuStock: peutEcrire
-              ? (l) => ouvrirModaleLienStock(context, l)
-              : null,
-          onRetirer: peutEcrire
-              ? (l) => ouvrirModaleRetraitCarte(context, l)
-              : null,
-          onRemettre: peutEcrire
-              ? (l) => remettreALaCarte(context, ref, l)
-              : null,
-          // Une LECTURE : offerte à tout rôle qui voit l'écran, comme
-          // `ouvrirHistoriquePrix()`.
-          onHistorique: (l) => ouvrirModaleHistoriquePrix(context, l),
+        // Dix articles par page (PO, 14/10/2026) ; les exports lisent
+        // `carteFiltreeProvider`, la liste ENTIÈRE.
+        corps: ListePaginee<LigneCarte>(
+          elements: lignes,
+          prefixeCle: 'carte-bar-pagination',
+          cleRemiseAZero: (
+            ref.watch(rechercheCarteProvider),
+            ref.watch(categorieCarteProvider),
+            ref.watch(etatCarteProvider),
+          ),
+          constructeur: (_, page) => TableCarte(
+            lignes: page,
+            onModifierPrix: peutEcrire
+                ? (l) => ouvrirModalePrixBoisson(context, l)
+                : null,
+            onLierAuStock: peutEcrire
+                ? (l) => ouvrirModaleLienStock(context, l)
+                : null,
+            onRetirer: peutEcrire
+                ? (l) => ouvrirModaleRetraitCarte(context, l)
+                : null,
+            onRemettre: peutEcrire
+                ? (l) => remettreALaCarte(context, ref, l)
+                : null,
+            // Une LECTURE : offerte à tout rôle qui voit l'écran, comme
+            // `ouvrirHistoriquePrix()`.
+            onHistorique: (l) => ouvrirModaleHistoriquePrix(context, l),
+          ),
         ),
       ),
     );

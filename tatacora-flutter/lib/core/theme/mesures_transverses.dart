@@ -137,6 +137,13 @@ abstract final class MesuresTransverses {
   /// Lignes par page des tableaux de ce lot — la valeur du moteur de la vue
   /// (10 par page, comme `pied_pagination.dart`).
   static const int lignesParPage = 10;
+
+  /// `max-h-80` — la liste des anomalies du rapport de contrôle d'un import
+  /// (Import & Export, onglet « Importer les données »).
+  static const double hauteurRapportImport = 320;
+
+  /// `largeur="480px"` — la modale « Modifier le mot de passe » de Mon profil.
+  static const double modaleMotDePasse = 480;
 }
 
 /// Les couleurs de ce lot qui n'avaient pas de jeton.

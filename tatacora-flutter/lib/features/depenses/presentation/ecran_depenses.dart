@@ -11,6 +11,7 @@ import '../../../core/theme/app_breakpoints.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../shared_widgets/liste_paginee.dart';
 import '../../restaurant/presentation/widgets/coquille_restaurant.dart';
 import '../../restaurant/presentation/widgets/corps_carte_commun.dart'
     show styleContenuCarte;
@@ -147,7 +148,21 @@ class EcranDepenses extends ConsumerWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     BarreFiltresDepenses(depenses: depenses),
-                    TableDepenses(depenses: depenses, filtre: filtre.applique),
+                    // Dix lignes par page (PO, 14/10/2026) ; les exports
+                    // lisent `depensesFiltreesProvider`, la liste ENTIÈRE.
+                    if (depenses == null)
+                      TableDepenses(depenses: null, filtre: filtre.applique)
+                    else
+                      ListePaginee<Depense>(
+                        elements: depenses,
+                        prefixeCle: 'depenses-pagination',
+                        cleRemiseAZero: filtre,
+                        masquerSiVide: true,
+                        constructeur: (_, page) => TableDepenses(
+                          depenses: page,
+                          filtre: filtre.applique,
+                        ),
+                      ),
                   ],
                 ),
               ),
