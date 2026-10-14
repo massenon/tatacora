@@ -24,8 +24,9 @@
 /// `plats_local`, `tables_local`), la carte du bar (`cartes_boisson_local`),
 /// `vehicules_local`, `circuits_local`, le paramétrage comptable
 /// (`exercices_local`, `journaux_local`, `centres_cout_local`,
-/// `plan_comptable_local`), `services_rh_local` et
-/// `modeles_notification_local`.
+/// `plan_comptable_local`), `services_rh_local`,
+/// `modeles_notification_local` et la boîte d'envoi à l'éditeur
+/// (`messages_editeur_local`, comme `messages_editeur` au serveur).
 ///
 /// ## Un geste d'ADMINISTRATION, hors des gardes RG-11 — délibérément
 ///
@@ -95,6 +96,9 @@ const Set<String> tablesPreserveesLocales = {
   // M13 / M12 — référentiels sans donnée personnelle.
   'services_rh_local',
   'modeles_notification_local',
+  // La boîte d'envoi à l'éditeur (v25) — `messages_editeur` est GARDÉE au
+  // serveur (`TABLES_PRESERVEES`) : un message en attente ne se perd pas.
+  'messages_editeur_local',
 };
 
 /// Les quatre triggers RG-11, retirés puis recréés dans la transaction.

@@ -69,6 +69,13 @@ dependencies:
   # la cible est le bureau seul (decision du PO du 08/10/2026). Aucun reseau.
   file_selector_windows: ^0.9.3+5
   file_selector_platform_interface: ^2.7.0
+  # SMTP vers l'editeur — directive du PO du 14/10/2026 (Lot J2, partie 2) :
+  # « Contactez l'editeur » ENVOIE reellement. C'est la SEULE action reseau du
+  # poste (features/transverse/data/envoi_messages_editeur.dart) ; ce paquet ne
+  # sert a rien d'autre. Pur Dart (dart:io), aucune dependance native. Le mot
+  # de passe SMTP n'est jamais dans le code ni en base : il est relu a l'envoi
+  # dans %APPDATA%/TATACORA/poste.json (voir README_DEPLOY.md).
+  mailer: ^7.2.0
 
 dev_dependencies:
   integration_test:

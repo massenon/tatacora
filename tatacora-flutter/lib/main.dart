@@ -5,6 +5,7 @@ import 'core/di/providers.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/comptabilite/presentation/providers_comptabilite.dart';
+import 'features/transverse/presentation/providers_contact_editeur.dart';
 
 /// Point d'entrée — flavors `dev`, `recette`, `production`.
 ///
@@ -43,6 +44,11 @@ class _EtatApplication extends ConsumerState<ApplicationTatacora> {
       // tables vides. Idempotent. Un échec reste dans l'état du fournisseur et
       // est relevé par `moteurComptableProvider` (il ne se tait pas).
       ref.read(referentielComptableProvider);
+      // La relance des messages à l'éditeur restés en attente (Lot J2 partie
+      // 2, 14/10/2026) : une première fois maintenant, puis toutes les cinq
+      // minutes tant que l'application tourne. C'est la SEULE action réseau
+      // du poste ; `main_demo.dart` ne la démarre pas.
+      ref.read(relanceMessagesEditeurProvider);
     });
   }
 

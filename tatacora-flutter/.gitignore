@@ -49,3 +49,8 @@ app.*.map.json
 # des conflits de fusion insolubles sur du code que personne n'ecrit.
 *.g.dart
 *.freezed.dart
+
+# Configuration LOCALE d'un poste (mot de passe SMTP de « Contactez l'editeur »).
+# Elle vit dans %APPDATA%/TATACORA/poste.json sur le poste, JAMAIS dans le depot :
+# seul le modele `installer/poste.example.json` (sans valeur reelle) est versionne.
+poste.json

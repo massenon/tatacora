@@ -149,6 +149,14 @@ abstract final class MesuresTransverses {
 
   /// `largeur="480px"` — la modale « Modifier le mot de passe » de Mon profil.
   static const double modaleMotDePasse = 480;
+
+  /// `largeur="560px"` — les modales « Envoyer un message » et « Signaler un
+  /// bug » de Contactez l'éditeur.
+  static const double modaleContact = 560;
+
+  /// `Str::limit($envoi->corps, 180)` — l'extrait d'un envoi dans « Vos
+  /// envois ».
+  static const int extraitEnvoi = 180;
 }
 
 /// Les couleurs de ce lot qui n'avaient pas de jeton.

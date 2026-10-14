@@ -17,6 +17,7 @@ import 'tables/comptabilite_tables.dart';
 import 'tables/depenses_tables.dart';
 import 'tables/facturation_tables.dart';
 import 'tables/hebergement_tables.dart';
+import 'tables/messages_editeur_tables.dart';
 import 'tables/notifications_tables.dart';
 import 'tables/paiements_facture_tables.dart';
 import 'tables/panier_tables.dart';
@@ -171,6 +172,12 @@ part 'app_database.g.dart';
     // (le socle du CdCF est posé par `RolesDao.installerSocle`). Seul auteur :
     // `RolesDao` (voir `tables/roles_tables.dart`).
     RolesLocal,
+
+    // v25 (14/10/2026) — LA BOÎTE D'ENVOI DE « CONTACTEZ L'ÉDITEUR », réplique
+    // de `messages_editeur` au serveur (directive du PO, Lot J2 partie 2) : UNE
+    // table NEUVE. Aucune table existante n'est touchée, rien n'est semé. Seul
+    // auteur : `MessagesEditeurDao` (voir `tables/messages_editeur_tables.dart`).
+    MessagesEditeurLocal,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -287,8 +294,14 @@ class AppDatabase extends _$AppDatabase {
   /// ajoutée. Création d'un rôle, droits d'un rôle recopiés sur ses comptes,
   /// rétablissement du socle, comme `RolePermissionService` au serveur. Qui
   /// écrit, qui lit, qui descend : voir `tables/roles_tables.dart`.
+  ///
+  /// v25 (14/10/2026) — « CONTACTEZ L'ÉDITEUR » ENVOIE (directive du PO, Lot
+  /// J2 partie 2) : une table neuve (`messages_editeur_local`, 56 -> 57
+  /// tables), aucune colonne ajoutée. Le message s'y écrit AVANT la tentative
+  /// SMTP, qui est la SEULE action réseau du poste. Qui écrit, qui lit, qui
+  /// descend : voir `tables/messages_editeur_tables.dart`.
   @override
-  int get schemaVersion => 24;
+  int get schemaVersion => 25;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -870,6 +883,18 @@ class AppDatabase extends _$AppDatabase {
         // réécrit. `createTable` crée la définition COURANTE, exacte ici
         // puisqu'aucune version ultérieure n'a modifié cette table (piège 3).
         await m.createTable(rolesLocal);
+      }
+
+      if (from < 25) {
+        // LA BOÎTE D'ENVOI DE « CONTACTEZ L'ÉDITEUR » (14/10/2026, Lot J2
+        // partie 2). Une table NEUVE : aucune table existante n'est touchée,
+        // AUCUNE ligne n'est fabriquée — avant la v25, le poste n'enregistrait
+        // aucun envoi (l'écran le disait), il n'y a donc rien à reprendre.
+        // `createTable` crée la définition COURANTE, exacte ici puisqu'aucune
+        // version ultérieure n'a modifié cette table (le jour où une v26 y
+        // ajoutera une colonne, elle devra la tester avant `addColumn` —
+        // piège 3).
+        await m.createTable(messagesEditeurLocal);
       }
     },
 

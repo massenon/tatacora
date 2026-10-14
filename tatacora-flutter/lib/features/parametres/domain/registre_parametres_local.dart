@@ -46,8 +46,8 @@ enum FormatTexte {
   telephone,
 
   /// `email:rfc` du serveur, approché : une adresse avec une arobase et un
-  /// domaine pointé. Le poste ne délivre aucun courriel ; ce contrôle protège
-  /// seulement un en-tête imprimé.
+  /// domaine pointé. Il protège un en-tête imprimé et, depuis le 14/10/2026,
+  /// l'expéditeur des messages à l'éditeur (`email_smtp_utilisateur`).
   courriel,
 }
 
@@ -411,7 +411,13 @@ abstract final class RegistreParametresLocal {
       type: TypeParametre.texte,
       aide:
           'Vide : la configuration serveur (.env) reste seule maîtresse. Renseigné, il prend la main sur elle pour tous les envois.',
+      // LUE depuis le 14/10/2026 (Lot J2 partie 2) par l'envoi des messages à
+      // l'éditeur, SEULE action réseau du poste. L'aide du serveur parle de
+      // `.env`, qui n'existe pas ici : l'écart est NOMMÉ dans la correction.
+      correction:
+          'Sur ce poste : lu par « Contactez l’éditeur » ; vide, aucun message ne part (il reste en attente).',
       longueurMax: 150,
+      lecteur: 'lib/features/transverse/data/envoi_messages_editeur.dart',
     ),
     SpecParametre(
       cle: 'email_smtp_port',
@@ -420,6 +426,7 @@ abstract final class RegistreParametresLocal {
       type: TypeParametre.entier,
       minimum: '1',
       maximum: '65535',
+      lecteur: 'lib/features/transverse/data/envoi_messages_editeur.dart',
     ),
     SpecParametre(
       cle: 'email_smtp_securite',
@@ -427,6 +434,7 @@ abstract final class RegistreParametresLocal {
       libelle: 'Sécurité',
       type: TypeParametre.choix,
       choix: ['tls', 'ssl', 'aucune'],
+      lecteur: 'lib/features/transverse/data/envoi_messages_editeur.dart',
     ),
     SpecParametre(
       cle: 'email_smtp_utilisateur',
@@ -436,9 +444,10 @@ abstract final class RegistreParametresLocal {
       aide:
           'Le mot de passe SMTP, lui, reste en configuration serveur (.env) et n’apparaîtra jamais ici.',
       note:
-          'Sur ce poste, aucun mot de passe SMTP n’est enregistrable : un secret n’entre jamais dans cette base.',
+          'Sur ce poste, aucun mot de passe SMTP n’est enregistrable : un secret n’entre jamais dans cette base. Il se pose dans le fichier %APPDATA%\\TATACORA\\poste.json du poste.',
       format: FormatTexte.courriel,
       longueurMax: 150,
+      lecteur: 'lib/features/transverse/data/envoi_messages_editeur.dart',
     ),
     SpecParametre(
       cle: 'activation_suppression',
