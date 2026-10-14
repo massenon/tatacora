@@ -153,16 +153,19 @@ abstract final class RegistreParametresLocal {
       libelle: 'Raison sociale',
       type: TypeParametre.texte,
       longueurMax: 150,
+      // LUE depuis le 14/10/2026 (directive du PO) : l'en-tête de tous les
+      // états imprimés (`EnteteEtablissement.depuisParametres`).
+      lecteur: 'lib/core/impression/entete_etablissement.dart',
     ),
     SpecParametre(
       cle: 'entreprise_promoteur',
-      correction: 'Sur ce poste, aucun document n’imprime encore cette valeur.',
       groupe: 'entreprise',
       libelle: 'Nom du promoteur',
       type: TypeParametre.texte,
       aide:
           'Imprimé sous la raison sociale dans l’en-tête des états quand il est renseigné — jamais un nom deviné.',
       longueurMax: 150,
+      lecteur: 'lib/core/impression/entete_etablissement.dart',
     ),
     SpecParametre(
       cle: 'entreprise_adresse',
@@ -170,6 +173,7 @@ abstract final class RegistreParametresLocal {
       libelle: "Adresse du siège d'exploitation",
       type: TypeParametre.texte,
       longueurMax: 255,
+      lecteur: 'lib/core/impression/entete_etablissement.dart',
     ),
     SpecParametre(
       cle: 'entreprise_telephone',
@@ -178,6 +182,7 @@ abstract final class RegistreParametresLocal {
       type: TypeParametre.texte,
       longueurMax: 40,
       format: FormatTexte.telephone,
+      lecteur: 'lib/core/impression/entete_etablissement.dart',
     ),
     SpecParametre(
       cle: 'entreprise_email',
@@ -186,10 +191,10 @@ abstract final class RegistreParametresLocal {
       type: TypeParametre.texte,
       format: FormatTexte.courriel,
       longueurMax: 150,
+      lecteur: 'lib/core/impression/entete_etablissement.dart',
     ),
     SpecParametre(
       cle: 'communication_whatsapp',
-      correction: 'Sur ce poste, aucun document n’imprime encore cette valeur.',
       groupe: 'entreprise',
       libelle: 'Numéro WhatsApp Business',
       type: TypeParametre.texte,
@@ -199,6 +204,7 @@ abstract final class RegistreParametresLocal {
           'Sur ce poste, aucune clé d’API WhatsApp n’est enregistrable : un secret n’entre jamais dans cette base.',
       longueurMax: 40,
       format: FormatTexte.telephone,
+      lecteur: 'lib/core/impression/entete_etablissement.dart',
     ),
     SpecParametre(
       cle: 'entreprise_site_web',
@@ -206,25 +212,26 @@ abstract final class RegistreParametresLocal {
       libelle: 'Site web',
       type: TypeParametre.texte,
       longueurMax: 150,
+      lecteur: 'lib/core/impression/entete_etablissement.dart',
     ),
     SpecParametre(
       cle: 'entreprise_ifu',
-      correction: 'Sur ce poste, aucun document n’imprime encore cette valeur.',
       groupe: 'entreprise',
       libelle: 'IFU (Identifiant Fiscal Unique)',
       type: TypeParametre.texte,
       aide:
           'L’IFU est obligatoire pour la facturation MECeF. Laissé vide, la mention n’apparaît sur aucun document : imprimer un exemple de format serait un faux identifiant fiscal.',
       longueurMax: 30,
+      lecteur: 'lib/core/impression/entete_etablissement.dart',
     ),
     SpecParametre(
       cle: 'entreprise_rccm',
-      correction: 'Sur ce poste, aucun document n’imprime encore cette valeur.',
       groupe: 'entreprise',
       libelle: 'RCCM',
       type: TypeParametre.texte,
       aide: 'Même règle que l’IFU : absent tant qu’il n’est pas renseigné.',
       longueurMax: 30,
+      lecteur: 'lib/core/impression/entete_etablissement.dart',
     ),
     SpecParametre(
       cle: 'entreprise_numero_mecef',
@@ -279,13 +286,13 @@ abstract final class RegistreParametresLocal {
     ),
     SpecParametre(
       cle: 'fiscalite_regime',
-      correction: 'Sur ce poste, aucun document n’imprime encore cette valeur.',
       groupe: 'fiscalite',
       libelle: 'Régime fiscal',
       type: TypeParametre.choix,
       choix: ['reel_normal', 'reel_simplifie', 'tpu'],
       aide:
           'Imprimé avec l’IFU et le RCCM dans les mentions légales des états quand il est renseigné.',
+      lecteur: 'lib/core/impression/entete_etablissement.dart',
     ),
     SpecParametre(
       cle: 'taux_cnss_salarie',

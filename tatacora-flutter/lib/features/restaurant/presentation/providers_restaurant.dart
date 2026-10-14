@@ -23,6 +23,7 @@ import 'package:printing/printing.dart';
 
 import '../../../core/di/providers.dart';
 import '../../../core/fichiers/enregistrement_export.dart';
+import '../../../core/impression/entete_parametree.dart';
 import '../../../core/rbac/garde_acces.dart';
 import '../../stocks/presentation/providers_stocks.dart';
 import '../data/restaurant_api.dart';
@@ -314,7 +315,11 @@ final exporterCarteRestaurantPdfProvider =
               .exporter(
                 base: 'carte_restaurant',
                 type: TypeFichierEnregistre.pdf,
-                octets: await EtatCarteRestaurant.pdf(lignes, filtre: filtre),
+                octets: await EtatCarteRestaurant.pdf(
+                  lignes,
+                  filtre: filtre,
+                  entete: await ref.read(lireEnteteEtablissementProvider)(),
+                ),
               ),
     );
 
@@ -327,6 +332,7 @@ final imprimerFichePrixRestaurantProvider =
       (ref) => (lignes) async {
         final (octets, ecartes) = await EtatCarteRestaurant.ficheDesPrix(
           lignes,
+          entete: await ref.read(lireEnteteEtablissementProvider)(),
         );
         await Printing.layoutPdf(
           onLayout: (_) => octets,

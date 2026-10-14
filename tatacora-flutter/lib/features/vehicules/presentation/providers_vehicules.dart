@@ -21,6 +21,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/di/providers.dart';
 import '../../../core/fichiers/enregistrement_export.dart';
+import '../../../core/impression/export_etat_a4.dart';
 import '../data/vehicule_dao.dart';
 import '../domain/entities/contrat_location.dart';
 import '../domain/entities/vehicule.dart';
@@ -228,4 +229,12 @@ final exporterVehiculesProvider =
                 type: TypeFichierEnregistre.csv,
                 octets: etat.csvOctets(),
               ),
+    );
+
+/// L'export « PDF Officiel A4 Imprimable » de l'onglet affiché — mêmes
+/// colonnes, mêmes lignes que le CSV, en-tête lu des paramètres.
+final exporterVehiculesPdfProvider =
+    Provider<Future<String?> Function(EtatVehicules)>(
+      (ref) =>
+          (etat) => enregistrerEtatA4(ref, etat.etatA4(), base: 'vehicules'),
     );

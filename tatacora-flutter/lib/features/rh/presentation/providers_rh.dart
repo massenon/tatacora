@@ -15,6 +15,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/di/providers.dart';
 import '../../../core/fichiers/enregistrement_export.dart';
 import '../../../core/format/formats.dart';
+import '../../../core/impression/export_etat_a4.dart';
 import '../../../core/rbac/garde_acces.dart';
 import '../data/employe_dao.dart';
 import '../data/paie_dao.dart';
@@ -461,6 +462,9 @@ final etatPaieProvider = FutureProvider<EtatPaie>((ref) async {
 
   final List<String> entetes;
   final List<List<String>> lignes;
+  // Les colonnes de montant (FCFA au PDF) et celles que le PDF totalise.
+  var montants = const <int>{};
+  var totalisees = const <int>{};
 
   switch (onglet) {
     case OngletPaie.personnel:
@@ -488,6 +492,8 @@ final etatPaieProvider = FutureProvider<EtatPaie>((ref) async {
             e.salaireBase.toString(),
           ],
       ];
+      montants = const {7};
+      totalisees = const {7};
 
       // Le personnel est filtré par quatre contrôles : la portée les nomme
       // TOUS. (Le composant n'en nomme que deux ; en nommer davantage ne peut
@@ -530,6 +536,8 @@ final etatPaieProvider = FutureProvider<EtatPaie>((ref) async {
             b.chargesPatronalesConfirmees.toString(),
           ],
       ];
+      montants = const {2, 3, 4, 5, 6, 7};
+      totalisees = const {2, 3, 4, 5, 6, 7};
 
     case OngletPaie.livre:
       final t = await ref.watch(totauxLivreProvider.future);
@@ -570,6 +578,7 @@ final etatPaieProvider = FutureProvider<EtatPaie>((ref) async {
               ],
               ['COÛT TOTAL EMPLOYEUR', '${t.coutMin} — ${t.coutMax}'],
             ];
+      montants = const {1};
 
     case OngletPaie.declarations:
       final declarations = await ref.watch(declarationsProvider.future);
@@ -587,6 +596,7 @@ final etatPaieProvider = FutureProvider<EtatPaie>((ref) async {
                   d.complet ? 'Montant arrêté' : 'Incomplet',
                 ],
             ];
+      montants = const {2};
 
     case OngletPaie.bareme:
       final bareme = await ref.watch(baremeAfficheProvider.future);
@@ -606,6 +616,7 @@ final etatPaieProvider = FutureProvider<EtatPaie>((ref) async {
             l.cumul.toString(),
           ],
       ];
+      montants = const {2, 3};
   }
 
   return EtatPaie(
@@ -614,6 +625,8 @@ final etatPaieProvider = FutureProvider<EtatPaie>((ref) async {
     entetes: entetes,
     lignes: lignes,
     portee: morceaux.join(' · '),
+    colonnesMontant: montants,
+    colonnesTotalisees: totalisees,
   );
 });
 
@@ -633,6 +646,15 @@ final exporterPaieProvider = Provider<Future<String?> Function(EtatPaie)>(
             type: TypeFichierEnregistre.csv,
             octets: etat.csvOctets(),
           ),
+);
+
+/// L'export « PDF Officiel A4 Imprimable » de l'onglet affiché — mêmes
+/// colonnes et mêmes lignes que le CSV, en-tête lu des paramètres. Rend le
+/// chemin écrit, `null` : annulé.
+final exporterPaiePdfProvider = Provider<Future<String?> Function(EtatPaie)>(
+  (ref) =>
+      (etat) =>
+          enregistrerEtatA4(ref, etat.etatA4(), base: etat.prefixeFichier),
 );
 
 /// Recharge tout ce qui dépend de la paie, après une écriture.

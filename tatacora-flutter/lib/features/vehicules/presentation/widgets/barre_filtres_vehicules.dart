@@ -120,31 +120,17 @@ class _ChampDate extends StatelessWidget {
 ///  - **Tableur Excel (.xlsx / .csv)** : le CSV de l'onglet affiché, filtre
 ///    compris et DIT (PA-119), enregistré par `exporterVehiculesProvider`
 ///    (fenêtre « Enregistrer sous »). Une liste vide se refuse.
-///  - **PDF Officiel A4** : REFUSÉ, avec son message. Aucun état A4 de M8 n'est
-///    classé dans l'en-tête et les visas de l'application
-///    (`pdf_directive_test.dart`), et câbler un `Printing` recopié ici serait la
-///    non-conformité n° 1 de `RESPECT_TABLEAU_RAPPORT.md` §4. Un aperçu vide
-///    serait pire.
+///  - **PDF Officiel A4** : l'état A4 des mêmes colonnes et lignes, montants
+///    en FCFA et total (`exporterVehiculesPdfProvider`, directive du PO du
+///    14/10/2026). Une liste vide se refuse de même.
 ///
 /// « PDF » est présélectionné comme dans la vue (`$formatExport = 'pdf'`) —
-/// demande du PO du 14/10/2026 ; le refus du PDF est dit après le clic.
+/// demande du PO du 14/10/2026.
 class BoutonExporterVehicules extends ConsumerWidget {
   const BoutonExporterVehicules({super.key});
 
   /// `vehicules.pwa.export_titre`.
   static const String titreModale = 'Exporter le rapport Véhicules & Locations';
-
-  /// Le refus du choix PDF, dit AVANT le clic (sous les deux choix).
-  static const String aidePdf =
-      'Le PDF n’est pas produit sur ce poste : seul le tableur (CSV) est '
-      'écrit.';
-
-  /// Le refus du choix PDF, dit APRÈS le clic.
-  static const String pdfNonProduit =
-      'Le PDF de cet écran n’est pas produit sur ce poste : aucun état A4 de '
-      'M8 n’est classé dans l’en-tête et les visas de l’application. Rien n’a '
-      'été écrit. Choisissez « Tableur Excel » pour obtenir la liste affichée '
-      'en CSV.';
 
   /// Une liste vide se refuse (PA-119).
   static const String exportVide =
@@ -165,20 +151,8 @@ class BoutonExporterVehicules extends ConsumerWidget {
   }
 
   Future<void> _exporter(BuildContext context, WidgetRef ref) async {
-    final format = await choisirFormatExport(
-      context,
-      titre: titreModale,
-      aide: aidePdf,
-    );
+    final format = await choisirFormatExport(context, titre: titreModale);
     if (format == null || !context.mounted) return;
-
-    // Le refus du PDF passe avant celui de la liste vide : il ne dépend pas
-    // des lignes, et le dire d'abord évite d'envoyer élargir un filtre pour un
-    // document qu'aucun filtre ne produira.
-    if (format == FormatExport.pdf) {
-      _dire(context, const Key('vehicules-pdf-refuse'), pdfNonProduit);
-      return;
-    }
 
     final etat = await construireEtatCourant(ref);
     if (!context.mounted) return;
@@ -191,7 +165,10 @@ class BoutonExporterVehicules extends ConsumerWidget {
     // La fenêtre « Enregistrer sous », puis le toast commun (14/10/2026).
     await executerExport(
       context,
-      () => ref.read(exporterVehiculesProvider)(etat),
+      () => switch (format) {
+        FormatExport.pdf => ref.read(exporterVehiculesPdfProvider)(etat),
+        FormatExport.excel => ref.read(exporterVehiculesProvider)(etat),
+      },
       cleSucces: const Key('vehicules-export-fait'),
     );
   }

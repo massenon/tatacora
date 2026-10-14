@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/di/providers.dart';
 import '../../../core/fichiers/enregistrement_export.dart';
+import '../../../core/impression/entete_parametree.dart';
 import '../../../core/rbac/garde_acces.dart';
 import '../../../core/rbac/regle_archivage.dart';
 import '../../parametres/presentation/providers_options_systeme.dart';
@@ -416,7 +417,10 @@ final exporterListeAchatsPdfProvider =
               .exporter(
                 base: baseDepuisTitre(liste.titre),
                 type: TypeFichierEnregistre.pdf,
-                octets: await pdfListeAchats(liste),
+                octets: await pdfListeAchats(
+                  liste,
+                  entete: await ref.read(lireEnteteEtablissementProvider)(),
+                ),
               ),
     );
 

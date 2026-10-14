@@ -39,8 +39,12 @@ abstract final class LibellesCoquille {
   /// SECONDE DÉCISION DU PO DU 13/10/2026 (PA-209, D389) : « Système
   /// d'Information Intégré » devient « Système de gestion Intégré », casse
   /// exacte du PO. La clé de la vue a changé d'abord ; ce client la suit.
+  ///
+  /// TROISIÈME DÉCISION DU PO DU 14/10/2026 : la ligne sous la marque
+  /// devient « Système de gestion Intégré — Gîte Chez Noël, Natitingou
+  /// (Bénin) », comme la clé serveur `rapports.entete.localisation`.
   static const String localisation =
-      'Natitingou, Bénin — Système de gestion Intégré';
+      'Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)';
 
   /// `pwa.alt_logo` — le texte de remplacement du logo, rendu en sémantique.
   static const String altLogo = 'Logo TATACORA AFRIQUE';

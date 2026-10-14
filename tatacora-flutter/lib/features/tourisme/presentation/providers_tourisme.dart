@@ -21,6 +21,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/di/providers.dart';
 import '../../../core/fichiers/enregistrement_export.dart';
+import '../../../core/impression/export_etat_a4.dart';
 import '../../../core/format/formats.dart';
 import '../../../core/rbac/garde_acces.dart';
 import '../../crm/data/client_dao.dart';
@@ -463,6 +464,14 @@ final exporterTourismeProvider =
                 type: TypeFichierEnregistre.csv,
                 octets: etat.csvOctets(),
               ),
+    );
+
+/// L'export « PDF Officiel A4 Imprimable » de l'onglet affiché — mêmes
+/// colonnes, mêmes lignes que le CSV, en-tête lu des paramètres.
+final exporterTourismePdfProvider =
+    Provider<Future<String?> Function(EtatTourisme)>(
+      (ref) =>
+          (etat) => enregistrerEtatA4(ref, etat.etatA4(), base: 'tourisme'),
     );
 
 /// La description du filtre APPLIQUÉ à l'onglet [onglet], écrite en tête du

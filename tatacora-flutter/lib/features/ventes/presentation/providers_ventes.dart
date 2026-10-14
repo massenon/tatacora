@@ -30,6 +30,7 @@ import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 
 import '../../../core/fichiers/enregistrement_export.dart';
+import '../../../core/impression/entete_parametree.dart';
 import '../../facturation/presentation/providers_facturation.dart';
 import '../../pos/presentation/providers_pos.dart';
 import '../domain/entities/vente.dart';
@@ -143,7 +144,11 @@ final exporterJournalVentesPdfProvider =
               .exporter(
                 base: 'journal_ventes',
                 type: TypeFichierEnregistre.pdf,
-                octets: await etat.pdf(),
+                octets: await etat
+                    .avecEntete(
+                      await ref.read(lireEnteteEtablissementProvider)(),
+                    )
+                    .pdf(),
               ),
     );
 
@@ -167,8 +172,11 @@ final exporterJournalVentesProvider =
 /// L'impression du détail d'une vente — bouton « Imprimer » de la modale.
 final imprimerVenteProvider = Provider<Future<void> Function(EtatVente)>(
   (ref) => (etat) async {
+    final document = etat.avecEntete(
+      await ref.read(lireEnteteEtablissementProvider)(),
+    );
     await Printing.layoutPdf(
-      onLayout: (_) => etat.pdf(),
+      onLayout: (_) => document.pdf(),
       name: '${EtatVente.titre} ${etat.vente.referenceLocale}',
       format: PdfPageFormat.a4,
     );
@@ -192,7 +200,9 @@ final exporterVenteProvider = Provider<Future<String?> Function(EtatVente)>(
           .exporter(
             base: 'vente_${etat.vente.referenceLocale}',
             type: TypeFichierEnregistre.pdf,
-            octets: await etat.pdf(),
+            octets: await etat
+                .avecEntete(await ref.read(lireEnteteEtablissementProvider)())
+                .pdf(),
           ),
 );
 

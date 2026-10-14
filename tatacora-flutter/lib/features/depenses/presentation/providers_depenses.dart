@@ -20,6 +20,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/di/providers.dart';
 import '../../../core/fichiers/enregistrement_export.dart';
+import '../../../core/impression/export_etat_a4.dart';
 import '../../comptabilite/domain/entities/comptabilite.dart';
 import '../../comptabilite/domain/refus_comptable.dart';
 import '../../comptabilite/presentation/providers_comptabilite.dart';
@@ -173,6 +174,19 @@ final exporterDepensesProvider =
                 type: TypeFichierEnregistre.csv,
                 octets: etat.csvOctets(),
               ),
+    );
+
+/// L'export « PDF Officiel A4 Imprimable » de la liste affichée — mêmes
+/// colonnes, mêmes lignes et même portée que le CSV, en-tête lu des
+/// paramètres. Rend le chemin écrit, `null` : annulé.
+final exporterDepensesPdfProvider =
+    Provider<Future<String?> Function(EtatDepenses)>(
+      (ref) =>
+          (etat) => enregistrerEtatA4(
+            ref,
+            etat.etatA4(),
+            base: EtatDepenses.prefixeFichier,
+          ),
     );
 
 /// La raison du dernier rattrapage refusé, affichée en bandeau rouge au-dessus

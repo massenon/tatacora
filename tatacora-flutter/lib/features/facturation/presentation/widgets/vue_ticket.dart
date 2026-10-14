@@ -4,7 +4,7 @@ import 'package:printing/printing.dart';
 
 import '../../../../core/di/providers.dart';
 import '../../../../core/rbac/garde_acces.dart';
-import '../../../../core/impression/entete_etablissement.dart';
+import '../../../../core/impression/entete_parametree.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
@@ -215,11 +215,14 @@ class VueTicket extends ConsumerWidget {
   ) async {
     try {
       final logo = await ref.read(logoEtablissementProvider.future);
+      // L'en-tête est lu des paramètres du poste (directive du PO du
+      // 14/10/2026), le logo y est greffé.
+      final entete = await ref.read(lireEnteteEtablissementProvider)();
       final facture = FactureA4.composer(
         piece,
         auteur: auteur,
         dateEdition: DateTime.now(),
-        entete: const EnteteEtablissement().avecLogo(logo),
+        entete: entete.avecLogo(logo),
       );
       await ref.read(imprimerFactureA4Provider)(facture);
     } on Object catch (e) {

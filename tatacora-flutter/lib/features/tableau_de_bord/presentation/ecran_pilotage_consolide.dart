@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/fichiers/enregistrement_export.dart';
 import '../../../core/format/formats.dart';
+import '../../../core/impression/entete_parametree.dart';
 import '../../../core/theme/app_breakpoints.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -2672,7 +2673,11 @@ final exporterEtatPilotagePdfProvider =
               .exporter(
                 base: 'pilotage_consolide',
                 type: TypeFichierEnregistre.pdf,
-                octets: await etat.pdf(),
+                octets: await etat
+                    .avecEntete(
+                      await ref.read(lireEnteteEtablissementProvider)(),
+                    )
+                    .pdf(),
               ),
     );
 

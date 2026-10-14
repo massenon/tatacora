@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/di/providers.dart';
 import '../../../core/fichiers/enregistrement_export.dart';
+import '../../../core/impression/export_etat_a4.dart';
 import '../../hebergement/presentation/providers_hebergement.dart';
 import '../data/notifications_dao.dart';
 import '../domain/entities/canal_notification.dart';
@@ -279,5 +280,27 @@ final exporterNotificationsProvider = Provider<Future<String?> Function()>(
           type: TypeFichierEnregistre.csv,
           octets: contenu,
         );
+  },
+);
+
+/// L'export « PDF Officiel A4 Imprimable » de l'onglet affiché — mêmes
+/// colonnes, mêmes lignes, même filtre que le CSV ; en-tête lu des
+/// paramètres. Lève [ExportVide] sur une liste vide, comme le tableur.
+final exporterNotificationsPdfProvider = Provider<Future<String?> Function()>(
+  (ref) => () async {
+    final vue = await ref.read(vueNotificationsProvider.future);
+    final onglet = ref.read(ongletNotificationsProvider);
+
+    final etat = EtatNotifications.etatA4(
+      onglet: onglet,
+      filtre: ref.read(descriptionFiltreProvider),
+      file: vue.file,
+      journal: vue.journal,
+      modeles: vue.modeles,
+      declencheurs: vue.declencheurs,
+      transports: ref.read(transportsLocauxProvider),
+    );
+
+    return enregistrerEtatA4(ref, etat, base: 'notifications_${onglet.name}');
   },
 );

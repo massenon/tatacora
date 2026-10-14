@@ -77,11 +77,10 @@ import 'widgets/table_depenses.dart';
 ///
 /// ⚠ **Un libellé de la vue n'est pas rendu, et ce n'est pas un oubli** :
 /// « TATACORA AFRIQUE » (vue l.80-83, `<h2>` de l'en-tête d'impression,
-/// `hidden print:block`). Ce client n'a pas de feuille d'impression d'écran : le
-/// seul document de cet écran est le CSV, qui porte son titre et sa portée mais
-/// pas la marque, et le choix PDF n'est pas produit (voir
-/// [BarreFiltresDepenses.pdfNonProduit]). C'était déjà l'unique libellé absent
-/// de la page à la mesure précédente.
+/// `hidden print:block`). Ce client n'a pas de feuille d'impression d'écran :
+/// la marque s'imprime dans l'en-tête de l'état A4 exporté (choix PDF de
+/// l'export, 14/10/2026, en-tête lu des paramètres), pas à l'écran. C'était
+/// déjà l'unique libellé absent de la page à la mesure précédente.
 ///
 /// ## Ce que la vue porte et que cet écran ne peut pas rendre (09/10/2026)
 ///
@@ -90,7 +89,6 @@ import 'widgets/table_depenses.dart';
 ///   est vraie pour toutes les lignes et son infobulle le dit.
 /// - **État replié des indicateurs, d'une session à l'autre** (l.152) : la vue
 ///   le retient en `localStorage`. Aucun magasin de préférences n'est embarqué.
-/// - **Le choix PDF de l'export** : voir [BarreFiltresDepenses.pdfNonProduit].
 ///
 /// - Modifier ou supprimer une dépense : la vue ne l'offre pas non plus. Le
 ///   « D » de CRUD n'existe nulle part dans ce dépôt, et le serveur n'annule

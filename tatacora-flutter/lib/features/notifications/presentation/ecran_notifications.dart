@@ -74,10 +74,8 @@ import 'widgets/modales_notifications.dart';
 /// 3. **Le détail « E-mails partis, comptés en base »** (l.162) : ce poste n'a
 ///    aucun transport, l'annoncer ferait attendre un envoi qui ne viendra
 ///    pas. La carte dit « Aucun transport sur ce poste ».
-/// 4. **Le choix PDF de l'export** (l.119, `modale-export`) : la modale est
-///    celle de la vue (partiel partagé), mais aucun A4 des notifications n'est
-///    classé au registre de `pdf_directive_test.dart` (`sansPdf`) ; le choix
-///    PDF est refusé avec son message ([EcranNotifications.pdfNonProduit]).
+/// 4. ~~**Le choix PDF de l'export**~~ — PRODUIT le 14/10/2026 (directive du
+///    PO) : l'état A4 de l'onglet affiché, mêmes colonnes que le CSV.
 /// 5. **L'état replié de la bande, d'une session à l'autre** (l.140) : la vue
 ///    le retient en `localStorage`. Aucun magasin de préférences n'est
 ///    embarqué (voir `kpisNotificationsDepliesProvider`).
@@ -99,18 +97,6 @@ class EcranNotifications extends ConsumerWidget {
   /// Le titre de la modale d'export — `export_titre`, « Exporter — :onglet ».
   static String titreExport(OngletNotifications onglet) =>
       'Exporter — ${onglet.libelle}';
-
-  /// Le refus du choix PDF : aucun A4 de cet écran n'existe.
-  static const String pdfNonProduit =
-      'Le PDF des notifications n’est pas produit sur ce poste : aucun état A4 '
-      'de cet écran n’est classé dans l’en-tête et les visas de l’application. '
-      'Rien n’a été écrit. Choisissez « Tableur Excel » pour obtenir la liste '
-      'affichée en CSV.';
-
-  /// La ligne d'aide posée sous les deux choix de la modale, AVANT le clic.
-  static const String aidePdf =
-      'Le PDF n’est pas produit sur ce poste : seul le tableur (CSV) est '
-      'écrit.';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -283,38 +269,24 @@ class _EnTete extends ConsumerWidget {
   /// - **Tableur Excel** : le CSV (BOM UTF-8, point-virgule), écrit par
   ///   `exporterNotificationsProvider` par la fenêtre « Enregistrer sous »,
   ///   nom du fichier dit par le toast commun.
-  /// - **PDF Officiel A4** : [EcranNotifications.pdfNonProduit].
+  /// - **PDF Officiel A4** : l'état A4 de l'onglet affiché, mêmes colonnes
+  ///   (`exporterNotificationsPdfProvider`).
   Future<void> _exporter(BuildContext context, WidgetRef ref) async {
     final onglet = ref.read(ongletNotificationsProvider);
     final format = await choisirFormatExport(
       context,
       titre: EcranNotifications.titreExport(onglet),
-      aide: EcranNotifications.aidePdf,
     );
     if (format == null || !context.mounted) return;
-
-    // Le refus du PDF passe avant celui de la liste vide : il ne dépend pas
-    // des lignes, et le dire d'abord évite d'envoyer élargir un filtre pour un
-    // document qu'aucun filtre ne produira.
-    if (format == FormatExport.pdf) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          const SnackBar(
-            content: Text(
-              EcranNotifications.pdfNonProduit,
-              key: Key('notifications-export-pdf-absent'),
-            ),
-          ),
-        );
-      return;
-    }
 
     // La fenêtre « Enregistrer sous », puis le toast commun (14/10/2026).
     // Une liste vide se refuse avec SON message, pas comme un échec.
     await executerExport(context, () async {
       try {
-        return await ref.read(exporterNotificationsProvider)();
+        return await switch (format) {
+          FormatExport.pdf => ref.read(exporterNotificationsPdfProvider)(),
+          FormatExport.excel => ref.read(exporterNotificationsProvider)(),
+        };
       } on ExportVide {
         if (context.mounted) _dire(context, ExportVide.message);
         return null;

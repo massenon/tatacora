@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/fichiers/enregistrement_export.dart';
+import '../../../../core/impression/entete_parametree.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
@@ -61,7 +62,10 @@ final exporterRapportAccueilProvider =
           FormatExport.excel => TypeFichierEnregistre.csv,
         };
         final octets = switch (format) {
-          FormatExport.pdf => await etat.pdf(),
+          FormatExport.pdf =>
+            await etat
+                .avecEntete(await ref.read(lireEnteteEtablissementProvider)())
+                .pdf(),
           FormatExport.excel => etat.csvOctets(),
         };
         return ref

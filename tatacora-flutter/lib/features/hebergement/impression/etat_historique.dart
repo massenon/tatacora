@@ -96,6 +96,15 @@ final class EtatHistorique {
   final String periode;
   final EnteteEtablissement entete;
 
+  /// Le même document sous l'en-tête lu des paramètres au moment d'éditer
+  /// (`lireEnteteEtablissementProvider`).
+  EtatHistorique avecEntete(EnteteEtablissement autre) => EtatHistorique(
+    lignes: lignes,
+    kpis: kpis,
+    periode: periode,
+    entete: autre,
+  );
+
   /// Une ligne du tableau, en texte — **source unique** des deux rendus.
   ///
   /// Le PDF et le CSV partent d'ici : composer deux fois les mêmes cellules

@@ -113,8 +113,10 @@ pw.Widget piedRapportA4(
         ),
       ),
       pw.Expanded(
+        // « Page x / y » (demande du PO du 14/10/2026) : la même forme que
+        // `piedA4`, sur tous les états d'export.
         child: pw.Text(
-          '$page / $total',
+          'Page $page / $total',
           textAlign: pw.TextAlign.right,
           style: const pw.TextStyle(fontSize: 7.5),
         ),

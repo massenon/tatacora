@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/di/providers.dart';
 import '../../../core/fichiers/enregistrement_export.dart';
+import '../../../core/impression/entete_parametree.dart';
+import '../../../core/impression/export_etat_a4.dart';
 import '../../../core/rbac/garde_acces.dart';
 import '../data/stocks_api.dart';
 import '../data/stocks_dao.dart';
@@ -273,6 +275,7 @@ final exporterFicheStockPdfProvider =
                 octets: await EtatFicheStock.pdf(
                   fiche,
                   pointLibelle: pointLibelle,
+                  entete: await ref.read(lireEnteteEtablissementProvider)(),
                 ),
               ),
     );
@@ -331,3 +334,15 @@ final exporterStocksProvider = Provider<Future<String?> Function(EtatStocks)>(
             octets: etat.csvOctets(),
           ),
 );
+
+/// L'export « PDF Officiel A4 Imprimable » des articles affichés — mêmes
+/// colonnes, mêmes lignes que le CSV, en-tête lu des paramètres.
+final exporterStocksPdfProvider =
+    Provider<Future<String?> Function(EtatStocks)>(
+      (ref) =>
+          (etat) => enregistrerEtatA4(
+            ref,
+            etat.etatA4(),
+            base: EtatStocks.prefixeFichier,
+          ),
+    );

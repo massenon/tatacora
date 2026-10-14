@@ -15,10 +15,12 @@ import '../../../core/theme/mesures_transverses.dart';
 import '../../../shared_widgets/bouton_standard.dart';
 import '../../../shared_widgets/modale_export.dart';
 import '../../../shared_widgets/pied_pagination.dart';
+import '../../../shared_widgets/toast_export.dart';
 import '../../transverse/presentation/widgets/briques_transverses.dart';
 import '../domain/consultation_comptable.dart';
 import '../domain/entities/comptabilite.dart';
 import '../domain/montant_comptable.dart';
+import '../impression/etat_journal_comptable.dart';
 import 'providers_consultation_comptable.dart';
 import 'widgets/modale_ecriture.dart';
 
@@ -48,9 +50,12 @@ import 'widgets/modale_ecriture.dart';
 /// - **Grand livre, Compte de résultat, Bilan, Analytique, Immobilisations,
 ///   Plan comptable, Clôtures** : l'onglet est cliquable et DIT qu'il n'est pas
 ///   calculé sur ce poste — aucun chiffre plutôt qu'un chiffre faux.
-/// - **Exporter** : la vue exporte le journal (PDF/Excel) ; le bouton ouvre
-///   la modale d'export partagée (14/10/2026) et le choix DIT qu'aucun
-///   export comptable n'est produit ici.
+/// - **Exporter** : la vue exporte le journal (PDF/Excel) ; ici aussi
+///   (directive du PO du 14/10/2026). Le bouton n'existe que sur l'onglet
+///   **Journal** — comme le registre CRM, un bouton n'est offert que là où il
+///   produit quelque chose : il exporte les écritures affichées (exercice,
+///   statut, journal), en CSV ou en PDF A4 paysage avec les totaux
+///   ([EtatJournalComptable]).
 /// - **Tuiles** : celles qui correspondent à un onglet l'ouvrent ; Flux de
 ///   trésorerie, Notes annexes et États financiers DISENT qu'ils ne sont pas
 ///   portés (ce sont des pages séparées de la vue).
@@ -121,9 +126,13 @@ abstract final class TextesComptabilite {
 
   /// Le titre de la modale d'export — la vue exporte le journal.
   static const String titreExport = 'Exporter — Journal comptable';
-  static const String exportNonProduit =
-      "Aucun export comptable n'est produit sur ce poste : rien n'a été "
-      'exporté.';
+
+  /// Le statut retenu par le filtre, en clair — pour la portée de l'export.
+  static String libelleStatut(FiltreStatutEcritures s) => switch (s) {
+    FiltreStatutEcritures.toutes => statutToutes,
+    FiltreStatutEcritures.validee => statutValidee,
+    FiltreStatutEcritures.brouillon => statutBrouillon,
+  };
   static String ongletNonCalcule(String libelle) =>
       "« $libelle » n'est pas calculé sur ce poste : seuls le journal et la "
       "balance générale y sont lus. Aucun chiffre n'est affiché plutôt qu'un "
@@ -256,6 +265,60 @@ class _EcranComptabiliteState extends ConsumerState<EcranComptabilite> {
     _page = 1;
   });
 
+  /// « Exporter » de l'onglet Journal : la modale de format, puis le document.
+  ///
+  /// L'export porte sur CE QUI EST AFFICHÉ — l'exercice, le statut et le
+  /// journal choisis, toutes pages confondues — et il le DIT (PA-119). Une
+  /// liste vide se REFUSE, au PDF comme au tableur.
+  Future<void> _exporterJournal(
+    DonneesComptabilite? donnees,
+    ExerciceComptable? exercice,
+  ) async {
+    final format = await choisirFormatExport(
+      context,
+      titre: TextesComptabilite.titreExport,
+    );
+    if (format == null || !mounted) return;
+
+    final lignes = (donnees == null || exercice == null)
+        ? const <EcritureComptable>[]
+        : porteeEcritures(
+            donnees.ecritures,
+            exerciceId: exercice.id,
+            statut: _statut,
+            journalId: _journalId,
+          );
+    if (donnees == null || exercice == null || lignes.isEmpty) {
+      direTransverse(
+        context,
+        EtatJournalComptable.refusVide,
+        cle: const Key('compta-export-vide'),
+      );
+      return;
+    }
+
+    final etat = EtatJournalComptable(
+      lignes: lignes,
+      portee: EtatJournalComptable.decrirePortee(
+        exercice: exercice,
+        statut: TextesComptabilite.libelleStatut(_statut),
+        journal: donnees.journaux.where((j) => j.id == _journalId).firstOrNull,
+      ),
+      journaux: {for (final j in donnees.journaux) j.id: j},
+      comptes: donnees.comptes,
+      centres: {for (final c in donnees.centres) c.id: c},
+    );
+    // La fenêtre « Enregistrer sous », puis le toast commun.
+    await executerExport(
+      context,
+      () => switch (format) {
+        FormatExport.pdf => ref.read(exporterJournalComptablePdfProvider)(etat),
+        FormatExport.excel => ref.read(exporterJournalComptableProvider)(etat),
+      },
+      cleSucces: const Key('compta-export-fait'),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final droits = ref.watch(droitsProvider);
@@ -321,6 +384,10 @@ class _EcranComptabiliteState extends ConsumerState<EcranComptabilite> {
             _statut = FiltreStatutEcritures.toutes;
             _page = 1;
           }),
+          // Seul l'onglet Journal s'exporte : ailleurs, le bouton n'existe pas.
+          onExporter: _onglet == 'journal'
+              ? () => _exporterJournal(donnees, exercice)
+              : null,
         ),
         const SizedBox(height: AppSpacing.md),
         if (lu.hasError)
@@ -570,6 +637,7 @@ class _BarreFiltres extends StatelessWidget {
     required this.onJournal,
     required this.onStatut,
     required this.onReinitialiser,
+    required this.onExporter,
   });
 
   final List<JournalComptable> journaux;
@@ -579,6 +647,10 @@ class _BarreFiltres extends StatelessWidget {
   final ValueChanged<String?> onJournal;
   final ValueChanged<FiltreStatutEcritures> onStatut;
   final VoidCallback onReinitialiser;
+
+  /// L'export de l'onglet affiché, ou `null` : l'onglet ne s'exporte pas, et
+  /// le bouton n'est pas rendu.
+  final VoidCallback? onExporter;
 
   @override
   Widget build(BuildContext context) {
@@ -666,26 +738,14 @@ class _BarreFiltres extends StatelessWidget {
             onTap: onReinitialiser,
           ),
           // Le bouton standard (PO, 14/10/2026) : le même « Exporter » que
-          // sur les autres écrans, qui ouvre la MÊME modale d'export. Aucun
-          // export comptable n'est produit ici : la modale le dit sous les
-          // choix, et le clic le redit, sans rien écrire.
-          BoutonStandard(
-            key: const Key('compta-exporter'),
-            libelle: TextesComptabilite.exporter,
-            onPressed: () async {
-              final format = await choisirFormatExport(
-                context,
-                titre: TextesComptabilite.titreExport,
-                aide: TextesComptabilite.exportNonProduit,
-              );
-              if (format == null || !context.mounted) return;
-              direTransverse(
-                context,
-                TextesComptabilite.exportNonProduit,
-                cle: const Key('compta-export-non-produit'),
-              );
-            },
-          ),
+          // sur les autres écrans, qui ouvre la MÊME modale d'export. Rendu
+          // sur l'onglet Journal seulement — le seul qui s'exporte.
+          if (onExporter != null)
+            BoutonStandard(
+              key: const Key('compta-exporter'),
+              libelle: TextesComptabilite.exporter,
+              onPressed: onExporter,
+            ),
           if (consultation)
             Text(
               TextesComptabilite.lectureSeule,

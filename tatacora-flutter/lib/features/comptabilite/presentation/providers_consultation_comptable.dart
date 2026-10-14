@@ -1,6 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/fichiers/enregistrement_export.dart';
+import '../../../core/impression/export_etat_a4.dart';
 import '../domain/entities/comptabilite.dart';
+import '../impression/etat_journal_comptable.dart';
 import 'providers_comptabilite.dart';
 
 /// Ce que le hub Comptabilité lit du moteur du poste — relu à chaque visite,
@@ -81,3 +84,32 @@ final comptesImputablesProvider =
           if (!estDivision(c)) c,
       ];
     });
+
+/// L'export tableur du journal affiché — rend le **chemin** du fichier écrit
+/// par la fenêtre « Enregistrer sous », `null` : annulé (directive du PO du
+/// 14/10/2026). Action injectable : un test de widget n'a pas de greffon
+/// natif, et il doit exister un seul endroit où ce fichier est écrit.
+final exporterJournalComptableProvider =
+    Provider<Future<String?> Function(EtatJournalComptable)>(
+      (ref) =>
+          (etat) => ref
+              .read(enregistrementExportProvider)
+              .exporter(
+                base: EtatJournalComptable.prefixeFichier,
+                type: TypeFichierEnregistre.csv,
+                octets: etat.csvOctets(),
+              ),
+    );
+
+/// L'export « PDF Officiel A4 Imprimable » du journal affiché — paysage, mêmes
+/// colonnes et lignes que le CSV, totaux débit / crédit, en-tête lu des
+/// paramètres.
+final exporterJournalComptablePdfProvider =
+    Provider<Future<String?> Function(EtatJournalComptable)>(
+      (ref) =>
+          (etat) => enregistrerEtatA4(
+            ref,
+            etat.etatA4(),
+            base: EtatJournalComptable.prefixeFichier,
+          ),
+    );

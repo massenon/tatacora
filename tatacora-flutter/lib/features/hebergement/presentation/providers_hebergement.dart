@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/di/providers.dart';
 import '../../../core/fichiers/enregistrement_export.dart';
+import '../../../core/impression/entete_parametree.dart';
+import '../../../core/impression/export_etat_a4.dart';
 import '../../../core/rbac/garde_acces.dart';
 import '../../comptabilite/presentation/providers_comptabilite.dart';
 import '../../crm/data/client_dao.dart';
@@ -159,7 +161,11 @@ final exporterEtatHistoriquePdfProvider =
               .exporter(
                 base: 'historique_reservations',
                 type: TypeFichierEnregistre.pdf,
-                octets: await etat.pdf(),
+                octets: await etat
+                    .avecEntete(
+                      await ref.read(lireEnteteEtablissementProvider)(),
+                    )
+                    .pdf(),
               ),
     );
 
@@ -172,8 +178,11 @@ final exporterEtatHistoriquePdfProvider =
 final imprimerConfirmationReservationProvider =
     Provider<Future<void> Function(ConfirmationReservation)>(
       (ref) => (document) async {
+        final papier = document.avecEntete(
+          await ref.read(lireEnteteEtablissementProvider)(),
+        );
         await Printing.layoutPdf(
-          onLayout: (_) => document.pdf(),
+          onLayout: (_) => papier.pdf(),
           name: 'Confirmation ${document.reservation.reference}',
           format: PdfPageFormat.a4,
         );
@@ -470,6 +479,14 @@ final exporterParcProvider = Provider<Future<String?> Function(EtatParc)>(
             type: TypeFichierEnregistre.csv,
             octets: etat.csvOctets(),
           ),
+);
+
+/// L'export « PDF Officiel A4 Imprimable » du parc affiché — mêmes colonnes,
+/// mêmes lignes que le CSV, en-tête lu des paramètres.
+final exporterParcPdfProvider = Provider<Future<String?> Function(EtatParc)>(
+  (ref) =>
+      (etat) =>
+          enregistrerEtatA4(ref, etat.etatA4(), base: EtatParc.prefixeFichier),
 );
 
 /// Toutes les réservations, de la plus récente à la plus ancienne.

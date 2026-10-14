@@ -18,6 +18,7 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/fichiers/enregistrement_export.dart';
+import '../../../core/impression/export_etat_a4.dart';
 import '../../pos/presentation/providers_pos.dart';
 import '../data/boissons_api.dart';
 import '../domain/entities/boisson.dart';
@@ -236,4 +237,16 @@ final exporterBoissonsProvider =
                   filtre: filtre,
                 ),
               ),
+    );
+
+/// L'export « PDF Officiel A4 Imprimable » du catalogue affiché — mêmes
+/// colonnes, mêmes lignes que le CSV, en-tête lu des paramètres.
+final exporterBoissonsPdfProvider =
+    Provider<Future<String?> Function(List<Boisson>, String)>(
+      (ref) =>
+          (boissons, filtre) => enregistrerEtatA4(
+            ref,
+            EtatCatalogueBoissons.etatA4(boissons, filtre: filtre),
+            base: 'boissons',
+          ),
     );

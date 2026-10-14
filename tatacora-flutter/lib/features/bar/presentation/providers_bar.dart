@@ -3,6 +3,7 @@ import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 
 import '../../../core/fichiers/enregistrement_export.dart';
+import '../../../core/impression/entete_parametree.dart';
 import '../impression/etat_carte.dart';
 import '../impression/etat_ventes_bar.dart';
 
@@ -380,7 +381,11 @@ final exporterCartePdfProvider =
               .exporter(
                 base: 'carte_bar',
                 type: TypeFichierEnregistre.pdf,
-                octets: await EtatCarteBar.pdf(lignes, filtre: filtre),
+                octets: await EtatCarteBar.pdf(
+                  lignes,
+                  filtre: filtre,
+                  entete: await ref.read(lireEnteteEtablissementProvider)(),
+                ),
               ),
     );
 
@@ -388,7 +393,10 @@ final exporterCartePdfProvider =
 final imprimerFichePrixProvider =
     Provider<Future<int> Function(List<LigneCarte>)>(
       (ref) => (lignes) async {
-        final (octets, ecartes) = await EtatCarteBar.ficheDesPrix(lignes);
+        final (octets, ecartes) = await EtatCarteBar.ficheDesPrix(
+          lignes,
+          entete: await ref.read(lireEnteteEtablissementProvider)(),
+        );
         await Printing.layoutPdf(
           onLayout: (_) => octets,
           name: EtatCarteBar.titreFiche,
@@ -423,6 +431,7 @@ final exporterVentesBarPdfProvider =
                   totaux,
                   filtre: filtre,
                   carte: carte,
+                  entete: await ref.read(lireEnteteEtablissementProvider)(),
                 ),
               ),
     );

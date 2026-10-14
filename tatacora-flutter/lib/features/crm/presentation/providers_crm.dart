@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/fichiers/enregistrement_export.dart';
-import '../../../core/impression/entete_etablissement.dart';
+import '../../../core/impression/entete_parametree.dart';
 import '../impression/etat_clients.dart';
 
 import '../../facturation/presentation/providers_paiements.dart';
@@ -86,7 +86,7 @@ final exporterRegistreClientsPdfProvider =
                 octets: await EtatClients.pdf(
                   lignes,
                   filtre: filtre,
-                  entete: const EnteteEtablissement(),
+                  entete: await ref.read(lireEnteteEtablissementProvider)(),
                 ),
               ),
     );

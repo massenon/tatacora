@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/di/providers.dart';
 import '../../../core/fichiers/enregistrement_export.dart';
+import '../../../core/impression/entete_parametree.dart';
 import '../../../core/theme/app_assets.dart';
 import '../../auth/domain/session.dart';
 import '../../hebergement/presentation/providers_hebergement.dart';
@@ -225,7 +226,11 @@ final exporterRegistrePdfProvider =
               .exporter(
                 base: 'registre_factures',
                 type: TypeFichierEnregistre.pdf,
-                octets: await etat.pdf(),
+                octets: await etat
+                    .avecEntete(
+                      await ref.read(lireEnteteEtablissementProvider)(),
+                    )
+                    .pdf(),
               ),
     );
 

@@ -126,32 +126,14 @@ class _ChampDate extends StatelessWidget {
 ///  - **Tableur Excel (.xlsx / .csv)** : le CSV de l'onglet affiché, filtre
 ///    compris et DIT (PA-119), enregistré par `exporterTourismeProvider`
 ///    (fenêtre « Enregistrer sous »). Une liste vide se refuse.
-///  - **PDF Officiel A4** : REFUSÉ, avec son message. Aucun état A4 de M9 n'est
-///    classé dans l'en-tête et les visas de l'application
-///    (`pdf_directive_test.dart`), et câbler un `Printing` recopié ici serait
-///    la non-conformité n° 1 de `RESPECT_TABLEAU_RAPPORT.md` §4.
-///
-/// ÉCART — la vue présélectionne « PDF » (`$formatExport = 'pdf'`, l.198 de
-/// `Departs.php`). Ici « Excel » l'est, parce que le PDF est refusé :
-/// présélectionner un choix qui échoue ferait échouer le chemin le plus court.
-/// Même décision que Véhicules et Notifications (09/10/2026).
+///  - **PDF Officiel A4** : l'état A4 paysage des mêmes colonnes et lignes,
+///    montants en FCFA et total (`exporterTourismePdfProvider`, directive du
+///    PO du 14/10/2026). Une liste vide se refuse de même.
 class BoutonExporterTourisme extends ConsumerWidget {
   const BoutonExporterTourisme({super.key});
 
   /// `tourisme.pwa.export_titre`.
   static const String titreModale = 'Exporter le rapport Tourisme';
-
-  /// Le refus du choix PDF, dit AVANT le clic (sous les deux choix).
-  static const String aidePdf =
-      "Le PDF n'est pas produit sur ce poste : seul le tableur (CSV) est "
-      'écrit.';
-
-  /// Le refus du choix PDF, dit APRÈS le clic.
-  static const String pdfNonProduit =
-      "Le PDF de cet écran n'est pas produit sur ce poste : aucun état A4 de "
-      "M9 n'est classé dans l'en-tête et les visas de l'application. Rien n'a "
-      'été écrit. Choisissez « Tableur Excel » pour obtenir la liste affichée '
-      'en CSV.';
 
   /// `tourisme.pwa.export_vide` — au mot : une liste vide se refuse (PA-119).
   static const String exportVide =
@@ -171,20 +153,8 @@ class BoutonExporterTourisme extends ConsumerWidget {
   }
 
   Future<void> _exporter(BuildContext context, WidgetRef ref) async {
-    final format = await choisirFormatExport(
-      context,
-      titre: titreModale,
-      aide: aidePdf,
-    );
+    final format = await choisirFormatExport(context, titre: titreModale);
     if (format == null || !context.mounted) return;
-
-    // Le refus du PDF passe avant celui de la liste vide : il ne dépend pas
-    // des lignes, et le dire d'abord évite d'envoyer élargir un filtre pour un
-    // document qu'aucun filtre ne produira.
-    if (format == FormatExport.pdf) {
-      _dire(context, const Key('tourisme-pdf-refuse'), pdfNonProduit);
-      return;
-    }
 
     final etat = await construireEtatCourantTourisme(ref);
     if (!context.mounted) return;
@@ -197,7 +167,10 @@ class BoutonExporterTourisme extends ConsumerWidget {
     // La fenêtre « Enregistrer sous », puis le toast commun (14/10/2026).
     await executerExport(
       context,
-      () => ref.read(exporterTourismeProvider)(etat),
+      () => switch (format) {
+        FormatExport.pdf => ref.read(exporterTourismePdfProvider)(etat),
+        FormatExport.excel => ref.read(exporterTourismeProvider)(etat),
+      },
       cleSucces: const Key('tourisme-export-fait'),
     );
   }

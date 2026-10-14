@@ -394,8 +394,8 @@ class _BarreOutilsState extends ConsumerState<_BarreOutils> {
 
   /// « Exporter » — la modale d'export PARTAGÉE (PO, 14/10/2026 : l'ancienne
   /// modale du moteur CRUD est retirée). Le tableur passe par la fenêtre
-  /// « Enregistrer sous » ; le PDF n'existe pas pour ce catalogue et se
-  /// refuse avec son message, comme aux écrans qui n'en produisent pas.
+  /// « Enregistrer sous », le PDF aussi : l'état A4 des mêmes colonnes
+  /// (directive du PO du 14/10/2026).
   Future<void> _exporter(BuildContext context) async {
     final boissons = _boissonsAffichees;
     final filtre = _filtreLisible(ref);
@@ -411,9 +411,6 @@ class _BarreOutilsState extends ConsumerState<_BarreOutils> {
       context,
     ).showSnackBar(SnackBar(content: Text(texte, key: Key(cle))));
 
-    if (format == FormatExport.pdf) {
-      return dire(pdfNonProduit, 'boissons-export-pdf-absent');
-    }
     // Une liste vide se **refuse** (PA-119) : une page blanche remise au
     // comptable se lit comme « aucune boisson », alors qu'elle veut dire
     // « le filtre n'a rien retenu ».
@@ -423,19 +420,22 @@ class _BarreOutilsState extends ConsumerState<_BarreOutils> {
 
     await executerExport(
       context,
-      () => ref.read(exporterBoissonsProvider)(boissons, filtre),
+      () => switch (format) {
+        FormatExport.pdf => ref.read(exporterBoissonsPdfProvider)(
+          boissons,
+          filtre,
+        ),
+        FormatExport.excel => ref.read(exporterBoissonsProvider)(
+          boissons,
+          filtre,
+        ),
+      },
       cleSucces: const Key('boissons-export-fait'),
     );
   }
 
   /// Le titre de la modale — « Exporter — `entiteLabelPluriel` ».
   static const String titreExport = 'Exporter — Boissons';
-
-  /// Le refus du choix PDF : aucun état A4 du catalogue n'existe.
-  static const String pdfNonProduit =
-      "Le PDF du catalogue des boissons n'est pas produit sur ce poste. Rien "
-      "n'a été écrit. Choisissez « Tableur Excel » pour obtenir la liste "
-      'affichée en CSV.';
 }
 
 /// Le filtre courant, en clair — un export DIT son filtre (PA-119).

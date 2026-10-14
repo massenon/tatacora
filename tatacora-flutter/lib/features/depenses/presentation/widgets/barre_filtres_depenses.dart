@@ -45,41 +45,6 @@ class BarreFiltresDepenses extends ConsumerStatefulWidget {
   /// Le titre de la modale d'export, au mot de la vue (`export_titre`).
   static const String titreExport = 'Exporter — Dépenses';
 
-  /// Ce que dit le poste quand « PDF Officiel A4 Imprimable » est choisi.
-  ///
-  /// ÉCART DÉLIBÉRÉ — `depenses.blade.php` l.515-517 (partiel
-  /// `pwa/partials/modale-export.blade.php`).
-  /// La vue : le choix PDF produit un document A4 avec en-tête et signatures.
-  /// Ici : le choix est OFFERT, comme dans la vue, mais il ne produit aucun
-  /// fichier et le dit. Seul le tableur (CSV) est écrit.
-  /// Raison (09/10/2026) : tout document A4 de ce client passe par
-  /// `core/impression/entete_a4.dart` et ses visas, relus contre les gabarits
-  /// serveur (`pdf_directive_test.dart`) ; cet état n'y est pas classé, et
-  /// recopier une impression dans l'écran serait la non-conformité n° 1 de
-  /// `RESPECT_TABLEAU_RAPPORT.md` §4. Retirer le choix PDF de la modale
-  /// l'écarterait de la vue ; le produire sans visas serait un faux document.
-  /// Un choix qui ne dit rien serait un bouton inerte (Directive, article 3.3).
-  ///
-  /// ÉCART DÉLIBÉRÉ n° 2 — décision du Lead (D26, 09/10/2026).
-  /// La vue : le partiel présélectionne le PDF (`$formatExport = 'pdf'`,
-  /// `EcranDeCarte` l.183 pour les cartes).
-  /// Ici : la modale présélectionne le TABLEUR, le seul format réellement
-  /// produit, et une ligne d'aide dit avant le clic que le PDF ne l'est pas.
-  /// Raison : un clic naïf sur « Générer & Télécharger » n'aboutit pas à un
-  /// refus. Les cartes du bar et du restaurant gardent le PDF par défaut.
-  /// À remonter au Product Owner : le vrai PDF A4 (en-tête `entete_a4`, visas)
-  /// est un arbitrage ouvert (PA-192) ; il n'est pas implémenté ici.
-  static const String pdfNonProduit =
-      'Le PDF de la dépense courante n’est pas produit sur ce poste : aucun '
-      'état A4 de cet écran n’est classé dans l’en-tête et les visas de '
-      'l’application. Rien n’a été écrit. Choisissez « Tableur Excel » pour '
-      'obtenir la liste affichée en CSV.';
-
-  /// La ligne d'aide posée sous les deux choix de la modale, AVANT le clic.
-  static const String aidePdf =
-      'Le PDF n’est pas produit sur ce poste : seul le tableur (CSV) est '
-      'écrit.';
-
   @override
   ConsumerState<BarreFiltresDepenses> createState() =>
       _BarreFiltresDepensesState();
@@ -256,7 +221,8 @@ class _BarreFiltresDepensesState extends ConsumerState<BarreFiltresDepenses> {
   ///
   /// - **Tableur Excel** : le CSV (BOM UTF-8, point-virgule), écrit par
   ///   `exporterDepensesProvider`, chemin affiché.
-  /// - **PDF Officiel A4** : [BarreFiltresDepenses.pdfNonProduit].
+  /// - **PDF Officiel A4** : l'état A4 paysage des mêmes colonnes, total
+  ///   compris (`exporterDepensesPdfProvider`, 14/10/2026).
   static Future<void> exporter(
     BuildContext context,
     WidgetRef ref,
@@ -265,24 +231,8 @@ class _BarreFiltresDepensesState extends ConsumerState<BarreFiltresDepenses> {
     final format = await choisirFormatExport(
       context,
       titre: BarreFiltresDepenses.titreExport,
-      aide: BarreFiltresDepenses.aidePdf,
     );
     if (format == null || !context.mounted) return;
-
-    // Le refus du PDF passe avant celui de la liste vide : il ne dépend pas
-    // des lignes, et le dire d'abord évite d'envoyer élargir un filtre pour
-    // un document qu'aucun filtre ne produira.
-    if (format == FormatExport.pdf) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            BarreFiltresDepenses.pdfNonProduit,
-            key: Key('depenses-export-pdf-absent'),
-          ),
-        ),
-      );
-      return;
-    }
 
     if (lignes == null || lignes.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -306,7 +256,10 @@ class _BarreFiltresDepensesState extends ConsumerState<BarreFiltresDepenses> {
     // La fenêtre « Enregistrer sous », puis le toast commun (14/10/2026).
     await executerExport(
       context,
-      () => ref.read(exporterDepensesProvider)(etat),
+      () => switch (format) {
+        FormatExport.pdf => ref.read(exporterDepensesPdfProvider)(etat),
+        FormatExport.excel => ref.read(exporterDepensesProvider)(etat),
+      },
       cleSucces: const Key('depenses-export-fait'),
     );
   }

@@ -134,6 +134,15 @@ final class EtatJournalVentes {
 
   final EnteteEtablissement entete;
 
+  /// Le même état sous un autre en-tête — celui lu des paramètres au moment
+  /// d'éditer (`lireEnteteEtablissementProvider`).
+  EtatJournalVentes avecEntete(EnteteEtablissement autre) => EtatJournalVentes(
+    ventes: ventes,
+    kpis: kpis,
+    filtre: filtre,
+    entete: autre,
+  );
+
   bool get estVide => ventes.isEmpty;
 
   /// Une ligne du tableau — **source unique** des deux rendus. Deux
@@ -277,6 +286,10 @@ final class EtatVente {
 
   final Vente vente;
   final EnteteEtablissement entete;
+
+  /// Le même document sous l'en-tête lu des paramètres.
+  EtatVente avecEntete(EnteteEtablissement autre) =>
+      EtatVente(vente: vente, entete: autre);
 
   static const String titre = 'Détail de la vente';
 

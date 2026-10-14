@@ -185,12 +185,9 @@ class _EnTetePage extends ConsumerWidget {
   ///
   /// - **Tableur Excel** : le CSV (BOM UTF-8, point-virgule), enregistré par
   ///   la fenêtre « Enregistrer sous ».
-  /// - **PDF Officiel A4** : offert comme dans la vue, mais le PDF n'est pas
-  ///   produit sur ce poste ([pdfNonProduit]). Écart daté du 09/10/2026 : la
-  ///   vue génère `pdf.paie` ; aucun gabarit A4 de la paie n'existe ici
-  ///   (en-tête unique et visas : arbitrage PA-192). Le choix PAR DÉFAUT est
-  ///   donc le tableur, comme pour la dépense courante (D26) — un clic naïf ne
-  ///   doit pas aboutir à un refus.
+  /// - **PDF Officiel A4** : l'état A4 des mêmes colonnes, montants en FCFA,
+  ///   totaux des bulletins (`exporterPaiePdfProvider`, directive du PO du
+  ///   14/10/2026). Ce n'est pas le bulletin individuel.
   static Future<void> _exporter(BuildContext context, WidgetRef ref) async {
     final etat = await ref.read(etatPaieProvider.future);
     if (!context.mounted) return;
@@ -198,23 +195,10 @@ class _EnTetePage extends ConsumerWidget {
     final format = await choisirFormatExport(
       context,
       titre: 'Exporter — ${etat.titreOnglet}',
-      aide: pdfNonProduit,
     );
     if (format == null || !context.mounted) return;
 
     final messageur = ScaffoldMessenger.of(context);
-
-    // Le refus du PDF passe avant celui de la liste vide : il ne dépend pas
-    // des lignes, et le dire d'abord évite d'envoyer élargir un filtre pour un
-    // document qu'aucun filtre ne produira.
-    if (format == FormatExport.pdf) {
-      messageur.showSnackBar(
-        const SnackBar(
-          content: Text(pdfNonProduit, key: Key('paie-export-pdf-absent')),
-        ),
-      );
-      return;
-    }
 
     if (etat.vide) {
       messageur.showSnackBar(
@@ -231,15 +215,13 @@ class _EnTetePage extends ConsumerWidget {
     // La fenêtre « Enregistrer sous », puis le toast commun (14/10/2026).
     await executerExport(
       context,
-      () => ref.read(exporterPaieProvider)(etat),
+      () => switch (format) {
+        FormatExport.pdf => ref.read(exporterPaiePdfProvider)(etat),
+        FormatExport.excel => ref.read(exporterPaieProvider)(etat),
+      },
       cleSucces: const Key('paie-export-fait'),
     );
   }
-
-  /// Ce que dit le choix « PDF » : il n'est pas produit sur ce poste.
-  static const String pdfNonProduit =
-      'Le PDF n’est pas produit sur ce poste : seul le tableur (CSV) est '
-      'écrit.';
 }
 
 /// Le sélecteur de période — `<input type="month">` du maître (l.116).
