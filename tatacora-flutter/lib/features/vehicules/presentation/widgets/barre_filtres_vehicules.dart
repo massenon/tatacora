@@ -5,7 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared_widgets/bouton_standard.dart';
-import '../../../bar/presentation/widgets/modale_export_carte.dart';
+import '../../../../shared_widgets/modale_export.dart';
+import '../../../../shared_widgets/toast_export.dart';
 import '../../../restaurant/presentation/widgets/coquille_restaurant.dart';
 import '../../domain/entities/vehicule.dart';
 import '../ecran_vehicules.dart';
@@ -117,8 +118,8 @@ class _ChampDate extends StatelessWidget {
 /// ## Ce que chaque choix produit, honnêtement
 ///
 ///  - **Tableur Excel (.xlsx / .csv)** : le CSV de l'onglet affiché, filtre
-///    compris et DIT (PA-119), écrit par `exporterVehiculesProvider`, chemin
-///    affiché. Une liste vide se refuse.
+///    compris et DIT (PA-119), enregistré par `exporterVehiculesProvider`
+///    (fenêtre « Enregistrer sous »). Une liste vide se refuse.
 ///  - **PDF Officiel A4** : REFUSÉ, avec son message. Aucun état A4 de M8 n'est
 ///    classé dans l'en-tête et les visas de l'application
 ///    (`pdf_directive_test.dart`), et câbler un `Printing` recopié ici serait la
@@ -187,13 +188,11 @@ class BoutonExporterVehicules extends ConsumerWidget {
       return;
     }
 
-    final chemin = await ref.read(exporterVehiculesProvider)(etat);
-    if (!context.mounted) return;
-
-    _dire(
+    // La fenêtre « Enregistrer sous », puis le toast commun (14/10/2026).
+    await executerExport(
       context,
-      const Key('vehicules-export-fait'),
-      'Export écrit : $chemin',
+      () => ref.read(exporterVehiculesProvider)(etat),
+      cleSucces: const Key('vehicules-export-fait'),
     );
   }
 

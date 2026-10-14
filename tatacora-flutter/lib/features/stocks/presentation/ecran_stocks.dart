@@ -10,7 +10,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../shared_widgets/bouton_standard.dart';
-import '../../bar/presentation/widgets/modale_export_carte.dart';
+import '../../../shared_widgets/modale_export.dart';
+import '../../../shared_widgets/toast_export.dart';
 import '../data/stocks_api.dart';
 import '../domain/entities/etat_stock.dart';
 import '../domain/import_articles.dart';
@@ -307,17 +308,11 @@ class _Corps extends ConsumerWidget {
       arreteAu: etat.arreteAu,
       sansValorisation: etat.kpis.sansValorisation,
     );
-    final chemin = await ref.read(exporterStocksProvider)(fichier);
-    if (!context.mounted) return;
-
-    // Un export silencieux est un export que personne ne retrouve.
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Export écrit : $chemin',
-          key: const Key('stocks-export-fait'),
-        ),
-      ),
+    // La fenêtre « Enregistrer sous », puis le toast commun (14/10/2026).
+    await executerExport(
+      context,
+      () => ref.read(exporterStocksProvider)(fichier),
+      cleSucces: const Key('stocks-export-fait'),
     );
   }
 }

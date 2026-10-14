@@ -73,7 +73,8 @@ import '../../../../core/theme/app_colors.dart';
 // inutile, et l'analyseur le signale.
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
-import '../../../bar/presentation/widgets/modale_export_carte.dart';
+import '../../../../shared_widgets/modale_export.dart';
+import '../../../../shared_widgets/toast_export.dart';
 import '../../../parametres/presentation/providers_options_systeme.dart';
 import '../../../restaurant/presentation/widgets/corps_carte_commun.dart'
     show grandEcranCarte, styleContenuCarte;
@@ -330,17 +331,12 @@ class _BarreOutils extends ConsumerWidget {
       ),
       aujourdHui: ref.read(horlogeHebergementProvider)(),
     );
-    final chemin = await ref.read(exporterParcProvider)(etat);
     if (!context.mounted) return;
-
-    // Un export silencieux est un export que personne ne retrouve.
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Export écrit : $chemin',
-          key: const Key('plan-export-fait'),
-        ),
-      ),
+    // La fenêtre « Enregistrer sous », puis le toast commun (14/10/2026).
+    await executerExport(
+      context,
+      () => ref.read(exporterParcProvider)(etat),
+      cleSucces: const Key('plan-export-fait'),
     );
   }
 }

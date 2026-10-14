@@ -13,15 +13,10 @@
 /// nulle part (zéro réseau) : voir `core/database/tables/achats_tables.dart`.
 library;
 
-import 'dart:io';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
-import 'package:pdf/pdf.dart';
-import 'package:printing/printing.dart';
 
 import '../../../core/di/providers.dart';
+import '../../../core/fichiers/enregistrement_export.dart';
 import '../../../core/rbac/garde_acces.dart';
 import '../../../core/rbac/regle_archivage.dart';
 import '../../parametres/presentation/providers_options_systeme.dart';
@@ -406,45 +401,34 @@ final restaurerFournisseurProvider =
 /* Les exports — actions INJECTABLES                                       */
 /* ====================================================================== */
 
-/// L'impression, exposée comme **action injectable**.
+/// L'export PDF d'une liste, exposé comme **action injectable** — enregistré
+/// par la fenêtre « Enregistrer sous » (14/10/2026), rend le CHEMIN écrit,
+/// `null` : annulé.
 ///
-/// Jamais un `Printing.layoutPdf` recopié dans un écran : un test de widget n'a
-/// pas de greffon natif, et il doit exister un seul endroit où l'impression est
-/// déclenchée.
-final imprimerListeAchatsProvider =
-    Provider<Future<void> Function(ListeAchats)>(
-      (ref) => (liste) async {
-        final octets = await pdfListeAchats(liste);
-        await Printing.layoutPdf(
-          onLayout: (_) => octets,
-          name: liste.titre,
-          format: PdfPageFormat.a4,
-        );
-      },
+/// Jamais un `Printing.layoutPdf` ni une écriture de fichier recopiés dans un
+/// écran : un test de widget n'a pas de greffon natif, et il doit exister un
+/// seul endroit où le document est produit.
+final exporterListeAchatsPdfProvider =
+    Provider<Future<String?> Function(ListeAchats)>(
+      (ref) =>
+          (liste) async => ref
+              .read(enregistrementExportProvider)
+              .exporter(
+                base: baseDepuisTitre(liste.titre),
+                type: TypeFichierEnregistre.pdf,
+                octets: await pdfListeAchats(liste),
+              ),
     );
 
-/// Le dossier où s'écrit l'export tableur. **Injectable** : un test d'export
-/// de bout en bout écrit dans un dossier temporaire, jamais dans les documents
-/// de la machine, et relit les octets réellement écrits (BOM compris).
-final dossierExportAchatsProvider = Provider<Future<Directory> Function()>(
-  (ref) => getApplicationDocumentsDirectory,
-);
-
-/// L'export tableur — rend le **chemin** du fichier écrit.
+/// L'export tableur — rend le **chemin** du fichier écrit, `null` : annulé.
 final exporterListeAchatsProvider =
-    Provider<Future<String> Function(ListeAchats)>(
-      (ref) => (liste) async {
-        final dossier = await ref.read(dossierExportAchatsProvider)();
-        final m = DateTime.now();
-        final horodatage =
-            '${m.year}'
-            '${m.month.toString().padLeft(2, '0')}'
-            '${m.day.toString().padLeft(2, '0')}-'
-            '${m.hour.toString().padLeft(2, '0')}'
-            '${m.minute.toString().padLeft(2, '0')}'
-            '${m.second.toString().padLeft(2, '0')}';
-        final fichier = File(p.join(dossier.path, 'achats-$horodatage.csv'));
-        await fichier.writeAsBytes(csvOctetsListeAchats(liste));
-        return fichier.path;
-      },
+    Provider<Future<String?> Function(ListeAchats)>(
+      (ref) =>
+          (liste) => ref
+              .read(enregistrementExportProvider)
+              .exporter(
+                base: baseDepuisTitre(liste.titre),
+                type: TypeFichierEnregistre.csv,
+                octets: csvOctetsListeAchats(liste),
+              ),
     );

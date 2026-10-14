@@ -8,7 +8,8 @@ import '../../../../core/theme/app_colors.dart';
 // signalé comme import inutile.
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared_widgets/bouton_standard.dart';
-import '../../../bar/presentation/widgets/modale_export_carte.dart';
+import '../../../../shared_widgets/modale_export.dart';
+import '../../../../shared_widgets/toast_export.dart';
 import '../../../restaurant/presentation/widgets/coquille_restaurant.dart';
 import '../../domain/entities/circuit.dart';
 import '../providers_tourisme.dart';
@@ -123,8 +124,8 @@ class _ChampDate extends StatelessWidget {
 /// ## Ce que chaque choix produit, honnêtement
 ///
 ///  - **Tableur Excel (.xlsx / .csv)** : le CSV de l'onglet affiché, filtre
-///    compris et DIT (PA-119), écrit par `exporterTourismeProvider`, chemin
-///    affiché. Une liste vide se refuse.
+///    compris et DIT (PA-119), enregistré par `exporterTourismeProvider`
+///    (fenêtre « Enregistrer sous »). Une liste vide se refuse.
 ///  - **PDF Officiel A4** : REFUSÉ, avec son message. Aucun état A4 de M9 n'est
 ///    classé dans l'en-tête et les visas de l'application
 ///    (`pdf_directive_test.dart`), et câbler un `Printing` recopié ici serait
@@ -193,10 +194,12 @@ class BoutonExporterTourisme extends ConsumerWidget {
       return;
     }
 
-    final chemin = await ref.read(exporterTourismeProvider)(etat);
-    if (!context.mounted) return;
-
-    _dire(context, const Key('tourisme-export-fait'), 'Export écrit : $chemin');
+    // La fenêtre « Enregistrer sous », puis le toast commun (14/10/2026).
+    await executerExport(
+      context,
+      () => ref.read(exporterTourismeProvider)(etat),
+      cleSucces: const Key('tourisme-export-fait'),
+    );
   }
 
   static void _dire(BuildContext context, Key cle, String message) {

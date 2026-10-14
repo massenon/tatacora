@@ -1,14 +1,10 @@
-import 'dart:io';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
-import 'package:pdf/pdf.dart';
-import 'package:printing/printing.dart';
 import 'dart:typed_data';
 
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/di/providers.dart';
+import '../../../core/fichiers/enregistrement_export.dart';
 import '../../../core/theme/app_assets.dart';
 import '../../auth/domain/session.dart';
 import '../../hebergement/presentation/providers_hebergement.dart';
@@ -213,47 +209,44 @@ final class _ModuleFiltreNotifier extends Notifier<ModuleFacturable?> {
 /* Lectures                                                                */
 /* ====================================================================== */
 
-/// L'impression du **registre**, exposée comme action injectable.
+/// L'export PDF du **registre**, exposé comme action injectable — enregistré
+/// par la fenêtre « Enregistrer sous » (14/10/2026), rend le CHEMIN écrit,
+/// `null` : annulé.
 ///
-/// Un seul endroit où l'impression est déclenchée : un `Printing.layoutPdf`
-/// recopié dans chaque écran serait un chemin de plus à ne jamais exécuter
-/// (PA-63), et un test de widget n'a pas de greffon natif.
-final imprimerRegistreProvider =
-    Provider<Future<void> Function(EtatRegistreFactures)>(
-      (ref) => (etat) async {
-        await Printing.layoutPdf(
-          onLayout: (_) => etat.pdf(),
-          name: EtatRegistreFactures.titre,
-          format: PdfPageFormat.a4,
-        );
-      },
+/// Un seul endroit où le document est produit : un `Printing.layoutPdf` ou
+/// une écriture de fichier recopiés dans chaque écran seraient un chemin de
+/// plus à ne jamais exécuter (PA-63), et un test de widget n'a pas de greffon
+/// natif.
+final exporterRegistrePdfProvider =
+    Provider<Future<String?> Function(EtatRegistreFactures)>(
+      (ref) =>
+          (etat) async => ref
+              .read(enregistrementExportProvider)
+              .exporter(
+                base: 'registre_factures',
+                type: TypeFichierEnregistre.pdf,
+                octets: await etat.pdf(),
+              ),
     );
 
-/// L'export tableur du registre — rend le **chemin** du fichier écrit.
+/// L'export tableur du registre — rend le **chemin** du fichier écrit, `null`
+/// : annulé.
 ///
-/// Le chemin est rendu pour être affiché : un export silencieux est un export
-/// que personne ne retrouve.
+/// Le nom du fichier est dit par le toast commun : un export silencieux est
+/// un export que personne ne retrouve.
 ///
 /// ⚠ Fichier **CSV**, pas XLSX — l'écart avec le maître et ses raisons sont en
 /// tête de `impression/etat_historique.dart` (convention serveur RG-19).
 final exporterRegistreProvider =
-    Provider<Future<String> Function(EtatRegistreFactures)>(
-      (ref) => (etat) async {
-        final dossier = await getApplicationDocumentsDirectory();
-        final maintenant = DateTime.now();
-        final horodatage =
-            '${maintenant.year}'
-            '${maintenant.month.toString().padLeft(2, '0')}'
-            '${maintenant.day.toString().padLeft(2, '0')}-'
-            '${maintenant.hour.toString().padLeft(2, '0')}'
-            '${maintenant.minute.toString().padLeft(2, '0')}'
-            '${maintenant.second.toString().padLeft(2, '0')}';
-        final fichier = File(
-          p.join(dossier.path, 'registre-factures-$horodatage.csv'),
-        );
-        await fichier.writeAsBytes(etat.csvOctets());
-        return fichier.path;
-      },
+    Provider<Future<String?> Function(EtatRegistreFactures)>(
+      (ref) =>
+          (etat) => ref
+              .read(enregistrementExportProvider)
+              .exporter(
+                base: 'registre_factures',
+                type: TypeFichierEnregistre.csv,
+                octets: etat.csvOctets(),
+              ),
     );
 
 /// Le registre **tel que l'écran l'affiche** — les trois filtres appliqués.

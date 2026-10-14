@@ -49,12 +49,12 @@
 // fichier n'est pas un porteur de la vue d'accueil (piège 13).
 import 'package:flutter/material.dart';
 
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/theme/app_text_styles.dart';
-import '../../../../shared_widgets/bouton_standard.dart';
-import '../../../restaurant/presentation/widgets/coquille_modale_restaurant.dart';
-import '../../../restaurant/presentation/widgets/textes_modale_restaurant.dart';
+import '../core/theme/app_colors.dart';
+import '../core/theme/app_spacing.dart';
+import '../core/theme/app_text_styles.dart';
+import 'bouton_standard.dart';
+import '../features/restaurant/presentation/widgets/coquille_modale_restaurant.dart';
+import '../features/restaurant/presentation/widgets/textes_modale_restaurant.dart';
 
 /// Les deux formats de la modale — `value="pdf"` / `value="excel"`.
 enum FormatExport { pdf, excel }
@@ -66,6 +66,16 @@ enum FormatExport { pdf, excel }
 /// Elle ne produit rien : elle rend le FORMAT choisi, et c'est l'écran
 /// appelant qui compose le document — il porte le filtre, et PA-119 impose
 /// qu'un export porte sur ce qui est affiché et le dise. `null` : annulé.
+///
+/// ## UNE modale pour tout « Exporter » du poste (PO, 14/10/2026)
+///
+/// Déplacée de `features/bar/` vers `shared_widgets/` : tous les boutons
+/// « Exporter » l'ouvrent, y compris ceux qui avaient leur propre dialogue
+/// (facturation, historique des ventes, clients & créances, catalogue des
+/// boissons, approvisionnement). Le document composé passe ensuite par
+/// l'étape d'enregistrement unique (`core/fichiers/enregistrement_export.dart`,
+/// fenêtre « Enregistrer sous ») et son issue est dite par
+/// `shared_widgets/toast_export.dart`.
 ///
 /// ## Le libellé est celui de la Directive, et le document ne le tient pas
 ///

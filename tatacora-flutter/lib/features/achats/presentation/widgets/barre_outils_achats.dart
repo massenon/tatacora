@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared_widgets/bouton_standard.dart';
+import '../../../../shared_widgets/modale_export.dart';
+import '../../../../shared_widgets/toast_export.dart';
 import '../../impression/etat_liste_achats.dart';
 import '../providers_achats.dart';
 
@@ -84,20 +86,17 @@ class BarreOutilsAchats extends ConsumerWidget {
           ),
         ),
         ?filtre,
-        // Bouton standard (PO, 14/10/2026). Le libellé du maître. L'écart de
-        // FORMAT (CSV et non XLSX) est nommé au bloc « Ce que cet écran ne
-        // rend pas », pas masqué sous un autre mot : c'est la convention du
-        // serveur (RG-19) et ce qu'attend un Excel en configuration française.
+        // UN bouton « Exporter » qui ouvre la modale d'export PARTAGÉE
+        // (PO, 14/10/2026) : la paire « Export Excel » / « Export PDF » est
+        // retirée, le format se choisit dans la modale. L'écart de FORMAT
+        // (CSV et non XLSX) est dit par la note de la modale : c'est la
+        // convention du serveur (RG-19) et ce qu'attend un Excel en
+        // configuration française.
         BoutonStandard(
-          key: Key('excel-$prefixeCle'),
-          libelle: 'Export Excel',
-          onPressed: () => _exporter(context, ref),
-        ),
-        BoutonStandard(
-          key: Key('pdf-$prefixeCle'),
-          libelle: 'Export PDF',
+          key: Key('exporter-$prefixeCle'),
+          libelle: TextesExport.bouton,
           variante: VarianteBouton.primaire,
-          onPressed: () => _imprimer(context, ref),
+          onPressed: () => _exporter(context, ref),
         ),
         ?actionSupplementaire,
       ],
@@ -108,19 +107,15 @@ class BarreOutilsAchats extends ConsumerWidget {
     final liste = construireListe();
     if (_refuse(context, liste)) return;
 
-    final chemin = await ref.read(exporterListeAchatsProvider)(liste!);
-    if (!context.mounted) return;
-
-    ScaffoldMessenger.of(
+    final format = await choisirFormatExport(
       context,
-    ).showSnackBar(SnackBar(content: Text('Export écrit : $chemin')));
-  }
-
-  Future<void> _imprimer(BuildContext context, WidgetRef ref) async {
-    final liste = construireListe();
-    if (_refuse(context, liste)) return;
-
-    await ref.read(imprimerListeAchatsProvider)(liste!);
+      titre: 'Exporter — ${liste!.titre}',
+      sousTitre:
+          'Le document portera exactement les ${liste.lignes.length} '
+          'ligne(s) affichées, filtres compris.',
+    );
+    if (format == null || !context.mounted) return;
+    await enregistrerListeAchats(context, ref, liste, format);
   }
 
   /// Vrai quand l'export a été refusé — et il DIT pourquoi.
@@ -136,3 +131,19 @@ class BarreOutilsAchats extends ConsumerWidget {
     return true;
   }
 }
+
+/// Enregistre [liste] au [format] choisi dans la modale d'export — la
+/// fenêtre « Enregistrer sous », puis le toast commun. UN chemin pour les
+/// quatre listes de l'approvisionnement et les deux de la page Achats.
+Future<void> enregistrerListeAchats(
+  BuildContext context,
+  WidgetRef ref,
+  ListeAchats liste,
+  FormatExport format,
+) => executerExport(
+  context,
+  () => switch (format) {
+    FormatExport.pdf => ref.read(exporterListeAchatsPdfProvider)(liste),
+    FormatExport.excel => ref.read(exporterListeAchatsProvider)(liste),
+  },
+);

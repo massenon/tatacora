@@ -25,14 +25,11 @@
 /// [rafraichirJournalVentes] la rejette dès qu'on écrit.
 library;
 
-import 'dart:io';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 
+import '../../../core/fichiers/enregistrement_export.dart';
 import '../../facturation/presentation/providers_facturation.dart';
 import '../../pos/presentation/providers_pos.dart';
 import '../domain/entities/vente.dart';
@@ -133,30 +130,38 @@ EtatJournalVentes composerEtatJournal(WidgetRef ref) =>
 /* Documents — des actions INJECTABLES, jamais un layoutPdf dans un écran  */
 /* ====================================================================== */
 
-/// L'impression du journal filtré.
+/// L'export PDF du journal filtré — « Générer & Télécharger », format PDF.
 ///
-/// Jamais un `Printing.layoutPdf` recopié dans l'écran : un test de widget n'a
-/// pas de greffon natif, et il doit exister un seul endroit où l'impression est
-/// déclenchée.
-final imprimerJournalVentesProvider =
-    Provider<Future<void> Function(EtatJournalVentes)>(
-      (ref) => (etat) async {
-        await Printing.layoutPdf(
-          onLayout: (_) => etat.pdf(),
-          name: EtatJournalVentes.titre,
-          format: PdfPageFormat.a4,
-        );
-      },
+/// Le document passe par la fenêtre « Enregistrer sous »
+/// ([enregistrementExportProvider], 14/10/2026) : il n'y a plus de dialogue
+/// d'impression sur ce chemin. Rend le CHEMIN écrit, `null` : annulé.
+final exporterJournalVentesPdfProvider =
+    Provider<Future<String?> Function(EtatJournalVentes)>(
+      (ref) =>
+          (etat) async => ref
+              .read(enregistrementExportProvider)
+              .exporter(
+                base: 'journal_ventes',
+                type: TypeFichierEnregistre.pdf,
+                octets: await etat.pdf(),
+              ),
     );
 
-/// L'export tableur du journal — rend le **chemin** du fichier écrit.
+/// L'export tableur du journal — rend le **chemin** du fichier écrit, `null`
+/// quand l'utilisateur a annulé la fenêtre « Enregistrer sous ».
 ///
-/// Le chemin est rendu pour être affiché : un export silencieux est un export
+/// Le chemin est rendu pour être dit : un export silencieux est un export
 /// que personne ne retrouve.
 final exporterJournalVentesProvider =
-    Provider<Future<String> Function(EtatJournalVentes)>(
+    Provider<Future<String?> Function(EtatJournalVentes)>(
       (ref) =>
-          (etat) async => _ecrire(etat.csvOctets(), 'journal-ventes', 'csv'),
+          (etat) => ref
+              .read(enregistrementExportProvider)
+              .exporter(
+                base: 'journal_ventes',
+                type: TypeFichierEnregistre.csv,
+                octets: etat.csvOctets(),
+              ),
     );
 
 /// L'impression du détail d'une vente — bouton « Imprimer » de la modale.
@@ -178,14 +183,17 @@ final imprimerVenteProvider = Provider<Future<void> Function(EtatVente)>(
 /// brancher tous les deux sur la même action donnerait un contrôle qui fait
 /// doublon — et un contrôle qui fait doublon finit par être retiré, en
 /// emportant celui des deux dont on avait besoin. « Imprimer » ouvre le
-/// dialogue d'impression ; « Télécharger » écrit un fichier et dit **où**.
-final exporterVenteProvider = Provider<Future<String> Function(EtatVente)>(
+/// dialogue d'impression ; « Télécharger » enregistre un fichier par la fenêtre « Enregistrer
+/// sous » et dit son nom.
+final exporterVenteProvider = Provider<Future<String?> Function(EtatVente)>(
   (ref) =>
-      (etat) async => _ecrire(
-        await etat.pdf(),
-        'vente-${etat.vente.referenceLocale}',
-        'pdf',
-      ),
+      (etat) async => ref
+          .read(enregistrementExportProvider)
+          .exporter(
+            base: 'vente_${etat.vente.referenceLocale}',
+            type: TypeFichierEnregistre.pdf,
+            octets: await etat.pdf(),
+          ),
 );
 
 /// Recharge tout ce qui dépend du journal, après une écriture ailleurs.
@@ -195,23 +203,4 @@ final exporterVenteProvider = Provider<Future<String> Function(EtatVente)>(
 /// et le gérant conclurait qu'elle n'a pas été enregistrée.
 void rafraichirJournalVentes(WidgetRef ref) {
   ref.invalidate(journalVentesProvider);
-}
-
-Future<String> _ecrire(
-  List<int> octets,
-  String prefixe,
-  String extension,
-) async {
-  final dossier = await getApplicationDocumentsDirectory();
-  final m = DateTime.now();
-  final horodatage =
-      '${m.year}'
-      '${m.month.toString().padLeft(2, '0')}'
-      '${m.day.toString().padLeft(2, '0')}-'
-      '${m.hour.toString().padLeft(2, '0')}'
-      '${m.minute.toString().padLeft(2, '0')}'
-      '${m.second.toString().padLeft(2, '0')}';
-  final fichier = File(p.join(dossier.path, '$prefixe-$horodatage.$extension'));
-  await fichier.writeAsBytes(octets);
-  return fichier.path;
 }

@@ -8,13 +8,10 @@
 /// rend vraie la phrase que l'écran affiche au Gérant.
 library;
 
-import 'dart:io';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 import '../../../core/di/providers.dart';
+import '../../../core/fichiers/enregistrement_export.dart';
 import '../../hebergement/presentation/providers_hebergement.dart';
 import '../data/notifications_dao.dart';
 import '../domain/entities/canal_notification.dart';
@@ -254,18 +251,13 @@ final descriptionFiltreProvider = Provider<String>((ref) {
   return morceaux.join(' · ');
 });
 
-/// Le dossier où l'export écrit — injectable, pour qu'un test écrive dans un
-/// répertoire temporaire au lieu des Documents de la personne qui lance la suite.
-final dossierDocumentsProvider = Provider<Future<Directory> Function()>(
-  (ref) => getApplicationDocumentsDirectory,
-);
-
-/// L'export tableur — rend le CHEMIN du fichier écrit.
+/// L'export tableur — enregistré par la fenêtre « Enregistrer sous »
+/// (14/10/2026), rend le CHEMIN du fichier écrit, `null` : annulé.
 ///
 /// Un export silencieux est un export que personne ne retrouve. Il lève
 /// [ExportVide] sur une liste vide : une page blanche laisserait croire que le
 /// registre est vide alors que c'est le filtre qui l'a vidé.
-final exporterNotificationsProvider = Provider<Future<String> Function()>(
+final exporterNotificationsProvider = Provider<Future<String?> Function()>(
   (ref) => () async {
     final vue = await ref.read(vueNotificationsProvider.future);
     final onglet = ref.read(ongletNotificationsProvider);
@@ -280,20 +272,12 @@ final exporterNotificationsProvider = Provider<Future<String> Function()>(
       transports: ref.read(transportsLocauxProvider),
     );
 
-    final dossier = await ref.read(dossierDocumentsProvider)();
-    final m = DateTime.now();
-    final horodatage =
-        '${m.year}'
-        '${m.month.toString().padLeft(2, '0')}'
-        '${m.day.toString().padLeft(2, '0')}-'
-        '${m.hour.toString().padLeft(2, '0')}'
-        '${m.minute.toString().padLeft(2, '0')}'
-        '${m.second.toString().padLeft(2, '0')}';
-
-    final fichier = File(
-      p.join(dossier.path, 'notifications-${onglet.name}-$horodatage.csv'),
-    );
-    await fichier.writeAsBytes(contenu);
-    return fichier.path;
+    return ref
+        .read(enregistrementExportProvider)
+        .exporter(
+          base: 'notifications_${onglet.name}',
+          type: TypeFichierEnregistre.csv,
+          octets: contenu,
+        );
   },
 );

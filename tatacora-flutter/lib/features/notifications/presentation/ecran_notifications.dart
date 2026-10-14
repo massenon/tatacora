@@ -11,7 +11,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../shared_widgets/bouton_standard.dart';
-import '../../bar/presentation/widgets/modale_export_carte.dart';
+import '../../../shared_widgets/modale_export.dart';
+import '../../../shared_widgets/toast_export.dart';
 import '../../restaurant/presentation/widgets/coquille_restaurant.dart'
     show TextesRestaurant;
 import '../../restaurant/presentation/widgets/corps_carte_commun.dart'
@@ -280,7 +281,8 @@ class _EnTete extends ConsumerWidget {
   /// puis le document.
   ///
   /// - **Tableur Excel** : le CSV (BOM UTF-8, point-virgule), écrit par
-  ///   `exporterNotificationsProvider`, chemin affiché.
+  ///   `exporterNotificationsProvider` par la fenêtre « Enregistrer sous »,
+  ///   nom du fichier dit par le toast commun.
   /// - **PDF Officiel A4** : [EcranNotifications.pdfNonProduit].
   Future<void> _exporter(BuildContext context, WidgetRef ref) async {
     final onglet = ref.read(ongletNotificationsProvider);
@@ -308,14 +310,16 @@ class _EnTete extends ConsumerWidget {
       return;
     }
 
-    try {
-      final chemin = await ref.read(exporterNotificationsProvider)();
-      if (!context.mounted) return;
-      _dire(context, 'Export écrit : $chemin');
-    } on ExportVide {
-      if (!context.mounted) return;
-      _dire(context, ExportVide.message);
-    }
+    // La fenêtre « Enregistrer sous », puis le toast commun (14/10/2026).
+    // Une liste vide se refuse avec SON message, pas comme un échec.
+    await executerExport(context, () async {
+      try {
+        return await ref.read(exporterNotificationsProvider)();
+      } on ExportVide {
+        if (context.mounted) _dire(context, ExportVide.message);
+        return null;
+      }
+    });
   }
 }
 

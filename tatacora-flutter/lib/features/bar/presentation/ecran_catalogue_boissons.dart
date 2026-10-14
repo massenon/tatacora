@@ -6,6 +6,8 @@ import '../../../core/format/formats.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../shared_widgets/bouton_standard.dart';
+import '../../../shared_widgets/modale_export.dart';
+import '../../../shared_widgets/toast_export.dart';
 // Le maître ne possède qu'UN moteur CRUD pour tout le dépôt — `crud-ui.js` et
 // `crud-engine.js` —, et `m5-bar.html` le configure exactement comme
 // `m4-restauration.html`. Son portage Flutter vit dans `features/restaurant/`
@@ -25,7 +27,6 @@ import '../domain/entities/boisson.dart';
 import 'providers_catalogue_boissons.dart';
 import 'widgets/modale_boisson.dart';
 import 'widgets/modale_detail_boisson.dart';
-import 'widgets/modale_export_boissons.dart';
 
 /// L'écran **Bar & POS Boissons** — `prototype_v2/pages/m5-bar.html`.
 ///
@@ -391,27 +392,50 @@ class _BarreOutilsState extends ConsumerState<_BarreOutils> {
     if (enregistre == true) ref.invalidate(boissonsProvider);
   }
 
+  /// « Exporter » — la modale d'export PARTAGÉE (PO, 14/10/2026 : l'ancienne
+  /// modale du moteur CRUD est retirée). Le tableur passe par la fenêtre
+  /// « Enregistrer sous » ; le PDF n'existe pas pour ce catalogue et se
+  /// refuse avec son message, comme aux écrans qui n'en produisent pas.
   Future<void> _exporter(BuildContext context) async {
     final boissons = _boissonsAffichees;
     final filtre = _filtreLisible(ref);
 
-    final confirme = await ouvrirModaleExportBoissons(
+    final format = await choisirFormatExport(
       context,
-      nombre: boissons.length,
-      filtre: filtre,
+      titre: titreExport,
+      aide: 'Filtre appliqué : $filtre',
     );
-    if (confirme != true || !context.mounted) return;
+    if (format == null || !context.mounted) return;
 
-    final chemin = await ref.read(exporterBoissonsProvider)(boissons, filtre);
-    if (!context.mounted) return;
+    void dire(String texte, String cle) => ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(texte, key: Key(cle))));
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        key: const Key('boissons-export-fait'),
-        content: Text('Export écrit : $chemin'),
-      ),
+    if (format == FormatExport.pdf) {
+      return dire(pdfNonProduit, 'boissons-export-pdf-absent');
+    }
+    // Une liste vide se **refuse** (PA-119) : une page blanche remise au
+    // comptable se lit comme « aucune boisson », alors qu'elle veut dire
+    // « le filtre n'a rien retenu ».
+    if (boissons.isEmpty) {
+      return dire(TextesExport.vide, 'boissons-export-vide');
+    }
+
+    await executerExport(
+      context,
+      () => ref.read(exporterBoissonsProvider)(boissons, filtre),
+      cleSucces: const Key('boissons-export-fait'),
     );
   }
+
+  /// Le titre de la modale — « Exporter — `entiteLabelPluriel` ».
+  static const String titreExport = 'Exporter — Boissons';
+
+  /// Le refus du choix PDF : aucun état A4 du catalogue n'existe.
+  static const String pdfNonProduit =
+      "Le PDF du catalogue des boissons n'est pas produit sur ce poste. Rien "
+      "n'a été écrit. Choisissez « Tableur Excel » pour obtenir la liste "
+      'affichée en CSV.';
 }
 
 /// Le filtre courant, en clair — un export DIT son filtre (PA-119).

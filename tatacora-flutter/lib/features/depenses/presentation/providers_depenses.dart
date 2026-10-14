@@ -16,13 +16,10 @@
 /// jamais « les chiffres d'hier ».
 library;
 
-import 'dart:io';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 import '../../../core/di/providers.dart';
+import '../../../core/fichiers/enregistrement_export.dart';
 import '../../comptabilite/domain/entities/comptabilite.dart';
 import '../../comptabilite/domain/refus_comptable.dart';
 import '../../comptabilite/presentation/providers_comptabilite.dart';
@@ -159,33 +156,23 @@ final class MessageSuccesNotifier extends Notifier<String?> {
   void effacer() => state = null;
 }
 
-/// L'export tableur — rend le **chemin** du fichier écrit.
+/// L'export tableur — rend le **chemin** du fichier écrit, `null` : annulé
+/// dans la fenêtre « Enregistrer sous » (14/10/2026).
 ///
 /// Exposé comme action injectable, jamais appelé depuis un widget : un test de
 /// widget n'a pas de greffon natif, et il doit exister un seul endroit où un
 /// fichier est écrit. Un export silencieux est un export que personne ne
-/// retrouve — l'écran affiche le chemin rendu ici.
+/// retrouve — le toast commun dit le nom du fichier.
 final exporterDepensesProvider =
-    Provider<Future<String> Function(EtatDepenses)>(
-      (ref) => (etat) async {
-        final dossier = await getApplicationDocumentsDirectory();
-        final m = DateTime.now();
-        final horodatage =
-            '${m.year}'
-            '${m.month.toString().padLeft(2, '0')}'
-            '${m.day.toString().padLeft(2, '0')}-'
-            '${m.hour.toString().padLeft(2, '0')}'
-            '${m.minute.toString().padLeft(2, '0')}'
-            '${m.second.toString().padLeft(2, '0')}';
-        final fichier = File(
-          p.join(
-            dossier.path,
-            '${EtatDepenses.prefixeFichier}-$horodatage.csv',
-          ),
-        );
-        await fichier.writeAsBytes(etat.csvOctets());
-        return fichier.path;
-      },
+    Provider<Future<String?> Function(EtatDepenses)>(
+      (ref) =>
+          (etat) => ref
+              .read(enregistrementExportProvider)
+              .exporter(
+                base: EtatDepenses.prefixeFichier,
+                type: TypeFichierEnregistre.csv,
+                octets: etat.csvOctets(),
+              ),
     );
 
 /// La raison du dernier rattrapage refusé, affichée en bandeau rouge au-dessus

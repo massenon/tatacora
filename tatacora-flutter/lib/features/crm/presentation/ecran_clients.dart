@@ -332,7 +332,7 @@ class _EnTete extends ConsumerWidget {
                 _Bouton(
                   cle: const Key('clients-exporter'),
                   libelle: 'Exporter',
-                  onTap: () => _exporter(context),
+                  onTap: () => _exporter(context, ref),
                 ),
             ],
           ),
@@ -363,17 +363,12 @@ class _EnTete extends ConsumerWidget {
   }
 
   /// UN bouton « Exporter » (dérogation du Product Owner du 01/09/2026,
-  /// `DerogationsMaquette::export_bouton_unique`) : le format s'y choisit.
+  /// `DerogationsMaquette::export_bouton_unique`) : le format s'y choisit,
+  /// dans la modale d'export partagée (14/10/2026).
   /// L'export n'est offert que sur la liste : le bouton n'est affiché que sur
-  /// cet onglet (PO, 14/10/2026), d'où l'absence de refus ici.
-  void _exporter(BuildContext context) {
-    showDialog<void>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Exporter — Clients & Créances'),
-        content: BarreExportsClients(lignes: lignes),
-      ),
-    );
+  /// cet onglet (PO, 14/10/2026).
+  void _exporter(BuildContext context, WidgetRef ref) {
+    BarreExportsClients.exporter(context, ref, lignes);
   }
 }
 

@@ -10,13 +10,10 @@
 /// écran ne doit un jour acquérir une branche « si connecté ».
 library;
 
-import 'dart:io';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 import '../../../core/di/providers.dart';
+import '../../../core/fichiers/enregistrement_export.dart';
 import '../../../core/format/formats.dart';
 import '../../../core/rbac/garde_acces.dart';
 import '../data/employe_dao.dart';
@@ -620,29 +617,22 @@ final etatPaieProvider = FutureProvider<EtatPaie>((ref) async {
   );
 });
 
-/// L'export tableur — rend le **chemin** du fichier écrit.
+/// L'export tableur — rend le **chemin** du fichier écrit, `null` : annulé
+/// dans la fenêtre « Enregistrer sous » (14/10/2026).
 ///
 /// Exposé comme action injectable, jamais appelé depuis un widget : un test de
 /// widget n'a pas de greffon natif, et il doit exister un seul endroit où un
 /// fichier est écrit. Un export silencieux est un export que personne ne
-/// retrouve — l'écran affiche le chemin rendu ici.
-final exporterPaieProvider = Provider<Future<String> Function(EtatPaie)>(
-  (ref) => (etat) async {
-    final dossier = await getApplicationDocumentsDirectory();
-    final m = DateTime.now();
-    final horodatage =
-        '${m.year}'
-        '${m.month.toString().padLeft(2, '0')}'
-        '${m.day.toString().padLeft(2, '0')}-'
-        '${m.hour.toString().padLeft(2, '0')}'
-        '${m.minute.toString().padLeft(2, '0')}'
-        '${m.second.toString().padLeft(2, '0')}';
-    final fichier = File(
-      p.join(dossier.path, '${etat.prefixeFichier}_$horodatage.csv'),
-    );
-    await fichier.writeAsBytes(etat.csvOctets());
-    return fichier.path;
-  },
+/// retrouve — le toast commun dit le nom du fichier.
+final exporterPaieProvider = Provider<Future<String?> Function(EtatPaie)>(
+  (ref) =>
+      (etat) => ref
+          .read(enregistrementExportProvider)
+          .exporter(
+            base: etat.prefixeFichier,
+            type: TypeFichierEnregistre.csv,
+            octets: etat.csvOctets(),
+          ),
 );
 
 /// Recharge tout ce qui dépend de la paie, après une écriture.

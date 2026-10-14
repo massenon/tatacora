@@ -6,7 +6,8 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../shared_widgets/bouton_standard.dart';
-import '../../../bar/presentation/widgets/modale_export_carte.dart';
+import '../../../../shared_widgets/modale_export.dart';
+import '../../../../shared_widgets/toast_export.dart';
 import '../../../restaurant/presentation/widgets/corps_carte_commun.dart'
     show styleContenuCarte;
 import '../../domain/categories_depense.dart';
@@ -302,15 +303,11 @@ class _BarreFiltresDepensesState extends ConsumerState<BarreFiltresDepenses> {
       portee: filtre.description,
       libelles: ref.read(libellesComptesProvider),
     );
-    final chemin = await ref.read(exporterDepensesProvider)(etat);
-    if (!context.mounted) return;
-
-    // Un export silencieux est un export que personne ne retrouve.
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        key: const Key('depenses-export-fait'),
-        content: Text('Export écrit : $chemin'),
-      ),
+    // La fenêtre « Enregistrer sous », puis le toast commun (14/10/2026).
+    await executerExport(
+      context,
+      () => ref.read(exporterDepensesProvider)(etat),
+      cleSucces: const Key('depenses-export-fait'),
     );
   }
 }

@@ -13,6 +13,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/mesures_transverses.dart';
 import '../../../shared_widgets/bouton_standard.dart';
+import '../../../shared_widgets/modale_export.dart';
 import '../../../shared_widgets/pied_pagination.dart';
 import '../../transverse/presentation/widgets/briques_transverses.dart';
 import '../domain/consultation_comptable.dart';
@@ -47,8 +48,9 @@ import 'widgets/modale_ecriture.dart';
 /// - **Grand livre, Compte de résultat, Bilan, Analytique, Immobilisations,
 ///   Plan comptable, Clôtures** : l'onglet est cliquable et DIT qu'il n'est pas
 ///   calculé sur ce poste — aucun chiffre plutôt qu'un chiffre faux.
-/// - **Exporter** : la vue exporte le journal (PDF/Excel) ; le clic DIT
-///   qu'aucun export comptable n'est produit ici.
+/// - **Exporter** : la vue exporte le journal (PDF/Excel) ; le bouton ouvre
+///   la modale d'export partagée (14/10/2026) et le choix DIT qu'aucun
+///   export comptable n'est produit ici.
 /// - **Tuiles** : celles qui correspondent à un onglet l'ouvrent ; Flux de
 ///   trésorerie, Notes annexes et États financiers DISENT qu'ils ne sont pas
 ///   portés (ce sont des pages séparées de la vue).
@@ -116,6 +118,9 @@ abstract final class TextesComptabilite {
       'journal et la balance générale sont lus.';
   static const String saisieSansDroit =
       "Votre profil n'a pas le droit de passer une écriture comptable.";
+
+  /// Le titre de la modale d'export — la vue exporte le journal.
+  static const String titreExport = 'Exporter — Journal comptable';
   static const String exportNonProduit =
       "Aucun export comptable n'est produit sur ce poste : rien n'a été "
       'exporté.';
@@ -661,15 +666,25 @@ class _BarreFiltres extends StatelessWidget {
             onTap: onReinitialiser,
           ),
           // Le bouton standard (PO, 14/10/2026) : le même « Exporter » que
-          // sur les autres écrans.
+          // sur les autres écrans, qui ouvre la MÊME modale d'export. Aucun
+          // export comptable n'est produit ici : la modale le dit sous les
+          // choix, et le clic le redit, sans rien écrire.
           BoutonStandard(
             key: const Key('compta-exporter'),
             libelle: TextesComptabilite.exporter,
-            onPressed: () => direTransverse(
-              context,
-              TextesComptabilite.exportNonProduit,
-              cle: const Key('compta-export-non-produit'),
-            ),
+            onPressed: () async {
+              final format = await choisirFormatExport(
+                context,
+                titre: TextesComptabilite.titreExport,
+                aide: TextesComptabilite.exportNonProduit,
+              );
+              if (format == null || !context.mounted) return;
+              direTransverse(
+                context,
+                TextesComptabilite.exportNonProduit,
+                cle: const Key('compta-export-non-produit'),
+              );
+            },
           ),
           if (consultation)
             Text(

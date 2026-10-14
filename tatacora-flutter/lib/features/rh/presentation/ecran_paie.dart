@@ -6,7 +6,8 @@ import '../../../core/format/formats.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../bar/presentation/widgets/modale_export_carte.dart';
+import '../../../shared_widgets/modale_export.dart';
+import '../../../shared_widgets/toast_export.dart';
 import '../../restaurant/presentation/widgets/corps_carte_commun.dart';
 import '../domain/entities/employe.dart';
 import '../domain/entities/periode_paie.dart';
@@ -182,7 +183,8 @@ class _EnTetePage extends ConsumerWidget {
   /// liste vide se **refuse** : un fichier sans ligne se lirait « aucun
   /// employé », alors qu'il veut dire « le filtre n'a rien retenu ».
   ///
-  /// - **Tableur Excel** : le CSV (BOM UTF-8, point-virgule), chemin affiché.
+  /// - **Tableur Excel** : le CSV (BOM UTF-8, point-virgule), enregistré par
+  ///   la fenêtre « Enregistrer sous ».
   /// - **PDF Officiel A4** : offert comme dans la vue, mais le PDF n'est pas
   ///   produit sur ce poste ([pdfNonProduit]). Écart daté du 09/10/2026 : la
   ///   vue génère `pdf.paie` ; aucun gabarit A4 de la paie n'existe ici
@@ -226,17 +228,11 @@ class _EnTetePage extends ConsumerWidget {
       return;
     }
 
-    final chemin = await ref.read(exporterPaieProvider)(etat);
-    if (!context.mounted) return;
-
-    // Un export silencieux est un export que personne ne retrouve.
-    messageur.showSnackBar(
-      SnackBar(
-        content: Text(
-          'Export écrit : $chemin',
-          key: const Key('paie-export-fait'),
-        ),
-      ),
+    // La fenêtre « Enregistrer sous », puis le toast commun (14/10/2026).
+    await executerExport(
+      context,
+      () => ref.read(exporterPaieProvider)(etat),
+      cleSucces: const Key('paie-export-fait'),
     );
   }
 

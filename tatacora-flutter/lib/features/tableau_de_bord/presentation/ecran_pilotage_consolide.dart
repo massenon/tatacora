@@ -1,15 +1,15 @@
 // Vue Blade maîtresse (PA-183) : pwa/livewire/accueil.blade.php
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:pdf/pdf.dart';
-import 'package:printing/printing.dart';
 
+import '../../../core/fichiers/enregistrement_export.dart';
 import '../../../core/format/formats.dart';
 import '../../../core/theme/app_breakpoints.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../bar/presentation/widgets/modale_export_carte.dart';
+import '../../../shared_widgets/modale_export.dart';
+import '../../../shared_widgets/toast_export.dart';
 import '../../hebergement/domain/entities/historique_reservations.dart';
 import '../../hebergement/domain/entities/reservation.dart';
 import '../../hebergement/domain/entities/unite_hebergement.dart';
@@ -560,7 +560,8 @@ class _BarreFiltresPilotage extends ConsumerWidget {
 ///
 /// - **PDF Officiel A4** : l'état « Pilotage consolidé — tous modules »,
 ///   composé AU CLIC sur ce qui est affiché (PA-119) et remis à l'action
-///   injectable [imprimerEtatPilotageProvider].
+///   injectable [exporterEtatPilotagePdfProvider] (fenêtre « Enregistrer
+///   sous »).
 /// - **Tableur** : refusé, avec sa raison ([tableurPilotageNonProduit]),
 ///   comme le PDF l'est aux Notifications. Le seul document de ce poste porte
 ///   des montants MIS EN FORME (« 12 505 FCFA ») : en faire un CSV
@@ -619,7 +620,11 @@ Future<void> exporterTableauDeBord(
           fenetre: fenetre,
           tableau: tableau,
         );
-        await ref.read(imprimerEtatPilotageProvider)(etat);
+        await executerExport(
+          context,
+          () => ref.read(exporterEtatPilotagePdfProvider)(etat),
+          cleSucces: const Key('pilotage-export-fait'),
+        );
       } finally {
         for (final a in abonnements) {
           a.close();
@@ -2656,16 +2661,19 @@ List<List<String>> reservesBandeNonConsultee(TableauDeBord? tableau) {
   ];
 }
 
-/// L'impression — une action INJECTABLE, jamais un `layoutPdf` dans l'écran.
-final imprimerEtatPilotageProvider =
-    Provider<Future<void> Function(EtatPilotage)>(
-      (ref) => (etat) async {
-        await Printing.layoutPdf(
-          onLayout: (_) => etat.pdf(),
-          name: EtatPilotage.titre,
-          format: PdfPageFormat.a4,
-        );
-      },
+/// L'export PDF — une action INJECTABLE, jamais un `layoutPdf` ni une
+/// écriture de fichier dans l'écran. Enregistré par la fenêtre « Enregistrer
+/// sous » (14/10/2026) ; rend le CHEMIN écrit, `null` : annulé.
+final exporterEtatPilotagePdfProvider =
+    Provider<Future<String?> Function(EtatPilotage)>(
+      (ref) =>
+          (etat) async => ref
+              .read(enregistrementExportProvider)
+              .exporter(
+                base: 'pilotage_consolide',
+                type: TypeFichierEnregistre.pdf,
+                octets: await etat.pdf(),
+              ),
     );
 
 /* ====================================================================== */

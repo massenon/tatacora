@@ -15,12 +15,9 @@
 /// montrerait un catalogue qui date sans dire qu'il date.
 library;
 
-import 'dart:io';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
+import '../../../core/fichiers/enregistrement_export.dart';
 import '../../pos/presentation/providers_pos.dart';
 import '../data/boissons_api.dart';
 import '../domain/entities/boisson.dart';
@@ -220,31 +217,23 @@ extension on PageBar<Boisson> {
 /* L'export                                                                */
 /* ====================================================================== */
 
-/// Écrit le CSV du catalogue et rend son chemin.
+/// Enregistre le CSV du catalogue par la fenêtre « Enregistrer sous » et rend
+/// son chemin, `null` : annulé (14/10/2026).
 ///
 /// Injecté comme **action**, jamais appelé depuis un widget : un test de
 /// widget n'a pas de greffon natif, et il doit exister un seul endroit où
 /// l'écriture est déclenchée.
 final exporterBoissonsProvider =
-    Provider<Future<String> Function(List<Boisson>, String)>(
+    Provider<Future<String?> Function(List<Boisson>, String)>(
       (ref) =>
-          (boissons, filtre) => _ecrireCsv(
-            'boissons',
-            EtatCatalogueBoissons.csvOctets(boissons, filtre: filtre),
-          ),
+          (boissons, filtre) => ref
+              .read(enregistrementExportProvider)
+              .exporter(
+                base: 'boissons',
+                type: TypeFichierEnregistre.csv,
+                octets: EtatCatalogueBoissons.csvOctets(
+                  boissons,
+                  filtre: filtre,
+                ),
+              ),
     );
-
-Future<String> _ecrireCsv(String prefixe, List<int> octets) async {
-  final dossier = await getApplicationDocumentsDirectory();
-  final m = DateTime.now();
-  final horodatage =
-      '${m.year}'
-      '${m.month.toString().padLeft(2, '0')}'
-      '${m.day.toString().padLeft(2, '0')}-'
-      '${m.hour.toString().padLeft(2, '0')}'
-      '${m.minute.toString().padLeft(2, '0')}'
-      '${m.second.toString().padLeft(2, '0')}';
-  final fichier = File(p.join(dossier.path, '$prefixe-$horodatage.csv'));
-  await fichier.writeAsBytes(octets);
-  return fichier.path;
-}

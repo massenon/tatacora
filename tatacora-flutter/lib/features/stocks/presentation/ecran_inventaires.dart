@@ -8,7 +8,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../shared_widgets/bouton_standard.dart';
-import '../../bar/presentation/widgets/modale_export_carte.dart';
+import '../../../shared_widgets/modale_export.dart';
+import '../../../shared_widgets/toast_export.dart';
 import '../data/stocks_api.dart';
 import '../domain/entities/fiche_stock.dart';
 import 'providers_stocks.dart';
@@ -494,24 +495,21 @@ Future<void> _exporter(BuildContext context, WidgetRef ref) async {
   );
   if (format == null || !context.mounted) return;
 
-  switch (format) {
-    case FormatExport.pdf:
-      await ref.read(imprimerFicheStockProvider)(fiche, pointLibelle);
-    case FormatExport.excel:
-      final chemin = await ref.read(exporterFicheStockProvider)(
+  // La fenêtre « Enregistrer sous », puis le toast commun (14/10/2026).
+  await executerExport(
+    context,
+    () => switch (format) {
+      FormatExport.pdf => ref.read(exporterFicheStockPdfProvider)(
         fiche,
         pointLibelle,
-      );
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Fiche exportée : $chemin',
-            key: const Key('fiche-export-fait'),
-          ),
-        ),
-      );
-  }
+      ),
+      FormatExport.excel => ref.read(exporterFicheStockProvider)(
+        fiche,
+        pointLibelle,
+      ),
+    },
+    cleSucces: const Key('fiche-export-fait'),
+  );
 }
 
 /// Étiquette `text-[11px] font-semibold text-slate-500 mb-1` + liste.

@@ -1,90 +1,74 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/theme/app_spacing.dart';
-import '../../../../core/theme/app_text_styles.dart';
-import '../../../../shared_widgets/bouton_standard.dart';
+import '../../../../shared_widgets/modale_export.dart';
+import '../../../../shared_widgets/toast_export.dart';
 import '../../domain/entities/registre_clients.dart';
 import '../providers_crm.dart';
 
-/// Les deux boutons d'export du maître — `m3-clients-creances.html` l.65-66.
+/// « Exporter » du registre — `m3-clients-creances.html` l.65-66.
 ///
-/// Ils emportent **la liste affichée**, filtres compris (PA-119), et une liste
-/// vide se refuse : produire une page blanche laisserait croire qu'il n'y a
-/// aucun client, alors que c'est le filtre qui ne rend rien.
-class BarreExportsClients extends ConsumerWidget {
-  const BarreExportsClients({super.key, required this.lignes});
+/// Depuis le 14/10/2026 (PO), le bouton ouvre la modale d'export PARTAGÉE
+/// (`shared_widgets/modale_export.dart`) : l'ancien dialogue aux deux boutons
+/// « Excel » / « PDF » est retiré. Le sous-titre dit le PÉRIMÈTRE exporté.
+///
+/// L'export emporte **la liste affichée**, filtres compris (PA-119), et une
+/// liste vide se refuse : produire une page blanche laisserait croire qu'il
+/// n'y a aucun client, alors que c'est le filtre qui ne rend rien.
+abstract final class BarreExportsClients {
+  /// Le titre de la modale (PO, 14/10/2026).
+  static const String titreModale = 'Exporter — Clients & Créances';
 
-  final List<LigneClient> lignes;
+  /// Le périmètre sans filtre actif (PO, 14/10/2026).
+  static const String sansFiltre = 'Aucun filtre — tout le registre';
 
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        // Bouton standard (PO, 14/10/2026) ; dans une modale, `text-[13px]`
-        // vaut 13 px (hors `<main>`).
-        BoutonStandard(
-          key: const Key('clients-export-excel'),
-          libelle: 'Excel',
-          taillePolice: Tailles.t13,
-          onPressed: () => _exporter(context, ref),
+  /// Ouvre la modale, puis enregistre le document choisi.
+  static Future<void> exporter(
+    BuildContext context,
+    WidgetRef ref,
+    List<LigneClient> lignes,
+  ) async {
+    final filtre = _filtreActif(ref);
+    final format = await choisirFormatExport(
+      context,
+      titre: titreModale,
+      sousTitre: 'Périmètre : ${filtre ?? sansFiltre}',
+    );
+    if (format == null || !context.mounted) return;
+
+    if (lignes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Rien à exporter : la liste filtrée est vide.',
+            key: Key('clients-export-vide'),
+          ),
         ),
-        const SizedBox(width: AppSpacing.xs),
-        BoutonStandard(
-          key: const Key('clients-export-pdf'),
-          libelle: 'PDF',
-          variante: VarianteBouton.primaire,
-          taillePolice: Tailles.t13,
-          onPressed: () => _imprimer(context, ref),
+      );
+      return;
+    }
+
+    // Le libellé IMPRIMÉ dans le document reste celui d'avant : « Tous les
+    // clients » sans filtre.
+    final libelle = filtre ?? 'Tous les clients';
+    await executerExport(
+      context,
+      () => switch (format) {
+        FormatExport.pdf => ref.read(exporterRegistreClientsPdfProvider)(
+          lignes,
+          libelle,
         ),
-      ],
+        FormatExport.excel => ref.read(exporterRegistreClientsProvider)(
+          lignes,
+          libelle,
+        ),
+      },
+      cleSucces: const Key('clients-export-fait'),
     );
   }
 
-  bool _verifier(BuildContext context) {
-    if (lignes.isNotEmpty) return true;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Rien à exporter : la liste filtrée est vide.',
-          key: Key('clients-export-vide'),
-        ),
-      ),
-    );
-    return false;
-  }
-
-  Future<void> _imprimer(BuildContext context, WidgetRef ref) async {
-    if (!_verifier(context)) return;
-    await ref.read(imprimerRegistreClientsProvider)(
-      lignes,
-      _libelleFiltre(ref),
-    );
-  }
-
-  Future<void> _exporter(BuildContext context, WidgetRef ref) async {
-    if (!_verifier(context)) return;
-
-    final chemin = await ref.read(exporterRegistreClientsProvider)(
-      lignes,
-      _libelleFiltre(ref),
-    );
-    if (!context.mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Registre exporté : $chemin',
-          key: const Key('clients-export-fait'),
-        ),
-      ),
-    );
-  }
-
-  /// Composé au moment du clic, depuis l'état réel des filtres.
-  String _libelleFiltre(WidgetRef ref) {
+  /// Le filtre actif, composé au moment du clic ; `null` : aucun.
+  static String? _filtreActif(WidgetRef ref) {
     final etat = ref.read(etatCreanceProvider);
     final terme = ref.read(rechercheClientProvider).trim();
 
@@ -93,6 +77,6 @@ class BarreExportsClients extends ConsumerWidget {
       if (terme.isNotEmpty) 'recherche « $terme »',
     ];
 
-    return parties.isEmpty ? 'Tous les clients' : parties.join(' — ');
+    return parties.isEmpty ? null : parties.join(' — ');
   }
 }

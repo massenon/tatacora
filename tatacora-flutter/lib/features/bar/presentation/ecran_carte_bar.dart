@@ -14,7 +14,7 @@ import '../domain/entities/boisson.dart';
 import '../domain/entities/carte_bar.dart';
 import 'providers_bar.dart';
 import 'widgets/barre_exports_carte.dart';
-import 'widgets/modale_export_carte.dart';
+import '../../../shared_widgets/modale_export.dart';
 import 'widgets/modale_historique_prix.dart';
 import 'widgets/modale_lien_stock.dart';
 import 'widgets/modale_nouvelle_boisson.dart';
