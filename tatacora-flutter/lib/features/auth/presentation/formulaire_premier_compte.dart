@@ -6,6 +6,7 @@ import '../../../core/rbac/garde_acces.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../parametres/data/parametres_depot_local.dart';
 import '../domain/session_repository.dart';
 
 /// La création du **premier compte**, sur un poste vierge.
@@ -105,6 +106,28 @@ class _EtatFormulairePremierCompte
         role: 'administrateur',
         droits: _droitsAdministrateur,
       );
+      // POSTE VIERGE (Lot J2, directive du PO du 14/10/2026) : les vingt
+      // paramètres d'établissement du serveur (`ParametresEtablissementSeeder`)
+      // — paie, TVA, en-tête des documents — sont posés ICI, au seul moment où
+      // le poste n'a encore aucun compte. Chaque clé absente seulement : rien
+      // de déjà saisi n'est réécrit. Un échec n'empêche pas d'entrer : les
+      // paramètres restent « — » et se saisissent à l'écran Paramètres.
+      try {
+        await ParametresDepotLocal(
+          ref.read(baseLocaleProvider),
+        ).installerParametresInitiaux();
+      } on Object catch (e, pile) {
+        FlutterError.reportError(
+          FlutterErrorDetails(
+            exception: e,
+            stack: pile,
+            library: 'tatacora',
+            context: ErrorDescription(
+              'en posant les paramètres initiaux du poste vierge',
+            ),
+          ),
+        );
+      }
       // On enchaîne sur la connexion : demander de ressaisir ce qu'on vient de
       // taper serait une friction gratuite au premier contact avec le logiciel.
       await ref

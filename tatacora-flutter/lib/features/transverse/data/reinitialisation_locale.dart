@@ -55,6 +55,7 @@ import '../../../core/database/app_database.dart';
 import '../../../core/database/declencheurs_comptables.dart';
 import '../../../core/rbac/regle_archivage.dart';
 import '../../parametres/data/parametres_dao.dart';
+import '../../parametres/data/parametres_depot_local.dart';
 import '../../parametres/domain/options_systeme.dart';
 
 /// Les tables que la réinitialisation NE TOUCHE PAS — voir l'entête.
@@ -314,12 +315,24 @@ class ReinitialisationLocale {
         "WHERE statut = 'loue'",
       );
       await creerDeclencheursComptables(_base);
+      // Les vingt paramètres d'établissement (Lot J2) : leurs tables sont
+      // GARDÉES, mais un poste « comme neuf » doit les avoir tous — une clé
+      // vidée depuis est reposée, une valeur saisie n'est jamais réécrite.
+      // ÉCART nommé avec le serveur, qui garde `parametres_systeme` sans
+      // rejouer son seeder.
+      await ParametresDepotLocal(_base).installerParametresInitiaux();
       return total;
     });
 
     // Les écrans à l'écoute des tables vidées ou remises à jour se relisent.
     _base.notifyUpdates({
-      for (final t in [...ordre, 'unites_hebergement_local', 'vehicules_local'])
+      for (final t in [
+        ...ordre,
+        'unites_hebergement_local',
+        'vehicules_local',
+        'parametres_systeme_local',
+        'taux_paie_local',
+      ])
         TableUpdate(t),
     });
 

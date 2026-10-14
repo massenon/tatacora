@@ -6,16 +6,23 @@ import 'utilisateurs_table.dart';
 ///
 /// Équivalent local de `parametres_systeme` (serveur), à une différence près et
 /// elle est voulue : **une clé sans ligne est « non renseignée »**, jamais une
-/// valeur par défaut. Le serveur sème certaines clés ; ce poste n'en sème
-/// AUCUNE, parce qu'un taux ou un seuil plausible inscrit par une migration
-/// deviendrait la règle appliquée en production sans que personne le rouvre
-/// (PA-53, PA-19).
+/// valeur par défaut. Aucune MIGRATION n'y sème rien : un taux ou un seuil
+/// plausible inscrit par une migration deviendrait la règle appliquée en
+/// production sans que personne le rouvre (PA-53, PA-19).
+///
+/// ⚠ Depuis le Lot J2 (14/10/2026, directive du PO), un poste VIERGE reçoit
+/// les seize clés ordinaires de `ParametresEtablissementSeeder` (données
+/// d'établissement fournies par le PO, `parametresEtablissementInitiaux`), à
+/// la création du premier compte et après « Réinitialiser comme neuf », clé
+/// absente par clé absente — jamais par-dessus une valeur saisie.
 ///
 /// ## Qui l'écrit, qui la lit, qui la descend (pièges 9 et 11)
 ///
-///  * **Qui l'écrit** : `ParametresDao.enregistrer`, appelé par le seul
-///    `EnregistrerParametres` (écran Paramètres, droit `PARAM` = `C`). Aucun
-///    seeder, aucune migration, aucun autre chemin.
+///  * **Qui l'écrit** : `ParametresDao`, seul auteur — `ecrire`, appelé par
+///    le seul `EnregistrerParametres` (écran Paramètres, droit `PARAM` = `C`),
+///    et `semerSiAbsentes`, appelé par le seul
+///    `ParametresDepotLocal.installerParametresInitiaux` (poste vierge, Lot
+///    J2). Aucune migration, aucun autre chemin.
 ///  * **Qui la lit** : `ParametresDao.lire` pour l'écran, et — module par
 ///    module, chacun l'écrit dans `SpecParametre.lecteur` — les services qui
 ///    consomment une clé. Une clé dont `lecteur` est nul n'est lue par PERSONNE

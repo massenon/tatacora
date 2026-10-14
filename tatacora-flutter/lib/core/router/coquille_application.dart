@@ -1055,9 +1055,12 @@ class _BarreLaterale extends ConsumerWidget {
     /// grisée. Premier des trois niveaux RBAC de RG-16. Et le masquage PAR
     /// RÔLE (`ROUTES_MASQUEES_PAR_ROLE`, Phase 1B) : le gérant ne voit pas les
     /// onze entrées que la vue lui cache.
+    ///
+    /// La règle vit dans `navigation_tatacora.dart` ([destinationVisible]) :
+    /// la garde du routeur en lit la moitié « accès » ([destinationAccessible]),
+    /// pour qu'une entrée absente du menu soit aussi une route refusée.
     bool visible(DestinationMenu d) =>
-        droits.peutLire(d.module) &&
-        !entreeMasqueePourRole(session?.role ?? '', d.nom);
+        destinationVisible(d, droits: droits, role: session?.role);
 
     final enfants = <Widget>[
       for (final d in destinationsEpinglees)

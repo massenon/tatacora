@@ -51,6 +51,8 @@ class _EtatApplication extends ConsumerState<ApplicationTatacora> {
     return MaterialApp.router(
       title: 'TATACORA AFRIQUE',
       debugShowCheckedModeBanner: false,
+      // Le messager de la garde du routeur (« Accès refusé à ce module. »).
+      scaffoldMessengerKey: messagerApplication,
       theme: AppTheme.clair,
       routerConfig: ref.watch(routeurProvider),
     );

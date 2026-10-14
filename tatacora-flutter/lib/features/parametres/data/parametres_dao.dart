@@ -31,6 +31,34 @@ class ParametresDao extends DatabaseAccessor<AppDatabase>
     return {for (final l in lignes) l.cle: l.valeur};
   }
 
+  /// Pose chaque valeur de [valeurs] dont la clé est ABSENTE, et seulement
+  /// elle — `firstOrCreate` de `ParametresEtablissementSeeder` : une valeur
+  /// déjà en base, corrigée à l'écran Paramètres, n'est JAMAIS réécrite. Sans
+  /// auteur (`modifiePar` nul) : comme `utilisateur_creation_id` au serveur,
+  /// la valeur vient du seeder, pas d'un compte. Rend les clés posées.
+  ///
+  /// Seul appelant : `ParametresDepotLocal.installerParametresInitiaux`.
+  Future<List<String>> semerSiAbsentes(Map<String, String> valeurs) async {
+    final posees = <String>[];
+    await transaction(() async {
+      for (final e in valeurs.entries) {
+        final existant = await (select(
+          parametresSystemeLocal,
+        )..where((p) => p.cle.equals(e.key))).getSingleOrNull();
+        if (existant != null) continue;
+        await into(parametresSystemeLocal).insert(
+          ParametresSystemeLocalCompanion.insert(
+            cle: e.key,
+            valeur: e.value,
+            modifieLe: _maintenant(),
+          ),
+        );
+        posees.add(e.key);
+      }
+    });
+    return posees;
+  }
+
   /// Écrit [valeurs] (`null` = vider la clé) et rend les clés dont la valeur a
   /// réellement changé. Une clé inchangée n'est PAS réécrite : son horodatage
   /// et son auteur restent ceux de la dernière vraie modification.

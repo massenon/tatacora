@@ -121,6 +121,11 @@ abstract final class MesuresTransverses {
   /// `largeur="480px"` — « Modifier les droits ».
   static const double modaleDroits = 480;
 
+  /// Les modales de « Comptes utilisateurs » (Lot J2, ajout du poste sans
+  /// vue) : la largeur de « Modifier les droits », la plus proche des
+  /// formulaires compacts de la vue.
+  static const double modaleCompte = modaleDroits;
+
   /// `max-h-[55vh]` — la liste des modules de « Modifier les droits ».
   static const double fractionListeDroits = 0.55;
 

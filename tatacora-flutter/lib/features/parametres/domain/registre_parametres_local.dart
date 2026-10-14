@@ -493,3 +493,121 @@ abstract final class RegistreParametresLocal {
     ),
   ];
 }
+
+/// Un paramètre de la base vierge : clé, valeur, description.
+typedef ParametreInitial = ({String cle, String valeur, String? description});
+
+/// Les paramètres INITIAUX d'un poste vierge — `ParametresEtablissementSeeder::
+/// PARAMETRES` du serveur (script SQL du Product Owner du 14/10/2026,
+/// directive Lot J2), recopié À L'IDENTIQUE : les 20 mêmes clés, valeurs et
+/// descriptions, dans le même ordre. Une divergence avec le seeder se corrige
+/// ICI.
+///
+/// ## Ce que cette liste change à la règle « aucune valeur par défaut »
+///
+/// Le registre ([RegistreParametresLocal.definitions]) ne porte toujours
+/// AUCUNE valeur. Ces vingt valeurs sont des DONNÉES D'ÉTABLISSEMENT fournies
+/// par le PO, posées UNE fois sur un poste vierge (création du premier compte)
+/// et après « Réinitialiser comme neuf », clé par clé et SEULEMENT si la clé
+/// est absente : une valeur corrigée à l'écran Paramètres n'est jamais
+/// réécrite (`firstOrCreate` du serveur). Elles ne sont posées par aucune
+/// migration et à aucun démarrage.
+///
+/// Comme au serveur : `email_smtp_securite` vaut `tls` (le script la laissait
+/// vide, la directive dit « TLS ») ; aucun mot de passe SMTP (il n'est pas au
+/// registre) ; `taux_cnss_risques_professionnels` n'y est PAS (PA-53).
+///
+/// Où elles vont : les quatre taux de la paie dans `taux_paie_local` (par
+/// `PaieDao`, leur seul auteur, AVEC leur description), les seize autres dans
+/// `parametres_systeme_local` (par `ParametresDao`). Cette table n'a pas de
+/// colonne de description : les trois descriptions des clés ordinaires
+/// (`taux_tva`, `tva_active`, `convention_prix`) restent ici, l'écran
+/// Paramètres affichant l'aide du registre — comme la vue, qui ne lit pas
+/// `parametres_systeme.description`.
+const List<ParametreInitial> parametresEtablissementInitiaux = [
+  (
+    cle: 'taux_cnss_salarie',
+    valeur: '3.6',
+    description:
+        'Cotisation CNSS part salariale, en % du brut, sans plafond. Source : '
+        'cnss.bj (branche pension, 10 % dont 3,6 % salarié).',
+  ),
+  (
+    cle: 'taux_cnss_pension_employeur',
+    valeur: '6.4',
+    description:
+        'Cotisation CNSS pension part employeur, en % du brut. Source : '
+        'cnss.bj.',
+  ),
+  (
+    cle: 'taux_cnss_prestations_familiales',
+    valeur: '9',
+    description:
+        'Cotisation CNSS prestations familiales, employeur uniquement, en % du '
+        'brut. Source : cnss.bj.',
+  ),
+  (
+    cle: 'taux_vps',
+    valeur: '4',
+    description:
+        'VPS (Versement Patronal sur Salaires), en % du total des salaires '
+        "bruts, SANS plafond. Taxe a la charge de l'employeur, jamais retenue "
+        'sur le salaire. Declaration et paiement au plus tard le 10 du mois '
+        'suivant. Source : ATELIER_PLAN_COMPTABLE.md.',
+  ),
+  (
+    cle: 'taux_tva',
+    valeur: '18.00',
+    description:
+        'Taux de TVA en % — fourni par le Consultant Technique le 15/08/2026. '
+        'Référence au Code Général des Impôts à joindre (voir PA-36).',
+  ),
+  (
+    cle: 'tva_active',
+    valeur: 'true',
+    description:
+        "Assujettissement à la TVA (true/false). Inactive tant qu'un "
+        "Administrateur ne l'active pas : aucune taxe n'est ajoutée aux "
+        'factures.',
+  ),
+  (
+    cle: 'convention_prix',
+    valeur: 'ttc',
+    description:
+        'Convention des prix du catalogue : `ht` (les tarifs '
+        "s'entendent hors taxe, la TVA s'ajoute) ou `ttc` (les tarifs "
+        'incluent déjà la TVA, elle en est extraite). Résout PA-37 — à '
+        'confirmer par le Product Owner et le Comptable.',
+  ),
+  (cle: 'activation_suppression', valeur: 'true', description: null),
+  (cle: 'entreprise_ifu', valeur: '0202011344660', description: null),
+  (cle: 'entreprise_rccm', valeur: 'RB/NAT/2020-A-137', description: null),
+  (
+    cle: 'entreprise_raison_sociale',
+    valeur: 'TATACORA AFRIQUE Gîte Chez Noël',
+    description: null,
+  ),
+  (cle: 'entreprise_promoteur', valeur: 'NABOGOU Noel', description: null),
+  (cle: 'communication_whatsapp', valeur: '0197355974', description: null),
+  (
+    cle: 'entreprise_site_web',
+    valeur: 'https://tatacora.com/',
+    description: null,
+  ),
+  (
+    cle: 'email_smtp_hote',
+    valeur: 'mail.logirestock.digitonpro.com',
+    description: null,
+  ),
+  (cle: 'email_smtp_port', valeur: '587', description: null),
+  // Vide dans le script ; « TLS » selon la directive PO du 14/10/2026.
+  (cle: 'email_smtp_securite', valeur: 'tls', description: null),
+  (
+    cle: 'email_smtp_utilisateur',
+    valeur: 'contact@logirestock.digitonpro.com',
+    description: null,
+  ),
+  // Vide, comme au serveur : « (vide) » à l'écran, l'exploitant choisit.
+  (cle: 'fiscalite_regime', valeur: '', description: null),
+  (cle: 'reinitialisation_seeders', valeur: 'true', description: null),
+];

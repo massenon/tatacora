@@ -1,5 +1,6 @@
 import '../../../core/database/app_database.dart';
 import '../../rh/data/paie_dao.dart';
+import '../../rh/domain/entities/taux_paie.dart';
 import '../domain/enregistrer_parametres.dart';
 import '../domain/registre_parametres_local.dart';
 import 'parametres_dao.dart';
@@ -44,6 +45,36 @@ final class ParametresDepotLocal implements StockageParametres {
       for (final cle in RegistreParametresLocal.clesDeLaPaie)
         if (taux[cle] != null) cle: taux[cle]!,
     };
+  }
+
+  /// Pose les paramètres INITIAUX d'un poste vierge
+  /// ([parametresEtablissementInitiaux], `ParametresEtablissementSeeder` du
+  /// serveur) — chaque clé ABSENTE seulement, jamais une valeur déjà saisie.
+  /// Routés comme toute écriture : les taux de la paie par `PaieDao`, les
+  /// autres par `ParametresDao`, dans UNE transaction.
+  ///
+  /// Appelants : la création du premier compte (`FormulairePremierCompte`,
+  /// le seul moment où le poste est vierge) et « Réinitialiser comme neuf »
+  /// (`ReinitialisationLocale.executer`). Aucune migration, aucun démarrage :
+  /// une clé vidée exprès à l'écran ne revient pas d'elle-même.
+  Future<void> installerParametresInitiaux() {
+    return _base.transaction(() async {
+      await _paie.installerReferentielConfirme(
+        confirmes: [
+          for (final p in parametresEtablissementInitiaux)
+            if (_estDeLaPaie(p.cle))
+              TauxConfirme(
+                cle: p.cle,
+                valeur: p.valeur,
+                description: p.description ?? '',
+              ),
+        ],
+      );
+      await _parametres.semerSiAbsentes({
+        for (final p in parametresEtablissementInitiaux)
+          if (!_estDeLaPaie(p.cle)) p.cle: p.valeur,
+      });
+    });
   }
 
   @override

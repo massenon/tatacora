@@ -86,6 +86,8 @@ class ApplicationDemo extends ConsumerWidget {
     return MaterialApp.router(
       title: 'TATACORA AFRIQUE — Démonstration',
       debugShowCheckedModeBanner: false,
+      // Le messager de la garde du routeur (« Accès refusé à ce module. »).
+      scaffoldMessengerKey: messagerApplication,
       theme: AppTheme.clair,
       routerConfig: ref.watch(routeurProvider),
     );

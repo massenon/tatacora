@@ -67,9 +67,18 @@ class PaieDao extends DatabaseAccessor<AppDatabase> with _$PaieDaoMixin {
   /// N'écrase **pas** une valeur déjà en base : un Administrateur qui a
   /// renseigné un taux révisé ne doit pas le voir revenir à sa valeur d'usine
   /// au prochain démarrage.
-  Future<void> installerReferentielConfirme() async {
+  ///
+  /// [confirmes] : les quatre taux de [ReferentielPaie.confirmes] par défaut ;
+  /// les quatre MÊMES taux, avec les descriptions du Product Owner, quand le
+  /// poste vierge reçoit ses paramètres initiaux (Lot J2 —
+  /// `parametresEtablissementInitiaux`, `ParametresEtablissementSeeder` qui
+  /// passe avant `PaieReferentielSeeder` au serveur). Ce DAO reste le seul
+  /// auteur de la table.
+  Future<void> installerReferentielConfirme({
+    List<TauxConfirme> confirmes = ReferentielPaie.confirmes,
+  }) async {
     await transaction(() async {
-      for (final confirme in ReferentielPaie.confirmes) {
+      for (final confirme in confirmes) {
         final existant = await (select(
           tauxPaieLocal,
         )..where((t) => t.cle.equals(confirme.cle))).getSingleOrNull();

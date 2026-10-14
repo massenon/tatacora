@@ -1,4 +1,5 @@
 import '../rbac/garde_acces.dart';
+import '../rbac/regle_archivage.dart';
 
 /// Le menu du maître de mise en page, transcrit.
 ///
@@ -40,6 +41,10 @@ import '../rbac/garde_acces.dart';
 /// dernières sans route (PA-204), mènent à leur écran. La branche « sans
 /// écran » de `_LienLateral` (infobulle de la vue, message au clic) reste le
 /// repli d'une entrée qui perdrait sa route — jamais un clic muet.
+///
+/// Lot J2 (14/10/2026) : une VINGT-CINQUIÈME destination, « Comptes
+/// utilisateurs », AJOUT du poste sans équivalent dans la vue (voir son
+/// entrée), réservée aux rôles d'administration ([DestinationMenu.rolesExiges]).
 ///
 /// Les retirer n'est pas la réponse : cela trahirait la coquille de la vue,
 /// que le client a validée avec ses huit groupes.
@@ -128,6 +133,7 @@ final class DestinationMenu {
     required this.page,
     this.route,
     this.badge,
+    this.rolesExiges,
   });
 
   /// Le libellé, **au caractère près** — doctrine §2 : un synonyme est
@@ -154,6 +160,12 @@ final class DestinationMenu {
   /// ouvert » distinguent les deux points de vente, ce que l'atelier du
   /// 19/08/2026 a explicitement demandé.
   final String? badge;
+
+  /// Les rôles SEULS admis, en plus du droit sur [module] — `null` : aucun
+  /// rôle exigé (toutes les entrées de la vue). Sert à l'ajout du poste
+  /// « Comptes utilisateurs » (Lot J2, 14/10/2026), réservé à
+  /// l'administration comme `User::ROLES_ADMINISTRATION` au serveur.
+  final Set<String>? rolesExiges;
 
   bool get aUnEcran => route != null;
 }
@@ -416,6 +428,23 @@ const List<GroupeMenu> groupesMenu = [
         page: 'roles-permissions.html',
         route: '/roles-permissions',
       ),
+      // AJOUT DU POSTE (Lot J2, directive du PO du 14/10/2026) — la PWA n'a
+      // AUCUN écran de gestion des comptes (relu : ni composant `app/Pwa`, ni
+      // vue, ni route `pwa.*`) ; sur ce poste sans serveur, c'est le seul
+      // endroit où un administrateur crée un compte. Réservé aux deux rôles
+      // d'administration ([rolesAdministration]), en plus du droit sur ROLES.
+      // L'icône est celle des personnes (`crm`) : aucune clé de
+      // `MenuLateral::ICONES` ne nomme les comptes, et en inventer une
+      // romprait la confrontation des tracés au registre PHP.
+      DestinationMenu(
+        nom: 'Comptes utilisateurs',
+        icone: IconeModule.crm,
+        module: ModuleTatacora.roles,
+        page: '(ajout du poste, sans page de la vue)',
+        // Littéral, comme toutes les entrées (= [routeComptesUtilisateurs]).
+        route: '/comptes-utilisateurs',
+        rolesExiges: rolesAdministration,
+      ),
       DestinationMenu(
         nom: 'Paramètres',
         icone: IconeModule.parametres,
@@ -426,6 +455,9 @@ const List<GroupeMenu> groupesMenu = [
     ],
   ),
 ];
+
+/// La route de l'écran « Comptes utilisateurs » (Lot J2).
+const String routeComptesUtilisateurs = '/comptes-utilisateurs';
 
 /// Toutes les destinations, épinglées comprises — pour les contrôles.
 List<DestinationMenu> get toutesLesDestinations => [
@@ -470,4 +502,106 @@ bool entreeMasqueePourRole(String role, String nom) {
       .replaceAll('é', 'e')
       .replaceAll('è', 'e');
   return nomsMasquesParRole[cle]?.contains(nom) ?? false;
+}
+
+/// L'ACCÈS à une destination — UNE règle, lue par la barre latérale, la
+/// recherche globale ET la garde du routeur ([accesRoute]) : le droit de
+/// lecture sur son module (masquée sur `-` seulement, comme
+/// `MenuLateral::moduleAccessible`), puis le rôle quand l'entrée en exige un.
+bool destinationAccessible(
+  DestinationMenu d, {
+  required GardeAcces droits,
+  required String? role,
+}) {
+  if (!droits.peutLire(d.module)) return false;
+  final roles = d.rolesExiges;
+  return roles == null || roles.contains(roleNormalise(role));
+}
+
+/// La VISIBILITÉ au menu : l'accès, puis le masquage d'interface par rôle
+/// ([nomsMasquesParRole]). Le masquage par rôle ne garde AUCUNE route — au
+/// serveur, `ROUTES_MASQUEES_PAR_ROLE` ne touche que la barre ; le middleware
+/// `module:` ne lit que le niveau du module. Le gérant atteint donc encore
+/// « Paramètres » par son menu de compte, comme dans la vue.
+bool destinationVisible(
+  DestinationMenu d, {
+  required GardeAcces droits,
+  required String? role,
+}) =>
+    destinationAccessible(d, droits: droits, role: role) &&
+    !entreeMasqueePourRole(role ?? '', d.nom);
+
+/// Les routes ouvertes à TOUT compte connecté — celles que la vue sert sans
+/// middleware `module:` (`routes/web.php` : `pwa.accueil`, `pwa.mon-profil`,
+/// `pwa.aide-a-propos`, `pwa.contact-editeur`). Le tableau de bord est aussi
+/// la destination de repli de la garde : le fermer ferait boucler la
+/// redirection pour un compte sans M11 (le guide).
+const Set<String> routesOuvertesATousLesComptes = {
+  '/tableau-de-bord',
+  '/mon-profil',
+  '/aide-a-propos',
+  '/contact-editeur',
+};
+
+/// Les routes servies HORS de la barre latérale, et leur module — le
+/// `module:` de leur route au serveur (`liensChassis()` pour le menu de
+/// compte). Les sous-routes d'une entrée (`/bar/boissons`,
+/// `/restaurant/plats`, `/hebergement/nouvelle-reservation`) n'ont pas besoin
+/// d'y figurer : elles héritent du module de leur entrée par préfixe.
+const Map<String, ModuleTatacora> modulesDesRoutesHorsMenu = {
+  // `pwa.journal-audit` : `module:M14,L`.
+  '/journal-audit': ModuleTatacora.m14Etats,
+  // Les réservations en suspens : l'écran des réservations (M1).
+  '/synchronisation': ModuleTatacora.m1Hebergement,
+};
+
+/// Le verdict de la garde du routeur sur un chemin.
+enum AccesRoute {
+  /// Le compte peut ouvrir l'écran.
+  autorise,
+
+  /// Le chemin relève d'un module (ou d'un rôle) que le compte n'a pas.
+  refuse,
+
+  /// Le chemin n'est connu d'aucun registre — registre FERMÉ : il n'obtient
+  /// pas un accès par omission.
+  inconnu,
+}
+
+/// La garde d'une route — dérivée du MÊME registre que la barre latérale
+/// ([toutesLesDestinations], [destinationAccessible]) : une entrée masquée au
+/// menu est aussi une route refusée quand on la tape. Ordre : route ouverte ;
+/// route d'une entrée du menu (égalité, sinon la plus longue entrée dont le
+/// chemin est un préfixe) ; route hors menu ; sinon inconnue.
+AccesRoute accesRoute(
+  String chemin, {
+  required GardeAcces droits,
+  required String? role,
+}) {
+  if (routesOuvertesATousLesComptes.contains(chemin)) {
+    return AccesRoute.autorise;
+  }
+  DestinationMenu? porteuse;
+  for (final d in toutesLesDestinations) {
+    final route = d.route;
+    if (route == null) continue;
+    if (route == chemin) {
+      porteuse = d;
+      break;
+    }
+    if (chemin.startsWith('$route/') &&
+        (porteuse == null || route.length > porteuse.route!.length)) {
+      porteuse = d;
+    }
+  }
+  if (porteuse != null) {
+    return destinationAccessible(porteuse, droits: droits, role: role)
+        ? AccesRoute.autorise
+        : AccesRoute.refuse;
+  }
+  final module = modulesDesRoutesHorsMenu[chemin];
+  if (module != null) {
+    return droits.peutLire(module) ? AccesRoute.autorise : AccesRoute.refuse;
+  }
+  return AccesRoute.inconnu;
 }
