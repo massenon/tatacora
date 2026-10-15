@@ -1,0 +1,1230 @@
+{
+    "_lisez-moi": "PRODUIT par ExtraireStructureBladeTest, jamais ecrit a la main. Chaque variante (onglet) : les textes VISIBLES de <main>, dans l'ordre du document.",
+    "vue": "rh/paie",
+    "jeu": "parc",
+    "onglets": {
+        "personnel": [
+            {
+                "type": "h1",
+                "texte": "Personnel & Paie"
+            },
+            {
+                "type": "p",
+                "texte": "CNSS 3,6 % salarié · ITS progressif · charges patronales CNSS 15,4 % + . Le net à payer est , jamais saisi."
+            },
+            {
+                "type": "label",
+                "texte": "Période"
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun calcul n’est possible tant que les taux confirmés ne sont pas en base : taux_cnss_salarie, taux_cnss_pension_employeur, taux_cnss_prestations_familiales, taux_vps. Ils sont posés par le référentiel de paie, et un Administrateur peut les renseigner depuis l’écran Paramètres. Aucune valeur n’est supposée à leur place — un taux plausible inscrit quelque part deviendrait la règle de production, et personne ne le rouvrirait."
+            },
+            {
+                "type": "span",
+                "texte": "Indicateurs de la paie"
+            },
+            {
+                "type": "div",
+                "texte": "Effectif actif"
+            },
+            {
+                "type": "div",
+                "texte": "0 au total"
+            },
+            {
+                "type": "div",
+                "texte": "Masse salariale"
+            },
+            {
+                "type": "div",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "div",
+                "texte": "Salaires de base"
+            },
+            {
+                "type": "div",
+                "texte": "Coût employeur"
+            },
+            {
+                "type": "div",
+                "texte": "Net du mois"
+            },
+            {
+                "type": "div",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "div",
+                "texte": "0 bulletin(s)"
+            },
+            {
+                "type": "div",
+                "texte": "VPS à reverser"
+            },
+            {
+                "type": "div",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "div",
+                "texte": "4 % — au plus tard le 10"
+            },
+            {
+                "type": "div",
+                "texte": "Bulletins manquants"
+            },
+            {
+                "type": "div",
+                "texte": "Tous immatriculés"
+            },
+            {
+                "type": "onglet",
+                "texte": "Personnel",
+                "cle": "personnel"
+            },
+            {
+                "type": "onglet",
+                "texte": "Bulletins de paie",
+                "cle": "bulletins"
+            },
+            {
+                "type": "onglet",
+                "texte": "Livre de paie",
+                "cle": "livre"
+            },
+            {
+                "type": "onglet",
+                "texte": "Déclarations",
+                "cle": "declarations"
+            },
+            {
+                "type": "onglet",
+                "texte": "Barèmes & taux",
+                "cle": "bareme"
+            },
+            {
+                "type": "p",
+                "texte": "CNSS selon le niveau de risque de l’entreprise. La catégorie applicable à l’hôtellerie-restauration n’est pas confirmée par la CNSS, et elle n’est pas supposée ici : sur une masse salariale annuelle, l’écart entre 1 % et 4 % est un redressement. Tous les coûts employeur sont donc affichés en . CNSS pension 6,4 %, prestations familiales 9 % et VPS 4 % sont, eux, confirmés."
+            },
+            {
+                "type": "champ",
+                "texte": "Nom, matricule, poste…"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les services"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les contrats"
+            },
+            {
+                "type": "option",
+                "texte": "CDI"
+            },
+            {
+                "type": "option",
+                "texte": "CDD"
+            },
+            {
+                "type": "option",
+                "texte": "Stage"
+            },
+            {
+                "type": "option",
+                "texte": "Journalier"
+            },
+            {
+                "type": "option",
+                "texte": "Actifs"
+            },
+            {
+                "type": "option",
+                "texte": "Tous"
+            },
+            {
+                "type": "option",
+                "texte": "Sortis"
+            },
+            {
+                "type": "option",
+                "texte": "Sans n° CNSS"
+            },
+            {
+                "type": "button",
+                "texte": "+ Employé"
+            },
+            {
+                "type": "h3",
+                "texte": "Effectif — octobre 2026"
+            },
+            {
+                "type": "th",
+                "texte": "Matricule"
+            },
+            {
+                "type": "th",
+                "texte": "Employé"
+            },
+            {
+                "type": "th",
+                "texte": "Contrat"
+            },
+            {
+                "type": "th",
+                "texte": "Embauche"
+            },
+            {
+                "type": "th",
+                "texte": "N° CNSS"
+            },
+            {
+                "type": "th",
+                "texte": "Salaire de base"
+            },
+            {
+                "type": "th",
+                "texte": "Coût employeur"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun résultat"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun employé ne correspond à ces critères."
+            }
+        ],
+        "bulletins": [
+            {
+                "type": "h1",
+                "texte": "Personnel & Paie"
+            },
+            {
+                "type": "p",
+                "texte": "CNSS 3,6 % salarié · ITS progressif · charges patronales CNSS 15,4 % + . Le net à payer est , jamais saisi."
+            },
+            {
+                "type": "label",
+                "texte": "Période"
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun calcul n’est possible tant que les taux confirmés ne sont pas en base : taux_cnss_salarie, taux_cnss_pension_employeur, taux_cnss_prestations_familiales, taux_vps. Ils sont posés par le référentiel de paie, et un Administrateur peut les renseigner depuis l’écran Paramètres. Aucune valeur n’est supposée à leur place — un taux plausible inscrit quelque part deviendrait la règle de production, et personne ne le rouvrirait."
+            },
+            {
+                "type": "span",
+                "texte": "Indicateurs de la paie"
+            },
+            {
+                "type": "div",
+                "texte": "Effectif actif"
+            },
+            {
+                "type": "div",
+                "texte": "0 au total"
+            },
+            {
+                "type": "div",
+                "texte": "Masse salariale"
+            },
+            {
+                "type": "div",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "div",
+                "texte": "Salaires de base"
+            },
+            {
+                "type": "div",
+                "texte": "Coût employeur"
+            },
+            {
+                "type": "div",
+                "texte": "Net du mois"
+            },
+            {
+                "type": "div",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "div",
+                "texte": "0 bulletin(s)"
+            },
+            {
+                "type": "div",
+                "texte": "VPS à reverser"
+            },
+            {
+                "type": "div",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "div",
+                "texte": "4 % — au plus tard le 10"
+            },
+            {
+                "type": "div",
+                "texte": "Bulletins manquants"
+            },
+            {
+                "type": "div",
+                "texte": "Tous immatriculés"
+            },
+            {
+                "type": "onglet",
+                "texte": "Personnel",
+                "cle": "personnel"
+            },
+            {
+                "type": "onglet",
+                "texte": "Bulletins de paie",
+                "cle": "bulletins"
+            },
+            {
+                "type": "onglet",
+                "texte": "Livre de paie",
+                "cle": "livre"
+            },
+            {
+                "type": "onglet",
+                "texte": "Déclarations",
+                "cle": "declarations"
+            },
+            {
+                "type": "onglet",
+                "texte": "Barèmes & taux",
+                "cle": "bareme"
+            },
+            {
+                "type": "p",
+                "texte": "CNSS selon le niveau de risque de l’entreprise. La catégorie applicable à l’hôtellerie-restauration n’est pas confirmée par la CNSS, et elle n’est pas supposée ici : sur une masse salariale annuelle, l’écart entre 1 % et 4 % est un redressement. Tous les coûts employeur sont donc affichés en . CNSS pension 6,4 %, prestations familiales 9 % et VPS 4 % sont, eux, confirmés."
+            },
+            {
+                "type": "champ",
+                "texte": "Nom, matricule, poste…"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les services"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les contrats"
+            },
+            {
+                "type": "option",
+                "texte": "CDI"
+            },
+            {
+                "type": "option",
+                "texte": "CDD"
+            },
+            {
+                "type": "option",
+                "texte": "Stage"
+            },
+            {
+                "type": "option",
+                "texte": "Journalier"
+            },
+            {
+                "type": "option",
+                "texte": "Actifs"
+            },
+            {
+                "type": "option",
+                "texte": "Tous"
+            },
+            {
+                "type": "option",
+                "texte": "Sortis"
+            },
+            {
+                "type": "option",
+                "texte": "Sans n° CNSS"
+            },
+            {
+                "type": "button",
+                "texte": "+ Employé"
+            },
+            {
+                "type": "button",
+                "texte": "Générer les bulletins manquants (0)"
+            },
+            {
+                "type": "h3",
+                "texte": "Bulletins — octobre 2026"
+            },
+            {
+                "type": "span",
+                "texte": "* hors risques professionnels, taux non confirmé"
+            },
+            {
+                "type": "th",
+                "texte": "Matricule"
+            },
+            {
+                "type": "th",
+                "texte": "Employé"
+            },
+            {
+                "type": "th",
+                "texte": "Brut"
+            },
+            {
+                "type": "th",
+                "texte": "CNSS 3,6 %"
+            },
+            {
+                "type": "th",
+                "texte": "ITS"
+            },
+            {
+                "type": "th",
+                "texte": "Autres retenues"
+            },
+            {
+                "type": "th",
+                "texte": "Net à payer"
+            },
+            {
+                "type": "th",
+                "texte": "Charges patronales"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun résultat"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun bulletin sur octobre 2026."
+            }
+        ],
+        "livre": [
+            {
+                "type": "h1",
+                "texte": "Personnel & Paie"
+            },
+            {
+                "type": "p",
+                "texte": "CNSS 3,6 % salarié · ITS progressif · charges patronales CNSS 15,4 % + . Le net à payer est , jamais saisi."
+            },
+            {
+                "type": "label",
+                "texte": "Période"
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun calcul n’est possible tant que les taux confirmés ne sont pas en base : taux_cnss_salarie, taux_cnss_pension_employeur, taux_cnss_prestations_familiales, taux_vps. Ils sont posés par le référentiel de paie, et un Administrateur peut les renseigner depuis l’écran Paramètres. Aucune valeur n’est supposée à leur place — un taux plausible inscrit quelque part deviendrait la règle de production, et personne ne le rouvrirait."
+            },
+            {
+                "type": "span",
+                "texte": "Indicateurs de la paie"
+            },
+            {
+                "type": "div",
+                "texte": "Effectif actif"
+            },
+            {
+                "type": "div",
+                "texte": "0 au total"
+            },
+            {
+                "type": "div",
+                "texte": "Masse salariale"
+            },
+            {
+                "type": "div",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "div",
+                "texte": "Salaires de base"
+            },
+            {
+                "type": "div",
+                "texte": "Coût employeur"
+            },
+            {
+                "type": "div",
+                "texte": "Net du mois"
+            },
+            {
+                "type": "div",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "div",
+                "texte": "0 bulletin(s)"
+            },
+            {
+                "type": "div",
+                "texte": "VPS à reverser"
+            },
+            {
+                "type": "div",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "div",
+                "texte": "4 % — au plus tard le 10"
+            },
+            {
+                "type": "div",
+                "texte": "Bulletins manquants"
+            },
+            {
+                "type": "div",
+                "texte": "Tous immatriculés"
+            },
+            {
+                "type": "onglet",
+                "texte": "Personnel",
+                "cle": "personnel"
+            },
+            {
+                "type": "onglet",
+                "texte": "Bulletins de paie",
+                "cle": "bulletins"
+            },
+            {
+                "type": "onglet",
+                "texte": "Livre de paie",
+                "cle": "livre"
+            },
+            {
+                "type": "onglet",
+                "texte": "Déclarations",
+                "cle": "declarations"
+            },
+            {
+                "type": "onglet",
+                "texte": "Barèmes & taux",
+                "cle": "bareme"
+            },
+            {
+                "type": "p",
+                "texte": "CNSS selon le niveau de risque de l’entreprise. La catégorie applicable à l’hôtellerie-restauration n’est pas confirmée par la CNSS, et elle n’est pas supposée ici : sur une masse salariale annuelle, l’écart entre 1 % et 4 % est un redressement. Tous les coûts employeur sont donc affichés en . CNSS pension 6,4 %, prestations familiales 9 % et VPS 4 % sont, eux, confirmés."
+            },
+            {
+                "type": "champ",
+                "texte": "Nom, matricule, poste…"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les services"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les contrats"
+            },
+            {
+                "type": "option",
+                "texte": "CDI"
+            },
+            {
+                "type": "option",
+                "texte": "CDD"
+            },
+            {
+                "type": "option",
+                "texte": "Stage"
+            },
+            {
+                "type": "option",
+                "texte": "Journalier"
+            },
+            {
+                "type": "option",
+                "texte": "Actifs"
+            },
+            {
+                "type": "option",
+                "texte": "Tous"
+            },
+            {
+                "type": "option",
+                "texte": "Sortis"
+            },
+            {
+                "type": "option",
+                "texte": "Sans n° CNSS"
+            },
+            {
+                "type": "button",
+                "texte": "+ Employé"
+            },
+            {
+                "type": "h3",
+                "texte": "Livre de paie — octobre 2026 · 0 salarié(s)"
+            },
+            {
+                "type": "th",
+                "texte": "Rubrique"
+            },
+            {
+                "type": "th",
+                "texte": "Montant"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun résultat"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun bulletin sur octobre 2026."
+            },
+            {
+                "type": "h3",
+                "texte": "Écriture comptable proposée"
+            },
+            {
+                "type": "th",
+                "texte": "Compte"
+            },
+            {
+                "type": "th",
+                "texte": "Libellé"
+            },
+            {
+                "type": "th",
+                "texte": "Débit"
+            },
+            {
+                "type": "th",
+                "texte": "Crédit"
+            },
+            {
+                "type": "p",
+                "texte": "Aucune écriture comptable n’est proposée ici."
+            },
+            {
+                "type": "p",
+                "texte": "Le maître propose une écriture de paie et un bouton « Comptabiliser la paie ». Vérifié le 31/08/2026 : le listener « GenererEcritureDepuisPaie » que la migration RH annonce elle-même n’existe nulle part dans le dépôt, et écrire la pièce depuis M13 doublerait le seul point d’entrée d’écriture comptable, où vit l’immuabilité RG-11. La paie se comptabilise donc depuis l’écran Comptabilité, sur les montants de ce livre."
+            }
+        ],
+        "declarations": [
+            {
+                "type": "h1",
+                "texte": "Personnel & Paie"
+            },
+            {
+                "type": "p",
+                "texte": "CNSS 3,6 % salarié · ITS progressif · charges patronales CNSS 15,4 % + . Le net à payer est , jamais saisi."
+            },
+            {
+                "type": "label",
+                "texte": "Période"
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun calcul n’est possible tant que les taux confirmés ne sont pas en base : taux_cnss_salarie, taux_cnss_pension_employeur, taux_cnss_prestations_familiales, taux_vps. Ils sont posés par le référentiel de paie, et un Administrateur peut les renseigner depuis l’écran Paramètres. Aucune valeur n’est supposée à leur place — un taux plausible inscrit quelque part deviendrait la règle de production, et personne ne le rouvrirait."
+            },
+            {
+                "type": "span",
+                "texte": "Indicateurs de la paie"
+            },
+            {
+                "type": "div",
+                "texte": "Effectif actif"
+            },
+            {
+                "type": "div",
+                "texte": "0 au total"
+            },
+            {
+                "type": "div",
+                "texte": "Masse salariale"
+            },
+            {
+                "type": "div",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "div",
+                "texte": "Salaires de base"
+            },
+            {
+                "type": "div",
+                "texte": "Coût employeur"
+            },
+            {
+                "type": "div",
+                "texte": "Net du mois"
+            },
+            {
+                "type": "div",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "div",
+                "texte": "0 bulletin(s)"
+            },
+            {
+                "type": "div",
+                "texte": "VPS à reverser"
+            },
+            {
+                "type": "div",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "div",
+                "texte": "4 % — au plus tard le 10"
+            },
+            {
+                "type": "div",
+                "texte": "Bulletins manquants"
+            },
+            {
+                "type": "div",
+                "texte": "Tous immatriculés"
+            },
+            {
+                "type": "onglet",
+                "texte": "Personnel",
+                "cle": "personnel"
+            },
+            {
+                "type": "onglet",
+                "texte": "Bulletins de paie",
+                "cle": "bulletins"
+            },
+            {
+                "type": "onglet",
+                "texte": "Livre de paie",
+                "cle": "livre"
+            },
+            {
+                "type": "onglet",
+                "texte": "Déclarations",
+                "cle": "declarations"
+            },
+            {
+                "type": "onglet",
+                "texte": "Barèmes & taux",
+                "cle": "bareme"
+            },
+            {
+                "type": "p",
+                "texte": "CNSS selon le niveau de risque de l’entreprise. La catégorie applicable à l’hôtellerie-restauration n’est pas confirmée par la CNSS, et elle n’est pas supposée ici : sur une masse salariale annuelle, l’écart entre 1 % et 4 % est un redressement. Tous les coûts employeur sont donc affichés en . CNSS pension 6,4 %, prestations familiales 9 % et VPS 4 % sont, eux, confirmés."
+            },
+            {
+                "type": "champ",
+                "texte": "Nom, matricule, poste…"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les services"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les contrats"
+            },
+            {
+                "type": "option",
+                "texte": "CDI"
+            },
+            {
+                "type": "option",
+                "texte": "CDD"
+            },
+            {
+                "type": "option",
+                "texte": "Stage"
+            },
+            {
+                "type": "option",
+                "texte": "Journalier"
+            },
+            {
+                "type": "option",
+                "texte": "Actifs"
+            },
+            {
+                "type": "option",
+                "texte": "Tous"
+            },
+            {
+                "type": "option",
+                "texte": "Sortis"
+            },
+            {
+                "type": "option",
+                "texte": "Sans n° CNSS"
+            },
+            {
+                "type": "button",
+                "texte": "+ Employé"
+            },
+            {
+                "type": "h3",
+                "texte": "Déclarations sociales et fiscales — octobre 2026"
+            },
+            {
+                "type": "span",
+                "texte": "* hors risques professionnels"
+            },
+            {
+                "type": "th",
+                "texte": "Déclaration"
+            },
+            {
+                "type": "th",
+                "texte": "Objet"
+            },
+            {
+                "type": "th",
+                "texte": "Montant"
+            },
+            {
+                "type": "th",
+                "texte": "Échéance"
+            },
+            {
+                "type": "th",
+                "texte": "État"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun résultat"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun bulletin sur octobre 2026."
+            },
+            {
+                "type": "p",
+                "texte": "Taxe directe , assise sur le montant total des salaires bruts . Taux : pour les entreprises ordinaires, 2 % pour les structures d’enseignement privé — le Gîte relève du taux ordinaire. Déclaration et paiement mensuels, au plus tard le . Elle n’est jamais retenue sur le salaire du salarié."
+            }
+        ],
+        "bareme": [
+            {
+                "type": "h1",
+                "texte": "Personnel & Paie"
+            },
+            {
+                "type": "p",
+                "texte": "CNSS 3,6 % salarié · ITS progressif · charges patronales CNSS 15,4 % + . Le net à payer est , jamais saisi."
+            },
+            {
+                "type": "label",
+                "texte": "Période"
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun calcul n’est possible tant que les taux confirmés ne sont pas en base : taux_cnss_salarie, taux_cnss_pension_employeur, taux_cnss_prestations_familiales, taux_vps. Ils sont posés par le référentiel de paie, et un Administrateur peut les renseigner depuis l’écran Paramètres. Aucune valeur n’est supposée à leur place — un taux plausible inscrit quelque part deviendrait la règle de production, et personne ne le rouvrirait."
+            },
+            {
+                "type": "span",
+                "texte": "Indicateurs de la paie"
+            },
+            {
+                "type": "div",
+                "texte": "Effectif actif"
+            },
+            {
+                "type": "div",
+                "texte": "0 au total"
+            },
+            {
+                "type": "div",
+                "texte": "Masse salariale"
+            },
+            {
+                "type": "div",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "div",
+                "texte": "Salaires de base"
+            },
+            {
+                "type": "div",
+                "texte": "Coût employeur"
+            },
+            {
+                "type": "div",
+                "texte": "Net du mois"
+            },
+            {
+                "type": "div",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "div",
+                "texte": "0 bulletin(s)"
+            },
+            {
+                "type": "div",
+                "texte": "VPS à reverser"
+            },
+            {
+                "type": "div",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "div",
+                "texte": "4 % — au plus tard le 10"
+            },
+            {
+                "type": "div",
+                "texte": "Bulletins manquants"
+            },
+            {
+                "type": "div",
+                "texte": "Tous immatriculés"
+            },
+            {
+                "type": "onglet",
+                "texte": "Personnel",
+                "cle": "personnel"
+            },
+            {
+                "type": "onglet",
+                "texte": "Bulletins de paie",
+                "cle": "bulletins"
+            },
+            {
+                "type": "onglet",
+                "texte": "Livre de paie",
+                "cle": "livre"
+            },
+            {
+                "type": "onglet",
+                "texte": "Déclarations",
+                "cle": "declarations"
+            },
+            {
+                "type": "onglet",
+                "texte": "Barèmes & taux",
+                "cle": "bareme"
+            },
+            {
+                "type": "p",
+                "texte": "CNSS selon le niveau de risque de l’entreprise. La catégorie applicable à l’hôtellerie-restauration n’est pas confirmée par la CNSS, et elle n’est pas supposée ici : sur une masse salariale annuelle, l’écart entre 1 % et 4 % est un redressement. Tous les coûts employeur sont donc affichés en . CNSS pension 6,4 %, prestations familiales 9 % et VPS 4 % sont, eux, confirmés."
+            },
+            {
+                "type": "champ",
+                "texte": "Nom, matricule, poste…"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les services"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les contrats"
+            },
+            {
+                "type": "option",
+                "texte": "CDI"
+            },
+            {
+                "type": "option",
+                "texte": "CDD"
+            },
+            {
+                "type": "option",
+                "texte": "Stage"
+            },
+            {
+                "type": "option",
+                "texte": "Journalier"
+            },
+            {
+                "type": "option",
+                "texte": "Actifs"
+            },
+            {
+                "type": "option",
+                "texte": "Tous"
+            },
+            {
+                "type": "option",
+                "texte": "Sortis"
+            },
+            {
+                "type": "option",
+                "texte": "Sans n° CNSS"
+            },
+            {
+                "type": "button",
+                "texte": "+ Employé"
+            },
+            {
+                "type": "h3",
+                "texte": "Simulateur"
+            },
+            {
+                "type": "label",
+                "texte": "Salaire brut mensuel (FCFA)"
+            },
+            {
+                "type": "p",
+                "texte": "Les taux de paie ne sont pas paramétrés : aucun calcul n’est possible."
+            },
+            {
+                "type": "h3",
+                "texte": "Barème ITS / IR-PTS — progressif par tranches"
+            },
+            {
+                "type": "th",
+                "texte": "Tranche de revenu imposable"
+            },
+            {
+                "type": "th",
+                "texte": "Taux"
+            },
+            {
+                "type": "th",
+                "texte": "Impôt maximal de la tranche"
+            },
+            {
+                "type": "th",
+                "texte": "Cumul"
+            },
+            {
+                "type": "td",
+                "texte": "de 0 FCFA à 60 000 FCFA"
+            },
+            {
+                "type": "td",
+                "texte": "0 %"
+            },
+            {
+                "type": "td",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "td",
+                "texte": "de 60 000 FCFA à 150 000 FCFA"
+            },
+            {
+                "type": "td",
+                "texte": "10 %"
+            },
+            {
+                "type": "td",
+                "texte": "9 000 FCFA"
+            },
+            {
+                "type": "td",
+                "texte": "9 000 FCFA"
+            },
+            {
+                "type": "td",
+                "texte": "de 150 000 FCFA à 250 000 FCFA"
+            },
+            {
+                "type": "td",
+                "texte": "15 %"
+            },
+            {
+                "type": "td",
+                "texte": "15 000 FCFA"
+            },
+            {
+                "type": "td",
+                "texte": "24 000 FCFA"
+            },
+            {
+                "type": "td",
+                "texte": "de 250 000 FCFA à 500 000 FCFA"
+            },
+            {
+                "type": "td",
+                "texte": "19 %"
+            },
+            {
+                "type": "td",
+                "texte": "47 500 FCFA"
+            },
+            {
+                "type": "td",
+                "texte": "71 500 FCFA"
+            },
+            {
+                "type": "td",
+                "texte": "au-delà de 500 000 FCFA"
+            },
+            {
+                "type": "td",
+                "texte": "non tranché"
+            },
+            {
+                "type": "td",
+                "texte": "Calcul refusé — deux sources divergent sur le haut de barème"
+            },
+            {
+                "type": "h3",
+                "texte": "Taux appliqués"
+            },
+            {
+                "type": "th",
+                "texte": "Prélèvement"
+            },
+            {
+                "type": "th",
+                "texte": "Taux"
+            },
+            {
+                "type": "th",
+                "texte": "À la charge de"
+            },
+            {
+                "type": "th",
+                "texte": "Base"
+            },
+            {
+                "type": "th",
+                "texte": "Source"
+            },
+            {
+                "type": "td",
+                "texte": "CNSS — pension"
+            },
+            {
+                "type": "td",
+                "texte": "CNSS 3,6 %"
+            },
+            {
+                "type": "td",
+                "texte": "Salarié"
+            },
+            {
+                "type": "td",
+                "texte": "Salaire brut"
+            },
+            {
+                "type": "span",
+                "texte": "confirmé"
+            },
+            {
+                "type": "td",
+                "texte": "ITS / IR-PTS"
+            },
+            {
+                "type": "td",
+                "texte": "barème progressif"
+            },
+            {
+                "type": "td",
+                "texte": "Salarié"
+            },
+            {
+                "type": "td",
+                "texte": "Brut − CNSS salarié"
+            },
+            {
+                "type": "span",
+                "texte": "confirmé"
+            },
+            {
+                "type": "td",
+                "texte": "CNSS — pension"
+            },
+            {
+                "type": "td",
+                "texte": "CNSS pension 6,4 %"
+            },
+            {
+                "type": "td",
+                "texte": "Employeur"
+            },
+            {
+                "type": "td",
+                "texte": "Salaire brut"
+            },
+            {
+                "type": "span",
+                "texte": "confirmé"
+            },
+            {
+                "type": "td",
+                "texte": "CNSS — prestations familiales"
+            },
+            {
+                "type": "td",
+                "texte": "Prestations familiales 9 %"
+            },
+            {
+                "type": "td",
+                "texte": "Employeur"
+            },
+            {
+                "type": "td",
+                "texte": "Salaire brut"
+            },
+            {
+                "type": "span",
+                "texte": "confirmé"
+            },
+            {
+                "type": "td",
+                "texte": "VPS — Versement Patronal sur Salaires"
+            },
+            {
+                "type": "td",
+                "texte": "VPS 4 %"
+            },
+            {
+                "type": "td",
+                "texte": "Employeur"
+            },
+            {
+                "type": "td",
+                "texte": "Brut total, sans plafond"
+            },
+            {
+                "type": "span",
+                "texte": "confirmé"
+            },
+            {
+                "type": "td",
+                "texte": "CNSS — risques professionnels"
+            },
+            {
+                "type": "td",
+                "texte": "1 % à 4 %"
+            },
+            {
+                "type": "td",
+                "texte": "Employeur"
+            },
+            {
+                "type": "td",
+                "texte": "Salaire brut"
+            },
+            {
+                "type": "span",
+                "texte": "non confirmé"
+            }
+        ]
+    }
+}

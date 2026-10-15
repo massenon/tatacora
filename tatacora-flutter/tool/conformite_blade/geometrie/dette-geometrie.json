@@ -1,0 +1,147 @@
+{
+  "_lisez-moi": "PRODUIT par FIGER_GEOMETRIE=1 flutter test --dart-define=ENV=production test/core/qualite/geometrie_blade_test.dart. Alignement en pixels par vue (Phase 1D).",
+  "livewire/connexion": {
+    "elements": 11,
+    "apparies": 9,
+    "alignes": 9,
+    "dimensionnes": 9
+  },
+  "chassis/administrateur": {
+    "elements": 39,
+    "apparies": 33,
+    "alignes": 30,
+    "dimensionnes": 32
+  },
+  "livewire/accueil": {
+    "elements": 33,
+    "apparies": 32,
+    "alignes": 30,
+    "dimensionnes": 31
+  },
+  "restaurant/carte": {
+    "elements": 35,
+    "apparies": 24,
+    "alignes": 24,
+    "dimensionnes": 24
+  },
+  "etats/studio": {
+    "elements": 22,
+    "apparies": 18,
+    "alignes": 15,
+    "dimensionnes": 18
+  },
+  "transverse/parametres": {
+    "elements": 26,
+    "apparies": 26,
+    "alignes": 24,
+    "dimensionnes": 26
+  },
+  "stocks/stocks": {
+    "elements": 26,
+    "apparies": 23,
+    "alignes": 20,
+    "dimensionnes": 23
+  },
+  "stocks/inventaires": {
+    "elements": 32,
+    "apparies": 26,
+    "alignes": 17,
+    "dimensionnes": 26
+  },
+  "restaurant/restauration": {
+    "elements": 23,
+    "apparies": 21,
+    "alignes": 21,
+    "dimensionnes": 21
+  },
+  "bar/carte": {
+    "elements": 35,
+    "apparies": 24,
+    "alignes": 24,
+    "dimensionnes": 24
+  },
+  "vehicules/locations": {
+    "elements": 28,
+    "apparies": 26,
+    "alignes": 26,
+    "dimensionnes": 26
+  },
+  "tourisme/departs": {
+    "elements": 25,
+    "apparies": 22,
+    "alignes": 22,
+    "dimensionnes": 22
+  },
+  "achats/achats": {
+    "elements": 17,
+    "apparies": 17,
+    "alignes": 17,
+    "dimensionnes": 17
+  },
+  "achats/approvisionnement": {
+    "elements": 27,
+    "apparies": 25,
+    "alignes": 24,
+    "dimensionnes": 25
+  },
+  "pos/comptant": {
+    "elements": 35,
+    "apparies": 19,
+    "alignes": 13,
+    "dimensionnes": 18
+  },
+  "pos/heberges": {
+    "elements": 18,
+    "apparies": 17,
+    "alignes": 13,
+    "dimensionnes": 16
+  },
+  "pos/historique-ventes": {
+    "elements": 33,
+    "apparies": 24,
+    "alignes": 23,
+    "dimensionnes": 23
+  },
+  "facturation/facturation": {
+    "elements": 24,
+    "apparies": 24,
+    "alignes": 24,
+    "dimensionnes": 24
+  },
+  "depenses/depenses": {
+    "elements": 36,
+    "apparies": 31,
+    "alignes": 31,
+    "dimensionnes": 31
+  },
+  "notifications/hub": {
+    "elements": 29,
+    "apparies": 25,
+    "alignes": 25,
+    "dimensionnes": 25
+  },
+  "rh/paie": {
+    "elements": 39,
+    "apparies": 26,
+    "alignes": 26,
+    "dimensionnes": 26
+  },
+  "crm/clients-creances": {
+    "elements": 39,
+    "apparies": 32,
+    "alignes": 20,
+    "dimensionnes": 32
+  },
+  "hebergement/hebergement": {
+    "elements": 29,
+    "apparies": 29,
+    "alignes": 27,
+    "dimensionnes": 25
+  },
+  "hebergement/reservations": {
+    "elements": 9,
+    "apparies": 9,
+    "alignes": 9,
+    "dimensionnes": 9
+  }
+}

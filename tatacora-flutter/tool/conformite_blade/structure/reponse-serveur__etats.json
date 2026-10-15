@@ -1,0 +1,76 @@
+{
+    "data": [
+        {
+            "code": "stocks",
+            "module": "M6",
+            "libelle": "État des stocks — tous points de stockage",
+            "niveau": "C"
+        },
+        {
+            "code": "tableau-de-bord",
+            "module": "M11",
+            "libelle": "Tableau de bord — synthèse consolidée",
+            "niveau": "C"
+        },
+        {
+            "code": "parc-vehicules",
+            "module": "M8",
+            "libelle": "État du parc de véhicules",
+            "niveau": "C"
+        },
+        {
+            "code": "reservations",
+            "module": "M1",
+            "libelle": "État des réservations",
+            "niveau": "C"
+        },
+        {
+            "code": "creances-clients",
+            "module": "M3",
+            "libelle": "État des créances clients",
+            "niveau": "C"
+        },
+        {
+            "code": "ventes",
+            "module": "M5",
+            "libelle": "État des ventes",
+            "niveau": "C"
+        },
+        {
+            "code": "depenses",
+            "module": "M10",
+            "libelle": "État des dépenses",
+            "niveau": "C"
+        },
+        {
+            "code": "achats-fournisseurs",
+            "module": "M7",
+            "libelle": "État des achats et dettes fournisseurs",
+            "niveau": "C"
+        },
+        {
+            "code": "locations-vehicules",
+            "module": "M8",
+            "libelle": "État des locations de véhicules",
+            "niveau": "C"
+        },
+        {
+            "code": "tourisme",
+            "module": "M9",
+            "libelle": "État des réservations de circuits",
+            "niveau": "C"
+        },
+        {
+            "code": "paie-effectif",
+            "module": "M13",
+            "libelle": "État Paie & Effectif",
+            "niveau": "C"
+        },
+        {
+            "code": "balance",
+            "module": "M10",
+            "libelle": "Balance générale",
+            "niveau": "C"
+        }
+    ]
+}

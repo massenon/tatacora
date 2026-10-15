@@ -1,0 +1,1329 @@
+{
+    "_lisez-moi": "PRODUIT par ExtraireStructureBladeTest, jamais ecrit a la main. Chaque variante (onglet) : les textes VISIBLES de <main>, dans l'ordre du document.",
+    "vue": "livewire/accueil",
+    "jeu": "parc",
+    "onglets": {
+        "exploitation": [
+            {
+                "type": "h1",
+                "texte": "Tableau de bord"
+            },
+            {
+                "type": "p",
+                "texte": "Vision consolidée et en temps réel de la performance de chaque activité"
+            },
+            {
+                "type": "button",
+                "texte": "Vue d'exploitation"
+            },
+            {
+                "type": "button",
+                "texte": "Pilotage consolidé"
+            },
+            {
+                "type": "button",
+                "texte": "Tableau croisé dynamique"
+            },
+            {
+                "type": "p",
+                "texte": "Du 01/10/2026 au 31/10/2026"
+            },
+            {
+                "type": "option",
+                "texte": "Aujourd'hui"
+            },
+            {
+                "type": "option",
+                "texte": "Cette semaine"
+            },
+            {
+                "type": "option",
+                "texte": "Ce mois"
+            },
+            {
+                "type": "option",
+                "texte": "Ce trimestre"
+            },
+            {
+                "type": "option",
+                "texte": "Ce semestre"
+            },
+            {
+                "type": "option",
+                "texte": "Cette année"
+            },
+            {
+                "type": "option",
+                "texte": "Période personnalisée"
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "span",
+                "texte": "Nouvelle réservation"
+            },
+            {
+                "type": "span",
+                "texte": "Ajouter un client"
+            },
+            {
+                "type": "span",
+                "texte": "Stocks critiques"
+            },
+            {
+                "type": "span",
+                "texte": "Générer un rapport"
+            },
+            {
+                "type": "span",
+                "texte": "Nouvelle dépense"
+            },
+            {
+                "type": "span",
+                "texte": "Indicateurs clés (8)"
+            },
+            {
+                "type": "p",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "p",
+                "texte": "Chiffre d'affaires encaissé"
+            },
+            {
+                "type": "p",
+                "texte": "Somme des paiements reçus sur la période"
+            },
+            {
+                "type": "p",
+                "texte": "0.00 %"
+            },
+            {
+                "type": "p",
+                "texte": "Taux d'occupation hôtel"
+            },
+            {
+                "type": "p",
+                "texte": "Nuitées vendues rapportées à la capacité de la période"
+            },
+            {
+                "type": "p",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "p",
+                "texte": "Trésorerie (caisse)"
+            },
+            {
+                "type": "p",
+                "texte": "Sessions de caisse ouvertes et leurs encaissements"
+            },
+            {
+                "type": "p",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "p",
+                "texte": "Dépenses cumulées"
+            },
+            {
+                "type": "p",
+                "texte": "Écritures validées de classe 6 sur la période"
+            },
+            {
+                "type": "p",
+                "texte": "Réservations en attente"
+            },
+            {
+                "type": "p",
+                "texte": "À confirmer"
+            },
+            {
+                "type": "p",
+                "texte": "Factures non soldées"
+            },
+            {
+                "type": "p",
+                "texte": "Certifiées dont le règlement reste incomplet"
+            },
+            {
+                "type": "p",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "p",
+                "texte": "Valeur du stock"
+            },
+            {
+                "type": "p",
+                "texte": "Au coût moyen pondéré, à l'instant — jamais au prix de vente"
+            },
+            {
+                "type": "p",
+                "texte": "Employés actifs"
+            },
+            {
+                "type": "p",
+                "texte": "Sur 0 au total"
+            },
+            {
+                "type": "p",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "p",
+                "texte": "Chiffre d'affaires encaissé"
+            },
+            {
+                "type": "p",
+                "texte": "Somme des paiements reçus sur la période"
+            },
+            {
+                "type": "p",
+                "texte": "0.00 %"
+            },
+            {
+                "type": "p",
+                "texte": "Taux d'occupation hôtel"
+            },
+            {
+                "type": "p",
+                "texte": "Nuitées vendues rapportées à la capacité de la période"
+            },
+            {
+                "type": "p",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "p",
+                "texte": "Trésorerie (caisse)"
+            },
+            {
+                "type": "p",
+                "texte": "Sessions de caisse ouvertes et leurs encaissements"
+            },
+            {
+                "type": "p",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "p",
+                "texte": "Dépenses cumulées"
+            },
+            {
+                "type": "p",
+                "texte": "Écritures validées de classe 6 sur la période"
+            },
+            {
+                "type": "p",
+                "texte": "Réservations en attente"
+            },
+            {
+                "type": "p",
+                "texte": "À confirmer"
+            },
+            {
+                "type": "p",
+                "texte": "Factures non soldées"
+            },
+            {
+                "type": "p",
+                "texte": "Certifiées dont le règlement reste incomplet"
+            },
+            {
+                "type": "p",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "p",
+                "texte": "Valeur du stock"
+            },
+            {
+                "type": "p",
+                "texte": "Au coût moyen pondéré, à l'instant — jamais au prix de vente"
+            },
+            {
+                "type": "p",
+                "texte": "Employés actifs"
+            },
+            {
+                "type": "p",
+                "texte": "Sur 0 au total"
+            },
+            {
+                "type": "h2",
+                "texte": "Réservations du jour"
+            },
+            {
+                "type": "a",
+                "texte": "Voir tout →"
+            },
+            {
+                "type": "th",
+                "texte": "Client"
+            },
+            {
+                "type": "th",
+                "texte": "Services"
+            },
+            {
+                "type": "th",
+                "texte": "Arrivée"
+            },
+            {
+                "type": "th",
+                "texte": "Départ"
+            },
+            {
+                "type": "th",
+                "texte": "Canal"
+            },
+            {
+                "type": "th",
+                "texte": "Acompte"
+            },
+            {
+                "type": "th",
+                "texte": "Actions"
+            },
+            {
+                "type": "td",
+                "texte": "Aucune réservation enregistrée pour le moment."
+            },
+            {
+                "type": "h2",
+                "texte": "📋 Récapitulatif de la journée — jeudi 8 octobre"
+            },
+            {
+                "type": "p",
+                "texte": "Arrivées prévues"
+            },
+            {
+                "type": "p",
+                "texte": "Départs prévus"
+            },
+            {
+                "type": "p",
+                "texte": "Nouvelles réservations"
+            },
+            {
+                "type": "p",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "p",
+                "texte": "Encaissé aujourd'hui"
+            },
+            {
+                "type": "p",
+                "texte": "Ventes encaissées du jour — les acomptes de réservation ne portent aucune date de règlement au schéma."
+            },
+            {
+                "type": "h2",
+                "texte": "Chiffre d'affaires vs Dépenses"
+            },
+            {
+                "type": "button",
+                "texte": "3 mois"
+            },
+            {
+                "type": "button",
+                "texte": "6 mois"
+            },
+            {
+                "type": "button",
+                "texte": "1 an"
+            },
+            {
+                "type": "p",
+                "texte": "Basé sur les encaissements et dépenses enregistrés"
+            },
+            {
+                "type": "h2",
+                "texte": "Réservations par activité"
+            },
+            {
+                "type": "p",
+                "texte": "Sur la période sélectionnée"
+            },
+            {
+                "type": "p",
+                "texte": "Ventilation des montants facturés par activité."
+            },
+            {
+                "type": "p",
+                "texte": "Aucune ligne facturée sur la période."
+            },
+            {
+                "type": "h2",
+                "texte": "📊 Statistiques de ventes par activité"
+            },
+            {
+                "type": "p",
+                "texte": "Nombre de réservations incluant chaque service, période sélectionnée"
+            },
+            {
+                "type": "p",
+                "texte": "Montants facturés par activité, même mesure que l'anneau ci-dessus."
+            },
+            {
+                "type": "p",
+                "texte": "Aucune ligne facturée sur la période."
+            },
+            {
+                "type": "h2",
+                "texte": "Chambres disponibles"
+            },
+            {
+                "type": "a",
+                "texte": "Voir tout →"
+            },
+            {
+                "type": "th",
+                "texte": "Code"
+            },
+            {
+                "type": "th",
+                "texte": "Unité"
+            },
+            {
+                "type": "th",
+                "texte": "Catégorie"
+            },
+            {
+                "type": "th",
+                "texte": "Tarif / nuit"
+            },
+            {
+                "type": "th",
+                "texte": "Actions"
+            },
+            {
+                "type": "span",
+                "texte": "BNG-01"
+            },
+            {
+                "type": "td",
+                "texte": "Bungalow"
+            },
+            {
+                "type": "td",
+                "texte": "28 000 FCFA"
+            },
+            {
+                "type": "button",
+                "texte": "Effectuer Check-in"
+            },
+            {
+                "type": "span",
+                "texte": "BNG-02"
+            },
+            {
+                "type": "td",
+                "texte": "Bungalow"
+            },
+            {
+                "type": "td",
+                "texte": "28 000 FCFA"
+            },
+            {
+                "type": "button",
+                "texte": "Effectuer Check-in"
+            },
+            {
+                "type": "h2",
+                "texte": "Consultation de secours"
+            },
+            {
+                "type": "p",
+                "texte": "Les écrans auxquels votre rôle donne accès."
+            },
+            {
+                "type": "p",
+                "texte": "Tableau de bord"
+            },
+            {
+                "type": "p",
+                "texte": "Les indicateurs consolidés de l'exploitation."
+            },
+            {
+                "type": "p",
+                "texte": "Accès complet dans l'application"
+            },
+            {
+                "type": "a",
+                "texte": "Ouvrir l'écran →"
+            },
+            {
+                "type": "p",
+                "texte": "Planning d'occupation"
+            },
+            {
+                "type": "p",
+                "texte": "Vérification rapide de disponibilité sans passer par un poste."
+            },
+            {
+                "type": "p",
+                "texte": "Accès complet dans l'application"
+            },
+            {
+                "type": "a",
+                "texte": "Ouvrir l'écran →"
+            },
+            {
+                "type": "p",
+                "texte": "État des stocks"
+            },
+            {
+                "type": "p",
+                "texte": "Consultation d'urgence, avant un déplacement d'achat impromptu."
+            },
+            {
+                "type": "p",
+                "texte": "Accès complet dans l'application"
+            },
+            {
+                "type": "a",
+                "texte": "Ouvrir l'écran →"
+            },
+            {
+                "type": "p",
+                "texte": "Journal de caisse"
+            },
+            {
+                "type": "p",
+                "texte": "Mouvements et clôtures de caisse, pour le Comptable et le Gérant."
+            },
+            {
+                "type": "p",
+                "texte": "Accès complet dans l'application"
+            },
+            {
+                "type": "a",
+                "texte": "Ouvrir l'écran →"
+            },
+            {
+                "type": "p",
+                "texte": "Fiches clients"
+            },
+            {
+                "type": "p",
+                "texte": "Consultation rapide de l'historique d'un client."
+            },
+            {
+                "type": "p",
+                "texte": "Accès complet dans l'application"
+            },
+            {
+                "type": "a",
+                "texte": "Ouvrir l'écran →"
+            },
+            {
+                "type": "p",
+                "texte": "États & rapports"
+            },
+            {
+                "type": "p",
+                "texte": "Génération et export d'états — seule exception à la lecture stricte."
+            },
+            {
+                "type": "p",
+                "texte": "Accès complet dans l'application"
+            },
+            {
+                "type": "a",
+                "texte": "Ouvrir l'écran →"
+            },
+            {
+                "type": "p",
+                "texte": "Comptabilité"
+            },
+            {
+                "type": "p",
+                "texte": "Journal, grand livre, balance et états financiers SYSCOHADA — en consultation."
+            },
+            {
+                "type": "p",
+                "texte": "Accès complet dans l'application"
+            },
+            {
+                "type": "a",
+                "texte": "Ouvrir l'écran →"
+            }
+        ],
+        "pilotage": [
+            {
+                "type": "h1",
+                "texte": "Tableau de bord"
+            },
+            {
+                "type": "p",
+                "texte": "Vision consolidée et en temps réel de la performance de chaque activité"
+            },
+            {
+                "type": "button",
+                "texte": "Vue d'exploitation"
+            },
+            {
+                "type": "button",
+                "texte": "Pilotage consolidé"
+            },
+            {
+                "type": "button",
+                "texte": "Tableau croisé dynamique"
+            },
+            {
+                "type": "p",
+                "texte": "Du 01/10/2026 au 31/10/2026"
+            },
+            {
+                "type": "option",
+                "texte": "Aujourd'hui"
+            },
+            {
+                "type": "option",
+                "texte": "Cette semaine"
+            },
+            {
+                "type": "option",
+                "texte": "Ce mois"
+            },
+            {
+                "type": "option",
+                "texte": "Ce trimestre"
+            },
+            {
+                "type": "option",
+                "texte": "Ce semestre"
+            },
+            {
+                "type": "option",
+                "texte": "Cette année"
+            },
+            {
+                "type": "option",
+                "texte": "Période personnalisée"
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "button",
+                "texte": "Exercice entier"
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "div",
+                "texte": "Chiffre d'affaires encaissé"
+            },
+            {
+                "type": "div",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "div",
+                "texte": "Du 01/10/2026 au 31/10/2026"
+            },
+            {
+                "type": "div",
+                "texte": "Résultat net"
+            },
+            {
+                "type": "div",
+                "texte": "Non consulté"
+            },
+            {
+                "type": "div",
+                "texte": "Comptabilité non consultée"
+            },
+            {
+                "type": "div",
+                "texte": "Trésorerie (caisse)"
+            },
+            {
+                "type": "div",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "div",
+                "texte": "Sessions de caisse ouvertes et leurs encaissements"
+            },
+            {
+                "type": "div",
+                "texte": "Créances clients"
+            },
+            {
+                "type": "div",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "div",
+                "texte": "0 pièce(s) non soldée(s) chez 0 client(s)"
+            },
+            {
+                "type": "div",
+                "texte": "Valeur du stock"
+            },
+            {
+                "type": "div",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "div",
+                "texte": "Au coût moyen pondéré, à l'instant — jamais au prix de vente"
+            },
+            {
+                "type": "div",
+                "texte": "Masse salariale"
+            },
+            {
+                "type": "div",
+                "texte": "Aucun bulletin établi ce mois-ci"
+            },
+            {
+                "type": "div",
+                "texte": "0 salarié(s) · coût réel non arrêté"
+            },
+            {
+                "type": "h2",
+                "texte": "À traiter"
+            },
+            {
+                "type": "p",
+                "texte": "Alertes opérationnelles, tous modules confondus."
+            },
+            {
+                "type": "p",
+                "texte": "Aucune alerte opérationnelle sur les sources consultées."
+            },
+            {
+                "type": "p",
+                "texte": "3 source(s) consultée(s) sur 4 — celles que votre rôle vous donne le droit de lire."
+            },
+            {
+                "type": "h2",
+                "texte": "Ce que ces chiffres ne disent pas"
+            },
+            {
+                "type": "p",
+                "texte": "Incertitudes déclarées par les moteurs eux-mêmes. Un tableau de bord qui les masquerait serait plus dangereux qu'utile."
+            },
+            {
+                "type": "p",
+                "texte": "Résultat affiché avant impôt"
+            },
+            {
+                "type": "span",
+                "texte": "Comptabilité"
+            },
+            {
+                "type": "p",
+                "texte": "Impôt sur les bénéfices : le taux d'IS n'est pas encore arrêté. Aucun résultat net n'est affiché ici — seule la marge brute de la période."
+            },
+            {
+                "type": "p",
+                "texte": "Charges de structure non réparties"
+            },
+            {
+                "type": "span",
+                "texte": "Analytique"
+            },
+            {
+                "type": "p",
+                "texte": "Charges de structure non réparties : « Dépenses cumulées » est le total des charges validées, il n'est ventilé par activité nulle part."
+            },
+            {
+                "type": "p",
+                "texte": "Recouvrements partiels non enregistrés"
+            },
+            {
+                "type": "span",
+                "texte": "Créances"
+            },
+            {
+                "type": "p",
+                "texte": "Les encaissements partiels ne sont pas enregistrés : le montant dû affiché est un maximum."
+            },
+            {
+                "type": "p",
+                "texte": "Valeur du stock non comparable"
+            },
+            {
+                "type": "span",
+                "texte": "Stocks"
+            },
+            {
+                "type": "p",
+                "texte": "La valeur du stock est une photographie à l'instant : elle ne se compare pas à la période précédente, et aucune variation n'est affichée pour elle."
+            },
+            {
+                "type": "h2",
+                "texte": "Marge sur coûts directs par activité"
+            },
+            {
+                "type": "p",
+                "texte": "Charges de structure non réparties : ce sont des marges, pas des résultats nets."
+            },
+            {
+                "type": "p",
+                "texte": "Non consulté"
+            },
+            {
+                "type": "h2",
+                "texte": "Créances par ancienneté"
+            },
+            {
+                "type": "p",
+                "texte": "Au-delà de 90 jours, le recouvrement devient incertain."
+            },
+            {
+                "type": "p",
+                "texte": "Âge compté depuis la date d'émission de la facture."
+            },
+            {
+                "type": "h2",
+                "texte": "Occupation & meilleures ventes"
+            },
+            {
+                "type": "p",
+                "texte": "Taux d'occupation"
+            },
+            {
+                "type": "p",
+                "texte": "0.00 %"
+            },
+            {
+                "type": "p",
+                "texte": "Taux calculé en nuitées vendues, rapportées à la capacité de la période."
+            },
+            {
+                "type": "p",
+                "texte": "Restaurant — plats"
+            },
+            {
+                "type": "p",
+                "texte": "classé par quantité vendue"
+            },
+            {
+                "type": "p",
+                "texte": "Aucune vente sur cette période."
+            },
+            {
+                "type": "p",
+                "texte": "Bar — boissons"
+            },
+            {
+                "type": "p",
+                "texte": "classé par quantité vendue"
+            },
+            {
+                "type": "p",
+                "texte": "Aucune vente sur cette période."
+            },
+            {
+                "type": "p",
+                "texte": "Tourisme — circuits"
+            },
+            {
+                "type": "p",
+                "texte": "classé par montant"
+            },
+            {
+                "type": "p",
+                "texte": "Aucune vente sur cette période."
+            },
+            {
+                "type": "p",
+                "texte": "Location — véhicules"
+            },
+            {
+                "type": "p",
+                "texte": "classé par montant"
+            },
+            {
+                "type": "p",
+                "texte": "Aucune vente sur cette période."
+            },
+            {
+                "type": "h2",
+                "texte": "Par module"
+            },
+            {
+                "type": "h3",
+                "texte": "Réservations & hébergement"
+            },
+            {
+                "type": "span",
+                "texte": "À venir"
+            },
+            {
+                "type": "span",
+                "texte": "En cours"
+            },
+            {
+                "type": "span",
+                "texte": "Nuitées"
+            },
+            {
+                "type": "span",
+                "texte": "Reste à encaisser"
+            },
+            {
+                "type": "span",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "h3",
+                "texte": "Point de vente — aujourd’hui"
+            },
+            {
+                "type": "span",
+                "texte": "M4 / M5"
+            },
+            {
+                "type": "span",
+                "texte": "Ventes"
+            },
+            {
+                "type": "span",
+                "texte": "Chiffre d’affaires"
+            },
+            {
+                "type": "span",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "span",
+                "texte": "Panier moyen"
+            },
+            {
+                "type": "span",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "span",
+                "texte": "Porté en note de chambre"
+            },
+            {
+                "type": "span",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "h3",
+                "texte": "Stocks"
+            },
+            {
+                "type": "span",
+                "texte": "Références suivies"
+            },
+            {
+                "type": "span",
+                "texte": "Achat journalier (non suivi)"
+            },
+            {
+                "type": "span",
+                "texte": "Valeur au coût moyen"
+            },
+            {
+                "type": "span",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "span",
+                "texte": "Sous seuil"
+            },
+            {
+                "type": "h3",
+                "texte": "Location de véhicules"
+            },
+            {
+                "type": "span",
+                "texte": "Parc"
+            },
+            {
+                "type": "span",
+                "texte": "Contrats actifs"
+            },
+            {
+                "type": "span",
+                "texte": "Chiffre d’affaires"
+            },
+            {
+                "type": "span",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "span",
+                "texte": "Jours loués"
+            },
+            {
+                "type": "h3",
+                "texte": "Tourisme & circuits"
+            },
+            {
+                "type": "span",
+                "texte": "Départs planifiés"
+            },
+            {
+                "type": "span",
+                "texte": "Places vendues"
+            },
+            {
+                "type": "span",
+                "texte": "0 / 0"
+            },
+            {
+                "type": "span",
+                "texte": "Remplissage"
+            },
+            {
+                "type": "span",
+                "texte": "Chiffre d’affaires"
+            },
+            {
+                "type": "span",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "h3",
+                "texte": "Personnel & paie"
+            },
+            {
+                "type": "span",
+                "texte": "M13"
+            },
+            {
+                "type": "span",
+                "texte": "Effectif actif"
+            },
+            {
+                "type": "span",
+                "texte": "Masse salariale"
+            },
+            {
+                "type": "span",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "span",
+                "texte": "Coût employeur"
+            },
+            {
+                "type": "span",
+                "texte": "0 FCFA à 0 FCFA"
+            },
+            {
+                "type": "span",
+                "texte": "VPS à reverser"
+            },
+            {
+                "type": "span",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "p",
+                "texte": "Fourchette : le taux de risques professionnels n’est pas confirmé."
+            },
+            {
+                "type": "h3",
+                "texte": "Clients & créances"
+            },
+            {
+                "type": "span",
+                "texte": "Clients débiteurs"
+            },
+            {
+                "type": "span",
+                "texte": "Total dû"
+            },
+            {
+                "type": "span",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "span",
+                "texte": "Dont + de 90 jours"
+            },
+            {
+                "type": "span",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "span",
+                "texte": "Encaissé sur 30 jours"
+            },
+            {
+                "type": "span",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "h3",
+                "texte": "Comptabilité"
+            },
+            {
+                "type": "span",
+                "texte": "M10"
+            },
+            {
+                "type": "span",
+                "texte": "Valeur ajoutée"
+            },
+            {
+                "type": "span",
+                "texte": "Excédent brut"
+            },
+            {
+                "type": "span",
+                "texte": "Total bilan"
+            },
+            {
+                "type": "span",
+                "texte": "Pièces saisies"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun exercice comptable n’est ouvert : rien n’a été mesuré."
+            },
+            {
+                "type": "h3",
+                "texte": "Dépense courante"
+            },
+            {
+                "type": "span",
+                "texte": "M10"
+            },
+            {
+                "type": "span",
+                "texte": "Total décaissé"
+            },
+            {
+                "type": "span",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "span",
+                "texte": "Nombre"
+            },
+            {
+                "type": "span",
+                "texte": "Marché"
+            },
+            {
+                "type": "span",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "span",
+                "texte": "Services"
+            },
+            {
+                "type": "span",
+                "texte": "0 FCFA"
+            }
+        ],
+        "croise": [
+            {
+                "type": "h1",
+                "texte": "Tableau de bord"
+            },
+            {
+                "type": "p",
+                "texte": "Vision consolidée et en temps réel de la performance de chaque activité"
+            },
+            {
+                "type": "button",
+                "texte": "Vue d'exploitation"
+            },
+            {
+                "type": "button",
+                "texte": "Pilotage consolidé"
+            },
+            {
+                "type": "button",
+                "texte": "Tableau croisé dynamique"
+            },
+            {
+                "type": "p",
+                "texte": "Du 01/10/2026 au 31/10/2026"
+            },
+            {
+                "type": "option",
+                "texte": "Aujourd'hui"
+            },
+            {
+                "type": "option",
+                "texte": "Cette semaine"
+            },
+            {
+                "type": "option",
+                "texte": "Ce mois"
+            },
+            {
+                "type": "option",
+                "texte": "Ce trimestre"
+            },
+            {
+                "type": "option",
+                "texte": "Ce semestre"
+            },
+            {
+                "type": "option",
+                "texte": "Cette année"
+            },
+            {
+                "type": "option",
+                "texte": "Période personnalisée"
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "p",
+                "texte": "Croisez les ventes, les dépenses et les réservations sur la période choisie en haut de page. Les factures sont volontairement absentes : une facture est le document d'une vente ou d'une réservation déjà comptée, et l'ajouter doublerait chaque montant. Une dépense compte en négatif : le total est un solde, pas une somme."
+            },
+            {
+                "type": "label",
+                "texte": "Lignes"
+            },
+            {
+                "type": "option",
+                "texte": "Source"
+            },
+            {
+                "type": "option",
+                "texte": "Module"
+            },
+            {
+                "type": "option",
+                "texte": "Activité"
+            },
+            {
+                "type": "option",
+                "texte": "Produit / libellé"
+            },
+            {
+                "type": "option",
+                "texte": "Point de vente / canal"
+            },
+            {
+                "type": "option",
+                "texte": "Mode de paiement"
+            },
+            {
+                "type": "option",
+                "texte": "Jour"
+            },
+            {
+                "type": "option",
+                "texte": "Mois"
+            },
+            {
+                "type": "option",
+                "texte": "— aucun —"
+            },
+            {
+                "type": "label",
+                "texte": "Colonnes"
+            },
+            {
+                "type": "option",
+                "texte": "Source"
+            },
+            {
+                "type": "option",
+                "texte": "Module"
+            },
+            {
+                "type": "option",
+                "texte": "Activité"
+            },
+            {
+                "type": "option",
+                "texte": "Produit / libellé"
+            },
+            {
+                "type": "option",
+                "texte": "Point de vente / canal"
+            },
+            {
+                "type": "option",
+                "texte": "Mode de paiement"
+            },
+            {
+                "type": "option",
+                "texte": "Jour"
+            },
+            {
+                "type": "option",
+                "texte": "Mois"
+            },
+            {
+                "type": "option",
+                "texte": "— aucun —"
+            },
+            {
+                "type": "label",
+                "texte": "Mesure"
+            },
+            {
+                "type": "option",
+                "texte": "Montant (FCFA)"
+            },
+            {
+                "type": "option",
+                "texte": "Encaissé (FCFA)"
+            },
+            {
+                "type": "option",
+                "texte": "Quantité"
+            },
+            {
+                "type": "option",
+                "texte": "Nombre de lignes"
+            },
+            {
+                "type": "label",
+                "texte": "Sources"
+            },
+            {
+                "type": "label",
+                "texte": "Ventes"
+            },
+            {
+                "type": "label",
+                "texte": "Dépenses"
+            },
+            {
+                "type": "label",
+                "texte": "Réservations"
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "td",
+                "texte": "Activité"
+            },
+            {
+                "type": "td",
+                "texte": "Total"
+            },
+            {
+                "type": "td",
+                "texte": "Aucun mouvement sur cette période. Élargissez la période en haut de page."
+            },
+            {
+                "type": "p",
+                "texte": "0 mouvement(s) agrégé(s) — les dépenses comptent en négatif : le total est un solde. Le montant retenu pour une réservation est son acompte."
+            }
+        ]
+    }
+}

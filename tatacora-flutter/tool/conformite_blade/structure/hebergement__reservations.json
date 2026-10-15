@@ -1,0 +1,159 @@
+{
+    "_lisez-moi": "PRODUIT par ExtraireStructureBladeTest, jamais ecrit a la main. Chaque variante (onglet) : les textes VISIBLES de <main>, dans l'ordre du document.",
+    "vue": "hebergement/reservations",
+    "jeu": "parc",
+    "onglets": {
+        "principal": [
+            {
+                "type": "h1",
+                "texte": "Réservations"
+            },
+            {
+                "type": "p",
+                "texte": "Une réservation peut combiner Hébergement, Restauration, Bar, Tourisme et/ou Location de véhicule sur une même fiche client."
+            },
+            {
+                "type": "button",
+                "texte": "Historique"
+            },
+            {
+                "type": "button",
+                "texte": "Ajouter client"
+            },
+            {
+                "type": "button",
+                "texte": "Nouvelle réservation"
+            },
+            {
+                "type": "button",
+                "texte": "Réservations"
+            },
+            {
+                "type": "button",
+                "texte": "Annulations"
+            },
+            {
+                "type": "champ",
+                "texte": "Rechercher un client..."
+            },
+            {
+                "type": "div",
+                "texte": "Aucune réservation pour l'instant."
+            }
+        ],
+        "historique": [
+            {
+                "type": "h1",
+                "texte": "Réservations"
+            },
+            {
+                "type": "p",
+                "texte": "Une réservation peut combiner Hébergement, Restauration, Bar, Tourisme et/ou Location de véhicule sur une même fiche client."
+            },
+            {
+                "type": "button",
+                "texte": "Historique"
+            },
+            {
+                "type": "button",
+                "texte": "Ajouter client"
+            },
+            {
+                "type": "button",
+                "texte": "Nouvelle réservation"
+            },
+            {
+                "type": "button",
+                "texte": "Réservations"
+            },
+            {
+                "type": "button",
+                "texte": "Annulations"
+            },
+            {
+                "type": "champ",
+                "texte": "Rechercher un client..."
+            },
+            {
+                "type": "div",
+                "texte": "Aucune réservation pour l'instant."
+            },
+            {
+                "type": "h2",
+                "texte": "Historique des réservations"
+            },
+            {
+                "type": "p",
+                "texte": "Toutes les réservations, passées et à venir, avec leur état réel."
+            },
+            {
+                "type": "button",
+                "texte": "Générer & Télécharger"
+            },
+            {
+                "type": "p",
+                "texte": "Réservations"
+            },
+            {
+                "type": "p",
+                "texte": "À venir"
+            },
+            {
+                "type": "p",
+                "texte": "En cours"
+            },
+            {
+                "type": "p",
+                "texte": "Nuitées"
+            },
+            {
+                "type": "p",
+                "texte": "Chiffre d'affaires"
+            },
+            {
+                "type": "p",
+                "texte": "Reste à encaisser"
+            },
+            {
+                "type": "champ",
+                "texte": "Client, canal ou n°…"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les états"
+            },
+            {
+                "type": "option",
+                "texte": "À venir"
+            },
+            {
+                "type": "option",
+                "texte": "En cours"
+            },
+            {
+                "type": "option",
+                "texte": "Terminées"
+            },
+            {
+                "type": "option",
+                "texte": "Annulées"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les services"
+            },
+            {
+                "type": "option",
+                "texte": "Hébergement"
+            },
+            {
+                "type": "button",
+                "texte": "Réinitialiser"
+            },
+            {
+                "type": "p",
+                "texte": "Aucune réservation ne correspond à ces filtres."
+            }
+        ]
+    }
+}

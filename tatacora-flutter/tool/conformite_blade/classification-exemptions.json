@@ -1,0 +1,56 @@
+{
+  "_lisez-moi": "ECRIT A LA MAIN, relu par t-blade-flutter.js (Phase 0, 08/10/2026). (a) ASSUMEE = un bloc de la vue refuse et declare dans le code Flutter, avec un motif date de 30 caracteres au moins ; la garde echoue sur un refus sans entree et sur une entree dont le refus a disparu. (b) NON PORTEE = tout le reste de la dette et les vues sans ecran : calculees, jamais listees ici. (c) OUBLI = un ecran Flutter sans vue Blade, jamais decide ; liste ci-dessous, a trancher par le Product Owner (declarer l'ecart ou retirer l'ecran). Un motif se DATE et se re-verifie avant de s'y fier (PA-144).",
+  "assumees": {
+    "bar/carte|modale:modal-delier": {
+      "classe": "a",
+      "motif": "La vue du bar pose 'delier' => false : cartes_boisson.article_id est NOT NULL, le lien se remplace et ne se retire pas ; CarteBoissonService n'expose aucun delierDuStock(). Le comparateur compte la modale sans evaluer la condition Blade. Voir ecran_carte_bar.dart.",
+      "date": "2026-09-11"
+    },
+    "restaurant/carte|modale:commun.modale_boisson_titre": {
+      "classe": "a",
+      "motif": "Modale « Nouvelle boisson » du corps partage des cartes : la carte du restaurant ne vend pas de boisson (conditions Blade non evaluees par le comparateur). Voir ecran_carte_restaurant.dart.",
+      "date": "2026-09-11"
+    },
+    "tourisme/departs|modale:modale-archivage": {
+      "classe": "a",
+      "motif": "Vocabulaire faux pour M9 : rien n'y est archive, restaure ni supprime, une reservation ou un depart s'ANNULE et la ligne reste en base (RG-02, RG-15). La confirmation d'annulation porte les phrases reelles de la vue. Voir ecran_tourisme.dart. Motif relu le 2026-10-09 : le DAO de M9 n'expose ni archive ni restauration. Le refus de la modale d'export a ete LEVE le meme jour : le bouton Exporter ouvre le partiel partage.",
+      "date": "2026-10-09"
+    },
+    "restaurant/carte|modale:commun.modale_modifier_boisson_titre": {
+      "classe": "a",
+      "motif": "« Modifier la boisson » est propre au bar : le drapeau creation_boisson est faux pour le restaurant, qui modifie ses plats sur « Plats & menus ». Le comparateur ne evalue pas les conditions Blade. Voir ecran_carte_restaurant.dart.",
+      "date": "2026-10-08"
+    },
+    "restaurant/carte|modale:modal-lieraustock": {
+      "classe": "a",
+      "motif": "Modale « Lier au stock » : elle ECRIT le lien d'un plat a un article de stock. Aucune source locale de M4 n'existe (decision PO du 08/10/2026), le bouton de ligne affiche le message « ne peut pas etre enregistre sur ce poste ». A rouvrir avec la source de M4. Voir ecran_carte_restaurant.dart.",
+      "date": "2026-10-09"
+    },
+    "restaurant/carte|modale:modal-retirerdelacartedujour": {
+      "classe": "a",
+      "motif": "Modale « Retirer de la carte du jour » : elle ECRIT une indisponibilite (indisponibilites_carte), table absente de ce poste zero reseau. Le bouton « Rendre indispo. » affiche le message d'ecriture impossible. A rouvrir avec la source de M4. Voir ecran_carte_restaurant.dart.",
+      "date": "2026-10-09"
+    },
+    "restaurant/carte|modale:modal-delier": {
+      "classe": "a",
+      "motif": "Modale « Retirer le lien au stock » : elle ECRIT un lien direct de plat (plats.article_id), que ce poste ne peut ni lire ni ecrire ; « Delier » n'est de toute facon rendu que pour un plat deja lie, etat que ce poste ne peut pas lire. A rouvrir avec la source de M4. Voir ecran_carte_restaurant.dart.",
+      "date": "2026-10-09"
+    },
+    "restaurant/carte|modale:commun.modale_prix_titre": {
+      "classe": "a",
+      "motif": "Modale « Modifier le prix » : elle ECRIT un prix de plat et sa trace d'historique. Aucune source locale de M4 (decision PO du 08/10/2026) ; le bouton « Prix » affiche le message d'ecriture impossible. A rouvrir avec la source de M4. Voir ecran_carte_restaurant.dart.",
+      "date": "2026-10-09"
+    },
+    "restaurant/carte|modale:modale_historique_prix.titre": {
+      "classe": "a",
+      "motif": "Modale « Historique des prix » : elle LIT la trace des changements de prix, que ce poste ne detient pas. Le bouton « Historique des prix » affiche « ne figurent pas sur ce poste », jamais une liste vide qui se lirait « aucun changement ». A rouvrir avec la source de M4. Voir ecran_carte_restaurant.dart.",
+      "date": "2026-10-09"
+    }
+  },
+  "oublis": {
+    "features/bar/presentation/ecran_catalogue_boissons.dart": {
+      "classe": "c",
+      "motif": "Ecran sans vue Blade : a rattacher a une vue, declarer comme ecart ou retirer."
+    }
+  }
+}

@@ -1,0 +1,123 @@
+{
+  "_lisez-moi": "PRODUIT par FIGER_EMPLACEMENT=1 flutter test test/core/qualite/emplacement_blade_test.dart. Éléments de la vue bien placés, par écran. Le test échoue sur un recul et sur un progrès non resserré.",
+  "crm/clients-creances": {
+    "blade": 79,
+    "ordonnes": 59,
+    "ongletsNonCliquables": 0
+  },
+  "hebergement/hebergement": {
+    "blade": 55,
+    "ordonnes": 47,
+    "ongletsNonCliquables": 0
+  },
+  "hebergement/reservations": {
+    "blade": 28,
+    "ordonnes": 22,
+    "ongletsNonCliquables": 0
+  },
+  "pos/comptant": {
+    "blade": 43,
+    "ordonnes": 11,
+    "ongletsNonCliquables": 0
+  },
+  "pos/heberges": {
+    "blade": 20,
+    "ordonnes": 14,
+    "ongletsNonCliquables": 0
+  },
+  "pos/historique-ventes": {
+    "blade": 32,
+    "ordonnes": 15,
+    "ongletsNonCliquables": 0
+  },
+  "facturation/facturation": {
+    "blade": 26,
+    "ordonnes": 19,
+    "ongletsNonCliquables": 0
+  },
+  "depenses/depenses": {
+    "blade": 23,
+    "ordonnes": 16,
+    "ongletsNonCliquables": 0
+  },
+  "notifications/hub": {
+    "blade": 136,
+    "ordonnes": 106,
+    "ongletsNonCliquables": 0
+  },
+  "rh/paie": {
+    "blade": 145,
+    "ordonnes": 126,
+    "ongletsNonCliquables": 0
+  },
+  "livewire/connexion": {
+    "blade": 8,
+    "ordonnes": 8,
+    "ongletsNonCliquables": 0
+  },
+  "demarrage": {
+    "blade": 8,
+    "ordonnes": 8,
+    "ongletsNonCliquables": 0
+  },
+  "vehicules/locations": {
+    "blade": 51,
+    "ordonnes": 36,
+    "ongletsNonCliquables": 0
+  },
+  "tourisme/departs": {
+    "blade": 36,
+    "ordonnes": 24,
+    "ongletsNonCliquables": 0
+  },
+  "achats/approvisionnement": {
+    "blade": 97,
+    "ordonnes": 70,
+    "ongletsNonCliquables": 0
+  },
+  "achats/achats": {
+    "blade": 38,
+    "ordonnes": 27,
+    "ongletsNonCliquables": 0
+  },
+  "stocks/stocks": {
+    "blade": 36,
+    "ordonnes": 23,
+    "ongletsNonCliquables": 0
+  },
+  "stocks/inventaires": {
+    "blade": 51,
+    "ordonnes": 43,
+    "ongletsNonCliquables": 0
+  },
+  "restaurant/restauration": {
+    "blade": 54,
+    "ordonnes": 37,
+    "ongletsNonCliquables": 0
+  },
+  "bar/carte": {
+    "blade": 63,
+    "ordonnes": 46,
+    "ongletsNonCliquables": 0
+  },
+  "restaurant/carte": {
+    "blade": 84,
+    "ordonnes": 40,
+    "ongletsNonCliquables": 0
+  },
+  "etats/studio": {
+    "blade": 29,
+    "ordonnes": 27,
+    "ongletsNonCliquables": 0
+  },
+  "transverse/parametres": {
+    "blade": 147,
+    "ordonnes": 78,
+    "ongletsNonCliquables": 1
+  },
+  "livewire/accueil": {
+    "blade": 301,
+    "ordonnes": 138,
+    "ongletsNonCliquables": 0
+  }
+}

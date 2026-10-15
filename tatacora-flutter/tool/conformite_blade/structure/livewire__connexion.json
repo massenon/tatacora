@@ -1,0 +1,41 @@
+{
+    "_lisez-moi": "PRODUIT par ExtraireStructureBladeTest, jamais ecrit a la main. Chaque variante (onglet) : les textes VISIBLES de <main>, dans l'ordre du document.",
+    "vue": "livewire/connexion",
+    "jeu": "parc",
+    "onglets": {
+        "principal": [
+            {
+                "type": "h2",
+                "texte": "TATACORA AFRIQUE"
+            },
+            {
+                "type": "p",
+                "texte": "Connectez-vous à votre espace de travail"
+            },
+            {
+                "type": "label",
+                "texte": "Identifiant"
+            },
+            {
+                "type": "champ",
+                "texte": "ex. n.nabogou"
+            },
+            {
+                "type": "label",
+                "texte": "Mot de passe"
+            },
+            {
+                "type": "champ",
+                "texte": "••••••••"
+            },
+            {
+                "type": "button",
+                "texte": "Se connecter"
+            },
+            {
+                "type": "p",
+                "texte": "TATACORA AFRIQUE © 2026 — PAEB / FAGUEZ SARL"
+            }
+        ]
+    }
+}

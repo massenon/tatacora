@@ -1,0 +1,347 @@
+{
+    "_lisez-moi": "PRODUIT par ExtraireStructureBladeTest, jamais ecrit a la main. Chaque variante (onglet) : les textes VISIBLES de <main>, dans l'ordre du document.",
+    "vue": "hebergement/hebergement",
+    "jeu": "parc",
+    "onglets": {
+        "plan": [
+            {
+                "type": "h1",
+                "texte": "Hébergement & Réservations"
+            },
+            {
+                "type": "p",
+                "texte": "Gestion du plan d'hébergement du Gîte Chez Noël (Bungalows, Chambres, Tentes) • Règle anti-double réservation"
+            },
+            {
+                "type": "onglet",
+                "texte": "Plan d'Hébergement",
+                "cle": "plan"
+            },
+            {
+                "type": "onglet",
+                "texte": "Réservations en cours",
+                "cle": "reservations"
+            },
+            {
+                "type": "onglet",
+                "texte": "Calendrier d'Occupation",
+                "cle": "calendrier"
+            },
+            {
+                "type": "onglet",
+                "texte": "Disponibilités",
+                "cle": "disponibilites"
+            },
+            {
+                "type": "a",
+                "texte": "Nouvelle réservation"
+            },
+            {
+                "type": "button",
+                "texte": "Ajouter hébergement"
+            },
+            {
+                "type": "champ",
+                "texte": "Rechercher bungalow, chambre ou tente..."
+            },
+            {
+                "type": "option",
+                "texte": "Toutes les catégories"
+            },
+            {
+                "type": "option",
+                "texte": "Bungalow"
+            },
+            {
+                "type": "button",
+                "texte": "Générer & Télécharger"
+            },
+            {
+                "type": "button",
+                "texte": "Ajouter hébergement"
+            },
+            {
+                "type": "span",
+                "texte": "BNG-01"
+            },
+            {
+                "type": "span",
+                "texte": "Libre"
+            },
+            {
+                "type": "h3",
+                "texte": "Bungalow"
+            },
+            {
+                "type": "span",
+                "texte": "Tarif de base :"
+            },
+            {
+                "type": "span",
+                "texte": "28 000 FCFA"
+            },
+            {
+                "type": "button",
+                "texte": "Réserver cette unité"
+            },
+            {
+                "type": "span",
+                "texte": "BNG-02"
+            },
+            {
+                "type": "span",
+                "texte": "Libre"
+            },
+            {
+                "type": "h3",
+                "texte": "Bungalow"
+            },
+            {
+                "type": "span",
+                "texte": "Tarif de base :"
+            },
+            {
+                "type": "span",
+                "texte": "28 000 FCFA"
+            },
+            {
+                "type": "button",
+                "texte": "Réserver cette unité"
+            },
+            {
+                "type": "p",
+                "texte": "Affichage de sur"
+            },
+            {
+                "type": "button",
+                "texte": "← Précédent"
+            },
+            {
+                "type": "span",
+                "texte": "Page 1 / 1"
+            },
+            {
+                "type": "button",
+                "texte": "Suivant →"
+            }
+        ],
+        "reservations": [
+            {
+                "type": "h1",
+                "texte": "Hébergement & Réservations"
+            },
+            {
+                "type": "p",
+                "texte": "Gestion du plan d'hébergement du Gîte Chez Noël (Bungalows, Chambres, Tentes) • Règle anti-double réservation"
+            },
+            {
+                "type": "onglet",
+                "texte": "Plan d'Hébergement",
+                "cle": "plan"
+            },
+            {
+                "type": "onglet",
+                "texte": "Réservations en cours",
+                "cle": "reservations"
+            },
+            {
+                "type": "onglet",
+                "texte": "Calendrier d'Occupation",
+                "cle": "calendrier"
+            },
+            {
+                "type": "onglet",
+                "texte": "Disponibilités",
+                "cle": "disponibilites"
+            },
+            {
+                "type": "a",
+                "texte": "Nouvelle réservation"
+            },
+            {
+                "type": "button",
+                "texte": "Ajouter hébergement"
+            },
+            {
+                "type": "th",
+                "texte": "Client"
+            },
+            {
+                "type": "th",
+                "texte": "Unité(s) réservée(s)"
+            },
+            {
+                "type": "th",
+                "texte": "Arrivée"
+            },
+            {
+                "type": "th",
+                "texte": "Départ"
+            },
+            {
+                "type": "th",
+                "texte": "Statut"
+            },
+            {
+                "type": "td",
+                "texte": "Aucune réservation d'hébergement pour le moment."
+            },
+            {
+                "type": "span",
+                "texte": "Aucun résultat"
+            },
+            {
+                "type": "span",
+                "texte": "Essayez de modifier votre recherche ou vos filtres."
+            },
+            {
+                "type": "a",
+                "texte": "Créer une réservation →"
+            },
+            {
+                "type": "p",
+                "texte": "Affichage de - sur"
+            }
+        ],
+        "calendrier": [
+            {
+                "type": "h1",
+                "texte": "Hébergement & Réservations"
+            },
+            {
+                "type": "p",
+                "texte": "Gestion du plan d'hébergement du Gîte Chez Noël (Bungalows, Chambres, Tentes) • Règle anti-double réservation"
+            },
+            {
+                "type": "onglet",
+                "texte": "Plan d'Hébergement",
+                "cle": "plan"
+            },
+            {
+                "type": "onglet",
+                "texte": "Réservations en cours",
+                "cle": "reservations"
+            },
+            {
+                "type": "onglet",
+                "texte": "Calendrier d'Occupation",
+                "cle": "calendrier"
+            },
+            {
+                "type": "onglet",
+                "texte": "Disponibilités",
+                "cle": "disponibilites"
+            },
+            {
+                "type": "a",
+                "texte": "Nouvelle réservation"
+            },
+            {
+                "type": "button",
+                "texte": "Ajouter hébergement"
+            },
+            {
+                "type": "h2",
+                "texte": "octobre 2026"
+            },
+            {
+                "type": "span",
+                "texte": "Faible"
+            },
+            {
+                "type": "span",
+                "texte": "Moyen"
+            },
+            {
+                "type": "span",
+                "texte": "Fort"
+            },
+            {
+                "type": "div",
+                "texte": "Lun"
+            },
+            {
+                "type": "div",
+                "texte": "Mar"
+            },
+            {
+                "type": "div",
+                "texte": "Mer"
+            },
+            {
+                "type": "div",
+                "texte": "Jeu"
+            },
+            {
+                "type": "div",
+                "texte": "Ven"
+            },
+            {
+                "type": "div",
+                "texte": "Sam"
+            },
+            {
+                "type": "div",
+                "texte": "Dim"
+            },
+            {
+                "type": "p",
+                "texte": "Taux d'occupation estimé par jour, calculé à partir des réservations d'hébergement enregistrées (2 unités au total)."
+            }
+        ],
+        "disponibilites": [
+            {
+                "type": "h1",
+                "texte": "Hébergement & Réservations"
+            },
+            {
+                "type": "p",
+                "texte": "Gestion du plan d'hébergement du Gîte Chez Noël (Bungalows, Chambres, Tentes) • Règle anti-double réservation"
+            },
+            {
+                "type": "onglet",
+                "texte": "Plan d'Hébergement",
+                "cle": "plan"
+            },
+            {
+                "type": "onglet",
+                "texte": "Réservations en cours",
+                "cle": "reservations"
+            },
+            {
+                "type": "onglet",
+                "texte": "Calendrier d'Occupation",
+                "cle": "calendrier"
+            },
+            {
+                "type": "onglet",
+                "texte": "Disponibilités",
+                "cle": "disponibilites"
+            },
+            {
+                "type": "a",
+                "texte": "Nouvelle réservation"
+            },
+            {
+                "type": "button",
+                "texte": "Ajouter hébergement"
+            },
+            {
+                "type": "h2",
+                "texte": "Disponibilités sur une période"
+            },
+            {
+                "type": "p",
+                "texte": "Choisissez une arrivée et un départ : chaque unité du parc est listée, libre ou non, avec son motif. Le départ est exclu (la nuit du départ reste libre)."
+            },
+            {
+                "type": "label",
+                "texte": "Arrivée"
+            },
+            {
+                "type": "label",
+                "texte": "Départ"
+            }
+        ]
+    }
+}

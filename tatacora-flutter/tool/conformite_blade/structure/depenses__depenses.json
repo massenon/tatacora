@@ -1,0 +1,101 @@
+{
+    "_lisez-moi": "PRODUIT par ExtraireStructureBladeTest, jamais ecrit a la main. Chaque variante (onglet) : les textes VISIBLES de <main>, dans l'ordre du document.",
+    "vue": "depenses/depenses",
+    "jeu": "parc",
+    "onglets": {
+        "principal": [
+            {
+                "type": "h1",
+                "texte": "Dépense courante"
+            },
+            {
+                "type": "p",
+                "texte": "Les charges d'exploitation — le marché du matin, un transport, un dépannage. Elles n'ont ni bon de commande ni délai de règlement : une dépense suivie auprès d'un fournisseur relève de . Confondre les deux ferait apparaître en dettes fournisseurs des sommes déjà sorties de la caisse."
+            },
+            {
+                "type": "a",
+                "texte": "Approvisionnement"
+            },
+            {
+                "type": "button",
+                "texte": "Nouvelle Dépense"
+            },
+            {
+                "type": "span",
+                "texte": "Indicateurs de la période"
+            },
+            {
+                "type": "champ",
+                "texte": "Libellé, nature, compte…"
+            },
+            {
+                "type": "option",
+                "texte": "Toute trésorerie"
+            },
+            {
+                "type": "option",
+                "texte": "Caisse"
+            },
+            {
+                "type": "option",
+                "texte": "Mobile Money"
+            },
+            {
+                "type": "option",
+                "texte": "Compte bancaire"
+            },
+            {
+                "type": "option",
+                "texte": "Toute catégorie"
+            },
+            {
+                "type": "option",
+                "texte": "Services"
+            },
+            {
+                "type": "option",
+                "texte": "Marché"
+            },
+            {
+                "type": "a",
+                "texte": "Réinitialiser"
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "th",
+                "texte": "Date"
+            },
+            {
+                "type": "th",
+                "texte": "Libellé"
+            },
+            {
+                "type": "th",
+                "texte": "Nature"
+            },
+            {
+                "type": "th",
+                "texte": "Charge (SYSCOHADA)"
+            },
+            {
+                "type": "th",
+                "texte": "Trésorerie"
+            },
+            {
+                "type": "th",
+                "texte": "Montant"
+            },
+            {
+                "type": "th",
+                "texte": "Pièces"
+            },
+            {
+                "type": "td",
+                "texte": "Aucune dépense enregistrée. Le bouton « Nouvelle Dépense » ouvre la saisie."
+            }
+        ]
+    }
+}

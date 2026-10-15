@@ -1,0 +1,153 @@
+{
+    "_lisez-moi": "PRODUIT par ExtraireStructureBladeTest, jamais ecrit a la main. Chaque variante (onglet) : les textes VISIBLES de <main>, dans l'ordre du document.",
+    "vue": "stocks/stocks",
+    "jeu": "parc",
+    "onglets": {
+        "principal": [
+            {
+                "type": "h1",
+                "texte": "Gestion des Stocks"
+            },
+            {
+                "type": "p",
+                "texte": "Référentiel valorisé au coût moyen pondéré — le stock affiché est , il ne se saisit jamais."
+            },
+            {
+                "type": "a",
+                "texte": "Inventaires & fiches"
+            },
+            {
+                "type": "a",
+                "texte": "Approvisionnement"
+            },
+            {
+                "type": "button",
+                "texte": "+ Nouvel article"
+            },
+            {
+                "type": "p",
+                "texte": "Références"
+            },
+            {
+                "type": "p",
+                "texte": "0 suivies · 0 journalières"
+            },
+            {
+                "type": "p",
+                "texte": "Valeur du stock"
+            },
+            {
+                "type": "p",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "p",
+                "texte": "au coût moyen pondéré"
+            },
+            {
+                "type": "p",
+                "texte": "Sous seuil"
+            },
+            {
+                "type": "p",
+                "texte": "à réapprovisionner"
+            },
+            {
+                "type": "p",
+                "texte": "Mouvements 30 j"
+            },
+            {
+                "type": "p",
+                "texte": "Gros / petit stock"
+            },
+            {
+                "type": "p",
+                "texte": "0 / 0"
+            },
+            {
+                "type": "p",
+                "texte": "suivi vs journalier"
+            },
+            {
+                "type": "champ",
+                "texte": "Rechercher un article…"
+            },
+            {
+                "type": "option",
+                "texte": "Toutes catégories"
+            },
+            {
+                "type": "option",
+                "texte": "Denrées"
+            },
+            {
+                "type": "option",
+                "texte": "Boissons"
+            },
+            {
+                "type": "option",
+                "texte": "Fournitures"
+            },
+            {
+                "type": "option",
+                "texte": "Pièces véhicules"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les points"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les suivis"
+            },
+            {
+                "type": "option",
+                "texte": "Gros stock (permanent)"
+            },
+            {
+                "type": "option",
+                "texte": "Petit stock (journalier)"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les états"
+            },
+            {
+                "type": "option",
+                "texte": "Sous seuil"
+            },
+            {
+                "type": "option",
+                "texte": "En rupture"
+            },
+            {
+                "type": "button",
+                "texte": "Importer"
+            },
+            {
+                "type": "button",
+                "texte": "Modèle"
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "span",
+                "texte": "0 article(s)"
+            },
+            {
+                "type": "span",
+                "texte": "Stock calculé — non modifiable ici"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun résultat"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun article ne correspond à ces filtres."
+            }
+        ]
+    }
+}

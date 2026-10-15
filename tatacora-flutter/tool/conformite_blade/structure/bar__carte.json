@@ -1,0 +1,466 @@
+{
+    "_lisez-moi": "PRODUIT par ExtraireStructureBladeTest, jamais ecrit a la main. Chaque variante (onglet) : les textes VISIBLES de <main>, dans l'ordre du document.",
+    "vue": "bar/carte",
+    "jeu": "parc",
+    "onglets": {
+        "carte": [
+            {
+                "type": "h1",
+                "texte": "Carte du bar"
+            },
+            {
+                "type": "p",
+                "texte": "Chaque boisson vendue décrémente son casier. Le rapprochement contrôle la : une 33 cl ne sort pas du casier de 66 cl."
+            },
+            {
+                "type": "a",
+                "texte": "Point de vente"
+            },
+            {
+                "type": "a",
+                "texte": "Stocks"
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "button",
+                "texte": "Imprimer la fiche des prix"
+            },
+            {
+                "type": "button",
+                "texte": "Nouvelle boisson"
+            },
+            {
+                "type": "span",
+                "texte": "Indicateurs de la carte"
+            },
+            {
+                "type": "onglet",
+                "texte": "Carte du jour",
+                "cle": "carte"
+            },
+            {
+                "type": "onglet",
+                "texte": "Couverture du stock",
+                "cle": "couverture"
+            },
+            {
+                "type": "onglet",
+                "texte": "Ventes du Bar",
+                "cle": "ventes"
+            },
+            {
+                "type": "champ",
+                "texte": "Rechercher un article…"
+            },
+            {
+                "type": "option",
+                "texte": "Toutes les catégories"
+            },
+            {
+                "type": "option",
+                "texte": "Locale"
+            },
+            {
+                "type": "option",
+                "texte": "Maison"
+            },
+            {
+                "type": "option",
+                "texte": "Importée"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les articles"
+            },
+            {
+                "type": "option",
+                "texte": "Retirés du jour"
+            },
+            {
+                "type": "option",
+                "texte": "Liés au stock"
+            },
+            {
+                "type": "option",
+                "texte": "Sans lien de stock"
+            },
+            {
+                "type": "option",
+                "texte": "En rupture de stock"
+            },
+            {
+                "type": "option",
+                "texte": "Prix provisoire"
+            },
+            {
+                "type": "p",
+                "texte": "Une Béninoise 66 cl vendue, c'est une bouteille en moins. Le lien est direct et automatisable par rapprochement de libellé — à condition que la corresponde : une 33 cl ne sort pas du casier de 66 cl, et l'écart ne se verrait qu'à l'inventaire. Couverture actuelle : articles rattachés."
+            },
+            {
+                "type": "p",
+                "texte": "Aucun point de stockage de type « bar » n'est encore déclaré : le stock vendable ne peut pas être calculé, et aucun chiffre n'est affiché. Ce qui dort au magasin n'est pas vendable au comptoir — replier sur le stock tous points confondus annoncerait des bouteilles que le barman n'a pas."
+            },
+            {
+                "type": "div",
+                "texte": "Aucun article ne correspond à ces critères."
+            }
+        ],
+        "couverture": [
+            {
+                "type": "h1",
+                "texte": "Carte du bar"
+            },
+            {
+                "type": "p",
+                "texte": "Chaque boisson vendue décrémente son casier. Le rapprochement contrôle la : une 33 cl ne sort pas du casier de 66 cl."
+            },
+            {
+                "type": "a",
+                "texte": "Point de vente"
+            },
+            {
+                "type": "a",
+                "texte": "Stocks"
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "button",
+                "texte": "Imprimer la fiche des prix"
+            },
+            {
+                "type": "button",
+                "texte": "Nouvelle boisson"
+            },
+            {
+                "type": "span",
+                "texte": "Indicateurs de la carte"
+            },
+            {
+                "type": "onglet",
+                "texte": "Carte du jour",
+                "cle": "carte"
+            },
+            {
+                "type": "onglet",
+                "texte": "Couverture du stock",
+                "cle": "couverture"
+            },
+            {
+                "type": "onglet",
+                "texte": "Ventes du Bar",
+                "cle": "ventes"
+            },
+            {
+                "type": "champ",
+                "texte": "Rechercher un article…"
+            },
+            {
+                "type": "option",
+                "texte": "Toutes les catégories"
+            },
+            {
+                "type": "option",
+                "texte": "Locale"
+            },
+            {
+                "type": "option",
+                "texte": "Maison"
+            },
+            {
+                "type": "option",
+                "texte": "Importée"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les articles"
+            },
+            {
+                "type": "option",
+                "texte": "Retirés du jour"
+            },
+            {
+                "type": "option",
+                "texte": "Liés au stock"
+            },
+            {
+                "type": "option",
+                "texte": "Sans lien de stock"
+            },
+            {
+                "type": "option",
+                "texte": "En rupture de stock"
+            },
+            {
+                "type": "option",
+                "texte": "Prix provisoire"
+            },
+            {
+                "type": "p",
+                "texte": "Une Béninoise 66 cl vendue, c'est une bouteille en moins. Le lien est direct et automatisable par rapprochement de libellé — à condition que la corresponde : une 33 cl ne sort pas du casier de 66 cl, et l'écart ne se verrait qu'à l'inventaire. Couverture actuelle : articles rattachés."
+            },
+            {
+                "type": "p",
+                "texte": "Aucun point de stockage de type « bar » n'est encore déclaré : le stock vendable ne peut pas être calculé, et aucun chiffre n'est affiché. Ce qui dort au magasin n'est pas vendable au comptoir — replier sur le stock tous points confondus annoncerait des bouteilles que le barman n'a pas."
+            },
+            {
+                "type": "h3",
+                "texte": "Couverture du lien au stock, catégorie par catégorie"
+            },
+            {
+                "type": "th",
+                "texte": "Catégorie"
+            },
+            {
+                "type": "th",
+                "texte": "Articles"
+            },
+            {
+                "type": "th",
+                "texte": "Liés au stock"
+            },
+            {
+                "type": "th",
+                "texte": "Sans lien"
+            },
+            {
+                "type": "th",
+                "texte": "Couverture"
+            },
+            {
+                "type": "th",
+                "texte": "Indisponibles"
+            },
+            {
+                "type": "th",
+                "texte": "Prix provisoires"
+            },
+            {
+                "type": "td",
+                "texte": "Locale"
+            },
+            {
+                "type": "span",
+                "texte": "0 %"
+            },
+            {
+                "type": "td",
+                "texte": "Maison"
+            },
+            {
+                "type": "span",
+                "texte": "0 %"
+            },
+            {
+                "type": "td",
+                "texte": "Importée"
+            },
+            {
+                "type": "span",
+                "texte": "0 %"
+            },
+            {
+                "type": "td",
+                "texte": "TOTAL"
+            },
+            {
+                "type": "td",
+                "texte": "0 %"
+            },
+            {
+                "type": "p",
+                "texte": "Chaque vente décrémente le stock correspondant."
+            }
+        ],
+        "ventes": [
+            {
+                "type": "h1",
+                "texte": "Carte du bar"
+            },
+            {
+                "type": "p",
+                "texte": "Chaque boisson vendue décrémente son casier. Le rapprochement contrôle la : une 33 cl ne sort pas du casier de 66 cl."
+            },
+            {
+                "type": "a",
+                "texte": "Point de vente"
+            },
+            {
+                "type": "a",
+                "texte": "Stocks"
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "button",
+                "texte": "Imprimer la fiche des prix"
+            },
+            {
+                "type": "button",
+                "texte": "Nouvelle boisson"
+            },
+            {
+                "type": "span",
+                "texte": "Indicateurs de la carte"
+            },
+            {
+                "type": "onglet",
+                "texte": "Carte du jour",
+                "cle": "carte"
+            },
+            {
+                "type": "onglet",
+                "texte": "Couverture du stock",
+                "cle": "couverture"
+            },
+            {
+                "type": "onglet",
+                "texte": "Ventes du Bar",
+                "cle": "ventes"
+            },
+            {
+                "type": "champ",
+                "texte": "Rechercher un article…"
+            },
+            {
+                "type": "option",
+                "texte": "Toutes les catégories"
+            },
+            {
+                "type": "option",
+                "texte": "Locale"
+            },
+            {
+                "type": "option",
+                "texte": "Maison"
+            },
+            {
+                "type": "option",
+                "texte": "Importée"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les articles"
+            },
+            {
+                "type": "option",
+                "texte": "Retirés du jour"
+            },
+            {
+                "type": "option",
+                "texte": "Liés au stock"
+            },
+            {
+                "type": "option",
+                "texte": "Sans lien de stock"
+            },
+            {
+                "type": "option",
+                "texte": "En rupture de stock"
+            },
+            {
+                "type": "option",
+                "texte": "Prix provisoire"
+            },
+            {
+                "type": "p",
+                "texte": "Une Béninoise 66 cl vendue, c'est une bouteille en moins. Le lien est direct et automatisable par rapprochement de libellé — à condition que la corresponde : une 33 cl ne sort pas du casier de 66 cl, et l'écart ne se verrait qu'à l'inventaire. Couverture actuelle : articles rattachés."
+            },
+            {
+                "type": "p",
+                "texte": "Aucun point de stockage de type « bar » n'est encore déclaré : le stock vendable ne peut pas être calculé, et aucun chiffre n'est affiché. Ce qui dort au magasin n'est pas vendable au comptoir — replier sur le stock tous points confondus annoncerait des bouteilles que le barman n'a pas."
+            },
+            {
+                "type": "champ",
+                "texte": "Rechercher un article, un ticket, un utilisateur…"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les statuts"
+            },
+            {
+                "type": "option",
+                "texte": "Validée"
+            },
+            {
+                "type": "option",
+                "texte": "Annulée"
+            },
+            {
+                "type": "p",
+                "texte": "Les deux bornes sont incluses : une vente du dernier jour de la plage figure au tableau."
+            },
+            {
+                "type": "h3",
+                "texte": "0 ligne(s) · Total validé : 0 FCFA"
+            },
+            {
+                "type": "span",
+                "texte": "Le stock affiché est celui d'aujourd'hui, jamais celui du jour de la vente : aucune table n'en garde la trace."
+            },
+            {
+                "type": "th",
+                "texte": "Date"
+            },
+            {
+                "type": "th",
+                "texte": "N° vente"
+            },
+            {
+                "type": "th",
+                "texte": "Article"
+            },
+            {
+                "type": "th",
+                "texte": "Stock actuel"
+            },
+            {
+                "type": "th",
+                "texte": "Prix unitaire"
+            },
+            {
+                "type": "th",
+                "texte": "Quantité"
+            },
+            {
+                "type": "th",
+                "texte": "Montant"
+            },
+            {
+                "type": "th",
+                "texte": "Statut"
+            },
+            {
+                "type": "th",
+                "texte": "Utilisateur"
+            },
+            {
+                "type": "td",
+                "texte": "Aucune ligne de vente ne correspond à ces critères."
+            },
+            {
+                "type": "td",
+                "texte": "TOTAL DE LA PAGE"
+            },
+            {
+                "type": "span",
+                "texte": "Somme des lignes validées affichées ci-dessus. Une vente annulée reste au registre (RG-02) mais son montant n'est pas de l'argent."
+            },
+            {
+                "type": "td",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "p",
+                "texte": "Affichage de - sur"
+            }
+        ]
+    }
+}

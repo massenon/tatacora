@@ -1,0 +1,181 @@
+{
+    "_lisez-moi": "PRODUIT par ExtraireStructureBladeTest, jamais ecrit a la main. Chaque variante (onglet) : les textes VISIBLES de <main>, dans l'ordre du document.",
+    "vue": "pos/comptant",
+    "jeu": "parc",
+    "onglets": {
+        "principal": [
+            {
+                "type": "span",
+                "texte": "Aucune vente n'est possible tant que la caisse n'est pas ouverte."
+            },
+            {
+                "type": "button",
+                "texte": "Ouvrir la caisse"
+            },
+            {
+                "type": "h2",
+                "texte": "Salle"
+            },
+            {
+                "type": "p",
+                "texte": "Une table par panier. Le comptoir n’en exige aucune."
+            },
+            {
+                "type": "span",
+                "texte": "Vendre au comptoir"
+            },
+            {
+                "type": "span",
+                "texte": "Sans table"
+            },
+            {
+                "type": "p",
+                "texte": "Restaurant"
+            },
+            {
+                "type": "p",
+                "texte": "Aucune table dans cet espace."
+            },
+            {
+                "type": "p",
+                "texte": "Jardin"
+            },
+            {
+                "type": "p",
+                "texte": "Aucune table dans cet espace."
+            },
+            {
+                "type": "p",
+                "texte": "Plage"
+            },
+            {
+                "type": "p",
+                "texte": "Aucune table dans cet espace."
+            },
+            {
+                "type": "champ",
+                "texte": "Rechercher un article…"
+            },
+            {
+                "type": "option",
+                "texte": "Tout"
+            },
+            {
+                "type": "option",
+                "texte": "Bar"
+            },
+            {
+                "type": "option",
+                "texte": "Restaurant"
+            },
+            {
+                "type": "button",
+                "texte": "Tout"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun article ne correspond à cette recherche."
+            },
+            {
+                "type": "p",
+                "texte": "Point orange : article vendable qui ne décrémente aucun stock, faute de fiche technique (EF-M4-02)."
+            },
+            {
+                "type": "p",
+                "texte": "Marque P : la fiche technique du plat est provisoire, le stock décrémenté est approximatif. Elle se lève depuis Restaurant & Cuisine, onglet « Fiches techniques »."
+            },
+            {
+                "type": "p",
+                "texte": "Aucun prix n’est signalé comme provisoire : le schéma ne porte pas cette information (31/08/2026)."
+            },
+            {
+                "type": "h2",
+                "texte": "Panier"
+            },
+            {
+                "type": "p",
+                "texte": "0 article(s)"
+            },
+            {
+                "type": "button",
+                "texte": "Vider"
+            },
+            {
+                "type": "button",
+                "texte": "Abandonner"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun panier ouvert"
+            },
+            {
+                "type": "p",
+                "texte": "Choisissez une table ou le comptoir dans la salle."
+            },
+            {
+                "type": "p",
+                "texte": "Enregistré sur ce poste : le panier reste ouvert après un changement d’équipe ou de navigateur. Il ne part vers aucun autre poste."
+            },
+            {
+                "type": "p",
+                "texte": "Panier vide"
+            },
+            {
+                "type": "p",
+                "texte": "Touchez un article pour l'ajouter."
+            },
+            {
+                "type": "span",
+                "texte": "Total"
+            },
+            {
+                "type": "span",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "label",
+                "texte": "Remise"
+            },
+            {
+                "type": "option",
+                "texte": "Aucune"
+            },
+            {
+                "type": "option",
+                "texte": "FCFA"
+            },
+            {
+                "type": "label",
+                "texte": "Mode de règlement"
+            },
+            {
+                "type": "option",
+                "texte": "Espèces"
+            },
+            {
+                "type": "option",
+                "texte": "Mobile Money"
+            },
+            {
+                "type": "option",
+                "texte": "Carte bancaire"
+            },
+            {
+                "type": "option",
+                "texte": "Virement"
+            },
+            {
+                "type": "label",
+                "texte": "Client (facultatif)"
+            },
+            {
+                "type": "champ",
+                "texte": "Nom à imprimer sur le ticket — aucun compte client n'est créé."
+            },
+            {
+                "type": "button",
+                "texte": "Ouvrez la caisse pour encaisser"
+            }
+        ]
+    }
+}

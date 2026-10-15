@@ -1,0 +1,995 @@
+{
+    "_lisez-moi": "PRODUIT par ExtraireStructureBladeTest, jamais ecrit a la main. Chaque variante (onglet) : les textes VISIBLES de <main>, dans l'ordre du document.",
+    "vue": "transverse/parametres",
+    "jeu": "parc",
+    "onglets": {
+        "identite": [
+            {
+                "type": "h1",
+                "texte": "Paramètres"
+            },
+            {
+                "type": "p",
+                "texte": "Identité de l'entreprise, informations légales, canaux de communication et paramétrage technique du système."
+            },
+            {
+                "type": "onglet",
+                "texte": "Identité & Légal",
+                "cle": "identite"
+            },
+            {
+                "type": "onglet",
+                "texte": "Communication",
+                "cle": "communication"
+            },
+            {
+                "type": "onglet",
+                "texte": "Email (SMTP)",
+                "cle": "email"
+            },
+            {
+                "type": "onglet",
+                "texte": "Logo & Apparence",
+                "cle": "apparence"
+            },
+            {
+                "type": "onglet",
+                "texte": "Canaux de réservation",
+                "cle": "canaux"
+            },
+            {
+                "type": "onglet",
+                "texte": "Espaces & tables",
+                "cle": "tables"
+            },
+            {
+                "type": "onglet",
+                "texte": "Activation & Sécurité",
+                "cle": "activation"
+            },
+            {
+                "type": "h2",
+                "texte": "État réel de la configuration"
+            },
+            {
+                "type": "p",
+                "texte": "TVA"
+            },
+            {
+                "type": "p",
+                "texte": "TVA inactive — aucune taxe n’est ajoutée aux factures."
+            },
+            {
+                "type": "p",
+                "texte": "MECeF"
+            },
+            {
+                "type": "p",
+                "texte": "MECeF non configurée — les factures mentionnent que la certification électronique est en attente d'inscription auprès de la DGI."
+            },
+            {
+                "type": "h3",
+                "texte": "Identité de l'entreprise"
+            },
+            {
+                "type": "p",
+                "texte": "Raison sociale"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "p",
+                "texte": "Nom du promoteur"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "p",
+                "texte": "Imprimé sous la raison sociale dans l’en-tête des états quand il est renseigné — jamais un nom deviné."
+            },
+            {
+                "type": "p",
+                "texte": "Adresse du siège d'exploitation"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "p",
+                "texte": "Téléphone principal"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "p",
+                "texte": "Email de contact"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "h3",
+                "texte": "Informations légales & fiscales"
+            },
+            {
+                "type": "p",
+                "texte": "IFU (Identifiant Fiscal Unique)"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "p",
+                "texte": "L’IFU est obligatoire pour la facturation MECeF. Laissé vide, la mention n’apparaît sur aucun document : imprimer un exemple de format serait un faux identifiant fiscal."
+            },
+            {
+                "type": "p",
+                "texte": "RCCM"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "p",
+                "texte": "Même règle que l’IFU : absent tant qu’il n’est pas renseigné."
+            },
+            {
+                "type": "p",
+                "texte": "N° Contribuable MECeF"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "p",
+                "texte": "Fourni par la DGI. Identifiant, donc paramétrable — la CLÉ D’API MECeF, elle, vit en configuration serveur et n’apparaîtra jamais ici."
+            },
+            {
+                "type": "p",
+                "texte": "Assujettissement à la TVA"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "p",
+                "texte": "Ne peut pas être activé tant que le taux n’est pas renseigné : la facture lèverait au comptoir."
+            },
+            {
+                "type": "p",
+                "texte": "Taux de TVA (%)"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "p",
+                "texte": "Convention des prix du catalogue"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "p",
+                "texte": "« ht » : la TVA s’ajoute aux tarifs. « ttc » : elle en est extraite."
+            },
+            {
+                "type": "p",
+                "texte": "Régime fiscal"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "p",
+                "texte": "Imprimé avec l’IFU et le RCCM dans les mentions légales des états quand il est renseigné."
+            }
+        ],
+        "communication": [
+            {
+                "type": "h1",
+                "texte": "Paramètres"
+            },
+            {
+                "type": "p",
+                "texte": "Identité de l'entreprise, informations légales, canaux de communication et paramétrage technique du système."
+            },
+            {
+                "type": "onglet",
+                "texte": "Identité & Légal",
+                "cle": "identite"
+            },
+            {
+                "type": "onglet",
+                "texte": "Communication",
+                "cle": "communication"
+            },
+            {
+                "type": "onglet",
+                "texte": "Email (SMTP)",
+                "cle": "email"
+            },
+            {
+                "type": "onglet",
+                "texte": "Logo & Apparence",
+                "cle": "apparence"
+            },
+            {
+                "type": "onglet",
+                "texte": "Canaux de réservation",
+                "cle": "canaux"
+            },
+            {
+                "type": "onglet",
+                "texte": "Espaces & tables",
+                "cle": "tables"
+            },
+            {
+                "type": "onglet",
+                "texte": "Activation & Sécurité",
+                "cle": "activation"
+            },
+            {
+                "type": "h2",
+                "texte": "État réel de la configuration"
+            },
+            {
+                "type": "p",
+                "texte": "TVA"
+            },
+            {
+                "type": "p",
+                "texte": "TVA inactive — aucune taxe n’est ajoutée aux factures."
+            },
+            {
+                "type": "p",
+                "texte": "MECeF"
+            },
+            {
+                "type": "p",
+                "texte": "MECeF non configurée — les factures mentionnent que la certification électronique est en attente d'inscription auprès de la DGI."
+            },
+            {
+                "type": "h3",
+                "texte": "Canaux de notification (Module M12)"
+            },
+            {
+                "type": "p",
+                "texte": "Numéro WhatsApp Business"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "p",
+                "texte": "Le numéro, pas la clé d’API — celle-ci vit en configuration serveur. Imprimé dans l’en-tête des états quand il est renseigné."
+            },
+            {
+                "type": "p",
+                "texte": "Clé API WhatsApp Business"
+            },
+            {
+                "type": "p",
+                "texte": "Secret technique : n'entrera jamais dans les paramètres système, lisibles par tout profil ayant accès à cet écran — il vit en configuration serveur."
+            },
+            {
+                "type": "p",
+                "texte": "Site web"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "p",
+                "texte": "Message de bienvenue (notifications automatiques)"
+            },
+            {
+                "type": "p",
+                "texte": "Porté par les modèles du module Notifications (un texte par évènement et par canal) : une seconde source de texte ici finirait par diverger de la première."
+            }
+        ],
+        "email": [
+            {
+                "type": "h1",
+                "texte": "Paramètres"
+            },
+            {
+                "type": "p",
+                "texte": "Identité de l'entreprise, informations légales, canaux de communication et paramétrage technique du système."
+            },
+            {
+                "type": "onglet",
+                "texte": "Identité & Légal",
+                "cle": "identite"
+            },
+            {
+                "type": "onglet",
+                "texte": "Communication",
+                "cle": "communication"
+            },
+            {
+                "type": "onglet",
+                "texte": "Email (SMTP)",
+                "cle": "email"
+            },
+            {
+                "type": "onglet",
+                "texte": "Logo & Apparence",
+                "cle": "apparence"
+            },
+            {
+                "type": "onglet",
+                "texte": "Canaux de réservation",
+                "cle": "canaux"
+            },
+            {
+                "type": "onglet",
+                "texte": "Espaces & tables",
+                "cle": "tables"
+            },
+            {
+                "type": "onglet",
+                "texte": "Activation & Sécurité",
+                "cle": "activation"
+            },
+            {
+                "type": "h2",
+                "texte": "État réel de la configuration"
+            },
+            {
+                "type": "p",
+                "texte": "TVA"
+            },
+            {
+                "type": "p",
+                "texte": "TVA inactive — aucune taxe n’est ajoutée aux factures."
+            },
+            {
+                "type": "p",
+                "texte": "MECeF"
+            },
+            {
+                "type": "p",
+                "texte": "MECeF non configurée — les factures mentionnent que la certification électronique est en attente d'inscription auprès de la DGI."
+            },
+            {
+                "type": "h3",
+                "texte": "Configuration Email (SMTP)"
+            },
+            {
+                "type": "p",
+                "texte": "Serveur SMTP"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "p",
+                "texte": "Vide : la configuration serveur (.env) reste seule maîtresse. Renseigné, il prend la main sur elle pour tous les envois."
+            },
+            {
+                "type": "p",
+                "texte": "Port"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "p",
+                "texte": "Sécurité"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "p",
+                "texte": "Utilisateur SMTP"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "p",
+                "texte": "Le mot de passe SMTP, lui, reste en configuration serveur (.env) et n’apparaîtra jamais ici."
+            },
+            {
+                "type": "p",
+                "texte": "Mot de passe SMTP"
+            },
+            {
+                "type": "p",
+                "texte": "Secret technique : n'entrera jamais dans les paramètres système — il vit en configuration serveur (.env), et l'envoi de test ci-dessous l'emprunte réellement."
+            },
+            {
+                "type": "button",
+                "texte": "Envoyer un email de test"
+            }
+        ],
+        "apparence": [
+            {
+                "type": "h1",
+                "texte": "Paramètres"
+            },
+            {
+                "type": "p",
+                "texte": "Identité de l'entreprise, informations légales, canaux de communication et paramétrage technique du système."
+            },
+            {
+                "type": "onglet",
+                "texte": "Identité & Légal",
+                "cle": "identite"
+            },
+            {
+                "type": "onglet",
+                "texte": "Communication",
+                "cle": "communication"
+            },
+            {
+                "type": "onglet",
+                "texte": "Email (SMTP)",
+                "cle": "email"
+            },
+            {
+                "type": "onglet",
+                "texte": "Logo & Apparence",
+                "cle": "apparence"
+            },
+            {
+                "type": "onglet",
+                "texte": "Canaux de réservation",
+                "cle": "canaux"
+            },
+            {
+                "type": "onglet",
+                "texte": "Espaces & tables",
+                "cle": "tables"
+            },
+            {
+                "type": "onglet",
+                "texte": "Activation & Sécurité",
+                "cle": "activation"
+            },
+            {
+                "type": "h2",
+                "texte": "État réel de la configuration"
+            },
+            {
+                "type": "p",
+                "texte": "TVA"
+            },
+            {
+                "type": "p",
+                "texte": "TVA inactive — aucune taxe n’est ajoutée aux factures."
+            },
+            {
+                "type": "p",
+                "texte": "MECeF"
+            },
+            {
+                "type": "p",
+                "texte": "MECeF non configurée — les factures mentionnent que la certification électronique est en attente d'inscription auprès de la DGI."
+            },
+            {
+                "type": "p",
+                "texte": "Logo de l'entreprise"
+            },
+            {
+                "type": "button",
+                "texte": "Changer le logo"
+            },
+            {
+                "type": "p",
+                "texte": "Format carré recommandé, fond transparent de préférence."
+            },
+            {
+                "type": "p",
+                "texte": "Favicon (icône d'onglet navigateur)"
+            },
+            {
+                "type": "button",
+                "texte": "Changer le favicon"
+            },
+            {
+                "type": "p",
+                "texte": "Couleurs de la charte graphique (lecture seule — chap. 9.3.1 du CdCF)"
+            },
+            {
+                "type": "span",
+                "texte": "Navy"
+            },
+            {
+                "type": "span",
+                "texte": "Gold"
+            },
+            {
+                "type": "span",
+                "texte": "Succès"
+            },
+            {
+                "type": "span",
+                "texte": "Alerte"
+            },
+            {
+                "type": "span",
+                "texte": "Erreur"
+            }
+        ],
+        "canaux": [
+            {
+                "type": "h1",
+                "texte": "Paramètres"
+            },
+            {
+                "type": "p",
+                "texte": "Identité de l'entreprise, informations légales, canaux de communication et paramétrage technique du système."
+            },
+            {
+                "type": "onglet",
+                "texte": "Identité & Légal",
+                "cle": "identite"
+            },
+            {
+                "type": "onglet",
+                "texte": "Communication",
+                "cle": "communication"
+            },
+            {
+                "type": "onglet",
+                "texte": "Email (SMTP)",
+                "cle": "email"
+            },
+            {
+                "type": "onglet",
+                "texte": "Logo & Apparence",
+                "cle": "apparence"
+            },
+            {
+                "type": "onglet",
+                "texte": "Canaux de réservation",
+                "cle": "canaux"
+            },
+            {
+                "type": "onglet",
+                "texte": "Espaces & tables",
+                "cle": "tables"
+            },
+            {
+                "type": "onglet",
+                "texte": "Activation & Sécurité",
+                "cle": "activation"
+            },
+            {
+                "type": "h2",
+                "texte": "État réel de la configuration"
+            },
+            {
+                "type": "p",
+                "texte": "TVA"
+            },
+            {
+                "type": "p",
+                "texte": "TVA inactive — aucune taxe n’est ajoutée aux factures."
+            },
+            {
+                "type": "p",
+                "texte": "MECeF"
+            },
+            {
+                "type": "p",
+                "texte": "MECeF non configurée — les factures mentionnent que la certification électronique est en attente d'inscription auprès de la DGI."
+            },
+            {
+                "type": "p",
+                "texte": "Les canaux proposés à la saisie d’une réservation, ici et dans la réservation rapide du tableau de bord. — l’effacer laisserait des réservations pointant vers un canal inexistant, et l’analyse par canal perdrait son historique."
+            },
+            {
+                "type": "button",
+                "texte": "Ajouter un canal"
+            },
+            {
+                "type": "th",
+                "texte": "Canal"
+            },
+            {
+                "type": "th",
+                "texte": "Réservations"
+            },
+            {
+                "type": "th",
+                "texte": "État"
+            },
+            {
+                "type": "th",
+                "texte": "Actions"
+            },
+            {
+                "type": "td",
+                "texte": "Aucun canal enregistré."
+            }
+        ],
+        "tables": [
+            {
+                "type": "h1",
+                "texte": "Paramètres"
+            },
+            {
+                "type": "p",
+                "texte": "Identité de l'entreprise, informations légales, canaux de communication et paramétrage technique du système."
+            },
+            {
+                "type": "onglet",
+                "texte": "Identité & Légal",
+                "cle": "identite"
+            },
+            {
+                "type": "onglet",
+                "texte": "Communication",
+                "cle": "communication"
+            },
+            {
+                "type": "onglet",
+                "texte": "Email (SMTP)",
+                "cle": "email"
+            },
+            {
+                "type": "onglet",
+                "texte": "Logo & Apparence",
+                "cle": "apparence"
+            },
+            {
+                "type": "onglet",
+                "texte": "Canaux de réservation",
+                "cle": "canaux"
+            },
+            {
+                "type": "onglet",
+                "texte": "Espaces & tables",
+                "cle": "tables"
+            },
+            {
+                "type": "onglet",
+                "texte": "Activation & Sécurité",
+                "cle": "activation"
+            },
+            {
+                "type": "h2",
+                "texte": "État réel de la configuration"
+            },
+            {
+                "type": "p",
+                "texte": "TVA"
+            },
+            {
+                "type": "p",
+                "texte": "TVA inactive — aucune taxe n’est ajoutée aux factures."
+            },
+            {
+                "type": "p",
+                "texte": "MECeF"
+            },
+            {
+                "type": "p",
+                "texte": "MECeF non configurée — les factures mentionnent que la certification électronique est en attente d'inscription auprès de la DGI."
+            },
+            {
+                "type": "p",
+                "texte": "Les tables proposées au point de vente. : créez, renumérotez, activez ou désactivez sans intervention technique. Le n'a pas de table — une vente au comptoir n'en exige aucune. : les consommations servies n'auraient plus de table pour les porter jusqu'à l'addition."
+            },
+            {
+                "type": "button",
+                "texte": "Ajouter une table"
+            },
+            {
+                "type": "button",
+                "texte": "Rétablir le jeu initial"
+            },
+            {
+                "type": "p",
+                "texte": "Restaurant"
+            },
+            {
+                "type": "span",
+                "texte": "préfixe R"
+            },
+            {
+                "type": "p",
+                "texte": "Aucune table dans cet espace."
+            },
+            {
+                "type": "p",
+                "texte": "Jardin"
+            },
+            {
+                "type": "span",
+                "texte": "préfixe J"
+            },
+            {
+                "type": "p",
+                "texte": "Aucune table dans cet espace."
+            },
+            {
+                "type": "p",
+                "texte": "Plage"
+            },
+            {
+                "type": "span",
+                "texte": "préfixe P"
+            },
+            {
+                "type": "p",
+                "texte": "Aucune table dans cet espace."
+            },
+            {
+                "type": "p",
+                "texte": "Comptoir"
+            },
+            {
+                "type": "p",
+                "texte": "Aucune table — une vente au comptoir ne se rattache à aucune table."
+            }
+        ],
+        "activation": [
+            {
+                "type": "h1",
+                "texte": "Paramètres"
+            },
+            {
+                "type": "p",
+                "texte": "Identité de l'entreprise, informations légales, canaux de communication et paramétrage technique du système."
+            },
+            {
+                "type": "onglet",
+                "texte": "Identité & Légal",
+                "cle": "identite"
+            },
+            {
+                "type": "onglet",
+                "texte": "Communication",
+                "cle": "communication"
+            },
+            {
+                "type": "onglet",
+                "texte": "Email (SMTP)",
+                "cle": "email"
+            },
+            {
+                "type": "onglet",
+                "texte": "Logo & Apparence",
+                "cle": "apparence"
+            },
+            {
+                "type": "onglet",
+                "texte": "Canaux de réservation",
+                "cle": "canaux"
+            },
+            {
+                "type": "onglet",
+                "texte": "Espaces & tables",
+                "cle": "tables"
+            },
+            {
+                "type": "onglet",
+                "texte": "Activation & Sécurité",
+                "cle": "activation"
+            },
+            {
+                "type": "h2",
+                "texte": "État réel de la configuration"
+            },
+            {
+                "type": "p",
+                "texte": "TVA"
+            },
+            {
+                "type": "p",
+                "texte": "TVA inactive — aucune taxe n’est ajoutée aux factures."
+            },
+            {
+                "type": "p",
+                "texte": "MECeF"
+            },
+            {
+                "type": "p",
+                "texte": "MECeF non configurée — les factures mentionnent que la certification électronique est en attente d'inscription auprès de la DGI."
+            },
+            {
+                "type": "h3",
+                "texte": "Actions sensibles"
+            },
+            {
+                "type": "p",
+                "texte": "Ces bascules commandent ce que l'application propose , dans . Elles ne remplacent pas les droits RBAC, qui disent ce que chaque profil a le droit de faire : les deux s'appliquent, et la plus restrictive gagne."
+            },
+            {
+                "type": "p",
+                "texte": "Une action désactivée est de l'écran, pas grisée : un bouton grisé invite à cliquer et ne produit qu'un refus. Chaque changement est tracé au journal d'audit."
+            },
+            {
+                "type": "p",
+                "texte": "Suppression d'un enregistrement"
+            },
+            {
+                "type": "span",
+                "texte": "Risque modéré"
+            },
+            {
+                "type": "p",
+                "texte": "Affiche le bouton Supprimer dans tous les modules. La suppression reste un archivage : l'élément part aux archives et peut être restauré."
+            },
+            {
+                "type": "p",
+                "texte": "Réinitialisation des données de test"
+            },
+            {
+                "type": "span",
+                "texte": "Risque élevé"
+            },
+            {
+                "type": "p",
+                "texte": "Ouvre l'onglet qui vide les jeux de démonstration. À laisser fermé dès que l'exploitation réelle a commencé."
+            },
+            {
+                "type": "p",
+                "texte": "Alertes à l'ouverture de session"
+            },
+            {
+                "type": "span",
+                "texte": "Risque faible"
+            },
+            {
+                "type": "p",
+                "texte": "Affiche les stocks critiques et les créances échues dès la connexion."
+            },
+            {
+                "type": "h3",
+                "texte": "Charges sociales"
+            },
+            {
+                "type": "p",
+                "texte": "Servi par le registre serveur — le maître ne pose pas de champ dédié pour ce groupe sous cet onglet, et le masquer ailleurs rendrait ses réglages invisibles."
+            },
+            {
+                "type": "p",
+                "texte": "CNSS part salariale (%)"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "p",
+                "texte": "CNSS pension, part patronale (%)"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "p",
+                "texte": "CNSS prestations familiales (%)"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "p",
+                "texte": "Versement Patronal sur Salaires (%)"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "p",
+                "texte": "Assiette : total des bruts, sans plafond. Jamais une retenue salariale."
+            },
+            {
+                "type": "p",
+                "texte": "CNSS risques professionnels (%)"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "p",
+                "texte": "Non confirmé pour l’hôtellerie : la charge patronale reste publiée en fourchette tant qu’il est vide. Bornes réglementaires 1 à 4 %."
+            },
+            {
+                "type": "h3",
+                "texte": "Exploitation"
+            },
+            {
+                "type": "p",
+                "texte": "Servi par le registre serveur — le maître ne pose pas de champ dédié pour ce groupe sous cet onglet, et le masquer ailleurs rendrait ses réglages invisibles."
+            },
+            {
+                "type": "p",
+                "texte": "Tolérance de réception (%)"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "p",
+                "texte": "RG-10 — écart de quantité toléré entre le bon de commande et la réception, en % : au-delà, la réception est refusée. Tant que ce champ est vide, aucune réception n’est possible — une tolérance devinée ferait accepter ou refuser des livraisons sur un critère arbitraire."
+            },
+            {
+                "type": "p",
+                "texte": "Taux d’annulation — moins de 24h avant la prestation (%)"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "p",
+                "texte": "Pré-remplit le formulaire d’annulation d’une réservation à moins de 24h de la prestation (référence client : 50 %). Reste modifiable au cas par cas dans le formulaire — ce paramètre ne change jamais une annulation déjà enregistrée."
+            },
+            {
+                "type": "p",
+                "texte": "Préavis de congé (jours)"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "p",
+                "texte": "Effectif minimal présent par service"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "p",
+                "texte": "Rétention du journal d’audit (jours)"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "p",
+                "texte": "Vide ou 0 : aucune purge n’a lieu. La durée contractuelle n’est pas tranchée (PA-08) — la renseigner DÉMARRE la suppression définitive de traces d’audit."
+            },
+            {
+                "type": "h3",
+                "texte": "Rappel sur la suppression"
+            },
+            {
+                "type": "p",
+                "texte": "Même activée, la suppression : l'enregistrement complet part aux archives et reste restaurable depuis . Un élément engagé dans une réservation ou une vente encaissée est refusé à l'archivage — la ligne correspondante deviendrait illisible."
+            },
+            {
+                "type": "onglet",
+                "texte": "Import & Export › Restaurer",
+                "cle": "restaurer"
+            }
+        ]
+    }
+}
