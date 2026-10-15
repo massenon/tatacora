@@ -33,6 +33,20 @@ abstract final class Visas {
     'Signature Direction / Validation',
   ];
 
+  /// `pdf/depenses-rapport.blade.php` — l'état des dépenses (Lot J1, porté en
+  /// A4 le 14/10/2026 par `etat_depenses.dart`).
+  static const depenses = [
+    'Visa Caissier / Ordonnateur',
+    'Visa Direction / Comptable',
+  ];
+
+  /// `pdf/stocks-etat.blade.php` — l'état des articles en stock (Lot J1, porté
+  /// en A4 le 14/10/2026 par `etat_stocks.dart`).
+  static const etatStocks = [
+    'Signature Magasinier / Gestionnaire',
+    'Signature Direction / Validation',
+  ];
+
   /// `pdf/ventes-rapport.blade.php` — `pos_pwa.document.visa_*`.
   static const journalVentes = [
     'Visa Caissier / Barman',

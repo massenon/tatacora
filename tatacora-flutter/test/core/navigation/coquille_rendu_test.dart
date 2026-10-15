@@ -17,6 +17,7 @@ import 'package:tatacora_flutter/features/caisse/domain/indicateur_caisse.dart';
 import 'package:tatacora_flutter/features/caisse/domain/repositories/sessions_caisse_repository.dart';
 import 'package:tatacora_flutter/features/caisse/presentation/providers_caisse.dart';
 
+import '../../support/ajouts_menu_poste.dart';
 import '../../support/coquille_montee.dart';
 import '../../support/vue_blade.dart';
 
@@ -231,8 +232,11 @@ void main() {
         visitees++;
       }
       // 21 → 24 le 14/10/2026 (D424) : Comptabilité, Import & Export et
-      // Rôles & Permissions ont leur écran.
-      expect(visitees, 24);
+      // Rôles & Permissions ont leur écran. Plus chaque AJOUT du poste déclaré
+      // (`ajouts_menu_poste.dart`) : « Comptes utilisateurs » (PO, 14/10/2026),
+      // atteint ici parce que la session est `administrateur` — l'entrée est
+      // réservée aux rôles d'administration (`rolesExiges`).
+      expect(visitees, 24 + ajoutsMenuPoste.length);
     });
 
     testWidgets('plus AUCUNE entrée sans écran (D424) : les trois anciennes ne '

@@ -308,7 +308,10 @@ class _EcranComptabiliteState extends ConsumerState<EcranComptabilite> {
       comptes: donnees.comptes,
       centres: {for (final c in donnees.centres) c.id: c},
     );
-    // La fenêtre « Enregistrer sous », puis le toast commun.
+    // La fenêtre d'enregistrement du système (choix du dossier), puis le
+    // toast commun. Le nom du bouton du système n'est pas écrit ici : par
+    // sous-chaîne, il « portait » le bouton de la modale d'immobilisation,
+    // que cet écran ne rend pas (gain de mesure refusé le 15/10/2026).
     await executerExport(
       context,
       () => switch (format) {

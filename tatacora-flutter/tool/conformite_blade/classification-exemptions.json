@@ -1,5 +1,5 @@
 {
-  "_lisez-moi": "ECRIT A LA MAIN, relu par t-blade-flutter.js (Phase 0, 08/10/2026). (a) ASSUMEE = un bloc de la vue refuse et declare dans le code Flutter, avec un motif date de 30 caracteres au moins ; la garde echoue sur un refus sans entree et sur une entree dont le refus a disparu. (b) NON PORTEE = tout le reste de la dette et les vues sans ecran : calculees, jamais listees ici. (c) OUBLI = un ecran Flutter sans vue Blade, jamais decide ; liste ci-dessous, a trancher par le Product Owner (declarer l'ecart ou retirer l'ecran). Un motif se DATE et se re-verifie avant de s'y fier (PA-144).",
+  "_lisez-moi": "ECRIT A LA MAIN, relu par t-blade-flutter.js (Phase 0, 08/10/2026). (a) ASSUMEE = un bloc de la vue refuse et declare dans le code Flutter, avec un motif date de 30 caracteres au moins ; la garde echoue sur un refus sans entree et sur une entree dont le refus a disparu. (b) NON PORTEE = tout le reste de la dette et les vues sans ecran : calculees, jamais listees ici. (c) OUBLI = un ecran Flutter sans vue Blade, jamais decide ; liste ci-dessous, a trancher par le Product Owner (declarer l'ecart ou retirer l'ecran). Un motif se DATE et se re-verifie avant de s'y fier (PA-144). (d) AJOUT DU PO (15/10/2026) = un ecran Flutter sans vue Blade que le Product Owner a DECIDE ; liste dans `ajouts`, avec un motif date de 30 caracteres au moins. Un ecran sans vue absent de `oublis` ET de `ajouts` fait echouer la garde.",
   "assumees": {
     "bar/carte|modale:modal-delier": {
       "classe": "a",
@@ -51,6 +51,13 @@
     "features/bar/presentation/ecran_catalogue_boissons.dart": {
       "classe": "c",
       "motif": "Ecran sans vue Blade : a rattacher a une vue, declarer comme ecart ou retirer."
+    }
+  },
+  "ajouts": {
+    "features/transverse/presentation/ecran_comptes_utilisateurs.dart": {
+      "classe": "d",
+      "motif": "Comptes utilisateurs (Lot J2) : decision du Product Owner du 14/10/2026. La PWA n'a AUCUN ecran de gestion des comptes (ni composant app/Pwa, ni vue, ni route pwa.*) ; sur ce poste sans serveur, c'est le seul endroit ou un administrateur cree, desactive ou reinitialise un compte. Reserve aux roles d'administration (rolesExiges), entree de menu declaree comme ajout dans test/support/ajouts_menu_poste.dart.",
+      "date": "2026-10-14"
     }
   }
 }

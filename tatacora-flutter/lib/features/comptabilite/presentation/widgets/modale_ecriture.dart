@@ -366,7 +366,7 @@ class _ModaleEcritureState extends ConsumerState<ModaleEcriture> {
                         child: Text(
                           _erreur!,
                           style: styleTransverse(
-                            TaillesContenu.t13,
+                            Tailles.t13,
                             poids: FontWeight.w600,
                             couleur: AppColors.erreur,
                           ),
@@ -381,7 +381,7 @@ class _ModaleEcritureState extends ConsumerState<ModaleEcriture> {
                       child: Text(
                         TextesModaleEcriture.introDetail,
                         style: styleTransverse(
-                          TaillesContenu.t12,
+                          Tailles.t12,
                           couleur: Ardoise.c700,
                         ),
                       ),
@@ -422,7 +422,7 @@ class _ModaleEcritureState extends ConsumerState<ModaleEcriture> {
                           ],
                         ),
                         style: styleTransverse(
-                          TaillesContenu.t12,
+                          Tailles.t12,
                           couleur: PaletteMaitre.ambre900,
                         ),
                       ),
@@ -479,7 +479,7 @@ class _ModaleEcritureState extends ConsumerState<ModaleEcriture> {
 
   /// `grid md:grid-cols-4 gap-3` : journal, date, libellé (deux colonnes).
   Widget _enTete() {
-    final valeur = styleTransverse(TaillesContenu.t13);
+    final valeur = styleTransverse(Tailles.t13);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -556,12 +556,12 @@ class _ModaleEcritureState extends ConsumerState<ModaleEcriture> {
   /// les totaux et l'écart.
   Widget _grille(List<CompteDuPlan> comptes, int ecart) {
     final entete = styleTransverse(
-      TaillesContenu.t11,
+      Tailles.t11,
       poids: FontWeight.w600,
       couleur: Ardoise.c500,
     );
     final total = styleTransverse(
-      TaillesContenu.t13,
+      Tailles.t13,
       poids: FontWeight.bold,
       couleur: AppColors.navy,
     );
@@ -647,7 +647,7 @@ class _ModaleEcritureState extends ConsumerState<ModaleEcriture> {
                       key: Key('modale-ecriture-libelle-${l.numero}'),
                       controller: l.libelle,
                       enabled: !_envoi,
-                      style: styleTransverse(TaillesContenu.t13),
+                      style: styleTransverse(Tailles.t13),
                       decoration: _decoration(),
                     ),
                   ),
@@ -750,7 +750,7 @@ class _ModaleEcritureState extends ConsumerState<ModaleEcriture> {
         equilibree
             ? TextesModaleEcriture.pieceEquilibree
             : '${TextesModaleEcriture.colEcart} : ${_montant(ecart.abs())}',
-        style: styleTransverse(TaillesContenu.t12, couleur: texte),
+        style: styleTransverse(Tailles.t12, couleur: texte),
       ),
     );
   }
@@ -781,7 +781,7 @@ class _ModaleEcritureState extends ConsumerState<ModaleEcriture> {
           controller: controleur,
           focusNode: focus,
           enabled: !_envoi,
-          style: styleTransverse(TaillesContenu.t13),
+          style: styleTransverse(Tailles.t13),
           decoration: _decoration(invite: TextesModaleEcriture.choisir),
           onChanged: (texte) {
             // Retoucher le texte d'un compte choisi le désélectionne : le
@@ -809,7 +809,7 @@ class _ModaleEcritureState extends ConsumerState<ModaleEcriture> {
                       child: Text(
                         TextesModaleEcriture.aucunCompte,
                         style: styleTransverse(
-                          TaillesContenu.t13,
+                          Tailles.t13,
                           couleur: Ardoise.c500,
                         ),
                       ),
@@ -829,7 +829,7 @@ class _ModaleEcritureState extends ConsumerState<ModaleEcriture> {
                             ),
                             child: Text(
                               _affichageCompte(c),
-                              style: styleTransverse(TaillesContenu.t13),
+                              style: styleTransverse(Tailles.t13),
                             ),
                           ),
                         );
@@ -845,7 +845,7 @@ class _ModaleEcritureState extends ConsumerState<ModaleEcriture> {
   /// Le centre : « — » laisse le moteur prendre le centre par défaut du
   /// compte (et refuser s'il n'en porte pas).
   Widget _champCentre(_LigneSaisie l) {
-    final valeur = styleTransverse(TaillesContenu.t13);
+    final valeur = styleTransverse(Tailles.t13);
     return DropdownButtonFormField<String?>(
       key: Key('modale-ecriture-centre-${l.numero}'),
       initialValue: l.centreId,
@@ -883,7 +883,7 @@ class _ModaleEcritureState extends ConsumerState<ModaleEcriture> {
     textAlign: TextAlign.right,
     keyboardType: TextInputType.number,
     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-    style: styleTransverse(TaillesContenu.t13),
+    style: styleTransverse(Tailles.t13),
     decoration: _decoration(),
     onChanged: (_) => setState(() {}),
   );
@@ -896,7 +896,7 @@ class _ModaleEcritureState extends ConsumerState<ModaleEcriture> {
     return InputDecoration(
       isDense: true,
       hintText: invite,
-      hintStyle: styleTransverse(TaillesContenu.t13, couleur: Ardoise.c400),
+      hintStyle: styleTransverse(Tailles.t13, couleur: Ardoise.c400),
       suffixIcon: suffixe,
       suffixIconConstraints: const BoxConstraints(minWidth: AppSpacing.xl),
       contentPadding: const EdgeInsets.symmetric(
@@ -959,7 +959,7 @@ class _Champ extends StatelessWidget {
           ],
         ),
         style: styleTransverse(
-          TaillesContenu.t12,
+          Tailles.t12,
           poids: FontWeight.w600,
           couleur: Ardoise.c600,
         ),

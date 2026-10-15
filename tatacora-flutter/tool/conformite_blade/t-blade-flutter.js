@@ -936,7 +936,9 @@ const ecransOrphelins = FICHIERS_DART
    rapporte a part : il n'appartient a aucune page.
    Classes d'exemption : (a) assumee — refus argumente et date, enregistre
    dans classification-exemptions.json ; (b) non portee — la dette et les
-   vues sans ecran ; (c) oubli — un ecran Flutter sans vue, jamais decide. */
+   vues sans ecran ; (c) oubli — un ecran Flutter sans vue, jamais decide ;
+   (d) ajout du PO — un ecran Flutter sans vue, DECIDE par le Product Owner
+   (motif et date, `ajouts` du meme fichier). */
 
 const CHEMIN_CLASSES = path.join(__dirname, 'classification-exemptions.json');
 const CHEMIN_TABLE = path.join(__dirname, 'table-vue-ecran.json');
@@ -980,8 +982,28 @@ if (!FIGER) {
   for (const f of Object.keys(classes.oublis || {})) {
     if (!aOublier.has(f)) ecart('oubli perime : « ' + f + ' » n\'est plus un ecran sans vue.');
   }
+  // (d) AJOUT DU PO : un ecran sans vue que le Product Owner a DECIDE (date,
+  // motif). Meme exigence qu'un refus (a) : motif de 30 caracteres au moins,
+  // date ISO ; une entree dont l'ecran a disparu ou cite desormais une vue est
+  // perimee. Depuis le 15/10/2026, un ecran sans vue qui n'est ni un oubli
+  // liste (c) ni un ajout declare (d) fait ECHOUER la garde : il n'est plus
+  // seulement rapporte.
+  for (const [f, c] of Object.entries(classes.ajouts || {})) {
+    if (!aOublier.has(f)) ecart('ajout perime : « ' + f + ' » n\'est plus un ecran sans vue.');
+    if (!c || c.classe !== 'd' || !c.motif || c.motif.length < 30 || !/^\d{4}-\d{2}-\d{2}$/.test(c.date || '')) {
+      ecart(f + ' : ajout du PO SANS classification (d) motivee et datee dans '
+        + path.basename(CHEMIN_CLASSES));
+    }
+  }
+  for (const f of ecransOrphelins) {
+    if (!(f in (classes.oublis || {})) && !(f in (classes.ajouts || {}))) {
+      ecart('ecran sans vue NON declare : « ' + f + ' ». Ajout du PO -> `ajouts` (d), '
+        + 'sinon `oublis` (c), dans ' + path.basename(CHEMIN_CLASSES) + '.');
+    }
+  }
 }
-const classeOubli = ecransOrphelins.length;
+const ajoutsDeclares = ecransOrphelins.filter((f) => f in (classes.ajouts || {}));
+const classeOubli = ecransOrphelins.length - ajoutsDeclares.length;
 
 // La table vue -> ecran : explicite, versionnee, comparee a la mesure.
 const tableMesuree = {};
@@ -1117,7 +1139,10 @@ if (titresCalcules.length) {
 if (ecransOrphelins.length) {
   console.log('\n  ' + ecransOrphelins.length + ' ecran(s) Flutter SANS vue Blade (ajouts a declarer '
     + 'ou a retirer) :');
-  for (const e of ecransOrphelins) console.log('    - ' + e);
+  for (const e of ecransOrphelins) {
+    const a = (classes.ajouts || {})[e];
+    console.log('    - ' + e + (a ? '  [ajout du PO (d), ' + a.date + ']' : ''));
+  }
 }
 
 console.log('\n  ' + PAGES.length + ' vue(s) Blade servies, ' + totalOnglets + ' onglet(s), '
@@ -1133,7 +1158,7 @@ console.log('    ASSUME     ' + taux.assume.toFixed(2) + ' %   (presents + refus
 console.log('    NON PORTE  ' + taux.nonPorte.toFixed(2) + ' %   (classe b : dette + vues sans ecran)');
 console.log('    chassis    ' + tauxChassis.toFixed(2) + ' %   (barres, rapporte a part)');
 console.log('    exemptions : ' + refus.length + ' (a) assumee(s), ' + classeOubli
-  + ' (c) oubli(s) = ecrans sans vue, le reste (b)\n');
+  + ' (c) oubli(s) = ecrans sans vue, ' + ajoutsDeclares.length + ' (d) ajout(s) du PO, le reste (b)\n');
 
 if (echecs > 0) {
   console.log('\x1b[1;31m  BLADE -> FLUTTER : ECHEC\x1b[0m — ' + echecs + ' ecart(s)\n');

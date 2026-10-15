@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../../../core/format/formats.dart';
 import '../../../core/impression/etat_tabulaire_a4.dart';
+import '../../../core/impression/visas.dart';
 
 import '../domain/entities/etat_stock.dart';
 
@@ -173,9 +174,12 @@ final class EtatStocks {
     ];
   }
 
-  /// Le « PDF Officiel A4 Imprimable » des articles affichés (paysage).
+  /// Le « PDF Officiel A4 Imprimable » des articles affichés (paysage). Les
+  /// visas sont ceux du gabarit serveur du même état
+  /// (`pdf/stocks-etat.blade.php`), pas ceux de la directive.
   EtatTabulaireA4 etatA4() => EtatTabulaireA4(
     titre: titre,
+    visas: Visas.etatStocks,
     portee: 'Filtre appliqué : $portee',
     mentions: [
       for (final m in mentions) m.replaceFirst('Ce fichier', 'Ce document'),

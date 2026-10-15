@@ -1,6 +1,6 @@
 {
   "_lisez-moi": "PRODUIT par --figer-dette. Vue Blade -> fichiers Flutter qui la CITENT (seul ancrage). Un tableau vide = vue sans ecran.",
-  "_regenere-le": "2026-10-14",
+  "_regenere-le": "2026-10-15",
   "vues": {
     "achats/achats": [
       "core/theme/app_spacing.dart",
@@ -15,8 +15,8 @@
       "features/achats/presentation/widgets/modale_fournisseur.dart",
       "features/achats/presentation/widgets/vue_commandes_achats.dart",
       "features/achats/presentation/widgets/vue_fournisseurs.dart",
-      "features/bar/presentation/widgets/modale_export_carte.dart",
-      "features/restaurant/presentation/widgets/tableau_restaurant.dart"
+      "features/restaurant/presentation/widgets/tableau_restaurant.dart",
+      "shared_widgets/modale_export.dart"
     ],
     "achats/approvisionnement": [
       "core/theme/app_spacing.dart",
@@ -38,14 +38,14 @@
       "features/bar/domain/entities/ventes_bar.dart",
       "features/bar/presentation/ecran_carte_bar.dart",
       "features/bar/presentation/widgets/barre_exports_carte.dart",
-      "features/bar/presentation/widgets/modale_export_carte.dart",
       "features/bar/presentation/widgets/modale_historique_prix.dart",
       "features/bar/presentation/widgets/modale_lien_stock.dart",
       "features/bar/presentation/widgets/modale_nouvelle_boisson.dart",
       "features/bar/presentation/widgets/modale_prix_boisson.dart",
       "features/bar/presentation/widgets/modale_retrait_carte.dart",
       "features/bar/presentation/widgets/vue_couverture_bar.dart",
-      "features/bar/presentation/widgets/vue_ventes_bar.dart"
+      "features/bar/presentation/widgets/vue_ventes_bar.dart",
+      "shared_widgets/modale_export.dart"
     ],
     "comptabilite/analytique": [],
     "comptabilite/balance": [],
@@ -65,19 +65,21 @@
       "features/crm/domain/entities/client.dart",
       "features/crm/domain/entities/registre_clients.dart",
       "features/crm/presentation/ecran_clients.dart",
+      "features/crm/presentation/widgets/barre_exports_clients.dart",
       "features/crm/presentation/widgets/modale_nouveau_client.dart",
       "features/crm/presentation/widgets/modale_recouvrement.dart",
-      "features/crm/presentation/widgets/table_clients.dart"
+      "features/crm/presentation/widgets/table_clients.dart",
+      "shared_widgets/modale_export.dart"
     ],
     "demarrage": [
       "features/auth/presentation/ecran_demarrage.dart"
     ],
     "depenses/depenses": [
-      "features/bar/presentation/widgets/modale_export_carte.dart",
       "features/depenses/presentation/ecran_depenses.dart",
       "features/depenses/presentation/widgets/barre_filtres_depenses.dart",
       "features/depenses/presentation/widgets/modale_depense.dart",
-      "features/depenses/presentation/widgets/table_depenses.dart"
+      "features/depenses/presentation/widgets/table_depenses.dart",
+      "shared_widgets/modale_export.dart"
     ],
     "etats/etats": [],
     "etats/studio": [
@@ -94,7 +96,6 @@
       "shared_widgets/tableau_tatacora.dart"
     ],
     "hebergement/hebergement": [
-      "features/bar/presentation/widgets/modale_export_carte.dart",
       "features/hebergement/data/parc_dao.dart",
       "features/hebergement/domain/entities/categorie_hebergement.dart",
       "features/hebergement/domain/entities/etat_du_jour.dart",
@@ -102,7 +103,8 @@
       "features/hebergement/presentation/ecran_hebergement.dart",
       "features/hebergement/presentation/widgets/modale_archivage_unite.dart",
       "features/hebergement/presentation/widgets/modale_unite.dart",
-      "features/hebergement/presentation/widgets/vue_plan_hebergement.dart"
+      "features/hebergement/presentation/widgets/vue_plan_hebergement.dart",
+      "shared_widgets/modale_export.dart"
     ],
     "hebergement/reservations": [
       "core/database/app_database.dart",
@@ -144,11 +146,11 @@
     ],
     "notifications/hub": [
       "core/theme/app_colors.dart",
-      "features/bar/presentation/widgets/modale_export_carte.dart",
       "features/notifications/domain/entities/canal_notification.dart",
       "features/notifications/domain/entities/declencheur_notification.dart",
       "features/notifications/presentation/ecran_notifications.dart",
-      "features/notifications/presentation/widgets/modales_notifications.dart"
+      "features/notifications/presentation/widgets/modales_notifications.dart",
+      "shared_widgets/modale_export.dart"
     ],
     "pos/comptant": [
       "core/database/app_database.dart",
@@ -176,9 +178,9 @@
       "shared_widgets/tableau_tatacora.dart"
     ],
     "restaurant/carte": [
-      "features/bar/presentation/widgets/modale_export_carte.dart",
       "features/restaurant/presentation/ecran_carte_restaurant.dart",
-      "features/restaurant/presentation/widgets/vue_ventes_restaurant.dart"
+      "features/restaurant/presentation/widgets/vue_ventes_restaurant.dart",
+      "shared_widgets/modale_export.dart"
     ],
     "restaurant/restauration": [
       "features/restaurant/presentation/ecran_restauration.dart",
@@ -188,7 +190,6 @@
     ],
     "rh/paie": [
       "core/database/tables/rh_tables.dart",
-      "features/bar/presentation/widgets/modale_export_carte.dart",
       "features/rh/data/employe_dao.dart",
       "features/rh/data/paie_dao.dart",
       "features/rh/domain/entities/bulletin_paie.dart",
@@ -203,23 +204,23 @@
       "features/rh/presentation/ecran_paie.dart",
       "features/rh/presentation/providers_rh.dart",
       "features/rh/presentation/widgets/modales_paie.dart",
-      "features/rh/presentation/widgets/panneaux_paie.dart"
+      "features/rh/presentation/widgets/panneaux_paie.dart",
+      "shared_widgets/modale_export.dart"
     ],
     "stocks/inventaires": [
       "features/stocks/presentation/ecran_inventaires.dart"
     ],
     "stocks/stocks": [
       "core/theme/app_spacing.dart",
-      "features/bar/presentation/widgets/modale_export_carte.dart",
       "features/stocks/presentation/ecran_stocks.dart",
       "features/stocks/presentation/widgets/coquille_modale_stock.dart",
       "features/stocks/presentation/widgets/modale_article.dart",
       "features/stocks/presentation/widgets/modale_import_articles.dart",
-      "features/stocks/presentation/widgets/modale_mouvement.dart"
+      "features/stocks/presentation/widgets/modale_mouvement.dart",
+      "shared_widgets/modale_export.dart"
     ],
     "tourisme/departs": [
       "core/database/tables/tourisme_tables_v10.dart",
-      "features/bar/presentation/widgets/modale_export_carte.dart",
       "features/tourisme/domain/departs.dart",
       "features/tourisme/domain/entities/circuit.dart",
       "features/tourisme/presentation/ecran_tourisme.dart",
@@ -230,13 +231,15 @@
       "features/tourisme/presentation/widgets/modale_reservation.dart",
       "features/tourisme/presentation/widgets/vue_catalogue.dart",
       "features/tourisme/presentation/widgets/vue_departs.dart",
-      "features/tourisme/presentation/widgets/vue_reservations.dart"
+      "features/tourisme/presentation/widgets/vue_reservations.dart",
+      "shared_widgets/modale_export.dart"
     ],
     "transverse/aide-a-propos": [
       "features/transverse/presentation/ecran_aide_a_propos.dart"
     ],
     "transverse/contact-editeur": [
-      "features/transverse/presentation/ecran_contact_editeur.dart"
+      "features/transverse/presentation/ecran_contact_editeur.dart",
+      "features/transverse/presentation/widgets/modales_contact_editeur.dart"
     ],
     "transverse/import-export": [
       "features/transverse/presentation/ecran_import_export.dart"
@@ -257,7 +260,6 @@
     ],
     "vehicules/locations": [
       "features/achats/presentation/widgets/modale_archivage_achats.dart",
-      "features/bar/presentation/widgets/modale_export_carte.dart",
       "features/vehicules/domain/entities/contrat_location.dart",
       "features/vehicules/domain/entities/vehicule.dart",
       "features/vehicules/presentation/ecran_vehicules.dart",
@@ -269,7 +271,8 @@
       "features/vehicules/presentation/widgets/vue_contrats.dart",
       "features/vehicules/presentation/widgets/vue_immobilisations.dart",
       "features/vehicules/presentation/widgets/vue_parc.dart",
-      "features/vehicules/presentation/widgets/vue_planning.dart"
+      "features/vehicules/presentation/widgets/vue_planning.dart",
+      "shared_widgets/modale_export.dart"
     ]
   }
 }

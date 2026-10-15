@@ -47,7 +47,7 @@ class _ModaleComptabiliserDepenseState
   @override
   Widget build(BuildContext context) {
     final centres = ref.watch(centresDeCoutProvider).value ?? const [];
-    final valeur = styleContenuCarte(TaillesContenu.t13, couleur: Ardoise.c700);
+    final valeur = styleContenuCarte(Tailles.t13, couleur: Ardoise.c700);
 
     return Dialog(
       key: const Key('modale-comptabiliser-depense'),
@@ -79,7 +79,7 @@ class _ModaleComptabiliserDepenseState
               Text(
                 LibellesRattrapage.centre,
                 style: styleContenuCarte(
-                  TaillesContenu.t12,
+                  Tailles.t12,
                   poids: FontWeight.w600,
                   couleur: Ardoise.c600,
                 ),

@@ -27,6 +27,80 @@ import '../../support/vue_blade.dart';
 /// 3. Le RENDU : les deux blocs sont réellement composés, et leurs textes
 ///    lus dans le PDF produit.
 void main() {
+  // EXPORTS composés par le GABARIT COMMUN `core/impression/
+  // etat_tabulaire_a4.dart` (Lot J1, directive du PO du 14/10/2026) : la
+  // zone de signatures et le pied de rapport sont composés UNE fois, là ;
+  // le module ne fournit que ses cellules et ses VISAS. Chaque fichier se
+  // classe avec la liste de [Visas] qu'il passe (nommée) et le gabarit
+  // SERVEUR du même document, relu plus bas : un état dont le serveur nomme
+  // ses propres visas les porte aussi (dépenses, état des stocks).
+  //
+  // ⚠ Jusqu'au 15/10/2026, ces huit fichiers étaient classés « tableur
+  // seulement, aucun PDF » — vrai au 09/10/2026, faux depuis le Lot J1 ; le
+  // contrôle `pw.(Multi)Page(` restait vert parce que la page est composée
+  // dans le gabarit commun, pas dans le fichier (piège 5). Et deux d'entre
+  // eux portaient les visas de la directive là où le serveur nomme les
+  // siens : corrigé le même jour (`Visas.depenses`, `Visas.etatStocks`).
+  const exportsTabulaires =
+      <String, ({String visas, String gabarit, String date})>{
+        // Portés le 14/09/2026 en CSV seul ; A4 depuis le Lot J1.
+        'depenses/impression/etat_depenses.dart': (
+          visas: 'depenses',
+          gabarit: 'depenses-rapport',
+          date: '14/10/2026',
+        ),
+        'notifications/impression/etat_notifications.dart': (
+          visas: 'directive',
+          gabarit: 'notifications',
+          date: '14/10/2026',
+        ),
+        'rh/impression/etat_paie.dart': (
+          visas: 'directive',
+          gabarit: 'paie',
+          date: '14/10/2026',
+        ),
+        'hebergement/impression/etat_parc.dart': (
+          visas: 'directive',
+          gabarit: 'hebergement',
+          date: '14/10/2026',
+        ),
+        'tourisme/impression/etat_tourisme.dart': (
+          visas: 'directive',
+          gabarit: 'tourisme',
+          date: '14/10/2026',
+        ),
+        'stocks/impression/etat_stocks.dart': (
+          visas: 'etatStocks',
+          gabarit: 'stocks-etat',
+          date: '14/10/2026',
+        ),
+        'vehicules/impression/etat_vehicules.dart': (
+          visas: 'directive',
+          gabarit: 'locations',
+          date: '14/10/2026',
+        ),
+        // Le catalogue des boissons n'a pas de vue (écran sans vue, classe
+        // (c) du comparateur) ni de gabarit serveur propre : les visas de la
+        // directive, ceux du gabarit de la carte du bar (`pdf/carte`).
+        'bar/impression/etat_catalogue_boissons.dart': (
+          visas: 'directive',
+          gabarit: 'carte',
+          date: '14/10/2026',
+        ),
+        // L'export du journal comptable (hub Comptabilité, onglet Journal,
+        // directive du PO du 14/10/2026) — `pdf/comptabilite-journal-rapport`.
+        'comptabilite/impression/etat_journal_comptable.dart': (
+          visas: 'directive',
+          gabarit: 'comptabilite-journal-rapport',
+          date: '14/10/2026',
+        ),
+      };
+  // Les listes de [Visas], par NOM — celui qu'un fichier écrit.
+  const visasParNom = <String, List<String>>{
+    'directive': Visas.directive,
+    'depenses': Visas.depenses,
+    'etatStocks': Visas.etatStocks,
+  };
   /* ================================================================== */
   group('Le registre des documents — chaque fichier est classé', () {
     // Le nombre de documents d'EXPORT que chaque fichier compose.
@@ -54,35 +128,9 @@ void main() {
       'facturation/impression/ticket_facture.dart',
       'hebergement/impression/confirmation_reservation.dart',
     };
-    // Tableur seulement : aucun PDF composé.
-    const sansPdf = {
-      'bar/impression/etat_catalogue_boissons.dart',
-      'vehicules/impression/etat_vehicules.dart',
-      // Portés le 14/09/2026 avec les modules d'exploitation. Les deux
-      // exportent en CSV (BOM UTF-8 + point-virgule, RG-19) et ne composent
-      // AUCUN PDF : un A4 devrait porter visa et pied de rapport, donc se
-      // classer au registre ci-dessus — c'est un travail à part, pas un oubli.
-      'depenses/impression/etat_depenses.dart',
-      'notifications/impression/etat_notifications.dart',
-      // Personnel & Paie, 09/10/2026 : le bouton « Exporter » de `rh/paie`
-      // écrit un CSV et REFUSE le choix PDF avec son message (aucun A4 de la
-      // paie n'existe : en-tête unique et visas, arbitrage PA-192).
-      'rh/impression/etat_paie.dart',
-      // Parc d'hébergement, 09/10/2026 : le bouton « Générer & Télécharger » du
-      // plan écrit un CSV et REFUSE le choix PDF avec son message (aucun A4 du
-      // parc n'existe : en-tête unique et visas, arbitrage PA-192).
-      'hebergement/impression/etat_parc.dart',
-      // Tourisme, 09/10/2026 : le bouton « Exporter » de `tourisme/departs`
-      // écrit un CSV par onglet et REFUSE le choix PDF avec son message (aucun
-      // A4 de M9 n'existe : en-tête unique et visas, arbitrage PA-192).
-      'tourisme/impression/etat_tourisme.dart',
-      // Gestion des Stocks, 09/10/2026 : le bouton « Exporter » de
-      // `stocks/stocks` écrit un CSV (les lignes AFFICHÉES, le filtre dit) et
-      // REFUSE le choix PDF avec son message (aucun A4 des stocks n'existe :
-      // en-tête unique et visas, arbitrage PA-192). La fiche de stock, elle,
-      // compose un PDF et reste classée plus haut.
-      'stocks/impression/etat_stocks.dart',
-    };
+    // Tableur seulement : aucun PDF composé. Vide depuis le Lot J1 ; le
+    // registre reste, pour qu'un futur export CSV seul s'y classe.
+    const sansPdf = <String>{};
 
     final fichiers = <String, String>{
       for (final f in Directory('lib/features').listSync(recursive: true))
@@ -103,6 +151,7 @@ void main() {
           .where(
             (f) =>
                 !exports.containsKey(f) &&
+                !exportsTabulaires.containsKey(f) &&
                 !documentsClient.contains(f) &&
                 !sansPdf.contains(f),
           )
@@ -138,6 +187,42 @@ void main() {
           expect(compte(source, 'piedRapportA4('), 0);
         },
       );
+    }
+
+    test('le gabarit commun compose UNE zone de signatures et UN pied de '
+        'rapport, aux visas de la directive par défaut', () {
+      final source = File(
+        'lib/core/impression/etat_tabulaire_a4.dart',
+      ).readAsStringSync();
+      expect(compte(source, 'zoneSignaturesA4(visas: visas)'), 1);
+      expect(compte(source, 'zoneSignaturesA4('), 1);
+      expect(compte(source, 'piedRapportA4('), 1);
+      expect(source, contains('this.visas = Visas.directive'));
+    });
+
+    for (final MapEntry(key: fichier, value: classe)
+        in exportsTabulaires.entries) {
+      test('$fichier : export par le gabarit commun, visas « ${classe.visas} »'
+          ' (${classe.date})', () {
+        final source = fichiers[fichier];
+        expect(source, isNotNull, reason: '$fichier introuvable');
+        expect(compte(source!, 'EtatTabulaireA4('), 1);
+        // Ni copie de la zone, ni copie du pied, ni page composée à la main :
+        // c'est la non-conformité n° 1 de `RESPECT_TABLEAU_RAPPORT.md` §4.
+        expect(compte(source, 'zoneSignaturesA4('), 0);
+        expect(compte(source, 'piedRapportA4('), 0);
+        expect(RegExp(r'pw\.(Multi)?Page\(').hasMatch(source), isFalse);
+        expect(visasParNom, contains(classe.visas));
+        if (classe.visas == 'directive') {
+          // Le défaut du gabarit, ou la directive écrite en toutes lettres.
+          final ecrits = RegExp(
+            r'visas: Visas\.(\w+)',
+          ).allMatches(source).map((m) => m[1]).toSet();
+          expect(ecrits.difference({'directive'}), isEmpty);
+        } else {
+          expect(source, contains('visas: Visas.${classe.visas},'));
+        }
+      });
     }
 
     for (final fichier in sansPdf) {
@@ -229,6 +314,20 @@ void main() {
     ]) {
       test('pdf/$gabarit prend les visas de la directive', () {
         expect(visasDuGabarit(gabarit), isNull);
+      });
+    }
+
+    // Les états du gabarit commun (Lot J1) : chacun contre le gabarit serveur
+    // du même document, tel que son classement le nomme.
+    for (final MapEntry(key: fichier, value: classe)
+        in exportsTabulaires.entries) {
+      test('$fichier : les visas de pdf/${classe.gabarit}', () {
+        final serveur = visasDuGabarit(classe.gabarit);
+        if (classe.visas == 'directive') {
+          expect(serveur, isNull, reason: 'le serveur nomme ses visas');
+        } else {
+          expect(visasParNom[classe.visas], serveur);
+        }
       });
     }
   });

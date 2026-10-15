@@ -1,3 +1,7 @@
+// Vue Blade maîtresse (PA-183) : pwa/crm/clients-creances.blade.php
+// Ce fichier porte la modale d'export de la vue (l.811-816) : son titre
+// (`pwa.clients.export_titre`) et son périmètre (`export_sous_titre`) ; le
+// corps est le partiel partagé (`shared_widgets/modale_export.dart`).
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

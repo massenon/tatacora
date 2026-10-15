@@ -193,8 +193,13 @@ void main() {
     'lib/features/rh/presentation/widgets/panneaux_paie.dart',
     // Paramètres, repris sur la vue le 08/10/2026 (Phase 2, écran n° 1) : le
     // fichier rend le CORPS de la page ; la fenêtre « Modifier » est une
-    // modale, ouverte par `showDialog`, hors de ce fichier de mise en page.
+    // modale, ouverte par `showDialog`, dont le cadre vit dans
+    // `cadre_modale_parametre.dart` (classé dans l'autre camp, 15/10/2026).
     'lib/features/parametres/presentation/ecran_parametres.dart',
+    // L'onglet « Espaces & tables » (Lot J1, 14/10/2026) : le panneau
+    // `@elseif ($onglet === 'tables')` de `transverse/parametres.blade.php`
+    // (l.322), dans `<main>` (fermé l.507) — échelle EFFECTIVE.
+    'lib/features/parametres/presentation/widgets/onglet_espaces_tables.dart',
     // Inventaires & Fiches de stock, repris sur la vue le 08/10/2026 (Phase 2,
     // écran n° 2) : le fichier rend le CORPS de la page, ses trois onglets
     // compris ; aucune modale n'y est ouverte.
@@ -305,6 +310,11 @@ void main() {
     'lib/features/transverse/presentation/ecran_mon_profil.dart',
     'lib/features/transverse/presentation/ecran_roles_permissions.dart',
     'lib/features/transverse/presentation/widgets/briques_transverses.dart',
+    // « Comptes utilisateurs » (Lot J2, AJOUT du PO du 14/10/2026, aucune vue)
+    // : une page sous la coquille, rendue comme ses voisines transverses dans
+    // le contenu de page — échelle EFFECTIVE. Ses modales sont dans
+    // `modales_comptes.dart`, classé dans l'autre camp.
+    'lib/features/transverse/presentation/ecran_comptes_utilisateurs.dart',
     // Le bouton standard (D432, 14/10/2026) : barres d'action des pages, dans
     // `<main>` — `text-[13px]` y rend 12,5. Une modale lui passe `Tailles.t13`.
     'lib/shared_widgets/bouton_standard.dart',
@@ -417,6 +427,31 @@ void main() {
     'lib/features/transverse/presentation/widgets/modales_roles.dart':
         'Modales de `transverse/roles-permissions` (nouveau rôle, droits, '
         'rétablir le socle), posées après `</main>`.',
+    // Lots J1/J2 (14/10/2026), classés le 15/10/2026.
+    'lib/features/comptabilite/presentation/widgets/modale_ecriture.dart':
+        'Modale « Passer une écriture » : `<x-pwa.modale>` '
+        '`comptabilite_pwa.modale_piece_titre` de `comptabilite/hub.blade.php` '
+        '(l.292), posée après `</main>` (l.283). Rendue sur l échelle '
+        'effective jusqu au 15/10/2026 : ramenée à la déclarée.',
+    'lib/features/parametres/presentation/widgets/cadre_modale_parametre.dart':
+        'Fenêtre « Modifier » de Paramètres (compacte, PO du 14/10/2026), '
+        'ouverte par `showDialog` : une modale, hors du contenu de page.',
+    'lib/features/transverse/presentation/widgets/modales_comptes.dart':
+        'Modales de « Comptes utilisateurs » (ajout du PO du 14/10/2026, sans '
+        'vue) : des fenêtres ouvertes par `showDialog`, hors du contenu de '
+        'page, comme toutes les modales de la vue.',
+    'lib/features/transverse/presentation/widgets/modales_contact_editeur.dart':
+        'Modales « Envoyer un message » et « Signaler un bug » de '
+        '`transverse/contact-editeur.blade.php` (`<x-pwa.modale>`, l.130 et '
+        'l.155), posées après `</main>` (l.125).',
+    'lib/features/depenses/presentation/widgets/modale_comptabiliser_depense.dart':
+        'Fenêtre « Comptabiliser la dépense » (PO, 14/10/2026), qui remplace '
+        'la bande jaune du contenu de page : une modale ouverte par '
+        '`showDialog`, hors du contenu. Rendue sur l échelle effective '
+        'jusqu au 15/10/2026 : ramenée à la déclarée.',
+    'lib/shared_widgets/modale_export.dart':
+        'Le partiel `pwa.partials.modale-export`, inclus après `</main>` par '
+        'chaque vue qui l ouvre : le remappage typographique ne l atteint pas.',
   };
 
   /// Les paliers s'écrivent `Tailles.tNN` et `TaillesContenu.tNN`.

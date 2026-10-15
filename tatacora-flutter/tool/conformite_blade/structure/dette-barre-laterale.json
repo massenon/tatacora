@@ -12,7 +12,7 @@
       "jetons": 40,
       "ordonnes": 40,
       "manquantes": 0,
-      "enTrop": 0,
+      "enTrop": 1,
       "inertes": 0
     },
     "barman": {
@@ -75,7 +75,7 @@
       "jetons": 40,
       "ordonnes": 40,
       "manquantes": 0,
-      "enTrop": 0,
+      "enTrop": 1,
       "inertes": 0
     },
     "vehicules": {

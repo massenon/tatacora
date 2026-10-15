@@ -12,6 +12,7 @@ import '../data/parametres_depot_local.dart';
 import '../domain/enregistrer_parametres.dart';
 import '../domain/entities/parametre.dart';
 import '../domain/resultats_parametres.dart';
+import 'widgets/cadre_modale_parametre.dart';
 import 'widgets/champ_parametre.dart';
 import 'widgets/onglet_espaces_tables.dart';
 
@@ -292,108 +293,63 @@ class _PageState extends ConsumerState<_Page> {
     await showDialog<void>(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setLocal) => Dialog(
-          backgroundColor: AppColors.neutre0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.roundedXl),
+        builder: (ctx, setLocal) => CadreModaleParametre(
+          titre: d.libelle,
+          champ: ChampParametre(
+            definition: d,
+            saisie: saisie,
+            erreur: erreur,
+            modifiable: true,
+            onChange: (v) => setLocal(() {
+              saisie = v;
+              erreur = null;
+            }),
           ),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: AppLayout.modaleParametre,
-              maxHeight: AppLayout.hauteurMaxModaleParametre,
+          actions: [
+            BoutonStandard(
+              key: const Key('param-annuler'),
+              libelle: 'Annuler',
+              onPressed: () => Navigator.of(ctx).pop(),
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.mdPlus),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    d.libelle,
-                    style: const TextStyle(
-                      fontFamily: AppTextStyles.police,
-                      fontSize: Tailles.t16,
-                      fontWeight: FontWeight.bold,
-                      color: Ardoise.c800,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  Flexible(
-                    child: SingleChildScrollView(
-                      child: ChampParametre(
-                        definition: d,
-                        saisie: saisie,
-                        erreur: erreur,
-                        modifiable: true,
-                        onChange: (v) => setLocal(() {
-                          saisie = v;
-                          erreur = null;
-                        }),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.mdPlus),
-                  Wrap(
-                    alignment: WrapAlignment.end,
-                    spacing: AppSpacing.xs,
-                    runSpacing: AppSpacing.xs,
-                    children: [
-                      BoutonStandard(
-                        key: const Key('param-annuler'),
-                        libelle: 'Annuler',
-                        onPressed: () => Navigator.of(ctx).pop(),
-                      ),
-                      BoutonStandard(
-                        key: const Key('param-enregistrer'),
-                        libelle: 'Enregistrer',
-                        variante: VarianteBouton.primaire,
-                        // Désactivé tant que rien n'a changé : un envoi vide ne
-                        // modifierait rien et rendrait tout de même
-                        // « enregistré ».
-                        onPressed: saisie == null || envoi
-                            ? null
-                            : () async {
-                                setLocal(() => envoi = true);
-                                final r = await ref
-                                    .read(enregistrerParametresProvider)
-                                    .executer(
-                                      {d.cle: saisie},
-                                      peutEcrire: ref
-                                          .read(droitsProvider)
-                                          .peutEcrire(
-                                            ModuleTatacora.parametres,
-                                          ),
-                                      auteurId: ref
-                                          .read(sessionProvider)
-                                          ?.utilisateurId,
-                                    );
-                                if (!ctx.mounted) return;
-                                switch (r) {
-                                  case EcritureAcceptee(:final message):
-                                    Navigator.of(ctx).pop();
-                                    _dire(message);
-                                    // La valeur affichée est celle de la base,
-                                    // normalisée par le registre : la relire
-                                    // est le seul moyen de montrer ce qui a
-                                    // réellement été enregistré.
-                                    ref.invalidate(parametresProvider);
-                                  case EcritureRefusee(
-                                    :final motif,
-                                    :final parCle,
-                                  ):
-                                    setLocal(() {
-                                      envoi = false;
-                                      erreur = parCle[d.cle] ?? motif;
-                                    });
-                                }
-                              },
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+            BoutonStandard(
+              key: const Key('param-enregistrer'),
+              libelle: 'Enregistrer',
+              variante: VarianteBouton.primaire,
+              // Désactivé tant que rien n'a changé : un envoi vide ne
+              // modifierait rien et rendrait tout de même
+              // « enregistré ».
+              onPressed: saisie == null || envoi
+                  ? null
+                  : () async {
+                      setLocal(() => envoi = true);
+                      final r = await ref
+                          .read(enregistrerParametresProvider)
+                          .executer(
+                            {d.cle: saisie},
+                            peutEcrire: ref
+                                .read(droitsProvider)
+                                .peutEcrire(ModuleTatacora.parametres),
+                            auteurId: ref.read(sessionProvider)?.utilisateurId,
+                          );
+                      if (!ctx.mounted) return;
+                      switch (r) {
+                        case EcritureAcceptee(:final message):
+                          Navigator.of(ctx).pop();
+                          _dire(message);
+                          // La valeur affichée est celle de la base,
+                          // normalisée par le registre : la relire
+                          // est le seul moyen de montrer ce qui a
+                          // réellement été enregistré.
+                          ref.invalidate(parametresProvider);
+                        case EcritureRefusee(:final motif, :final parCle):
+                          setLocal(() {
+                            envoi = false;
+                            erreur = parCle[d.cle] ?? motif;
+                          });
+                      }
+                    },
             ),
-          ),
+          ],
         ),
       ),
     );

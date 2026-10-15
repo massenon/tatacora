@@ -209,6 +209,13 @@ void main() {
         'providers_paiements.dart',
         'providers_pos.dart',
         'providers_hebergement.dart',
+        // Lot J1 (1/4, 14/10/2026) : la modale « Passer une écriture » du hub
+        // Comptabilité — l'écriture MANUELLE, comme la modale de la vue
+        // (`comptabilite/hub.blade.php` l.292). Ce n'est pas un mouvement
+        // d'argent : la pièce EST toute l'écriture, et elle passe par
+        // `MoteurComptable.passer` / `passerEtValider`, seul écrivain de
+        // `ecritures_local` (aucun accès direct : voir les cas ci-dessus).
+        'modale_ecriture.dart',
       });
     });
 

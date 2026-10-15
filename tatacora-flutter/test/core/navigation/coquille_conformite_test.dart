@@ -5,6 +5,7 @@ import 'package:tatacora_flutter/core/navigation/navigation_tatacora.dart';
 import 'package:tatacora_flutter/core/navigation/trace_svg.dart';
 import 'package:tatacora_flutter/core/rbac/garde_acces.dart';
 
+import '../../support/ajouts_menu_poste.dart';
 import '../../support/vue_blade.dart';
 
 /// Conformité du menu à la VUE BLADE de la PWA — le maître (PA-182, PA-183).
@@ -88,6 +89,15 @@ void main() {
   List<String> nomsDe(Iterable<DestinationMenu> d) =>
       d.map((x) => x.nom).toList();
 
+  /// Une entrée propre au poste, DÉCLARÉE avec sa date et sa raison
+  /// (`test/support/ajouts_menu_poste.dart`). Elle seule échappe à la
+  /// confrontation au registre de la PWA — et seulement à sa place déclarée.
+  bool estAjout(DestinationMenu d) => ajoutsMenuPoste.containsKey(d.nom);
+
+  /// Les destinations qui traduisent une entrée de la PWA.
+  List<DestinationMenu> destinationsDeLaVue() =>
+      toutesLesDestinations.where((d) => !estAjout(d)).toList();
+
   group('Le compte y est — celui du menu de la PWA', () {
     test('les entrées épinglées, dans l’ordre de la PWA', () {
       // `'epingle' => true` — elles précèdent le premier titre de groupe et
@@ -112,20 +122,67 @@ void main() {
       for (final g in registre.groupes) {
         final flutter = groupesMenu.where((x) => x.titre == g.titre);
         expect(flutter, hasLength(1), reason: 'groupe « ${g.titre} »');
+        final noms = nomsDe(flutter.single.destinations);
+
+        // Un ajout du poste n'est admis qu'à sa place DÉCLARÉE : juste après
+        // l'entrée de la vue que nomme sa déclaration.
+        for (final MapEntry(key: nom, value: ajout)
+            in ajoutsMenuPoste.entries) {
+          if (ajout.groupe != g.titre) continue;
+          final i = noms.indexOf(nom);
+          expect(
+            i,
+            greaterThan(0),
+            reason: '« $nom » absent de « ${g.titre} »',
+          );
+          expect(
+            noms[i - 1],
+            ajout.apres,
+            reason: '« $nom » est déclaré après « ${ajout.apres} »',
+          );
+        }
+
         expect(
-          nomsDe(flutter.single.destinations),
+          noms.where((n) => !ajoutsMenuPoste.containsKey(n)).toList(),
           g.items.map((e) => e.nom).toList(),
           reason: 'entrées du groupe « ${g.titre} »',
         );
       }
+      // Aucun ajout parmi les épinglées : elles sont confrontées sans filtre.
+      expect(destinationsEpinglees.where(estAjout), isEmpty);
     });
 
-    test('vingt-quatre destinations au total, comme la PWA', () {
+    test('vingt-quatre destinations de la PWA, plus les ajouts déclarés', () {
       final pwa =
           registre.epinglees.length +
           registre.groupes.fold<int>(0, (s, g) => s + g.items.length);
-      expect(toutesLesDestinations, hasLength(pwa));
-      expect(toutesLesDestinations, hasLength(24));
+      expect(destinationsDeLaVue(), hasLength(pwa));
+      expect(destinationsDeLaVue(), hasLength(24));
+      // Le total Flutter : la vue, plus chaque ajout déclaré — et aucun autre.
+      expect(toutesLesDestinations, hasLength(24 + ajoutsMenuPoste.length));
+    });
+
+    test('chaque ajout du poste est daté, motivé, et ABSENT de la PWA', () {
+      final pwa = {
+        ...registre.epinglees.map((e) => e.nom),
+        for (final g in registre.groupes) ...g.items.map((e) => e.nom),
+      };
+      expect(ajoutsMenuPoste, isNotEmpty, reason: 'plancher du registre');
+      for (final MapEntry(key: nom, value: ajout) in ajoutsMenuPoste.entries) {
+        // Le jour où la PWA porte l'entrée, la déclaration est périmée.
+        expect(pwa, isNot(contains(nom)), reason: '« $nom » : ajout périmé');
+        expect(
+          toutesLesDestinations.where((d) => d.nom == nom),
+          hasLength(1),
+          reason: '« $nom » : ajout déclaré mais retiré du menu',
+        );
+        expect(
+          RegExp(r'^\d{2}/\d{2}/\d{4}$').hasMatch(ajout.date),
+          isTrue,
+          reason: '« $nom » : date de la décision du PO',
+        );
+        expect(ajout.raison.length, greaterThan(30), reason: nom);
+      }
     });
   });
 
@@ -135,7 +192,7 @@ void main() {
       // Aucun des trois n'existe au menu de la PWA : c'étaient des synonymes,
       // que la doctrine §2 interdit — « le manuel, la formation et l'habitude
       // s'appuient sur le mot exact ».
-      final noms = toutesLesDestinations.map((d) => d.nom).toSet();
+      final noms = destinationsDeLaVue().map((d) => d.nom).toSet();
 
       for (final interdit in const ['Accueil', 'Dépenses', 'Rapports']) {
         expect(
@@ -213,8 +270,14 @@ void main() {
     test(
       'chaque destination dessine le tracé de SON entrée, au caractère près',
       () {
-        expect(iconeParNom.length, toutesLesDestinations.length);
-        for (final d in toutesLesDestinations) {
+        expect(iconeParNom.length, destinationsDeLaVue().length);
+        // Un ajout du poste n'a pas d'entrée PHP : il dessine un tracé QUI
+        // EXISTE au registre `ICONES`, jamais un dessin inventé.
+        for (final d in toutesLesDestinations.where(estAjout)) {
+          expect(icones[d.icone.cleVue], isNotNull, reason: d.nom);
+          expect(d.icone.trace, icones[d.icone.cleVue], reason: d.nom);
+        }
+        for (final d in destinationsDeLaVue()) {
           final cle = iconeParNom[d.nom];
           expect(cle, isNotNull, reason: '« ${d.nom} » absent du registre PHP');
           expect(d.icone.cleVue, cle, reason: d.nom);
@@ -243,7 +306,13 @@ void main() {
       for (final d in toutesLesDestinations) {
         expect(d.module, isA<ModuleTatacora>(), reason: d.nom);
         expect(d.page, isNotEmpty, reason: '${d.nom} : page d’origine absente');
-        expect(d.page, endsWith('.html'), reason: d.nom);
+        // Un ajout du poste n'a pas de page de la vue, et le DIT ; une entrée
+        // de la vue ne peut pas s'en réclamer.
+        if (estAjout(d)) {
+          expect(d.page, pageAjoutDuPoste, reason: d.nom);
+        } else {
+          expect(d.page, endsWith('.html'), reason: d.nom);
+        }
       }
     });
 
@@ -375,7 +444,13 @@ void main() {
     });
 
     test('les vingt-quatre destinations ont un écran (D424)', () {
-      final avec = toutesLesDestinations.where((d) => d.aUnEcran).toList();
+      final avec = destinationsDeLaVue().where((d) => d.aUnEcran).toList();
+      // Les ajouts du poste ont le leur (le routeur le sert : voir « toute
+      // route annoncée au menu EXISTE au routeur »).
+      expect(
+        toutesLesDestinations.where(estAjout).where((d) => !d.aUnEcran),
+        isEmpty,
+      );
 
       // Ce nombre n'est pas un objectif, c'est un CONSTAT : il doit changer
       // quand un écran est livré. S'il change sans que ce test soit relu, c'est

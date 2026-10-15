@@ -73,16 +73,27 @@ Future<void> _monter(
 List<DestinationMenu> get _toutes => toutesLesDestinations;
 
 /// Les textes de la barre (zone de 264 px, sous la barre supérieure), dans
-/// l'ordre de lecture, SANS le pied.
+/// l'ordre de lecture, SANS le pied — et seulement ceux ENTIÈREMENT visibles
+/// au-dessus de lui.
+///
+/// ⚠ Jusqu'au 15/10/2026, la limite était « 90 px au-dessus de
+/// Déconnexion », une estimation de la hauteur du pied. L'entrée « Comptes
+/// utilisateurs » (ajout du PO du 14/10/2026) a descendu « Paramètres » de
+/// 35 px : entièrement visible (bas à 1 257 px, pied à 1 262 px), il tombait
+/// sous l'estimation et se comptait MANQUANT. La limite est désormais le haut
+/// du pied lui-même (`_PiedBarreLaterale`), mesuré sur le rendu.
 List<String> _jetonsFlutter(WidgetTester tester) {
   final tous = collecterRendu(
     tester,
   ).where((e) => e.boite.left < 264 && e.boite.top >= 64).toList();
-  final decon = tous.where((e) => normaliser(e.texte) == 'déconnexion');
-  final limite = decon.isEmpty ? double.infinity : decon.first.boite.top - 90;
+  final pied = find.byWidgetPredicate(
+    (w) => w.runtimeType.toString() == '_PiedBarreLaterale',
+  );
+  expect(pied, findsOneWidget, reason: 'pied de la barre latérale introuvable');
+  final limite = tester.getRect(pied).top;
   return [
     for (final e in tous)
-      if (e.boite.top < limite) e.texte,
+      if (e.boite.bottom <= limite) e.texte,
   ];
 }
 

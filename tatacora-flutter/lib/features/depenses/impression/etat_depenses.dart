@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../../../core/format/formats.dart';
 import '../../../core/impression/etat_tabulaire_a4.dart';
+import '../../../core/impression/visas.dart';
 import '../domain/categories_depense.dart';
 import '../domain/entities/depense.dart';
 import '../domain/filtre_depenses.dart';
@@ -140,10 +141,12 @@ final class EtatDepenses {
 
   /// Le « PDF Officiel A4 Imprimable » (directive du PO du 14/10/2026) : les
   /// colonnes, les lignes, la portée et les mentions du CSV, plus le total
-  /// décaissé. Huit colonnes : PAYSAGE.
+  /// décaissé. Huit colonnes : PAYSAGE. Les visas sont ceux du gabarit serveur
+  /// du même état (`pdf/depenses-rapport.blade.php`), pas ceux de la directive.
   EtatTabulaireA4 etatA4() => EtatTabulaireA4(
     titre: titre,
     portee: portee,
+    visas: Visas.depenses,
     mentions: [
       for (final m in mentions) m.replaceFirst('Ce fichier', 'Ce document'),
     ],

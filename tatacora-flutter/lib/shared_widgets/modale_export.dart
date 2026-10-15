@@ -47,6 +47,11 @@
 // vue qui inclut le partiel, une seule modale Flutter. Le PDF y est produit, le
 // tableur refusé avec son message. Le chemin est écrit SANS son préfixe : ce
 // fichier n'est pas un porteur de la vue d'accueil (piège 13).
+// L'écran Clients & Créances (pwa/crm/clients-creances.blade.php, l.811-816)
+// l'ouvre aussi depuis son bouton « Exporter » (14/10/2026, PO), par
+// `barre_exports_clients.dart` : titre « Exporter — Clients & Créances », le
+// périmètre en sous-titre. Douzième vue qui inclut le partiel, une seule
+// modale Flutter. Même raison, même précédent ; ce n'est pas un refus.
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_colors.dart';
