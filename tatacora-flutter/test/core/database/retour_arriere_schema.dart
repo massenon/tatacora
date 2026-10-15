@@ -69,7 +69,18 @@ const tablesAjouteesEnV23 = <String>{'sejours_local'};
 /// La table que la v24 AJOUTE (rôles, 14/10/2026, D438).
 const tablesAjouteesEnV24 = <String>{'roles_local'};
 
+/// La table que la v25 AJOUTE (boîte d'envoi de « Contactez l'éditeur »,
+/// 14/10/2026).
+const tablesAjouteesEnV25 = <String>{'messages_editeur_local'};
+
 const _ajoutsParVersion = <int, List<String>>{
+  // La v25 (boite d'envoi de « Contactez l'editeur », 14/10/2026) ajoute UNE
+  // table neuve et ne touche rien d'existant : son retour arriere est
+  // symetrique. Sa cle etrangere pointe VERS `utilisateurs_local`, aucune ne
+  // pointe vers elle : le DROP est direct. Les lignes sont perdues : la
+  // fixture seme APRES l'appel.
+  25: <String>['DROP TABLE messages_editeur_local'],
+
   // La v24 (roles, 14/10/2026, D438) ajoute UNE table neuve et ne touche rien
   // d'existant : son retour arriere est symetrique. Aucune cle etrangere ne
   // pointe vers elle (le rattachement d'un compte passe par le LIBELLE du role,

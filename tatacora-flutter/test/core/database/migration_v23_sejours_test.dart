@@ -110,6 +110,7 @@ void main() {
       ...tablesAjouteesEnV22,
       ...tablesAjouteesEnV23,
       ...tablesAjouteesEnV24,
+      ...tablesAjouteesEnV25,
     });
 
     final r = await apres

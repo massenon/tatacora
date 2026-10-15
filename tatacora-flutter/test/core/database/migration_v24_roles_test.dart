@@ -64,7 +64,11 @@ void main() {
     final version = await apres.customSelect('PRAGMA user_version').getSingle();
     expect(version.data.values.first, apres.schemaVersion);
     expect(apres.schemaVersion, greaterThanOrEqualTo(24));
-    expect(await tables(apres), {...tablesAvant, ...tablesAjouteesEnV24});
+    expect(await tables(apres), {
+      ...tablesAvant,
+      ...tablesAjouteesEnV24,
+      ...tablesAjouteesEnV25,
+    });
 
     final roles = await apres
         .customSelect('SELECT COUNT(*) AS n FROM roles_local')

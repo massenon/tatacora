@@ -495,6 +495,7 @@ void main() {
           ...tablesAjouteesEnV22,
           ...tablesAjouteesEnV23,
           ...tablesAjouteesEnV24,
+          ...tablesAjouteesEnV25,
         });
         expect(apres.difference(avant), isEmpty);
         // Les triggers disparaissent avec leur table.

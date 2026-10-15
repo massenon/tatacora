@@ -14,7 +14,7 @@ void main() {
   setUp(() => base = AppDatabase.enMemoire());
   tearDown(() => base.close());
 
-  test('les 56 tables du périmètre offline sont créées', () async {
+  test('les 57 tables du périmètre offline sont créées', () async {
     // `allTables` reflète ce que Drift a réellement généré, pas ce qu'on
     // croit avoir déclaré.
     //
@@ -115,10 +115,15 @@ void main() {
     //
     // 55 → 56 le 14/10/2026 : `roles_local` (v24, Rôles & Permissions, D438 ;
     // seul auteur : `RolesDao`). Son nom est asserté ci-dessous.
-    expect(base.allTables.length, 56);
-    expect(base.schemaVersion, 24);
+    //
+    // 56 → 57 le 14/10/2026 : `messages_editeur_local` (v25, boîte d'envoi de
+    // « Contactez l'éditeur » ; seul auteur : `MessagesEditeurDao`). Son nom
+    // est asserté ci-dessous.
+    expect(base.allTables.length, 57);
+    expect(base.schemaVersion, 25);
     expect(
       base.allTables.map((t) => t.actualTableName).toSet().containsAll({
+        'messages_editeur_local',
         'roles_local',
         'alertes_vues_local',
         'sejours_local',
