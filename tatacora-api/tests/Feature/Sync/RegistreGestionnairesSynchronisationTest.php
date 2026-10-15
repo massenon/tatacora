@@ -79,7 +79,12 @@ final class RegistreGestionnairesSynchronisationTest extends TestCase
     {
         $gestionnaires = app(RegistreSynchronisation::class)->tous();
 
-        $this->assertSame(['reservations', 'clients', 'fournisseurs'], array_keys($gestionnaires));
+        $this->assertSame([
+            'reservations', 'clients', 'fournisseurs',
+            // Catalogue (S2, 15/10/2026) — création seule, fusion sur clé naturelle.
+            'points_stockage', 'articles', 'cartes_boisson', 'menus', 'recettes', 'plats',
+            'categories_hebergement', 'unites_hebergement',
+        ], array_keys($gestionnaires));
 
         foreach ($gestionnaires as $table => $gestionnaire) {
             $this->assertSame($table, $gestionnaire->table());

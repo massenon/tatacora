@@ -19,6 +19,12 @@ return [
         'client_inexistant' => "Ce client n'existe pas dans le référentiel.",
         'unite_inexistante' => "Cette unité d'hébergement n'existe pas.",
         'depart_apres_arrivee' => "La date de départ doit être postérieure à la date d'arrivée.",
+        // Parc — règles sorties de la modale PWA le 15/10/2026 (lot S2).
+        'categorie_libelle_obligatoire' => 'Le libellé de la catégorie est obligatoire.',
+        'categorie_tarif_positif' => 'Le tarif de base doit être supérieur à zéro : un tarif nul se lirait comme une nuit gratuite.',
+        'unite_numero_obligatoire' => 'Le numéro de l\'unité est obligatoire.',
+        'unite_categorie_obligatoire' => 'La catégorie de l\'unité est obligatoire.',
+        'unite_categorie_inexistante' => 'Cette catégorie d\'hébergement n\'existe pas.',
     ],
 
     // Lignes de services de la fiche (PA-163). Le refus est TOTAL : une

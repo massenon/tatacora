@@ -13,6 +13,7 @@ use App\Shared\Sync\Support\EcritureSynchronisee;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rules\Unique;
 use Illuminate\Validation\ValidationException;
 use LogicException;
 
@@ -97,5 +98,37 @@ abstract class GestionnaireAbstrait implements GestionnaireSynchronisation
         } catch (ValidationException $e) {
             throw DonneesSynchroniseesInvalidesException::depuis($e);
         }
+    }
+
+    /**
+     * Les règles SANS leur contrainte d'unicité sur les champs nommés.
+     *
+     * Pourquoi (15/10/2026) : à l'écran en ligne, un libellé déjà pris est une
+     * faute de saisie — la règle `unique` la refuse. Par la synchronisation,
+     * c'est le cas même que la décision du Product Owner traite : l'élément
+     * existe déjà côté serveur, et il faut FUSIONNER, pas rejeter. Retirer la
+     * seule contrainte d'unicité (et rien d'autre) laisse toutes les autres
+     * règles de l'API s'appliquer telles quelles.
+     *
+     * @param  array<string, mixed>  $regles
+     * @return array<string, mixed>
+     */
+    protected function sansUnicite(array $regles, string ...$champs): array
+    {
+        foreach ($champs as $champ) {
+            if (! isset($regles[$champ])) {
+                continue;
+            }
+
+            $liste = is_string($regles[$champ]) ? explode('|', $regles[$champ]) : (array) $regles[$champ];
+
+            $regles[$champ] = array_values(array_filter(
+                $liste,
+                static fn (mixed $regle): bool => ! $regle instanceof Unique
+                    && ! (is_string($regle) && str_starts_with($regle, 'unique:')),
+            ));
+        }
+
+        return $regles;
     }
 }

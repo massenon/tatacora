@@ -5,9 +5,17 @@ declare(strict_types=1);
 namespace App\Shared\Sync\Services;
 
 use App\Shared\Sync\Contracts\GestionnaireSynchronisation;
+use App\Shared\Sync\Gestionnaires\GestionnaireArticles;
+use App\Shared\Sync\Gestionnaires\GestionnaireCartesBoisson;
+use App\Shared\Sync\Gestionnaires\GestionnaireCategoriesHebergement;
 use App\Shared\Sync\Gestionnaires\GestionnaireClients;
 use App\Shared\Sync\Gestionnaires\GestionnaireFournisseurs;
+use App\Shared\Sync\Gestionnaires\GestionnaireMenus;
+use App\Shared\Sync\Gestionnaires\GestionnairePlats;
+use App\Shared\Sync\Gestionnaires\GestionnairePointsStockage;
+use App\Shared\Sync\Gestionnaires\GestionnaireRecettes;
 use App\Shared\Sync\Gestionnaires\GestionnaireReservations;
+use App\Shared\Sync\Gestionnaires\GestionnaireUnitesHebergement;
 use LogicException;
 
 /**
@@ -33,6 +41,14 @@ use LogicException;
  *
  * Toute table absente est refusée explicitement : accepter une écriture sur
  * une table inconnue reviendrait à contourner les règles de son domaine.
+ *
+ * ## Le catalogue (lot S2, 15/10/2026)
+ *
+ * Points de stockage, articles, boissons, menus, fiches, plats, catégories et
+ * unités d'hébergement entrent au registre — CRÉATION seule, fusion sur clé
+ * naturelle (`GestionnaireReferentielAbstrait`). Les centres de coût n'y
+ * entrent PAS : ils sont semés par le serveur et le poste les installe à
+ * l'identique (`ResolveurCentresCout` les retrouve par libellé).
  */
 class RegistreSynchronisation
 {
@@ -43,6 +59,16 @@ class RegistreSynchronisation
         'reservations' => GestionnaireReservations::class,
         'clients' => GestionnaireClients::class,
         'fournisseurs' => GestionnaireFournisseurs::class,
+        // Catalogue (S2) — dans l'ordre où un poste doit les pousser : un
+        // élément cité passe avant celui qui le cite.
+        'points_stockage' => GestionnairePointsStockage::class,
+        'articles' => GestionnaireArticles::class,
+        'cartes_boisson' => GestionnaireCartesBoisson::class,
+        'menus' => GestionnaireMenus::class,
+        'recettes' => GestionnaireRecettes::class,
+        'plats' => GestionnairePlats::class,
+        'categories_hebergement' => GestionnaireCategoriesHebergement::class,
+        'unites_hebergement' => GestionnaireUnitesHebergement::class,
     ];
 
     /** @var array<string, GestionnaireSynchronisation> */

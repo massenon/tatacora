@@ -22,6 +22,7 @@ use App\Domain\Tourisme\Http\Controllers\TourismeController;
 use App\Domain\Vehicules\Http\Controllers\VehiculeController;
 use App\Shared\Auth\Http\Controllers\AuthController;
 use App\Shared\Parametres\Http\Controllers\ParametreController;
+use App\Shared\Sync\Http\Controllers\ReferentielsController;
 use App\Shared\Sync\Http\Controllers\SyncController;
 use Illuminate\Support\Facades\Route;
 
@@ -69,6 +70,13 @@ Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
     // controle d'acces se fait par table dans le registre du service.
     Route::post('/sync', SyncController::class);
 
+    // Le CATALOGUE descendant des postes — décision PO du 15/10/2026 (le
+    // serveur est maître, les postes téléchargent ; contrat dans le docblock
+    // de `ReferentielsController`). Pas de middleware `module:` : le flux
+    // traverse M1/M4/M5/M6/M7/M10, et chaque table n'y entre que si
+    // l'utilisateur LIT son module (filtrage dans le service).
+    Route::get('/referentiels', ReferentielsController::class);
+
     Route::prefix('hebergement')->group(function () {
         // Le PARC entier — referentiel descendant du client Flutter (PA-128).
         // `/disponibilites` repond a une question de VENTE (les unites libres
@@ -77,8 +85,10 @@ Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
         // cette route, ses tables de parc n'etaient jamais ecrites et un poste
         // neuf ne pouvait prendre aucune reservation.
         //
-        // Lecture seule par construction : `unites_hebergement` n'est pas au
-        // registre synchronisable, le parc descend et ne remonte jamais.
+        // Lecture seule. Depuis le 15/10/2026 (décision PO), une unité ou une
+        // catégorie créée HORS CONNEXION remonte par `/sync` et le serveur la
+        // fusionne sur sa clé naturelle ; le parc complet descend aussi par
+        // `/referentiels`, avec curseur.
         Route::get('/parc', ParcHebergementController::class)
             ->middleware('module:M1,L');
 
@@ -284,11 +294,13 @@ Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
     | configuration est identique a celle de `m4-restauration.html`. Meme cas
     | que `m3-crm.html`, ecarte pour la meme raison (PA-126).
     |
-    | Aucune ecriture de ce groupe ne passe par la file de synchronisation :
-    | ni `commandes_restaurant`, ni `plats`, ni `recettes` ne sont au registre
-    | `TABLES_SYNCHRONISABLES`. Ces routes exigent donc le reseau, et le client
-    | ne doit annoncer aucune mise en attente sur ce qui ne partira jamais
-    | (PA-59/60/61).
+    | Les routes de ce groupe exigent le reseau. Depuis le 15/10/2026
+    | (decision PO, lot S2), la CREATION hors connexion d'un menu, d'une fiche
+    | ou d'un plat remonte par `/sync` (fusion sur cle naturelle) — mais
+    | `commandes_restaurant` n'est toujours pas au registre
+    | `TABLES_SYNCHRONISABLES`, et aucune MODIFICATION du catalogue ne
+    | remonte : le client n'annonce aucune mise en attente sur ce qui ne
+    | partira jamais (PA-59/60/61).
     */
     Route::prefix('restaurant')->group(function () {
         // --- Carte du restaurant — EF-M4-01 ---

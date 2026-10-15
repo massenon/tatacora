@@ -325,9 +325,12 @@ class ReinitialisationDonneesTestService
             //    véhicule « loué » sans contrat affirmeraient un état que plus
             //    rien ne porte (PA-59/60/61). `hors_service` (l'archive) et
             //    `entretien` (un fait d'atelier) restent.
+            //    `updated_at` avance avec le statut : les postes téléchargent
+            //    le parc par curseur sur cette colonne (15/10/2026), et une
+            //    remise à `libre` non datée ne redescendrait jamais.
             DB::table('unites_hebergement')
                 ->whereIn('statut', ['occupee', 'reservee', 'nettoyage'])
-                ->update(['statut' => 'libre']);
+                ->update(['statut' => 'libre', 'updated_at' => now()]);
             DB::table('vehicules')
                 ->where('statut', 'loue')
                 ->update(['statut' => 'disponible']);

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Pwa\Livewire\Hebergement;
 
 use App\Domain\Crm\Models\Client;
+use App\Domain\Hebergement\Http\Requests\EnregistrerCategorieHebergementRequest;
+use App\Domain\Hebergement\Http\Requests\EnregistrerUniteHebergementRequest;
 use App\Domain\Hebergement\Models\CategorieHebergement;
 use App\Domain\Hebergement\Models\Reservation;
 use App\Domain\Hebergement\Models\Sejour;
@@ -15,6 +17,7 @@ use App\Domain\Hebergement\Services\SejourService;
 use App\Exports\HebergementExport;
 use App\Pwa\Livewire\Concerns\FormulaireModal;
 use App\Pwa\Livewire\PageMetier;
+use App\Pwa\Support\ReglesDeLApi;
 use App\Shared\Integrite\Exceptions\ChevauchementDetecteException;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\CarbonImmutable;
@@ -390,26 +393,34 @@ final class Hebergement extends PageMetier
      */
     public function enregistrerUnite(): void
     {
-        $donnees = $this->validerEcriture([
-            'uniteNumero' => ['required', 'string', 'max:50'],
-            'uniteCategorieId' => $this->uniteNouvelleCategorie
-                ? ['nullable']
-                : ['required', 'uuid', 'exists:categories_hebergement,id'],
-            // La catégorie naît AVEC son tarif réel et sa capacité — jamais
-            // un zéro d'attente qui se lirait comme une nuit gratuite.
-            'categorieLibelle' => $this->uniteNouvelleCategorie
-                ? ['required', 'string', 'max:100', 'unique:categories_hebergement,libelle']
-                : ['nullable'],
-            'categorieTarif' => $this->uniteNouvelleCategorie
-                ? ['required', 'numeric', 'gt:0']
-                : ['nullable'],
-            'categorieCapacite' => $this->uniteNouvelleCategorie
-                ? ['required', 'integer', 'min:1', 'max:20']
-                : ['nullable'],
+        // Les règles sont celles des requêtes du domaine depuis le 15/10/2026
+        // (lot S2 : la synchronisation crée aussi catégories et unités) —
+        // une seule liste, lue ici par `ReglesDeLApi`.
+        $regleUnite = ReglesDeLApi::pourCreation(EnregistrerUniteHebergementRequest::class, [
+            'numero' => 'uniteNumero',
+            'categorie_id' => 'uniteCategorieId',
         ]);
 
+        // La catégorie naît AVEC son tarif réel et sa capacité — jamais un
+        // zéro d'attente qui se lirait comme une nuit gratuite.
+        $reglesCategorie = $this->uniteNouvelleCategorie
+            ? ReglesDeLApi::pourCreation(EnregistrerCategorieHebergementRequest::class, [
+                'libelle' => 'categorieLibelle',
+                'tarif_base' => 'categorieTarif',
+                'capacite_max' => 'categorieCapacite',
+            ])
+            : ['categorieLibelle' => ['nullable'], 'categorieTarif' => ['nullable'], 'categorieCapacite' => ['nullable']];
+
+        $donnees = $this->validerEcriture([
+            'uniteNumero' => $regleUnite['uniteNumero'],
+            'uniteCategorieId' => $this->uniteNouvelleCategorie ? ['nullable'] : $regleUnite['uniteCategorieId'],
+            ...$reglesCategorie,
+        ]);
+
+        $parc = app(ParcHebergementService::class);
+
         if ($this->uniteNouvelleCategorie) {
-            $donnees['uniteCategorieId'] = CategorieHebergement::create([
+            $donnees['uniteCategorieId'] = $parc->creerCategorie([
                 'libelle' => (string) $donnees['categorieLibelle'],
                 'tarif_base' => (string) $donnees['categorieTarif'],
                 'capacite_max' => (int) $donnees['categorieCapacite'],
@@ -422,10 +433,9 @@ final class Hebergement extends PageMetier
                 'categorie_id' => $donnees['uniteCategorieId'],
             ]);
         } else {
-            UniteHebergement::create([
+            $parc->creerUnite([
                 'numero' => $donnees['uniteNumero'],
                 'categorie_id' => $donnees['uniteCategorieId'],
-                'statut' => SejourService::STATUT_LIBRE,
             ]);
         }
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Hebergement\Services;
 
+use App\Domain\Hebergement\Models\CategorieHebergement;
 use App\Domain\Hebergement\Models\Reservation;
 use App\Domain\Hebergement\Models\UniteHebergement;
 use Carbon\CarbonImmutable;
@@ -39,6 +40,43 @@ use Throwable;
  */
 class ParcHebergementService
 {
+    /**
+     * Crée une catégorie — avec son tarif réel et sa capacité.
+     *
+     * Extrait de l'écran `Hebergement` le 15/10/2026 : la synchronisation
+     * (lot S2, décision du Product Owner du 15/10/2026) crée désormais aussi
+     * des catégories, et deux écrivains auraient divergé au premier contrôle
+     * ajouté d'un seul côté.
+     *
+     * @param  array<string, mixed>  $donnees données validées par
+     *                                        `EnregistrerCategorieHebergementRequest`
+     */
+    public function creerCategorie(array $donnees): CategorieHebergement
+    {
+        return CategorieHebergement::create([
+            ...$donnees,
+            'tarif_base' => (string) $donnees['tarif_base'],
+            'capacite_max' => (int) $donnees['capacite_max'],
+        ]);
+    }
+
+    /**
+     * Crée une unité au parc — TOUJOURS `libre`.
+     *
+     * Le statut n'est pas une donnée de création : le cycle opérationnel
+     * appartient à `SejourService`, et une unité qui naîtrait `occupee`
+     * ferait dire à l'écran qu'une chambre est occupée sans que personne y
+     * dorme. Un `statut` reçu est donc écrasé ici, pas seulement ignoré par
+     * l'appelant.
+     *
+     * @param  array<string, mixed>  $donnees données validées par
+     *                                        `EnregistrerUniteHebergementRequest`
+     */
+    public function creerUnite(array $donnees): UniteHebergement
+    {
+        return UniteHebergement::create([...$donnees, 'statut' => SejourService::STATUT_LIBRE]);
+    }
+
     /**
      * Les réservations qui ENGAGENT l'unité — le verrou du maître : un
      * élément engagé ailleurs ne s'archive pas et ne se purge pas.

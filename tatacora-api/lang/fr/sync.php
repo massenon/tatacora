@@ -35,6 +35,14 @@ return [
     'date_metier_invalide' => 'La date du document est illisible : elle doit être une date valide.',
     'archive_valeur_invalide' => 'L\'état d\'archivage transmis est illisible : il doit valoir vrai ou faux.',
 
+    // Téléchargement du catalogue par les postes (décision PO du 15/10/2026).
+    'referentiels' => [
+        'curseur_invalide' => 'Le curseur de téléchargement est illisible : reprenez le téléchargement depuis le début '
+            . '(sans curseur). Aucun élément ne sera perdu, certains seront simplement reçus une seconde fois.',
+        'limite_trop_grande' => 'Une page du catalogue compte au plus :max éléments : suivez le curseur pour la suite.',
+        'compte_inactif' => 'Ce compte n\'est pas actif : le catalogue ne peut pas être téléchargé.',
+    ],
+
     // Erreurs de PROGRAMMATION (LogicException) : elles remontent en 500 pour
     // rejeu, jamais a l'ecran comme un refus — mais restent en langue (06 §4.4).
     'interne' => [

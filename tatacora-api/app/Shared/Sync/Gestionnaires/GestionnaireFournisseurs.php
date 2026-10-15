@@ -8,9 +8,9 @@ use App\Domain\Achats\Http\Requests\EnregistrerFournisseurRequest;
 use App\Domain\Achats\Models\Fournisseur;
 use App\Domain\Achats\Services\ReferentielFournisseurService;
 use App\Shared\Rbac\Services\DroitArchivageService;
+use App\Shared\Sync\Support\CleNaturelle;
 use App\Shared\Sync\Support\ContexteSynchronisation;
 use App\Shared\Sync\Support\EcritureSynchronisee;
-use Illuminate\Support\Str;
 use RuntimeException;
 
 /**
@@ -99,9 +99,8 @@ final class GestionnaireFournisseurs extends GestionnaireAbstrait
      */
     public static function cleNaturelle(string $raisonSociale): string
     {
-        $ascii = Str::ascii(trim($raisonSociale));
-
-        return (string) preg_replace('/\s+/', ' ', mb_strtolower($ascii));
+        // Normalisation commune à tout le référentiel depuis S2 (15/10/2026).
+        return CleNaturelle::normaliser($raisonSociale);
     }
 
     public function creer(string $entiteId, array $payload, ContexteSynchronisation $contexte): EcritureSynchronisee

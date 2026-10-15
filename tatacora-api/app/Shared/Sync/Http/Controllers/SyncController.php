@@ -6,8 +6,8 @@ namespace App\Shared\Sync\Http\Controllers;
 
 use App\Shared\Sync\Http\Requests\SynchroniserRequest;
 use App\Shared\Sync\Services\SynchronisationService;
+use App\Shared\Sync\Support\PosteDuJeton;
 use Illuminate\Http\JsonResponse;
-use Laravel\Sanctum\PersonalAccessToken;
 
 /**
  * Endpoint de synchronisation differee — LARAVEL_SYNC_FLUTTER.md §2.
@@ -41,26 +41,11 @@ class SyncController
         // PA-65 : ce n'est pas une operation qui est en cause mais l'identite
         // du lot lui-meme. En accepter une partie inscrirait une provenance
         // fausse en base.
-        $jeton = $request->user()?->currentAccessToken();
-
-        // La verification n'a lieu que si le jeton PORTE un poste.
         //
-        // En production c'est toujours le cas : `createToken($poste)` est le
-        // seul chemin d'emission, et `$poste` vaut au pire `'inconnu'`. Un
-        // jeton sans nom ne se rencontre qu'en test — `Sanctum::actingAs()`
-        // fabrique un **mock Mockery** dont `name` vaut `false`, ce qui passe
-        // `filled()` mais n'est evidemment pas un nom de poste. D'ou le
-        // controle de type explicite plutot qu'un simple test de presence.
-        //
-        // C'est le meme piege que PA-54 : `actingAs` court-circuite le garde,
-        // donc un test qui l'emploierait ne prouverait rien. D'ou trois tests
-        // dedies qui empruntent un jeton REEL.
-        // Le transtypage n'est pas cosmetique : le contrat declare `name` en
-        // `string`, mais le mock de test rend `false`. `(string) false` vaut
-        // `''`, ce qui exprime exactement la situation — aucun poste declare.
-        $postePorte = $jeton instanceof PersonalAccessToken ? (string) $jeton->name : '';
-
-        if ($postePorte !== '' && $valide['poste_id'] !== $postePorte) {
+        // La règle (et le piège de `Sanctum::actingAs`) vit dans
+        // `PosteDuJeton`, partagée depuis le 15/10/2026 avec le
+        // téléchargement du catalogue.
+        if (! PosteDuJeton::concorde($request, $valide['poste_id'])) {
             return response()->json(['message' => __('sync.poste_non_reconnu')], 403);
         }
 
