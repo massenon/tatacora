@@ -151,13 +151,14 @@ void main() {
             editees.add(facture);
           }),
           // Les deux exports du registre sont des ACTIONS injectées : un test
-          // de widget n'a ni greffon d'impression, ni dossier de documents.
-          imprimerRegistreProvider.overrideWithValue((etat) async {
+          // de widget n'a pas de fenêtre « Enregistrer sous » (14/10/2026).
+          exporterRegistrePdfProvider.overrideWithValue((etat) async {
             registresImprimes.add(etat);
+            return 'C:/Documents/registre_factures.pdf';
           }),
           exporterRegistreProvider.overrideWithValue((etat) async {
             registresExportes.add(etat);
-            return r'C:\Documents\registre-factures.csv';
+            return 'C:/Documents/registre_factures.csv';
           }),
           auteurEditionProvider.overrideWithValue(auteur),
           // Le paquet d'essai ne porte pas forcément l'asset : le logo n'est
@@ -608,7 +609,9 @@ void main() {
 
       await tester.tap(find.byKey(const Key('facturation-exporter')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('facturation-export-pdf')));
+      await tester.tap(find.byKey(const Key('export-format-pdf')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('export-generer')));
       await tester.pumpAndSettle();
 
       expect(registresImprimes, hasLength(1));
@@ -634,7 +637,9 @@ void main() {
 
       await tester.tap(find.byKey(const Key('facturation-exporter')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('facturation-export-pdf')));
+      await tester.tap(find.byKey(const Key('export-format-pdf')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('export-generer')));
       await tester.pumpAndSettle();
 
       // Aucune pièce de séjour : le refus s'affiche, et RIEN n'est envoyé.
@@ -649,7 +654,9 @@ void main() {
 
       await tester.tap(find.byKey(const Key('facturation-exporter')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('facturation-export-excel')));
+      await tester.tap(find.byKey(const Key('export-format-excel')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('export-generer')));
       await tester.pumpAndSettle();
 
       expect(registresExportes, isEmpty);
@@ -667,14 +674,19 @@ void main() {
 
       await tester.tap(find.byKey(const Key('facturation-exporter')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('facturation-export-excel')));
+      await tester.tap(find.byKey(const Key('export-format-excel')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('export-generer')));
       await tester.pumpAndSettle();
 
       expect(registresExportes, hasLength(1));
-      // Un export silencieux est un export que personne ne retrouve.
+      // Un export silencieux est un export que personne ne retrouve : le
+      // toast commun dit le NOM du fichier enregistré.
       expect(
-        find.byKey(const Key('facturation-export-chemin')),
-        findsOneWidget,
+        tester
+            .widget<Text>(find.byKey(const Key('facturation-export-chemin')))
+            .data,
+        'Export enregistré : registre_factures.csv',
       );
     });
 
@@ -687,7 +699,9 @@ void main() {
 
       await tester.tap(find.byKey(const Key('facturation-exporter')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('facturation-export-pdf')));
+      await tester.tap(find.byKey(const Key('export-format-pdf')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('export-generer')));
       await tester.pumpAndSettle();
 
       final etat = registresImprimes.single;
@@ -810,7 +824,9 @@ void main() {
       await chercher(tester, 'kora');
       await tester.tap(find.byKey(const Key('facturation-exporter')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('facturation-export-pdf')));
+      await tester.tap(find.byKey(const Key('export-format-pdf')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('export-generer')));
       await tester.pumpAndSettle();
 
       expect(registresImprimes, hasLength(1));

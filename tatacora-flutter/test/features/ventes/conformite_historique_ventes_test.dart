@@ -550,7 +550,22 @@ void main() {
       // n'a lieu.
       final dart = codeDart();
 
-      expect(dart, contains(_normaliser('enregistré sur ce poste')));
+      // Depuis le 14/10/2026, l'issue d'un export du journal (liste ou détail
+      // d'une vente) est dite par le toast COMMUN du poste, et non plus par
+      // une phrase propre à l'écran : le journal doit l'EMPRUNTER (deux
+      // exports, deux appels), et ce toast doit dire « enregistré », jamais
+      // une synchronisation ni un envoi.
+      expect(
+        RegExp(r'executerExport\(').allMatches(dart).length,
+        2,
+        reason: 'la liste et le détail d’une vente disent leur export',
+      );
+      final toast = File(
+        'lib/shared_widgets/toast_export.dart',
+      ).readAsStringSync();
+      expect(toast, contains("'Export enregistré : "));
+      expect(toast, isNot(contains('synchronis')));
+      expect(toast, isNot(contains('envoy')));
       expect(dart, isNot(contains('en attente de synchronisation')));
     });
   });

@@ -1,11 +1,11 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tatacora_flutter/core/database/app_database.dart';
+import 'package:tatacora_flutter/core/fichiers/selecteur_fichiers.dart';
 import 'package:tatacora_flutter/core/theme/app_text_styles.dart';
 import 'package:tatacora_flutter/core/theme/app_theme.dart';
 import 'package:tatacora_flutter/features/comptabilite/data/comptabilite_dao.dart';
@@ -16,7 +16,9 @@ import 'package:tatacora_flutter/features/depenses/domain/entities/depense.dart'
 import 'package:tatacora_flutter/features/depenses/impression/etat_depenses.dart';
 import 'package:tatacora_flutter/features/depenses/presentation/ecran_depenses.dart';
 import 'package:tatacora_flutter/features/depenses/presentation/providers_depenses.dart';
+import 'package:tatacora_flutter/shared_widgets/bouton_standard.dart';
 
+import '../../support/selecteur_essai.dart';
 import 'support/outils_depenses.dart';
 
 /// Le rendu de **Dépense courante** — vue Blade `depenses/depenses.blade.php`
@@ -119,7 +121,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  /// Choisit [libelle] dans le select du bandeau de rattrapage.
+  /// Choisit [libelle] dans le select du centre de la fenêtre.
   Future<void> choisirCentre(WidgetTester tester, String libelle) async {
     final liste = find.byKey(const Key('depenses-centre-rattrapage'));
     await tester.ensureVisible(liste);
@@ -128,6 +130,43 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text(libelle).last);
     await tester.pumpAndSettle();
+  }
+
+  /// Ouvre la fenêtre « Comptabiliser la dépense » depuis le bouton
+  /// « Comptabiliser » de la ligne (PO, 14/10/2026 : le bandeau ambre qui
+  /// portait le select est retiré de l'écran).
+  Future<void> ouvrirComptabiliser(WidgetTester tester) async {
+    final id = (await dao.depenses()).single.id;
+    final bouton = find.byKey(Key('depense-comptabiliser-$id'));
+    // La police d'essai (Ahem) élargit le tableau au-delà du cadre : on le
+    // fait défiler jusqu'au bouton avant de cliquer.
+    await tester.ensureVisible(bouton);
+    await tester.pumpAndSettle();
+    await tester.tap(bouton);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const Key('modale-comptabiliser-depense')),
+      findsOneWidget,
+    );
+  }
+
+  /// Le bouton de confirmation de la fenêtre.
+  BoutonStandard confirmer(WidgetTester tester) =>
+      tester.widget<BoutonStandard>(
+        find.byKey(const Key('depenses-comptabiliser-confirmer')),
+      );
+
+  /// Confirme la fenêtre (le centre doit avoir été choisi).
+  Future<void> confirmerComptabiliser(WidgetTester tester) async {
+    await tester.tap(find.byKey(const Key('depenses-comptabiliser-confirmer')));
+    await tester.pumpAndSettle();
+  }
+
+  /// Ouvre la fenêtre, choisit [centre] et confirme.
+  Future<void> comptabiliserAvec(WidgetTester tester, String centre) async {
+    await ouvrirComptabiliser(tester);
+    await choisirCentre(tester, centre);
+    await confirmerComptabiliser(tester);
   }
 
   group('Les libellés de la vue sont rendus', () {
@@ -398,18 +437,16 @@ void main() {
     }
 
     // D434 (PO, 14/10/2026) : le PDF est présélectionné comme dans la vue
-    // (`$formatExport = 'pdf'`) ; son refus reste dit APRÈS le clic.
-    testWidgets('le PDF est le choix par défaut, comme la vue, avec l’aide '
-        'dite avant le clic', (tester) async {
+    // (`$formatExport = 'pdf'`) — et il est PRODUIT depuis le lot J1 (3/4) :
+    // plus aucune aide ne l'annonce refusé.
+    testWidgets('le PDF est le choix par défaut, comme la vue, sans aide qui '
+        'l’annonce refusé', (tester) async {
       await monter(tester);
       await tester.tap(find.byKey(const Key('depenses-exporter')));
       await tester.pumpAndSettle();
 
-      expect(
-        tester.widget<Text>(find.byKey(const Key('export-aide'))).data,
-        'Le PDF n’est pas produit sur ce poste : seul le tableur (CSV) est '
-        'écrit.',
-      );
+      expect(find.byKey(const Key('export-aide')), findsNothing);
+      expect(find.textContaining('n’est pas produit'), findsNothing);
       // Le choix coché est le PDF : l'icône du radio « plein » est la sienne.
       expect(
         find.descendant(
@@ -462,36 +499,30 @@ void main() {
       // La portée part avec le document et NOMME le filtre.
       expect(appels.single.portee, isNotEmpty);
       expect(appels.single.portee, contains('recherche « e »'));
-      expect(find.text('Export écrit : C:/export/etat.csv'), findsOneWidget);
+      // Le toast commun dit le NOM du fichier enregistré.
+      expect(
+        tester.widget<Text>(find.byKey(const Key('depenses-export-fait'))).data,
+        'Export enregistré : etat.csv',
+      );
     });
 
-    testWidgets('DE BOUT EN BOUT : le clic écrit un fichier dont les OCTETS '
-        'portent le BOM, la comptabilisation et le numéro de pièce', (
-      tester,
-    ) async {
+    testWidgets('DE BOUT EN BOUT : le clic remet à « Enregistrer sous » un '
+        'fichier dont les OCTETS portent le BOM, la comptabilisation et le '
+        'numéro de pièce', (tester) async {
       await semer();
       await semerDepenseAncienne(db);
-      final dossier = Directory.systemTemp.createTempSync('depenses_csv_');
-      addTearDown(() => dossier.deleteSync(recursive: true));
-      final chemin = '${dossier.path}${Platform.pathSeparator}etat.csv';
+      // Le seul substitut : la fenêtre native (aucun greffon en test). Le
+      // VRAI `exporterDepensesProvider` compose et remet les octets.
+      final selecteur = SelecteurEssai();
 
-      await monter(
-        tester,
-        surcharges: [
-          // Le seul substitut : le DOSSIER (path_provider n'a pas de greffon en
-          // test). Les octets sont ceux de `EtatDepenses.csvOctets`, écrits
-          // comme `exporterDepensesProvider` les écrit.
-          exporterDepensesProvider.overrideWithValue((etat) async {
-            // Synchrone : l'E/S asynchrone ne rend jamais la main dans la zone
-            // simulée d'un `testWidgets`.
-            File(chemin).writeAsBytesSync(etat.csvOctets());
-            return chemin;
-          }),
-        ],
-      );
+      await monter(tester, surcharges: selecteur.surcharges);
       await exporter(tester);
 
-      final octets = File(chemin).readAsBytesSync();
+      final ecrit = selecteur.ecrits.single;
+      expect(ecrit.type, TypeFichierEnregistre.csv);
+      expect(ecrit.nom, startsWith('${EtatDepenses.prefixeFichier}_'));
+      expect(ecrit.nom, endsWith('.csv'));
+      final octets = ecrit.octets;
       // Le BOM est ENCODÉ par `utf8.encode`, pas recopié comme un caractère.
       expect(octets.take(3), utf8.encode('\u{FEFF}'));
       final texte = utf8.decode(octets);
@@ -503,17 +534,20 @@ void main() {
       expect(texte, contains(';23500;'));
       expect(texte, contains(';45000;'));
       expect(texte, contains(';12000;'));
-      expect(find.text('Export écrit : $chemin'), findsOneWidget);
+      expect(find.text('Export enregistré : ${ecrit.nom}'), findsOneWidget);
     });
 
-    testWidgets('le PDF n’est pas produit, et le poste le DIT', (tester) async {
+    testWidgets('le PDF est PRODUIT : l’état A4 enregistré en .pdf, et le '
+        'toast le dit', (tester) async {
       await semer();
-      final appels = <EtatDepenses>[];
+      final selecteur = SelecteurEssai();
+      final appelsCsv = <EtatDepenses>[];
       await monter(
         tester,
         surcharges: [
+          ...selecteur.surcharges,
           exporterDepensesProvider.overrideWithValue((etat) async {
-            appels.add(etat);
+            appelsCsv.add(etat);
             return 'C:/export/ne-doit-pas-exister.csv';
           }),
         ],
@@ -522,15 +556,16 @@ void main() {
       // Le PDF est le choix par défaut de la modale (`$formatExport = 'pdf'`).
       await exporter(tester, pdf: true);
 
-      expect(appels, isEmpty, reason: 'aucun fichier ne doit être écrit');
+      expect(appelsCsv, isEmpty, reason: 'le PDF ne passe pas par le tableur');
+      expect(find.byKey(const Key('depenses-export-pdf-absent')), findsNothing);
+      final pdf = selecteur.ecrits.single;
+      expect(pdf.type, TypeFichierEnregistre.pdf);
+      expect(pdf.nom, startsWith('${EtatDepenses.prefixeFichier}_'));
+      expect(pdf.nom, endsWith('.pdf'));
+      expect(pdf.estUnPdf, isTrue);
       expect(
-        tester
-            .widget<Text>(find.byKey(const Key('depenses-export-pdf-absent')))
-            .data,
-        'Le PDF de la dépense courante n’est pas produit sur ce poste : aucun '
-        'état A4 de cet écran n’est classé dans l’en-tête et les visas de '
-        'l’application. Rien n’a été écrit. Choisissez « Tableur Excel » pour '
-        'obtenir la liste affichée en CSV.',
+        tester.widget<Text>(find.byKey(const Key('depenses-export-fait'))).data,
+        'Export enregistré : ${pdf.nom}',
       );
     });
 
@@ -919,21 +954,23 @@ void main() {
       );
     });
 
-    testWidgets('une dépense SANS pièce est dite telle : pastille, bandeau, '
-        'indicateur et bouton', (tester) async {
+    testWidgets('une dépense SANS pièce est dite telle : pastille, '
+        'indicateur et bouton — le bandeau ambre est RETIRÉ (PO, 14/10/2026)', (
+      tester,
+    ) async {
       await semerSansPiece();
       await monter(tester);
 
       expect(find.text('non comptabilisée'), findsOneWidget);
       expect(find.text('Comptabiliser'), findsOneWidget);
+      // Le bandeau et son select ne sont plus sur l'écran : le centre se
+      // choisit dans la fenêtre ouverte par « Comptabiliser ».
+      expect(find.text(LibellesRattrapage.bandeau(1)), findsNothing);
       expect(
-        find.text(
-          '1 dépense(s) ne portent aucune écriture comptable : elles '
-          'manquent au grand livre, à la balance et au compte de résultat '
-          'tant que la pièce n\'a pas été passée.',
-        ),
-        findsOneWidget,
+        find.byKey(const Key('depenses-bandeau-rattrapage')),
+        findsNothing,
       );
+      expect(find.byKey(const Key('depenses-centre-rattrapage')), findsNothing);
       final carte = find.byKey(const Key('depenses-kpi-sans-ecriture'));
       expect(
         find.descendant(of: carte, matching: find.text('1')),
@@ -947,36 +984,44 @@ void main() {
       expect(find.textContaining('CAI-2026'), findsNothing);
     });
 
-    testWidgets('le bandeau porte le select du centre : libellé, option '
-        'vide « Choisir un centre » au départ, et les sept centres dans '
-        'l’ordre de la vue', (tester) async {
+    testWidgets('« Comptabiliser » ouvre la fenêtre du centre : titre, '
+        'libellé, option vide « Choisir un centre » au départ, confirmation '
+        'grisée, et les sept centres dans l’ordre de la vue', (tester) async {
       await semerSansPiece();
       await monter(tester);
 
-      expect(find.text(LibellesRattrapage.centre), findsOneWidget);
+      // Avant le clic, aucun select sur l'écran.
+      expect(find.byKey(const Key('depenses-centre-rattrapage')), findsNothing);
+      await ouvrirComptabiliser(tester);
+
+      final fenetre = find.byKey(const Key('modale-comptabiliser-depense'));
       expect(
-        find.text(
-          'Centre de coût de la pièce (obligatoire pour comptabiliser)',
+        find.descendant(
+          of: fenetre,
+          matching: find.text('Comptabiliser la dépense'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: fenetre,
+          matching: find.text(
+            'Centre de coût de la pièce (obligatoire pour comptabiliser)',
+          ),
         ),
         findsOneWidget,
       );
       final liste = find.byKey(const Key('depenses-centre-rattrapage'));
-      expect(liste, findsOneWidget);
-      // Le bandeau le CONTIENT (comme la vue l.124-131).
-      expect(
-        find.descendant(
-          of: find.byKey(const Key('depenses-bandeau-rattrapage')),
-          matching: liste,
-        ),
-        findsOneWidget,
-      );
+      // La fenêtre le CONTIENT.
+      expect(find.descendant(of: fenetre, matching: liste), findsOneWidget);
       // La dépense ne mémorise aucun centre : le choix démarre sur l'option
-      // vide, rendue.
+      // vide, rendue — et la confirmation reste grisée (RG-12).
       expect(tester.widget<DropdownButton<String>>(liste).value, '');
       expect(
         find.descendant(of: liste, matching: find.text('Choisir un centre')),
         findsOneWidget,
       );
+      expect(confirmer(tester).onPressed, isNull);
 
       await tester.ensureVisible(liste);
       await tester.tap(liste);
@@ -996,6 +1041,11 @@ void main() {
           tester.getTopLeft(find.text(libelle).last).dy,
       ];
       expect([...hauteurs]..sort(), hauteurs);
+
+      // Un centre choisi rend la confirmation active.
+      await tester.tap(find.text(ordonnes.first).last);
+      await tester.pumpAndSettle();
+      expect(confirmer(tester).onPressed, isNotNull);
     });
 
     testWidgets('sans dépense à reprendre, ni bandeau ni select', (
@@ -1015,16 +1065,14 @@ void main() {
       tester,
     ) async {
       await semerSansPiece();
-      // Aucun défaut posé sur le compte : le centre vient du bandeau seul.
+      // Aucun défaut posé sur le compte : le centre vient de la fenêtre seule.
       await monter(tester);
 
-      await choisirCentre(tester, 'Tourisme');
-      // La police d'essai (Ahem) élargit le tableau au-delà du cadre : on le
-      // fait défiler jusqu'au bouton avant de cliquer.
-      await tester.ensureVisible(find.text('Comptabiliser'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Comptabiliser'));
-      await tester.pumpAndSettle();
+      await comptabiliserAvec(tester, 'Tourisme');
+      expect(
+        find.byKey(const Key('modale-comptabiliser-depense')),
+        findsNothing,
+      );
 
       final apres = await dao.depenses();
       expect(apres.single.estComptabilisee, isTrue);
@@ -1054,17 +1102,45 @@ void main() {
     });
 
     testWidgets(
-      'SANS centre choisi, le rattrapage est refusé (RG-12) avec la phrase '
-      'du serveur ; choisir un centre puis recliquer aboutit',
+      'SANS centre choisi, la fenêtre ne comptabilise pas (confirmation '
+      'grisée, « Annuler » n’écrit rien) ; le moteur refuse toujours (RG-12) '
+      'avec la phrase du serveur ; choisir un centre aboutit',
       (tester) async {
         await semerSansPiece();
         await monter(tester);
 
-        // La police d'essai (Ahem) élargit le tableau au-delà du cadre : on le
-        // fait défiler jusqu'au bouton avant de cliquer.
-        await tester.ensureVisible(find.text('Comptabiliser'));
+        // 1. Fenêtre ouverte, centre NON choisi : confirmer est grisé, et un
+        // clic dessus n'écrit rien.
+        await ouvrirComptabiliser(tester);
+        expect(confirmer(tester).onPressed, isNull);
+        await confirmerComptabiliser(tester);
+        expect(
+          find.byKey(const Key('modale-comptabiliser-depense')),
+          findsOneWidget,
+        );
+        expect(await compter(db, 'ecritures_local'), 0);
+
+        // 2. « Annuler » ferme sans rien écrire ni consigner.
+        await tester.tap(
+          find.byKey(const Key('depenses-comptabiliser-annuler')),
+        );
         await tester.pumpAndSettle();
-        await tester.tap(find.text('Comptabiliser'));
+        expect(
+          find.byKey(const Key('modale-comptabiliser-depense')),
+          findsNothing,
+        );
+        expect(await compter(db, 'ecritures_local'), 0);
+        expect((await dao.depenses()).single.ecritureRefus, isNull);
+
+        // 3. Le chemin de l'écran SANS centre (ce que la fenêtre interdit)
+        // reste refusé par le moteur, avec la phrase du serveur, dite à
+        // l'écran et consignée.
+        final ref = tester.element(find.byType(EcranDepenses)) as WidgetRef;
+        await comptabiliserLaDepense(
+          ref,
+          (await dao.depenses()).single,
+          centreId: '',
+        );
         await tester.pumpAndSettle();
 
         final phrase = MessagesComptables.dire('depenses.centre_absent', {
@@ -1077,7 +1153,10 @@ void main() {
         expect(refusee.estComptabilisee, isFalse);
         // La raison est consignée sur la dépense.
         expect(refusee.ecritureRefus, phrase);
-        // Le choix est resté sur « Choisir un centre » : rien n'a été deviné.
+
+        // 4. Rouverte, la fenêtre redémarre sur « Choisir un centre » : rien
+        // n'a été deviné ni mémorisé.
+        await ouvrirComptabiliser(tester);
         expect(
           tester
               .widget<DropdownButton<String>>(
@@ -1088,10 +1167,7 @@ void main() {
         );
 
         await choisirCentre(tester, 'Structure');
-        await tester.ensureVisible(find.text('Comptabiliser'));
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Comptabiliser'));
-        await tester.pumpAndSettle();
+        await confirmerComptabiliser(tester);
 
         final faite = (await dao.depenses()).single;
         expect(faite.estComptabilisee, isTrue);
@@ -1113,13 +1189,7 @@ void main() {
       await semerSansPiece(compte: '601100');
       await monter(tester);
 
-      await choisirCentre(tester, 'Structure');
-      // La police d'essai (Ahem) élargit le tableau au-delà du cadre : on le
-      // fait défiler jusqu'au bouton avant de cliquer.
-      await tester.ensureVisible(find.text('Comptabiliser'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Comptabiliser'));
-      await tester.pumpAndSettle();
+      await comptabiliserAvec(tester, 'Structure');
 
       final phrase = MessagesComptables.dire('depenses.compte_inconnu', {
         'numero': '601100',
@@ -1138,8 +1208,7 @@ void main() {
             .first,
       );
       expect(pastille.message, phrase);
-      // Le bandeau et le bouton restent : la dépense manque toujours au grand
-      // livre.
+      // Le bouton reste : la dépense manque toujours au grand livre.
       expect(find.text('Comptabiliser'), findsOneWidget);
       // Et l'ancien libellé du compte reste lisible dans la colonne.
       expect(

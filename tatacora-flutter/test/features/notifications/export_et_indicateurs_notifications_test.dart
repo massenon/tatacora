@@ -1,11 +1,11 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tatacora_flutter/core/database/app_database.dart';
 import 'package:tatacora_flutter/core/di/providers.dart';
+import 'package:tatacora_flutter/core/fichiers/selecteur_fichiers.dart';
 import 'package:tatacora_flutter/features/hebergement/domain/entities/periode_sejour.dart';
 import 'package:tatacora_flutter/features/hebergement/domain/entities/reservation.dart';
 import 'package:tatacora_flutter/features/notifications/data/notifications_dao.dart';
@@ -16,6 +16,8 @@ import 'package:tatacora_flutter/features/notifications/domain/entities/modele_n
 import 'package:tatacora_flutter/features/notifications/domain/registre_notifications.dart';
 import 'package:tatacora_flutter/features/notifications/impression/etat_notifications.dart';
 import 'package:tatacora_flutter/features/notifications/presentation/providers_notifications.dart';
+
+import '../../support/selecteur_essai.dart';
 
 /// M12 — ce que l'écran affiche et exporte, éprouvé SANS monter de widget.
 ///
@@ -92,24 +94,25 @@ void main() {
   group('L’export et le journal, de bout en bout', () {
     late AppDatabase db;
     late NotificationsDao dao;
-    late Directory dossier;
+    // La fenêtre « Enregistrer sous » remplacée (14/10/2026) : le VRAI
+    // `exporterNotificationsProvider` est emprunté jusqu'à elle.
+    late SelecteurEssai selecteur;
 
     setUp(() {
       db = AppDatabase.enMemoire();
       dao = NotificationsDao(db);
-      dossier = Directory.systemTemp.createTempSync('export_notifications_');
+      selecteur = SelecteurEssai();
     });
 
     tearDown(() async {
       await db.close();
-      if (dossier.existsSync()) dossier.deleteSync(recursive: true);
     });
 
     ProviderContainer conteneur() {
       final c = ProviderContainer(
         overrides: [
           baseLocaleProvider.overrideWithValue(db),
-          dossierDocumentsProvider.overrideWithValue(() async => dossier),
+          ...selecteur.surcharges,
         ],
       );
       addTearDown(c.dispose);
@@ -158,10 +161,16 @@ void main() {
 
       final chemin = await c.read(exporterNotificationsProvider)();
 
-      expect(chemin.startsWith(dossier.path), isTrue);
-      expect(chemin.endsWith('.csv'), isTrue);
+      final ecrit = selecteur.ecrits.single;
+      expect(chemin, 'C:/essai/${ecrit.nom}');
+      expect(ecrit.type, TypeFichierEnregistre.csv);
+      expect(
+        ecrit.nom,
+        matches(RegExp(r'^notifications_file_\d{4}-\d{2}-\d{2}\.csv$')),
+      );
+      expect(ecrit.dossierInitial, SelecteurEssai.dossierDocuments);
 
-      final octets = File(chemin).readAsBytesSync();
+      final octets = ecrit.octets;
       // BOM UTF-8 : EF BB BF.
       expect(octets.sublist(0, 3), [0xEF, 0xBB, 0xBF]);
       final texte = utf8.decode(octets);
@@ -185,11 +194,28 @@ void main() {
 
       final c = conteneur();
       final chemin = await c.read(exporterNotificationsProvider)();
-      final texte = utf8.decode(File(chemin).readAsBytesSync());
+      expect(chemin, isNotNull);
+      final texte = selecteur.ecrits.single.texte;
 
       expect(texte, contains('ZOLA'));
       expect(texte, contains('KORA BIS'));
       expect(texte, isNot(contains('Recherche :')));
+    });
+
+    test('le PDF est PRODUIT : un état A4 enregistré en .pdf', () async {
+      await semer();
+
+      final c = conteneur();
+      final chemin = await c.read(exporterNotificationsPdfProvider)();
+
+      final pdf = selecteur.ecrits.single;
+      expect(chemin, 'C:/essai/${pdf.nom}');
+      expect(pdf.type, TypeFichierEnregistre.pdf);
+      expect(
+        pdf.nom,
+        matches(RegExp(r'^notifications_file_\d{4}-\d{2}-\d{2}\.pdf$')),
+      );
+      expect(pdf.estUnPdf, isTrue);
     });
 
     test(
@@ -204,7 +230,7 @@ void main() {
           c.read(exporterNotificationsProvider)(),
           throwsA(isA<ExportVide>()),
         );
-        expect(dossier.listSync(), isEmpty);
+        expect(selecteur.ecrits, isEmpty);
       },
     );
 

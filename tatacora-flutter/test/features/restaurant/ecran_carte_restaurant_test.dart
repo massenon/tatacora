@@ -726,9 +726,13 @@ void main() {
           ),
         ),
         surcharges: [
-          imprimerCarteRestaurantProvider.overrideWithValue((lignes, f) async {
+          exporterCarteRestaurantPdfProvider.overrideWithValue((
+            lignes,
+            f,
+          ) async {
             recues = lignes;
             filtre = f;
+            return 'C:/Documents/carte_restaurant.pdf';
           }),
         ],
       );
@@ -742,6 +746,8 @@ void main() {
       expect(recues, isNotNull);
       expect(recues!.map((l) => l.id), ['p-1', 'p-2']);
       expect(filtre, contains('categorie : local'));
+      // L'issue est DITE par le toast commun (14/10/2026).
+      expect(find.text('Export enregistré : carte_restaurant.pdf'), findsOne);
     });
 
     testWidgets('une liste vide se REFUSE, avec la phrase de la vue', (
@@ -752,8 +758,9 @@ void main() {
         tester,
         resultat: RestaurantRecu(carte(lignes: const [])),
         surcharges: [
-          imprimerCarteRestaurantProvider.overrideWithValue((_, _) async {
+          exporterCarteRestaurantPdfProvider.overrideWithValue((_, _) async {
             appele = true;
+            return 'jamais.pdf';
           }),
         ],
       );

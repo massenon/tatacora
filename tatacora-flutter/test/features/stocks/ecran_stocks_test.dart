@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:flutter/material.dart';
@@ -23,6 +22,8 @@ import 'package:tatacora_flutter/features/stocks/presentation/ecran_inventaires.
 import 'package:tatacora_flutter/features/stocks/presentation/ecran_stocks.dart';
 import 'package:tatacora_flutter/features/stocks/presentation/providers_stocks.dart';
 
+import '../../support/selecteur_essai.dart';
+
 /// L'écran Gestion des Stocks, monté sur une **vraie base locale** — le chemin
 /// que l'exploitant emprunte : clic, modale, `StocksApi`, `StocksDao`, base,
 /// relecture. Aucun faux au milieu (piège 5).
@@ -30,13 +31,11 @@ void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
 
   late AppDatabase db;
-  late Directory dossier;
-  late List<String> fichiersEcrits;
+  late SelecteurEssai selecteur;
 
   setUp(() async {
     db = AppDatabase.enMemoire();
-    dossier = await Directory.systemTemp.createTemp('tatacora_stocks_');
-    fichiersEcrits = [];
+    selecteur = SelecteurEssai();
 
     await db
         .into(db.utilisateursLocal)
@@ -58,11 +57,6 @@ void main() {
 
   tearDown(() async {
     await db.close();
-    try {
-      if (dossier.existsSync()) await dossier.delete(recursive: true);
-    } on FileSystemException {
-      // Verrou Windows après fermeture : sans conséquence sur l'assertion.
-    }
   });
 
   Future<void> monter(
@@ -92,19 +86,11 @@ void main() {
           baseLocaleProvider.overrideWithValue(db),
           droitsProvider.overrideWithValue(droits),
           sessionProvider.overrideWithBuild((ref, notifier) => session),
-          // Un test de widget n'a pas de greffon natif : le fichier est écrit
-          // dans un dossier temporaire, au même format que l'action réelle.
-          exporterStocksProvider.overrideWithValue((etat) async {
-            final f = File(
-              '${dossier.path}/export-${fichiersEcrits.length}.csv',
-            );
-            // SYNCHRONE : l'E/S asynchrone ne s'achève pas sous le temps
-            // simulé d'un test de widget, et le test attendrait un fichier
-            // qui n'arrive jamais.
-            f.writeAsBytesSync(etat.csvOctets());
-            fichiersEcrits.add(f.path);
-            return f.path;
-          }),
+          // Un test de widget n'a pas de greffon natif : la fenêtre
+          // « Enregistrer sous » est remplacée, le VRAI chemin d'export
+          // (`exporterStocksProvider` → `enregistrementExportProvider`) est
+          // emprunté jusqu'à elle (14/10/2026).
+          ...selecteur.surcharges,
           ...surcharges,
         ],
         child: MaterialApp(
@@ -691,7 +677,7 @@ void main() {
     // portés » est remplacé par le geste réel, sélecteur natif injecté.
     testWidgets('Importer CRÉE les articles du fichier ; Modèle écrit le CSV '
         'vide aux colonnes attendues', (tester) async {
-      final selecteur = _SelecteurEssai(
+      selecteur = SelecteurEssai(
         lu: FichierLu(
           nom: 'articles.csv',
           octets: Uint8List.fromList(
@@ -702,10 +688,7 @@ void main() {
           ),
         ),
       );
-      await monter(
-        tester,
-        surcharges: [selecteurFichiersProvider.overrideWithValue(selecteur)],
-      );
+      await monter(tester);
 
       await toucher(tester, const Key('stocks-importer'));
       expect(find.byKey(const Key('modale-import-articles')), findsOneWidget);
@@ -725,10 +708,10 @@ void main() {
       await tester.pumpAndSettle();
 
       await toucher(tester, const Key('stocks-modele'));
-      expect(selecteur.nomEcrit, TextesImportArticles.nomModele);
+      expect(selecteur.dernier.nom, TextesImportArticles.nomModele);
       // `utf8.decode` retire le BOM : on compare les OCTETS.
-      expect(selecteur.octetsEcrits, modeleImportArticlesOctets());
-      expect(selecteur.octetsEcrits!.take(3), [0xEF, 0xBB, 0xBF]);
+      expect(selecteur.dernier.octets, modeleImportArticlesOctets());
+      expect(selecteur.dernier.octets.take(3), [0xEF, 0xBB, 0xBF]);
       expect(find.byKey(const Key('stocks-modele-enregistre')), findsOneWidget);
     });
 
@@ -768,10 +751,14 @@ void main() {
       await tester.tap(find.text('Générer & Télécharger'));
       await tester.pumpAndSettle();
 
-      expect(fichiersEcrits, hasLength(1));
-      final octets = File(fichiersEcrits.single).readAsBytesSync();
-      expect(octets.take(3), [0xEF, 0xBB, 0xBF], reason: 'BOM UTF-8');
-      final csv = File(fichiersEcrits.single).readAsStringSync();
+      // Par la fenêtre « Enregistrer sous », sous un nom lisible en .csv.
+      expect(selecteur.ecrits, hasLength(1));
+      final ecrit = selecteur.ecrits.single;
+      expect(ecrit.type, TypeFichierEnregistre.csv);
+      expect(ecrit.nom, startsWith('${EtatStocks.prefixeFichier}_'));
+      expect(ecrit.nom, endsWith('.csv'));
+      expect(ecrit.octets.take(3), [0xEF, 0xBB, 0xBF], reason: 'BOM UTF-8');
+      final csv = ecrit.texte;
 
       expect(csv, contains('Filtre appliqué : Catégorie : Denrées'));
       expect(csv, contains(EtatStocks.entetes.join(';')));
@@ -802,8 +789,8 @@ void main() {
       expect(find.byKey(const Key('stocks-export-fait')), findsOneWidget);
     });
 
-    testWidgets('le PDF est offert comme dans la vue, et REFUSE avec son '
-        'message', (tester) async {
+    testWidgets('le PDF est offert comme dans la vue, et PRODUIT : un état '
+        'A4 enregistré en .pdf, le toast le dit', (tester) async {
       await semerArticle('riz', 'Riz local');
       await monter(tester);
 
@@ -813,8 +800,13 @@ void main() {
       await tester.tap(find.text('Générer & Télécharger'));
       await tester.pumpAndSettle();
 
-      expect(find.text(TextesStocks.pdfNonProduit), findsOneWidget);
-      expect(fichiersEcrits, isEmpty);
+      expect(selecteur.ecrits, hasLength(1));
+      final ecrit = selecteur.ecrits.single;
+      expect(ecrit.type, TypeFichierEnregistre.pdf);
+      expect(ecrit.nom, startsWith('${EtatStocks.prefixeFichier}_'));
+      expect(ecrit.nom, endsWith('.pdf'));
+      expect(ecrit.estUnPdf, isTrue);
+      expect(find.byKey(const Key('stocks-export-fait')), findsOneWidget);
     });
 
     testWidgets('une liste vide se REFUSE : pas de fichier', (tester) async {
@@ -829,7 +821,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text(EtatStocks.refusVide), findsOneWidget);
-      expect(fichiersEcrits, isEmpty);
+      expect(selecteur.ecrits, isEmpty);
     });
   });
 
@@ -907,27 +899,4 @@ void main() {
       expect(find.byKey(const Key('fiche-rupture-1')), findsOneWidget);
     });
   });
-}
-
-/// Le sélecteur natif remplacé : un fichier « ouvert » fourni, et ce qui
-/// aurait été écrit par « Enregistrer sous » retenu pour l'assertion.
-final class _SelecteurEssai implements SelecteurFichiers {
-  _SelecteurEssai({this.lu});
-
-  final FichierLu? lu;
-  String? nomEcrit;
-  List<int>? octetsEcrits;
-
-  @override
-  Future<FichierLu?> ouvrirCsv() async => lu;
-
-  @override
-  Future<String?> enregistrerSous({
-    required String nomSuggere,
-    required List<int> octets,
-  }) async {
-    nomEcrit = nomSuggere;
-    octetsEcrits = octets;
-    return 'C:/essai/$nomSuggere';
-  }
 }

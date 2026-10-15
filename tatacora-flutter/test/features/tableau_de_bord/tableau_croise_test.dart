@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tatacora_flutter/core/database/app_database.dart';
 import 'package:tatacora_flutter/core/di/providers.dart';
-import 'package:tatacora_flutter/features/bar/presentation/widgets/modale_export_carte.dart'
+import 'package:tatacora_flutter/shared_widgets/modale_export.dart'
     show TextesExport;
 import 'package:tatacora_flutter/features/pos/data/panier_dao.dart';
 import 'package:tatacora_flutter/features/pos/domain/entities/article_vendable.dart';

@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tatacora_flutter/core/database/app_database.dart';
 import 'package:tatacora_flutter/core/di/providers.dart';
+import 'package:tatacora_flutter/core/fichiers/selecteur_fichiers.dart';
 import 'package:tatacora_flutter/core/rbac/garde_acces.dart';
 import 'package:tatacora_flutter/core/theme/app_theme.dart';
 import 'package:tatacora_flutter/features/achats/data/achats_api.dart';
@@ -24,6 +25,8 @@ import 'package:tatacora_flutter/features/auth/domain/session.dart';
 import 'package:tatacora_flutter/features/stocks/data/stocks_dao.dart';
 import 'package:tatacora_flutter/features/stocks/domain/entities/etat_stock.dart';
 import 'package:tatacora_flutter/features/stocks/domain/entities/mouvement_stock.dart';
+
+import '../../support/selecteur_essai.dart';
 
 /// M7 par la CHAÎNE RÉELLE : l'écran, les providers, `AchatsApi`, `AchatsDao`,
 /// `StocksDao` et la base — **aucune liste surchargée**.
@@ -988,12 +991,17 @@ void main() {
   /* L'export tableur, de bout en bout                                     */
   /* ==================================================================== */
 
-  group('L’export, de bout en bout avec un dossier injecté', () {
+  group('L’export, de bout en bout jusqu’à « Enregistrer sous »', () {
+    // La fenêtre native remplacée (14/10/2026) : le VRAI
+    // `exporterListeAchatsProvider` est emprunté jusqu'à elle.
+    late SelecteurEssai selecteur;
+    setUp(() => selecteur = SelecteurEssai());
+
     ProviderContainer conteneur() {
       final c = ProviderContainer(
         overrides: [
           baseLocaleProvider.overrideWithValue(db),
-          dossierExportAchatsProvider.overrideWithValue(() async => dossier),
+          ...selecteur.surcharges,
         ],
       );
       addTearDown(c.dispose);
@@ -1021,9 +1029,17 @@ void main() {
 
         final chemin = await c.read(exporterListeAchatsProvider)(liste);
 
-        expect(chemin.startsWith(dossier.path), isTrue);
-        expect(chemin.endsWith('.csv'), isTrue);
-        final octets = File(chemin).readAsBytesSync();
+        final ecrit = selecteur.ecrits.single;
+        expect(chemin, 'C:/essai/${ecrit.nom}');
+        expect(ecrit.type, TypeFichierEnregistre.csv);
+        // Le nom suggéré dérive du TITRE de la liste.
+        expect(
+          ecrit.nom,
+          matches(
+            RegExp(r'^bons_de_commande_fournisseurs_\d{4}-\d{2}-\d{2}\.csv$'),
+          ),
+        );
+        final octets = ecrit.octets;
         expect(octets.sublist(0, 3), [0xEF, 0xBB, 0xBF]);
         final texte = utf8.decode(octets.sublist(3));
         // Les accents et le tiret long ont survécu à l'écriture : un
@@ -1095,22 +1111,12 @@ void main() {
         expect(capturee!.lignes.single.first, 'Éts Kora');
         expect(capturee!.portee.filtre, contains('kora'));
 
-        // L'écriture réelle de CETTE liste, relue octet par octet.
-        final chemin = await tester.runAsync(() async {
-          final c = ProviderContainer(
-            overrides: [
-              dossierExportAchatsProvider.overrideWithValue(
-                () async => dossier,
-              ),
-            ],
-          );
-          try {
-            return await c.read(exporterListeAchatsProvider)(capturee!);
-          } finally {
-            c.dispose();
-          }
-        });
-        final octets = File(chemin!).readAsBytesSync();
+        // L'enregistrement réel de CETTE liste, relu octet par octet.
+        final c = ProviderContainer(overrides: selecteur.surcharges);
+        addTearDown(c.dispose);
+        final chemin = await c.read(exporterListeAchatsProvider)(capturee!);
+        expect(chemin, isNotNull);
+        final octets = selecteur.ecrits.single.octets;
         expect(octets.sublist(0, 3), [0xEF, 0xBB, 0xBF]);
         final texte = utf8.decode(octets.sublist(3));
         expect(texte, contains('Éts Kora'));
@@ -1210,7 +1216,11 @@ void main() {
           ),
         );
         await toucher(tester, const Key('onglet-appro-commandes'));
-        await toucher(tester, const Key('excel-cmd'));
+        // UN bouton « Exporter » (14/10/2026) : la paire « Export Excel » /
+        // « Export PDF » est retirée, le tableur se choisit dans la modale.
+        await toucher(tester, const Key('exporter-cmd'));
+        await toucher(tester, const Key('export-format-excel'));
+        await toucher(tester, const Key('export-generer'));
 
         expect(capturee, isNotNull);
         expect(capturee!.entetes, [

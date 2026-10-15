@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:flutter/material.dart';
@@ -8,6 +7,7 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tatacora_flutter/core/database/app_database.dart';
 import 'package:tatacora_flutter/core/di/providers.dart';
+import 'package:tatacora_flutter/core/fichiers/selecteur_fichiers.dart';
 import 'package:tatacora_flutter/core/format/formats.dart';
 import 'package:tatacora_flutter/core/rbac/garde_acces.dart';
 import 'package:tatacora_flutter/core/theme/app_theme.dart';
@@ -22,6 +22,8 @@ import 'package:tatacora_flutter/features/stocks/data/stocks_dao.dart';
 import 'package:tatacora_flutter/features/stocks/domain/entities/etat_stock.dart';
 import 'package:tatacora_flutter/features/stocks/domain/entities/mouvement_stock.dart';
 
+import '../../support/selecteur_essai.dart';
+
 /// M4 par la CHAÎNE RÉELLE : l'écran, les providers, `RestaurantApi`,
 /// `RestaurantDao`, `StocksDao` et la base — **aucune liste surchargée**.
 ///
@@ -35,12 +37,15 @@ void main() {
 
   late AppDatabase db;
   late StocksDao stocks;
-  late Directory dossier;
+  // La fenêtre « Enregistrer sous » remplacée (14/10/2026) : le VRAI
+  // export (`exporterCarteRestaurantProvider` → `enregistrementExportProvider`)
+  // est emprunté jusqu'à elle.
+  late SelecteurEssai selecteur;
 
   setUp(() async {
     db = AppDatabase.enMemoire();
     stocks = StocksDao(db);
-    dossier = Directory.systemTemp.createTempSync('chaine_restaurant_');
+    selecteur = SelecteurEssai();
     await db
         .into(db.utilisateursLocal)
         .insert(
@@ -61,11 +66,6 @@ void main() {
 
   tearDown(() async {
     await db.close();
-    try {
-      if (dossier.existsSync()) dossier.deleteSync(recursive: true);
-    } on FileSystemException {
-      // Verrou Windows après fermeture : sans conséquence sur l'assertion.
-    }
   });
 
   List<Override> surcharges({
@@ -86,7 +86,7 @@ void main() {
           droits: droits,
         ),
       ),
-      dossierExportRestaurantProvider.overrideWithValue(() async => dossier),
+      ...selecteur.surcharges,
       ...plus,
     ];
   }
@@ -147,27 +147,27 @@ void main() {
       t.data ?? t.textSpan!.toPlainText(),
   ];
 
-  /// Le fichier que l'export RÉEL vient d'écrire.
-  ///
-  /// L'écriture est une vraie entrée-sortie, dont chaque étape reprend dans la
-  /// zone du TEST : le temps simulé ne la fait pas avancer seul. On alterne donc
-  /// un tour de la vraie boucle d'événements et une image simulée, jusqu'à ce
-  /// que le fichier porte ses octets.
-  Future<List<int>> octetsExportes(WidgetTester tester) async {
-    File? fichier;
-    for (var i = 0; i < 80 && fichier == null; i++) {
-      await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 25)),
-      );
-      await tester.pump();
-      final liste = dossier.listSync().whereType<File>().toList();
-      if (liste.length == 1 && liste.single.lengthSync() > 0) {
-        fichier = liste.single;
-      }
-    }
-    expect(fichier, isNotNull, reason: "aucun fichier n'a été écrit");
-    await tester.pumpAndSettle();
-    return fichier!.readAsBytesSync();
+  /// Le fichier que l'export RÉEL vient de remettre à « Enregistrer sous » :
+  /// un seul, du [type] attendu, sous le nom suggéré `carte_restaurant_<date>`,
+  /// et le toast commun le dit.
+  List<int> octetsExportes(
+    WidgetTester tester, {
+    TypeFichierEnregistre type = TypeFichierEnregistre.csv,
+  }) {
+    expect(selecteur.ecrits, hasLength(1), reason: 'un seul fichier écrit');
+    final ecrit = selecteur.ecrits.single;
+    expect(ecrit.type, type);
+    expect(
+      ecrit.nom,
+      matches(
+        RegExp(
+          '^carte_restaurant_[0-9]{4}-[0-9]{2}-[0-9]{2}[.]${type.extension}'
+          r'$',
+        ),
+      ),
+    );
+    expect(find.text('Export enregistré : ${ecrit.nom}'), findsOneWidget);
+    return ecrit.octets;
   }
 
   /// Le poste du restaurant : un point cuisine, un article (10 kg de poulet à
@@ -885,7 +885,7 @@ void main() {
       await toucher(tester, const Key('export-format-excel'));
       await toucher(tester, const Key('export-generer'));
 
-      final octets = await octetsExportes(tester);
+      final octets = octetsExportes(tester);
 
       // EF BB BF : le BOM qu'attend un Excel en configuration française.
       expect(octets.sublist(0, 3), [0xEF, 0xBB, 0xBF]);
@@ -939,7 +939,7 @@ void main() {
       await toucher(tester, const Key('export-format-excel'));
       await toucher(tester, const Key('export-generer'));
 
-      final octets = await octetsExportes(tester);
+      final octets = octetsExportes(tester);
       final lignes = const LineSplitter().convert(
         utf8.decode(octets.sublist(3)),
       );
@@ -947,6 +947,20 @@ void main() {
       expect(lignes[0], 'Carte du restaurant;recherche : riz');
       expect(lignes.where((l) => l.startsWith('Riz sauce;')), hasLength(1));
       expect(lignes.where((l) => l.startsWith('Poulet DG;')), isEmpty);
+    });
+
+    testWidgets('le PDF (présélectionné) est PRODUIT et enregistré en .pdf', (
+      tester,
+    ) async {
+      await poste();
+      await garni(libelle: 'Poulet DG');
+      await monter(tester, const EcranCarteRestaurant());
+
+      await toucher(tester, const Key('carte-restaurant-exporter'));
+      await toucher(tester, const Key('export-generer'));
+
+      final octets = octetsExportes(tester, type: TypeFichierEnregistre.pdf);
+      expect(ascii.decode(octets.sublist(0, 4)), '%PDF');
     });
   });
 }

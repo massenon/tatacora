@@ -6,7 +6,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tatacora_flutter/features/bar/presentation/widgets/modale_export_carte.dart'
+import 'package:tatacora_flutter/shared_widgets/modale_export.dart'
     show TextesExport;
 import 'package:tatacora_flutter/features/facturation/domain/entities/piece_facturation.dart';
 import 'package:tatacora_flutter/features/hebergement/domain/entities/periode_sejour.dart';

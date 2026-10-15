@@ -1210,10 +1210,10 @@ void main() {
         ['Ets Kora', '97 00 00 00', 'Carburant', '', 'Non évaluée'],
       ]);
       expect(produite!.portee.filtre, 'Toutes les évaluations');
-      expect(messageSnack(tester), 'Export écrit : /tmp/fournisseurs.csv');
+      expect(messageSnack(tester), 'Export enregistré : fournisseurs.csv');
     });
 
-    testWidgets('le format PDF appelle l’impression, pas le tableur', (
+    testWidgets('le format PDF appelle l’export PDF, pas le tableur', (
       tester,
     ) async {
       ListeAchats? imprimee;
@@ -1222,8 +1222,9 @@ void main() {
         tester,
         surcharges: [
           fournisseurs(trois),
-          imprimerListeAchatsProvider.overrideWithValue((liste) async {
+          exporterListeAchatsPdfProvider.overrideWithValue((liste) async {
             imprimee = liste;
+            return '/tmp/fournisseurs.pdf';
           }),
           exporterListeAchatsProvider.overrideWithValue((liste) async {
             tableur++;
@@ -1240,6 +1241,8 @@ void main() {
 
       expect(imprimee!.lignes.length, 3);
       expect(tableur, 0);
+      // L'issue est DITE par le toast commun (14/10/2026).
+      expect(messageSnack(tester), 'Export enregistré : fournisseurs.pdf');
     });
 
     testWidgets('une sélection de UNE ligne : seule celle-là part, et le dit', (

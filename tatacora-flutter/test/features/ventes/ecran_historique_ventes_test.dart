@@ -144,10 +144,11 @@ void main() {
           baseLocaleProvider.overrideWithValue(db),
           exporterJournalVentesProvider.overrideWithValue((etat) async {
             exportes.add(etat);
-            return 'C:/documents/journal-ventes.csv';
+            return 'C:/documents/journal_ventes.csv';
           }),
-          imprimerJournalVentesProvider.overrideWithValue((etat) async {
+          exporterJournalVentesPdfProvider.overrideWithValue((etat) async {
             imprimes.add(etat);
+            return 'C:/documents/journal_ventes.pdf';
           }),
           imprimerVenteProvider.overrideWithValue((etat) async {}),
           exporterVenteProvider.overrideWithValue(
@@ -513,7 +514,9 @@ void main() {
       // montants de la liste entière.
       await tester.tap(find.byKey(const Key('ventes-exporter')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('ventes-export-excel')));
+      await tester.tap(find.byKey(const Key('export-format-excel')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('export-generer')));
       await tester.pumpAndSettle();
       final etat = exportes.single;
       expect(etat.ventes, hasLength(12));
@@ -596,7 +599,9 @@ void main() {
       // L'export emporte les 23 lignes affichables, pas la page.
       await tester.tap(find.byKey(const Key('ventes-exporter')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('ventes-export-excel')));
+      await tester.tap(find.byKey(const Key('export-format-excel')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('export-generer')));
       await tester.pumpAndSettle();
       expect(exportes.single.ventes, hasLength(23));
 
@@ -781,10 +786,13 @@ void main() {
       await tester.tap(find.byKey(const Key('vente-detail-telecharger')));
       await tester.pumpAndSettle();
 
-      expect(
-        tester.widget<Text>(find.byKey(const Key('vente-detail-chemin'))).data,
-        contains('enregistré sur ce poste'),
-      );
+      // Le toast commun dit le NOM du fichier enregistré — « enregistré »,
+      // jamais « envoyé » ni « synchronisé ».
+      final dit = tester
+          .widget<Text>(find.byKey(const Key('vente-detail-chemin')))
+          .data;
+      expect(dit, 'Export enregistré : vente.pdf');
+      expect(dit, isNot(matches(RegExp('envoy|synchronis'))));
     });
   });
 
@@ -797,7 +805,9 @@ void main() {
 
       await tester.tap(find.byKey(const Key('ventes-exporter')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('ventes-export-pdf')));
+      await tester.tap(find.byKey(const Key('export-format-pdf')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('export-generer')));
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('ventes-export-vide')), findsOneWidget);
@@ -808,6 +818,34 @@ void main() {
         reason:
             'une page blanche remise au Gérant se lit comme « aucune vente », '
             'alors qu’elle veut dire « le filtre n’a rien retenu »',
+      );
+    });
+
+    testWidgets('le PDF (présélectionné) part par l’export PDF, pas par le '
+        'tableur, avec la liste FILTRÉE ; le toast le dit', (tester) async {
+      await vente();
+      await vente(annulee: true);
+      await monter(tester);
+
+      ProviderScope.containerOf(
+            tester.element(find.byType(EcranHistoriqueVentes)),
+          )
+          .read(filtreVentesProvider.notifier)
+          .definir(const FiltreVentes(statut: StatutVente.annulee));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('ventes-exporter')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('export-generer')));
+      await tester.pumpAndSettle();
+
+      expect(exportes, isEmpty, reason: 'le PDF ne passe pas par le tableur');
+      expect(imprimes, hasLength(1));
+      expect(imprimes.single.ventes, hasLength(1));
+      expect(imprimes.single.filtre, contains('Statut : Annulées'));
+      expect(
+        tester.widget<Text>(find.byKey(const Key('ventes-export-chemin'))).data,
+        'Export enregistré : journal_ventes.pdf',
       );
     });
 
@@ -828,7 +866,9 @@ void main() {
 
       await tester.tap(find.byKey(const Key('ventes-exporter')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('ventes-export-excel')));
+      await tester.tap(find.byKey(const Key('export-format-excel')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('export-generer')));
       await tester.pumpAndSettle();
 
       expect(exportes, hasLength(1));
@@ -840,11 +880,13 @@ void main() {
             'document que l’utilisateur croit avoir vérifié',
       );
       expect(exportes.single.filtre, contains('Statut : Annulées'));
-      expect(
-        tester.widget<Text>(find.byKey(const Key('ventes-export-chemin'))).data,
-        // « enregistré sur ce poste », jamais « envoyé » ni « synchronisé ».
-        contains('enregistré sur ce poste'),
-      );
+      // Le toast commun dit le NOM du fichier enregistré — « enregistré »,
+      // jamais « envoyé » ni « synchronisé ».
+      final dit = tester
+          .widget<Text>(find.byKey(const Key('ventes-export-chemin')))
+          .data;
+      expect(dit, 'Export enregistré : journal_ventes.csv');
+      expect(dit, isNot(matches(RegExp('envoy|synchronis'))));
     });
   });
 }

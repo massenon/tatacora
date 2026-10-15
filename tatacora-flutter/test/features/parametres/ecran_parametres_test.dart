@@ -291,9 +291,13 @@ void main() {
       String infobulle(String cle) =>
           tester.widget<Tooltip>(find.byKey(Key('param-note-$cle'))).message!;
 
+      // Le régime fiscal a un lecteur depuis le lot J1 (3/4, 14/10/2026) :
+      // l'en-tête A4 des documents. Il ne porte plus l'infobulle — la dire
+      // « sans effet » serait faux.
+      expect(find.byKey(const Key('param-ligne-fiscalite_regime')), findsOne);
       expect(
-        infobulle('fiscalite_regime'),
-        'Aucun module de ce poste ne lit encore cette valeur.',
+        find.byKey(const Key('param-note-fiscalite_regime')),
+        findsNothing,
       );
       // Le taux de TVA a un lecteur depuis le 12/10/2026 (lot 6) : la pièce
       // comptable d'une vente. Il ne porte plus l'infobulle.
@@ -373,13 +377,19 @@ void main() {
     (tester) async {
       await monter(tester);
 
+      // L'IFU est imprimé par l'en-tête A4 depuis le lot J1 (3/4,
+      // 14/10/2026) : la correction « aucun document n'imprime encore cette
+      // valeur » serait FAUSSE, elle n'est plus rendue.
+      expect(find.byKey(const Key('param-ligne-entreprise_ifu')), findsOne);
       expect(
-        tester
-            .widget<Text>(
-              find.byKey(const Key('param-correction-entreprise_ifu')),
-            )
-            .data,
-        'Sur ce poste, aucun document n’imprime encore cette valeur.',
+        find.byKey(const Key('param-correction-entreprise_ifu')),
+        findsNothing,
+      );
+      expect(
+        find.text(
+          'Sur ce poste, aucun document n’imprime encore cette valeur.',
+        ),
+        findsNothing,
       );
       expect(
         tester

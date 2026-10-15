@@ -42,10 +42,12 @@ import 'package:tatacora_flutter/features/tableau_de_bord/impression/etat_pilota
 import 'package:tatacora_flutter/features/tableau_de_bord/impression/etat_rapport_accueil.dart'
     show EtatRapportAccueil;
 import 'package:tatacora_flutter/features/tableau_de_bord/presentation/widgets/modale_rapport_accueil.dart'
-    show imprimerRapportAccueilProvider;
+    show exporterRapportAccueilProvider;
 import 'package:tatacora_flutter/features/tableau_de_bord/presentation/ecran_pilotage_consolide.dart';
 import 'package:tatacora_flutter/features/tableau_de_bord/presentation/ecran_tableau_de_bord.dart';
 import 'package:tatacora_flutter/features/tableau_de_bord/presentation/onglets_tableau_de_bord.dart';
+import 'package:tatacora_flutter/shared_widgets/modale_export.dart'
+    show FormatExport;
 
 import '../../support/coquille_montee.dart';
 import '../../support/vue_blade.dart';
@@ -1816,8 +1818,14 @@ void main() {
       await monter(
         tester,
         surcharges: [
-          imprimerRapportAccueilProvider.overrideWithValue((etat) async {
+          exporterRapportAccueilProvider.overrideWithValue((
+            etat,
+            format,
+          ) async {
             syntheses.add(etat);
+            // Le PDF est présélectionné dans la modale partagée.
+            expect(format, FormatExport.pdf);
+            return 'C:/Documents/synthese.pdf';
           }),
         ],
       );
@@ -1854,8 +1862,9 @@ void main() {
       await monter(
         tester,
         surcharges: [
-          imprimerEtatPilotageProvider.overrideWithValue((etat) async {
+          exporterEtatPilotagePdfProvider.overrideWithValue((etat) async {
             imprimes.add(etat);
+            return 'C:/Documents/pilotage_consolide.pdf';
           }),
         ],
       );
@@ -1909,6 +1918,11 @@ void main() {
       await tester.pumpAndSettle();
       expect(imprimes, hasLength(1));
       expect(imprimes.single.periode, 'Du 01/10/2026 au 31/10/2026');
+      // L'issue est DITE par le toast commun (14/10/2026).
+      expect(
+        tester.widget<Text>(find.byKey(const Key('pilotage-export-fait'))).data,
+        'Export enregistré : pilotage_consolide.pdf',
+      );
     });
 
     Future<EtatPilotage> imprimer(
@@ -1924,8 +1938,9 @@ void main() {
             const {'M1': 'C', 'M6': 'C', 'M10': 'C', 'M11': 'C', 'M13': 'C'},
         maintenant: maintenant,
         surcharges: [
-          imprimerEtatPilotageProvider.overrideWithValue((etat) async {
+          exporterEtatPilotagePdfProvider.overrideWithValue((etat) async {
             imprime = etat;
+            return 'C:/Documents/pilotage_consolide.pdf';
           }),
         ],
       );
@@ -1991,8 +2006,9 @@ void main() {
       await monter(
         tester,
         surcharges: [
-          imprimerEtatPilotageProvider.overrideWithValue((etat) async {
+          exporterEtatPilotagePdfProvider.overrideWithValue((etat) async {
             imprime = etat;
+            return 'C:/Documents/pilotage_consolide.pdf';
           }),
         ],
       );
@@ -2931,8 +2947,14 @@ void main() {
       await monter(
         tester,
         surcharges: [
-          imprimerRapportAccueilProvider.overrideWithValue((etat) async {
+          exporterRapportAccueilProvider.overrideWithValue((
+            etat,
+            format,
+          ) async {
             syntheses.add(etat);
+            // Le PDF est présélectionné dans la modale partagée.
+            expect(format, FormatExport.pdf);
+            return 'C:/Documents/synthese.pdf';
           }),
         ],
       );
@@ -2947,6 +2969,11 @@ void main() {
       await tester.pumpAndSettle();
       expect(syntheses, hasLength(1));
       expect(syntheses.single.code, TypeRapportAccueil.synthese.code);
+      // L'issue est DITE par le toast commun (14/10/2026).
+      expect(
+        tester.widget<Text>(find.byKey(const Key('tdb-exporter-csv'))).data,
+        'Export enregistré : synthese.pdf',
+      );
     });
   });
 }

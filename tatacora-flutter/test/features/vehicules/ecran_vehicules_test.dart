@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +6,7 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tatacora_flutter/core/database/app_database.dart';
 import 'package:tatacora_flutter/core/di/providers.dart';
+import 'package:tatacora_flutter/core/fichiers/selecteur_fichiers.dart';
 import 'package:tatacora_flutter/core/rbac/garde_acces.dart';
 import 'package:tatacora_flutter/core/theme/app_spacing.dart';
 import 'package:tatacora_flutter/core/theme/app_theme.dart';
@@ -19,6 +19,8 @@ import 'package:tatacora_flutter/features/vehicules/impression/etat_vehicules.da
 import 'package:tatacora_flutter/features/vehicules/presentation/ecran_vehicules.dart';
 import 'package:tatacora_flutter/features/vehicules/presentation/providers_vehicules.dart';
 import 'package:tatacora_flutter/features/vehicules/presentation/widgets/barre_filtres_vehicules.dart';
+
+import '../../support/selecteur_essai.dart';
 
 /// L'écran M8 monté pour de vrai, contre une vraie base Drift en mémoire.
 ///
@@ -255,7 +257,9 @@ void main() {
     });
 
     testWidgets('la modale porte le titre de la vue, ses deux formats et '
-        'l’aide du PDF', (tester) async {
+        'la note du CSV — plus d’aide qui annonce un PDF refusé', (
+      tester,
+    ) async {
       await monter(tester);
       await tester.tap(find.byKey(const Key('vehicules-exporter')));
       await tester.pumpAndSettle();
@@ -268,7 +272,10 @@ void main() {
       expect(find.text('PDF Officiel A4 Imprimable'), findsOneWidget);
       expect(find.text('Tableur Excel (.xlsx / .csv)'), findsOneWidget);
       expect(find.text('Générer & Télécharger'), findsOneWidget);
-      expect(find.text(BoutonExporterVehicules.aidePdf), findsOneWidget);
+      // Le PDF est produit depuis le 14/10/2026 : la modale dit ce que le
+      // tableur produit (un CSV), et plus aucune aide propre à l'écran.
+      expect(find.byKey(const Key('export-note-csv')), findsOneWidget);
+      expect(find.byKey(const Key('export-aide')), findsNothing);
     });
 
     testWidgets('le tableur écrit le CSV de l’onglet AFFICHÉ et montre le '
@@ -301,7 +308,13 @@ void main() {
         {for (final l in recus.single.lignes) l.first},
         {'AB 1234 RB', 'CD 5678 RB', 'EF 9012 RB'},
       );
-      expect(find.text('Export écrit : C:/export/vehicules.csv'), findsOne);
+      // Le toast commun dit le NOM du fichier enregistré.
+      expect(
+        tester
+            .widget<Text>(find.byKey(const Key('vehicules-export-fait')))
+            .data,
+        'Export enregistré : vehicules.csv',
+      );
     });
 
     testWidgets('l’export suit l’onglet : Contrats exporte les contrats', (
@@ -333,15 +346,17 @@ void main() {
       expect(recus.single.lignes.single[6], '2026-09-16');
     });
 
-    testWidgets('choisir le PDF est REFUSÉ avec son message, rien n’est '
-        'écrit', (tester) async {
+    testWidgets('choisir le PDF PRODUIT l’état A4, enregistré en .pdf par '
+        '« Enregistrer sous », et le toast le dit', (tester) async {
       await semer();
-      var appels = 0;
+      final selecteur = SelecteurEssai();
+      var appelsCsv = 0;
       await monter(
         tester,
         surcharges: [
+          ...selecteur.surcharges,
           exporterVehiculesProvider.overrideWithValue((etat) async {
-            appels++;
+            appelsCsv++;
             return 'jamais.csv';
           }),
         ],
@@ -353,9 +368,15 @@ void main() {
       await tester.tap(find.text('Générer & Télécharger'));
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('vehicules-pdf-refuse')), findsOneWidget);
-      expect(find.text(BoutonExporterVehicules.pdfNonProduit), findsOneWidget);
-      expect(appels, 0, reason: 'le PDF ne doit rien écrire');
+      expect(find.byKey(const Key('vehicules-pdf-refuse')), findsNothing);
+      expect(appelsCsv, 0, reason: 'le PDF ne passe pas par le tableur');
+      expect(selecteur.ecrits, hasLength(1));
+      final pdf = selecteur.ecrits.single;
+      expect(pdf.type, TypeFichierEnregistre.pdf);
+      expect(pdf.nom, matches(RegExp(r'^vehicules_\d{4}-\d{2}-\d{2}\.pdf$')));
+      expect(pdf.estUnPdf, isTrue);
+      expect(pdf.dossierInitial, SelecteurEssai.dossierDocuments);
+      expect(find.byKey(const Key('vehicules-export-fait')), findsOneWidget);
     });
 
     testWidgets('une liste vide est REFUSÉE, rien n’est écrit', (tester) async {
@@ -380,34 +401,32 @@ void main() {
       expect(appels, 0);
     });
 
-    test(
-      'l’écriture du fichier : un vrai fichier, BOM et octets relus',
-      () async {
-        final tmp = await Directory.systemTemp.createTemp('vehicules_csv_');
-        addTearDown(() => tmp.delete(recursive: true));
-        const etat = EtatVehicules(
-          titre: 'Disponibilité du parc',
-          periode: 'Du 2026-09-14 au 2026-09-28',
-          entetes: ['Véhicule'],
-          lignes: [
-            ['AB 1234 RB'],
-          ],
-        );
+    test('l’enregistrement du CSV : par « Enregistrer sous », BOM et octets '
+        'inchangés', () async {
+      final selecteur = SelecteurEssai();
+      final conteneur = ProviderContainer(overrides: selecteur.surcharges);
+      addTearDown(conteneur.dispose);
+      const etat = EtatVehicules(
+        titre: 'Disponibilité du parc',
+        periode: 'Du 2026-09-14 au 2026-09-28',
+        entetes: ['Véhicule'],
+        lignes: [
+          ['AB 1234 RB'],
+        ],
+      );
 
-        final chemin = await ecrireCsvVehicules(
-          'vehicules',
-          etat.csvOctets(),
-          dossier: () async => tmp,
-        );
+      final chemin = await conteneur.read(exporterVehiculesProvider)(etat);
 
-        expect(chemin.startsWith(tmp.path), isTrue);
-        expect(RegExp(r'vehicules-\d{8}-\d{6}\.csv$').hasMatch(chemin), isTrue);
-        final relus = await File(chemin).readAsBytes();
-        expect(relus, etat.csvOctets());
-        expect(relus.take(3), [0xEF, 0xBB, 0xBF]);
-        expect(utf8.decode(relus), contains('AB 1234 RB'));
-      },
-    );
+      final ecrit = selecteur.ecrits.single;
+      expect(chemin, 'C:/essai/${ecrit.nom}');
+      expect(ecrit.type, TypeFichierEnregistre.csv);
+      expect(ecrit.nom, matches(RegExp(r'^vehicules_\d{4}-\d{2}-\d{2}\.csv$')));
+      expect(ecrit.dossierInitial, SelecteurEssai.dossierDocuments);
+      final relus = ecrit.octets;
+      expect(relus, etat.csvOctets());
+      expect(relus.take(3), [0xEF, 0xBB, 0xBF]);
+      expect(utf8.decode(relus), contains('AB 1234 RB'));
+    });
 
     test('le CSV est de l’UTF-8 réel, BOM compris', () {
       const etat = EtatVehicules(

@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tatacora_flutter/core/database/app_database.dart';
 import 'package:tatacora_flutter/core/di/providers.dart';
+import 'package:tatacora_flutter/core/fichiers/selecteur_fichiers.dart';
 import 'package:tatacora_flutter/core/rbac/garde_acces.dart';
 import 'package:tatacora_flutter/core/theme/app_colors.dart';
 import 'package:tatacora_flutter/core/theme/app_spacing.dart';
@@ -18,6 +19,8 @@ import 'package:tatacora_flutter/features/tourisme/data/tourisme_dao.dart';
 import 'package:tatacora_flutter/features/tourisme/presentation/ecran_tourisme.dart';
 import 'package:tatacora_flutter/features/tourisme/presentation/providers_tourisme.dart';
 import 'package:tatacora_flutter/features/tourisme/presentation/widgets/barre_filtres_tourisme.dart';
+
+import '../../support/selecteur_essai.dart';
 
 /// Le rendu de l'écran **Tourisme** — vue Blade `pwa/tourisme/departs.blade.php`,
 /// le maître depuis PA-182/PA-183.
@@ -1114,25 +1117,18 @@ void main() {
 
   /* ================================================================== */
   group('« Exporter » : de la modale au fichier, de bout en bout', () {
-    late Directory dossier;
+    // La fenêtre « Enregistrer sous » remplacée (14/10/2026) : le VRAI
+    // chemin `exporterTourismeProvider` → `enregistrementExportProvider` est
+    // emprunté jusqu'à elle.
+    late SelecteurEssai selecteur;
 
-    setUp(() => dossier = Directory.systemTemp.createTempSync('tourisme_csv_'));
-
-    tearDown(() {
-      if (dossier.existsSync()) dossier.deleteSync(recursive: true);
-    });
+    setUp(() => selecteur = SelecteurEssai());
 
     Future<void> monterPourExporter(
       WidgetTester t, {
       GardeAcces? droits,
     }) async {
-      await monter(
-        t,
-        droits: droits,
-        surcharges: [
-          dossierExportTourismeProvider.overrideWithValue(() async => dossier),
-        ],
-      );
+      await monter(t, droits: droits, surcharges: [...selecteur.surcharges]);
       fixerPeriode(t);
       await t.pumpAndSettle();
     }
@@ -1149,11 +1145,10 @@ void main() {
       await t.pump();
     }
 
-    /// L'écriture est un VRAI accès disque : on alterne un `pump` (la chaîne
-    /// de futures du test) et une attente réelle, jusqu'à lire à l'écran que
-    /// le fichier est écrit. Le fichier SEUL ne dit pas qu'il est complet : il
-    /// existe, vide, avant que ses octets soient posés.
-    Future<File> attendreLeFichier(WidgetTester t) async {
+    /// La composition (un PDF surtout) peut faire de vraies E/S : on alterne
+    /// un `pump` (la chaîne de futures du test) et une attente réelle, jusqu'à
+    /// lire à l'écran que le fichier est enregistré.
+    Future<FichierEnregistreEssai> attendreLeFichier(WidgetTester t) async {
       final fait = find.byKey(const Key('tourisme-export-fait'));
       for (var i = 0; i < 100 && fait.evaluate().isEmpty; i++) {
         await t.pump(const Duration(milliseconds: 20));
@@ -1162,13 +1157,13 @@ void main() {
         );
       }
       await t.pumpAndSettle();
-      final fichiers = dossier.listSync().whereType<File>().toList();
-      expect(fichiers, hasLength(1), reason: 'un seul fichier écrit');
-      return fichiers.single;
+      expect(selecteur.ecrits, hasLength(1), reason: 'un seul fichier écrit');
+      return selecteur.ecrits.single;
     }
 
-    List<String> lignesDe(File f) {
-      final octets = f.readAsBytesSync();
+    List<String> lignesDe(FichierEnregistreEssai f) {
+      expect(f.type, TypeFichierEnregistre.csv);
+      final octets = f.octets;
       // Le BOM, d'abord, avant tout décodage.
       expect(octets.take(3), [0xEF, 0xBB, 0xBF]);
       return utf8.decode(octets.sublist(3)).split('\n');
@@ -1187,7 +1182,7 @@ void main() {
     );
 
     testWidgets('la modale porte le titre de la vue, ses deux formats et '
-        'l\'aide du PDF', (t) async {
+        'la note du CSV — plus d\'aide qui annonce un PDF refusé', (t) async {
       await monterPourExporter(t);
       await t.tap(find.byKey(const Key('tourisme-exporter')));
       await t.pumpAndSettle();
@@ -1197,13 +1192,11 @@ void main() {
       expect(find.text('PDF Officiel A4 Imprimable'), findsOneWidget);
       expect(find.text('Tableur Excel (.xlsx / .csv)'), findsOneWidget);
       expect(find.text('Générer & Télécharger'), findsOneWidget);
-      expect(
-        find.text(
-          'Le PDF n\'est pas produit sur ce poste : seul le tableur (CSV) est '
-          'écrit.',
-        ),
-        findsOneWidget,
-      );
+      // Le PDF est produit depuis le 14/10/2026 : la modale dit seulement ce
+      // que produit le tableur, plus aucune aide propre à l'écran.
+      expect(find.byKey(const Key('export-note-csv')), findsOneWidget);
+      expect(find.byKey(const Key('export-aide')), findsNothing);
+      expect(find.textContaining("n'est pas produit"), findsNothing);
     });
 
     testWidgets('Départs : un vrai fichier, BOM, filtre dit, valeurs exactes', (
@@ -1215,9 +1208,10 @@ void main() {
       final fichier = await attendreLeFichier(t);
 
       expect(
-        RegExp(r'tourisme-\d{8}-\d{6}\.csv$').hasMatch(fichier.path),
-        isTrue,
+        fichier.nom,
+        matches(RegExp(r'^tourisme_\d{4}-\d{2}-\d{2}\.csv$')),
       );
+      expect(fichier.dossierInitial, SelecteurEssai.dossierDocuments);
       final l = lignesDe(fichier);
       expect(
         l[0],
@@ -1233,8 +1227,8 @@ void main() {
         '7 place(s)',
       );
       expect(l.length, 8);
-      // Le chemin écrit est celui du fichier, affiché à l'écran.
-      expect(find.text('Export écrit : ${fichier.path}'), findsOneWidget);
+      // Le toast commun dit le NOM du fichier enregistré.
+      expect(find.text('Export enregistré : ${fichier.nom}'), findsOneWidget);
     });
 
     testWidgets('Réservations : l\'export suit l\'ONGLET affiché', (t) async {
@@ -1311,24 +1305,20 @@ void main() {
       expect(l.length, 8);
     });
 
-    testWidgets('choisir le PDF est REFUSÉ avec son message, rien n\'est '
-        'écrit', (t) async {
+    testWidgets('choisir le PDF PRODUIT l\'état A4, enregistré en .pdf, et '
+        'le toast le dit', (t) async {
       await reserverLe('2026-10-12', 5);
       await monterPourExporter(t);
       await exporter(t, choix: 'PDF Officiel A4 Imprimable');
-      await t.pumpAndSettle();
+      await attendreLeFichier(t);
 
-      expect(find.byKey(const Key('tourisme-pdf-refuse')), findsOneWidget);
-      expect(
-        find.text(
-          'Le PDF de cet écran n\'est pas produit sur ce poste : aucun état A4 '
-          'de M9 n\'est classé dans l\'en-tête et les visas de l\'application. '
-          'Rien n\'a été écrit. Choisissez « Tableur Excel » pour obtenir la '
-          'liste affichée en CSV.',
-        ),
-        findsOneWidget,
-      );
-      expect(dossier.listSync(), isEmpty);
+      expect(find.byKey(const Key('tourisme-pdf-refuse')), findsNothing);
+      expect(selecteur.ecrits, hasLength(1));
+      final pdf = selecteur.ecrits.single;
+      expect(pdf.type, TypeFichierEnregistre.pdf);
+      expect(pdf.nom, matches(RegExp(r'^tourisme_\d{4}-\d{2}-\d{2}\.pdf$')));
+      expect(pdf.estUnPdf, isTrue);
+      expect(find.byKey(const Key('tourisme-export-fait')), findsOneWidget);
     });
 
     testWidgets('une liste vide est REFUSÉE, rien n\'est écrit', (t) async {
@@ -1344,7 +1334,7 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(dossier.listSync(), isEmpty);
+      expect(selecteur.ecrits, isEmpty);
     });
 
     testWidgets('un rôle en LECTURE exporte : c\'est une lecture', (t) async {

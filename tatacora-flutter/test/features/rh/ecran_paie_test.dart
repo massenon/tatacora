@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tatacora_flutter/core/database/app_database.dart';
 import 'package:tatacora_flutter/core/di/providers.dart';
+import 'package:tatacora_flutter/core/fichiers/selecteur_fichiers.dart';
 import 'package:tatacora_flutter/core/rbac/garde_acces.dart';
 import 'package:tatacora_flutter/core/theme/app_colors.dart';
 import 'package:tatacora_flutter/core/theme/app_theme.dart';
@@ -21,6 +22,8 @@ import 'package:tatacora_flutter/features/rh/domain/services/bulletin_paie_servi
 import 'package:tatacora_flutter/features/rh/impression/etat_paie.dart';
 import 'package:tatacora_flutter/features/rh/presentation/ecran_paie.dart';
 import 'package:tatacora_flutter/features/rh/presentation/providers_rh.dart';
+
+import '../../support/selecteur_essai.dart';
 
 /// L'écran Personnel & Paie, monté sur une **vraie base locale**.
 ///
@@ -961,7 +964,7 @@ void main() {
 
         expect(
           tester.widget<Text>(find.byKey(const Key('paie-export-fait'))).data,
-          'Export écrit : C:/essai/paie.csv',
+          'Export enregistré : paie.csv',
         );
       },
     );
@@ -1058,33 +1061,34 @@ void main() {
     );
 
     testWidgets(
-      'le choix « PDF » est offert comme dans la vue, mais il est REFUSÉ '
-      'avec son message : aucun fichier n\'est écrit',
+      'le choix « PDF » est offert comme dans la vue, et PRODUIT : l\'état A4 '
+      'enregistré en .pdf, le toast le dit',
       (tester) async {
         await semerUnSalarie();
-        await monter(tester, surcharges: [capture()]);
+        // La fenêtre « Enregistrer sous » remplacée : le VRAI
+        // `exporterPaiePdfProvider` est emprunté jusqu'à elle.
+        final selecteur = SelecteurEssai();
+        await monter(tester, surcharges: [capture(), ...selecteur.surcharges]);
 
         await tester.tap(find.byKey(const Key('paie-exporter')));
         await tester.pumpAndSettle();
-        // L'aide est dite AVANT le clic (le PDF, présélectionné depuis D434,
-        // est refusé APRÈS le clic, avec son message).
-        expect(
-          tester.widget<Text>(find.byKey(const Key('export-aide'))).data,
-          'Le PDF n’est pas produit sur ce poste : seul le tableur (CSV) est '
-          'écrit.',
-        );
+        // Plus aucune aide n'annonce le PDF refusé (14/10/2026).
+        expect(find.byKey(const Key('export-aide')), findsNothing);
         await tester.tap(find.byKey(const Key('export-annuler')));
         await tester.pumpAndSettle();
+        expect(selecteur.ecrits, isEmpty, reason: '« Annuler » n\'écrit rien');
 
         await exporter(tester, pdf: true);
 
-        expect(ecrits, isEmpty);
+        expect(ecrits, isEmpty, reason: 'le PDF ne passe pas par le tableur');
+        expect(find.byKey(const Key('paie-export-pdf-absent')), findsNothing);
+        final pdf = selecteur.ecrits.single;
+        expect(pdf.type, TypeFichierEnregistre.pdf);
+        expect(pdf.nom, endsWith('.pdf'));
+        expect(pdf.estUnPdf, isTrue);
         expect(
-          tester
-              .widget<Text>(find.byKey(const Key('paie-export-pdf-absent')))
-              .data,
-          'Le PDF n’est pas produit sur ce poste : seul le tableur (CSV) est '
-          'écrit.',
+          tester.widget<Text>(find.byKey(const Key('paie-export-fait'))).data,
+          'Export enregistré : ${pdf.nom}',
         );
       },
     );

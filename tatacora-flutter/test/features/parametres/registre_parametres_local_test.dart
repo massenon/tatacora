@@ -180,28 +180,50 @@ void main() {
       'Sur ce poste, aucune clé d’API WhatsApp n’est enregistrable : un secret '
       'n’entre jamais dans cette base.',
     );
+    // Lot J2 (14/10/2026) : l'envoi SMTP à l'éditeur est porté ; le mot de
+    // passe reste HORS base, et la note dit OÙ il se pose.
     expect(
       RegistreParametresLocal.parCle('email_smtp_utilisateur')!.note,
       'Sur ce poste, aucun mot de passe SMTP n’est enregistrable : un secret '
-      'n’entre jamais dans cette base.',
+      'n’entre jamais dans cette base. Il se pose dans le fichier '
+      r'%APPDATA%\TATACORA\poste.json du poste.',
     );
   });
 
-  test('neuf clés dont l’aide du serveur affirme un fait FAUX sur ce poste '
+  test('cinq clés dont l’aide du serveur affirme un fait FAUX sur ce poste '
       'portent une correction visible, et elles seules', () {
-    const entete =
-        'Sur ce poste, aucun document n’imprime encore cette valeur.';
+    // Lot J1 (3/4, 14/10/2026) : l'en-tête A4 des documents est LU des
+    // paramètres (`entete_etablissement.dart`) — la correction « aucun
+    // document n'imprime encore cette valeur » serait désormais FAUSSE sur
+    // ses cinq clés, et ne doit plus être dite.
+    for (final cle in const [
+      'entreprise_promoteur',
+      'communication_whatsapp',
+      'entreprise_ifu',
+      'entreprise_rccm',
+      'fiscalite_regime',
+    ]) {
+      expect(
+        RegistreParametresLocal.parCle(cle)!.correction,
+        isNull,
+        reason: cle,
+      );
+      expect(
+        RegistreParametresLocal.parCle(cle)!.lecteur,
+        'lib/core/impression/entete_etablissement.dart',
+        reason: cle,
+      );
+    }
     final attendu = {
-      'entreprise_promoteur': entete,
-      'communication_whatsapp': entete,
-      'entreprise_ifu': entete,
-      'entreprise_rccm': entete,
-      'fiscalite_regime': entete,
       'tva_active':
           'Sur ce poste : HT/TVA ventilés dans la pièce des ventes ; sans taux, '
           'la vente est refusée.',
       'duree_retention_audit_jours':
           'Sur ce poste, aucune purge n’a lieu : pas de journal d’audit.',
+      // Lot J2 (14/10/2026) : l'hôte SMTP est lu par « Contactez l'éditeur ».
+      'email_smtp_hote':
+          'Sur ce poste : lu par « Contactez l’éditeur » ; vide, aucun message '
+          'ne part (il reste en attente).',
       // L'aide du serveur dit « tous les modules » : seuls les fournisseurs
       // M7 honorent la bascule (la Paie garde sa règle, D272).
       'activation_suppression':
@@ -292,18 +314,29 @@ void main() {
       // `providers_options_systeme.dart` depuis le lot 7, D269) ; la bascule
       // des alertes d'ouverture (lue par la cloche, lot B du 14/10/2026) ; la
       // bascule de réinitialisation (lue par `reinitialisation_locale.dart`,
-      // lot E du 14/10/2026, D429).
-      expect(verifies, 13);
+      // lot E du 14/10/2026, D429) ; les DIX clés de l'en-tête A4 (identité,
+      // contacts, IFU, RCCM, régime fiscal — lues par
+      // `entete_etablissement.dart`, lot J1 3/4 du 14/10/2026) ; les QUATRE
+      // clés SMTP (lues par `envoi_messages_editeur.dart`, lot J2 du
+      // 14/10/2026). 13 + 10 + 4 = 27.
+      expect(verifies, 27);
     });
 
-    test('18 clés n’ont AUCUN lecteur sur ce poste, et c’est dit', () {
+    test('4 clés n’ont AUCUN lecteur sur ce poste, et c’est dit', () {
       final sansLecteur = [
         for (final s in RegistreParametresLocal.definitions)
           if (s.lecteur == null) s.cle,
       ];
       // 20 → 19 le 14/10/2026 : `activation_alertes_ouverture` (cloche) ;
-      // 19 → 18 le même jour : `reinitialisation_seeders` (D429).
-      expect(sansLecteur.length, 18);
+      // 19 → 18 le même jour : `reinitialisation_seeders` (D429) ; 18 → 8 :
+      // les dix clés de l'en-tête A4 (lot J1 3/4) ; 8 → 4 : les quatre clés
+      // SMTP (lot J2). Les quatre restantes, NOMMÉES :
+      expect(sansLecteur, [
+        'entreprise_numero_mecef',
+        'delai_preavis_conge_jours',
+        'couverture_minimale_par_service',
+        'duree_retention_audit_jours',
+      ]);
       expect(sansLecteur, isNot(contains('reinitialisation_seeders')));
       expect(sansLecteur, isNot(contains('tolerance_reception_pct')));
       // Et les cinq clés dont le lecteur est apparu : le registre l'a déclaré —
@@ -351,7 +384,7 @@ void main() {
         );
         balayees++;
       }
-      expect(balayees, 13, reason: 'balayage non vide');
+      expect(balayees, 27, reason: 'balayage non vide');
     });
 
     test('chaque exemption NOMME réellement sa clé : une exemption périmée '

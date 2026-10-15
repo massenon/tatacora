@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tatacora_flutter/features/parametres/data/parametres_dao.dart';
 import 'package:tatacora_flutter/core/database/app_database.dart';
 import 'package:tatacora_flutter/core/di/providers.dart';
+import 'package:tatacora_flutter/core/fichiers/selecteur_fichiers.dart';
 import 'package:tatacora_flutter/core/rbac/garde_acces.dart';
 import 'package:tatacora_flutter/core/theme/app_theme.dart';
 import 'package:tatacora_flutter/features/achats/domain/messages_achats.dart';
@@ -18,6 +19,8 @@ import 'package:tatacora_flutter/features/hebergement/data/reservation_dao.dart'
 import 'package:tatacora_flutter/features/hebergement/data/reservation_repository_local.dart';
 import 'package:tatacora_flutter/features/hebergement/presentation/ecran_hebergement.dart';
 import 'package:tatacora_flutter/features/hebergement/presentation/providers_hebergement.dart';
+
+import '../../../support/selecteur_essai.dart';
 
 /// L'onglet « Plan d'Hébergement » — les libellés de la vue, et le CRUD réel.
 ///
@@ -811,12 +814,17 @@ void main() {
   /* ================================================================== */
   group('« Générer & Télécharger » — la modale de format de la vue', () {
     late List<EtatParc> exportes;
+    late SelecteurEssai selecteur;
 
     Future<void> monterAvecExport(WidgetTester tester) async {
       exportes = [];
+      // La fenêtre « Enregistrer sous » remplacée : le PDF passe par le VRAI
+      // `exporterParcPdfProvider` jusqu'à elle (14/10/2026).
+      selecteur = SelecteurEssai();
       await monter(
         tester,
         surcharges: [
+          ...selecteur.surcharges,
           exporterParcProvider.overrideWithValue((etat) async {
             exportes.add(etat);
             return 'C:/export/parc.csv';
@@ -851,31 +859,37 @@ void main() {
         find.text("Le parc tel qu'il est affiché, filtres compris."),
         findsOneWidget,
       );
-      // Le choix PAR DÉFAUT est le tableur, le seul qui s'écrive ; la ligne
-      // d'aide le dit AVANT le clic.
+      // Le PDF est présélectionné (D434) et PRODUIT depuis le 14/10/2026 :
+      // plus aucune aide ne l'annonce refusé.
       expect(
-        tester.widget<Text>(find.byKey(const Key('export-aide'))).data,
-        'Le PDF n’est pas produit sur ce poste : seul le tableur (CSV) est '
-        'écrit.',
+        find.descendant(
+          of: find.byKey(const Key('export-format-pdf')),
+          matching: find.byIcon(Icons.radio_button_checked),
+        ),
+        findsOneWidget,
       );
+      expect(find.byKey(const Key('export-aide')), findsNothing);
+      expect(find.textContaining('n’est pas produit'), findsNothing);
     });
 
-    testWidgets('le PDF est offert, et REFUSÉ avec son message', (
-      tester,
-    ) async {
+    testWidgets('le PDF est offert, et PRODUIT : l’état A4 du parc enregistré '
+        'en .pdf, le toast le dit', (tester) async {
       await uneUnite();
       await monterAvecExport(tester);
 
       await exporter(tester, pdf: true);
 
+      expect(find.byKey(const Key('plan-export-pdf-absent')), findsNothing);
+      expect(exportes, isEmpty, reason: 'le PDF ne passe pas par le tableur');
+      final pdf = selecteur.ecrits.single;
+      expect(pdf.type, TypeFichierEnregistre.pdf);
+      expect(pdf.nom, startsWith('${EtatParc.prefixeFichier}_'));
+      expect(pdf.nom, endsWith('.pdf'));
+      expect(pdf.estUnPdf, isTrue);
       expect(
-        tester
-            .widget<Text>(find.byKey(const Key('plan-export-pdf-absent')))
-            .data,
-        'Le PDF Officiel A4 du parc n’est pas produit sur ce poste : seul le '
-        'tableur (CSV) est écrit. Rien n’a été exporté.',
+        tester.widget<Text>(find.byKey(const Key('plan-export-fait'))).data,
+        'Export enregistré : ${pdf.nom}',
       );
-      expect(exportes, isEmpty);
     });
 
     testWidgets('le tableur emporte le parc ENTIER, toutes pages confondues', (
@@ -894,7 +908,7 @@ void main() {
       expect(exportes.single.portee, 'Aucun filtre — parc complet');
       expect(
         tester.widget<Text>(find.byKey(const Key('plan-export-fait'))).data,
-        'Export écrit : C:/export/parc.csv',
+        'Export enregistré : parc.csv',
       );
     });
 

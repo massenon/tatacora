@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tatacora_flutter/core/database/app_database.dart';
 import 'package:tatacora_flutter/core/di/providers.dart';
+import 'package:tatacora_flutter/core/fichiers/selecteur_fichiers.dart';
 import 'package:tatacora_flutter/core/rbac/garde_acces.dart';
 import 'package:tatacora_flutter/core/theme/app_colors.dart';
 import 'package:tatacora_flutter/core/theme/app_theme.dart';
@@ -14,6 +15,8 @@ import 'package:tatacora_flutter/features/notifications/domain/entities/canal_no
 import 'package:tatacora_flutter/features/notifications/domain/entities/declencheur_notification.dart';
 import 'package:tatacora_flutter/features/notifications/presentation/ecran_notifications.dart';
 import 'package:tatacora_flutter/features/notifications/presentation/providers_notifications.dart';
+
+import '../../support/selecteur_essai.dart';
 
 /// L'écran M12 — les mots du maître, et la règle qui commande le module.
 ///
@@ -691,7 +694,7 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('titre « Exporter — <onglet> », deux formats, aide du PDF', (
+    testWidgets('titre « Exporter — <onglet> », deux formats, note du CSV', (
       tester,
     ) async {
       await monter(tester);
@@ -702,7 +705,10 @@ void main() {
       expect(find.text('PDF Officiel A4 Imprimable'), findsOneWidget);
       expect(find.text('Tableur Excel (.xlsx / .csv)'), findsOneWidget);
       expect(find.text('Générer & Télécharger'), findsOneWidget);
-      expect(find.text(EcranNotifications.aidePdf), findsOneWidget);
+      // Le PDF est produit depuis le 14/10/2026 : plus d'aide qui l'annonce
+      // refusé, la note commune dit ce que produit le tableur.
+      expect(find.byKey(const Key('export-note-csv')), findsOneWidget);
+      expect(find.byKey(const Key('export-aide')), findsNothing);
     });
 
     testWidgets('le titre suit l’onglet affiché', (tester) async {
@@ -713,18 +719,22 @@ void main() {
       expect(find.text('Exporter — Canaux'), findsOneWidget);
     });
 
-    testWidgets('choisir le PDF est REFUSÉ avec son message, rien n’est '
-        'écrit', (tester) async {
-      var appels = 0;
+    testWidgets('choisir le PDF PRODUIT l’état A4 de l’onglet, enregistré '
+        'en .pdf, et le toast le dit', (tester) async {
+      final selecteur = SelecteurEssai();
+      var appelsCsv = 0;
       await monter(
         tester,
         surcharges: [
+          ...selecteur.surcharges,
           exporterNotificationsProvider.overrideWithValue(() async {
-            appels++;
+            appelsCsv++;
             return 'jamais.csv';
           }),
         ],
       );
+      // Les canaux du poste sont toujours listés : l'onglet n'est pas vide.
+      await ouvrir(tester, 'canaux');
       await ouvrirModale(tester);
 
       await tester.tap(find.text('PDF Officiel A4 Imprimable'));
@@ -734,10 +744,18 @@ void main() {
 
       expect(
         find.byKey(const Key('notifications-export-pdf-absent')),
-        findsOneWidget,
+        findsNothing,
       );
-      expect(find.text(EcranNotifications.pdfNonProduit), findsOneWidget);
-      expect(appels, 0, reason: 'le PDF ne doit rien écrire');
+      expect(appelsCsv, 0, reason: 'le PDF ne passe pas par le tableur');
+      expect(selecteur.ecrits, hasLength(1));
+      final pdf = selecteur.ecrits.single;
+      expect(pdf.type, TypeFichierEnregistre.pdf);
+      expect(
+        pdf.nom,
+        matches(RegExp(r'^notifications_canaux_\d{4}-\d{2}-\d{2}\.pdf$')),
+      );
+      expect(pdf.estUnPdf, isTrue);
+      expect(find.byKey(const Key('export-enregistre')), findsOneWidget);
     });
 
     testWidgets('le tableur écrit le CSV et AFFICHE le chemin', (tester) async {
@@ -760,8 +778,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(appels, 1);
+      // Le toast commun dit le NOM du fichier enregistré.
       expect(
-        find.text('Export écrit : C:/export/notifications.csv'),
+        find.text('Export enregistré : notifications.csv'),
         findsOneWidget,
       );
     });

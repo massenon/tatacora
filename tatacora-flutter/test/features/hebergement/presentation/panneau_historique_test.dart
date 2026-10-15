@@ -122,8 +122,8 @@ void main() {
     WidgetTester tester, {
     String termePrerempli = '',
     GardeAcces? droits,
-    Future<void> Function(EtatHistorique)? imprimer,
-    Future<String> Function(EtatHistorique)? exporter,
+    Future<String?> Function(EtatHistorique)? imprimer,
+    Future<String?> Function(EtatHistorique)? exporter,
   }) async {
     tester.view.physicalSize = const Size(1200, 2000);
     tester.view.devicePixelRatio = 1.0;
@@ -145,12 +145,12 @@ void main() {
         droitsProvider.overrideWithValue(
           droits ?? GardeAcces.depuisJson(const {'M1': 'C'}),
         ),
-        // L'impression et l'écriture de fichier sont des ACTIONS injectées :
-        // un test de widget n'a pas de greffon natif, et `Printing` y lèverait.
+        // Les deux exports (PDF et tableur) sont des ACTIONS injectées : un
+        // test de widget n'a pas de fenêtre « Enregistrer sous » (14/10/2026).
         // C'est aussi ce qui permet d'observer ce qui part réellement au
         // document, au lieu de vérifier qu'un bouton existe.
         if (imprimer != null)
-          imprimerEtatHistoriqueProvider.overrideWithValue(imprimer),
+          exporterEtatHistoriquePdfProvider.overrideWithValue(imprimer),
         if (exporter != null)
           exporterEtatHistoriqueProvider.overrideWithValue(exporter),
       ],
@@ -294,7 +294,13 @@ void main() {
     await enBase(dansNJours: -10, puisNJours: -8);
 
     EtatHistorique? envoye;
-    await monter(tester, imprimer: (etat) async => envoye = etat);
+    await monter(
+      tester,
+      imprimer: (etat) async {
+        envoye = etat;
+        return 'C:/Documents/historique_reservations.pdf';
+      },
+    );
 
     // On filtre d'abord : c'est le cas qui compte. Un export qui repartirait
     // de la base entière contredirait le tableau que l'utilisateur a sous les
@@ -315,18 +321,20 @@ void main() {
     expect(envoye!.lignes.single.etat.libelle, 'À venir');
     // Les indicateurs de l'état suivent le filtre eux aussi.
     expect(envoye!.indicateurs['Réservations'], '1');
+    // L'issue est DITE par le toast commun (14/10/2026).
+    expect(
+      tester.widget<Text>(find.byKey(const Key('hist-export-chemin'))).data,
+      'Export enregistré : historique_reservations.pdf',
+    );
   });
 
   testWidgets('le tableur écrit un fichier et DIT où il est', (tester) async {
     await enBase(dansNJours: 10, puisNJours: 12);
 
-    var chemin = '';
     await monter(
       tester,
-      exporter: (etat) async {
-        chemin = r'C:\Documents\historique-reservations-20260925-101500.csv';
-        return chemin;
-      },
+      exporter: (etat) async =>
+          'C:/Users/essai/Documents/historique_reservations_2026-09-25.csv',
     );
 
     await tester.tap(find.byKey(const Key('hist-exporter')));
@@ -337,8 +345,11 @@ void main() {
     await tester.pumpAndSettle();
 
     // Un export silencieux est un export que personne ne retrouve.
-    expect(find.byKey(const Key('hist-export-chemin')), findsOneWidget);
-    expect(find.textContaining(chemin), findsOneWidget);
+    // Le toast commun dit le NOM du fichier enregistré.
+    expect(
+      tester.widget<Text>(find.byKey(const Key('hist-export-chemin'))).data,
+      'Export enregistré : historique_reservations_2026-09-25.csv',
+    );
   });
 
   testWidgets('« Exporter » est ACTIF dès que les données sont là', (
