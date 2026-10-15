@@ -74,7 +74,7 @@ final class EnregistrementExport {
   /// [nomSuggere], écrit [octets] à l'emplacement choisi et rend son CHEMIN.
   /// `null` : annulé, rien n'est écrit. Une erreur d'écriture LÈVE — l'écran
   /// la dit (`executerExport`).
-  Future<String?> enregistrer({
+  Future<String?> enregistrerFichier({
     required String nomSuggere,
     required List<int> octets,
     required TypeFichierEnregistre type,
@@ -95,13 +95,13 @@ final class EnregistrementExport {
     );
   }
 
-  /// [enregistrer] sous le nom suggéré `<base>_<AAAA-MM-JJ>.<extension>`
+  /// [enregistrerFichier] sous le nom suggéré `<base>_<AAAA-MM-JJ>.<extension>`
   /// ([nomFichierExport]) — la forme qu'emploient tous les exports.
   Future<String?> exporter({
     required String base,
     required TypeFichierEnregistre type,
     required List<int> octets,
-  }) => enregistrer(
+  }) => enregistrerFichier(
     nomSuggere: nomFichierExport(base, type),
     octets: octets,
     type: type,

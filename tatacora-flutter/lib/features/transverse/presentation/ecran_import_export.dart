@@ -409,7 +409,7 @@ class _PanneauImporterState extends ConsumerState<_PanneauImporter> {
       context,
       () => ref
           .read(enregistrementExportProvider)
-          .enregistrer(
+          .enregistrerFichier(
             nomSuggere: importeur.nomModele,
             octets: importeur.modeleOctets(),
             type: TypeFichierEnregistre.csv,
@@ -1459,7 +1459,7 @@ class _PanneauSauvegardesState extends ConsumerState<_PanneauSauvegardes> {
       final octets = await ref.read(sauvegardeLocaleProvider).composer();
       final chemin = await ref
           .read(enregistrementExportProvider)
-          .enregistrer(
+          .enregistrerFichier(
             nomSuggere: SauvegardeLocale.nomSuggere(),
             octets: octets,
             type: TypeFichierEnregistre.sauvegarde,

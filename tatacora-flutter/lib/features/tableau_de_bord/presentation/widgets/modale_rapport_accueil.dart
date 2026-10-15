@@ -70,7 +70,7 @@ final exporterRapportAccueilProvider =
         };
         return ref
             .read(enregistrementExportProvider)
-            .enregistrer(
+            .enregistrerFichier(
               nomSuggere:
                   '${etat.nomFichier(DateTime.now())}.${type.extension}',
               octets: octets,
