@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Pwa\Livewire\Pos;
 
+use App\Domain\Caisse\Exceptions\RefusCaisseException;
 use App\Domain\Caisse\Models\SessionCaisse;
 use App\Domain\Caisse\Services\SessionCaisseService;
 use App\Domain\Stocks\Exceptions\RuptureStockException;
@@ -783,8 +784,8 @@ class PosComptant extends PageMetier
         ]);
 
         try {
-            $caisses->ouvrir(self::POINT_CAISSE, (string) $donnees['fondCaisseSaisi'], (string) Auth::id());
-        } catch (RuntimeException $refus) {
+            $caisses->ouvrir(self::POINT_CAISSE, (string) $donnees['fondCaisseSaisi'], (string) Auth::id(), saisieDejaValidee: true);
+        } catch (RefusCaisseException $refus) {
             $this->addError('fondCaisseSaisi', $refus->getMessage());
 
             return;
@@ -815,13 +816,16 @@ class PosComptant extends PageMetier
 
         try {
             $session = $caisses->cloturer($session, (string) $donnees['montantConstateSaisi']);
-        } catch (RuntimeException $refus) {
+        } catch (RefusCaisseException $refus) {
             $this->addError('montantConstateSaisi', $refus->getMessage());
 
             return;
         }
 
-        $ecart = SessionCaisseService::ecart((string) $session->montant_constate, (string) $session->montant_theorique);
+        // L'écart se calcule sur la SAISIE (« 13345.675 »), pas sur la valeur
+        // arrondie par MySQL : c'était le calcul d'avant l'extraction, que le
+        // poste réplique (caisse_contre_serveur_test, op. n° 50).
+        $ecart = SessionCaisseService::ecart((string) $donnees['montantConstateSaisi'], (string) $session->montant_theorique);
 
         // Maitre — `caisse-ui.js` l.157-158 : « aucun ecart » plutot qu'un
         // ecart de zero, jamais un signe brut sur une piece financiere.

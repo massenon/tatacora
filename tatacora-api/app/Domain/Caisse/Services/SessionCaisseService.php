@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Domain\Caisse\Services;
 
+use App\Domain\Caisse\Exceptions\RefusCaisseException;
 use App\Domain\Caisse\Models\SessionCaisse;
 use App\Domain\Ventes\Models\Vente;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
-use RuntimeException;
 
 /**
  * Ouverture et clôture d'une session de caisse — SEUL auteur de
@@ -89,7 +89,7 @@ class SessionCaisseService
      * `$id` : l'UUID posé par un poste hors connexion — une session qui existe
      * déjà sous cet identifiant est rendue telle quelle (rejeu).
      *
-     * @throws RuntimeException point inconnu, fond invalide, ou caisse déjà ouverte sur ce point
+     * @throws RefusCaisseException point inconnu, fond invalide, ou caisse déjà ouverte sur ce point
      */
     public function ouvrir(
         string $point,
@@ -97,16 +97,23 @@ class SessionCaisseService
         string $utilisateurId,
         ?CarbonInterface $dateOuverture = null,
         ?string $id = null,
+        bool $saisieDejaValidee = false,
     ): SessionCaisse {
         if ($id !== null && ($existante = SessionCaisse::find($id)) !== null) {
             return $existante;
         }
 
         if (! in_array($point, self::POINTS, true)) {
-            throw new RuntimeException(__('caisse.point_inconnu', ['point' => $point]));
+            throw new RefusCaisseException(__('caisse.point_inconnu', ['point' => $point]));
         }
 
-        $this->exigerMontant($fond);
+        // L'écran en ligne a déjà validé la saisie (`numeric`, `min:0`) et,
+        // avant l'extraction, enregistrait le fond TEL QUEL (« ␣␣1000 »,
+        // « 1e3 » : MySQL convertit). Seule la synchronisation, qui n'a pas
+        // de formulaire, exige ici un montant strict.
+        if (! $saisieDejaValidee) {
+            $this->exigerMontant($fond);
+        }
 
         return DB::transaction(function () use ($point, $fond, $utilisateurId, $dateOuverture, $id): SessionCaisse {
             // Sous verrou : deux ouvertures simultanées (un poste qui rejoue,
@@ -121,7 +128,7 @@ class SessionCaisseService
             if ($ouverte) {
                 // La phrase de l'écran en ligne, à l'identique : le poste
                 // affiche le même refus que la PWA.
-                throw new RuntimeException(__('pos_pwa.comptant.refus_caisse_deja_ouverte'));
+                throw new RefusCaisseException(__('pos_pwa.comptant.refus_caisse_deja_ouverte'));
             }
 
             return SessionCaisse::create([
@@ -129,7 +136,7 @@ class SessionCaisseService
                 'point_vente' => $point,
                 'utilisateur_ouverture_id' => $utilisateurId,
                 'date_ouverture' => $dateOuverture ?? now(),
-                'montant_fond' => bcadd($fond, '0', self::PRECISION),
+                'montant_fond' => $fond,
             ]);
         });
     }
@@ -137,29 +144,35 @@ class SessionCaisseService
     /**
      * Clôture une session : théorique recalculé, constaté enregistré.
      *
-     * @throws RuntimeException session déjà close, montant invalide, ou clôture antérieure à l'ouverture
+     * @throws RefusCaisseException session déjà close, montant invalide, ou clôture antérieure à l'ouverture
      */
     public function cloturer(SessionCaisse $session, string $constate, ?CarbonInterface $dateCloture = null): SessionCaisse
     {
+        // PAS de trim ici, à dessein : avant l'extraction (15/10/2026), la
+        // clôture PWA levait déjà une ValueError sur « ␣5 », et le poste
+        // réplique ce défaut (montant_caisse.dart, D233) — le corriger se
+        // décide des deux côtés à la fois, pas en passant.
         $this->exigerMontant($constate);
 
         return DB::transaction(function () use ($session, $constate, $dateCloture): SessionCaisse {
             $session = SessionCaisse::query()->whereKey($session->id)->lockForUpdate()->firstOrFail();
 
             if ($session->date_cloture !== null) {
-                throw new RuntimeException(__('caisse.deja_cloturee'));
+                throw new RefusCaisseException(__('caisse.deja_cloturee'));
             }
 
             $date = $dateCloture ?? now();
 
             if ($date->lessThan($session->date_ouverture)) {
-                throw new RuntimeException(__('caisse.cloture_avant_ouverture'));
+                throw new RefusCaisseException(__('caisse.cloture_avant_ouverture'));
             }
 
             $session->update([
                 'date_cloture' => $date,
                 'montant_theorique' => $this->theorique($session),
-                'montant_constate' => bcadd($constate, '0', self::PRECISION),
+                // Tel quel : MySQL arrondit à deux décimales (« 13345.675 » ->
+                // 13345.68), comme avant l'extraction ; bcadd tronquerait.
+                'montant_constate' => $constate,
             ]);
 
             return $session->refresh();
@@ -172,10 +185,16 @@ class SessionCaisseService
         return bcsub($constate, $theorique, self::PRECISION);
     }
 
+    /**
+     * Montant strict (synchronisation). À la clôture, comme avant
+     * l'extraction, un texte que `bcmath` refuse (« ␣5 », « 1e3 ») lève une
+     * ValueError — défaut répliqué par le poste (montant_caisse.dart) ;
+     * à l'ouverture en ligne, ce contrôle est sauté (saisieDejaValidee).
+     */
     private function exigerMontant(string $montant): void
     {
         if (! is_numeric($montant) || bccomp($montant, '0', self::PRECISION) < 0) {
-            throw new RuntimeException(__('caisse.montant_invalide'));
+            throw new RefusCaisseException(__('caisse.montant_invalide'));
         }
     }
 }
