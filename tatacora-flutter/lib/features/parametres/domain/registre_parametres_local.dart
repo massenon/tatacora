@@ -412,7 +412,7 @@ abstract final class RegistreParametresLocal {
       aide:
           'Vide : la configuration serveur (.env) reste seule maîtresse. Renseigné, il prend la main sur elle pour tous les envois.',
       // LUE depuis le 14/10/2026 (Lot J2 partie 2) par l'envoi des messages à
-      // l'éditeur, SEULE action réseau du poste. L'aide du serveur parle de
+      // l'éditeur (action réseau du poste). L'aide du serveur parle de
       // `.env`, qui n'existe pas ici : l'écart est NOMMÉ dans la correction.
       correction:
           'Sur ce poste : lu par « Contactez l’éditeur » ; vide, aucun message ne part (il reste en attente).',

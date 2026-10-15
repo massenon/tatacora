@@ -301,15 +301,60 @@ documents SOURCES, jamais une écriture (D246) ; il crée ET modifie son catalog
   descendants (`aligner*`), le cycle des unités, l'envoi/clôture d'une commande,
   le rattrapage d'une dépense, le stock d'ouverture, tout ce qui précède la v26.
   Le mode démo n'enfile rien (`AppDatabase.fileSynchronisationActive`).
-- **Aucun écran ne lit la file** tant que le moteur d'envoi (F2) n'existe pas :
-  n'annoncez aucune attente. Piège rencontré : `m.createTable` ne crée PAS les
+- **Aucun écran ne lit la file** avant l'écran de synchronisation (F2b) :
+  n'annoncez aucune attente. Le moteur d'envoi existe depuis F2a (section
+  suivante). Piège rencontré : `m.createTable` ne crée PAS les
   index `@TableIndex`, et un `CREATE INDEX` nu échoue sur un fichier rabaissé.
+
+## Moteur d'envoi et appairage (lot F2a, 15/10/2026)
+
+- **Transport** : `package:http` (pur Dart, déjà transitif) derrière
+  `TransportSynchronisation` (`data/transport_synchronisation.dart`) — rend une
+  `IssueHttp` (`ReponseHttp` | `ServeurInjoignable`), ne lève jamais ; 20 s de
+  connexion et de requête ; `Accept: application/json`, Bearer. Tests :
+  `MockClient` ou `FauxTransport` (`test/features/synchronisation/support/`).
+- **Appairage** (Paramètres → onglet « Synchronisation », Administrateurs
+  seulement, `peutAdministrerComptes`) : `POST /login` avec `poste` = nom du
+  poste nettoyé (`nettoyerNomPoste`) ; `poste_id`, `jeton_api`, `serveur`,
+  `appaire_le`, `compte` (+ `appairage_refuse` posé par le moteur sur 401/403)
+  dans `poste.json` À CÔTÉ de `smtp_mot_de_passe`, écrit en E/S SYNCHRONES via
+  `poste.json.tmp` + renommage (une file de `Future` statique s'était bloquée
+  entre deux tests : zone FakeAsync morte). Le mot de passe serveur n'est écrit
+  nulle part ; les refus sont des phrases (`TextesAppairage`), jamais le corps.
+- **`SyncManager.synchroniserMaintenant()`** (`data/sync_manager.dart`) : un
+  futur partagé dans le processus + le bail de `reclamerLot` entre processus ;
+  `libererBauxExpires` puis `reclamerLot(50)` → `POST /sync` → `marquerResultat`
+  en boucle. Politique : injoignable/408/429/5xx = repli 30 s→2 min→5 min→15 min
+  →1 h (ou `Retry-After`) et arrêt ; 401/403 = lot rendu INTACT
+  (`rendreEnAttente`, la tentative ne compte pas), refus consigné, plus rien
+  avant réappairage ou « Tester la connexion » réussi ; 422 = bissection (seule
+  l'opération fautive est `rejete`, et une opération suivante du même élément
+  encore réclamée est rendue puis BLOQUÉE) ; 413 = taille ÷ 2 ; autre 4xx =
+  `rejete` + alerte. Démonstration (`synchronisationInterditeProvider`) et poste
+  non appairé : aucune requête. File vide : aucune requête.
+- **Déclencheurs, chacun avec son appelant prouvé** : `main.dart` (après la
+  première image) lit `synchronisationAutomatiqueProvider` (une fois + toutes
+  les 5 min) ; `cloturerLaCaisse` appelle `declencheurSynchronisationProvider`
+  sans l'attendre (un transport qui lève ou ne répond jamais ne change rien à
+  la clôture) ; le bouton « Synchroniser maintenant » de l'onglet. Le dernier
+  bilan : `dernierBilanSynchronisationProvider` (pour l'écran de F2b).
+- **Bout en bout** : `synchronisation_serveur_reel_test.dart` démarre
+  `php artisan serve --no-reload` sur `tatacora_test` (sans `--no-reload`,
+  artisan RETIRE `DB_DATABASE` de l'environnement du serveur, qui relirait
+  `.env` = la base de dev), tient le verrou de `tatacora_test` tout l'essai, et
+  `tool/sync/serveur_reel.php` prend un instantané puis RESTAURE chaque table
+  modifiée (le serveur écrit pour de bon). `HttpOverrides.global = null`.
+- Production : `https://logirestock.digitonpro.com/api/v1`. Un appairage fait
+  vers une autre adresse que celle du build rend `autreServeur`, rien ne part.
 
 ## Synchronisation — ⚠ HISTORIQUE, retirée par « zéro réseau »
 
 ⚠ **Vérifié le 12/10/2026 : `synchroniserMaintenant`, `DeclencheurSynchronisation`,
 `dioProvider` et `dioEnLigneProvider` n'existent plus dans `lib/`** (seules
-subsistent des mentions en commentaire). Le poste ne pousse ni ne descend rien.
+subsistent des mentions en commentaire). **Depuis le lot F2a (15/10/2026),
+`synchroniserMaintenant` existe de nouveau** — dans `SyncManager`, voir la
+section précédente ; il pousse la file et ne descend RIEN (le catalogue
+descendant est F2b). Le poste ne pousse ni ne descend rien.
 Cette section et les deux suivantes (« socle réseau », « écrans qui exigent le
 réseau ») décrivent l'état d'avant ; elles sont gardées pour leurs leçons, pas
 comme description du code.

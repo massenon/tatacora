@@ -37,9 +37,9 @@ dependencies:
   flutter_riverpod: ^3.4.2
   drift: ^2.34.3
   # ⚠ `dio` et `connectivity_plus` ont ete RETIRES le 14/09/2026 (decision du
-  # Product Owner) : le poste est zero reseau, `core/network/` et `core/sync/`
-  # n'existent plus. Ne les remettez pas « pour un seul appel » — une
-  # dependance HTTP absente du pubspec est la seule garde qui ne s'oublie pas.
+  # Product Owner) : `core/network/` et `core/sync/` n'existent plus. Depuis le
+  # lot F2a (15/10/2026) le poste se synchronise en tache de fond par `http`
+  # (voir plus bas) ; ne remettez ni `dio` ni `connectivity_plus`.
   go_router: ^17.5.0
   flutter_secure_storage: ^11.0.0
   workmanager: ^0.10.7
@@ -70,12 +70,21 @@ dependencies:
   file_selector_windows: ^0.9.3+5
   file_selector_platform_interface: ^2.7.0
   # SMTP vers l'editeur — directive du PO du 14/10/2026 (Lot J2, partie 2) :
-  # « Contactez l'editeur » ENVOIE reellement. C'est la SEULE action reseau du
-  # poste (features/transverse/data/envoi_messages_editeur.dart) ; ce paquet ne
+  # « Contactez l'editeur » ENVOIE reellement
+  # (features/transverse/data/envoi_messages_editeur.dart) ; ce paquet ne
   # sert a rien d'autre. Pur Dart (dart:io), aucune dependance native. Le mot
   # de passe SMTP n'est jamais dans le code ni en base : il est relu a l'envoi
   # dans %APPDATA%/TATACORA/poste.json (voir README_DEPLOY.md).
   mailer: ^7.2.0
+  # Synchronisation en tache de fond (lot F2a, 15/10/2026) : appairage du
+  # poste (POST /login) et envoi de la file (POST /sync). `http` plutot que
+  # `dio` : pur Dart, deja present en dependance TRANSITIVE (meme version, aucun
+  # nouveau code telecharge), un seul `Client` a injecter — `MockClient` du
+  # paquet sert de transport d'essai —, et rien de ce que `dio` ajoute
+  # (intercepteurs, annulation, FormData) n'est utilise : le moteur lit le
+  # statut de chaque reponse lui-meme. Seul consommateur :
+  # features/synchronisation/data/transport_synchronisation.dart.
+  http: ^1.6.0
 
 dev_dependencies:
   integration_test:

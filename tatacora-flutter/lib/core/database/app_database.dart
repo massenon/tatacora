@@ -328,7 +328,7 @@ class AppDatabase extends _$AppDatabase {
   /// v25 (14/10/2026) — « CONTACTEZ L'ÉDITEUR » ENVOIE (directive du PO, Lot
   /// J2 partie 2) : une table neuve (`messages_editeur_local`, 56 -> 57
   /// tables), aucune colonne ajoutée. Le message s'y écrit AVANT la tentative
-  /// SMTP, qui est la SEULE action réseau du poste. Qui écrit, qui lit, qui
+  /// SMTP (action réseau du poste, avec la synchronisation). Qui écrit, qui lit, qui
   /// descend : voir `tables/messages_editeur_tables.dart`.
   ///
   /// v26 (15/10/2026) — LA FILE D'ENVOI (décisions du PO des 14–15/10/2026,

@@ -294,6 +294,26 @@ class OperationsSyncDao extends DatabaseAccessor<AppDatabase> {
     );
   }
 
+  /// Rend `en_attente` des opérations RÉCLAMÉES sans rien consigner contre
+  /// elles — ni erreur, ni repli, et la tentative ne compte pas (lot F2a) :
+  /// le jeton ou le poste a été refusé (401/403), l'envoi n'a jamais jugé
+  /// l'opération. Seules les opérations encore `en_cours` sont touchées.
+  Future<void> rendreEnAttente(List<String> uuidsOperation) async {
+    if (uuidsOperation.isEmpty) return;
+    await customUpdate(
+      'UPDATE operations_sync_local SET statut = ?, lot_id = NULL, '
+      'verrou_jusqua = NULL, tentatives = MAX(tentatives - 1, 0) '
+      'WHERE statut = ? AND uuid_operation IN '
+      '(${List.filled(uuidsOperation.length, '?').join(', ')})',
+      variables: [
+        Variable.withString(StatutOperationSync.enAttente.code),
+        Variable.withString(StatutOperationSync.enCours.code),
+        for (final u in uuidsOperation) Variable.withString(u),
+      ],
+      updates: {_operations},
+    );
+  }
+
   /* ================================================================== */
   /* Lecture                                                             */
   /* ================================================================== */

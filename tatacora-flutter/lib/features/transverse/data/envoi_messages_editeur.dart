@@ -1,5 +1,6 @@
-/// L'envoi RÉEL des messages à l'éditeur, par SMTP — la SEULE action réseau
-/// du poste (directive du Product Owner du 14/10/2026, Lot J2 partie 2).
+/// L'envoi RÉEL des messages à l'éditeur, par SMTP — une action réseau du
+/// poste (directive du Product Owner du 14/10/2026, Lot J2 partie 2) ; l'autre
+/// est la synchronisation en tâche de fond (lot F2a, 15/10/2026).
 ///
 /// Réplique de `MessageEditeurService` (serveur) : le message est ÉCRIT
 /// d'abord (`MessagesEditeurDao.enregistrer`, `en_attente`), l'envoi est

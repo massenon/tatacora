@@ -28,10 +28,11 @@ class ApplicationTatacora extends ConsumerStatefulWidget {
 
 class _EtatApplication extends ConsumerState<ApplicationTatacora> {
   // ⚠ Un `AppLifecycleListener` vivait ici : il réveillait la synchronisation
-  // au retour au premier plan (PA-64). Le poste est zéro réseau depuis le
-  // 14/09/2026 — il n'y a plus de file à faire partir, donc plus rien à
-  // réveiller. Ne rétablissez pas l'écoute « au cas où » : un déclencheur qui
-  // n'appelle rien est exactement le défaut de PA-63, à l'envers.
+  // au retour au premier plan (PA-64), retiré avec « zéro réseau » le
+  // 14/09/2026. Depuis le lot F2a, la synchronisation revient en tâche de
+  // fond par `synchronisationAutomatiqueProvider` (démarrage + toutes les
+  // 5 minutes) et après chaque clôture de caisse ; le retour au premier plan
+  // n'est PAS un déclencheur.
 
   @override
   void initState() {
@@ -47,11 +48,16 @@ class _EtatApplication extends ConsumerState<ApplicationTatacora> {
       ref.read(referentielComptableProvider);
       // La relance des messages à l'éditeur restés en attente (Lot J2 partie
       // 2, 14/10/2026) : une première fois maintenant, puis toutes les cinq
-      // minutes tant que l'application tourne. C'est la SEULE action réseau
-      // du poste ; `main_demo.dart` ne la démarre pas.
+      // minutes tant que l'application tourne. L'une des DEUX actions réseau
+      // du poste (avec la synchronisation, ci-dessous) ; `main_demo.dart` ne
+      // la démarre pas.
       ref.read(relanceMessagesEditeurProvider);
       // Lot F1 : la file d'envoi libère les baux d'un processus tué.
       ref.read(liberationBauxSyncProvider);
+      // Lot F2a : la synchronisation en tâche de fond — une première fois
+      // maintenant, puis toutes les 5 minutes. Rien ne l'attend ; un poste
+      // non appairé ne tente rien. `main_demo.dart` ne la démarre pas.
+      ref.read(synchronisationAutomatiqueProvider);
     });
   }
 

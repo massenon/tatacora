@@ -5,8 +5,15 @@ Système de gestion Intégré, puis comment **l'installer** et **le mettre en
 service** sur les postes du Comptable et du Gérant.
 
 Chaque poste a **sa propre base de données**, sur son disque : le logiciel
-fonctionne entièrement hors connexion. La **seule** action réseau est l'envoi
-des messages à l'éditeur (« Contactez l'éditeur »), par courriel (SMTP).
+fonctionne entièrement hors connexion, des jours durant s'il le faut. Deux
+actions réseau existent, toutes deux en **tâche de fond** — aucun écran ne les
+attend, la clôture de caisse comprise :
+
+- la **synchronisation** des saisies du poste vers le serveur
+  `https://logirestock.digitonpro.com`, une fois le poste **appairé**
+  (section 6) ;
+- l'envoi des messages à l'éditeur (« Contactez l'éditeur »), par courriel
+  (SMTP, section 5).
 
 ---
 
@@ -98,6 +105,8 @@ sont dans le dossier d'installation.
      pré-remplis).
 4. **Configurer le mot de passe SMTP** du poste (section 5) pour que
    « Contactez l'éditeur » puisse envoyer.
+5. **Appairer le poste au serveur** (section 6) pour que ses saisies
+   remontent.
 
 ---
 
@@ -107,7 +116,7 @@ sont dans le dossier d'installation.
 |---|---|---|
 | Le logiciel | `C:\Program Files\TATACORA\` | Oui |
 | **La base de données** (toutes les saisies) | `%USERPROFILE%\Documents\tatacora.sqlite` — le dossier **Documents** du compte Windows (par exemple `C:\Users\Comptable\Documents\tatacora.sqlite`) | **Non** |
-| La configuration du poste (mot de passe SMTP) | `%APPDATA%\TATACORA\poste.json` (par exemple `C:\Users\Comptable\AppData\Roaming\TATACORA\poste.json`) | **Non** |
+| La configuration du poste (mot de passe SMTP, appairage au serveur) | `%APPDATA%\TATACORA\poste.json` (par exemple `C:\Users\Comptable\AppData\Roaming\TATACORA\poste.json`) | **Non** |
 
 Remarques importantes :
 
@@ -177,7 +186,54 @@ courriel ni laissé sur une clé USB.
 
 ---
 
-## 6. Mettre à jour
+## 6. Appairer le poste au serveur (synchronisation)
+
+Le poste enregistre tout sur place, puis **envoie ses opérations au serveur en
+tâche de fond** : au démarrage, toutes les 5 minutes tant qu'il en reste à
+envoyer, et juste après chaque clôture de caisse. Pour cela, il doit être
+**appairé une fois** à un compte du serveur.
+
+Sur chaque poste, connecté avec un compte **Administrateur** du poste :
+
+1. Ouvrir **Paramètres → onglet « Synchronisation »** (l'onglet n'apparaît
+   qu'aux Administrateurs).
+2. Saisir l'**identifiant** et le **mot de passe d'un compte du serveur**
+   (compte gérant ou administrateur créé sur le serveur — pas un compte du
+   poste). Ce mot de passe sert à obtenir un jeton et n'est **enregistré
+   nulle part**.
+3. Vérifier le **Nom du poste** : il est pré-rempli avec le nom Windows du PC
+   (lettres, chiffres, `-`, `_`, `.`). Deux postes doivent avoir des noms
+   **différents** : c'est sous ce nom que le serveur reconnaît chaque poste.
+4. Cliquer **« Appairer le poste »**. Réussi : « Poste « … » appairé ». L'état
+   affiche alors le serveur, le nom du poste, le compte et la date.
+5. Cliquer **« Tester la connexion »** : « Connexion établie… ».
+
+Messages possibles et que faire :
+
+| Message | Que faire |
+|---|---|
+| Identifiants refusés par le serveur | Vérifier l'identifiant et le mot de passe du compte **serveur**. |
+| Ce compte est désactivé sur le serveur | Faire réactiver le compte sur le serveur, ou en utiliser un autre. |
+| Trop de tentatives | Attendre quelques minutes (blocage du serveur après 5 échecs). |
+| Serveur injoignable | Vérifier la connexion Internet du poste, puis réessayer. |
+| Jeton refusé — réappairer le poste | Le jeton a été révoqué (ou le compte appairé une seconde fois sous le même nom de poste) : refaire les étapes 2 à 4. La synchronisation reste suspendue jusque-là ; rien n'est perdu. |
+
+Ce que l'appairage écrit : le nom du poste, le jeton, l'adresse du serveur, la
+date et l'identifiant du compte, dans `%APPDATA%\TATACORA\poste.json` (à côté
+du mot de passe SMTP, qui est conservé). Le fichier est remplacé d'un bloc à
+chaque écriture. **Ne pas modifier ces clés à la main.**
+
+**« Dissocier »** retire le jeton du poste (et le révoque au serveur si le
+réseau est là). Les opérations en attente **restent sur le poste** : elles
+partiront après un nouvel appairage.
+
+Un poste hors connexion continue de travailler normalement : ses opérations
+attendent, et repartent seules quand le réseau revient (avec un délai
+croissant après chaque échec, une heure au plus). Rien n'est jamais supprimé.
+
+---
+
+## 7. Mettre à jour
 
 1. Faire une **sauvegarde** (section 4).
 2. Fermer TATACORA.
@@ -187,7 +243,7 @@ courriel ni laissé sur une clé USB.
    de données (migrations additives). Ne jamais revenir à une version
    antérieure du logiciel sur une base déjà mise à jour.
 
-## 7. Désinstaller
+## 8. Désinstaller
 
 Panneau de configuration → Programmes → « TATACORA — Système de gestion
 Intégré » → Désinstaller (ou le raccourci « Désinstaller TATACORA » du groupe

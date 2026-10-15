@@ -200,6 +200,10 @@ void main() {
     // `@elseif ($onglet === 'tables')` de `transverse/parametres.blade.php`
     // (l.322), dans `<main>` (fermé l.507) — échelle EFFECTIVE.
     'lib/features/parametres/presentation/widgets/onglet_espaces_tables.dart',
+    // L'onglet « Synchronisation » (lot F2a, 15/10/2026) : un AJOUT du poste,
+    // rendu dans la carte du formulaire de Paramètres comme les autres
+    // onglets, donc dans `<main>` — échelle EFFECTIVE.
+    'lib/features/parametres/presentation/widgets/onglet_synchronisation.dart',
     // Inventaires & Fiches de stock, repris sur la vue le 08/10/2026 (Phase 2,
     // écran n° 2) : le fichier rend le CORPS de la page, ses trois onglets
     // compris ; aucune modale n'y est ouverte.

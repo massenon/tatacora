@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/di/providers.dart';
 import '../../../core/rbac/garde_acces.dart';
+import '../../transverse/domain/comptes_utilisateurs.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -15,6 +16,7 @@ import '../domain/resultats_parametres.dart';
 import 'widgets/cadre_modale_parametre.dart';
 import 'widgets/champ_parametre.dart';
 import 'widgets/onglet_espaces_tables.dart';
+import 'widgets/onglet_synchronisation.dart';
 
 // Les refus de la vue, DITS dans le code plutôt qu'affichés (la vue n'a plus de
 // section de refus à l'écran — directive du 31/08/2026). Ce sont des champs ou
@@ -74,6 +76,12 @@ const _onglets = <(String, String)>[
   ('tables', 'Espaces & tables'),
   ('activation', 'Activation & Sécurité'),
 ];
+
+/// L'onglet AJOUTÉ par le poste (lot F2a, 15/10/2026, décision du PO) :
+/// l'appairage au serveur. La vue n'en a pas — le serveur ne s'appaire pas à
+/// lui-même. Affiché aux seuls Administrateurs (`rolesAdministration`, la
+/// règle de « Comptes utilisateurs »).
+const _ongletSynchronisation = ('synchronisation', 'Synchronisation');
 
 /// Les clés que le maître loge sous « Informations légales & fiscales ».
 const _clesLegales = {
@@ -172,6 +180,11 @@ class _PageState extends ConsumerState<_Page> {
             children: [
               const _EnTete(),
               _BarreOnglets(
+                onglets: [
+                  ..._onglets,
+                  if (peutAdministrerComptes(ref.watch(sessionProvider)?.role))
+                    _ongletSynchronisation,
+                ],
                 actif: _onglet,
                 onChoisir: (o) => setState(() => _onglet = o),
               ),
@@ -256,6 +269,9 @@ class _PageState extends ConsumerState<_Page> {
         // Le référentiel des tables de salle du poste (`tables_local`, seul
         // écrivain `TablesPosDao`) — le même que lit le point de vente.
         return OngletEspacesTables(peutEcrire: peutEcrire);
+      case 'synchronisation':
+        // L'onglet refait lui-même la vérification du rôle.
+        return const OngletSynchronisation();
       default:
         // Logo & Apparence, Canaux de réservation : leur contenu n'a pas de
         // source sur ce poste. Logo et favicon sont des FICHIERS téléversés
@@ -424,8 +440,13 @@ class _EnTete extends StatelessWidget {
 
 /// `<div class="flex flex-wrap gap-2 mb-5">` et `Onglets::classes()`.
 class _BarreOnglets extends StatelessWidget {
-  const _BarreOnglets({required this.actif, required this.onChoisir});
+  const _BarreOnglets({
+    required this.onglets,
+    required this.actif,
+    required this.onChoisir,
+  });
 
+  final List<(String, String)> onglets;
   final String actif;
   final ValueChanged<String> onChoisir;
 
@@ -437,7 +458,7 @@ class _BarreOnglets extends StatelessWidget {
         spacing: AppSpacing.xs, // gap-2
         runSpacing: AppSpacing.xs,
         children: [
-          for (final (cle, libelle) in _onglets)
+          for (final (cle, libelle) in onglets)
             _Onglet(
               key: Key('param-onglet-$cle'),
               libelle: libelle,

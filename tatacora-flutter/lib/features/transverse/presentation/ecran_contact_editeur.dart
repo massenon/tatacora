@@ -37,8 +37,9 @@ import 'widgets/modales_contact_editeur.dart';
 /// message reste en attente et repart seul (`relanceMessagesEditeurProvider`,
 /// au démarrage puis toutes les 5 min). Jamais perdu, jamais supprimé.
 ///
-/// **C'est la SEULE action réseau du poste.** Tout le reste lit et écrit la
-/// base locale.
+/// C'est l'une des DEUX actions réseau du poste, avec la synchronisation en
+/// tâche de fond (lot F2a, 15/10/2026). Tout le reste lit et écrit la base
+/// locale.
 ///
 /// « Vos envois » rend la liste RÉELLE des 50 derniers envois du compte, avec
 /// leur statut mesuré. AJOUT du poste (aucune vue ne l'a) : l'encart
