@@ -4,16 +4,19 @@ declare(strict_types=1);
 
 namespace App\Shared\Sync\Services;
 
-use App\Domain\Hebergement\Services\ReservationService;
 use App\Models\User;
 use App\Shared\Integrite\Exceptions\ChevauchementDetecteException;
 use App\Shared\Rbac\Models\JournalSecurite;
+use App\Shared\Sync\Contracts\GestionnaireSynchronisation;
+use App\Shared\Sync\Exceptions\DonneesSynchroniseesInvalidesException;
 use App\Shared\Sync\Models\ConflitSynchronisation;
 use App\Shared\Sync\Models\DeduplicationSynchronisation;
 use App\Shared\Sync\Models\SessionSynchronisation;
+use App\Shared\Sync\Support\ContexteSynchronisation;
+use App\Shared\Sync\Support\EcritureSynchronisee;
+use Carbon\Exceptions\InvalidFormatException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use RuntimeException;
 
 /**
@@ -36,49 +39,47 @@ use RuntimeException;
  * ## Ce que ce service ne fait pas
  *
  * Il ne pousse rien vers le client (pas de « pull »), ne gère pas les fichiers
- * joints (§7, endpoint dédié) et n'écrit que sur les tables déclarées dans
- * `TABLES_SYNCHRONISABLES`. Toute table absente de ce registre est refusée
- * explicitement : accepter une écriture sur une table inconnue reviendrait à
- * contourner les règles de gestion de son domaine.
+ * joints (§7, endpoint dédié) et **n'écrit RIEN lui-même** : depuis le
+ * 15/10/2026, chaque table du registre `TABLES_SYNCHRONISABLES`
+ * (`RegistreSynchronisation`) a son gestionnaire, qui écrit par son service de
+ * domaine ou refuse. Le moteur garde ce qui est commun à toutes les tables —
+ * idempotence, RBAC par opération, cohérence du type annoncé, traduction des
+ * identifiants fusionnés, détection et arbitrage des conflits (RG-17) — et
+ * délègue l'écriture. L'ancien repli `DB::table($table)->insert/update($payload)`
+ * a disparu : c'était le chemin par lequel la synchronisation contournait les
+ * règles de gestion qu'elle était censée respecter.
+ *
+ * ## Le serveur seul maître comptable (D246, décision PO du 15/10/2026)
+ *
+ * Les postes poussent des documents SOURCES (réservation, fiche fournisseur,
+ * commande…), jamais des écritures comptables : les écritures sont produites
+ * ici, par les services métier, à la date MÉTIER du document
+ * (`ContexteSynchronisation`), jamais à la date de réception.
  */
 class SynchronisationService
 {
     /** LARAVEL_SYNC_FLUTTER.md §7 — au-delà, le client découpe en lots. */
     public const TAILLE_LOT_MAX = 50;
 
-    /** TTL de la mémoire d'idempotence, en jours (§5). */
-    public const TTL_DEDUPLICATION_JOURS = 7;
-
     /**
-     * Registre FERMÉ des tables acceptées en synchronisation, et du service de
-     * domaine par lequel l'écriture doit passer.
+     * TTL de la mémoire d'idempotence, en jours (§5).
      *
-     * `null` signifie « écriture directe autorisée » : uniquement pour les
-     * référentiels sans règle de gestion à l'écriture. Toute table portant une
-     * RG doit nommer son service — sinon la synchronisation deviendrait le
-     * chemin par lequel on contourne les règles.
-     *
-     * **Chaque table nomme aussi son module, et ce n'est pas facultatif**
-     * (PA-65, 19/08/2026). Le raisonnement ci-dessus valait pour les RG ; il
-     * vaut identiquement pour le RBAC, et il n'était pas appliqué : `/api/v1/sync`
-     * ne porte aucun `VerifierAccesModule` — il ne peut pas, un lot étant
-     * multi-modules par nature — et rien ne vérifiait les droits par opération.
-     * Un `barman` (`M1 = '-'`) créait donc une réservation par ce chemin, alors
-     * que `POST /hebergement/reservations` la lui refuse. Porter le module dans
-     * le registre plutôt que dans une table parallèle rend l'oubli impossible :
-     * on ne peut pas ajouter une table synchronisable sans déclarer qui a le
-     * droit d'y écrire.
-     *
-     * @var array<string, array{module: string, service: class-string|null}>
+     * **30 jours depuis le 15/10/2026** (7 auparavant). Le TTL doit couvrir la
+     * plus longue période hors connexion réaliste, et la décision PO du
+     * 15/10/2026 l'a allongée : les postes Windows des sites isolés (serveur
+     * injoignable, aucune connexion) poussent désormais leurs documents —
+     * fournisseurs, commandes d'achat, ventes — au retour du réseau, qui peut
+     * tarder des semaines. Une opération rejouée APRÈS la purge de sa mémoire
+     * serait ré-exécutée : un doublon de commande ou de vente, sans erreur ni
+     * trace. Le coût est une table plus longue d'un facteur 4, purgée par
+     * `NettoyerDeduplicationSyncJob` — négligeable devant ce risque.
      */
-    public const TABLES_SYNCHRONISABLES = [
-        'reservations' => ['module' => 'M1', 'service' => ReservationService::class],
-        'clients' => ['module' => 'M3', 'service' => null],
-    ];
+    public const TTL_DEDUPLICATION_JOURS = 30;
 
     public function __construct(
         private readonly ClassificationConflitService $classification,
-        private readonly ReservationService $reservations,
+        private readonly RegistreSynchronisation $registre,
+        private readonly ResolveurCorrespondances $correspondances,
     ) {
     }
 
@@ -143,14 +144,14 @@ class SynchronisationService
 
         $table = (string) $operation['table'];
 
-        if (! array_key_exists($table, self::TABLES_SYNCHRONISABLES)) {
-            return $this->memoriser($operation, $posteId, $utilisateurId, [
-                'uuid_operation' => $uuidOperation,
-                'statut' => 'rejete',
-                'entite_id' => (string) $operation['entite_id'],
-                'motif' => __('sync.table_non_synchronisable', ['table' => $table]),
-            ]);
+        if (! $this->registre->estSynchronisable($table)) {
+            return $this->memoriser($operation, $posteId, $utilisateurId, $this->rejet(
+                $operation,
+                __('sync.table_non_synchronisable', ['table' => $table]),
+            ));
         }
+
+        $gestionnaire = $this->registre->pour($table);
 
         // RBAC par operation — 2e niveau, applique ici faute de pouvoir l'etre
         // sur la route (PA-65). Un lot est multi-modules par nature : un seul
@@ -165,40 +166,60 @@ class SynchronisationService
         // pas de droits. Le client le retire de sa file avec son motif, ce qui
         // est le comportement voulu — au contraire d'un bogue serveur, qui doit
         // remonter en 500 pour etre rejoue plus tard.
-        if (! $this->droitEcriture($utilisateurId, $table)) {
-            return $this->memoriser($operation, $posteId, $utilisateurId, [
-                'uuid_operation' => $uuidOperation,
-                'statut' => 'rejete',
-                'entite_id' => (string) $operation['entite_id'],
-                'motif' => __('auth.module_refuse'),
-            ]);
+        $utilisateur = $this->utilisateurAutorise($utilisateurId, $gestionnaire);
+
+        if ($utilisateur === null) {
+            return $this->memoriser($operation, $posteId, $utilisateurId, $this->rejet(
+                $operation,
+                __('auth.module_refuse'),
+            ));
         }
+
+        // Refus explicite d'une table qui ne synchronise pas ses
+        // modifications : il n'existe plus de repli brut (15/10/2026).
+        if ($operation['type'] === 'modification' && ! $gestionnaire->accepteModification()) {
+            return $this->memoriser($operation, $posteId, $utilisateurId, $this->rejet(
+                $operation,
+                __('sync.modification_non_synchronisable'),
+            ));
+        }
+
+        /** @var array<string, mixed> $payload */
+        $payload = $operation['payload'];
+        $contexte = $this->contexte($operation, $payload, $posteId, $utilisateur, $gestionnaire);
+
+        if ($contexte === null) {
+            return $this->memoriser($operation, $posteId, $utilisateurId, $this->rejet(
+                $operation,
+                __('sync.date_metier_invalide'),
+            ));
+        }
+
+        // `date_metier` est une donnée du PROTOCOLE, pas du document : elle
+        // vit dans le contexte, jamais dans les colonnes de la table.
+        unset($payload['date_metier']);
 
         try {
             $resultat = DB::transaction(
-                fn (): array => $this->appliquer($operation, $posteId, $sessionId, $table),
+                fn (): array => $this->appliquer($operation, $payload, $gestionnaire, $contexte, $sessionId),
             );
         } catch (ChevauchementDetecteException $e) {
             // §4.2, catégorie structurelle : ce n'est pas un conflit de versions
             // mais un rejet — deux enregistrements distincts qui ne peuvent pas
             // coexister (RG-01/RG-08/RG-13).
             $resultat = [
-                'uuid_operation' => $uuidOperation,
-                'statut' => 'rejete',
-                'entite_id' => (string) $operation['entite_id'],
-                'motif' => $e->getMessage(),
+                ...$this->rejet($operation, $e->getMessage()),
                 'entites_en_conflit' => $e->identifiantsEnConflit,
             ];
+        } catch (DonneesSynchroniseesInvalidesException $e) {
+            // Les phrases de l'API, champ par champ : le poste les affiche à
+            // côté de la saisie, comme l'écran en ligne.
+            $resultat = [...$this->rejet($operation, $e->getMessage()), 'erreurs' => $e->erreurs];
         } catch (RuntimeException $e) {
             // UNIQUEMENT les refus métier. Le message est transmis au client :
             // §2.2 exige que l'application informe l'utilisateur clairement,
             // pas par une erreur technique brute.
-            $resultat = [
-                'uuid_operation' => $uuidOperation,
-                'statut' => 'rejete',
-                'entite_id' => (string) $operation['entite_id'],
-                'motif' => $e->getMessage(),
-            ];
+            $resultat = $this->rejet($operation, $e->getMessage());
         }
 
         // Toute autre exception — bogue de programmation, panne de base — se
@@ -220,28 +241,28 @@ class SynchronisationService
     }
 
     /**
-     * L'utilisateur a-t-il le droit d'ECRIRE dans le module de cette table ?
+     * L'utilisateur, s'il a le droit d'écrire dans le module du gestionnaire.
      *
      * Toute operation de synchronisation est une ecriture (`creation` ou
      * `modification`, seuls types acceptes par `SynchroniserRequest`) : le
-     * niveau requis est donc toujours `C`, jamais `L`.
+     * niveau requis, declare par le gestionnaire, est `C`, jamais `L`.
      *
      * Le niveau est lu par `User::niveauSurModule()`, la meme source que
      * `VerifierAccesModule` — reecrire le calcul ici ferait diverger les deux
      * chemins le jour ou la matrice changerait.
      */
-    private function droitEcriture(string $utilisateurId, string $table): bool
+    private function utilisateurAutorise(string $utilisateurId, GestionnaireSynchronisation $gestionnaire): ?User
     {
-        $module = self::TABLES_SYNCHRONISABLES[$table]['module'];
+        $module = $gestionnaire->module();
 
         $utilisateur = $this->utilisateurs[$utilisateurId] ??= User::find($utilisateurId);
 
         if (! $utilisateur instanceof User || ! $utilisateur->estActif()) {
-            return false;
+            return null;
         }
 
-        if ($utilisateur->niveauSurModule($module) === 'C') {
-            return true;
+        if ($utilisateur->niveauSurModule($module) === $gestionnaire->niveauRequis()) {
+            return $utilisateur;
         }
 
         // SECURITY_STRICT.md §10 — toute tentative d'acces refusee est tracee
@@ -255,74 +276,157 @@ class SynchronisationService
             'module_concerne' => $module,
         ]);
 
-        return false;
+        return null;
+    }
+
+    /**
+     * Le contexte de l'opération — `null` si la date métier est illisible.
+     *
+     * Date métier, par ordre de priorité : `payload.date_metier` explicite →
+     * champ date du document déclaré par le gestionnaire → date de SAISIE
+     * (`horodatage_client`). Jamais `now()` : un document saisi lundi et
+     * synchronisé jeudi est un document de lundi (D246, 15/10/2026).
+     *
+     * @param  array<string, mixed>  $operation
+     * @param  array<string, mixed>  $payload
+     */
+    private function contexte(
+        array $operation,
+        array $payload,
+        string $posteId,
+        User $utilisateur,
+        GestionnaireSynchronisation $gestionnaire,
+    ): ?ContexteSynchronisation {
+        $horodatageClient = Carbon::parse((string) $operation['horodatage_client']);
+
+        $champ = $gestionnaire->champDateDocument();
+        $brute = $payload['date_metier'] ?? ($champ !== null ? ($payload[$champ] ?? null) : null);
+
+        try {
+            $dateMetier = $brute === null ? $horodatageClient->copy() : Carbon::parse((string) $brute);
+        } catch (InvalidFormatException) {
+            return null;
+        }
+
+        return new ContexteSynchronisation($posteId, $utilisateur, $horodatageClient, $dateMetier);
     }
 
     /**
      * @param  array<string, mixed>  $operation
+     * @param  array<string, mixed>  $payload
      * @return array<string, mixed>
      */
-    private function appliquer(array $operation, string $posteId, string $sessionId, string $table): array
-    {
-        $entiteId = (string) $operation['entite_id'];
-        /** @var array<string, mixed> $payload */
-        $payload = $operation['payload'];
-        $horodatageClient = Carbon::parse((string) $operation['horodatage_client']);
+    private function appliquer(
+        array $operation,
+        array $payload,
+        GestionnaireSynchronisation $gestionnaire,
+        ContexteSynchronisation $contexte,
+        string $sessionId,
+    ): array {
+        $table = $gestionnaire->table();
+        $idPoste = (string) $operation['entite_id'];
 
+        // Un élément créé hors connexion puis FUSIONNÉ côté serveur est désigné
+        // par l'UUID du poste dans les opérations suivantes de ce poste : on
+        // travaille sur l'élément serveur (décision PO du 15/10/2026).
+        $entiteId = $this->correspondances->resoudre($table, $idPoste);
+
+        // Lecture seule : savoir si l'élément existe, et sa version serveur
+        // pour l'arbitrage. Aucune écriture ne passe plus par le query builder.
         $existant = DB::table($table)->where('id', $entiteId)->first();
 
-        if ($existant === null) {
-            return $this->creer($table, $entiteId, $payload, $operation);
+        if ($operation['type'] === 'creation') {
+            return $this->creer($operation, $payload, $gestionnaire, $contexte, $idPoste, $entiteId, $existant);
         }
+
+        if ($existant === null) {
+            return $this->rejet($operation, __('sync.modification_entite_inconnue'));
+        }
+
+        $horodatageClient = $contexte->horodatageClient;
 
         // §4.1 — conflit si l'enregistrement a été modifié côté serveur APRÈS
         // l'horodatage de saisie du client, par un AUTRE poste.
-        if (! $this->estEnConflit($existant, $horodatageClient, $posteId)) {
-            return $this->mettreAJour($table, $entiteId, $payload, $operation);
+        $resultat = $this->estEnConflit($existant, $horodatageClient, $contexte->posteId)
+            ? $this->traiterConflit($gestionnaire, $entiteId, $payload, $existant, $operation, $sessionId, $contexte)
+            : $this->succes($operation, $gestionnaire->modifier($entiteId, $payload, $contexte));
+
+        // Le poste a désigné l'élément par son UUID local, fusionné depuis :
+        // il doit apprendre l'UUID serveur pour remapper.
+        if ($entiteId !== $idPoste && $resultat['statut'] !== 'rejete') {
+            $resultat['entite_id'] = $entiteId;
+            $resultat['fusionne_avec'] = $entiteId;
         }
 
-        return $this->traiterConflit($table, $entiteId, $payload, $existant, $operation, $sessionId, $horodatageClient);
+        return $resultat;
     }
 
     /**
+     * Le TYPE annoncé doit correspondre à l'état serveur.
+     *
+     * Avant le 15/10/2026, une `creation` sur un identifiant existant devenait
+     * silencieusement une mise à jour brute : un poste pouvait ainsi réécrire
+     * n'importe quelle fiche en l'annonçant « nouvelle ». Désormais :
+     * - l'identifiant est celui d'une fusion déjà faite (correspondance) →
+     *   même réponse que la fusion d'origine, rien n'est écrit ;
+     * - l'identifiant existe tel quel → rejet explicite.
+     *
+     * @param  array<string, mixed>  $operation
      * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private function creer(
+        array $operation,
+        array $payload,
+        GestionnaireSynchronisation $gestionnaire,
+        ContexteSynchronisation $contexte,
+        string $idPoste,
+        string $entiteId,
+        ?object $existant,
+    ): array {
+        if ($existant !== null) {
+            if ($entiteId !== $idPoste) {
+                return $this->succes($operation, new EcritureSynchronisee($entiteId, fusionneAvec: $entiteId));
+            }
+
+            return $this->rejet($operation, __('sync.creation_entite_existante'));
+        }
+
+        $ecriture = $gestionnaire->creer($idPoste, $payload, $contexte);
+
+        if ($ecriture->fusionneAvec !== null) {
+            $this->correspondances->enregistrer($contexte->posteId, $gestionnaire->table(), $idPoste, $ecriture->fusionneAvec);
+        }
+
+        return $this->succes($operation, $ecriture);
+    }
+
+    /**
      * @param  array<string, mixed>  $operation
      * @return array<string, mixed>
      */
-    private function creer(string $table, string $entiteId, array $payload, array $operation): array
+    private function succes(array $operation, EcritureSynchronisee $ecriture): array
     {
-        $service = self::TABLES_SYNCHRONISABLES[$table]['service'];
-
-        if ($service === ReservationService::class) {
-            // Passage OBLIGATOIRE par le service : c'est lui qui porte le verrou
-            // de RG-01. Une insertion directe ici ferait de la synchronisation
-            // le seul chemin par lequel une double-réservation devient possible
-            // — précisément le scénario que RG-01 existe pour empêcher.
-            $this->reservations->creer([...$payload, 'id' => $entiteId]);
-        } else {
-            DB::table($table)->insert([...$payload, 'id' => $entiteId]);
-        }
-
         return [
             'uuid_operation' => (string) $operation['uuid_operation'],
             'statut' => 'synchronise',
-            'entite_id' => $entiteId,
+            'entite_id' => $ecriture->entiteId,
+            ...($ecriture->fusionneAvec !== null ? ['fusionne_avec' => $ecriture->fusionneAvec] : []),
+            ...$ecriture->complements,
         ];
     }
 
     /**
-     * @param  array<string, mixed>  $payload
      * @param  array<string, mixed>  $operation
      * @return array<string, mixed>
      */
-    private function mettreAJour(string $table, string $entiteId, array $payload, array $operation): array
+    private function rejet(array $operation, string $motif): array
     {
-        $this->ecrire($table, $entiteId, $payload);
-
         return [
             'uuid_operation' => (string) $operation['uuid_operation'],
-            'statut' => 'synchronise',
-            'entite_id' => $entiteId,
+            'statut' => 'rejete',
+            'entite_id' => (string) $operation['entite_id'],
+            'motif' => $motif,
         ];
     }
 
@@ -332,16 +436,18 @@ class SynchronisationService
      * @return array<string, mixed>
      */
     private function traiterConflit(
-        string $table,
+        GestionnaireSynchronisation $gestionnaire,
         string $entiteId,
         array $payload,
         object $existant,
         array $operation,
         string $sessionId,
-        Carbon $horodatageClient,
+        ContexteSynchronisation $contexte,
     ): array {
+        $table = $gestionnaire->table();
         $versionServeur = (array) $existant;
-        $automatique = $this->classification->autoriseResolutionAutomatique($table);
+        $automatique = ! $gestionnaire->estFinanciere()
+            && $this->classification->autoriseResolutionAutomatique($table);
 
         $conflit = ConflitSynchronisation::create([
             'session_id' => $sessionId,
@@ -380,7 +486,7 @@ class SynchronisationService
         $reference = $this->horodatageSaisiePrecedente($entiteId)
             ?? $this->dateModificationServeur($existant);
 
-        if ($reference !== null && $horodatageClient->lessThan($reference)) {
+        if ($reference !== null && $contexte->horodatageClient->lessThan($reference)) {
             $conflit->update(['statut' => 'resolu_serveur']);
 
             return [
@@ -392,47 +498,18 @@ class SynchronisationService
             ];
         }
 
-        $this->ecrire($table, $entiteId, $payload);
+        // La version locale gagne : elle est écrite par le GESTIONNAIRE, donc
+        // par le service de domaine — validation, audit RG-15 et horodatage de
+        // modification compris. L'`UPDATE` brut d'avant devait avancer
+        // `date_modification` à la main, faute de quoi §4.1 cessait de
+        // détecter le moindre conflit ; Eloquent (`Auditable`) le tient.
+        $ecriture = $gestionnaire->modifier($entiteId, $payload, $contexte);
 
         return [
-            'uuid_operation' => (string) $operation['uuid_operation'],
-            'statut' => 'synchronise',
-            'entite_id' => $entiteId,
+            ...$this->succes($operation, $ecriture),
             'resolution' => 'version_locale_conservee',
             'conflit_id' => $conflit->id,
         ];
-    }
-
-    /**
-     * Écriture d'une modification synchronisée, horodatage de suivi compris.
-     *
-     * Le query builder ne touche PAS aux colonnes d'horodatage, contrairement à
-     * Eloquent. Sans cette avance explicite, l'entité paraîtrait ne plus jamais
-     * avoir été modifiée après sa première synchronisation — et §4.1, qui
-     * détecte les conflits par comparaison à la date de modification serveur,
-     * cesserait d'en détecter un seul. Le bug est silencieux : tout continue de
-     * fonctionner, les conflits disparaissent simplement des radars.
-     *
-     * @param  array<string, mixed>  $payload
-     */
-    private function ecrire(string $table, string $entiteId, array $payload): void
-    {
-        foreach (['date_modification', 'updated_at'] as $colonne) {
-            if ($this->colonneExiste($table, $colonne)) {
-                $payload[$colonne] = now();
-            }
-        }
-
-        DB::table($table)->where('id', $entiteId)->update($payload);
-    }
-
-    private function colonneExiste(string $table, string $colonne): bool
-    {
-        // Mémorisé par requête : Schema::hasColumn interroge la base à chaque
-        // appel, et la synchronisation traite jusqu'à 50 opérations par lot.
-        static $connues = [];
-
-        return $connues[$table][$colonne] ??= Schema::hasColumn($table, $colonne);
     }
 
     private function estEnConflit(object $existant, Carbon $horodatageClient, string $posteId): bool
@@ -529,7 +606,9 @@ class SynchronisationService
             'utilisateur_id' => $utilisateurId,
             'poste_id' => $posteId,
             'table_concernee' => (string) $operation['table'],
-            'entite_id' => (string) $operation['entite_id'],
+            // L'identifiant SERVEUR quand il diffère (fusion) : c'est sur lui
+            // que `horodatageSaisiePrecedente()` cherchera le dernier écrivain.
+            'entite_id' => (string) ($resultat['entite_id'] ?? $operation['entite_id']),
             'resultat' => $resultat,
             // Conservé pour arbitrer les conflits futurs sur cette entité (§4.2).
             'horodatage_client' => $operation['horodatage_client'] ?? null,

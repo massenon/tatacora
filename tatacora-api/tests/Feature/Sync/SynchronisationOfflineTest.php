@@ -14,6 +14,7 @@ use App\Shared\Rbac\Models\Role;
 use App\Shared\Sync\Models\ConflitSynchronisation;
 use App\Shared\Sync\Models\DeduplicationSynchronisation;
 use App\Shared\Sync\Models\SessionSynchronisation;
+use App\Shared\Sync\Services\RegistreSynchronisation;
 use App\Shared\Sync\Services\SynchronisationService;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -142,18 +143,28 @@ final class SynchronisationOfflineTest extends TestCase
             ->assertJsonPath('resultats.0.rejeu_idempotent', true);
     }
 
+    /**
+     * TTL porté de 7 à 30 jours (décision PO du 15/10/2026) : les postes
+     * Windows des sites isolés peuvent rester des semaines sans serveur. Une
+     * mémoire de 8 jours — purgée sous l'ancien TTL — doit désormais SURVIVRE.
+     */
     #[Test]
     public function la_memoire_d_idempotence_se_purge_apres_son_ttl(): void
     {
-        $this->synchroniser([$this->operationReservation((string) Str::uuid(), '2026-09-01', '2026-09-04')]);
-        $this->assertSame(1, DeduplicationSynchronisation::count());
+        $this->assertSame(30, SynchronisationService::TTL_DEDUPLICATION_JOURS);
 
-        DeduplicationSynchronisation::query()->update([
-            'date_traitement' => now()->subDays(SynchronisationService::TTL_DEDUPLICATION_JOURS + 1),
+        $this->synchroniser([
+            $this->operationReservation((string) Str::uuid(), '2026-09-01', '2026-09-04'),
+            $this->operationReservation((string) Str::uuid(), '2026-09-10', '2026-09-12'),
         ]);
+        $this->assertSame(2, DeduplicationSynchronisation::count());
+
+        [$expiree, $recente] = DeduplicationSynchronisation::query()->orderBy('id')->get()->all();
+        $expiree->update(['date_traitement' => now()->subDays(SynchronisationService::TTL_DEDUPLICATION_JOURS + 1)]);
+        $recente->update(['date_traitement' => now()->subDays(8)]);
 
         $this->assertSame(1, app(SynchronisationService::class)->purgerDeduplication());
-        $this->assertSame(0, DeduplicationSynchronisation::count());
+        $this->assertSame([$recente->id], DeduplicationSynchronisation::query()->pluck('id')->all());
     }
 
     // ------------------------------------------------ Rejet structurel
@@ -190,13 +201,17 @@ final class SynchronisationOfflineTest extends TestCase
     /**
      * Le rejet passe par VerificationChevauchementService : la synchronisation
      * ne doit pas devenir le chemin par lequel on contourne RG-01.
+     *
+     * Adapté le 15/10/2026 : le registre nomme désormais un GESTIONNAIRE par
+     * table (`RegistreSynchronisation`), qui déclare son service — l'invariant
+     * vérifié est le même.
      */
     #[Test]
     public function rg01_la_synchronisation_ne_contourne_pas_le_verrou(): void
     {
         $this->assertSame(
             ReservationService::class,
-            SynchronisationService::TABLES_SYNCHRONISABLES['reservations']['service'],
+            app(RegistreSynchronisation::class)->pour('reservations')->serviceDomaine(),
         );
     }
 
@@ -323,13 +338,19 @@ final class SynchronisationOfflineTest extends TestCase
     /**
      * Chaque table synchronisable nomme son module — sans quoi le controle ne
      * s'appliquerait pas a une table ajoutee plus tard, silencieusement.
+     *
+     * Adapte le 15/10/2026 : le module est declare par le gestionnaire de la
+     * table (`GestionnaireSynchronisation::module()`), plus par un tableau.
      */
     #[Test]
     public function rg16_chaque_table_synchronisable_declare_son_module(): void
     {
-        foreach (SynchronisationService::TABLES_SYNCHRONISABLES as $table => $definition) {
-            $this->assertArrayHasKey('module', $definition, "La table {$table} ne declare aucun module.");
-            $this->assertMatchesRegularExpression('/^M\d{1,2}$/', $definition['module']);
+        foreach (app(RegistreSynchronisation::class)->tous() as $table => $gestionnaire) {
+            $this->assertMatchesRegularExpression(
+                '/^M\d{1,2}$/',
+                $gestionnaire->module(),
+                "La table {$table} ne declare aucun module.",
+            );
         }
     }
 

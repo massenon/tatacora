@@ -9,7 +9,10 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 
 /**
- * Purge de la memoire d'idempotence — LARAVEL_SYNC_FLUTTER.md §5, TTL 7 jours.
+ * Purge de la memoire d'idempotence — LARAVEL_SYNC_FLUTTER.md §5, TTL de
+ * `SynchronisationService::TTL_DEDUPLICATION_JOURS` (30 jours depuis la
+ * decision PO du 15/10/2026 ; 7 auparavant — les postes Windows des sites
+ * isoles peuvent rester des semaines sans serveur).
  *
  * Le TTL n'est pas un reglage de confort : il doit couvrir la plus longue
  * periode hors connexion realiste. Un guide en circuit de plusieurs jours
