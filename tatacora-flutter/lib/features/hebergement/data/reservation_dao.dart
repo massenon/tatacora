@@ -8,6 +8,9 @@ import '../../../core/database/app_database.dart';
 import '../../../core/database/tables/clients_table.dart';
 import '../../../core/database/tables/hebergement_tables.dart';
 import '../../comptabilite/data/moteur_comptable.dart';
+import '../../synchronisation/data/operations_sync_dao.dart';
+import '../../synchronisation/domain/charges_synchronisation.dart';
+import '../../synchronisation/domain/operation_sync.dart';
 import '../domain/annulation_reservation.dart';
 import '../domain/entities/annulation_enregistree.dart';
 import '../domain/entities/periode_sejour.dart';
@@ -400,6 +403,34 @@ class ReservationDao extends DatabaseAccessor<AppDatabase>
       if (demande != null) {
         await moteurComptable!.passerEtValider(demande, auteurId: auteurId);
       }
+      // Lot F1 : la réservation part au serveur — création SEULE (le serveur
+      // refuse toute modification d'une réservation : l'écriture brute
+      // contournait RG-01). La pièce de l'acompte ne part jamais (D246) : le
+      // serveur passe la sienne, datée de la date métier.
+      await OperationsSyncDao(attachedDatabase).enfiler(
+        table: TableSynchronisee.reservations,
+        entiteId: r.id,
+        type: TypeOperationSync.creation,
+        payload: chargeReservation(
+          clientId: r.clientId,
+          uniteId: r.uniteId,
+          dateArrivee: r.periode.arrivee,
+          dateDepart: r.periode.depart,
+          statut: r.statut.code,
+          acompteFrancs: r.acompte,
+          tarifNuitFrancs: r.tarifNuit,
+          remiseType: (r.remiseType ?? TypeRemise.aucune).name,
+          remiseValeur: r.remiseValeur,
+          modePaiement: switch (r.modePaiement) {
+            null => null,
+            ModePaiementReservation.especes => 'especes',
+            ModePaiementReservation.mobileMoney => 'mobile_money',
+            ModePaiementReservation.virement => 'virement',
+            ModePaiementReservation.cheque => 'cheque',
+            ModePaiementReservation.credit => 'credit',
+          },
+        ),
+      );
     });
   }
 

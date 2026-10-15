@@ -279,6 +279,32 @@ oblige à rouvrir le test le jour où une table entre au périmètre offline, et
 à se demander si elle y a sa place. La taille de la base conditionne la durée de
 la fenêtre hors ligne.
 
+## File d'envoi (lot F1, 15/10/2026) — la synchronisation REVIENT, en tâche de fond
+
+Décisions du PO des 14–15/10/2026 : « zéro réseau » devient une règle d'USAGE (le
+poste marche des jours sans réseau), la synchronisation une tâche de fond qui ne
+bloque jamais un geste (la clôture de caisse d'abord). Le poste pousse des
+documents SOURCES, jamais une écriture (D246) ; il crée ET modifie son catalogue.
+
+- **Schéma v26** : `operations_sync_local` (58 tables), seul auteur
+  `OperationsSyncDao` (`features/synchronisation/`). `enfiler` LÈVE hors d'une
+  transaction Drift : chaque écrivain l'appelle dans SA transaction. `seq`
+  (AUTOINCREMENT) est l'ordre d'envoi ; le payload est FIGÉ au contrat du serveur
+  (`domain/charges_synchronisation.dart`, conversions d'unités en tête).
+- `TableSynchronisee` est relu du registre PHP par un test ; aucune table
+  d'écritures ; une `modification` sur une table que le serveur ne modifie pas est
+  refusée à l'enfilement.
+- **Ancrage extérieur** : `tool/sync/valider_charge.php` pousse la file d'une
+  journée complète au VRAI `SynchronisationService` sur `tatacora_test` (rollback)
+  et relit les lignes écrites (`charges_contre_serveur_test.dart`).
+- Ne partent PAS : la vente sur séjour (phase 2 serveur), les alignements
+  descendants (`aligner*`), le cycle des unités, l'envoi/clôture d'une commande,
+  le rattrapage d'une dépense, le stock d'ouverture, tout ce qui précède la v26.
+  Le mode démo n'enfile rien (`AppDatabase.fileSynchronisationActive`).
+- **Aucun écran ne lit la file** tant que le moteur d'envoi (F2) n'existe pas :
+  n'annoncez aucune attente. Piège rencontré : `m.createTable` ne crée PAS les
+  index `@TableIndex`, et un `CREATE INDEX` nu échoue sur un fichier rabaissé.
+
 ## Synchronisation — ⚠ HISTORIQUE, retirée par « zéro réseau »
 
 ⚠ **Vérifié le 12/10/2026 : `synchroniserMaintenant`, `DeclencheurSynchronisation`,

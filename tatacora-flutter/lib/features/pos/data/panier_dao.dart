@@ -29,6 +29,10 @@ import '../domain/repositories/panier_repository.dart';
 import '../domain/unicite_panier_ouvert.dart';
 import 'piece_de_la_vente.dart';
 
+import '../../synchronisation/data/operations_sync_dao.dart';
+import '../../synchronisation/domain/charges_synchronisation.dart';
+import '../../synchronisation/domain/operation_sync.dart';
+
 part 'panier_dao.g.dart';
 
 /// Accès Drift aux paniers.
@@ -572,6 +576,40 @@ class PanierDao extends DatabaseAccessor<AppDatabase> with _$PanierDaoMixin {
           sessionEncaissementId: Value(sessionId),
         ),
       );
+
+      // Lot F1 : la vente AU COMPTANT part au serveur (document source, D246 :
+      // la pièce `VTE` ci-dessus ne part JAMAIS, le serveur passe la sienne).
+      // Un panier de SÉJOUR (note de chambre) reste sur le poste : le serveur
+      // le refuse (`sync.ventes.note_chambre_hors_perimetre`, phase 2), et
+      // l'enfiler le ferait rejeter à coup sûr.
+      if (!estSejour) {
+        await OperationsSyncDao(attachedDatabase).enfiler(
+          table: TableSynchronisee.ventes,
+          entiteId: entete.id,
+          type: TypeOperationSync.creation,
+          payload: chargeVente(
+            modePaiement: mode.code,
+            sessionEncaissementId: sessionId,
+            clotureLe: maintenant,
+            pointVente: entete.pointVente,
+            tableId: entete.tableId,
+            clientNom: entete.clientNom,
+            montantCloture: panier.total,
+            lignes: [
+              for (final l in panier.lignes)
+                (
+                  moduleSource: l.reference.module.code,
+                  codeArticle: l.reference.code,
+                  libelle: l.libelle,
+                  prixUnitaire: l.prixUnitaire,
+                  quantite: l.quantite,
+                ),
+            ],
+          ),
+          horodatage: maintenant,
+          dateMetier: jourIso(maintenant),
+        );
+      }
     });
 
     return (await parId(panierId))!;

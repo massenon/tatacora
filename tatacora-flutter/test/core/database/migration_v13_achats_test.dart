@@ -158,7 +158,9 @@ void main() {
 
     test('à la réouverture : cinq tables créées, VIDES, données antérieures '
         'intactes, version 13', () async {
-      final avant = AppDatabase.surFichier(fichier);
+      // Semée par les DAO d'aujourd'hui sur une forme ANCIENNE, qui n'a pas
+      // la file d'envoi (v26) : les écrivains n'y enfilent donc rien.
+      final avant = AppDatabase.surFichier(fichier, fileSynchronisation: false);
       await ramenerSchemaA(avant, 12);
       await semerAvant(avant);
       await avant.close();
@@ -192,7 +194,7 @@ void main() {
     });
 
     test('les colonnes des cinq tables sont figées, table par table', () async {
-      final avant = AppDatabase.surFichier(fichier);
+      final avant = AppDatabase.surFichier(fichier, fileSynchronisation: false);
       await ramenerSchemaA(avant, 12);
       await avant.close();
 
@@ -264,7 +266,7 @@ void main() {
 
     test('le poste migré est UTILISABLE : un fournisseur, une commande, une '
         'réception — et le stock hérité s’en trouve augmenté', () async {
-      final avant = AppDatabase.surFichier(fichier);
+      final avant = AppDatabase.surFichier(fichier, fileSynchronisation: false);
       await ramenerSchemaA(avant, 12);
       await semerAvant(avant);
       await avant.close();
@@ -336,7 +338,7 @@ void main() {
   group('v9 -> v13 — le poste qui a sauté quatre livraisons', () {
     test('la chaîne v10, v11, v12 puis v13 s’exécute sur un fichier v9 portant '
         'des données', () async {
-      final avant = AppDatabase.surFichier(fichier);
+      final avant = AppDatabase.surFichier(fichier, fileSynchronisation: false);
       await ramenerSchemaA(avant, 9);
       expect(await version(avant), 9);
       // Un utilisateur et un client au format v9 (inchangés depuis).
@@ -434,6 +436,7 @@ void main() {
         ...tablesAjouteesEnV23,
         ...tablesAjouteesEnV24,
         ...tablesAjouteesEnV25,
+        ...tablesAjouteesEnV26,
         'menus_local',
         'recettes_local',
         'ingredients_recette_local',

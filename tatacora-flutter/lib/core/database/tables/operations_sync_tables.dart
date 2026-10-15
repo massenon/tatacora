@@ -1,0 +1,111 @@
+/// La FILE D'ENVOI du poste — schéma v26, UNE table neuve, migration additive.
+///
+/// ## Pourquoi elle revient (décisions du Product Owner des 14–15/10/2026)
+///
+/// « Zéro réseau » n'est plus une contrainte technique mais une règle
+/// d'USAGE : le poste fonctionne à 100 % sans réseau, pendant des jours, et la
+/// synchronisation est une tâche de fond qui ne bloque jamais un geste (la
+/// clôture de caisse en premier). Le poste pousse des documents SOURCES —
+/// jamais une écriture comptable (D246) : le serveur produit lui-même les
+/// pièces à la date métier. Il crée et modifie son catalogue hors ligne ; le
+/// serveur fusionne (dernier saisi gagnant sur `horodatage_client`).
+///
+/// La v10 avait retiré `sync_queue` parce qu'une file que personne ne vide
+/// annonce une attente sans fin (PA-59/60/61). Cette table n'est donc lue par
+/// AUCUN écran en F1 : elle se remplit, et le moteur d'envoi (F2) la videra.
+/// Aucun écran ne doit dire « en attente de synchronisation » tant que ce
+/// moteur n'existe pas.
+///
+/// ## Une ligne = une opération du protocole `/api/v1/sync`
+///
+/// Le `payload` est un INSTANTANÉ figé au moment de l'écriture métier, déjà
+/// au contrat du serveur (noms en snake_case, unités du serveur) : rejouer
+/// l'opération dans trois jours envoie ce qui a été saisi, pas ce que la base
+/// contient alors. `seq` est l'ordre GLOBAL d'écriture (AUTOINCREMENT : jamais
+/// réutilisé, toujours croissant) — un référentiel écrit avant le document qui
+/// le cite part avant lui, sans règle d'ordre à maintenir à part.
+///
+/// ## Qui écrit, qui lit, qui descend (pièges 9 et 11)
+///
+/// | Colonne | Qui l'écrit | Qui la lit | Qui la descend |
+/// |---|---|---|---|
+/// | toutes | `OperationsSyncDao`, SEUL auteur : `enfiler` (dans la transaction de chaque écrivain métier), `reclamerLot` / `libererBauxExpires` / `marquerResultat` / `marquerEchecTransitoire` (moteur F2) | `OperationsSyncDao` (lectures du moteur et des tests) | personne : c'est la moitié MONTANTE |
+///
+/// Le mode démonstration n'y écrit rien (`AppDatabase.fileSynchronisationActive`).
+library;
+
+import 'package:drift/drift.dart';
+
+/// Une opération à pousser au serveur.
+@DataClassName('OperationSyncLocale')
+@TableIndex(name: 'idx_operations_sync_statut_seq', columns: {#statut, #seq})
+@TableIndex(
+  name: 'idx_operations_sync_entite',
+  columns: {#tableServeur, #entiteId},
+)
+class OperationsSyncLocal extends Table {
+  /// L'ordre local, global et croissant (`AUTOINCREMENT` : jamais réutilisé).
+  IntColumn get seq => integer().autoIncrement()();
+
+  /// UUID de la TENTATIVE, posé à l'enfilement — distinct de [entiteId] :
+  /// c'est lui qui rend le rejeu idempotent côté serveur.
+  TextColumn get uuidOperation => text().unique()();
+
+  /// Le nom de table du REGISTRE serveur (`RegistreSynchronisation`), jamais
+  /// le nom local (`articles`, pas `articles_local`).
+  TextColumn get tableServeur => text()();
+
+  /// L'UUID de l'élément, posé par le poste à sa création.
+  TextColumn get entiteId => text()();
+
+  /// `creation` ou `modification`.
+  TextColumn get type => text()();
+
+  /// Le document, en JSON, au contrat du serveur — figé à l'écriture.
+  TextColumn get payload => text()();
+
+  /// L'instant de la saisie sur le poste (ISO 8601, UTC) : il arbitre le
+  /// dernier écrit gagnant côté serveur.
+  TextColumn get horodatageClient => text()();
+
+  /// La date du DOCUMENT (`AAAA-MM-JJ`), pour les documents datés ; nulle
+  /// pour un référentiel. Le payload porte déjà le champ date que le serveur
+  /// lit (`champDateDocument`) : cette colonne sert au moteur et à l'audit.
+  TextColumn get dateMetier => text().nullable()();
+
+  /// `en_attente`, `en_cours`, `synchronise`, `rejete`, `conflit`, `bloque`.
+  TextColumn get statut => text().withDefault(const Constant('en_attente'))();
+
+  /// Le lot qui a réclamé l'opération (moteur F2).
+  TextColumn get lotId => text().nullable()();
+
+  /// Fin du bail d'un lot réclamé : passé ce moment, l'opération `en_cours`
+  /// est réputée abandonnée (processus tué) et redevient `en_attente`.
+  DateTimeColumn get verrouJusqua => dateTime().nullable()();
+
+  IntColumn get tentatives => integer().withDefault(const Constant(0))();
+
+  /// Pas avant ce moment (repli après un échec transitoire).
+  DateTimeColumn get prochaineTentative => dateTime().nullable()();
+
+  TextColumn get derniereErreur => text().nullable()();
+
+  IntColumn get codeHttp => integer().nullable()();
+
+  /// Le résultat rendu par le serveur pour CETTE opération, tel quel (JSON).
+  TextColumn get resultatJson => text().nullable()();
+
+  /// L'identifiant serveur quand le serveur a FUSIONNÉ (`fusionne_avec`).
+  TextColumn get idServeur => text().nullable()();
+
+  DateTimeColumn get creeLe => dateTime()();
+
+  DateTimeColumn get synchroniseLe => dateTime().nullable()();
+
+  @override
+  List<String> get customConstraints => [
+    "CHECK (type IN ('creation', 'modification'))",
+    "CHECK (statut IN ('en_attente', 'en_cours', 'synchronise', 'rejete', "
+        "'conflit', 'bloque'))",
+  ];
+}

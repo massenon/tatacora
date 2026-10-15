@@ -6,6 +6,9 @@ import '../../comptabilite/data/comptabilite_dao.dart';
 import '../../comptabilite/data/moteur_comptable.dart';
 import '../../comptabilite/domain/entities/comptabilite.dart';
 import '../../comptabilite/domain/refus_comptable.dart';
+import '../../synchronisation/data/operations_sync_dao.dart';
+import '../../synchronisation/domain/charges_synchronisation.dart';
+import '../../synchronisation/domain/operation_sync.dart';
 import '../domain/categories_depense.dart';
 import '../domain/entities/depense.dart';
 import '../domain/repositories/depenses_repository.dart';
@@ -217,6 +220,44 @@ class DepenseDao extends DatabaseAccessor<AppDatabase>
       );
 
       await _insererLignes(id, lignes, maintenant);
+
+      // Lot F1 : la dépense part au serveur (document SOURCE — la pièce
+      // ci-dessus ne part jamais, D246 : le serveur passe la sienne). Le
+      // centre est relu sur la PIÈCE passée, seule à le porter
+      // (`depenses_local` n'a pas de colonne centre).
+      final centre = await _centreDeLaPiece(piece);
+      final ecrites =
+          await (select(attachedDatabase.lignesDepenseLocal)
+                ..where((l) => l.depenseId.equals(id))
+                ..orderBy([
+                  (l) => OrderingTerm.asc(l.ajouteeLe),
+                  (l) => OrderingTerm.asc(l.rowId),
+                ]))
+              .get();
+      await OperationsSyncDao(attachedDatabase).enfiler(
+        table: TableSynchronisee.depenses,
+        entiteId: id,
+        type: TypeOperationSync.creation,
+        payload: chargeDepense(
+          dateTransaction: dateTransaction,
+          tresorerie: tresorerie.code,
+          libelle: libelleNet,
+          centreId: centre?.id,
+          centreLibelle: centre?.libelle,
+          lignes: [
+            for (final l in ecrites)
+              (
+                libelle: l.libelle,
+                compteCharge: l.compteCharge,
+                nature: l.nature,
+                famille: l.famille,
+                montant: l.montant,
+              ),
+          ],
+        ),
+        horodatage: maintenant,
+        dateMetier: jourIso(dateTransaction),
+      );
     });
 
     // Relu plutôt que composé de mémoire : c'est la base qui fait foi, et le
@@ -403,6 +444,18 @@ class DepenseDao extends DatabaseAccessor<AppDatabase>
         ),
       );
     }
+  }
+
+  /// Le centre de coût de la pièce passée — celui de sa ligne de TRÉSORERIE
+  /// (la seule au crédit), que le moteur a pu prendre du compte quand la
+  /// saisie n'en nommait pas. `null` : la pièce n'en porte aucun.
+  Future<CentreDeCout?> _centreDeLaPiece(List<EcritureComptable> piece) async {
+    String? centreId;
+    for (final ligne in piece) {
+      if (ligne.creditCentimes > 0) centreId = ligne.centreId;
+    }
+    if (centreId == null) return null;
+    return ComptabiliteDao(attachedDatabase).centreParId(centreId);
   }
 
   /// L'identifiant de la ligne de trésorerie de la pièce : la seule au CRÉDIT.

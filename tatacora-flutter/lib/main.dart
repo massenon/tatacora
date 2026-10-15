@@ -5,6 +5,7 @@ import 'core/di/providers.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'features/comptabilite/presentation/providers_comptabilite.dart';
+import 'features/synchronisation/presentation/providers_synchronisation.dart';
 import 'features/transverse/presentation/providers_contact_editeur.dart';
 
 /// Point d'entrée — flavors `dev`, `recette`, `production`.
@@ -49,6 +50,8 @@ class _EtatApplication extends ConsumerState<ApplicationTatacora> {
       // minutes tant que l'application tourne. C'est la SEULE action réseau
       // du poste ; `main_demo.dart` ne la démarre pas.
       ref.read(relanceMessagesEditeurProvider);
+      // Lot F1 : la file d'envoi libère les baux d'un processus tué.
+      ref.read(liberationBauxSyncProvider);
     });
   }
 

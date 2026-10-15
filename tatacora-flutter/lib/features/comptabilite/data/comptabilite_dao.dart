@@ -76,6 +76,17 @@ class ComptabiliteDao extends DatabaseAccessor<AppDatabase> {
         : CentreDeCout(id: r.id, libelle: r.libelle, type: r.type);
   }
 
+  /// Le centre d'identifiant [id], ou `null` (lot F1 : la dépense relit
+  /// celui de sa pièce pour l'envoyer au serveur).
+  Future<CentreDeCout?> centreParId(String id) async {
+    final r = await (select(
+      attachedDatabase.centresCoutLocal,
+    )..where((c) => c.id.equals(id))).getSingleOrNull();
+    return r == null
+        ? null
+        : CentreDeCout(id: r.id, libelle: r.libelle, type: r.type);
+  }
+
   Future<CompteDuPlan?> compteParNumero(String numero) async {
     final r = await (select(
       attachedDatabase.planComptableLocal,

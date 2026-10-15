@@ -120,7 +120,11 @@ void main() {
     final apres = AppDatabase.surFichier(fichier);
     expect(await version(apres), apres.schemaVersion);
     expect(apres.schemaVersion, greaterThanOrEqualTo(25));
-    expect(await tables(apres), {...tablesAvant, ...tablesAjouteesEnV25});
+    expect(await tables(apres), {
+      ...tablesAvant,
+      ...tablesAjouteesEnV25,
+      ...tablesAjouteesEnV26,
+    });
     expect(
       await compte(apres, 'messages_editeur_local'),
       0,

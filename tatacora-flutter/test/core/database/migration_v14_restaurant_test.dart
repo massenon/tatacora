@@ -173,7 +173,9 @@ void main() {
 
     test('à la réouverture : quatre tables créées, VIDES, données antérieures '
         'intactes, version 14', () async {
-      final avant = AppDatabase.surFichier(fichier);
+      // Semée par les DAO d'aujourd'hui sur une forme ANCIENNE, qui n'a pas
+      // la file d'envoi (v26) : les écrivains n'y enfilent donc rien.
+      final avant = AppDatabase.surFichier(fichier, fileSynchronisation: false);
       await ramenerSchemaA(avant, 13);
       await semerAvant(avant);
       await avant.close();
@@ -209,7 +211,7 @@ void main() {
     });
 
     test('les colonnes des quatre tables sont figées, table par table', () async {
-      final avant = AppDatabase.surFichier(fichier);
+      final avant = AppDatabase.surFichier(fichier, fileSynchronisation: false);
       await ramenerSchemaA(avant, 13);
       await avant.close();
 
@@ -281,7 +283,7 @@ void main() {
 
     test('le poste migré est UTILISABLE : un menu, une fiche, un plat — et la '
         'carte lit le stock HÉRITÉ', () async {
-      final avant = AppDatabase.surFichier(fichier);
+      final avant = AppDatabase.surFichier(fichier, fileSynchronisation: false);
       await ramenerSchemaA(avant, 13);
       await semerAvant(avant);
       await avant.close();
@@ -340,7 +342,7 @@ void main() {
   group('v9 -> v14 — le poste qui a sauté cinq livraisons', () {
     test('la chaîne v10 à v14 s’exécute sur un fichier v9 portant des '
         'données', () async {
-      final avant = AppDatabase.surFichier(fichier);
+      final avant = AppDatabase.surFichier(fichier, fileSynchronisation: false);
       await ramenerSchemaA(avant, 9);
       expect(await version(avant), 9);
       await avant
@@ -438,6 +440,7 @@ void main() {
         ...tablesAjouteesEnV23,
         ...tablesAjouteesEnV24,
         ...tablesAjouteesEnV25,
+        ...tablesAjouteesEnV26,
       });
       expect(apres.difference(avant), isEmpty);
       await db.close();

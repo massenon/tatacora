@@ -63,7 +63,9 @@ void main() {
   );
 
   String serveurSync() => VueBlade.fichier(
-    'app/Shared/Sync/Services/SynchronisationService.php',
+    // Depuis le lot S1 du serveur (15/10/2026), le registre vit dans
+    // `RegistreSynchronisation`, sous le même nom de constante.
+    'app/Shared/Sync/Services/RegistreSynchronisation.php',
     role: 'le registre qui décide ce qui remonte au serveur',
   );
 

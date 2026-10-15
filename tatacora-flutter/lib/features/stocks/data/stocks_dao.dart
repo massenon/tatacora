@@ -2,6 +2,9 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../synchronisation/data/operations_sync_dao.dart';
+import '../../synchronisation/domain/charges_synchronisation.dart';
+import '../../synchronisation/domain/operation_sync.dart';
 import '../domain/calcul_stock.dart';
 import '../domain/entities/etat_stock.dart';
 import '../domain/entities/fiche_stock.dart';
@@ -348,6 +351,14 @@ class StocksDao extends DatabaseAccessor<AppDatabase> {
           type: Value(type?.code),
         ),
       );
+      // Lot F1 : la création part au serveur, dans CETTE transaction.
+      await _file.enfiler(
+        table: TableSynchronisee.pointsStockage,
+        entiteId: identifiant,
+        type: TypeOperationSync.creation,
+        payload: chargePointStockage(libelle: nom, type: type?.code),
+        horodatage: _maintenant(),
+      );
       return PointStockage(id: identifiant, libelle: nom, type: type?.code);
     });
   }
@@ -401,6 +412,21 @@ class StocksDao extends DatabaseAccessor<AppDatabase> {
           suivi: Value(suivi.code),
           pointStockageId: Value(pointStockageId),
         ),
+      );
+      // Lot F1 : la fiche part au serveur, dans CETTE transaction. Le stock
+      // d'ouverture, lui, est un MOUVEMENT : il ne part pas (le serveur
+      // interdit `stock_initial`, et `mouvements_stock` n'est pas au registre
+      // synchronisable — point ouvert).
+      await _file.enfiler(
+        table: TableSynchronisee.articles,
+        entiteId: id,
+        type: TypeOperationSync.creation,
+        payload: _chargeArticle(
+          (await (select(
+            attachedDatabase.articlesLocal,
+          )..where((a) => a.id.equals(id))).getSingle()),
+        ),
+        horodatage: _maintenant(),
       );
 
       if (ouverture != null && suivi == SuiviArticle.permanent) {
@@ -488,8 +514,37 @@ class StocksDao extends DatabaseAccessor<AppDatabase> {
           pointStockageId: Value(pointStockageId),
         ),
       );
+      // Lot F1 : seuls les champs CHANGÉS partent (modification partielle du
+      // serveur), relus de la base avant et après l'écriture.
+      final apres = await (select(
+        attachedDatabase.articlesLocal,
+      )..where((a) => a.id.equals(id))).getSingle();
+      await _file.enfiler(
+        table: TableSynchronisee.articles,
+        entiteId: id,
+        type: TypeOperationSync.modification,
+        payload: champsModifies(
+          _chargeArticle(existant),
+          _chargeArticle(apres),
+        ),
+        horodatage: _maintenant(),
+      );
     });
   }
+
+  /// Le document `articles` du serveur, depuis la ligne locale.
+  Map<String, Object?> _chargeArticle(ArticlesLocalData a) => chargeArticle(
+    libelle: a.libelle,
+    categorie: a.categorie,
+    uniteMesure: a.uniteMesure,
+    seuilCentiemes: (a.seuilAlerte * echelleQuantite).round(),
+    suivi: a.suivi,
+    pointStockageId: a.pointStockageId,
+  );
+
+  /// La file d'envoi (lot F1). Son propre générateur d'UUID : celui de ce DAO
+  /// est injecté par des tests qui en comptent les tirages.
+  OperationsSyncDao get _file => OperationsSyncDao(attachedDatabase);
 
   /// Écrit UN mouvement — le seul chemin d'écriture de `mouvements_stock_local`.
   ///

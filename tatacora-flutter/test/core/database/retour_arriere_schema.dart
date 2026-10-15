@@ -73,7 +73,17 @@ const tablesAjouteesEnV24 = <String>{'roles_local'};
 /// 14/10/2026).
 const tablesAjouteesEnV25 = <String>{'messages_editeur_local'};
 
+/// La table que la v26 AJOUTE (file d'envoi du poste, lot F1 du 15/10/2026).
+const tablesAjouteesEnV26 = <String>{'operations_sync_local'};
+
 const _ajoutsParVersion = <int, List<String>>{
+  // La v26 (file d'envoi, lot F1 du 15/10/2026) ajoute UNE table neuve et ses
+  // deux index, et ne touche rien d'existant : son retour arriere est
+  // symetrique. Aucune cle etrangere ne pointe vers elle, elle n'en porte
+  // aucune ; le DROP emporte ses index. Les lignes sont perdues : la fixture
+  // seme APRES l'appel.
+  26: <String>['DROP TABLE operations_sync_local'],
+
   // La v25 (boite d'envoi de « Contactez l'editeur », 14/10/2026) ajoute UNE
   // table neuve et ne touche rien d'existant : son retour arriere est
   // symetrique. Sa cle etrangere pointe VERS `utilisateurs_local`, aucune ne

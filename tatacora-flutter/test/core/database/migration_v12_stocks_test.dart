@@ -184,9 +184,9 @@ void main() {
       // v14, 50 à la v15, 51 à la v17 (sessions de caisse), 52 à la v18
       // (encaissement de facture), 53 à la v20 (règlement fournisseur), 54 à
       // la v22 (alertes vues), 55 à la v23 (séjours), 56 à la v24 (rôles), 57
-      // à la v25 (boîte d'envoi de l'éditeur). Les 35 premières sont celles
-      // que cette migration a laissées.
-      expect(apres.allTables.length, 57);
+      // à la v25 (boîte d'envoi de l'éditeur), 58 à la v26 (file d'envoi du
+      // poste). Les 35 premières sont celles que cette migration a laissées.
+      expect(apres.allTables.length, 58);
       await apres.close();
     });
 

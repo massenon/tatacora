@@ -57,7 +57,11 @@ Future<void> main() async {
     );
   }
 
-  final base = AppDatabase();
+  // Lot F1 : la démonstration n'alimente JAMAIS la file d'envoi — ses données
+  // sont fictives (`AppDatabase.fileSynchronisationActive`). Le défaut du
+  // flavor `demo` le dit déjà ; on l'écrit ici pour qu'aucune régression du
+  // défaut ne le défasse.
+  final base = AppDatabase(fileSynchronisation: false);
   // Le référentiel comptable (plan du PO, journaux, centres, exercice) est
   // installé EXPLICITEMENT ici, et AVANT l'amorçage : le moteur ne doit jamais
   // être servi sur un plan vide, y compris en démonstration, et les dépenses du

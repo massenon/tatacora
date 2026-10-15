@@ -2,6 +2,9 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../synchronisation/data/operations_sync_dao.dart';
+import '../../synchronisation/domain/charges_synchronisation.dart';
+import '../../synchronisation/domain/operation_sync.dart';
 import '../domain/entities/session_caisse.dart';
 import '../domain/messages_caisse.dart';
 import '../domain/regles_caisse.dart';
@@ -143,6 +146,21 @@ class SessionsCaisseDao extends DatabaseAccessor<AppDatabase>
           montantFondCentimes: fond,
         ),
       );
+      // Lot F1 : l'ouverture part au serveur (`creation`), dans CETTE
+      // transaction. L'envoi est une tâche de fond : rien ici n'attend le
+      // réseau.
+      await OperationsSyncDao(attachedDatabase).enfiler(
+        table: TableSynchronisee.sessionsCaisse,
+        entiteId: id,
+        type: TypeOperationSync.creation,
+        payload: chargeOuvertureCaisse(
+          pointVente: point.code,
+          dateOuverture: ouverture,
+          fondCentimes: fond,
+        ),
+        horodatage: ouverture,
+        dateMetier: jourIso(ouverture),
+      );
       return SessionCaisse(
         id: id,
         point: point,
@@ -196,6 +214,27 @@ class SessionsCaisseDao extends DatabaseAccessor<AppDatabase>
           montantTheoriqueCentimes: Value(theorique),
           montantConstateCentimes: Value(constate),
         ),
+      );
+      // Lot F1 : la clôture part au serveur (la seule `modification` admise
+      // d'une session), avec le RAPPEL de l'ouverture — fond, date, point :
+      // une caisse que le serveur ne connaît pas (ouverture refusée ou
+      // perdue) est alors enregistrée avec les chiffres du poste, jamais
+      // refusée. La clôture n'attend JAMAIS le réseau : elle s'écrit ici et
+      // part quand elle pourra, après les ventes de la session (ordre `seq`).
+      await OperationsSyncDao(attachedDatabase).enfiler(
+        table: TableSynchronisee.sessionsCaisse,
+        entiteId: session.id,
+        type: TypeOperationSync.modification,
+        payload: chargeClotureCaisse(
+          dateCloture: cloture,
+          constateCentimes: constate,
+          theoriqueCentimes: theorique,
+          fondCentimes: session.fondCentimes,
+          dateOuverture: session.dateOuverture,
+          pointVente: session.point.code,
+        ),
+        horodatage: cloture,
+        dateMetier: jourIso(session.dateOuverture),
       );
       return ClotureCaisse(
         session: SessionCaisse(

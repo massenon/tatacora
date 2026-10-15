@@ -7,6 +7,8 @@ import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../config/environnement.dart';
+
 import 'tables/achats_tables.dart';
 import 'tables/alertes_vues_tables.dart';
 import 'tables/bar_tables.dart';
@@ -19,6 +21,7 @@ import 'tables/facturation_tables.dart';
 import 'tables/hebergement_tables.dart';
 import 'tables/messages_editeur_tables.dart';
 import 'tables/notifications_tables.dart';
+import 'tables/operations_sync_tables.dart';
 import 'tables/paiements_facture_tables.dart';
 import 'tables/panier_tables.dart';
 import 'tables/parametres_tables.dart';
@@ -178,16 +181,30 @@ part 'app_database.g.dart';
     // table NEUVE. Aucune table existante n'est touchée, rien n'est semé. Seul
     // auteur : `MessagesEditeurDao` (voir `tables/messages_editeur_tables.dart`).
     MessagesEditeurLocal,
+
+    // v26 (15/10/2026) — LA FILE D'ENVOI du poste (décisions du PO des
+    // 14–15/10/2026 : la synchronisation revient comme tâche de fond) : UNE
+    // table NEUVE. Aucune table existante n'est touchée, rien n'est semé. Seul
+    // auteur : `OperationsSyncDao` (voir `tables/operations_sync_tables.dart`).
+    OperationsSyncLocal,
   ],
 )
 class AppDatabase extends _$AppDatabase {
-  AppDatabase() : super(_ouvrir());
+  /// La base du poste. [fileSynchronisation] vaut `false` par défaut dans le
+  /// flavor de démonstration (`ENV=demo`) : un jeu fictif ne doit jamais
+  /// entrer dans la file d'envoi — voir [fileSynchronisationActive].
+  AppDatabase({bool? fileSynchronisation})
+    : fileSynchronisationActive =
+          fileSynchronisation ?? !Environnement.actuel.estHorsLigneIntegral,
+      super(_ouvrir());
 
   /// Constructeur de test — base en mémoire (`SEEDER_TEST_FLUTTER.md` §2).
   ///
   /// Sans lui, chaque test toucherait le fichier réel de la machine et les
   /// tests deviendraient dépendants de leur ordre d'exécution.
-  AppDatabase.enMemoire() : super(NativeDatabase.memory());
+  AppDatabase.enMemoire({bool fileSynchronisation = true})
+    : fileSynchronisationActive = fileSynchronisation,
+      super(NativeDatabase.memory());
 
   /// Constructeur de test sur un **fichier réel**.
   ///
@@ -195,8 +212,21 @@ class AppDatabase extends _$AppDatabase {
   /// jour : ni la survie des données à la fermeture de l'application, ni le
   /// passage par `onUpgrade`. Les deux chemins n'existent que sur fichier, et
   /// tant qu'aucun test ne les emprunte, ils ne sont écrits que sur le papier.
-  AppDatabase.surFichier(File fichier)
-    : super(NativeDatabase(fichier, logStatements: false));
+  AppDatabase.surFichier(File fichier, {bool fileSynchronisation = true})
+    : fileSynchronisationActive = fileSynchronisation,
+      super(NativeDatabase(fichier, logStatements: false));
+
+  /// La file d'envoi (`operations_sync_local`, v26) reçoit-elle les écritures
+  /// métier de cette base ?
+  ///
+  /// `false` en mode DÉMONSTRATION (décision du 15/10/2026, lot F1) : le jeu
+  /// de démonstration et tout ce qu'on y saisit sont fictifs, et la file est
+  /// la seule voie par laquelle une donnée du poste atteint le serveur. Plutôt
+  /// qu'une file « qui ne part jamais » (une attente sans fin, PA-59/60/61),
+  /// rien n'y entre : `OperationsSyncDao.enfiler` ne fait rien, et le dit en
+  /// rendant `null`. `main_demo.dart` le pose EXPLICITEMENT, en plus du défaut
+  /// lié au flavor.
+  final bool fileSynchronisationActive;
 
   /// v2 (18/08/2026) — M1 Hébergement : `reference`, `tarifNuit`, `motifRejet`
   /// et `motifAnnulation` ajoutés à `ReservationsLocal`, et `statutSync`
@@ -300,8 +330,15 @@ class AppDatabase extends _$AppDatabase {
   /// tables), aucune colonne ajoutée. Le message s'y écrit AVANT la tentative
   /// SMTP, qui est la SEULE action réseau du poste. Qui écrit, qui lit, qui
   /// descend : voir `tables/messages_editeur_tables.dart`.
+  ///
+  /// v26 (15/10/2026) — LA FILE D'ENVOI (décisions du PO des 14–15/10/2026,
+  /// lot F1) : une table neuve (`operations_sync_local`, 57 -> 58 tables) et
+  /// ses deux index, aucune colonne ajoutée. Chaque écrivain d'une table
+  /// synchronisée y dépose, dans SA transaction, le document source au
+  /// contrat du serveur. Qui écrit, qui lit, qui descend : voir
+  /// `tables/operations_sync_tables.dart`.
   @override
-  int get schemaVersion => 25;
+  int get schemaVersion => 26;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -895,6 +932,38 @@ class AppDatabase extends _$AppDatabase {
         // ajoutera une colonne, elle devra la tester avant `addColumn` —
         // piège 3).
         await m.createTable(messagesEditeurLocal);
+      }
+
+      if (from < 26) {
+        // LA FILE D'ENVOI (15/10/2026, lot F1). Une table NEUVE et ses deux
+        // index : aucune table existante n'est touchée, AUCUNE ligne n'est
+        // fabriquée — la migration ne sait pas ce que le serveur détient
+        // déjà ; reprendre l'existant d'un poste est une décision à part
+        // (amorçage, F2), pas un effet de bord de la mise à jour.
+        // `createTable` crée la définition COURANTE, exacte ici puisqu'aucune
+        // version ultérieure n'a modifié cette table (le jour où une v27 y
+        // ajoutera une colonne, elle devra la tester avant `addColumn` —
+        // piège 3). `createTable` ne pose PAS les index déclarés par
+        // `@TableIndex` : ils sont créés ici, chacun SEULEMENT s'il manque —
+        // un fichier dont la version a été rabaissée sans retirer la table
+        // (fixtures de `cycle_de_vie_test`) les porte déjà, et un
+        // `CREATE INDEX` nu y échoue sur « index already exists » (rencontré
+        // en écrivant cette version). Le test de migration v26 les relit dans
+        // `sqlite_master`.
+        await m.createTable(operationsSyncLocal);
+        for (final index in [
+          idxOperationsSyncStatutSeq,
+          idxOperationsSyncEntite,
+        ]) {
+          final present = await m.database
+              .customSelect(
+                "SELECT 1 FROM sqlite_master WHERE type = 'index' "
+                'AND name = ?',
+                variables: [Variable.withString(index.entityName)],
+              )
+              .get();
+          if (present.isEmpty) await m.createIndex(index);
+        }
       }
     },
 
