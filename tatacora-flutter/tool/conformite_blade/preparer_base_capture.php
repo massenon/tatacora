@@ -15,7 +15,7 @@ declare(strict_types=1);
  * autre base que `tatacora_capture`.
  *
  *   cd tatacora-api
- *   DB_DATABASE=tatacora_capture php ../tatacora_flutter/tool/conformite_blade/preparer_base_capture.php
+ *   DB_DATABASE=tatacora_capture php ../tatacora-flutter/tool/conformite_blade/preparer_base_capture.php
  */
 
 const BASE_AUTORISEE = 'tatacora_capture';

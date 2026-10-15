@@ -29,7 +29,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// relance le test, on constate qu'il rougit. On ne retouche jamais le dépôt
 /// pour prouver une garde.
 abstract final class VueBlade {
-  /// La racine de `tatacora-api`, vue depuis `tatacora_flutter/`.
+  /// La racine de `tatacora-api`, vue depuis `tatacora-flutter/`.
   static String get racine =>
       Platform.environment['VUE_BLADE_API'] ?? '../tatacora-api';
 

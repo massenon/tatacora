@@ -305,11 +305,13 @@ void main() {
       );
       expect(find.byKey(const Key('dispo-resume')), findsNothing);
       expect(find.text('UNITÉ'), findsNothing);
-      // Et la fiche ne reçoit pas une période de zéro nuit.
-      expect(
-        conteneur.read(periodeConsulteeProvider).arrivee,
-        isNot(DateTime.utc(2026, 10, 15)),
-      );
+      // Et la fiche ne reçoit pas la période refusée (15 → 12). Ancré sur la
+      // période elle-même et non sur « l'arrivée n'est pas le 15 » : le 15 du
+      // mois, l'arrivée PAR DÉFAUT (aujourd'hui) vaut 15, et l'ancienne
+      // assertion rougissait ce jour-là sans défaut (mesuré le 15/10/2026).
+      final periode = conteneur.read(periodeConsulteeProvider);
+      expect(periode.depart, isNot(DateTime.utc(2026, 10, 12)));
+      expect(periode.depart.isAfter(periode.arrivee), isTrue);
     });
 
     testWidgets('un parc vide le DIT, sans masquer le résumé', (tester) async {

@@ -1,0 +1,3 @@
+# Plan comptable du PO : copie OCTET POUR OCTET du fichier serveur (CRLF),
+# confrontée par empreinte au fichier de tatacora-api (plan_comptable_fichier_test).
+assets/data/*.csv -text

@@ -24,7 +24,13 @@ void main() {
       'vue', () {
     final cle = VueBlade.libelle('rapports.entete.localisation');
     expect(cle, isNotNull, reason: 'clé rapports.entete.localisation absente');
-    expect(cle, 'Natitingou, Bénin — Système de gestion Intégré');
+    // Directive PO du 14/10/2026 : « Système de gestion Intégré — Gîte Chez
+    // Noël, Natitingou (Bénin) » remplace « Natitingou, Bénin — Système de
+    // gestion Intégré », côté serveur comme côté poste.
+    expect(
+      cle,
+      'Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)',
+    );
     expect(const EnteteEtablissement().sousTitre, cle);
   });
 

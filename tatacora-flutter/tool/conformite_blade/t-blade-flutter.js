@@ -12,7 +12,7 @@
    Lance par `test/core/qualite/conformite_blade_test.dart` a chaque
    `flutter test`, ou seul :
 
-     node tool/conformite_blade/t-blade-flutter.js            (depuis tatacora_flutter/)
+     node tool/conformite_blade/t-blade-flutter.js            (depuis tatacora-flutter/)
      node tool/conformite_blade/t-blade-flutter.js --detail   (libelles absents)
      node tool/conformite_blade/t-blade-flutter.js --detail=crm/clients-creances
      node tool/conformite_blade/t-blade-flutter.js --figer-dette
@@ -139,10 +139,13 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 const { fichiersSous, texteNu, suitesDeTexte, recoller } = require('./lib-comparateur');
 
-// tool/conformite_blade/ -> tatacora_flutter/ -> racine du depot.
+// tool/conformite_blade/ -> tatacora-flutter/ -> racine du depot.
 const RACINE = path.resolve(__dirname, '..', '..', '..');
 const API = process.env.COMPARATEUR_API || path.join(RACINE, 'tatacora-api');
-const FLUTTER = process.env.COMPARATEUR_FLUTTER_LIB || path.join(RACINE, 'tatacora_flutter', 'lib');
+// Le dossier du client se deduit de CE fichier, jamais de son nom : le
+// monorepo du 14/10/2026 l'a renomme `tatacora-flutter`, et l'ancien chemin
+// `tatacora_flutter/lib` rendait 0 fichier Dart (comparaison a vide, rouge).
+const FLUTTER = process.env.COMPARATEUR_FLUTTER_LIB || path.resolve(__dirname, '..', '..', 'lib');
 
 const VUES = path.join(API, 'resources', 'views');
 const VUES_PWA = path.join(VUES, 'pwa');

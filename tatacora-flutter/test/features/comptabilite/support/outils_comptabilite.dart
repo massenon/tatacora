@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -180,6 +181,29 @@ String _tronquer(String texte) =>
 Future<T> sousVerrouBaseDeTest<T>(
   Future<T> Function() travail, {
   String nom = 'tatacora_test_php',
+}) async {
+  // File d'attente DANS le processus, avant le verrou de fichier : sous Linux
+  // et macOS, `RandomAccessFile.lock` est un verrou POSIX (fcntl), attaché au
+  // PROCESSUS — deux accès du même `flutter_tester` le prennent ensemble, là
+  // où Windows (LockFileEx, par descripteur) les sérialise. Mesuré le
+  // 15/10/2026 : trois accès simultanés d'un même test se chevauchaient.
+  final precedent = _filesDuProcessus[nom] ?? Future<void>.value();
+  final tour = Completer<void>();
+  _filesDuProcessus[nom] = tour.future;
+  await precedent;
+  try {
+    return await _sousVerrouDeFichier(travail, nom: nom);
+  } finally {
+    tour.complete();
+  }
+}
+
+/// Le dernier accès en file, par nom de verrou (voir [sousVerrouBaseDeTest]).
+final Map<String, Future<void>> _filesDuProcessus = {};
+
+Future<T> _sousVerrouDeFichier<T>(
+  Future<T> Function() travail, {
+  required String nom,
 }) async {
   RandomAccessFile? acces;
   try {

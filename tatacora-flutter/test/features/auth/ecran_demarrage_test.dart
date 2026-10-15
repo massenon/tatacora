@@ -67,9 +67,9 @@ void main() {
       for (final attendu in const [
         'TATACORA AFRIQUE',
         'GÎTE CHEZ NOËL — AGENCE DE VOYAGES & HÉBERGEMENT',
-        // Décisions du PO du 13/10/2026 (PA-208, D385 ; PA-209, D389) — voir
-        // le cas suivant, qui relit la vue et la langue.
-        'Natitingou, Bénin — Système de gestion Intégré',
+        // Décisions du PO du 13/10/2026 (PA-208, D385 ; PA-209, D389) puis du
+        // 14/10/2026 — voir le cas suivant, qui relit la vue et la langue.
+        'Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)',
         'PAEB',
         'FAGUEZ SARL',
         'Projet d\'Appui à l\'Entrepreneuriat au Bénin',

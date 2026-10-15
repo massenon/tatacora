@@ -57,7 +57,7 @@ Map<String, dynamic> _lireBarre() {
   if (!f.existsSync()) {
     fail(
       'Barre supérieure introuvable : ${f.path}.\n'
-      'La générer : STRUCTURE_BLADE_SORTIE=../tatacora_flutter/tool/'
+      'La générer : STRUCTURE_BLADE_SORTIE=../tatacora-flutter/tool/'
       'conformite_blade/structure php artisan test '
       '--filter=ExtraireBarreSuperieureTest (depuis tatacora-api/).',
     );
