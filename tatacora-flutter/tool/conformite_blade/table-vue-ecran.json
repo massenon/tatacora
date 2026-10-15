@@ -31,7 +31,8 @@
       "features/achats/presentation/widgets/modale_reglement.dart",
       "features/achats/presentation/widgets/vue_besoins.dart",
       "features/achats/presentation/widgets/vue_dettes.dart",
-      "features/achats/presentation/widgets/vue_receptions.dart"
+      "features/achats/presentation/widgets/vue_receptions.dart",
+      "shared_widgets/modale_export.dart"
     ],
     "bar/carte": [
       "features/bar/domain/entities/carte_bar.dart",
@@ -93,6 +94,7 @@
     "facturation/facturation": [
       "features/facturation/impression/etat_registre_factures.dart",
       "features/facturation/presentation/ecran_facturation.dart",
+      "shared_widgets/modale_export.dart",
       "shared_widgets/tableau_tatacora.dart"
     ],
     "hebergement/hebergement": [
@@ -121,7 +123,8 @@
       "features/hebergement/presentation/widgets/carte_reservation.dart",
       "features/hebergement/presentation/widgets/dialogue_detail_reservation.dart",
       "features/hebergement/presentation/widgets/modale_annulation_reservation.dart",
-      "features/hebergement/presentation/widgets/vue_services.dart"
+      "features/hebergement/presentation/widgets/vue_services.dart",
+      "shared_widgets/modale_export.dart"
     ],
     "livewire/accueil": [
       "features/tableau_de_bord/domain/indicateurs_locaux.dart",
@@ -175,6 +178,7 @@
       "features/ventes/impression/etat_journal_ventes.dart",
       "features/ventes/presentation/ecran_historique_ventes.dart",
       "features/ventes/presentation/widgets/dialogue_detail_vente.dart",
+      "shared_widgets/modale_export.dart",
       "shared_widgets/tableau_tatacora.dart"
     ],
     "restaurant/carte": [
@@ -208,7 +212,8 @@
       "shared_widgets/modale_export.dart"
     ],
     "stocks/inventaires": [
-      "features/stocks/presentation/ecran_inventaires.dart"
+      "features/stocks/presentation/ecran_inventaires.dart",
+      "shared_widgets/modale_export.dart"
     ],
     "stocks/stocks": [
       "core/theme/app_spacing.dart",

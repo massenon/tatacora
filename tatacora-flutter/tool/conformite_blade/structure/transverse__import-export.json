@@ -1,0 +1,359 @@
+{
+    "_lisez-moi": "PRODUIT par ExtraireStructureBladeTest, jamais ecrit a la main. Chaque variante (onglet) : les textes VISIBLES de <main>, dans l'ordre du document.",
+    "vue": "transverse/import-export",
+    "jeu": "parc",
+    "onglets": {
+        "importer": [
+            {
+                "type": "h1",
+                "texte": "Import & Export"
+            },
+            {
+                "type": "p",
+                "texte": "Chargement de données par module, sauvegardes de la base, restauration des éléments archivés et réinitialisation des jeux de test."
+            },
+            {
+                "type": "onglet",
+                "texte": "Importer les données",
+                "cle": "importer"
+            },
+            {
+                "type": "onglet",
+                "texte": "Sauvegardes de la base",
+                "cle": "sauvegardes"
+            },
+            {
+                "type": "onglet",
+                "texte": "Restaurer",
+                "cle": "restaurer"
+            },
+            {
+                "type": "onglet",
+                "texte": "Réinitialiser les données de test",
+                "cle": "seeders"
+            },
+            {
+                "type": "h2",
+                "texte": "1. Choisir le module à alimenter"
+            },
+            {
+                "type": "p",
+                "texte": "Chaque module a ses propres colonnes. Le modèle et le contrôle en découlent."
+            },
+            {
+                "type": "option",
+                "texte": "-- Sélectionner un module --"
+            },
+            {
+                "type": "option",
+                "texte": "M3 — Clients"
+            },
+            {
+                "type": "option",
+                "texte": "M1 — Unités d'hébergement"
+            },
+            {
+                "type": "option",
+                "texte": "M5 — Carte du bar"
+            },
+            {
+                "type": "option",
+                "texte": "M4 — Carte du restaurant"
+            },
+            {
+                "type": "option",
+                "texte": "M6 — Articles de stock"
+            },
+            {
+                "type": "option",
+                "texte": "M7 — Fournisseurs"
+            },
+            {
+                "type": "option",
+                "texte": "M8 — Parc de véhicules"
+            },
+            {
+                "type": "option",
+                "texte": "M9 — Circuits touristiques"
+            },
+            {
+                "type": "h2",
+                "texte": "2. Télécharger le fichier modèle"
+            },
+            {
+                "type": "button",
+                "texte": "Télécharger le modèle"
+            },
+            {
+                "type": "p",
+                "texte": "Le modèle porte les colonnes exactes et une ligne d'exemple. Il est généré depuis la même déclaration que le contrôle : il ne peut pas s'en écarter. Ouvrez-le dans Excel, remplacez la ligne d'exemple par vos données, conservez la ligne d'en-tête, puis enregistrez en ."
+            },
+            {
+                "type": "h2",
+                "texte": "3. Déposer le fichier rempli"
+            },
+            {
+                "type": "p",
+                "texte": "Formats acceptés : CSV (séparateur point-virgule ou virgule)."
+            },
+            {
+                "type": "p",
+                "texte": "Glissez votre fichier ici"
+            },
+            {
+                "type": "p",
+                "texte": "ou cliquez pour le sélectionner"
+            },
+            {
+                "type": "button",
+                "texte": "Valider et contrôler le fichier"
+            },
+            {
+                "type": "h2",
+                "texte": "Démarche à suivre"
+            },
+            {
+                "type": "p",
+                "texte": "Choisissez le module. Les colonnes attendues s'affichent."
+            },
+            {
+                "type": "p",
+                "texte": "Téléchargez le modèle et remplissez-le ."
+            },
+            {
+                "type": "p",
+                "texte": "Enregistrez en CSV UTF-8. Sans cet encodage, les accents deviennent illisibles à la relecture."
+            },
+            {
+                "type": "p",
+                "texte": "Déposez le fichier et lancez le contrôle. Rien n'est importé à ce stade."
+            },
+            {
+                "type": "p",
+                "texte": "Corrigez les erreurs signalées, redéposez, puis confirmez l'import."
+            },
+            {
+                "type": "p",
+                "texte": "Tant qu'une erreur subsiste, rien n'entre en base. Importer « ce qui passe » laisserait un jeu incomplet dont personne ne saurait dire ce qui manque."
+            },
+            {
+                "type": "h2",
+                "texte": "Historique des imports"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun import réalisé pour l'instant."
+            }
+        ],
+        "sauvegardes": [
+            {
+                "type": "h1",
+                "texte": "Import & Export"
+            },
+            {
+                "type": "p",
+                "texte": "Chargement de données par module, sauvegardes de la base, restauration des éléments archivés et réinitialisation des jeux de test."
+            },
+            {
+                "type": "onglet",
+                "texte": "Importer les données",
+                "cle": "importer"
+            },
+            {
+                "type": "onglet",
+                "texte": "Sauvegardes de la base",
+                "cle": "sauvegardes"
+            },
+            {
+                "type": "onglet",
+                "texte": "Restaurer",
+                "cle": "restaurer"
+            },
+            {
+                "type": "onglet",
+                "texte": "Réinitialiser les données de test",
+                "cle": "seeders"
+            },
+            {
+                "type": "p",
+                "texte": "Tables en base"
+            },
+            {
+                "type": "p",
+                "texte": "Sauvegardes conservées"
+            },
+            {
+                "type": "p",
+                "texte": "Dernière sauvegarde"
+            },
+            {
+                "type": "p",
+                "texte": "Rythme automatique"
+            },
+            {
+                "type": "p",
+                "texte": "Quotidien (02h00)"
+            },
+            {
+                "type": "button",
+                "texte": "Générer une sauvegarde de la base"
+            },
+            {
+                "type": "button",
+                "texte": "Exporter une table existante"
+            },
+            {
+                "type": "p",
+                "texte": "La sauvegarde automatique tourne chaque nuit à 02h00, rétention glissante de 30 jours. « Générer une sauvegarde de la base » appelle le MÊME code, hors de son horaire."
+            },
+            {
+                "type": "th",
+                "texte": "FICHIER"
+            },
+            {
+                "type": "th",
+                "texte": "DATE"
+            },
+            {
+                "type": "th",
+                "texte": "TABLE"
+            },
+            {
+                "type": "th",
+                "texte": "ACTION"
+            },
+            {
+                "type": "td",
+                "texte": "Aucune sauvegarde. Utilisez le bouton ci-dessus pour en générer une."
+            },
+            {
+                "type": "p",
+                "texte": "Les sauvegardes des 30 derniers jours sont conservées sur ce serveur. Une sauvegarde restée sur la machine ne protège de rien : c'est le téléchargement qui la met à l'abri."
+            }
+        ],
+        "restaurer": [
+            {
+                "type": "h1",
+                "texte": "Import & Export"
+            },
+            {
+                "type": "p",
+                "texte": "Chargement de données par module, sauvegardes de la base, restauration des éléments archivés et réinitialisation des jeux de test."
+            },
+            {
+                "type": "onglet",
+                "texte": "Importer les données",
+                "cle": "importer"
+            },
+            {
+                "type": "onglet",
+                "texte": "Sauvegardes de la base",
+                "cle": "sauvegardes"
+            },
+            {
+                "type": "onglet",
+                "texte": "Restaurer",
+                "cle": "restaurer"
+            },
+            {
+                "type": "onglet",
+                "texte": "Réinitialiser les données de test",
+                "cle": "seeders"
+            },
+            {
+                "type": "p",
+                "texte": "Aucune suppression n'est définitive"
+            },
+            {
+                "type": "p",
+                "texte": "Ici, « supprimer » archive : une unité d'hébergement ou un véhicule retiré du parc est conservé au complet et peut être remis en place ci-dessous. Partout ailleurs, rien ne se supprime — on annule ou on contre-passe, et l'enregistrement reste lisible sur l'écran de son module. La purge définitive existe, mais elle est réservée à l'administrateur et n'a pas de retour : c'est le seul endroit de l'application où une donnée disparaît vraiment."
+            },
+            {
+                "type": "champ",
+                "texte": "Rechercher dans les archives…"
+            },
+            {
+                "type": "option",
+                "texte": "À restaurer"
+            },
+            {
+                "type": "option",
+                "texte": "Toutes les entrées"
+            },
+            {
+                "type": "option",
+                "texte": "Déjà restaurées"
+            },
+            {
+                "type": "th",
+                "texte": "ÉLÉMENT"
+            },
+            {
+                "type": "th",
+                "texte": "MODULE"
+            },
+            {
+                "type": "th",
+                "texte": "ARCHIVÉ LE"
+            },
+            {
+                "type": "th",
+                "texte": "PAR"
+            },
+            {
+                "type": "th",
+                "texte": "ACTION"
+            },
+            {
+                "type": "td",
+                "texte": "Aucun élément archivé ne correspond."
+            }
+        ],
+        "seeders": [
+            {
+                "type": "h1",
+                "texte": "Import & Export"
+            },
+            {
+                "type": "p",
+                "texte": "Chargement de données par module, sauvegardes de la base, restauration des éléments archivés et réinitialisation des jeux de test."
+            },
+            {
+                "type": "onglet",
+                "texte": "Importer les données",
+                "cle": "importer"
+            },
+            {
+                "type": "onglet",
+                "texte": "Sauvegardes de la base",
+                "cle": "sauvegardes"
+            },
+            {
+                "type": "onglet",
+                "texte": "Restaurer",
+                "cle": "restaurer"
+            },
+            {
+                "type": "onglet",
+                "texte": "Réinitialiser les données de test",
+                "cle": "seeders"
+            },
+            {
+                "type": "p",
+                "texte": "Réinitialisation désactivée"
+            },
+            {
+                "type": "p",
+                "texte": "Cette fonction vide les jeux de données de démonstration. Elle reste fermée par défaut : laissée ouverte sur une base d'exploitation réelle, elle détruirait le travail de l'entreprise."
+            },
+            {
+                "type": "p",
+                "texte": "Un administrateur peut l'ouvrir dans ."
+            },
+            {
+                "type": "a",
+                "texte": "Paramètres › Activation & Sécurité"
+            }
+        ]
+    }
+}

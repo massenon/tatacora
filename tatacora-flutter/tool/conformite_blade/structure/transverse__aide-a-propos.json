@@ -1,0 +1,409 @@
+{
+    "_lisez-moi": "PRODUIT par ExtraireStructureBladeTest, jamais ecrit a la main. Chaque variante (onglet) : les textes VISIBLES de <main>, dans l'ordre du document.",
+    "vue": "transverse/aide-a-propos",
+    "jeu": "parc",
+    "onglets": {
+        "principal": [
+            {
+                "type": "h1",
+                "texte": "Aide & À propos"
+            },
+            {
+                "type": "p",
+                "texte": "Documentation complète, guide des modules et foire aux questions."
+            },
+            {
+                "type": "h2",
+                "texte": "TATACORA AFRIQUE"
+            },
+            {
+                "type": "p",
+                "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+            },
+            {
+                "type": "p",
+                "texte": "TATACORA AFRIQUE réunit en une seule application les quatorze métiers du Gîte : l'hébergement et les réservations, la restauration et le bar, les stocks et les achats, le tourisme et la location de véhicules, la comptabilité SYSCOHADA révisé, la paie et le pilotage."
+            },
+            {
+                "type": "p",
+                "texte": "L'ensemble est conçu : la saisie fonctionne sans réseau et se synchronise au retour de la liaison. C'est une contrainte du terrain à Natitingou, pas une option de confort — une réservation prise pendant une coupure ne doit pas être perdue, et un guide en circuit de plusieurs jours travaille sans couverture."
+            },
+            {
+                "type": "p",
+                "texte": "Version du prototype"
+            },
+            {
+                "type": "p",
+                "texte": "Maquette de référence v2.0 — 18/08/2026"
+            },
+            {
+                "type": "p",
+                "texte": "Maîtrise d'œuvre"
+            },
+            {
+                "type": "p",
+                "texte": "Cabinet FAGUEZ SARL / PAEB"
+            },
+            {
+                "type": "p",
+                "texte": "Product Owner"
+            },
+            {
+                "type": "p",
+                "texte": "Mr NABOGOU Winribasse Noël"
+            },
+            {
+                "type": "p",
+                "texte": "Référentiel comptable"
+            },
+            {
+                "type": "p",
+                "texte": "SYSCOHADA révisé (AUDCIF)"
+            },
+            {
+                "type": "h2",
+                "texte": "Modules du logiciel"
+            },
+            {
+                "type": "p",
+                "texte": "Quatorze modules, plus l'administration. Cliquez sur une carte pour ouvrir le module."
+            },
+            {
+                "type": "span",
+                "texte": "16 module(s) accessible(s) sur 16 avec votre profil"
+            },
+            {
+                "type": "p",
+                "texte": "Hébergement & Réservations"
+            },
+            {
+                "type": "p",
+                "texte": "Unités, disponibilités, séjours et check-in. Contrôle de chevauchement : deux réservations ne peuvent pas occuper la même chambre aux mêmes dates."
+            },
+            {
+                "type": "p",
+                "texte": "Facturation"
+            },
+            {
+                "type": "p",
+                "texte": "Factures normalisées MECeF, avoirs et suivi de certification DGI. Une facture validée ne se modifie pas : elle se corrige par avoir."
+            },
+            {
+                "type": "p",
+                "texte": "Clients & Créances"
+            },
+            {
+                "type": "p",
+                "texte": "Fiche client unique et balance âgée. Le solde est calculé depuis les pièces, jamais saisi à la main."
+            },
+            {
+                "type": "p",
+                "texte": "Restaurant"
+            },
+            {
+                "type": "p",
+                "texte": "Carte, fiches techniques et disponibilité des plats. Un plat sans fiche technique ne décrémente aucun stock, et c'est signalé."
+            },
+            {
+                "type": "p",
+                "texte": "Bar & Point de vente"
+            },
+            {
+                "type": "p",
+                "texte": "Carte des boissons et encaissement au POS. La vente d'une boisson sort l'article du stock au coût moyen pondéré."
+            },
+            {
+                "type": "p",
+                "texte": "Stocks"
+            },
+            {
+                "type": "p",
+                "texte": "Articles, mouvements, inventaires et seuils d'alerte. Valorisation au coût moyen pondéré, recalculée à chaque entrée."
+            },
+            {
+                "type": "p",
+                "texte": "Achats & Fournisseurs"
+            },
+            {
+                "type": "p",
+                "texte": "Commandes, réceptions et fournisseurs. La réception d'une commande alimente le stock et la comptabilité."
+            },
+            {
+                "type": "p",
+                "texte": "Véhicules & Locations"
+            },
+            {
+                "type": "p",
+                "texte": "Parc, contrats de location, entretiens et disponibilité. Un véhicule loué ou en entretien n'est pas proposé ailleurs."
+            },
+            {
+                "type": "p",
+                "texte": "Tourisme"
+            },
+            {
+                "type": "p",
+                "texte": "Circuits, départs, guides et capacités. La capacité se contrôle cumulée sur le départ, pas réservation par réservation."
+            },
+            {
+                "type": "p",
+                "texte": "Comptabilité SYSCOHADA"
+            },
+            {
+                "type": "p",
+                "texte": "M10"
+            },
+            {
+                "type": "p",
+                "texte": "Plan comptable, journal, grand livre, balance, compte de résultat et bilan. Une écriture validée se corrige par contre-passation."
+            },
+            {
+                "type": "p",
+                "texte": "Tableau de bord"
+            },
+            {
+                "type": "p",
+                "texte": "M11"
+            },
+            {
+                "type": "p",
+                "texte": "Indicateurs consolidés de toute l'exploitation. Les intitulés disent ce qui est réellement calculé — « encaissé », pas « payé »."
+            },
+            {
+                "type": "p",
+                "texte": "Notifications"
+            },
+            {
+                "type": "p",
+                "texte": "M12"
+            },
+            {
+                "type": "p",
+                "texte": "Modèles de messages WhatsApp, e-mail et Android, et leurs déclencheurs. L'envoi effectif dépend d'une API non encore contractée."
+            },
+            {
+                "type": "p",
+                "texte": "Personnel & Paie"
+            },
+            {
+                "type": "p",
+                "texte": "M13"
+            },
+            {
+                "type": "p",
+                "texte": "Employés, planning, congés et bulletins. CNSS, ITS et VPS calculés ; la part de charge patronale non confirmée est refusée, pas estimée."
+            },
+            {
+                "type": "p",
+                "texte": "États & Rapports"
+            },
+            {
+                "type": "p",
+                "texte": "M14"
+            },
+            {
+                "type": "p",
+                "texte": "Catalogue d'états exportables en PDF et CSV, avec en-tête normalisée unique. Le droit d'éditer un état suit son module source."
+            },
+            {
+                "type": "p",
+                "texte": "Rôles & Permissions"
+            },
+            {
+                "type": "p",
+                "texte": "ROLES"
+            },
+            {
+                "type": "p",
+                "texte": "Matrice des droits par module et par rôle. Trois niveaux : masquage de l'interface, contrôle serveur, filtrage en base."
+            },
+            {
+                "type": "p",
+                "texte": "Paramètres & Import/Export"
+            },
+            {
+                "type": "p",
+                "texte": "PARAM"
+            },
+            {
+                "type": "p",
+                "texte": "Identité de l'entreprise, canaux de communication, activation des actions sensibles, sauvegardes et restauration."
+            },
+            {
+                "type": "p",
+                "texte": "Les modules sur lesquels votre profil n'a aucun droit sont affichés en grisé et ne sont pas cliquables. Ils restent visibles ici — savoir qu'un module existe n'est pas y accéder, et masquer la carte laisserait croire à une application incomplète."
+            },
+            {
+                "type": "h2",
+                "texte": "Foire aux questions"
+            },
+            {
+                "type": "p",
+                "texte": "Les questions qui reviennent le plus souvent en formation et en exploitation."
+            },
+            {
+                "type": "champ",
+                "texte": "Rechercher dans l'aide…"
+            },
+            {
+                "type": "p",
+                "texte": "PRISE EN MAIN"
+            },
+            {
+                "type": "span",
+                "texte": "Je ne vois pas un module dans le menu — est-ce une erreur ?"
+            },
+            {
+                "type": "p",
+                "texte": "Non. Le menu est filtré par votre rôle : un module sur lequel vous n'avez aucun droit est retiré, pas grisé. Un élément grisé invite à cliquer et ne produit qu'un refus. Pour savoir ce que couvre chaque profil, ouvrez Rôles & Permissions ; pour obtenir un accès, la demande passe par l'administrateur système."
+            },
+            {
+                "type": "span",
+                "texte": "Pourquoi certains montants ne sont-ils pas modifiables ?"
+            },
+            {
+                "type": "p",
+                "texte": "Toute valeur calculable est affichée en lecture seule : stock disponible, total d'une réservation, net à payer, résultat de l'exercice. Un champ calculé que l'on peut saisir finit par contredire le calcul, et c'est la saisie qui gagne — on ne sait alors plus quel chiffre est le bon. Pour changer un total, changez ce qui le produit : les quantités, les dates, les tarifs."
+            },
+            {
+                "type": "p",
+                "texte": "DONNÉES"
+            },
+            {
+                "type": "span",
+                "texte": "J'ai supprimé une fiche par erreur. Est-elle perdue ?"
+            },
+            {
+                "type": "p",
+                "texte": "Non. Dans tous les modules, « supprimer » archive : l'enregistrement complet part aux archives et reste restaurable depuis Import & Export › Restaurer. Seul un administrateur peut purger définitivement une archive, et c'est le seul endroit de l'application où une donnée disparaît vraiment."
+            },
+            {
+                "type": "span",
+                "texte": "Pourquoi le bouton Supprimer n'apparaît-il pas ?"
+            },
+            {
+                "type": "p",
+                "texte": "La suppression et la duplication sont désactivées par défaut, pour toute l'application. Un administrateur les ouvre dans Paramètres › Activation & Sécurité, et son choix est tracé au journal d'audit. Sur un outil d'exploitation, l'action destructrice ne doit pas être à portée de clic par défaut."
+            },
+            {
+                "type": "span",
+                "texte": "Je n'arrive pas à archiver une boisson ou un plat."
+            },
+            {
+                "type": "p",
+                "texte": "C'est un refus volontaire : l'élément est engagé dans une réservation ou une vente encaissée. L'archiver laisserait une ligne pointant vers le vide, et le montant facturé deviendrait inexplicable lors d'un contrôle. Le message précise les opérations concernées. Pour retirer l'article de la carte sans toucher à l'historique, passez-le en indisponible."
+            },
+            {
+                "type": "p",
+                "texte": "IMPORT & EXPORT"
+            },
+            {
+                "type": "span",
+                "texte": "Mon fichier d'import est refusé. Que dois-je faire ?"
+            },
+            {
+                "type": "p",
+                "texte": "Téléchargez d'abord le modèle du module concerné dans Import & Export › Importer : il porte les colonnes et les libellés exacts attendus. Après dépôt, un contrôle de cohérence compare votre fichier au référentiel et liste les écarts ligne par ligne — colonne manquante, valeur hors liste, doublon, montant illisible. Corrigez le fichier et redéposez-le : rien n'est importé tant qu'une erreur bloquante subsiste."
+            },
+            {
+                "type": "span",
+                "texte": "À quelle fréquence dois-je sauvegarder la base ?"
+            },
+            {
+                "type": "p",
+                "texte": "Une sauvegarde est générée automatiquement chaque semaine et vous êtes averti de la télécharger. Une sauvegarde qui reste sur la machine ne protège de rien : c'est le téléchargement qui la met à l'abri. Vous pouvez en générer une à tout moment depuis Import & Export › Sauvegardes, avant une opération sensible par exemple."
+            },
+            {
+                "type": "p",
+                "texte": "COMPTABILITÉ"
+            },
+            {
+                "type": "span",
+                "texte": "Puis-je corriger une écriture comptable validée ?"
+            },
+            {
+                "type": "p",
+                "texte": "Non, et c'est une règle du référentiel SYSCOHADA, pas une limite de l'outil. Une écriture validée est immuable ; la correction passe exclusivement par une contre-passation, qui laisse les deux écritures visibles. Modifier ou supprimer effacerait la trace de l'erreur, ce qu'un contrôle fiscal considère comme une anomalie plus grave que l'erreur elle-même."
+            },
+            {
+                "type": "span",
+                "texte": "Pourquoi le total des charges patronales n'est-il pas affiché sur les bulletins ?"
+            },
+            {
+                "type": "p",
+                "texte": "Parce qu'un de ses taux n'est pas confirmé. La CNSS annonce un taux « risques professionnels » de 1 % à 4 % selon l'activité, sans valeur publiée pour l'hôtellerie-restauration. La part établie — 19,4 % du brut : pension 6,4 %, prestations familiales 9 %, VPS 4 % — est calculée et affichée. Pour le reste, l'application publie la fourchette au lieu de retenir un milieu : un taux plausible inscrit une fois devient la règle appliquée en production, et personne ne le rouvre."
+            },
+            {
+                "type": "p",
+                "texte": "HORS CONNEXION"
+            },
+            {
+                "type": "span",
+                "texte": "Que se passe-t-il si je saisis une réservation sans réseau ?"
+            },
+            {
+                "type": "p",
+                "texte": "La saisie est enregistrée localement et marquée « en attente de synchronisation ». Elle part au retour de la liaison. Si un autre poste a réservé la même unité entre-temps, le serveur rejette la vôtre avec un motif explicite : la donnée n'est pas perdue, elle est à rejouer sur une autre unité ou d'autres dates."
+            },
+            {
+                "type": "span",
+                "texte": "Deux postes ont modifié la même fiche. Laquelle gagne ?"
+            },
+            {
+                "type": "p",
+                "texte": "Sur les données non financières, la plus récente. Sur les factures, paiements, mouvements de caisse et mouvements de stock, aucune résolution automatique n'a lieu : le conflit part dans une file d'arbitrage manuel, réservée aux profils gérant, comptable et administrateur. Choisir automatiquement entre deux montants revient à en effacer un sans que personne ne le sache."
+            },
+            {
+                "type": "p",
+                "texte": "SÉCURITÉ"
+            },
+            {
+                "type": "span",
+                "texte": "Où sont stockées mes données ?"
+            },
+            {
+                "type": "p",
+                "texte": "Sur ce prototype, dans le navigateur du poste (localStorage) — c'est une maquette de démonstration, pas un environnement de production. L'application réelle stocke sur un serveur MySQL, avec sauvegarde quotidienne automatique. Ne saisissez aucune donnée client réelle dans le prototype."
+            },
+            {
+                "type": "h2",
+                "texte": "Ressources utiles"
+            },
+            {
+                "type": "p",
+                "texte": "Modèles d'import"
+            },
+            {
+                "type": "p",
+                "texte": "Fichiers d'exemple par module, colonnes et libellés attendus."
+            },
+            {
+                "type": "p",
+                "texte": "Journal d'audit"
+            },
+            {
+                "type": "p",
+                "texte": "Qui a fait quoi, quand, depuis quel poste."
+            },
+            {
+                "type": "p",
+                "texte": "Rôles & permissions"
+            },
+            {
+                "type": "p",
+                "texte": "La matrice des droits, module par module et rôle par rôle."
+            },
+            {
+                "type": "p",
+                "texte": "Vous ne trouvez pas de réponse ?"
+            },
+            {
+                "type": "p",
+                "texte": "Contactez l'éditeur : assistance technique, suggestions d'évolution et signalement d'anomalies."
+            },
+            {
+                "type": "a",
+                "texte": "Contacter l'éditeur"
+            }
+        ]
+    }
+}

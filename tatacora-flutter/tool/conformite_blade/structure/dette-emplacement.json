@@ -119,5 +119,40 @@
     "blade": 301,
     "ordonnes": 138,
     "ongletsNonCliquables": 0
+  },
+  "comptabilite/hub": {
+    "blade": 278,
+    "ordonnes": 222,
+    "ongletsNonCliquables": 0
+  },
+  "transverse/aide-a-propos": {
+    "blade": 100,
+    "ordonnes": 67,
+    "ongletsNonCliquables": 0
+  },
+  "transverse/contact-editeur": {
+    "blade": 18,
+    "ordonnes": 11,
+    "ongletsNonCliquables": 0
+  },
+  "transverse/import-export": {
+    "blade": 64,
+    "ordonnes": 37,
+    "ongletsNonCliquables": 0
+  },
+  "transverse/journal-audit": {
+    "blade": 35,
+    "ordonnes": 11,
+    "ongletsNonCliquables": 0
+  },
+  "transverse/mon-profil": {
+    "blade": 31,
+    "ordonnes": 23,
+    "ongletsNonCliquables": 0
+  },
+  "transverse/roles-permissions": {
+    "blade": 110,
+    "ordonnes": 71,
+    "ongletsNonCliquables": 0
   }
 }

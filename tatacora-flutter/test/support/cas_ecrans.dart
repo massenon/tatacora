@@ -52,6 +52,16 @@ import 'package:tatacora_flutter/features/vehicules/presentation/ecran_vehicules
 import 'package:tatacora_flutter/features/ventes/presentation/ecran_historique_ventes.dart';
 import 'package:tatacora_flutter/features/hebergement/presentation/ecran_hebergement.dart';
 import 'package:tatacora_flutter/features/hebergement/presentation/ecran_reservations.dart';
+import 'package:tatacora_flutter/core/di/providers.dart';
+import 'package:tatacora_flutter/core/rbac/garde_acces.dart';
+import 'package:tatacora_flutter/features/auth/domain/session.dart';
+import 'package:tatacora_flutter/features/comptabilite/presentation/ecran_comptabilite.dart';
+import 'package:tatacora_flutter/features/transverse/presentation/ecran_aide_a_propos.dart';
+import 'package:tatacora_flutter/features/transverse/presentation/ecran_contact_editeur.dart';
+import 'package:tatacora_flutter/features/transverse/presentation/ecran_import_export.dart';
+import 'package:tatacora_flutter/features/transverse/presentation/ecran_journal_audit.dart';
+import 'package:tatacora_flutter/features/transverse/presentation/ecran_mon_profil.dart';
+import 'package:tatacora_flutter/features/transverse/presentation/ecran_roles_permissions.dart';
 
 /// Le jeu de données commun à la vue Blade et au Flutter.
 enum JeuEcran { clients, parc, vide }
@@ -349,6 +359,79 @@ final casEcrans = <CasEcran>[
     droits: const {'M13': 'C'},
     ecran: () => const EcranPaie(),
     surcharges: _baseDePaieVierge,
+  ),
+  // ---- Lot D (14/10/2026, D417–D424), mesurés depuis le 15/10/2026 : la vue
+  // est relevée pour `compte.structure`, administrateur — mêmes droits et
+  // même rôle ici. ----
+  CasEcran(
+    vue: 'comptabilite/hub',
+    jeu: JeuEcran.parc,
+    droits: _droitsAdministrateur,
+    ecran: () => const EcranComptabilite(),
+    surcharges: _sessionAdministrateur,
+  ),
+  CasEcran(
+    vue: 'transverse/aide-a-propos',
+    jeu: JeuEcran.parc,
+    droits: _droitsAdministrateur,
+    ecran: () => const EcranAideAPropos(),
+    surcharges: _sessionAdministrateur,
+  ),
+  CasEcran(
+    vue: 'transverse/contact-editeur',
+    jeu: JeuEcran.parc,
+    droits: _droitsAdministrateur,
+    ecran: () => const EcranContactEditeur(),
+    surcharges: _sessionAdministrateur,
+  ),
+  CasEcran(
+    vue: 'transverse/import-export',
+    jeu: JeuEcran.parc,
+    droits: _droitsAdministrateur,
+    ecran: () => const EcranImportExport(),
+    surcharges: _sessionAdministrateur,
+  ),
+  CasEcran(
+    vue: 'transverse/journal-audit',
+    jeu: JeuEcran.parc,
+    droits: _droitsAdministrateur,
+    ecran: () => const EcranJournalAudit(),
+    surcharges: _sessionAdministrateur,
+  ),
+  CasEcran(
+    vue: 'transverse/mon-profil',
+    jeu: JeuEcran.parc,
+    droits: _droitsAdministrateur,
+    ecran: () => const EcranMonProfil(),
+    surcharges: _sessionAdministrateur,
+  ),
+  CasEcran(
+    vue: 'transverse/roles-permissions',
+    jeu: JeuEcran.parc,
+    droits: _droitsAdministrateur,
+    ecran: () => const EcranRolesPermissions(),
+    surcharges: _sessionAdministrateur,
+  ),
+];
+
+/// La matrice d'un administrateur : tous les modules en création.
+const _droitsAdministrateur = {
+  'M1': 'C', 'M2': 'C', 'M3': 'C', 'M4': 'C', 'M5': 'C', 'M6': 'C', //
+  'M7': 'C', 'M8': 'C', 'M9': 'C', 'M10': 'C', 'M11': 'C', 'M12': 'C',
+  'M13': 'C', 'M14': 'C', 'ROLES': 'C', 'PARAM': 'C',
+};
+
+/// La session du relevé Blade : `compte.structure`, administrateur
+/// (`ExtraireStructureBladeTest::administrateur`).
+List<Override> _sessionAdministrateur(AppDatabase db) => [
+  sessionProvider.overrideWithBuild(
+    (ref, notifier) => Session(
+      utilisateurId: 'u-structure',
+      login: 'compte.structure',
+      nom: 'compte.structure',
+      role: 'administrateur',
+      droits: GardeAcces.depuisJson(_droitsAdministrateur),
+    ),
   ),
 ];
 

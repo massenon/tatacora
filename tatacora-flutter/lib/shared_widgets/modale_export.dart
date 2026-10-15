@@ -52,6 +52,15 @@
 // `barre_exports_clients.dart` : titre « Exporter — Clients & Créances », le
 // périmètre en sous-titre. Douzième vue qui inclut le partiel, une seule
 // modale Flutter. Même raison, même précédent ; ce n'est pas un refus.
+// Cinq autres vues incluent le même partiel, et leurs écrans Flutter ouvrent
+// cette modale depuis le Lot J1 (14/10/2026, PO : modale d'export unique) :
+// pwa/facturation/facturation.blade.php (l.370, `ecran_facturation.dart`),
+// pwa/hebergement/reservations.blade.php (l.948, `panneau_historique.dart`),
+// pwa/stocks/inventaires.blade.php (l.716, `ecran_inventaires.dart`),
+// pwa/pos/historique-ventes.blade.php (l.517, `barre_filtres_ventes.dart`),
+// pwa/achats/approvisionnement.blade.php (l.611, `ecran_approvisionnement.dart`).
+// Même raison, même précédent ; ce n'est pas un refus. La vue d'accueil reste
+// écrite sans préfixe, par la décision consignée plus haut.
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_colors.dart';

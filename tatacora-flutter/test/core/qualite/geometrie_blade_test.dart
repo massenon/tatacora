@@ -309,7 +309,23 @@ void main() {
   // de démarrage (minuteur, jamais au repos). Sans cette garde, une vue
   // ajoutée sans relevé échapperait à la mesure en silence.
   test('toute vue portée a un relevé de géométrie', () {
-    const sansReleve = {'demarrage'};
+    const sansReleve = {
+      'demarrage',
+      // Les sept vues du lot D, entrées à `casEcrans` le 15/10/2026 pour la
+      // mesure d'EMPLACEMENT (Phase 1A, relevé PHP). Leur relevé de GÉOMÉTRIE
+      // se prend dans un navigateur avec le script de capture de la Phase 1D,
+      // absent du dépôt (seuls ses relevés, à 1383 × 729 et DPR 2,5, y sont) :
+      // le fabriquer ici donnerait un autre instrument que celui des
+      // vingt-quatre vues relevées. À capturer, puis à retirer d'ici une par
+      // une — chacune le DIT, aucune n'est oubliée.
+      'comptabilite/hub',
+      'transverse/aide-a-propos',
+      'transverse/contact-editeur',
+      'transverse/import-export',
+      'transverse/journal-audit',
+      'transverse/mon-profil',
+      'transverse/roles-permissions',
+    };
     final manquantes = [
       for (final cas in casEcrans)
         if (!sansReleve.contains(cas.vue) &&
@@ -322,6 +338,18 @@ void main() {
       manquantes,
       isEmpty,
       reason: 'Vues sans relevé de géométrie : $manquantes.',
+    );
+    // Une exemption PÉRIMÉE (le relevé existe désormais) se retire.
+    expect(
+      [
+        for (final v in sansReleve)
+          if (File(
+            'tool/conformite_blade/geometrie/${v.replaceAll('/', '__')}.json',
+          ).existsSync())
+            v,
+      ],
+      isEmpty,
+      reason: 'Relevé présent : retirer la vue de `sansReleve`.',
     );
   });
 

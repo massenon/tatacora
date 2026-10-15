@@ -250,6 +250,60 @@ final class ExtraireStructureBladeTest extends TestCase
             ],
             'jeu' => 'parc',
         ],
+        // Lot D (14/10/2026, D417-D424) : les ecrans portes sans mesure
+        // d'emplacement jusqu'au 15/10/2026 (angle mort releve par la
+        // consolidation de `emplacement_blade_test.dart`).
+        'comptabilite/hub' => [
+            'url' => '/pwa/comptabilite',
+            'variantes' => [
+                'saisie' => '?onglet=saisie',
+                'journal' => '?onglet=journal',
+                'grandlivre' => '?onglet=grandlivre',
+                'balance' => '?onglet=balance',
+                'resultat' => '?onglet=resultat',
+                'bilan' => '?onglet=bilan',
+                'analytique' => '?onglet=analytique',
+                'immo' => '?onglet=immo',
+                'plan' => '?onglet=plan',
+                'clotures' => '?onglet=clotures',
+            ],
+            'jeu' => 'parc',
+        ],
+        'transverse/aide-a-propos' => [
+            'url' => '/pwa/aide-a-propos',
+            'variantes' => ['principal' => ''],
+            'jeu' => 'parc',
+        ],
+        'transverse/contact-editeur' => [
+            'url' => '/pwa/contact-editeur',
+            'variantes' => ['principal' => ''],
+            'jeu' => 'parc',
+        ],
+        'transverse/import-export' => [
+            'url' => '/pwa/import-export',
+            'variantes' => [
+                'importer' => '?onglet=importer',
+                'sauvegardes' => '?onglet=sauvegardes',
+                'restaurer' => '?onglet=restaurer',
+                'seeders' => '?onglet=seeders',
+            ],
+            'jeu' => 'parc',
+        ],
+        'transverse/journal-audit' => [
+            'url' => '/pwa/journal-audit',
+            'variantes' => ['principal' => ''],
+            'jeu' => 'parc',
+        ],
+        'transverse/mon-profil' => [
+            'url' => '/pwa/mon-profil',
+            'variantes' => ['principal' => ''],
+            'jeu' => 'parc',
+        ],
+        'transverse/roles-permissions' => [
+            'url' => '/pwa/roles-permissions',
+            'variantes' => ['principal' => ''],
+            'jeu' => 'parc',
+        ],
     ];
 
     /** Elements dont le texte propre est releve (le reste est du decor). */

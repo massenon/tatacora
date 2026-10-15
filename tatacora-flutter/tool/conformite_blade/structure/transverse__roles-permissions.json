@@ -1,0 +1,449 @@
+{
+    "_lisez-moi": "PRODUIT par ExtraireStructureBladeTest, jamais ecrit a la main. Chaque variante (onglet) : les textes VISIBLES de <main>, dans l'ordre du document.",
+    "vue": "transverse/roles-permissions",
+    "jeu": "parc",
+    "onglets": {
+        "principal": [
+            {
+                "type": "h1",
+                "texte": "Rôles & Permissions"
+            },
+            {
+                "type": "p",
+                "texte": "Contrôle d'accès basé sur les rôles (RBAC) — socle du chap. 11.2 du CdCF, amendable. C = accès complet, L = lecture seule, — = aucun accès."
+            },
+            {
+                "type": "button",
+                "texte": "+ Nouveau rôle"
+            },
+            {
+                "type": "button",
+                "texte": "Rétablir le socle du CdCF"
+            },
+            {
+                "type": "span",
+                "texte": "Conforme au socle du CdCF"
+            },
+            {
+                "type": "span",
+                "texte": "1 compte(s) d'accès au total."
+            },
+            {
+                "type": "p",
+                "texte": "Resp. Achats"
+            },
+            {
+                "type": "span",
+                "texte": "Aucun compte rattaché"
+            },
+            {
+                "type": "span",
+                "texte": "1 accès complet"
+            },
+            {
+                "type": "span",
+                "texte": "3 lecture seule"
+            },
+            {
+                "type": "span",
+                "texte": "Conforme au socle du CdCF"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier les droits"
+            },
+            {
+                "type": "p",
+                "texte": "Administrateur système"
+            },
+            {
+                "type": "p",
+                "texte": "1 compte(s) rattaché(s)"
+            },
+            {
+                "type": "span",
+                "texte": "16 accès complet"
+            },
+            {
+                "type": "span",
+                "texte": "0 lecture seule"
+            },
+            {
+                "type": "span",
+                "texte": "Conforme au socle du CdCF"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier les droits"
+            },
+            {
+                "type": "p",
+                "texte": "Barman"
+            },
+            {
+                "type": "span",
+                "texte": "Aucun compte rattaché"
+            },
+            {
+                "type": "span",
+                "texte": "2 accès complet"
+            },
+            {
+                "type": "span",
+                "texte": "3 lecture seule"
+            },
+            {
+                "type": "span",
+                "texte": "Conforme au socle du CdCF"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier les droits"
+            },
+            {
+                "type": "p",
+                "texte": "Comptable"
+            },
+            {
+                "type": "span",
+                "texte": "Aucun compte rattaché"
+            },
+            {
+                "type": "span",
+                "texte": "2 accès complet"
+            },
+            {
+                "type": "span",
+                "texte": "11 lecture seule"
+            },
+            {
+                "type": "span",
+                "texte": "Conforme au socle du CdCF"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier les droits"
+            },
+            {
+                "type": "p",
+                "texte": "Resp. Restaurant/Cuisine"
+            },
+            {
+                "type": "span",
+                "texte": "Aucun compte rattaché"
+            },
+            {
+                "type": "span",
+                "texte": "2 accès complet"
+            },
+            {
+                "type": "span",
+                "texte": "3 lecture seule"
+            },
+            {
+                "type": "span",
+                "texte": "Conforme au socle du CdCF"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier les droits"
+            },
+            {
+                "type": "p",
+                "texte": "Gérant / Direction"
+            },
+            {
+                "type": "span",
+                "texte": "Aucun compte rattaché"
+            },
+            {
+                "type": "span",
+                "texte": "14 accès complet"
+            },
+            {
+                "type": "span",
+                "texte": "2 lecture seule"
+            },
+            {
+                "type": "span",
+                "texte": "Conforme au socle du CdCF"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier les droits"
+            },
+            {
+                "type": "p",
+                "texte": "Guide Touristique"
+            },
+            {
+                "type": "span",
+                "texte": "Aucun compte rattaché"
+            },
+            {
+                "type": "span",
+                "texte": "1 accès complet"
+            },
+            {
+                "type": "span",
+                "texte": "2 lecture seule"
+            },
+            {
+                "type": "span",
+                "texte": "Conforme au socle du CdCF"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier les droits"
+            },
+            {
+                "type": "p",
+                "texte": "Magasinier"
+            },
+            {
+                "type": "span",
+                "texte": "Aucun compte rattaché"
+            },
+            {
+                "type": "span",
+                "texte": "2 accès complet"
+            },
+            {
+                "type": "span",
+                "texte": "4 lecture seule"
+            },
+            {
+                "type": "span",
+                "texte": "Conforme au socle du CdCF"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier les droits"
+            },
+            {
+                "type": "p",
+                "texte": "Réceptionniste"
+            },
+            {
+                "type": "span",
+                "texte": "Aucun compte rattaché"
+            },
+            {
+                "type": "span",
+                "texte": "3 accès complet"
+            },
+            {
+                "type": "span",
+                "texte": "8 lecture seule"
+            },
+            {
+                "type": "span",
+                "texte": "Conforme au socle du CdCF"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier les droits"
+            },
+            {
+                "type": "p",
+                "texte": "Resp. RH"
+            },
+            {
+                "type": "span",
+                "texte": "Aucun compte rattaché"
+            },
+            {
+                "type": "span",
+                "texte": "1 accès complet"
+            },
+            {
+                "type": "span",
+                "texte": "3 lecture seule"
+            },
+            {
+                "type": "span",
+                "texte": "Conforme au socle du CdCF"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier les droits"
+            },
+            {
+                "type": "p",
+                "texte": "Super Admin"
+            },
+            {
+                "type": "span",
+                "texte": "Aucun compte rattaché"
+            },
+            {
+                "type": "span",
+                "texte": "16 accès complet"
+            },
+            {
+                "type": "span",
+                "texte": "0 lecture seule"
+            },
+            {
+                "type": "span",
+                "texte": "Conforme au socle du CdCF"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier les droits"
+            },
+            {
+                "type": "p",
+                "texte": "Resp. Véhicules"
+            },
+            {
+                "type": "span",
+                "texte": "Aucun compte rattaché"
+            },
+            {
+                "type": "span",
+                "texte": "1 accès complet"
+            },
+            {
+                "type": "span",
+                "texte": "4 lecture seule"
+            },
+            {
+                "type": "span",
+                "texte": "Conforme au socle du CdCF"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier les droits"
+            },
+            {
+                "type": "h2",
+                "texte": "Matrice complète des permissions"
+            },
+            {
+                "type": "span",
+                "texte": "Accès complet (C)"
+            },
+            {
+                "type": "span",
+                "texte": "Lecture seule (L)"
+            },
+            {
+                "type": "span",
+                "texte": "Aucun accès"
+            },
+            {
+                "type": "th",
+                "texte": "Module"
+            },
+            {
+                "type": "th",
+                "texte": "Resp. Achats"
+            },
+            {
+                "type": "th",
+                "texte": "Administrateur système"
+            },
+            {
+                "type": "th",
+                "texte": "Barman"
+            },
+            {
+                "type": "th",
+                "texte": "Comptable"
+            },
+            {
+                "type": "th",
+                "texte": "Resp. Restaurant/Cuisine"
+            },
+            {
+                "type": "th",
+                "texte": "Gérant / Direction"
+            },
+            {
+                "type": "th",
+                "texte": "Guide Touristique"
+            },
+            {
+                "type": "th",
+                "texte": "Magasinier"
+            },
+            {
+                "type": "th",
+                "texte": "Réceptionniste"
+            },
+            {
+                "type": "th",
+                "texte": "Resp. RH"
+            },
+            {
+                "type": "th",
+                "texte": "Super Admin"
+            },
+            {
+                "type": "th",
+                "texte": "Resp. Véhicules"
+            },
+            {
+                "type": "td",
+                "texte": "Hébergement"
+            },
+            {
+                "type": "td",
+                "texte": "Facturation"
+            },
+            {
+                "type": "td",
+                "texte": "CRM"
+            },
+            {
+                "type": "td",
+                "texte": "Restaurant"
+            },
+            {
+                "type": "td",
+                "texte": "Bar"
+            },
+            {
+                "type": "td",
+                "texte": "Stocks"
+            },
+            {
+                "type": "td",
+                "texte": "Achats"
+            },
+            {
+                "type": "td",
+                "texte": "Véhicules"
+            },
+            {
+                "type": "td",
+                "texte": "Tourisme"
+            },
+            {
+                "type": "td",
+                "texte": "Comptabilité"
+            },
+            {
+                "type": "td",
+                "texte": "Tab. de Bord"
+            },
+            {
+                "type": "td",
+                "texte": "Notifications"
+            },
+            {
+                "type": "td",
+                "texte": "États"
+            },
+            {
+                "type": "td",
+                "texte": "Rôles"
+            },
+            {
+                "type": "td",
+                "texte": "Paramètres"
+            }
+        ]
+    }
+}
