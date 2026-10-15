@@ -43,6 +43,27 @@ return [
         'compte_inactif' => 'Ce compte n\'est pas actif : le catalogue ne peut pas être téléchargé.',
     ],
 
+    // Documents (lot S3, décisions PO du 15/10/2026). Chaque refus dit quoi
+    // faire : le poste l'affiche à côté du document refusé.
+    'caisse' => [
+        'champ_non_modifiable' => 'Une clôture de caisse ne transmet que la date de clôture et les montants comptés '
+            . '(champ(s) refusé(s) : :champs). Le fond et l\'ouverture d\'un tiroir ne se réécrivent pas.',
+    ],
+    'ventes' => [
+        'note_chambre_hors_perimetre' => 'Les consommations portées sur la note de chambre ne se synchronisent pas encore : '
+            . 'la clôture du séjour émet la facture, qui relève d\'un lot ultérieur. Clôturez ce séjour depuis l\'écran en ligne.',
+        'total_incoherent' => 'Le total de la vente (:annonce F) ne correspond pas à la somme de ses lignes (:lignes F) : '
+            . 'le document est incohérent, le serveur ne peut pas savoir lequel des deux a été encaissé.',
+    ],
+    'depenses' => [
+        'centre_introuvable' => 'Le centre de coût « :centre » est introuvable sur le serveur. La dépense n\'est pas '
+            . 'enregistrée : l\'imputer à un autre centre fausserait l\'analytique (RG-12). Mettez à jour le référentiel du poste.',
+    ],
+    'receptions' => [
+        'commande_inconnue' => 'La commande de ce bon de réception est inconnue du serveur : synchronisez la commande '
+            . 'avant ses réceptions (elle a peut-être été refusée — voir son motif).',
+    ],
+
     // Erreurs de PROGRAMMATION (LogicException) : elles remontent en 500 pour
     // rejeu, jamais a l'ecran comme un refus — mais restent en langue (06 §4.4).
     'interne' => [

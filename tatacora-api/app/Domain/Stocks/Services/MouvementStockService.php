@@ -8,6 +8,7 @@ use App\Domain\Stocks\Exceptions\RuptureStockException;
 use App\Domain\Stocks\Models\Article;
 use App\Domain\Stocks\Models\MouvementStock;
 use App\Shared\Audit\Models\JournalAudit;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -69,6 +70,7 @@ class MouvementStockService
      * déplacer une marchandise ne l'achète pas.
      *
      * @param  string|null  $coutUnitaire  prix d'achat unitaire, ou `null` pour un transfert
+     * @param  CarbonInterface|null  $dateMouvement  date MÉTIER du document source — voir {@see enregistrer()}
      */
     public function entree(
         string $articleId,
@@ -76,8 +78,9 @@ class MouvementStockService
         string $quantite,
         string $motif = 'Entrée de stock',
         ?string $coutUnitaire = null,
+        ?CarbonInterface $dateMouvement = null,
     ): MouvementStock {
-        return DB::transaction(function () use ($articleId, $pointId, $quantite, $motif, $coutUnitaire): MouvementStock {
+        return DB::transaction(function () use ($articleId, $pointId, $quantite, $motif, $coutUnitaire, $dateMouvement): MouvementStock {
             if ($coutUnitaire !== null) {
                 $article = Article::findOrFail($articleId);
 
@@ -90,7 +93,7 @@ class MouvementStockService
                 $article->forceFill(['prix_achat' => $coutUnitaire])->save();
             }
 
-            return $this->enregistrer($articleId, $pointId, 'entree', $quantite, $motif);
+            return $this->enregistrer($articleId, $pointId, 'entree', $quantite, $motif, $dateMouvement);
         });
     }
 
@@ -112,8 +115,9 @@ class MouvementStockService
         string $motif = 'Sortie de stock',
         bool $validationRupture = false,
         string $type = 'sortie',
+        ?CarbonInterface $dateMouvement = null,
     ): MouvementStock {
-        return DB::transaction(function () use ($articleId, $pointId, $quantite, $motif, $validationRupture, $type) {
+        return DB::transaction(function () use ($articleId, $pointId, $quantite, $motif, $validationRupture, $type, $dateMouvement) {
             // Verrou sur l'article : sans lui, deux ventes simultanées lisent
             // toutes les deux un stock suffisant et le font passer négatif.
             // Même famille de condition de course que RG-01.
@@ -126,7 +130,7 @@ class MouvementStockService
                 throw new RuptureStockException($articleId, $pointId, $disponible, $quantite);
             }
 
-            $mouvement = $this->enregistrer($articleId, $pointId, $type, $quantite, $motif);
+            $mouvement = $this->enregistrer($articleId, $pointId, $type, $quantite, $motif, $dateMouvement);
 
             if (! $suffisant) {
                 $this->tracerRuptureForcee($mouvement, $disponible, $quantite);
@@ -166,12 +170,19 @@ class MouvementStockService
         return $this->enregistrer($articleId, $pointId, 'inventaire', $ecart, $motif);
     }
 
+    /**
+     * `$dateMouvement` (15/10/2026, lot S3 de synchronisation) : la date
+     * MÉTIER du document qui produit le mouvement — la vente ou la réception
+     * faite hors connexion lundi et reçue jeudi est un mouvement de LUNDI
+     * (D246). `null` — tous les chemins en ligne — garde `now()`, inchangé.
+     */
     private function enregistrer(
         string $articleId,
         string $pointId,
         string $type,
         string $quantite,
         string $motif,
+        ?CarbonInterface $dateMouvement = null,
     ): MouvementStock {
         $mouvement = MouvementStock::create([
             'article_id' => $articleId,
@@ -180,7 +191,7 @@ class MouvementStockService
             'quantite' => $quantite,
             'motif' => $motif,
             'utilisateur_id' => auth()->id(),
-            'date_mouvement' => now(),
+            'date_mouvement' => $dateMouvement ?? now(),
         ]);
 
         // RG-07 — vérification synchrone, jamais différée en file d'attente :

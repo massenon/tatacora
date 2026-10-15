@@ -9,6 +9,7 @@ use App\Domain\Achats\Models\CommandeAchat;
 use App\Domain\Stocks\Models\PointStockage;
 use App\Domain\Stocks\Services\MouvementStockService;
 use App\Shared\Parametres\Services\ParametreSystemeService;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -63,6 +64,16 @@ class ReceptionService
     /**
      * Enregistre une réception.
      *
+     * ## Deux paramètres optionnels — la synchronisation (15/10/2026, lot S3)
+     *
+     * - `$id` : l'UUID du bon posé par le poste hors connexion. Un bon qui
+     *   existe déjà sous cet identifiant est RENDU tel quel, sans seconde
+     *   entrée de stock — vérifié AVANT tout contrôle (une commande passée
+     *   « receptionnee » par le premier passage ne doit pas faire refuser le
+     *   rejeu) puis sous verrou dans la transaction.
+     * - `$dateMouvement` : la date MÉTIER des entrées de stock (D246). En
+     *   ligne, `null` : l'entrée est datée du geste, comme avant.
+     *
      * @param  array<string, string>  $quantitesRecues  article_id => quantité reçue
      */
     public function receptionner(
@@ -70,7 +81,13 @@ class ReceptionService
         array $quantitesRecues,
         string $pointStockageId,
         ?string $dateReception = null,
+        ?string $id = null,
+        ?CarbonInterface $dateMouvement = null,
     ): BonReception {
+        if ($id !== null && ($existant = BonReception::find($id)) !== null) {
+            return $existant;
+        }
+
         if ($commande->estCloturee()) {
             throw new RuntimeException(__('achats.commande_cloturee'));
         }
@@ -81,10 +98,15 @@ class ReceptionService
 
         $this->verifierPointStockage($pointStockageId);
 
-        return DB::transaction(function () use ($commande, $quantitesRecues, $pointStockageId, $dateReception) {
+        return DB::transaction(function () use ($commande, $quantitesRecues, $pointStockageId, $dateReception, $id, $dateMouvement) {
+            if ($id !== null && ($concurrent = BonReception::query()->whereKey($id)->lockForUpdate()->first()) !== null) {
+                return $concurrent;
+            }
+
             $conformite = $this->evaluerConformite($commande, $quantitesRecues);
 
             $bon = BonReception::create([
+                ...($id !== null ? ['id' => $id] : []),
                 'commande_id' => $commande->id,
                 'date_reception' => $dateReception ?? now()->toDateString(),
                 'utilisateur_id' => auth()->id(),
@@ -103,6 +125,7 @@ class ReceptionService
                     pointId: $pointStockageId,
                     quantite: $quantite,
                     motif: __('achats.motif_reception', ['commande' => $commande->id, 'bon' => $bon->id]),
+                    dateMouvement: $dateMouvement,
                 );
             }
 

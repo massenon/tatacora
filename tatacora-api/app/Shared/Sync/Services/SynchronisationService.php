@@ -166,7 +166,11 @@ class SynchronisationService
         // pas de droits. Le client le retire de sa file avec son motif, ce qui
         // est le comportement voulu — au contraire d'un bogue serveur, qui doit
         // remonter en 500 pour etre rejoue plus tard.
-        $utilisateur = $this->utilisateurAutorise($utilisateurId, $gestionnaire);
+        $utilisateur = $this->utilisateurAutorise(
+            $utilisateurId,
+            $gestionnaire,
+            is_array($operation['payload'] ?? null) ? $operation['payload'] : [],
+        );
 
         if ($utilisateur === null) {
             return $this->memoriser($operation, $posteId, $utilisateurId, $this->rejet(
@@ -251,17 +255,35 @@ class SynchronisationService
      * `VerifierAccesModule` — reecrire le calcul ici ferait diverger les deux
      * chemins le jour ou la matrice changerait.
      */
-    private function utilisateurAutorise(string $utilisateurId, GestionnaireSynchronisation $gestionnaire): ?User
+    /**
+     * Depuis le 15/10/2026 (lot S3), un document peut exiger PLUSIEURS
+     * modules (`modulesRequis()`) : une vente qui porte des plats est une
+     * écriture sur M5 ET M4, exactement comme `PosComptant::encaissementReel`
+     * l'exige en ligne. Le contrôle reste ICI, hors de la transaction de
+     * l'opération : un refus levé dans le gestionnaire annulerait aussi la
+     * trace `journal_securite` qui doit lui survivre.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    private function utilisateurAutorise(string $utilisateurId, GestionnaireSynchronisation $gestionnaire, array $payload): ?User
     {
-        $module = $gestionnaire->module();
-
         $utilisateur = $this->utilisateurs[$utilisateurId] ??= User::find($utilisateurId);
 
         if (! $utilisateur instanceof User || ! $utilisateur->estActif()) {
             return null;
         }
 
-        if ($utilisateur->niveauSurModule($module) === $gestionnaire->niveauRequis()) {
+        $module = null;
+
+        foreach ($gestionnaire->modulesRequis($payload) as $requis) {
+            if ($utilisateur->niveauSurModule($requis) !== $gestionnaire->niveauRequis()) {
+                $module = $requis;
+
+                break;
+            }
+        }
+
+        if ($module === null) {
             return $utilisateur;
         }
 
@@ -347,7 +369,7 @@ class SynchronisationService
 
         // §4.1 — conflit si l'enregistrement a été modifié côté serveur APRÈS
         // l'horodatage de saisie du client, par un AUTRE poste.
-        $resultat = $this->estEnConflit($existant, $horodatageClient, $contexte->posteId)
+        $resultat = $this->estEnConflit($existant, $horodatageClient, $contexte->posteId, $table, $entiteId)
             ? $this->traiterConflit($gestionnaire, $entiteId, $payload, $existant, $operation, $sessionId, $contexte)
             : $this->succes($operation, $gestionnaire->modifier($entiteId, $payload, $contexte));
 
@@ -369,7 +391,15 @@ class SynchronisationService
      * n'importe quelle fiche en l'annonçant « nouvelle ». Désormais :
      * - l'identifiant est celui d'une fusion déjà faite (correspondance) →
      *   même réponse que la fusion d'origine, rien n'est écrit ;
-     * - l'identifiant existe tel quel → rejet explicite.
+     * - l'identifiant existe tel quel → rejet explicite, SAUF pour un
+     *   DOCUMENT (vente, dépense, commande, bon, session — lot S3,
+     *   15/10/2026) : son UUID est celui du poste, et l'y retrouver signifie
+     *   que ce même document a déjà été écrit (rejeu après purge de la
+     *   mémoire d'idempotence, ou nouvelle tentative sous un autre
+     *   `uuid_operation`). Le gestionnaire rend alors le résultat d'origine
+     *   — sans rien réécrire, sans second numéro, sans seconde pièce. Le
+     *   rejeter ferait retirer au poste, comme « refusé », un document que
+     *   le serveur détient bel et bien.
      *
      * @param  array<string, mixed>  $operation
      * @param  array<string, mixed>  $payload
@@ -387,6 +417,12 @@ class SynchronisationService
         if ($existant !== null) {
             if ($entiteId !== $idPoste) {
                 return $this->succes($operation, new EcritureSynchronisee($entiteId, fusionneAvec: $entiteId));
+            }
+
+            $reprise = $gestionnaire->reprendreExistant($entiteId, $contexte);
+
+            if ($reprise !== null) {
+                return [...$this->succes($operation, $reprise), 'document_deja_enregistre' => true];
             }
 
             return $this->rejet($operation, __('sync.creation_entite_existante'));
@@ -512,8 +548,13 @@ class SynchronisationService
         ];
     }
 
-    private function estEnConflit(object $existant, Carbon $horodatageClient, string $posteId): bool
-    {
+    private function estEnConflit(
+        object $existant,
+        Carbon $horodatageClient,
+        string $posteId,
+        string $table,
+        string $entiteId,
+    ): bool {
         $dateServeur = $this->dateModificationServeur($existant);
 
         if ($dateServeur === null) {
@@ -528,7 +569,52 @@ class SynchronisationService
             return false;
         }
 
+        // Même principe quand la table ne porte pas `poste_id` (15/10/2026) :
+        // si la DERNIÈRE écriture serveur de cet élément est celle de CE poste,
+        // par la synchronisation, personne d'autre n'y a touché depuis.
+        //
+        // Le piège corrigé : une session de caisse OUVERTE puis CLÔTURÉE hors
+        // connexion arrive dans le même lot. L'ouverture est écrite à la
+        // réception (`updated_at` = maintenant), la clôture a été saisie AVANT
+        // (`horodatage_client` = 22 h la veille) — la comparaison brute y
+        // voyait une « modification concurrente sur une donnée financière » et
+        // envoyait la clôture en arbitrage. Ce n'est pas une écriture
+        // concurrente : c'est la suite du même document, par le même poste.
+        if ($this->derniereEcritureEstDuPoste($table, $entiteId, $posteId, $dateServeur)) {
+            return false;
+        }
+
         return $dateServeur->greaterThan($horodatageClient);
+    }
+
+    /**
+     * La dernière opération APPLIQUÉE sur cet élément vient-elle de ce poste,
+     * et est-elle postérieure (ou égale, à la seconde) à la date de
+     * modification serveur ? Une écriture d'un tiers (PWA, autre poste)
+     * survenue après ferait avancer la date serveur au-delà : le conflit
+     * reste alors détecté.
+     */
+    private function derniereEcritureEstDuPoste(string $table, string $entiteId, string $posteId, Carbon $dateServeur): bool
+    {
+        $candidates = DeduplicationSynchronisation::query()
+            ->where('table_concernee', $table)
+            ->where('entite_id', $entiteId)
+            ->orderByDesc('date_traitement')
+            ->get(['poste_id', 'resultat', 'date_traitement']);
+
+        foreach ($candidates as $candidate) {
+            $resultat = $candidate->resultat;
+
+            if (($resultat['statut'] ?? null) !== 'synchronise'
+                || ($resultat['resolution'] ?? null) === 'version_serveur_conservee') {
+                continue;
+            }
+
+            return $candidate->poste_id === $posteId
+                && Carbon::parse((string) $candidate->date_traitement)->greaterThanOrEqualTo($dateServeur);
+        }
+
+        return false;
     }
 
     /**

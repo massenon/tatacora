@@ -6,16 +6,21 @@ namespace App\Shared\Sync\Services;
 
 use App\Shared\Sync\Contracts\GestionnaireSynchronisation;
 use App\Shared\Sync\Gestionnaires\GestionnaireArticles;
+use App\Shared\Sync\Gestionnaires\GestionnaireBonsReception;
 use App\Shared\Sync\Gestionnaires\GestionnaireCartesBoisson;
 use App\Shared\Sync\Gestionnaires\GestionnaireCategoriesHebergement;
 use App\Shared\Sync\Gestionnaires\GestionnaireClients;
+use App\Shared\Sync\Gestionnaires\GestionnaireCommandesAchat;
+use App\Shared\Sync\Gestionnaires\GestionnaireDepenses;
 use App\Shared\Sync\Gestionnaires\GestionnaireFournisseurs;
 use App\Shared\Sync\Gestionnaires\GestionnaireMenus;
 use App\Shared\Sync\Gestionnaires\GestionnairePlats;
 use App\Shared\Sync\Gestionnaires\GestionnairePointsStockage;
 use App\Shared\Sync\Gestionnaires\GestionnaireRecettes;
 use App\Shared\Sync\Gestionnaires\GestionnaireReservations;
+use App\Shared\Sync\Gestionnaires\GestionnaireSessionsCaisse;
 use App\Shared\Sync\Gestionnaires\GestionnaireUnitesHebergement;
+use App\Shared\Sync\Gestionnaires\GestionnaireVentes;
 use LogicException;
 
 /**
@@ -49,6 +54,19 @@ use LogicException;
  * naturelle (`GestionnaireReferentielAbstrait`). Les centres de coût n'y
  * entrent PAS : ils sont semés par le serveur et le poste les installe à
  * l'identique (`ResolveurCentresCout` les retrouve par libellé).
+ *
+ * ## Les documents (lot S3, 15/10/2026)
+ *
+ * Commandes d'achat, bons de réception, sessions de caisse, ventes et
+ * dépenses — des documents SOURCES (D246) : chacun passe par son service de
+ * domaine, qui produit côté serveur la pièce comptable et le mouvement de
+ * stock, à la date métier. L'ordre du registre est l'ordre dans lequel un
+ * poste doit les pousser : un document passe après ce qu'il cite (le
+ * fournisseur et les articles avant la commande, la commande avant son bon,
+ * l'ouverture de caisse avant ses ventes). La CLÔTURE d'une session est une
+ * `modification` de la même entité : le poste la pousse dans l'ordre de sa
+ * file (seq), APRÈS les ventes de la session — sans quoi le théorique
+ * recalculé par le serveur ne les compterait pas (l'écart serait signalé).
  */
 class RegistreSynchronisation
 {
@@ -69,6 +87,14 @@ class RegistreSynchronisation
         'plats' => GestionnairePlats::class,
         'categories_hebergement' => GestionnaireCategoriesHebergement::class,
         'unites_hebergement' => GestionnaireUnitesHebergement::class,
+        // Documents (S3) — même règle d'ordre. Achats : la commande avant son
+        // bon. Caisse : l'ouverture (creation) avant les ventes, la clôture
+        // (modification) après elles, dans l'ordre de la file du poste.
+        'commandes_achat' => GestionnaireCommandesAchat::class,
+        'bons_reception' => GestionnaireBonsReception::class,
+        'sessions_caisse' => GestionnaireSessionsCaisse::class,
+        'ventes' => GestionnaireVentes::class,
+        'depenses' => GestionnaireDepenses::class,
     ];
 
     /** @var array<string, GestionnaireSynchronisation> */

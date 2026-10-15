@@ -35,6 +35,11 @@ abstract class GestionnaireAbstrait implements GestionnaireSynchronisation
         return 'C';
     }
 
+    public function modulesRequis(array $payload): array
+    {
+        return [$this->module()];
+    }
+
     public function estFinanciere(): bool
     {
         return in_array($this->table(), ClassificationConflitService::TABLES_FINANCIERES, true);
@@ -46,6 +51,12 @@ abstract class GestionnaireAbstrait implements GestionnaireSynchronisation
     }
 
     public function champDateDocument(): ?string
+    {
+        return null;
+    }
+
+    /** Par défaut : pas un document — la création sur un identifiant existant reste rejetée. */
+    public function reprendreExistant(string $entiteId, ContexteSynchronisation $contexte): ?EcritureSynchronisee
     {
         return null;
     }

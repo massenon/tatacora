@@ -52,6 +52,9 @@ class LigneVente extends Model
         'categorie',
         'module',
         'prix_unitaire',
+        // Prix du catalogue serveur quand le prix vient du POSTE (vente
+        // synchronisée, 15/10/2026) — NULL en ligne. Voir la migration.
+        'prix_catalogue',
         'quantite',
         'montant',
     ];
@@ -63,6 +66,7 @@ class LigneVente extends Model
     {
         return [
             'prix_unitaire' => 'decimal:2',
+            'prix_catalogue' => 'decimal:2',
             'quantite' => 'integer',
             'montant' => 'decimal:2',
             'date_creation' => 'datetime',

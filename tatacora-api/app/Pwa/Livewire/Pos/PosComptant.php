@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Pwa\Livewire\Pos;
 
 use App\Domain\Caisse\Models\SessionCaisse;
+use App\Domain\Caisse\Services\SessionCaisseService;
 use App\Domain\Stocks\Exceptions\RuptureStockException;
 use App\Domain\Stocks\Models\PointStockage;
 use App\Domain\Stocks\Services\StockTheoriqueService;
@@ -320,11 +321,7 @@ class PosComptant extends PageMetier
 
     private function sessionOuverte(): ?SessionCaisse
     {
-        return SessionCaisse::query()
-            ->where('point_vente', self::POINT_CAISSE)
-            ->whereNull('date_cloture')
-            ->latest('date_ouverture')
-            ->first();
+        return app(SessionCaisseService::class)->sessionOuverte(self::POINT_CAISSE);
     }
 
     // =====================================================================
@@ -774,31 +771,35 @@ class PosComptant extends PageMetier
         $this->etatFormulaire = 'journal';
     }
 
-    public function ouvrirCaisse(): void
+    /**
+     * L'ouverture passe par `SessionCaisseService` depuis le 15/10/2026 : le
+     * même auteur sert la synchronisation des postes hors connexion, et le
+     * refus « déjà ouverte » est le sien (même phrase, sous verrou).
+     */
+    public function ouvrirCaisse(SessionCaisseService $caisses): void
     {
         $donnees = $this->validerEcriture([
             'fondCaisseSaisi' => ['required', 'numeric', 'min:0'],
         ]);
 
-        if ($this->sessionOuverte() !== null) {
-            $this->addError('fondCaisseSaisi', __('pos_pwa.comptant.refus_caisse_deja_ouverte'));
+        try {
+            $caisses->ouvrir(self::POINT_CAISSE, (string) $donnees['fondCaisseSaisi'], (string) Auth::id());
+        } catch (RuntimeException $refus) {
+            $this->addError('fondCaisseSaisi', $refus->getMessage());
 
             return;
         }
-
-        SessionCaisse::create([
-            'point_vente' => self::POINT_CAISSE,
-            'utilisateur_ouverture_id' => Auth::id(),
-            'date_ouverture' => now(),
-            'montant_fond' => (string) $donnees['fondCaisseSaisi'],
-        ]);
 
         $this->terminerFormulaire(__('pos_pwa.comptant.caisse_ouverte_message', [
             'point' => self::POINT_CAISSE,
         ]));
     }
 
-    public function cloturerCaisse(): void
+    /**
+     * La clôture passe par `SessionCaisseService` (15/10/2026) : le théorique
+     * y est calculé par la même formule que pour une clôture synchronisée.
+     */
+    public function cloturerCaisse(SessionCaisseService $caisses): void
     {
         $donnees = $this->validerEcriture([
             'montantConstateSaisi' => ['required', 'numeric', 'min:0'],
@@ -812,15 +813,15 @@ class PosComptant extends PageMetier
             return;
         }
 
-        $theorique = $this->theoriqueDeLaSession($session);
-        $constate = (string) $donnees['montantConstateSaisi'];
-        $ecart = bcsub($constate, $theorique, self::PRECISION_MONTANT);
+        try {
+            $session = $caisses->cloturer($session, (string) $donnees['montantConstateSaisi']);
+        } catch (RuntimeException $refus) {
+            $this->addError('montantConstateSaisi', $refus->getMessage());
 
-        $session->update([
-            'date_cloture' => now(),
-            'montant_theorique' => $theorique,
-            'montant_constate' => $constate,
-        ]);
+            return;
+        }
+
+        $ecart = SessionCaisseService::ecart((string) $session->montant_constate, (string) $session->montant_theorique);
 
         // Maitre — `caisse-ui.js` l.157-158 : « aucun ecart » plutot qu'un
         // ecart de zero, jamais un signe brut sur une piece financiere.
@@ -849,35 +850,14 @@ class PosComptant extends PageMetier
     }
 
     /**
-     * Ce qui est REELLEMENT dans le tiroir en especes : les ventes en
-     * especes, validees, de la session — maitre, `caisse-ui.js` l.134-136.
-     * Mobile Money, carte, virement et note de chambre en sont exclus : seuls
-     * des billets remplissent un tiroir. Une vente annulee n'y est pas — la
-     * confondre ferait chercher un ecart de caisse qui n'existe pas.
-     */
-    private function especesDeLaSession(string $sessionId): string
-    {
-        return (string) Vente::query()
-            ->where('session_id', $sessionId)
-            ->where('statut', 'validee')
-            ->where('mode_paiement', 'especes')
-            ->sum('montant_total');
-    }
-
-    /**
-     * Fond de caisse + especes encaissees — maitre, `caisse-ui.js` l.137
-     * (`theorique = s.fond_caisse + especes`). C'est la SEULE source du
-     * theorique : le recapitulatif de la modale et la cloture elle-meme
-     * l'appellent tous deux, pour ne jamais afficher un chiffre et en
-     * enregistrer un autre.
+     * Fond de caisse + especes encaissees — maitre, `caisse-ui.js` l.137.
+     * Delegue a `SessionCaisseService::theorique()`, SEULE source depuis le
+     * 15/10/2026 : le recapitulatif de la modale, la cloture en ligne et la
+     * cloture synchronisee lisent le meme chiffre.
      */
     private function theoriqueDeLaSession(SessionCaisse $session): string
     {
-        return bcadd(
-            (string) $session->montant_fond,
-            $this->especesDeLaSession($session->id),
-            self::PRECISION_MONTANT,
-        );
+        return app(SessionCaisseService::class)->theorique($session);
     }
 
     // =====================================================================
@@ -1033,7 +1013,7 @@ class PosComptant extends PageMetier
         // l.140-143 : fond, especes encaissees, theorique. Calcule ici, pas
         // dans la vue, pour que la modale affiche EXACTEMENT ce que
         // `cloturerCaisse()` enregistrera.
-        $especesSession = $session === null ? '0.00' : $this->especesDeLaSession($session->id);
+        $especesSession = $session === null ? '0.00' : app(SessionCaisseService::class)->especesDeLaSession($session->id);
         $theoriqueSession = $session === null ? '0.00' : $this->theoriqueDeLaSession($session);
 
         return view('pwa.pos.comptant', array_merge($this->socle(), [

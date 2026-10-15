@@ -84,6 +84,9 @@ final class RegistreGestionnairesSynchronisationTest extends TestCase
             // Catalogue (S2, 15/10/2026) — création seule, fusion sur clé naturelle.
             'points_stockage', 'articles', 'cartes_boisson', 'menus', 'recettes', 'plats',
             'categories_hebergement', 'unites_hebergement',
+            // Documents (S3, 15/10/2026) — dans l'ordre de poussée : la
+            // commande avant son bon, l'ouverture de caisse avant ses ventes.
+            'commandes_achat', 'bons_reception', 'sessions_caisse', 'ventes', 'depenses',
         ], array_keys($gestionnaires));
 
         foreach ($gestionnaires as $table => $gestionnaire) {

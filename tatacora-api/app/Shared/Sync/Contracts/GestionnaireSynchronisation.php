@@ -50,6 +50,16 @@ interface GestionnaireSynchronisation
     /** Module RBAC (`M1`…`M14`) dont le droit est exigé pour écrire. */
     public function module(): string;
 
+    /**
+     * Tous les modules dont l'écriture est exigée pour CE payload — au moins
+     * `module()`. Une vente portant des plats exige aussi M4 (lot S3,
+     * 15/10/2026), comme l'écran en ligne.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return list<string>
+     */
+    public function modulesRequis(array $payload): array;
+
     /** Niveau exigé sur ce module — `C` : toute opération synchronisée écrit. */
     public function niveauRequis(): string;
 
@@ -79,6 +89,18 @@ interface GestionnaireSynchronisation
      * @throws \RuntimeException refus métier — rejet définitif, motif transmis au poste
      */
     public function creer(string $entiteId, array $payload, ContexteSynchronisation $contexte): EcritureSynchronisee;
+
+    /**
+     * Une `creation` arrive sur un identifiant qui EXISTE déjà, sous l'UUID
+     * même du poste (lot S3, 15/10/2026).
+     *
+     * Pour un DOCUMENT (vente, dépense, commande, bon de réception, session de
+     * caisse), c'est le même document rejoué : le gestionnaire rend le
+     * résultat d'origine — rien n'est réécrit. `null` (référentiels, fiches)
+     * garde le rejet « création sur identifiant existant » : une fiche ne se
+     * réécrit pas en se déclarant nouvelle.
+     */
+    public function reprendreExistant(string $entiteId, ContexteSynchronisation $contexte): ?EcritureSynchronisee;
 
     /**
      * Applique une modification sur un élément EXISTANT (identifiant serveur,

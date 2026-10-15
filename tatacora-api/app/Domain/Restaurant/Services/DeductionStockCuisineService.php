@@ -9,6 +9,7 @@ use App\Domain\Restaurant\Models\CommandeRestaurant;
 use App\Domain\Stocks\Models\Article;
 use App\Domain\Stocks\Models\PointStockage;
 use App\Domain\Stocks\Services\MouvementStockService;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -70,11 +71,47 @@ class DeductionStockCuisineService
      */
     public function deduire(CommandeRestaurant $commande, bool $validationRupture = false): array
     {
+        return $this->deduireLignes(
+            $commande->lignes()->with('plat.recette')->get()
+                ->map(static fn ($ligne): array => ['plat' => $ligne->plat, 'quantite' => (int) $ligne->quantite])
+                ->all(),
+            $validationRupture,
+        );
+    }
+
+    /**
+     * La même déduction, sur des lignes `plat × quantité` SANS commande de
+     * cuisine — extraite le 15/10/2026 pour la synchronisation des ventes
+     * (lot S3, décision du Product Owner).
+     *
+     * Pourquoi : une vente faite hors connexion au restaurant a DÉJÀ été
+     * servie. Créer et transmettre une commande au moment de la
+     * synchronisation imprimerait un bon de cuisine pour une assiette mangée
+     * il y a trois jours (`CommandeTransmiseCuisine` alimente le bon et les
+     * notifications). Mais les denrées ont bien quitté la cuisine : RG-05
+     * s'applique quand même. Le calcul reste UNIQUE — `deduire()` délègue
+     * ici — pour qu'une fiche technique modifiée change les deux chemins à la
+     * fois.
+     *
+     * `$dateMouvement` : la date MÉTIER de la vente (D246) ; `null` = maintenant.
+     *
+     * @param  iterable<array{plat: \App\Domain\Restaurant\Models\Plat, quantite: int}>  $lignes
+     * @return list<array{article_id: string, quantite: string, plat: string}>
+     *
+     * @throws RecetteManquanteException
+     * @throws \App\Domain\Stocks\Exceptions\RuptureStockException
+     */
+    public function deduireLignes(
+        iterable $lignes,
+        bool $validationRupture = false,
+        ?CarbonInterface $dateMouvement = null,
+    ): array {
         $pointCuisine = $this->pointCuisine();
         $sorties = [];
 
-        foreach ($commande->lignes()->with('plat.recette')->get() as $ligne) {
-            $plat = $ligne->plat;
+        foreach ($lignes as $ligne) {
+            $plat = $ligne['plat'];
+            $nombre = (int) $ligne['quantite'];
 
             // Lien DIRECT au stock : le plat se revend en l'état (bouteille
             // d'eau servie à table). Le maître l'admet nommément
@@ -85,15 +122,16 @@ class DeductionStockCuisineService
             // conditionnement ensemble, ou aucun des deux.
             if ($plat->aUnLienDirectAuStock()) {
                 $quantite = $this->mouvements->arrondirQuantite(
-                    $plat->stockConsommePour((string) $ligne->quantite),
+                    $plat->stockConsommePour((string) $nombre),
                 );
 
                 $this->mouvements->sortie(
                     articleId: (string) $plat->article_id,
                     pointId: $pointCuisine->id,
                     quantite: $quantite,
-                    motif: __('restaurant.motif_vente', ['plat' => $plat->libelle, 'quantite' => $ligne->quantite]),
+                    motif: __('restaurant.motif_vente', ['plat' => $plat->libelle, 'quantite' => $nombre]),
                     validationRupture: $validationRupture,
+                    dateMouvement: $dateMouvement,
                 );
 
                 $sorties[] = [
@@ -172,7 +210,7 @@ class DeductionStockCuisineService
                 // revu par l'Architecte, ce service ne peut pas le corriger.
                 $quantiteExacte = bcmul(
                     (string) $ingredient->quantite_unitaire,
-                    (string) $ligne->quantite,
+                    (string) $nombre,
                     3,
                 );
 
@@ -185,8 +223,9 @@ class DeductionStockCuisineService
                     articleId: (string) $ingredient->article_id,
                     pointId: $pointCuisine->id,
                     quantite: $quantite,
-                    motif: __('restaurant.motif_vente', ['plat' => $plat->libelle, 'quantite' => $ligne->quantite]),
+                    motif: __('restaurant.motif_vente', ['plat' => $plat->libelle, 'quantite' => $nombre]),
                     validationRupture: $validationRupture,
+                    dateMouvement: $dateMouvement,
                 );
 
                 $sorties[] = [

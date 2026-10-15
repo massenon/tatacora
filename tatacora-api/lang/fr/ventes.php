@@ -28,6 +28,11 @@ return [
         ."Accepter la ligne obligerait l'écran à transmettre un prix au clavier — c'est l'anti-patron "
         .'que le prototype porte et que ce dépôt refuse.',
 
+    // Synchronisation (décision PO du 15/10/2026) : le prix du POSTE fait
+    // foi — encore faut-il qu'il en porte un.
+    'prix_impose_invalide' => 'La ligne « :article » ne porte pas de prix lisible : une vente faite hors connexion '
+        .'garde le prix annoncé au client, et sans lui le serveur devrait en inventer un.',
+
     'deja_annulee' => 'La vente :numero est déjà annulée.',
 
     'motif_sortie_stock' => 'Vente :numero — :article',
