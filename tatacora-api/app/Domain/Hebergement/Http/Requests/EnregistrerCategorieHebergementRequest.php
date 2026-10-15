@@ -37,7 +37,12 @@ final class EnregistrerCategorieHebergementRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'libelle' => ['required', 'string', 'max:100', Rule::unique('categories_hebergement', 'libelle')],
+            // Hors la catégorie elle-même quand elle est MODIFIÉE (paramètre
+            // de route `categorie`, posé par la synchronisation depuis la
+            // décision PO du 15/10/2026) : garder son propre libellé n'est pas
+            // un doublon.
+            'libelle' => ['required', 'string', 'max:100', Rule::unique('categories_hebergement', 'libelle')
+                ->ignore($this->route('categorie'))],
             'tarif_base' => ['required', 'numeric', 'gt:0'],
             'capacite_max' => ['required', 'integer', 'min:1', 'max:20'],
             'id' => ['sometimes', 'uuid', Rule::unique('categories_hebergement', 'id')],

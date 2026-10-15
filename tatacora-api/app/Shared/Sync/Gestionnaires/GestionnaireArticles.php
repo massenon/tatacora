@@ -40,16 +40,27 @@ use Illuminate\Database\Eloquent\Model;
  *
  * ## Module M6, niveau C — celui de `POST /stocks/articles`.
  *
- * ## Modification refusée
+ * ## Modification : acceptée, dernier écrit gagnant
  *
- * Changer l'unité de mesure réinterpréterait tout l'historique de mouvements ;
- * changer un seuil d'alerte commanderait les alertes RG-07 de tous les
- * postes ; et le dernier écrit gagnant laisserait un poste resté hors ligne
- * effacer la correction du gérant. Le serveur est maître.
+ * Décision du Product Owner du 15/10/2026, qui REMPLACE le refus du lot S2
+ * (« le serveur est maître, modification refusée » ne vaut plus).
+ * Par `ReferentielArticleService::modifier()`, règles de
+ * `PUT /stocks/articles/{article}` sur les seuls champs présents : stock,
+ * CMP, prix d'achat restent INTERDITS (phrase `valeur_calculee`). Le risque
+ * qui motivait le refus — un poste resté hors ligne qui efface la correction
+ * du gérant — est tenu par l'arbitrage sur l'horodatage de SAISIE : sa
+ * modification, plus ancienne, perd (`version_serveur_conservee`).
+ *
+ * `actif` archive / restaure par `ReferentielArticleService` (verrous :
+ * stock, commandes) sous `DroitArchivageService` (M6).
  */
 final class GestionnaireArticles extends GestionnaireReferentielAbstrait
 {
     protected const REFERENCES = ['point_stockage_id' => 'points_stockage'];
+
+    protected const REQUETE = EnregistrerArticleRequest::class;
+
+    protected const PARAMETRE_ROUTE = 'article';
 
     public function __construct(
         private readonly ReferentielArticleService $referentiel,
@@ -99,5 +110,33 @@ final class GestionnaireArticles extends GestionnaireReferentielAbstrait
     protected function ecrire(string $entiteId, array $donnees, ContexteSynchronisation $contexte): void
     {
         $this->referentiel->creer([...$donnees, 'id' => $entiteId]);
+    }
+
+    protected function trouver(string $entiteId): Model
+    {
+        return Article::query()->lockForUpdate()->findOrFail($entiteId);
+    }
+
+    protected function ecrireModification(Model $element, array $donnees, ContexteSynchronisation $contexte): void
+    {
+        /** @var Article $element */
+        $this->referentiel->modifier($element, $donnees);
+    }
+
+    protected function archivable(): bool
+    {
+        return true;
+    }
+
+    protected function archiver(Model $element): void
+    {
+        /** @var Article $element */
+        $this->referentiel->archiver($element);
+    }
+
+    protected function restaurer(Model $element): void
+    {
+        /** @var Article $element */
+        $this->referentiel->restaurer($element);
     }
 }

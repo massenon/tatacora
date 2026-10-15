@@ -35,17 +35,24 @@ use Illuminate\Database\Eloquent\Model;
  *
  * ## Module M5, niveau C — celui de `POST /bar/boissons`.
  *
- * ## Modification refusée
+ * ## Modification : acceptée, dernier écrit gagnant
  *
- * Un prix de vente changé hors connexion serait appliqué à de vrais clients
- * par tous les postes, et l'historique des prix (`historique_prix_carte`)
- * daterait du jour de réception un changement fait trois jours plus tôt. Le
- * lien au stock porte un conditionnement (×24) qui décrémente le stock : se
- * tromper vide le stock 24 fois trop vite. Le serveur est maître.
+ * Décision du Product Owner du 15/10/2026, qui REMPLACE le refus du lot S2
+ * (« le serveur est maître, modification refusée » ne vaut plus).
+ * Par `CarteBoissonService::modifier()` (marques de prix
+ * PA-161 comprises), règles de `PUT /bar/boissons/{boisson}` sur les seuls
+ * champs présents ; l'article cité est traduit par les correspondances. Le
+ * conditionnement (`unites_vendables_par_unite_stock`) n'est PAS dans ces
+ * règles — il relève de « Lier au stock », comme à l'API : ignoré ici.
+ * Une boisson ne s'archive pas : demander `actif: false` est refusé.
  */
 final class GestionnaireCartesBoisson extends GestionnaireReferentielAbstrait
 {
     protected const REFERENCES = ['article_id' => 'articles'];
+
+    protected const REQUETE = EnregistrerBoissonRequest::class;
+
+    protected const PARAMETRE_ROUTE = 'boisson';
 
     public function __construct(
         private readonly CarteBoissonService $carte,
@@ -90,5 +97,16 @@ final class GestionnaireCartesBoisson extends GestionnaireReferentielAbstrait
     protected function ecrire(string $entiteId, array $donnees, ContexteSynchronisation $contexte): void
     {
         $this->carte->creer([...$donnees, 'id' => $entiteId]);
+    }
+
+    protected function trouver(string $entiteId): Model
+    {
+        return CarteBoisson::query()->lockForUpdate()->findOrFail($entiteId);
+    }
+
+    protected function ecrireModification(Model $element, array $donnees, ContexteSynchronisation $contexte): void
+    {
+        /** @var CarteBoisson $element */
+        $this->carte->modifier($element, $donnees);
     }
 }

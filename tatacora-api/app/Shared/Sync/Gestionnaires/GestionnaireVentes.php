@@ -55,6 +55,15 @@ use RuntimeException;
  * `rupture_stock_forcee` par article dans `journal_audit`, RG-06) et
  * l'anomalie `vente_en_rupture` est enregistrée.
  *
+ * ## Plat sans composition : vendu, non déduit, SIGNALÉ
+ *
+ * Décision du Product Owner du 15/10/2026 : une fiche technique vide (ou un
+ * plat sans lien direct au stock) ne fait PAS rejeter une vente synchronisée
+ * — elle a été servie et encaissée. `VenteService` (chemin
+ * `sansBonDeCuisine`) écarte la ligne de la déduction ; l'anomalie
+ * `plat_sans_composition` est enregistrée par plat et rendue au poste dans
+ * `anomalies`. En ligne (PWA), la même vente reste refusée.
+ *
  * ## La session de caisse : citée, jamais devinée
  *
  * `session_encaissement_id` est traduit par les correspondances. Le poste
@@ -221,6 +230,24 @@ final class GestionnaireVentes extends GestionnaireDocumentAbstrait
             ]);
         }
 
+        // Plat sans composition (décision PO du 15/10/2026) : la vente est
+        // écrite, la ligne n'a rien sorti du stock — `VenteService` l'a noté
+        // dans `stock_non_impacte` ; on le SIGNALE, un plat par anomalie.
+        foreach ($this->platsSansComposition($entiteId) as $ligne) {
+            $this->anomalies->signaler(
+                $contexte,
+                $this->table(),
+                $entiteId,
+                AnomalieSynchronisation::PLAT_SANS_COMPOSITION,
+                reference: (string) $ligne['plat_id'],
+                details: [
+                    'plat' => $ligne['ligne'] ?? null,
+                    'quantite' => $ligne['quantite'] ?? null,
+                    'motif' => $ligne['motif'] ?? null,
+                ],
+            );
+        }
+
         foreach ($this->ecartsDePrix($entiteId) as $ecart) {
             $this->anomalies->signaler(
                 $contexte,
@@ -248,6 +275,22 @@ final class GestionnaireVentes extends GestionnaireDocumentAbstrait
             ...($ecarts !== [] ? ['ecart_prix' => $ecarts] : []),
             ...($anomalies !== [] ? ['anomalies' => $anomalies] : []),
         ]);
+    }
+
+    /**
+     * Les lignes de plats écartées de la déduction faute de composition.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function platsSansComposition(string $venteId): array
+    {
+        $nonImpacte = Vente::query()->findOrFail($venteId)->stock_non_impacte ?? [];
+
+        return array_values(array_filter(
+            $nonImpacte,
+            static fn (mixed $ligne): bool => is_array($ligne)
+                && ($ligne['cause'] ?? null) === VenteService::CAUSE_PLAT_SANS_COMPOSITION,
+        ));
     }
 
     /**

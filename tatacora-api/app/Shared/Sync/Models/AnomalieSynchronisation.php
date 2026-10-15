@@ -42,6 +42,23 @@ class AnomalieSynchronisation extends Model
 
     public const ECART_CONFORMITE_RECEPTION = 'ecart_conformite_reception';
 
+    /**
+     * Décision du PO du 15/10/2026 : un plat vendu hors connexion sans
+     * composition (fiche vide, aucun lien direct) ne fait pas rejeter la
+     * vente — la ligne n'a rien sorti du stock, et c'est signalé ici, une
+     * anomalie par plat (`reference` = id du plat).
+     */
+    public const PLAT_SANS_COMPOSITION = 'plat_sans_composition';
+
+    /**
+     * Décision du PO du 15/10/2026 : une clôture de caisse n'est JAMAIS
+     * bloquée. Celle d'une session que le serveur ne connaît pas (ouverture
+     * refusée — une caisse était déjà ouverte sur ce point — ou jamais
+     * reçue) est acceptée sans rien écrire d'autre que cette anomalie, qui
+     * porte les chiffres du poste (fond, théorique, constaté, dates).
+     */
+    public const CLOTURE_SESSION_INCONNUE = 'cloture_session_inconnue';
+
     protected $table = 'anomalies_synchronisation';
 
     protected $fillable = [

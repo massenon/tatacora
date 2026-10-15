@@ -16,8 +16,11 @@ use App\Domain\Stocks\Models\PointStockage;
  * (`Auditable` sur `PointStockage`) soit tenu et que l'écran en ligne qui
  * viendrait un jour emprunte le même chemin.
  *
- * Ni modification ni archivage ici : aucun écran ne les demande, et la
- * synchronisation les refuse (le serveur est maître du catalogue).
+ * Modification depuis la décision du Product Owner du 15/10/2026
+ * (« offline-first total ») : un poste renomme ou retype un point hors
+ * connexion, et la synchronisation l'applique en dernier écrit gagnant — par
+ * ce service. (Le refus du lot S2, « le serveur est maître », est levé.)
+ * Pas d'archivage : aucun écran ne le demande.
  */
 class ReferentielPointStockageService
 {
@@ -28,5 +31,18 @@ class ReferentielPointStockageService
     public function creer(array $donnees): PointStockage
     {
         return PointStockage::create($donnees);
+    }
+
+    /**
+     * @param  array<string, mixed>  $donnees  champs validés par les règles
+     *                                         d'`EnregistrerPointStockageRequest`
+     */
+    public function modifier(PointStockage $point, array $donnees): PointStockage
+    {
+        unset($donnees['id']);
+
+        $point->update($donnees);
+
+        return $point->refresh();
     }
 }

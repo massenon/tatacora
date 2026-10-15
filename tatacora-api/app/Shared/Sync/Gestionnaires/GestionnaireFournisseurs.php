@@ -17,7 +17,17 @@ use RuntimeException;
  * Fournisseurs créés ou modifiés hors connexion (M7, EF-M7-01) — par
  * `ReferentielFournisseurService`, et par lui seul.
  *
- * ## Le serveur est maître du référentiel, le poste peut quand même créer
+ * ## Le poste crée ET modifie hors connexion
+ *
+ * Décision du Product Owner du 15/10/2026 (« offline-first total ») : une
+ * modification est appliquée en DERNIER ÉCRIT GAGNANT sur l'horodatage de
+ * saisie (`SynchronisationService`), PARTIELLE (seuls les champs présents),
+ * par le service ; une modification d'un fournisseur inconnu du serveur est
+ * traitée comme une création si son payload est complet. La phrase « le
+ * serveur est maître » ci-dessous ne vaut plus que pour la FUSION à la
+ * création : une fiche équivalente n'est jamais écrasée par une création.
+ *
+ * ## Création : fusion sur la clé naturelle
  *
  * Décision du Product Owner du 15/10/2026 : les postes TÉLÉCHARGENT le
  * catalogue, mais un poste coupé du serveur peut créer un fournisseur (le
@@ -131,24 +141,37 @@ final class GestionnaireFournisseurs extends GestionnaireAbstrait
         return new EcritureSynchronisee($entiteId);
     }
 
+    /**
+     * Création perdue en route : traitée comme une création si le payload
+     * est complet (décision PO du 15/10/2026), sinon rejet motivé.
+     */
+    public function modificationSurInconnu(string $entiteId, array $payload, ContexteSynchronisation $contexte): ?EcritureSynchronisee
+    {
+        return $this->creerDepuisModification($entiteId, $payload, $contexte);
+    }
+
     public function modifier(string $entiteId, array $payload, ContexteSynchronisation $contexte): EcritureSynchronisee
     {
-        $fournisseur = Fournisseur::query()->findOrFail($entiteId);
+        $fournisseur = Fournisseur::query()->lockForUpdate()->findOrFail($entiteId);
 
         $actif = array_key_exists('actif', $payload) ? $payload['actif'] : null;
         unset($payload['actif'], $payload['id']);
 
-        // Un payload réduit à `actif` est un archivage (ou une restauration)
-        // seul : exiger la fiche entière pour ranger un fournisseur obligerait
-        // le poste à renvoyer des champs qu'il ne modifie pas.
+        // Payload PARTIEL (décision PO du 15/10/2026) : seuls les champs
+        // présents changent, validés par les règles de
+        // `PUT /achats/fournisseurs/{id}` ; un payload réduit à `actif` est un
+        // archivage (ou une restauration) seul.
         if ($payload !== []) {
-            $donnees = $this->valider(
+            $donnees = $this->validerPartiel(
+                $fournisseur,
                 $payload,
                 $this->reglesDeLApi(EnregistrerFournisseurRequest::class, 'fournisseur', $fournisseur),
                 EnregistrerFournisseurRequest::class,
             );
 
-            $this->referentiel->modifier($fournisseur, $donnees);
+            if ($donnees !== []) {
+                $this->referentiel->modifier($fournisseur, $donnees);
+            }
         }
 
         if ($actif !== null) {
@@ -171,17 +194,6 @@ final class GestionnaireFournisseurs extends GestionnaireAbstrait
         $actif
             ? $this->referentiel->restaurer($fournisseur)
             : $this->referentiel->archiver($fournisseur);
-    }
-
-    private function booleen(mixed $valeur): bool
-    {
-        $booleen = filter_var($valeur, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
-
-        if ($booleen === null) {
-            throw new RuntimeException(__('sync.archive_valeur_invalide'));
-        }
-
-        return $booleen;
     }
 
     /**

@@ -78,6 +78,53 @@ class ParcHebergementService
     }
 
     /**
+     * Modifie une catégorie — libellé, tarif, capacité (champs présents).
+     *
+     * Né de la décision du Product Owner du 15/10/2026 (« offline-first
+     * total ») : la synchronisation applique les modifications de catalogue
+     * faites hors connexion, par le service, jamais en écriture brute.
+     *
+     * @param  array<string, mixed>  $donnees  champs validés par
+     *                                         `EnregistrerCategorieHebergementRequest`
+     */
+    public function modifierCategorie(CategorieHebergement $categorie, array $donnees): CategorieHebergement
+    {
+        unset($donnees['id']);
+
+        if (array_key_exists('tarif_base', $donnees)) {
+            $donnees['tarif_base'] = (string) $donnees['tarif_base'];
+        }
+
+        if (array_key_exists('capacite_max', $donnees)) {
+            $donnees['capacite_max'] = (int) $donnees['capacite_max'];
+        }
+
+        $categorie->update($donnees);
+
+        return $categorie->refresh();
+    }
+
+    /**
+     * Modifie une unité — numéro, catégorie. JAMAIS le statut : le cycle
+     * appartient à `SejourService`, l'archive à `archiver()`/`restaurer()`.
+     *
+     * Le chemin de l'écran `Hebergement` ET de la synchronisation (décision
+     * PO du 15/10/2026) : deux écrivains auraient divergé au premier contrôle
+     * ajouté d'un seul côté.
+     *
+     * @param  array<string, mixed>  $donnees  champs validés par
+     *                                         `EnregistrerUniteHebergementRequest`
+     */
+    public function modifierUnite(UniteHebergement $unite, array $donnees): UniteHebergement
+    {
+        unset($donnees['id'], $donnees['statut']);
+
+        $unite->update($donnees);
+
+        return $unite->refresh();
+    }
+
+    /**
      * Les réservations qui ENGAGENT l'unité — le verrou du maître : un
      * élément engagé ailleurs ne s'archive pas et ne se purge pas.
      *

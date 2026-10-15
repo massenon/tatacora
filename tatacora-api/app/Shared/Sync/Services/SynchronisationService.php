@@ -362,14 +362,24 @@ class SynchronisationService
         }
 
         if ($existant === null) {
-            return $this->rejet($operation, __('sync.modification_entite_inconnue'));
+            return $this->modifierInconnu($operation, $payload, $gestionnaire, $contexte, $idPoste);
         }
 
         $horodatageClient = $contexte->horodatageClient;
 
         // §4.1 — conflit si l'enregistrement a été modifié côté serveur APRÈS
         // l'horodatage de saisie du client, par un AUTRE poste.
-        $resultat = $this->estEnConflit($existant, $horodatageClient, $contexte->posteId, $table, $entiteId)
+        //
+        // Et, hors table financière (décision PO du 15/10/2026, catalogue
+        // modifiable hors connexion), si une saisie PLUS RÉCENTE a déjà été
+        // appliquée — même venue de ce poste : le dernier écrit gagnant se
+        // juge sur l'horodatage de SAISIE, jamais sur l'ordre d'arrivée. Une
+        // modification plus ancienne que la dernière appliquée perd
+        // (`version_serveur_conservee`), la ligne de conflit en garde trace.
+        $enConflit = $this->estEnConflit($existant, $horodatageClient, $contexte->posteId, $table, $entiteId)
+            || (! $gestionnaire->estFinanciere() && $this->estPerimee($entiteId, $horodatageClient));
+
+        $resultat = $enConflit
             ? $this->traiterConflit($gestionnaire, $entiteId, $payload, $existant, $operation, $sessionId, $contexte)
             : $this->succes($operation, $gestionnaire->modifier($entiteId, $payload, $contexte));
 
@@ -438,6 +448,52 @@ class SynchronisationService
     }
 
     /**
+     * Une `modification` dont la cible est inconnue du serveur — ni telle
+     * quelle, ni par correspondance.
+     *
+     * Avant le 15/10/2026 : toujours un rejet. Depuis la décision du Product
+     * Owner du 15/10/2026, le gestionnaire décide (`modificationSurInconnu()`) :
+     * le catalogue y voit une création perdue en route (créée si le payload
+     * est complet, fusion comprise — la correspondance est alors retenue
+     * comme pour une création), la caisse une clôture de session inconnue
+     * (acceptée, jamais bloquée). `null` garde le rejet.
+     *
+     * @param  array<string, mixed>  $operation
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private function modifierInconnu(
+        array $operation,
+        array $payload,
+        GestionnaireSynchronisation $gestionnaire,
+        ContexteSynchronisation $contexte,
+        string $idPoste,
+    ): array {
+        $ecriture = $gestionnaire->modificationSurInconnu($idPoste, $payload, $contexte);
+
+        if ($ecriture === null) {
+            return $this->rejet($operation, __('sync.modification_entite_inconnue'));
+        }
+
+        if ($ecriture->fusionneAvec !== null) {
+            $this->correspondances->enregistrer($contexte->posteId, $gestionnaire->table(), $idPoste, $ecriture->fusionneAvec);
+        }
+
+        return $this->succes($operation, $ecriture);
+    }
+
+    /**
+     * Une saisie POSTÉRIEURE à celle-ci a-t-elle déjà été appliquée sur cet
+     * élément (dernier écrit gagnant, décision PO du 15/10/2026) ?
+     */
+    private function estPerimee(string $entiteId, Carbon $horodatageClient): bool
+    {
+        $derniere = $this->horodatageSaisiePrecedente($entiteId);
+
+        return $derniere !== null && $horodatageClient->lessThan($derniere);
+    }
+
+    /**
      * @param  array<string, mixed>  $operation
      * @return array<string, mixed>
      */
@@ -445,7 +501,7 @@ class SynchronisationService
     {
         return [
             'uuid_operation' => (string) $operation['uuid_operation'],
-            'statut' => 'synchronise',
+            'statut' => $ecriture->statut,
             'entite_id' => $ecriture->entiteId,
             ...($ecriture->fusionneAvec !== null ? ['fusionne_avec' => $ecriture->fusionneAvec] : []),
             ...$ecriture->complements,
@@ -519,8 +575,7 @@ class SynchronisationService
         // l'API, jamais passée par la synchronisation — on retombe sur la date
         // de modification serveur. Dans le doute sur la provenance, on ne
         // remplace pas une donnée serveur par une donnée plus ancienne.
-        $reference = $this->horodatageSaisiePrecedente($entiteId)
-            ?? $this->dateModificationServeur($existant);
+        $reference = $this->referenceDuDernierEcrit($entiteId, $existant);
 
         if ($reference !== null && $contexte->horodatageClient->lessThan($reference)) {
             $conflit->update(['statut' => 'resolu_serveur']);
@@ -546,6 +601,53 @@ class SynchronisationService
             'resolution' => 'version_locale_conservee',
             'conflit_id' => $conflit->id,
         ];
+    }
+
+    /**
+     * La date contre laquelle une saisie concurrente est jugée.
+     *
+     * La dernière saisie APPLIQUÉE par synchronisation ; à défaut, la date de
+     * modification serveur. Et depuis le 15/10/2026 (catalogue modifiable
+     * hors connexion) : si l'élément a été réécrit HORS synchronisation
+     * (écran en ligne, API) APRÈS la dernière opération appliquée, cette
+     * écriture compte aussi — sinon la correction faite par le gérant à
+     * l'écran perdrait contre une saisie de poste plus ancienne qu'elle,
+     * au seul motif qu'une saisie de poste encore plus ancienne existait.
+     */
+    private function referenceDuDernierEcrit(string $entiteId, object $existant): ?Carbon
+    {
+        $saisie = $this->horodatageSaisiePrecedente($entiteId);
+        $dateServeur = $this->dateModificationServeur($existant);
+
+        if ($saisie === null || $dateServeur === null) {
+            return $saisie ?? $dateServeur;
+        }
+
+        $dernierTraitement = $this->dernierTraitementApplique($entiteId);
+
+        if ($dernierTraitement !== null && $dateServeur->greaterThan($dernierTraitement)) {
+            return $saisie->max($dateServeur);
+        }
+
+        return $saisie;
+    }
+
+    private function dernierTraitementApplique(string $entiteId): ?Carbon
+    {
+        $candidates = DeduplicationSynchronisation::where('entite_id', $entiteId)
+            ->orderByDesc('date_traitement')
+            ->get(['resultat', 'date_traitement']);
+
+        foreach ($candidates as $candidate) {
+            $resultat = $candidate->resultat;
+
+            if (($resultat['statut'] ?? null) === 'synchronise'
+                && ($resultat['resolution'] ?? null) !== 'version_serveur_conservee') {
+                return Carbon::parse((string) $candidate->date_traitement);
+            }
+        }
+
+        return null;
     }
 
     private function estEnConflit(

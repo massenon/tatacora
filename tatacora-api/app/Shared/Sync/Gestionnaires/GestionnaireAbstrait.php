@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules\Unique;
 use Illuminate\Validation\ValidationException;
 use LogicException;
+use RuntimeException;
 
 /**
  * Les choix PAR DÉFAUT d'un gestionnaire — tous du côté prudent.
@@ -23,7 +24,10 @@ use LogicException;
  * - Niveau `C` : toute opération synchronisée est une écriture (PA-65).
  * - Modification REFUSÉE : une table doit l'accepter explicitement, en la
  *   faisant passer par son service. Oublier de la déclarer donne un rejet
- *   lisible, jamais une écriture brute.
+ *   lisible, jamais une écriture brute. (Le catalogue entier l'accepte depuis
+ *   la décision PO du 15/10/2026 — `GestionnaireReferentielAbstrait`.)
+ * - Modification d'un identifiant inconnu : rejetée (`modificationSurInconnu()`
+ *   rend `null`), sauf déclaration contraire de la table.
  * - `estFinanciere()` lue dans `ClassificationConflitService::TABLES_FINANCIERES`,
  *   jamais redéclarée : la liste est une donnée de sécurité à auteur unique,
  *   deux listes finiraient par diverger (RG-17).
@@ -57,6 +61,12 @@ abstract class GestionnaireAbstrait implements GestionnaireSynchronisation
 
     /** Par défaut : pas un document — la création sur un identifiant existant reste rejetée. */
     public function reprendreExistant(string $entiteId, ContexteSynchronisation $contexte): ?EcritureSynchronisee
+    {
+        return null;
+    }
+
+    /** Par défaut : la modification d'un identifiant inconnu reste rejetée. */
+    public function modificationSurInconnu(string $entiteId, array $payload, ContexteSynchronisation $contexte): ?EcritureSynchronisee
     {
         return null;
     }
@@ -109,6 +119,100 @@ abstract class GestionnaireAbstrait implements GestionnaireSynchronisation
         } catch (ValidationException $e) {
             throw DonneesSynchroniseesInvalidesException::depuis($e);
         }
+    }
+
+    /**
+     * Valide une modification PARTIELLE comme l'API valide un `PUT` — décision
+     * du Product Owner du 15/10/2026 : seuls les champs PRÉSENTS dans le
+     * payload sont modifiés.
+     *
+     * Les règles de l'API sont appliquées aux seuls champs présents (un champ
+     * `required` absent n'est pas un champ effacé : il garde sa valeur), sur
+     * les données de l'élément COMPLÉTÉES par le payload — une règle croisée
+     * (`date_fin` ≥ `date_debut`) se juge sur l'état résultant. Un champ
+     * présent et interdit (`prohibited` : stock, CMP, prix d'achat, coût
+     * matière…) est refusé avec la phrase de l'API, exactement comme la
+     * route. Un champ inconnu des règles est ignoré, comme `validated()`.
+     *
+     * @param  array<string, mixed>  $payload
+     * @param  array<string, mixed>  $regles  règles de modification de l'API
+     * @param  class-string<FormRequest>  $requete  source des messages
+     * @return array<string, mixed> les seuls champs présents, validés
+     *
+     * @throws DonneesSynchroniseesInvalidesException
+     */
+    protected function validerPartiel(Model $element, array $payload, array $regles, string $requete): array
+    {
+        $presentes = array_filter(
+            $regles,
+            static function (string $champ) use ($payload): bool {
+                $racine = explode('.', $champ)[0];
+
+                return array_key_exists($racine, $payload);
+            },
+            ARRAY_FILTER_USE_KEY,
+        );
+
+        if ($presentes === []) {
+            return [];
+        }
+
+        $actuelles = array_intersect_key($element->getAttributes(), $regles);
+        $valides = $this->valider([...$actuelles, ...$payload], $presentes, $requete);
+
+        return array_intersect_key($valides, $payload);
+    }
+
+    /**
+     * Le cas d'une modification dont la cible n'existe pas côté serveur, pour
+     * un RÉFÉRENTIEL : la création s'est perdue en route (décision PO du
+     * 15/10/2026). Le payload est traité comme une création s'il satisfait
+     * les règles de CRÉATION (fusion sur la clé naturelle comprise) ; sinon
+     * rejet, motif `sync.modification_inconnue_incomplete` et erreurs par
+     * champ. Un archivage demandé (`actif` faux) est appliqué ensuite, par la
+     * même règle de droits — jamais sur une cible de fusion, qui n'est pas
+     * l'élément du poste.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    protected function creerDepuisModification(string $entiteId, array $payload, ContexteSynchronisation $contexte): EcritureSynchronisee
+    {
+        $actif = array_key_exists('actif', $payload) ? $this->booleen($payload['actif']) : null;
+
+        try {
+            $ecriture = $this->creer($entiteId, $payload, $contexte);
+        } catch (DonneesSynchroniseesInvalidesException $e) {
+            throw new DonneesSynchroniseesInvalidesException(
+                __('sync.modification_inconnue_incomplete', ['raison' => $e->getMessage()]),
+                $e->erreurs,
+            );
+        }
+
+        if ($ecriture->fusionneAvec === null && $actif === false) {
+            $this->modifier($entiteId, ['actif' => false], $contexte);
+        }
+
+        return new EcritureSynchronisee(
+            $ecriture->entiteId,
+            $ecriture->fusionneAvec,
+            [...$ecriture->complements, 'cree_depuis_modification' => true],
+        );
+    }
+
+    /**
+     * `actif` du payload, lu comme l'API lit un booléen.
+     *
+     * @throws RuntimeException valeur illisible
+     */
+    protected function booleen(mixed $valeur): bool
+    {
+        $booleen = is_bool($valeur) ? $valeur : filter_var($valeur, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+
+        if ($booleen === null) {
+            throw new RuntimeException(__('sync.archive_valeur_invalide'));
+        }
+
+        return $booleen;
     }
 
     /**

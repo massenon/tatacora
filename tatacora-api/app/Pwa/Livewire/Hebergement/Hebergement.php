@@ -428,7 +428,7 @@ final class Hebergement extends PageMetier
         }
 
         if ($this->uniteId !== null) {
-            UniteHebergement::findOrFail($this->uniteId)->update([
+            $parc->modifierUnite(UniteHebergement::findOrFail($this->uniteId), [
                 'numero' => $donnees['uniteNumero'],
                 'categorie_id' => $donnees['uniteCategorieId'],
             ]);

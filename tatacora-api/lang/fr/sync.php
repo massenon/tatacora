@@ -31,6 +31,12 @@ return [
         . 'hors connexion. Faites la modification depuis l\'écran en ligne.',
     'modification_entite_inconnue' => 'Modification impossible : l\'enregistrement visé n\'existe pas sur le serveur. '
         . 'Sa création n\'a peut-être pas encore été synchronisée, ou a été refusée.',
+    // Décision PO du 15/10/2026 : une modification dont la cible est inconnue
+    // est traitée comme une création (perdue en route) si elle est complète.
+    'modification_inconnue_incomplete' => 'Modification impossible : l\'élément n\'existe pas sur le serveur (sa création '
+        . 'n\'a pas été reçue), et la modification ne porte pas tout ce qu\'il faut pour le créer : :raison',
+    'archivage_non_disponible' => 'Cet élément ne s\'archive pas : seuls les articles, les unités d\'hébergement et les '
+        . 'fournisseurs se rangent. La modification n\'a pas été appliquée.',
     'creation_entite_existante' => 'Création refusée : un enregistrement portant cet identifiant existe déjà sur le serveur.',
     'date_metier_invalide' => 'La date du document est illisible : elle doit être une date valide.',
     'archive_valeur_invalide' => 'L\'état d\'archivage transmis est illisible : il doit valoir vrai ou faux.',

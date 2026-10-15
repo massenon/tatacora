@@ -36,15 +36,23 @@ use Illuminate\Database\Eloquent\Model;
  *
  * ## Module M4, niveau C — celui de `POST /restaurant/plats`.
  *
- * ## Modification refusée
+ * ## Modification : acceptée, dernier écrit gagnant
  *
- * Un prix ou une fiche changés hors connexion seraient appliqués à de vrais
- * clients et à la déduction de stock de tous les postes. Le serveur est
- * maître.
+ * Décision du Product Owner du 15/10/2026, qui REMPLACE le refus du lot S2
+ * (« le serveur est maître, modification refusée » ne vaut plus).
+ * Par `CartePlatMenuService::modifierPlat()` (cohérence du
+ * lien direct, marques de prix), règles de `PUT /restaurant/plats/{plat}`
+ * sur les seuls champs présents ; menu et fiche cités traduits par les
+ * correspondances. Coût matière, marge, stock restent INTERDITS. Un plat ne
+ * s'archive pas.
  */
 final class GestionnairePlats extends GestionnaireReferentielAbstrait
 {
     protected const REFERENCES = ['menu_id' => 'menus', 'recette_id' => 'recettes'];
+
+    protected const REQUETE = EnregistrerPlatRequest::class;
+
+    protected const PARAMETRE_ROUTE = 'plat';
 
     public function __construct(
         private readonly CartePlatMenuService $carte,
@@ -89,5 +97,16 @@ final class GestionnairePlats extends GestionnaireReferentielAbstrait
     protected function ecrire(string $entiteId, array $donnees, ContexteSynchronisation $contexte): void
     {
         $this->carte->creerPlat([...$donnees, 'id' => $entiteId]);
+    }
+
+    protected function trouver(string $entiteId): Model
+    {
+        return Plat::query()->lockForUpdate()->findOrFail($entiteId);
+    }
+
+    protected function ecrireModification(Model $element, array $donnees, ContexteSynchronisation $contexte): void
+    {
+        /** @var Plat $element */
+        $this->carte->modifierPlat($element, $donnees);
     }
 }

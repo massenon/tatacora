@@ -33,7 +33,13 @@ use App\Shared\Sync\Support\EcritureSynchronisee;
  *   visible pour que les tests vérifient qu'aucune table ne s'en passe.
  * - `accepteModification()` — `false` est un REFUS EXPLICITE : le moteur
  *   rejette la modification (« modification non synchronisable ») sans
- *   appeler `modifier()`. Il n'existe plus de repli générique.
+ *   appeler `modifier()`. Il n'existe plus de repli générique. Depuis la
+ *   décision PO du 15/10/2026 (« offline-first total »), TOUT le catalogue
+ *   l'accepte — articles, boissons, plats, menus, fiches, points de stockage,
+ *   catégories et unités d'hébergement, fournisseurs — en dernier écrit
+ *   gagnant sur l'horodatage de saisie (`SynchronisationService`).
+ * - `modificationSurInconnu()` — que faire d'une modification dont la cible
+ *   est inconnue du serveur (création jamais reçue, ouverture refusée).
  * - `estFinanciere()` — RG-17 : aucune résolution automatique de conflit.
  * - `champDateDocument()` — le champ du document qui porte sa date métier,
  *   à défaut de `date_metier` explicite (voir `ContexteSynchronisation`).
@@ -101,6 +107,24 @@ interface GestionnaireSynchronisation
      * réécrit pas en se déclarant nouvelle.
      */
     public function reprendreExistant(string $entiteId, ContexteSynchronisation $contexte): ?EcritureSynchronisee;
+
+    /**
+     * Une `modification` vise un identifiant que le serveur ne connaît pas —
+     * ni tel quel, ni par correspondance (décision PO du 15/10/2026).
+     *
+     * `null` garde le rejet `sync.modification_entite_inconnue`. Le catalogue
+     * y voit une création perdue en route : si le payload est assez complet
+     * pour les règles de CRÉATION, l'élément est créé (ou fusionné) ; sinon
+     * rejet motivé. La caisse y voit la clôture d'une session dont
+     * l'ouverture a été refusée ou jamais reçue : acceptée sans rien écrire
+     * qu'une anomalie (`cloture_sans_session_serveur`) — une clôture n'est
+     * jamais bloquée.
+     *
+     * @param  array<string, mixed>  $payload
+     *
+     * @throws \RuntimeException refus métier
+     */
+    public function modificationSurInconnu(string $entiteId, array $payload, ContexteSynchronisation $contexte): ?EcritureSynchronisee;
 
     /**
      * Applique une modification sur un élément EXISTANT (identifiant serveur,

@@ -38,14 +38,24 @@ use Illuminate\Database\Eloquent\Model;
  *
  * ## Module M1, niveau C — celui de l'écran PWA Hébergement.
  *
- * ## Modification refusée
+ * ## Modification : acceptée, dernier écrit gagnant
  *
- * Renuméroter ou reclasser une unité hors connexion changerait la chambre de
- * réservations prises sur d'autres postes. Le serveur est maître.
+ * Décision du Product Owner du 15/10/2026, qui REMPLACE le refus du lot S2
+ * (« le serveur est maître, modification refusée » ne vaut plus).
+ * Par `ParcHebergementService::modifierUnite()` (le chemin
+ * que l'écran PWA emprunte aussi), règles d'`EnregistrerUniteHebergementRequest`
+ * sur les seuls champs présents ; catégorie citée traduite. `statut` reste
+ * ignoré (cycle de `SejourService`). `actif: false` ARCHIVE (`hors_service`,
+ * verrou d'engagement du service), `actif: true` restaure — sous
+ * `DroitArchivageService` (M1), comme l'écran.
  */
 final class GestionnaireUnitesHebergement extends GestionnaireReferentielAbstrait
 {
     protected const REFERENCES = ['categorie_id' => 'categories_hebergement'];
+
+    protected const REQUETE = EnregistrerUniteHebergementRequest::class;
+
+    protected const PARAMETRE_ROUTE = 'unite';
 
     public function __construct(
         private readonly ParcHebergementService $parc,
@@ -95,5 +105,33 @@ final class GestionnaireUnitesHebergement extends GestionnaireReferentielAbstrai
     protected function ecrire(string $entiteId, array $donnees, ContexteSynchronisation $contexte): void
     {
         $this->parc->creerUnite([...$donnees, 'id' => $entiteId]);
+    }
+
+    protected function trouver(string $entiteId): Model
+    {
+        return UniteHebergement::query()->lockForUpdate()->findOrFail($entiteId);
+    }
+
+    protected function ecrireModification(Model $element, array $donnees, ContexteSynchronisation $contexte): void
+    {
+        /** @var UniteHebergement $element */
+        $this->parc->modifierUnite($element, $donnees);
+    }
+
+    protected function archivable(): bool
+    {
+        return true;
+    }
+
+    protected function archiver(Model $element): void
+    {
+        /** @var UniteHebergement $element */
+        $this->parc->archiver($element);
+    }
+
+    protected function restaurer(Model $element): void
+    {
+        /** @var UniteHebergement $element */
+        $this->parc->restaurer($element);
     }
 }

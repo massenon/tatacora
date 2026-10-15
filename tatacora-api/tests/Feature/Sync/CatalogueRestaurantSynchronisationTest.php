@@ -193,8 +193,13 @@ final class CatalogueRestaurantSynchronisationTest extends TestCase
         $this->assertSame(1, Recette::count());
     }
 
+    /**
+     * Adapté le 15/10/2026 (décision PO « offline-first total ») : sans le
+     * droit d'écriture sur M4, création ET modification restent refusées ;
+     * avec lui, la modification d'un menu est désormais appliquée.
+     */
     #[Test]
-    public function sans_ecriture_sur_m4_rien_n_est_cree_et_les_modifications_sont_refusees(): void
+    public function sans_ecriture_sur_m4_rien_n_est_cree_ni_modifie(): void
     {
         $menu = app(CartePlatMenuService::class)->creerMenu(['libelle' => 'Carte', 'type' => 'local']);
 
@@ -203,17 +208,21 @@ final class CatalogueRestaurantSynchronisationTest extends TestCase
             $this->pousser([
                 $this->creation('menus', $this->uuid(), ['libelle' => 'Menu ' . $role, 'type' => 'local']),
                 $this->creation('recettes', $this->uuid(), ['libelle' => 'Fiche ' . $role]),
+                $this->operation('menus', 'modification', $menu->id, ['libelle' => 'Renommé ' . $role]),
             ], $this->creerUtilisateur($role))
                 ->assertJsonPath('resultats.0.motif', __('auth.module_refuse'))
-                ->assertJsonPath('resultats.1.motif', __('auth.module_refuse'));
+                ->assertJsonPath('resultats.1.motif', __('auth.module_refuse'))
+                ->assertJsonPath('resultats.2.motif', __('auth.module_refuse'));
         }
-
-        // Le serveur est maître : même avec le droit, un menu ne se modifie
-        // pas hors connexion.
-        $this->pousser([$this->operation('menus', 'modification', $menu->id, ['libelle' => 'Renommé', 'type' => 'local'])], $this->cuisinier)
-            ->assertJsonPath('resultats.0.motif', __('sync.modification_non_synchronisable'));
 
         $this->assertSame(['Carte'], Menu::pluck('libelle')->all());
         $this->assertSame(0, Recette::count());
+
+        // Avec le droit : la modification est appliquée par le service.
+        $this->pousser([$this->operation('menus', 'modification', $menu->id, ['libelle' => 'Renommé'])], $this->cuisinier)
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+
+        $this->assertSame(['Renommé'], Menu::pluck('libelle')->all());
+        $this->assertSame('local', $menu->fresh()->type);
     }
 }

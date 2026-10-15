@@ -296,11 +296,11 @@ Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
     |
     | Les routes de ce groupe exigent le reseau. Depuis le 15/10/2026
     | (decision PO, lot S2), la CREATION hors connexion d'un menu, d'une fiche
-    | ou d'un plat remonte par `/sync` (fusion sur cle naturelle) — mais
-    | `commandes_restaurant` n'est toujours pas au registre
-    | `TABLES_SYNCHRONISABLES`, et aucune MODIFICATION du catalogue ne
-    | remonte : le client n'annonce aucune mise en attente sur ce qui ne
-    | partira jamais (PA-59/60/61).
+    | ou d'un plat remonte par `/sync` (fusion sur cle naturelle), et depuis
+    | la decision PO du 15/10/2026 (offline-first total) sa MODIFICATION aussi
+    | (dernier ecrit gagnant) — mais `commandes_restaurant` n'est toujours pas
+    | au registre `TABLES_SYNCHRONISABLES` : le client n'annonce aucune mise
+    | en attente sur ce qui ne partira jamais (PA-59/60/61).
     */
     Route::prefix('restaurant')->group(function () {
         // --- Carte du restaurant — EF-M4-01 ---

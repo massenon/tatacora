@@ -6,10 +6,12 @@ namespace App\Domain\Restaurant\Services;
 
 use App\Domain\Restaurant\Exceptions\RecetteManquanteException;
 use App\Domain\Restaurant\Models\CommandeRestaurant;
+use App\Domain\Restaurant\Models\Plat;
 use App\Domain\Stocks\Models\Article;
 use App\Domain\Stocks\Models\PointStockage;
 use App\Domain\Stocks\Services\MouvementStockService;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -148,9 +150,7 @@ class DeductionStockCuisineService
             // que le schéma NE couvre PAS est une recette dont la nomenclature
             // est vide : elle se vendrait sans rien consommer, et l'écart
             // n'apparaîtrait qu'à l'inventaire, imputé à une perte physique.
-            $ingredients = DB::table('ingredients_recette')
-                ->where('recette_id', $plat->recette_id)
-                ->get(['article_id', 'quantite_unitaire']);
+            $ingredients = $this->ingredients($plat);
 
             if ($ingredients->isEmpty()) {
                 throw new RecetteManquanteException($plat->libelle);
@@ -237,6 +237,34 @@ class DeductionStockCuisineService
         }
 
         return $sorties;
+    }
+
+    /**
+     * Le plat a-t-il de quoi sortir du stock — un lien direct, ou une fiche
+     * dont la nomenclature n'est pas vide ? `false` est exactement le cas où
+     * `deduireLignes()` lève `RecetteManquanteException`.
+     *
+     * PUBLIQUE depuis le 15/10/2026 (décision du Product Owner) : une vente
+     * SYNCHRONISÉE a déjà été servie et encaissée — la refuser pour une fiche
+     * vide ferait disparaître l'argent des livres. `VenteService` (chemin
+     * `sansBonDeCuisine`, réservé à la synchronisation) écarte donc ces
+     * lignes de la déduction et les SIGNALE ; il pose la question ici pour
+     * que le critère reste celui de la déduction elle-même. En ligne, rien ne
+     * change : la vente d'un plat sans fiche reste refusée.
+     */
+    public function aDeQuoiDeduire(Plat $plat): bool
+    {
+        return $plat->aUnLienDirectAuStock() || $this->ingredients($plat)->isNotEmpty();
+    }
+
+    /**
+     * @return Collection<int, object{article_id: string, quantite_unitaire: string}>
+     */
+    private function ingredients(Plat $plat): Collection
+    {
+        return DB::table('ingredients_recette')
+            ->where('recette_id', $plat->recette_id)
+            ->get(['article_id', 'quantite_unitaire']);
     }
 
     /**

@@ -117,6 +117,13 @@ class VenteService
     private const TYPE_POINT_BAR = 'bar';
 
     /**
+     * Cause portée par une entrée de `stock_non_impacte` quand un plat vendu
+     * hors connexion n'avait aucune composition (décision PO du 15/10/2026,
+     * chemin synchronisé seulement — voir `deduireStock()`).
+     */
+    public const CAUSE_PLAT_SANS_COMPOSITION = 'plat_sans_composition';
+
+    /**
      * @var array<string, string>
      */
     public const MODES_PAIEMENT = [
@@ -845,17 +852,39 @@ class VenteService
             // Vente synchronisée (15/10/2026) : l'assiette est servie, aucun
             // bon de cuisine n'a de sens — mais les denrées sont sorties, par
             // le MÊME calcul que la transmission (voir `enregistrer()`).
-            $this->deductionCuisine->deduireLignes(
-                array_map(
-                    static fn (array $ligne): array => [
-                        'plat' => Plat::query()->with('recette')->findOrFail((string) $ligne['reference_id']),
+            //
+            // Un plat SANS composition (fiche vide, aucun lien direct) ne fait
+            // PAS rejeter la vente (décision du Product Owner du 15/10/2026) :
+            // elle a été servie et encaissée hors connexion, la refuser ferait
+            // disparaître l'argent des livres. La ligne est écartée de la
+            // déduction et la vente le DIT (`stock_non_impacte`, cause
+            // `plat_sans_composition`) ; la synchronisation en fait une
+            // anomalie à examiner. En ligne, ce chemin n'est jamais pris : un
+            // plat sans fiche y reste refusé (`RecetteManquanteException`).
+            $aDeduire = [];
+
+            foreach ($lignesRestaurant as $ligne) {
+                $plat = Plat::query()->with('recette')->findOrFail((string) $ligne['reference_id']);
+
+                if (! $this->deductionCuisine->aDeQuoiDeduire($plat)) {
+                    $nonImpacte[] = [
+                        'ligne' => (string) $ligne['nom'],
+                        'module' => 'M4',
+                        'motif' => __('ventes.stock_non_sorti_plat_sans_composition', ['plat' => $plat->libelle]),
+                        'cause' => self::CAUSE_PLAT_SANS_COMPOSITION,
+                        'plat_id' => $plat->id,
                         'quantite' => (int) $ligne['quantite'],
-                    ],
-                    $lignesRestaurant,
-                ),
-                $validationRupture,
-                $dateVente,
-            );
+                    ];
+
+                    continue;
+                }
+
+                $aDeduire[] = ['plat' => $plat, 'quantite' => (int) $ligne['quantite']];
+            }
+
+            if ($aDeduire !== []) {
+                $this->deductionCuisine->deduireLignes($aDeduire, $validationRupture, $dateVente);
+            }
 
             return $nonImpacte;
         }

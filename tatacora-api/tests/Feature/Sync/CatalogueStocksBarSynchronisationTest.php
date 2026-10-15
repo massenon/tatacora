@@ -192,19 +192,29 @@ final class CatalogueStocksBarSynchronisationTest extends TestCase
     }
 
     /**
-     * Le serveur est maître : une modification d'article depuis un poste est
-     * refusée explicitement, et la fiche reste intacte.
+     * Remplace le test « modification refusée, le serveur est maître » (lot
+     * S2) — décision PO du 15/10/2026 : la modification d'un article est
+     * appliquée par le service, PARTIELLE (le libellé et l'unité ne bougent
+     * pas), et les valeurs calculées restent refusées comme à l'API.
      */
     #[Test]
-    public function une_modification_d_article_est_refusee_le_serveur_est_maitre(): void
+    public function une_modification_d_article_est_appliquee_par_le_service_valeurs_calculees_refusees(): void
     {
         $serveur = $this->articleServeur('Huile', 'litre', seuil: '3.00');
 
         $this->pousser([$this->operation('articles', 'modification', $serveur->id, ['seuil_alerte' => '0'])], $this->magasinier)
-            ->assertJsonPath('resultats.0.statut', 'rejete')
-            ->assertJsonPath('resultats.0.motif', __('sync.modification_non_synchronisable'));
+            ->assertJsonPath('resultats.0.statut', 'synchronise')
+            ->assertJsonPath('resultats.0.entite_id', $serveur->id);
 
-        $this->assertSame('3.00', (string) $serveur->fresh()->seuil_alerte);
+        $fiche = $serveur->fresh();
+        $this->assertSame(['0.00', 'Huile', 'litre'], [(string) $fiche->seuil_alerte, $fiche->libelle, $fiche->unite_mesure]);
+        $this->assertSame($this->magasinier->id, $fiche->utilisateur_modification_id);
+
+        $this->pousser([$this->operation('articles', 'modification', $serveur->id, ['seuil_alerte' => '9', 'cout_moyen_pondere' => '1'])], $this->magasinier)
+            ->assertJsonPath('resultats.0.statut', 'rejete')
+            ->assertJsonPath('resultats.0.erreurs.cout_moyen_pondere.0', __('stocks.validation.valeur_calculee'));
+
+        $this->assertSame('0.00', (string) $serveur->fresh()->seuil_alerte);
     }
 
     #[Test]

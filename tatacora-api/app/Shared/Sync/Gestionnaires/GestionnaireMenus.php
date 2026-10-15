@@ -29,13 +29,20 @@ use Illuminate\Database\Eloquent\Model;
  *
  * ## Module M4, niveau C — celui de `POST /restaurant/menus`.
  *
- * ## Modification refusée
+ * ## Modification : acceptée, dernier écrit gagnant
  *
- * Changer les dates d'une saison hors connexion retirerait ou remettrait à la
- * carte des plats pour tous les postes. Le serveur est maître.
+ * Décision du Product Owner du 15/10/2026, qui REMPLACE le refus du lot S2
+ * (« le serveur est maître, modification refusée » ne vaut plus).
+ * Par `CartePlatMenuService::modifierMenu()`, règles de
+ * `PUT /restaurant/menus/{menu}` sur les seuls champs présents (la saison
+ * inversée se juge sur l'état résultant). Un menu ne s'archive pas.
  */
 final class GestionnaireMenus extends GestionnaireReferentielAbstrait
 {
+    protected const REQUETE = EnregistrerMenuRequest::class;
+
+    protected const PARAMETRE_ROUTE = 'menu';
+
     public function __construct(
         private readonly CartePlatMenuService $carte,
         ResolveurCorrespondances $correspondances,
@@ -79,5 +86,16 @@ final class GestionnaireMenus extends GestionnaireReferentielAbstrait
     protected function ecrire(string $entiteId, array $donnees, ContexteSynchronisation $contexte): void
     {
         $this->carte->creerMenu([...$donnees, 'id' => $entiteId]);
+    }
+
+    protected function trouver(string $entiteId): Model
+    {
+        return Menu::query()->lockForUpdate()->findOrFail($entiteId);
+    }
+
+    protected function ecrireModification(Model $element, array $donnees, ContexteSynchronisation $contexte): void
+    {
+        /** @var Menu $element */
+        $this->carte->modifierMenu($element, $donnees);
     }
 }

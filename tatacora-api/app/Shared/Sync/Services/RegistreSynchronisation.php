@@ -50,8 +50,11 @@ use LogicException;
  * ## Le catalogue (lot S2, 15/10/2026)
  *
  * Points de stockage, articles, boissons, menus, fiches, plats, catégories et
- * unités d'hébergement entrent au registre — CRÉATION seule, fusion sur clé
- * naturelle (`GestionnaireReferentielAbstrait`). Les centres de coût n'y
+ * unités d'hébergement entrent au registre — création avec fusion sur clé
+ * naturelle (`GestionnaireReferentielAbstrait`). « Création seule » ne vaut
+ * plus : depuis la décision PO du 15/10/2026 (offline-first total), leurs
+ * MODIFICATIONS remontent aussi, en dernier écrit gagnant sur l'horodatage
+ * de saisie, par le service de chaque table. Les centres de coût n'y
  * entrent PAS : ils sont semés par le serveur et le poste les installe à
  * l'identique (`ResolveurCentresCout` les retrouve par libellé).
  *

@@ -6,6 +6,8 @@ namespace Tests\Feature\Sync;
 
 use App\Domain\Caisse\Models\SessionCaisse;
 use App\Domain\Caisse\Services\SessionCaisseService;
+use App\Domain\Comptabilite\Models\EcritureComptable;
+use App\Domain\Ventes\Models\Vente;
 use App\Models\User;
 use App\Shared\Sync\Models\AnomalieSynchronisation;
 use App\Shared\Sync\Models\ConflitSynchronisation;
@@ -213,6 +215,157 @@ final class SessionsCaisseSynchronisationTest extends TestCase
             ->assertJsonStructure(['resultats' => [['erreurs' => ['point_vente', 'montant_fond_centimes']]]]);
 
         $this->assertSame(0, SessionCaisse::count());
+    }
+
+    // ------------------------------- Clôture jamais bloquée (PO 15/10/2026)
+
+    /**
+     * La clôture d'une session que le serveur ne connaît pas n'est PAS
+     * rejetée : statut `cloture_sans_session_serveur`, anomalie avec les
+     * chiffres du poste, et rien d'autre d'écrit — ni session, ni pièce.
+     * Rejouée (même opération, puis nouvelle tentative après la purge), elle
+     * rend le même statut sans second signalement.
+     */
+    #[Test]
+    public function la_cloture_d_une_session_inconnue_est_acceptee_sans_rien_ecrire_et_signalee(): void
+    {
+        $id = $this->uuid();
+        $sessions = SessionCaisse::count();
+        $pieces = EcritureComptable::count();
+        $cloture = $this->operationDatee('sessions_caisse', 'modification', $id, [
+            'date_cloture' => '2026-10-14 22:00:00',
+            'montant_constate_centimes' => 1150000,
+            'montant_theorique_centimes' => 1200000,
+            'montant_fond_centimes' => 1000000,
+            'date_ouverture' => '2026-10-14 07:00:00',
+            'point_vente' => 'bar',
+        ], '2026-10-14T22:00:00+00:00');
+
+        $this->pousser([$cloture], $this->barman)
+            ->assertJsonPath('resultats.0.statut', 'cloture_sans_session_serveur')
+            ->assertJsonPath('resultats.0.entite_id', $id)
+            ->assertJsonPath('resultats.0.anomalies', [AnomalieSynchronisation::CLOTURE_SESSION_INCONNUE])
+            ->assertJsonMissingPath('resultats.0.motif');
+
+        $anomalie = AnomalieSynchronisation::query()
+            ->where('entite_id', $id)->where('type', AnomalieSynchronisation::CLOTURE_SESSION_INCONNUE)->sole();
+        $this->assertSame('11500.00', (string) $anomalie->valeur_poste);
+        // `assertEquals` : une colonne JSON ne garde pas l'ordre des clés.
+        $this->assertEquals([
+            'point_vente' => 'bar',
+            'date_ouverture' => '2026-10-14 07:00:00',
+            'date_cloture' => '2026-10-14 22:00:00',
+            'montant_fond' => '10000.00',
+            'montant_theorique_poste' => '12000.00',
+            'montant_constate' => '11500.00',
+        ], $anomalie->details);
+
+        $this->assertSame($sessions, SessionCaisse::count());
+        $this->assertSame($pieces, EcritureComptable::count());
+        $this->assertSame(0, ConflitSynchronisation::count());
+
+        // Rejeu de la même opération : la mémoire d'idempotence répond.
+        $this->pousser([$cloture], $this->barman)
+            ->assertJsonPath('resultats.0.statut', 'cloture_sans_session_serveur')
+            ->assertJsonPath('resultats.0.rejeu_idempotent', true);
+
+        // Nouvelle tentative après la purge : même statut, toujours UNE anomalie.
+        $this->purgerLaMemoireDIdempotence();
+        $this->pousser([$this->nouvelleTentative($cloture)], $this->barman)
+            ->assertJsonPath('resultats.0.statut', 'cloture_sans_session_serveur');
+
+        $this->assertSame(1, AnomalieSynchronisation::where('entite_id', $id)->count());
+        $this->assertSame($sessions, SessionCaisse::count());
+    }
+
+    /**
+     * Le scénario complet du Product Owner : une caisse est déjà ouverte sur
+     * le bar au serveur → l'ouverture du poste est refusée (phrase de
+     * l'écran) → ses ventes sont ENREGISTRÉES et signalées → sa clôture est
+     * acceptée en `cloture_sans_session_serveur`. Rien n'est bloqué, et la
+     * caisse du serveur n'est pas touchée.
+     */
+    #[Test]
+    public function ouverture_refusee_ventes_enregistrees_cloture_acceptee_rien_n_est_bloque(): void
+    {
+        $serveur = app(SessionCaisseService::class)->ouvrir('bar', '5000', $this->barman->id);
+        $sessionPoste = $this->uuid();
+        [$venteA, $venteB] = [$this->uuid(), $this->uuid()];
+
+        $reponse = $this->pousser([
+            $this->ouverture($sessionPoste, '2026-10-14 07:00:00', 1000000),
+            $this->venteDeLaSession($venteA, $sessionPoste, '2026-10-14 12:00:00', 2),
+            $this->venteDeLaSession($venteB, $sessionPoste, '2026-10-14 20:00:00', 1),
+            $this->operationDatee('sessions_caisse', 'modification', $sessionPoste, [
+                'date_cloture' => '2026-10-14 22:00:00',
+                'montant_constate_centimes' => 1300000,
+                'montant_theorique_centimes' => 1300000,
+                'montant_fond_centimes' => 1000000,
+                'date_ouverture' => '2026-10-14 07:00:00',
+            ], '2026-10-14T22:00:00+00:00'),
+        ], $this->barman);
+
+        $reponse->assertJsonPath('resultats.0.statut', 'rejete')
+            ->assertJsonPath('resultats.0.motif', __('pos_pwa.comptant.refus_caisse_deja_ouverte'))
+            ->assertJsonPath('resultats.1.statut', 'synchronise')
+            ->assertJsonPath('resultats.1.anomalies', [AnomalieSynchronisation::VENTE_SESSION_INCONNUE])
+            ->assertJsonPath('resultats.2.statut', 'synchronise')
+            ->assertJsonPath('resultats.2.anomalies', [AnomalieSynchronisation::VENTE_SESSION_INCONNUE])
+            ->assertJsonPath('resultats.3.statut', 'cloture_sans_session_serveur');
+
+        // Les ventes existent, sans session (inconnue), avec leurs pièces.
+        $this->assertSame([null, null], [Vente::findOrFail($venteA)->session_id, Vente::findOrFail($venteB)->session_id]);
+        $this->assertSame('3000.00', bcadd((string) Vente::findOrFail($venteA)->montant_total, (string) Vente::findOrFail($venteB)->montant_total, 2));
+
+        // La caisse du serveur est intacte : toujours ouverte, seule session.
+        $this->assertSame(1, SessionCaisse::count());
+        $this->assertNull($serveur->fresh()->date_cloture);
+        $this->assertNull(SessionCaisse::find($sessionPoste));
+
+        $this->assertDatabaseHas('anomalies_synchronisation', [
+            'table_concernee' => 'sessions_caisse', 'entite_id' => $sessionPoste,
+            'type' => AnomalieSynchronisation::CLOTURE_SESSION_INCONNUE, 'valeur_poste' => '13000.00',
+        ]);
+        // Le lot n'est pas un échec : seule l'ouverture est refusée.
+        $this->assertDatabaseHas('sessions_synchronisation', ['id' => $reponse->json('session_id'), 'statut' => 'partiel']);
+    }
+
+    /**
+     * Le poste ne sait pas toujours si le serveur connaît sa session : il
+     * peut rappeler l'ouverture dans sa clôture. Session connue, rappel
+     * conforme → la clôture passe ; rappel DIFFÉRENT → refusé (voir
+     * `une_cloture_ne_transmet_que_ses_champs`).
+     */
+    #[Test]
+    public function une_cloture_qui_rappelle_l_ouverture_conforme_passe(): void
+    {
+        $id = $this->uuid();
+        $this->pousser([$this->ouverture($id, '2026-10-14 07:00:00', 1000000)], $this->barman);
+
+        $this->pousser([$this->operationDatee('sessions_caisse', 'modification', $id, [
+            'date_cloture' => '2026-10-14 22:00:00', 'montant_constate_centimes' => 1000000,
+            'montant_fond_centimes' => 1000000, 'date_ouverture' => '2026-10-14 07:00:00', 'point_vente' => 'bar',
+        ], '2026-10-14T22:00:00+00:00')], $this->barman)
+            ->assertJsonPath('resultats.0.statut', 'synchronise')
+            ->assertJsonPath('resultats.0.statut_caisse', 'cloturee');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function venteDeLaSession(string $id, string $session, string $cloture, int $bieres): array
+    {
+        return $this->operationDatee('ventes', 'creation', $id, [
+            'type_vente' => 'comptant',
+            'mode_paiement' => 'especes',
+            'session_encaissement_id' => $session,
+            'cloture_le' => $cloture,
+            'point_vente' => 'Bar',
+            'lignes' => [[
+                'module_source' => 'M5', 'code_article' => $this->biere->id,
+                'prix_unitaire' => 1000, 'quantite' => $bieres,
+            ]],
+        ], str_replace(' ', 'T', $cloture) . '+00:00');
     }
 
     /**

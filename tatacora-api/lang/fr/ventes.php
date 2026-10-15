@@ -39,6 +39,10 @@ return [
 
     'motif_annulation_stock' => 'Annulation vente :numero',
 
+    // Vente synchronisée d'un plat sans composition (décision PO du 15/10/2026) :
+    // la vente est gardée, la déduction de cette ligne est écartée et signalée.
+    'stock_non_sorti_plat_sans_composition' => 'Stock non sorti : le plat « :plat » n\'a aucune composition '
+        . '(fiche technique vide, aucun article lié). Complétez sa fiche et régularisez le stock de cuisine.',
     'stock_deja_sorti_commande' => 'Stock déjà sorti à la transmission en cuisine '
         .'(commande :commande) : la vente ne le déduit pas une seconde fois.',
 

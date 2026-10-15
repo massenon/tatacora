@@ -30,13 +30,20 @@ use Illuminate\Database\Eloquent\Model;
  * crée de point côté serveur : la requête de règles et le service sont nés
  * avec ce lot.
  *
- * ## Modification refusée
+ * ## Modification : acceptée, dernier écrit gagnant
  *
- * Renommer un point hors connexion renommerait, pour tous les postes, le lieu
- * où le stock de chaque article est compté — le serveur en est maître.
+ * Décision du Product Owner du 15/10/2026, qui REMPLACE le refus du lot S2
+ * (« le serveur est maître, modification refusée » ne vaut plus).
+ * Par `ReferentielPointStockageService::modifier()` (né de
+ * cette décision), règles d'`EnregistrerPointStockageRequest` sur les seuls
+ * champs présents. Un point ne s'archive pas.
  */
 final class GestionnairePointsStockage extends GestionnaireReferentielAbstrait
 {
+    protected const REQUETE = EnregistrerPointStockageRequest::class;
+
+    protected const PARAMETRE_ROUTE = 'point';
+
     public function __construct(
         private readonly ReferentielPointStockageService $referentiel,
         ResolveurCorrespondances $correspondances,
@@ -80,5 +87,16 @@ final class GestionnairePointsStockage extends GestionnaireReferentielAbstrait
     protected function ecrire(string $entiteId, array $donnees, ContexteSynchronisation $contexte): void
     {
         $this->referentiel->creer([...$donnees, 'id' => $entiteId]);
+    }
+
+    protected function trouver(string $entiteId): Model
+    {
+        return PointStockage::query()->lockForUpdate()->findOrFail($entiteId);
+    }
+
+    protected function ecrireModification(Model $element, array $donnees, ContexteSynchronisation $contexte): void
+    {
+        /** @var PointStockage $element */
+        $this->referentiel->modifier($element, $donnees);
     }
 }

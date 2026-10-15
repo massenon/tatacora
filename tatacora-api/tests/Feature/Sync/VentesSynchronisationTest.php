@@ -9,10 +9,14 @@ use App\Domain\Caisse\Services\SessionCaisseService;
 use App\Domain\Comptabilite\Models\CompteComptable;
 use App\Domain\Comptabilite\Models\EcritureComptable;
 use App\Domain\Comptabilite\Models\JournalComptable;
+use App\Domain\Restaurant\Exceptions\RecetteManquanteException;
 use App\Domain\Restaurant\Models\CommandeRestaurant;
+use App\Domain\Restaurant\Models\Plat;
+use App\Domain\Restaurant\Models\Recette;
 use App\Domain\Stocks\Models\MouvementStock;
 use App\Domain\Ventes\Models\LigneVente;
 use App\Domain\Ventes\Models\Vente;
+use App\Domain\Ventes\Services\VenteService;
 use App\Models\User;
 use App\Shared\Sync\Models\AnomalieSynchronisation;
 use App\Shared\Sync\Models\CorrespondanceSynchronisation;
@@ -157,6 +161,64 @@ final class VentesSynchronisationTest extends TestCase
         $sortie = MouvementStock::where('article_id', $this->articleRiz->id)->where('type_mouvement', 'sortie')->sole();
         $this->assertSame('0.50', (string) $sortie->quantite);
         $this->assertSame($this->cuisine->id, $sortie->point_id);
+    }
+
+    /**
+     * Décision du PO du 15/10/2026 : un plat SANS composition (fiche vide,
+     * aucun lien direct) ne fait pas rejeter une vente synchronisée. La vente
+     * est écrite, ses autres lignes sortent leur stock, la ligne fautive n'en
+     * sort aucun et l'anomalie `plat_sans_composition` est enregistrée — une
+     * seule fois, même au rejeu. En ligne, la même vente reste refusée.
+     */
+    #[Test]
+    public function un_plat_sans_composition_ne_fait_pas_rejeter_la_vente_mais_est_signale(): void
+    {
+        $ficheVide = Recette::create(['libelle' => 'Salade du jour', 'cout_matiere_calcule' => '0.00']);
+        $salade = Plat::create([
+            'menu_id' => $this->platRiz->menu_id, 'recette_id' => $ficheVide->id,
+            'libelle' => 'Salade du jour', 'prix_vente' => '1500.00',
+        ]);
+        $id = $this->uuid();
+        $operation = $this->vente($id, [
+            $this->lignePlat(2),
+            ['module_source' => 'M4', 'code_article' => $salade->id, 'prix_unitaire' => 1500, 'quantite' => 3],
+            $this->ligneBiere(1),
+        ]);
+
+        $this->pousser([$operation], $this->gerant)
+            ->assertJsonPath('resultats.0.statut', 'synchronise')
+            ->assertJsonPath('resultats.0.montant_total', '10500.00')
+            ->assertJsonPath('resultats.0.anomalies', [AnomalieSynchronisation::PLAT_SANS_COMPOSITION]);
+
+        $vente = Vente::findOrFail($id);
+        $this->assertSame(3, $vente->lignes()->count());
+        // `assertEquals` : une colonne JSON ne garde pas l'ordre des clés.
+        $this->assertEquals([[
+            'ligne' => 'Salade du jour', 'module' => 'M4',
+            'motif' => __('ventes.stock_non_sorti_plat_sans_composition', ['plat' => 'Salade du jour']),
+            'cause' => 'plat_sans_composition', 'plat_id' => $salade->id, 'quantite' => 3,
+        ]], $vente->stock_non_impacte);
+        // Les autres lignes ont sorti leur stock.
+        $this->assertSame('0.50', (string) MouvementStock::where('article_id', $this->articleRiz->id)->where('type_mouvement', 'sortie')->sole()->quantite);
+        $this->assertSame(1, $this->nombreDeMouvements($this->articleBiere->id, 'sortie'));
+        $this->assertDatabaseHas('anomalies_synchronisation', [
+            'table_concernee' => 'ventes', 'entite_id' => $id,
+            'type' => AnomalieSynchronisation::PLAT_SANS_COMPOSITION, 'reference' => $salade->id,
+        ]);
+
+        // Rejeu après purge : même document, aucune seconde anomalie.
+        $this->purgerLaMemoireDIdempotence();
+        $this->pousser([$this->nouvelleTentative($operation)], $this->gerant)
+            ->assertJsonPath('resultats.0.document_deja_enregistre', true);
+        $this->assertSame(1, AnomalieSynchronisation::where('type', AnomalieSynchronisation::PLAT_SANS_COMPOSITION)->count());
+
+        // En ligne (sans `sansBonDeCuisine`), rien ne change : refusée.
+        $this->expectException(RecetteManquanteException::class);
+        $this->actingAs($this->gerant);
+        app(VenteService::class)->enregistrer([
+            'mode_paiement' => 'especes',
+            'lignes' => [['module' => 'M4', 'reference_id' => $salade->id, 'quantite' => 1]],
+        ]);
     }
 
     #[Test]

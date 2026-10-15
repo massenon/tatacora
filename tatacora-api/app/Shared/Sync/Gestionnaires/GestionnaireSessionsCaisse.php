@@ -11,6 +11,8 @@ use App\Shared\Sync\Services\ResolveurCorrespondances;
 use App\Shared\Sync\Services\SignalementAnomalies;
 use App\Shared\Sync\Support\ContexteSynchronisation;
 use App\Shared\Sync\Support\EcritureSynchronisee;
+use Carbon\Exceptions\InvalidFormatException;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use RuntimeException;
 
@@ -52,6 +54,15 @@ use RuntimeException;
  * désormais que la dernière écriture est celle du MÊME poste
  * (`SynchronisationService::derniereEcritureEstDuPoste`) : la clôture passe.
  *
+ * ## Clôture d'une session inconnue : jamais bloquée (décision PO du 15/10/2026)
+ *
+ * Ouverture refusée par le serveur (caisse déjà ouverte sur ce point) ou
+ * jamais reçue : le poste a quand même tenu et fermé son tiroir. Sa clôture
+ * est ACCEPTÉE en `cloture_sans_session_serveur` — rien n'est écrit qu'une
+ * anomalie `cloture_session_inconnue` portant ses chiffres
+ * (`modificationSurInconnu()`). Les ventes de cette session ont été
+ * enregistrées et signalées (`vente_session_inconnue`, `GestionnaireVentes`).
+ *
  * ## Rejeu
  *
  * Ouverture rejouée → la session existante (`reprendreExistant`). Clôture
@@ -62,6 +73,16 @@ final class GestionnaireSessionsCaisse extends GestionnaireDocumentAbstrait
 {
     /** Les seuls champs qu'une clôture transmet. */
     public const CHAMPS_CLOTURE = ['date_cloture', 'montant_constate_centimes', 'montant_theorique_centimes'];
+
+    /**
+     * Champs d'OUVERTURE qu'une clôture peut rappeler, à titre d'information
+     * (décision PO du 15/10/2026) : le poste ne sait pas toujours si le
+     * serveur connaît sa session, il les joint donc à sa clôture. Session
+     * inconnue → ils vont dans l'anomalie `cloture_session_inconnue` ;
+     * session connue → acceptés s'ils sont CEUX du serveur, refusés sinon
+     * (le fond ou l'ouverture d'un tiroir ne se réécrivent pas).
+     */
+    public const CHAMPS_RAPPEL_OUVERTURE = ['point_vente', 'date_ouverture', 'montant_fond_centimes'];
 
     public function __construct(
         private readonly SessionCaisseService $caisses,
@@ -117,8 +138,67 @@ final class GestionnaireSessionsCaisse extends GestionnaireDocumentAbstrait
         return $this->resultat($entiteId);
     }
 
+    /**
+     * Clôture d'une session que le serveur ne connaît pas — décision du
+     * Product Owner du 15/10/2026 : une clôture n'est JAMAIS bloquée.
+     *
+     * Le serveur a refusé l'ouverture du poste (une caisse était déjà
+     * ouverte sur ce point) ou ne l'a jamais reçue ; le poste, lui, a ouvert,
+     * vendu et clôturé son tiroir. Rien n'est écrit — aucune session, aucune
+     * pièce : le serveur n'a pas de tiroir à fermer — sauf l'anomalie
+     * `cloture_session_inconnue`, qui porte les chiffres du poste (fond,
+     * théorique, constaté, dates) pour la reprise à la main. Le poste reçoit
+     * `cloture_sans_session_serveur` : ce n'est PAS une erreur, il retire
+     * l'opération de sa file. Rejouée, elle rend le même résultat sans
+     * second signalement (anomalie unique par session).
+     */
+    public function modificationSurInconnu(string $entiteId, array $payload, ContexteSynchronisation $contexte): ?EcritureSynchronisee
+    {
+        $donnees = $this->validerForme($payload, [
+            'date_cloture' => ['required', 'date'],
+            'montant_constate_centimes' => ['required', 'integer', 'min:0'],
+            'montant_theorique_centimes' => ['nullable', 'integer', 'min:0'],
+            'montant_fond_centimes' => ['nullable', 'integer', 'min:0'],
+            'date_ouverture' => ['nullable', 'date'],
+            'point_vente' => ['nullable', 'string', 'max:50'],
+        ]);
+
+        $centiemes = fn (string $champ): ?string => isset($donnees[$champ]) ? $this->centiemes((int) $donnees[$champ]) : null;
+        $date = static fn (string $champ): ?string => isset($donnees[$champ])
+            ? Carbon::parse((string) $donnees[$champ])->format('Y-m-d H:i:s')
+            : null;
+
+        $this->anomalies->signaler(
+            $contexte,
+            $this->table(),
+            $entiteId,
+            AnomalieSynchronisation::CLOTURE_SESSION_INCONNUE,
+            valeurPoste: $centiemes('montant_constate_centimes'),
+            details: [
+                'point_vente' => $donnees['point_vente'] ?? null,
+                'date_ouverture' => $date('date_ouverture'),
+                'date_cloture' => $date('date_cloture'),
+                'montant_fond' => $centiemes('montant_fond_centimes'),
+                'montant_theorique_poste' => $centiemes('montant_theorique_centimes'),
+                'montant_constate' => $centiemes('montant_constate_centimes'),
+            ],
+        );
+
+        return new EcritureSynchronisee(
+            $entiteId,
+            complements: [
+                'statut_caisse' => 'cloturee_sur_le_poste',
+                'anomalies' => [AnomalieSynchronisation::CLOTURE_SESSION_INCONNUE],
+            ],
+            statut: EcritureSynchronisee::CLOTURE_SANS_SESSION_SERVEUR,
+        );
+    }
+
     public function modifier(string $entiteId, array $payload, ContexteSynchronisation $contexte): EcritureSynchronisee
     {
+        $session = SessionCaisse::query()->findOrFail($entiteId);
+        $payload = $this->sansRappelsConformes($session, $payload);
+
         $etrangers = array_diff(array_keys($payload), self::CHAMPS_CLOTURE);
 
         if ($etrangers !== []) {
@@ -133,7 +213,6 @@ final class GestionnaireSessionsCaisse extends GestionnaireDocumentAbstrait
             'montant_theorique_centimes' => ['nullable', 'integer', 'min:0'],
         ]);
 
-        $session = SessionCaisse::query()->findOrFail($entiteId);
         $date = $this->dateDuDocument($donnees['date_cloture'], $contexte);
         $constate = $this->centiemes((int) $donnees['montant_constate_centimes']);
 
@@ -167,6 +246,37 @@ final class GestionnaireSessionsCaisse extends GestionnaireDocumentAbstrait
         }
 
         return $this->resultat($entiteId);
+    }
+
+    /**
+     * Retire les rappels d'ouverture qui disent ce que le serveur sait déjà ;
+     * un rappel DIFFÉRENT reste, et sera refusé comme champ non modifiable.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private function sansRappelsConformes(SessionCaisse $session, array $payload): array
+    {
+        $conformes = [
+            'point_vente' => static fn (mixed $v): bool => $v === $session->point_vente,
+            'date_ouverture' => static function (mixed $v) use ($session): bool {
+                try {
+                    return is_string($v) && Carbon::parse($v)->equalTo($session->date_ouverture);
+                } catch (InvalidFormatException) {
+                    return false;
+                }
+            },
+            'montant_fond_centimes' => fn (mixed $v): bool => is_int($v)
+                && bccomp($this->centiemes($v), (string) $session->montant_fond, 2) === 0,
+        ];
+
+        foreach ($conformes as $champ => $estConforme) {
+            if (array_key_exists($champ, $payload) && $estConforme($payload[$champ])) {
+                unset($payload[$champ]);
+            }
+        }
+
+        return $payload;
     }
 
     protected function resultat(string $entiteId): EcritureSynchronisee

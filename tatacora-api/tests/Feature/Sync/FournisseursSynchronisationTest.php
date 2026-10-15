@@ -264,12 +264,20 @@ final class FournisseursSynchronisationTest extends TestCase
         $this->assertSame('excellent', $fiche->evaluation);
         $this->assertSame($this->acheteur->id, $fiche->utilisateur_modification_id);
 
-        // Même règle que `PUT /achats/fournisseurs/{id}` : la raison sociale
-        // est obligatoire sur une fiche modifiée.
+        // Payload PARTIEL depuis la décision PO du 15/10/2026 : un champ
+        // absent garde sa valeur (la raison sociale n'est plus à renvoyer)...
         $this->synchroniser([$this->operation('modification', $serveur->id, ['contact' => 'Autre'], now()->addMinute())])
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertSame(['Autre', 'Ferme Avicole', 'excellent'], [
+            $serveur->fresh()->contact, $serveur->fresh()->raison_sociale, $serveur->fresh()->evaluation,
+        ]);
+
+        // ... mais un champ PRÉSENT suit la règle de `PUT /achats/fournisseurs/{id}` :
+        // la raison sociale ne s'efface pas.
+        $this->synchroniser([$this->operation('modification', $serveur->id, ['raison_sociale' => '', 'contact' => 'X'], now()->addMinutes(2))])
             ->assertJsonPath('resultats.0.statut', 'rejete')
             ->assertJsonPath('resultats.0.motif', __('achats.validation.raison_sociale_obligatoire'));
-        $this->assertSame('M. Dossou', $serveur->fresh()->contact);
+        $this->assertSame('Autre', $serveur->fresh()->contact);
     }
 
     // ------------------------------------------------------------ Archivage par `actif`

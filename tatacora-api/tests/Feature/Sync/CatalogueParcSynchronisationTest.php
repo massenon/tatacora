@@ -106,22 +106,34 @@ final class CatalogueParcSynchronisationTest extends TestCase
         $this->assertSame([$categorie->id, 'hors_service'], [$serveur->fresh()->categorie_id, $serveur->fresh()->statut]);
     }
 
+    /**
+     * Adapté le 15/10/2026 (décision PO « offline-first total ») : la
+     * modification du parc n'est plus refusée par principe — elle l'est SANS
+     * le droit d'écriture sur M1, et appliquée par le service avec lui.
+     */
     #[Test]
-    public function sans_ecriture_sur_m1_le_parc_ne_remonte_pas_et_ne_se_modifie_jamais(): void
+    public function sans_ecriture_sur_m1_le_parc_ne_remonte_pas_et_ne_se_modifie_pas(): void
     {
         $categorie = CategorieHebergement::create(['libelle' => 'Chambre', 'capacite_max' => 2, 'tarif_base' => '20000.00']);
 
         // `cuisine` : M1 = '-' ; `comptable` : M1 = 'L'.
         foreach (['cuisine', 'comptable'] as $role) {
-            $this->pousser([$this->creation('unites_hebergement', $this->uuid(), ['numero' => 'X-' . $role, 'categorie_id' => $categorie->id])], $this->creerUtilisateur($role))
-                ->assertJsonPath('resultats.0.motif', __('auth.module_refuse'));
+            $this->pousser([
+                $this->creation('unites_hebergement', $this->uuid(), ['numero' => 'X-' . $role, 'categorie_id' => $categorie->id]),
+                $this->operation('categories_hebergement', 'modification', $categorie->id, ['tarif_base' => 1]),
+            ], $this->creerUtilisateur($role))
+                ->assertJsonPath('resultats.0.motif', __('auth.module_refuse'))
+                ->assertJsonPath('resultats.1.motif', __('auth.module_refuse'));
         }
-
-        $this->pousser([$this->operation('categories_hebergement', 'modification', $categorie->id, ['tarif_base' => 1])], $this->receptionniste)
-            ->assertJsonPath('resultats.0.motif', __('sync.modification_non_synchronisable'));
 
         $this->assertSame(0, UniteHebergement::count());
         $this->assertSame('20000.00', (string) $categorie->fresh()->tarif_base);
+
+        // Avec le droit : appliquée, partielle — la capacité ne bouge pas.
+        $this->pousser([$this->operation('categories_hebergement', 'modification', $categorie->id, ['tarif_base' => 25000])], $this->receptionniste)
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+
+        $this->assertSame(['25000.00', 2], [(string) $categorie->fresh()->tarif_base, (int) $categorie->fresh()->capacite_max]);
     }
 
     // ---------------------------------------------------------- Centres de coût

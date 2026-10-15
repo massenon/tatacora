@@ -34,14 +34,23 @@ use Illuminate\Database\Eloquent\Model;
  *
  * ## Module M1, niveau C — celui de l'écran PWA Hébergement (`MODULE = 'M1'`).
  *
- * ## Modification refusée
+ * ## Modification : acceptée, dernier écrit gagnant
  *
- * Le tarif de base d'une catégorie est le prix proposé à chaque réservation
- * de tous les postes ; le changer hors connexion, en dernier écrit gagnant,
- * laisserait un poste resté hors ligne rétablir un ancien tarif.
+ * Décision du Product Owner du 15/10/2026, qui REMPLACE le refus du lot S2
+ * (« le serveur est maître, modification refusée » ne vaut plus).
+ * Par `ParcHebergementService::modifierCategorie()`, règles
+ * d'`EnregistrerCategorieHebergementRequest` sur les seuls champs présents —
+ * unicité du libellé COMPRISE (hors la catégorie elle-même) : renommer en un
+ * libellé déjà pris est refusé avec la phrase de l'écran. Le poste resté hors
+ * ligne qui rétablirait un ancien tarif perd l'arbitrage sur l'horodatage de
+ * saisie. Une catégorie ne s'archive pas.
  */
 final class GestionnaireCategoriesHebergement extends GestionnaireReferentielAbstrait
 {
+    protected const REQUETE = EnregistrerCategorieHebergementRequest::class;
+
+    protected const PARAMETRE_ROUTE = 'categorie';
+
     public function __construct(
         private readonly ParcHebergementService $parc,
         ResolveurCorrespondances $correspondances,
@@ -85,5 +94,16 @@ final class GestionnaireCategoriesHebergement extends GestionnaireReferentielAbs
     protected function ecrire(string $entiteId, array $donnees, ContexteSynchronisation $contexte): void
     {
         $this->parc->creerCategorie([...$donnees, 'id' => $entiteId]);
+    }
+
+    protected function trouver(string $entiteId): Model
+    {
+        return CategorieHebergement::query()->lockForUpdate()->findOrFail($entiteId);
+    }
+
+    protected function ecrireModification(Model $element, array $donnees, ContexteSynchronisation $contexte): void
+    {
+        /** @var CategorieHebergement $element */
+        $this->parc->modifierCategorie($element, $donnees);
     }
 }

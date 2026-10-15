@@ -51,13 +51,25 @@ use Illuminate\Validation\ValidationException;
  *
  * ## Module M4, niveau C — celui de `POST /restaurant/recettes`.
  *
- * ## Modification refusée
+ * ## Modification : acceptée, dernier écrit gagnant
  *
- * Une composition modifiée change la déduction de stock de chaque plat
- * vendu, sur tous les postes. Le serveur est maître.
+ * Décision du Product Owner du 15/10/2026, qui REMPLACE le refus du lot S2
+ * (« le serveur est maître, modification refusée » ne vaut plus). L'en-tête
+ * par `ReferentielRecetteService::modifier()` (règles de modification
+ * d'`EnregistrerRecetteRequest`, coût matière INTERDIT) ; la composition,
+ * si `lignes` est présent, REMPLACÉE en entier par
+ * `CompositionRecetteService::remplacerComposition()` — les mêmes règles que
+ * `PUT /restaurant/recettes/{recette}/composition`, articles traduits par les
+ * correspondances. Une composition reçue d'un poste plus ancien que la
+ * dernière appliquée perd l'arbitrage (horodatage de saisie). Une fiche ne
+ * s'archive pas.
  */
 final class GestionnaireRecettes extends GestionnaireReferentielAbstrait
 {
+    protected const REQUETE = EnregistrerRecetteRequest::class;
+
+    protected const PARAMETRE_ROUTE = 'recette';
+
     public function __construct(
         private readonly ReferentielRecetteService $referentiel,
         private readonly CompositionRecetteService $compositions,
@@ -117,6 +129,46 @@ final class GestionnaireRecettes extends GestionnaireReferentielAbstrait
 
         if ($lignes !== null) {
             $this->compositions->remplacerComposition($recette, $lignes);
+        }
+    }
+
+    protected function trouver(string $entiteId): Model
+    {
+        return Recette::query()->lockForUpdate()->findOrFail($entiteId);
+    }
+
+    protected function validerModification(Model $element, array $payload): array
+    {
+        $avecLignes = array_key_exists('lignes', $payload);
+        $lignes = $payload['lignes'] ?? null;
+        unset($payload['lignes']);
+
+        $donnees = $this->validerPartiel(
+            $element,
+            $payload,
+            $this->reglesDeLApi(EnregistrerRecetteRequest::class, 'recette', $element),
+            EnregistrerRecetteRequest::class,
+        );
+
+        if ($avecLignes) {
+            $donnees['lignes'] = $this->validerComposition($lignes);
+        }
+
+        return $donnees;
+    }
+
+    protected function ecrireModification(Model $element, array $donnees, ContexteSynchronisation $contexte): void
+    {
+        /** @var Recette $element */
+        $lignes = $donnees['lignes'] ?? null;
+        unset($donnees['lignes']);
+
+        if ($donnees !== []) {
+            $this->referentiel->modifier($element, $donnees);
+        }
+
+        if ($lignes !== null) {
+            $this->compositions->remplacerComposition($element, $lignes);
         }
     }
 
