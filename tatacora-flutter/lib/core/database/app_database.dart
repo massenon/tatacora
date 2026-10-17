@@ -17,6 +17,7 @@ import 'declencheurs_comptables.dart';
 import 'tables/clients_table.dart';
 import 'tables/comptabilite_tables.dart';
 import 'tables/depenses_tables.dart';
+import 'tables/descente_sync_tables.dart';
 import 'tables/facturation_tables.dart';
 import 'tables/hebergement_tables.dart';
 import 'tables/messages_editeur_tables.dart';
@@ -187,6 +188,14 @@ part 'app_database.g.dart';
     // table NEUVE. Aucune table existante n'est touchée, rien n'est semé. Seul
     // auteur : `OperationsSyncDao` (voir `tables/operations_sync_tables.dart`).
     OperationsSyncLocal,
+
+    // v27 (15/10/2026) — LA DESCENTE DU CATALOGUE (lot F2b) : DEUX tables
+    // NEUVES, l'état de la synchronisation (clé/valeur : curseur, repli,
+    // éléments à rejouer) et les correspondances identifiant serveur →
+    // identifiant local. Aucune table existante n'est touchée, rien n'est
+    // semé. Qui écrit, qui lit : voir `tables/descente_sync_tables.dart`.
+    EtatSynchronisationLocal,
+    CorrespondancesSyncLocal,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -337,8 +346,15 @@ class AppDatabase extends _$AppDatabase {
   /// synchronisée y dépose, dans SA transaction, le document source au
   /// contrat du serveur. Qui écrit, qui lit, qui descend : voir
   /// `tables/operations_sync_tables.dart`.
+  ///
+  /// v27 (15/10/2026) — LA DESCENTE DU CATALOGUE (lot F2b) : deux tables
+  /// neuves (`etat_synchronisation_local`, `correspondances_sync_local`, 58 ->
+  /// 60 tables), aucune colonne ajoutée. Le catalogue du serveur descend sur
+  /// le poste par `GET /referentiels` ; le curseur, le repli de la descente et
+  /// les correspondances d'identifiants y vivent. Qui écrit, qui lit : voir
+  /// `tables/descente_sync_tables.dart`.
   @override
-  int get schemaVersion => 26;
+  int get schemaVersion => 27;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -964,6 +980,21 @@ class AppDatabase extends _$AppDatabase {
               .get();
           if (present.isEmpty) await m.createIndex(index);
         }
+      }
+
+      if (from < 27) {
+        // LA DESCENTE DU CATALOGUE (15/10/2026, lot F2b). Deux tables NEUVES,
+        // sans index déclaré : aucune table existante n'est touchée, AUCUNE
+        // ligne n'est fabriquée — sans curseur, la première descente part du
+        // début du catalogue serveur, ce qui est exact pour un poste qui n'a
+        // jamais rien reçu ; sans correspondance, chaque identifiant serveur
+        // est pris tel quel, et la file (`fusionne_avec`) puis le flux du
+        // serveur les rétablissent à la première descente. `createTable` crée
+        // la définition COURANTE, exacte ici puisqu'aucune version ultérieure
+        // n'a modifié ces tables (le jour où une v28 y ajoutera une colonne,
+        // elle devra la tester avant `addColumn` — piège 3).
+        await m.createTable(etatSynchronisationLocal);
+        await m.createTable(correspondancesSyncLocal);
       }
     },
 

@@ -1136,6 +1136,13 @@ void main() {
         if (chemin.endsWith('features/restaurant/data/restaurant_dao.dart')) {
           continue;
         }
+        // Le SECOND auteur, déclaré (lot F2b, 15/10/2026) : la DESCENTE du
+        // catalogue serveur, qui n'enfile jamais (descente_catalogue_test).
+        if (chemin.endsWith(
+          'features/synchronisation/data/aligneur_catalogue.dart',
+        )) {
+          continue;
+        }
         final texte = f
             .readAsLinesSync()
             .where((l) => !l.trimLeft().startsWith('//'))

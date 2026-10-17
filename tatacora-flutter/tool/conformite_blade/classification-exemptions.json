@@ -58,6 +58,11 @@
       "classe": "d",
       "motif": "Comptes utilisateurs (Lot J2) : decision du Product Owner du 14/10/2026. La PWA n'a AUCUN ecran de gestion des comptes (ni composant app/Pwa, ni vue, ni route pwa.*) ; sur ce poste sans serveur, c'est le seul endroit ou un administrateur cree, desactive ou reinitialise un compte. Reserve aux roles d'administration (rolesExiges), entree de menu declaree comme ajout dans test/support/ajouts_menu_poste.dart.",
       "date": "2026-10-14"
+    },
+    "features/synchronisation/presentation/ecran_synchronisation.dart": {
+      "classe": "d",
+      "motif": "Synchronisation (lot F2b) : decision du Product Owner du 15/10/2026 (offline-first total, la synchronisation est une tache de fond du poste). La PWA parle au serveur en direct et n'a ni file d'envoi ni catalogue descendu : aucune vue ne porte cet ecran. Il montre la file (compteurs par statut), la derniere descente du catalogue, les operations rejetees, en conflit ou bloquees (Renvoyer et Debloquer reserves aux Administrateurs) et les signalements du serveur. Hors menu : atteint par le lien de Parametres > Synchronisation, route gardee par le module Parametres.",
+      "date": "2026-10-15"
     }
   }
 }

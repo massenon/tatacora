@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/di/providers.dart';
 import '../../../transverse/domain/comptes_utilisateurs.dart';
@@ -34,6 +35,10 @@ abstract final class TextesOngletSynchronisation {
   static const tester = 'Tester la connexion';
   static const dissocier = 'Dissocier';
   static const synchroniser = 'Synchroniser maintenant';
+  static const voirEcran = 'Voir la synchronisation';
+  static const aideEcran =
+      'La file d\'envoi, le catalogue reçu du serveur et les opérations à '
+      'traiter sont détaillés sur l\'écran de synchronisation.';
   static const nonAppaire = 'Ce poste n’est pas appairé au serveur.';
   static String appaire(AppairagePoste a) =>
       'Appairé à ${a.serveur} — poste « ${a.posteId} », compte '
@@ -143,13 +148,39 @@ class _OngletSynchronisationState extends ConsumerState<OngletSynchronisation> {
     }
   }
 
+  /// Le lien vers l'écran de synchronisation (lot F2b) — offert à qui voit
+  /// l'onglet, administrateur ou non : l'écran se LIT avec le droit sur
+  /// Paramètres, ses gestes restent réservés aux Administrateurs.
+  Widget _lienEcran(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      _ligne(
+        TextesOngletSynchronisation.aideEcran,
+        const Key('sync-aide-ecran'),
+      ),
+      const SizedBox(height: AppSpacing.xs),
+      BoutonStandard(
+        key: const Key('sync-ouvrir-ecran'),
+        libelle: TextesOngletSynchronisation.voirEcran,
+        onPressed: () => context.go('/synchronisation'),
+      ),
+    ],
+  );
+
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(sessionProvider);
     if (!peutAdministrerComptes(session?.role)) {
-      return _ligne(
-        TextesOngletSynchronisation.reserveAdministrateurs,
-        const Key('sync-reserve'),
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _ligne(
+            TextesOngletSynchronisation.reserveAdministrateurs,
+            const Key('sync-reserve'),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          _lienEcran(context),
+        ],
       );
     }
     if (ref.watch(synchronisationInterditeProvider) ||
@@ -248,11 +279,13 @@ class _OngletSynchronisationState extends ConsumerState<OngletSynchronisation> {
                         final bilan = await ref
                             .read(syncManagerProvider)
                             .synchroniserMaintenant();
+                        final descente = bilan.descente;
                         return (
                           '${bilan.etat.libelle} Envoyées : '
                               '${bilan.envoyees} (synchronisées '
                               '${bilan.synchronisees}, refusées '
-                              '${bilan.rejetees}, conflits ${bilan.conflits}).',
+                              '${bilan.rejetees}, conflits ${bilan.conflits}).'
+                              '${descente == null ? '' : ' ${descente.etat.libelle}'}',
                           bilan.rejetees > 0 || bilan.conflits > 0,
                         );
                       }),
@@ -272,6 +305,8 @@ class _OngletSynchronisationState extends ConsumerState<OngletSynchronisation> {
             ],
           ],
         ),
+        const SizedBox(height: AppSpacing.md),
+        _lienEcran(context),
         if (_message != null) ...[
           const SizedBox(height: AppSpacing.md),
           Text(

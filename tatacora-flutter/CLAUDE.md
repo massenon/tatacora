@@ -301,9 +301,8 @@ documents SOURCES, jamais une écriture (D246) ; il crée ET modifie son catalog
   descendants (`aligner*`), le cycle des unités, l'envoi/clôture d'une commande,
   le rattrapage d'une dépense, le stock d'ouverture, tout ce qui précède la v26.
   Le mode démo n'enfile rien (`AppDatabase.fileSynchronisationActive`).
-- **Aucun écran ne lit la file** avant l'écran de synchronisation (F2b) :
-  n'annoncez aucune attente. Le moteur d'envoi existe depuis F2a (section
-  suivante). Piège rencontré : `m.createTable` ne crée PAS les
+- Depuis F2b, l'écran `/synchronisation` LIT la file (section F2b). Le
+  moteur d'envoi existe depuis F2a. Piège rencontré : `m.createTable` ne crée PAS les
   index `@TableIndex`, et un `CREATE INDEX` nu échoue sur un fichier rabaissé.
 
 ## Moteur d'envoi et appairage (lot F2a, 15/10/2026)
@@ -331,7 +330,8 @@ documents SOURCES, jamais une écriture (D246) ; il crée ET modifie son catalog
   l'opération fautive est `rejete`, et une opération suivante du même élément
   encore réclamée est rendue puis BLOQUÉE) ; 413 = taille ÷ 2 ; autre 4xx =
   `rejete` + alerte. Démonstration (`synchronisationInterditeProvider`) et poste
-  non appairé : aucune requête. File vide : aucune requête.
+  non appairé : aucune requête. File vide : aucun `POST` (depuis F2b, chaque passage
+  descend le catalogue : un `GET /referentiels`, sur son propre repli).
 - **Déclencheurs, chacun avec son appelant prouvé** : `main.dart` (après la
   première image) lit `synchronisationAutomatiqueProvider` (une fois + toutes
   les 5 min) ; `cloturerLaCaisse` appelle `declencheurSynchronisationProvider`
@@ -347,14 +347,67 @@ documents SOURCES, jamais une écriture (D246) ; il crée ET modifie son catalog
 - Production : `https://logirestock.digitonpro.com/api/v1`. Un appairage fait
   vers une autre adresse que celle du build rend `autreServeur`, rien ne part.
 
+## Descente du catalogue et écran de synchronisation (lot F2b, 15/10/2026)
+
+- **Schéma v27** (60 tables) : `etat_synchronisation_local` (clé/valeur :
+  `descente.curseur`, repli propre `descente.echecs`/`prochaine_tentative`,
+  bilan `descente.derniere`, éléments gardés `element_differe:<table>:<id>`,
+  et `operation_remplacee:<uuid>` écrit par `OperationsSyncDao.renvoyer`) et
+  `correspondances_sync_local` (table, id_serveur → id_local, origine
+  `flux`|`file`|`libelle`). Aucune clé primaire locale n'est réécrite.
+- **`DescenteCatalogue`** (`data/descente_catalogue.dart`), appelée par
+  `SyncManager` APRÈS l'envoi, sauf 401/403 ; son PROPRE repli (une descente
+  en échec ne retarde jamais un envoi, un envoi en échec n'empêche pas la
+  descente). `GET /referentiels?poste_id&depuis&limite` page après page ;
+  chaque page dans UNE transaction : correspondances, puis chaque élément dans
+  un point de sauvegarde (une ligne fautive est comptée refusée, la page
+  passe), puis le curseur — jamais avant. 422 = curseur oublié, reprise du
+  début. Les `fusionne_avec` de la file sont retenus en correspondances avant
+  chaque descente (le flux des correspondances n'arrive qu'en fin de
+  catalogue).
+- **`AligneurCatalogue`** : un écrivain par table, n'enfile JAMAIS (balayage
+  du source + compte de la file). Ligne locale avec une opération
+  `en_attente`/`en_cours`/`bloque` → CONSERVÉE, élément gardé ; repris quand
+  plus rien n'attend : appliqué si le serveur a gardé sa version
+  (`version_serveur_conservee`, rejet, fusion), oublié si la modification du
+  poste a été appliquée (la nouvelle version redescend). Homonyme local
+  (clé naturelle) non encore poussé → conservé (pas de doublon avant la
+  fusion). Dépendance absente → gardé, repris en boucle en fin de descente et
+  à la suivante. Conversions inverses de F1 par `entierDepuisDecimal` (chaîne,
+  jamais `double`) ; une fraction de franc est REFUSÉE. Archives : fournisseur
+  `actif`, unité `hors_service` (une unité existante ne reçoit que
+  l'archivage, son statut reste celui du cycle local) ; un ARTICLE archivé
+  reste (aucune archive locale), et le bilan le compte. Centres de coût :
+  reconnus par id puis libellé normalisé, jamais renommés, créés seulement
+  s'ils manquent. `cree_par` d'une création descendue = compte connecté, à
+  défaut le plus ancien administrateur actif (écart nommé ; sans compte, la
+  ligne attend).
+- **Bail** : `SyncManager` le PROLONGE avant chaque `POST /sync`
+  (`prolongerBail`) — une bissection longue n'est jamais reprise par un autre
+  processus.
+- **Écran `/synchronisation`** (`presentation/ecran_synchronisation.dart`,
+  ajout du PO déclaré dans `classification-exemptions.json`, hors menu, gardé
+  par Paramètres, lien depuis Paramètres → Synchronisation) : état, compteurs
+  par statut, dernière descente, « À traiter » paginé (rejetées, conflits,
+  bloquées ; « Renvoyer » = même document, même horodatage, NOUVEL uuid,
+  l'ancienne reste rejetée et marquée remplacée, la remplaçante passe devant
+  les bloquées ; « Débloquer » seulement quand les antérieures sont abouties ;
+  les deux réservés aux Administrateurs ; conflit = « arbitrage sur le
+  serveur »), signalements du serveur en français (registre relu de
+  `AnomalieSynchronisation`). « Synchronisé » ne se dit que du confirmé.
+- **Bout en bout** : `synchronisation_serveur_reel_test.dart` crée un
+  catalogue AU SERVEUR (`serveur_reel.php creer_catalogue`), le descend, et
+  rejoue le dernier écrit gagnant (`renommer`) contre une modification locale.
+
 ## Synchronisation — ⚠ HISTORIQUE, retirée par « zéro réseau »
 
 ⚠ **Vérifié le 12/10/2026 : `synchroniserMaintenant`, `DeclencheurSynchronisation`,
 `dioProvider` et `dioEnLigneProvider` n'existent plus dans `lib/`** (seules
 subsistent des mentions en commentaire). **Depuis le lot F2a (15/10/2026),
 `synchroniserMaintenant` existe de nouveau** — dans `SyncManager`, voir la
-section précédente ; il pousse la file et ne descend RIEN (le catalogue
-descendant est F2b). Le poste ne pousse ni ne descend rien.
+section F2a ; depuis F2b il pousse la file PUIS descend le catalogue
+(section F2b). La phrase « le poste ne pousse ni ne descend rien » est
+périmée.
 Cette section et les deux suivantes (« socle réseau », « écrans qui exigent le
 réseau ») décrivent l'état d'avant ; elles sont gardées pour leurs leçons, pas
 comme description du code.
@@ -557,8 +610,8 @@ Commandes non reformatés.
 
 **M6 Stocks est LOCAL depuis le 09/10/2026** (schéma v12, D115–D130 du ticket).
 Les trois tables de stock (`articles_local`, `points_stockage_local`,
-`mouvements_stock_local`) ont un seul auteur, `StocksDao` ; personne ne les
-descend. Stock, CMP et dernier prix d'achat ne sont jamais stockés : ils sont
+`mouvements_stock_local`) ont un seul auteur de SAISIE, `StocksDao` ; depuis F2b,
+points et articles DESCENDENT aussi (`AligneurCatalogue`, jamais enfilé). Stock, CMP et dernier prix d'achat ne sont jamais stockés : ils sont
 rejoués depuis les mouvements (`domain/calcul_stock.dart`, entiers). Un CMP sans
 entrée valorisée s'affiche « — », jamais 0 ; M11 dit « hors N article(s) sans
 coût ». ⚠ `MouvementsStockLocal.statutSync` a pour défaut

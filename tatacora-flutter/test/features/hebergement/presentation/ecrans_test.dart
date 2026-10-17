@@ -1037,33 +1037,9 @@ void main() {
       expect(find.textContaining('RG-01'), findsOneWidget);
     });
 
-    testWidgets('le mode « en suspens » ne liste plus rien, et DIT pourquoi', (
-      tester,
-    ) async {
-      // Deux réservations en base, dont une jadis « synchronisée » : sous
-      // l'ancien mode, la première aurait été listée comme « pas encore
-      // partie au serveur ». Le poste est zéro réseau depuis le 14/09/2026 —
-      // rien ne part plus, et `statut_sync` naît à `local` : les lister
-      // TOUTES sous ce titre serait l'indicateur qui affirme un état qu'il
-      // n'a pas vérifié (PA-59/60/61), appliqué au planning entier.
-      final a = await creerEnBase(p: periode(10, 12));
-      await creerEnBase(p: periode(20, 22), clientId: 'cli-dossou');
-      await ReservationDao(
-        db,
-      ).majStatutSync(a.id, StatutSynchronisation.synchronise);
-
-      await monter(tester, const EcranReservations(seulementEnSuspens: true));
-
-      // La route existe toujours (`app_router.dart`) : l'écran doit y
-      // répondre, et il répond par la raison — jamais par une liste, jamais
-      // par « Tout est synchronisé », qui affirmerait une synchronisation.
-      expect(
-        find.byKey(const Key('reservations-sans-synchronisation')),
-        findsOneWidget,
-      );
-      expect(find.text('DOSSOU Marie'), findsNothing);
-      expect(find.text('Comptoir'), findsNothing);
-    });
+    // Le mode « en suspens » (route `/synchronisation`) a disparu le
+    // 15/10/2026 (lot F2b) : la route sert l'ÉCRAN DE SYNCHRONISATION, qui
+    // lit la file d'envoi — `ecran_synchronisation_test.dart`.
 
     testWidgets('sans droit d’écriture, aucun bouton Annuler', (tester) async {
       final r = await creerEnBase(p: periode(10, 12));

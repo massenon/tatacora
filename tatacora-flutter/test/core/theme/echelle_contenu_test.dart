@@ -319,6 +319,10 @@ void main() {
     // le contenu de page — échelle EFFECTIVE. Ses modales sont dans
     // `modales_comptes.dart`, classé dans l'autre camp.
     'lib/features/transverse/presentation/ecran_comptes_utilisateurs.dart',
+    // L'écran « Synchronisation » (lot F2b, AJOUT du PO du 15/10/2026, aucune
+    // vue) : une page sous la coquille, bâtie des briques transverses, sans
+    // modale — échelle EFFECTIVE.
+    'lib/features/synchronisation/presentation/ecran_synchronisation.dart',
     // Le bouton standard (D432, 14/10/2026) : barres d'action des pages, dans
     // `<main>` — `text-[13px]` y rend 12,5. Une modale lui passe `Tailles.t13`.
     'lib/shared_widgets/bouton_standard.dart',

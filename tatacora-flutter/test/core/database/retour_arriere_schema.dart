@@ -76,7 +76,24 @@ const tablesAjouteesEnV25 = <String>{'messages_editeur_local'};
 /// La table que la v26 AJOUTE (file d'envoi du poste, lot F1 du 15/10/2026).
 const tablesAjouteesEnV26 = <String>{'operations_sync_local'};
 
+/// Les tables que la v27 AJOUTE (descente du catalogue, lot F2b du
+/// 15/10/2026).
+const tablesAjouteesEnV27 = <String>{
+  'etat_synchronisation_local',
+  'correspondances_sync_local',
+};
+
 const _ajoutsParVersion = <int, List<String>>{
+  // La v27 (descente du catalogue, lot F2b du 15/10/2026) ajoute DEUX tables
+  // neuves, sans index declare, et ne touche rien d'existant : son retour
+  // arriere est symetrique. Aucune cle etrangere ne pointe vers elles, elles
+  // n'en portent aucune. Les lignes sont perdues : la fixture seme APRES
+  // l'appel.
+  27: <String>[
+    'DROP TABLE correspondances_sync_local',
+    'DROP TABLE etat_synchronisation_local',
+  ],
+
   // La v26 (file d'envoi, lot F1 du 15/10/2026) ajoute UNE table neuve et ses
   // deux index, et ne touche rien d'existant : son retour arriere est
   // symetrique. Aucune cle etrangere ne pointe vers elle, elle n'en porte

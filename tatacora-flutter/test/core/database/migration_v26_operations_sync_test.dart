@@ -108,7 +108,11 @@ void main() {
     final apres = AppDatabase.surFichier(fichier);
     expect(await version(apres), apres.schemaVersion);
     expect(apres.schemaVersion, greaterThanOrEqualTo(26));
-    expect(await tables(apres), {...tablesAvant, ...tablesAjouteesEnV26});
+    expect(await tables(apres), {
+      ...tablesAvant,
+      ...tablesAjouteesEnV26,
+      ...tablesAjouteesEnV27,
+    });
     expect(
       await compte(apres, 'operations_sync_local'),
       0,

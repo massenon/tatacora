@@ -11,6 +11,9 @@ import 'clients_table.dart';
 import 'comptabilite_tables.dart';
 import 'utilisateurs_table.dart';
 
+/// Catégories et unités : écrites par `ParcDao` (saisie, enfilée) et, depuis
+/// le lot F2b, par `AligneurCatalogue` (descente du catalogue, jamais
+/// enfilée ; le statut d'une unité existante n'en reçoit que l'archivage).
 class CategoriesHebergementLocal extends Table {
   TextColumn get id => text()();
   TextColumn get libelle => text()();

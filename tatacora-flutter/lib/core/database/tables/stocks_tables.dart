@@ -5,8 +5,8 @@
 ///
 /// | Table | Qui l'écrit | Qui la lit | Qui la descend |
 /// |---|---|---|---|
-/// | `points_stockage_local` | `StocksDao.creerPoint`, seul auteur (modale « Mouvement » et « Nouvel article ») | l'écran Stocks (filtre de point), les deux modales, la fiche de stock | personne : zéro réseau |
-/// | `articles_local` | `StocksDao.creerArticle` / `modifierArticle`, seul auteur (modale « Nouvel article ») | l'écran Stocks, la fiche, M7 (besoins), M11 (indicateurs) — tous par `StocksApi.etat` | personne |
+/// | `points_stockage_local` | `StocksDao.creerPoint`, seul auteur (modale « Mouvement » et « Nouvel article ») | l'écran Stocks (filtre de point), les deux modales, la fiche de stock | `AligneurCatalogue` (descente du catalogue, lot F2b, 15/10/2026 — jamais enfilé) |
+/// | `articles_local` | `StocksDao.creerArticle` / `modifierArticle`, seul auteur (modale « Nouvel article ») | l'écran Stocks, la fiche, M7 (besoins), M11 (indicateurs) — tous par `StocksApi.etat` | `AligneurCatalogue` (descente du catalogue, lot F2b, 15/10/2026 — jamais enfilé) |
 /// | `mouvements_stock_local` | `StocksDao.ajouterMouvement`, seul auteur — appelé par la modale « Mouvement » ET, depuis la v13, par `AchatsDao.enregistrerReception` (entrée NON valorisée depuis le 12/10/2026, D132 — comme le serveur —, dans la transaction de la réception) | l'état (solde, coût moyen pondéré), le journal, la fiche | personne |
 ///
 /// Aucun seeder, aucune migration ne sème de ligne : un point, un article ou

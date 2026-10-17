@@ -194,6 +194,71 @@ switch ($action) {
 
         break;
 
+    // Lot F2b : le CATALOGUE cree cote serveur, que le poste doit voir
+    // descendre (`GET /referentiels`). Ecrit en SQL direct, `updated_at` a
+    // l'instant : l'essai attend l'horizon de stabilite (5 s) avant de
+    // descendre. Les identifiants sont rendus au test.
+    case 'creer_catalogue':
+        $ids = [];
+        $suffixe = substr((string) Illuminate\Support\Str::uuid(), 0, 6);
+        $maintenant = now()->format('Y-m-d H:i:s');
+        $ecrire = static function (string $table, array $ligne) use (&$ids, $maintenant): string {
+            $id = (string) Illuminate\Support\Str::uuid();
+            DB::table($table)->insert(['id' => $id, ...$ligne, 'created_at' => $maintenant, 'updated_at' => $maintenant]);
+            $ids[$table] = $id;
+
+            return $id;
+        };
+        $point = $ecrire('points_stockage', ['libelle' => "Cave serveur {$suffixe}", 'type' => 'bar']);
+        $article = $ecrire('articles', [
+            'libelle' => "Sodabi serveur {$suffixe}",
+            'categorie' => 'Boissons',
+            'unite_mesure' => 'bouteille',
+            'point_stockage_id' => $point,
+            'suivi' => 'permanent',
+            'seuil_alerte' => '12.50',
+            'actif' => true,
+        ]);
+        $ecrire('cartes_boisson', [
+            'article_id' => $article,
+            'libelle' => "Sodabi verre {$suffixe}",
+            'categorie' => 'locale',
+            'prix_vente' => '1500.00',
+        ]);
+        $menu = $ecrire('menus', ['libelle' => "Menu serveur {$suffixe}", 'type' => 'local']);
+        $recette = $ecrire('recettes', ['libelle' => "Fiche serveur {$suffixe}"]);
+        DB::table('ingredients_recette')->insert([
+            'recette_id' => $recette,
+            'article_id' => $article,
+            'quantite_unitaire' => '0.250',
+        ]);
+        $ecrire('plats', [
+            'menu_id' => $menu,
+            'recette_id' => $recette,
+            'libelle' => "Plat serveur {$suffixe}",
+            'prix_vente' => '3500.00',
+        ]);
+        $categorie = $ecrire('categories_hebergement', [
+            'libelle' => "Suite serveur {$suffixe}",
+            'capacite_max' => 3,
+            'tarif_base' => '45000.00',
+        ]);
+        $ecrire('unites_hebergement', ['categorie_id' => $categorie, 'numero' => "S-{$suffixe}", 'statut' => 'libre']);
+
+        echo json_encode(['ids' => $ids], JSON_UNESCAPED_UNICODE);
+
+        break;
+
+    // Lot F2b : un RENOMMAGE cote serveur (`updated_at` avance), pour le
+    // dernier ecrit gagnant contre une modification du poste plus ancienne.
+    case 'renommer':
+        DB::table((string) $entree['table'])
+            ->where('id', (string) $entree['id'])
+            ->update(['libelle' => (string) $entree['libelle'], 'updated_at' => now()->format('Y-m-d H:i:s')]);
+        echo json_encode(['ligne' => (array) DB::table((string) $entree['table'])->where('id', (string) $entree['id'])->first()], JSON_UNESCAPED_UNICODE);
+
+        break;
+
     case 'restaurer':
         echo json_encode(['restaurees' => restaurer((string) $entree['instantane'])], JSON_UNESCAPED_UNICODE);
 

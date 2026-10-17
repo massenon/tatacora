@@ -5,11 +5,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/config/environnement.dart';
 import '../../../core/di/providers.dart';
 import '../../transverse/data/configuration_poste.dart';
+import '../data/descente_catalogue.dart';
+import '../data/descente_catalogue_dao.dart';
 import '../data/operations_sync_dao.dart';
 import '../data/service_appairage.dart';
 import '../data/sync_manager.dart';
 import '../data/transport_synchronisation.dart';
 import '../domain/bilan_synchronisation.dart';
+import '../domain/descente_catalogue.dart';
+import '../domain/operation_sync.dart';
 
 /// La file d'envoi du poste (lot F1, 15/10/2026).
 final operationsSyncDaoProvider = Provider<OperationsSyncDao>(
@@ -90,8 +94,35 @@ final class DernierBilanSynchronisation
   void poser(BilanSynchronisation bilan) => state = bilan;
 }
 
+/// L'état de la descente du catalogue (lot F2b).
+final descenteCatalogueDaoProvider = Provider<DescenteCatalogueDao>(
+  (ref) => DescenteCatalogueDao(ref.watch(baseLocaleProvider)),
+);
+
+/// La descente du catalogue (lot F2b) — appelée par [SyncManager] après
+/// l'envoi. L'auteur d'une création descendue : le compte connecté, à
+/// défaut le plus ancien administrateur actif du poste.
+final descenteCatalogueProvider = Provider<DescenteCatalogue>((ref) {
+  final db = ref.watch(baseLocaleProvider);
+  final dao = ref.watch(descenteCatalogueDaoProvider);
+  return DescenteCatalogue(
+    db: db,
+    transport: ref.watch(transportSynchronisationProvider),
+    auteur: () async {
+      String? connecte;
+      try {
+        connecte = ref.read(sessionProvider)?.utilisateurId;
+      } on Object {
+        connecte = null;
+      }
+      return connecte ?? await dao.auteurParDefaut();
+    },
+  );
+});
+
 /// Le moteur d'envoi — UNE instance : c'est elle qui tient le « un seul
-/// envoi à la fois » du processus.
+/// envoi à la fois » du processus. Depuis le lot F2b, il descend aussi le
+/// catalogue après l'envoi.
 final syncManagerProvider = Provider<SyncManager>((ref) {
   final chemin = ref.watch(cheminConfigurationPosteProvider);
   return SyncManager(
@@ -103,8 +134,83 @@ final syncManagerProvider = Provider<SyncManager>((ref) {
     ecrivain: EcrivainConfigurationPoste(chemin: chemin),
     surBilan: (bilan) =>
         ref.read(dernierBilanSynchronisationProvider.notifier).poser(bilan),
+    descente: ref.watch(descenteCatalogueProvider),
   );
 });
+
+/* ==================================================================== */
+/* Lot F2b — l'écran de synchronisation                                 */
+/* ==================================================================== */
+
+/// Une synchronisation lancée DEPUIS L'ÉCRAN est-elle en cours ? (Le bouton
+/// se grise et une barre de progression s'affiche ; les autres écrans ne
+/// sont jamais bloqués.)
+final synchronisationEnCoursProvider =
+    NotifierProvider<SynchronisationEnCours, bool>(SynchronisationEnCours.new);
+
+final class SynchronisationEnCours extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void poser(bool valeur) => state = valeur;
+}
+
+/// « Synchroniser maintenant » de l'écran : lance la synchronisation et
+/// tient [synchronisationEnCoursProvider] — au niveau du CONTENEUR, pas du
+/// widget : quitter l'écran pendant l'envoi ne l'interrompt pas, et rien ne
+/// touche un widget démonté. Ne lève jamais.
+final synchroniserDepuisEcranProvider = Provider<Future<void> Function()>(
+  (ref) => () async {
+    if (ref.read(synchronisationEnCoursProvider)) return;
+    final enCours = ref.read(synchronisationEnCoursProvider.notifier);
+    enCours.poser(true);
+    try {
+      await ref.read(syncManagerProvider).synchroniserMaintenant();
+    } on Object {
+      // Le moteur ne lève pas ; un moteur impossible à construire (base
+      // fermée) ne remonte pas jusqu'à l'écran.
+    } finally {
+      enCours.poser(false);
+      ref.invalidate(appairageActuelProvider);
+    }
+  },
+);
+
+/// Ce que l'écran de synchronisation lit de la base — relu après chaque
+/// geste et chaque synchronisation.
+final class EtatFileSynchronisation {
+  const EtatFileSynchronisation({
+    required this.comptes,
+    required this.remplacees,
+    required this.aTraiter,
+    required this.anomalies,
+    required this.derniereDescente,
+  });
+
+  final Map<StatutOperationSync, int> comptes;
+
+  /// Opérations rejetées déjà renvoyées (historique de leur remplaçante).
+  final int remplacees;
+  final List<OperationATraiter> aTraiter;
+  final List<OperationSync> anomalies;
+  final BilanDescente? derniereDescente;
+}
+
+final etatFileSynchronisationProvider =
+    FutureProvider.autoDispose<EtatFileSynchronisation>((ref) async {
+      // Relu à chaque nouveau bilan.
+      ref.watch(dernierBilanSynchronisationProvider);
+      final dao = ref.watch(operationsSyncDaoProvider);
+      return EtatFileSynchronisation(
+        comptes: await dao.compteParStatut(),
+        remplacees: (await dao.remplacees()).length,
+        aTraiter: await dao.aTraiter(),
+        anomalies: await dao.avecAnomalies(),
+        derniereDescente: await ref
+            .watch(descenteCatalogueDaoProvider)
+            .derniereDescente(),
+      );
+    });
 
 /// La période du réveil automatique.
 const Duration periodeSynchronisation = Duration(minutes: 5);

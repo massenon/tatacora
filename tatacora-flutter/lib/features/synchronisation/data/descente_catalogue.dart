@@ -1,0 +1,426 @@
+import 'dart:convert';
+
+import '../../../core/database/app_database.dart';
+import '../../transverse/data/configuration_poste.dart';
+import '../domain/bilan_synchronisation.dart';
+import '../domain/descente_catalogue.dart';
+import '../domain/operation_sync.dart';
+import 'aligneur_catalogue.dart';
+import 'descente_catalogue_dao.dart';
+import 'operations_sync_dao.dart';
+import 'transport_synchronisation.dart';
+
+/// La DESCENTE du catalogue (lot F2b, 15/10/2026) — `GET /api/v1/referentiels`.
+///
+/// Appelée par `SyncManager.synchroniserMaintenant` APRÈS l'envoi de la
+/// file, dans le même passage — et seulement quand le poste est appairé,
+/// hors démonstration, sans refus 401/403 en cours.
+///
+/// ## L'algorithme
+///
+/// 1. Repli PROPRE : si un échec précédent a posé une prochaine tentative
+///    non échue, aucune requête (la file, elle, est déjà partie : un échec
+///    de la descente ne retarde jamais un envoi).
+/// 2. Les fusions déjà rendues à l'envoi (`fusionne_avec`) sont retenues en
+///    correspondances : un élément du poste fusionné ne redescend pas en
+///    doublon sous l'identifiant serveur.
+/// 3. Page après page, avec le curseur OPAQUE stocké : chaque page est
+///    appliquée dans UNE transaction — correspondances, puis chaque élément
+///    isolé dans un point de sauvegarde (une ligne fautive n'emporte pas la
+///    page, piège 11), puis le curseur. Un arrêt au milieu rejoue la page
+///    entière : chaque écriture est un alignement idempotent.
+/// 4. Ce qui ne peut pas s'écrire encore (dépendance absente, modification
+///    locale non poussée) est GARDÉ et repris en fin de descente — en boucle
+///    tant qu'un élément passe — puis à la descente suivante.
+/// 5. Le bilan est consigné pour l'écran de synchronisation.
+///
+/// ## La politique d'erreur (celle de l'envoi, sur son propre repli)
+///
+///  * pas de réponse, 408, 429, 5xx, réponse illisible → repli 30 s → 2 min
+///    → 5 min → 15 min → 1 h (ou `Retry-After`) ;
+///  * 401 / 403 → refus consigné dans `poste.json` (plus rien avant
+///    réappairage, envoi compris) ;
+///  * 422 sur un curseur → le curseur est oublié et la descente repart du
+///    début (sans dommage : écritures idempotentes) ;
+///  * autre 4xx → alerte, repli.
+class DescenteCatalogue {
+  DescenteCatalogue({
+    required this._db,
+    required this._transport,
+    required this._auteur,
+    DateTime Function()? maintenant,
+    this.limite = 200,
+    this.maxPages = 500,
+    this.avantCurseur,
+  }) : _maintenant = maintenant ?? DateTime.now;
+
+  final AppDatabase _db;
+  final TransportSynchronisation _transport;
+  final Future<String?> Function() _auteur;
+  final DateTime Function() _maintenant;
+
+  /// La taille de page demandée (200 par défaut au serveur, 500 au plus).
+  final int limite;
+
+  /// Un garde-fou : aucune descente ne lit plus de pages que cela.
+  final int maxPages;
+
+  /// ESSAI SEULEMENT : appelé dans la transaction d'une page, après ses
+  /// éléments et avant le curseur — un test y simule un arrêt brutal.
+  final void Function()? avantCurseur;
+
+  static const _motifsMax = 20;
+
+  late final DescenteCatalogueDao _dao = DescenteCatalogueDao(
+    _db,
+    maintenant: _maintenant,
+  );
+  late final AligneurCatalogue _aligneur = AligneurCatalogue(
+    _db,
+    _dao,
+    auteur: _auteur,
+    maintenant: _maintenant,
+  );
+
+  /// Descend le catalogue. Ne lève jamais. [surRefus] consigne un 401/403.
+  Future<BilanDescente> descendre(
+    AppairagePoste appairage, {
+    required Future<void> Function(int code) surRefus,
+  }) async {
+    final c = _Compteurs();
+    try {
+      return await _descendre(appairage, surRefus, c);
+    } on Object catch (e) {
+      // Une base fermée pendant l'arrêt : rien ne remonte à un geste.
+      return c.bilan(
+        EtatDescente.alerte,
+        motif: 'erreur interne : ${e.runtimeType}',
+        maintenant: _maintenant(),
+      );
+    }
+  }
+
+  Future<BilanDescente> _descendre(
+    AppairagePoste appairage,
+    Future<void> Function(int code) surRefus,
+    _Compteurs c,
+  ) async {
+    final repli = await _dao.repli();
+    final prochaine = repli.prochaine;
+    if (prochaine != null && prochaine.isAfter(_maintenant())) {
+      // Aucune requête ; la reprise des éléments gardés, elle, est locale.
+      await _reprendre(c);
+      return c.bilan(
+        EtatDescente.enRepli,
+        prochaineTentative: prochaine,
+        maintenant: _maintenant(),
+      );
+    }
+
+    await _db.transaction(_dao.retenirFusionsDeLaFile);
+
+    var curseur = await _dao.curseur();
+    var curseurOublie = false;
+    var complet = false;
+    _Echec? echec;
+    for (var n = 0; n < maxPages; n++) {
+      final url = urlServeur(appairage.serveur, '/referentiels').replace(
+        queryParameters: {
+          'poste_id': appairage.posteId,
+          'depuis': ?curseur,
+          'limite': '$limite',
+        },
+      );
+      final issue = await _transport.get(url, jeton: appairage.jetonApi);
+      // Dans un `switch` de Dart 3, `break` sort du `switch` (pas de la
+      // boucle) : chaque cas qui doit ARRÊTER la descente pose [echec] et
+      // tombe sur le `break` qui suit ; `continue` passe à la page suivante.
+      switch (issue) {
+        case ServeurInjoignable():
+          echec = const _Echec(EtatDescente.serveurIndisponible);
+        case ReponseHttp(:final statut) when statut == 401 || statut == 403:
+          await surRefus(statut);
+          await _reprendre(c);
+          final bilan = c.bilan(
+            EtatDescente.refusee,
+            codeHttp: statut,
+            maintenant: _maintenant(),
+          );
+          await _dao.consignerBilan(bilan);
+          return bilan;
+        case ReponseHttp(statut: 422) when curseur != null && !curseurOublie:
+          await _dao.effacerCurseur();
+          curseur = null;
+          curseurOublie = true;
+          continue;
+        case ReponseHttp(:final statut, :final entetes)
+            when statut == 408 || statut == 429 || statut >= 500:
+          echec = _Echec(
+            EtatDescente.serveurIndisponible,
+            codeHttp: statut,
+            retryAfter: lireRetryAfter(entetes['retry-after'], _maintenant()),
+          );
+        case ReponseHttp(:final statut, :final corps)
+            when statut >= 200 && statut < 300:
+          final page = _Page.lire(corps);
+          if (page == null) {
+            echec = _Echec(EtatDescente.alerte, codeHttp: statut);
+          } else {
+            await _appliquerPage(page, c);
+            curseur = page.curseur;
+            complet = page.complet;
+            if (!complet) continue;
+          }
+        case ReponseHttp(:final statut):
+          echec = _Echec(EtatDescente.alerte, codeHttp: statut);
+      }
+      break;
+    }
+    // Le garde-fou de pages atteint sans `complet` : rien n'est perdu (le
+    // curseur avance), mais la descente n'est pas « à jour ».
+    if (echec == null && !complet) echec = const _Echec(EtatDescente.alerte);
+
+    await _reprendre(c);
+    final BilanDescente bilan;
+    if (echec == null) {
+      await _dao.poserRepli(echecs: 0);
+      bilan = c.bilan(EtatDescente.aJour, maintenant: _maintenant());
+    } else {
+      final echecs = repli.echecs + 1;
+      final delai = echec.retryAfter ?? delaiDeRepli(echecs);
+      final suivante = _maintenant().add(delai);
+      await _dao.poserRepli(echecs: echecs, prochaine: suivante);
+      bilan = c.bilan(
+        echec.etat,
+        codeHttp: echec.codeHttp,
+        prochaineTentative: suivante,
+        maintenant: _maintenant(),
+      );
+    }
+    await _dao.consignerBilan(bilan);
+    return bilan;
+  }
+
+  /// UNE page, dans UNE transaction : correspondances, éléments (chacun
+  /// isolé), puis le curseur — jamais avant.
+  Future<void> _appliquerPage(_Page page, _Compteurs c) async {
+    final local = _Compteurs();
+    await _db.transaction(() async {
+      for (final corr in page.correspondances) {
+        await _dao.retenirCorrespondance(
+          table: corr.table,
+          idServeur: corr.idServeur,
+          idLocal: corr.idPoste,
+          origine: 'flux',
+        );
+      }
+      for (final brut in page.elements) {
+        local.recus++;
+        final e = ElementCatalogue.depuisJson(brut);
+        if (e == null) {
+          local.refuser('élément illisible du serveur');
+          continue;
+        }
+        final issue = await _isoler(e);
+        await _consigner(e, issue, local);
+      }
+      avantCurseur?.call();
+      await _dao.poserCurseur(page.curseur);
+    });
+    // La page est ÉCRITE : ses compteurs comptent.
+    c.ajouter(local);
+    c.pages++;
+  }
+
+  /// Aligne [e] dans un point de sauvegarde : une exception (contrainte
+  /// imprévue) n'annule que lui, et il est compté refusé — jamais avalé.
+  Future<IssueAlignement> _isoler(ElementCatalogue e) async {
+    try {
+      return await _db.transaction(() async {
+        final issue = await _aligneur.aligner(e);
+        return issue;
+      });
+    } on Object catch (x) {
+      return RefuseParLePoste(
+        'écriture impossible sur ce poste (${x.runtimeType})',
+      );
+    }
+  }
+
+  Future<void> _consigner(
+    ElementCatalogue e,
+    IssueAlignement issue,
+    _Compteurs c,
+  ) async {
+    switch (issue) {
+      case Aligne(:final archiveNonPortee):
+        c.appliques++;
+        if (archiveNonPortee) c.archivesNonPortees++;
+        await _dao.oublier(e.table, e.id);
+      case RefuseParLePoste(:final motif):
+        c.refuser('${libelleTableServeur(e.table.nomServeur)} : $motif');
+        await _dao.oublier(e.table, e.id);
+      case ConserveLocalement(:final raison):
+        await _dao.garder(e, nature: 'conserve', motif: raison);
+      case EnAttenteDeDependance(:final motif):
+        await _dao.garder(e, nature: 'dependance', motif: motif);
+    }
+  }
+
+  /// La REPRISE des éléments gardés, tant qu'un élément passe (un plat dont
+  /// le menu vient de passer). Puis le décompte de ce qui reste gardé.
+  Future<void> _reprendre(_Compteurs c) async {
+    for (var tour = 0; tour < 20; tour++) {
+      var progres = false;
+      for (final g in await _dao.elementsGardes()) {
+        final issue = await _db.transaction(() async {
+          if (g.nature == 'conserve' &&
+              await _modificationDuPosteAppliquee(g.element)) {
+            // Le serveur a APPLIQUÉ la modification du poste (dernier écrit
+            // gagnant) : la version gardée est périmée, la nouvelle
+            // redescendra (son `updated_at` a bougé).
+            await _dao.oublier(g.element.table, g.element.id);
+            return null;
+          }
+          final i = await _isoler(g.element);
+          await _consigner(g.element, i, c);
+          return i;
+        });
+        if (issue == null || issue is Aligne || issue is RefuseParLePoste) {
+          progres = true;
+        }
+      }
+      if (!progres) break;
+    }
+    for (final g in await _dao.elementsGardes()) {
+      if (g.nature == 'conserve') {
+        c.conservesLocalement++;
+      } else {
+        c.enAttenteDeDependance++;
+      }
+    }
+  }
+
+  /// La dernière opération de l'élément (sur ce poste) est-elle une
+  /// MODIFICATION que le serveur a appliquée — synchronisée, et pas
+  /// `version_serveur_conservee` ? Tant qu'une opération attend, non.
+  Future<bool> _modificationDuPosteAppliquee(ElementCatalogue e) async {
+    final table = e.table.tableSynchronisee;
+    if (table == null) return false;
+    final idLocal = await _dao.idLocal(e.table.nomServeur, e.id);
+    final file = OperationsSyncDao(_db);
+    if (await file.enSuspens(table.nomServeur, idLocal)) return false;
+    final derniere = await file.derniereOperation(table.nomServeur, idLocal);
+    if (derniere == null ||
+        derniere.type != TypeOperationSync.modification ||
+        derniere.statut != StatutOperationSync.synchronise) {
+      return false;
+    }
+    final resultat = derniere.resultatJson;
+    if (resultat == null) return true;
+    try {
+      final r = jsonDecode(resultat);
+      return !(r is Map && r['resolution'] == 'version_serveur_conservee');
+    } on FormatException {
+      return true;
+    }
+  }
+}
+
+final class _Echec {
+  const _Echec(this.etat, {this.codeHttp, this.retryAfter});
+
+  final EtatDescente etat;
+  final int? codeHttp;
+  final Duration? retryAfter;
+}
+
+/// Une page lue : `null` si la forme n'est pas celle du contrat.
+final class _Page {
+  const _Page(this.elements, this.correspondances, this.curseur, this.complet);
+
+  final List<Object?> elements;
+  final List<CorrespondanceServeur> correspondances;
+  final String curseur;
+  final bool complet;
+
+  static _Page? lire(Map<String, Object?>? corps) {
+    final data = corps?['data'];
+    final meta = corps?['meta'];
+    if (data is! Map || meta is! Map) return null;
+    final elements = data['elements'];
+    final correspondances = data['correspondances'];
+    final curseur = meta['curseur'];
+    final complet = meta['complet'];
+    if (elements is! List ||
+        correspondances is! List ||
+        curseur is! String ||
+        complet is! bool) {
+      return null;
+    }
+    return _Page(
+      elements,
+      [
+        for (final c in correspondances)
+          if (c is Map &&
+              c['table'] is String &&
+              c['id_poste'] is String &&
+              c['id_serveur'] is String)
+            (
+              table: c['table']! as String,
+              idPoste: c['id_poste']! as String,
+              idServeur: c['id_serveur']! as String,
+            ),
+      ],
+      curseur,
+      complet,
+    );
+  }
+}
+
+final class _Compteurs {
+  int pages = 0;
+  int recus = 0;
+  int appliques = 0;
+  int refuses = 0;
+  int archivesNonPortees = 0;
+  int conservesLocalement = 0;
+  int enAttenteDeDependance = 0;
+  final List<String> motifs = [];
+
+  void refuser(String motif) {
+    refuses++;
+    if (motifs.length < DescenteCatalogue._motifsMax) motifs.add(motif);
+  }
+
+  void ajouter(_Compteurs autre) {
+    recus += autre.recus;
+    appliques += autre.appliques;
+    archivesNonPortees += autre.archivesNonPortees;
+    refuses += autre.refuses;
+    for (final m in autre.motifs) {
+      if (motifs.length < DescenteCatalogue._motifsMax) motifs.add(m);
+    }
+  }
+
+  BilanDescente bilan(
+    EtatDescente etat, {
+    required DateTime maintenant,
+    int? codeHttp,
+    DateTime? prochaineTentative,
+    String? motif,
+  }) => BilanDescente(
+    etat: etat,
+    pages: pages,
+    recus: recus,
+    appliques: appliques,
+    conservesLocalement: conservesLocalement,
+    enAttenteDeDependance: enAttenteDeDependance,
+    refuses: refuses,
+    archivesNonPortees: archivesNonPortees,
+    motifsRefus: [...motifs, ?motif],
+    codeHttp: codeHttp,
+    prochaineTentative: prochaineTentative,
+    termineeLe: maintenant,
+  );
+}

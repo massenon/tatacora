@@ -48,10 +48,7 @@ import 'widgets/modale_annulation_reservation.dart';
 /// retenue, remboursé, auteur) n'ont pas de source ici : le poste ne stocke que
 /// le motif. Elles rendent « — », jamais « 0 » (PA-126).
 class EcranReservations extends ConsumerStatefulWidget {
-  const EcranReservations({super.key, this.seulementEnSuspens = false});
-
-  /// Le mode « Opérations en attente » du sprint : ce qui n'est pas parti.
-  final bool seulementEnSuspens;
+  const EcranReservations({super.key});
 
   @override
   ConsumerState<EcranReservations> createState() => _EtatEcranReservations();
@@ -62,10 +59,9 @@ class _EtatEcranReservations extends ConsumerState<EcranReservations> {
 
   @override
   Widget build(BuildContext context) {
-    // Le maître ne connaît pas le hors-ligne : « Opérations en attente » est un
-    // autre écran du sprint, qui répond à « qu'est-ce qui n'est pas parti ? ».
-    if (widget.seulementEnSuspens) return const _PanneauSansSynchronisation();
-
+    // « Opérations en attente » n'est plus un mode de cet écran : la route
+    // `/synchronisation` sert l'écran de synchronisation (lot F2b), qui lit la
+    // file d'envoi du poste.
     final peutAnnuler = ref
         .watch(droitsProvider)
         .peutEcrire(ModuleTatacora.m1Hebergement);
@@ -789,62 +785,6 @@ class _Table extends StatelessWidget {
               ),
             ),
         ],
-      ),
-    );
-  }
-}
-
-/// Ce que répond la route « Opérations en attente » depuis le 14/09/2026.
-///
-/// ## Pourquoi un panneau, et pas une liste
-///
-/// Cet écran listait les réservations dont le statut de synchronisation était
-/// en suspens. Le poste est zéro réseau : **rien ne part plus nulle part**, et
-/// `reservations_local.statut_sync` naît à `local` — les lister ici les
-/// présenterait donc TOUTES comme « pas encore parties au serveur », ce qui
-/// est l'indicateur qui affirme un état qu'il n'a pas vérifié (PA-59/60/61),
-/// appliqué cette fois au planning entier.
-///
-/// Une liste vide et son « Tout est synchronisé » mentiraient autrement :
-/// rien n'est synchronisé, il n'y a simplement plus de synchronisation.
-///
-/// La route qui mène ici vit dans `app_router.dart` et n'est pas retirée :
-/// c'est le rôle de la session principale, avec l'entrée de menu qui la
-/// désigne.
-class _PanneauSansSynchronisation extends StatelessWidget {
-  const _PanneauSansSynchronisation();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.dns_outlined,
-              size: 40,
-              color: AppColors.neutre500,
-            ),
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              'Ce poste n’envoie rien à un serveur',
-              key: const Key('reservations-sans-synchronisation'),
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: AppSpacing.unit),
-            Text(
-              'Toutes les réservations sont enregistrées sur ce poste, et '
-              'elles y restent. Il n’y a donc aucune opération en attente, '
-              'et rien à relancer.',
-              textAlign: TextAlign.center,
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: AppColors.neutre500),
-            ),
-          ],
-        ),
       ),
     );
   }

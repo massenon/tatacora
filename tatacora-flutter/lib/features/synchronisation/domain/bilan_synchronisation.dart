@@ -2,6 +2,8 @@
 /// 15/10/2026).
 library;
 
+import 'descente_catalogue.dart';
+
 /// Comment s'est terminée une synchronisation. Registre FERMÉ.
 enum EtatSynchronisation {
   /// Plus aucune opération échue à envoyer (ou rien à envoyer du tout).
@@ -60,6 +62,7 @@ final class BilanSynchronisation {
     this.codeHttp,
     this.detail,
     this.prochaineTentative,
+    this.descente,
   });
 
   final EtatSynchronisation etat;
@@ -82,11 +85,17 @@ final class BilanSynchronisation {
   /// Quand la file sera de nouveau échue, après un repli.
   final DateTime? prochaineTentative;
 
+  /// La DESCENTE du catalogue de ce passage (lot F2b) — `null` quand elle
+  /// n'a pas été tentée (poste non appairé, démonstration, refus 401/403 de
+  /// l'envoi, moteur sans descente).
+  final BilanDescente? descente;
+
   BilanSynchronisation copierAvec({
     EtatSynchronisation? etat,
     int? codeHttp,
     String? detail,
     DateTime? prochaineTentative,
+    BilanDescente? descente,
   }) => BilanSynchronisation(
     etat: etat ?? this.etat,
     lots: lots,
@@ -97,13 +106,15 @@ final class BilanSynchronisation {
     codeHttp: codeHttp ?? this.codeHttp,
     detail: detail ?? this.detail,
     prochaineTentative: prochaineTentative ?? this.prochaineTentative,
+    descente: descente ?? this.descente,
   );
 
   @override
   String toString() =>
       'BilanSynchronisation(${etat.name}, lots $lots, envoyées $envoyees, '
       'synchronisées $synchronisees, rejetées $rejetees, conflits $conflits'
-      '${codeHttp == null ? '' : ', HTTP $codeHttp'})';
+      '${codeHttp == null ? '' : ', HTTP $codeHttp'}'
+      '${descente == null ? '' : ', $descente'})';
 }
 
 /// Le repli après un échec transitoire : 30 s → 2 min → 5 min → 15 min →

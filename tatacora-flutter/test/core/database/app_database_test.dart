@@ -14,7 +14,7 @@ void main() {
   setUp(() => base = AppDatabase.enMemoire());
   tearDown(() => base.close());
 
-  test('les 58 tables du périmètre offline sont créées', () async {
+  test('les 60 tables du périmètre offline sont créées', () async {
     // `allTables` reflète ce que Drift a réellement généré, pas ce qu'on
     // croit avoir déclaré.
     //
@@ -125,10 +125,20 @@ void main() {
     // ci-dessous. La synchronisation revient en tâche de fond (décisions du
     // PO des 14–15/10/2026) : la table porte des documents SOURCES, jamais une
     // écriture comptable.
-    expect(base.allTables.length, 58);
-    expect(base.schemaVersion, 26);
+    //
+    // 58 → 60 le 15/10/2026 : `etat_synchronisation_local` et
+    // `correspondances_sync_local` (v27, descente du catalogue, lot F2b ;
+    // auteurs : `DescenteCatalogueDao`, et `OperationsSyncDao.renvoyer` pour
+    // les clés `operation_remplacee:`). Leurs noms sont assertés ci-dessous.
+    // Elles portent l'ÉTAT de la synchronisation (curseur, repli, éléments à
+    // reprendre) et les correspondances d'identifiants — aucune donnée
+    // métier.
+    expect(base.allTables.length, 60);
+    expect(base.schemaVersion, 27);
     expect(
       base.allTables.map((t) => t.actualTableName).toSet().containsAll({
+        'etat_synchronisation_local',
+        'correspondances_sync_local',
         'operations_sync_local',
         'messages_editeur_local',
         'roles_local',

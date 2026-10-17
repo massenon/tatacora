@@ -150,3 +150,14 @@ final class OperationSync {
   final DateTime creeLe;
   final DateTime? synchroniseLe;
 }
+
+/// Une ligne de la liste « À traiter » de l'écran de synchronisation (lot
+/// F2b) : une opération rejetée, en conflit ou bloquée.
+final class OperationATraiter {
+  const OperationATraiter({required this.operation, required this.debloquable});
+
+  final OperationSync operation;
+
+  /// Bloquée, et son blocage est levé : « Débloquer » est proposé.
+  final bool debloquable;
+}

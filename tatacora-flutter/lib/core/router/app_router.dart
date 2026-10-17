@@ -36,6 +36,7 @@ import '../../features/pos/presentation/ecran_pos_comptant.dart';
 import '../../features/pos/presentation/ecran_pos_heberges.dart';
 import '../../features/restaurant/presentation/ecran_carte_restaurant.dart';
 import '../../features/restaurant/presentation/ecran_restauration.dart';
+import '../../features/synchronisation/presentation/ecran_synchronisation.dart';
 import '../di/providers.dart';
 import '../navigation/navigation_tatacora.dart';
 import 'coquille_application.dart';
@@ -416,10 +417,13 @@ final routeurProvider = Provider<GoRouter>((ref) {
             path: '/historique-ventes',
             builder: (context, state) => const EcranHistoriqueVentes(),
           ),
+          // L'écran de SYNCHRONISATION (lot F2b, 15/10/2026) : la file
+          // d'envoi, la descente du catalogue, ce qui reste à traiter. Hors
+          // menu : on y arrive par le lien de Paramètres → Synchronisation ;
+          // gardé par le module Paramètres (`modulesDesRoutesHorsMenu`).
           GoRoute(
             path: '/synchronisation',
-            builder: (context, state) =>
-                const EcranReservations(seulementEnSuspens: true),
+            builder: (context, state) => const EcranSynchronisation(),
           ),
 
           // Lot D du plan du PO (14/10/2026, PA-204) : les sept écrans qui

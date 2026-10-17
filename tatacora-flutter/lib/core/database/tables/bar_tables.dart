@@ -6,6 +6,9 @@ library;
 
 import 'package:drift/drift.dart';
 
+/// `cartes_boisson_local` : écrite par `CatalogueDao` (saisie, enfilée) et,
+/// depuis le lot F2b, par `AligneurCatalogue` (descente du catalogue, jamais
+/// enfilée).
 class CartesBoissonLocal extends Table {
   TextColumn get id => text()();
   TextColumn get articleId =>

@@ -168,6 +168,10 @@ void main() {
           qui(t).difference({
             'comptabilite_dao.dart',
             'installateur_referentiel.dart',
+            // Lot F2b (15/10/2026) : la descente du catalogue RECONNAÎT les
+            // centres du serveur et n'en crée un que s'il manque — le seul
+            // de ces quatre référentiels qu'elle touche.
+            if (t == '.centresCoutLocal') 'aligneur_catalogue.dart',
           }),
           isEmpty,
           reason: t,

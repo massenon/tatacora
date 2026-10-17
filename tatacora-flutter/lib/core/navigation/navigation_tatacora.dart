@@ -551,8 +551,12 @@ const Set<String> routesOuvertesATousLesComptes = {
 const Map<String, ModuleTatacora> modulesDesRoutesHorsMenu = {
   // `pwa.journal-audit` : `module:M14,L`.
   '/journal-audit': ModuleTatacora.m14Etats,
-  // Les réservations en suspens : l'écran des réservations (M1).
-  '/synchronisation': ModuleTatacora.m1Hebergement,
+  // L'écran de synchronisation (lot F2b, 15/10/2026) : un AJOUT du poste,
+  // atteint par le lien de Paramètres → Synchronisation — gardé par le
+  // module de l'écran qui y mène (il était gardé par M1 quand la route
+  // servait les réservations « en suspens »). Les gestes qui changent la file
+  // restent réservés aux Administrateurs, à l'écran.
+  '/synchronisation': ModuleTatacora.parametres,
 };
 
 /// Le verdict de la garde du routeur sur un chemin.

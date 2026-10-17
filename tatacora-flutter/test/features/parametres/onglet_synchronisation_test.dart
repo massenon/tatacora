@@ -255,12 +255,17 @@ void main() {
     );
     expect(t.requetes.last.jeton, '21|jeton-ecran');
 
-    // File vide : « Synchroniser maintenant » n'émet aucune requête.
+    // File vide : « Synchroniser maintenant » n'ENVOIE rien ; depuis le lot
+    // F2b, il descend le catalogue (`GET /referentiels`), et rien d'autre.
     final avant = t.requetes.length;
     await tester.tap(find.byKey(const Key('sync-maintenant')));
     await laisserTourner(tester);
     expect(find.textContaining('Synchronisation à jour.'), findsOneWidget);
-    expect(t.requetes.length, avant);
+    expect(t.lots, isEmpty);
+    expect(
+      [for (final r in t.requetes.skip(avant)) '${r.methode} ${r.url.path}'],
+      ['GET /api/v1/referentiels'],
+    );
 
     await tester.ensureVisible(find.byKey(const Key('sync-dissocier')));
     await tester.tap(find.byKey(const Key('sync-dissocier')));

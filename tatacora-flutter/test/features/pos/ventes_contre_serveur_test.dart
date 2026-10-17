@@ -487,96 +487,88 @@ void main() {
     expect(l['comptes_produit'], isNotEmpty);
   });
 
-  test(
-    'la TVA du poste est celle de bcmath, centime pour centime',
-    () async {
-      // Des montants choisis pour tomber sur les arrondis (demi-centimes), des
-      // taux à 0, 1, 2 et 7 décimales, les deux conventions.
-      final hasard = Random(20261012);
-      final montants = <int>[
-        1,
-        2,
-        5,
-        7,
-        99,
-        100,
-        101,
-        333,
-        1000,
-        1234,
-        3333,
-        9999,
-        100000,
-        250000,
-        333300,
-        999999,
-        12345678,
-        for (var i = 0; i < 160; i++) 1 + hasard.nextInt(40000000),
-      ];
-      const taux = [
-        '18',
-        '18.00',
-        '18.5',
-        '5.55',
-        '0',
-        '100',
-        '7.777777',
-        '0.01',
-        '19.999999',
-        '3.1234567',
-        '12.3456789012',
-        '1',
-        '33.3333',
-      ];
+  test('la TVA du poste est celle de bcmath, centime pour centime', () async {
+    // Des montants choisis pour tomber sur les arrondis (demi-centimes), des
+    // taux à 0, 1, 2 et 7 décimales, les deux conventions.
+    final hasard = Random(20261012);
+    final montants = <int>[
+      1,
+      2,
+      5,
+      7,
+      99,
+      100,
+      101,
+      333,
+      1000,
+      1234,
+      3333,
+      9999,
+      100000,
+      250000,
+      333300,
+      999999,
+      12345678,
+      for (var i = 0; i < 160; i++) 1 + hasard.nextInt(40000000),
+    ];
+    const taux = [
+      '18',
+      '18.00',
+      '18.5',
+      '5.55',
+      '0',
+      '100',
+      '7.777777',
+      '0.01',
+      '19.999999',
+      '3.1234567',
+      '12.3456789012',
+      '1',
+      '33.3333',
+    ];
 
-      final ops = <Map<String, Object?>>[
-        for (final t in taux)
-          for (final c in ['ttc', 'ht'])
-            {
-              'op': 'ventiler',
-              'taux': t,
-              'convention': c,
-              'montants': [for (final m in montants) chaineDepuisCentimes(m)],
-            },
-      ];
-      final r = await executerPhp(
-        'rejouer_ventes.php',
-        dossier: 'ventes',
-        entree: {
-          'aujourdhui': '2031-06-15',
-          'catalogue': <Object>[],
-          'ops': ops,
-        },
+    final ops = <Map<String, Object?>>[
+      for (final t in taux)
+        for (final c in ['ttc', 'ht'])
+          {
+            'op': 'ventiler',
+            'taux': t,
+            'convention': c,
+            'montants': [for (final m in montants) chaineDepuisCentimes(m)],
+          },
+    ];
+    final r = await executerPhp(
+      'rejouer_ventes.php',
+      dossier: 'ventes',
+      entree: {'aujourdhui': '2031-06-15', 'catalogue': <Object>[], 'ops': ops},
+    );
+    final resultats = r['resultats'] as List<dynamic>;
+
+    var compares = 0;
+    for (var i = 0; i < ops.length; i++) {
+      final op = ops[i];
+      final parametres = ParametresTva(
+        active: 'true',
+        taux: op['taux'] as String,
+        convention: op['convention'] as String,
       );
-      final resultats = r['resultats'] as List<dynamic>;
-
-      var compares = 0;
-      for (var i = 0; i < ops.length; i++) {
-        final op = ops[i];
-        final parametres = ParametresTva(
-          active: 'true',
-          taux: op['taux'] as String,
-          convention: op['convention'] as String,
-        );
-        final attendues = ((resultats[i] as Map)['ventilations'] as List)
-            .cast<Map<String, dynamic>>();
-        for (var k = 0; k < montants.length; k++) {
-          final v = parametres.ventiler(montants[k]);
-          final a = attendues[k];
-          final cas = 'taux ${op['taux']} ${op['convention']} ${montants[k]}';
-          expect(chaineDepuisCentimes(v.htCentimes), a['ht'], reason: cas);
-          expect(chaineDepuisCentimes(v.tvaCentimes), a['tva'], reason: cas);
-          expect(chaineDepuisCentimes(v.ttcCentimes), a['ttc'], reason: cas);
-          compares++;
-        }
+      final attendues = ((resultats[i] as Map)['ventilations'] as List)
+          .cast<Map<String, dynamic>>();
+      for (var k = 0; k < montants.length; k++) {
+        final v = parametres.ventiler(montants[k]);
+        final a = attendues[k];
+        final cas = 'taux ${op['taux']} ${op['convention']} ${montants[k]}';
+        expect(chaineDepuisCentimes(v.htCentimes), a['ht'], reason: cas);
+        expect(chaineDepuisCentimes(v.tvaCentimes), a['tva'], reason: cas);
+        expect(chaineDepuisCentimes(v.ttcCentimes), a['ttc'], reason: cas);
+        compares++;
       }
-      // 13 taux x 2 conventions x 177 montants : un balayage qui ne comparerait
-      // rien serait vert à vide.
-      expect(compares, 13 * 2 * montants.length);
-      expect(compares, greaterThan(4000));
-    },
-    timeout: const Timeout(Duration(minutes: 3)),
-  );
+    }
+    // 13 taux x 2 conventions x 177 montants : un balayage qui ne comparerait
+    // rien serait vert à vide.
+    expect(compares, 13 * 2 * montants.length);
+    expect(compares, greaterThan(4000));
+  }, timeout: const Timeout(Duration(minutes: 3)));
 }
 
 /// Joue le scénario avec `PanierDao.cloturer` sur le moteur local, dans le

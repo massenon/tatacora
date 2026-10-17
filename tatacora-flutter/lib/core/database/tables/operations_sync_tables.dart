@@ -11,10 +11,10 @@
 /// serveur fusionne (dernier saisi gagnant sur `horodatage_client`).
 ///
 /// La v10 avait retiré `sync_queue` parce qu'une file que personne ne vide
-/// annonce une attente sans fin (PA-59/60/61). Cette table n'est donc lue par
-/// AUCUN écran en F1 : elle se remplit, et le moteur d'envoi (F2) la videra.
-/// Aucun écran ne doit dire « en attente de synchronisation » tant que ce
-/// moteur n'existe pas.
+/// annonce une attente sans fin (PA-59/60/61). Le moteur d'envoi existe
+/// depuis F2a ; depuis F2b, l'écran de synchronisation (`/synchronisation`)
+/// la LIT (compteurs, « À traiter ») et y fait deux gestes, par ce DAO :
+/// « Renvoyer » (`renvoyer`) et « Débloquer » (`debloquer`).
 ///
 /// ## Une ligne = une opération du protocole `/api/v1/sync`
 ///
@@ -29,7 +29,7 @@
 ///
 /// | Colonne | Qui l'écrit | Qui la lit | Qui la descend |
 /// |---|---|---|---|
-/// | toutes | `OperationsSyncDao`, SEUL auteur : `enfiler` (dans la transaction de chaque écrivain métier), `reclamerLot` / `libererBauxExpires` / `marquerResultat` / `marquerEchecTransitoire` (moteur F2) | `OperationsSyncDao` (lectures du moteur et des tests) | personne : c'est la moitié MONTANTE |
+/// | toutes | `OperationsSyncDao`, SEUL auteur : `enfiler` (dans la transaction de chaque écrivain métier), `reclamerLot` / `libererBauxExpires` / `marquerResultat` / `marquerEchecTransitoire` / `prolongerBail` (moteur F2), `renvoyer` / `debloquer` (écran F2b) | `OperationsSyncDao` (moteur, descente F2b, écran de synchronisation) | personne : c'est la moitié MONTANTE |
 ///
 /// Le mode démonstration n'y écrit rien (`AppDatabase.fileSynchronisationActive`).
 library;

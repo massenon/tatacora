@@ -150,16 +150,32 @@ class OperationsSyncDao extends DatabaseAccessor<AppDatabase> {
                 ..orderBy([(o) => OrderingTerm.asc(o.seq)]))
               .get();
 
+      // Lot F2b : une opération REMPLACÉE (« Renvoyer ») n'est plus que de
+      // l'historique — elle ne retient plus son élément. Et sa remplaçante
+      // passe devant les opérations BLOQUÉES derrière le rejet : elle est,
+      // pour le serveur, l'opération antérieure qu'elles attendent.
+      final remplacements = await remplacees();
+      final remplacantes = remplacements.values.toSet();
       final retenus = <String>{};
+      final retenusParBlocage = <String>{};
       final reclames = <int>[];
       for (final o in nonAbouties) {
         if (reclames.length >= taille) break;
+        if (remplacements.containsKey(o.uuidOperation)) continue;
         final cle = '${o.tableServeur}|${o.entiteId}';
+        if (o.statut == StatutOperationSync.bloque.code) {
+          retenusParBlocage.add(cle);
+          continue;
+        }
         if (o.statut != StatutOperationSync.enAttente.code) {
           retenus.add(cle);
           continue;
         }
         if (retenus.contains(cle)) continue;
+        if (retenusParBlocage.contains(cle) &&
+            !remplacantes.contains(o.uuidOperation)) {
+          continue;
+        }
         final prochaine = o.prochaineTentative;
         if (prochaine != null && prochaine.isAfter(maintenant)) break;
         reclames.add(o.seq);
@@ -312,6 +328,249 @@ class OperationsSyncDao extends DatabaseAccessor<AppDatabase> {
       ],
       updates: {_operations},
     );
+  }
+
+  /// PROLONGE le bail du lot [lotId] : ses opérations encore `en_cours`
+  /// sont tenues jusqu'à maintenant + [bail]. Appelée par le moteur avant
+  /// CHAQUE requête d'un lot (lot F2b) : une bissection longue sur un réseau
+  /// lent ne laisse jamais son bail échoir en route — sans quoi un autre
+  /// processus (`libererBauxExpires`, puis `reclamerLot`) reprendrait les
+  /// mêmes opérations et les enverrait une seconde fois. Rend le nombre
+  /// d'opérations prolongées.
+  Future<int> prolongerBail(String lotId, Duration bail) {
+    final echeance = _maintenant().add(bail);
+    return (update(_operations)..where(
+          (o) =>
+              o.lotId.equals(lotId) &
+              o.statut.equals(StatutOperationSync.enCours.code),
+        ))
+        .write(OperationsSyncLocalCompanion(verrouJusqua: Value(echeance)));
+  }
+
+  /* ================================================================== */
+  /* L'écran de synchronisation (lot F2b) — renvoyer, débloquer          */
+  /* ================================================================== */
+
+  /// Le préfixe des clés de remplacement dans `etat_synchronisation_local`.
+  static const prefixeRemplacement = 'operation_remplacee:';
+
+  /// « Renvoyer » une opération REJETÉE (geste d'Administrateur) : le MÊME
+  /// document, le MÊME horodatage de saisie, sous un NOUVEL
+  /// `uuid_operation` — le serveur, qui a mémorisé le rejet sous l'ancien,
+  /// le rejugerait sinon à l'identique. Utile quand le référentiel qui
+  /// manquait est arrivé depuis.
+  ///
+  /// L'ancienne ligne RESTE dans la file, rejetée, avec son motif : c'est
+  /// l'historique. Elle est marquée remplacée (clé
+  /// `operation_remplacee:<ancien>` → nouvel uuid), dans la MÊME transaction
+  /// que l'enfilement, et ne retient plus son élément. Rend le nouvel uuid.
+  ///
+  /// @throws StateError opération inconnue, non rejetée, ou déjà renvoyée
+  Future<String> renvoyer(String uuidOperation) {
+    return transaction(() async {
+      final ancienne = await _parUuid(uuidOperation);
+      if (ancienne.statut != StatutOperationSync.rejete.code) {
+        throw StateError(
+          'Seule une opération rejetée par le serveur se renvoie.',
+        );
+      }
+      if ((await remplacees()).containsKey(uuidOperation)) {
+        throw StateError('Cette opération a déjà été renvoyée.');
+      }
+      final maintenant = _maintenant();
+      final nouvelle = _uuid.v4();
+      await into(_operations).insert(
+        OperationsSyncLocalCompanion.insert(
+          uuidOperation: nouvelle,
+          tableServeur: ancienne.tableServeur,
+          entiteId: ancienne.entiteId,
+          type: ancienne.type,
+          payload: ancienne.payload,
+          horodatageClient: ancienne.horodatageClient,
+          dateMetier: Value(ancienne.dateMetier),
+          creeLe: maintenant,
+        ),
+      );
+      await into(attachedDatabase.etatSynchronisationLocal).insert(
+        EtatSynchronisationLocalCompanion.insert(
+          cle: '$prefixeRemplacement$uuidOperation',
+          valeur: nouvelle,
+          modifieLe: maintenant,
+        ),
+      );
+      return nouvelle;
+    });
+  }
+
+  /// Les opérations REMPLACÉES : ancien uuid → uuid de la remplaçante.
+  Future<Map<String, String>> remplacees() async {
+    final t = attachedDatabase.etatSynchronisationLocal;
+    final lignes = await (select(
+      t,
+    )..where((e) => e.cle.like('$prefixeRemplacement%'))).get();
+    return {
+      for (final l in lignes)
+        l.cle.substring(prefixeRemplacement.length): l.valeur,
+    };
+  }
+
+  /// Une opération BLOQUÉE peut-elle repartir ? Oui quand TOUTES les
+  /// opérations antérieures du même élément sont abouties : synchronisées,
+  /// ou remplacées par une opération elle-même synchronisée. Sans cela, elle
+  /// s'appliquerait au serveur sur un état qu'il n'a pas.
+  Future<bool> debloquable(String uuidOperation) async {
+    final o = await _parUuid(uuidOperation);
+    if (o.statut != StatutOperationSync.bloque.code) return false;
+    return _anterieuresAbouties(o, await remplacees());
+  }
+
+  Future<bool> _anterieuresAbouties(
+    OperationSyncLocale o,
+    Map<String, String> remplacements,
+  ) async {
+    final anterieures =
+        await (select(_operations)..where(
+              (a) =>
+                  a.tableServeur.equals(o.tableServeur) &
+                  a.entiteId.equals(o.entiteId) &
+                  a.seq.isSmallerThanValue(o.seq),
+            ))
+            .get();
+    final synchronisees = {
+      for (final a
+          in await (select(_operations)..where(
+                (a) =>
+                    a.tableServeur.equals(o.tableServeur) &
+                    a.entiteId.equals(o.entiteId) &
+                    a.statut.equals(StatutOperationSync.synchronise.code),
+              ))
+              .get())
+        a.uuidOperation,
+    };
+    for (final a in anterieures) {
+      if (a.statut == StatutOperationSync.synchronise.code) continue;
+      // Une chaîne de renvois : la DERNIÈRE remplaçante fait foi.
+      var courant = a.uuidOperation;
+      final vus = <String>{};
+      while (remplacements.containsKey(courant) && vus.add(courant)) {
+        courant = remplacements[courant]!;
+      }
+      if (courant == a.uuidOperation || !synchronisees.contains(courant)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /// « Débloquer » une opération bloquée dont le blocage est levé (voir
+  /// [debloquable]) : elle redevient `en_attente`, sans repli, et partira à
+  /// la prochaine synchronisation.
+  ///
+  /// @throws StateError opération non bloquée, ou blocage toujours en place
+  Future<void> debloquer(String uuidOperation) {
+    return transaction(() async {
+      final o = await _parUuid(uuidOperation);
+      if (o.statut != StatutOperationSync.bloque.code) {
+        throw StateError('Cette opération n’est pas bloquée.');
+      }
+      if (!await _anterieuresAbouties(o, await remplacees())) {
+        throw StateError(
+          'Le blocage tient toujours : une opération antérieure sur le même '
+          'élément n’est pas encore synchronisée.',
+        );
+      }
+      await (update(_operations)..where((a) => a.seq.equals(o.seq))).write(
+        OperationsSyncLocalCompanion(
+          statut: Value(StatutOperationSync.enAttente.code),
+          derniereErreur: const Value(null),
+          prochaineTentative: const Value(null),
+        ),
+      );
+    });
+  }
+
+  /// La liste « À traiter » de l'écran : les opérations REJETÉES, en
+  /// CONFLIT ou BLOQUÉES, les plus récentes d'abord — sans les rejetées déjà
+  /// renvoyées (elles sont l'historique de leur remplaçante).
+  Future<List<OperationATraiter>> aTraiter() async {
+    final remplacements = await remplacees();
+    final lignes =
+        await (select(_operations)
+              ..where(
+                (o) => o.statut.isIn([
+                  StatutOperationSync.rejete.code,
+                  StatutOperationSync.conflit.code,
+                  StatutOperationSync.bloque.code,
+                ]),
+              )
+              ..orderBy([(o) => OrderingTerm.desc(o.seq)]))
+            .get();
+    return [
+      for (final l in lignes)
+        if (!remplacements.containsKey(l.uuidOperation))
+          OperationATraiter(
+            operation: _vers(l),
+            debloquable:
+                l.statut == StatutOperationSync.bloque.code &&
+                await _anterieuresAbouties(l, remplacements),
+          ),
+    ];
+  }
+
+  /// Les opérations ACCEPTÉES par le serveur avec un signalement
+  /// (`anomalies` du résultat, ou clôture d'une caisse inconnue du
+  /// serveur), les plus récentes d'abord — lecture seule pour l'écran.
+  Future<List<OperationSync>> avecAnomalies() async {
+    final lignes =
+        await (select(_operations)
+              ..where(
+                (o) =>
+                    o.statut.equals(StatutOperationSync.synchronise.code) &
+                    (o.resultatJson.like('%"anomalies"%') |
+                        o.resultatJson.like('%cloture_sans_session_serveur%')),
+              )
+              ..orderBy([(o) => OrderingTerm.desc(o.seq)]))
+            .get();
+    return [for (final l in lignes) _vers(l)];
+  }
+
+  /// Une modification locale de l'élément attend-elle encore de partir
+  /// (opération `en_attente`, `en_cours` ou `bloque`) ? La descente du
+  /// catalogue ne l'écrase alors pas (lot F2b).
+  Future<bool> enSuspens(String tableServeur, String entiteId) async {
+    final ligne =
+        await (select(_operations)
+              ..where(
+                (o) =>
+                    o.tableServeur.equals(tableServeur) &
+                    o.entiteId.equals(entiteId) &
+                    o.statut.isIn([
+                      StatutOperationSync.enAttente.code,
+                      StatutOperationSync.enCours.code,
+                      StatutOperationSync.bloque.code,
+                    ]),
+              )
+              ..limit(1))
+            .getSingleOrNull();
+    return ligne != null;
+  }
+
+  /// La DERNIÈRE opération de l'élément (plus grand `seq`), ou `null`.
+  Future<OperationSync?> derniereOperation(
+    String tableServeur,
+    String entiteId,
+  ) async {
+    final ligne =
+        await (select(_operations)
+              ..where(
+                (o) =>
+                    o.tableServeur.equals(tableServeur) &
+                    o.entiteId.equals(entiteId),
+              )
+              ..orderBy([(o) => OrderingTerm.desc(o.seq)])
+              ..limit(1))
+            .getSingleOrNull();
+    return ligne == null ? null : _vers(ligne);
   }
 
   /* ================================================================== */

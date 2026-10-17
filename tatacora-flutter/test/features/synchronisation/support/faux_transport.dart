@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:tatacora_flutter/core/database/app_database.dart';
+import 'package:tatacora_flutter/features/synchronisation/data/descente_catalogue.dart';
 import 'package:tatacora_flutter/features/synchronisation/data/operations_sync_dao.dart';
 import 'package:tatacora_flutter/features/synchronisation/data/sync_manager.dart';
 import 'package:tatacora_flutter/features/synchronisation/data/transport_synchronisation.dart';
@@ -42,6 +43,12 @@ final class FauxTransport implements TransportSynchronisation {
   List<RequeteVue> get lots => [
     for (final r in requetes)
       if (r.url.path.endsWith('/sync')) r,
+  ];
+
+  /// Les `GET /referentiels` (descente du catalogue, lot F2b).
+  List<RequeteVue> get descentes => [
+    for (final r in requetes)
+      if (r.url.path.endsWith('/referentiels')) r,
   ];
 
   @override
@@ -142,6 +149,8 @@ final class BancSync {
     bool demonstration = false,
     String? url = urlServeur,
     int tailleLot = 50,
+    Duration bail = const Duration(minutes: 5),
+    DescenteCatalogue? descente,
   }) => SyncManager(
     dao: dao,
     transport: transport,
@@ -151,7 +160,43 @@ final class BancSync {
     ecrivain: ecrivain,
     maintenant: () => maintenant,
     tailleLot: tailleLot,
+    bail: bail,
+    descente: descente,
   );
+
+  /// La descente du catalogue sur ce banc (lot F2b) ; l'auteur des créations
+  /// descendues est [auteur] (un compte semé par [semerAuteur]).
+  DescenteCatalogue descente(
+    TransportSynchronisation transport, {
+    int limite = 200,
+    void Function()? avantCurseur,
+    String? auteur = 'u-admin',
+  }) => DescenteCatalogue(
+    db: db,
+    transport: transport,
+    auteur: () async => auteur,
+    maintenant: () => maintenant,
+    limite: limite,
+    avantCurseur: avantCurseur,
+  );
+
+  /// Un compte local, auteur des créations descendues.
+  Future<void> semerAuteur({String id = 'u-admin'}) => db
+      .into(db.utilisateursLocal)
+      .insert(
+        UtilisateursLocalCompanion.insert(
+          id: id,
+          login: id,
+          nom: 'Admin',
+          role: 'administrateur',
+          droitsJson: '{}',
+          sel: 's',
+          empreinte: 'e',
+          iterations: 1,
+          dateCreation: DateTime(2026, 10, 1),
+          dateMotDePasse: DateTime(2026, 10, 1),
+        ),
+      );
 
   /// Enfile [n] créations de clients (une par élément), dans l'ordre.
   Future<List<String>> enfilerClients(int n, {String prefixe = 'C'}) async {
@@ -198,3 +243,51 @@ final class BancSync {
     if (dossier.existsSync()) await dossier.delete(recursive: true);
   }
 }
+
+/// Un FAUX catalogue serveur pour `GET /referentiels` : [elements] dans
+/// l'ordre du serveur, paginés par `limite`, curseur `c<rang>` ; les
+/// [correspondances] arrivent sur la DERNIÈRE page, comme au serveur.
+final class FauxCatalogue {
+  FauxCatalogue(this.elements, {this.correspondances = const []});
+
+  final List<Map<String, Object?>> elements;
+  final List<Map<String, Object?>> correspondances;
+
+  /// Les curseurs demandés, dans l'ordre (`null` : depuis le début).
+  final List<String?> curseursDemandes = [];
+
+  ReponseHttp repondre(RequeteVue r) {
+    final depuis = r.url.queryParameters['depuis'];
+    curseursDemandes.add(depuis);
+    final limite = int.parse(r.url.queryParameters['limite'] ?? '200');
+    final debut = depuis == null ? 0 : int.parse(depuis.substring(1));
+    final fin = (debut + limite) > elements.length
+        ? elements.length
+        : debut + limite;
+    final complet = fin >= elements.length;
+    return ReponseHttp(
+      statut: 200,
+      corps: {
+        'data': {
+          'elements': elements.sublist(debut, fin),
+          'correspondances': complet ? correspondances : const <Object>[],
+        },
+        'meta': {'curseur': 'c$fin', 'complet': complet, 'limite': limite},
+      },
+    );
+  }
+}
+
+/// Un élément du catalogue serveur.
+Map<String, Object?> element(
+  String table,
+  String id,
+  Map<String, Object?> donnees, {
+  bool actif = true,
+}) => {
+  'table': table,
+  'id': id,
+  'actif': actif,
+  'modifie_le': '2026-10-15 08:00:00',
+  'donnees': donnees,
+};

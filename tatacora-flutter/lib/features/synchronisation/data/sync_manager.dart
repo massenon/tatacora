@@ -2,7 +2,9 @@ import 'dart:convert';
 
 import '../../transverse/data/configuration_poste.dart';
 import '../domain/bilan_synchronisation.dart';
+import '../domain/descente_catalogue.dart';
 import '../domain/operation_sync.dart';
+import 'descente_catalogue.dart';
 import 'operations_sync_dao.dart';
 import 'transport_synchronisation.dart';
 
@@ -41,6 +43,21 @@ import 'transport_synchronisation.dart';
 ///    ([OperationsSyncDao.marquerResultat]).
 ///
 /// Rien n'est jamais supprimé de la file.
+///
+/// ## Puis la DESCENTE du catalogue (lot F2b)
+///
+/// Après l'envoi, dans le même passage, [DescenteCatalogue] descend le
+/// catalogue du serveur (`GET /referentiels`) — sauf refus 401/403 (de
+/// l'envoi ou de la descente elle-même). Elle a son PROPRE repli : un
+/// échec de la descente ne retarde jamais un envoi, et un serveur
+/// indisponible à l'envoi n'empêche pas d'essayer la descente.
+///
+/// ## Le bail se RENOUVELLE avant chaque requête
+///
+/// Une bissection sur un réseau lent peut durer plus que le bail initial :
+/// avant CHAQUE `POST /sync`, le bail du lot est prolongé
+/// ([OperationsSyncDao.prolongerBail]) — un autre processus ne reprend
+/// jamais un lot en cours d'envoi.
 class SyncManager {
   SyncManager({
     required this._dao,
@@ -53,6 +70,7 @@ class SyncManager {
     this.tailleLot = 50,
     this.bail = const Duration(minutes: 5),
     this._surBilan,
+    this._descente,
   }) : _url = urlServeur,
        _lecteur = lecteur ?? LecteurConfigurationPoste(),
        _ecrivain = ecrivain ?? EcrivainConfigurationPoste(),
@@ -66,6 +84,9 @@ class SyncManager {
   final EcrivainConfigurationPoste _ecrivain;
   final DateTime Function() _maintenant;
   final void Function(BilanSynchronisation)? _surBilan;
+
+  /// La descente du catalogue (lot F2b) ; `null` : envoi seul.
+  final DescenteCatalogue? _descente;
 
   /// La taille d'un lot — 50, le plafond de `SynchroniserRequest`.
   final int tailleLot;
@@ -137,6 +158,34 @@ class SyncManager {
     }
 
     await _dao.libererBauxExpires();
+    final envoi = await _envoyerFile(appairage);
+
+    final descente = _descente;
+    if (descente == null ||
+        envoi.etat == EtatSynchronisation.jetonRefuse ||
+        envoi.etat == EtatSynchronisation.posteNonReconnu) {
+      return envoi;
+    }
+    final bilanDescente = await descente.descendre(
+      appairage,
+      surRefus: _consignerRefus,
+    );
+    if (bilanDescente.etat == EtatDescente.refusee) {
+      // Le refus vaut pour tout le poste : plus rien ne part non plus.
+      return envoi.copierAvec(
+        etat: bilanDescente.codeHttp == 403
+            ? EtatSynchronisation.posteNonReconnu
+            : EtatSynchronisation.jetonRefuse,
+        codeHttp: bilanDescente.codeHttp,
+        descente: bilanDescente,
+      );
+    }
+    return envoi.copierAvec(descente: bilanDescente);
+  }
+
+  /// L'ENVOI de la file : lot après lot, jusqu'à une file sans opération
+  /// échue ou une condition d'arrêt.
+  Future<BilanSynchronisation> _envoyerFile(AppairagePoste appairage) async {
     final c = _Contexte(
       appairage,
       urlServeur(appairage.serveur, '/sync'),
@@ -146,6 +195,7 @@ class SyncManager {
       final lot = await _dao.reclamerLot(taille: c.taille, bail: bail);
       if (lot.isEmpty) return c.bilan(EtatSynchronisation.termine);
       c.reclames = lot;
+      c.lotId = lot.first.lotId;
       final arret = await _envoyer(lot, c);
       if (arret != null) {
         await _dao.rendreEnAttente([
@@ -176,6 +226,12 @@ class SyncManager {
         if (!c.traites.contains(o.uuidOperation)) o,
     ];
     if (aEnvoyer.isEmpty) return null;
+    // Le bail est RENOUVELÉ avant chaque requête (lot F2b) : la précédente
+    // a pu durer jusqu'au délai du transport, une bissection en enchaîne
+    // une douzaine — sans renouvellement, un autre processus reprendrait le
+    // lot en cours et l'enverrait une seconde fois.
+    final lotId = c.lotId;
+    if (lotId != null) await _dao.prolongerBail(lotId, bail);
     c.requetes++;
     final issue = await _transport.post(
       c.url,
@@ -459,6 +515,9 @@ final class _Contexte {
 
   /// Le lot réclamé en cours.
   List<OperationSync> reclames = const [];
+
+  /// L'identifiant du lot réclamé en cours (renouvellement du bail).
+  String? lotId;
 
   /// Les opérations du lot dont le sort est consigné.
   final Set<String> traites = {};

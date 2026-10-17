@@ -8,12 +8,17 @@ import 'dart:io';
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tatacora_flutter/core/database/app_database.dart';
+import 'package:tatacora_flutter/features/stocks/data/stocks_dao.dart';
+import 'package:tatacora_flutter/features/stocks/domain/entities/etat_stock.dart';
+import 'package:tatacora_flutter/features/synchronisation/data/descente_catalogue.dart';
+import 'package:tatacora_flutter/features/synchronisation/data/descente_catalogue_dao.dart';
 import 'package:tatacora_flutter/features/synchronisation/data/operations_sync_dao.dart';
 import 'package:tatacora_flutter/features/synchronisation/data/service_appairage.dart';
 import 'package:tatacora_flutter/features/synchronisation/data/sync_manager.dart';
 import 'package:tatacora_flutter/features/synchronisation/data/transport_synchronisation.dart';
 import 'package:tatacora_flutter/features/synchronisation/domain/appairage.dart';
 import 'package:tatacora_flutter/features/synchronisation/domain/bilan_synchronisation.dart';
+import 'package:tatacora_flutter/features/synchronisation/domain/descente_catalogue.dart';
 import 'package:tatacora_flutter/features/synchronisation/domain/operation_sync.dart';
 import 'package:tatacora_flutter/features/transverse/data/configuration_poste.dart';
 import 'package:uuid/uuid.dart';
@@ -81,6 +86,14 @@ void main() {
     ecrivain: EcrivainConfigurationPoste(chemin: chemin),
   );
 
+  /// La descente du catalogue (lot F2b) par le VRAI transport.
+  DescenteCatalogue descente() => DescenteCatalogue(
+    db: db,
+    transport: TransportHttp(),
+    auteur: () => DescenteCatalogueDao(db).auteurParDefaut(),
+  );
+
+  /// Le moteur tel que la production le construit : envoi PUIS descente.
   SyncManager moteur() => SyncManager(
     dao: OperationsSyncDao(db),
     transport: TransportHttp(),
@@ -88,6 +101,7 @@ void main() {
     demonstration: false,
     lecteur: LecteurConfigurationPoste(chemin: chemin),
     ecrivain: EcrivainConfigurationPoste(chemin: chemin),
+    descente: descente(),
   );
 
   setUpAll(() async {
@@ -318,6 +332,160 @@ void main() {
 
     final apres = (await relire(const [], comptes: tablesComptees))['comptes'];
     expect(apres, avant, reason: 'un rejeu n’écrit RIEN de plus');
+  });
+
+  Future<Map<String, Object?>?> ligneLocale(String table, String id) async =>
+      (await db
+              .customSelect(
+                'SELECT * FROM $table WHERE id = ?',
+                variables: [Variable.withString(id)],
+              )
+              .getSingleOrNull())
+          ?.data;
+
+  /// L'horizon de stabilité du serveur (5 s) : un élément écrit il y a moins
+  /// longtemps attend la descente suivante.
+  Future<void> attendreHorizon() =>
+      Future<void>.delayed(const Duration(seconds: 6));
+
+  late Map<String, dynamic> catalogueServeur;
+
+  test(
+    'DESCENTE réelle : le catalogue créé AU SERVEUR arrive sur le poste '
+    'sous les identifiants du serveur, unités converties, rien n’est '
+    'renvoyé ; l’article du poste, poussé, ne redescend pas en doublon',
+    () async {
+      catalogueServeur =
+          (await php({'action': 'creer_catalogue'}))['ids']
+              as Map<String, dynamic>;
+      await attendreHorizon();
+      final opsAvant = (await OperationsSyncDao(db).operations()).length;
+
+      final bilan = await moteur().synchroniserMaintenant();
+      final d = bilan.descente!;
+      expect(d.etat, EtatDescente.aJour, reason: '$bilan\n$journal');
+      expect(d.refuses, 0, reason: d.motifsRefus.join('\n'));
+      expect(d.enAttenteDeDependance, 0);
+
+      String id(String t) => catalogueServeur[t]! as String;
+      final article = (await ligneLocale('articles_local', id('articles')))!;
+      expect(article['seuil_alerte'], 12.5);
+      expect(article['point_stockage_id'], id('points_stockage'));
+      final boisson = (await ligneLocale(
+        'cartes_boisson_local',
+        id('cartes_boisson'),
+      ))!;
+      expect(
+        (boisson['prix_vente'], boisson['article_id']),
+        (1500.0, id('articles')),
+      );
+      final plat = (await ligneLocale('plats_local', id('plats')))!;
+      expect(
+        (plat['menu_id'], plat['recette_id'], plat['prix_vente']),
+        (id('menus'), id('recettes'), 3500),
+      );
+      final ingredient = await db
+          .customSelect(
+            'SELECT quantite_milliemes FROM ingredients_recette_local '
+            'WHERE recette_id = ?',
+            variables: [Variable.withString(id('recettes'))],
+          )
+          .getSingle();
+      expect(ingredient.data['quantite_milliemes'], 250);
+      final unite = (await ligneLocale(
+        'unites_hebergement_local',
+        id('unites_hebergement'),
+      ))!;
+      expect(unite['categorie_id'], id('categories_hebergement'));
+      expect(
+        (await ligneLocale(
+          'categories_hebergement_local',
+          id('categories_hebergement'),
+        ))!['tarif_base'],
+        45000.0,
+      );
+
+      // L'article créé HORS LIGNE sur le poste (journée de caisse), poussé
+      // puis redescendu : une seule ligne, sous son identifiant.
+      final memes = await db
+          .customSelect(
+            'SELECT id FROM articles_local WHERE libelle = '
+            '(SELECT libelle FROM articles_local WHERE id = ?)',
+            variables: [Variable.withString(journee.article)],
+          )
+          .get();
+      expect([for (final l in memes) l.data['id']], [journee.article]);
+
+      expect(
+        (await OperationsSyncDao(db).operations()).length,
+        opsAvant,
+        reason: 'ce qui descend ne remonte pas',
+      );
+    },
+  );
+
+  test('DERNIER ÉCRIT GAGNANT réel : une modification locale non poussée est '
+      'CONSERVÉE à la descente ; poussée, elle perd contre le renommage '
+      'serveur plus récent, et la version serveur s’applique', () async {
+    final id = catalogueServeur['articles']! as String;
+    final avant = (await ligneLocale('articles_local', id))!;
+    await StocksDao(db).modifierArticle(
+      id: id,
+      libelle: 'Sodabi (renommé sur le poste)',
+      categorie: avant['categorie'] as String,
+      uniteMesure: avant['unite_mesure'] as String,
+      seuilCentiemes: 1250,
+      suivi: SuiviArticle.permanent,
+      pointStockageId: avant['point_stockage_id'] as String?,
+    );
+    await Future<void>.delayed(const Duration(seconds: 1));
+    await php({
+      'action': 'renommer',
+      'table': 'articles',
+      'id': id,
+      'libelle': 'Sodabi (renommé au serveur)',
+    });
+    await attendreHorizon();
+
+    // Descente SEULE : la modification locale attend de partir.
+    final appairageLu = (await LecteurConfigurationPoste(
+      chemin: chemin,
+    ).appairage())!;
+    final seule = await descente().descendre(
+      appairageLu,
+      surRefus: (_) async {},
+    );
+    expect(
+      seule.conservesLocalement,
+      greaterThanOrEqualTo(1),
+      reason: '$seule',
+    );
+    expect(
+      (await ligneLocale('articles_local', id))!['libelle'],
+      'Sodabi (renommé sur le poste)',
+    );
+
+    // Envoi puis descente : le serveur garde sa version (saisie plus
+    // récente), et elle descend sur le poste.
+    final bilan = await moteur().synchroniserMaintenant();
+    final modif = (await OperationsSyncDao(
+      db,
+    ).operations(table: TableSynchronisee.articles, entiteId: id)).last;
+    expect(modif.statut, StatutOperationSync.synchronise, reason: '$bilan');
+    expect(
+      (jsonDecode(modif.resultatJson!) as Map)['resolution'],
+      'version_serveur_conservee',
+    );
+    expect(
+      (await ligneLocale('articles_local', id))!['libelle'],
+      'Sodabi (renommé au serveur)',
+      reason: '${bilan.descente}',
+    );
+    final serveur = await relire([('articles', id)]);
+    expect(
+      ((serveur['lignes'] as Map)['articles:$id'] as Map)['libelle'],
+      'Sodabi (renommé au serveur)',
+    );
   });
 
   test('jeton révoqué au serveur : 401 RÉEL → jeton refusé, la file '
