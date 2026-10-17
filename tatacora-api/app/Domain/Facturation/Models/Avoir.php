@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Domain\Facturation\Models;
 
+use App\Domain\Numerotation\Services\SequenceDocumentService;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
 /**
  * Note de credit — SEUL mecanisme de correction d'une facture certifiee (RG-03).
@@ -31,7 +33,7 @@ class Avoir extends Model
     protected $table = 'avoirs';
 
     protected $fillable = [
-        'id', 'facture_id', 'motif', 'montant', 'date_emission', 'utilisateur_validation_id',
+        'id', 'numero', 'facture_id', 'motif', 'montant', 'date_emission', 'utilisateur_validation_id',
     ];
 
     protected function casts(): array
@@ -56,5 +58,17 @@ class Avoir extends Model
     public function validateur(): BelongsTo
     {
         return $this->belongsTo(User::class, 'utilisateur_validation_id');
+    }
+
+    /** Lot F5c : `AV-AAAA-NNNNN`, alloué à la création (voir `Facture`). */
+    protected static function booted(): void
+    {
+        static::creating(static function (Avoir $avoir): void {
+            $avoir->numero ??= app(SequenceDocumentService::class)->suivant(
+                'avoirs',
+                'AV',
+                $avoir->date_emission === null ? null : (int) Carbon::parse($avoir->date_emission)->format('Y'),
+            );
+        });
     }
 }

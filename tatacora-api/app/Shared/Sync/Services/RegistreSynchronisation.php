@@ -13,6 +13,7 @@ use App\Shared\Sync\Gestionnaires\GestionnaireCircuits;
 use App\Shared\Sync\Gestionnaires\GestionnaireClients;
 use App\Shared\Sync\Gestionnaires\GestionnaireCommandesAchat;
 use App\Shared\Sync\Gestionnaires\GestionnaireDepenses;
+use App\Shared\Sync\Gestionnaires\GestionnaireFactures;
 use App\Shared\Sync\Gestionnaires\GestionnaireFournisseurs;
 use App\Shared\Sync\Gestionnaires\GestionnaireGuides;
 use App\Shared\Sync\Gestionnaires\GestionnaireMenus;
@@ -105,6 +106,8 @@ class RegistreSynchronisation
         'sessions_caisse' => GestionnaireSessionsCaisse::class,
         'ventes' => GestionnaireVentes::class,
         'depenses' => GestionnaireDepenses::class,
+        // Lot F5c : la facture APRÈS la vente qu'elle porte.
+        'factures' => GestionnaireFactures::class,
         // Tourisme (lot F4, 17/10/2026) : les définitions avant la
         // réservation qui les cite (le client est plus haut).
         'circuits' => GestionnaireCircuits::class,

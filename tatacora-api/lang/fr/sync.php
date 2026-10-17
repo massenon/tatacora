@@ -55,6 +55,10 @@ return [
         'champ_non_modifiable' => 'Une clôture de caisse ne transmet que la date de clôture et les montants comptés '
             . '(champ(s) refusé(s) : :champs). Le fond et l\'ouverture d\'un tiroir ne se réécrivent pas.',
     ],
+    'factures' => [
+        'reservation_inconnue' => 'Facture refusée : la réservation n\'est pas connue du serveur (pas encore reçue, ou refusée).',
+        'motif_absent' => 'Annulation saisie sur un poste',
+    ],
     'sejours' => [
         'reservation_inconnue' => 'Séjour refusé : la réservation n\'est pas connue du serveur (pas encore reçue, ou refusée).',
         'instant_illisible' => 'Séjour refusé : l\'heure « :valeur » est illisible.',

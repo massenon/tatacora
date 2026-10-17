@@ -70,6 +70,7 @@ class EmissionFactureService
                     $reservation->date_depart->toDateString(),
                 ),
                 'quantite' => $nuitees,
+                'prix_catalogue' => $prixUnitaire,
                 // Les lignes sont TOUJOURS stockées hors taxe, quelle que soit
                 // la convention du catalogue : c'est la présentation comptable
                 // normale d'une facture (lignes HT, TVA en pied de document).
@@ -100,16 +101,29 @@ class EmissionFactureService
      */
     public function emettrePourConsommations(Reservation $reservation): Facture
     {
-        return Facture::create([
-            'client_id' => $reservation->client_id,
-            'date_emission' => now()->toDateString(),
+        return $this->emettreVide((string) $reservation->client_id);
+    }
+
+    /**
+     * Une facture VIDE d'un client — les lignes y entrent par
+     * {@see ajouterLigne()}. Lot F5c (17/10/2026) : `$id` et `$dateEmission`
+     * pour la seule synchronisation (l'UUID du poste, la date d'émission du
+     * poste) ; en ligne : un nouvel identifiant, aujourd'hui. Dans une
+     * transaction : le numéro `F-` y est alloué sous verrou.
+     */
+    public function emettreVide(string $clientId, ?string $id = null, ?string $dateEmission = null): Facture
+    {
+        return DB::transaction(fn (): Facture => Facture::create([
+            ...($id !== null ? ['id' => $id] : []),
+            'client_id' => $clientId,
+            'date_emission' => $dateEmission ?? now()->toDateString(),
             'montant_ht' => '0.00',
             'montant_tva' => '0.00',
             'montant_ttc' => '0.00',
             // Même cycle que l'émission de séjour : la facture existe AVANT
             // la certification (MECEF_INTEGRATION_SPEC.md §2).
             'statut' => 'en_attente_certification',
-        ]);
+        ])->refresh());
     }
 
     /**
@@ -148,6 +162,8 @@ class EmissionFactureService
                 'libelle' => $libelle,
                 'quantite' => $quantite,
                 'prix_unitaire' => bcdiv($montantHt, $quantite, self::PRECISION),
+                // Lot F5c : le prix VENDU, avant ventilation.
+                'prix_catalogue' => $prixUnitaire,
                 'montant' => $montantHt,
             ]);
 
@@ -219,13 +235,14 @@ class EmissionFactureService
             throw new \InvalidArgumentException(__('facturation.avoir_montant_excessif'));
         }
 
-        return Avoir::create([
+        // Dans une transaction : le numéro `AV-` y est alloué sous verrou.
+        return DB::transaction(fn (): Avoir => Avoir::create([
             'facture_id' => $facture->id,
             'motif' => $motif,
             'montant' => $montant,
             'date_emission' => now()->toDateString(),
             'utilisateur_validation_id' => auth()->id(),
-        ]);
+        ])->refresh());
     }
 
     public function modeDemonstration(): bool

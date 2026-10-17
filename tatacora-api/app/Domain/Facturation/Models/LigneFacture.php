@@ -32,7 +32,7 @@ class LigneFacture extends Model
 
     protected $fillable = [
         'id', 'facture_id', 'source_module', 'source_id',
-        'libelle', 'quantite', 'prix_unitaire', 'montant',
+        'libelle', 'quantite', 'prix_unitaire', 'prix_catalogue', 'montant',
     ];
 
     protected function casts(): array

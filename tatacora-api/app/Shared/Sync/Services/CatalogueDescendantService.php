@@ -134,6 +134,10 @@ class CatalogueDescendantService
             'mode_paiement', 'encaisse', 'statut', 'motif_annulation', 'annulee_at', 'date_creation',
         ],
         'depenses' => ['numero', 'date_transaction', 'tresorerie', 'montant_total', 'libelle'],
+        // Lot F5c : les factures (numérotées par le serveur) et leurs avoirs,
+        // après les ventes et les réservations qu'elles portent.
+        'factures' => ['numero', 'origine', 'client_id', 'date_emission', 'montant_ht', 'montant_tva', 'montant_ttc', 'statut'],
+        'avoirs' => ['facture_id', 'numero', 'motif', 'montant', 'date_emission'],
         'commandes_achat' => ['fournisseur_id', 'date_commande', 'statut', 'montant_total', 'date_creation'],
         'bons_reception' => ['commande_id', 'date_reception', 'conformite', 'created_at'],
         'reglements_fournisseur' => ['commande_id', 'montant', 'tresorerie', 'date_reglement', 'statut', 'motif_annulation', 'date_annulation'],
@@ -157,6 +161,9 @@ class CatalogueDescendantService
         // sans : un règlement fournisseur porte une pièce, D246).
         'reglements_fournisseur' => 'M7',
         'mouvements_stock' => 'M6',
+        // Lot F5c : l'avoir n'a pas de gestionnaire (il naît de l'annulation
+        // d'une facture), il se lit sous le module de la facturation.
+        'avoirs' => 'M2',
     ];
 
     /**
@@ -168,6 +175,7 @@ class CatalogueDescendantService
     public const ENFANTS = [
         'ventes' => ['table' => 'lignes_vente', 'cle' => 'vente_id', 'colonnes' => ['code', 'nom', 'categorie', 'module', 'prix_unitaire', 'quantite', 'montant'], 'ordre' => 'created_at'],
         'depenses' => ['table' => 'lignes_depense', 'cle' => 'depense_id', 'colonnes' => ['libelle', 'compte_charge', 'nature', 'famille', 'montant'], 'ordre' => 'created_at'],
+        'factures' => ['table' => 'lignes_facture', 'cle' => 'facture_id', 'colonnes' => ['source_module', 'source_id', 'libelle', 'quantite', 'prix_unitaire', 'prix_catalogue', 'montant'], 'ordre' => 'created_at'],
         'commandes_achat' => ['table' => 'lignes_commande_achat', 'cle' => 'commande_id', 'colonnes' => ['article_id', 'quantite_commandee', 'prix_unitaire'], 'ordre' => 'created_at'],
     ];
 

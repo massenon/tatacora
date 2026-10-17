@@ -86,7 +86,7 @@ final class RegistreGestionnairesSynchronisationTest extends TestCase
             'categories_hebergement', 'unites_hebergement',
             // Documents (S3, 15/10/2026) — dans l'ordre de poussée : la
             // commande avant son bon, l'ouverture de caisse avant ses ventes.
-            'commandes_achat', 'bons_reception', 'sessions_caisse', 'ventes', 'depenses',
+            'commandes_achat', 'bons_reception', 'sessions_caisse', 'ventes', 'depenses', 'factures',
             // Tourisme (F4, 17/10/2026) — les définitions avant la réservation.
             'circuits', 'guides', 'reservations_tour',
         ], array_keys($gestionnaires));
@@ -124,10 +124,10 @@ final class RegistreGestionnairesSynchronisationTest extends TestCase
     #[Test]
     public function une_table_hors_registre_reste_refusee(): void
     {
-        $this->synchroniser([$this->operation('factures', 'creation', (string) Str::uuid(), ['montant' => '1000'])])
+        $this->synchroniser([$this->operation('ecritures_comptables', 'creation', (string) Str::uuid(), ['montant' => '1000'])])
             ->assertOk()
             ->assertJsonPath('resultats.0.statut', 'rejete')
-            ->assertJsonPath('resultats.0.motif', __('sync.table_non_synchronisable', ['table' => 'factures']));
+            ->assertJsonPath('resultats.0.motif', __('sync.table_non_synchronisable', ['table' => 'ecritures_comptables']));
     }
 
     // -------------------------------------------- Modification : par le gestionnaire ou refusée
