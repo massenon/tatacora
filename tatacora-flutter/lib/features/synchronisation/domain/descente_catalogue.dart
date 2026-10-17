@@ -51,6 +51,20 @@ enum TableDescendue {
   clients('clients', TableSynchronisee.clients),
   reservations('reservations', TableSynchronisee.reservations),
 
+  /// Lot F4 (décision du PO du 17/10/2026, « NE PLUS LIMITER ») : TOUS les
+  /// documents de TOUS les postes, sans pièce locale (Q1 : le journal du
+  /// poste ne tient que ses propres pièces).
+  sessionsCaisse('sessions_caisse', TableSynchronisee.sessionsCaisse),
+  ventes('ventes', TableSynchronisee.ventes),
+  depenses('depenses', TableSynchronisee.depenses),
+  commandesAchat('commandes_achat', TableSynchronisee.commandesAchat),
+  bonsReception('bons_reception', TableSynchronisee.bonsReception),
+  reglementsFournisseur('reglements_fournisseur', null),
+  mouvementsStock('mouvements_stock', null),
+  circuits('circuits', TableSynchronisee.circuits),
+  guides('guides', TableSynchronisee.guides),
+  reservationsTour('reservations_tour', TableSynchronisee.reservationsTour),
+
   /// Descendue sans être synchronisable : le poste ne pousse pas ses centres.
   centresCout('centres_cout', null);
 
@@ -91,6 +105,11 @@ String libelleTableServeur(String nom) => switch (nom) {
   'ventes' => 'Ventes',
   'depenses' => 'Dépenses',
   'centres_cout' => 'Centres de coût',
+  'reglements_fournisseur' => 'Règlements fournisseurs',
+  'mouvements_stock' => 'Mouvements de stock',
+  'circuits' => 'Circuits touristiques',
+  'guides' => 'Guides',
+  'reservations_tour' => 'Réservations de circuits',
   _ => nom,
 };
 
@@ -102,9 +121,13 @@ final class ElementCatalogue {
     required this.actif,
     required this.modifieLe,
     required this.donnees,
+    this.posteOrigine,
   });
 
   final TableDescendue table;
+
+  /// Le poste qui a saisi le document (lot F4) ; `null` : saisi au serveur.
+  final String? posteOrigine;
   final String id;
 
   /// `false` : archivé au serveur (article, fournisseur, client, unité hors
@@ -132,6 +155,9 @@ final class ElementCatalogue {
           ? brut['modifie_le']! as String
           : '',
       donnees: Map<String, Object?>.from(donnees),
+      posteOrigine: brut['poste_origine'] is String
+          ? brut['poste_origine']! as String
+          : null,
     );
   }
 
@@ -140,6 +166,7 @@ final class ElementCatalogue {
     'id': id,
     'actif': actif,
     'modifie_le': modifieLe,
+    'poste_origine': posteOrigine,
     'donnees': donnees,
   };
 

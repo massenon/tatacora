@@ -528,13 +528,18 @@ ApercuEtat apercuDepenses(List<Depense> depenses) {
           // d'un drapeau : une dépense d'avant la v16 n'en a pas et se lit
           // « Absente ». Jusqu'au 10/10/2026 la cellule était vide (« — »)
           // parce qu'aucune pièce n'existait : la source existe maintenant.
-          d.estComptabilisee ? 'Passée' : 'Absente',
+          d.estComptabilisee
+              ? 'Passée'
+              // Lot F4 : descendue d'un autre poste, sa pièce est au serveur.
+              : d.pieceAuServeur
+              ? 'Au serveur'
+              : 'Absente',
         ],
     ],
     mentions: [
       'N° : aucune séquence de numéros de dépense n\'existe sur ce poste.',
-      if (depenses.any((d) => !d.estComptabilisee))
-        'Écriture : « Absente » pour ${depenses.where((d) => !d.estComptabilisee).length} '
+      if (depenses.any((d) => !d.estComptabilisee && !d.pieceAuServeur))
+        'Écriture : « Absente » pour ${depenses.where((d) => !d.estComptabilisee && !d.pieceAuServeur).length} '
             'dépense(s) saisie(s) avant que ce poste passe une pièce '
             'comptable ; elles manquent au grand livre tant que leur pièce '
             'n\'est pas passée (constaté le 10/10/2026).'

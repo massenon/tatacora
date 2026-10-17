@@ -1285,6 +1285,10 @@ void main() {
         'sessionsCaisseLocal',
         'paniersLocal',
         'depensesLocal',
+        // Lot F4 : le tourisme part au serveur.
+        'circuitsLocal',
+        'guidesLocal',
+        'reservationsTourLocal',
       ];
       // Les écrivains qui n'enfilent pas, et pourquoi — tous nommés.
       const exceptions = {
@@ -1298,6 +1302,8 @@ void main() {
         // (`_db.into(_db.clientsLocal)`) l'a rendu visible ; « n'enfile
         // jamais » est tenu par son propre balayage (descente_catalogue_test).
         'lib/features/synchronisation/data/aligneur_catalogue.dart',
+        // Lot F4 : les DOCUMENTS des autres postes, même raison.
+        'lib/features/synchronisation/data/aligneur_documents.dart',
       };
       final fautifs = <String>[];
       final vus = <String>[];

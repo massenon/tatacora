@@ -2,6 +2,9 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../synchronisation/data/operations_sync_dao.dart';
+import '../../synchronisation/domain/charges_synchronisation.dart';
+import '../../synchronisation/domain/operation_sync.dart';
 import '../domain/departs.dart';
 import '../domain/entities/circuit.dart';
 import '../domain/entities/guide.dart';
@@ -270,6 +273,20 @@ class TourismeDao extends DatabaseAccessor<AppDatabase> {
           statutSync: const Value(statutSyncLocal),
         ),
       );
+      // Lot F4 : la réservation part au serveur, qui arbitre capacité et
+      // guide entre les postes (`GestionnaireReservationsTour`).
+      await _file.enfiler(
+        table: TableSynchronisee.reservationsTour,
+        entiteId: id,
+        type: TypeOperationSync.creation,
+        payload: chargeReservationTour(
+          circuitId: circuitId,
+          clientId: clientId,
+          guideId: guideId,
+          dateCircuit: jour,
+          nbParticipants: nbParticipants,
+        ),
+      );
 
       final guide = await _guideOuNull(guideId);
       final client = await _clientOuNull(clientId);
@@ -335,6 +352,12 @@ class TourismeDao extends DatabaseAccessor<AppDatabase> {
         )..where((r) => r.id.equals(l.id))).write(
           ReservationsTourLocalCompanion(guideId: Value(nouveauGuideId)),
         );
+        await _file.enfiler(
+          table: TableSynchronisee.reservationsTour,
+          entiteId: l.id,
+          type: TypeOperationSync.modification,
+          payload: {'guide_id': nouveauGuideId},
+        );
       }
 
       return lignes.length;
@@ -364,6 +387,12 @@ class TourismeDao extends DatabaseAccessor<AppDatabase> {
         ReservationsTourLocalCompanion(
           statut: Value(StatutReservationTour.annulee.cle),
         ),
+      );
+      await _file.enfiler(
+        table: TableSynchronisee.reservationsTour,
+        entiteId: id,
+        type: TypeOperationSync.modification,
+        payload: {'statut': StatutReservationTour.annulee.cle},
       );
     });
   }
@@ -395,6 +424,12 @@ class TourismeDao extends DatabaseAccessor<AppDatabase> {
           ReservationsTourLocalCompanion(
             statut: Value(StatutReservationTour.annulee.cle),
           ),
+        );
+        await _file.enfiler(
+          table: TableSynchronisee.reservationsTour,
+          entiteId: l.id,
+          type: TypeOperationSync.modification,
+          payload: {'statut': StatutReservationTour.annulee.cle},
         );
       }
 
@@ -448,19 +483,40 @@ class TourismeDao extends DatabaseAccessor<AppDatabase> {
         ? null
         : dureeNette;
 
-    await into(attachedDatabase.circuitsLocal).insertOnConflictUpdate(
-      CircuitsLocalCompanion.insert(
-        id: identifiant,
-        nom: nom.trim(),
-        theme: theme,
-        zone: zone.trim(),
-        // La colonne est un `REAL` au schéma ; le domaine ne manipule que des
-        // entiers. La conversion a lieu ici, une fois, dans les deux sens.
-        prix: prix.toDouble(),
-        capaciteMax: capaciteMax,
-        duree: Value(dureeFinale),
-      ),
-    );
+    await transaction(() async {
+      final existant = await _circuitOuNull(identifiant) != null;
+      await into(attachedDatabase.circuitsLocal).insertOnConflictUpdate(
+        CircuitsLocalCompanion.insert(
+          id: identifiant,
+          nom: nom.trim(),
+          theme: theme,
+          zone: zone.trim(),
+          // La colonne est un `REAL` au schéma ; le domaine ne manipule que
+          // des entiers. La conversion a lieu ici, une fois, dans les deux
+          // sens.
+          prix: prix.toDouble(),
+          capaciteMax: capaciteMax,
+          duree: Value(dureeFinale),
+        ),
+      );
+      // Lot F4 : le circuit part au serveur (catalogue : fusion sur le nom,
+      // dernier écrit gagnant).
+      await _file.enfiler(
+        table: TableSynchronisee.circuits,
+        entiteId: identifiant,
+        type: existant
+            ? TypeOperationSync.modification
+            : TypeOperationSync.creation,
+        payload: chargeCircuit(
+          nom: nom.trim(),
+          theme: theme,
+          zone: zone.trim(),
+          prixFrancs: prix,
+          capaciteMax: capaciteMax,
+          duree: dureeFinale,
+        ),
+      );
+    });
 
     return Circuit(
       id: identifiant,
@@ -489,13 +545,24 @@ class TourismeDao extends DatabaseAccessor<AppDatabase> {
 
     final identifiant = id ?? _uuid.v4();
 
-    await into(attachedDatabase.guidesLocal).insertOnConflictUpdate(
-      GuidesLocalCompanion.insert(
-        id: identifiant,
-        nom: nom.trim(),
-        zoneCompetence: Value(zoneCompetence),
-      ),
-    );
+    await transaction(() async {
+      final existant = await _guideExiste(identifiant);
+      await into(attachedDatabase.guidesLocal).insertOnConflictUpdate(
+        GuidesLocalCompanion.insert(
+          id: identifiant,
+          nom: nom.trim(),
+          zoneCompetence: Value(zoneCompetence),
+        ),
+      );
+      await _file.enfiler(
+        table: TableSynchronisee.guides,
+        entiteId: identifiant,
+        type: existant
+            ? TypeOperationSync.modification
+            : TypeOperationSync.creation,
+        payload: chargeGuide(nom: nom.trim(), zoneCompetence: zoneCompetence),
+      );
+    });
 
     return Guide(
       id: identifiant,
@@ -505,6 +572,9 @@ class TourismeDao extends DatabaseAccessor<AppDatabase> {
   }
 
   /* --------------------------------------------------------------- privé */
+
+  /// La file d'envoi (lot F4) — appelée dans la transaction de chaque geste.
+  OperationsSyncDao get _file => OperationsSyncDao(attachedDatabase);
 
   Circuit _versCircuit(CircuitsLocalData c) => Circuit(
     id: c.id,

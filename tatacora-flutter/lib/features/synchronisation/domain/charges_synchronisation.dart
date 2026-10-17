@@ -433,3 +433,47 @@ Map<String, Object?> chargeDepense({
       },
   ],
 };
+
+/* ==================================================================== */
+/* Tourisme (lot F4, 17/10/2026)                                          */
+/* ==================================================================== */
+
+/// `circuits` — `EnregistrerCircuitRequest`. Le prix en francs, à deux
+/// décimales ; une durée absente part `null` (le serveur la range vide).
+Map<String, Object?> chargeCircuit({
+  required String nom,
+  required String theme,
+  required String zone,
+  required int prixFrancs,
+  required int capaciteMax,
+  required String? duree,
+}) => {
+  'nom': nom,
+  'theme': theme,
+  'zone': zone,
+  'prix': decimalExact(prixFrancs * 100, 2),
+  'capacite_max': capaciteMax,
+  'duree': duree,
+};
+
+/// `guides` — `EnregistrerGuideRequest`. Pas de tarif : le poste ne le
+/// saisit pas (le serveur range 0 et le signale).
+Map<String, Object?> chargeGuide({
+  required String nom,
+  required String? zoneCompetence,
+}) => {'nom': nom, 'zone_competence': zoneCompetence};
+
+/// `reservations_tour` (création) — `ReserverCircuitRequest`.
+Map<String, Object?> chargeReservationTour({
+  required String circuitId,
+  required String clientId,
+  required String guideId,
+  required DateTime dateCircuit,
+  required int nbParticipants,
+}) => {
+  'circuit_id': circuitId,
+  'client_id': clientId,
+  'guide_id': guideId,
+  'date_circuit': jourIso(dateCircuit),
+  'nb_participants': nbParticipants,
+};

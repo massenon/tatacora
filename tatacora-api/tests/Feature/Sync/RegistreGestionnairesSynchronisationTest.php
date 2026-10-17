@@ -87,6 +87,8 @@ final class RegistreGestionnairesSynchronisationTest extends TestCase
             // Documents (S3, 15/10/2026) — dans l'ordre de poussée : la
             // commande avant son bon, l'ouverture de caisse avant ses ventes.
             'commandes_achat', 'bons_reception', 'sessions_caisse', 'ventes', 'depenses',
+            // Tourisme (F4, 17/10/2026) — les définitions avant la réservation.
+            'circuits', 'guides', 'reservations_tour',
         ], array_keys($gestionnaires));
 
         foreach ($gestionnaires as $table => $gestionnaire) {

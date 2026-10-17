@@ -9,15 +9,18 @@ use App\Shared\Sync\Gestionnaires\GestionnaireArticles;
 use App\Shared\Sync\Gestionnaires\GestionnaireBonsReception;
 use App\Shared\Sync\Gestionnaires\GestionnaireCartesBoisson;
 use App\Shared\Sync\Gestionnaires\GestionnaireCategoriesHebergement;
+use App\Shared\Sync\Gestionnaires\GestionnaireCircuits;
 use App\Shared\Sync\Gestionnaires\GestionnaireClients;
 use App\Shared\Sync\Gestionnaires\GestionnaireCommandesAchat;
 use App\Shared\Sync\Gestionnaires\GestionnaireDepenses;
 use App\Shared\Sync\Gestionnaires\GestionnaireFournisseurs;
+use App\Shared\Sync\Gestionnaires\GestionnaireGuides;
 use App\Shared\Sync\Gestionnaires\GestionnaireMenus;
 use App\Shared\Sync\Gestionnaires\GestionnairePlats;
 use App\Shared\Sync\Gestionnaires\GestionnairePointsStockage;
 use App\Shared\Sync\Gestionnaires\GestionnaireRecettes;
 use App\Shared\Sync\Gestionnaires\GestionnaireReservations;
+use App\Shared\Sync\Gestionnaires\GestionnaireReservationsTour;
 use App\Shared\Sync\Gestionnaires\GestionnaireSessionsCaisse;
 use App\Shared\Sync\Gestionnaires\GestionnaireUnitesHebergement;
 use App\Shared\Sync\Gestionnaires\GestionnaireVentes;
@@ -98,6 +101,11 @@ class RegistreSynchronisation
         'sessions_caisse' => GestionnaireSessionsCaisse::class,
         'ventes' => GestionnaireVentes::class,
         'depenses' => GestionnaireDepenses::class,
+        // Tourisme (lot F4, 17/10/2026) : les définitions avant la
+        // réservation qui les cite (le client est plus haut).
+        'circuits' => GestionnaireCircuits::class,
+        'guides' => GestionnaireGuides::class,
+        'reservations_tour' => GestionnaireReservationsTour::class,
     ];
 
     /** @var array<string, GestionnaireSynchronisation> */

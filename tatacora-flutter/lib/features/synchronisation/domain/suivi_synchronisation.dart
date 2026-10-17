@@ -138,6 +138,9 @@ const Map<String, String> libellesAnomalies = {
   'cloture_session_inconnue':
       'Clôture d\'une caisse que le serveur ne connaît pas : enregistrée avec '
       'les chiffres du poste',
+  'guide_sans_tarif':
+      'Guide créé sur ce poste sans tarif journalier : enregistré à 0 au '
+      'serveur, tarif à saisir',
 };
 
 /// Le libellé d'une anomalie ; une anomalie inconnue est rendue par son

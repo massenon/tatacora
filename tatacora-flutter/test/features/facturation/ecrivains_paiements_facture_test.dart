@@ -163,7 +163,15 @@ void main() {
         auteurs.add(_p(f));
       }
     }
-    expect(auteurs, ['lib/features/pos/data/panier_dao.dart']);
+    expect(
+      auteurs,
+      unorderedEquals([
+        'lib/features/pos/data/panier_dao.dart',
+        // Lot F4 (17/10/2026) : la vente d'un AUTRE poste descend rattachée à
+        // SA session (une caisse partagée), sans pièce (décision Q1 du PO).
+        'lib/features/synchronisation/data/aligneur_documents.dart',
+      ]),
+    );
   });
 
   test('aucun réseau, aucune synchronisation dans l’encaissement', () {

@@ -68,7 +68,9 @@ final class IndicateursDepenses {
       marche += depense.totalDeLaFamille(FamilleDepense.marche);
       services += depense.totalDeLaFamille(FamilleDepense.services);
       if (depense.tresorerie == TresorerieDepense.caisse) caisse += montant;
-      if (!depense.estComptabilisee) sansEcriture++;
+      // Lot F4 : une dépense descendue a sa pièce AU SERVEUR — elle ne manque
+      // pas au grand livre, et n'appelle aucun rattrapage ici.
+      if (!depense.estComptabilisee && !depense.pieceAuServeur) sansEcriture++;
     }
 
     return IndicateursDepenses(

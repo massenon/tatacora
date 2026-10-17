@@ -19,6 +19,7 @@ import 'tables/clients_table.dart';
 import 'tables/comptabilite_tables.dart';
 import 'tables/depenses_tables.dart';
 import 'tables/descente_sync_tables.dart';
+import 'tables/origines_documents_tables.dart';
 import 'tables/facturation_tables.dart';
 import 'tables/hebergement_tables.dart';
 import 'tables/messages_editeur_tables.dart';
@@ -197,6 +198,7 @@ part 'app_database.g.dart';
     // semé. Qui écrit, qui lit : voir `tables/descente_sync_tables.dart`.
     EtatSynchronisationLocal,
     CorrespondancesSyncLocal,
+    OriginesDocumentsLocal,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -354,8 +356,14 @@ class AppDatabase extends _$AppDatabase {
   /// le poste par `GET /referentiels` ; le curseur, le repli de la descente et
   /// les correspondances d'identifiants y vivent. Qui écrit, qui lit : voir
   /// `tables/descente_sync_tables.dart`.
+  ///
+  /// v28 (17/10/2026) — L'ORIGINE DES DOCUMENTS DESCENDUS (lot F4, « NE PLUS
+  /// LIMITER ») : une table neuve (`origines_documents_local`, 60 -> 61
+  /// tables), aucune colonne ajoutée. Les documents des autres postes
+  /// descendent sans pièce locale ; cette table dit lesquels, et de quel
+  /// poste. Qui écrit, qui lit : voir `tables/origines_documents_tables.dart`.
   @override
-  int get schemaVersion => 27;
+  int get schemaVersion => 28;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -996,6 +1004,19 @@ class AppDatabase extends _$AppDatabase {
         // elle devra la tester avant `addColumn` — piège 3).
         await m.createTable(etatSynchronisationLocal);
         await m.createTable(correspondancesSyncLocal);
+      }
+      if (from < 28) {
+        // L'ORIGINE DES DOCUMENTS DESCENDUS (17/10/2026, lot F4). Une table
+        // NEUVE, sans index déclaré : rien d'existant n'est touché, AUCUNE
+        // ligne n'est fabriquée — tout ce que le poste détient avant la v28
+        // a été saisi ICI (rien d'autre que le catalogue, les clients et les
+        // réservations ne descendait), ce que l'absence de ligne signifie.
+        // Pour les réservations et les clients DÉJÀ descendus (F3), l'origine
+        // est inconnue : aucune pièce n'en dépend (ni rattrapage, ni
+        // annulation ne lisent cette table pour eux). `createTable` crée la
+        // définition COURANTE, exacte ici (piège 3 : une v29 qui y ajoute une
+        // colonne la testera avant `addColumn`).
+        await m.createTable(originesDocumentsLocal);
       }
     },
 

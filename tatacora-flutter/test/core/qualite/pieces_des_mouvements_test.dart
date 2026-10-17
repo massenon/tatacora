@@ -69,6 +69,10 @@ List<RegExp> _formesDEcriture(String mot, String etrangers) => <RegExp>[
   ),
   // Clé de carte brute.
   RegExp('${_guillemetNu}statut$_guillemetNu\\s*:\\s*$_guillemetNu$mot\\b'),
+  // Arme de `switch` qui PRODUIT le mot (`'validee' => 'cloture'`) — forme
+  // rencontrée au lot F4 (17/10/2026) : l'aligneur des documents écrivait
+  // `cloture` par elle, et la garde ne le voyait pas.
+  RegExp('=>\\s*$_guillemetNu$mot$_guillemetNu'),
   // Constante qui porte le littéral.
   RegExp(
     '\\b(?:const|final|static|var)\\b[^;=]*=\\s*$_guillemetNu$mot$_guillemetNu\\s*;',
@@ -113,6 +117,9 @@ final _ancienneGardeDeCloture = <RegExp>[
 /// sans elle.
 const _miroirsDuServeur = {
   'lib/features/synchronisation/data/aligneur_catalogue.dart',
+  // Lot F4 : la vente d'un autre poste descend CLÔTURÉE (ou annulée) avec sa
+  // pièce AU SERVEUR — même raisonnement, `descente_documents_test` le tient.
+  'lib/features/synchronisation/data/aligneur_documents.dart',
 };
 
 /// Les fichiers de [racine] dont le CODE (hors commentaires) contient un des
@@ -261,11 +268,20 @@ void main() {
 
     test('l\'exclusion des miroirs du serveur n\'est pas périmée : sans '
         'elle, l\'aligneur est dénoncé', () {
-      final tous = _fichiersQuiEcrivent(
-        Directory('lib'),
-        _ecrivainsDAnnulation,
-        avecMiroirs: true,
-      );
+      // Chaque miroir est dénoncé par l'une au moins des deux gardes
+      // (clôture d'un panier, annulation d'une réservation).
+      final tous = {
+        ..._fichiersQuiEcrivent(
+          Directory('lib'),
+          _ecrivainsDAnnulation,
+          avecMiroirs: true,
+        ),
+        ..._fichiersQuiEcrivent(
+          Directory('lib'),
+          _ecrivainsDeCloture,
+          avecMiroirs: true,
+        ),
+      };
       for (final m in _miroirsDuServeur) {
         expect(tous.any((f) => f.endsWith(m)), isTrue, reason: m);
       }
@@ -344,6 +360,8 @@ void main() {
           'Future<int> f(d) => d.customUpdate('
           "'UPDATE autre_table SET montant = 1, statut = "
           "$antislash'$m$antislash' WHERE id = 1');",
+      'arme de switch': (m, e) =>
+          "final s = switch (x) { 'a' => '$m', _ => 'b' };",
       'UPDATE en minuscules et sans espaces': (m, e) =>
           "const s = \"update autre set statut='$m'\";",
       'INSERT SQL': (m, e) =>

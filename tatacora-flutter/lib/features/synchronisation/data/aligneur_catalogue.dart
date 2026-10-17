@@ -9,6 +9,8 @@ import '../domain/descente_catalogue.dart';
 import 'descente_catalogue_dao.dart';
 import 'operations_sync_dao.dart';
 
+part 'aligneur_documents.dart';
+
 /// Les ÉCRIVAINS « aligner » du catalogue descendu (lot F2b, 15/10/2026) :
 /// un par table, chacun écrit UNE définition du serveur sur le poste. Depuis
 /// le lot F3 (16/10/2026), aussi les clients et les réservations des autres
@@ -80,6 +82,17 @@ class AligneurCatalogue {
       TableDescendue.fournisseurs => _fournisseur(idLocal, e),
       TableDescendue.clients => _client(idLocal, e),
       TableDescendue.reservations => _reservation(idLocal, e),
+      // Lot F4 : les documents des autres postes (`aligneur_documents.dart`).
+      TableDescendue.sessionsCaisse ||
+      TableDescendue.ventes ||
+      TableDescendue.depenses ||
+      TableDescendue.commandesAchat ||
+      TableDescendue.bonsReception ||
+      TableDescendue.reglementsFournisseur ||
+      TableDescendue.mouvementsStock ||
+      TableDescendue.circuits ||
+      TableDescendue.guides ||
+      TableDescendue.reservationsTour => alignerDocument(idLocal, e),
       TableDescendue.centresCout => _centre(e),
     };
   }

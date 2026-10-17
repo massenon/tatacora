@@ -81,6 +81,9 @@ final class EtatDepenses {
   static const String comptabilisee = 'comptabilisée';
   static const String nonComptabilisee = 'non comptabilisée';
 
+  /// Lot F4 : une dépense descendue d'un autre poste (pièce au serveur).
+  static const String pieceAuServeur = 'pièce au serveur';
+
   bool get vide => lignes.isEmpty;
 
   /// Le total décaissé du document — somme des montants, eux-mêmes sommes des
@@ -135,7 +138,11 @@ final class EtatDepenses {
     papier
         ? formaterFcfa(depense.montantTotal)
         : depense.montantTotal.toString(),
-    depense.estComptabilisee ? comptabilisee : nonComptabilisee,
+    depense.estComptabilisee
+        ? comptabilisee
+        : depense.pieceAuServeur
+        ? pieceAuServeur
+        : nonComptabilisee,
     depense.numeroPiece ?? tiretAbsence,
   ];
 

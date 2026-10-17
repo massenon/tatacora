@@ -59,6 +59,13 @@ class AnomalieSynchronisation extends Model
      */
     public const CLOTURE_SESSION_INCONNUE = 'cloture_session_inconnue';
 
+    /**
+     * Lot F4 (17/10/2026) : un guide créé sur un poste n'a pas de tarif
+     * journalier (le poste ne le saisit pas). Il est enregistré à 0 — jamais
+     * refusé, jamais un tarif deviné — et c'est signalé ici, à compléter.
+     */
+    public const GUIDE_SANS_TARIF = 'guide_sans_tarif';
+
     protected $table = 'anomalies_synchronisation';
 
     protected $fillable = [

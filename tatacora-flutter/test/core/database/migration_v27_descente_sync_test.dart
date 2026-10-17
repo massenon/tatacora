@@ -134,7 +134,11 @@ void main() {
     final apres = AppDatabase.surFichier(fichier);
     expect(await version(apres), apres.schemaVersion);
     expect(apres.schemaVersion, greaterThanOrEqualTo(27));
-    expect(await tables(apres), {...tablesAvant, ...tablesAjouteesEnV27});
+    expect(await tables(apres), {
+      ...tablesAvant,
+      ...tablesAjouteesEnV27,
+      ...tablesAjouteesEnV28,
+    });
     for (final t in tablesAjouteesEnV27) {
       expect(await compte(apres, t), 0, reason: '$t : rien n’est semé');
     }

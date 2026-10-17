@@ -36,6 +36,10 @@ final _ecrivains = <RegExp>[
   RegExp(r'\b(into|update|delete)\(\s*_t\s*\)'),
 ];
 
+/// Le miroir du serveur (lot F4), second auteur DÉCLARÉ.
+const String _miroir =
+    'lib/features/synchronisation/data/aligneur_documents.dart';
+
 const String _dao = 'lib/features/caisse/data/sessions_caisse_dao.dart';
 
 String _code(File f) =>
@@ -89,8 +93,13 @@ void main() {
     // Le DAO écrit : sans cette ligne, un motif cassé ferait croire que PERSONNE
     // n'écrit — et le test serait vert sur une table sans auteur.
     expect(auteurs, contains(_dao));
+    // Lot F4 (17/10/2026) : le MIROIR du serveur — les documents des autres
+    // postes descendent par l'aligneur, SANS pièce (décision Q1 du PO : le
+    // serveur a passé la sienne). Il ne fait aucun geste, il recopie un état ;
+    // le cas « le miroir ne passe aucune pièce » le tient.
+    expect(auteurs, contains(_miroir));
     expect(
-      auteurs.where((a) => a != _dao),
+      auteurs.where((a) => a != _dao && a != _miroir),
       isEmpty,
       reason:
           'Un second auteur de `sessions_caisse_local` est apparu : deux '
@@ -192,5 +201,12 @@ void main() {
       'lib/features/alertes/presentation/providers_alertes.dart',
       'lib/features/tableau_de_bord/presentation/ecran_tableau_de_bord.dart',
     ]);
+  });
+
+  test('le miroir du serveur (lot F4) ne passe aucune pièce', () {
+    final code = _code(File(_miroir));
+    expect(code, isNot(contains('MoteurComptable')));
+    expect(code, isNot(contains('passerEtValider')));
+    expect(code, isNot(contains('ecritureId')));
   });
 }

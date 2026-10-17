@@ -28,6 +28,7 @@ void main() {
   late List<Map<String, Object?>> operations;
   late List<Map<String, dynamic>> resultats;
   late Map<String, dynamic> etats;
+  late List<Map<String, dynamic>> anomalies;
   late ScenarioFile s;
 
   setUpAll(() async {
@@ -54,6 +55,9 @@ void main() {
       for (final r in sortie['resultats'] as List) r as Map<String, dynamic>,
     ];
     etats = sortie['etats'] as Map<String, dynamic>;
+    anomalies = [
+      for (final a in sortie['anomalies'] as List) a as Map<String, dynamic>,
+    ];
   });
 
   /// La ligne que le SERVEUR a écrite pour l'élément [id] de [table].
@@ -100,6 +104,10 @@ void main() {
       'creation ventes',
       'modification sessions_caisse',
       'creation depenses',
+      'creation circuits',
+      'creation guides',
+      'creation reservations_tour',
+      'modification reservations_tour',
     ]);
     expect(resultats, hasLength(operations.length));
   });
@@ -136,6 +144,28 @@ void main() {
       (riz['categorie'], riz['seuil_alerte'], riz['unite_mesure']),
       ('Non classé', '2.00', 'kg'),
     );
+  });
+
+  test('tourisme (lot F4) : circuit sans durée rangé vide, guide à 0 et '
+      'signalé, réservation créée PUIS annulée par le service', () {
+    final circuit = serveur('circuits', s.circuit);
+    expect(
+      (circuit['prix'], circuit['capacite_max'], circuit['duree']),
+      ('15000.00', 8, ''),
+    );
+    expect(serveur('guides', s.guide)['tarif_jour'], '0.00');
+    expect(
+      anomalies.any(
+        (a) => a['entite_id'] == s.guide && a['type'] == 'guide_sans_tarif',
+      ),
+      isTrue,
+    );
+    final resa = serveur('reservations_tour', s.reservationTour);
+    expect(
+      (resa['statut'], resa['nb_participants'], resa['guide_id']),
+      ('annulee', 3, s.guide),
+    );
+    expect('${resa['date_circuit']}', startsWith('2026-10-20'));
   });
 
   test('catalogue : les valeurs écrites au serveur sont celles du poste, '

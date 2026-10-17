@@ -35,7 +35,14 @@ enum TableSynchronisee {
   /// L'ouverture est une `creation`, la clôture la SEULE `modification` admise.
   sessionsCaisse('sessions_caisse', accepteModification: true),
   ventes('ventes', accepteModification: false),
-  depenses('depenses', accepteModification: false);
+  depenses('depenses', accepteModification: false),
+
+  /// Tourisme (lot F4, 17/10/2026) : les définitions (dernier écrit gagnant)
+  /// avant la réservation qui les cite ; la réservation se modifie par trois
+  /// gestes (annulation, clôture, réaffectation du guide).
+  circuits('circuits', accepteModification: true),
+  guides('guides', accepteModification: true),
+  reservationsTour('reservations_tour', accepteModification: true);
 
   const TableSynchronisee(this.nomServeur, {required this.accepteModification});
 

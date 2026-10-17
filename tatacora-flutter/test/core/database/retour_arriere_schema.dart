@@ -83,7 +83,17 @@ const tablesAjouteesEnV27 = <String>{
   'correspondances_sync_local',
 };
 
+/// La table que la v28 AJOUTE (origine des documents descendus, lot F4 du
+/// 17/10/2026).
+const tablesAjouteesEnV28 = <String>{'origines_documents_local'};
+
 const _ajoutsParVersion = <int, List<String>>{
+  // La v28 (origine des documents descendus, lot F4 du 17/10/2026) ajoute UNE
+  // table neuve, sans index ni cle etrangere, et ne touche rien d'existant :
+  // son retour arriere est symetrique. Les lignes sont perdues : la fixture
+  // seme APRES l'appel.
+  28: <String>['DROP TABLE origines_documents_local'],
+
   // La v27 (descente du catalogue, lot F2b du 15/10/2026) ajoute DEUX tables
   // neuves, sans index declare, et ne touche rien d'existant : son retour
   // arriere est symetrique. Aucune cle etrangere ne pointe vers elles, elles

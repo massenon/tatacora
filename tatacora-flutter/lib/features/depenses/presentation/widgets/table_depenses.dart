@@ -207,6 +207,12 @@ class _Pieces extends ConsumerWidget {
       'fichier n’est embarqué dans ce client. La pastille est donc vraie '
       'pour toutes les lignes, ce n’est pas un état parmi deux.';
 
+  /// L'infobulle de « pièce au serveur » (lot F4) : une dépense descendue
+  /// d'un autre poste.
+  static const String infobulleAuServeur =
+      'Dépense saisie sur un autre poste : sa pièce comptable est passée au '
+      'serveur, qui tient la comptabilité consolidée.';
+
   /// L'infobulle de « non comptabilisée » quand aucun rattrapage n'a encore
   /// été tenté : sans elle, la pastille serait muette sur son origine.
   static const String infobulleSansPiece =
@@ -238,7 +244,19 @@ class _Pieces extends ConsumerWidget {
               couleur: PaletteMaitre.ambre700,
             ),
           ),
-          if (depense.estComptabilisee)
+          if (depense.pieceAuServeur)
+            // Lot F4 : saisie sur un autre poste, sa pièce est au serveur —
+            // aucun rattrapage n'est offert (il la compterait deux fois).
+            Tooltip(
+              message: infobulleAuServeur,
+              child: _Badge(
+                key: Key('depense-piece-serveur-${depense.id}'),
+                texte: 'pièce au serveur',
+                fond: Ardoise.c100,
+                couleur: Ardoise.c600,
+              ),
+            )
+          else if (depense.estComptabilisee)
             _Badge(
               key: Key('depense-piece-${depense.id}'),
               texte: depense.numeroPiece ?? tiretAbsence,

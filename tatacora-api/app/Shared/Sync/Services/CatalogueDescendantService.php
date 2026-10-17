@@ -155,9 +155,6 @@ class CatalogueDescendantService
         // sans : un règlement fournisseur porte une pièce, D246).
         'reglements_fournisseur' => 'M7',
         'mouvements_stock' => 'M6',
-        'circuits' => 'M9',
-        'guides' => 'M9',
-        'reservations_tour' => 'M9',
     ];
 
     /**

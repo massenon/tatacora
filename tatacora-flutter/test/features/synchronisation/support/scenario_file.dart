@@ -27,6 +27,7 @@ import 'package:tatacora_flutter/features/restaurant/domain/entities/plat.dart';
 import 'package:tatacora_flutter/features/stocks/data/stocks_dao.dart';
 import 'package:tatacora_flutter/features/stocks/domain/entities/etat_stock.dart';
 import 'package:tatacora_flutter/features/synchronisation/data/operations_sync_dao.dart';
+import 'package:tatacora_flutter/features/tourisme/data/tourisme_dao.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../comptabilite/support/outils_comptabilite.dart';
@@ -58,6 +59,9 @@ final class ScenarioFile {
   late String session;
   late String vente;
   late String depense;
+  late String circuit;
+  late String guide;
+  late String reservationTour;
 }
 
 /// Une journée complète du poste, PAR SES VRAIS ÉCRIVAINS — chacun dépose son
@@ -338,6 +342,29 @@ Future<ScenarioFile> jouerJourneeComplete(AppDatabase db) async {
     auteurId: auteurEssai,
     centreId: await centreDe(db, 'Restaurant'),
   )).id;
+
+  // M9 (lot F4) : un circuit sans durée, un guide, une réservation du client
+  // de la journée, puis son annulation.
+  final tourisme = TourismeDao(db);
+  s.circuit = (await tourisme.enregistrerCircuit(
+    nom: 'Chutes de Kota F4',
+    theme: 'nature',
+    zone: 'Atacora',
+    prix: 15000,
+    capaciteMax: 8,
+  )).id;
+  s.guide = (await tourisme.enregistrerGuide(
+    nom: 'Moussa F4',
+    zoneCompetence: 'Atacora',
+  )).id;
+  s.reservationTour = (await tourisme.reserver(
+    circuitId: s.circuit,
+    clientId: s.client,
+    guideId: s.guide,
+    dateCircuit: DateTime(2026, 10, 20),
+    nbParticipants: 3,
+  )).id;
+  await tourisme.annulerReservation(s.reservationTour);
 
   return s;
 }

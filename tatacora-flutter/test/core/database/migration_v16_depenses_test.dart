@@ -168,7 +168,8 @@ void main() {
             tablesAjouteesEnV24.length +
             tablesAjouteesEnV25.length +
             tablesAjouteesEnV26.length +
-            tablesAjouteesEnV27.length,
+            tablesAjouteesEnV27.length +
+            tablesAjouteesEnV28.length,
       );
 
       // La donnée antérieure est la seule copie qui existe : elle survit.

@@ -130,8 +130,12 @@ class DepenseDao extends DatabaseAccessor<AppDatabase>
       attachedDatabase,
     ).numerosDePiece(entetes.map((e) => e.ecritureId).whereType<String>());
 
+    final origines = await _origines(entetes.map((e) => e.id));
     return entetes
-        .map((e) => _versDepense(e, parDepense[e.id] ?? const [], numeros))
+        .map(
+          (e) =>
+              _versDepense(e, parDepense[e.id] ?? const [], numeros, origines),
+        )
         .toList(growable: false);
   }
 
@@ -159,7 +163,22 @@ class DepenseDao extends DatabaseAccessor<AppDatabase>
       entete,
       lignes.map(_versLigne).toList(growable: false),
       numeros,
+      await _origines([id]),
     );
+  }
+
+  /// Les dépenses DESCENDUES d'un autre poste parmi [ids] (lot F4), avec
+  /// leur poste d'origine (`null` : saisie au serveur).
+  Future<Map<String, String?>> _origines(Iterable<String> ids) async {
+    final liste = ids.toList(growable: false);
+    if (liste.isEmpty) return const {};
+    final o = attachedDatabase.originesDocumentsLocal;
+    final lignes =
+        await (select(o)..where(
+              (x) => x.tableServeur.equals('depenses') & x.entiteId.isIn(liste),
+            ))
+            .get();
+    return {for (final l in lignes) l.entiteId: l.posteOrigine};
   }
 
   /* ================================================================== */
@@ -298,6 +317,9 @@ class DepenseDao extends DatabaseAccessor<AppDatabase>
     final depense = await parId(depenseId);
     if (depense == null) throw const RefusDepense.introuvable();
     if (depense.estComptabilisee) return depense;
+    // Lot F4 : la pièce d'une dépense descendue est au SERVEUR (Q1) — la
+    // passer ici doublerait la charge et la sortie de trésorerie.
+    if (depense.recueDuServeur) throw const RefusDepense.recueDuServeur();
 
     final tresorerie = depense.tresorerie;
     if (tresorerie == null) {
@@ -486,6 +508,7 @@ class DepenseDao extends DatabaseAccessor<AppDatabase>
     DepensesLocalData d,
     List<LigneDepense> lignes,
     Map<String, String> numeros,
+    Map<String, String?> origines,
   ) => Depense(
     id: d.id,
     dateTransaction: d.dateTransaction,
@@ -498,6 +521,8 @@ class DepenseDao extends DatabaseAccessor<AppDatabase>
     ecritureId: d.ecritureId,
     numeroPiece: d.ecritureId == null ? null : numeros[d.ecritureId],
     ecritureRefus: d.ecritureRefus,
+    recueDuServeur: origines.containsKey(d.id),
+    posteOrigine: origines[d.id],
   );
 
   LigneDepense _versLigne(LignesDepenseLocalData l) => LigneDepense(

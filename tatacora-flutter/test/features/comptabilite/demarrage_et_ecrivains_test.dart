@@ -238,9 +238,31 @@ void main() {
       // Piège 9 : une colonne que personne n'écrit n'est jamais affichée — et
       // une colonne que n'importe qui écrit n'est pas une preuve. `ecriture_id`
       // ne naît que dans la transaction de la pièce.
-      expect(qui('DepensesLocalCompanion'), {'depense_dao.dart'});
-      expect(qui('LignesDepenseLocalCompanion'), {'depense_dao.dart'});
-      expect(qui('.depensesLocal'), {'depense_dao.dart'});
+      //
+      // Lot F4 (17/10/2026) : second auteur DÉCLARÉ, le miroir du serveur — la
+      // dépense d'un autre poste descend SANS pièce (Q1 du PO) ; il n'écrit
+      // jamais `ecriture_id` (cas ci-dessous), et le rattrapage la refuse.
+      expect(qui('DepensesLocalCompanion'), {
+        'depense_dao.dart',
+        'aligneur_documents.dart',
+      });
+      expect(qui('LignesDepenseLocalCompanion'), {
+        'depense_dao.dart',
+        'aligneur_documents.dart',
+      });
+      expect(qui('.depensesLocal'), {
+        'depense_dao.dart',
+        'aligneur_documents.dart',
+      });
+    });
+
+    test('le miroir du serveur n’écrit jamais `ecriture_id` ni une pièce', () {
+      final code = File(
+        'lib/features/synchronisation/data/aligneur_documents.dart',
+      ).readAsStringSync();
+      expect(code, isNot(contains('ecritureId:')));
+      expect(code, isNot(contains('MoteurComptable')));
+      expect(code, isNot(contains('passerEtValider')));
     });
 
     test('aucun client réseau dans le module (zéro réseau)', () {
