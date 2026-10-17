@@ -14,6 +14,7 @@ import 'tables/alertes_vues_tables.dart';
 import 'tables/bar_tables.dart';
 import 'tables/caisse_tables.dart';
 import 'declencheurs_comptables.dart';
+import 'emplacement_base.dart';
 import 'tables/clients_table.dart';
 import 'tables/comptabilite_tables.dart';
 import 'tables/depenses_tables.dart';
@@ -1007,7 +1008,10 @@ class AppDatabase extends _$AppDatabase {
   );
 }
 
-/// Ouvre la base dans le répertoire de documents de l'application.
+/// Ouvre la base — depuis le 17/10/2026 HORS du dossier Documents
+/// (`emplacement_base.dart` : `%LOCALAPPDATA%\TATACORA\donnees`, décision du
+/// PO), en déménageant au premier démarrage celle qu'un poste plus ancien a
+/// laissée dans Documents.
 ///
 /// **Divergence assumée avec le Sprint 0 (à consigner au registre PA).** La
 /// spécification liste `sqlite3_flutter_libs` et son
@@ -1021,8 +1025,18 @@ class AppDatabase extends _$AppDatabase {
 /// nécessaire.
 LazyDatabase _ouvrir() {
   return LazyDatabase(() async {
-    final dossier = await getApplicationDocumentsDirectory();
-    final fichier = File(p.join(dossier.path, 'tatacora.sqlite'));
-    return NativeDatabase.createInBackground(fichier);
+    final windows = Platform.isWindows
+        ? dossierBaseWindows(Platform.environment)
+        : null;
+    final neuf = windows != null
+        ? Directory(windows)
+        : Directory(
+            p.join((await getApplicationSupportDirectory()).path, 'donnees'),
+          );
+    final emplacement = await preparerEmplacementBase(
+      dossierNeuf: neuf,
+      dossierAncien: await getApplicationDocumentsDirectory(),
+    );
+    return NativeDatabase.createInBackground(emplacement.fichier);
   });
 }

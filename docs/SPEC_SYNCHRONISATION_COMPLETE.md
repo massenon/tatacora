@@ -7,6 +7,19 @@
 
 ---
 
+## 0. Décisions du Product Owner (17/10/2026)
+
+| # | Décision |
+|---|---|
+| Q1 | **A maintenant, B en F7.** Le journal du poste ne porte que ses propres pièces ; les documents des autres postes descendent et **mettent les postes à jour** (listes, caisses, stock, tableau de bord), sans pièce locale. En F7, les pièces du serveur descendent en lecture seule. |
+| Q2 | **A.** Le poste émet une facture provisoire ; le serveur attribue le numéro continu ; la synchronisation **régularise** : chaque poste remplace le numéro provisoire par celui que le serveur a attribué. |
+| Q3 | Annuler un document saisi sur un AUTRE poste : **l'administration et le comptable** seulement. |
+| — | La base SQLite quitte le dossier Documents (suppression involontaire) : `%LOCALAPPDATA%\TATACORA\donnees\tatacora.sqlite`, déménagement automatique de l'ancienne. Livré avant F4. |
+| — | Nombre de postes : aucune limite (2 n'était qu'un exemple ; 3, 4, 5 postes et plus). |
+| — | PR vers `main` après les corrections (fin de F6, essai à 5 postes). |
+
+Q4, Q5 et Q6 restent ouvertes, sans bloquer.
+
 ## 1. Problème
 
 Aujourd'hui (fin du lot F3), un poste Windows **envoie** au serveur ses ventes, dépenses, caisses, commandes, réceptions, clients et réservations, mais n'en **reçoit** que le catalogue, les clients et les réservations. Sur un Gîte qui tourne à 3, 4 ou 5 postes (réception, bar, restaurant, économat, direction), chaque poste ne voit donc que **sa** part de l'activité : le bar ne voit pas les ventes du restaurant, le stock d'un poste ignore les réceptions faites sur un autre, la direction ne peut pas lire la journée consolidée sur son poste, et le tourisme et les ventes sur note de chambre ne se synchronisent pas du tout.

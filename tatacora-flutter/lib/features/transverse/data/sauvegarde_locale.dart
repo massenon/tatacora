@@ -4,7 +4,8 @@
 ///
 /// ## Une copie COHÉRENTE, jamais le fichier recopié à chaud
 ///
-/// La base du poste (`tatacora.sqlite`, dossier Documents) est ouverte par
+/// La base du poste (`tatacora.sqlite`, hors Documents depuis le 17/10/2026 —
+/// `emplacement_base.dart`) est ouverte par
 /// l'application pendant toute sa vie : recopier le fichier pendant qu'une
 /// écriture a lieu, ou en laissant de côté un journal non reporté, donnerait
 /// une copie abîmée au nom conforme — la « sauvegarde de 802 octets » de

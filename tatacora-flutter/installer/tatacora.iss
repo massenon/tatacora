@@ -14,8 +14,10 @@
 ;
 ;  Ce qui n'est JAMAIS dans le dossier d'installation, donc JAMAIS effacé par la
 ;  désinstallation :
-;    * la base Drift : %USERPROFILE%\Documents\tatacora.sqlite
-;      (getApplicationDocumentsDirectory, lib\core\database\app_database.dart) ;
+;    * la base Drift : %LOCALAPPDATA%\TATACORA\donnees\tatacora.sqlite
+;      (lib\core\database\emplacement_base.dart, décision du PO du 17/10/2026 :
+;      plus dans Documents ; une ancienne base de Documents y est déménagée au
+;      premier démarrage et renommée tatacora.sqlite.deplacee-vers-appdata) ;
 ;    * la configuration du poste : %APPDATA%\TATACORA\poste.json
 ;      (mot de passe SMTP, lib\features\transverse\data\configuration_poste.dart).
 ;  Aucune section [UninstallDelete] ne les vise, et il ne faut pas en ajouter.

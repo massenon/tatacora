@@ -115,7 +115,7 @@ sont dans le dossier d'installation.
 | Quoi | Où | Effacé à la désinstallation ? |
 |---|---|---|
 | Le logiciel | `C:\Program Files\TATACORA\` | Oui |
-| **La base de données** (toutes les saisies) | `%USERPROFILE%\Documents\tatacora.sqlite` — le dossier **Documents** du compte Windows (par exemple `C:\Users\Comptable\Documents\tatacora.sqlite`) | **Non** |
+| **La base de données** (toutes les saisies) | `%LOCALAPPDATA%\TATACORA\donnees\tatacora.sqlite` — un dossier **caché** du compte Windows (par exemple `C:\Users\Comptable\AppData\Local\TATACORA\donnees\tatacora.sqlite`), hors de Documents pour éviter une suppression involontaire | **Non** |
 | La configuration du poste (mot de passe SMTP, appairage au serveur) | `%APPDATA%\TATACORA\poste.json` (par exemple `C:\Users\Comptable\AppData\Roaming\TATACORA\poste.json`) | **Non** |
 
 Remarques importantes :
@@ -123,9 +123,18 @@ Remarques importantes :
 - La base est **propre au compte Windows** : deux comptes Windows sur le même
   PC auraient deux bases distinctes. Utiliser TOUJOURS le même compte Windows
   pour TATACORA sur un poste donné.
-- Si le dossier Documents est synchronisé par OneDrive, la base peut se
-  trouver sous `C:\Users\<compte>\OneDrive\Documents\`. Ne pas ouvrir le
-  logiciel sur deux PC à partir de la même base synchronisée.
+- **Mise à jour d'un poste installé avant le 17/10/2026** : sa base était dans
+  `Documents\tatacora.sqlite`. Au premier démarrage de la nouvelle version, elle
+  est **copiée automatiquement** dans le nouveau dossier (journal compris), puis
+  l'ancien fichier est renommé `tatacora.sqlite.deplacee-vers-appdata` — il
+  n'est jamais effacé et n'est plus jamais relu. Une fois le poste vérifié
+  (les saisies sont là), ce fichier renommé peut être archivé ou supprimé.
+- Le nouveau dossier n'est **pas** synchronisé par OneDrive (une base SQLite
+  synchronisée par OneDrive se corrompt). Ne jamais copier la base d'un PC sur
+  un autre : chaque poste a la sienne, la synchronisation avec le serveur fait
+  le reste.
+- Pour voir le dossier : touche Windows + R, taper `%LOCALAPPDATA%\TATACORA`,
+  Entrée.
 
 ### Sauvegarder
 
@@ -249,7 +258,7 @@ Panneau de configuration → Programmes → « TATACORA — Système de gestion
 Intégré » → Désinstaller (ou le raccourci « Désinstaller TATACORA » du groupe
 TATACORA du menu Démarrer).
 
-La désinstallation **ne supprime ni la base** (`Documents\tatacora.sqlite`)
+La désinstallation **ne supprime ni la base** (`%LOCALAPPDATA%\TATACORA\donnees\tatacora.sqlite`)
 **ni la configuration** (`%APPDATA%\TATACORA\poste.json`) : une
 réinstallation retrouve toutes les données. Pour effacer réellement les
 données d'un poste (poste réformé), supprimer ces deux fichiers à la main,
