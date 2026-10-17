@@ -399,6 +399,43 @@ documents SOURCES, jamais une écriture (D246) ; il crée ET modifie son catalog
   catalogue AU SERVEUR (`serveur_reel.php creer_catalogue`), le descend, et
   rejoue le dernier écrit gagnant (`renommer`) contre une modification locale.
 
+## Descente des clients et des réservations, bouton de la barre (lot F3, 16/10/2026)
+
+Décision du PO du 16/10/2026 (« le poste B aura-t-il ce que le poste A a
+enregistré ? ») : le flux `GET /referentiels` porte aussi `clients` puis
+`reservations` (de TOUS les postes, filtrés par M3 / M1), après le parc et
+les fournisseurs, avant les centres de coût. Les ventes, dépenses, caisses,
+commandes et réceptions des autres postes NE descendent PAS (consultées au
+serveur, seul comptable, D246).
+
+- **Client** (`AligneurCatalogue._client`) : dernière saisie gagnante (une
+  fiche en suspens est conservée), aucun contrôle d'homonyme (le serveur ne
+  fusionne jamais deux clients), `solde` ne descend pas, un client archivé
+  reste proposé (compté dans `archivesNonPortees`).
+- **Réservation** (`_reservation`) : NOUVELLE → écrite sans pièce (le
+  serveur a passé celle de l'acompte), référence `SRV-` + 8 caractères,
+  tarif absent = 0 (précédent `ReservationDto`), aucune ligne de service,
+  canal non descendu ; elle occupe la chambre pour `chevauchant` (RG-01).
+  EXISTANTE → seul le STATUT bouge, et seulement vers l'avant
+  (`en_attente` → `confirmee` → `en_cours` → `terminee`) ; annulée ici =
+  intouchable ; annulée au serveur = annulée ici avec ses conditions, sans
+  pièce. Dates, unité, montants d'une réservation existante ne sont PAS
+  réécrits (écart nommé : le poste ne pousse que la création).
+- **Bouton de la barre supérieure** (`presentation/bouton_synchronisation.dart`,
+  AJOUT du PO, à gauche de la cloche) : voyant pur `voyantDe`
+  (`domain/voyant_synchronisation.dart`) — gris / rouge (+ nombre à traiter
+  ou jeton refusé) / orange (+ nombre en attente) / vert (RIEN en attente) ;
+  les comptes sont relus au signal de tables de Drift (`surveillerFile` ; une requête `.watch()` laisse un minuteur que le banc refuse, et le bouton est sur TOUS les écrans), le badge
+  suit une vente enfilée sans attendre le moteur. La modale : compteurs,
+  dernier passage, dernière réception, « Synchroniser maintenant » (TOUS les
+  comptes), « Voir le détail » seulement si `accesRoute('/synchronisation')`
+  l'autorise. La pastille « Réseau » de la vue reste refusée.
+- Piège rencontré : un faux serveur qui reprend APRÈS le curseur ne re-sert
+  pas un élément « modifié » ; sans `effacerCurseur()` entre deux descentes,
+  les cas « rien n'est réécrit » passaient À VIDE. Et la sonde des écrivains
+  ne lisait pas `_db.into(t)` : l'aligneur y échappait jusqu'au F3 (déclaré
+  exception nommée depuis).
+
 ## Synchronisation — ⚠ HISTORIQUE, retirée par « zéro réseau »
 
 ⚠ **Vérifié le 12/10/2026 : `synchroniserMaintenant`, `DeclencheurSynchronisation`,

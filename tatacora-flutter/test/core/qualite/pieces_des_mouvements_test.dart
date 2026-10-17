@@ -101,12 +101,32 @@ final _ancienneGardeDeCloture = <RegExp>[
   ),
 ];
 
+/// Les MIROIRS du serveur, écartés du balayage — nommés, un par un.
+///
+/// `aligneur_catalogue.dart` (lot F3, 16/10/2026) écrit `annulee` sur une
+/// réservation que le SERVEUR a annulée : il ne fait pas le geste, il en
+/// recopie l'état. La pièce du remboursement existe déjà — au serveur, seul
+/// comptable (D246) — et le poste n'en passe aucune (`descente_tiers_test` :
+/// « annulée AU SERVEUR … sans pièce »). La règle « une annulation passe par
+/// `annulerAvecConditions` » vise le geste local, que ce fichier ne fait pas.
+/// Le cas « l'exclusion n'est pas périmée » prouve qu'il est bien dénoncé
+/// sans elle.
+const _miroirsDuServeur = {
+  'lib/features/synchronisation/data/aligneur_catalogue.dart',
+};
+
 /// Les fichiers de [racine] dont le CODE (hors commentaires) contient un des
 /// motifs.
-List<String> _fichiersQuiEcrivent(Directory racine, List<RegExp> motifs) {
+List<String> _fichiersQuiEcrivent(
+  Directory racine,
+  List<RegExp> motifs, {
+  bool avecMiroirs = false,
+}) {
   final trouves = <String>[];
   for (final f in racine.listSync(recursive: true).whereType<File>()) {
     if (!f.path.endsWith('.dart') || f.path.endsWith('.g.dart')) continue;
+    final chemin = f.path.replaceAll(r'\', '/');
+    if (!avecMiroirs && _miroirsDuServeur.any(chemin.endsWith)) continue;
     final code = f
         .readAsLinesSync()
         .where((l) => !l.trimLeft().startsWith('//'))
@@ -237,6 +257,18 @@ void main() {
             'Une annulation hors de `annulerAvecConditions` laisserait '
             'l\'acompte dans les comptes comme s\'il était encore dû au client.',
       );
+    });
+
+    test('l\'exclusion des miroirs du serveur n\'est pas périmée : sans '
+        'elle, l\'aligneur est dénoncé', () {
+      final tous = _fichiersQuiEcrivent(
+        Directory('lib'),
+        _ecrivainsDAnnulation,
+        avecMiroirs: true,
+      );
+      for (final m in _miroirsDuServeur) {
+        expect(tous.any((f) => f.endsWith(m)), isTrue, reason: m);
+      }
     });
 
     test('et la modale appelle le cas d\'usage avec l\'auteur', () {

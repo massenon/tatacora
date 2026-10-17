@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../config/environnement.dart';
 import '../di/providers.dart';
 import '../../features/alertes/presentation/cloche_notifications.dart';
+import '../../features/synchronisation/presentation/bouton_synchronisation.dart';
 import '../../features/auth/domain/session.dart';
 import '../../features/caisse/domain/indicateur_caisse.dart';
 import '../../features/caisse/presentation/providers_caisse.dart';
@@ -408,8 +409,10 @@ class _BarreSuperieure extends ConsumerWidget implements PreferredSizeWidget {
           //
           // REFUSÉ — la pastille « Réseau » (l.154-157). Ce poste est ZÉRO
           // RÉSEAU (14/09/2026) : un badge vert affirmerait une liaison qui
-          // n'existe pas, la famille PA-59/60/61. Refus daté du 12/10/2026,
-          // à rouvrir si le poste se reconnecte un jour.
+          // n'existe pas, la famille PA-59/60/61. Refus daté du 12/10/2026.
+          // Le poste se synchronise de nouveau depuis le 15/10/2026 : l'état
+          // de la synchronisation est dit par le bouton de synchronisation
+          // (plus loin, lot F3), pas par une pastille « Réseau ».
           //
           // AJOUT déclaré — la pastille d'ENVIRONNEMENT, hors production
           // seulement (`bandeauVisible`). La vue n'en a pas : elle est servie
@@ -437,6 +440,13 @@ class _BarreSuperieure extends ConsumerWidget implements PreferredSizeWidget {
           // compte dans `alertes_vues_local` (schéma v22). Ses 36 px entre
           // « Vente » et le menu de compte ramènent « Vente » et l'indicateur
           // de caisse à leur place (décalage de ~35 px relevé au lot 1).
+          // AJOUT du PO (16/10/2026, lot F3) — le bouton de SYNCHRONISATION :
+          // la vue n'en a pas (elle est servie par le serveur). À gauche de la
+          // cloche, avec sa forme ; un voyant dit l'état de la file, la
+          // modale lance « Synchroniser maintenant ». La pastille « Réseau »
+          // reste refusée : un poste ne sait pas s'il est « en réseau », il
+          // sait ce qui attend de partir.
+          if (session != null) const BoutonSynchronisation(),
           if (session != null) ClocheNotifications(routeActive: routeActive),
           if (session != null) _MenuProfil(session: session),
         ],

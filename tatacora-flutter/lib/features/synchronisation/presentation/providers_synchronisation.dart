@@ -14,6 +14,7 @@ import '../data/transport_synchronisation.dart';
 import '../domain/bilan_synchronisation.dart';
 import '../domain/descente_catalogue.dart';
 import '../domain/operation_sync.dart';
+import '../domain/voyant_synchronisation.dart';
 
 /// La file d'envoi du poste (lot F1, 15/10/2026).
 final operationsSyncDaoProvider = Provider<OperationsSyncDao>(
@@ -253,3 +254,42 @@ final synchronisationAutomatiqueProvider = Provider<void>((ref) {
   );
   ref.onDispose(minuteur.cancel);
 });
+
+/* ==================================================================== */
+/* Lot F3 — le voyant de la barre supérieure                             */
+/* ==================================================================== */
+
+/// Les comptes de la file, RELUS à chaque écriture de la file (signal de
+/// tables de Drift) : le badge suit une vente enfilée sans attendre le
+/// passage suivant du moteur.
+final comptesFileSynchronisationProvider =
+    FutureProvider.autoDispose<Map<StatutOperationSync, int>>((ref) async {
+      final dao = ref.watch(operationsSyncDaoProvider);
+      final abonnement = dao.surveillerFile().listen(
+        (_) => ref.invalidateSelf(),
+      );
+      ref.onDispose(abonnement.cancel);
+      return dao.compteParStatut();
+    });
+
+/// Le voyant du bouton de la barre supérieure, ou `null` tant que la file
+/// ou l'appairage ne sont pas lus (aucune couleur n'est affirmée avant).
+final voyantSynchronisationProvider =
+    Provider.autoDispose<VoyantSynchronisation?>((ref) {
+      final interdite =
+          ref.watch(synchronisationInterditeProvider) ||
+          ref.watch(urlServeurSynchronisationProvider) == null;
+      final comptes = ref.watch(comptesFileSynchronisationProvider);
+      final appairage = ref.watch(appairageActuelProvider);
+      if (!interdite && (!comptes.hasValue || !appairage.hasValue)) {
+        return null;
+      }
+      return voyantDe(
+        interdite: interdite,
+        appaire: appairage.value != null,
+        refusJeton: appairage.value?.refus != null,
+        comptes: comptes.value ?? const {},
+        bilan: ref.watch(dernierBilanSynchronisationProvider),
+        enCours: ref.watch(synchronisationEnCoursProvider),
+      );
+    });

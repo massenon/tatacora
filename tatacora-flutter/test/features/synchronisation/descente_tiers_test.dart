@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tatacora_flutter/features/hebergement/data/reservation_dao.dart';
 import 'package:tatacora_flutter/features/hebergement/domain/entities/periode_sejour.dart';
 import 'package:tatacora_flutter/features/synchronisation/data/descente_catalogue_dao.dart';
-import 'package:tatacora_flutter/features/synchronisation/domain/bilan_synchronisation.dart';
 import 'package:tatacora_flutter/features/synchronisation/domain/descente_catalogue.dart';
 
 import 'support/faux_transport.dart';
@@ -259,7 +258,7 @@ void main() {
         'sinon la version du serveur la remplace', () async {
       final [id] = await b.enfilerClients(1);
       await b.db.customStatement(
-        "INSERT INTO clients_local (id, nom, telephone, type_client) "
+        'INSERT INTO clients_local (id, nom, telephone, type_client) '
         "VALUES (?, 'Local', '97001000', 'particulier')",
         [id],
       );

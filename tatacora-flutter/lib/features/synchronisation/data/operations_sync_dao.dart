@@ -593,11 +593,25 @@ class OperationsSyncDao extends DatabaseAccessor<AppDatabase> {
   }
 
   /// Le nombre d'opérations par statut (zéro compris).
-  Future<Map<StatutOperationSync, int>> compteParStatut() async {
-    final lignes = await customSelect(
-      'SELECT statut, COUNT(*) AS n FROM operations_sync_local GROUP BY statut',
-      readsFrom: {_operations},
-    ).get();
+  Future<Map<StatutOperationSync, int>> compteParStatut() async =>
+      _comptes(await _requeteComptes().get());
+
+  /// Un signal à CHAQUE écriture de la file (lot F3, voyant de la barre
+  /// supérieure) : une vente enfilée fait relire les comptes sans attendre un
+  /// passage du moteur. Le signal de tables de Drift, et non une requête
+  /// `.watch()` : une requête surveillée laisse, à sa fermeture, un minuteur
+  /// que le banc de test refuse (`!timersPending`) — et ce bouton est monté
+  /// dans la barre de TOUS les écrans.
+  Stream<void> surveillerFile() => attachedDatabase.tableUpdates(
+    TableUpdateQuery.onTableName('operations_sync_local'),
+  );
+
+  Selectable<QueryRow> _requeteComptes() => customSelect(
+    'SELECT statut, COUNT(*) AS n FROM operations_sync_local GROUP BY statut',
+    readsFrom: {_operations},
+  );
+
+  static Map<StatutOperationSync, int> _comptes(List<QueryRow> lignes) {
     final comptes = {for (final s in StatutOperationSync.values) s: 0};
     for (final l in lignes) {
       comptes[StatutOperationSync.depuisCode(l.data['statut'] as String)] =
