@@ -17,6 +17,7 @@ use App\Shared\Sync\Gestionnaires\GestionnaireFactures;
 use App\Shared\Sync\Gestionnaires\GestionnaireFournisseurs;
 use App\Shared\Sync\Gestionnaires\GestionnaireGuides;
 use App\Shared\Sync\Gestionnaires\GestionnaireMenus;
+use App\Shared\Sync\Gestionnaires\GestionnairePaiements;
 use App\Shared\Sync\Gestionnaires\GestionnairePlats;
 use App\Shared\Sync\Gestionnaires\GestionnairePointsStockage;
 use App\Shared\Sync\Gestionnaires\GestionnaireRecettes;
@@ -108,6 +109,8 @@ class RegistreSynchronisation
         'depenses' => GestionnaireDepenses::class,
         // Lot F5c : la facture APRÈS la vente qu'elle porte.
         'factures' => GestionnaireFactures::class,
+        // Lot F5d : l'encaissement APRÈS sa facture (et après la caisse).
+        'paiements' => GestionnairePaiements::class,
         // Tourisme (lot F4, 17/10/2026) : les définitions avant la
         // réservation qui les cite (le client est plus haut).
         'circuits' => GestionnaireCircuits::class,

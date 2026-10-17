@@ -66,6 +66,19 @@ class AnomalieSynchronisation extends Model
      */
     public const GUIDE_SANS_TARIF = 'guide_sans_tarif';
 
+    /**
+     * Lot F5d (17/10/2026) : un poste a encaissé une facture que le serveur
+     * n'a pas certifiée (la certification n'est pas lancée, PA-17). L'argent
+     * est réel : le paiement est enregistré, et c'est signalé ici.
+     */
+    public const PAIEMENT_FACTURE_NON_CERTIFIEE = 'paiement_facture_non_certifiee';
+
+    /**
+     * Lot F5d : la caisse du poste qui a reçu l'argent n'est pas connue du
+     * serveur ; le paiement est rattaché à la caisse ouverte du serveur.
+     */
+    public const PAIEMENT_SESSION_INCONNUE = 'paiement_session_inconnue';
+
     protected $table = 'anomalies_synchronisation';
 
     protected $fillable = [

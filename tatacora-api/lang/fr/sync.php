@@ -59,6 +59,9 @@ return [
         'reservation_inconnue' => 'Facture refusée : la réservation n\'est pas connue du serveur (pas encore reçue, ou refusée).',
         'motif_absent' => 'Annulation saisie sur un poste',
     ],
+    'paiements' => [
+        'facture_inconnue' => 'Encaissement refusé : la facture n\'est pas connue du serveur (pas encore reçue, ou refusée).',
+    ],
     'sejours' => [
         'reservation_inconnue' => 'Séjour refusé : la réservation n\'est pas connue du serveur (pas encore reçue, ou refusée).',
         'instant_illisible' => 'Séjour refusé : l\'heure « :valeur » est illisible.',
