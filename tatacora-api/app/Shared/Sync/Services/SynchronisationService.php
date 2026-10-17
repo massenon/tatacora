@@ -14,6 +14,7 @@ use App\Shared\Sync\Models\DeduplicationSynchronisation;
 use App\Shared\Sync\Models\SessionSynchronisation;
 use App\Shared\Sync\Support\ContexteSynchronisation;
 use App\Shared\Sync\Support\EcritureSynchronisee;
+use App\Shared\Sync\Support\OrigineDocuments;
 use Carbon\Exceptions\InvalidFormatException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -80,6 +81,7 @@ class SynchronisationService
         private readonly ClassificationConflitService $classification,
         private readonly RegistreSynchronisation $registre,
         private readonly ResolveurCorrespondances $correspondances,
+        private readonly OrigineDocuments $origines,
     ) {
     }
 
@@ -438,7 +440,18 @@ class SynchronisationService
             return $this->rejet($operation, __('sync.creation_entite_existante'));
         }
 
-        $ecriture = $gestionnaire->creer($idPoste, $payload, $contexte);
+        // Lot F4 : tout ce que le service écrit dans cette portée (le
+        // document, ses mouvements de stock…) est attribué au poste.
+        $ecriture = $this->origines->pendant(
+            $contexte->posteId,
+            $gestionnaire->tablesMiroirs(),
+            function () use ($gestionnaire, $idPoste, $payload, $contexte): EcritureSynchronisee {
+                $ecriture = $gestionnaire->creer($idPoste, $payload, $contexte);
+                $this->origines->retenir($gestionnaire->table(), $ecriture->entiteId, derive: false);
+
+                return $ecriture;
+            },
+        );
 
         if ($ecriture->fusionneAvec !== null) {
             $this->correspondances->enregistrer($contexte->posteId, $gestionnaire->table(), $idPoste, $ecriture->fusionneAvec);

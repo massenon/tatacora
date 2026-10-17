@@ -86,6 +86,17 @@ interface GestionnaireSynchronisation
     public function champDateDocument(): ?string;
 
     /**
+     * Les tables DÉRIVÉES que le poste écrit lui-même localement quand il
+     * enregistre ce document (lot F4) — les lignes que le service du serveur
+     * y écrit en conséquence ne redescendent pas vers CE poste (il les a
+     * déjà), mais descendent vers tous les autres. Exemple : la réception,
+     * dont le poste écrit déjà les entrées de stock.
+     *
+     * @return list<string>
+     */
+    public function tablesMiroirs(): array;
+
+    /**
      * Crée l'élément sous l'UUID du poste — ou le FUSIONNE sur un élément
      * serveur équivalent, auquel cas `EcritureSynchronisee::$fusionneAvec`
      * porte l'identifiant serveur.

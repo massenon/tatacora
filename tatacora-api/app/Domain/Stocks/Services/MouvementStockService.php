@@ -8,6 +8,7 @@ use App\Domain\Stocks\Exceptions\RuptureStockException;
 use App\Domain\Stocks\Models\Article;
 use App\Domain\Stocks\Models\MouvementStock;
 use App\Shared\Audit\Models\JournalAudit;
+use App\Shared\Sync\Support\OrigineDocuments;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 
@@ -193,6 +194,11 @@ class MouvementStockService
             'utilisateur_id' => auth()->id(),
             'date_mouvement' => $dateMouvement ?? now(),
         ]);
+
+        // Lot F4 : un mouvement écrit pendant l'application d'une opération de
+        // synchronisation (réception, vente d'un poste) porte ce poste
+        // d'origine — hors synchronisation, rien n'est retenu.
+        app(OrigineDocuments::class)->retenir('mouvements_stock', (string) $mouvement->id);
 
         // RG-07 — vérification synchrone, jamais différée en file d'attente :
         // l'utilisateur qui vient de vider le stock doit être averti tout de

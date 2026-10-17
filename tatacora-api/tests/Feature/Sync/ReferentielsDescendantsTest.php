@@ -94,7 +94,15 @@ final class ReferentielsDescendantsTest extends TestCase
 
         // L'ordre des tables : un élément cité descend avant celui qui le cite.
         $tables = array_values(array_unique(array_map(static fn (string $v): string => explode(':', $v)[0], $vus)));
-        $this->assertSame(array_keys(CatalogueDescendantService::COLONNES), $tables);
+        // (Les tables vides de ce jeu — les documents du lot F4 — n'y sont pas :
+        // `DocumentsDescendantsTest` les sème.)
+        $this->assertSame(
+            array_values(array_filter(
+                array_keys(CatalogueDescendantService::COLONNES),
+                static fn (string $t): bool => DB::table($t)->exists(),
+            )),
+            $tables,
+        );
 
         // À jour : le même curseur ne rend plus rien.
         $this->telecharger($this->admin, depuis: $curseur)

@@ -122,6 +122,23 @@ class CatalogueDescendantService
             'remise_type', 'remise_valeur', 'mode_paiement', 'taux_annulation', 'montant_total_annulation',
             'montant_commission_annulation', 'montant_rembourse_annulation', 'date_annulation',
         ],
+        // Lot F4 (décision PO du 17/10/2026, « NE PLUS LIMITER ») : TOUS les
+        // documents de TOUS les postes. Les lignes d'un document descendent
+        // AVEC lui (`ENFANTS`) ; les mouvements de stock descendent tous, sauf
+        // vers le poste qui les tient déjà en miroir (`origines_synchronisation`).
+        'sessions_caisse' => ['point_vente', 'date_ouverture', 'montant_fond', 'date_cloture', 'montant_theorique', 'montant_constate'],
+        'ventes' => [
+            'numero', 'session_id', 'point_vente', 'client_id', 'client_mention', 'table_id', 'montant_total',
+            'mode_paiement', 'encaisse', 'statut', 'motif_annulation', 'annulee_at', 'date_creation',
+        ],
+        'depenses' => ['numero', 'date_transaction', 'tresorerie', 'montant_total', 'libelle'],
+        'commandes_achat' => ['fournisseur_id', 'date_commande', 'statut', 'montant_total', 'date_creation'],
+        'bons_reception' => ['commande_id', 'date_reception', 'conformite', 'created_at'],
+        'reglements_fournisseur' => ['commande_id', 'montant', 'tresorerie', 'date_reglement', 'statut', 'motif_annulation', 'date_annulation'],
+        'mouvements_stock' => ['article_id', 'point_id', 'type_mouvement', 'quantite', 'motif', 'date_mouvement'],
+        'circuits' => ['nom', 'theme', 'zone', 'duree', 'prix', 'capacite_max'],
+        'guides' => ['nom', 'certification', 'zone_competence', 'tarif_jour'],
+        'reservations_tour' => ['circuit_id', 'client_id', 'guide_id', 'date_circuit', 'nb_participants', 'statut'],
         'centres_cout' => ['libelle', 'type'],
     ];
 
@@ -132,13 +149,37 @@ class CatalogueDescendantService
      *
      * @var array<string, string>
      */
-    public const MODULES_HORS_REGISTRE = ['centres_cout' => 'M10'];
+    public const MODULES_HORS_REGISTRE = [
+        'centres_cout' => 'M10',
+        // Lot F4 : descendus avant d'avoir leur gestionnaire de montée (ou
+        // sans : un règlement fournisseur porte une pièce, D246).
+        'reglements_fournisseur' => 'M7',
+        'mouvements_stock' => 'M6',
+        'circuits' => 'M9',
+        'guides' => 'M9',
+        'reservations_tour' => 'M9',
+    ];
+
+    /**
+     * Les LIGNES qui descendent avec leur document : table, clé vers le
+     * document, colonnes, ordre.
+     *
+     * @var array<string, array{table: string, cle: string, colonnes: list<string>, ordre: string}>
+     */
+    public const ENFANTS = [
+        'ventes' => ['table' => 'lignes_vente', 'cle' => 'vente_id', 'colonnes' => ['code', 'nom', 'categorie', 'module', 'prix_unitaire', 'quantite', 'montant'], 'ordre' => 'created_at'],
+        'depenses' => ['table' => 'lignes_depense', 'cle' => 'depense_id', 'colonnes' => ['libelle', 'compte_charge', 'nature', 'famille', 'montant'], 'ordre' => 'created_at'],
+        'commandes_achat' => ['table' => 'lignes_commande_achat', 'cle' => 'commande_id', 'colonnes' => ['article_id', 'quantite_commandee', 'prix_unitaire'], 'ordre' => 'created_at'],
+    ];
 
     /** @var list<string> */
-    private const BOOLEENS = ['actif', 'prix_provisoire', 'prix_corrige_main', 'composition_provisoire'];
+    private const BOOLEENS = ['actif', 'prix_provisoire', 'prix_corrige_main', 'composition_provisoire', 'encaisse'];
 
     /** @var list<string> */
-    private const ENTIERS = ['capacite_max'];
+    private const ENTIERS = ['capacite_max', 'nb_participants'];
+
+    /** Les colonnes ENTIÈRES des lignes (les autres restent des chaînes). */
+    private const ENTIERS_ENFANTS = ['quantite'];
 
     /**
      * `updated_at` d'abord ; une ligne insérée sans horodatage (semeur brut)
@@ -187,7 +228,7 @@ class CatalogueDescendantService
             }
 
             [$lignes, $reste] = $this->lire(
-                DB::table($table)->select(['id', ...self::COLONNES[$table]]),
+                $this->sansMiroirsDuPoste(DB::table($table)->select(['id', ...self::COLONNES[$table]]), $table, $posteId),
                 self::FILIGRANE,
                 $positions[$table] ?? null,
                 $horizon,
@@ -275,6 +316,21 @@ class CatalogueDescendantService
         return [array_slice($lignes, 0, $limite), $reste];
     }
 
+    /**
+     * Retire du flux de CE poste les lignes dérivées qu'il tient déjà en
+     * miroir (les entrées de stock de SA réception) — lot F4.
+     */
+    private function sansMiroirsDuPoste(Builder $requete, string $table, string $posteId): Builder
+    {
+        return $requete->whereNotExists(static function (Builder $o) use ($table, $posteId): void {
+            $o->from('origines_synchronisation')
+                ->where('table_concernee', $table)
+                ->whereColumn('origines_synchronisation.entite_id', "{$table}.id")
+                ->where('poste_id', $posteId)
+                ->where('exclu_pour_poste', true);
+        });
+    }
+
     private function lisible(User $utilisateur, string $table): bool
     {
         $module = self::MODULES_HORS_REGISTRE[$table] ?? $this->registre->pour($table)->module();
@@ -289,6 +345,14 @@ class CatalogueDescendantService
     private function serialiser(string $table, array $lignes): array
     {
         $compositions = $table === 'recettes' ? $this->compositions($lignes) : [];
+        $ids = array_map(static fn (object $l): string => (string) $l->id, $lignes);
+        $enfants = isset(self::ENFANTS[$table]) ? $this->enfants(self::ENFANTS[$table], $ids) : [];
+        $lignesBons = $table === 'bons_reception' ? $this->lignesDesBons($ids) : [];
+        $origines = DB::table('origines_synchronisation')
+            ->where('table_concernee', $table)
+            ->whereIn('entite_id', $ids)
+            ->pluck('poste_id', 'entite_id')
+            ->all();
         $elements = [];
 
         foreach ($lignes as $ligne) {
@@ -319,11 +383,23 @@ class CatalogueDescendantService
                 $donnees['lignes'] = $compositions[(string) $ligne->id] ?? [];
             }
 
+            if (isset(self::ENFANTS[$table])) {
+                $donnees['lignes'] = $enfants[(string) $ligne->id] ?? [];
+            }
+
+            if ($table === 'bons_reception') {
+                $donnees['lignes'] = $lignesBons[(string) $ligne->id] ?? [];
+            }
+
             $elements[] = [
                 'table' => $table,
                 'id' => (string) $ligne->id,
                 'actif' => $actif,
                 'modifie_le' => (string) $ligne->filigrane,
+                // Lot F4 : le poste qui a saisi le document ; `null` = saisi
+                // au serveur (PWA), ou poussé avant `origines_synchronisation`
+                // et au-delà de la rétention de la déduplication.
+                'poste_origine' => isset($origines[(string) $ligne->id]) ? (string) $origines[(string) $ligne->id] : null,
                 'donnees' => $donnees,
             ];
         }
@@ -354,6 +430,74 @@ class CatalogueDescendantService
             });
 
         return $parRecette;
+    }
+
+    /**
+     * Les lignes des documents de la page — une requête par table.
+     *
+     * @param  array{table: string, cle: string, colonnes: list<string>, ordre: string}  $definition
+     * @param  list<string>  $ids
+     * @return array<string, list<array<string, int|string|null>>>
+     */
+    private function enfants(array $definition, array $ids): array
+    {
+        $parDocument = [];
+
+        DB::table($definition['table'])
+            ->whereIn($definition['cle'], $ids)
+            ->orderBy($definition['cle'])
+            ->orderBy($definition['ordre'])
+            ->orderBy('id')
+            ->get([$definition['cle'], ...$definition['colonnes']])
+            ->each(static function (object $ligne) use (&$parDocument, $definition): void {
+                $valeurs = [];
+
+                foreach ($definition['colonnes'] as $colonne) {
+                    $v = $ligne->{$colonne};
+                    $valeurs[$colonne] = match (true) {
+                        $v === null => null,
+                        in_array($colonne, self::ENTIERS_ENFANTS, true) && $definition['table'] === 'lignes_vente' => (int) $v,
+                        default => (string) $v,
+                    };
+                }
+
+                $parDocument[(string) $ligne->{$definition['cle']}][] = $valeurs;
+            });
+
+        return $parDocument;
+    }
+
+    /**
+     * Les lignes d'un bon de réception. Le serveur n'a PAS de table de lignes
+     * de bon : ce qu'un bon a reçu, ce sont les ENTRÉES de stock que
+     * `ReceptionService::receptionner()` écrit, dont le motif cite le bon
+     * (`achats.motif_reception`). Elles sont relues ici — écart nommé :
+     * une entrée dont le motif aurait été réécrit ne serait plus rattachée.
+     *
+     * @param  list<string>  $ids
+     * @return array<string, list<array{article_id: string, point_id: string, quantite: string}>>
+     */
+    private function lignesDesBons(array $ids): array
+    {
+        $parBon = [];
+
+        foreach ($ids as $id) {
+            DB::table('mouvements_stock')
+                ->where('type_mouvement', 'entree')
+                ->where('motif', 'like', '%' . $id . '%')
+                ->orderBy('created_at')
+                ->orderBy('id')
+                ->get(['article_id', 'point_id', 'quantite'])
+                ->each(static function (object $m) use (&$parBon, $id): void {
+                    $parBon[$id][] = [
+                        'article_id' => (string) $m->article_id,
+                        'point_id' => (string) $m->point_id,
+                        'quantite' => (string) $m->quantite,
+                    ];
+                });
+        }
+
+        return $parBon;
     }
 
     /**

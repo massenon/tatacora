@@ -59,6 +59,12 @@ abstract class GestionnaireAbstrait implements GestionnaireSynchronisation
         return null;
     }
 
+    /** Par défaut : le poste n'écrit localement aucune ligne dérivée. */
+    public function tablesMiroirs(): array
+    {
+        return [];
+    }
+
     /** Par défaut : pas un document — la création sur un identifiant existant reste rejetée. */
     public function reprendreExistant(string $entiteId, ContexteSynchronisation $contexte): ?EcritureSynchronisee
     {

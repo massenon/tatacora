@@ -67,6 +67,16 @@ final class GestionnaireBonsReception extends GestionnaireDocumentAbstrait
         return 'bons_reception';
     }
 
+    /**
+     * Lot F4 : le poste écrit lui-même les entrées de stock de SA réception
+     * (`AchatsDao`) ; celles que `ReceptionService` écrit ici ne lui
+     * redescendent donc pas — elles descendent vers les autres postes.
+     */
+    public function tablesMiroirs(): array
+    {
+        return ['mouvements_stock'];
+    }
+
     public function module(): string
     {
         return 'M7';
