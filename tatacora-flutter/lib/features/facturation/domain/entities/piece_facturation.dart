@@ -220,6 +220,35 @@ final class LigneFacture {
 }
 
 /// Une pièce du registre : une facture, ou l'avoir qui la neutralise.
+/// Le préfixe du numéro provisoire d'un poste (lot F5c).
+const prefixeNumeroProvisoire = 'PROV-';
+
+/// Le préfixe posé sur une pièce ANCIENNE du poste (jamais transmise) dont le
+/// numéro local est attribué par le serveur à une autre pièce : `LOC-` +
+/// l'ancien numéro, qui reste lisible (lot F5c). Deux pièces ne portent
+/// jamais le même numéro (`UNIQUE`).
+const prefixeNumeroLocalAncien = 'LOC-';
+
+/// Où en est la transmission d'une pièce au serveur — registre FERMÉ de
+/// `pieces_facturation_local.statut_transmission`.
+enum StatutTransmissionPiece {
+  /// Émise avant la synchronisation des factures (ou en démonstration) :
+  /// elle ne part pas.
+  nonTransmissible('non_transmissible'),
+
+  /// Dans la file d'envoi ; numéro provisoire.
+  enAttente('en_attente'),
+
+  /// Acceptée par le serveur ; numéro du serveur.
+  transmise('transmise'),
+
+  /// Descendue du serveur (un autre poste, ou la PWA).
+  recue('recue');
+
+  const StatutTransmissionPiece(this.code);
+  final String code;
+}
+
 final class PieceFacturation {
   const PieceFacturation({
     required this.id,
@@ -287,6 +316,11 @@ final class PieceFacturation {
   int get montantTotal => lignes.fold(0, (t, l) => t + l.montant);
 
   bool get estAvoir => avoirDe != null;
+
+  /// Numéro PROVISOIRE du poste (`PROV-AAAA-NNNNN`, lot F5c, décision du PO
+  /// du 17/10/2026) : le numéro continu est attribué par le serveur, et la
+  /// synchronisation le pose ici. Le papier le dit (« Facture provisoire »).
+  bool get estProvisoire => numero.startsWith(prefixeNumeroProvisoire);
 
   bool get estEmise => statut == StatutPiece.emise;
 

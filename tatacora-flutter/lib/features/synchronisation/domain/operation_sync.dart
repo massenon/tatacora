@@ -41,6 +41,12 @@ enum TableSynchronisee {
   ventes('ventes', accepteModification: false),
   depenses('depenses', accepteModification: false),
 
+  /// Lots F5c et F5d (17/10/2026) : la facture APRÈS la vente qu'elle porte,
+  /// l'encaissement après sa facture ; l'ANNULATION est leur seule
+  /// modification (avoir, contre-passation).
+  factures('factures', accepteModification: true),
+  paiements('paiements', accepteModification: true),
+
   /// Tourisme (lot F4, 17/10/2026) : les définitions (dernier écrit gagnant)
   /// avant la réservation qui les cite ; la réservation se modifie par trois
   /// gestes (annulation, clôture, réaffectation du guide).

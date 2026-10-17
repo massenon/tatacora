@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import '../../facturation/data/facture_dao.dart';
 import '../../transverse/data/configuration_poste.dart';
 import '../domain/bilan_synchronisation.dart';
 import '../domain/descente_catalogue.dart';
@@ -394,6 +395,9 @@ class SyncManager {
       resultat: resultat,
       codeHttp: codeHttp,
     );
+    if (statut == 'synchronise' && o.table == TableSynchronisee.factures) {
+      await _regulariserFacture(o, resultat);
+    }
     c.traites.add(o.uuidOperation);
     c.envoyees++;
     switch (statut) {
@@ -403,6 +407,28 @@ class SyncManager {
         c.conflits++;
       default:
         c.synchronisees++;
+    }
+  }
+
+  /// Lot F5c : le numéro continu rendu par le serveur remplace le
+  /// provisoire (et celui de l'avoir, pour une annulation). Une
+  /// régularisation impossible (numéro déjà porté par une pièce reçue) ne
+  /// change rien à l'envoi : la descente de la facture la retente, et la
+  /// compte refusée si elle échoue encore.
+  Future<void> _regulariserFacture(
+    OperationSync o,
+    Map<String, Object?> resultat,
+  ) async {
+    final numero = resultat['numero'];
+    final numeroAvoir = resultat['numero_avoir'];
+    try {
+      await FactureDao(_dao.attachedDatabase).regulariserNumeros(
+        o.entiteId,
+        numero: numero is String ? numero : null,
+        numeroAvoir: numeroAvoir is String ? numeroAvoir : null,
+      );
+    } on StateError {
+      // Voir la doc : la descente reprend.
     }
   }
 

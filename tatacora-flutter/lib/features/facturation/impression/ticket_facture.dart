@@ -245,7 +245,8 @@ final class TicketFacture {
       const LigneTicket.separateur(),
 
       LigneTicket(
-        piece.estAvoir ? 'AVOIR ${piece.numero}' : piece.numero,
+        '${piece.estAvoir ? 'AVOIR ' : ''}'
+        '${piece.estProvisoire ? 'PROVISOIRE ' : ''}${piece.numero}',
         style: StyleLigneTicket.titre,
       ),
       if (piece.estAvoir)

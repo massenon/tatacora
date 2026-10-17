@@ -9,6 +9,9 @@ import '../../../core/database/app_database.dart';
 import '../../../core/database/tables/registre_facturation_tables.dart';
 import '../domain/entities/piece_facturation.dart';
 import '../domain/repositories/facture_repository.dart';
+import '../../synchronisation/data/operations_sync_dao.dart';
+import '../../synchronisation/domain/charges_synchronisation.dart';
+import '../../synchronisation/domain/operation_sync.dart';
 
 part 'facture_dao.g.dart';
 
@@ -21,13 +24,14 @@ part 'facture_dao.g.dart';
 /// ne franchit pas cette frontière : sans quoi renommer une colonne casserait
 /// un widget, et la couche présentation saurait qu'une base existe.
 ///
-/// ## Aucune entrée n'est mise en file de synchronisation
+/// ## La facture part au serveur (lot F5c, 17/10/2026)
 ///
-/// Délibéré, et vérifié par un test. Le serveur n'a ni table `factures` au
-/// registre `TABLES_SYNCHRONISABLES`, ni route d'API de facturation : une
-/// opération poussée serait refusée à chaque tentative, et le poste afficherait
-/// « en attente de synchronisation » sur quelque chose qui ne partira jamais.
-/// C'est la famille PA-59 / PA-60 / PA-61.
+/// Décision du PO (Q2) : le poste émet une facture PROVISOIRE
+/// (`PROV-AAAA-NNNNN`), le serveur attribue le numéro continu
+/// (`F-AAAA-NNNNN`), la synchronisation le pose ici
+/// ([regulariserNumeros]). L'émission et l'annulation s'enfilent dans LEUR
+/// transaction. Une pièce émise avant (ou en démonstration) reste
+/// `non_transmissible` : elle ne part pas, son annulation non plus.
 ///
 /// ## Aucune méthode de suppression, jamais
 ///
@@ -88,7 +92,12 @@ class FactureDao extends DatabaseAccessor<AppDatabase> with _$FactureDaoMixin {
       ),
     );
 
-    return 'F-$annee-${suivant.toString().padLeft(5, '0')}';
+    // Lot F5c : sous synchronisation, le numéro du poste est PROVISOIRE ; le
+    // continu vient du serveur. En démonstration (rien ne part), l'ancien.
+    final prefixe = attachedDatabase.fileSynchronisationActive
+        ? prefixeNumeroProvisoire
+        : 'F-';
+    return '$prefixe$annee-${suivant.toString().padLeft(5, '0')}';
   }
 
   /* ================================================================== */
@@ -242,6 +251,11 @@ class FactureDao extends DatabaseAccessor<AppDatabase> with _$FactureDaoMixin {
           // Identité FISCALE : nulle à l'émission, toujours. La certification
           // n'a pas lieu (PA-17 / PA-61).
           numeroMecef: const Value(null),
+          statutTransmission: Value(
+            attachedDatabase.fileSynchronisationActive
+                ? StatutTransmissionPiece.enAttente.code
+                : StatutTransmissionPiece.nonTransmissible.code,
+          ),
         ),
       );
 
@@ -249,6 +263,28 @@ class FactureDao extends DatabaseAccessor<AppDatabase> with _$FactureDaoMixin {
         for (var i = 0; i < brouillon.lignes.length; i++)
           _versLigneCompanion(id, brouillon.lignes[i], i),
       ]);
+
+      await OperationsSyncDao(attachedDatabase).enfiler(
+        table: TableSynchronisee.factures,
+        entiteId: id,
+        type: TypeOperationSync.creation,
+        payload: chargeFacture(
+          origine: brouillon.origine.code,
+          dateEmission: _maintenant(),
+          clientId: brouillon.clientId,
+          reservationId: brouillon.reservationId,
+          panierId: brouillon.panierId,
+          lignes: [
+            for (final l in brouillon.lignes)
+              (
+                module: l.module.code,
+                libelle: l.libelle,
+                prixUnitaire: l.prixUnitaire,
+                quantite: l.quantite,
+              ),
+          ],
+        ),
+      );
     });
 
     return (await parId(id))!;
@@ -317,8 +353,26 @@ class FactureDao extends DatabaseAccessor<AppDatabase> with _$FactureDaoMixin {
           numeroMecef: const Value(null),
           avoirDe: Value(entete.numero),
           motifAvoir: Value(motifNet),
+          statutTransmission: Value(
+            entete.statutTransmission ==
+                    StatutTransmissionPiece.nonTransmissible.code
+                ? StatutTransmissionPiece.nonTransmissible.code
+                : StatutTransmissionPiece.enAttente.code,
+          ),
         ),
       );
+
+      // Lot F5c : l'annulation part si la facture est connue du serveur
+      // (envoyée, ou descendue) — le serveur émet l'avoir et rend son numéro.
+      if (entete.statutTransmission !=
+          StatutTransmissionPiece.nonTransmissible.code) {
+        await OperationsSyncDao(attachedDatabase).enfiler(
+          table: TableSynchronisee.factures,
+          entiteId: pieceId,
+          type: TypeOperationSync.modification,
+          payload: chargeAnnulationFacture(motif: motifNet),
+        );
+      }
 
       await _copierLignes([
         for (final l in lignes)
@@ -342,6 +396,255 @@ class FactureDao extends DatabaseAccessor<AppDatabase> with _$FactureDaoMixin {
       facture: (await parId(pieceId))!,
       avoir: (await parId(idAvoir))!,
     );
+  }
+
+  /* ================================================================== */
+  /* Régularisation du numéro — lot F5c                                  */
+  /* ================================================================== */
+
+  /// Pose le numéro continu attribué par le serveur ([numero], `F-…`) sur la
+  /// facture [pieceId], et celui de son avoir ([numeroAvoir], `AV-…`) sur
+  /// l'avoir local qui la neutralise. Décision du PO du 17/10/2026 : « la
+  /// synchronisation régularise, et les postes s'actualisent du numéro que
+  /// le serveur a attribué ».
+  ///
+  /// Idempotent (un numéro déjà posé ne change rien). Les avoirs désignent
+  /// leur facture par son NUMÉRO (clé étrangère réelle) : les deux sont
+  /// réécrits dans la même transaction, contraintes différées. Une pièce
+  /// ANCIENNE du poste (jamais transmise) qui porte déjà ce numéro le cède
+  /// et devient `LOC-<son numéro>` ; une pièce transmise ou reçue qui le
+  /// porte est une incohérence : la régularisation LÈVE, rien n'est écrit.
+  Future<void> regulariserNumeros(
+    String pieceId, {
+    String? numero,
+    String? numeroAvoir,
+  }) => transaction(() async {
+    await customStatement('PRAGMA defer_foreign_keys = ON');
+    final entete = await (select(
+      piecesFacturationLocal,
+    )..where((p) => p.id.equals(pieceId))).getSingleOrNull();
+    if (entete == null) return;
+
+    var courant = entete.numero;
+    if (numero != null && numero.isNotEmpty && numero != courant) {
+      await _renumeroter(entete.id, courant, numero);
+      courant = numero;
+    }
+
+    if (numeroAvoir != null && numeroAvoir.isNotEmpty) {
+      final avoirs =
+          await (select(piecesFacturationLocal)
+                ..where((p) => p.avoirDe.equals(courant))
+                ..orderBy([(p) => OrderingTerm.asc(p.dateEmission)]))
+              .get();
+      final avoir = avoirs.isEmpty ? null : avoirs.first;
+      if (avoir != null && avoir.numero != numeroAvoir) {
+        await _renumeroter(avoir.id, avoir.numero, numeroAvoir);
+      }
+      if (avoir != null) await _marquerTransmise(avoir.id);
+    }
+
+    await _marquerTransmise(entete.id);
+  });
+
+  /* ================================================================== */
+  /* Pièces DESCENDUES du serveur — lot F5c                              */
+  /* ================================================================== */
+
+  /// Inscrit une facture reçue du serveur (un autre poste, ou la PWA), sous
+  /// SON identifiant et SON numéro, lignes copiées. Aucune file, aucune
+  /// pièce comptable (Q1 : le serveur a passé la sienne). Appelé par la
+  /// seule descente (`AligneurCatalogue`).
+  Future<void> inscrireDescendue({
+    required String id,
+    required String numero,
+    required OrigineFacture origine,
+    required DateTime dateEmission,
+    required String clientNom,
+    required String? clientId,
+    required String? reservationId,
+    required String? panierId,
+    required List<LigneBrouillon> lignes,
+  }) => transaction(() async {
+    await into(piecesFacturationLocal).insert(
+      PiecesFacturationLocalCompanion.insert(
+        id: id,
+        numero: numero,
+        origine: origine.code,
+        dateEmission: dateEmission,
+        clientNom: clientNom,
+        clientId: Value(clientId),
+        reservationId: Value(reservationId),
+        panierId: Value(panierId),
+        statut: Value(StatutPiece.emise.code),
+        numeroMecef: const Value(null),
+        statutTransmission: Value(StatutTransmissionPiece.recue.code),
+      ),
+    );
+    await _copierLignes([
+      for (var i = 0; i < lignes.length; i++)
+        _versLigneCompanion(id, lignes[i], i),
+    ]);
+  });
+
+  /// Inscrit un avoir reçu du serveur sur la facture [factureId]. Avoir du
+  /// TTC entier : les lignes de la facture, en sens inverse, et la facture
+  /// devient `annulee` (la règle de [annuler]). Avoir PARTIEL (saisi à la
+  /// PWA) : une seule ligne du montant, la facture reste émise.
+  Future<void> inscrireAvoirDescendu({
+    required String id,
+    required String factureId,
+    required String numero,
+    required String motif,
+    required int montant,
+    required DateTime dateEmission,
+  }) => transaction(() async {
+    final entete = await (select(
+      piecesFacturationLocal,
+    )..where((p) => p.id.equals(factureId))).getSingle();
+    final lignes = await _lignesDe(factureId);
+    final total = lignes.fold<int>(
+      0,
+      (t, l) => t + l.prixUnitaire * l.quantite,
+    );
+    final entier = montant == total;
+
+    if (entier) {
+      await (update(
+        piecesFacturationLocal,
+      )..where((p) => p.id.equals(factureId))).write(
+        PiecesFacturationLocalCompanion(
+          statut: Value(StatutPiece.annulee.code),
+          motifAnnulation: Value(motif),
+          dateAnnulation: Value(dateEmission),
+        ),
+      );
+    }
+
+    await into(piecesFacturationLocal).insert(
+      PiecesFacturationLocalCompanion.insert(
+        id: id,
+        numero: numero,
+        origine: entete.origine,
+        dateEmission: dateEmission,
+        clientNom: entete.clientNom,
+        clientId: Value(entete.clientId),
+        reservationId: Value(entete.reservationId),
+        panierId: Value(entete.panierId),
+        statut: Value(StatutPiece.emise.code),
+        numeroMecef: const Value(null),
+        avoirDe: Value(entete.numero),
+        motifAvoir: Value(motif),
+        statutTransmission: Value(StatutTransmissionPiece.recue.code),
+      ),
+    );
+
+    await _copierLignes([
+      if (entier)
+        for (final l in lignes)
+          LignesPieceFacturationLocalCompanion.insert(
+            id: '$id:${l.ordre}',
+            pieceId: id,
+            moduleSource: l.moduleSource,
+            codeArticle: Value(l.codeArticle),
+            libelle: l.libelle,
+            prixUnitaire: l.prixUnitaire,
+            quantite: -l.quantite,
+            ordre: l.ordre,
+          )
+      else
+        LignesPieceFacturationLocalCompanion.insert(
+          id: '$id:0',
+          pieceId: id,
+          moduleSource: lignes.isEmpty
+              ? ModuleFacturable.m1Hebergement.code
+              : lignes.first.moduleSource,
+          libelle: 'Avoir partiel — $motif',
+          prixUnitaire: montant,
+          quantite: -1,
+          ordre: 0,
+        ),
+    ]);
+  });
+
+  /// L'avoir LOCAL encore provisoire de la facture [factureId] — celui que
+  /// ce poste a émis en l'annulant, et dont le serveur rend le numéro.
+  Future<String?> avoirProvisoireDe(String factureId) async {
+    final facture = await (select(
+      piecesFacturationLocal,
+    )..where((p) => p.id.equals(factureId))).getSingleOrNull();
+    if (facture == null) return null;
+    final avoirs =
+        await (select(piecesFacturationLocal)..where(
+              (p) =>
+                  p.avoirDe.equals(facture.numero) &
+                  p.numero.like('$prefixeNumeroProvisoire%'),
+            ))
+            .get();
+    return avoirs.isEmpty ? null : avoirs.first.id;
+  }
+
+  /// La pièce est-elle connue (ou attendue) du serveur ? Un encaissement
+  /// ou une annulation n'y part que si oui : sur une pièce ancienne, le
+  /// serveur répondrait « facture inconnue » à chaque tentative.
+  Future<bool> partAuServeur(String pieceId) async {
+    final entete = await (select(
+      piecesFacturationLocal,
+    )..where((p) => p.id.equals(pieceId))).getSingleOrNull();
+    return entete != null &&
+        entete.statutTransmission !=
+            StatutTransmissionPiece.nonTransmissible.code;
+  }
+
+  /// La pièce a-t-elle reçu son numéro du serveur ([regulariserNumeros]) ?
+  Future<bool> regularisee(String pieceId) async {
+    final entete = await (select(
+      piecesFacturationLocal,
+    )..where((p) => p.id.equals(pieceId))).getSingleOrNull();
+    return entete?.statutTransmission == StatutTransmissionPiece.transmise.code;
+  }
+
+  Future<void> _marquerTransmise(String id) async {
+    await (update(piecesFacturationLocal)..where(
+          (p) =>
+              p.id.equals(id) &
+              p.statutTransmission.equals(
+                StatutTransmissionPiece.enAttente.code,
+              ),
+        ))
+        .write(
+          PiecesFacturationLocalCompanion(
+            statutTransmission: Value(StatutTransmissionPiece.transmise.code),
+          ),
+        );
+  }
+
+  /// Réécrit le numéro de la pièce [id] (et la référence de ses avoirs),
+  /// après avoir LIBÉRÉ [nouveau] si une pièce ancienne le porte.
+  Future<void> _renumeroter(String id, String ancien, String nouveau) async {
+    final porteur = await (select(
+      piecesFacturationLocal,
+    )..where((p) => p.numero.equals(nouveau))).getSingleOrNull();
+    if (porteur != null && porteur.id != id) {
+      if (porteur.statutTransmission !=
+          StatutTransmissionPiece.nonTransmissible.code) {
+        throw StateError(
+          'Le numéro « $nouveau » attribué par le serveur est déjà porté par '
+          'la pièce ${porteur.id} : régularisation refusée.',
+        );
+      }
+      await _renumeroter(
+        porteur.id,
+        porteur.numero,
+        '$prefixeNumeroLocalAncien${porteur.numero}',
+      );
+    }
+    await (update(piecesFacturationLocal)..where((p) => p.id.equals(id))).write(
+      PiecesFacturationLocalCompanion(numero: Value(nouveau)),
+    );
+    await (update(piecesFacturationLocal)
+          ..where((p) => p.avoirDe.equals(ancien)))
+        .write(PiecesFacturationLocalCompanion(avoirDe: Value(nouveau)));
   }
 
   /* ================================================================== */

@@ -34,6 +34,9 @@ extension _AlignementDocuments on AligneurCatalogue {
         TableDescendue.sessionsCaisse => _sessionCaisse(id, e),
         TableDescendue.ventes => _vente(id, e),
         TableDescendue.depenses => _depense(id, e),
+        TableDescendue.factures => _facture(id, e),
+        TableDescendue.avoirs => _avoir(id, e),
+        TableDescendue.paiements => _paiement(id, e),
         TableDescendue.commandesAchat => _commande(id, e),
         TableDescendue.bonsReception => _bon(id, e),
         TableDescendue.reglementsFournisseur => _reglement(id, e),
@@ -527,6 +530,267 @@ extension _AlignementDocuments on AligneurCatalogue {
             ),
           );
     }
+    await _retenirOrigine(e, id);
+    return const Aligne();
+  }
+
+  /* ================================================================== */
+  /* Factures, avoirs, encaissements — lots F5c et F5d                   */
+  /* ================================================================== */
+
+  /// Une facture du serveur. DÉTENUE (celle de ce poste revient par le
+  /// flux) : seul son numéro suit — c'est la seconde voie de la
+  /// régularisation, quand la réponse de l'envoi a été perdue. NOUVELLE :
+  /// inscrite au registre sous son numéro, lignes au PRIX VENDU
+  /// (`prix_catalogue`), sans pièce. Une facture ancienne du serveur sans
+  /// numéro reçoit `SRV-` + 8 caractères (même convention que les
+  /// réservations) ; sans prix vendu et avec de la TVA, elle est refusée :
+  /// le poste ne recalcule pas un TTC.
+  Future<IssueAlignement> _facture(String id, ElementCatalogue e) async {
+    final d = e.donnees;
+    final numeroServeur = AligneurCatalogue._texte(d['numero']);
+    final factures = FactureDao(_db);
+    if (await _existe(_db.piecesFacturationLocal, id)) {
+      if (numeroServeur != null) {
+        try {
+          await factures.regulariserNumeros(id, numero: numeroServeur);
+        } on StateError catch (err) {
+          return RefuseParLePoste(err.message);
+        }
+      }
+      return const Aligne();
+    }
+    final DateTime date;
+    try {
+      date = _jourLocal(d['date_emission']);
+    } on FormatException {
+      return const RefuseParLePoste('date d’émission illisible');
+    }
+    final origineServeur = AligneurCatalogue._texte(d['origine']);
+    final origine = OrigineFacture.values
+        .where((o) => o.code == origineServeur)
+        .firstOrNull;
+    if (origineServeur != null && origine == null) {
+      return RefuseParLePoste(
+        'origine de facture inconnue « $origineServeur »',
+      );
+    }
+    // Sans TVA, le prix hors taxe EST le prix vendu (facture ancienne).
+    final sansTva = entierDepuisDecimal(d['montant_tva'], 2) == 0;
+    final lignes = _lignes(d);
+    if (lignes == null || lignes.isEmpty) {
+      return const RefuseParLePoste('facture sans ligne');
+    }
+    final converties = <LigneBrouillon>[];
+    String? reservationId;
+    String? panierId;
+    for (final l in lignes) {
+      final module = ModuleFacturable.values
+          .where((m) => m.code == l['source_module'])
+          .firstOrNull;
+      final quantite = entierDepuisDecimal(l['quantite'], 0);
+      final prix = entierDepuisDecimal(
+        l['prix_catalogue'] ?? (sansTva ? l['prix_unitaire'] : null),
+        0,
+      );
+      final libelle = AligneurCatalogue._texte(l['libelle']);
+      if (module == null || quantite == null || libelle == null) {
+        return const RefuseParLePoste('ligne de facture illisible');
+      }
+      if (prix == null) {
+        return const RefuseParLePoste(
+          'ligne sans prix vendu (facture ancienne avec TVA, ou fraction '
+          'de franc) : le poste ne recalcule pas un TTC',
+        );
+      }
+      final source = AligneurCatalogue._texte(l['source_id']);
+      if (source != null && module == ModuleFacturable.m1Hebergement) {
+        reservationId ??= await _cite(
+          TableDescendue.reservations,
+          source,
+          _db.reservationsLocal,
+        );
+      }
+      if (source != null &&
+          (module == ModuleFacturable.m4Restaurant ||
+              module == ModuleFacturable.m5Bar)) {
+        panierId ??= await _cite(
+          TableDescendue.ventes,
+          source,
+          _db.paniersLocal,
+        );
+      }
+      converties.add(
+        LigneBrouillon(
+          module: module,
+          libelle: libelle,
+          prixUnitaire: prix,
+          quantite: quantite,
+        ),
+      );
+    }
+    final clientServeur = AligneurCatalogue._texte(d['client_id']);
+    if (clientServeur == null) {
+      return const RefuseParLePoste('facture sans client');
+    }
+    final clientId = await _cite(
+      TableDescendue.clients,
+      clientServeur,
+      _db.clientsLocal,
+    );
+    if (clientId == null) {
+      return const EnAttenteDeDependance('client pas encore reçu');
+    }
+    final client = await (_db.select(
+      _db.clientsLocal,
+    )..where((c) => c.id.equals(clientId))).getSingle();
+    await factures.inscrireDescendue(
+      id: id,
+      numero: numeroServeur ?? 'SRV-${id.length > 8 ? id.substring(0, 8) : id}',
+      origine: origine ?? OrigineFacture.factureDirecte,
+      dateEmission: date,
+      clientNom: client.nom,
+      clientId: clientId,
+      reservationId: reservationId,
+      panierId: panierId,
+      lignes: converties,
+    );
+    await _retenirOrigine(e, id);
+    return const Aligne();
+  }
+
+  /// Un avoir du serveur. Celui que CE poste a émis en annulant (son
+  /// identifiant local diffère) reçoit le numéro du serveur ; un autre est
+  /// inscrit sur sa facture, sans pièce.
+  Future<IssueAlignement> _avoir(String id, ElementCatalogue e) async {
+    final d = e.donnees;
+    if (await _existe(_db.piecesFacturationLocal, id)) return const Aligne();
+    final factureServeur = AligneurCatalogue._texte(d['facture_id']);
+    final numero = AligneurCatalogue._texte(d['numero']);
+    final montant = entierDepuisDecimal(d['montant'], 0);
+    if (factureServeur == null || montant == null) {
+      return const RefuseParLePoste('avoir incomplet (ou fraction de franc)');
+    }
+    final DateTime date;
+    try {
+      date = _jourLocal(d['date_emission']);
+    } on FormatException {
+      return const RefuseParLePoste('date d’avoir illisible');
+    }
+    final factureId = await _cite(
+      TableDescendue.factures,
+      factureServeur,
+      _db.piecesFacturationLocal,
+    );
+    if (factureId == null) {
+      return const EnAttenteDeDependance('facture pas encore reçue');
+    }
+    final factures = FactureDao(_db);
+    final provisoire = await factures.avoirProvisoireDe(factureId);
+    if (provisoire != null) {
+      if (numero != null) {
+        try {
+          await factures.regulariserNumeros(factureId, numeroAvoir: numero);
+        } on StateError catch (err) {
+          return RefuseParLePoste(err.message);
+        }
+      }
+      return const Aligne();
+    }
+    await factures.inscrireAvoirDescendu(
+      id: id,
+      factureId: factureId,
+      numero: numero ?? 'SRV-${id.length > 8 ? id.substring(0, 8) : id}',
+      motif: AligneurCatalogue._texte(d['motif']) ?? '',
+      montant: montant,
+      dateEmission: date,
+    );
+    await _retenirOrigine(e, id);
+    return const Aligne();
+  }
+
+  /// Un encaissement du serveur. DÉTENU : seule l'annulation suit, jamais
+  /// à rebours. NOUVEAU : inscrit sur sa facture et sa caisse, sans pièce.
+  Future<IssueAlignement> _paiement(String id, ElementCatalogue e) async {
+    final d = e.donnees;
+    final statut = switch (AligneurCatalogue._texte(d['statut'])) {
+      'actif' => StatutPaiementFacture.actif,
+      'annule' => StatutPaiementFacture.annule,
+      _ => null,
+    };
+    if (statut == null) {
+      return RefuseParLePoste(
+        'statut d’encaissement inconnu « ${d['statut']} »',
+      );
+    }
+    DateTime? annulation;
+    try {
+      annulation = d['date_annulation'] == null
+          ? null
+          : _instant(d['date_annulation']);
+    } on FormatException {
+      return const RefuseParLePoste('date d’annulation illisible');
+    }
+    final paiements = PaiementsFactureDao(_db);
+    if (await _existe(_db.paiementsFactureLocal, id)) {
+      if (statut == StatutPaiementFacture.annule) {
+        final auteur = await _auteurOuAttente();
+        if (auteur == null) return AligneurCatalogue._sansAuteur;
+        await paiements.suivreAnnulationDescendue(
+          id: id,
+          motif: AligneurCatalogue._texte(d['motif_annulation']),
+          date: annulation,
+          auteurId: auteur,
+        );
+      }
+      return const Aligne();
+    }
+    final mode = ModePaiementFacture.depuisCode('${d['mode_paiement']}');
+    final montant = entierDepuisDecimal(d['montant'], 2);
+    final factureServeur = AligneurCatalogue._texte(d['facture_id']);
+    final sessionServeur = AligneurCatalogue._texte(d['session_id']);
+    if (mode == null ||
+        montant == null ||
+        factureServeur == null ||
+        sessionServeur == null) {
+      return const RefuseParLePoste('encaissement incomplet');
+    }
+    final DateTime le;
+    try {
+      le = _instant(d['date_paiement']);
+    } on FormatException {
+      return const RefuseParLePoste('date d’encaissement illisible');
+    }
+    final pieceId = await _cite(
+      TableDescendue.factures,
+      factureServeur,
+      _db.piecesFacturationLocal,
+    );
+    if (pieceId == null) {
+      return const EnAttenteDeDependance('facture pas encore reçue');
+    }
+    final sessionId = await _cite(
+      TableDescendue.sessionsCaisse,
+      sessionServeur,
+      _db.sessionsCaisseLocal,
+    );
+    if (sessionId == null) {
+      return const EnAttenteDeDependance('caisse pas encore reçue');
+    }
+    final auteur = await _auteurOuAttente();
+    if (auteur == null) return AligneurCatalogue._sansAuteur;
+    await paiements.inscrireDescendu(
+      id: id,
+      pieceId: pieceId,
+      sessionId: sessionId,
+      mode: mode,
+      montantCentimes: montant,
+      datePaiement: le,
+      statut: statut,
+      motifAnnulation: AligneurCatalogue._texte(d['motif_annulation']),
+      dateAnnulation: annulation,
+      auteurId: auteur,
+    );
     await _retenirOrigine(e, id);
     return const Aligne();
   }

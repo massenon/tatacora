@@ -247,7 +247,7 @@ lib/features/<module>/{domain,data,presentation}
 
 Seul `SessionsCaisseDao` écrit `sessions_caisse_local` ; montants en centimes. Ouverture et clôture répliquent `PosComptant` (le serveur n'a pas de service), refus dans l'ordre du serveur, messages relus par PHP (`tool/caisse/rejouer_caisse.php` rejoue le vrai composant). **Aucune pièce comptable** : le serveur n'en passe aucune. Depuis le lot 5 (D231), le panier au comptant porte `session_encaissement_id` et `especesDeLaSessionProvider` rend les espèces de la session : la clôture calcule théorique et écart comme le serveur (D221–D223 dépassés), et DIT les ventes en espèces sans session (lot 6, R2). `sessionOuverteLaPlusRecente` est appelée en production depuis le lot 5 (encaissement de facture et tableau de bord : la caisse « la plus récente tous points confondus », comme le serveur). La trésorerie de caisse de M11 est calculée depuis le lot 5 (D234). Piège : un `abort(403)` rendu par le harnais Livewire est une exception, pas un statut.
 
-## Base locale Drift — schéma **v21**, 53 tables (v21 : colonne `fournisseurs_local.actif`, aucune table ; v20 : `reglements_fournisseur_local` ; v19 : huit colonnes d'annulation sur `reservations_local`, aucune table ; v18 : `paiements_facture_local` + colonne `paniers_local.session_encaissement_id` ; v17 : `sessions_caisse_local` ; v16 : deux colonnes `ecriture_id`/`ecriture_refus` sur `depenses_local`, aucune table ; v15 : six tables du moteur comptable M10 ; v14 : quatre tables du restaurant ; v11 : `parametres_systeme_local` ; v12 : sept colonnes de stock, aucune table neuve ; v13 : cinq tables d'achats)
+## Base locale Drift — schéma **v21**, 53 tables ⚠ (titre historique : v28, 61 tables depuis F4) (v21 : colonne `fournisseurs_local.actif`, aucune table ; v20 : `reglements_fournisseur_local` ; v19 : huit colonnes d'annulation sur `reservations_local`, aucune table ; v18 : `paiements_facture_local` + colonne `paniers_local.session_encaissement_id` ; v17 : `sessions_caisse_local` ; v16 : deux colonnes `ecriture_id`/`ecriture_refus` sur `depenses_local`, aucune table ; v15 : six tables du moteur comptable M10 ; v14 : quatre tables du restaurant ; v11 : `parametres_systeme_local` ; v12 : sept colonnes de stock, aucune table neuve ; v13 : cinq tables d'achats)
 
 Historique des versions dans `lib/core/database/app_database.dart`, chacune avec
 sa raison : v2 fiche de réservation (`tarifNuit`, `reference`…), v3 panier,
@@ -435,6 +435,37 @@ serveur, seul comptable, D246).
   les cas « rien n'est réécrit » passaient À VIDE. Et la sonde des écrivains
   ne lisait pas `_db.into(t)` : l'aligneur y échappait jusqu'au F3 (déclaré
   exception nommée depuis).
+
+## Documents de tous les postes, POS hébergés, factures (lots F4–F5, 17/10/2026)
+
+Décisions du PO du 17/10/2026 (« NE PLUS LIMITER », Q1 = A, Q2 = A,
+« F-AAAA-NNNNN au serveur ») : la section F3 ci-dessus est DÉPASSÉE sur un
+point — ventes, dépenses, caisses, commandes, réceptions, règlements,
+mouvements de stock, tourisme, séjours, factures, avoirs et encaissements de
+TOUS les postes descendent (`aligneur_documents.dart`), schéma **v28**
+(61 tables : `origines_documents_local`, le poste d'origine).
+
+- **Q1** : un document descendu n'a JAMAIS de pièce locale (le journal du
+  poste ne tient que ses pièces) ; le rattrapage d'une dépense descendue est
+  refusé ; les entrées de stock de SA réception ne redescendent pas au poste
+  qui les a écrites (`tablesMiroirs` au serveur).
+- **Facture** : numéro PROVISOIRE `PROV-AAAA-NNNNN` sous synchronisation
+  (l'ancien `F-` en démonstration), imprimé « FACTURE PROVISOIRE » ;
+  émission et annulation s'enfilent (`factures`) ; le numéro du serveur est
+  posé par `FactureDao.regulariserNumeros` — depuis la réponse de l'envoi
+  (`SyncManager`) ET depuis la descente (réponse perdue). Les avoirs
+  désignent leur facture par NUMÉRO (clé étrangère) : réécrits ensemble,
+  contraintes différées. Une pièce d'avant (`non_transmissible`) ne part
+  jamais ; si le serveur attribue son numéro à une autre, elle devient
+  `LOC-<numéro>`.
+- **Encaissement** : part (`paiements`, centimes, caisse du poste) si sa
+  facture part ; au serveur, une facture non certifiée et une caisse
+  inconnue sont ADMISES et signalées (l'argent est reçu). L'annulation d'un
+  paiement régularisé retrouve la pièce passée sous le numéro provisoire
+  par l'UUID du paiement (et dans ce seul cas : la parité serveur tient).
+- Non porté (lot F6) : les gestes du cycle de vie des documents d'un autre
+  poste (Q3 : l'administration et le comptable) ; un paiement de ce poste
+  annulé AU SERVEUR suit en statut, sa pièce locale reste.
 
 ## Synchronisation — ⚠ HISTORIQUE, retirée par « zéro réseau »
 

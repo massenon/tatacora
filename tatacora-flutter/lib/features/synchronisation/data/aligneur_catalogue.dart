@@ -2,6 +2,11 @@ import 'package:drift/drift.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../achats/domain/entities/fournisseur.dart';
+import '../../facturation/data/facture_dao.dart';
+import '../../facturation/data/paiements_facture_dao.dart';
+import '../../facturation/domain/entities/paiement_facture.dart';
+import '../../facturation/domain/entities/piece_facturation.dart';
+import '../../facturation/domain/repositories/facture_repository.dart';
 import '../../restaurant/domain/calcul_restaurant.dart' show typesDeMenu;
 import '../../stocks/domain/calcul_stock.dart' show echelleQuantite;
 import '../../stocks/domain/entities/etat_stock.dart';
@@ -87,6 +92,9 @@ class AligneurCatalogue {
       TableDescendue.sessionsCaisse ||
       TableDescendue.ventes ||
       TableDescendue.depenses ||
+      TableDescendue.factures ||
+      TableDescendue.avoirs ||
+      TableDescendue.paiements ||
       TableDescendue.commandesAchat ||
       TableDescendue.bonsReception ||
       TableDescendue.reglementsFournisseur ||

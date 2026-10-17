@@ -420,7 +420,7 @@ void main() {
 
       final registre = await depotFacture.pieces();
       expect(registre, hasLength(1));
-      expect(registre.single.numero, 'F-$annee-00001');
+      expect(registre.single.numero, 'PROV-$annee-00001');
       expect(registre.single.origine, OrigineFacture.posComptant);
       expect(registre.single.montantTotal, 1000);
       expect(registre.single.panierId, (await depotPanier.paniers()).single.id);

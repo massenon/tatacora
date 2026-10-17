@@ -10,6 +10,10 @@ import 'package:tatacora_flutter/features/caisse/domain/entities/session_caisse.
 import 'package:tatacora_flutter/features/crm/data/client_dao.dart';
 import 'package:tatacora_flutter/features/crm/domain/entities/client.dart';
 import 'package:tatacora_flutter/features/depenses/domain/categories_depense.dart';
+import 'package:tatacora_flutter/features/facturation/data/facture_dao.dart';
+import 'package:tatacora_flutter/features/facturation/data/paiements_facture_dao.dart';
+import 'package:tatacora_flutter/features/facturation/domain/entities/piece_facturation.dart';
+import 'package:tatacora_flutter/features/facturation/domain/repositories/facture_repository.dart';
 import 'package:tatacora_flutter/features/depenses/domain/entities/depense.dart';
 import 'package:tatacora_flutter/features/hebergement/data/parc_dao.dart';
 import 'package:tatacora_flutter/features/hebergement/data/reservation_dao.dart';
@@ -65,6 +69,9 @@ final class ScenarioFile {
   late String reservationTour;
   late String sejour;
   late String venteSejour;
+  late String facture;
+  late String paiement;
+  late String sessionDepart;
 }
 
 /// Une journée complète du poste, PAR SES VRAIS ÉCRIVAINS — chacun dépose son
@@ -404,6 +411,53 @@ Future<ScenarioFile> jouerJourneeComplete(AppDatabase db) async {
     db,
     maintenant: () => DateTime(2026, 10, 22, 9, 30),
   ).checkout(s.reservation);
+
+  // M2 (lots F5c, F5d) : la facture du séjour, PROVISOIRE, puis un acompte
+  // encaissé dans la caisse rouverte le matin du départ.
+  final depart = DateTime(2026, 10, 22, 9, 45);
+  s.facture = (await FactureDao(db, maintenant: () => depart).emettre(
+    BrouillonFacture(
+      origine: OrigineFacture.posSejour,
+      clientNom: 'KORA F1',
+      clientId: s.client,
+      reservationId: s.reservation,
+      panierId: s.venteSejour,
+      lignes: const [
+        LigneBrouillon(
+          module: ModuleFacturable.m1Hebergement,
+          libelle: 'Hébergement — 2 nuit(s)',
+          prixUnitaire: 25000,
+          quantite: 2,
+        ),
+        LigneBrouillon(
+          module: ModuleFacturable.m4Restaurant,
+          libelle: 'Riz sauce F1',
+          prixUnitaire: 2700,
+          quantite: 2,
+        ),
+      ],
+    ),
+  )).id;
+  final matin = DateTime(2026, 10, 22, 10);
+  s.sessionDepart =
+      (await SessionsCaisseDao(db, maintenant: () => matin).ouvrir(
+        point: PointDeVenteCaisse.bar,
+        fondSaisi: '5000',
+        auteurId: auteurEssai,
+        peutEcrire: true,
+      )).id;
+  s.paiement =
+      (await PaiementsFactureDao(
+            db,
+            maintenant: () => matin,
+            moteur: () async => moteurSur(db, maintenant: () => matin),
+          ).encaisser(
+            pieceId: s.facture,
+            montant: '20000',
+            mode: 'especes',
+            auteurId: auteurEssai,
+          ))
+          .id;
 
   return s;
 }

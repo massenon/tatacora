@@ -173,7 +173,7 @@ void main() {
       final emise = await facturerSur(
         premiere,
       ).emettrePourSejour(panier: panier, reservation: reservation);
-      expect(emise.numero, 'F-$annee-00001');
+      expect(emise.numero, 'PROV-$annee-00001');
       await premiere.close();
 
       // Le fichier existe sur le disque, indépendamment du processus.
@@ -183,7 +183,7 @@ void main() {
       // Session 2 : l'application est relancée.
       final seconde = AppDatabase.surFichier(fichier);
       final depot = FactureRepositoryLocal(FactureDao(seconde));
-      final relue = await depot.parNumero('F-$annee-00001');
+      final relue = await depot.parNumero('PROV-$annee-00001');
 
       expect(relue, isNotNull, reason: 'la pièce a survécu');
       expect(relue!.id, emise.id);
@@ -243,7 +243,7 @@ void main() {
           ],
         );
 
-        expect(suivante.numero, 'F-$annee-00002');
+        expect(suivante.numero, 'PROV-$annee-00002');
         await seconde.close();
       },
     );
@@ -548,7 +548,7 @@ void main() {
       final f = await facturerSur(
         v4,
       ).emettrePourSejour(panier: panier, reservation: reservation);
-      expect(f.numero, 'F-$annee-00001');
+      expect(f.numero, 'PROV-$annee-00001');
       expect(f.montantTotal, 170000);
       await v4.close();
     });

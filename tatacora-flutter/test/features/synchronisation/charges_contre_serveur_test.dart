@@ -111,6 +111,9 @@ void main() {
       'creation sejours',
       'creation ventes',
       'modification sejours',
+      'creation factures',
+      'creation sessions_caisse',
+      'creation paiements',
     ]);
     expect(resultats, hasLength(operations.length));
   });
@@ -172,6 +175,24 @@ void main() {
       expect(vente['montant_total'], '5400.00');
     },
   );
+
+  test('facture et encaissement (lots F5c, F5d) : le serveur numérote, '
+      'garde le prix vendu, et encaisse dans la caisse du poste', () {
+    final facture = resultatDe('factures', 'creation', s.facture);
+    expect(facture['statut'], 'synchronise', reason: '$facture');
+    expect('${facture['numero']}', matches(RegExp(r'^F-2026-\d{5}$')));
+    expect(facture['montant_ttc'], '55400.00');
+    final ecrite = serveur('factures', s.facture);
+    expect(ecrite['origine'], 'pos_sejour');
+    expect(ecrite['client_id'], s.client);
+
+    final paiement = resultatDe('paiements', 'creation', s.paiement);
+    expect(paiement['statut'], 'synchronise', reason: '$paiement');
+    final encaisse = serveur('paiements', s.paiement);
+    expect(encaisse['session_id'], s.sessionDepart);
+    expect(encaisse['montant'], '20000.00');
+    expect('${encaisse['date_paiement']}', startsWith('2026-10-22 10:00:00'));
+  });
 
   test('tourisme (lot F4) : circuit sans durée rangé vide, guide à 0 et '
       'signalé, réservation créée PUIS annulée par le service', () {

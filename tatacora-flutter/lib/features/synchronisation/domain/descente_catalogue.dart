@@ -60,6 +60,13 @@ enum TableDescendue {
   sessionsCaisse('sessions_caisse', TableSynchronisee.sessionsCaisse),
   ventes('ventes', TableSynchronisee.ventes),
   depenses('depenses', TableSynchronisee.depenses),
+
+  /// Lots F5c et F5d (17/10/2026) : les factures (numéro du serveur), leurs
+  /// avoirs, puis les encaissements — le reste dû d'une facture est le même
+  /// sur tous les postes.
+  factures('factures', TableSynchronisee.factures),
+  avoirs('avoirs', null),
+  paiements('paiements', TableSynchronisee.paiements),
   commandesAchat('commandes_achat', TableSynchronisee.commandesAchat),
   bonsReception('bons_reception', TableSynchronisee.bonsReception),
   reglementsFournisseur('reglements_fournisseur', null),
@@ -107,6 +114,9 @@ String libelleTableServeur(String nom) => switch (nom) {
   'sessions_caisse' => 'Sessions de caisse',
   'ventes' => 'Ventes',
   'depenses' => 'Dépenses',
+  'factures' => 'Factures',
+  'avoirs' => 'Avoirs',
+  'paiements' => 'Encaissements de factures',
   'centres_cout' => 'Centres de coût',
   'reglements_fournisseur' => 'Règlements fournisseurs',
   'mouvements_stock' => 'Mouvements de stock',

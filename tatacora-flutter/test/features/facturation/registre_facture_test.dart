@@ -207,10 +207,10 @@ void main() {
       final b = await depot.emettre(sejour());
 
       expect(a.numero, isNot(b.numero));
-      expect(a.numero, 'F-$annee-00001');
+      expect(a.numero, 'PROV-$annee-00001');
       expect(
         b.numero,
-        'F-$annee-00002',
+        'PROV-$annee-00002',
         reason: 'la séquence est unique MALGRÉ une origine différente',
       );
     });
@@ -234,7 +234,7 @@ void main() {
         expect(await depot.pieces(), isEmpty);
 
         final c = await depot.emettre(venteComptant());
-        expect(c.numero, 'F-$annee-00003');
+        expect(c.numero, 'PROV-$annee-00003');
       },
     );
 
@@ -405,7 +405,7 @@ void main() {
         reason: 'l’avoir désigne la pièce qu’il neutralise',
       );
       expect(r.avoir.numero, isNot(g.numero));
-      expect(r.avoir.numero, 'F-$annee-00002');
+      expect(r.avoir.numero, 'PROV-$annee-00002');
       expect(
         r.avoir.statut,
         StatutPiece.emise,

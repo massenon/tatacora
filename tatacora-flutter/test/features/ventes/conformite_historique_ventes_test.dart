@@ -543,7 +543,9 @@ void main() {
       expect(tables, isNotEmpty);
       expect(tables, containsAll(const ['reservations', 'clients']));
       expect(tables, isNot(contains('paniers')));
-      expect(tables, isNot(contains('factures')));
+      // `factures` y est entré au lot F5c (décision du PO du 17/10/2026,
+      // Q2) : la facture part, provisoire, et reçoit le numéro du serveur.
+      // Ce journal, lui, reste celui des ventes, pas des factures.
     });
 
     test('aucun écran du journal n’annonce une synchronisation', () {

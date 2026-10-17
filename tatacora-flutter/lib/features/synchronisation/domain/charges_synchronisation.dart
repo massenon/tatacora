@@ -35,6 +35,9 @@ library;
 
 import 'dart:convert';
 
+import '../../facturation/domain/entities/piece_facturation.dart'
+    show StatutPiece;
+
 /* ==================================================================== */
 /* Formats                                                               */
 /* ==================================================================== */
@@ -501,4 +504,71 @@ Map<String, Object?> chargeArrivee({
 /// `sejours`, DÉPART (modification).
 Map<String, Object?> chargeDepart({required DateTime depart}) => {
   'date_checkout_reel': instantLocal(depart),
+};
+
+/* ==================================================================== */
+/* Factures et encaissements (lots F5c et F5d, 17/10/2026)                */
+/* ==================================================================== */
+
+/// `factures` (création) — `GestionnaireFactures`. Le poste envoie le PRIX
+/// VENDU de chaque ligne en francs entiers ; le serveur calcule hors-taxe,
+/// TVA et totaux, et rend son numéro continu (`F-AAAA-NNNNN`). Le numéro
+/// provisoire du poste ne part pas : il n'a de sens qu'ici.
+Map<String, Object?> chargeFacture({
+  required String origine,
+  required DateTime dateEmission,
+  required String? clientId,
+  required String? reservationId,
+  required String? panierId,
+  required List<
+    ({String module, String libelle, int prixUnitaire, int quantite})
+  >
+  lignes,
+}) => {
+  'origine': origine,
+  'date_emission': jourIso(dateEmission),
+  'client_id': clientId,
+  'reservation_id': reservationId,
+  'panier_id': panierId,
+  'lignes': [
+    for (final l in lignes)
+      {
+        'module': l.module,
+        'libelle': l.libelle,
+        'prix_unitaire': l.prixUnitaire,
+        'quantite': l.quantite,
+      },
+  ],
+};
+
+/// `factures`, ANNULATION (la seule modification) : le serveur émet l'avoir
+/// du TTC entier et rend son numéro (`AV-AAAA-NNNNN`).
+Map<String, Object?> chargeAnnulationFacture({required String motif}) => {
+  // Le mot du serveur est celui du registre local (`StatutPiece`).
+  'statut': StatutPiece.annulee.code,
+  'motif': motif,
+};
+
+/// `paiements` (création) — `GestionnairePaiements`. Montant en CENTIMES
+/// (le serveur divise par 100), la caisse du poste qui a reçu l'argent,
+/// l'instant local du geste.
+Map<String, Object?> chargePaiementFacture({
+  required String factureId,
+  required String sessionId,
+  required String modePaiement,
+  required int montantCentimes,
+  required DateTime datePaiement,
+}) => {
+  'facture_id': factureId,
+  'session_id': sessionId,
+  'mode_paiement': modePaiement,
+  'montant': montantCentimes,
+  'date_paiement': instantLocal(datePaiement),
+};
+
+/// `paiements`, ANNULATION (la seule modification) : contre-passation au
+/// serveur.
+Map<String, Object?> chargeAnnulationPaiement({required String motif}) => {
+  'statut': 'annule',
+  'motif': motif,
 };

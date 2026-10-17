@@ -141,6 +141,12 @@ const Map<String, String> libellesAnomalies = {
   'guide_sans_tarif':
       'Guide créé sur ce poste sans tarif journalier : enregistré à 0 au '
       'serveur, tarif à saisir',
+  'paiement_facture_non_certifiee':
+      'Encaissement d\'une facture non certifiée au serveur : enregistré, la '
+      'certification MECeF n\'est pas lancée',
+  'paiement_session_inconnue':
+      'Encaissement d\'une caisse que le serveur ne connaît pas : rattaché à '
+      'la caisse ouverte du serveur',
 };
 
 /// Le libellé d'une anomalie ; une anomalie inconnue est rendue par son
