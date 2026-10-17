@@ -122,13 +122,15 @@ class CatalogueDescendantService
             'remise_type', 'remise_valeur', 'mode_paiement', 'taux_annulation', 'montant_total_annulation',
             'montant_commission_annulation', 'montant_rembourse_annulation', 'date_annulation',
         ],
+        // Lot F5 : l'arrivée et le départ réels, après la réservation.
+        'sejours' => ['reservation_id', 'date_checkin_reel', 'date_checkout_reel'],
         // Lot F4 (décision PO du 17/10/2026, « NE PLUS LIMITER ») : TOUS les
         // documents de TOUS les postes. Les lignes d'un document descendent
         // AVEC lui (`ENFANTS`) ; les mouvements de stock descendent tous, sauf
         // vers le poste qui les tient déjà en miroir (`origines_synchronisation`).
         'sessions_caisse' => ['point_vente', 'date_ouverture', 'montant_fond', 'date_cloture', 'montant_theorique', 'montant_constate'],
         'ventes' => [
-            'numero', 'session_id', 'point_vente', 'client_id', 'client_mention', 'table_id', 'montant_total',
+            'numero', 'session_id', 'point_vente', 'client_id', 'reservation_id', 'client_mention', 'table_id', 'montant_total',
             'mode_paiement', 'encaisse', 'statut', 'motif_annulation', 'annulee_at', 'date_creation',
         ],
         'depenses' => ['numero', 'date_transaction', 'tresorerie', 'montant_total', 'libelle'],

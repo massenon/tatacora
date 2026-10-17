@@ -318,7 +318,7 @@ class VenteService
      *   longtemps, un bon imprimé maintenant n'aurait aucun sens. RG-05 est
      *   tenue par le même calcul que la transmission.
      *
-     * @param  array{id?: string, point_vente?: string, session_id?: string|null, client_id?: string|null, client_mention?: string|null, table?: string|null, table_id?: string|null, mode_paiement?: string, remise_type?: string, remise_valeur?: string, utilisateur_id?: string|null, commande_id?: string|null, validation_rupture?: bool, lignes?: list<array{module: string, reference_id: string, quantite: int|string, prix_unitaire?: string}>}  $donnees
+     * @param  array{id?: string, point_vente?: string, session_id?: string|null, client_id?: string|null, reservation_id?: string|null, client_mention?: string|null, table?: string|null, table_id?: string|null, mode_paiement?: string, remise_type?: string, remise_valeur?: string, utilisateur_id?: string|null, commande_id?: string|null, validation_rupture?: bool, lignes?: list<array{module: string, reference_id: string, quantite: int|string, prix_unitaire?: string}>}  $donnees
      *
      * @throws RuntimeException panier vide, mode de paiement ou module inconnu,
      *                          quantité non positive, remise hors bornes,
@@ -429,6 +429,9 @@ class VenteService
                     : trim((string) $donnees['client_mention']),
                 'table' => $donnees['table'] ?? null,
                 'table_id' => $donnees['table_id'] ?? null,
+                // Lot F5 (17/10/2026) : le séjour d'une vente en note de
+                // chambre — les autres postes la rattachent sans deviner.
+                'reservation_id' => $donnees['reservation_id'] ?? null,
                 // Le NET après remise : c'est l'argent réellement encaissé —
                 // le théorique de caisse et la pièce comptable le lisent.
                 'montant_total' => $net,

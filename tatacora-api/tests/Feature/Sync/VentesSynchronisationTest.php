@@ -323,16 +323,48 @@ final class VentesSynchronisationTest extends TestCase
         $this->assertSame($this->session->id, Vente::findOrFail($tardive)->session_id);
     }
 
+    /**
+     * Lot F5 (décision PO du 17/10/2026) : la note de chambre monte, rattachée
+     * à SA réservation — non encaissée, sans session, client et unité de la
+     * réservation ; une réservation inconnue, ou un document incohérent
+     * (note au comptoir, séjour encaissé), est refusé avec sa phrase.
+     */
     #[Test]
-    public function la_note_de_chambre_est_refusee_avec_son_motif(): void
+    public function la_note_de_chambre_monte_rattachee_a_sa_reservation(): void
     {
-        $this->pousser([$this->vente($this->uuid(), [$this->ligneBiere(1)], extra: [
-            'type_vente' => 'sur_sejour', 'mode_paiement' => 'note_chambre', 'reservation_id' => $this->uuid(),
-        ])], $this->barman)
-            ->assertJsonPath('resultats.0.statut', 'rejete')
-            ->assertJsonPath('resultats.0.motif', __('sync.ventes.note_chambre_hors_perimetre'));
+        $categorie = \App\Domain\Hebergement\Models\CategorieHebergement::create(['libelle' => 'Bungalow', 'capacite_max' => 2, 'tarif_base' => '25000.00']);
+        $unite = \App\Domain\Hebergement\Models\UniteHebergement::create(['categorie_id' => $categorie->id, 'numero' => 'B-07', 'statut' => 'libre']);
+        $client = \App\Domain\Crm\Models\Client::create(['nom' => 'Sabi', 'telephone' => '96000003', 'type_client' => 'groupe']);
+        $reservation = app(\App\Domain\Hebergement\Services\ReservationService::class)->creer([
+            'client_id' => $client->id, 'unite_id' => $unite->id, 'date_arrivee' => '2026-10-14', 'date_depart' => '2026-10-16',
+        ]);
 
-        $this->assertSame(0, Vente::count());
+        $id = $this->uuid();
+        $this->pousser([$this->vente($id, [$this->ligneBiere(2)], extra: [
+            'type_vente' => 'sur_sejour', 'mode_paiement' => 'note_chambre', 'reservation_id' => $reservation->id,
+            'table' => 'ne compte pas',
+        ])], $this->barman)->assertJsonPath('resultats.0.statut', 'synchronise');
+
+        $vente = Vente::findOrFail($id);
+        $this->assertSame('note_chambre', $vente->mode_paiement);
+        $this->assertFalse((bool) $vente->encaisse);
+        $this->assertNull($vente->session_id, 'une note de chambre n\'entre dans aucun tiroir');
+        $this->assertSame($reservation->id, $vente->reservation_id);
+        $this->assertSame($client->id, $vente->client_id);
+        $this->assertSame('B-07', $vente->table);
+
+        $refus = $this->pousser([
+            $this->vente($this->uuid(), [$this->ligneBiere(1)], extra: [
+                'type_vente' => 'sur_sejour', 'mode_paiement' => 'note_chambre', 'reservation_id' => $this->uuid(),
+            ]),
+            $this->vente($this->uuid(), [$this->ligneBiere(1)], extra: ['mode_paiement' => 'note_chambre']),
+            $this->vente($this->uuid(), [$this->ligneBiere(1)], extra: ['type_vente' => 'sur_sejour', 'reservation_id' => $reservation->id]),
+        ], $this->barman);
+        $refus->assertJsonPath('resultats.0.motif', __('sync.ventes.reservation_inconnue'))
+            ->assertJsonPath('resultats.1.motif', __('sync.ventes.note_chambre_incoherente'))
+            ->assertJsonPath('resultats.2.motif', __('sync.ventes.note_chambre_incoherente'));
+
+        $this->assertSame(1, Vente::count());
     }
 
     #[Test]

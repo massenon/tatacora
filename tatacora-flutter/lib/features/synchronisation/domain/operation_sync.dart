@@ -19,6 +19,10 @@ library;
 /// d'ÉCRITURE sur le poste, qui ordonne l'envoi.
 enum TableSynchronisee {
   reservations('reservations', accepteModification: false),
+
+  /// Lot F5 (17/10/2026) : l'arrivée (création) et le départ (modification)
+  /// réels, par `SejourService`.
+  sejours('sejours', accepteModification: true),
   clients('clients', accepteModification: true),
   fournisseurs('fournisseurs', accepteModification: true),
   pointsStockage('points_stockage', accepteModification: true),

@@ -55,7 +55,13 @@ return [
         'champ_non_modifiable' => 'Une clôture de caisse ne transmet que la date de clôture et les montants comptés '
             . '(champ(s) refusé(s) : :champs). Le fond et l\'ouverture d\'un tiroir ne se réécrivent pas.',
     ],
+    'sejours' => [
+        'reservation_inconnue' => 'Séjour refusé : la réservation n\'est pas connue du serveur (pas encore reçue, ou refusée).',
+        'instant_illisible' => 'Séjour refusé : l\'heure « :valeur » est illisible.',
+    ],
     'ventes' => [
+        'note_chambre_incoherente' => 'Vente refusée : une vente sur séjour se porte sur la note de chambre, et la note de chambre n\'existe qu\'au séjour.',
+        'reservation_inconnue' => 'Vente sur note de chambre refusée : la réservation n\'est pas connue du serveur (pas encore reçue, ou refusée).',
         'note_chambre_hors_perimetre' => 'Les consommations portées sur la note de chambre ne se synchronisent pas encore : '
             . 'la clôture du séjour émet la facture, qui relève d\'un lot ultérieur. Clôturez ce séjour depuis l\'écran en ligne.',
         'total_incoherent' => 'Le total de la vente (:annonce F) ne correspond pas à la somme de ses lignes (:lignes F) : '

@@ -16,6 +16,7 @@ import 'package:tatacora_flutter/features/hebergement/data/reservation_dao.dart'
 import 'package:tatacora_flutter/features/hebergement/data/reservation_repository_local.dart';
 import 'package:tatacora_flutter/features/hebergement/domain/entities/fiche_reservation.dart';
 import 'package:tatacora_flutter/features/hebergement/domain/entities/periode_sejour.dart';
+import 'package:tatacora_flutter/features/hebergement/data/sejour_dao.dart';
 import 'package:tatacora_flutter/features/hebergement/domain/usecases/creer_reservation.dart';
 import 'package:tatacora_flutter/features/pos/data/catalogue_dao.dart';
 import 'package:tatacora_flutter/features/pos/data/dto/catalogue_dto.dart';
@@ -62,6 +63,8 @@ final class ScenarioFile {
   late String circuit;
   late String guide;
   late String reservationTour;
+  late String sejour;
+  late String venteSejour;
 }
 
 /// Une journée complète du poste, PAR SES VRAIS ÉCRIVAINS — chacun dépose son
@@ -365,6 +368,42 @@ Future<ScenarioFile> jouerJourneeComplete(AppDatabase db) async {
     nbParticipants: 3,
   )).id;
   await tourisme.annulerReservation(s.reservationTour);
+
+  // M1 + POS hébergés (lot F5) : le client arrive, dîne sur la note de
+  // chambre, et part.
+  await SejourDao(
+    db,
+    maintenant: () => DateTime(2026, 10, 20, 14),
+  ).checkin(s.reservation);
+  s.sejour = (await db.select(db.sejoursLocal).getSingle()).id;
+  final paniersSejour = panierDaoSur(db, horloge: DateTime(2026, 10, 22, 9));
+  var note = await paniersSejour.ouvrir(
+    typeVente: TypeVente.surSejour,
+    pointVente: 'Restaurant',
+    reservationId: s.reservation,
+    dateDepartPrevue: DateTime(2026, 10, 22),
+  );
+  note = await paniersSejour.ajouterLigne(
+    note.id,
+    ArticleVendable(
+      reference: ReferenceCatalogue(
+        module: ModuleVendable.m4Restaurant,
+        code: s.plat,
+      ),
+      libelle: 'Riz sauce F1',
+      prix: 2700,
+    ),
+    quantite: 2,
+  );
+  s.venteSejour = (await paniersSejour.cloturer(
+    note.id,
+    modePaiement: 'note_chambre',
+    auteurId: auteurEssai,
+  )).id;
+  await SejourDao(
+    db,
+    maintenant: () => DateTime(2026, 10, 22, 9, 30),
+  ).checkout(s.reservation);
 
   return s;
 }

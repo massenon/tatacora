@@ -358,6 +358,8 @@ Map<String, Object?> chargeClotureCaisse({
 /// total en francs entiers ; le prix du poste fait foi (le serveur signale
 /// l'écart avec son catalogue, il ne corrige pas).
 Map<String, Object?> chargeVente({
+  String typeVente = 'comptant',
+  String? reservationId,
   required String modePaiement,
   required String? sessionEncaissementId,
   required DateTime clotureLe,
@@ -376,7 +378,10 @@ Map<String, Object?> chargeVente({
   >
   lignes,
 }) => {
-  'type_vente': 'comptant',
+  'type_vente': typeVente,
+  // Lot F5 : la note de chambre cite SA réservation (le serveur en prend le
+  // client et l'unité).
+  'reservation_id': ?reservationId,
   'mode_paiement': modePaiement,
   'session_encaissement_id': sessionEncaissementId,
   'cloture_le': instantLocal(clotureLe),
@@ -476,4 +481,24 @@ Map<String, Object?> chargeReservationTour({
   'guide_id': guideId,
   'date_circuit': jourIso(dateCircuit),
   'nb_participants': nbParticipants,
+};
+
+/* ==================================================================== */
+/* Séjours (lot F5, 17/10/2026)                                           */
+/* ==================================================================== */
+
+/// `sejours`, ARRIVÉE (création) — `GestionnaireSejours`. L'heure réelle du
+/// poste ; les occupants relevés (aucun sur ce poste : liste vide).
+Map<String, Object?> chargeArrivee({
+  required String reservationId,
+  required DateTime arrivee,
+}) => {
+  'reservation_id': reservationId,
+  'date_checkin_reel': instantLocal(arrivee),
+  'occupants': const <Object?>[],
+};
+
+/// `sejours`, DÉPART (modification).
+Map<String, Object?> chargeDepart({required DateTime depart}) => {
+  'date_checkout_reel': instantLocal(depart),
 };

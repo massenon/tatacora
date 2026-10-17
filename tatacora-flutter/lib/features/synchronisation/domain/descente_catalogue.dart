@@ -51,6 +51,9 @@ enum TableDescendue {
   clients('clients', TableSynchronisee.clients),
   reservations('reservations', TableSynchronisee.reservations),
 
+  /// Lot F5 : l'arrivée et le départ réels, après la réservation.
+  sejours('sejours', TableSynchronisee.sejours),
+
   /// Lot F4 (décision du PO du 17/10/2026, « NE PLUS LIMITER ») : TOUS les
   /// documents de TOUS les postes, sans pièce locale (Q1 : le journal du
   /// poste ne tient que ses propres pièces).
@@ -110,6 +113,7 @@ String libelleTableServeur(String nom) => switch (nom) {
   'circuits' => 'Circuits touristiques',
   'guides' => 'Guides',
   'reservations_tour' => 'Réservations de circuits',
+  'sejours' => 'Séjours (arrivées et départs)',
   _ => nom,
 };
 

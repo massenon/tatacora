@@ -5,6 +5,7 @@ import 'package:tatacora_flutter/features/hebergement/data/parc_dao.dart'
     show StatutUniteLocal;
 import 'package:tatacora_flutter/features/hebergement/data/sejour_dao.dart';
 import 'package:tatacora_flutter/features/hebergement/domain/messages_sejour.dart';
+import 'package:tatacora_flutter/features/synchronisation/data/operations_sync_dao.dart';
 
 import '../facturation/support/outils_encaissement.dart'
     show creerClient, semerReservation;
@@ -139,4 +140,46 @@ void main() {
       expect(await statutReservation(), 'en_cours');
     });
   });
+
+  group(
+    'synchronisation (lot F5) : l’arrivée et le départ partent au serveur',
+    () {
+      test('le check-in enfile l’ARRIVÉE à l’heure du poste ; le check-out le '
+          'DÉPART du même séjour', () async {
+        await dao.checkin('r1');
+        final sejour = await db.select(db.sejoursLocal).getSingle();
+        await dao.checkout('r1');
+
+        final ops = [
+          for (final o in await OperationsSyncDao(db).operations())
+            if (o.table.nomServeur == 'sejours') o,
+        ];
+        expect(ops.map((o) => '${o.type.code} ${o.table.nomServeur}'), [
+          'creation sejours',
+          'modification sejours',
+        ]);
+        expect(ops.every((o) => o.entiteId == sejour.id), isTrue);
+        expect(ops.first.payload, contains('"reservation_id":"r1"'));
+        expect(
+          ops.first.payload,
+          contains('"date_checkin_reel":"2026-10-20 14:00:00"'),
+        );
+        expect(
+          ops.last.payload,
+          contains('"date_checkout_reel":"2026-10-20 14:00:00"'),
+        );
+      });
+
+      test('un check-in REFUSÉ n’enfile rien', () async {
+        await poserReservation('annulee');
+        await expectLater(dao.checkin('r1'), throwsA(isA<RefusSejour>()));
+        expect(
+          (await OperationsSyncDao(
+            db,
+          ).operations()).where((o) => o.table.nomServeur == 'sejours'),
+          isEmpty,
+        );
+      });
+    },
+  );
 }

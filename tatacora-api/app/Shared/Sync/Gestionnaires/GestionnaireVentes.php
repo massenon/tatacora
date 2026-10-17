@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Shared\Sync\Gestionnaires;
 
 use App\Domain\Caisse\Models\SessionCaisse;
+use App\Domain\Hebergement\Models\Reservation;
 use App\Domain\Stocks\Exceptions\RuptureStockException;
 use App\Domain\Ventes\Models\LigneVente;
 use App\Domain\Ventes\Models\Vente;
@@ -74,20 +75,27 @@ use RuntimeException;
  * (`vente_session_inconnue` / `vente_session_cloturee`), pour que le
  * théorique du tiroir soit repris à la main.
  *
- * ## Note de chambre (`sur_sejour`) : REFUSÉE, avec son motif
+ * ## Note de chambre (`sur_sejour`) — acceptée depuis le lot F5 (17/10/2026)
  *
- * En ligne, `PosHeberges::cloturerEtFacturer` enregistre la vente en note de
- * chambre ET émet la facture du séjour (M2) dans la même transaction — la
- * facturation et ses règlements relèvent de la phase 2 (décision PO). Écrire
- * la seule vente créerait une créance `4111` sans facture qui la porte. Le
- * refus est explicite (`sync.ventes.note_chambre_hors_perimetre`).
+ * Jusqu'au 17/10/2026 : refusée (`sync.ventes.note_chambre_hors_perimetre`),
+ * parce qu'en ligne `PosHeberges::cloturerEtFacturer` écrit la vente ET la
+ * facture du séjour dans la même transaction. Décision du PO du 17/10/2026
+ * (« les deux modules POS vente et POS hébergés … en synchronisation ») :
+ * sur le poste, la consommation portée en note et la facture de DÉPART sont
+ * deux gestes distincts ; la vente monte seule, rattachée à SA réservation
+ * (`reservation_id`, obligatoire et connue du serveur), en `note_chambre`
+ * (non encaissée, aucune session) ; la créance `4111` existe au serveur dès
+ * la consommation, et la facture du départ la portera (lot F5c). Le client et
+ * l'unité sont ceux de la réservation, jamais ceux du payload.
  *
  * ## Modification : refusée — une vente s'ANNULE en ligne (RG-02).
  */
 final class GestionnaireVentes extends GestionnaireDocumentAbstrait
 {
-    /** Seul type de vente synchronisé : la note de chambre est hors périmètre (voir l'en-tête). */
     private const TYPE_COMPTANT = 'comptant';
+
+    /** La vente portée sur la note de chambre (lot F5). */
+    private const TYPE_SEJOUR = 'sur_sejour';
 
     public function __construct(
         private readonly VenteService $ventes,
@@ -137,13 +145,29 @@ final class GestionnaireVentes extends GestionnaireDocumentAbstrait
 
     public function creer(string $entiteId, array $payload, ContexteSynchronisation $contexte): EcritureSynchronisee
     {
-        if (($payload['type_vente'] ?? null) === 'sur_sejour'
-            || ($payload['mode_paiement'] ?? null) === 'note_chambre') {
-            throw new RuntimeException(__('sync.ventes.note_chambre_hors_perimetre'));
+        $surSejour = ($payload['type_vente'] ?? null) === self::TYPE_SEJOUR;
+
+        // Les deux moitiés vont ensemble : une note de chambre au comptoir,
+        // ou un séjour encaissé, est un document incohérent.
+        if ($surSejour !== (($payload['mode_paiement'] ?? null) === 'note_chambre')) {
+            throw new RuntimeException(__('sync.ventes.note_chambre_incoherente'));
+        }
+
+        $reservation = null;
+
+        if ($surSejour) {
+            $reservationId = is_string($payload['reservation_id'] ?? null)
+                ? $this->resoudre('reservations', $payload['reservation_id'])
+                : null;
+            $reservation = $reservationId === null ? null : Reservation::with('unite')->find($reservationId);
+
+            if ($reservation === null) {
+                throw new RuntimeException(__('sync.ventes.reservation_inconnue'));
+            }
         }
 
         $donnees = $this->validerForme($payload, [
-            'type_vente' => ['required', 'in:' . self::TYPE_COMPTANT],
+            'type_vente' => ['required', 'in:' . self::TYPE_COMPTANT . ',' . self::TYPE_SEJOUR],
             'mode_paiement' => ['required', 'string'],
             'session_encaissement_id' => ['nullable', 'string'],
             'cloture_le' => ['required', 'date'],
@@ -189,15 +213,19 @@ final class GestionnaireVentes extends GestionnaireDocumentAbstrait
         }
 
         $date = $this->dateDuDocument($donnees['cloture_le'], $contexte);
-        [$sessionId, $anomalieSession] = $this->session($donnees['session_encaissement_id'] ?? null);
+        // Une note de chambre n'entre dans aucun tiroir : jamais de session.
+        [$sessionId, $anomalieSession] = $surSejour
+            ? [null, null]
+            : $this->session($donnees['session_encaissement_id'] ?? null);
 
         $vente = [
             'id' => $entiteId,
             'session_id' => $sessionId,
             'point_vente' => blank($donnees['point_vente'] ?? null) ? PosComptant::POSTE_COMPTOIR : (string) $donnees['point_vente'],
-            'client_id' => null,
+            'client_id' => $reservation?->client_id,
+            'reservation_id' => $reservation?->id,
             'client_mention' => $donnees['client_nom'] ?? null,
-            'table' => $donnees['table'] ?? null,
+            'table' => $reservation !== null ? $reservation->unite?->numero : ($donnees['table'] ?? null),
             'table_id' => $donnees['table_id'] ?? null,
             'mode_paiement' => (string) $donnees['mode_paiement'],
             'utilisateur_id' => $contexte->utilisateur->id,

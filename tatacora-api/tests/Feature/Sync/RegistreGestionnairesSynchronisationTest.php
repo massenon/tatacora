@@ -80,7 +80,7 @@ final class RegistreGestionnairesSynchronisationTest extends TestCase
         $gestionnaires = app(RegistreSynchronisation::class)->tous();
 
         $this->assertSame([
-            'reservations', 'clients', 'fournisseurs',
+            'reservations', 'sejours', 'clients', 'fournisseurs',
             // Catalogue (S2, 15/10/2026) — création seule, fusion sur clé naturelle.
             'points_stockage', 'articles', 'cartes_boisson', 'menus', 'recettes', 'plats',
             'categories_hebergement', 'unites_hebergement',

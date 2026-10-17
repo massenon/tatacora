@@ -108,6 +108,9 @@ void main() {
       'creation guides',
       'creation reservations_tour',
       'modification reservations_tour',
+      'creation sejours',
+      'creation ventes',
+      'modification sejours',
     ]);
     expect(resultats, hasLength(operations.length));
   });
@@ -146,6 +149,30 @@ void main() {
     );
   });
 
+  test(
+    'POS hébergés (lot F5) : arrivée et départ à l’heure du poste, la '
+    'note de chambre rattachée à SA réservation, non encaissée, sans caisse',
+    () {
+      final sejour = serveur('sejours', s.sejour);
+      expect(sejour['reservation_id'], s.reservation);
+      expect(
+        '${sejour['date_checkin_reel']}',
+        startsWith('2026-10-20 14:00:00'),
+      );
+      expect(
+        '${sejour['date_checkout_reel']}',
+        startsWith('2026-10-22 09:30:00'),
+      );
+      final vente = serveur('ventes', s.venteSejour);
+      expect(
+        (vente['mode_paiement'], vente['reservation_id'], vente['encaisse']),
+        ('note_chambre', s.reservation, 0),
+      );
+      expect(vente['session_id'], isNull);
+      expect(vente['montant_total'], '5400.00');
+    },
+  );
+
   test('tourisme (lot F4) : circuit sans durée rangé vide, guide à 0 et '
       'signalé, réservation créée PUIS annulée par le service', () {
     final circuit = serveur('circuits', s.circuit);
@@ -179,7 +206,9 @@ void main() {
     );
     expect(serveur('menus', s.menu)['type'], 'local');
     final unite = serveur('unites_hebergement', s.unite);
-    expect((unite['numero'], unite['statut']), ('BNG-F1A', 'libre'));
+    // `nettoyage` : le départ du séjour (lot F5) l'a mise au ménage, comme
+    // `SejourService::checkout` — le numéro reste celui du poste.
+    expect((unite['numero'], unite['statut']), ('BNG-F1A', 'nettoyage'));
     final categorie = serveur('categories_hebergement', s.categorie);
     expect(
       (categorie['tarif_base'], categorie['capacite_max']),

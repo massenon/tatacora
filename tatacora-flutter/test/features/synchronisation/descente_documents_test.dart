@@ -291,15 +291,141 @@ void main() {
     expect((await dao.depenses()).single.pieceAuServeur, isTrue);
   });
 
-  test(
-    'une vente sur NOTE DE CHAMBRE est refusée avec son motif (lot F5)',
-    () async {
+  group('lot F5 : séjours et note de chambre des autres postes', () {
+    List<Map<String, Object?>> hebergement({
+      String? depart,
+      bool horsService = false,
+    }) => [
+      ...journee().take(4),
+      element('categories_hebergement', 'cat-1', {
+        'libelle': 'Bungalow',
+        'capacite_max': 2,
+        'tarif_base': '25000.00',
+      }),
+      element('unites_hebergement', 'u-1', {
+        'categorie_id': 'cat-1',
+        'numero': 'B-01',
+        'statut': horsService ? 'hors_service' : 'libre',
+      }, actif: !horsService),
+      doc('reservations', 'res-a', {
+        'client_id': 'cl-1',
+        'unite_id': 'u-1',
+        'date_arrivee': '2026-10-17',
+        'date_depart': '2026-10-19',
+        'statut': 'confirmee',
+        'acompte': '0.00',
+        'tarif_nuit': '25000.00',
+        'remise_type': 'aucune',
+        'remise_valeur': '0.00',
+      }),
+      doc('sejours', 'sej-a', {
+        'reservation_id': 'res-a',
+        'date_checkin_reel': '2026-10-17 10:15:00',
+        'date_checkout_reel': depart,
+      }),
+      doc('ventes', 'v-note', {
+        'numero': 'V-2026-00009',
+        'session_id': null,
+        'point_vente': 'Restaurant',
+        'client_id': 'cl-1',
+        'reservation_id': 'res-a',
+        'client_mention': null,
+        'table_id': null,
+        'montant_total': '2500.00',
+        'mode_paiement': 'note_chambre',
+        'encaisse': false,
+        'statut': 'validee',
+        'date_creation': '2026-10-17 20:00:00',
+        'lignes': [
+          {
+            'code': 'plat-1',
+            'nom': 'Riz sauce',
+            'categorie': null,
+            'module': 'M4',
+            'prix_unitaire': '2500.00',
+            'quantite': 1,
+            'montant': '2500.00',
+          },
+        ],
+      }),
+    ];
+
+    test('l’arrivée descend : séjour, réservation EN COURS, chambre OCCUPÉE ; '
+        'la consommation est un panier de SÉJOUR de cette réservation, sans '
+        'pièce', () async {
+      final bilan = await descendre(hebergement());
+      expect(bilan.refuses, 0, reason: bilan.motifsRefus.join(' ; '));
+
+      final s = (await ligne('sejours_local', 'sej-a'))!;
+      expect(s['reservation_id'], 'res-a');
+      expect(s['date_checkout_reel'], isNull);
+      expect(
+        (await ligne('reservations_local', 'res-a'))!['statut'],
+        'en_cours',
+      );
+      expect(
+        (await ligne('unites_hebergement_local', 'u-1'))!['statut'],
+        'occupee',
+      );
+
+      final p = (await ligne('paniers_local', 'v-note'))!;
+      expect(
+        (p['type_vente'], p['reservation_id'], p['mode_paiement']),
+        ('sur_sejour', 'res-a', 'note_chambre'),
+      );
+      expect(p['session_encaissement_id'], isNull);
+      expect(await compte('ecritures_local'), 0);
+    });
+
+    test('le départ descend : séjour clos, réservation TERMINÉE, chambre en '
+        'NETTOYAGE ; une chambre hors service n’est jamais touchée', () async {
+      await descendre(hebergement());
+      await descendre(hebergement(depart: '2026-10-19 09:40:00'));
+      expect(
+        (await ligne('sejours_local', 'sej-a'))!['date_checkout_reel'],
+        isNotNull,
+      );
+      expect(
+        (await ligne('reservations_local', 'res-a'))!['statut'],
+        'terminee',
+      );
+      expect(
+        (await ligne('unites_hebergement_local', 'u-1'))!['statut'],
+        'nettoyage',
+      );
+
+      // Mise hors service AU SERVEUR, puis un séjour qui redescend : la
+      // chambre reste hors service.
+      await b.db.customStatement('DELETE FROM sejours_local');
+      await descendre(hebergement(horsService: true));
+      expect(
+        (await ligne('unites_hebergement_local', 'u-1'))!['statut'],
+        'hors_service',
+      );
+    });
+
+    test('une arrivée déjà pointée ICI n’est pas doublée : refusée ici, le '
+        'serveur tranche', () async {
+      final sans = hebergement().where((e) => e['table'] != 'sejours').toList();
+      await descendre(sans);
+      await b.db.customStatement(
+        'INSERT INTO sejours_local (id, reservation_id, date_checkin_reel, '
+        "occupants, date_creation, date_modification) VALUES ('sej-local', "
+        "'res-a', 0, '[]', 0, 0)",
+      );
+      final bilan = await descendre(hebergement());
+      expect(bilan.refuses, 1);
+      expect(await compte('sejours_local'), 1);
+    });
+
+    test('une note de chambre sans réservation au serveur (vente d’avant le '
+        'F5) est refusée avec son motif', () async {
       final bilan = await descendre(journee(modeVente: 'note_chambre'));
       expect(bilan.refuses, 1);
-      expect(bilan.motifsRefus.single, contains('note de chambre'));
+      expect(bilan.motifsRefus.single, contains('sans réservation'));
       expect(await ligne('paniers_local', 'v-1'), isNull);
-    },
-  );
+    });
+  });
 
   test(
     'une vente reçue AVANT sa session attend (jamais une clé violée)',

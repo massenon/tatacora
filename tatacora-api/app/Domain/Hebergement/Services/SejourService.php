@@ -7,6 +7,7 @@ namespace App\Domain\Hebergement\Services;
 use App\Domain\Hebergement\Models\Reservation;
 use App\Domain\Hebergement\Models\Sejour;
 use App\Domain\Hebergement\Models\UniteHebergement;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -88,9 +89,21 @@ class SejourService
      *
      * @throws RuntimeException réservation annulée, ou séjour déjà commencé
      */
-    public function checkin(Reservation $reservation, array $occupants = []): Sejour
-    {
-        return DB::transaction(function () use ($reservation, $occupants): Sejour {
+    public function checkin(
+        Reservation $reservation,
+        array $occupants = [],
+        ?string $id = null,
+        ?CarbonInterface $quand = null,
+    ): Sejour {
+        // Lot F5 (17/10/2026), pour la seule synchronisation : `$id` — l'UUID
+        // du poste (un rejeu rend le séjour déjà écrit) ; `$quand` — l'heure
+        // RÉELLE de l'arrivée saisie au poste (D246), pas celle de réception.
+        // Aucun appelant en ligne ne les passe : le comportement est inchangé.
+        if ($id !== null && ($existant = Sejour::find($id)) !== null) {
+            return $existant;
+        }
+
+        return DB::transaction(function () use ($reservation, $occupants, $id, $quand): Sejour {
             // Verrou sur la réservation : deux réceptionnistes qui valident la
             // même arrivée créeraient deux séjours pour un seul client, et
             // `estEnCours()` deviendrait indécidable. Même famille de condition
@@ -110,8 +123,9 @@ class SejourService
             }
 
             $sejour = Sejour::create([
+                ...($id !== null ? ['id' => $id] : []),
                 'reservation_id' => $verrouillee->id,
-                'date_checkin_reel' => now(),
+                'date_checkin_reel' => $quand ?? now(),
                 // Tableau vide plutôt que `null` : « aucun occupant relevé » et
                 // « champ jamais renseigné » ne doivent pas se ressembler.
                 'occupants' => $occupants,
@@ -134,9 +148,9 @@ class SejourService
      *
      * @throws RuntimeException séjour déjà clos
      */
-    public function checkout(Sejour $sejour): Sejour
+    public function checkout(Sejour $sejour, ?CarbonInterface $quand = null): Sejour
     {
-        return DB::transaction(function () use ($sejour): Sejour {
+        return DB::transaction(function () use ($sejour, $quand): Sejour {
             $verrouille = Sejour::whereKey($sejour->id)->lockForUpdate()->firstOrFail();
 
             if (! $verrouille->estEnCours()) {
@@ -145,7 +159,7 @@ class SejourService
                 ]));
             }
 
-            $verrouille->update(['date_checkout_reel' => now()]);
+            $verrouille->update(['date_checkout_reel' => $quand ?? now()]);
 
             $reservation = $verrouille->reservation;
             $reservation->update(['statut' => 'terminee']);

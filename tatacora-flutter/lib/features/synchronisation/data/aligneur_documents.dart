@@ -30,6 +30,7 @@ part of 'aligneur_catalogue.dart';
 extension _AlignementDocuments on AligneurCatalogue {
   Future<IssueAlignement> alignerDocument(String id, ElementCatalogue e) =>
       switch (e.table) {
+        TableDescendue.sejours => _sejour(id, e),
         TableDescendue.sessionsCaisse => _sessionCaisse(id, e),
         TableDescendue.ventes => _vente(id, e),
         TableDescendue.depenses => _depense(id, e),
@@ -94,6 +95,119 @@ extension _AlignementDocuments on AligneurCatalogue {
   }
 
   Future<String?> _auteurOuAttente() => _auteur();
+
+  /* ================================================================== */
+  /* Séjours (lot F5)                                                    */
+  /* ================================================================== */
+
+  /// Un séjour d'un autre poste : l'arrivée (puis le départ) réels. La
+  /// réservation suit (statut vers l'avant seulement) et l'unité aussi :
+  /// `occupee` à l'arrivée, `nettoyage` au départ — jamais une unité hors
+  /// service. Existant : seul le DÉPART descend ; un départ n'est jamais
+  /// effacé.
+  Future<IssueAlignement> _sejour(String id, ElementCatalogue e) async {
+    final d = e.donnees;
+    final DateTime? arrivee;
+    final DateTime? depart;
+    try {
+      arrivee = d['date_checkin_reel'] == null
+          ? null
+          : _instant(d['date_checkin_reel']);
+      depart = d['date_checkout_reel'] == null
+          ? null
+          : _instant(d['date_checkout_reel']);
+    } on FormatException {
+      return const RefuseParLePoste('heures de séjour illisibles');
+    }
+    final reservationServeur = AligneurCatalogue._texte(d['reservation_id']);
+    if (reservationServeur == null) {
+      return const RefuseParLePoste('réservation absente');
+    }
+    final reservationId = await _cite(
+      TableDescendue.reservations,
+      reservationServeur,
+      _db.reservationsLocal,
+    );
+    if (reservationId == null) {
+      return const EnAttenteDeDependance('réservation pas encore reçue');
+    }
+    final reservation = await (_db.select(
+      _db.reservationsLocal,
+    )..where((r) => r.id.equals(reservationId))).getSingle();
+
+    final t = _db.sejoursLocal;
+    final existant = await (_db.select(
+      t,
+    )..where((s) => s.id.equals(id))).getSingleOrNull();
+    if (existant == null) {
+      // Une réservation ne se pointe qu'une fois : si ce poste a pointé la
+      // même arrivée hors ligne, le serveur refusera l'une des deux (« déjà
+      // arrivé ») et le poste la verra dans « À traiter ». Ne rien écrire ici
+      // évite deux séjours pour un client.
+      final local =
+          await (_db.select(t)
+                ..where((s) => s.reservationId.equals(reservationId))
+                ..limit(1))
+              .getSingleOrNull();
+      if (local != null) {
+        return const RefuseParLePoste(
+          'l’arrivée de ce séjour a aussi été pointée sur ce poste : le '
+          'serveur tranche',
+        );
+      }
+      await _db
+          .into(t)
+          .insert(
+            SejoursLocalCompanion.insert(
+              id: id,
+              reservationId: reservationId,
+              dateCheckinReel: Value(arrivee),
+              dateCheckoutReel: Value(depart),
+              occupants: const Value('[]'),
+              dateCreation: _maintenant(),
+              dateModification: _maintenant(),
+            ),
+          );
+      await _retenirOrigine(e, id);
+    } else if (existant.dateCheckoutReel == null && depart != null) {
+      await (_db.update(t)..where((s) => s.id.equals(id))).write(
+        SejoursLocalCompanion(
+          dateCheckoutReel: Value(depart),
+          dateModification: Value(_maintenant()),
+        ),
+      );
+    } else {
+      return const Aligne();
+    }
+
+    // La réservation et l'unité suivent le séjour, comme `SejourService`.
+    final cible = depart != null ? 'terminee' : 'en_cours';
+    const rang = {
+      'en_attente': 0,
+      'confirmee': 1,
+      'en_cours': 2,
+      'terminee': 3,
+    };
+    if (reservation.statut != 'annulee' &&
+        (rang[cible] ?? 0) > (rang[reservation.statut] ?? 0)) {
+      await (_db.update(_db.reservationsLocal)
+            ..where((r) => r.id.equals(reservationId)))
+          .write(ReservationsLocalCompanion(statut: Value(cible)));
+    }
+    final unite = await (_db.select(
+      _db.unitesHebergementLocal,
+    )..where((u) => u.id.equals(reservation.uniteId))).getSingleOrNull();
+    if (unite != null && unite.statut != 'hors_service') {
+      await (_db.update(
+        _db.unitesHebergementLocal,
+      )..where((u) => u.id.equals(unite.id))).write(
+        UnitesHebergementLocalCompanion(
+          statut: Value(depart != null ? 'nettoyage' : 'occupee'),
+        ),
+      );
+    }
+    return const Aligne();
+  }
 
   /* ================================================================== */
   /* Caisse                                                              */
@@ -188,12 +302,8 @@ extension _AlignementDocuments on AligneurCatalogue {
     final d = e.donnees;
     if (await _existe(_db.paniersLocal, id)) return const Aligne();
     final mode = AligneurCatalogue._texte(d['mode_paiement']);
-    if (mode == 'note_chambre') {
-      return const RefuseParLePoste(
-        'vente sur note de chambre : reçue avec les séjours (lot F5)',
-      );
-    }
-    if (!_modesComptant.contains(mode)) {
+    final noteChambre = mode == 'note_chambre';
+    if (!noteChambre && !_modesComptant.contains(mode)) {
       return RefuseParLePoste('mode de paiement inconnu « $mode »');
     }
     final statutServeur = AligneurCatalogue._texte(d['statut']);
@@ -252,6 +362,28 @@ extension _AlignementDocuments on AligneurCatalogue {
       ));
     }
 
+    // Lot F5 : la note de chambre se rattache à SA réservation (le panier de
+    // séjour de ce poste) ; une note sans réservation connue du serveur (une
+    // vente d'avant le 17/10/2026) n'a pas de séjour où se ranger.
+    String? reservation;
+    if (noteChambre) {
+      final reservationServeur = AligneurCatalogue._texte(d['reservation_id']);
+      if (reservationServeur == null) {
+        return const RefuseParLePoste(
+          'note de chambre sans réservation au serveur : aucun séjour où la '
+          'ranger',
+        );
+      }
+      reservation = await _cite(
+        TableDescendue.reservations,
+        reservationServeur,
+        _db.reservationsLocal,
+      );
+      if (reservation == null) {
+        return const EnAttenteDeDependance('réservation pas encore reçue');
+      }
+    }
+
     String? session;
     final sessionServeur = AligneurCatalogue._texte(d['session_id']);
     if (sessionServeur != null) {
@@ -279,7 +411,8 @@ extension _AlignementDocuments on AligneurCatalogue {
         .insert(
           PaniersLocalCompanion.insert(
             id: id,
-            typeVente: 'comptant',
+            typeVente: noteChambre ? 'sur_sejour' : 'comptant',
+            reservationId: Value(reservation),
             clientNom: Value(AligneurCatalogue._texte(d['client_mention'])),
             pointVente: Value(AligneurCatalogue._texte(d['point_vente'])),
             tableId: Value(table),

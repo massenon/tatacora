@@ -2,6 +2,9 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../synchronisation/data/operations_sync_dao.dart';
+import '../../synchronisation/domain/charges_synchronisation.dart';
+import '../../synchronisation/domain/operation_sync.dart';
 import '../domain/messages_sejour.dart';
 import 'parc_dao.dart' show StatutUniteLocal;
 
@@ -226,9 +229,10 @@ class SejourDao extends DatabaseAccessor<AppDatabase> {
     }
 
     final maintenant = _maintenant();
+    final id = _uuid.v4();
     await into(_sejours).insert(
       SejoursLocalCompanion.insert(
-        id: _uuid.v4(),
+        id: id,
         reservationId: reservationId,
         dateCheckinReel: Value(maintenant),
         // Tableau vide plutôt que `null` : « aucun occupant relevé » et
@@ -243,6 +247,16 @@ class SejourDao extends DatabaseAccessor<AppDatabase> {
         .write(const ReservationsLocalCompanion(statut: Value('en_cours')));
 
     await _changerStatutUnite(reservation.uniteId, StatutUniteLocal.occupee);
+
+    // Lot F5 : l'arrivée part au serveur (`SejourService::checkin`), à
+    // l'heure réelle du poste.
+    await OperationsSyncDao(attachedDatabase).enfiler(
+      table: TableSynchronisee.sejours,
+      entiteId: id,
+      type: TypeOperationSync.creation,
+      payload: chargeArrivee(reservationId: reservationId, arrivee: maintenant),
+      horodatage: maintenant,
+    );
   });
 
   /// Enregistre le départ réel — `Accueil::confirmerCheckout` puis
@@ -287,6 +301,15 @@ class SejourDao extends DatabaseAccessor<AppDatabase> {
         .write(const ReservationsLocalCompanion(statut: Value('terminee')));
 
     await _changerStatutUnite(reservation.uniteId, StatutUniteLocal.nettoyage);
+
+    // Lot F5 : le départ part au serveur (`SejourService::checkout`).
+    await OperationsSyncDao(attachedDatabase).enfiler(
+      table: TableSynchronisee.sejours,
+      entiteId: ouvert.id,
+      type: TypeOperationSync.modification,
+      payload: chargeDepart(depart: maintenant),
+      horodatage: maintenant,
+    );
   });
 
   /// `SejourService::changerStatutUnite` — une unité hors service n'est

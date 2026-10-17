@@ -15,6 +15,7 @@ import 'package:tatacora_flutter/features/pos/domain/entities/panier.dart';
 import 'package:tatacora_flutter/features/pos/domain/entities/reference_catalogue.dart';
 import 'package:tatacora_flutter/features/pos/domain/messages_ventes.dart';
 import 'package:tatacora_flutter/features/pos/domain/repositories/panier_repository.dart';
+import 'package:tatacora_flutter/features/synchronisation/data/operations_sync_dao.dart';
 
 import '../comptabilite/support/outils_comptabilite.dart';
 import '../facturation/support/outils_encaissement.dart';
@@ -553,5 +554,24 @@ void main() {
           .getSingle();
       expect(sansPiece.data['n'], 1);
     });
+  });
+
+  test('lot F5 : la vente de SÉJOUR part au serveur, en note de chambre, '
+      'rattachée à sa réservation ; le comptoir reste au comptant', () async {
+    final c = await creerClient(db);
+    await semerReservation(db, id: 'res-1', clientId: c.id);
+    final sejour = await garni(type: TypeVente.surSejour);
+    await cloturer(sejour);
+    final comptoir = await garni();
+    await cloturer(comptoir);
+
+    final ops = await OperationsSyncDao(db).operations();
+    final s = ops.singleWhere((o) => o.entiteId == sejour.id);
+    expect(s.payload, contains('"type_vente":"sur_sejour"'));
+    expect(s.payload, contains('"reservation_id":"res-1"'));
+    expect(s.payload, contains('"mode_paiement":"note_chambre"'));
+    final o = ops.singleWhere((x) => x.entiteId == comptoir.id);
+    expect(o.payload, contains('"type_vente":"comptant"'));
+    expect(o.payload, isNot(contains('reservation_id')));
   });
 }

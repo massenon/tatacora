@@ -577,17 +577,18 @@ class PanierDao extends DatabaseAccessor<AppDatabase> with _$PanierDaoMixin {
         ),
       );
 
-      // Lot F1 : la vente AU COMPTANT part au serveur (document source, D246 :
-      // la pièce `VTE` ci-dessus ne part JAMAIS, le serveur passe la sienne).
-      // Un panier de SÉJOUR (note de chambre) reste sur le poste : le serveur
-      // le refuse (`sync.ventes.note_chambre_hors_perimetre`, phase 2), et
-      // l'enfiler le ferait rejeter à coup sûr.
-      if (!estSejour) {
+      // Lot F1 : la vente part au serveur (document source, D246 : la pièce
+      // `VTE` ci-dessus ne part JAMAIS, le serveur passe la sienne). Depuis
+      // le lot F5 (17/10/2026), la vente de SÉJOUR aussi : portée en note de
+      // chambre, rattachée à sa réservation (`GestionnaireVentes`).
+      {
         await OperationsSyncDao(attachedDatabase).enfiler(
           table: TableSynchronisee.ventes,
           entiteId: entete.id,
           type: TypeOperationSync.creation,
           payload: chargeVente(
+            typeVente: estSejour ? 'sur_sejour' : 'comptant',
+            reservationId: estSejour ? entete.reservationId : null,
             modePaiement: mode.code,
             sessionEncaissementId: sessionId,
             clotureLe: maintenant,

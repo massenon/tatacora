@@ -83,6 +83,7 @@ class AligneurCatalogue {
       TableDescendue.clients => _client(idLocal, e),
       TableDescendue.reservations => _reservation(idLocal, e),
       // Lot F4 : les documents des autres postes (`aligneur_documents.dart`).
+      TableDescendue.sejours ||
       TableDescendue.sessionsCaisse ||
       TableDescendue.ventes ||
       TableDescendue.depenses ||
@@ -961,7 +962,8 @@ class AligneurCatalogue {
         .insert(
           ReservationsLocalCompanion.insert(
             id: id,
-            reference: 'SRV-${id.substring(0, 8).toUpperCase()}',
+            reference:
+                'SRV-${(id.length > 8 ? id.substring(0, 8) : id).toUpperCase()}',
             clientId: client,
             uniteId: unite,
             dateArrivee: arrivee,

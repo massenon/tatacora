@@ -731,8 +731,10 @@ void main() {
       );
     });
 
-    test('ventes — un panier SUR SÉJOUR (note de chambre) n’est PAS enfilé : '
-        'le serveur le refuse (phase 2), il reste sur le poste', () async {
+    // Lot F5 (17/10/2026) : la règle s'INVERSE — le serveur accepte la note
+    // de chambre rattachée à sa réservation (`GestionnaireVentes`).
+    test('ventes — un panier SUR SÉJOUR (note de chambre) EST enfilé, en note '
+        'de chambre et rattaché à sa réservation', () async {
       final pc = await parcEtClient();
       final reservation = await reserver(pc.unite, pc.client);
       await article('art-1');
@@ -766,7 +768,18 @@ void main() {
         greaterThan(ecrituresAvant),
         reason: 'la vente est bien close sur le poste, pièce comprise',
       );
-      expect(await nombre(TableSynchronisee.ventes), 0);
+      final o = (await file.operations(table: TableSynchronisee.ventes)).single;
+      expect(o.entiteId, p.id);
+      final charge = jsonDecode(o.payload) as Map<String, Object?>;
+      expect(
+        (
+          charge['type_vente'],
+          charge['mode_paiement'],
+          charge['reservation_id'],
+        ),
+        ('sur_sejour', 'note_chambre', reservation),
+      );
+      expect(charge['session_encaissement_id'], isNull);
     });
 
     test('depenses — le centre relu sur la PIÈCE passée (id ET libellé), '
@@ -1292,8 +1305,6 @@ void main() {
       ];
       // Les écrivains qui n'enfilent pas, et pourquoi — tous nommés.
       const exceptions = {
-        // Le cycle des unités (occupée, nettoyage) appartient au serveur.
-        'lib/features/hebergement/data/sejour_dao.dart',
         // « Réinitialiser comme neuf » vide les tables : rien à pousser.
         'lib/features/transverse/data/reinitialisation_locale.dart',
         // Ce qui DESCEND du serveur n'y remonte pas (une boucle) — lots F2b

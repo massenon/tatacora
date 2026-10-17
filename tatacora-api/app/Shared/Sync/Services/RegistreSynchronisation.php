@@ -21,6 +21,7 @@ use App\Shared\Sync\Gestionnaires\GestionnairePointsStockage;
 use App\Shared\Sync\Gestionnaires\GestionnaireRecettes;
 use App\Shared\Sync\Gestionnaires\GestionnaireReservations;
 use App\Shared\Sync\Gestionnaires\GestionnaireReservationsTour;
+use App\Shared\Sync\Gestionnaires\GestionnaireSejours;
 use App\Shared\Sync\Gestionnaires\GestionnaireSessionsCaisse;
 use App\Shared\Sync\Gestionnaires\GestionnaireUnitesHebergement;
 use App\Shared\Sync\Gestionnaires\GestionnaireVentes;
@@ -81,6 +82,9 @@ class RegistreSynchronisation
      */
     public const TABLES_SYNCHRONISABLES = [
         'reservations' => GestionnaireReservations::class,
+        // Lot F5 (17/10/2026) : l'arrivée et le départ réels, après la
+        // réservation qu'ils réalisent.
+        'sejours' => GestionnaireSejours::class,
         'clients' => GestionnaireClients::class,
         'fournisseurs' => GestionnaireFournisseurs::class,
         // Catalogue (S2) — dans l'ordre où un poste doit les pousser : un
