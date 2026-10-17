@@ -1292,6 +1292,12 @@ void main() {
         'lib/features/hebergement/data/sejour_dao.dart',
         // « Réinitialiser comme neuf » vide les tables : rien à pousser.
         'lib/features/transverse/data/reinitialisation_locale.dart',
+        // Ce qui DESCEND du serveur n'y remonte pas (une boucle) — lots F2b
+        // et F3. Jusqu'au F3, ce fichier échappait à la sonde : il écrivait
+        // par un alias (`_db.into(t)`), que le motif ne lit pas. Le F3
+        // (`_db.into(_db.clientsLocal)`) l'a rendu visible ; « n'enfile
+        // jamais » est tenu par son propre balayage (descente_catalogue_test).
+        'lib/features/synchronisation/data/aligneur_catalogue.dart',
       };
       final fautifs = <String>[];
       final vus = <String>[];

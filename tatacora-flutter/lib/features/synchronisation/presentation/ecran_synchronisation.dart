@@ -63,8 +63,8 @@ abstract final class TextesEcranSynchronisation {
   }
 
   static String archivesNonPortees(int n) =>
-      '$n article(s) archivé(s) au serveur restent proposés sur ce poste : '
-      'les articles n\'ont pas d\'archive locale.';
+      '$n article(s) ou client(s) archivé(s) au serveur restent proposés sur '
+      'ce poste : ces fiches n\'ont pas d\'archive locale.';
   static const conservesExplication =
       '« Conservé localement » : une modification faite sur ce poste attend '
       'encore de partir ; le serveur tranchera (dernière saisie gagnante) et '

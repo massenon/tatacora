@@ -7,8 +7,14 @@ namespace Tests\Feature\Sync;
 use App\Domain\Achats\Services\ReferentielFournisseurService;
 use App\Domain\Bar\Services\CarteBoissonService;
 use App\Domain\Comptabilite\Models\CentreCout;
+use App\Domain\Crm\Models\Client;
+use App\Domain\Crm\Services\EnregistrementClientService;
+use App\Domain\Crm\Services\ReferentielClientService;
 use App\Domain\Hebergement\Models\CategorieHebergement;
+use App\Domain\Hebergement\Models\Reservation;
 use App\Domain\Hebergement\Models\UniteHebergement;
+use App\Domain\Hebergement\Services\AnnulationReservationService;
+use App\Domain\Hebergement\Services\ReservationService;
 use App\Domain\Restaurant\Models\Recette;
 use App\Domain\Restaurant\Services\CartePlatMenuService;
 use App\Domain\Restaurant\Services\CompositionRecetteService;
@@ -147,6 +153,23 @@ final class ReferentielsDescendantsTest extends TestCase
         $this->assertSame('2.00', $riz['donnees']['seuil_alerte']);
 
         $this->assertFalse($elements[$this->ids['archive']]['actif']);
+
+        // Lot F3 : un client archivé descend marqué, son solde (calcul) non.
+        $client = $elements[$this->ids['client']];
+        $this->assertSame(['nom', 'prenom', 'telephone', 'email', 'type_client'], array_keys($client['donnees']));
+        $this->assertTrue($client['actif']);
+        $this->assertFalse($elements[$this->ids['client_archive']]['actif']);
+
+        $reservation = $elements[$this->ids['reservation']];
+        $this->assertSame('reservations', $reservation['table']);
+        $this->assertSame($this->ids['client'], $reservation['donnees']['client_id']);
+        $this->assertSame('2026-10-20', $reservation['donnees']['date_arrivee']);
+        // Le tarif figé par le service (tarif de base de la catégorie), en
+        // chaîne décimale ; ni le canal, ni l'écriture de remboursement.
+        $this->assertSame('25000.00', $reservation['donnees']['tarif_nuit']);
+        $this->assertSame('0.00', $reservation['donnees']['acompte']);
+        $this->assertArrayNotHasKey('canal_id', $reservation['donnees']);
+        $this->assertArrayNotHasKey('ecriture_remboursement_id', $reservation['donnees']);
         $this->assertFalse($elements[$this->ids['unite_hs']]['actif']);
         $this->assertTrue($elements[$this->ids['unite']]['actif']);
 
@@ -155,10 +178,72 @@ final class ReferentielsDescendantsTest extends TestCase
         $this->assertSame([['article_id' => $this->ids['riz'], 'quantite_unitaire' => '0.150']], $recette['lignes']);
 
         foreach ($elements as $element) {
-            foreach (['cout_moyen_pondere', 'prix_achat', 'stock', 'cout_matiere_calcule', 'utilisateur_creation_id'] as $interdit) {
+            foreach (['cout_moyen_pondere', 'prix_achat', 'stock', 'cout_matiere_calcule', 'utilisateur_creation_id', 'solde', 'utilisateur_annulation_id'] as $interdit) {
                 $this->assertArrayNotHasKey($interdit, $element['donnees'], $element['table']);
             }
         }
+    }
+
+    /**
+     * Lot F3 — la question du Product Owner (16/10/2026) : « le poste B
+     * aura-t-il ce que le poste A a enregistré ? ». Le client et la
+     * réservation POUSSÉS par le poste A descendent au poste B ; la chambre
+     * qu'il croyait libre ne l'est plus.
+     */
+    #[Test]
+    public function ce_que_le_poste_a_pousse_descend_au_poste_b(): void
+    {
+        $curseurB = $this->toutTelecharger($this->admin);
+
+        $this->travel(60)->seconds();
+        $client = $this->uuid();
+        $reservation = $this->uuid();
+        $this->pousser([
+            $this->creation('clients', $client, ['nom' => 'Sabi', 'telephone' => '96000003', 'type_client' => 'groupe']),
+            $this->creation('reservations', $reservation, [
+                'client_id' => $client, 'unite_id' => $this->ids['unite'],
+                'date_arrivee' => '2026-11-02', 'date_depart' => '2026-11-04',
+                'acompte' => '0.00', 'tarif_nuit' => '24000.00',
+            ]),
+        ], $this->admin, 'poste-a')->assertJsonPath('resultats.0.statut', 'synchronise')->assertJsonPath('resultats.1.statut', 'synchronise');
+
+        $this->travel(CatalogueDescendantService::HORIZON_SECONDES + 1)->seconds();
+        $elements = $this->tousLesElementsDe($this->admin, $curseurB);
+
+        $this->assertSame(
+            ['clients:' . $client, 'reservations:' . $reservation],
+            array_map(static fn (array $e): string => $e['table'] . ':' . $e['id'], $elements),
+        );
+        $this->assertSame('24000.00', $elements[1]['donnees']['tarif_nuit']);
+        $this->assertSame('2026-11-04', $elements[1]['donnees']['date_depart']);
+    }
+
+    /**
+     * Une réservation annulée AU SERVEUR repasse, avec son statut et ses
+     * conditions : le poste qui l'a prise libère la chambre.
+     */
+    #[Test]
+    public function une_reservation_annulee_au_serveur_repasse_avec_ses_conditions(): void
+    {
+        $curseur = $this->toutTelecharger($this->admin);
+
+        $this->travel(60)->seconds();
+        app(AnnulationReservationService::class)->annuler(
+            Reservation::findOrFail($this->ids['reservation']),
+            ['taux' => '10', 'mode_remboursement' => 'montant', 'valeur_remboursement' => '0'],
+            $this->admin,
+        );
+
+        $this->travel(CatalogueDescendantService::HORIZON_SECONDES + 1)->seconds();
+        $reponse = $this->telecharger($this->admin, depuis: $curseur)->assertJsonCount(1, 'data.elements');
+
+        $this->assertSame($this->ids['reservation'], $reponse->json('data.elements.0.id'));
+        $this->assertSame('annulee', $reponse->json('data.elements.0.donnees.statut'));
+        $this->assertSame('10.00', $reponse->json('data.elements.0.donnees.taux_annulation'));
+        // 3 nuits × 25 000 = 75 000 ; 10 % = 7 500.
+        $this->assertSame('75000.00', $reponse->json('data.elements.0.donnees.montant_total_annulation'));
+        $this->assertSame('7500.00', $reponse->json('data.elements.0.donnees.montant_commission_annulation'));
+        $this->assertNotNull($reponse->json('data.elements.0.donnees.date_annulation'));
     }
 
     /**
@@ -182,7 +267,7 @@ final class ReferentielsDescendantsTest extends TestCase
 
     /**
      * Une table ne descend que si l'utilisateur LIT son module. `barman` :
-     * M5 et M6 seulement. Le curseur d'une table refusée n'avance pas : le
+     * M3, M5 et M6 (parmi les tables descendues). Le curseur d'une table refusée n'avance pas : le
      * même curseur, présenté par un utilisateur qui lit tout, rend ces tables
      * depuis le début — et pas celles déjà servies.
      */
@@ -199,14 +284,15 @@ final class ReferentielsDescendantsTest extends TestCase
             $curseur = $reponse->json('meta.curseur');
         } while (! $reponse->json('meta.complet'));
 
-        $this->assertSame(['points_stockage', 'articles', 'cartes_boisson'], array_values(array_unique($tables)));
+        // `barman` lit aussi M3 (clients) ; pas M1 (réservations).
+        $this->assertSame(['points_stockage', 'articles', 'cartes_boisson', 'clients'], array_values(array_unique($tables)));
 
         $suite = array_values(array_unique(array_column(
             $this->tousLesElementsDe($this->admin, $curseur),
             'table',
         )));
         $this->assertSame(
-            ['menus', 'recettes', 'plats', 'categories_hebergement', 'unites_hebergement', 'fournisseurs', 'centres_cout'],
+            ['menus', 'recettes', 'plats', 'categories_hebergement', 'unites_hebergement', 'fournisseurs', 'reservations', 'centres_cout'],
             $suite,
         );
     }
@@ -311,9 +397,25 @@ final class ReferentielsDescendantsTest extends TestCase
         $fournisseur = app(ReferentielFournisseurService::class)->creer(['raison_sociale' => 'SOBEBRA']);
         CentreCout::create(['libelle' => 'Bar', 'type' => 'exploitation']);
 
+        // Lot F3 : les tiers et les séjours descendent aussi.
+        $clients = app(EnregistrementClientService::class);
+        $client = Client::query()->findOrFail($clients->creer([
+            'nom' => 'Kora', 'prenom' => 'Awa', 'telephone' => '97000001', 'type_client' => 'particulier',
+        ])['client']->id);
+        $clientArchive = Client::query()->findOrFail($clients->creer([
+            'nom' => 'Ancien', 'telephone' => '97000002', 'type_client' => 'agence',
+        ])['client']->id);
+        app(ReferentielClientService::class)->archiver($clientArchive);
+        DB::table('clients')->where('id', $client->id)->update(['solde' => '15000.00']);
+        $reservation = app(ReservationService::class)->creer([
+            'client_id' => $client->id, 'unite_id' => $unite->id,
+            'date_arrivee' => '2026-10-20', 'date_depart' => '2026-10-23',
+        ]);
+
         $this->ids = [
             'riz' => $riz->id, 'archive' => $archive->id, 'recette' => $recette->id,
             'unite' => $unite->id, 'unite_hs' => $uniteHs->id, 'fournisseur' => $fournisseur->id,
+            'client' => $client->id, 'client_archive' => $clientArchive->id, 'reservation' => $reservation->id,
         ];
     }
 

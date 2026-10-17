@@ -14,6 +14,12 @@ use InvalidArgumentException;
  * décision du Product Owner du 15/10/2026 (le serveur est maître du
  * catalogue : mêmes identifiants partout).
  *
+ * Depuis le lot F3 (décision du 16/10/2026), le flux porte aussi les
+ * CLIENTS et les RÉSERVATIONS de tous les postes : un poste B voit les
+ * chambres prises par un poste A et ne les revend pas. Les autres documents
+ * (ventes, dépenses, caisses, commandes, réceptions) NE descendent PAS : ils
+ * se consultent au serveur, qui en est le seul comptable (D246).
+ *
  * ## Un curseur par table, une seule chaîne opaque
  *
  * Chaque table avance sur le couple (`updated_at`, `id`) — l'horodatage seul
@@ -43,8 +49,8 @@ use InvalidArgumentException;
  *
  * ## Rien n'est jamais retiré du flux
  *
- * Un élément archivé (`articles.actif`, `fournisseurs.actif`, unité
- * `hors_service`) DESCEND, marqué `actif: false` : le poste doit savoir
+ * Un élément archivé (`articles.actif`, `fournisseurs.actif`,
+ * `clients.actif`, unité `hors_service`) DESCEND, marqué `actif: false` : le poste doit savoir
  * pourquoi il ne le propose plus, et ses documents passés le citent encore.
  * Aucune suppression n'existe au catalogue (« supprimer = archiver »).
  *
@@ -104,6 +110,18 @@ class CatalogueDescendantService
         'categories_hebergement' => ['libelle', 'capacite_max', 'tarif_base'],
         'unites_hebergement' => ['categorie_id', 'numero', 'statut'],
         'fournisseurs' => ['raison_sociale', 'nom', 'contact', 'telephone', 'email', 'ville', 'ifu', 'categorie', 'conditions_paiement', 'evaluation', 'actif'],
+        // Lot F3 (décision PO du 16/10/2026) : les TIERS et les SÉJOURS
+        // descendent aussi, pour qu'un poste voie les chambres prises par un
+        // autre (RG-01) et ses clients. `solde` n'y est pas (calcul) ; le
+        // canal non plus (`canal_id` désigne un canal du serveur, le poste ne
+        // connaît que des codes) ; ni les colonnes d'audit, ni l'écriture du
+        // remboursement (le poste ne tient pas les pièces du serveur).
+        'clients' => ['nom', 'prenom', 'telephone', 'email', 'type_client', 'actif'],
+        'reservations' => [
+            'client_id', 'unite_id', 'date_arrivee', 'date_depart', 'statut', 'acompte', 'tarif_nuit',
+            'remise_type', 'remise_valeur', 'mode_paiement', 'taux_annulation', 'montant_total_annulation',
+            'montant_commission_annulation', 'montant_rembourse_annulation', 'date_annulation',
+        ],
         'centres_cout' => ['libelle', 'type'],
     ];
 
@@ -291,7 +309,7 @@ class CatalogueDescendantService
             }
 
             $actif = match ($table) {
-                'articles', 'fournisseurs' => (bool) $donnees['actif'],
+                'articles', 'fournisseurs', 'clients' => (bool) $donnees['actif'],
                 'unites_hebergement' => $donnees['statut'] !== 'hors_service',
                 default => true,
             };

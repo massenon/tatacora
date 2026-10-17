@@ -10,7 +10,9 @@ import 'descente_catalogue_dao.dart';
 import 'operations_sync_dao.dart';
 
 /// Les ÉCRIVAINS « aligner » du catalogue descendu (lot F2b, 15/10/2026) :
-/// un par table, chacun écrit UNE définition du serveur sur le poste.
+/// un par table, chacun écrit UNE définition du serveur sur le poste. Depuis
+/// le lot F3 (16/10/2026), aussi les clients et les réservations des autres
+/// postes ([_client], [_reservation]).
 ///
 /// ## Ce qu'ils ne font JAMAIS
 ///
@@ -76,6 +78,8 @@ class AligneurCatalogue {
       TableDescendue.categoriesHebergement => _categorie(idLocal, d),
       TableDescendue.unitesHebergement => _unite(idLocal, e),
       TableDescendue.fournisseurs => _fournisseur(idLocal, e),
+      TableDescendue.clients => _client(idLocal, e),
+      TableDescendue.reservations => _reservation(idLocal, e),
       TableDescendue.centresCout => _centre(e),
     };
   }
@@ -738,6 +742,282 @@ class AligneurCatalogue {
           ),
         );
     return const Aligne();
+  }
+
+  /* ================================================================== */
+  /* Clients (lot F3)                                                    */
+  /* ================================================================== */
+
+  static const _typesClient = {'particulier', 'groupe', 'agence', 'structure'};
+
+  /// Un client. Le serveur ne FUSIONNE jamais deux clients
+  /// (`GestionnaireClients` : deux homonymes peuvent être deux personnes) :
+  /// aucun contrôle d'homonyme ici non plus. La modification d'une fiche
+  /// part au serveur (dernière saisie gagnante) : la version descendue est
+  /// celle qui a gagné, et elle remplace la fiche locale quand plus rien
+  /// n'attend (garde d'[aligner]). `solde` ne descend pas (calcul) ; un
+  /// client archivé reste proposé (aucune archive locale), et le bilan le
+  /// compte.
+  Future<IssueAlignement> _client(String id, ElementCatalogue e) async {
+    final d = e.donnees;
+    final nom = _texte(d['nom']);
+    final telephone = _texte(d['telephone']);
+    if (nom == null || telephone == null) {
+      return const RefuseParLePoste('nom ou téléphone absent');
+    }
+    final type = _texte(d['type_client']);
+    if (!_typesClient.contains(type)) {
+      return RefuseParLePoste('type de client inconnu « $type »');
+    }
+    await _db
+        .into(_db.clientsLocal)
+        .insertOnConflictUpdate(
+          ClientsLocalCompanion.insert(
+            id: id,
+            nom: nom,
+            prenom: Value(_texte(d['prenom'])),
+            telephone: telephone,
+            email: Value(_texte(d['email'])),
+            typeClient: type!,
+            statutSync: const Value('synchronise'),
+          ),
+        );
+    return Aligne(archiveNonPortee: !e.actif);
+  }
+
+  /* ================================================================== */
+  /* Réservations (lot F3)                                               */
+  /* ================================================================== */
+
+  /// Le rang d'un statut dans le cycle d'un séjour ; `annulee` est à part
+  /// (terminal, depuis n'importe quel rang).
+  static const _rangStatut = {
+    'en_attente': 0,
+    'confirmee': 1,
+    'en_cours': 2,
+    'terminee': 3,
+  };
+
+  static const _modesServeur = {
+    'especes': 'especes',
+    'mobile_money': 'mobileMoney',
+    'virement': 'virement',
+    'cheque': 'cheque',
+    'credit': 'credit',
+  };
+
+  static const _remises = {'aucune', 'pourcentage', 'montant'};
+
+  /// Une réservation d'un AUTRE poste (ou de la PWA) : c'est ce qui fait
+  /// qu'un poste ne revend pas une chambre déjà prise (RG-01, décision du
+  /// PO du 16/10/2026).
+  ///
+  /// ## Nouvelle sur ce poste : écrite telle que le serveur la tient
+  ///
+  /// Référence `SRV-` + 8 caractères de l'identifiant (le serveur n'en a
+  /// pas — la convention de `ReservationDto`, PA-57) ; tarif absent = 0,
+  /// visiblement faux plutôt que recalculé au tarif du jour (même
+  /// précédent) ; aucune ligne de service ; le canal ne descend pas (le
+  /// serveur cite SES canaux) ; AUCUNE pièce comptable — le serveur a passé
+  /// celle de l'acompte, il est le seul comptable (D246).
+  ///
+  /// ## Déjà sur ce poste : seul le STATUT avance, jamais il ne recule
+  ///
+  /// Le poste ne pousse que la CRÉATION d'une réservation (le serveur
+  /// refuse toute modification) : un séjour ouvert ou annulé ICI n'est pas
+  /// connu du serveur. Réécrire la fiche locale avec la version du serveur
+  /// effacerait ces gestes. Donc :
+  ///  * annulée ici → rien ne change (l'annulation locale porte sa pièce) ;
+  ///  * annulée au serveur → annulée ici, avec ses conditions (taux,
+  ///    montants, date), sans pièce ;
+  ///  * sinon le statut du serveur n'est pris que s'il est PLUS AVANCÉ dans
+  ///    le cycle (`en_attente` → `confirmee` → `en_cours` → `terminee`).
+  /// Les dates, l'unité, le client et les montants d'une réservation
+  /// existante ne sont pas réécrits — écart nommé : un séjour déplacé au
+  /// serveur garde ici ses anciennes dates.
+  Future<IssueAlignement> _reservation(String id, ElementCatalogue e) async {
+    final d = e.donnees;
+    final statut = _texte(d['statut']);
+    if (statut == null ||
+        (statut != 'annulee' && !_rangStatut.containsKey(statut))) {
+      return RefuseParLePoste('statut de réservation inconnu « $statut »');
+    }
+    final t = _db.reservationsLocal;
+    final existante = await (_db.select(
+      t,
+    )..where((r) => r.id.equals(id))).getSingleOrNull();
+
+    final ({
+      int? taux,
+      int? total,
+      int? commission,
+      int? rembourse,
+      DateTime? date,
+    })
+    annulation;
+    try {
+      annulation = _conditionsAnnulation(d);
+    } on FormatException catch (erreur) {
+      return RefuseParLePoste(erreur.message);
+    }
+
+    if (existante != null) {
+      if (existante.statut == 'annulee') return const Aligne();
+      if (statut == 'annulee') {
+        await (_db.update(t)..where((r) => r.id.equals(id))).write(
+          ReservationsLocalCompanion(
+            statut: const Value('annulee'),
+            tauxAnnulationCentiemes: Value(annulation.taux),
+            montantTotalAnnulationCentimes: Value(annulation.total),
+            montantCommissionAnnulationCentimes: Value(annulation.commission),
+            montantRembourseAnnulationCentimes: Value(annulation.rembourse),
+            dateAnnulation: Value(annulation.date),
+          ),
+        );
+        return const Aligne();
+      }
+      final rangLocal = _rangStatut[existante.statut] ?? 0;
+      if (_rangStatut[statut]! > rangLocal) {
+        await (_db.update(t)..where((r) => r.id.equals(id))).write(
+          ReservationsLocalCompanion(statut: Value(statut)),
+        );
+      }
+      return const Aligne();
+    }
+
+    final clientServeur = _texte(d['client_id']);
+    final uniteServeur = _texte(d['unite_id']);
+    if (clientServeur == null || uniteServeur == null) {
+      return const RefuseParLePoste('client ou unité absent');
+    }
+    final DateTime arrivee;
+    final DateTime depart;
+    try {
+      arrivee = _jourUtc(d['date_arrivee']);
+      depart = _jourUtc(d['date_depart']);
+    } on FormatException {
+      return const RefuseParLePoste('dates de séjour illisibles');
+    }
+    if (!depart.isAfter(arrivee)) {
+      return const RefuseParLePoste('départ antérieur ou égal à l’arrivée');
+    }
+    final acompte = entierDepuisDecimal(d['acompte'] ?? '0', 0);
+    final tarif = d['tarif_nuit'] == null
+        ? 0
+        : entierDepuisDecimal(d['tarif_nuit'], 0);
+    if (acompte == null || tarif == null) {
+      return const RefuseParLePoste(
+        'acompte ou tarif : une fraction de franc ne se tient pas sur ce poste',
+      );
+    }
+    final remiseType = _texte(d['remise_type']) ?? 'aucune';
+    if (!_remises.contains(remiseType)) {
+      return RefuseParLePoste('type de remise inconnu « $remiseType »');
+    }
+    final remiseCentiemes = entierDepuisDecimal(d['remise_valeur'] ?? '0', 2);
+    if (remiseCentiemes == null) {
+      return RefuseParLePoste('remise « ${d['remise_valeur']} » illisible');
+    }
+    final modeServeur = _texte(d['mode_paiement']);
+    final mode = modeServeur == null ? null : _modesServeur[modeServeur];
+    if (modeServeur != null && mode == null) {
+      return RefuseParLePoste('mode de paiement inconnu « $modeServeur »');
+    }
+
+    final client = await _cite(
+      TableDescendue.clients,
+      clientServeur,
+      _db.clientsLocal,
+    );
+    if (client == null) {
+      return const EnAttenteDeDependance('client pas encore reçu');
+    }
+    final unite = await _cite(
+      TableDescendue.unitesHebergement,
+      uniteServeur,
+      _db.unitesHebergementLocal,
+    );
+    if (unite == null) {
+      return const EnAttenteDeDependance(
+        'unité d’hébergement pas encore reçue',
+      );
+    }
+
+    await _db
+        .into(t)
+        .insert(
+          ReservationsLocalCompanion.insert(
+            id: id,
+            reference: 'SRV-${id.substring(0, 8).toUpperCase()}',
+            clientId: client,
+            uniteId: unite,
+            dateArrivee: arrivee,
+            dateDepart: depart,
+            statut: statut,
+            tarifNuit: tarif,
+            acompte: Value(acompte.toDouble()),
+            modePaiement: Value(mode),
+            remiseType: Value(remiseType),
+            remiseValeur: Value(
+              remiseType == 'aucune' ? null : remiseCentiemes / 100,
+            ),
+            statutSync: const Value('synchronise'),
+            tauxAnnulationCentiemes: Value(annulation.taux),
+            montantTotalAnnulationCentimes: Value(annulation.total),
+            montantCommissionAnnulationCentimes: Value(annulation.commission),
+            montantRembourseAnnulationCentimes: Value(annulation.rembourse),
+            dateAnnulation: Value(annulation.date),
+            dateCreationLocale: Value(_maintenant()),
+          ),
+        );
+    return const Aligne();
+  }
+
+  /// Minuit UTC du jour d'une date du serveur — la convention de
+  /// `PeriodeSejour` (un `DateTime` local décalerait le séjour d'un jour
+  /// dans un fuseau négatif).
+  static DateTime _jourUtc(Object? v) {
+    final jour = _jour(v);
+    if (jour == null) throw const FormatException('date absente');
+    final p = jour.split('-');
+    return DateTime.utc(int.parse(p[0]), int.parse(p[1]), int.parse(p[2]));
+  }
+
+  /// Les conditions d'annulation du serveur, dans les unités de la v19 :
+  /// taux en centièmes de pour cent, montants en centimes.
+  static ({
+    int? taux,
+    int? total,
+    int? commission,
+    int? rembourse,
+    DateTime? date,
+  })
+  _conditionsAnnulation(Map<String, Object?> d) {
+    int? centiemes(String colonne) {
+      if (d[colonne] == null) return null;
+      final v = entierDepuisDecimal(d[colonne], 2);
+      if (v == null) {
+        throw FormatException('« $colonne » illisible : ${d[colonne]}');
+      }
+      return v;
+    }
+
+    DateTime? date;
+    if (d['date_annulation'] != null) {
+      date = DateTime.tryParse(
+        '${d['date_annulation']}'.replaceFirst(' ', 'T'),
+      );
+      if (date == null) {
+        throw const FormatException('date d’annulation illisible');
+      }
+    }
+    return (
+      taux: centiemes('taux_annulation'),
+      total: centiemes('montant_total_annulation'),
+      commission: centiemes('montant_commission_annulation'),
+      rembourse: centiemes('montant_rembourse_annulation'),
+      date: date,
+    );
   }
 
   /* ================================================================== */

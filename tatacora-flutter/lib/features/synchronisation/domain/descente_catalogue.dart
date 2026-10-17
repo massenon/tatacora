@@ -1,5 +1,7 @@
 /// La DESCENTE du catalogue (lot F2b, 15/10/2026) — vocabulaire, éléments,
-/// conversions d'unités et bilan. Pur, sans base.
+/// conversions d'unités et bilan. Pur, sans base. Depuis le lot F3
+/// (16/10/2026), le même flux porte aussi les clients et les réservations
+/// de tous les postes.
 ///
 /// ## Le contrat (`GET /api/v1/referentiels`, `ReferentielsController`)
 ///
@@ -42,6 +44,12 @@ enum TableDescendue {
   ),
   unitesHebergement('unites_hebergement', TableSynchronisee.unitesHebergement),
   fournisseurs('fournisseurs', TableSynchronisee.fournisseurs),
+
+  /// Lot F3 (décision du PO du 16/10/2026) : les clients et les séjours de
+  /// TOUS les postes descendent — le client AVANT la réservation qui le cite
+  /// (PA-127), l'unité bien avant.
+  clients('clients', TableSynchronisee.clients),
+  reservations('reservations', TableSynchronisee.reservations),
 
   /// Descendue sans être synchronisable : le poste ne pousse pas ses centres.
   centresCout('centres_cout', null);
@@ -99,7 +107,8 @@ final class ElementCatalogue {
   final TableDescendue table;
   final String id;
 
-  /// `false` : archivé au serveur (article, fournisseur, unité hors service).
+  /// `false` : archivé au serveur (article, fournisseur, client, unité hors
+  /// service).
   final bool actif;
   final String modifieLe;
   final Map<String, Object?> donnees;
@@ -195,7 +204,8 @@ final class Aligne extends IssueAlignement {
   const Aligne({this.archiveNonPortee = false});
 
   /// L'élément est ARCHIVÉ au serveur, mais la table locale n'a pas
-  /// d'archive (articles) : il reste proposé ici, et le bilan le dit.
+  /// d'archive (articles, clients) : il reste proposé ici, et le bilan le
+  /// dit.
   final bool archiveNonPortee;
 }
 
@@ -295,7 +305,8 @@ final class BilanDescente {
   /// Éléments que le poste ne sait pas tenir, pendant cette descente.
   final int refuses;
 
-  /// Articles archivés au serveur et sans archive locale (restent proposés).
+  /// Articles et clients archivés au serveur, sans archive locale (restent
+  /// proposés).
   final int archivesNonPortees;
 
   /// Les motifs des refus (les vingt premiers), pour l'écran.
