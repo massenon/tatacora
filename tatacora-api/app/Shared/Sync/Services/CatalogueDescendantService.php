@@ -109,6 +109,8 @@ class CatalogueDescendantService
         'plats' => ['menu_id', 'recette_id', 'article_id', 'unites_vendables_par_unite_stock', 'libelle', 'prix_vente', 'prix_provisoire', 'prix_corrige_main'],
         'categories_hebergement' => ['libelle', 'capacite_max', 'tarif_base'],
         'unites_hebergement' => ['categorie_id', 'numero', 'statut'],
+        // Lot F6 (18/10/2026) : le plan de salle, pour l'arbitrage des tables.
+        'tables_salle' => ['espace', 'numero', 'libelle', 'places', 'actif'],
         'fournisseurs' => ['raison_sociale', 'nom', 'contact', 'telephone', 'email', 'ville', 'ifu', 'categorie', 'conditions_paiement', 'evaluation', 'actif'],
         // Lot F3 (décision PO du 16/10/2026) : les TIERS et les SÉJOURS
         // descendent aussi, pour qu'un poste voie les chambres prises par un
@@ -134,6 +136,9 @@ class CatalogueDescendantService
             'mode_paiement', 'encaisse', 'statut', 'motif_annulation', 'annulee_at', 'date_creation',
         ],
         'depenses' => ['numero', 'date_transaction', 'tresorerie', 'montant_total', 'libelle'],
+        // Lot F6 : l'OCCUPATION des tables (paniers DE TABLE seulement), après
+        // la vente qui la libère ; ouverte = occupée.
+        'paniers' => ['point_vente', 'table_id', 'statut', 'cloture_at'],
         // Lot F5c : les factures (numérotées par le serveur) et leurs avoirs,
         // après les ventes et les réservations qu'elles portent.
         'factures' => ['numero', 'origine', 'client_id', 'date_emission', 'montant_ht', 'montant_tva', 'montant_ttc', 'statut'],
@@ -166,6 +171,16 @@ class CatalogueDescendantService
         // Lot F5c : l'avoir n'a pas de gestionnaire (il naît de l'annulation
         // d'une facture), il se lit sous le module de la facturation.
         'avoirs' => 'M2',
+    ];
+
+    /**
+     * Les lignes d'une table qui ne descendent PAS (lot F6) : un panier de
+     * comptoir n'occupe rien, seul un panier de table compte.
+     *
+     * @var array<string, string>  table → colonne qui doit être renseignée
+     */
+    public const NON_NULS = [
+        'paniers' => 'table_id',
     ];
 
     /**
@@ -237,7 +252,13 @@ class CatalogueDescendantService
             }
 
             [$lignes, $reste] = $this->lire(
-                $this->sansMiroirsDuPoste(DB::table($table)->select(['id', ...self::COLONNES[$table]]), $table, $posteId),
+                $this->sansMiroirsDuPoste(
+                    DB::table($table)
+                        ->select(['id', ...self::COLONNES[$table]])
+                        ->when(isset(self::NON_NULS[$table]), fn (Builder $q): Builder => $q->whereNotNull(self::NON_NULS[$table])),
+                    $table,
+                    $posteId,
+                ),
                 self::FILIGRANE,
                 $positions[$table] ?? null,
                 $horizon,
@@ -382,7 +403,7 @@ class CatalogueDescendantService
             }
 
             $actif = match ($table) {
-                'articles', 'fournisseurs', 'clients' => (bool) $donnees['actif'],
+                'articles', 'fournisseurs', 'clients', 'tables_salle' => (bool) $donnees['actif'],
                 'unites_hebergement' => $donnees['statut'] !== 'hors_service',
                 default => true,
             };

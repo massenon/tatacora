@@ -18,6 +18,7 @@ use App\Shared\Sync\Gestionnaires\GestionnaireFournisseurs;
 use App\Shared\Sync\Gestionnaires\GestionnaireGuides;
 use App\Shared\Sync\Gestionnaires\GestionnaireMenus;
 use App\Shared\Sync\Gestionnaires\GestionnairePaiements;
+use App\Shared\Sync\Gestionnaires\GestionnairePaniersTable;
 use App\Shared\Sync\Gestionnaires\GestionnairePlats;
 use App\Shared\Sync\Gestionnaires\GestionnairePointsStockage;
 use App\Shared\Sync\Gestionnaires\GestionnaireRecettes;
@@ -25,6 +26,7 @@ use App\Shared\Sync\Gestionnaires\GestionnaireReservations;
 use App\Shared\Sync\Gestionnaires\GestionnaireReservationsTour;
 use App\Shared\Sync\Gestionnaires\GestionnaireSejours;
 use App\Shared\Sync\Gestionnaires\GestionnaireSessionsCaisse;
+use App\Shared\Sync\Gestionnaires\GestionnaireTablesSalle;
 use App\Shared\Sync\Gestionnaires\GestionnaireUnitesHebergement;
 use App\Shared\Sync\Gestionnaires\GestionnaireVentes;
 use LogicException;
@@ -105,6 +107,10 @@ class RegistreSynchronisation
         'commandes_achat' => GestionnaireCommandesAchat::class,
         'bons_reception' => GestionnaireBonsReception::class,
         'sessions_caisse' => GestionnaireSessionsCaisse::class,
+        // Lot F6 (18/10/2026) : le plan de salle, puis l'OCCUPATION d'une
+        // table (le panier ouvert) avant la vente qui la libère.
+        'tables_salle' => GestionnaireTablesSalle::class,
+        'paniers' => GestionnairePaniersTable::class,
         'ventes' => GestionnaireVentes::class,
         'depenses' => GestionnaireDepenses::class,
         // Lot F5c : la facture APRÈS la vente qu'elle porte.

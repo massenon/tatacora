@@ -139,6 +139,7 @@ return [
 
     'table_introuvable' => 'Table introuvable.',
 
+    'table_places_invalides' => 'Une table compte au moins une place.',
     'table_panier_ouvert' => 'La table :libelle porte un panier ouvert. Encaissez l\'addition avant '
         .'de la désactiver : les consommations servies n\'auraient plus de table pour les porter '
         .'jusqu\'à l\'addition.',

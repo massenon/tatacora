@@ -72,6 +72,14 @@ return [
     'commandes' => [
         'statut_inconnu' => 'Commande : seuls l\'envoi (envoyee) et la clôture (cloturee) se synchronisent.',
     ],
+    'tables' => [
+        'espace_invalide' => 'Table refusée : l\'espace « :espace » n\'existe pas (ou n\'a pas de tables).',
+        'champ_non_modifiable' => 'Une table ne se modifie que par son numéro, ses places et son activation '
+            . '(champ(s) refusé(s) : :champs).',
+        'inconnue' => 'Table refusée : la table n\'est pas connue du serveur (pas encore reçue, ou refusée).',
+        'occupee' => 'Table :libelle déjà occupée par un autre poste (ou à la PWA) : encaissez ou libérez '
+            . 'la table là-bas avant de l\'ouvrir ici.',
+    ],
     'paiements' => [
         'facture_inconnue' => 'Encaissement refusé : la facture n\'est pas connue du serveur (pas encore reçue, ou refusée).',
     ],
