@@ -19,6 +19,7 @@ import 'tables/clients_table.dart';
 import 'tables/comptabilite_tables.dart';
 import 'tables/depenses_tables.dart';
 import 'tables/descente_sync_tables.dart';
+import 'tables/occupations_tables_tables.dart';
 import 'tables/origines_documents_tables.dart';
 import 'tables/facturation_tables.dart';
 import 'tables/hebergement_tables.dart';
@@ -199,6 +200,9 @@ part 'app_database.g.dart';
     EtatSynchronisationLocal,
     CorrespondancesSyncLocal,
     OriginesDocumentsLocal,
+    // v29 (18/10/2026, lot F6) : l'occupation des tables par les AUTRES
+    // postes. Qui écrit, qui lit : `tables/occupations_tables_tables.dart`.
+    OccupationsTablesLocal,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -362,8 +366,13 @@ class AppDatabase extends _$AppDatabase {
   /// tables), aucune colonne ajoutée. Les documents des autres postes
   /// descendent sans pièce locale ; cette table dit lesquels, et de quel
   /// poste. Qui écrit, qui lit : voir `tables/origines_documents_tables.dart`.
+  ///
+  /// v29 (18/10/2026) — L'ARBITRAGE DES TABLES (lot F6, décision du PO :
+  /// « il faut le créer ») : une table neuve (`occupations_tables_local`,
+  /// 61 -> 62 tables), aucune colonne ajoutée. Une table occupée sur un autre
+  /// poste (ou à la PWA) l'est aussi ici.
   @override
-  int get schemaVersion => 28;
+  int get schemaVersion => 29;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1017,6 +1026,12 @@ class AppDatabase extends _$AppDatabase {
         // définition COURANTE, exacte ici (piège 3 : une v29 qui y ajoute une
         // colonne la testera avant `addColumn`).
         await m.createTable(originesDocumentsLocal);
+      }
+      if (from < 29) {
+        // L'OCCUPATION DES TABLES PAR LES AUTRES POSTES (18/10/2026, lot F6).
+        // Une table NEUVE, sans index ni clé étrangère : rien d'existant
+        // n'est touché, aucune ligne n'est fabriquée (la descente la remplit).
+        await m.createTable(occupationsTablesLocal);
       }
     },
 

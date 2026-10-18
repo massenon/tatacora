@@ -43,6 +43,9 @@ enum TableDescendue {
     TableSynchronisee.categoriesHebergement,
   ),
   unitesHebergement('unites_hebergement', TableSynchronisee.unitesHebergement),
+
+  /// Lot F6 (18/10/2026) : le plan de salle, pour l'arbitrage des tables.
+  tablesSalle('tables_salle', TableSynchronisee.tablesSalle),
   fournisseurs('fournisseurs', TableSynchronisee.fournisseurs),
 
   /// Lot F3 (décision du PO du 16/10/2026) : les clients et les séjours de
@@ -60,6 +63,9 @@ enum TableDescendue {
   sessionsCaisse('sessions_caisse', TableSynchronisee.sessionsCaisse),
   ventes('ventes', TableSynchronisee.ventes),
   depenses('depenses', TableSynchronisee.depenses),
+
+  /// Lot F6 : l'OCCUPATION des tables par les autres postes (paniers ouverts).
+  paniers('paniers', TableSynchronisee.paniers),
 
   /// Lots F5c et F5d (17/10/2026) : les factures (numéro du serveur), leurs
   /// avoirs, puis les encaissements — le reste dû d'une facture est le même
@@ -114,6 +120,8 @@ String libelleTableServeur(String nom) => switch (nom) {
   'sessions_caisse' => 'Sessions de caisse',
   'ventes' => 'Ventes',
   'depenses' => 'Dépenses',
+  'tables_salle' => 'Tables de salle',
+  'paniers' => 'Tables occupées (additions ouvertes)',
   'factures' => 'Factures',
   'avoirs' => 'Avoirs',
   'paiements' => 'Encaissements de factures',

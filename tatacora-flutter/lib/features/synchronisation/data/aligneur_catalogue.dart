@@ -92,6 +92,8 @@ class AligneurCatalogue {
       TableDescendue.sessionsCaisse ||
       TableDescendue.ventes ||
       TableDescendue.depenses ||
+      TableDescendue.tablesSalle ||
+      TableDescendue.paniers ||
       TableDescendue.factures ||
       TableDescendue.avoirs ||
       TableDescendue.paiements ||

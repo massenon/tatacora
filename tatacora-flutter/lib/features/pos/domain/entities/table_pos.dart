@@ -34,12 +34,20 @@ final class TablePos {
 /// référentiel mais des paniers, et la porter sur l'entité laisserait croire
 /// qu'elle se persiste.
 final class CaseSalle {
-  const CaseSalle({required this.table, this.panierOuvertId});
+  const CaseSalle({
+    required this.table,
+    this.panierOuvertId,
+    this.occupeeAilleurs = false,
+  });
 
   final TablePos table;
 
   /// L'identifiant du panier ouvert sur cette table, ou `null`.
   final String? panierOuvertId;
+
+  /// Lot F6 : une addition est ouverte sur cette table sur un AUTRE poste
+  /// (ou à la PWA) — elle n'est pas libre ici, et ne s'ouvre pas.
+  final bool occupeeAilleurs;
 
   /// Les quatre états que le maître distingue, et qu'il ne faut jamais
   /// confondre :
@@ -55,7 +63,7 @@ final class CaseSalle {
   /// porte pas : c'est l'appelant qui tranche, avec le panier en main.
   bool get occupee => panierOuvertId != null;
 
-  bool get libre => table.actif && !occupee;
+  bool get libre => table.actif && !occupee && !occupeeAilleurs;
 
   bool get fermee => !table.actif;
 }

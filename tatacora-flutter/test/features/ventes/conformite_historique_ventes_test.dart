@@ -542,7 +542,10 @@ void main() {
 
       expect(tables, isNotEmpty);
       expect(tables, containsAll(const ['reservations', 'clients']));
-      expect(tables, isNot(contains('paniers')));
+      // `paniers` y est entré au lot F6 (décision du PO du 18/10/2026,
+      // arbitrage des tables) pour la seule OCCUPATION d'une table : une
+      // addition de table ouverte / fermée, jamais le contenu du journal.
+      expect(tables, contains('paniers'));
       // `factures` y est entré au lot F5c (décision du PO du 17/10/2026,
       // Q2) : la facture part, provisoire, et reçoit le numéro du serveur.
       // Ce journal, lui, reste celui des ventes, pas des factures.

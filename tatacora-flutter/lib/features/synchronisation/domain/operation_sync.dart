@@ -41,8 +41,14 @@ enum TableSynchronisee {
 
   /// L'ouverture est une `creation`, la clôture la SEULE `modification` admise.
   sessionsCaisse('sessions_caisse', accepteModification: true),
+
   /// Lot F6 : le serveur annule une vente (`VenteService::annuler`) ; le
   /// poste n'annule qu'un panier OUVERT, jamais envoyé — rien ne part.
+  /// Lot F6 (18/10/2026) : le plan de salle (numéro, places, activation),
+  /// puis l'OCCUPATION d'une table (le panier ouvert : création = ouverture,
+  /// modification = fermeture), arbitrée par le serveur entre postes.
+  tablesSalle('tables_salle', accepteModification: true),
+  paniers('paniers', accepteModification: true),
   ventes('ventes', accepteModification: true),
   depenses('depenses', accepteModification: false),
 

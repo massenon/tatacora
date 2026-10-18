@@ -34,6 +34,8 @@ extension _AlignementDocuments on AligneurCatalogue {
         TableDescendue.sessionsCaisse => _sessionCaisse(id, e),
         TableDescendue.ventes => _vente(id, e),
         TableDescendue.depenses => _depense(id, e),
+        TableDescendue.tablesSalle => _tableSalle(id, e),
+        TableDescendue.paniers => _occupation(id, e),
         TableDescendue.factures => _facture(id, e),
         TableDescendue.avoirs => _avoir(id, e),
         TableDescendue.paiements => _paiement(id, e),
@@ -531,6 +533,111 @@ extension _AlignementDocuments on AligneurCatalogue {
           );
     }
     await _retenirOrigine(e, id);
+    return const Aligne();
+  }
+
+  /* ================================================================== */
+  /* Tables de salle et leur occupation — lot F6 (18/10/2026)            */
+  /* ================================================================== */
+
+  static const _espacesAvecTables = {'restaurant', 'jardin', 'plage'};
+
+  /// Une table du plan du serveur. Détenue (par identifiant ou par
+  /// correspondance) : numéro, libellé, places et activation suivent le
+  /// serveur. Une table locale de même espace et même numéro est LA MÊME
+  /// table (le serveur fusionne) : la correspondance est retenue, rien n'est
+  /// doublé. Sinon, inscrite.
+  Future<IssueAlignement> _tableSalle(String id, ElementCatalogue e) async {
+    final d = e.donnees;
+    final espace = AligneurCatalogue._texte(d['espace']);
+    final numero = d['numero'] is int
+        ? d['numero'] as int
+        : int.tryParse('${d['numero']}');
+    final places = d['places'] is int
+        ? d['places'] as int
+        : int.tryParse('${d['places']}');
+    final libelle = AligneurCatalogue._texte(d['libelle']);
+    if (espace == null ||
+        !_espacesAvecTables.contains(espace) ||
+        numero == null ||
+        places == null ||
+        libelle == null) {
+      return const RefuseParLePoste('table de salle incomplète');
+    }
+    final t = _db.tablesLocal;
+    final valeurs = TablesLocalCompanion(
+      numero: Value(numero),
+      libelle: Value(libelle),
+      places: Value(places),
+      actif: Value(e.actif),
+    );
+    if (await _existe(t, id)) {
+      await (_db.update(t)..where((x) => x.id.equals(id))).write(valeurs);
+      return const Aligne();
+    }
+    final homonyme =
+        await (_db.select(t)
+              ..where((x) => x.espace.equals(espace) & x.numero.equals(numero)))
+            .getSingleOrNull();
+    if (homonyme != null) {
+      await _dao.retenirCorrespondance(
+        table: e.table.nomServeur,
+        idServeur: e.id,
+        idLocal: homonyme.id,
+        origine: 'libelle',
+      );
+      await (_db.update(
+        t,
+      )..where((x) => x.id.equals(homonyme.id))).write(valeurs);
+      return const Aligne();
+    }
+    await _db
+        .into(t)
+        .insert(
+          TablesLocalCompanion.insert(
+            id: id,
+            espace: espace,
+            numero: numero,
+            libelle: libelle,
+            places: Value(places),
+            actif: Value(e.actif),
+          ),
+        );
+    await _retenirOrigine(e, id);
+    return const Aligne();
+  }
+
+  /// L'addition d'une table ouverte AILLEURS (un autre poste, la PWA) : elle
+  /// occupe la table ici aussi, jusqu'à sa fermeture. Celle de CE poste vit
+  /// dans `paniers_local` et n'est pas dupliquée.
+  Future<IssueAlignement> _occupation(String id, ElementCatalogue e) async {
+    if (await _existe(_db.paniersLocal, id)) return const Aligne();
+    final d = e.donnees;
+    final tableServeur = AligneurCatalogue._texte(d['table_id']);
+    final statut = AligneurCatalogue._texte(d['statut']);
+    if (tableServeur == null || (statut != 'ouvert' && statut != 'cloture')) {
+      return const RefuseParLePoste('occupation de table illisible');
+    }
+    final tableId = await _cite(
+      TableDescendue.tablesSalle,
+      tableServeur,
+      _db.tablesLocal,
+    );
+    if (tableId == null) {
+      return const EnAttenteDeDependance('table pas encore reçue');
+    }
+    await _db
+        .into(_db.occupationsTablesLocal)
+        .insertOnConflictUpdate(
+          OccupationsTablesLocalCompanion.insert(
+            panierId: id,
+            tableId: tableId,
+            pointVente: AligneurCatalogue._texte(d['point_vente']) ?? '',
+            posteOrigine: Value(e.posteOrigine),
+            ouvert: statut == 'ouvert',
+            recuLe: _maintenant(),
+          ),
+        );
     return const Aligne();
   }
 

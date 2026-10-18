@@ -606,3 +606,25 @@ Map<String, Object?> chargeDeplacementReservation({
 
 /// `commandes_achat`, STATUT — `envoyee` ou `cloturee`, par leurs services.
 Map<String, Object?> chargeStatutCommande(String statut) => {'statut': statut};
+
+/* ==================================================================== */
+/* Tables de salle (lot F6, 18/10/2026)                                   */
+/* ==================================================================== */
+
+/// `tables_salle` (création) — `GestionnaireTablesSalle` : la clé naturelle
+/// (espace, numéro) fusionne au serveur.
+Map<String, Object?> chargeTableSalle({
+  required String espace,
+  required int numero,
+  required int places,
+}) => {'espace': espace, 'numero': numero, 'places': places};
+
+/// `paniers` (création) : l'OUVERTURE d'une addition sur une table — le
+/// serveur l'arbitre (une table, un panier ouvert, tous postes confondus).
+Map<String, Object?> chargeOuvertureTable({
+  required String pointVente,
+  required String tableId,
+}) => {'point_vente': pointVente, 'table_id': tableId};
+
+/// `paniers` (modification) : la FERMETURE de l'addition (vente ou abandon).
+Map<String, Object?> chargeFermetureTable() => {'statut': 'cloture'};

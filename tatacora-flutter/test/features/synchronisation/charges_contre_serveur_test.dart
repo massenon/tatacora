@@ -104,7 +104,10 @@ void main() {
       'creation commandes_achat',
       'creation bons_reception',
       'creation sessions_caisse',
+      'creation tables_salle',
+      'creation paniers',
       'creation ventes',
+      'modification paniers',
       'modification sessions_caisse',
       'creation depenses',
       'creation circuits',
@@ -178,6 +181,16 @@ void main() {
       expect(vente['montant_total'], '5400.00');
     },
   );
+
+  test('tables (lot F6) : la table R2 fusionne avec celle du serveur, son '
+      'addition l’occupe puis se ferme sur la vente', () {
+    final table = resultatDe('tables_salle', 'creation', s.tableR2);
+    expect(table['statut'], 'synchronise', reason: '$table');
+    final ouverture = resultatDe('paniers', 'creation', s.vente);
+    expect(ouverture['statut'], 'synchronise', reason: '$ouverture');
+    final panier = serveur('paniers', s.vente);
+    expect((panier['statut'], panier['vente_id']), ('cloture', s.vente));
+  });
 
   test('réservation (lot F6) : déplacée par RG-01, puis annulée par '
       'AnnulationReservationService avec les montants du poste', () {

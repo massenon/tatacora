@@ -14,7 +14,7 @@ void main() {
   setUp(() => base = AppDatabase.enMemoire());
   tearDown(() => base.close());
 
-  test('les 61 tables du périmètre offline sont créées', () async {
+  test('les 62 tables du périmètre offline sont créées', () async {
     // `allTables` reflète ce que Drift a réellement généré, pas ce qu'on
     // croit avoir déclaré.
     //
@@ -138,8 +138,12 @@ void main() {
     // l'origine des documents descendus des autres postes ; auteur :
     // `AligneurCatalogue`). Elle dit quels documents n'ont PAS de pièce locale
     // parce que le serveur a passé la leur — une donnée de sécurité comptable.
-    expect(base.allTables.length, 61);
-    expect(base.schemaVersion, 28);
+    //
+    // 61 → 62 le 18/10/2026 : `occupations_tables_local` (v29, lot F6 —
+    // l'occupation des tables par les autres postes ; auteur :
+    // `AligneurCatalogue`).
+    expect(base.allTables.length, 62);
+    expect(base.schemaVersion, 29);
     expect(
       base.allTables.map((t) => t.actualTableName).toSet().containsAll({
         'origines_documents_local',

@@ -24,6 +24,7 @@ import 'package:tatacora_flutter/features/hebergement/data/sejour_dao.dart';
 import 'package:tatacora_flutter/features/hebergement/domain/usecases/creer_reservation.dart';
 import 'package:tatacora_flutter/features/hebergement/domain/usecases/modifier_reservation.dart';
 import 'package:tatacora_flutter/features/pos/data/catalogue_dao.dart';
+import 'package:tatacora_flutter/features/pos/data/tables_pos_dao.dart';
 import 'package:tatacora_flutter/features/pos/data/dto/catalogue_dto.dart';
 import 'package:tatacora_flutter/features/pos/domain/entities/article_vendable.dart';
 import 'package:tatacora_flutter/features/pos/domain/entities/panier.dart';
@@ -70,6 +71,7 @@ final class ScenarioFile {
   late String reservationTour;
   late String sejour;
   late String reservationAnnulee;
+  late String tableR2;
   late String venteSejour;
   late String facture;
   late String paiement;
@@ -333,9 +335,16 @@ Future<ScenarioFile> jouerJourneeComplete(AppDatabase db) async {
     peutEcrire: true,
   )).id;
   final paniers = panierDaoSur(db, horloge: h.add(const Duration(hours: 2)));
+  // Lot F6 : l'addition est servie à la table R2 — la table et son
+  // occupation partent, arbitrées au serveur.
+  s.tableR2 = (await TablesPosDao(
+    db,
+  ).toutes()).firstWhere((t) => t.libelle == 'R2').id;
   var panier = await paniers.ouvrir(
     typeVente: TypeVente.comptant,
     pointVente: 'Bar',
+    tableId: s.tableR2,
+    espace: 'restaurant',
   );
   panier = await paniers.ajouterLigne(
     panier.id,

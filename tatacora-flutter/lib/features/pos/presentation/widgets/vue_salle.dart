@@ -277,7 +277,11 @@ class _CaseTable extends StatelessWidget {
     // pas de source — ; ce poste, lui, en a une.)
     final fermee = cas.fermee;
     final enCours = cas.occupee && (panier?.lignes.isNotEmpty ?? false);
-    final ouverte = cas.occupee && !enCours;
+    // Lot F6 (ajout du PO, 18/10/2026 — la vue ne connaît qu'un poste) : une
+    // table prise sur un AUTRE poste se montre « ouverte » aux couleurs de la
+    // vue, dit « autre poste », et ne s'ouvre pas ici.
+    final ailleurs = cas.occupeeAilleurs;
+    final ouverte = (cas.occupee && !enCours) || ailleurs;
 
     // `px-2.5 py-2 rounded-lg border text-left` (l.199) : en cours = bordure
     // or + `bg-amber-50` ; ouverte = `border-blue-300 bg-blue-50` ; libre =
@@ -306,7 +310,7 @@ class _CaseTable extends StatelessWidget {
 
     return InkWell(
       key: Key('pos-table-${cas.table.libelle}'),
-      onTap: fermee ? null : onTap,
+      onTap: fermee || ailleurs ? null : onTap,
       borderRadius: BorderRadius.circular(AppRadius.roundedLg),
       child: Container(
         padding: const EdgeInsets.symmetric(
@@ -352,6 +356,8 @@ class _CaseTable extends StatelessWidget {
                   ? 'fermée'
                   : enCours
                   ? formaterFcfa(panier!.total)
+                  : ailleurs
+                  ? 'autre poste'
                   : ouverte
                   ? 'ouverte'
                   : '${cas.table.places} pl.',

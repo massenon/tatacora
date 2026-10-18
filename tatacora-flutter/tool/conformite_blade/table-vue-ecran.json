@@ -1,6 +1,6 @@
 {
   "_lisez-moi": "PRODUIT par --figer-dette. Vue Blade -> fichiers Flutter qui la CITENT (seul ancrage). Un tableau vide = vue sans ecran.",
-  "_regenere-le": "2026-10-15",
+  "_regenere-le": "2026-10-18",
   "vues": {
     "achats/achats": [
       "core/theme/app_spacing.dart",

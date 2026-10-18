@@ -28,6 +28,8 @@ import '../domain/messages_ventes.dart';
 import '../domain/repositories/panier_repository.dart';
 import '../domain/unicite_panier_ouvert.dart';
 import 'piece_de_la_vente.dart';
+import 'tables_pos_dao.dart';
+import '../../synchronisation/data/documents_autres_postes.dart';
 
 import '../../synchronisation/data/operations_sync_dao.dart';
 import '../../synchronisation/domain/charges_synchronisation.dart';
@@ -232,6 +234,22 @@ class PanierDao extends DatabaseAccessor<AppDatabase> with _$PanierDaoMixin {
             panierExistantId: surLaTable.id,
           );
         }
+        // Lot F6 : occupée sur un AUTRE poste (descendu) — refusée ici comme
+        // le serveur la refuserait.
+        final ailleurs =
+            await (select(attachedDatabase.occupationsTablesLocal)..where(
+                  (o) => o.tableId.equals(tableId) & o.ouvert.equals(true),
+                ))
+                .get();
+        if (ailleurs.isNotEmpty) {
+          final table = await (select(
+            attachedDatabase.tablesLocal,
+          )..where((t) => t.id.equals(tableId))).getSingleOrNull();
+          throw TableOccupeeAilleurs(
+            tableId: tableId,
+            libelle: table?.libelle ?? tableId,
+          );
+        }
       }
 
       await into(paniersLocal).insert(
@@ -248,6 +266,22 @@ class PanierDao extends DatabaseAccessor<AppDatabase> with _$PanierDaoMixin {
           ouvertLe: Value(ouvertLe),
         ),
       );
+
+      // Lot F6 : l'OCCUPATION de la table part, arbitrée au serveur entre
+      // postes (la table elle-même d'abord, si le serveur ne l'a pas).
+      if (tableId != null) {
+        await TablesPosDao(attachedDatabase).assurerConnueDuServeur(tableId);
+        await OperationsSyncDao(attachedDatabase).enfiler(
+          table: TableSynchronisee.paniers,
+          entiteId: id,
+          type: TypeOperationSync.creation,
+          payload: chargeOuvertureTable(
+            pointVente: pointVente ?? espace ?? 'Salle',
+            tableId: tableId,
+          ),
+          horodatage: ouvertLe,
+        );
+      }
     });
 
     return (await parId(id))!;
@@ -611,6 +645,9 @@ class PanierDao extends DatabaseAccessor<AppDatabase> with _$PanierDaoMixin {
           dateMetier: jourIso(maintenant),
         );
       }
+
+      // Lot F6 : la table se LIBÈRE au serveur, après la vente qu'elle porte.
+      await _libererLaTable(entete.id, entete.tableId);
     });
 
     return (await parId(panierId))!;
@@ -641,6 +678,7 @@ class PanierDao extends DatabaseAccessor<AppDatabase> with _$PanierDaoMixin {
           motifAnnulation: Value(motifNet),
         ),
       );
+      await _libererLaTable(entete.id, entete.tableId);
     });
 
     return (await parId(panierId))!;
@@ -649,6 +687,23 @@ class PanierDao extends DatabaseAccessor<AppDatabase> with _$PanierDaoMixin {
   /* ================================================================== */
   /* Gardes internes                                                     */
   /* ================================================================== */
+
+  /// Lot F6 : la fermeture de l'addition d'une TABLE part, si son ouverture
+  /// est partie (le serveur arbitre l'occupation). Dans la transaction.
+  Future<void> _libererLaTable(String panierId, String? tableId) async {
+    if (tableId == null) return;
+    if (!await DocumentsAutresPostes(
+      attachedDatabase,
+    ).connuDuServeur(TableSynchronisee.paniers, panierId)) {
+      return;
+    }
+    await OperationsSyncDao(attachedDatabase).enfiler(
+      table: TableSynchronisee.paniers,
+      entiteId: panierId,
+      type: TypeOperationSync.modification,
+      payload: chargeFermetureTable(),
+    );
+  }
 
   /// L'en-tête du panier, à condition qu'il soit encore modifiable (règle 2).
   Future<PaniersLocalData> _enteteModifiable(String panierId) async {

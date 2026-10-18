@@ -87,7 +87,15 @@ const tablesAjouteesEnV27 = <String>{
 /// 17/10/2026).
 const tablesAjouteesEnV28 = <String>{'origines_documents_local'};
 
+/// La table que la v29 AJOUTE (occupation des tables par les autres postes,
+/// lot F6 du 18/10/2026).
+const tablesAjouteesEnV29 = <String>{'occupations_tables_local'};
+
 const _ajoutsParVersion = <int, List<String>>{
+  // La v29 (occupation des tables, lot F6 du 18/10/2026) ajoute UNE table
+  // neuve, sans index ni cle etrangere : retour arriere symetrique.
+  29: <String>['DROP TABLE occupations_tables_local'],
+
   // La v28 (origine des documents descendus, lot F4 du 17/10/2026) ajoute UNE
   // table neuve, sans index ni cle etrangere, et ne touche rien d'existant :
   // son retour arriere est symetrique. Les lignes sont perdues : la fixture

@@ -113,6 +113,7 @@ void main() {
       ...tablesAjouteesEnV26,
       ...tablesAjouteesEnV27,
       ...tablesAjouteesEnV28,
+      ...tablesAjouteesEnV29,
     });
     expect(
       await compte(apres, 'operations_sync_local'),

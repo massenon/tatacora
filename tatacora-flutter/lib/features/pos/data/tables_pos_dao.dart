@@ -4,6 +4,10 @@ import 'package:uuid/uuid.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/database/tables/panier_tables.dart';
 import '../../../core/database/tables/tables_pos_table.dart';
+import '../../synchronisation/data/documents_autres_postes.dart';
+import '../../synchronisation/data/operations_sync_dao.dart';
+import '../../synchronisation/domain/charges_synchronisation.dart';
+import '../../synchronisation/domain/operation_sync.dart';
 import '../domain/entities/espace_pos.dart';
 import '../domain/entities/table_pos.dart';
 
@@ -106,6 +110,13 @@ class TablesPosDao extends DatabaseAccessor<AppDatabase>
       paniersLocal,
     )..where((p) => p.statut.equals('ouvert') & p.tableId.isNotNull())).get();
     final parTable = {for (final p in ouverts) p.tableId!: p.id};
+    // Lot F6 : les tables prises sur les AUTRES postes (descendues).
+    final ailleurs = {
+      for (final o in await (select(
+        attachedDatabase.occupationsTablesLocal,
+      )..where((o) => o.ouvert.equals(true))).get())
+        o.tableId,
+    };
 
     return [
       for (final espace in EspacePos.avecTablesSeulement)
@@ -115,7 +126,12 @@ class TablesPosDao extends DatabaseAccessor<AppDatabase>
             for (final t in tables.where(
               (t) => t.espace == espace && (inclureFermees || t.actif),
             ))
-              CaseSalle(table: t, panierOuvertId: parTable[t.id]),
+              CaseSalle(
+                table: t,
+                panierOuvertId: parTable[t.id],
+                occupeeAilleurs:
+                    parTable[t.id] == null && ailleurs.contains(t.id),
+              ),
           ],
         ),
     ];
@@ -172,7 +188,10 @@ class TablesPosDao extends DatabaseAccessor<AppDatabase>
       libelle: '${espace.prefixe}$numero',
       places: Value(places),
     );
-    await into(tablesLocal).insert(ligne);
+    await transaction(() async {
+      await into(tablesLocal).insert(ligne);
+      await assurerConnueDuServeur(ligne.id.value);
+    });
     return _versDomaine(
       await (select(
         tablesLocal,
@@ -216,12 +235,14 @@ class TablesPosDao extends DatabaseAccessor<AppDatabase>
           'La table ${espace.prefixe}$numero existe déjà dans cet espace.',
         );
       }
+      await assurerConnueDuServeur(id);
       await (update(tablesLocal)..where((t) => t.id.equals(id))).write(
         TablesLocalCompanion(
           numero: Value(numero),
           libelle: Value('${espace.prefixe}$numero'),
         ),
       );
+      await _envoyer(id, {'numero': numero});
       return _versDomaine(
         await (select(tablesLocal)..where((t) => t.id.equals(id))).getSingle(),
       );
@@ -245,14 +266,57 @@ class TablesPosDao extends DatabaseAccessor<AppDatabase>
       throw TableOccupee(ligne.libelle);
     }
 
-    await (update(tablesLocal)..where((t) => t.id.equals(id))).write(
-      TablesLocalCompanion(actif: Value(!ligne.actif)),
-    );
+    await transaction(() async {
+      await assurerConnueDuServeur(id);
+      await (update(tablesLocal)..where((t) => t.id.equals(id))).write(
+        TablesLocalCompanion(actif: Value(!ligne.actif)),
+      );
+      await _envoyer(id, {'actif': !ligne.actif});
+    });
 
     return _versDomaine(
       await (select(tablesLocal)..where((t) => t.id.equals(id))).getSingle(),
     );
   }
+
+  /* ================================================================== */
+  /* Synchronisation — lot F6 (18/10/2026)                               */
+  /* ================================================================== */
+
+  /// La table part au serveur (création) si le serveur ne la détient pas
+  /// encore — une table du jeu initial semé ici, ou créée avant la
+  /// synchronisation, part au premier geste qui la cite : le serveur la
+  /// FUSIONNE avec la sienne (même espace, même numéro). À appeler DANS une
+  /// transaction (la file l'exige).
+  Future<void> assurerConnueDuServeur(String id) async {
+    if (await DocumentsAutresPostes(
+      attachedDatabase,
+    ).connuDuServeur(TableSynchronisee.tablesSalle, id)) {
+      return;
+    }
+    final t = await (select(
+      tablesLocal,
+    )..where((x) => x.id.equals(id))).getSingleOrNull();
+    if (t == null) return;
+    await OperationsSyncDao(attachedDatabase).enfiler(
+      table: TableSynchronisee.tablesSalle,
+      entiteId: id,
+      type: TypeOperationSync.creation,
+      payload: chargeTableSalle(
+        espace: t.espace,
+        numero: t.numero,
+        places: t.places,
+      ),
+    );
+  }
+
+  Future<void> _envoyer(String id, Map<String, Object?> champs) =>
+      OperationsSyncDao(attachedDatabase).enfiler(
+        table: TableSynchronisee.tablesSalle,
+        entiteId: id,
+        type: TypeOperationSync.modification,
+        payload: champs,
+      );
 
   TablePos _versDomaine(TablesLocalData d) => TablePos(
     id: d.id,
