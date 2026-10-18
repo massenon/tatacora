@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../achats/domain/entities/fournisseur.dart';
+import '../../achats/data/reglements_fournisseur_dao.dart';
 import '../../comptabilite/data/moteur_comptable.dart';
 import '../../facturation/data/facture_dao.dart';
 import '../../pos/data/panier_dao.dart';

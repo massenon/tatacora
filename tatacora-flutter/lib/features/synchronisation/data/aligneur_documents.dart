@@ -1152,15 +1152,21 @@ extension _AlignementDocuments on AligneurCatalogue {
     }
     final t = _db.reglementsFournisseurLocal;
     if (await _existe(t, id)) {
-      await (_db.update(t)..where((r) => r.id.equals(id))).write(
-        ReglementsFournisseurLocalCompanion(
-          statut: Value(statut!),
-          motifAnnulation: Value(
-            AligneurCatalogue._texte(d['motif_annulation']),
-          ),
-          dateAnnulation: Value(annulation),
-        ),
-      );
+      // Jamais à rebours ; celui de CE poste contre-passe sa pièce (le DAO
+      // des règlements s'en charge).
+      if (statut == 'annule') {
+        final auteur = await _auteurOuAttente();
+        if (auteur == null) return AligneurCatalogue._sansAuteur;
+        await ReglementsFournisseurDao(
+          _db,
+          moteur: _moteur,
+        ).suivreAnnulationDuServeur(
+          id,
+          motif: AligneurCatalogue._texte(d['motif_annulation']),
+          date: annulation,
+          auteurId: auteur,
+        );
+      }
       return const Aligne();
     }
     final commandeServeur = AligneurCatalogue._texte(d['commande_id']);

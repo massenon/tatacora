@@ -80,6 +80,9 @@ return [
         'occupee' => 'Table :libelle déjà occupée par un autre poste (ou à la PWA) : encaissez ou libérez '
             . 'la table là-bas avant de l\'ouvrir ici.',
     ],
+    'reglements' => [
+        'commande_inconnue' => 'Règlement refusé : la commande n\'est pas connue du serveur (pas encore reçue, ou refusée).',
+    ],
     'paiements' => [
         'facture_inconnue' => 'Encaissement refusé : la facture n\'est pas connue du serveur (pas encore reçue, ou refusée).',
     ],

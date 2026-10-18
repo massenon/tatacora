@@ -75,7 +75,10 @@ enum TableDescendue {
   paiements('paiements', TableSynchronisee.paiements),
   commandesAchat('commandes_achat', TableSynchronisee.commandesAchat),
   bonsReception('bons_reception', TableSynchronisee.bonsReception),
-  reglementsFournisseur('reglements_fournisseur', null),
+  reglementsFournisseur(
+    'reglements_fournisseur',
+    TableSynchronisee.reglementsFournisseur,
+  ),
   mouvementsStock('mouvements_stock', null),
   circuits('circuits', TableSynchronisee.circuits),
   guides('guides', TableSynchronisee.guides),

@@ -45,6 +45,34 @@ final class AchatsDocumentsSynchronisationTest extends TestCase
 
     // ------------------------------------------------------------ Commandes
 
+    /** Audit de couverture (18/10/2026) : le règlement d'un poste monte, par son service. */
+    #[Test]
+    public function le_reglement_d_un_poste_est_ecrit_avec_sa_piece_puis_annule(): void
+    {
+        $commande = $this->uuid();
+        $this->pousser([$this->commande($commande)], $this->acheteur, 'poste-a');
+        $id = $this->uuid();
+        $reglement = fn (int $centimes, ?string $rid = null): array => $this->operationDatee('reglements_fournisseur', 'creation', $rid ?? $id, [
+            'commande_id' => $commande, 'montant' => $centimes, 'tresorerie' => 'caisse', 'date_reglement' => '2026-10-11',
+        ], '2026-10-11T09:00:00+00:00');
+
+        $this->pousser([$reglement(1000000)], $this->acheteur, 'poste-a')
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+        $r = \App\Domain\Achats\Models\ReglementFournisseur::findOrFail($id);
+        $this->assertSame(['10000.00', '2026-10-11'], [(string) $r->montant, $r->date_reglement->toDateString()]);
+        $this->assertSame(1, $this->nombreDePieces('Règlement fournisseur Société Béninoise des Brasseries — ' . $id));
+        $this->assertSame('10000.00', (string) CommandeAchat::findOrFail($commande)->montant_regle);
+
+        // Au-delà du reste dû : la phrase du service.
+        $this->pousser([$reglement(9900000, $this->uuid())], $this->acheteur, 'poste-a')
+            ->assertJsonPath('resultats.0.statut', 'rejete')
+            ->assertJsonPath('resultats.0.motif', __('achats.reglement_superieur_au_reste', ['reste' => '14000.00']));
+
+        $this->pousser([$this->operation('reglements_fournisseur', 'modification', $id, ['statut' => 'annule', 'motif' => 'Erreur'])], $this->acheteur, 'poste-a')
+            ->assertJsonPath('resultats.0.statut_reglement', 'annule');
+        $this->assertSame('0.00', (string) CommandeAchat::findOrFail($commande)->montant_regle);
+    }
+
     /** Lot F6 : l'envoi d'un brouillon et la clôture, par leurs services. */
     #[Test]
     public function le_statut_de_la_commande_avance_par_son_service(): void

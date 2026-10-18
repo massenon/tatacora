@@ -628,3 +628,22 @@ Map<String, Object?> chargeOuvertureTable({
 
 /// `paniers` (modification) : la FERMETURE de l'addition (vente ou abandon).
 Map<String, Object?> chargeFermetureTable() => {'statut': 'cloture'};
+
+/* ==================================================================== */
+/* Règlements fournisseur (audit de couverture, 18/10/2026)               */
+/* ==================================================================== */
+
+/// `reglements_fournisseur` (création) — `GestionnaireReglementsFournisseur` :
+/// montant en CENTIMES (le serveur divise par 100), la trésorerie du poste, le
+/// jour du règlement.
+Map<String, Object?> chargeReglementFournisseur({
+  required String commandeId,
+  required int montantCentimes,
+  required String tresorerie,
+  required String dateReglement,
+}) => {
+  'commande_id': commandeId,
+  'montant': montantCentimes,
+  'tresorerie': tresorerie,
+  'date_reglement': dateReglement,
+};

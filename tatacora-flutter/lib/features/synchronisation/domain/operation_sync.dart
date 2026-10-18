@@ -39,6 +39,10 @@ enum TableSynchronisee {
   commandesAchat('commandes_achat', accepteModification: true),
   bonsReception('bons_reception', accepteModification: false),
 
+  /// Audit de couverture (18/10/2026) : le règlement d'une commande, et son
+  /// annulation (contre-passation au serveur).
+  reglementsFournisseur('reglements_fournisseur', accepteModification: true),
+
   /// L'ouverture est une `creation`, la clôture la SEULE `modification` admise.
   sessionsCaisse('sessions_caisse', accepteModification: true),
 

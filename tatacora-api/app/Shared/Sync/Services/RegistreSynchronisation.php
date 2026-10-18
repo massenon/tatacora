@@ -22,6 +22,7 @@ use App\Shared\Sync\Gestionnaires\GestionnairePaniersTable;
 use App\Shared\Sync\Gestionnaires\GestionnairePlats;
 use App\Shared\Sync\Gestionnaires\GestionnairePointsStockage;
 use App\Shared\Sync\Gestionnaires\GestionnaireRecettes;
+use App\Shared\Sync\Gestionnaires\GestionnaireReglementsFournisseur;
 use App\Shared\Sync\Gestionnaires\GestionnaireReservations;
 use App\Shared\Sync\Gestionnaires\GestionnaireReservationsTour;
 use App\Shared\Sync\Gestionnaires\GestionnaireSejours;
@@ -106,6 +107,8 @@ class RegistreSynchronisation
         // (modification) après elles, dans l'ordre de la file du poste.
         'commandes_achat' => GestionnaireCommandesAchat::class,
         'bons_reception' => GestionnaireBonsReception::class,
+        // Audit de couverture (18/10/2026) : le règlement après sa commande.
+        'reglements_fournisseur' => GestionnaireReglementsFournisseur::class,
         'sessions_caisse' => GestionnaireSessionsCaisse::class,
         // Lot F6 (18/10/2026) : le plan de salle, puis l'OCCUPATION d'une
         // table (le panier ouvert) avant la vente qui la libère.

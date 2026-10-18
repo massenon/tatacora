@@ -12,6 +12,10 @@ import '../domain/messages_achats.dart';
 import '../domain/messages_reglement.dart';
 import '../domain/regles_reglement.dart';
 import 'piece_du_reglement.dart';
+import '../../synchronisation/data/documents_autres_postes.dart';
+import '../../synchronisation/data/operations_sync_dao.dart';
+import '../../synchronisation/domain/charges_synchronisation.dart';
+import '../../synchronisation/domain/operation_sync.dart';
 
 /// Accès Drift aux règlements fournisseur — **local pur**, SEUL auteur de
 /// `reglements_fournisseur_local`.
@@ -321,6 +325,25 @@ class ReglementsFournisseurDao extends DatabaseAccessor<AppDatabase> {
         auteurId: auteurId,
       );
 
+      // Audit de couverture (18/10/2026) : le règlement part au serveur (sa
+      // pièce, jamais — D246), si le serveur détient la commande.
+      if (await DocumentsAutresPostes(
+        attachedDatabase,
+      ).connuDuServeur(TableSynchronisee.commandesAchat, commandeId)) {
+        await OperationsSyncDao(attachedDatabase).enfiler(
+          table: TableSynchronisee.reglementsFournisseur,
+          entiteId: id,
+          type: TypeOperationSync.creation,
+          payload: chargeReglementFournisseur(
+            commandeId: commandeId,
+            montantCentimes: montantCentimes,
+            tresorerie: modeConnu.code,
+            dateReglement: _jour(maintenant),
+          ),
+          horodatage: maintenant,
+        );
+      }
+
       return id;
     });
 
@@ -349,6 +372,13 @@ class ReglementsFournisseurDao extends DatabaseAccessor<AppDatabase> {
     }
     if (estVideAuSensDePhp(motif)) {
       throw const RefusReglement(MessagesReglement.motifRequis);
+    }
+    // Q3 : le règlement d'un autre poste, par l'administration ou le
+    // comptable seulement.
+    if (!await DocumentsAutresPostes(
+      attachedDatabase,
+    ).peutAnnuler('reglements_fournisseur', reglementId, auteurId)) {
+      throw const RefusReglement(DocumentsAutresPostes.refus);
     }
 
     final moteurComptable = await _moteurObligatoire();
@@ -400,8 +430,55 @@ class ReglementsFournisseurDao extends DatabaseAccessor<AppDatabase> {
           dateAnnulation: Value(_maintenant()),
         ),
       );
+      if (await DocumentsAutresPostes(
+        attachedDatabase,
+      ).connuDuServeur(TableSynchronisee.reglementsFournisseur, courant.id)) {
+        await OperationsSyncDao(attachedDatabase).enfiler(
+          table: TableSynchronisee.reglementsFournisseur,
+          entiteId: courant.id,
+          type: TypeOperationSync.modification,
+          payload: chargeAnnulationPaiement(motif: motif),
+        );
+      }
     });
 
     return (await parId(reglementId))!;
   }
+
+  /// Un règlement ANNULÉ au serveur (audit de couverture, 18/10/2026). Celui
+  /// de CE poste contre-passe sa pièce locale en entier, dans la même
+  /// transaction ; celui d'un autre poste (sans pièce ici, Q1) suit en
+  /// statut. Jamais à rebours. Appelé par la descente.
+  Future<void> suivreAnnulationDuServeur(
+    String id, {
+    required String? motif,
+    required DateTime? date,
+    required String auteurId,
+  }) => transaction(() async {
+    final reglement = await parId(id);
+    if (reglement == null || reglement.statut == StatutReglement.annule) {
+      return;
+    }
+    final lignes = await ComptabiliteDao(
+      attachedDatabase,
+    ).lignesParSuffixeLibelle(' — $id', prefixe: 'Règlement fournisseur ');
+    final motifNet = (motif == null || motif.trim().isEmpty)
+        ? 'Annulé au serveur'
+        : motif.trim();
+    if (lignes.isNotEmpty) {
+      await (await _moteurObligatoire()).contrepasserPiece(
+        lignes,
+        auteurId: auteurId,
+        motif: motifNet,
+      );
+    }
+    await (update(_reglements)..where((r) => r.id.equals(id))).write(
+      ReglementsFournisseurLocalCompanion(
+        statut: Value(StatutReglement.annule.code),
+        motifAnnulation: Value(motifNet),
+        annuleParId: Value(auteurId),
+        dateAnnulation: Value(date ?? _maintenant()),
+      ),
+    );
+  });
 }

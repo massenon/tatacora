@@ -103,6 +103,7 @@ void main() {
       'modification fournisseurs',
       'creation commandes_achat',
       'creation bons_reception',
+      'creation reglements_fournisseur',
       'creation sessions_caisse',
       'creation tables_salle',
       'creation paniers',
@@ -181,6 +182,15 @@ void main() {
       expect(vente['montant_total'], '5400.00');
     },
   );
+
+  test('règlement fournisseur (audit) : écrit par le service, à la date du '
+      'poste, la commande en tient compte', () {
+    final r = resultatDe('reglements_fournisseur', 'creation', s.reglement);
+    expect(r['statut'], 'synchronise', reason: '$r');
+    final ecrit = serveur('reglements_fournisseur', s.reglement);
+    expect((ecrit['montant'], ecrit['tresorerie']), ('5000.00', 'caisse'));
+    expect('${ecrit['date_reglement']}', startsWith('2026-10-12'));
+  });
 
   test('tables (lot F6) : la table R2 fusionne avec celle du serveur, son '
       'addition l’occupe puis se ferme sur la vente', () {

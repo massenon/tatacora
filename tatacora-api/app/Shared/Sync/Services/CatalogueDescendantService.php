@@ -164,9 +164,8 @@ class CatalogueDescendantService
      */
     public const MODULES_HORS_REGISTRE = [
         'centres_cout' => 'M10',
-        // Lot F4 : descendus avant d'avoir leur gestionnaire de montée (ou
-        // sans : un règlement fournisseur porte une pièce, D246).
-        'reglements_fournisseur' => 'M7',
+        // Lot F4 : descendus avant d'avoir leur gestionnaire de montée (le
+        // règlement fournisseur a le sien depuis l'audit du 18/10/2026).
         'mouvements_stock' => 'M6',
         // Lot F5c : l'avoir n'a pas de gestionnaire (il naît de l'annulation
         // d'une facture), il se lit sous le module de la facturation.

@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tatacora_flutter/core/database/app_database.dart';
+import 'package:tatacora_flutter/features/achats/data/reglements_fournisseur_dao.dart';
+import 'package:tatacora_flutter/features/achats/domain/entities/reglement_fournisseur.dart';
 import 'package:tatacora_flutter/features/comptabilite/data/comptabilite_dao.dart';
 import 'package:tatacora_flutter/features/facturation/data/paiements_facture_dao.dart';
 import 'package:tatacora_flutter/features/facturation/domain/entities/paiement_facture.dart';
@@ -11,6 +13,7 @@ import 'package:tatacora_flutter/features/synchronisation/domain/descente_catalo
 
 import '../comptabilite/support/outils_comptabilite.dart' show moteurSur;
 import '../facturation/support/outils_encaissement.dart';
+import 'support/scenario_file.dart';
 
 /// Lot F6 (décision du PO du 18/10/2026 : « le serveur doit aussi envoyer en
 /// local ce qu'il a enregistré ») : quand le serveur ANNULE un document de CE
@@ -122,5 +125,29 @@ void main() {
     );
     expect(await lignes(), avant + 2, reason: 'les deux lignes inverses');
     expect((await dao.creanceDe(f)).resteDuCentimes, 3000000);
+  });
+
+  test('un règlement fournisseur de CE poste annulé au serveur : sa pièce '
+      'est contre-passée (journée complète du scénario)', () async {
+    await db.close();
+    db = AppDatabase.enMemoire();
+    final journee = await jouerJourneeComplete(db);
+    final avant = await lignes();
+
+    final issue = await descendre('reglements_fournisseur', journee.reglement, {
+      'commande_id': journee.commande,
+      'montant': '5000.00',
+      'tresorerie': 'caisse',
+      'date_reglement': '2026-10-12',
+      'statut': 'annule',
+      'motif_annulation': 'Erreur de fournisseur',
+      'date_annulation': '2026-10-12 15:00:00',
+    });
+    expect(issue, isA<Aligne>());
+    expect(
+      (await ReglementsFournisseurDao(db).parId(journee.reglement))!.statut,
+      StatutReglement.annule,
+    );
+    expect(await lignes(), avant + 2);
   });
 }

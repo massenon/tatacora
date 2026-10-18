@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:tatacora_flutter/core/database/app_database.dart';
 import 'package:tatacora_flutter/features/achats/data/achats_dao.dart';
+import 'package:tatacora_flutter/features/achats/data/reglements_fournisseur_dao.dart';
 import 'package:tatacora_flutter/features/achats/domain/entities/bon_reception.dart';
 import 'package:tatacora_flutter/features/achats/domain/entities/commande_achat.dart';
 import 'package:tatacora_flutter/features/achats/domain/entities/fournisseur.dart';
@@ -72,6 +73,7 @@ final class ScenarioFile {
   late String sejour;
   late String reservationAnnulee;
   late String tableR2;
+  late String reglement;
   late String venteSejour;
   late String facture;
   late String paiement;
@@ -325,6 +327,20 @@ Future<ScenarioFile> jouerJourneeComplete(AppDatabase db) async {
     ),
     auteurId: auteurEssai,
   )).id;
+
+  // Audit de couverture : un acompte versé au fournisseur, depuis la caisse.
+  s.reglement =
+      (await ReglementsFournisseurDao(
+            db,
+            maintenant: horloge,
+            moteur: () async => moteurSur(db, maintenant: horloge),
+          ).reglerParLeService(
+            commandeId: s.commande,
+            montant: '5000',
+            tresorerie: 'caisse',
+            auteurId: auteurEssai,
+          ))
+          .id;
 
   // M5 : la caisse s'ouvre, une vente au comptant (bière + plat), la caisse
   // se ferme le soir.
