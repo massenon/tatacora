@@ -4,6 +4,9 @@ import 'package:uuid/uuid.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/database/tables/notifications_tables.dart';
 import '../../hebergement/domain/entities/reservation.dart';
+import '../../synchronisation/data/operations_sync_dao.dart';
+import '../../synchronisation/domain/charges_synchronisation.dart';
+import '../../synchronisation/domain/operation_sync.dart';
 import '../domain/entities/canal_notification.dart';
 import '../domain/entities/declencheur_notification.dart';
 import '../domain/entities/message_notification.dart';
@@ -211,6 +214,7 @@ class NotificationsDao extends DatabaseAccessor<AppDatabase>
           actif: Value(actif),
         ),
       );
+      await _envoyer(id, TypeOperationSync.creation);
     });
 
     return (await _modeleParId(id))!;
@@ -261,6 +265,7 @@ class NotificationsDao extends DatabaseAccessor<AppDatabase>
           modifieLe: Value(DateTime.now()),
         ),
       );
+      await _envoyer(id, TypeOperationSync.modification);
     });
 
     return (await _modeleParId(id))!;
@@ -281,10 +286,77 @@ class NotificationsDao extends DatabaseAccessor<AppDatabase>
           modifieLe: Value(DateTime.now()),
         ),
       );
+      await _envoyer(id, TypeOperationSync.modification);
     });
 
     return (await _modeleParId(id))!;
   }
+
+  /// Lot 10f : le modèle part au serveur, état ENTIER (l'événement compris :
+  /// un modèle inconnu du serveur s'y retrouve par son couple). Les messages
+  /// tracés, eux, ne partent jamais.
+  Future<void> _envoyer(String id, TypeOperationSync type) async {
+    final m = await _ligneModele(id);
+    await OperationsSyncDao(attachedDatabase).enfiler(
+      table: TableSynchronisee.modelesNotification,
+      entiteId: id,
+      type: type,
+      payload: chargeModeleNotification(
+        evenement: m.evenement,
+        canal: m.canal,
+        objet: m.objet,
+        contenuTemplate: m.contenuTemplate,
+        actif: m.actif,
+      ),
+    );
+  }
+
+  /// Un modèle DESCENDU du serveur (lot 10f), sous [id] (local), créé s'il
+  /// manque — sans rien renvoyer. Seul appelant : l'aligneur du catalogue.
+  Future<void> inscrireDescendu({
+    required String id,
+    required String evenement,
+    required String canal,
+    required String? objet,
+    required String contenuTemplate,
+    required bool actif,
+  }) async {
+    final existant = await _modeleParId(id);
+    if (existant == null) {
+      await into(modelesNotificationLocal).insert(
+        ModelesNotificationLocalCompanion.insert(
+          id: id,
+          evenement: evenement,
+          canal: canal,
+          contenuTemplate: contenuTemplate,
+          objet: Value(objet),
+          actif: Value(actif),
+        ),
+      );
+      return;
+    }
+    await (update(
+      modelesNotificationLocal,
+    )..where((m) => m.id.equals(id))).write(
+      ModelesNotificationLocalCompanion(
+        canal: Value(canal),
+        contenuTemplate: Value(contenuTemplate),
+        objet: Value(objet),
+        actif: Value(actif),
+        modifieLe: Value(DateTime.now()),
+      ),
+    );
+  }
+
+  /// Le modèle de ce couple (événement, canal), ou `null`.
+  Future<ModelesNotificationLocalData?> parCouple(
+    String evenement,
+    String canal,
+  ) =>
+      (select(modelesNotificationLocal)..where(
+            (m) => m.evenement.equals(evenement) & m.canal.equals(canal),
+          ))
+          .getSingleOrNull();
 
   /* --------------------------------------------------------------- détection */
 

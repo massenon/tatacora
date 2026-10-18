@@ -241,9 +241,10 @@ Map<String, Object?> chargeClient({
 /* ==================================================================== */
 
 /// `reservations` (création seule) — colonnes `fillable` de `Reservation`,
-/// écrites par `ReservationService::creer`. Le canal ne part pas : le serveur
-/// attend un `canal_id` (clé étrangère vers SES canaux), le poste ne détient
-/// qu'un code. L'acompte et la remise en francs, à deux décimales.
+/// écrites par `ReservationService::creer`. Le canal part par son NOM (lot
+/// 10f) : le serveur tient `canal_id` vers SES canaux, semés sous les mêmes
+/// noms (`CanauxReservationSeeder::CANAUX_INITIAUX`) ; un nom inconnu y reste
+/// sans canal. L'acompte et la remise en francs, à deux décimales.
 Map<String, Object?> chargeReservation({
   required String clientId,
   required String uniteId,
@@ -255,6 +256,7 @@ Map<String, Object?> chargeReservation({
   required String remiseType,
   required num? remiseValeur,
   required String? modePaiement,
+  String? canal,
 }) => {
   'client_id': clientId,
   'unite_id': uniteId,
@@ -268,6 +270,7 @@ Map<String, Object?> chargeReservation({
       ? '0.00'
       : decimalExact((remiseValeur * 100).round(), 2),
   'mode_paiement': modePaiement,
+  'canal': canal,
 };
 
 /// `commandes_achat` (création seule) — `GestionnaireCommandesAchat` : les
@@ -777,4 +780,20 @@ Map<String, Object?> chargeMouvementStock({
   'cout_unitaire': coutDixMilliemes,
   'rupture_forcee': ruptureForcee,
   'date_mouvement': instantLocal(le),
+};
+
+/// `modeles_notification` (lot 10f) : l'état ENTIER du modèle — une
+/// configuration, jamais un envoi.
+Map<String, Object?> chargeModeleNotification({
+  required String evenement,
+  required String canal,
+  required String? objet,
+  required String contenuTemplate,
+  required bool actif,
+}) => {
+  'evenement': evenement,
+  'canal': canal,
+  'objet': objet,
+  'contenu_template': contenuTemplate,
+  'actif': actif,
 };

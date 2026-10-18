@@ -20,6 +20,7 @@ use App\Shared\Sync\Gestionnaires\GestionnaireFactures;
 use App\Shared\Sync\Gestionnaires\GestionnaireFournisseurs;
 use App\Shared\Sync\Gestionnaires\GestionnaireGuides;
 use App\Shared\Sync\Gestionnaires\GestionnaireMenus;
+use App\Shared\Sync\Gestionnaires\GestionnaireModelesNotification;
 use App\Shared\Sync\Gestionnaires\GestionnaireMouvementsStock;
 use App\Shared\Sync\Gestionnaires\GestionnairePaiements;
 use App\Shared\Sync\Gestionnaires\GestionnairePaniersTable;
@@ -146,6 +147,8 @@ class RegistreSynchronisation
         // Lot 10f : les mouvements de stock SAISIS sur un poste (ceux d'un
         // document s'écrivent en appliquant le document).
         'mouvements_stock' => GestionnaireMouvementsStock::class,
+        // Lot 10f : la configuration M12 (jamais les messages tracés).
+        'modeles_notification' => GestionnaireModelesNotification::class,
     ];
 
     /** @var array<string, GestionnaireSynchronisation> */

@@ -92,7 +92,7 @@ final class RegistreGestionnairesSynchronisationTest extends TestCase
             // Lot 10e (18/10/2026) : le paramétrage et les rôles.
             'parametres_systeme', 'roles',
             // Lot 10f : les mouvements de stock saisis sur un poste.
-            'mouvements_stock',
+            'mouvements_stock', 'modeles_notification',
         ], array_keys($gestionnaires));
 
         foreach ($gestionnaires as $table => $gestionnaire) {

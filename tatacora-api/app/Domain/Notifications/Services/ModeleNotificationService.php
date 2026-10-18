@@ -71,7 +71,7 @@ class ModeleNotificationService
      * @throws RuntimeException evenement ou canal hors registre, contenu vide,
      *                          ou modele deja pose sur ce couple
      */
-    public function creerModele(array $donnees): ModeleNotification
+    public function creerModele(array $donnees, ?string $id = null): ModeleNotification
     {
         $evenement = (string) ($donnees['evenement'] ?? '');
         $canal = (string) ($donnees['canal'] ?? '');
@@ -79,7 +79,7 @@ class ModeleNotificationService
         $this->exigerRegistres($evenement, $canal);
         $contenu = $this->exigerContenu($donnees['contenu_template'] ?? null);
 
-        return DB::transaction(function () use ($evenement, $canal, $contenu, $donnees): ModeleNotification {
+        return DB::transaction(function () use ($evenement, $canal, $contenu, $donnees, $id): ModeleNotification {
             // L'unicite est aussi posee au schema (`unique(evenement, canal)`).
             // Ce controle-ci sert a NOMMER le refus : une violation de
             // contrainte remonterait un message SQL que personne ne rattache
@@ -95,6 +95,8 @@ class ModeleNotificationService
             }
 
             return ModeleNotification::create([
+                // L'UUID du poste quand le modèle y est né (synchronisation).
+                ...($id !== null ? ['id' => $id] : []),
                 'evenement' => $evenement,
                 'canal' => $canal,
                 'objet' => $this->objetOuNull($donnees['objet'] ?? null),

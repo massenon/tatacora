@@ -17,12 +17,14 @@
 ///
 /// Deux consequences de schema, deliberees :
 ///
-/// 1. **Aucune colonne `statutSync`, et aucune entree de file.** `M12` n'est
-///    pas au registre `TABLES_SYNCHRONISABLES` du serveur : une operation y
-///    serait rejetee a chaque tentative, indefiniment. Un badge « en attente
-///    de synchronisation » sur ce qui ne partira jamais est exactement le
-///    defaut que `panier_tables.dart` documente (PA-98). L'ecran dit
-///    « enregistre sur ce poste ».
+/// 1. **Aucune colonne `statutSync`.** Les MESSAGES traces ne partent
+///    jamais (aucune entree de file : un badge « en attente » sur ce qui ne
+///    partira pas est le defaut PA-98) ; l'ecran dit « enregistre sur ce
+///    poste ». Les MODELES, eux, sont une configuration : depuis le lot 10f
+///    (18/10/2026), `NotificationsDao` enfile leur creation et leurs
+///    retouches (`modeles_notification`, etat entier) et l'aligneur du
+///    catalogue inscrit ceux du serveur (`inscrireDescendu`, appariement par
+///    le couple evenement × canal). L'attente se lit dans la file.
 /// 2. **Aucune table `notifications_envoyees`.** Le serveur en a une, et son
 ///    KPI « Reellement envoyes » la COMPTE. La transposer ici creerait une
 ///    table que RIEN n'ecrit — le defaut n° 09 du guide Flutter, celui de

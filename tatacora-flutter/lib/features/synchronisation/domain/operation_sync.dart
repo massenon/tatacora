@@ -89,7 +89,11 @@ enum TableSynchronisee {
   /// (stock d'ouverture, entrée, sortie, perte, transfert) — création seule.
   /// Ceux d'un document (réception, vente) ne partent pas : le serveur les
   /// écrit en appliquant le document.
-  mouvementsStock('mouvements_stock', accepteModification: false);
+  mouvementsStock('mouvements_stock', accepteModification: false),
+
+  /// Lot 10f : la configuration M12 (couple événement × canal) ; les
+  /// messages tracés restent sur leur poste.
+  modelesNotification('modeles_notification', accepteModification: true);
 
   const TableSynchronisee(this.nomServeur, {required this.accepteModification});
 

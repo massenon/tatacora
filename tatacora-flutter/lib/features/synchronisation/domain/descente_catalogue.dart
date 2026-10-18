@@ -99,7 +99,13 @@ enum TableDescendue {
   /// Lot 10e (18/10/2026) : le paramétrage (clé par clé) et les rôles avec
   /// leur matrice — reçus par tout compte qui synchronise.
   parametresSysteme('parametres_systeme', TableSynchronisee.parametresSysteme),
-  roles('roles', TableSynchronisee.roles);
+  roles('roles', TableSynchronisee.roles),
+
+  /// Lot 10f : les modèles de notification (M12).
+  modelesNotification(
+    'modeles_notification',
+    TableSynchronisee.modelesNotification,
+  );
 
   const TableDescendue(this.nomServeur, this.tableSynchronisee);
 
@@ -156,6 +162,7 @@ String libelleTableServeur(String nom) => switch (nom) {
   'bulletins_paie' => 'Bulletins de paie',
   'parametres_systeme' => 'Paramètres',
   'roles' => 'Rôles et permissions',
+  'modeles_notification' => 'Modèles de notification',
   _ => nom,
 };
 

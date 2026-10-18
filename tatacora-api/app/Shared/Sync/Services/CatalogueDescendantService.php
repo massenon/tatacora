@@ -125,6 +125,8 @@ class CatalogueDescendantService
             'client_id', 'unite_id', 'date_arrivee', 'date_depart', 'statut', 'acompte', 'tarif_nuit',
             'remise_type', 'remise_valeur', 'mode_paiement', 'taux_annulation', 'montant_total_annulation',
             'montant_commission_annulation', 'montant_rembourse_annulation', 'date_annulation',
+            // Lot 10f : remplacé par le NOM du canal (`serialiser`).
+            'canal_id',
         ],
         // Lot F5 : l'arrivée et le départ réels, après la réservation.
         'sejours' => ['reservation_id', 'date_checkin_reel', 'date_checkout_reel'],
@@ -173,6 +175,8 @@ class CatalogueDescendantService
         // rôles avec leur matrice (`droits`, lue du pivot). Jamais un compte.
         'parametres_systeme' => ['cle', 'valeur'],
         'roles' => ['libelle', 'description'],
+        // Lot 10f : la configuration M12 (les messages restent sur leur poste).
+        'modeles_notification' => ['evenement', 'canal', 'objet', 'contenu_template', 'actif'],
     ];
 
     /**
@@ -418,6 +422,7 @@ class CatalogueDescendantService
         $enfants = isset(self::ENFANTS[$table]) ? $this->enfants(self::ENFANTS[$table], $ids) : [];
         $lignesBons = $table === 'bons_reception' ? $this->lignesDesBons($ids) : [];
         $droits = $table === 'roles' ? $this->droitsDesRoles($ids) : [];
+        $canaux = $table === 'reservations' ? DB::table('canaux_reservation')->pluck('nom', 'id')->all() : [];
         $origines = DB::table('origines_synchronisation')
             ->where('table_concernee', $table)
             ->whereIn('entite_id', $ids)
@@ -443,7 +448,7 @@ class CatalogueDescendantService
             }
 
             $actif = match ($table) {
-                'articles', 'fournisseurs', 'clients', 'tables_salle' => (bool) $donnees['actif'],
+                'articles', 'fournisseurs', 'clients', 'tables_salle', 'modeles_notification' => (bool) $donnees['actif'],
                 'unites_hebergement', 'vehicules' => $donnees['statut'] !== 'hors_service',
                 default => true,
             };
@@ -463,6 +468,11 @@ class CatalogueDescendantService
 
             if ($table === 'roles') {
                 $donnees['droits'] = $droits[(string) $ligne->id] ?? [];
+            }
+
+            if ($table === 'reservations') {
+                $donnees['canal'] = $canaux[(string) $donnees['canal_id']] ?? null;
+                unset($donnees['canal_id']);
             }
 
             $elements[] = [

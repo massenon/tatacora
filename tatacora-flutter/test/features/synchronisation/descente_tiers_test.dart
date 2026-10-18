@@ -81,6 +81,8 @@ void main() {
       'remise_type': 'pourcentage',
       'remise_valeur': '10.00',
       'mode_paiement': 'mobile_money',
+      // Lot 10f : le canal descend par son nom.
+      'canal': 'WhatsApp',
       'taux_annulation': null,
       'montant_total_annulation': null,
       'montant_commission_annulation': null,
@@ -111,6 +113,7 @@ void main() {
       expect(r['tarif_nuit'], 24000);
       expect(r['acompte'], 10000);
       expect(r['mode_paiement'], 'mobileMoney');
+      expect(r['canal'], 'can-whatsapp');
       expect((r['remise_type'], r['remise_valeur']), ('pourcentage', 10.0));
       expect(r['statut_sync'], 'synchronise');
 

@@ -2,7 +2,7 @@
   "_lisez-moi": "PRODUIT par `node tool/conformite_blade/t-blade-flutter.js --figer-dette`, jamais ecrit a la main. Chaque cle est « vue|bloc », chaque valeur le NOMBRE de libelles de la vue Blade absents du code Flutter. Le script echoue si un chiffre monte, s'il baisse sans que la dette soit resserree, si un bloc incomplet n'y figure pas, et si une entree ne correspond plus a rien ou a un bloc desormais porte ou refuse.",
   "_regenere-le": "2026-10-18",
   "_blocs-a-porter": 101,
-  "_libelles-absents": 439,
+  "_libelles-absents": 438,
   "ecarts": {
     "achats/approvisionnement|commandes": 4,
     "achats/approvisionnement|modale:appro.form_commande": 4,
@@ -26,7 +26,7 @@
     "crm/clients-creances|modale:clients.modale_relance_titre": 7,
     "crm/clients-creances|modale:modale-archivage": 11,
     "crm/clients-creances|modale:modale-titre-calcule": 2,
-    "crm/clients-creances|page": 4,
+    "crm/clients-creances|page": 3,
     "crm/clients-creances|relances": 10,
     "demarrage|page": 2,
     "depenses/depenses|modale:modale_titre": 2,

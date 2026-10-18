@@ -289,6 +289,7 @@ void main() {
         depart: DateTime(2026, 10, 22),
       ),
       acompte: acompte,
+      canal: CanalReservation.booking,
       modePaiement: ModePaiementReservation.mobileMoney,
       remiseType: TypeRemise.pourcentage,
       remiseValeur: 10,
@@ -564,34 +565,33 @@ void main() {
       });
     });
 
-    test(
-      'reservations — ReservationDao.creer : création seule, acompte et '
-      'remise à deux décimales, mode au code du serveur, canal absent',
-      () async {
-        final pc = await parcEtClient();
-        final id = await reserver(pc.unite, pc.client, acompte: 15000);
-        final (type, charge) = await derniere(TableSynchronisee.reservations);
-        expect(type, TypeOperationSync.creation);
-        expect(
-          (await file.operations(
-            table: TableSynchronisee.reservations,
-          )).single.entiteId,
-          id,
-        );
-        expect(charge, {
-          'client_id': pc.client,
-          'unite_id': pc.unite,
-          'date_arrivee': '2026-10-20',
-          'date_depart': '2026-10-22',
-          'statut': 'en_attente',
-          'acompte': '15000.00',
-          'tarif_nuit': '28000.00',
-          'remise_type': 'pourcentage',
-          'remise_valeur': '10.00',
-          'mode_paiement': 'mobile_money',
-        });
-      },
-    );
+    test('reservations — ReservationDao.creer : création seule, acompte et '
+        'remise à deux décimales, mode au code du serveur, canal par son NOM '
+        '(lot 10f)', () async {
+      final pc = await parcEtClient();
+      final id = await reserver(pc.unite, pc.client, acompte: 15000);
+      final (type, charge) = await derniere(TableSynchronisee.reservations);
+      expect(type, TypeOperationSync.creation);
+      expect(
+        (await file.operations(
+          table: TableSynchronisee.reservations,
+        )).single.entiteId,
+        id,
+      );
+      expect(charge, {
+        'client_id': pc.client,
+        'unite_id': pc.unite,
+        'date_arrivee': '2026-10-20',
+        'date_depart': '2026-10-22',
+        'statut': 'en_attente',
+        'acompte': '15000.00',
+        'tarif_nuit': '28000.00',
+        'remise_type': 'pourcentage',
+        'remise_valeur': '10.00',
+        'mode_paiement': 'mobile_money',
+        'canal': 'Booking.com',
+      });
+    });
   });
 
   group('documents', () {

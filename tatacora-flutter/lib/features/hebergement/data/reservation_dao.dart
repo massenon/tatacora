@@ -466,6 +466,7 @@ class ReservationDao extends DatabaseAccessor<AppDatabase>
             ModePaiementReservation.cheque => 'cheque',
             ModePaiementReservation.credit => 'credit',
           },
+          canal: r.canal?.libelle,
         ),
       );
     });

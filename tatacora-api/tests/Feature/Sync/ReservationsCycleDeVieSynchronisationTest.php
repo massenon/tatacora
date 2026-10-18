@@ -9,6 +9,7 @@ use App\Domain\Hebergement\Models\CategorieHebergement;
 use App\Domain\Hebergement\Models\Reservation;
 use App\Domain\Hebergement\Models\UniteHebergement;
 use App\Models\User;
+use Database\Seeders\CanauxReservationSeeder;
 use Database\Seeders\ComptabiliteReferentielSeeder;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -49,13 +50,33 @@ final class ReservationsCycleDeVieSynchronisationTest extends TestCase
         $this->client = Client::create(['nom' => 'Sabi', 'telephone' => '96000003', 'type_client' => 'groupe']);
     }
 
-    private function reserver(string $id, string $uniteId, string $arrivee, string $depart, string $poste = 'poste-a'): void
+    private function reserver(string $id, string $uniteId, string $arrivee, string $depart, string $poste = 'poste-a', ?string $canal = null): void
     {
         $this->pousser([$this->creation('reservations', $id, [
             'client_id' => $this->client->id, 'unite_id' => $uniteId,
             'date_arrivee' => $arrivee, 'date_depart' => $depart,
             'acompte' => '20000.00', 'mode_paiement' => 'especes', 'tarif_nuit' => '25000.00',
+            'canal' => $canal,
         ])], $this->receptionniste, $poste)->assertJsonPath('resultats.0.statut', 'synchronise');
+    }
+
+    #[Test]
+    public function le_canal_monte_et_descend_par_son_nom_un_nom_inconnu_reste_sans_canal(): void
+    {
+        $this->seed(CanauxReservationSeeder::class);
+        $booking = $this->uuid();
+        $this->reserver($booking, $this->b1->id, '2026-10-25', '2026-10-27', canal: 'Booking.com');
+        $this->reserver($inconnu = $this->uuid(), $this->b2->id, '2026-10-25', '2026-10-27', canal: 'Fax');
+
+        $this->assertSame('Booking.com', Reservation::findOrFail($booking)->canal?->nom);
+        $this->assertNull(Reservation::findOrFail($inconnu)->canal_id);
+
+        $this->travel(10)->seconds();
+        $elements = collect($this->getJson('/api/v1/referentiels?poste_id=poste-b&limite=500')->assertOk()->json('data.elements'))
+            ->where('table', 'reservations')->keyBy('id');
+        $this->assertSame('Booking.com', $elements[$booking]['donnees']['canal']);
+        $this->assertNull($elements[$inconnu]['donnees']['canal']);
+        $this->assertArrayNotHasKey('canal_id', $elements[$booking]['donnees']);
     }
 
     /**

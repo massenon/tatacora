@@ -112,16 +112,32 @@ try {
     ]);
     Auth::login($admin);
 
-    $enveloppe = Validator::make(
-        ['poste_id' => $lot['poste_id'], 'operations' => $lot['operations']],
-        (new SynchroniserRequest())->rules(),
-    );
+    // La file est poussée par lots de 50 au plus, dans l'ordre, comme le
+    // moteur d'envoi du poste (`SyncManager.tailleLot`, plafond de
+    // `SynchroniserRequest`) : chaque lot est validé puis traité.
+    $erreurs = [];
+    $sortie = ['resultats' => []];
 
-    if ($enveloppe->fails()) {
-        echo json_encode(['enveloppe' => $enveloppe->errors()->toArray(), 'resultats' => []], JSON_UNESCAPED_UNICODE);
+    foreach (array_chunk($lot['operations'], 50) as $morceau) {
+        $enveloppe = Validator::make(
+            ['poste_id' => $lot['poste_id'], 'operations' => $morceau],
+            (new SynchroniserRequest())->rules(),
+        );
+
+        if ($enveloppe->fails()) {
+            $erreurs = $enveloppe->errors()->toArray();
+
+            break;
+        }
+
+        $traite = $app->make(SynchronisationService::class)
+            ->traiterLot((string) $lot['poste_id'], $morceau, (string) $admin->id);
+        $sortie['resultats'] = [...$sortie['resultats'], ...$traite['resultats']];
+    }
+
+    if ($erreurs !== []) {
+        echo json_encode(['enveloppe' => $erreurs, 'resultats' => []], JSON_UNESCAPED_UNICODE);
     } else {
-        $sortie = $app->make(SynchronisationService::class)
-            ->traiterLot((string) $lot['poste_id'], $lot['operations'], (string) $admin->id);
 
         // Ce que le serveur a REELLEMENT ecrit, relu avant l'annulation : la
         // ligne de chaque element accepte (sous son identifiant serveur quand

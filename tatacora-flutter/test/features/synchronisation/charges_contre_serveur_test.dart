@@ -125,6 +125,8 @@ void main() {
       'creation sessions_caisse',
       'creation paiements',
       'creation mouvements_stock',
+      'creation modeles_notification',
+      'modification modeles_notification',
       'creation parametres_systeme',
       'creation roles',
       'modification roles',
@@ -442,6 +444,19 @@ void main() {
     expect(
       (ecrit['type_mouvement'], ecrit['quantite'], ecrit['motif']),
       ('perte', '1.00', 'Casse'),
+    );
+  });
+
+  test('Lot 10f : le modèle de notification naît par '
+      'ModeleNotificationService, puis se désactive', () {
+    for (final type in ['creation', 'modification']) {
+      final r = resultatDe('modeles_notification', type, s.modele);
+      expect(r['statut'], 'synchronise', reason: '$r');
+    }
+    final ecrit = serveur('modeles_notification', s.modele);
+    expect(
+      (ecrit['evenement'], ecrit['canal'], '${ecrit['actif']}'),
+      ('sejour_demain', 'whatsapp', '0'),
     );
   });
 }

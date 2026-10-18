@@ -25,6 +25,9 @@ import 'package:tatacora_flutter/features/hebergement/domain/entities/periode_se
 import 'package:tatacora_flutter/features/hebergement/data/sejour_dao.dart';
 import 'package:tatacora_flutter/features/hebergement/domain/usecases/creer_reservation.dart';
 import 'package:tatacora_flutter/features/hebergement/domain/usecases/modifier_reservation.dart';
+import 'package:tatacora_flutter/features/notifications/data/notifications_dao.dart';
+import 'package:tatacora_flutter/features/notifications/domain/entities/canal_notification.dart';
+import 'package:tatacora_flutter/features/notifications/domain/entities/declencheur_notification.dart';
 import 'package:tatacora_flutter/features/parametres/data/parametres_depot_local.dart';
 import 'package:tatacora_flutter/features/pos/data/catalogue_dao.dart';
 import 'package:tatacora_flutter/features/pos/data/tables_pos_dao.dart';
@@ -91,6 +94,7 @@ final class ScenarioFile {
   late String sessionDepart;
   late String role;
   late String perte;
+  late String modele;
 }
 
 /// Une journée complète du poste, PAR SES VRAIS ÉCRIVAINS — chacun dépose son
@@ -583,6 +587,15 @@ Future<ScenarioFile> jouerJourneeComplete(AppDatabase db) async {
     forcage: true,
   );
   s.perte = (perte as MouvementPose).mouvement.id;
+
+  // Lot 10f : un modèle de notification posé puis désactivé.
+  final notifications = NotificationsDao(db);
+  s.modele = (await notifications.creerModele(
+    declencheur: DeclencheurNotification.sejourDemain,
+    canal: CanalNotification.whatsapp,
+    contenuTemplate: 'Bonjour {client}, à demain.',
+  )).id;
+  await notifications.basculerActivation(s.modele);
 
   // Lot 10e : un enregistrement de l'écran Paramètres, puis un rôle créé et
   // sa matrice définie.

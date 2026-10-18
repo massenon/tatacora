@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Shared\Sync\Gestionnaires;
 
+use App\Domain\Hebergement\Models\CanalReservation;
 use App\Domain\Hebergement\Models\Reservation;
 use App\Domain\Hebergement\Services\AnnulationReservationService;
 use App\Domain\Hebergement\Services\ReservationService;
@@ -190,6 +191,16 @@ final class GestionnaireReservations extends GestionnaireAbstrait
             if (isset($payload[$champ]) && is_string($payload[$champ])) {
                 $payload[$champ] = $this->correspondances->resoudre($tableCible, $payload[$champ]);
             }
+        }
+
+        // Lot 10f : le canal arrive par son NOM (le poste ne connaît pas les
+        // identifiants du serveur) ; un nom inconnu laisse la réservation
+        // sans canal plutôt que de la refuser.
+        $nomCanal = $payload['canal'] ?? null;
+        unset($payload['canal']);
+
+        if (is_string($nomCanal) && $nomCanal !== '') {
+            $payload['canal_id'] = CanalReservation::query()->where('nom', $nomCanal)->value('id');
         }
 
         $this->reservations->creer([...$payload, 'id' => $entiteId], $contexte->dateMetierJour());

@@ -7,6 +7,9 @@ import '../../achats/domain/entities/fournisseur.dart';
 import '../../achats/data/reglements_fournisseur_dao.dart';
 import '../../comptabilite/data/moteur_comptable.dart';
 import '../../facturation/data/facture_dao.dart';
+import '../../hebergement/domain/entities/fiche_reservation.dart'
+    show CanalReservation;
+import '../../notifications/data/notifications_dao.dart';
 import '../../parametres/data/parametres_depot_local.dart';
 import '../../transverse/data/roles_dao.dart';
 import '../../pos/data/panier_dao.dart';
@@ -125,6 +128,7 @@ class AligneurCatalogue {
       TableDescendue.centresCout => _centre(e),
       TableDescendue.parametresSysteme => _parametre(e),
       TableDescendue.roles => _role(idLocal, e),
+      TableDescendue.modelesNotification => _modeleNotification(idLocal, e),
     };
   }
 
@@ -1050,6 +1054,14 @@ class AligneurCatalogue {
             tarifNuit: tarif,
             acompte: Value(acompte.toDouble()),
             modePaiement: Value(mode),
+            // Lot 10f : le canal descend par son NOM (celui du serveur) ;
+            // un nom que ce poste ne connaît pas reste sans canal.
+            canal: Value(
+              CanalReservation.values
+                  .where((c) => c.libelle == _texte(d['canal']))
+                  .firstOrNull
+                  ?.code,
+            ),
             remiseType: Value(remiseType),
             remiseValeur: Value(
               remiseType == 'aucune' ? null : remiseCentiemes / 100,
@@ -1259,6 +1271,56 @@ class AligneurCatalogue {
       libelle: libelle,
       description: _texte(d['description']),
       droits: droits,
+    );
+    return const Aligne();
+  }
+
+  /// Un modèle de notification du serveur. Apparié par son couple
+  /// (événement, canal) à un modèle né ici sous un autre UUID
+  /// (correspondance retenue) ; une retouche locale en attente est gardée.
+  Future<IssueAlignement> _modeleNotification(
+    String id,
+    ElementCatalogue e,
+  ) async {
+    final d = e.donnees;
+    final evenement = _texte(d['evenement']);
+    final canal = _texte(d['canal']);
+    final contenu = _texte(d['contenu_template']);
+    if (evenement == null || canal == null || contenu == null) {
+      return const RefuseParLePoste('modèle de notification incomplet');
+    }
+    final dao = NotificationsDao(_db);
+    var cible = id;
+    final connu = await (_db.select(
+      _db.modelesNotificationLocal,
+    )..where((m) => m.id.equals(id))).getSingleOrNull();
+    if (connu == null) {
+      final homonyme = await dao.parCouple(evenement, canal);
+      if (homonyme != null) {
+        if (await _file.enSuspens(
+          TableSynchronisee.modelesNotification.nomServeur,
+          homonyme.id,
+        )) {
+          return const ConserveLocalement(
+            'une retouche locale de ce modèle attend encore de partir',
+          );
+        }
+        await _dao.retenirCorrespondance(
+          table: e.table.nomServeur,
+          idServeur: e.id,
+          idLocal: homonyme.id,
+          origine: 'libelle',
+        );
+        cible = homonyme.id;
+      }
+    }
+    await dao.inscrireDescendu(
+      id: cible,
+      evenement: evenement,
+      canal: canal,
+      objet: _texte(d['objet']),
+      contenuTemplate: contenu,
+      actif: e.actif,
     );
     return const Aligne();
   }
