@@ -358,6 +358,8 @@ return [
         // maître : un libellé recasse est un écart au même titre qu'un
         // synonyme (DIRECTIVE_CONFORMITE_100.md Article 1, interdit n° 05).
         'journal_audit' => 'Journal d\'Audit',
+        // Décision PO du 18/10/2026 : le bouton « Synchroniser » du serveur.
+        'synchronisation_postes' => 'Synchroniser les postes',
 
         // maquette — `shell.js` l.135
         'notifications' => 'Notifications',
@@ -1060,6 +1062,33 @@ return [
      * maître, au mot et à la casse près (Article 4.3 : « mêmes en-têtes, même
      * casse »).
      */
+    // Décision PO du 18/10/2026 : « le serveur doit avoir aussi le bouton
+    // synchroniser, pour envoyer les données en local si le serveur a été
+    // utilisé pour enregistrer des données ».
+    'synchronisation_postes' => [
+        'titre_page' => 'Synchroniser les postes — TATACORA AFRIQUE',
+        'titre' => 'Synchroniser les postes',
+        'sous_titre' => 'Ce qui a été enregistré ici part vers les postes Windows à leur prochain passage. '
+            . 'Le bouton les fait passer tout de suite (moins d\'une minute) : chacun envoie sa file, '
+            . 'puis reçoit tout ce que le serveur détient, tous modules.',
+        'bouton' => 'Synchroniser maintenant',
+        'demande_faite' => 'Demande envoyée le :date. Les postes allumés et connectés la suivent dans la minute.',
+        'aucune_demande' => 'Aucune demande de synchronisation n\'a encore été faite depuis le serveur.',
+        'derniere_demande' => 'Dernière demande : :date',
+        'col_poste' => 'Poste',
+        'col_compte' => 'Compte',
+        'col_montee' => 'Dernier envoi',
+        'col_descente' => 'Dernière réception',
+        'col_attente' => 'En attente d\'envoi',
+        'col_demande' => 'Dernière demande',
+        'demande_suivie' => 'Reçue',
+        'demande_non_suivie' => 'Pas encore reçue',
+        'jamais' => '—',
+        'aucun_poste' => 'Aucun poste ne s\'est encore synchronisé avec ce serveur.',
+        'note' => 'Un poste éteint ou hors réseau suivra la demande à sa prochaine connexion : '
+            . 'rien de ce qui a été enregistré n\'est perdu.',
+    ],
+
     'journal_audit' => [
         'titre_page' => 'Journal d\'Audit — TATACORA AFRIQUE',
         // maquette — l.24-26

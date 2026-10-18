@@ -7,6 +7,7 @@ namespace App\Shared\Sync\Http\Controllers;
 use App\Models\User;
 use App\Shared\Sync\Http\Requests\TelechargerReferentielsRequest;
 use App\Shared\Sync\Services\CatalogueDescendantService;
+use App\Shared\Sync\Services\SuiviPostesService;
 use App\Shared\Sync\Support\PosteDuJeton;
 use Illuminate\Http\JsonResponse;
 use InvalidArgumentException;
@@ -78,6 +79,7 @@ class ReferentielsController
 {
     public function __construct(
         private readonly CatalogueDescendantService $catalogue,
+        private readonly SuiviPostesService $suivi,
     ) {
     }
 
@@ -106,6 +108,14 @@ class ReferentielsController
                 'errors' => ['depuis' => [$e->getMessage()]],
             ], 422);
         }
+
+        // Bouton « Synchroniser » (18/10/2026) : la PWA montre la dernière
+        // descente de chaque poste et la file qu'il déclare.
+        $this->suivi->noterDescente(
+            $valide['poste_id'],
+            $utilisateur,
+            isset($valide['en_attente']) ? (int) $valide['en_attente'] : null,
+        );
 
         return response()->json([
             'data' => [

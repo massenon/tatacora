@@ -314,6 +314,9 @@ void main() {
     'lib/features/transverse/presentation/ecran_mon_profil.dart',
     'lib/features/transverse/presentation/ecran_roles_permissions.dart',
     'lib/features/transverse/presentation/widgets/briques_transverses.dart',
+    // « Synchroniser les postes » (18/10/2026, décision PO) : corps de page,
+    // dans le `<main>` de `transverse/synchronisation-postes`.
+    'lib/features/synchronisation/presentation/ecran_synchronisation_postes.dart',
     // « Comptes utilisateurs » (Lot J2, AJOUT du PO du 14/10/2026, aucune vue)
     // : une page sous la coquille, rendue comme ses voisines transverses dans
     // le contenu de page — échelle EFFECTIVE. Ses modales sont dans

@@ -258,6 +258,8 @@ final class PwaEcritureAutoriseeTest extends TestCase
         // règle (1).
         'marquerToutLu',
         'marquerLu',
+        // `SynchronisationPostes` (18/10/2026) — même schéma.
+        'synchroniser',
 
         // 11. M10 — `Hub::ouvrirPlanAmortissement()` (Vague E, 01/09/2026).
         //
@@ -335,6 +337,14 @@ final class PwaEcritureAutoriseeTest extends TestCase
         // (`MenuLateral::moduleAccessible`), la même source que le menu.
         'ClocheNotifications::marquerToutLu',
         'ClocheNotifications::marquerLu',
+
+        // `SynchronisationPostes` (18/10/2026, décision PO : « le serveur doit
+        // avoir aussi le bouton synchroniser ») — même famille que
+        // `ContactEditeur` : la demande n'écrit qu'une DEMANDE horodatée
+        // (`demandes_synchronisation`), jamais une donnée métier ; elle fait
+        // seulement passer les postes plus tôt. Tout compte qui enregistre au
+        // serveur doit pouvoir la faire, quels que soient ses modules.
+        'SynchronisationPostes::synchroniser',
     ];
 
     /**

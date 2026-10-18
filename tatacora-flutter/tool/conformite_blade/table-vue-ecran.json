@@ -263,6 +263,9 @@
       "features/transverse/presentation/ecran_roles_permissions.dart",
       "features/transverse/presentation/widgets/modales_roles.dart"
     ],
+    "transverse/synchronisation-postes": [
+      "features/synchronisation/presentation/ecran_synchronisation_postes.dart"
+    ],
     "vehicules/locations": [
       "features/achats/presentation/widgets/modale_archivage_achats.dart",
       "features/vehicules/domain/entities/contrat_location.dart",

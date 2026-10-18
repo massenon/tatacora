@@ -1,0 +1,57 @@
+{
+    "_lisez-moi": "PRODUIT par ExtraireStructureBladeTest, jamais ecrit a la main. Chaque variante (onglet) : les textes VISIBLES de <main>, dans l'ordre du document.",
+    "vue": "transverse/synchronisation-postes",
+    "jeu": "parc",
+    "onglets": {
+        "principal": [
+            {
+                "type": "h1",
+                "texte": "Synchroniser les postes"
+            },
+            {
+                "type": "p",
+                "texte": "Ce qui a été enregistré ici part vers les postes Windows à leur prochain passage. Le bouton les fait passer tout de suite (moins d'une minute) : chacun envoie sa file, puis reçoit tout ce que le serveur détient, tous modules."
+            },
+            {
+                "type": "button",
+                "texte": "Synchroniser maintenant"
+            },
+            {
+                "type": "p",
+                "texte": "Aucune demande de synchronisation n'a encore été faite depuis le serveur."
+            },
+            {
+                "type": "th",
+                "texte": "Poste"
+            },
+            {
+                "type": "th",
+                "texte": "Compte"
+            },
+            {
+                "type": "th",
+                "texte": "Dernier envoi"
+            },
+            {
+                "type": "th",
+                "texte": "Dernière réception"
+            },
+            {
+                "type": "th",
+                "texte": "En attente d'envoi"
+            },
+            {
+                "type": "th",
+                "texte": "Dernière demande"
+            },
+            {
+                "type": "td",
+                "texte": "Aucun poste ne s'est encore synchronisé avec ce serveur."
+            },
+            {
+                "type": "p",
+                "texte": "Un poste éteint ou hors réseau suivra la demande à sa prochaine connexion : rien de ce qui a été enregistré n'est perdu."
+            }
+        ]
+    }
+}

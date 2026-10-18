@@ -49,6 +49,7 @@ use App\Pwa\Livewire\Transverse\MonProfil;
 use App\Pwa\Livewire\Transverse\PageTransverse;
 use App\Pwa\Livewire\Transverse\Parametres;
 use App\Pwa\Livewire\Transverse\RolesPermissions;
+use App\Pwa\Livewire\Transverse\SynchronisationPostes;
 use App\Pwa\Livewire\Transverse\VerrouSession;
 use App\Pwa\Livewire\Vehicules\Locations;
 use App\Shared\Rbac\Models\JournalSecurite;
@@ -257,6 +258,12 @@ final class PwaActionsReluesTest extends TestCase
             '_startUpload', '_finishUpload', '_removeUpload', '_uploadErrored',
         ],
         JournalAudit::class => ['render'],
+
+        // Le bouton « Synchroniser » du serveur (18/10/2026, décision PO) :
+        // `synchroniser()` est inscrite dans
+        // `PwaEcritureAutoriseeTest::ECRITURES_HORS_MODULE` (une demande
+        // horodatée, aucune donnée métier).
+        SynchronisationPostes::class => ['render', 'synchroniser'],
 
         // Mon profil — le changement de mot de passe (01/09/2026, directive
         // du Product Owner). `changerMotDePasse()` n'exige AUCUN module RBAC

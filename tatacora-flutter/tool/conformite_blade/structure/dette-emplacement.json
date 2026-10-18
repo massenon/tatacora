@@ -154,5 +154,10 @@
     "blade": 110,
     "ordonnes": 71,
     "ongletsNonCliquables": 0
+  },
+  "transverse/synchronisation-postes": {
+    "blade": 12,
+    "ordonnes": 12,
+    "ongletsNonCliquables": 0
   }
 }

@@ -23,6 +23,9 @@ import 'package:tatacora_flutter/features/etats/presentation/ecran_etats.dart';
 import 'package:tatacora_flutter/features/parametres/data/parametres_depot_local.dart';
 import 'package:tatacora_flutter/features/parametres/presentation/ecran_parametres.dart';
 import 'package:tatacora_flutter/features/restaurant/presentation/ecran_carte_restaurant.dart';
+import 'package:tatacora_flutter/features/synchronisation/data/service_suivi_postes.dart';
+import 'package:tatacora_flutter/features/synchronisation/data/transport_synchronisation.dart';
+import 'package:tatacora_flutter/features/synchronisation/presentation/ecran_synchronisation_postes.dart';
 import 'package:tatacora_flutter/features/crm/domain/entities/client.dart';
 import 'package:tatacora_flutter/features/crm/presentation/ecran_clients.dart';
 import 'package:tatacora_flutter/features/depenses/presentation/ecran_depenses.dart';
@@ -398,6 +401,18 @@ final casEcrans = <CasEcran>[
     ecran: () => const EcranJournalAudit(),
     surcharges: _sessionAdministrateur,
   ),
+  // Décision PO du 18/10/2026 : aucun poste encore connu du serveur, aucune
+  // demande — l'état que la vue rend sur le jeu `parc`.
+  CasEcran(
+    vue: 'transverse/synchronisation-postes',
+    jeu: JeuEcran.parc,
+    droits: _droitsAdministrateur,
+    ecran: () => const EcranSynchronisationPostes(),
+    surcharges: (db) => [
+      ..._sessionAdministrateur(db),
+      serviceSuiviPostesProvider.overrideWithValue(_SuiviPostesVierge()),
+    ],
+  ),
   CasEcran(
     vue: 'transverse/mon-profil',
     jeu: JeuEcran.parc,
@@ -423,6 +438,16 @@ const _droitsAdministrateur = {
 
 /// La session du relevé Blade : `compte.structure`, administrateur
 /// (`ExtraireStructureBladeTest::administrateur`).
+/// Le serveur tel que la vue le rend sur le jeu `parc` : aucun poste, aucune
+/// demande.
+final class _SuiviPostesVierge extends ServiceSuiviPostes {
+  _SuiviPostesVierge() : super(transport: TransportHttp(), urlServeur: null);
+
+  @override
+  Future<IssueSuiviPostes> lire() async =>
+      const SuiviPostesLu(demandeeLe: null, postes: []);
+}
+
 List<Override> _sessionAdministrateur(AppDatabase db) => [
   sessionProvider.overrideWithBuild(
     (ref, notifier) => Session(

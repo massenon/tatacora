@@ -42,6 +42,7 @@ use App\Pwa\Livewire\Transverse\JournalAudit;
 use App\Pwa\Livewire\Transverse\MonProfil;
 use App\Pwa\Livewire\Transverse\Parametres;
 use App\Pwa\Livewire\Transverse\RolesPermissions;
+use App\Pwa\Livewire\Transverse\SynchronisationPostes;
 use App\Pwa\Livewire\Vehicules\Locations;
 use App\Pwa\Middleware\ForcerLectureSeule;
 use Illuminate\Http\Request;
@@ -91,6 +92,8 @@ Route::prefix('pwa')
             Route::get('/aide-a-propos', AideAPropos::class)->name('pwa.aide-a-propos');
             Route::get('/contact-editeur', ContactEditeur::class)->name('pwa.contact-editeur');
             Route::get('/mon-profil', MonProfil::class)->name('pwa.mon-profil');
+            // Décision PO du 18/10/2026 : le bouton « Synchroniser » du serveur.
+            Route::get('/synchronisation-postes', SynchronisationPostes::class)->name('pwa.synchronisation-postes');
 
             Route::middleware('module:M14,L')
                 ->get('/journal-audit', JournalAudit::class)->name('pwa.journal-audit');

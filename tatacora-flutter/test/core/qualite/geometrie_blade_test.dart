@@ -325,6 +325,9 @@ void main() {
       'transverse/journal-audit',
       'transverse/mon-profil',
       'transverse/roles-permissions',
+      // « Synchroniser les postes » (18/10/2026, décision PO) : même cas —
+      // mesurée en emplacement, relevé de géométrie à capturer.
+      'transverse/synchronisation-postes',
     };
     final manquantes = [
       for (final cas in casEcrans)

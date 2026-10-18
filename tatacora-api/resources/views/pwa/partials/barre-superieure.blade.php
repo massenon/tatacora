@@ -97,6 +97,10 @@
         // L'ecart au maitre est DECIDE et declare aux gardes de conformite
         // (registre des widgets et sequence du menu de compte).
         ['cle' => 'journal_audit', 'libelle' => __('pwa.coquille.journal_audit'), 'icone' => '<path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 2v6h6"/>'],
+        // Décision PO du 18/10/2026 : le bouton « Synchroniser » du serveur,
+        // ouvert à tout compte (`liensChassis()['synchronisation_postes']`).
+        // Même tracé que l'entrée Import & Export (flèches d'échange).
+        ['cle' => 'synchronisation_postes', 'libelle' => __('pwa.coquille.synchronisation_postes'), 'icone' => '<path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>'],
     ];
 
     $entreesDAide = [

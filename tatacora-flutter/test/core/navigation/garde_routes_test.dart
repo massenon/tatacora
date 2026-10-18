@@ -311,7 +311,7 @@ void main() {
         // `/` est l'accueil, le tableau de bord du poste.
         m.group(1) == '/' ? repli : m.group(1)!,
     };
-    expect(serveur, hasLength(4));
+    expect(serveur, hasLength(5));
     expect(routesOuvertesATousLesComptes, serveur);
 
     final contexte = await monterMessager(tester);

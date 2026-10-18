@@ -79,6 +79,9 @@ abstract final class LibellesCoquille {
   static const String parametresCompte = 'Paramètres du compte';
   static const String importExport = 'Import & Export';
   static const String journalAudit = "Journal d'Audit";
+
+  /// Décision PO du 18/10/2026 : le bouton « Synchroniser » du serveur.
+  static const String synchronisationPostes = 'Synchroniser les postes';
   static const String aideAPropos = 'Aide & À propos';
   static const String contactEditeur = "Contactez l'éditeur";
 

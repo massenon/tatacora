@@ -22,7 +22,9 @@ use App\Domain\Tourisme\Http\Controllers\TourismeController;
 use App\Domain\Vehicules\Http\Controllers\VehiculeController;
 use App\Shared\Auth\Http\Controllers\AuthController;
 use App\Shared\Parametres\Http\Controllers\ParametreController;
+use App\Shared\Sync\Http\Controllers\DemandeSynchronisationController;
 use App\Shared\Sync\Http\Controllers\ReferentielsController;
+use App\Shared\Sync\Http\Controllers\SuiviPostesController;
 use App\Shared\Sync\Http\Controllers\SyncController;
 use Illuminate\Support\Facades\Route;
 
@@ -69,6 +71,13 @@ Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
     // Pas de middleware `module:` : un lot traverse plusieurs domaines, et le
     // controle d'acces se fait par table dans le registre du service.
     Route::post('/sync', SyncController::class);
+
+    // Le bouton « Synchroniser » du serveur (décision PO du 18/10/2026) : le
+    // poste lit ici, toutes les 30 s, la dernière demande faite à la PWA.
+    Route::get('/sync/demande', DemandeSynchronisationController::class);
+    // Le même bouton, et l'état des postes, depuis l'écran du poste.
+    Route::post('/sync/demande', [SuiviPostesController::class, 'demander']);
+    Route::get('/sync/postes', [SuiviPostesController::class, 'etats']);
 
     // Le CATALOGUE descendant des postes — décision PO du 15/10/2026 (le
     // serveur est maître, les postes téléchargent ; contrat dans le docblock

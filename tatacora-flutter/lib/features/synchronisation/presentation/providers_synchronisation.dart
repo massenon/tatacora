@@ -220,6 +220,11 @@ final etatFileSynchronisationProvider =
 /// La période du réveil automatique.
 const Duration periodeSynchronisation = Duration(minutes: 5);
 
+/// La période du PASSAGE COURT (décision PO du 18/10/2026) : la lecture de
+/// la demande « Synchroniser » faite au serveur — une requête légère, rien
+/// n'est téléchargé tant qu'aucune demande nouvelle n'est lue.
+const Duration periodeDemandeServeur = Duration(seconds: 30);
+
 /// Lance une synchronisation SANS l'attendre et sans rien laisser remonter :
 /// ni exception synchrone, ni erreur asynchrone. C'est la forme de TOUT
 /// déclencheur automatique — un geste (la clôture de caisse d'abord) ne
@@ -256,7 +261,16 @@ final synchronisationAutomatiqueProvider = Provider<void>((ref) {
     periodeSynchronisation,
     (_) => lancerSynchronisationSansAttendre(() => manager),
   );
-  ref.onDispose(minuteur.cancel);
+  // Le bouton « Synchroniser » du serveur : sa demande est suivie dans les
+  // 30 s, sans attendre le réveil de 5 minutes.
+  final passageCourt = Timer.periodic(
+    periodeDemandeServeur,
+    (_) => unawaited(manager.suivreDemandeDuServeur()),
+  );
+  ref.onDispose(() {
+    minuteur.cancel();
+    passageCourt.cancel();
+  });
 });
 
 /* ==================================================================== */

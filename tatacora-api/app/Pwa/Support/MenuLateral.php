@@ -390,6 +390,9 @@ final class MenuLateral
         // compte authentifie y accede (son profil, l'aide, le contact).
         $exigences = [
             'journal_audit' => ['pwa.journal-audit', 'M14'],
+            // Décision PO du 18/10/2026 : tout compte qui enregistre au
+            // serveur peut faire passer les postes tout de suite.
+            'synchronisation_postes' => ['pwa.synchronisation-postes', null],
             'mon_profil' => ['pwa.mon-profil', null],
             'parametres_compte' => ['pwa.parametres', 'PARAM'],
             'import_export' => ['pwa.import-export', 'PARAM'],

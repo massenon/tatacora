@@ -35,6 +35,9 @@ final class TelechargerReferentielsRequest extends FormRequest
             'poste_id' => ['required', 'string', 'max:255'],
             'depuis' => ['sometimes', 'nullable', 'string', 'max:8192'],
             'limite' => ['sometimes', 'integer', 'min:1', 'max:' . CatalogueDescendantService::TAILLE_PAGE_MAX],
+            // Bouton « Synchroniser » (18/10/2026) : la file que le poste
+            // déclare en attente, affichée par la PWA.
+            'en_attente' => ['sometimes', 'integer', 'min:0'],
         ];
     }
 

@@ -115,6 +115,48 @@ class SyncManager {
     return nouveau;
   }
 
+  /// La dernière demande « Synchroniser » du serveur déjà suivie par ce
+  /// poste (en mémoire : au redémarrage, la première lue est suivie — une
+  /// synchronisation de plus, jamais une de moins).
+  String? _demandeSuivie;
+
+  /// Le PASSAGE COURT (toutes les 30 s, décision PO du 18/10/2026 : « le
+  /// serveur doit avoir aussi le bouton synchroniser ») : lit la dernière
+  /// demande faite à la PWA (`GET /sync/demande`) ; une demande nouvelle
+  /// lance aussitôt la synchronisation complète — envoi de la file, puis
+  /// descente de tout ce que le serveur détient. Rend vrai si une
+  /// synchronisation a été lancée. Ne lève jamais ; ne fait rien sur un
+  /// poste non appairé, refusé ou en démonstration.
+  Future<bool> suivreDemandeDuServeur() async {
+    try {
+      final url = _url;
+      if (_demonstration || url == null) return false;
+      final appairage = await _lecteur.appairage();
+      if (appairage == null ||
+          appairage.refus != null ||
+          _normaliser(appairage.serveur) != _normaliser(url)) {
+        return false;
+      }
+      final issue = await _transport.get(
+        urlServeur(
+          appairage.serveur,
+          '/sync/demande',
+        ).replace(queryParameters: {'poste_id': appairage.posteId}),
+        jeton: appairage.jetonApi,
+      );
+      if (issue is! ReponseHttp || issue.statut != 200) return false;
+      final data = issue.corps?['data'];
+      final demande = data is Map ? data['demandee_le'] : null;
+      if (demande is! String || demande == _demandeSuivie) return false;
+      _demandeSuivie = demande;
+      await _descente?.leverRepli();
+      await synchroniserMaintenant();
+      return true;
+    } on Object {
+      return false;
+    }
+  }
+
   Future<BilanSynchronisation> _executerSansLever() async {
     BilanSynchronisation bilan;
     try {

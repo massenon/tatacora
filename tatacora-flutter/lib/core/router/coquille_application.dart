@@ -762,6 +762,13 @@ class _MenuProfil extends ConsumerWidget {
       TracesCoquille.journalAudit,
       route: '/journal-audit',
     ),
+    // Décision PO du 18/10/2026 — même tracé que la vue (Import & Export).
+    _EntreeCompte(
+      'synchronisation_postes',
+      LibellesCoquille.synchronisationPostes,
+      TracesCoquille.importExport,
+      route: '/synchronisation-postes',
+    ),
   ];
 
   static const _aide = [

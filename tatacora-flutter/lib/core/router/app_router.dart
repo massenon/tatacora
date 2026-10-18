@@ -36,6 +36,7 @@ import '../../features/pos/presentation/ecran_pos_comptant.dart';
 import '../../features/pos/presentation/ecran_pos_heberges.dart';
 import '../../features/restaurant/presentation/ecran_carte_restaurant.dart';
 import '../../features/restaurant/presentation/ecran_restauration.dart';
+import '../../features/synchronisation/presentation/ecran_synchronisation_postes.dart';
 import '../../features/synchronisation/presentation/ecran_synchronisation.dart';
 import '../di/providers.dart';
 import '../navigation/navigation_tatacora.dart';
@@ -465,6 +466,11 @@ final routeurProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/journal-audit',
             builder: (context, state) => const EcranJournalAudit(),
+          ),
+          // Décision PO du 18/10/2026 : le bouton « Synchroniser » du serveur.
+          GoRoute(
+            path: '/synchronisation-postes',
+            builder: (context, state) => const EcranSynchronisationPostes(),
           ),
           GoRoute(
             path: '/aide-a-propos',

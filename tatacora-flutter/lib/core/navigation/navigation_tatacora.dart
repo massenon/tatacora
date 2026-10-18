@@ -533,7 +533,8 @@ bool destinationVisible(
 
 /// Les routes ouvertes à TOUT compte connecté — celles que la vue sert sans
 /// middleware `module:` (`routes/web.php` : `pwa.accueil`, `pwa.mon-profil`,
-/// `pwa.aide-a-propos`, `pwa.contact-editeur`). Le tableau de bord est aussi
+/// `pwa.aide-a-propos`, `pwa.contact-editeur`, `pwa.synchronisation-postes`
+/// depuis le 18/10/2026). Le tableau de bord est aussi
 /// la destination de repli de la garde : le fermer ferait boucler la
 /// redirection pour un compte sans M11 (le guide).
 const Set<String> routesOuvertesATousLesComptes = {
@@ -541,6 +542,7 @@ const Set<String> routesOuvertesATousLesComptes = {
   '/mon-profil',
   '/aide-a-propos',
   '/contact-editeur',
+  '/synchronisation-postes',
 };
 
 /// Les routes servies HORS de la barre latérale, et leur module — le

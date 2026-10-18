@@ -294,6 +294,12 @@ final class ExtraireStructureBladeTest extends TestCase
             'variantes' => ['principal' => ''],
             'jeu' => 'parc',
         ],
+        // Décision PO du 18/10/2026 : le bouton « Synchroniser » du serveur.
+        'transverse/synchronisation-postes' => [
+            'url' => '/pwa/synchronisation-postes',
+            'variantes' => ['principal' => ''],
+            'jeu' => 'parc',
+        ],
         'transverse/mon-profil' => [
             'url' => '/pwa/mon-profil',
             'variantes' => ['principal' => ''],

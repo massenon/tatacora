@@ -109,6 +109,19 @@ class DescenteCatalogue {
     }
   }
 
+  /// Les opérations de la file qui ne sont pas encore parties (en attente,
+  /// en cours, bloquées).
+  Future<int> _enAttente() async {
+    final comptes = await OperationsSyncDao(_db).compteParStatut();
+    return (comptes[StatutOperationSync.enAttente] ?? 0) +
+        (comptes[StatutOperationSync.enCours] ?? 0) +
+        (comptes[StatutOperationSync.bloque] ?? 0);
+  }
+
+  /// Une demande « Synchroniser » du serveur vient d'être lue : le serveur
+  /// répond, le repli de la descente n'a plus de raison d'attendre.
+  Future<void> leverRepli() => _dao.poserRepli(echecs: 0);
+
   Future<BilanDescente> _descendre(
     AppairagePoste appairage,
     Future<void> Function(int code) surRefus,
@@ -138,6 +151,9 @@ class DescenteCatalogue {
           'poste_id': appairage.posteId,
           'depuis': ?curseur,
           'limite': '$limite',
+          // Le bouton « Synchroniser » du serveur (18/10/2026) : la PWA
+          // affiche la file que ce poste déclare encore à envoyer.
+          'en_attente': '${await _enAttente()}',
         },
       );
       final issue = await _transport.get(url, jeton: appairage.jetonApi);
