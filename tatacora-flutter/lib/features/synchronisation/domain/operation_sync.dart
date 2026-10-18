@@ -83,7 +83,13 @@ enum TableSynchronisee {
   /// soumis, sous un identifiant propre au geste — création seule), puis le
   /// référentiel des rôles (libellé et matrice). Jamais un compte.
   parametresSysteme('parametres_systeme', accepteModification: false),
-  roles('roles', accepteModification: true);
+  roles('roles', accepteModification: true),
+
+  /// Lot 10f (18/10/2026) : les mouvements de stock SAISIS sur ce poste
+  /// (stock d'ouverture, entrée, sortie, perte, transfert) — création seule.
+  /// Ceux d'un document (réception, vente) ne partent pas : le serveur les
+  /// écrit en appliquant le document.
+  mouvementsStock('mouvements_stock', accepteModification: false);
 
   const TableSynchronisee(this.nomServeur, {required this.accepteModification});
 

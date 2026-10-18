@@ -93,6 +93,14 @@ class AnomalieSynchronisation extends Model
      */
     public const PAIEMENT_SESSION_INCONNUE = 'paiement_session_inconnue';
 
+    /**
+     * Lot 10f (18/10/2026) : une sortie (ou perte) faite sur un poste, que le
+     * stock du SERVEUR ne couvrait pas, sans que le poste l'ait forcée. Le
+     * mouvement est physique : il est enregistré (rupture tracée), et
+     * l'écart est signalé ici.
+     */
+    public const MOUVEMENT_RUPTURE_SERVEUR = 'mouvement_rupture_serveur';
+
     protected $table = 'anomalies_synchronisation';
 
     protected $fillable = [

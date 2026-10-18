@@ -95,6 +95,9 @@ return [
         'employe_inconnu' => 'Bulletin refusé : l\'employé n\'est pas connu du serveur (pas encore reçu, ou refusé).',
         'champ_non_modifiable' => 'Champ(s) d\'employé non synchronisable(s) : :champs.',
     ],
+    'stocks' => [
+        'reference_inconnue' => 'Mouvement refusé : l\'article ou le point de stockage n\'est pas connu du serveur (pas encore reçu, ou refusé).',
+    ],
     'parametres' => [
         'valeur_non_scalaire' => 'Paramètres refusés : valeur illisible pour :cles.',
     ],

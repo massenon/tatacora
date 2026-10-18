@@ -197,9 +197,6 @@ class CatalogueDescendantService
      */
     public const MODULES_HORS_REGISTRE = [
         'centres_cout' => 'M10',
-        // Lot F4 : descendus avant d'avoir leur gestionnaire de montée (le
-        // règlement fournisseur a le sien depuis l'audit du 18/10/2026).
-        'mouvements_stock' => 'M6',
         // Audit de couverture : le référentiel des services RH n'a pas
         // d'écrivain (semé des deux côtés) ; il se lit sous M13.
         'services' => 'M13',

@@ -1139,6 +1139,8 @@ class AchatsDao extends DatabaseAccessor<AppDatabase> {
             centiemes: e.value,
             motif: MessagesAchats.motifReception(commande: c.id, bon: bonId),
             auteurId: auteurId,
+            // Lot 10f : le BON part, le serveur écrit ses entrées.
+            envoyer: false,
           );
           if (issue is! MouvementPose) {
             // Une entrée ne peut pas être en rupture ; si le DAO du stock rend

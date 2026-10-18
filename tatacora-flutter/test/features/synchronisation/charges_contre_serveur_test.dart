@@ -124,6 +124,7 @@ void main() {
       'creation factures',
       'creation sessions_caisse',
       'creation paiements',
+      'creation mouvements_stock',
       'creation parametres_systeme',
       'creation roles',
       'modification roles',
@@ -431,5 +432,16 @@ void main() {
       expect(role['statut'], 'synchronise', reason: '$role');
     }
     expect(serveur('roles', s.role)['libelle'], 'Économe');
+  });
+
+  test('Lot 10f : la perte saisie au bar est écrite par MouvementStockService '
+      'sous l’UUID du poste, à son heure', () {
+    final r = resultatDe('mouvements_stock', 'creation', s.perte);
+    expect(r['statut'], 'synchronise', reason: '$r');
+    final ecrit = serveur('mouvements_stock', s.perte);
+    expect(
+      (ecrit['type_mouvement'], ecrit['quantite'], ecrit['motif']),
+      ('perte', '1.00', 'Casse'),
+    );
   });
 }

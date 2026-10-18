@@ -20,6 +20,7 @@ use App\Shared\Sync\Gestionnaires\GestionnaireFactures;
 use App\Shared\Sync\Gestionnaires\GestionnaireFournisseurs;
 use App\Shared\Sync\Gestionnaires\GestionnaireGuides;
 use App\Shared\Sync\Gestionnaires\GestionnaireMenus;
+use App\Shared\Sync\Gestionnaires\GestionnaireMouvementsStock;
 use App\Shared\Sync\Gestionnaires\GestionnairePaiements;
 use App\Shared\Sync\Gestionnaires\GestionnairePaniersTable;
 use App\Shared\Sync\Gestionnaires\GestionnaireParametres;
@@ -142,6 +143,9 @@ class RegistreSynchronisation
         // opération) et le référentiel des rôles. Jamais les comptes.
         'parametres_systeme' => GestionnaireParametres::class,
         'roles' => GestionnaireRoles::class,
+        // Lot 10f : les mouvements de stock SAISIS sur un poste (ceux d'un
+        // document s'écrivent en appliquant le document).
+        'mouvements_stock' => GestionnaireMouvementsStock::class,
     ];
 
     /** @var array<string, GestionnaireSynchronisation> */

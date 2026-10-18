@@ -79,7 +79,7 @@ enum TableDescendue {
     'reglements_fournisseur',
     TableSynchronisee.reglementsFournisseur,
   ),
-  mouvementsStock('mouvements_stock', null),
+  mouvementsStock('mouvements_stock', TableSynchronisee.mouvementsStock),
   circuits('circuits', TableSynchronisee.circuits),
   guides('guides', TableSynchronisee.guides),
   reservationsTour('reservations_tour', TableSynchronisee.reservationsTour),

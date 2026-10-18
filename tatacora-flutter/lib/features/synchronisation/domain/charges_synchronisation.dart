@@ -754,3 +754,27 @@ Map<String, Object?> chargeRole({
   'description': description,
   'droits': {for (final e in droits.entries) e.key: e.value},
 };
+
+/// `mouvements_stock` (création seule, lot 10f) : un mouvement SAISI sur ce
+/// poste. Quantité en centièmes, coût en dix-millièmes (entrée seule) ; le
+/// serveur l'écrit même si son stock ne le couvre pas (le mouvement a eu
+/// lieu) et le signale si le poste ne l'avait pas forcé.
+Map<String, Object?> chargeMouvementStock({
+  required String articleId,
+  required String pointId,
+  required String type,
+  required int centiemes,
+  required String motif,
+  required int? coutDixMilliemes,
+  required bool ruptureForcee,
+  required DateTime le,
+}) => {
+  'article_id': articleId,
+  'point_id': pointId,
+  'type_mouvement': type,
+  'quantite': centiemes,
+  'motif': motif,
+  'cout_unitaire': coutDixMilliemes,
+  'rupture_forcee': ruptureForcee,
+  'date_mouvement': instantLocal(le),
+};

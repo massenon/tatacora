@@ -144,6 +144,9 @@ const Map<String, String> libellesAnomalies = {
   'vehicule_sans_annee':
       'Véhicule créé sur ce poste sans année ni capacité : enregistré avec '
       'l\'année 0 au serveur, à compléter',
+  'mouvement_rupture_serveur':
+      'Sortie de stock faite sur ce poste que le stock du serveur ne couvrait '
+      'pas : enregistrée (elle a eu lieu), la rupture est tracée',
   'bulletin_ecart_net':
       'Bulletin recalculé au serveur avec un net différent de celui du poste '
       ': le serveur fait foi',

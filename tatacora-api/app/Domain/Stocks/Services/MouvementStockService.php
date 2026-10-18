@@ -80,8 +80,9 @@ class MouvementStockService
         string $motif = 'Entrée de stock',
         ?string $coutUnitaire = null,
         ?CarbonInterface $dateMouvement = null,
+        ?string $id = null,
     ): MouvementStock {
-        return DB::transaction(function () use ($articleId, $pointId, $quantite, $motif, $coutUnitaire, $dateMouvement): MouvementStock {
+        return DB::transaction(function () use ($articleId, $pointId, $quantite, $motif, $coutUnitaire, $dateMouvement, $id): MouvementStock {
             if ($coutUnitaire !== null) {
                 $article = Article::findOrFail($articleId);
 
@@ -94,7 +95,7 @@ class MouvementStockService
                 $article->forceFill(['prix_achat' => $coutUnitaire])->save();
             }
 
-            return $this->enregistrer($articleId, $pointId, 'entree', $quantite, $motif, $dateMouvement);
+            return $this->enregistrer($articleId, $pointId, 'entree', $quantite, $motif, $dateMouvement, $id);
         });
     }
 
@@ -117,8 +118,9 @@ class MouvementStockService
         bool $validationRupture = false,
         string $type = 'sortie',
         ?CarbonInterface $dateMouvement = null,
+        ?string $id = null,
     ): MouvementStock {
-        return DB::transaction(function () use ($articleId, $pointId, $quantite, $motif, $validationRupture, $type, $dateMouvement) {
+        return DB::transaction(function () use ($articleId, $pointId, $quantite, $motif, $validationRupture, $type, $dateMouvement, $id) {
             // Verrou sur l'article : sans lui, deux ventes simultanées lisent
             // toutes les deux un stock suffisant et le font passer négatif.
             // Même famille de condition de course que RG-01.
@@ -131,7 +133,7 @@ class MouvementStockService
                 throw new RuptureStockException($articleId, $pointId, $disponible, $quantite);
             }
 
-            $mouvement = $this->enregistrer($articleId, $pointId, $type, $quantite, $motif, $dateMouvement);
+            $mouvement = $this->enregistrer($articleId, $pointId, $type, $quantite, $motif, $dateMouvement, $id);
 
             if (! $suffisant) {
                 $this->tracerRuptureForcee($mouvement, $disponible, $quantite);
@@ -153,8 +155,10 @@ class MouvementStockService
         string $quantite,
         string $motif,
         bool $validationRupture = false,
+        ?CarbonInterface $dateMouvement = null,
+        ?string $id = null,
     ): MouvementStock {
-        return $this->sortie($articleId, $pointId, $quantite, $motif, $validationRupture, 'perte');
+        return $this->sortie($articleId, $pointId, $quantite, $motif, $validationRupture, 'perte', $dateMouvement, $id);
     }
 
     /**
@@ -184,8 +188,11 @@ class MouvementStockService
         string $quantite,
         string $motif,
         ?CarbonInterface $dateMouvement = null,
+        ?string $id = null,
     ): MouvementStock {
         $mouvement = MouvementStock::create([
+            // L'UUID du poste quand le mouvement y est né (synchronisation).
+            ...($id !== null ? ['id' => $id] : []),
             'article_id' => $articleId,
             'point_id' => $pointId,
             'type_mouvement' => $type,

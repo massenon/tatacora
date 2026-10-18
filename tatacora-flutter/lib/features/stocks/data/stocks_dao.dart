@@ -555,6 +555,10 @@ class StocksDao extends DatabaseAccessor<AppDatabase> {
   /// ailleurs) : une sortie est valorisée au coût moyen pondéré du moment et ne
   /// le modifie pas. `null` sur une entrée = un transfert entre points, qui ne
   /// revalorise rien.
+  ///
+  /// [envoyer] (lot 10f) : le mouvement SAISI part au serveur, dans cette
+  /// transaction. Faux pour celui qu'un DOCUMENT produit (l'entrée d'une
+  /// réception) : le serveur l'écrit lui-même en appliquant le document.
   Future<IssueMouvement> ajouterMouvement({
     required String articleId,
     required String pointId,
@@ -564,6 +568,7 @@ class StocksDao extends DatabaseAccessor<AppDatabase> {
     required String? auteurId,
     int? coutDixMilliemes,
     bool forcage = false,
+    bool envoyer = true,
   }) async {
     if (auteurId == null) {
       // RG-15 : un mouvement sans auteur rend l'historique inopposable.
@@ -667,6 +672,24 @@ class StocksDao extends DatabaseAccessor<AppDatabase> {
           ordre: Value((dernier ?? 0) + 1),
         ),
       );
+      if (envoyer) {
+        await _file.enfiler(
+          table: TableSynchronisee.mouvementsStock,
+          entiteId: id,
+          type: TypeOperationSync.creation,
+          payload: chargeMouvementStock(
+            articleId: articleId,
+            pointId: pointId,
+            type: type.code,
+            centiemes: centiemes,
+            motif: motif.trim(),
+            coutDixMilliemes: coutDixMilliemes,
+            ruptureForcee: ruptureForcee,
+            le: instant,
+          ),
+          horodatage: instant,
+        );
+      }
 
       final point = await (select(
         attachedDatabase.pointsStockageLocal,

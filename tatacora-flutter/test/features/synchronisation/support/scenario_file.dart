@@ -37,6 +37,7 @@ import 'package:tatacora_flutter/features/rh/data/employe_dao.dart';
 import 'package:tatacora_flutter/features/restaurant/domain/entities/plat.dart';
 import 'package:tatacora_flutter/features/stocks/data/stocks_dao.dart';
 import 'package:tatacora_flutter/features/stocks/domain/entities/etat_stock.dart';
+import 'package:tatacora_flutter/features/stocks/domain/entities/mouvement_stock.dart';
 import 'package:tatacora_flutter/features/synchronisation/data/operations_sync_dao.dart';
 import 'package:tatacora_flutter/features/tourisme/data/tourisme_dao.dart';
 import 'package:tatacora_flutter/features/transverse/data/roles_dao.dart';
@@ -89,6 +90,7 @@ final class ScenarioFile {
   late String paiement;
   late String sessionDepart;
   late String role;
+  late String perte;
 }
 
 /// Une journée complète du poste, PAR SES VRAIS ÉCRIVAINS — chacun dépose son
@@ -568,6 +570,19 @@ Future<ScenarioFile> jouerJourneeComplete(AppDatabase db) async {
             auteurId: auteurEssai,
           ))
           .id;
+
+  // Lot 10f : une perte SAISIE au bar (casse), que le stock du serveur ne
+  // couvre pas — elle a eu lieu : enregistrée et signalée.
+  final perte = await StocksDao(db, maintenant: () => matin).ajouterMouvement(
+    articleId: s.article,
+    pointId: s.point,
+    type: TypeMouvement.perte,
+    centiemes: 100,
+    motif: 'Casse',
+    auteurId: auteurEssai,
+    forcage: true,
+  );
+  s.perte = (perte as MouvementPose).mouvement.id;
 
   // Lot 10e : un enregistrement de l'écran Paramètres, puis un rôle créé et
   // sa matrice définie.
