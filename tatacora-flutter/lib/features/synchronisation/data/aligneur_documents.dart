@@ -46,6 +46,8 @@ extension _AlignementDocuments on AligneurCatalogue {
         TableDescendue.circuits => _circuit(id, e),
         TableDescendue.guides => _guide(id, e),
         TableDescendue.reservationsTour => _reservationTour(id, e),
+        TableDescendue.vehicules => _vehicule(id, e),
+        TableDescendue.contratsLocation => _contratLocation(id, e),
         _ => throw StateError('${e.table} n’est pas un document'),
       };
 
@@ -546,6 +548,146 @@ extension _AlignementDocuments on AligneurCatalogue {
             ),
           );
     }
+    await _retenirOrigine(e, id);
+    return const Aligne();
+  }
+
+  /* ================================================================== */
+  /* Véhicules et contrats — audit de couverture (18/10/2026)            */
+  /* ================================================================== */
+
+  static const _categoriesVehicule = {
+    'voiture',
+    '4x4',
+    'pickup',
+    'moto',
+    'scooter',
+    'velo',
+    'bus',
+  };
+  static const _statutsVehicule = {
+    'disponible',
+    'loue',
+    'entretien',
+    'hors_service',
+  };
+
+  /// Un véhicule du parc du serveur. Détenu : catégorie, plaque, tarif et
+  /// statut suivent (dernier écrit gagnant, une retouche locale en attente
+  /// est conservée par la règle commune). Une plaque déjà au parc LOCAL est
+  /// le même véhicule (le serveur fusionne) : correspondance, pas de
+  /// doublon. Année, transmission et capacité n'ont pas de colonne ici.
+  Future<IssueAlignement> _vehicule(String id, ElementCatalogue e) async {
+    final d = e.donnees;
+    final plaque = AligneurCatalogue._texte(d['immatriculation']);
+    final categorie = AligneurCatalogue._texte(d['categorie']);
+    final statut = AligneurCatalogue._texte(d['statut']);
+    final tarif = entierDepuisDecimal(d['tarif_jour'], 0);
+    if (plaque == null ||
+        !_categoriesVehicule.contains(categorie) ||
+        !_statutsVehicule.contains(statut) ||
+        tarif == null) {
+      return const RefuseParLePoste(
+        'véhicule incomplet (ou fraction de franc)',
+      );
+    }
+    final t = _db.vehiculesLocal;
+    final valeurs = VehiculesLocalCompanion(
+      categorie: Value(categorie!),
+      immatriculation: Value(plaque),
+      tarifJour: Value(tarif.toDouble()),
+      statut: Value(statut!),
+    );
+    if (await _existe(t, id)) {
+      await (_db.update(t)..where((v) => v.id.equals(id))).write(valeurs);
+      return const Aligne();
+    }
+    final homonyme = await (_db.select(
+      t,
+    )..where((v) => v.immatriculation.equals(plaque))).getSingleOrNull();
+    if (homonyme != null) {
+      await _dao.retenirCorrespondance(
+        table: e.table.nomServeur,
+        idServeur: e.id,
+        idLocal: homonyme.id,
+        origine: 'libelle',
+      );
+      await (_db.update(
+        t,
+      )..where((v) => v.id.equals(homonyme.id))).write(valeurs);
+      return const Aligne();
+    }
+    await _db
+        .into(t)
+        .insert(
+          VehiculesLocalCompanion.insert(
+            id: id,
+            categorie: categorie,
+            immatriculation: plaque,
+            tarifJour: tarif.toDouble(),
+            statut: statut,
+          ),
+        );
+    await _retenirOrigine(e, id);
+    return const Aligne();
+  }
+
+  /// Un contrat de location d'un autre poste (ou de la PWA) : il occupe le
+  /// véhicule ici aussi (RG-08 du poste lit ces plages). Détenu : rien n'est
+  /// réécrit. Les numéros de pièce ne descendent pas.
+  Future<IssueAlignement> _contratLocation(
+    String id,
+    ElementCatalogue e,
+  ) async {
+    if (await _existe(_db.contratsLocationLocal, id)) return const Aligne();
+    final d = e.donnees;
+    final vehiculeServeur = AligneurCatalogue._texte(d['vehicule_id']);
+    final clientServeur = AligneurCatalogue._texte(d['client_id']);
+    if (vehiculeServeur == null || clientServeur == null) {
+      return const RefuseParLePoste('contrat incomplet');
+    }
+    final DateTime debut;
+    final DateTime fin;
+    try {
+      debut = _jourLocal(d['date_debut']);
+      fin = _jourLocal(d['date_fin']);
+    } on FormatException {
+      return const RefuseParLePoste('dates de contrat illisibles');
+    }
+    final vehicule = await _cite(
+      TableDescendue.vehicules,
+      vehiculeServeur,
+      _db.vehiculesLocal,
+    );
+    if (vehicule == null) {
+      return const EnAttenteDeDependance('véhicule pas encore reçu');
+    }
+    final client = await _cite(
+      TableDescendue.clients,
+      clientServeur,
+      _db.clientsLocal,
+    );
+    if (client == null) {
+      return const EnAttenteDeDependance('client pas encore reçu');
+    }
+    final guideServeur = AligneurCatalogue._texte(d['guide_id']);
+    await _db
+        .into(_db.contratsLocationLocal)
+        .insert(
+          ContratsLocationLocalCompanion.insert(
+            id: id,
+            vehiculeId: vehicule,
+            clientId: client,
+            guideId: Value(
+              guideServeur == null
+                  ? null
+                  : await _dao.idLocal('guides', guideServeur),
+            ),
+            dateDebut: debut,
+            dateFin: fin,
+            statutSync: const Value('synchronise'),
+          ),
+        );
     await _retenirOrigine(e, id);
     return const Aligne();
   }

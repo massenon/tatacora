@@ -36,6 +36,9 @@ import 'package:tatacora_flutter/features/stocks/data/stocks_dao.dart';
 import 'package:tatacora_flutter/features/stocks/domain/entities/etat_stock.dart';
 import 'package:tatacora_flutter/features/synchronisation/data/operations_sync_dao.dart';
 import 'package:tatacora_flutter/features/tourisme/data/tourisme_dao.dart';
+import 'package:tatacora_flutter/features/vehicules/data/vehicule_dao.dart';
+import 'package:tatacora_flutter/features/vehicules/domain/entities/contrat_location.dart';
+import 'package:tatacora_flutter/features/vehicules/domain/entities/vehicule.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../comptabilite/support/outils_comptabilite.dart';
@@ -74,6 +77,8 @@ final class ScenarioFile {
   late String reservationAnnulee;
   late String tableR2;
   late String reglement;
+  late String vehicule;
+  late String contrat;
   late String venteSejour;
   late String facture;
   late String paiement;
@@ -440,6 +445,25 @@ Future<ScenarioFile> jouerJourneeComplete(AppDatabase db) async {
     nbParticipants: 3,
   )).id;
   await tourisme.annulerReservation(s.reservationTour);
+
+  // M8 (audit de couverture) : un 4x4 entre au parc, puis il est loué au
+  // client de la journée trois jours.
+  final flotte = VehiculeDao(db);
+  s.vehicule = (await flotte.enregistrerVehicule(
+    immatriculation: 'BJ-F1-4X4',
+    categorie: CategorieVehicule.quatreQuatre,
+    tarifJour: 30000,
+  )).id;
+  s.contrat = (await flotte.creerContrat(
+    SaisieContrat(
+      vehiculeId: s.vehicule,
+      clientId: s.client,
+      debut: DateTime(2026, 10, 24),
+      fin: DateTime(2026, 10, 27),
+      pieceIdentite: 'CNI-F1-001',
+      permisConduire: 'P-F1-001',
+    ),
+  )).id;
 
   // M1 + POS hébergés (lot F5) : le client arrive, dîne sur la note de
   // chambre, et part.

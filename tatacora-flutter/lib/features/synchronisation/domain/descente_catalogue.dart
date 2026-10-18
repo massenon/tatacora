@@ -84,6 +84,10 @@ enum TableDescendue {
   guides('guides', TableSynchronisee.guides),
   reservationsTour('reservations_tour', TableSynchronisee.reservationsTour),
 
+  /// Audit de couverture (18/10/2026) : le parc M8 et ses contrats.
+  vehicules('vehicules', TableSynchronisee.vehicules),
+  contratsLocation('contrats_location', TableSynchronisee.contratsLocation),
+
   /// Descendue sans être synchronisable : le poste ne pousse pas ses centres.
   centresCout('centres_cout', null);
 
@@ -135,6 +139,8 @@ String libelleTableServeur(String nom) => switch (nom) {
   'guides' => 'Guides',
   'reservations_tour' => 'Réservations de circuits',
   'sejours' => 'Séjours (arrivées et départs)',
+  'vehicules' => 'Véhicules',
+  'contrats_location' => 'Contrats de location',
   _ => nom,
 };
 

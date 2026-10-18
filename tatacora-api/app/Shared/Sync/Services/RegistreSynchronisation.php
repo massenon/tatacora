@@ -12,6 +12,7 @@ use App\Shared\Sync\Gestionnaires\GestionnaireCategoriesHebergement;
 use App\Shared\Sync\Gestionnaires\GestionnaireCircuits;
 use App\Shared\Sync\Gestionnaires\GestionnaireClients;
 use App\Shared\Sync\Gestionnaires\GestionnaireCommandesAchat;
+use App\Shared\Sync\Gestionnaires\GestionnaireContratsLocation;
 use App\Shared\Sync\Gestionnaires\GestionnaireDepenses;
 use App\Shared\Sync\Gestionnaires\GestionnaireFactures;
 use App\Shared\Sync\Gestionnaires\GestionnaireFournisseurs;
@@ -29,6 +30,7 @@ use App\Shared\Sync\Gestionnaires\GestionnaireSejours;
 use App\Shared\Sync\Gestionnaires\GestionnaireSessionsCaisse;
 use App\Shared\Sync\Gestionnaires\GestionnaireTablesSalle;
 use App\Shared\Sync\Gestionnaires\GestionnaireUnitesHebergement;
+use App\Shared\Sync\Gestionnaires\GestionnaireVehicules;
 use App\Shared\Sync\Gestionnaires\GestionnaireVentes;
 use LogicException;
 
@@ -125,6 +127,10 @@ class RegistreSynchronisation
         'circuits' => GestionnaireCircuits::class,
         'guides' => GestionnaireGuides::class,
         'reservations_tour' => GestionnaireReservationsTour::class,
+        // Audit de couverture (18/10/2026) : le parc M8, puis ses contrats
+        // (après le client et le guide qu'ils citent).
+        'vehicules' => GestionnaireVehicules::class,
+        'contrats_location' => GestionnaireContratsLocation::class,
     ];
 
     /** @var array<string, GestionnaireSynchronisation> */

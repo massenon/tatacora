@@ -67,6 +67,13 @@ class AnomalieSynchronisation extends Model
     public const GUIDE_SANS_TARIF = 'guide_sans_tarif';
 
     /**
+     * Audit de couverture (18/10/2026) : un véhicule créé sur un poste n'a ni
+     * année ni capacité (le poste ne les saisit pas) ; rangé avec l'année 0,
+     * et SIGNALÉ — jamais une année devinée.
+     */
+    public const VEHICULE_SANS_ANNEE = 'vehicule_sans_annee';
+
+    /**
      * Lot F5d (17/10/2026) : un poste a encaissé une facture que le serveur
      * n'a pas certifiée (la certification n'est pas lancée, PA-17). L'argent
      * est réel : le paiement est enregistré, et c'est signalé ici.

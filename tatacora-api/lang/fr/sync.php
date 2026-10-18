@@ -83,6 +83,13 @@ return [
     'reglements' => [
         'commande_inconnue' => 'Règlement refusé : la commande n\'est pas connue du serveur (pas encore reçue, ou refusée).',
     ],
+    'vehicules' => [
+        'champ_non_modifiable' => 'Un véhicule ne se modifie que par sa catégorie, son immatriculation, son tarif '
+            . 'et son statut (champ(s) refusé(s) : :champs).',
+        'statut_non_synchronisable' => 'Statut « :statut » refusé : « loué » se déduit des contrats.',
+        'inconnu' => 'Contrat refusé : le véhicule n\'est pas connu du serveur (pas encore reçu, ou refusé).',
+        'client_inconnu' => 'Contrat refusé : le client n\'est pas connu du serveur (pas encore reçu, ou refusé).',
+    ],
     'paiements' => [
         'facture_inconnue' => 'Encaissement refusé : la facture n\'est pas connue du serveur (pas encore reçue, ou refusée).',
     ],

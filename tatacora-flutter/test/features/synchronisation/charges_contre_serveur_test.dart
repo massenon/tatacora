@@ -115,6 +115,8 @@ void main() {
       'creation guides',
       'creation reservations_tour',
       'modification reservations_tour',
+      'creation vehicules',
+      'creation contrats_location',
       'creation sejours',
       'creation ventes',
       'modification sejours',
@@ -182,6 +184,23 @@ void main() {
       expect(vente['montant_total'], '5400.00');
     },
   );
+
+  test('M8 (audit) : le véhicule entre au parc (année manquante signalée), '
+      'le contrat est numéroté LOC et chiffré par le serveur', () {
+    final v = resultatDe('vehicules', 'creation', s.vehicule);
+    expect(v['statut'], 'synchronise', reason: '$v');
+    final c = resultatDe('contrats_location', 'creation', s.contrat);
+    expect(c['statut'], 'synchronise', reason: '$c');
+    expect(c['montant'], '90000.00');
+    expect('${c['numero']}', startsWith('LOC'));
+    expect(
+      anomalies.any(
+        (a) =>
+            a['entite_id'] == s.vehicule && a['type'] == 'vehicule_sans_annee',
+      ),
+      isTrue,
+    );
+  });
 
   test('règlement fournisseur (audit) : écrit par le service, à la date du '
       'poste, la commande en tient compte', () {

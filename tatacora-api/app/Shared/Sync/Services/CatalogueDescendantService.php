@@ -152,6 +152,9 @@ class CatalogueDescendantService
         'circuits' => ['nom', 'theme', 'zone', 'duree', 'prix', 'capacite_max'],
         'guides' => ['nom', 'certification', 'zone_competence', 'tarif_jour'],
         'reservations_tour' => ['circuit_id', 'client_id', 'guide_id', 'date_circuit', 'nb_participants', 'statut'],
+        // Audit de couverture (18/10/2026) : le parc M8 et ses contrats.
+        'vehicules' => ['immatriculation', 'categorie', 'annee', 'transmission', 'capacite', 'tarif_jour', 'statut'],
+        'contrats_location' => ['vehicule_id', 'client_id', 'guide_id', 'date_debut', 'date_fin', 'numero', 'statut', 'montant'],
         'centres_cout' => ['libelle', 'type'],
     ];
 
@@ -406,7 +409,7 @@ class CatalogueDescendantService
 
             $actif = match ($table) {
                 'articles', 'fournisseurs', 'clients', 'tables_salle' => (bool) $donnees['actif'],
-                'unites_hebergement' => $donnees['statut'] !== 'hors_service',
+                'unites_hebergement', 'vehicules' => $donnees['statut'] !== 'hors_service',
                 default => true,
             };
             unset($donnees['actif']);

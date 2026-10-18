@@ -67,7 +67,12 @@ enum TableSynchronisee {
   /// gestes (annulation, clôture, réaffectation du guide).
   circuits('circuits', accepteModification: true),
   guides('guides', accepteModification: true),
-  reservationsTour('reservations_tour', accepteModification: true);
+  reservationsTour('reservations_tour', accepteModification: true),
+
+  /// Audit de couverture (18/10/2026) : le parc M8 (retouches et statut par
+  /// ses gestes), puis les contrats (création seule, RG-08 au serveur).
+  vehicules('vehicules', accepteModification: true),
+  contratsLocation('contrats_location', accepteModification: false);
 
   const TableSynchronisee(this.nomServeur, {required this.accepteModification});
 

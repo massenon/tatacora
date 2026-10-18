@@ -647,3 +647,39 @@ Map<String, Object?> chargeReglementFournisseur({
   'tresorerie': tresorerie,
   'date_reglement': dateReglement,
 };
+
+/* ==================================================================== */
+/* Véhicules (audit de couverture, 18/10/2026)                            */
+/* ==================================================================== */
+
+/// `vehicules` (création) — `GestionnaireVehicules`. Le poste ne saisit ni
+/// année ni capacité : le serveur range l'année 0 et le SIGNALE.
+Map<String, Object?> chargeVehicule({
+  required String immatriculation,
+  required String categorie,
+  required int tarifJour,
+}) => {
+  'immatriculation': immatriculation,
+  'categorie': categorie,
+  'tarif_jour': tarifJour,
+};
+
+/// `contrats_location` (création) — `GestionnaireContratsLocation` : les
+/// numéros de pièce et de permis SAISIS (le poste ne les garde pas en base).
+Map<String, Object?> chargeContratLocation({
+  required String vehiculeId,
+  required String clientId,
+  required String? guideId,
+  required DateTime debut,
+  required DateTime fin,
+  required String pieceIdentite,
+  required String? permisConduire,
+}) => {
+  'vehicule_id': vehiculeId,
+  'client_id': clientId,
+  'guide_id': guideId,
+  'date_debut': jourIso(debut),
+  'date_fin': jourIso(fin),
+  'piece_identite': pieceIdentite,
+  'permis_conduire': permisConduire,
+};

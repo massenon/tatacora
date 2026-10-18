@@ -88,7 +88,7 @@ final class RegistreGestionnairesSynchronisationTest extends TestCase
             // commande avant son bon, l'ouverture de caisse avant ses ventes.
             'commandes_achat', 'bons_reception', 'reglements_fournisseur', 'sessions_caisse', 'tables_salle', 'paniers', 'ventes', 'depenses', 'factures', 'paiements',
             // Tourisme (F4, 17/10/2026) — les définitions avant la réservation.
-            'circuits', 'guides', 'reservations_tour',
+            'circuits', 'guides', 'reservations_tour', 'vehicules', 'contrats_location',
         ], array_keys($gestionnaires));
 
         foreach ($gestionnaires as $table => $gestionnaire) {

@@ -132,6 +132,50 @@ class ParcVehiculeService
      *
      * @throws RuntimeException le véhicule est engagé sur un contrat en cours
      */
+    /**
+     * Entrée d'un véhicule au parc — audit de couverture (18/10/2026) : la
+     * synchronisation en a besoin, la PWA écrit le modèle directement
+     * (`Locations::enregistrerVehicule`). Même règle : un véhicule entre au
+     * parc DISPONIBLE ; l'immatriculation est unique (contrainte du schéma).
+     *
+     * @param  array<string, mixed>  $attributs
+     */
+    public function creer(array $attributs, ?string $id = null): Vehicule
+    {
+        return Vehicule::create([
+            ...($id !== null ? ['id' => $id] : []),
+            ...$attributs,
+            'statut' => 'disponible',
+        ]);
+    }
+
+    /**
+     * Retouche d'un véhicule (catégorie, immatriculation, tarif…) — le
+     * statut n'en fait pas partie : il se pilote par l'archivage, la remise
+     * en service et l'entretien.
+     *
+     * @param  array<string, mixed>  $attributs
+     */
+    public function modifier(Vehicule $vehicule, array $attributs): Vehicule
+    {
+        unset($attributs['statut']);
+        $vehicule->update($attributs);
+
+        return $vehicule->refresh();
+    }
+
+    /** Le véhicule part en entretien — jamais s'il est engagé par un contrat. */
+    public function mettreEnEntretien(Vehicule $vehicule): void
+    {
+        $contrats = $this->contratsEngages($vehicule);
+
+        if ($contrats->isNotEmpty()) {
+            throw new RuntimeException($this->messageVerrou($contrats));
+        }
+
+        $vehicule->update(['statut' => 'entretien']);
+    }
+
     public function archiver(Vehicule $vehicule): void
     {
         $contrats = $this->contratsEngages($vehicule);
