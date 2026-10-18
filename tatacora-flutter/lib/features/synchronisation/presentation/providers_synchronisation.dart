@@ -6,6 +6,7 @@ import '../../comptabilite/presentation/providers_comptabilite.dart';
 import '../../../core/config/environnement.dart';
 import '../../../core/di/providers.dart';
 import '../../transverse/data/configuration_poste.dart';
+import '../data/controle_coherence.dart';
 import '../data/descente_catalogue.dart';
 import '../data/descente_catalogue_dao.dart';
 import '../data/operations_sync_dao.dart';
@@ -216,6 +217,15 @@ final etatFileSynchronisationProvider =
             .derniereDescente(),
       );
     });
+
+/// Le contrôle de cohérence (P1-1) — un test pose le sien.
+final controleCoherenceProvider = Provider<ControleCoherence>(
+  (ref) => ControleCoherence(
+    db: ref.watch(baseLocaleProvider),
+    transport: ref.watch(transportSynchronisationProvider),
+    urlServeur: ref.watch(urlServeurSynchronisationProvider),
+  ),
+);
 
 /// La période du réveil automatique.
 const Duration periodeSynchronisation = Duration(minutes: 5);

@@ -138,6 +138,10 @@ class CatalogueDescendantService
         'ventes' => [
             'numero', 'session_id', 'point_vente', 'client_id', 'reservation_id', 'client_mention', 'table_id', 'montant_total',
             'mode_paiement', 'encaisse', 'statut', 'motif_annulation', 'annulee_at', 'date_creation',
+            // Lot P1-1 (18/10/2026) : `created_at` est la date MÉTIER de la
+            // vente (`VenteService` y pose la clôture du poste) ;
+            // `date_creation` est celle de l'audit — sa RÉCEPTION au serveur.
+            'created_at',
         ],
         'depenses' => ['numero', 'date_transaction', 'tresorerie', 'montant_total', 'libelle'],
         // Lot F6 : l'OCCUPATION des tables (paniers DE TABLE seulement), après

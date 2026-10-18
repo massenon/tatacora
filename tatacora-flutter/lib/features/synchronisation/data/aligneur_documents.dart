@@ -347,7 +347,11 @@ extension _AlignementDocuments on AligneurCatalogue {
     }
     final DateTime le;
     try {
-      le = _instant(d['date_creation']);
+      // La date MÉTIER (`created_at`, la clôture du poste qui a vendu), pas
+      // `date_creation` (sa réception au serveur, plus tard si la vente a
+      // été faite hors ligne) ; le second reste le repli d'un serveur
+      // antérieur au lot P1-1.
+      le = _instant(d['created_at'] ?? d['date_creation']);
     } on FormatException {
       return const RefuseParLePoste('date de vente illisible');
     }

@@ -22,6 +22,7 @@ use App\Domain\Tourisme\Http\Controllers\TourismeController;
 use App\Domain\Vehicules\Http\Controllers\VehiculeController;
 use App\Shared\Auth\Http\Controllers\AuthController;
 use App\Shared\Parametres\Http\Controllers\ParametreController;
+use App\Shared\Sync\Http\Controllers\CoherenceController;
 use App\Shared\Sync\Http\Controllers\DemandeSynchronisationController;
 use App\Shared\Sync\Http\Controllers\ReferentielsController;
 use App\Shared\Sync\Http\Controllers\SuiviPostesController;
@@ -78,6 +79,8 @@ Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
     // Le même bouton, et l'état des postes, depuis l'écran du poste.
     Route::post('/sync/demande', [SuiviPostesController::class, 'demander']);
     Route::get('/sync/postes', [SuiviPostesController::class, 'etats']);
+    // Le contrôle de cohérence du poste (P1-1) : les comptes du serveur.
+    Route::get('/sync/coherence', CoherenceController::class);
 
     // Le CATALOGUE descendant des postes — décision PO du 15/10/2026 (le
     // serveur est maître, les postes téléchargent ; contrat dans le docblock

@@ -16,12 +16,51 @@ import '../domain/bilan_synchronisation.dart';
 import '../domain/descente_catalogue.dart';
 import '../domain/operation_sync.dart';
 import '../domain/suivi_synchronisation.dart';
+import '../data/controle_coherence.dart';
 import 'providers_synchronisation.dart';
 
 /// Les mots de l'écran de synchronisation (lot F2b, 15/10/2026). Honnêtes
 /// (piège 1) : « synchronisé » ne se dit que de ce que le serveur a
 /// confirmé.
 abstract final class TextesEcranSynchronisation {
+  /// Le contrôle de cohérence (P1-1, 18/10/2026).
+  static const String sectionCoherence = 'Contrôle de cohérence';
+  static const String coherenceExplication =
+      'Compare, jour par jour sur les sept derniers jours, les documents que '
+      'le serveur détient à ceux de ce poste (ventes, dépenses, factures, '
+      'encaissements, réservations, règlements, mouvements de stock).';
+  static const String controler = 'Contrôler maintenant';
+  static String coherenceBilan(CoherenceMesuree m) {
+    final jusqua = m.toutRecuJusquAu;
+    if (m.ecarts.isEmpty) {
+      return 'Ce poste a tout reçu jusqu’au ${_jourLisible(m.au)} : aucun '
+          'écart sur ${m.tables.length} table(s) comparée(s).';
+    }
+    return jusqua == null
+        ? '${m.ecarts.length} écart(s), dès le ${_jourLisible(m.du)}.'
+        : 'Ce poste a tout reçu jusqu’au ${_jourLisible(jusqua)} ; '
+              '${m.ecarts.length} écart(s) ensuite.';
+  }
+
+  static String ecart(EcartCoherence e) {
+    String compte(CompteJour c) => c.total == null
+        ? '${c.nombre}'
+        : e.table == 'mouvements_stock'
+        ? '${c.nombre} (quantité ${_centiemes(c.total!)})'
+        : '${c.nombre} (${formaterFcfa(c.total! ~/ 100)})';
+    return '• ${e.libelleTable}, ${_jourLisible(e.jour)} : serveur '
+        '${compte(e.serveur)}, ce poste ${compte(e.poste)}';
+  }
+
+  static String ecartsEnAttente(int n) =>
+      '$n opération(s) de ce poste attendent encore de partir : un écart '
+      'peut venir d’elles.';
+
+  static String _jourLisible(String iso) => formaterDate(DateTime.parse(iso));
+
+  static String _centiemes(int c) =>
+      c % 100 == 0 ? '${c ~/ 100}' : (c / 100).toStringAsFixed(2);
+
   static const titre = 'Synchronisation';
   static const sousTitre =
       'Ce que le poste envoie au serveur, ce qu\'il en reçoit, et ce qui reste '
@@ -137,6 +176,8 @@ class EcranSynchronisation extends ConsumerWidget {
               _Compteurs(etat: value),
               const SizedBox(height: AppSpacing.md),
               _CarteDescente(bilan: value.derniereDescente),
+              const SizedBox(height: AppSpacing.md),
+              const _CarteCoherence(),
               const SizedBox(height: AppSpacing.md),
               _ATraiter(lignes: value.aTraiter, admin: admin),
               const SizedBox(height: AppSpacing.md),
@@ -359,6 +400,94 @@ class _CarteDescente extends StatelessWidget {
                 cle: Key('sync-ecran-refus-descente-$i'),
                 couleur: AppColors.erreur,
               ),
+        ],
+      ),
+    );
+  }
+}
+
+/* ==================================================================== */
+/* Contrôle de cohérence (P1-1)                                          */
+/* ==================================================================== */
+
+/// « Ce poste a tout reçu jusqu'au … » — le contrôle P1-1 de la
+/// spécification : les comptes du serveur, par table et par jour, contre
+/// ceux de ce poste. Lecture seule ; lancé à la demande (il exige le
+/// serveur).
+class _CarteCoherence extends ConsumerStatefulWidget {
+  const _CarteCoherence();
+
+  @override
+  ConsumerState<_CarteCoherence> createState() => _EtatCarteCoherence();
+}
+
+class _EtatCarteCoherence extends ConsumerState<_CarteCoherence> {
+  IssueCoherence? _issue;
+  bool _enCours = false;
+
+  Future<void> _controler() async {
+    setState(() => _enCours = true);
+    final issue = await ref
+        .read(controleCoherenceProvider)
+        .controler(aujourdHui: DateTime.now());
+    if (mounted) {
+      setState(() {
+        _issue = issue;
+        _enCours = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final issue = _issue;
+    return CarteTransverse(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _titreSection(TextesEcranSynchronisation.sectionCoherence),
+          _ligneTexte(TextesEcranSynchronisation.coherenceExplication),
+          const SizedBox(height: AppSpacing.xs),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: BoutonStandard(
+              key: const Key('sync-ecran-controler'),
+              libelle: TextesEcranSynchronisation.controler,
+              variante: VarianteBouton.secondaire,
+              onPressed: _enCours ? null : _controler,
+            ),
+          ),
+          if (issue != null) ...[
+            const SizedBox(height: AppSpacing.xs),
+            ...switch (issue) {
+              CoherenceIndisponible(:final raison) => [
+                _ligneTexte(
+                  raison,
+                  cle: const Key('sync-ecran-coherence-indisponible'),
+                  couleur: AppColors.erreur,
+                ),
+              ],
+              CoherenceMesuree() => [
+                _ligneTexte(
+                  TextesEcranSynchronisation.coherenceBilan(issue),
+                  cle: const Key('sync-ecran-coherence-bilan'),
+                  poids: FontWeight.w600,
+                  couleur: issue.ecarts.isEmpty
+                      ? AppColors.succes
+                      : AppColors.erreur,
+                ),
+                for (final (i, e) in issue.ecarts.indexed)
+                  _ligneTexte(
+                    TextesEcranSynchronisation.ecart(e),
+                    cle: Key('sync-ecran-ecart-$i'),
+                  ),
+                if (issue.enAttente > 0)
+                  _ligneTexte(
+                    TextesEcranSynchronisation.ecartsEnAttente(issue.enAttente),
+                  ),
+              ],
+            },
+          ],
         ],
       ),
     );

@@ -90,6 +90,9 @@ void main() {
       'statut': statutVente,
       'motif_annulation': null,
       'annulee_at': null,
+      // Lot P1-1 : la date MÉTIER (`created_at`) précède la réception au
+      // serveur (`date_creation`) d'une vente faite hors ligne.
+      'created_at': '2026-10-15 09:05:00',
       'date_creation': '2026-10-15 09:30:00',
       'lignes': [
         {
@@ -249,6 +252,7 @@ void main() {
     final v = paniers.singleWhere((p) => p.id == 'v-1');
     expect(v.sessionEncaissementId, 'sess-1');
     expect(v.montantCloture, 3000);
+    expect(v.clotureLe, DateTime(2026, 10, 15, 9, 5), reason: 'date métier');
     expect(v.clientNom, 'Table 4');
     expect(v.tableId, isNull, reason: 'table inconnue du plan de ce poste');
     expect(v.lignes.single.libelle, 'Béninoise 65cl');
