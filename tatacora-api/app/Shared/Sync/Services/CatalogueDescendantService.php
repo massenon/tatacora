@@ -155,6 +155,17 @@ class CatalogueDescendantService
         // Audit de couverture (18/10/2026) : le parc M8 et ses contrats.
         'vehicules' => ['immatriculation', 'categorie', 'annee', 'transmission', 'capacite', 'tarif_jour', 'statut'],
         'contrats_location' => ['vehicule_id', 'client_id', 'guide_id', 'date_debut', 'date_fin', 'numero', 'statut', 'montant'],
+        // Audit de couverture (18/10/2026) : M13 — le référentiel des services,
+        // le dossier des employés, puis la paie.
+        'services' => ['libelle'],
+        'employes' => [
+            'matricule', 'nom', 'prenom', 'poste', 'service_id', 'date_embauche', 'numero_cnss', 'type_contrat',
+            'date_fin_contrat', 'salaire_base', 'statut',
+        ],
+        'bulletins_paie' => [
+            'numero', 'employe_id', 'periode', 'salaire_base', 'total_primes', 'total_retenues', 'cnss_salarie', 'its',
+            'charges_patronales_confirmees', 'net_a_payer', 'statut', 'motif_annulation',
+        ],
         'centres_cout' => ['libelle', 'type'],
     ];
 
@@ -170,6 +181,9 @@ class CatalogueDescendantService
         // Lot F4 : descendus avant d'avoir leur gestionnaire de montée (le
         // règlement fournisseur a le sien depuis l'audit du 18/10/2026).
         'mouvements_stock' => 'M6',
+        // Audit de couverture : le référentiel des services RH n'a pas
+        // d'écrivain (semé des deux côtés) ; il se lit sous M13.
+        'services' => 'M13',
         // Lot F5c : l'avoir n'a pas de gestionnaire (il naît de l'annulation
         // d'une facture), il se lit sous le module de la facturation.
         'avoirs' => 'M2',

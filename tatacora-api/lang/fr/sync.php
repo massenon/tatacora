@@ -90,6 +90,11 @@ return [
         'inconnu' => 'Contrat refusé : le véhicule n\'est pas connu du serveur (pas encore reçu, ou refusé).',
         'client_inconnu' => 'Contrat refusé : le client n\'est pas connu du serveur (pas encore reçu, ou refusé).',
     ],
+    'rh' => [
+        'service_inconnu' => 'Employé refusé : le service « :libelle » n\'existe pas au serveur.',
+        'employe_inconnu' => 'Bulletin refusé : l\'employé n\'est pas connu du serveur (pas encore reçu, ou refusé).',
+        'champ_non_modifiable' => 'Champ(s) d\'employé non synchronisable(s) : :champs.',
+    ],
     'paiements' => [
         'facture_inconnue' => 'Encaissement refusé : la facture n\'est pas connue du serveur (pas encore reçue, ou refusée).',
     ],

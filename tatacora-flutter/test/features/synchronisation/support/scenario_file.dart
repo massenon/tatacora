@@ -31,6 +31,7 @@ import 'package:tatacora_flutter/features/pos/domain/entities/article_vendable.d
 import 'package:tatacora_flutter/features/pos/domain/entities/panier.dart';
 import 'package:tatacora_flutter/features/pos/domain/entities/reference_catalogue.dart';
 import 'package:tatacora_flutter/features/restaurant/data/restaurant_dao.dart';
+import 'package:tatacora_flutter/features/rh/data/employe_dao.dart';
 import 'package:tatacora_flutter/features/restaurant/domain/entities/plat.dart';
 import 'package:tatacora_flutter/features/stocks/data/stocks_dao.dart';
 import 'package:tatacora_flutter/features/stocks/domain/entities/etat_stock.dart';
@@ -78,6 +79,7 @@ final class ScenarioFile {
   late String tableR2;
   late String reglement;
   late String vehicule;
+  late String employe;
   late String contrat;
   late String venteSejour;
   late String facture;
@@ -463,6 +465,21 @@ Future<ScenarioFile> jouerJourneeComplete(AppDatabase db) async {
       pieceIdentite: 'CNI-F1-001',
       permisConduire: 'P-F1-001',
     ),
+  )).id;
+
+  // M13 (audit de couverture) : un employé entre au dossier.
+  final rh = EmployeDao(db);
+  await rh.installerServices();
+  final hebergement = (await db.select(db.servicesRhLocal).get()).firstWhere(
+    (x) => x.libelle == 'Hébergement',
+  );
+  s.employe = (await rh.creer(
+    nom: 'HOUNSOU',
+    prenom: 'Marceline',
+    poste: 'Réceptionniste',
+    serviceId: hebergement.id,
+    dateEmbauche: DateTime(2023, 2, 1),
+    salaireBase: 150000,
   )).id;
 
   // M1 + POS hébergés (lot F5) : le client arrive, dîne sur la note de

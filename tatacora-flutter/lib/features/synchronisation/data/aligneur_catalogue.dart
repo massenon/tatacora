@@ -113,7 +113,10 @@ class AligneurCatalogue {
       TableDescendue.guides ||
       TableDescendue.reservationsTour ||
       TableDescendue.vehicules ||
-      TableDescendue.contratsLocation => alignerDocument(idLocal, e),
+      TableDescendue.contratsLocation ||
+      TableDescendue.servicesRh ||
+      TableDescendue.employes ||
+      TableDescendue.bulletinsPaie => alignerDocument(idLocal, e),
       TableDescendue.centresCout => _centre(e),
     };
   }

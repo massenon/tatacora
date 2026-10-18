@@ -193,7 +193,7 @@ class BulletinPaieService
      * @throws RuntimeException référentiel incomplet, période mal formée,
      *                          salarié parti, ou barème ITS dépassé
      */
-    public function etablirBulletin(Employe $employe, string $periode): BulletinPaie
+    public function etablirBulletin(Employe $employe, string $periode, ?string $id = null): BulletinPaie
     {
         $this->exigerPeriode($periode);
 
@@ -216,7 +216,7 @@ class BulletinPaieService
         $retenues = $this->calcul->retenuesSalariales($brut);
         $patronales = $this->calcul->chargesPatronalesConfirmees($brut);
 
-        return DB::transaction(function () use ($employe, $periode, $brut, $retenues, $patronales): BulletinPaie {
+        return DB::transaction(function () use ($employe, $periode, $brut, $retenues, $patronales, $id): BulletinPaie {
             $existant = BulletinPaie::query()
                 ->where('employe_id', $employe->getKey())
                 ->where('periode', $periode)
@@ -228,6 +228,8 @@ class BulletinPaieService
             }
 
             return BulletinPaie::create([
+                // Audit de couverture (18/10/2026) : l'UUID du poste.
+                ...($id !== null ? ['id' => $id] : []),
                 'numero' => $this->numeroSuivant($periode),
                 'employe_id' => $employe->getKey(),
                 'periode' => $periode,

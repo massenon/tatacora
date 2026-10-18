@@ -74,6 +74,13 @@ class AnomalieSynchronisation extends Model
     public const VEHICULE_SANS_ANNEE = 'vehicule_sans_annee';
 
     /**
+     * Audit de couverture (18/10/2026) : le bulletin établi au serveur (son
+     * barème, ses paramètres) n'a pas le net à payer que le poste avait
+     * calculé. Le serveur fait foi ; l'écart est signalé, jamais aplani.
+     */
+    public const BULLETIN_ECART_NET = 'bulletin_ecart_net';
+
+    /**
      * Lot F5d (17/10/2026) : un poste a encaissé une facture que le serveur
      * n'a pas certifiée (la certification n'est pas lancée, PA-17). L'argent
      * est réel : le paiement est enregistré, et c'est signalé ici.

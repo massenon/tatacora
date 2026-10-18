@@ -683,3 +683,51 @@ Map<String, Object?> chargeContratLocation({
   'piece_identite': pieceIdentite,
   'permis_conduire': permisConduire,
 };
+
+/* ==================================================================== */
+/* RH et paie (audit de couverture, 18/10/2026)                           */
+/* ==================================================================== */
+
+/// `employes` (création, ou les champs d'une modification) —
+/// `GestionnaireEmployes`. Le service part par identifiant ET libellé (le
+/// référentiel est semé des deux côtés) ; le salaire en francs entiers ; le
+/// matricule ne part pas (c'est celui du serveur qui revient).
+Map<String, Object?> chargeEmploye({
+  required String nom,
+  required String prenom,
+  required String poste,
+  required String serviceId,
+  required String serviceLibelle,
+  required DateTime dateEmbauche,
+  required int salaireBase,
+  required DateTime? dateFinContrat,
+  required String? numeroCnss,
+  required String? typeContrat,
+  required String statut,
+}) => {
+  'nom': nom,
+  'prenom': prenom,
+  'poste': poste,
+  'service_id': serviceId,
+  'service_libelle': serviceLibelle,
+  'date_embauche': jourIso(dateEmbauche),
+  'salaire_base': salaireBase,
+  'numero_cnss': numeroCnss,
+  'type_contrat': typeContrat,
+  'date_fin_contrat': dateFinContrat == null ? null : jourIso(dateFinContrat),
+  'statut': statut,
+};
+
+/// `bulletins_paie` (création) : le serveur RECALCULE avec son barème ; le
+/// net du poste part pour la comparaison (un écart est signalé).
+Map<String, Object?> chargeBulletinPaie({
+  required String employeId,
+  required String periode,
+  required int netAPayer,
+}) => {'employe_id': employeId, 'periode': periode, 'net_a_payer': netAPayer};
+
+/// `bulletins_paie`, ANNULATION (la seule modification).
+Map<String, Object?> chargeAnnulationBulletin({required String motif}) => {
+  'statut': 'annulee',
+  'motif': motif,
+};

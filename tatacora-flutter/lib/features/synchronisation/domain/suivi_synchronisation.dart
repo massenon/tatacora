@@ -144,6 +144,9 @@ const Map<String, String> libellesAnomalies = {
   'vehicule_sans_annee':
       'Véhicule créé sur ce poste sans année ni capacité : enregistré avec '
       'l\'année 0 au serveur, à compléter',
+  'bulletin_ecart_net':
+      'Bulletin recalculé au serveur avec un net différent de celui du poste '
+      ': le serveur fait foi',
   'paiement_facture_non_certifiee':
       'Encaissement d\'une facture non certifiée au serveur : enregistré, la '
       'certification MECeF n\'est pas lancée',

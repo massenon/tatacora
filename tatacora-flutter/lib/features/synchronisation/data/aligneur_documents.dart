@@ -48,6 +48,9 @@ extension _AlignementDocuments on AligneurCatalogue {
         TableDescendue.reservationsTour => _reservationTour(id, e),
         TableDescendue.vehicules => _vehicule(id, e),
         TableDescendue.contratsLocation => _contratLocation(id, e),
+        TableDescendue.servicesRh => _serviceRh(id, e),
+        TableDescendue.employes => _employe(id, e),
+        TableDescendue.bulletinsPaie => _bulletin(id, e),
         _ => throw StateError('${e.table} n’est pas un document'),
       };
 
@@ -688,6 +691,181 @@ extension _AlignementDocuments on AligneurCatalogue {
             statutSync: const Value('synchronise'),
           ),
         );
+    await _retenirOrigine(e, id);
+    return const Aligne();
+  }
+
+  /* ================================================================== */
+  /* RH et paie — audit de couverture (18/10/2026)                       */
+  /* ================================================================== */
+
+  /// Un service RH du serveur : reconnu par son LIBELLÉ (le référentiel est
+  /// semé des deux côtés), jamais doublé.
+  Future<IssueAlignement> _serviceRh(String id, ElementCatalogue e) async {
+    final libelle = AligneurCatalogue._texte(e.donnees['libelle']);
+    if (libelle == null) return const RefuseParLePoste('service sans libellé');
+    final t = _db.servicesRhLocal;
+    if (await _existe(t, id)) return const Aligne();
+    final local = await (_db.select(
+      t,
+    )..where((s) => s.libelle.equals(libelle))).getSingleOrNull();
+    if (local != null) {
+      await _dao.retenirCorrespondance(
+        table: e.table.nomServeur,
+        idServeur: e.id,
+        idLocal: local.id,
+        origine: 'libelle',
+      );
+      return const Aligne();
+    }
+    await _db
+        .into(t)
+        .insert(ServicesRhLocalCompanion.insert(id: id, libelle: libelle));
+    return const Aligne();
+  }
+
+  static const _typesContrat = {'CDI', 'CDD', 'Stage', 'Journalier'};
+  static const _statutsEmploye = {'actif', 'conge', 'suspendu', 'parti'};
+
+  /// Un employé du serveur (dernier écrit gagnant ; une retouche locale en
+  /// attente est conservée par la règle commune). Le matricule du serveur
+  /// fait foi — celui d'un dossier de CE poste est régularisé.
+  Future<IssueAlignement> _employe(String id, ElementCatalogue e) async {
+    final d = e.donnees;
+    final matricule = AligneurCatalogue._texte(d['matricule']);
+    final nom = AligneurCatalogue._texte(d['nom']);
+    final poste = AligneurCatalogue._texte(d['poste']);
+    final serviceServeur = AligneurCatalogue._texte(d['service_id']);
+    final salaire = entierDepuisDecimal(d['salaire_base'], 0);
+    final statut = AligneurCatalogue._texte(d['statut']);
+    final type = AligneurCatalogue._texte(d['type_contrat']);
+    if (matricule == null ||
+        nom == null ||
+        poste == null ||
+        serviceServeur == null ||
+        salaire == null ||
+        !_statutsEmploye.contains(statut) ||
+        (type != null && !_typesContrat.contains(type))) {
+      return const RefuseParLePoste('employé incomplet (ou fraction de franc)');
+    }
+    final DateTime embauche;
+    final DateTime? fin;
+    try {
+      embauche = _jourLocal(d['date_embauche']);
+      fin = d['date_fin_contrat'] == null
+          ? null
+          : _jourLocal(d['date_fin_contrat']);
+    } on FormatException {
+      return const RefuseParLePoste('dates d’employé illisibles');
+    }
+    final service = await _cite(
+      TableDescendue.servicesRh,
+      serviceServeur,
+      _db.servicesRhLocal,
+    );
+    if (service == null) {
+      return const EnAttenteDeDependance('service pas encore reçu');
+    }
+    final valeurs = EmployesLocalCompanion(
+      matricule: Value(matricule),
+      nom: Value(nom),
+      prenom: Value(AligneurCatalogue._texte(d['prenom']) ?? ''),
+      poste: Value(poste),
+      serviceId: Value(service),
+      dateEmbauche: Value(embauche),
+      dateFinContrat: Value(fin),
+      numeroCnss: Value(AligneurCatalogue._texte(d['numero_cnss'])),
+      typeContrat: Value(type),
+      salaireBase: Value(salaire),
+      statut: Value(statut!),
+    );
+    final t = _db.employesLocal;
+    if (await _existe(t, id)) {
+      await (_db.update(t)..where((x) => x.id.equals(id))).write(valeurs);
+      return const Aligne();
+    }
+    await _db.into(t).insert(valeurs.copyWith(id: Value(id)));
+    await _retenirOrigine(e, id);
+    return const Aligne();
+  }
+
+  /// Un bulletin du serveur (recalculé avec son barème) : il fait foi — numéro,
+  /// montants et statut d'un bulletin DÉTENU suivent ; un nouveau est inscrit.
+  Future<IssueAlignement> _bulletin(String id, ElementCatalogue e) async {
+    final d = e.donnees;
+    final numero = AligneurCatalogue._texte(d['numero']);
+    final periode = AligneurCatalogue._texte(d['periode']);
+    final employeServeur = AligneurCatalogue._texte(d['employe_id']);
+    final statut = AligneurCatalogue._texte(d['statut']);
+    final montants = [
+      for (final c in const [
+        'salaire_base',
+        'total_primes',
+        'total_retenues',
+        'cnss_salarie',
+        'its',
+        'charges_patronales_confirmees',
+        'net_a_payer',
+      ])
+        entierDepuisDecimal(d[c], 0),
+    ];
+    if (numero == null ||
+        periode == null ||
+        employeServeur == null ||
+        !{'brouillon', 'validee', 'annulee'}.contains(statut) ||
+        montants.contains(null)) {
+      return const RefuseParLePoste(
+        'bulletin incomplet (ou fraction de franc)',
+      );
+    }
+    final valeurs = BulletinsPaieLocalCompanion(
+      numero: Value(numero),
+      periode: Value(periode),
+      salaireBase: Value(montants[0]!),
+      totalPrimes: Value(montants[1]!),
+      totalRetenues: Value(montants[2]!),
+      cnssSalarie: Value(montants[3]!),
+      its: Value(montants[4]!),
+      chargesPatronalesConfirmees: Value(montants[5]!),
+      netAPayer: Value(montants[6]!),
+      statut: Value(statut!),
+      motifAnnulation: Value(AligneurCatalogue._texte(d['motif_annulation'])),
+    );
+    final t = _db.bulletinsPaieLocal;
+    if (await _existe(t, id)) {
+      await (_db.update(t)..where((x) => x.id.equals(id))).write(valeurs);
+      return const Aligne();
+    }
+    final employe = await _cite(
+      TableDescendue.employes,
+      employeServeur,
+      _db.employesLocal,
+    );
+    if (employe == null) {
+      return const EnAttenteDeDependance('employé pas encore reçu');
+    }
+    // Un bulletin du même employé et du même mois existe ici (établi avant
+    // la fusion) : c'est le même — il prend les valeurs du serveur.
+    final jumeau =
+        await (_db.select(t)..where(
+              (x) => x.employeId.equals(employe) & x.periode.equals(periode),
+            ))
+            .getSingleOrNull();
+    if (jumeau != null) {
+      await _dao.retenirCorrespondance(
+        table: e.table.nomServeur,
+        idServeur: e.id,
+        idLocal: jumeau.id,
+        origine: 'libelle',
+      );
+      await (_db.update(
+        t,
+      )..where((x) => x.id.equals(jumeau.id))).write(valeurs);
+      return const Aligne();
+    }
+    await _db
+        .into(t)
+        .insert(valeurs.copyWith(id: Value(id), employeId: Value(employe)));
     await _retenirOrigine(e, id);
     return const Aligne();
   }

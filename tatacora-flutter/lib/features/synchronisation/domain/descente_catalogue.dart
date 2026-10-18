@@ -88,6 +88,11 @@ enum TableDescendue {
   vehicules('vehicules', TableSynchronisee.vehicules),
   contratsLocation('contrats_location', TableSynchronisee.contratsLocation),
 
+  /// Audit de couverture (18/10/2026) : M13.
+  servicesRh('services', null),
+  employes('employes', TableSynchronisee.employes),
+  bulletinsPaie('bulletins_paie', TableSynchronisee.bulletinsPaie),
+
   /// Descendue sans être synchronisable : le poste ne pousse pas ses centres.
   centresCout('centres_cout', null);
 
@@ -141,6 +146,9 @@ String libelleTableServeur(String nom) => switch (nom) {
   'sejours' => 'Séjours (arrivées et départs)',
   'vehicules' => 'Véhicules',
   'contrats_location' => 'Contrats de location',
+  'services' => 'Services (RH)',
+  'employes' => 'Employés',
+  'bulletins_paie' => 'Bulletins de paie',
   _ => nom,
 };
 

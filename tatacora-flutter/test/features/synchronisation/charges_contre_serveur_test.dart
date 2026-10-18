@@ -117,6 +117,7 @@ void main() {
       'modification reservations_tour',
       'creation vehicules',
       'creation contrats_location',
+      'creation employes',
       'creation sejours',
       'creation ventes',
       'modification sejours',
@@ -200,6 +201,15 @@ void main() {
       ),
       isTrue,
     );
+  });
+
+  test('M13 (audit) : l’employé entre au dossier par EmployeService, le '
+      'serveur rend SON matricule', () {
+    final r = resultatDe('employes', 'creation', s.employe);
+    expect(r['statut'], 'synchronise', reason: '$r');
+    expect('${r['matricule']}', isNotEmpty);
+    final ecrit = serveur('employes', s.employe);
+    expect((ecrit['nom'], ecrit['salaire_base']), ('HOUNSOU', '150000.00'));
   });
 
   test('règlement fournisseur (audit) : écrit par le service, à la date du '

@@ -72,7 +72,12 @@ enum TableSynchronisee {
   /// Audit de couverture (18/10/2026) : le parc M8 (retouches et statut par
   /// ses gestes), puis les contrats (création seule, RG-08 au serveur).
   vehicules('vehicules', accepteModification: true),
-  contratsLocation('contrats_location', accepteModification: false);
+  contratsLocation('contrats_location', accepteModification: false),
+
+  /// Audit de couverture (18/10/2026) : M13 — le dossier (matricule du
+  /// serveur), puis le bulletin (recalculé au serveur ; l'annulation).
+  employes('employes', accepteModification: true),
+  bulletinsPaie('bulletins_paie', accepteModification: true);
 
   const TableSynchronisee(this.nomServeur, {required this.accepteModification});
 

@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import '../../facturation/data/facture_dao.dart';
+import '../../rh/data/employe_dao.dart';
+import '../../rh/data/paie_dao.dart';
 import '../../transverse/data/configuration_poste.dart';
 import '../domain/bilan_synchronisation.dart';
 import '../domain/descente_catalogue.dart';
@@ -397,6 +399,25 @@ class SyncManager {
     );
     if (statut == 'synchronise' && o.table == TableSynchronisee.factures) {
       await _regulariserFacture(o, resultat);
+    }
+    // Audit de couverture (18/10/2026) : le matricule et le numéro de
+    // bulletin attribués par le serveur remplacent ceux du poste.
+    final matricule = resultat['matricule'];
+    if (statut == 'synchronise' &&
+        o.table == TableSynchronisee.employes &&
+        matricule is String) {
+      await EmployeDao(
+        _dao.attachedDatabase,
+      ).regulariserMatricule(o.entiteId, matricule);
+    }
+    final numeroBulletin = resultat['numero'];
+    if (statut == 'synchronise' &&
+        o.table == TableSynchronisee.bulletinsPaie &&
+        resultat['fusionne_avec'] == null &&
+        numeroBulletin is String) {
+      await PaieDao(
+        _dao.attachedDatabase,
+      ).regulariserNumero(o.entiteId, numeroBulletin);
     }
     c.traites.add(o.uuidOperation);
     c.envoyees++;
