@@ -205,6 +205,14 @@ void main() {
         'panier_dao.dart',
         'reglements_fournisseur_dao.dart',
         'reservation_dao.dart',
+        // Lot F6 (18/10/2026) : la descente TRANSMET le moteur aux DAO de la
+        // vente et de l'encaissement, pour la seule contre-passation de la
+        // pièce d'un document de CE poste que le serveur a annulé
+        // (`annulations_serveur_test.dart`). Elle ne passe aucune pièce
+        // elle-même : le miroir (`aligneur_documents.dart`) ne nomme pas le
+        // moteur (cas ci-dessous).
+        'descente_catalogue.dart',
+        'aligneur_catalogue.dart',
       });
       expect(qui('moteurComptableProvider'), {
         'providers_achats.dart',
@@ -213,6 +221,8 @@ void main() {
         'providers_paiements.dart',
         'providers_pos.dart',
         'providers_hebergement.dart',
+        // Lot F6 : la descente reçoit le moteur de production (voir plus haut).
+        'providers_synchronisation.dart',
         // Lot J1 (1/4, 14/10/2026) : la modale « Passer une écriture » du hub
         // Comptabilité — l'écriture MANUELLE, comme la modale de la vue
         // (`comptabilite/hub.blade.php` l.292). Ce n'est pas un mouvement

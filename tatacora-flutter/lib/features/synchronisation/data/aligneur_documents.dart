@@ -305,7 +305,21 @@ extension _AlignementDocuments on AligneurCatalogue {
   /// déjà présente n'est pas réécrite (cycle de vie : lot F6).
   Future<IssueAlignement> _vente(String id, ElementCatalogue e) async {
     final d = e.donnees;
-    if (await _existe(_db.paniersLocal, id)) return const Aligne();
+    if (await _existe(_db.paniersLocal, id)) {
+      // Lot F6 : une vente ANNULÉE au serveur (à la PWA) — celle de CE poste
+      // contre-passe sa pièce ici (le DAO du comptoir s'en charge) ; celle
+      // d'un autre poste, sans pièce locale, suit en statut.
+      if (AligneurCatalogue._texte(d['statut']) == 'annulee') {
+        final auteur = await _auteurOuAttente();
+        if (auteur == null) return AligneurCatalogue._sansAuteur;
+        await PanierDao(_db, moteur: _moteur).suivreAnnulationDuServeur(
+          id,
+          motif: AligneurCatalogue._texte(d['motif_annulation']),
+          auteurId: auteur,
+        );
+      }
+      return const Aligne();
+    }
     final mode = AligneurCatalogue._texte(d['mode_paiement']);
     final noteChambre = mode == 'note_chambre';
     if (!noteChambre && !_modesComptant.contains(mode)) {
@@ -838,7 +852,7 @@ extension _AlignementDocuments on AligneurCatalogue {
     } on FormatException {
       return const RefuseParLePoste('date d’annulation illisible');
     }
-    final paiements = PaiementsFactureDao(_db);
+    final paiements = PaiementsFactureDao(_db, moteur: _moteur);
     if (await _existe(_db.paiementsFactureLocal, id)) {
       if (statut == StatutPaiementFacture.annule) {
         final auteur = await _auteurOuAttente();

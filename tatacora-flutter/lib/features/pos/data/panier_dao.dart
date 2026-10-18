@@ -688,6 +688,41 @@ class PanierDao extends DatabaseAccessor<AppDatabase> with _$PanierDaoMixin {
   /* Gardes internes                                                     */
   /* ================================================================== */
 
+  /// Lot F6 (18/10/2026) : la vente de CE poste, ANNULÉE au serveur
+  /// (`VenteService::annuler`, à la PWA). Le panier clôturé devient annulé,
+  /// et sa pièce `VTE` locale est CONTRE-PASSÉE en entier dans la même
+  /// transaction — le journal du poste ne garde pas une vente que le serveur
+  /// a défaite. Rejeu : déjà annulée, rien ne bouge. Appelé par la descente.
+  Future<void> suivreAnnulationDuServeur(
+    String panierId, {
+    required String? motif,
+    required String auteurId,
+  }) => transaction(() async {
+    final entete = await (select(
+      paniersLocal,
+    )..where((p) => p.id.equals(panierId))).getSingleOrNull();
+    if (entete == null || entete.statut != StatutPanier.cloture.code) return;
+    final lignes = await ComptabiliteDao(
+      attachedDatabase,
+    ).lignesParLibelle(libelleDeLaPiece(panierId));
+    final motifNet = (motif == null || motif.trim().isEmpty)
+        ? 'Annulée au serveur'
+        : motif.trim();
+    if (lignes.isNotEmpty) {
+      await (await _moteurObligatoire()).contrepasserPiece(
+        lignes,
+        auteurId: auteurId,
+        motif: motifNet,
+      );
+    }
+    await (update(paniersLocal)..where((p) => p.id.equals(panierId))).write(
+      PaniersLocalCompanion(
+        statut: Value(StatutPanier.annule.code),
+        motifAnnulation: Value(motifNet),
+      ),
+    );
+  });
+
   /// Lot F6 : la fermeture de l'addition d'une TABLE part, si son ouverture
   /// est partie (le serveur arbitre l'occupation). Dans la transaction.
   Future<void> _libererLaTable(String panierId, String? tableId) async {

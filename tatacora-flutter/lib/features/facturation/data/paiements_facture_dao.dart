@@ -461,16 +461,32 @@ class PaiementsFactureDao extends DatabaseAccessor<AppDatabase>
   );
 
   /// Un encaissement déjà détenu, ANNULÉ au serveur : l'état suit, jamais
-  /// à rebours (un paiement annulé ne redevient pas actif). Aucune
-  /// contre-passation ici : la pièce de ce poste, s'il l'a passée, reste
-  /// — écart nommé, l'annulation d'un document d'un autre poste relève du
-  /// lot F6 (Q3 : l'administration et le comptable).
+  /// à rebours (un paiement annulé ne redevient pas actif). Lot F6
+  /// (18/10/2026) : si c'est un encaissement de CE poste, sa pièce locale
+  /// (Dr trésorerie / Cr 4111) est CONTRE-PASSÉE en entier dans la même
+  /// transaction — le journal du poste ne garde pas un argent que le serveur
+  /// a rendu. Un encaissement descendu d'un autre poste n'a pas de pièce ici
+  /// (Q1) : seul l'état suit.
   Future<void> suivreAnnulationDescendue({
     required String id,
     required String? motif,
     required DateTime? date,
     required String auteurId,
-  }) async {
+  }) => transaction(() async {
+    final paiement = await parId(id);
+    if (paiement == null || paiement.statut == StatutPaiementFacture.annule) {
+      return;
+    }
+    final lignes = await ComptabiliteDao(
+      attachedDatabase,
+    ).lignesParSuffixeLibelle(' — $id', prefixe: 'Encaissement ');
+    if (lignes.isNotEmpty) {
+      await (await _moteurObligatoire()).contrepasserPiece(
+        lignes,
+        auteurId: auteurId,
+        motif: motif ?? 'Annulé au serveur',
+      );
+    }
     await (update(_paiements)..where(
           (p) =>
               p.id.equals(id) &
@@ -484,5 +500,5 @@ class PaiementsFactureDao extends DatabaseAccessor<AppDatabase>
             dateAnnulation: Value(date ?? _maintenant()),
           ),
         );
-  }
+  });
 }

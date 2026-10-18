@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../../../core/database/app_database.dart';
+import '../../comptabilite/data/moteur_comptable.dart';
 import '../../transverse/data/configuration_poste.dart';
 import '../domain/bilan_synchronisation.dart';
 import '../domain/descente_catalogue.dart';
@@ -52,7 +53,14 @@ class DescenteCatalogue {
     this.limite = 200,
     this.maxPages = 500,
     this.avantCurseur,
+    this.moteur,
   }) : _maintenant = maintenant ?? DateTime.now;
+
+  /// Lot F6 (18/10/2026) : le moteur comptable du poste, pour la SEULE
+  /// contre-passation de la pièce d'un document de CE poste que le serveur
+  /// a annulé (vente, encaissement, règlement). Un document descendu d'un
+  /// autre poste n'a pas de pièce ici (Q1) : rien n'est passé pour lui.
+  final Future<MoteurComptable> Function()? moteur;
 
   final AppDatabase _db;
   final TransportSynchronisation _transport;
@@ -80,6 +88,7 @@ class DescenteCatalogue {
     _dao,
     auteur: _auteur,
     maintenant: _maintenant,
+    moteur: moteur,
   );
 
   /// Descend le catalogue. Ne lève jamais. [surRefus] consigne un 401/403.

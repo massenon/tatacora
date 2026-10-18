@@ -2,7 +2,9 @@ import 'package:drift/drift.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../achats/domain/entities/fournisseur.dart';
+import '../../comptabilite/data/moteur_comptable.dart';
 import '../../facturation/data/facture_dao.dart';
+import '../../pos/data/panier_dao.dart';
 import '../../facturation/data/paiements_facture_dao.dart';
 import '../../facturation/domain/entities/paiement_facture.dart';
 import '../../facturation/domain/entities/piece_facturation.dart';
@@ -54,7 +56,12 @@ class AligneurCatalogue {
     this._dao, {
     required this._auteur,
     DateTime Function()? maintenant,
+    this._moteur,
   }) : _maintenant = maintenant ?? DateTime.now;
+
+  /// Lot F6 : voir `DescenteCatalogue.moteur` — remis aux DAO qui
+  /// contre-passent la pièce d'un document de CE poste annulé au serveur.
+  final Future<MoteurComptable> Function()? _moteur;
 
   final AppDatabase _db;
   final DescenteCatalogueDao _dao;

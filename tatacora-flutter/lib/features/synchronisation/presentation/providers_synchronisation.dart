@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../comptabilite/presentation/providers_comptabilite.dart';
 import '../../../core/config/environnement.dart';
 import '../../../core/di/providers.dart';
 import '../../transverse/data/configuration_poste.dart';
@@ -118,6 +119,9 @@ final descenteCatalogueProvider = Provider<DescenteCatalogue>((ref) {
       }
       return connecte ?? await dao.auteurParDefaut();
     },
+    // Lot F6 : la contre-passation d'un document de CE poste annulé au
+    // serveur passe par le moteur de production.
+    moteur: () => ref.read(moteurComptableProvider.future),
   );
 });
 
