@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:tatacora_flutter/core/database/app_database.dart';
+import 'package:tatacora_flutter/core/rbac/garde_acces.dart';
 import 'package:tatacora_flutter/features/achats/data/achats_dao.dart';
 import 'package:tatacora_flutter/features/achats/data/reglements_fournisseur_dao.dart';
 import 'package:tatacora_flutter/features/achats/domain/entities/bon_reception.dart';
@@ -24,6 +25,7 @@ import 'package:tatacora_flutter/features/hebergement/domain/entities/periode_se
 import 'package:tatacora_flutter/features/hebergement/data/sejour_dao.dart';
 import 'package:tatacora_flutter/features/hebergement/domain/usecases/creer_reservation.dart';
 import 'package:tatacora_flutter/features/hebergement/domain/usecases/modifier_reservation.dart';
+import 'package:tatacora_flutter/features/parametres/data/parametres_depot_local.dart';
 import 'package:tatacora_flutter/features/pos/data/catalogue_dao.dart';
 import 'package:tatacora_flutter/features/pos/data/tables_pos_dao.dart';
 import 'package:tatacora_flutter/features/pos/data/dto/catalogue_dto.dart';
@@ -37,6 +39,7 @@ import 'package:tatacora_flutter/features/stocks/data/stocks_dao.dart';
 import 'package:tatacora_flutter/features/stocks/domain/entities/etat_stock.dart';
 import 'package:tatacora_flutter/features/synchronisation/data/operations_sync_dao.dart';
 import 'package:tatacora_flutter/features/tourisme/data/tourisme_dao.dart';
+import 'package:tatacora_flutter/features/transverse/data/roles_dao.dart';
 import 'package:tatacora_flutter/features/vehicules/data/vehicule_dao.dart';
 import 'package:tatacora_flutter/features/vehicules/domain/entities/contrat_location.dart';
 import 'package:tatacora_flutter/features/vehicules/domain/entities/vehicule.dart';
@@ -85,6 +88,7 @@ final class ScenarioFile {
   late String facture;
   late String paiement;
   late String sessionDepart;
+  late String role;
 }
 
 /// Une journée complète du poste, PAR SES VRAIS ÉCRIVAINS — chacun dépose son
@@ -564,6 +568,20 @@ Future<ScenarioFile> jouerJourneeComplete(AppDatabase db) async {
             auteurId: auteurEssai,
           ))
           .id;
+
+  // Lot 10e : un enregistrement de l'écran Paramètres, puis un rôle créé et
+  // sa matrice définie.
+  await ParametresDepotLocal(
+    db,
+  ).ecrire({'tolerance_reception_pct': '3'}, auteurId: null);
+  final roles = RolesDao(db);
+  final administrateur = GardeAcces(const {'ROLES': 'C'});
+  s.role = await roles.creerRole(auteur: administrateur, libelle: 'Économe');
+  await roles.definirDroits(
+    auteur: administrateur,
+    roleId: s.role,
+    niveaux: {ModuleTatacora.m6Stocks: NiveauAcces.complet},
+  );
 
   return s;
 }

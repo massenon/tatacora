@@ -1,9 +1,13 @@
 import '../../../core/database/app_database.dart';
 import '../../rh/data/paie_dao.dart';
 import '../../rh/domain/entities/taux_paie.dart';
+import '../../synchronisation/data/operations_sync_dao.dart';
+import '../../synchronisation/domain/charges_synchronisation.dart';
+import '../../synchronisation/domain/operation_sync.dart';
 import '../domain/enregistrer_parametres.dart';
 import '../domain/registre_parametres_local.dart';
 import 'parametres_dao.dart';
+import 'package:uuid/uuid.dart';
 
 /// Le stockage LOCAL des paramètres — deux tables, un seul registre.
 ///
@@ -106,7 +110,35 @@ final class ParametresDepotLocal implements StockageParametres {
       modifiees.addAll(
         await _parametres.ecrire(ordinaires, auteurId: auteurId),
       );
+      // Lot 10e : UN enregistrement part au serveur — les clés réellement
+      // modifiées, en lot (la cohérence s'y juge sur l'état résultant).
+      if (modifiees.isNotEmpty) {
+        await OperationsSyncDao(_base).enfiler(
+          table: TableSynchronisee.parametresSysteme,
+          entiteId: const Uuid().v4(),
+          type: TypeOperationSync.creation,
+          payload: chargeEnregistrementParametres({
+            for (final cle in modifiees) cle: valeurs[cle],
+          }),
+        );
+      }
       return modifiees;
     });
+  }
+
+  /// Une valeur DESCENDUE du serveur (lot 10e), routée comme toute
+  /// écriture — les taux de la paie par `PaieDao`, les autres par
+  /// `ParametresDao` — et jamais renvoyée. `null` (vide au serveur) vide la
+  /// clé. Une clé hors du registre du poste est ignorée : rien ici ne la lit.
+  /// Seul appelant : l'aligneur du catalogue.
+  Future<void> inscrireDescendue(String cle, String? valeur) async {
+    if (RegistreParametresLocal.parCle(cle) == null) return;
+    if (_estDeLaPaie(cle)) {
+      valeur == null
+          ? await _paie.retirerTaux(cle)
+          : await _paie.enregistrerTaux(cle, valeur, duServeur: true);
+      return;
+    }
+    await _parametres.inscrireDescendue(cle, valeur);
   }
 }

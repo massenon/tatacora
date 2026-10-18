@@ -94,7 +94,12 @@ enum TableDescendue {
   bulletinsPaie('bulletins_paie', TableSynchronisee.bulletinsPaie),
 
   /// Descendue sans être synchronisable : le poste ne pousse pas ses centres.
-  centresCout('centres_cout', null);
+  centresCout('centres_cout', null),
+
+  /// Lot 10e (18/10/2026) : le paramétrage (clé par clé) et les rôles avec
+  /// leur matrice — reçus par tout compte qui synchronise.
+  parametresSysteme('parametres_systeme', TableSynchronisee.parametresSysteme),
+  roles('roles', TableSynchronisee.roles);
 
   const TableDescendue(this.nomServeur, this.tableSynchronisee);
 
@@ -149,6 +154,8 @@ String libelleTableServeur(String nom) => switch (nom) {
   'services' => 'Services (RH)',
   'employes' => 'Employés',
   'bulletins_paie' => 'Bulletins de paie',
+  'parametres_systeme' => 'Paramètres',
+  'roles' => 'Rôles et permissions',
   _ => nom,
 };
 

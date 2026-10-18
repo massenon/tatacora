@@ -22,14 +22,22 @@ import 'utilisateurs_table.dart';
 ///    le seul `EnregistrerParametres` (écran Paramètres, droit `PARAM` = `C`),
 ///    et `semerSiAbsentes`, appelé par le seul
 ///    `ParametresDepotLocal.installerParametresInitiaux` (poste vierge, Lot
-///    J2). Aucune migration, aucun autre chemin.
+///    J2), et `inscrireDescendue` (la descente, lot 10e). Aucune migration,
+///    aucun autre chemin.
 ///  * **Qui la lit** : `ParametresDao.lire` pour l'écran, et — module par
 ///    module, chacun l'écrit dans `SpecParametre.lecteur` — les services qui
 ///    consomment une clé. Une clé dont `lecteur` est nul n'est lue par PERSONNE
 ///    à ce jour, et l'écran le dit en toutes lettres.
-///  * **Qui la descend** : personne, et c'est délibéré. Le poste ne parle plus à
-///    aucun serveur (décision « zéro réseau » du 14/09/2026) ; la table n'a ni
-///    `statutSync`, ni file, et aucun écran n'y annonce d'attente.
+///  * **Qui la descend** : depuis le lot 10e (18/10/2026, « tous les
+///    modules »), le flux `parametres_systeme` du serveur, clé par clé, par
+///    l'aligneur du catalogue → `ParametresDepotLocal.inscrireDescendue`
+///    (les taux de la paie routés vers `PaieDao`, les autres vers
+///    `ParametresDao.inscrireDescendue`, sans auteur). Une valeur vide au
+///    serveur SUPPRIME la ligne, comme l'écran.
+///  * **Qui la fait monter** : `ParametresDepotLocal.ecrire`, qui enfile UN
+///    enregistrement (`parametres_systeme`, les clés modifiées) dans sa
+///    transaction. La table n'a toujours pas de `statutSync` : l'attente se
+///    lit dans la file.
 ///
 /// ## Ce qu'elle ne porte JAMAIS
 ///

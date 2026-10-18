@@ -89,11 +89,15 @@ final class RegistreGestionnairesSynchronisationTest extends TestCase
             'commandes_achat', 'bons_reception', 'reglements_fournisseur', 'sessions_caisse', 'tables_salle', 'paniers', 'ventes', 'depenses', 'factures', 'paiements',
             // Tourisme (F4, 17/10/2026) — les définitions avant la réservation.
             'circuits', 'guides', 'reservations_tour', 'vehicules', 'contrats_location', 'employes', 'bulletins_paie',
+            // Lot 10e (18/10/2026) : le paramétrage et les rôles.
+            'parametres_systeme', 'roles',
         ], array_keys($gestionnaires));
 
         foreach ($gestionnaires as $table => $gestionnaire) {
             $this->assertSame($table, $gestionnaire->table());
-            $this->assertMatchesRegularExpression('/^M\d{1,2}$/', $gestionnaire->module(), $table);
+            // Un module métier, ou l'un des deux modules transverses de la
+            // matrice RBAC (lot 10e : `PARAM`, `ROLES`) — jamais vide.
+            $this->assertMatchesRegularExpression('/^(M\d{1,2}|PARAM|ROLES)$/', $gestionnaire->module(), $table);
             $this->assertSame('C', $gestionnaire->niveauRequis(), $table);
             $this->assertTrue(class_exists($gestionnaire->serviceDomaine()), "{$table} : service de domaine inexistant.");
             $this->assertSame(

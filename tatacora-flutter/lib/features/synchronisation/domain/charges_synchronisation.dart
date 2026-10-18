@@ -731,3 +731,26 @@ Map<String, Object?> chargeAnnulationBulletin({required String motif}) => {
   'statut': 'annulee',
   'motif': motif,
 };
+
+/// `parametres_systeme` (création seule, lot 10e) : UN enregistrement de
+/// l'écran Paramètres — les clés réellement modifiées et leur valeur
+/// normalisée (`null` = vidée). Le serveur juge la cohérence sur l'état
+/// résultant du LOT, et arbitre clé par clé (dernier écrit gagnant).
+Map<String, Object?> chargeEnregistrementParametres(
+  Map<String, String?> valeurs,
+) => {
+  'valeurs': {for (final e in valeurs.entries) e.key: e.value},
+};
+
+/// `roles` (création ou modification, lot 10e) : TOUJOURS le libellé et la
+/// matrice entière — un rôle du socle né sous un autre UUID au serveur s'y
+/// retrouve par son libellé.
+Map<String, Object?> chargeRole({
+  required String libelle,
+  required String? description,
+  required Map<String, String> droits,
+}) => {
+  'libelle': libelle,
+  'description': description,
+  'droits': {for (final e in droits.entries) e.key: e.value},
+};

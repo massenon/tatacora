@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 
 import '../../../core/database/app_database.dart';
@@ -5,6 +7,8 @@ import '../../achats/domain/entities/fournisseur.dart';
 import '../../achats/data/reglements_fournisseur_dao.dart';
 import '../../comptabilite/data/moteur_comptable.dart';
 import '../../facturation/data/facture_dao.dart';
+import '../../parametres/data/parametres_depot_local.dart';
+import '../../transverse/data/roles_dao.dart';
 import '../../pos/data/panier_dao.dart';
 import '../../facturation/data/paiements_facture_dao.dart';
 import '../../facturation/domain/entities/paiement_facture.dart';
@@ -14,6 +18,7 @@ import '../../restaurant/domain/calcul_restaurant.dart' show typesDeMenu;
 import '../../stocks/domain/calcul_stock.dart' show echelleQuantite;
 import '../../stocks/domain/entities/etat_stock.dart';
 import '../domain/descente_catalogue.dart';
+import '../domain/operation_sync.dart';
 import 'descente_catalogue_dao.dart';
 import 'operations_sync_dao.dart';
 
@@ -118,6 +123,8 @@ class AligneurCatalogue {
       TableDescendue.employes ||
       TableDescendue.bulletinsPaie => alignerDocument(idLocal, e),
       TableDescendue.centresCout => _centre(e),
+      TableDescendue.parametresSysteme => _parametre(e),
+      TableDescendue.roles => _role(idLocal, e),
     };
   }
 
@@ -1169,6 +1176,90 @@ class AligneurCatalogue {
             type: Value(_texte(e.donnees['type'])),
           ),
         );
+    return const Aligne();
+  }
+
+  /* ================================================================== */
+  /* Paramétrage et rôles (lot 10e, 18/10/2026)                          */
+  /* ================================================================== */
+
+  /// Une clé du paramétrage du serveur, routée par le dépôt des paramètres
+  /// (les taux de la paie vers `PaieDao`). Vide au serveur = vidée ici. Un
+  /// enregistrement de CE poste qui porte la clé et attend de partir la
+  /// garde : l'opération est un LOT sous son propre identifiant, la règle
+  /// commune (par élément) ne la voit pas.
+  Future<IssueAlignement> _parametre(ElementCatalogue e) async {
+    final cle = _texte(e.donnees['cle']);
+    if (cle == null) return const RefuseParLePoste('paramètre sans clé');
+    final valeur = e.donnees['valeur'];
+    for (final o in await _file.operations(
+      table: TableSynchronisee.parametresSysteme,
+    )) {
+      if (o.statut != StatutOperationSync.enAttente &&
+          o.statut != StatutOperationSync.enCours) {
+        continue;
+      }
+      final valeurs = (jsonDecode(o.payload) as Map)['valeurs'];
+      if (valeurs is Map && valeurs.containsKey(cle)) {
+        return const ConserveLocalement(
+          'un enregistrement local de ce paramètre attend encore de partir',
+        );
+      }
+    }
+    await ParametresDepotLocal(_db).inscrireDescendue(
+      cle,
+      valeur is String && valeur.isNotEmpty ? valeur : null,
+    );
+    return const Aligne();
+  }
+
+  /// Un rôle du serveur et sa matrice, recopiée sur les comptes qui le
+  /// portent. Apparié par son LIBELLÉ à un rôle du socle né ici sous un
+  /// autre UUID (correspondance retenue) ; une matrice locale en attente
+  /// d'envoi est conservée.
+  Future<IssueAlignement> _role(String id, ElementCatalogue e) async {
+    final d = e.donnees;
+    final libelle = _texte(d['libelle']);
+    final brutes = d['droits'];
+    if (libelle == null || brutes is! Map) {
+      return const RefuseParLePoste('rôle sans libellé ni matrice');
+    }
+    final droits = <String, String>{
+      for (final x in brutes.entries)
+        if (x.value == 'C' || x.value == 'L' || x.value == '-')
+          '${x.key}': x.value as String,
+    };
+    final roles = RolesDao(_db, horloge: _maintenant);
+    var cible = id;
+    final connu = await (_db.select(
+      _db.rolesLocal,
+    )..where((r) => r.id.equals(id))).getSingleOrNull();
+    if (connu == null) {
+      final homonyme = await roles.parLibelle(libelle);
+      if (homonyme != null) {
+        if (await _file.enSuspens(
+          TableSynchronisee.roles.nomServeur,
+          homonyme.id,
+        )) {
+          return const ConserveLocalement(
+            'une matrice locale de ce rôle attend encore de partir',
+          );
+        }
+        await _dao.retenirCorrespondance(
+          table: e.table.nomServeur,
+          idServeur: e.id,
+          idLocal: homonyme.id,
+          origine: 'libelle',
+        );
+        cible = homonyme.id;
+      }
+    }
+    await roles.inscrireDescendu(
+      id: cible,
+      libelle: libelle,
+      description: _texte(d['description']),
+      droits: droits,
+    );
     return const Aligne();
   }
 }

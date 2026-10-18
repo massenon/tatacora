@@ -22,12 +22,14 @@ use App\Shared\Sync\Gestionnaires\GestionnaireGuides;
 use App\Shared\Sync\Gestionnaires\GestionnaireMenus;
 use App\Shared\Sync\Gestionnaires\GestionnairePaiements;
 use App\Shared\Sync\Gestionnaires\GestionnairePaniersTable;
+use App\Shared\Sync\Gestionnaires\GestionnaireParametres;
 use App\Shared\Sync\Gestionnaires\GestionnairePlats;
 use App\Shared\Sync\Gestionnaires\GestionnairePointsStockage;
 use App\Shared\Sync\Gestionnaires\GestionnaireRecettes;
 use App\Shared\Sync\Gestionnaires\GestionnaireReglementsFournisseur;
 use App\Shared\Sync\Gestionnaires\GestionnaireReservations;
 use App\Shared\Sync\Gestionnaires\GestionnaireReservationsTour;
+use App\Shared\Sync\Gestionnaires\GestionnaireRoles;
 use App\Shared\Sync\Gestionnaires\GestionnaireSejours;
 use App\Shared\Sync\Gestionnaires\GestionnaireSessionsCaisse;
 use App\Shared\Sync\Gestionnaires\GestionnaireTablesSalle;
@@ -136,6 +138,10 @@ class RegistreSynchronisation
         // Audit de couverture (18/10/2026) : le dossier RH, puis la paie.
         'employes' => GestionnaireEmployes::class,
         'bulletins_paie' => GestionnaireBulletinsPaie::class,
+        // Lot 10e : le paramétrage (un enregistrement de l'écran = une
+        // opération) et le référentiel des rôles. Jamais les comptes.
+        'parametres_systeme' => GestionnaireParametres::class,
+        'roles' => GestionnaireRoles::class,
     ];
 
     /** @var array<string, GestionnaireSynchronisation> */

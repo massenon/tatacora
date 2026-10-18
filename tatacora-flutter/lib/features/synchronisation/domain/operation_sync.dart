@@ -77,7 +77,13 @@ enum TableSynchronisee {
   /// Audit de couverture (18/10/2026) : M13 — le dossier (matricule du
   /// serveur), puis le bulletin (recalculé au serveur ; l'annulation).
   employes('employes', accepteModification: true),
-  bulletinsPaie('bulletins_paie', accepteModification: true);
+  bulletinsPaie('bulletins_paie', accepteModification: true),
+
+  /// Lot 10e (18/10/2026) : un ENREGISTREMENT de l'écran Paramètres (le lot
+  /// soumis, sous un identifiant propre au geste — création seule), puis le
+  /// référentiel des rôles (libellé et matrice). Jamais un compte.
+  parametresSysteme('parametres_systeme', accepteModification: false),
+  roles('roles', accepteModification: true);
 
   const TableSynchronisee(this.nomServeur, {required this.accepteModification});
 

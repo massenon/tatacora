@@ -124,6 +124,9 @@ void main() {
       'creation factures',
       'creation sessions_caisse',
       'creation paiements',
+      'creation parametres_systeme',
+      'creation roles',
+      'modification roles',
     ]);
     expect(resultats, hasLength(operations.length));
   });
@@ -407,5 +410,26 @@ void main() {
       'montant_theorique_poste': '16000.00',
       'montant_constate': '16000.00',
     });
+  });
+
+  test('Lot 10e : l’enregistrement des paramètres passe en lot par '
+      'EnregistrerParametreService ; le rôle naît sous l’UUID du poste et '
+      'sa matrice passe par definirNiveau', () {
+    final enregistrement = operations.lastWhere(
+      (o) => o['table'] == 'parametres_systeme',
+    );
+    final r = resultatDe(
+      'parametres_systeme',
+      'creation',
+      enregistrement['entite_id']! as String,
+    );
+    expect(r['statut'], 'synchronise', reason: '$r');
+    expect(r['cles_modifiees'], ['tolerance_reception_pct']);
+
+    for (final type in ['creation', 'modification']) {
+      final role = resultatDe('roles', type, s.role);
+      expect(role['statut'], 'synchronise', reason: '$role');
+    }
+    expect(serveur('roles', s.role)['libelle'], 'Économe');
   });
 }

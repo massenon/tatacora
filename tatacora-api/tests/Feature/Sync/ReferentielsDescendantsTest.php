@@ -292,8 +292,9 @@ final class ReferentielsDescendantsTest extends TestCase
             $curseur = $reponse->json('meta.curseur');
         } while (! $reponse->json('meta.complet'));
 
-        // `barman` lit aussi M3 (clients) ; pas M1 (réservations).
-        $this->assertSame(['points_stockage', 'articles', 'cartes_boisson', 'clients'], array_values(array_unique($tables)));
+        // `barman` lit aussi M3 (clients) ; pas M1 (réservations). Les rôles
+        // (semés) descendent vers tout compte (lot 10e, `LECTURE_LIBRE`).
+        $this->assertSame(['points_stockage', 'articles', 'cartes_boisson', 'clients', 'roles'], array_values(array_unique($tables)));
 
         $suite = array_values(array_unique(array_column(
             $this->tousLesElementsDe($this->admin, $curseur),

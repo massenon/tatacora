@@ -347,7 +347,8 @@ final class SynchronisationOfflineTest extends TestCase
     {
         foreach (app(RegistreSynchronisation::class)->tous() as $table => $gestionnaire) {
             $this->assertMatchesRegularExpression(
-                '/^M\d{1,2}$/',
+                // Lot 10e : `PARAM` et `ROLES` sont des modules de la matrice.
+                '/^(M\d{1,2}|PARAM|ROLES)$/',
                 $gestionnaire->module(),
                 "La table {$table} ne declare aucun module.",
             );

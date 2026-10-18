@@ -111,10 +111,19 @@ class PaieDao extends DatabaseAccessor<AppDatabase> with _$PaieDaoMixin {
   ///
   /// Aucune validation ici : la forme (décimal positif, bornes) est jugée par
   /// les règles des paramètres avant l'appel, et ce DAO ne calcule rien.
-  Future<bool> enregistrerTaux(String cle, String valeur) async {
-    const mention =
-        'Valeur saisie depuis l’écran Paramètres : la source d’origine, si '
-        'elle existait, ne vaut plus pour cette valeur.';
+  ///
+  /// [duServeur] (lot 10e) : la valeur vient du paramétrage du SERVEUR (la
+  /// descente), et la mention le dit.
+  Future<bool> enregistrerTaux(
+    String cle,
+    String valeur, {
+    bool duServeur = false,
+  }) async {
+    final mention = duServeur
+        ? 'Valeur reçue du paramétrage du serveur : la source d’origine, si '
+              'elle existait, ne vaut plus pour cette valeur.'
+        : 'Valeur saisie depuis l’écran Paramètres : la source d’origine, si '
+              'elle existait, ne vaut plus pour cette valeur.';
     final existant = await (select(
       tauxPaieLocal,
     )..where((t) => t.cle.equals(cle))).getSingleOrNull();
@@ -124,7 +133,7 @@ class PaieDao extends DatabaseAccessor<AppDatabase> with _$PaieDaoMixin {
         TauxPaieLocalCompanion.insert(
           cle: cle,
           valeur: valeur,
-          description: const Value(mention),
+          description: Value(mention),
         ),
       );
       return true;
@@ -134,7 +143,7 @@ class PaieDao extends DatabaseAccessor<AppDatabase> with _$PaieDaoMixin {
     await (update(tauxPaieLocal)..where((t) => t.cle.equals(cle))).write(
       TauxPaieLocalCompanion(
         valeur: Value(valeur),
-        description: const Value(mention),
+        description: Value(mention),
       ),
     );
     return true;

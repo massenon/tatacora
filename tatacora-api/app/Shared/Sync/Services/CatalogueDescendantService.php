@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Shared\Sync\Services;
 
 use App\Models\User;
+use App\Shared\Rbac\Models\Role;
+use App\Shared\Sync\Gestionnaires\GestionnaireRoles;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -167,7 +169,24 @@ class CatalogueDescendantService
             'charges_patronales_confirmees', 'net_a_payer', 'statut', 'motif_annulation',
         ],
         'centres_cout' => ['libelle', 'type'],
+        // Lot 10e (18/10/2026) : le paramétrage de l'établissement, et les
+        // rôles avec leur matrice (`droits`, lue du pivot). Jamais un compte.
+        'parametres_systeme' => ['cle', 'valeur'],
+        'roles' => ['libelle', 'description'],
     ];
+
+    /**
+     * Tables que TOUT compte qui synchronise reçoit, quel que soit son droit
+     * sur leur module (lot 10e). Le paramétrage gouverne les calculs de
+     * chaque module (TVA, convention de prix, taux de la paie) et la matrice
+     * des rôles donne leurs droits aux comptes du poste : un caissier qui
+     * synchronise en a besoin autant qu'un administrateur. Aucune ne porte
+     * de secret (`RegistreParametres::MOTIFS_SECRET`, ni compte ni mot de
+     * passe).
+     *
+     * @var list<string>
+     */
+    public const LECTURE_LIBRE = ['parametres_systeme', 'roles'];
 
     /**
      * Tables descendues sans être synchronisables — leur module est déclaré
@@ -382,6 +401,10 @@ class CatalogueDescendantService
 
     private function lisible(User $utilisateur, string $table): bool
     {
+        if (in_array($table, self::LECTURE_LIBRE, true)) {
+            return true;
+        }
+
         $module = self::MODULES_HORS_REGISTRE[$table] ?? $this->registre->pour($table)->module();
 
         return in_array($utilisateur->niveauSurModule($module), ['L', 'C'], true);
@@ -397,6 +420,7 @@ class CatalogueDescendantService
         $ids = array_map(static fn (object $l): string => (string) $l->id, $lignes);
         $enfants = isset(self::ENFANTS[$table]) ? $this->enfants(self::ENFANTS[$table], $ids) : [];
         $lignesBons = $table === 'bons_reception' ? $this->lignesDesBons($ids) : [];
+        $droits = $table === 'roles' ? $this->droitsDesRoles($ids) : [];
         $origines = DB::table('origines_synchronisation')
             ->where('table_concernee', $table)
             ->whereIn('entite_id', $ids)
@@ -440,6 +464,10 @@ class CatalogueDescendantService
                 $donnees['lignes'] = $lignesBons[(string) $ligne->id] ?? [];
             }
 
+            if ($table === 'roles') {
+                $donnees['droits'] = $droits[(string) $ligne->id] ?? [];
+            }
+
             $elements[] = [
                 'table' => $table,
                 'id' => (string) $ligne->id,
@@ -454,6 +482,26 @@ class CatalogueDescendantService
         }
 
         return $elements;
+    }
+
+    /**
+     * La matrice de chaque rôle de la page : module → `C` / `L` / `-`, lue
+     * par `Role::niveauSurModule` (la source de `VerifierAccesModule`).
+     *
+     * @param  list<string>  $ids
+     * @return array<string, array<string, string>>
+     */
+    private function droitsDesRoles(array $ids): array
+    {
+        $parRole = [];
+
+        foreach (Role::query()->with('permissions')->whereIn('id', $ids)->get() as $role) {
+            foreach (GestionnaireRoles::modules() as $module) {
+                $parRole[(string) $role->id][$module] = $role->niveauSurModule($module);
+            }
+        }
+
+        return $parRole;
     }
 
     /**

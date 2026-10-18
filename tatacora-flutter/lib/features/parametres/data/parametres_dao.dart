@@ -15,8 +15,9 @@ part 'parametres_dao.g.dart';
 /// couples clé/valeur déjà normalisés. Ce qu'une clé a le droit de valoir se
 /// juge avant l'appel (`regles_parametres.dart`), là où ça se teste sans base.
 ///
-/// Aucune file de synchronisation, aucun `statutSync` : la table ne part nulle
-/// part (zéro réseau).
+/// Aucun `statutSync` : depuis le lot 10e, l'envoi est enfilé par
+/// `ParametresDepotLocal.ecrire`, et la descente passe par
+/// [inscrireDescendue].
 @DriftAccessor(tables: [ParametresSystemeLocal])
 class ParametresDao extends DatabaseAccessor<AppDatabase>
     with _$ParametresDaoMixin {
@@ -97,5 +98,32 @@ class ParametresDao extends DatabaseAccessor<AppDatabase>
       }
     });
     return modifiees;
+  }
+
+  /// Une valeur DESCENDUE du serveur (lot 10e) : posée sans auteur
+  /// (`modifiePar` nul, comme `semerSiAbsentes` : elle ne vient d'aucun
+  /// compte de ce poste) ; `null` vide la clé. Rend vrai si la ligne change.
+  /// Seul appelant : `ParametresDepotLocal.inscrireDescendue`.
+  Future<bool> inscrireDescendue(String cle, String? valeur) async {
+    final existant = await (select(
+      parametresSystemeLocal,
+    )..where((p) => p.cle.equals(cle))).getSingleOrNull();
+    if (valeur == null) {
+      if (existant == null) return false;
+      await (delete(
+        parametresSystemeLocal,
+      )..where((p) => p.cle.equals(cle))).go();
+      return true;
+    }
+    if (existant?.valeur == valeur) return false;
+    await into(parametresSystemeLocal).insertOnConflictUpdate(
+      ParametresSystemeLocalCompanion.insert(
+        cle: cle,
+        valeur: valeur,
+        modifieLe: _maintenant(),
+        modifiePar: const Value(null),
+      ),
+    );
+    return true;
   }
 }

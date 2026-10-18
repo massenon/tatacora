@@ -95,6 +95,12 @@ return [
         'employe_inconnu' => 'Bulletin refusé : l\'employé n\'est pas connu du serveur (pas encore reçu, ou refusé).',
         'champ_non_modifiable' => 'Champ(s) d\'employé non synchronisable(s) : :champs.',
     ],
+    'parametres' => [
+        'valeur_non_scalaire' => 'Paramètres refusés : valeur illisible pour :cles.',
+    ],
+    'roles' => [
+        'module_inconnu' => 'Rôle refusé : module(s) inconnu(s) du serveur : :modules.',
+    ],
     'paiements' => [
         'facture_inconnue' => 'Encaissement refusé : la facture n\'est pas connue du serveur (pas encore reçue, ou refusée).',
     ],

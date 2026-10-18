@@ -62,7 +62,7 @@ class RolePermissionService
      *
      * @throws RuntimeException libellé vide ou déjà pris
      */
-    public function creerRole(string $libelle, ?string $description): Role
+    public function creerRole(string $libelle, ?string $description, ?string $id = null): Role
     {
         $libellePropre = trim($libelle);
 
@@ -70,7 +70,7 @@ class RolePermissionService
             throw new RuntimeException(__('pwa.roles.libelle_requis'));
         }
 
-        return DB::transaction(function () use ($libellePropre, $description): Role {
+        return DB::transaction(function () use ($libellePropre, $description, $id): Role {
             $existe = Role::query()
                 ->where('libelle', $libellePropre)
                 ->lockForUpdate()
@@ -81,6 +81,8 @@ class RolePermissionService
             }
 
             return Role::create([
+                // L'UUID du poste quand le rôle y est né (synchronisation).
+                ...($id !== null ? ['id' => $id] : []),
                 'libelle' => $libellePropre,
                 'description' => filled($description) ? trim($description) : null,
             ]);
@@ -118,6 +120,11 @@ class RolePermissionService
             if ($idsAGarder !== []) {
                 $role->permissions()->attach($idsAGarder);
             }
+
+            // La matrice vit dans le pivot, que `updated_at` ne voit pas : le
+            // rôle est daté ici, sans quoi la descente vers les postes (et
+            // l'arbitrage du dernier écrit) ignorerait le changement.
+            $role->touch();
 
             return $role->refresh();
         });
@@ -198,5 +205,7 @@ class RolePermissionService
         if ($idsAGarder !== []) {
             $role->permissions()->attach($idsAGarder);
         }
+
+        $role->touch();
     }
 }
