@@ -45,6 +45,27 @@ final class AchatsDocumentsSynchronisationTest extends TestCase
 
     // ------------------------------------------------------------ Commandes
 
+    /** Lot F6 : l'envoi d'un brouillon et la clôture, par leurs services. */
+    #[Test]
+    public function le_statut_de_la_commande_avance_par_son_service(): void
+    {
+        $id = $this->uuid();
+        $this->pousser([$this->commande($id, ['statut' => 'brouillon'])], $this->acheteur);
+        $statut = fn (string $s): array => $this->operation('commandes_achat', 'modification', $id, ['statut' => $s]);
+
+        // Clôturer sans réception : RG-10, la phrase du service.
+        $this->pousser([$statut('cloturee')], $this->acheteur)
+            ->assertJsonPath('resultats.0.statut', 'rejete')
+            ->assertJsonPath('resultats.0.motif', __('achats.cloture_impossible'));
+
+        $this->pousser([$statut('envoyee')], $this->acheteur)->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertSame('envoyee', CommandeAchat::findOrFail($id)->statut);
+
+        $this->pousser([$this->operation('commandes_achat', 'modification', $id, ['statut' => 'brouillon'])], $this->acheteur)
+            ->assertJsonPath('resultats.0.statut', 'rejete')
+            ->assertJsonPath('resultats.0.motif', __('sync.commandes.statut_inconnu'));
+    }
+
     #[Test]
     public function la_commande_est_creee_par_le_service_sous_l_uuid_du_poste(): void
     {
@@ -136,9 +157,12 @@ final class AchatsDocumentsSynchronisationTest extends TestCase
 
         $this->assertSame(1, CommandeAchat::count());
 
-        // Ni modification ni annulation : le service n'en offre pas.
+        // Depuis le lot F6, seul le STATUT avance, par son service : une
+        // clôture sans réception est refusée par RG-10 ; tout autre champ, refusé.
         $this->pousser([$this->operation('commandes_achat', 'modification', $operation['entite_id'], ['statut' => 'cloturee'])], $this->acheteur)
-            ->assertJsonPath('resultats.0.motif', __('sync.modification_non_synchronisable'));
+            ->assertJsonPath('resultats.0.motif', __('achats.cloture_impossible'));
+        $this->pousser([$this->operation('commandes_achat', 'modification', $operation['entite_id'], ['montant_total' => '1'])], $this->acheteur)
+            ->assertJsonPath('resultats.0.motif', __('sync.commandes.statut_inconnu'));
         $this->assertSame('envoyee', CommandeAchat::findOrFail($operation['entite_id'])->statut);
     }
 

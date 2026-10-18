@@ -148,8 +148,10 @@ final class RegistreGestionnairesSynchronisationTest extends TestCase
         $this->synchroniser([$this->operation('reservations', 'modification', $reservation->id, [
             'date_arrivee' => '2026-12-01', 'date_depart' => '2026-12-05', 'statut' => 'annulee',
         ])])
+            // Lot F6 : annuler ET déplacer d'un même geste reste refusé ;
+            // chaque geste passe seul, par son service.
             ->assertJsonPath('resultats.0.statut', 'rejete')
-            ->assertJsonPath('resultats.0.motif', __('sync.modification_non_synchronisable'));
+            ->assertJsonPath('resultats.0.motif', __('sync.reservations.champ_non_modifiable', ['champs' => 'date_arrivee, date_depart']));
 
         $reservation->refresh();
         $this->assertSame('2026-11-01', $reservation->date_arrivee->toDateString());

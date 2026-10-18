@@ -59,6 +59,19 @@ return [
         'reservation_inconnue' => 'Facture refusée : la réservation n\'est pas connue du serveur (pas encore reçue, ou refusée).',
         'motif_absent' => 'Annulation saisie sur un poste',
     ],
+    'annulation_autre_poste' => 'Annulation refusée : ce document a été saisi sur un autre poste (ou au serveur). '
+        . 'Seuls l\'administration et le comptable peuvent l\'annuler.',
+    'reservations' => [
+        'champ_non_modifiable' => 'Une réservation ne se modifie que par son annulation (avec ses conditions) ou par son '
+            . 'déplacement (chambre, dates) — champ(s) refusé(s) : :champs.',
+        'annulee' => 'Déplacement refusé : la réservation est annulée.',
+    ],
+    'ventes_modification' => [
+        'champ_non_modifiable' => 'Une vente ne se modifie que par son annulation (statut annulee + motif).',
+    ],
+    'commandes' => [
+        'statut_inconnu' => 'Commande : seuls l\'envoi (envoyee) et la clôture (cloturee) se synchronisent.',
+    ],
     'paiements' => [
         'facture_inconnue' => 'Encaissement refusé : la facture n\'est pas connue du serveur (pas encore reçue, ou refusée).',
     ],

@@ -15,6 +15,7 @@ use App\Shared\Sync\Models\AnomalieSynchronisation;
 use App\Shared\Sync\Services\ResolveurCorrespondances;
 use App\Shared\Sync\Services\SignalementAnomalies;
 use App\Shared\Sync\Support\ContexteSynchronisation;
+use App\Shared\Sync\Support\DocumentsDesAutresPostes;
 use App\Shared\Sync\Support\EcritureSynchronisee;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -101,8 +102,42 @@ final class GestionnaireVentes extends GestionnaireDocumentAbstrait
         private readonly VenteService $ventes,
         ResolveurCorrespondances $correspondances,
         SignalementAnomalies $anomalies,
+        private readonly DocumentsDesAutresPostes $autresPostes,
     ) {
         parent::__construct($correspondances, $anomalies);
+    }
+
+    /**
+     * Lot F6 (17/10/2026) : l'ANNULATION seulement (`statut: annulee` +
+     * `motif`), par `VenteService::annuler` — contre-passation de la pièce et
+     * retour des boissons au stock, comme à la PWA. Une vente d'un autre
+     * poste ne s'annule que par l'administration ou le comptable (Q3). Tout
+     * autre champ : refusé.
+     */
+    public function accepteModification(): bool
+    {
+        return true;
+    }
+
+    public function modifier(string $entiteId, array $payload, ContexteSynchronisation $contexte): EcritureSynchronisee
+    {
+        $statut = $payload['statut'] ?? null;
+        $motif = trim((string) ($payload['motif'] ?? ''));
+        unset($payload['statut'], $payload['motif']);
+
+        if ($statut !== 'annulee' || $payload !== []) {
+            throw new RuntimeException(__('sync.modification_non_synchronisable'));
+        }
+
+        $vente = Vente::query()->findOrFail($entiteId);
+
+        // Rejeu : déjà annulée — rendue, jamais contre-passée deux fois.
+        if (! $vente->estAnnulee()) {
+            $this->autresPostes->verifierAnnulation('ventes', $entiteId, $contexte);
+            $this->ventes->annuler($vente, $motif === '' ? __('sync.factures.motif_absent') : $motif);
+        }
+
+        return $this->resultat($entiteId);
     }
 
     public function table(): string

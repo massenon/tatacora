@@ -13,6 +13,7 @@ use App\Domain\Ventes\Models\Vente;
 use App\Shared\Sync\Services\ResolveurCorrespondances;
 use App\Shared\Sync\Services\SignalementAnomalies;
 use App\Shared\Sync\Support\ContexteSynchronisation;
+use App\Shared\Sync\Support\DocumentsDesAutresPostes;
 use App\Shared\Sync\Support\EcritureSynchronisee;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -62,6 +63,7 @@ final class GestionnaireFactures extends GestionnaireDocumentAbstrait
         private readonly EmissionFactureService $emission,
         ResolveurCorrespondances $correspondances,
         SignalementAnomalies $anomalies,
+        private readonly DocumentsDesAutresPostes $autresPostes,
     ) {
         parent::__construct($correspondances, $anomalies);
     }
@@ -170,6 +172,9 @@ final class GestionnaireFactures extends GestionnaireDocumentAbstrait
 
         // Rejeu : un avoir existe déjà — il est rendu, jamais doublé.
         if (! Avoir::query()->where('facture_id', $entiteId)->exists()) {
+            // Q3 (lot F6) : la facture d'un autre poste, par l'administration
+            // ou le comptable seulement.
+            $this->autresPostes->verifierAnnulation('factures', $entiteId, $contexte);
             $this->emission->emettreAvoir($facture, (string) $facture->montant_ttc, $motif === '' ? __('sync.factures.motif_absent') : $motif);
         }
 

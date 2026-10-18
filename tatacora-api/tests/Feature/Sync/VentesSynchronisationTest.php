@@ -401,6 +401,46 @@ final class VentesSynchronisationTest extends TestCase
         $this->assertSame('especes', Vente::findOrFail($id)->mode_paiement);
     }
 
+    /**
+     * Lot F6 : l'annulation, par `VenteService::annuler` (contre-passation),
+     * une fois ; une vente d'un AUTRE poste ne s'annule que par
+     * l'administration ou le comptable (Q3).
+     */
+    #[Test]
+    public function l_annulation_passe_par_le_service_et_suit_la_regle_des_autres_postes(): void
+    {
+        $id = $this->uuid();
+        $this->pousser([$this->vente($id, [$this->ligneBiere(2)])], $this->barman, 'poste-a');
+        $annulation = fn (): array => $this->operation('ventes', 'modification', $id, ['statut' => 'annulee', 'motif' => 'Erreur de table']);
+
+        $this->pousser([$annulation()], $this->barman, 'poste-b')
+            ->assertJsonPath('resultats.0.statut', 'rejete')
+            ->assertJsonPath('resultats.0.motif', __('sync.annulation_autre_poste'));
+        $this->assertFalse(Vente::findOrFail($id)->estAnnulee());
+
+        $this->pousser([$annulation()], $this->barman, 'poste-a')->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertTrue(Vente::findOrFail($id)->estAnnulee());
+        $lignes = EcritureComptable::count();
+
+        // Rejeu (autre uuid, plus tard) : rien n'est contre-passé deux fois.
+        $this->travel(1)->minutes();
+        $this->pousser([$annulation()], $this->barman, 'poste-a')->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertSame($lignes, EcritureComptable::count());
+    }
+
+    #[Test]
+    public function l_administration_annule_la_vente_d_un_autre_poste_le_gerant_non(): void
+    {
+        $id = $this->uuid();
+        $this->pousser([$this->vente($id, [$this->ligneBiere(1)])], $this->barman, 'poste-a');
+
+        $this->pousser([$this->operation('ventes', 'modification', $id, ['statut' => 'annulee', 'motif' => 'Doublon'])], $this->gerant, 'poste-b')
+            ->assertJsonPath('resultats.0.statut', 'rejete');
+        $this->pousser([$this->operation('ventes', 'modification', $id, ['statut' => 'annulee', 'motif' => 'Doublon'])], $this->creerUtilisateur('administrateur'), 'poste-b')
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertTrue(Vente::findOrFail($id)->estAnnulee());
+    }
+
     // ------------------------------------------------------------- Helpers
 
     /**

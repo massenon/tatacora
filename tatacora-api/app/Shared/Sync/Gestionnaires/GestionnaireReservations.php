@@ -4,10 +4,16 @@ declare(strict_types=1);
 
 namespace App\Shared\Sync\Gestionnaires;
 
+use App\Domain\Hebergement\Models\Reservation;
+use App\Domain\Hebergement\Services\AnnulationReservationService;
 use App\Domain\Hebergement\Services\ReservationService;
 use App\Shared\Sync\Services\ResolveurCorrespondances;
 use App\Shared\Sync\Support\ContexteSynchronisation;
+use App\Shared\Sync\Support\DocumentsDesAutresPostes;
 use App\Shared\Sync\Support\EcritureSynchronisee;
+use Illuminate\Support\Facades\Validator;
+use InvalidArgumentException;
+use RuntimeException;
 
 /**
  * Réservations créées hors connexion (M1) — par `ReservationService`, et par
@@ -18,6 +24,19 @@ use App\Shared\Sync\Support\EcritureSynchronisee;
  * C'est lui qui porte le verrou de RG-01. Une insertion directe ferait de la
  * synchronisation le seul chemin par lequel une double-réservation devient
  * possible — précisément le scénario que RG-01 existe pour empêcher.
+ *
+ * ## Modification : deux gestes, chacun par SON service (lot F6, 17/10/2026)
+ *
+ * - ANNULATION (`statut: annulee` + `taux`, `mode_remboursement`,
+ *   `valeur_remboursement`) → `AnnulationReservationService` : commission,
+ *   remboursement et sa pièce, comme à la PWA. Une réservation d'un autre
+ *   poste ne s'annule que par l'administration ou le comptable (Q3,
+ *   `DocumentsDesAutresPostes`). Rejeu : déjà annulée → rendue telle quelle.
+ * - DÉPLACEMENT (`unite_id`, `date_arrivee`, `date_depart`) →
+ *   `ReservationService::modifier`, sous le verrou de RG-01 : un
+ *   chevauchement est refusé avec la phrase du service.
+ *
+ * Tout autre champ reste refusé. Historique ci-dessous (15/10/2026).
  *
  * ## Modification : REFUSÉE (15/10/2026)
  *
@@ -45,7 +64,106 @@ final class GestionnaireReservations extends GestionnaireAbstrait
     public function __construct(
         private readonly ReservationService $reservations,
         private readonly ResolveurCorrespondances $correspondances,
+        private readonly AnnulationReservationService $annulation,
+        private readonly DocumentsDesAutresPostes $autresPostes,
     ) {
+    }
+
+    /** Les champs d'un DÉPLACEMENT. */
+    public const CHAMPS_DEPLACEMENT = ['unite_id', 'date_arrivee', 'date_depart'];
+
+    /** Les champs d'une ANNULATION. */
+    public const CHAMPS_ANNULATION = ['statut', 'taux', 'mode_remboursement', 'valeur_remboursement'];
+
+    public function accepteModification(): bool
+    {
+        return true;
+    }
+
+    public function modifier(string $entiteId, array $payload, ContexteSynchronisation $contexte): EcritureSynchronisee
+    {
+        $reservation = Reservation::query()->findOrFail($entiteId);
+
+        if (($payload['statut'] ?? null) === 'annulee') {
+            $this->refuserLesAutresChamps($payload, self::CHAMPS_ANNULATION);
+
+            if ($reservation->statut === 'annulee') {
+                return new EcritureSynchronisee($entiteId);
+            }
+
+            $this->autresPostes->verifierAnnulation('reservations', $entiteId, $contexte);
+            $conditions = $this->validerGeste($payload, [
+                'taux' => ['required', 'numeric'],
+                'mode_remboursement' => ['required', 'string'],
+                'valeur_remboursement' => ['required', 'numeric'],
+            ]);
+            try {
+                $this->annulation->annuler($reservation, [
+                    'taux' => (string) $conditions['taux'],
+                    'mode_remboursement' => (string) $conditions['mode_remboursement'],
+                    'valeur_remboursement' => (string) $conditions['valeur_remboursement'],
+                ], $contexte->utilisateur);
+            } catch (InvalidArgumentException $e) {
+                // Un refus de SAISIE du service (taux, remboursement) : un rejet
+                // avec sa phrase, jamais une erreur technique.
+                throw new RuntimeException($e->getMessage(), previous: $e);
+            }
+
+            return new EcritureSynchronisee($entiteId);
+        }
+
+        $this->refuserLesAutresChamps($payload, self::CHAMPS_DEPLACEMENT);
+
+        if ($payload === []) {
+            throw new RuntimeException(__('sync.modification_non_synchronisable'));
+        }
+
+        if ($reservation->statut === 'annulee') {
+            throw new RuntimeException(__('sync.reservations.annulee'));
+        }
+
+        $donnees = $this->validerGeste($payload, [
+            'unite_id' => ['sometimes', 'string'],
+            'date_arrivee' => ['sometimes', 'date_format:Y-m-d'],
+            'date_depart' => ['sometimes', 'date_format:Y-m-d'],
+        ]);
+
+        if (isset($donnees['unite_id'])) {
+            $donnees['unite_id'] = $this->correspondances->resoudre('unites_hebergement', (string) $donnees['unite_id']);
+        }
+
+        $this->reservations->modifier($reservation, $donnees);
+
+        return new EcritureSynchronisee($entiteId);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @param  list<string>  $admis
+     */
+    private function refuserLesAutresChamps(array $payload, array $admis): void
+    {
+        $refuses = array_diff(array_keys($payload), $admis);
+
+        if ($refuses !== []) {
+            throw new RuntimeException(__('sync.reservations.champ_non_modifiable', ['champs' => implode(', ', $refuses)]));
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @param  array<string, mixed>  $regles
+     * @return array<string, mixed>
+     */
+    private function validerGeste(array $payload, array $regles): array
+    {
+        $validateur = Validator::make($payload, $regles);
+
+        if ($validateur->fails()) {
+            throw new RuntimeException((string) $validateur->errors()->first());
+        }
+
+        return $validateur->validated();
     }
 
     public function table(): string

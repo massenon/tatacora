@@ -7,10 +7,12 @@ namespace App\Shared\Sync\Gestionnaires;
 use App\Domain\Achats\Http\Requests\CreerCommandeAchatRequest;
 use App\Domain\Achats\Models\CommandeAchat;
 use App\Domain\Achats\Services\CommandeAchatService;
+use App\Domain\Achats\Services\ReceptionService;
 use App\Shared\Sync\Services\ResolveurCorrespondances;
 use App\Shared\Sync\Services\SignalementAnomalies;
 use App\Shared\Sync\Support\ContexteSynchronisation;
 use App\Shared\Sync\Support\EcritureSynchronisee;
+use RuntimeException;
 
 /**
  * Commandes d'achat émises hors connexion (M7, niveau C — celui de
@@ -82,6 +84,41 @@ final class GestionnaireCommandesAchat extends GestionnaireDocumentAbstrait
     public function champDateDocument(): ?string
     {
         return 'date_commande';
+    }
+
+    /**
+     * Lot F6 (17/10/2026) : le STATUT seul, par son service — `envoyee`
+     * (`CommandeAchatService::envoyer`, depuis le brouillon) et `cloturee`
+     * (`ReceptionService::cloturer`, RG-10 : réception dans la tolérance).
+     * Un statut déjà atteint (rejeu, ou geste d'un autre poste) est rendu tel
+     * quel ; la réception, elle, passe par `bons_reception`.
+     */
+    public function accepteModification(): bool
+    {
+        return true;
+    }
+
+    public function modifier(string $entiteId, array $payload, ContexteSynchronisation $contexte): EcritureSynchronisee
+    {
+        $statut = $payload['statut'] ?? null;
+        unset($payload['statut']);
+
+        if (! in_array($statut, ['envoyee', 'cloturee'], true) || $payload !== []) {
+            throw new RuntimeException(__('sync.commandes.statut_inconnu'));
+        }
+
+        $commande = CommandeAchat::query()->findOrFail($entiteId);
+
+        if ($commande->statut !== $statut) {
+            match ($statut) {
+                'envoyee' => $commande->statut === 'brouillon'
+                    ? $this->commandes->envoyer($commande)
+                    : null,
+                'cloturee' => app(ReceptionService::class)->cloturer($commande),
+            };
+        }
+
+        return $this->resultat($entiteId);
     }
 
     public function creer(string $entiteId, array $payload, ContexteSynchronisation $contexte): EcritureSynchronisee

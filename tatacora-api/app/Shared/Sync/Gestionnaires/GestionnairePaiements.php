@@ -12,6 +12,7 @@ use App\Shared\Sync\Models\AnomalieSynchronisation;
 use App\Shared\Sync\Services\ResolveurCorrespondances;
 use App\Shared\Sync\Services\SignalementAnomalies;
 use App\Shared\Sync\Support\ContexteSynchronisation;
+use App\Shared\Sync\Support\DocumentsDesAutresPostes;
 use App\Shared\Sync\Support\EcritureSynchronisee;
 use RuntimeException;
 
@@ -46,6 +47,7 @@ final class GestionnairePaiements extends GestionnaireDocumentAbstrait
         private readonly EncaissementFactureService $encaissement,
         ResolveurCorrespondances $correspondances,
         SignalementAnomalies $anomalies,
+        private readonly DocumentsDesAutresPostes $autresPostes,
     ) {
         parent::__construct($correspondances, $anomalies);
     }
@@ -145,6 +147,9 @@ final class GestionnairePaiements extends GestionnaireDocumentAbstrait
 
         // Rejeu : déjà annulé — rendu, jamais contre-passé deux fois.
         if ($paiement->statut !== 'annule') {
+            // Q3 (lot F6) : l'encaissement d'un autre poste, par
+            // l'administration ou le comptable seulement.
+            $this->autresPostes->verifierAnnulation('paiements', $entiteId, $contexte);
             $this->encaissement->annuler($paiement, $motif === '' ? __('sync.factures.motif_absent') : $motif);
         }
 
