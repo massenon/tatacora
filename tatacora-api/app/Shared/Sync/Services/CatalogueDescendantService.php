@@ -190,6 +190,9 @@ class CatalogueDescendantService
      * @var array<string, array{table: string, cle: string, colonnes: list<string>, ordre: string}>
      */
     public const ENFANTS = [
+        // Lot F6 (audit de couverture, 18/10/2026) : les services d'une
+        // réservation (restauration, bar, tourisme, véhicule) descendent avec elle.
+        'reservations' => ['table' => 'lignes_reservation', 'cle' => 'reservation_id', 'colonnes' => ['service', 'source_id', 'libelle', 'quantite', 'prix_unitaire', 'montant'], 'ordre' => 'created_at'],
         'ventes' => ['table' => 'lignes_vente', 'cle' => 'vente_id', 'colonnes' => ['code', 'nom', 'categorie', 'module', 'prix_unitaire', 'quantite', 'montant'], 'ordre' => 'created_at'],
         'depenses' => ['table' => 'lignes_depense', 'cle' => 'depense_id', 'colonnes' => ['libelle', 'compte_charge', 'nature', 'famille', 'montant'], 'ordre' => 'created_at'],
         'factures' => ['table' => 'lignes_facture', 'cle' => 'facture_id', 'colonnes' => ['source_module', 'source_id', 'libelle', 'quantite', 'prix_unitaire', 'prix_catalogue', 'montant'], 'ordre' => 'created_at'],

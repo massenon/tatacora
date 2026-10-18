@@ -167,6 +167,54 @@ void main() {
     );
   });
 
+  test('lot F6 : les services de la réservation descendent avec elle, au '
+      'prix et au libellé du serveur ; un service illisible la refuse', () async {
+    final bilan = await descendre([
+      ...parcEtSejour(
+        sejour: {
+          'lignes': [
+            {
+              'service': 'restauration',
+              'source_id': 'plat-srv',
+              'libelle': 'Dîner Gîte',
+              'quantite': '2.00',
+              'prix_unitaire': '7500.00',
+              'montant': '15000.00',
+            },
+          ],
+        },
+      ),
+      element('reservations', 'r-ligne-fausse', {
+        ...parcEtSejour().last['donnees']! as Map<String, Object?>,
+        'lignes': [
+          {
+            'service': 'spa',
+            'source_id': 'x',
+            'libelle': 'Massage',
+            'quantite': '1.00',
+            'prix_unitaire': '1000.00',
+            'montant': '1000.00',
+          },
+        ],
+      }),
+    ]);
+    expect(bilan.refuses, 1, reason: bilan.motifsRefus.join(' ; '));
+    final lignes = await b.db
+        .customSelect(
+          'SELECT service, item_id, libelle, prix_unitaire, quantite '
+          "FROM lignes_reservation_local WHERE reservation_id = '$idReservation'",
+        )
+        .get();
+    expect(lignes.single.data, {
+      'service': 'restauration',
+      'item_id': 'plat-srv',
+      'libelle': 'Dîner Gîte',
+      'prix_unitaire': 7500,
+      'quantite': 2,
+    });
+    expect(await ligne('reservations_local', 'r-ligne-fausse'), isNull);
+  });
+
   group('une réservation déjà sur ce poste : le statut avance, jamais ne '
       'recule', () {
     Future<void> statutLocal(String statut) => b.db.customStatement(

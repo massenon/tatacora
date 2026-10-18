@@ -974,6 +974,54 @@ class AligneurCatalogue {
       );
     }
 
+    // Les services de la réservation (lot F6) — lus AVANT l'écriture : une
+    // ligne illisible refuse la réservation entière (jamais à moitié).
+    const tablesDesServices = {
+      'restauration': TableDescendue.plats,
+      'bar': TableDescendue.cartesBoisson,
+      'tourisme': TableDescendue.circuits,
+      'vehicule': null,
+    };
+    final lignesService =
+        <
+          ({
+            String service,
+            String item,
+            String libelle,
+            int prix,
+            int quantite,
+          })
+        >[];
+    final brutes = d['lignes'];
+    for (final l in brutes is List ? brutes : const <Object?>[]) {
+      if (l is! Map) return const RefuseParLePoste('service illisible');
+      final service = _texte(l['service']);
+      final source = _texte(l['source_id']);
+      final libelleService = _texte(l['libelle']);
+      final prix = entierDepuisDecimal(l['prix_unitaire'], 0);
+      final quantite = entierDepuisDecimal(l['quantite'], 0);
+      if (service == null ||
+          !tablesDesServices.containsKey(service) ||
+          source == null ||
+          libelleService == null ||
+          prix == null ||
+          quantite == null) {
+        return RefuseParLePoste(
+          'service de réservation illisible ou inconnu « $service » '
+          '(ou fraction de franc / de quantité)',
+        );
+      }
+      final table = tablesDesServices[service];
+      lignesService.add((
+        service: service,
+        item: table == null
+            ? source
+            : await _dao.idLocal(table.nomServeur, source),
+        libelle: libelleService,
+        prix: prix,
+        quantite: quantite,
+      ));
+    }
     await _db
         .into(t)
         .insert(
@@ -1002,6 +1050,25 @@ class AligneurCatalogue {
             dateCreationLocale: Value(_maintenant()),
           ),
         );
+    // Lot F6 (audit de couverture) : ses services, au prix et au libellé
+    // figés au serveur.
+    for (var i = 0; i < lignesService.length; i++) {
+      final l = lignesService[i];
+      await _db
+          .into(_db.lignesReservationLocal)
+          .insert(
+            LignesReservationLocalCompanion.insert(
+              id: '$id:$i',
+              reservationId: id,
+              service: l.service,
+              itemId: l.item,
+              libelle: l.libelle,
+              prixUnitaire: l.prix,
+              quantite: l.quantite,
+              ordre: i,
+            ),
+          );
+    }
     // Lot F6 : son origine (Q3, et « connue du serveur »).
     await _retenirOrigine(e, id);
     return const Aligne();

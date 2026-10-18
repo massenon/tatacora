@@ -159,4 +159,32 @@ final class ReservationsCycleDeVieSynchronisationTest extends TestCase
 
         $this->assertSame('annulee', Reservation::findOrFail($id)->statut);
     }
+
+    /** Audit de couverture (18/10/2026) : les services descendent avec la réservation. */
+    #[Test]
+    public function les_services_d_une_reservation_descendent_avec_elle(): void
+    {
+        $id = $this->uuid();
+        $this->reserver($id, $this->b1->id, '2026-10-25', '2026-10-27');
+        $circuit = \App\Domain\Tourisme\Models\Circuit::create(['nom' => 'Kota', 'theme' => 'nature', 'zone' => 'Atacora', 'duree' => '1 jour', 'prix' => '15000', 'capacite_max' => 8]);
+        app(\App\Domain\Hebergement\Services\ReservationService::class)
+            ->remplacerLignes(Reservation::findOrFail($id), [['service' => 'tourisme', 'source_id' => $circuit->id, 'quantite' => '2']]);
+
+        $this->travel(\App\Shared\Sync\Services\CatalogueDescendantService::HORIZON_SECONDES + 1)->seconds();
+        \Laravel\Sanctum\Sanctum::actingAs($this->creerUtilisateur('administrateur'));
+        $elements = [];
+        $curseur = null;
+
+        do {
+            $r = $this->getJson('/api/v1/referentiels?' . http_build_query(array_filter(['poste_id' => 'poste-b', 'depuis' => $curseur, 'limite' => 500])))->assertOk();
+            $elements = [...$elements, ...$r->json('data.elements')];
+            $curseur = $r->json('meta.curseur');
+        } while (! $r->json('meta.complet'));
+
+        $resa = collect($elements)->firstWhere('id', $id);
+        $this->assertSame([[
+            'service' => 'tourisme', 'source_id' => $circuit->id, 'libelle' => 'Kota',
+            'quantite' => '2.00', 'prix_unitaire' => '15000.00', 'montant' => '30000.00',
+        ]], $resa['donnees']['lignes']);
+    }
 }
