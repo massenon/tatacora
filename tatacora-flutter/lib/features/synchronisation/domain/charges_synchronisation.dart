@@ -572,3 +572,37 @@ Map<String, Object?> chargeAnnulationPaiement({required String motif}) => {
   'statut': 'annule',
   'motif': motif,
 };
+
+/* ==================================================================== */
+/* Cycle de vie (lot F6, 17/10/2026)                                      */
+/* ==================================================================== */
+
+/// `reservations`, ANNULATION — `GestionnaireReservations` →
+/// `AnnulationReservationService`. Le poste envoie le taux qu'il a appliqué
+/// et le MONTANT qu'il a remboursé (mode `montant`) : les deux côtés
+/// remboursent la même somme au centime, même quand la saisie était en
+/// pourcentage (écart nommé : le serveur note alors le mode « montant »).
+Map<String, Object?> chargeAnnulationReservation({
+  required int tauxCentiemes,
+  required int rembourseCentimes,
+}) => {
+  'statut': 'annulee',
+  'taux': decimalExact(tauxCentiemes, 2),
+  'mode_remboursement': 'montant',
+  'valeur_remboursement': decimalExact(rembourseCentimes, 2),
+};
+
+/// `reservations`, DÉPLACEMENT — les seuls champs CHANGÉS parmi la chambre
+/// et les dates (`ReservationService::modifier`, RG-01 au serveur).
+Map<String, Object?> chargeDeplacementReservation({
+  String? uniteId,
+  DateTime? dateArrivee,
+  DateTime? dateDepart,
+}) => {
+  'unite_id': ?uniteId,
+  if (dateArrivee != null) 'date_arrivee': jourIso(dateArrivee),
+  if (dateDepart != null) 'date_depart': jourIso(dateDepart),
+};
+
+/// `commandes_achat`, STATUT — `envoyee` ou `cloturee`, par leurs services.
+Map<String, Object?> chargeStatutCommande(String statut) => {'statut': statut};

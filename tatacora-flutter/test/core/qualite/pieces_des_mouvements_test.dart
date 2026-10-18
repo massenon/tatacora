@@ -120,6 +120,11 @@ const _miroirsDuServeur = {
   // Lot F4 : la vente d'un autre poste descend CLÔTURÉE (ou annulée) avec sa
   // pièce AU SERVEUR — même raisonnement, `descente_documents_test` le tient.
   'lib/features/synchronisation/data/aligneur_documents.dart',
+  // Lot F6 : le CONTRAT des documents envoyés au serveur. Une fonction pure,
+  // sans base : `'statut': 'annulee'` y est le mot du protocole (l'annulation
+  // d'une réservation par `AnnulationReservationService`), jamais une
+  // écriture locale — celle-ci reste dans `annulerAvecConditions`.
+  'lib/features/synchronisation/domain/charges_synchronisation.dart',
 };
 
 /// Les fichiers de [racine] dont le CODE (hors commentaires) contient un des

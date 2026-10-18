@@ -11,6 +11,7 @@ import '../domain/entities/piece_facturation.dart';
 import '../domain/messages_encaissement.dart';
 import '../domain/regles_encaissement.dart';
 import '../domain/repositories/paiements_facture_repository.dart';
+import '../../synchronisation/data/documents_autres_postes.dart';
 import '../../synchronisation/data/operations_sync_dao.dart';
 import '../../synchronisation/domain/charges_synchronisation.dart';
 import '../../synchronisation/domain/operation_sync.dart';
@@ -354,6 +355,13 @@ class PaiementsFactureDao extends DatabaseAccessor<AppDatabase>
     }
     if (estVideAuSensDePhp(motif)) {
       throw const RefusEncaissement(MessagesEncaissement.motifRequis);
+    }
+    // Q3 (lot F6) : l'encaissement d'un autre poste, par l'administration ou
+    // le comptable seulement.
+    if (!await DocumentsAutresPostes(
+      attachedDatabase,
+    ).peutAnnuler('paiements', paiement.id, auteurId)) {
+      throw const RefusEncaissement(DocumentsAutresPostes.refus);
     }
 
     final moteurComptable = await _moteurObligatoire();

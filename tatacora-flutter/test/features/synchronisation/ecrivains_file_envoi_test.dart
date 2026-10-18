@@ -595,8 +595,8 @@ void main() {
   });
 
   group('documents', () {
-    test('commandes_achat — création seule ; l’envoi reste LOCAL (le serveur '
-        'ne modifie pas une commande)', () async {
+    test('commandes_achat — la création, puis l’envoi (lot F6 : le statut '
+        'part, par son service)', () async {
       final id = await commande();
       final (type, charge) = await derniere(TableSynchronisee.commandesAchat);
       expect(type, TypeOperationSync.creation);
@@ -626,7 +626,12 @@ void main() {
       );
       final avant = await nombre();
       await achats.envoyerCommande(id);
-      expect(await nombre(), avant);
+      expect(await nombre(), avant + 1);
+      final (typeEnvoi, chargeEnvoi) = await derniere(
+        TableSynchronisee.commandesAchat,
+      );
+      expect(typeEnvoi, TypeOperationSync.modification);
+      expect(chargeEnvoi, {'statut': 'envoyee'});
     });
 
     test(

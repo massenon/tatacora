@@ -22,6 +22,7 @@ import 'package:tatacora_flutter/features/hebergement/domain/entities/fiche_rese
 import 'package:tatacora_flutter/features/hebergement/domain/entities/periode_sejour.dart';
 import 'package:tatacora_flutter/features/hebergement/data/sejour_dao.dart';
 import 'package:tatacora_flutter/features/hebergement/domain/usecases/creer_reservation.dart';
+import 'package:tatacora_flutter/features/hebergement/domain/usecases/modifier_reservation.dart';
 import 'package:tatacora_flutter/features/pos/data/catalogue_dao.dart';
 import 'package:tatacora_flutter/features/pos/data/dto/catalogue_dto.dart';
 import 'package:tatacora_flutter/features/pos/domain/entities/article_vendable.dart';
@@ -68,6 +69,7 @@ final class ScenarioFile {
   late String guide;
   late String reservationTour;
   late String sejour;
+  late String reservationAnnulee;
   late String venteSejour;
   late String facture;
   late String paiement;
@@ -225,6 +227,44 @@ Future<ScenarioFile> jouerJourneeComplete(AppDatabase db) async {
     modePaiement: ModePaiementReservation.especes,
     auteurId: auteurEssai,
   )).id;
+
+  // Lot F6 : une seconde réservation, DÉPLACÉE de deux jours, puis ANNULÉE
+  // avec ses conditions (taux 20 %, la moitié de l'acompte rendue).
+  final seconde = await CreerReservation(depot, maintenant: horloge)(
+    unite: unite,
+    clientId: s.client,
+    clientNom: 'KORA F1',
+    periode: PeriodeSejour(
+      arrivee: DateTime(2026, 10, 25),
+      depart: DateTime(2026, 10, 27),
+    ),
+    acompte: 8000,
+    modePaiement: ModePaiementReservation.especes,
+    auteurId: auteurEssai,
+  );
+  s.reservationAnnulee = seconde.id;
+  await ModifierReservation(depot)(
+    existante: (await depot.parId(seconde.id))!,
+    unite: unite,
+    clientNom: 'KORA F1',
+    periode: PeriodeSejour(
+      arrivee: DateTime(2026, 10, 27),
+      depart: DateTime(2026, 10, 29),
+    ),
+    acompte: 8000,
+    modePaiement: ModePaiementReservation.especes,
+  );
+  await ReservationDao(
+    db,
+    maintenant: horloge,
+    moteur: () async => moteurSur(db, maintenant: horloge),
+  ).annulerAvecConditions(
+    seconde.id,
+    tauxSaisi: '20',
+    modeRemboursement: 'pourcentage',
+    valeurRemboursement: '50',
+    auteurId: auteurEssai,
+  );
 
   // M7 : fournisseur modifié, commande envoyée, réception totale.
   await db

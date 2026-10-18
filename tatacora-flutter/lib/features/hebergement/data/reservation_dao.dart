@@ -8,10 +8,12 @@ import '../../../core/database/app_database.dart';
 import '../../../core/database/tables/clients_table.dart';
 import '../../../core/database/tables/hebergement_tables.dart';
 import '../../comptabilite/data/moteur_comptable.dart';
+import '../../synchronisation/data/documents_autres_postes.dart';
 import '../../synchronisation/data/operations_sync_dao.dart';
 import '../../synchronisation/domain/charges_synchronisation.dart';
 import '../../synchronisation/domain/operation_sync.dart';
 import '../domain/annulation_reservation.dart';
+import '../domain/messages_annulation.dart' show RefusAnnulation;
 import '../domain/entities/annulation_enregistree.dart';
 import '../domain/entities/periode_sejour.dart';
 import '../domain/entities/fiche_reservation.dart';
@@ -322,6 +324,9 @@ class ReservationDao extends DatabaseAccessor<AppDatabase>
   /// rejetait le lot entier en 422.
   Future<void> enregistrer(Reservation r) {
     return transaction(() async {
+      final avant = await (select(
+        reservationsLocal,
+      )..where((x) => x.id.equals(r.id))).getSingleOrNull();
       await into(reservationsLocal).insertOnConflictUpdate(
         ReservationsLocalCompanion.insert(
           id: r.id,
@@ -372,6 +377,38 @@ class ReservationDao extends DatabaseAccessor<AppDatabase>
         ),
       );
       await _ecrireLignes(r);
+
+      // Lot F6 : un DÉPLACEMENT (chambre, dates) d'une réservation que le
+      // serveur détient part, champs changés seulement. Les autres
+      // retouches de la fiche (tarif, services, client) restent locales :
+      // le serveur n'offre aucune modification générique (écart nommé).
+      final avantPeriode = avant == null
+          ? null
+          : PeriodeSejour(arrivee: avant.dateArrivee, depart: avant.dateDepart);
+      if (avant != null &&
+          await DocumentsAutresPostes(
+            attachedDatabase,
+          ).connuDuServeur(TableSynchronisee.reservations, r.id)) {
+        await OperationsSyncDao(attachedDatabase).enfiler(
+          table: TableSynchronisee.reservations,
+          entiteId: r.id,
+          type: TypeOperationSync.modification,
+          payload: chargeDeplacementReservation(
+            uniteId: avant.uniteId == r.uniteId ? null : r.uniteId,
+            // Le serveur ne connaît que le JOUR (`Y-m-d`) : la comparaison
+            // se fait au jour, jamais à l'instant (un fuseau ou une heure
+            // relue ne déplace pas un séjour).
+            dateArrivee:
+                jourIso(avantPeriode!.arrivee) == jourIso(r.periode.arrivee)
+                ? null
+                : r.periode.arrivee,
+            dateDepart:
+                jourIso(avantPeriode.depart) == jourIso(r.periode.depart)
+                ? null
+                : r.periode.depart,
+          ),
+        );
+      }
     });
   }
 
@@ -461,6 +498,17 @@ class ReservationDao extends DatabaseAccessor<AppDatabase>
     // la réservation porte un acompte. Sans résolveur, rien n'est exigé ici : le
     // refus de forme garde sa priorité et le `StateError` tombe à sa place.
     final apercu = await parId(id);
+    // Q3 (lot F6) : la réservation d'un autre poste ne s'annule que par
+    // l'administration ou le comptable — la règle du serveur.
+    if (apercu != null &&
+        !await DocumentsAutresPostes(
+          attachedDatabase,
+        ).peutAnnuler('reservations', id, auteurId)) {
+      throw const RefusAnnulation(
+        DocumentsAutresPostes.refus,
+        champ: 'annulation',
+      );
+    }
     final resolveur = moteur;
     final moteurPrealable =
         (apercu != null && apercu.acompte > 0 && resolveur != null)
@@ -544,6 +592,22 @@ class ReservationDao extends DatabaseAccessor<AppDatabase>
           ecritureRemboursementId: Value(ecritureId),
         ),
       );
+
+      // Lot F6 : l'annulation part (si le serveur détient la réservation),
+      // avec ce que CE poste a appliqué ; la pièce, elle, ne part jamais.
+      if (await DocumentsAutresPostes(
+        attachedDatabase,
+      ).connuDuServeur(TableSynchronisee.reservations, id)) {
+        await OperationsSyncDao(attachedDatabase).enfiler(
+          table: TableSynchronisee.reservations,
+          entiteId: id,
+          type: TypeOperationSync.modification,
+          payload: chargeAnnulationReservation(
+            tauxCentiemes: resultat.tauxCentiemes,
+            rembourseCentimes: resultat.rembourseCentimes,
+          ),
+        );
+      }
     });
 
     return (await parId(id))!;

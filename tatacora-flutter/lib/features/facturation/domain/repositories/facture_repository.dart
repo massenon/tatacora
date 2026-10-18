@@ -65,7 +65,11 @@ abstract interface class FactureRepository {
   /// Annule une facture **par avoir**, jamais par effacement.
   ///
   /// Rend le couple (facture marquée annulée, avoir émis).
-  Future<AnnulationParAvoir> annuler(String pieceId, String motif);
+  Future<AnnulationParAvoir> annuler(
+    String pieceId,
+    String motif, {
+    String? auteurId,
+  });
 }
 
 /// Ce qu'il faut pour émettre une pièce — les lignes y sont déjà **décidées**.

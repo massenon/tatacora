@@ -9,6 +9,7 @@ import '../../../core/database/app_database.dart';
 import '../../../core/database/tables/registre_facturation_tables.dart';
 import '../domain/entities/piece_facturation.dart';
 import '../domain/repositories/facture_repository.dart';
+import '../../synchronisation/data/documents_autres_postes.dart';
 import '../../synchronisation/data/operations_sync_dao.dart';
 import '../../synchronisation/domain/charges_synchronisation.dart';
 import '../../synchronisation/domain/operation_sync.dart';
@@ -303,9 +304,20 @@ class FactureDao extends DatabaseAccessor<AppDatabase> with _$FactureDaoMixin {
   ///
   /// L'avoir porte **son propre numéro**, pris à la même séquence : c'est une
   /// pièce à part entière, pas une annotation de la première.
-  Future<AnnulationParAvoir> annuler(String pieceId, String motif) async {
+  Future<AnnulationParAvoir> annuler(
+    String pieceId,
+    String motif, {
+    String? auteurId,
+  }) async {
     final motifNet = motif.trim();
     if (motifNet.isEmpty) throw const MotifAnnulationRequis();
+    // Q3 (lot F6) : la facture d'un autre poste (ou du serveur), par
+    // l'administration ou le comptable seulement.
+    if (!await DocumentsAutresPostes(
+      attachedDatabase,
+    ).peutAnnuler('factures', pieceId, auteurId)) {
+      throw const AnnulationAutrePosteRefusee();
+    }
 
     final idAvoir = _uuid.v4();
 

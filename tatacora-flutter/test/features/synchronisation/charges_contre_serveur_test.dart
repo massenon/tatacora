@@ -96,6 +96,9 @@ void main() {
       'modification unites_hebergement',
       'creation clients',
       'creation reservations',
+      'creation reservations',
+      'modification reservations',
+      'modification reservations',
       'creation fournisseurs',
       'modification fournisseurs',
       'creation commandes_achat',
@@ -175,6 +178,17 @@ void main() {
       expect(vente['montant_total'], '5400.00');
     },
   );
+
+  test('réservation (lot F6) : déplacée par RG-01, puis annulée par '
+      'AnnulationReservationService avec les montants du poste', () {
+    final r = serveur('reservations', s.reservationAnnulee);
+    expect(r['statut'], 'annulee');
+    expect('${r['date_arrivee']}', startsWith('2026-10-27'));
+    expect('${r['date_depart']}', startsWith('2026-10-29'));
+    expect(r['taux_annulation'], '20.00');
+    expect(r['montant_rembourse_annulation'], '4000.00');
+    expect(r['ecriture_remboursement_id'], isNotNull);
+  });
 
   test('facture et encaissement (lots F5c, F5d) : le serveur numérote, '
       'garde le prix vendu, et encaisse dans la caisse du poste', () {

@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../synchronisation/data/documents_autres_postes.dart';
 import '../../synchronisation/data/operations_sync_dao.dart';
 import '../../synchronisation/domain/charges_synchronisation.dart';
 import '../../synchronisation/domain/operation_sync.dart';
@@ -895,8 +896,25 @@ class AchatsDao extends DatabaseAccessor<AppDatabase> {
           statut: Value(StatutCommande.envoyee.code),
         ),
       );
+      await _envoyerStatut(id, StatutCommande.envoyee.code);
       return (await commande(id))!;
     });
+  }
+
+  /// Lot F6 (17/10/2026) : le statut part au serveur, par son service
+  /// (`envoyer`, `cloturer`), si le serveur détient la commande.
+  Future<void> _envoyerStatut(String id, String statut) async {
+    if (!await DocumentsAutresPostes(
+      attachedDatabase,
+    ).connuDuServeur(TableSynchronisee.commandesAchat, id)) {
+      return;
+    }
+    await OperationsSyncDao(attachedDatabase).enfiler(
+      table: TableSynchronisee.commandesAchat,
+      entiteId: id,
+      type: TypeOperationSync.modification,
+      payload: chargeStatutCommande(statut),
+    );
   }
 
   /// RG-10 : une commande ne se clôture que si elle est `receptionnee` —
@@ -919,6 +937,7 @@ class AchatsDao extends DatabaseAccessor<AppDatabase> {
           statut: Value(StatutCommande.cloturee.code),
         ),
       );
+      await _envoyerStatut(id, StatutCommande.cloturee.code);
       return (await commande(id))!;
     });
   }

@@ -49,6 +49,9 @@ final class FactureRepositoryLocal implements FactureRepository {
       _dao.emettre(brouillon);
 
   @override
-  Future<AnnulationParAvoir> annuler(String pieceId, String motif) =>
-      _dao.annuler(pieceId, motif);
+  Future<AnnulationParAvoir> annuler(
+    String pieceId,
+    String motif, {
+    String? auteurId,
+  }) => _dao.annuler(pieceId, motif, auteurId: auteurId);
 }

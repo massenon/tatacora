@@ -18,7 +18,8 @@ library;
 /// avant celui qui le cite) ; il ne commande rien ici : c'est `seq`, l'ordre
 /// d'ÉCRITURE sur le poste, qui ordonne l'envoi.
 enum TableSynchronisee {
-  reservations('reservations', accepteModification: false),
+  /// Lot F6 : l'annulation (avec ses conditions) et le déplacement.
+  reservations('reservations', accepteModification: true),
 
   /// Lot F5 (17/10/2026) : l'arrivée (création) et le départ (modification)
   /// réels, par `SejourService`.
@@ -33,12 +34,16 @@ enum TableSynchronisee {
   plats('plats', accepteModification: true),
   categoriesHebergement('categories_hebergement', accepteModification: true),
   unitesHebergement('unites_hebergement', accepteModification: true),
-  commandesAchat('commandes_achat', accepteModification: false),
+
+  /// Lot F6 : l'envoi et la clôture (le statut seul).
+  commandesAchat('commandes_achat', accepteModification: true),
   bonsReception('bons_reception', accepteModification: false),
 
   /// L'ouverture est une `creation`, la clôture la SEULE `modification` admise.
   sessionsCaisse('sessions_caisse', accepteModification: true),
-  ventes('ventes', accepteModification: false),
+  /// Lot F6 : le serveur annule une vente (`VenteService::annuler`) ; le
+  /// poste n'annule qu'un panier OUVERT, jamais envoyé — rien ne part.
+  ventes('ventes', accepteModification: true),
   depenses('depenses', accepteModification: false),
 
   /// Lots F5c et F5d (17/10/2026) : la facture APRÈS la vente qu'elle porte,

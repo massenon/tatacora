@@ -132,4 +132,31 @@ final class ReservationsCycleDeVieSynchronisationTest extends TestCase
             ->assertJsonPath('resultats.0.statut', 'rejete')
             ->assertJsonPath('resultats.0.motif', __('sync.reservations.champ_non_modifiable', ['champs' => 'acompte']));
     }
+
+    /**
+     * Le cas du poste réel : création, déplacement puis annulation saisis
+     * hors connexion AVANT la réception par le serveur, arrivés dans le même
+     * lot — la suite du même document, par le même poste, jamais un conflit.
+     */
+    #[Test]
+    public function creation_deplacement_et_annulation_hors_connexion_du_meme_poste(): void
+    {
+        $id = $this->uuid();
+        $this->pousser([
+            $this->operationDatee('reservations', 'creation', $id, [
+                'client_id' => $this->client->id, 'unite_id' => $this->b1->id,
+                'date_arrivee' => '2026-10-25', 'date_depart' => '2026-10-27',
+                'acompte' => '8000.00', 'mode_paiement' => 'especes', 'tarif_nuit' => '25000.00',
+            ], '2026-10-19T07:00:00+00:00'),
+            $this->operationDatee('reservations', 'modification', $id, ['date_arrivee' => '2026-10-27', 'date_depart' => '2026-10-29'], '2026-10-19T07:05:00+00:00'),
+            $this->operationDatee('reservations', 'modification', $id, [
+                'statut' => 'annulee', 'taux' => '20.00', 'mode_remboursement' => 'montant', 'valeur_remboursement' => '4000.00',
+            ], '2026-10-19T07:10:00+00:00'),
+        ], $this->receptionniste, 'poste-a')
+            ->assertJsonPath('resultats.0.statut', 'synchronise')
+            ->assertJsonPath('resultats.1.statut', 'synchronise')
+            ->assertJsonPath('resultats.2.statut', 'synchronise');
+
+        $this->assertSame('annulee', Reservation::findOrFail($id)->statut);
+    }
 }

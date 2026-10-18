@@ -993,6 +993,8 @@ class AligneurCatalogue {
             dateCreationLocale: Value(_maintenant()),
           ),
         );
+    // Lot F6 : son origine (Q3, et « connue du serveur »).
+    await _retenirOrigine(e, id);
     return const Aligne();
   }
 

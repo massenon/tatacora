@@ -463,9 +463,18 @@ TOUS les postes descendent (`aligneur_documents.dart`), schéma **v28**
   inconnue sont ADMISES et signalées (l'argent est reçu). L'annulation d'un
   paiement régularisé retrouve la pièce passée sous le numéro provisoire
   par l'UUID du paiement (et dans ce seul cas : la parité serveur tient).
-- Non porté (lot F6) : les gestes du cycle de vie des documents d'un autre
-  poste (Q3 : l'administration et le comptable) ; un paiement de ce poste
-  annulé AU SERVEUR suit en statut, sa pièce locale reste.
+- **Lot F6 (17/10/2026)** : partent l'annulation d'une réservation (taux et
+  MONTANT remboursé, mode `montant` : même somme au centime), son
+  déplacement (chambre, dates, comparées au JOUR, depuis
+  `ReservationDao.enregistrer`), l'envoi et la clôture d'une commande — et
+  seulement si le serveur détient le document
+  (`DocumentsAutresPostes.connuDuServeur` : descendu, ou création en file non
+  rejetée). **Q3** : un document descendu (réservation, facture,
+  encaissement) ne s'annule ici que par `administrateur`, `super_admin` ou
+  `comptable` (`peutAnnuler`), comme au serveur. Les autres retouches d'une
+  fiche de réservation restent locales ; le poste n'annule qu'un panier
+  OUVERT (aucune annulation de vente ne part). Un paiement de ce poste
+  annulé AU SERVEUR suit en statut, sa pièce locale reste (écart ouvert).
 
 ## Synchronisation — ⚠ HISTORIQUE, retirée par « zéro réseau »
 
