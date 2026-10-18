@@ -247,7 +247,7 @@ lib/features/<module>/{domain,data,presentation}
 
 Seul `SessionsCaisseDao` écrit `sessions_caisse_local` ; montants en centimes. Ouverture et clôture répliquent `PosComptant` (le serveur n'a pas de service), refus dans l'ordre du serveur, messages relus par PHP (`tool/caisse/rejouer_caisse.php` rejoue le vrai composant). **Aucune pièce comptable** : le serveur n'en passe aucune. Depuis le lot 5 (D231), le panier au comptant porte `session_encaissement_id` et `especesDeLaSessionProvider` rend les espèces de la session : la clôture calcule théorique et écart comme le serveur (D221–D223 dépassés), et DIT les ventes en espèces sans session (lot 6, R2). `sessionOuverteLaPlusRecente` est appelée en production depuis le lot 5 (encaissement de facture et tableau de bord : la caisse « la plus récente tous points confondus », comme le serveur). La trésorerie de caisse de M11 est calculée depuis le lot 5 (D234). Piège : un `abort(403)` rendu par le harnais Livewire est une exception, pas un statut.
 
-## Base locale Drift — schéma **v21**, 53 tables ⚠ (titre historique : v28, 61 tables depuis F4) (v21 : colonne `fournisseurs_local.actif`, aucune table ; v20 : `reglements_fournisseur_local` ; v19 : huit colonnes d'annulation sur `reservations_local`, aucune table ; v18 : `paiements_facture_local` + colonne `paniers_local.session_encaissement_id` ; v17 : `sessions_caisse_local` ; v16 : deux colonnes `ecriture_id`/`ecriture_refus` sur `depenses_local`, aucune table ; v15 : six tables du moteur comptable M10 ; v14 : quatre tables du restaurant ; v11 : `parametres_systeme_local` ; v12 : sept colonnes de stock, aucune table neuve ; v13 : cinq tables d'achats)
+## Base locale Drift — schéma **v21**, 53 tables ⚠ (titre historique : v29, 62 tables depuis le 18/10/2026) (v21 : colonne `fournisseurs_local.actif`, aucune table ; v20 : `reglements_fournisseur_local` ; v19 : huit colonnes d'annulation sur `reservations_local`, aucune table ; v18 : `paiements_facture_local` + colonne `paniers_local.session_encaissement_id` ; v17 : `sessions_caisse_local` ; v16 : deux colonnes `ecriture_id`/`ecriture_refus` sur `depenses_local`, aucune table ; v15 : six tables du moteur comptable M10 ; v14 : quatre tables du restaurant ; v11 : `parametres_systeme_local` ; v12 : sept colonnes de stock, aucune table neuve ; v13 : cinq tables d'achats)
 
 Historique des versions dans `lib/core/database/app_database.dart`, chacune avec
 sa raison : v2 fiche de réservation (`tarifNuit`, `reference`…), v3 panier,
@@ -473,8 +473,45 @@ TOUS les postes descendent (`aligneur_documents.dart`), schéma **v28**
   encaissement) ne s'annule ici que par `administrateur`, `super_admin` ou
   `comptable` (`peutAnnuler`), comme au serveur. Les autres retouches d'une
   fiche de réservation restent locales ; le poste n'annule qu'un panier
-  OUVERT (aucune annulation de vente ne part). Un paiement de ce poste
-  annulé AU SERVEUR suit en statut, sa pièce locale reste (écart ouvert).
+  OUVERT (aucune annulation de vente ne part). Un document de CE poste
+  annulé AU SERVEUR (vente, encaissement, règlement fournisseur) suit en
+  statut ET sa pièce locale est contre-passée en entier, une seule fois
+  (18/10/2026).
+
+## Tous les modules, bouton « Synchroniser », cohérence (18/10/2026)
+
+Décisions du PO du 18/10/2026 (« tous les modules » ; « le serveur doit
+avoir aussi le bouton synchroniser » ; tables du restaurant « il faut le
+créer »). Schéma **v29** (62 tables : `occupations_tables_local`).
+
+- **Montent en plus** : tables de salle et additions ouvertes (une table
+  occupée ailleurs se refuse, `TableOccupeeAilleurs`), véhicules et
+  contrats (M8), employés et bulletins (M13 ; matricule et numéro du
+  serveur régularisés), règlements fournisseur, mouvements de stock SAISIS
+  (`StocksDao.ajouterMouvement`, `envoyer: false` pour l'entrée d'une
+  réception), paramètres (UN enregistrement de l'écran = une opération,
+  dernier écrit gagnant clé par clé), rôles (libellé + matrice entière),
+  modèles de notification (couple événement × canal), canal d'une
+  réservation (par son NOM). Tout descend aussi, aligné par clé naturelle ;
+  une retouche locale en attente est gardée (`ConserveLocalement`).
+- **Jamais** : comptes et mots de passe (PA-103), messages de notification
+  tracés, pièces du serveur (Q1 = A). Non portés faute d'écran ou de table :
+  congés, plannings, entretiens de véhicules, indisponibilités de la carte.
+- **Bouton du serveur** : la PWA (menu de compte « Synchroniser les
+  postes ») et l'écran du même nom ici (`/synchronisation-postes`, ouvert à
+  tout compte) enregistrent une DEMANDE ; le poste la lit toutes les 30 s
+  (`SyncManager.suivreDemandeDuServeur`, `GET /sync/demande`) et passe
+  aussitôt (envoi puis descente, repli levé). Le flux reçoit `en_attente`.
+- **Contrôle de cohérence (P1-1)** : écran de synchronisation, « Contrôler
+  maintenant » — `GET /sync/coherence` (par table et par jour MÉTIER,
+  nombre et total en centimes) contre les mêmes comptes locaux
+  (`ControleCoherence.requetes`) ; « Ce poste a tout reçu jusqu'au … ».
+- **Essai de réception** : `essai_cinq_postes_test.dart`, cinq postes contre
+  le vrai serveur avec coupures au hasard (avant envoi, réponse perdue) :
+  rien de perdu ni doublé, cohérence sans écart sur chaque poste, conflit
+  RG-01 réel dans « À traiter ». ⚠ Le flux ne livre qu'au-delà de son
+  HORIZON (5 s) ; un banc qui avance l'horloge du moteur doit la donner
+  AUSSI au DAO de la file (l'échéance d'une reprise se juge sur elle).
 
 ## Synchronisation — ⚠ HISTORIQUE, retirée par « zéro réseau »
 

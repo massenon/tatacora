@@ -546,7 +546,12 @@ void main() {
       });
       final t2 = toutAccepter();
       final premier = b.manager(t1).synchroniserMaintenant();
-      await pumpEventQueue();
+      // Le premier lot est réclamé PUIS envoyé ; sous la charge de la suite
+      // complète, une seule vidange de la file d'événements n'y suffit pas
+      // toujours. On l'attend (borné) avant de lancer le second moteur.
+      for (var i = 0; i < 200 && t1.lots.isEmpty; i++) {
+        await pumpEventQueue();
+      }
       expect(t1.lots, hasLength(1));
       final second = await b.manager(t2).synchroniserMaintenant();
       expect(second.etat, EtatSynchronisation.termine);
