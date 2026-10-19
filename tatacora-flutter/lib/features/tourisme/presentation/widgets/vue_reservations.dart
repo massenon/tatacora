@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/format/formats.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../shared_widgets/liste_paginee.dart';
 import '../../../restaurant/presentation/widgets/coquille_restaurant.dart';
 import '../../../restaurant/presentation/widgets/tableau_restaurant.dart';
 import '../../domain/entities/reservation_tour.dart';
@@ -95,15 +96,26 @@ class _Corps extends StatelessWidget {
     return CadreTableauRestaurant(
       // Le titre du cadre à la vue (l.413).
       titre: 'Réservations',
-      corps: TableauRestaurant(
-        gabarit: gabaritTourisme,
-        colonnes: VueReservations.colonnes,
-        clesLignes: [
-          for (final r in reservations) Key('tourisme-resa-${r.id}'),
-        ],
-        lignes: [for (final r in reservations) _ligne(context, r)],
-        ligneTotal: _ligneTotal(personnes, montant),
-        decorationTotal: decorationTotalTourisme,
+      // Dix réservations par page (PO, 14/10/2026) ; la ligne TOTAL porte
+      // TOUTES les réservations retenues, jamais la seule page.
+      corps: Consumer(
+        builder: (context, ref, _) => ListePaginee<ReservationTour>(
+          elements: reservations,
+          prefixeCle: 'tourisme-reservations-pagination',
+          cleRemiseAZero: (
+            ref.watch(rechercheTourismeProvider),
+            ref.watch(prestationTourismeProvider),
+            ref.watch(statutTourismeProvider),
+          ),
+          constructeur: (_, page) => TableauRestaurant(
+            gabarit: gabaritTourisme,
+            colonnes: VueReservations.colonnes,
+            clesLignes: [for (final r in page) Key('tourisme-resa-${r.id}')],
+            lignes: [for (final r in page) _ligne(context, r)],
+            ligneTotal: _ligneTotal(personnes, montant),
+            decorationTotal: decorationTotalTourisme,
+          ),
+        ),
       ),
     );
   }

@@ -30,12 +30,15 @@ use Illuminate\Http\JsonResponse;
  * existe pour la vente) ni côté client (l'écran dit poliment que le parc n'est
  * pas renseigné).
  *
- * ## Le parc DESCEND, il ne remonte jamais
+ * ## Lecture seule — la remontée passe ailleurs
  *
- * `unites_hebergement` n'est pas au registre `TABLES_SYNCHRONISABLES` : une
- * unité créée au comptoir ne partirait nulle part. C'est ce qui a fait refuser
- * le « Plan d'Hébergement » du prototype (PA-118), et cette route ne change
- * rien à cette décision — elle est en lecture seule, par construction.
+ * Cette route ne fait que lire. Jusqu'au 15/10/2026, le parc ne remontait
+ * jamais (`unites_hebergement` hors du registre `TABLES_SYNCHRONISABLES`,
+ * d'où le refus du « Plan d'Hébergement » du prototype, PA-118). Depuis la
+ * décision du Product Owner du 15/10/2026, une catégorie ou une unité créée
+ * HORS CONNEXION remonte par `POST /api/v1/sync` et le serveur la FUSIONNE
+ * sur sa clé naturelle (`GestionnaireUnitesHebergement`) ; le parc descend
+ * aussi, par curseur, avec tout le catalogue (`GET /api/v1/referentiels`).
  *
  * ## Aucune pagination
  *

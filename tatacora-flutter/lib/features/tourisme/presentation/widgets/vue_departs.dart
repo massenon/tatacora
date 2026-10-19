@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/format/formats.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../shared_widgets/liste_paginee.dart';
 import '../../../restaurant/presentation/widgets/coquille_restaurant.dart';
 import '../../../restaurant/presentation/widgets/tableau_restaurant.dart';
 import '../../domain/departs.dart';
@@ -114,16 +115,28 @@ class _Corps extends ConsumerWidget {
         CadreTableauRestaurant(
           // Le titre du cadre à la vue (l.266).
           titre: 'Départs planifiés',
-          corps: TableauRestaurant(
-            gabarit: gabaritTourisme,
-            colonnes: VueDeparts.colonnes,
-            clesLignes: [
-              for (final d in departs)
-                Key('tourisme-depart-${Depart.cle(d.circuitId, d.date)}'),
-            ],
-            lignes: [for (final d in departs) _ligne(context, ref, d)],
-            ligneTotal: _ligneTotal(agregats),
-            decorationTotal: decorationTotalTourisme,
+          // Dix départs par page (PO, 14/10/2026) ; la ligne TOTAL porte
+          // TOUS les départs retenus, jamais la seule page.
+          corps: ListePaginee<Depart>(
+            elements: departs,
+            prefixeCle: 'tourisme-departs-pagination',
+            cleRemiseAZero: (
+              ref.watch(rechercheTourismeProvider),
+              ref.watch(prestationTourismeProvider),
+              ref.watch(statutTourismeProvider),
+              ref.watch(remplissageTourismeProvider),
+            ),
+            constructeur: (_, page) => TableauRestaurant(
+              gabarit: gabaritTourisme,
+              colonnes: VueDeparts.colonnes,
+              clesLignes: [
+                for (final d in page)
+                  Key('tourisme-depart-${Depart.cle(d.circuitId, d.date)}'),
+              ],
+              lignes: [for (final d in page) _ligne(context, ref, d)],
+              ligneTotal: _ligneTotal(agregats),
+              decorationTotal: decorationTotalTourisme,
+            ),
           ),
         ),
         const SizedBox(height: AppSpacing.sm),

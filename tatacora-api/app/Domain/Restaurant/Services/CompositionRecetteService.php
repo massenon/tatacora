@@ -160,6 +160,16 @@ class CompositionRecetteService
 
             $recette->update([Recette::PROVISOIRE => $provisoire ?? false]);
 
+            // La composition fait partie de la DÉFINITION de la fiche que les
+            // postes téléchargent (`GET /api/v1/referentiels`, 15/10/2026),
+            // dont le curseur avance sur `recettes.updated_at`. Les lignes
+            // sont écrites dans `ingredients_recette`, que rien ne date : sans
+            // ce toucher, une composition changée à coût et marque inchangés
+            // ne redescendrait jamais. `touchQuietly` et non `touch` : aucune
+            // ligne d'audit pour un horodatage, le geste réel est déjà tracé
+            // par l'écran qui l'a fait.
+            $recette->touchQuietly();
+
             return $this->recalculer($recette);
         });
     }

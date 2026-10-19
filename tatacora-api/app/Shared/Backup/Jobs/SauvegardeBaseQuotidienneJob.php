@@ -56,7 +56,13 @@ class SauvegardeBaseQuotidienneJob implements ShouldQueue
             throw new RuntimeException(__('sauvegarde.repertoire_inaccessible', ['repertoire' => $repertoire]));
         }
 
-        $fichier = $repertoire . '/tatacora-' . now()->format('Y-m-d_His') . '.sql';
+        // Deux sauvegardes dans la même seconde (planifiée + manuelle) auraient
+        // le même nom, et la seconde écraserait la première : on suffixe.
+        $base = $repertoire . '/tatacora-' . now()->format('Y-m-d_His');
+        $fichier = $base . '.sql';
+        for ($n = 2; file_exists($fichier); $n++) {
+            $fichier = $base . '-' . $n . '.sql';
+        }
 
         $processus = new Process($this->commande($fichier));
         $processus->setTimeout(self::TIMEOUT_SECONDES);

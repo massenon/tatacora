@@ -40,6 +40,21 @@ class ClassificationConflitService
         'mouvements_stock',
         'ecritures_comptables',
         'bulletins_paie',
+        // Lot S3 (décision PO du 15/10/2026) : les documents SOURCES que les
+        // postes poussent désormais. Chacun produit, côté serveur, une pièce
+        // ou un mouvement : une vente (pièce VTE + sortie de stock), une
+        // dépense (pièce CAI/BQ), une commande d'achat (engagement envers le
+        // fournisseur, base du rapprochement et des règlements), un bon de
+        // réception (entrée de stock). Leurs lignes suivent leur en-tête : un
+        // arbitrage automatique sur une ligne réécrirait le document par la
+        // bande.
+        'ventes',
+        'lignes_vente',
+        'depenses',
+        'lignes_depense',
+        'commandes_achat',
+        'lignes_commande_achat',
+        'bons_reception',
     ];
 
     /**

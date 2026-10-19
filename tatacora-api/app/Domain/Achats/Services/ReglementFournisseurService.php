@@ -9,6 +9,7 @@ use App\Domain\Achats\Models\ReglementFournisseur;
 use App\Domain\Comptabilite\Services\PasserEcritureService;
 use App\Domain\Comptabilite\Support\ComptesSyscohada;
 use App\Domain\Depenses\Services\DepenseService;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -52,8 +53,20 @@ class ReglementFournisseurService
      * @throws RuntimeException refus local : trésorerie inconnue, montant
      *                          invalide ou supérieur au reste dû
      */
-    public function regler(CommandeAchat $commande, string $montant, string $tresorerieCode): ReglementFournisseur
-    {
+    public function regler(
+        CommandeAchat $commande,
+        string $montant,
+        string $tresorerieCode,
+        ?string $id = null,
+        ?CarbonInterface $quand = null,
+    ): ReglementFournisseur {
+        // Audit de couverture (18/10/2026), pour la seule synchronisation :
+        // l'UUID du poste (un rejeu rend le règlement déjà écrit) et la date
+        // du geste (D246). Aucun appelant en ligne ne les passe.
+        if ($id !== null && ($existant = ReglementFournisseur::find($id)) !== null) {
+            return $existant;
+        }
+
         if (! array_key_exists($tresorerieCode, DepenseService::TRESORERIES)) {
             throw new RuntimeException(__('achats.reglement_tresorerie_inconnue', ['code' => $tresorerieCode]));
         }
@@ -70,12 +83,15 @@ class ReglementFournisseurService
 
         $tresorerie = DepenseService::TRESORERIES[$tresorerieCode];
 
-        return DB::transaction(function () use ($commande, $montant, $tresorerieCode, $tresorerie): ReglementFournisseur {
+        $jour = ($quand ?? now())->toDateString();
+
+        return DB::transaction(function () use ($commande, $montant, $tresorerieCode, $tresorerie, $id, $jour): ReglementFournisseur {
             $reglement = ReglementFournisseur::create([
+                ...($id !== null ? ['id' => $id] : []),
                 'commande_id' => $commande->id,
                 'montant' => bcadd($montant, '0', self::PRECISION),
                 'tresorerie' => $tresorerieCode,
-                'date_reglement' => now()->toDateString(),
+                'date_reglement' => $jour,
             ]);
 
             // RECALCULÉ depuis les lignes — jamais `montant_regle + montant`,
@@ -92,7 +108,7 @@ class ReglementFournisseurService
 
             $this->ecritures->passerEtValider([
                 'journal' => $tresorerie['journal'],
-                'date' => now()->toDateString(),
+                'date' => $jour,
                 'libelle' => $libelle,
                 'lignes' => [
                     ['compte' => ComptesSyscohada::FOURNISSEURS, 'debit' => $montant, 'credit' => '0'],

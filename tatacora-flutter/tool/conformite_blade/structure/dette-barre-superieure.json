@@ -1,0 +1,199 @@
+{
+  "_lisez-moi": "PRODUIT par FIGER_HAUT=1 flutter test test/core/qualite/barre_superieure_blade_test.dart. Cliquet de la barre supérieure (Phase 1C).",
+  "roles": {
+    "achats": {
+      "barre": [
+        10,
+        7
+      ],
+      "menu": [
+        21,
+        17
+      ],
+      "cloche": [
+        16,
+        7
+      ],
+      "enTrop": 3
+    },
+    "administrateur": {
+      "barre": [
+        13,
+        10
+      ],
+      "menu": [
+        22,
+        19
+      ],
+      "cloche": [
+        19,
+        10
+      ],
+      "enTrop": 3
+    },
+    "barman": {
+      "barre": [
+        13,
+        10
+      ],
+      "menu": [
+        24,
+        20
+      ],
+      "cloche": [
+        19,
+        10
+      ],
+      "enTrop": 3
+    },
+    "comptable": {
+      "barre": [
+        13,
+        10
+      ],
+      "menu": [
+        24,
+        20
+      ],
+      "cloche": [
+        19,
+        10
+      ],
+      "enTrop": 3
+    },
+    "cuisine": {
+      "barre": [
+        10,
+        7
+      ],
+      "menu": [
+        21,
+        17
+      ],
+      "cloche": [
+        16,
+        7
+      ],
+      "enTrop": 3
+    },
+    "gerant": {
+      "barre": [
+        13,
+        10
+      ],
+      "menu": [
+        22,
+        19
+      ],
+      "cloche": [
+        19,
+        10
+      ],
+      "enTrop": 3
+    },
+    "guide": {
+      "barre": [
+        10,
+        7
+      ],
+      "menu": [
+        22,
+        19
+      ],
+      "cloche": [
+        15,
+        7
+      ],
+      "enTrop": 3
+    },
+    "magasinier": {
+      "barre": [
+        13,
+        10
+      ],
+      "menu": [
+        24,
+        20
+      ],
+      "cloche": [
+        19,
+        10
+      ],
+      "enTrop": 3
+    },
+    "receptionniste": {
+      "barre": [
+        13,
+        10
+      ],
+      "menu": [
+        24,
+        20
+      ],
+      "cloche": [
+        19,
+        10
+      ],
+      "enTrop": 3
+    },
+    "rh": {
+      "barre": [
+        9,
+        6
+      ],
+      "menu": [
+        19,
+        15
+      ],
+      "cloche": [
+        15,
+        6
+      ],
+      "enTrop": 4
+    },
+    "super_admin": {
+      "barre": [
+        13,
+        10
+      ],
+      "menu": [
+        22,
+        19
+      ],
+      "cloche": [
+        19,
+        10
+      ],
+      "enTrop": 3
+    },
+    "vehicules": {
+      "barre": [
+        10,
+        7
+      ],
+      "menu": [
+        21,
+        17
+      ],
+      "cloche": [
+        16,
+        7
+      ],
+      "enTrop": 3
+    }
+  },
+  "total": {
+    "barre": [
+      140,
+      104
+    ],
+    "menu": [
+      266,
+      222
+    ],
+    "cloche": [
+      211,
+      104
+    ]
+  }
+}

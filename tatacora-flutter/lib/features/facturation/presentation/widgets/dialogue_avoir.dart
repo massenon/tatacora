@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/di/providers.dart' show sessionProvider;
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
@@ -94,7 +95,13 @@ Future<void> annulerParAvoir(
   if (confirme != true) return;
 
   try {
-    await ref.read(facturerProvider).annuler(piece.id, motif.text.trim());
+    await ref
+        .read(facturerProvider)
+        .annuler(
+          piece.id,
+          motif.text.trim(),
+          auteurId: ref.read(sessionProvider)?.utilisateurId,
+        );
     ref.invalidate(registreProvider);
   } on Object catch (e) {
     if (context.mounted) {

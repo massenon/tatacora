@@ -10,6 +10,7 @@ use App\Domain\Hebergement\Models\CanalReservation;
 use App\Domain\Hebergement\Services\CanalReservationService;
 use App\Domain\Ventes\Models\TableSalle;
 use App\Domain\Ventes\Services\TableSalleService;
+use App\Models\User;
 use App\Pwa\Livewire\Concerns\FormulaireModal;
 use App\Shared\Mail\Services\ConfigurationMailService;
 use App\Shared\Parametres\Data\DefinitionParametre;
@@ -19,6 +20,7 @@ use App\Shared\Parametres\Services\EnregistrerParametreService;
 use App\Shared\Parametres\Services\OptionsSystemeService;
 use App\Shared\Parametres\Services\ParametreSystemeService;
 use App\Shared\ReportEngine\Services\ReportHeaderService;
+use App\Shared\Secrets\Services\SecretsConfigurationService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\View\View;
@@ -129,7 +131,7 @@ use Throwable;
  *   maitre-refuse:parametres.html#identite       (deux invites d'exemple IFU/RCCM —
  *                                                 l'ecran affiche des valeurs, pas des champs)
  *   maitre-refuse:parametres.html#communication  (invite du secret WhatsApp API — .env)
- *   maitre-refuse:parametres.html#email          (champ « Mot de passe SMTP » — .env)
+ *   (#email LEVE le 19/10/2026 : « Mot de passe SMTP » saisi, chiffre en base)
  *   maitre-refuse:parametres.html#activation     (pied « Annuler / Enregistrer les
  *                                                 parametres » : une cle par geste, et
  *                                                 trois bascules sans consommateur serveur,
@@ -238,6 +240,13 @@ class Parametres extends PageTransverse
      * @var array{succes: bool, detail: string}|null
      */
     public ?array $resultatTestEmail = null;
+
+    /**
+     * Le mot de passe SMTP en cours de SAISIE (19/10/2026, « chiffré en
+     * base ») : vidé dès l'enregistrement, jamais rechargé — l'écran ne
+     * connaît que l'état du secret, jamais sa valeur.
+     */
+    public string $motDePasseSmtp = '';
 
     /**
      * @return array<string, list<string>>
@@ -507,6 +516,54 @@ class Parametres extends PageTransverse
         ];
     }
 
+    /**
+     * Range le mot de passe SMTP saisi, CHIFFRÉ (`secrets_configuration`),
+     * décision du Product Owner du 19/10/2026. Réservé aux deux rôles
+     * d'administration EN PLUS du droit `PARAM = C` : un secret n'est pas un
+     * paramètre métier.
+     */
+    public function enregistrerMotDePasseSmtp(SecretsConfigurationService $secrets): void
+    {
+        $this->exigerEcriture(self::MODULE);
+        $this->exigerAdministration();
+
+        try {
+            $secrets->enregistrer(SecretsConfigurationService::SMTP_MOT_DE_PASSE, $this->motDePasseSmtp, $this->utilisateur());
+        } catch (RuntimeException $refus) {
+            $this->addError('motDePasseSmtp', $refus->getMessage());
+
+            return;
+        }
+
+        $this->motDePasseSmtp = '';
+        $this->resetErrorBag('motDePasseSmtp');
+        session()->flash('pwa-succes', __('pwa.parametres.email_motdepasse_enregistre'));
+    }
+
+    /** Efface le secret : `MAIL_PASSWORD` (`.env`) reprend. */
+    public function effacerMotDePasseSmtp(SecretsConfigurationService $secrets): void
+    {
+        $this->exigerEcriture(self::MODULE);
+        $this->exigerAdministration();
+
+        $secrets->effacer(SecretsConfigurationService::SMTP_MOT_DE_PASSE, $this->utilisateur());
+        $this->motDePasseSmtp = '';
+        session()->flash('pwa-succes', __('pwa.parametres.email_motdepasse_efface'));
+    }
+
+    private function exigerAdministration(): void
+    {
+        abort_unless($this->utilisateur()->estAdministrateur(), 403);
+    }
+
+    private function utilisateur(): User
+    {
+        $compte = auth()->user();
+        abort_unless($compte instanceof User, 403);
+
+        return $compte;
+    }
+
     // =====================================================================
     // Logo & Apparence — téléversement réel
     // =====================================================================
@@ -671,6 +728,7 @@ class Parametres extends PageTransverse
         TableSalleService $tablesSalle,
         OptionsSystemeService $options,
         ApparenceEtablissementService $apparence,
+        SecretsConfigurationService $secrets,
     ): View {
         $groupes = [];
         $groupesParOnglet = [];
@@ -721,6 +779,11 @@ class Parametres extends PageTransverse
             // téléversé s'il existe, l'actif livré sinon (même service).
             'urlLogo' => $apparence->urlLogo(),
             'urlFavicon' => $apparence->urlFavicon(),
+            // Email (SMTP) : l'ÉTAT du mot de passe (renseigné, quand, par
+            // qui), jamais sa valeur ; la saisie n'est offerte qu'aux deux
+            // rôles d'administration.
+            'etatMotDePasseSmtp' => $secrets->etat(SecretsConfigurationService::SMTP_MOT_DE_PASSE),
+            'peutSaisirSecret' => $this->peutEcrire() && (auth()->user()?->estAdministrateur() ?? false),
         ]))->layout('layouts.pwa', ['title' => __('pwa.parametres.titre_page')]);
     }
 

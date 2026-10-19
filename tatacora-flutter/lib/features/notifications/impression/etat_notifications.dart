@@ -31,24 +31,24 @@
 /// couvrent Latin-1 et rien de plus : U+2019 y DISPARAÎT du papier sans erreur
 /// ni trace. Le dépôt s'est fait prendre une fois, sur « Chiffre d'affaires ».
 ///
-/// ⚠ **Conséquence le jour où un PDF sera ajouté ici** (voir le refus
-/// ci-dessous) : il ne pourra PAS imprimer ces libellés tels quels. Il devra
-/// les faire passer par la conversion Latin-1 du dépôt (`texteTicket` et sa
-/// garde `caracteresNonImprimables`), sans quoi chaque apostrophe du maître
-/// s'évaporera du document — silencieusement. Ce n'est pas une question de
-/// style : c'est une raison de plus de ne pas produire un PDF à la légère.
+/// ⚠ **Conséquence pour le PDF** (produit depuis le 14/10/2026) : il
+/// n'imprime PAS ces libellés tels quels. Tout texte passe par la conversion
+/// Latin-1 du dépôt (`texteTicket`, appliquée par `EtatTabulaireA4`), sans
+/// quoi chaque apostrophe du maître s'évaporerait du document —
+/// silencieusement.
 ///
-/// ## Le PDF du maître n'est PAS produit, et voici pourquoi
+/// ## Le PDF du maître est l'état tabulaire A4 commun
 ///
-/// La modale d'export du maître offre PDF **et** Excel. Le PDF n'est pas rendu
-/// ici : tout document A4 de ce dépôt passe par `core/impression/entete_a4.dart`
-/// et doit être **classé au registre** de `test/core/impression/
-/// pdf_directive_test.dart`, qui relit les gabarits serveur — un fichier hors du
-/// périmètre de ce lot. Produire un A4 sans l'y inscrire ferait échouer cette
-/// garde, ou pire, passerait un état non relu. L'absence est déclarée à l'écran.
+/// Directive du PO du 14/10/2026 : le choix « PDF Officiel A4 Imprimable »
+/// produit l'onglet affiché, mêmes colonnes et mêmes lignes que le CSV, par le
+/// gabarit commun `core/impression/etat_tabulaire_a4.dart` (en-tête lu des
+/// paramètres, visas de la directive, pied « Page x / y ») — [etatA4]. La
+/// mention [mentionAucunEnvoi] s'y imprime avant le tableau.
 library;
 
 import 'dart:convert';
+
+import '../../../core/impression/etat_tabulaire_a4.dart';
 
 import '../domain/entities/canal_notification.dart';
 import '../domain/entities/declencheur_notification.dart';
@@ -73,8 +73,8 @@ abstract final class EtatNotifications {
   /// Elle s'imprime avec lui, jamais seulement à l'écran : un export qui
   /// circulerait sans elle laisserait croire que ces messages ont été
   /// transmis. Même règle que la fiche de stock non cohérente (PA-135).
-  /// Apostrophe DROITE, délibérément : c'est une phrase à NOUS, et c'est la
-  /// première qu'un futur PDF devrait imprimer. Voir la note d'apostrophe en
+  /// Apostrophe DROITE, délibérément : c'est une phrase à NOUS, et le PDF
+  /// l'imprime avant son tableau. Voir la note d'apostrophe en
   /// tête de fichier.
   static const String mentionAucunEnvoi =
       "Aucun de ces messages n'a été envoyé par le logiciel. "
@@ -92,15 +92,14 @@ abstract final class EtatNotifications {
     required List<DeclencheurNotification> declencheurs,
     required TransportsLocaux transports,
   }) {
-    final lignes = switch (onglet) {
-      OngletNotifications.file => _file(file),
-      OngletNotifications.journal => _journal(journal),
-      OngletNotifications.modeles => _modeles(modeles),
-      OngletNotifications.declencheurs => _declencheurs(declencheurs, modeles),
-      OngletNotifications.canaux => _canaux(transports, file),
-    };
-
-    if (lignes.corps.isEmpty) throw const ExportVide();
+    final lignes = _tableau(
+      onglet: onglet,
+      file: file,
+      journal: journal,
+      modeles: modeles,
+      declencheurs: declencheurs,
+      transports: transports,
+    );
 
     final tampon = StringBuffer('\u{FEFF}')
       ..writeln(_echapper('Notifications — ${onglet.libelle}'))
@@ -141,6 +140,74 @@ abstract final class EtatNotifications {
       transports: transports,
     ),
   );
+
+  /// Le « PDF Officiel A4 Imprimable » de l'onglet affiché — les colonnes et
+  /// les lignes du CSV, la même portée, la même mention. Lève [ExportVide]
+  /// sur une liste vide, comme le CSV. Le journal (huit colonnes) sort en
+  /// paysage, les autres onglets en portrait.
+  static EtatTabulaireA4 etatA4({
+    required OngletNotifications onglet,
+    required String filtre,
+    required List<MessageNotification> file,
+    required List<MessageNotification> journal,
+    required List<ModeleNotification> modeles,
+    required List<DeclencheurNotification> declencheurs,
+    required TransportsLocaux transports,
+  }) {
+    final tableau = _tableau(
+      onglet: onglet,
+      file: file,
+      journal: journal,
+      modeles: modeles,
+      declencheurs: declencheurs,
+      transports: transports,
+    );
+    return EtatTabulaireA4(
+      titre: 'Notifications — ${onglet.libelle}',
+      portee: filtre,
+      mentions: const [mentionAucunEnvoi],
+      colonnes: [
+        for (final entete in tableau.entetes)
+          entete == 'En file'
+              ? ColonneEtat.nombre(entete)
+              : ColonneEtat(
+                  entete,
+                  largeur: _colonnesLongues.contains(entete) ? 2.5 : 1,
+                ),
+      ],
+      lignes: tableau.corps,
+    );
+  }
+
+  /// Les colonnes de texte long, élargies au PDF.
+  static const Set<String> _colonnesLongues = {
+    'Message',
+    'Commentaire',
+    'Variables',
+    'Ce qui bloque',
+    'Objet',
+  };
+
+  /// Le tableau de l'onglet affiché — UN auteur pour le CSV et le PDF. Lève
+  /// [ExportVide] quand il n'a aucune ligne.
+  static _Tableau _tableau({
+    required OngletNotifications onglet,
+    required List<MessageNotification> file,
+    required List<MessageNotification> journal,
+    required List<ModeleNotification> modeles,
+    required List<DeclencheurNotification> declencheurs,
+    required TransportsLocaux transports,
+  }) {
+    final tableau = switch (onglet) {
+      OngletNotifications.file => _file(file),
+      OngletNotifications.journal => _journal(journal),
+      OngletNotifications.modeles => _modeles(modeles),
+      OngletNotifications.declencheurs => _declencheurs(declencheurs, modeles),
+      OngletNotifications.canaux => _canaux(transports, file),
+    };
+    if (tableau.corps.isEmpty) throw const ExportVide();
+    return tableau;
+  }
 
   // ------------------------------------------------------------- par onglet
 

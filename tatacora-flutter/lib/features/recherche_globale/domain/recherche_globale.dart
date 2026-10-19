@@ -133,8 +133,7 @@ List<ResultatPage> pagesCorrespondantes({
   final cherche = terme.trim().toLowerCase();
   final pages = <ResultatPage>[];
   for (final d in toutesLesDestinations) {
-    if (!droits.peutLire(d.module)) continue;
-    if (entreeMasqueePourRole(role, d.nom)) continue;
+    if (!destinationVisible(d, droits: droits, role: role)) continue;
     if (!d.nom.toLowerCase().contains(cherche)) continue;
     pages.add(ResultatPage(nom: d.nom, route: d.route));
   }

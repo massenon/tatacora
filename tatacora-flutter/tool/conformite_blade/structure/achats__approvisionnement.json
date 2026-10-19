@@ -1,0 +1,455 @@
+{
+    "_lisez-moi": "PRODUIT par ExtraireStructureBladeTest, jamais ecrit a la main. Chaque variante (onglet) : les textes VISIBLES de <main>, dans l'ordre du document.",
+    "vue": "achats/approvisionnement",
+    "jeu": "parc",
+    "onglets": {
+        "besoins": [
+            {
+                "type": "h1",
+                "texte": "Approvisionnement"
+            },
+            {
+                "type": "p",
+                "texte": "Commandes fournisseurs, réceptions et dettes — la réception génère l'entrée de stock, ."
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "button",
+                "texte": "Commander la sélection"
+            },
+            {
+                "type": "p",
+                "texte": "Articles sous seuil"
+            },
+            {
+                "type": "p",
+                "texte": "Commandes en attente"
+            },
+            {
+                "type": "p",
+                "texte": "Réceptions partielles"
+            },
+            {
+                "type": "p",
+                "texte": "Fournisseurs à payer"
+            },
+            {
+                "type": "p",
+                "texte": "Total dû"
+            },
+            {
+                "type": "p",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "onglet",
+                "texte": "Besoins",
+                "cle": "besoins"
+            },
+            {
+                "type": "onglet",
+                "texte": "Commandes",
+                "cle": "commandes"
+            },
+            {
+                "type": "onglet",
+                "texte": "Réceptions",
+                "cle": "receptions"
+            },
+            {
+                "type": "onglet",
+                "texte": "Dettes fournisseurs",
+                "cle": "dettes"
+            },
+            {
+                "type": "champ",
+                "texte": "Article, point de stockage…"
+            },
+            {
+                "type": "h2",
+                "texte": "Articles à réapprovisionner"
+            },
+            {
+                "type": "p",
+                "texte": "Stock calculé ≤ seuil d'alerte. Le compteur « Articles sous seuil » porte sur TOUT le référentiel, jamais sur les seules lignes affichées : la recherche masque des lignes, elle ne réduit pas ce qu'il y a à commander."
+            },
+            {
+                "type": "th",
+                "texte": "Article"
+            },
+            {
+                "type": "th",
+                "texte": "Point"
+            },
+            {
+                "type": "th",
+                "texte": "Stock"
+            },
+            {
+                "type": "th",
+                "texte": "Seuil"
+            },
+            {
+                "type": "th",
+                "texte": "Manque"
+            },
+            {
+                "type": "th",
+                "texte": "Prix d'achat"
+            },
+            {
+                "type": "th",
+                "texte": "À commander"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun article sous son seuil. Rien à commander."
+            },
+            {
+                "type": "p",
+                "texte": "Essayez de modifier votre recherche ou vos filtres."
+            }
+        ],
+        "commandes": [
+            {
+                "type": "h1",
+                "texte": "Approvisionnement"
+            },
+            {
+                "type": "p",
+                "texte": "Commandes fournisseurs, réceptions et dettes — la réception génère l'entrée de stock, ."
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "p",
+                "texte": "Articles sous seuil"
+            },
+            {
+                "type": "p",
+                "texte": "Commandes en attente"
+            },
+            {
+                "type": "p",
+                "texte": "Réceptions partielles"
+            },
+            {
+                "type": "p",
+                "texte": "Fournisseurs à payer"
+            },
+            {
+                "type": "p",
+                "texte": "Total dû"
+            },
+            {
+                "type": "p",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "onglet",
+                "texte": "Besoins",
+                "cle": "besoins"
+            },
+            {
+                "type": "onglet",
+                "texte": "Commandes",
+                "cle": "commandes"
+            },
+            {
+                "type": "onglet",
+                "texte": "Réceptions",
+                "cle": "receptions"
+            },
+            {
+                "type": "onglet",
+                "texte": "Dettes fournisseurs",
+                "cle": "dettes"
+            },
+            {
+                "type": "champ",
+                "texte": "Fournisseur, n° de commande…"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les statuts"
+            },
+            {
+                "type": "option",
+                "texte": "Brouillon"
+            },
+            {
+                "type": "option",
+                "texte": "Envoyée"
+            },
+            {
+                "type": "option",
+                "texte": "Réceptionnée partiellement"
+            },
+            {
+                "type": "option",
+                "texte": "Réceptionnée"
+            },
+            {
+                "type": "option",
+                "texte": "Clôturée"
+            },
+            {
+                "type": "h2",
+                "texte": "Bons de commande"
+            },
+            {
+                "type": "th",
+                "texte": "Fournisseur"
+            },
+            {
+                "type": "th",
+                "texte": "Date"
+            },
+            {
+                "type": "th",
+                "texte": "Lignes"
+            },
+            {
+                "type": "th",
+                "texte": "Montant"
+            },
+            {
+                "type": "th",
+                "texte": "Réglé"
+            },
+            {
+                "type": "th",
+                "texte": "Reste dû"
+            },
+            {
+                "type": "th",
+                "texte": "Statut"
+            },
+            {
+                "type": "th",
+                "texte": "Actions"
+            },
+            {
+                "type": "p",
+                "texte": "Aucune commande. Passez par l'onglet Besoins."
+            },
+            {
+                "type": "p",
+                "texte": "Essayez de modifier votre recherche ou vos filtres."
+            }
+        ],
+        "receptions": [
+            {
+                "type": "h1",
+                "texte": "Approvisionnement"
+            },
+            {
+                "type": "p",
+                "texte": "Commandes fournisseurs, réceptions et dettes — la réception génère l'entrée de stock, ."
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "p",
+                "texte": "Articles sous seuil"
+            },
+            {
+                "type": "p",
+                "texte": "Commandes en attente"
+            },
+            {
+                "type": "p",
+                "texte": "Réceptions partielles"
+            },
+            {
+                "type": "p",
+                "texte": "Fournisseurs à payer"
+            },
+            {
+                "type": "p",
+                "texte": "Total dû"
+            },
+            {
+                "type": "p",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "onglet",
+                "texte": "Besoins",
+                "cle": "besoins"
+            },
+            {
+                "type": "onglet",
+                "texte": "Commandes",
+                "cle": "commandes"
+            },
+            {
+                "type": "onglet",
+                "texte": "Réceptions",
+                "cle": "receptions"
+            },
+            {
+                "type": "onglet",
+                "texte": "Dettes fournisseurs",
+                "cle": "dettes"
+            },
+            {
+                "type": "champ",
+                "texte": "Fournisseur, n° de commande…"
+            },
+            {
+                "type": "h2",
+                "texte": "Bons de réception"
+            },
+            {
+                "type": "p",
+                "texte": "Chaque réception a généré une entrée de stock valorisée au prix de la commande, qui a recalculé le coût moyen pondéré de l'article."
+            },
+            {
+                "type": "th",
+                "texte": "Commande"
+            },
+            {
+                "type": "th",
+                "texte": "Fournisseur"
+            },
+            {
+                "type": "th",
+                "texte": "Date"
+            },
+            {
+                "type": "th",
+                "texte": "Point"
+            },
+            {
+                "type": "th",
+                "texte": "Articles"
+            },
+            {
+                "type": "th",
+                "texte": "Conformité"
+            },
+            {
+                "type": "p",
+                "texte": "Aucune réception enregistrée."
+            },
+            {
+                "type": "p",
+                "texte": "Essayez de modifier votre recherche ou vos filtres."
+            }
+        ],
+        "dettes": [
+            {
+                "type": "h1",
+                "texte": "Approvisionnement"
+            },
+            {
+                "type": "p",
+                "texte": "Commandes fournisseurs, réceptions et dettes — la réception génère l'entrée de stock, ."
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "p",
+                "texte": "Articles sous seuil"
+            },
+            {
+                "type": "p",
+                "texte": "Commandes en attente"
+            },
+            {
+                "type": "p",
+                "texte": "Réceptions partielles"
+            },
+            {
+                "type": "p",
+                "texte": "Fournisseurs à payer"
+            },
+            {
+                "type": "p",
+                "texte": "Total dû"
+            },
+            {
+                "type": "p",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "onglet",
+                "texte": "Besoins",
+                "cle": "besoins"
+            },
+            {
+                "type": "onglet",
+                "texte": "Commandes",
+                "cle": "commandes"
+            },
+            {
+                "type": "onglet",
+                "texte": "Réceptions",
+                "cle": "receptions"
+            },
+            {
+                "type": "onglet",
+                "texte": "Dettes fournisseurs",
+                "cle": "dettes"
+            },
+            {
+                "type": "champ",
+                "texte": "Fournisseur, n° de commande…"
+            },
+            {
+                "type": "h2",
+                "texte": "Dettes fournisseurs"
+            },
+            {
+                "type": "p",
+                "texte": "Cette liste porte sur les commandes non clôturées. « Réglé » et « Reste dû » viennent des règlements réellement enregistrés. La colonne « Ancienneté » mesure l'âge du bon de commande, pas le retard d'un paiement."
+            },
+            {
+                "type": "span",
+                "texte": "Total dû"
+            },
+            {
+                "type": "th",
+                "texte": "N° commande"
+            },
+            {
+                "type": "th",
+                "texte": "Date"
+            },
+            {
+                "type": "th",
+                "texte": "Ancienneté"
+            },
+            {
+                "type": "th",
+                "texte": "Montant"
+            },
+            {
+                "type": "th",
+                "texte": "Réglé"
+            },
+            {
+                "type": "th",
+                "texte": "Reste dû"
+            },
+            {
+                "type": "p",
+                "texte": "Aucune dette fournisseur. Toutes les commandes sont soldées."
+            },
+            {
+                "type": "p",
+                "texte": "Essayez de modifier votre recherche ou vos filtres."
+            }
+        ]
+    }
+}

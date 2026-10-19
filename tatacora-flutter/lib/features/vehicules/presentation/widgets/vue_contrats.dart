@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/format/formats.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../shared_widgets/liste_paginee.dart';
 import '../../../restaurant/presentation/widgets/coquille_restaurant.dart';
 import '../../../restaurant/presentation/widgets/tableau_restaurant.dart';
 import '../../domain/entities/contrat_location.dart';
@@ -63,6 +64,7 @@ class VueContrats extends ConsumerWidget {
         icone: Icons.error_outline,
       ),
       data: (lignes) => _Corps(
+        cleFiltre: (terme, periode),
         contrats: lignes
             .where((c) => c.chevauche(periode.debut, periode.fin))
             .where(
@@ -78,9 +80,12 @@ class VueContrats extends ConsumerWidget {
 }
 
 class _Corps extends StatelessWidget {
-  const _Corps({required this.contrats});
+  const _Corps({required this.contrats, required this.cleFiltre});
 
   final List<ContratLocation> contrats;
+
+  /// La recherche et la période : les changer ramène à la page 1.
+  final Object cleFiltre;
 
   @override
   Widget build(BuildContext context) {
@@ -101,67 +106,74 @@ class _Corps extends StatelessWidget {
           CadreTableauRestaurant(
             // Le titre du cadre à la vue.
             titre: 'Contrats de location',
-            corps: TableauRestaurant(
-              gabarit: GabaritTableau.carte,
-              colonnes: VueContrats.colonnes,
-              clesLignes: [
-                for (final c in contrats) Key('vehicules-contrat-${c.id}'),
-              ],
-              lignes: [
-                for (final c in contrats)
-                  [
-                    const _Absent(
-                      raison: 'Un contrat n’a pas de numéro sur ce poste.',
-                    ),
-                    _CelluleVehicule(contrat: c),
-                    _CelluleClient(contrat: c),
-                    // La période de la vue : deux dates sur deux lignes.
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          dateFrVehicules(c.debut),
-                          style: TextesRestaurant.mention,
-                        ),
-                        Text(
-                          dateFrVehicules(c.fin),
-                          style: TextesRestaurant.mention,
-                        ),
-                      ],
-                    ),
-                    Text(
-                      c.nombreJours.toString(),
-                      style: TextesRestaurant.corps,
-                    ),
-                    Tooltip(
-                      message:
-                          'Montant RECALCULÉ au tarif courant du véhicule : '
-                          'aucune colonne ne fige le tarif d’une location. '
-                          'Modifier la grille réécrit le montant de ce contrat.',
-                      child: Text(
-                        formaterMontantDecimal(c.montant, suffixe: 'FCFA') ??
-                            CarteIndicateurRestaurant.absent,
-                        style: TextesRestaurant.corpsFort.copyWith(
-                          color: AppColors.navy,
+            // Dix contrats par page (PO, 14/10/2026) ; la ligne TOTAL
+            // ci-dessous porte TOUS les contrats retenus, jamais la page.
+            corps: ListePaginee<ContratLocation>(
+              elements: contrats,
+              prefixeCle: 'vehicules-contrats-pagination',
+              cleRemiseAZero: cleFiltre,
+              constructeur: (_, page) => TableauRestaurant(
+                gabarit: GabaritTableau.carte,
+                colonnes: VueContrats.colonnes,
+                clesLignes: [
+                  for (final c in page) Key('vehicules-contrat-${c.id}'),
+                ],
+                lignes: [
+                  for (final c in page)
+                    [
+                      const _Absent(
+                        raison: 'Un contrat n’a pas de numéro sur ce poste.',
+                      ),
+                      _CelluleVehicule(contrat: c),
+                      _CelluleClient(contrat: c),
+                      // La période de la vue : deux dates sur deux lignes.
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            dateFrVehicules(c.debut),
+                            style: TextesRestaurant.mention,
+                          ),
+                          Text(
+                            dateFrVehicules(c.fin),
+                            style: TextesRestaurant.mention,
+                          ),
+                        ],
+                      ),
+                      Text(
+                        c.nombreJours.toString(),
+                        style: TextesRestaurant.corps,
+                      ),
+                      Tooltip(
+                        message:
+                            'Montant RECALCULÉ au tarif courant du véhicule : '
+                            'aucune colonne ne fige le tarif d’une location. '
+                            'Modifier la grille réécrit le montant de ce contrat.',
+                        child: Text(
+                          formaterMontantDecimal(c.montant, suffixe: 'FCFA') ??
+                              CarteIndicateurRestaurant.absent,
+                          style: TextesRestaurant.corpsFort.copyWith(
+                            color: AppColors.navy,
+                          ),
                         ),
                       ),
-                    ),
-                    const _Absent(
-                      raison:
-                          'Ce poste n’enregistre aucun acompte sur un '
-                          'contrat. « 0 FCFA » se lirait « rien versé ».',
-                    ),
-                    const _Absent(
-                      raison:
-                          'Le reste dû se déduit de l’acompte, qui n’existe pas. '
-                          '« Soldé » serait une bonne nouvelle que personne n’a '
-                          'vérifiée.',
-                    ),
-                    const _EtatContrat(),
-                    const _ActionAnnuler(),
-                  ],
-              ],
+                      const _Absent(
+                        raison:
+                            'Ce poste n’enregistre aucun acompte sur un '
+                            'contrat. « 0 FCFA » se lirait « rien versé ».',
+                      ),
+                      const _Absent(
+                        raison:
+                            'Le reste dû se déduit de l’acompte, qui n’existe pas. '
+                            '« Soldé » serait une bonne nouvelle que personne n’a '
+                            'vérifiée.',
+                      ),
+                      const _EtatContrat(),
+                      const _ActionAnnuler(),
+                    ],
+                ],
+              ),
             ),
           ),
           // La ligne TOTAL de la vue — fond navy, texte blanc, gras. Rendue sous

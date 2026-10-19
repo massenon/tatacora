@@ -5,7 +5,12 @@ import '../../../core/database/app_database.dart';
 // Voir la note de `employe_dao.dart` : sans cet import, le mixin généré est
 // VIDE, et sans erreur de génération.
 import '../../../core/database/tables/rh_tables.dart';
+import '../../synchronisation/data/documents_autres_postes.dart';
+import '../../synchronisation/data/operations_sync_dao.dart';
+import '../../synchronisation/domain/charges_synchronisation.dart';
+import '../../synchronisation/domain/operation_sync.dart';
 import '../domain/entities/bulletin_paie.dart';
+import 'employe_dao.dart';
 import '../domain/entities/employe.dart';
 import '../domain/entities/taux_paie.dart';
 import '../domain/refus_rh.dart';
@@ -67,9 +72,18 @@ class PaieDao extends DatabaseAccessor<AppDatabase> with _$PaieDaoMixin {
   /// N'écrase **pas** une valeur déjà en base : un Administrateur qui a
   /// renseigné un taux révisé ne doit pas le voir revenir à sa valeur d'usine
   /// au prochain démarrage.
-  Future<void> installerReferentielConfirme() async {
+  ///
+  /// [confirmes] : les quatre taux de [ReferentielPaie.confirmes] par défaut ;
+  /// les quatre MÊMES taux, avec les descriptions du Product Owner, quand le
+  /// poste vierge reçoit ses paramètres initiaux (Lot J2 —
+  /// `parametresEtablissementInitiaux`, `ParametresEtablissementSeeder` qui
+  /// passe avant `PaieReferentielSeeder` au serveur). Ce DAO reste le seul
+  /// auteur de la table.
+  Future<void> installerReferentielConfirme({
+    List<TauxConfirme> confirmes = ReferentielPaie.confirmes,
+  }) async {
     await transaction(() async {
-      for (final confirme in ReferentielPaie.confirmes) {
+      for (final confirme in confirmes) {
         final existant = await (select(
           tauxPaieLocal,
         )..where((t) => t.cle.equals(confirme.cle))).getSingleOrNull();
@@ -97,10 +111,19 @@ class PaieDao extends DatabaseAccessor<AppDatabase> with _$PaieDaoMixin {
   ///
   /// Aucune validation ici : la forme (décimal positif, bornes) est jugée par
   /// les règles des paramètres avant l'appel, et ce DAO ne calcule rien.
-  Future<bool> enregistrerTaux(String cle, String valeur) async {
-    const mention =
-        'Valeur saisie depuis l’écran Paramètres : la source d’origine, si '
-        'elle existait, ne vaut plus pour cette valeur.';
+  ///
+  /// [duServeur] (lot 10e) : la valeur vient du paramétrage du SERVEUR (la
+  /// descente), et la mention le dit.
+  Future<bool> enregistrerTaux(
+    String cle,
+    String valeur, {
+    bool duServeur = false,
+  }) async {
+    final mention = duServeur
+        ? 'Valeur reçue du paramétrage du serveur : la source d’origine, si '
+              'elle existait, ne vaut plus pour cette valeur.'
+        : 'Valeur saisie depuis l’écran Paramètres : la source d’origine, si '
+              'elle existait, ne vaut plus pour cette valeur.';
     final existant = await (select(
       tauxPaieLocal,
     )..where((t) => t.cle.equals(cle))).getSingleOrNull();
@@ -110,7 +133,7 @@ class PaieDao extends DatabaseAccessor<AppDatabase> with _$PaieDaoMixin {
         TauxPaieLocalCompanion.insert(
           cle: cle,
           valeur: valeur,
-          description: const Value(mention),
+          description: Value(mention),
         ),
       );
       return true;
@@ -120,7 +143,7 @@ class PaieDao extends DatabaseAccessor<AppDatabase> with _$PaieDaoMixin {
     await (update(tauxPaieLocal)..where((t) => t.cle.equals(cle))).write(
       TauxPaieLocalCompanion(
         valeur: Value(valeur),
-        description: const Value(mention),
+        description: Value(mention),
       ),
     );
     return true;
@@ -247,6 +270,22 @@ class PaieDao extends DatabaseAccessor<AppDatabase> with _$PaieDaoMixin {
           etabliLe: Value(_maintenant()),
         ),
       );
+      // Audit de couverture (18/10/2026) : le bulletin part (le serveur le
+      // recalcule) — l'employé d'abord, s'il est inconnu du serveur (un
+      // dossier d'avant la synchronisation part au premier bulletin).
+      await EmployeDao(attachedDatabase).envoyerAuServeur(employe.id);
+      {
+        await OperationsSyncDao(attachedDatabase).enfiler(
+          table: TableSynchronisee.bulletinsPaie,
+          entiteId: id,
+          type: TypeOperationSync.creation,
+          payload: chargeBulletinPaie(
+            employeId: employe.id,
+            periode: periode,
+            netAPayer: retenues.netAPayer,
+          ),
+        );
+      }
     });
 
     return (await parId(idRetenu))!;
@@ -275,9 +314,27 @@ class PaieDao extends DatabaseAccessor<AppDatabase> with _$PaieDaoMixin {
           motifAnnulation: Value(propre),
         ),
       );
+      if (await DocumentsAutresPostes(
+        attachedDatabase,
+      ).connuDuServeur(TableSynchronisee.bulletinsPaie, bulletinId)) {
+        await OperationsSyncDao(attachedDatabase).enfiler(
+          table: TableSynchronisee.bulletinsPaie,
+          entiteId: bulletinId,
+          type: TypeOperationSync.modification,
+          payload: chargeAnnulationBulletin(motif: propre),
+        );
+      }
     });
 
     return (await parId(bulletinId))!;
+  }
+
+  /// Le NUMÉRO attribué par le serveur remplace celui du poste (audit de
+  /// couverture, 18/10/2026).
+  Future<void> regulariserNumero(String id, String numero) async {
+    await (update(bulletinsPaieLocal)..where((b) => b.id.equals(id))).write(
+      BulletinsPaieLocalCompanion(numero: Value(numero)),
+    );
   }
 
   /* ================================================================== */

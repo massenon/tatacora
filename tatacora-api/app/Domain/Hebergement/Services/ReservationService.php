@@ -47,10 +47,15 @@ class ReservationService
 
     /**
      * @param  array<string, mixed>  $donnees
+     * @param  string|null  $dateComptable date MÉTIER de la pièce d'acompte
+     *                                     (`Y-m-d`). `null` : aujourd'hui — la saisie au comptoir. La
+     *                                     synchronisation hors connexion passe la date du DOCUMENT
+     *                                     (décision PO du 15/10/2026, D246) : un acompte encaissé
+     *                                     lundi et synchronisé jeudi appartient au tiroir de lundi.
      *
      * @throws \App\Shared\Integrite\Exceptions\ChevauchementDetecteException
      */
-    public function creer(array $donnees): Reservation
+    public function creer(array $donnees, ?string $dateComptable = null): Reservation
     {
         return $this->verification->executerSousVerrou(
             tablePlages: 'reservations',
@@ -66,7 +71,7 @@ class ReservationService
             // l'insertion et restent absentes de l'instance en mémoire. Sans ce
             // rechargement, l'API renvoie `statut: null` sur une réservation
             // pourtant correctement enregistrée.
-            ecriture: function () use ($donnees): Reservation {
+            ecriture: function () use ($donnees, $dateComptable): Reservation {
                 // Le tarif est FIGÉ ICI, dans le SEUL chemin d'écriture
                 // (PA-55 côté serveur, PA-163) — pas dans chaque appelant.
                 // Trouvé le 02/09/2026 (passage navigateur) : la fiche PWA le
@@ -85,7 +90,7 @@ class ReservationService
 
                 $reservation = Reservation::create($donnees)->refresh();
 
-                $this->comptabiliserAcompte($reservation);
+                $this->comptabiliserAcompte($reservation, $dateComptable ?? now()->toDateString());
 
                 return $reservation;
             },
@@ -112,7 +117,7 @@ class ReservationService
      *   par défaut fausserait le tiroir du montant d'un Mobile Money. Le
      *   flux reste celui inventorié en PA-162/PA-166, nommé, jamais deviné.
      */
-    private function comptabiliserAcompte(Reservation $reservation): void
+    private function comptabiliserAcompte(Reservation $reservation, string $date): void
     {
         $acompte = (string) $reservation->acompte;
 
@@ -130,7 +135,7 @@ class ReservationService
 
         $this->ecritures->passerEtValider([
             'journal' => $tresorerie['journal'],
-            'date' => now()->toDateString(),
+            'date' => $date,
             'libelle' => sprintf('Acompte réservation — %s', $reservation->id),
             'lignes' => [
                 ['compte' => $tresorerie['compte'], 'debit' => $acompte, 'credit' => '0'],

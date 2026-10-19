@@ -9,7 +9,8 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../shared_widgets/tableau_tatacora.dart';
-import '../../../bar/presentation/widgets/modale_export_carte.dart';
+import '../../../../shared_widgets/modale_export.dart';
+import 'barre_outils_achats.dart';
 import '../../../restaurant/presentation/widgets/corps_carte_commun.dart'
     show styleContenuCarte;
 import '../../../restaurant/presentation/widgets/tableau_restaurant.dart'
@@ -190,16 +191,7 @@ class _VueFournisseursState extends ConsumerState<VueFournisseurs> {
     );
     if (format == null || !mounted) return;
 
-    if (format == FormatExport.pdf) {
-      await ref.read(imprimerListeAchatsProvider)(liste);
-      return;
-    }
-    // « Tableur Excel (.xlsx / .csv) » : ce client écrit le .csv — BOM UTF-8
-    // et point-virgule, convention du serveur (RG-19). Aucune bibliothèque
-    // XLSX n'est embarquée, et le libellé de la vue nomme déjà les deux.
-    final chemin = await ref.read(exporterListeAchatsProvider)(liste);
-    if (!mounted) return;
-    messager.showSnackBar(SnackBar(content: Text('Export écrit : $chemin')));
+    await enregistrerListeAchats(context, ref, liste, format);
   }
 
   Future<void> _ouvrirFormulaire({Fournisseur? fournisseur}) async {

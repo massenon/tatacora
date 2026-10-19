@@ -7,7 +7,10 @@ import '../../../core/format/formats.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../shared_widgets/bouton_standard.dart';
+import '../../../shared_widgets/liste_paginee.dart';
+import '../../../shared_widgets/modale_export.dart';
 import '../../../shared_widgets/tableau_tatacora.dart';
+import '../../../shared_widgets/toast_export.dart';
 import '../domain/certification_mecef.dart';
 import '../domain/entities/piece_facturation.dart';
 import '../impression/etat_registre_factures.dart';
@@ -83,9 +86,20 @@ class EcranFacturation extends ConsumerWidget {
                         padding: const EdgeInsets.all(AppSpacing.xl),
                         child: Center(child: Text('$e')),
                       ),
-                      data: (liste) => _Registre(pieces: liste),
+                      // Dix pièces par page (PO, 14/10/2026) — le pied
+                      // commun remplace « Affichage de 1-N sur N ». Les
+                      // exports lisent `registreProvider`, la liste ENTIÈRE.
+                      data: (liste) => ListePaginee<PieceFacturation>(
+                        elements: liste,
+                        prefixeCle: 'factures-pagination',
+                        cleRemiseAZero: (
+                          ref.watch(origineFiltreeProvider),
+                          ref.watch(moduleFiltreProvider),
+                          ref.watch(rechercheFactureProvider),
+                        ),
+                        constructeur: (_, page) => _Registre(pieces: page),
+                      ),
                     ),
-                    _PiedRegistre(total: pieces.length),
                   ],
                 ),
               ),
@@ -304,14 +318,58 @@ class _BarreRegistreState extends ConsumerState<_BarreRegistre> {
   }
 
   /// UN bouton « Exporter » (dérogation du Product Owner du 01/09/2026,
-  /// `DerogationsMaquette::export_bouton_unique`) : le format s'y choisit.
-  void _exporter(BuildContext context) {
-    showDialog<void>(
-      context: context,
-      builder: (_) => const AlertDialog(
-        title: Text('Exporter — Registre des factures'),
-        content: _BarreExports(),
-      ),
+  /// `DerogationsMaquette::export_bouton_unique`) : le format se choisit dans
+  /// la modale d'export PARTAGÉE (PO, 14/10/2026 — l'ancien dialogue aux deux
+  /// boutons « Export Excel » / « Export PDF » est retiré), puis le document
+  /// passe par la fenêtre « Enregistrer sous ».
+  ///
+  /// L'export porte sur **ce qui est AFFICHÉ** : c'est la règle que le maître
+  /// écrit au-dessus de sa fonction d'export, et le filtre d'origine
+  /// s'applique au document. Quelqu'un qui filtre sur les séjours et exporte
+  /// attend les séjours — lui rendre le registre entier lui ferait envoyer au
+  /// comptable un document qu'il croit avoir vérifié.
+  ///
+  /// Une liste vide se REFUSE : le maître affiche « Rien à exporter : la liste
+  /// filtrée est vide. » plutôt que de produire un document d'une page
+  /// blanche.
+  Future<void> _exporter(BuildContext context) async {
+    final format = await choisirFormatExport(
+      context,
+      titre: 'Exporter — Registre des factures',
+    );
+    if (format == null || !context.mounted) return;
+
+    final pieces =
+        ref.read(registreProvider).value ?? const <PieceFacturation>[];
+    final origine = ref.read(origineFiltreeProvider);
+    final etat = EtatRegistreFactures(
+      pieces: pieces,
+      // Le filtre est DIT sur le document : sans cette mention, un extrait se
+      // lirait comme un registre complet, et c'est sur un registre qu'on
+      // rapproche une caisse.
+      filtre: origine == null
+          ? 'Toutes origines'
+          : 'Origine : ${origine.libelle}',
+    );
+    if (etat.estVide) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Rien à exporter : la liste filtrée est vide.',
+            key: Key('facturation-export-vide'),
+          ),
+        ),
+      );
+      return;
+    }
+
+    await executerExport(
+      context,
+      () => switch (format) {
+        FormatExport.pdf => ref.read(exporterRegistrePdfProvider)(etat),
+        FormatExport.excel => ref.read(exporterRegistreProvider)(etat),
+      },
+      cleSucces: const Key('facturation-export-chemin'),
     );
   }
 
@@ -371,14 +429,12 @@ class _Bouton extends StatelessWidget {
   final String libelle;
   final VoidCallback onTap;
 
-  /// Le bouton standard (PO, 14/10/2026), `px-3 py-1.5`.
+  /// Le bouton standard (PO, 14/10/2026) aux réglages PAR DÉFAUT — le même
+  /// « Exporter » que sur les autres écrans (40 px, rayon 6), et non plus le
+  /// `px-3 py-1.5` de la vue.
   @override
-  Widget build(BuildContext context) => BoutonStandard(
-    libelle: libelle,
-    margeHorizontale: AppSpacing.sm,
-    margeVerticale: AppSpacing.xxs,
-    onPressed: onTap,
-  );
+  Widget build(BuildContext context) =>
+      BoutonStandard(libelle: libelle, onPressed: onTap);
 }
 
 /// La rangée de compteurs (`px-4 py-2.5 border-b bg-slate-50`) : pièces,
@@ -623,140 +679,6 @@ class _Rangee extends StatelessWidget {
             ),
           ),
       ],
-    );
-  }
-}
-
-/// `px-4 py-3 border-t border-slate-100 text-xs` — le décompte de la vue.
-/// Le registre n'est pas paginé ici : tout ce qui correspond est affiché.
-class _PiedRegistre extends StatelessWidget {
-  const _PiedRegistre({required this.total});
-
-  final int total;
-
-  @override
-  Widget build(BuildContext context) {
-    Widget fort(String t) => Text(
-      t,
-      style: _t(
-        TaillesContenu.t12,
-        poids: FontWeight.bold,
-        couleur: AppColors.neutre500,
-      ),
-    );
-    final base = _t(TaillesContenu.t12, couleur: AppColors.neutre500);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm,
-      ),
-      decoration: const BoxDecoration(
-        border: Border(top: BorderSide(color: AppColors.neutre100)),
-      ),
-      child: Row(
-        children: [
-          Text('Affichage de ', style: base),
-          fort(total == 0 ? '0' : '1'),
-          Text('-', style: base),
-          fort('$total'),
-          Text(' sur ', style: base),
-          fort('$total'),
-        ],
-      ),
-    );
-  }
-}
-
-/// Le choix du format d'export — **ce qui est AFFICHÉ**.
-///
-/// C'est la règle que le maître écrit au-dessus de sa fonction d'export, et
-/// elle est reprise telle quelle : le filtre d'origine s'applique au document.
-/// Quelqu'un qui filtre sur les séjours et exporte attend les séjours — lui
-/// rendre le registre entier lui ferait envoyer au comptable un document qu'il
-/// croit avoir vérifié.
-///
-/// Une liste vide se REFUSE : le maître affiche « Rien à exporter : la liste
-/// filtrée est vide. » plutôt que de produire un document d'une page blanche.
-class _BarreExports extends ConsumerWidget {
-  const _BarreExports();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final registre = ref.watch(registreProvider);
-    final origine = ref.watch(origineFiltreeProvider);
-    final pieces = registre.value ?? const <PieceFacturation>[];
-
-    EtatRegistreFactures etat() => EtatRegistreFactures(
-      pieces: pieces,
-      // Le filtre est DIT sur le document : sans cette mention, un extrait se
-      // lirait comme un registre complet, et c'est sur un registre qu'on
-      // rapproche une caisse.
-      filtre: origine == null
-          ? 'Toutes origines'
-          : 'Origine : ${origine.libelle}',
-    );
-
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        // Bouton standard (PO, 14/10/2026).
-        BoutonStandard(
-          key: const Key('facturation-export-excel'),
-          libelle: 'Export Excel',
-          onPressed: () => _exporter(context, ref, etat()),
-        ),
-        const SizedBox(width: AppSpacing.xs),
-        BoutonStandard(
-          key: const Key('facturation-export-pdf'),
-          libelle: 'Export PDF',
-          variante: VarianteBouton.primaire,
-          onPressed: () => _imprimer(context, ref, etat()),
-        ),
-      ],
-    );
-  }
-
-  /// Vrai quand il y a quelque chose à exporter ; sinon le dit et refuse.
-  bool _verifier(BuildContext context, EtatRegistreFactures etat) {
-    if (!etat.estVide) return true;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Rien à exporter : la liste filtrée est vide.',
-          key: Key('facturation-export-vide'),
-        ),
-      ),
-    );
-    return false;
-  }
-
-  Future<void> _imprimer(
-    BuildContext context,
-    WidgetRef ref,
-    EtatRegistreFactures etat,
-  ) async {
-    if (!_verifier(context, etat)) return;
-    await ref.read(imprimerRegistreProvider)(etat);
-  }
-
-  Future<void> _exporter(
-    BuildContext context,
-    WidgetRef ref,
-    EtatRegistreFactures etat,
-  ) async {
-    if (!_verifier(context, etat)) return;
-
-    final chemin = await ref.read(exporterRegistreProvider)(etat);
-    if (!context.mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Export enregistré sur ce poste : $chemin',
-          key: const Key('facturation-export-chemin'),
-        ),
-      ),
     );
   }
 }

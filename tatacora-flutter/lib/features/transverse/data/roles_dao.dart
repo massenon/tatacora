@@ -6,6 +6,9 @@ import 'package:uuid/uuid.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/format/cle_comparaison.dart';
 import '../../../core/rbac/garde_acces.dart';
+import '../../synchronisation/data/operations_sync_dao.dart';
+import '../../synchronisation/domain/charges_synchronisation.dart';
+import '../../synchronisation/domain/operation_sync.dart';
 import '../domain/roles_du_poste.dart';
 
 /// Un refus d'écriture de la matrice — par CHAMP, comme les erreurs de
@@ -164,6 +167,19 @@ class RolesDao {
               dateModification: maintenant,
             ),
           );
+      // Lot 10e : le rôle part au serveur (fusion par son libellé).
+      await OperationsSyncDao(_base).enfiler(
+        table: TableSynchronisee.roles,
+        entiteId: id,
+        type: TypeOperationSync.creation,
+        payload: chargeRole(
+          libelle: propre,
+          description: descriptionPropre,
+          droits: {
+            for (final code in codesModulesSocle) code: NiveauAcces.aucun.code,
+          },
+        ),
+      );
       return id;
     });
   }
@@ -241,7 +257,56 @@ class RolesDao {
     }
   }
 
-  Future<void> _ecrire(RoleLocal role, Map<String, String> droits) async {
+  /// Un rôle DESCENDU du serveur (lot 10e) : sa matrice, sa description,
+  /// recopiées sur les comptes qui le portent — sans rien renvoyer (un
+  /// écrivain de la descente n'enfile jamais). Le rôle est désigné par son
+  /// identifiant local ; absent, il est créé sous [id]. Seul appelant :
+  /// l'aligneur du catalogue.
+  Future<void> inscrireDescendu({
+    required String id,
+    required String libelle,
+    required String? description,
+    required Map<String, String> droits,
+  }) async {
+    final role = await (_base.select(
+      _base.rolesLocal,
+    )..where((r) => r.id.equals(id))).getSingleOrNull();
+    if (role == null) {
+      final maintenant = _horloge();
+      await _base
+          .into(_base.rolesLocal)
+          .insert(
+            RolesLocalCompanion.insert(
+              id: id,
+              libelle: libelle,
+              description: Value(description),
+              droitsJson: jsonEncode(droits),
+              dateCreation: maintenant,
+              dateModification: maintenant,
+            ),
+          );
+      await _recopierSurLesComptes(libelle, jsonEncode(droits));
+      return;
+    }
+    await (_base.update(_base.rolesLocal)..where((r) => r.id.equals(id))).write(
+      RolesLocalCompanion(description: Value(description)),
+    );
+    await _ecrire(role, {..._lire(role.droitsJson), ...droits}, envoyer: false);
+  }
+
+  /// Le rôle de ce libellé (comparaison sans casse ni accents), ou `null`.
+  Future<RoleLocal?> parLibelle(String libelle) async {
+    final cle = cleDeComparaison(libelle);
+    return (await _base.select(_base.rolesLocal).get())
+        .where((r) => cleDeComparaison(r.libelle) == cle)
+        .firstOrNull;
+  }
+
+  Future<void> _ecrire(
+    RoleLocal role,
+    Map<String, String> droits, {
+    bool envoyer = true,
+  }) async {
     final json = jsonEncode(droits);
     await (_base.update(
       _base.rolesLocal,
@@ -251,12 +316,28 @@ class RolesDao {
         dateModification: Value(_horloge()),
       ),
     );
-    // Les comptes du rôle portent désormais SES droits — l'équivalent du
-    // `role_id` du serveur, où le compte les lit sur le rôle à chaque requête.
-    await (_base.update(_base.utilisateursLocal)
-          ..where((u) => u.role.equals(role.libelle)))
-        .write(UtilisateursLocalCompanion(droitsJson: Value(json)));
+    await _recopierSurLesComptes(role.libelle, json);
+    if (!envoyer) return;
+    // Lot 10e : la matrice ENTIÈRE part, avec le libellé (un rôle du socle
+    // né sous un autre UUID au serveur s'y retrouve par lui).
+    await OperationsSyncDao(_base).enfiler(
+      table: TableSynchronisee.roles,
+      entiteId: role.id,
+      type: TypeOperationSync.modification,
+      payload: chargeRole(
+        libelle: role.libelle,
+        description: role.description,
+        droits: droits,
+      ),
+    );
   }
+
+  /// Les comptes du rôle portent désormais SES droits — l'équivalent du
+  /// `role_id` du serveur, où le compte les lit sur le rôle à chaque requête.
+  Future<void> _recopierSurLesComptes(String libelle, String json) =>
+      (_base.update(_base.utilisateursLocal)
+            ..where((u) => u.role.equals(libelle)))
+          .write(UtilisateursLocalCompanion(droitsJson: Value(json)));
 
   Future<Map<String, int>> _comptesParRole() async {
     final lignes = await _base

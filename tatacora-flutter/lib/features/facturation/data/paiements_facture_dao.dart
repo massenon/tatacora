@@ -11,6 +11,10 @@ import '../domain/entities/piece_facturation.dart';
 import '../domain/messages_encaissement.dart';
 import '../domain/regles_encaissement.dart';
 import '../domain/repositories/paiements_facture_repository.dart';
+import '../../synchronisation/data/documents_autres_postes.dart';
+import '../../synchronisation/data/operations_sync_dao.dart';
+import '../../synchronisation/domain/charges_synchronisation.dart';
+import '../../synchronisation/domain/operation_sync.dart';
 import 'facture_dao.dart';
 import 'piece_de_l_encaissement.dart';
 
@@ -311,6 +315,24 @@ class PaiementsFactureDao extends DatabaseAccessor<AppDatabase>
         auteurId: auteurId,
       );
 
+      // Lot F5d : l'encaissement part au serveur (document source, D246 : la
+      // pièce ci-dessus ne part jamais), si sa facture y part aussi.
+      if (await _factures.partAuServeur(piece.id)) {
+        await OperationsSyncDao(attachedDatabase).enfiler(
+          table: TableSynchronisee.paiements,
+          entiteId: id,
+          type: TypeOperationSync.creation,
+          payload: chargePaiementFacture(
+            factureId: piece.id,
+            sessionId: session.id,
+            modePaiement: modeConnu.code,
+            montantCentimes: montantCentimes,
+            datePaiement: maintenant,
+          ),
+          horodatage: maintenant,
+        );
+      }
+
       return id;
     });
 
@@ -334,6 +356,13 @@ class PaiementsFactureDao extends DatabaseAccessor<AppDatabase>
     if (estVideAuSensDePhp(motif)) {
       throw const RefusEncaissement(MessagesEncaissement.motifRequis);
     }
+    // Q3 (lot F6) : l'encaissement d'un autre poste, par l'administration ou
+    // le comptable seulement.
+    if (!await DocumentsAutresPostes(
+      attachedDatabase,
+    ).peutAnnuler('paiements', paiement.id, auteurId)) {
+      throw const RefusEncaissement(DocumentsAutresPostes.refus);
+    }
 
     final moteurComptable = await _moteurObligatoire();
     final piece = await _factures.parId(paiement.pieceId);
@@ -342,9 +371,19 @@ class PaiementsFactureDao extends DatabaseAccessor<AppDatabase>
     // La pièce se retrouve par son libellé (PA-52) et se VÉRIFIE avant d'être
     // inversée : une pièce à moitié retrouvée serait contre-passée à moitié, en
     // silence.
-    final lignes = await ComptabiliteDao(
-      attachedDatabase,
-    ).lignesParLibelle(libelle);
+    final comptabilite = ComptabiliteDao(attachedDatabase);
+    var lignes = await comptabilite.lignesParLibelle(libelle);
+    // Lot F5c : la facture a pu recevoir depuis le numéro du serveur ; la
+    // pièce garde le numéro PROVISOIRE du jour de l'encaissement, et se
+    // retrouve alors par l'UUID du paiement, unique (PA-52). Seul ce cas (la
+    // pièce a été RÉGULARISÉE) : un autre numéro changé reste refusé, comme
+    // au serveur.
+    if (lignes.isEmpty && await _factures.regularisee(paiement.pieceId)) {
+      lignes = await comptabilite.lignesParSuffixeLibelle(
+        ' — ${paiement.id}',
+        prefixe: 'Encaissement $prefixeNumeroProvisoire',
+      );
+    }
     var debit = 0;
     var credit = 0;
     for (final l in lignes) {
@@ -371,8 +410,95 @@ class PaiementsFactureDao extends DatabaseAccessor<AppDatabase>
           dateAnnulation: Value(_maintenant()),
         ),
       );
+      if (await _factures.partAuServeur(paiement.pieceId)) {
+        await OperationsSyncDao(attachedDatabase).enfiler(
+          table: TableSynchronisee.paiements,
+          entiteId: paiement.id,
+          type: TypeOperationSync.modification,
+          payload: chargeAnnulationPaiement(motif: motif),
+        );
+      }
     });
 
     return (await parId(paiement.id))!;
   }
+
+  /* ================================================================== */
+  /* Encaissements DESCENDUS du serveur — lot F5d                        */
+  /* ================================================================== */
+
+  /// Inscrit un encaissement reçu du serveur (un autre poste, ou la PWA),
+  /// sous SON identifiant. Aucune pièce (Q1 : le journal du poste ne tient
+  /// que ses propres pièces, le serveur a passé celle-ci), aucune file. Le
+  /// reste dû de la facture le compte aussitôt. Appelé par la seule descente.
+  Future<void> inscrireDescendu({
+    required String id,
+    required String pieceId,
+    required String sessionId,
+    required ModePaiementFacture mode,
+    required int montantCentimes,
+    required DateTime datePaiement,
+    required StatutPaiementFacture statut,
+    required String? motifAnnulation,
+    required DateTime? dateAnnulation,
+    required String auteurId,
+  }) => into(_paiements).insert(
+    PaiementsFactureLocalCompanion.insert(
+      id: id,
+      pieceId: pieceId,
+      sessionId: sessionId,
+      modePaiement: mode.code,
+      montantCentimes: montantCentimes,
+      datePaiement: datePaiement,
+      statut: Value(statut.code),
+      motifAnnulation: Value(motifAnnulation),
+      annuleParId: Value(
+        statut == StatutPaiementFacture.annule ? auteurId : null,
+      ),
+      dateAnnulation: Value(dateAnnulation),
+      utilisateurCreationId: auteurId,
+    ),
+  );
+
+  /// Un encaissement déjà détenu, ANNULÉ au serveur : l'état suit, jamais
+  /// à rebours (un paiement annulé ne redevient pas actif). Lot F6
+  /// (18/10/2026) : si c'est un encaissement de CE poste, sa pièce locale
+  /// (Dr trésorerie / Cr 4111) est CONTRE-PASSÉE en entier dans la même
+  /// transaction — le journal du poste ne garde pas un argent que le serveur
+  /// a rendu. Un encaissement descendu d'un autre poste n'a pas de pièce ici
+  /// (Q1) : seul l'état suit.
+  Future<void> suivreAnnulationDescendue({
+    required String id,
+    required String? motif,
+    required DateTime? date,
+    required String auteurId,
+  }) => transaction(() async {
+    final paiement = await parId(id);
+    if (paiement == null || paiement.statut == StatutPaiementFacture.annule) {
+      return;
+    }
+    final lignes = await ComptabiliteDao(
+      attachedDatabase,
+    ).lignesParSuffixeLibelle(' — $id', prefixe: 'Encaissement ');
+    if (lignes.isNotEmpty) {
+      await (await _moteurObligatoire()).contrepasserPiece(
+        lignes,
+        auteurId: auteurId,
+        motif: motif ?? 'Annulé au serveur',
+      );
+    }
+    await (update(_paiements)..where(
+          (p) =>
+              p.id.equals(id) &
+              p.statut.equals(StatutPaiementFacture.actif.code),
+        ))
+        .write(
+          PaiementsFactureLocalCompanion(
+            statut: Value(StatutPaiementFacture.annule.code),
+            motifAnnulation: Value(motif),
+            annuleParId: Value(auteurId),
+            dateAnnulation: Value(date ?? _maintenant()),
+          ),
+        );
+  });
 }

@@ -10,6 +10,7 @@ import '../../features/bar/presentation/ecran_carte_bar.dart';
 import '../../features/bar/presentation/ecran_catalogue_boissons.dart';
 import '../../features/comptabilite/presentation/ecran_comptabilite.dart';
 import '../../features/transverse/presentation/ecran_aide_a_propos.dart';
+import '../../features/transverse/presentation/ecran_comptes_utilisateurs.dart';
 import '../../features/transverse/presentation/ecran_contact_editeur.dart';
 import '../../features/transverse/presentation/ecran_import_export.dart';
 import '../../features/transverse/presentation/ecran_journal_audit.dart';
@@ -35,8 +36,24 @@ import '../../features/pos/presentation/ecran_pos_comptant.dart';
 import '../../features/pos/presentation/ecran_pos_heberges.dart';
 import '../../features/restaurant/presentation/ecran_carte_restaurant.dart';
 import '../../features/restaurant/presentation/ecran_restauration.dart';
+import '../../features/synchronisation/presentation/ecran_synchronisation_postes.dart';
+import '../../features/synchronisation/presentation/ecran_synchronisation.dart';
 import '../di/providers.dart';
+import '../navigation/navigation_tatacora.dart';
 import 'coquille_application.dart';
+
+/// Le messager de l'application — posé sur `MaterialApp.router`
+/// (`main.dart`, `main_demo.dart`). C'est par lui que la garde du routeur,
+/// qui n'a pas d'écran à elle, DIT son refus : un renvoi muet au tableau de
+/// bord laisserait croire à une panne de navigation (Article 3.3).
+final GlobalKey<ScaffoldMessengerState> messagerApplication =
+    GlobalKey<ScaffoldMessengerState>();
+
+/// Le message de la garde (Lot J2, directive du PO du 14/10/2026).
+const String messageAccesRefuse = 'Accès refusé à ce module.';
+
+/// La destination de repli de la garde.
+const String _routeRepli = '/tableau-de-bord';
 
 /// Routeur — `go_router`, un arbre unique adapté par point de rupture.
 ///
@@ -76,8 +93,36 @@ final routeurProvider = Provider<GoRouter>((ref) {
       if (state.matchedLocation == '/demarrage') return null;
 
       if (!connecte && !versConnexion) return '/connexion';
-      if (connecte && versConnexion) return '/tableau-de-bord';
-      return null;
+      if (connecte && versConnexion) return _routeRepli;
+      if (!connecte) return null;
+
+      // LA GARDE DES ROUTES (Lot J2, 14/10/2026). Une route tapée ou suivie
+      // vers un module refusé renvoie au tableau de bord. Le verdict vient du
+      // MÊME registre que la barre latérale (`accesRoute` relit
+      // `toutesLesDestinations` et `destinationAccessible`) : une seconde
+      // table divergerait de la première. Le masquage d'interface par rôle
+      // n'y entre pas — au serveur non plus, il ne garde aucune route.
+      //
+      // Comme `GardeAcces` elle-même, cette garde est le premier niveau du
+      // RBAC : elle évite d'ouvrir un écran refusé, chaque écrivain relit
+      // encore le droit au geste.
+      final session = ref.read(sessionProvider);
+      final verdict = accesRoute(
+        state.uri.path,
+        droits: ref.read(droitsProvider),
+        role: session?.role,
+      );
+      switch (verdict) {
+        case AccesRoute.autorise:
+          return null;
+        case AccesRoute.refuse:
+          _direAccesRefuse();
+          return _routeRepli;
+        case AccesRoute.inconnu:
+          // Un chemin qu'aucun registre ne connaît n'obtient rien par
+          // omission ; ce n'est pas un refus de droit, il n'est pas dit tel.
+          return _routeRepli;
+      }
     },
     routes: [
       GoRoute(
@@ -373,10 +418,13 @@ final routeurProvider = Provider<GoRouter>((ref) {
             path: '/historique-ventes',
             builder: (context, state) => const EcranHistoriqueVentes(),
           ),
+          // L'écran de SYNCHRONISATION (lot F2b, 15/10/2026) : la file
+          // d'envoi, la descente du catalogue, ce qui reste à traiter. Hors
+          // menu : on y arrive par le lien de Paramètres → Synchronisation ;
+          // gardé par le module Paramètres (`modulesDesRoutesHorsMenu`).
           GoRoute(
             path: '/synchronisation',
-            builder: (context, state) =>
-                const EcranReservations(seulementEnSuspens: true),
+            builder: (context, state) => const EcranSynchronisation(),
           ),
 
           // Lot D du plan du PO (14/10/2026, PA-204) : les sept écrans qui
@@ -395,11 +443,21 @@ final routeurProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/import-export',
-            builder: (context, state) => const EcranImportExport(),
+            builder: (context, state) => EcranImportExport(
+              moduleInitial: state.uri.queryParameters['module'],
+            ),
           ),
           GoRoute(
             path: '/roles-permissions',
             builder: (context, state) => const EcranRolesPermissions(),
+          ),
+          // Lot J2 (14/10/2026) — AJOUT du poste, réservé à l'administration
+          // (`rolesExiges` de son entrée de menu, relu par la garde). Chemin
+          // LITTÉRAL (= `routeComptesUtilisateurs`) : les gardes de cohérence
+          // relisent les `path:` littéraux du routeur.
+          GoRoute(
+            path: '/comptes-utilisateurs',
+            builder: (context, state) => const EcranComptesUtilisateurs(),
           ),
           GoRoute(
             path: '/mon-profil',
@@ -408,6 +466,11 @@ final routeurProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/journal-audit',
             builder: (context, state) => const EcranJournalAudit(),
+          ),
+          // Décision PO du 18/10/2026 : le bouton « Synchroniser » du serveur.
+          GoRoute(
+            path: '/synchronisation-postes',
+            builder: (context, state) => const EcranSynchronisationPostes(),
           ),
           GoRoute(
             path: '/aide-a-propos',
@@ -422,6 +485,20 @@ final routeurProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
+
+/// Affiche le refus de la garde APRÈS l'image en cours : `redirect` s'exécute
+/// pendant la résolution de la route, où aucun `SnackBar` ne peut se poser.
+void _direAccesRefuse() {
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    messagerApplication.currentState
+      ?..removeCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text(messageAccesRefuse, key: Key('garde-acces-refuse')),
+        ),
+      );
+  });
+}
 
 /// Redéclenche l'évaluation de `redirect` à chaque changement de session.
 ///

@@ -1,12 +1,7 @@
-import 'dart:io';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
-import 'package:pdf/pdf.dart';
-import 'package:printing/printing.dart';
 
-import '../../../core/impression/entete_etablissement.dart';
+import '../../../core/fichiers/enregistrement_export.dart';
+import '../../../core/impression/entete_parametree.dart';
 import '../impression/etat_clients.dart';
 
 import '../../facturation/presentation/providers_paiements.dart';
@@ -73,50 +68,42 @@ final registreFiltreProvider = FutureProvider.autoDispose<List<LigneClient>>((
   );
 });
 
-/// L'impression du registre, exposée comme **action injectable**.
+/// L'export PDF du registre, exposé comme **action injectable** — enregistré
+/// par la fenêtre « Enregistrer sous » (14/10/2026), rend le CHEMIN écrit,
+/// `null` : annulé.
 ///
-/// Jamais un `Printing.layoutPdf` recopié dans un écran : un test de widget
-/// n'a pas de greffon natif, et il doit exister un seul endroit où
-/// l'impression est déclenchée.
-final imprimerRegistreClientsProvider =
-    Provider<Future<void> Function(List<LigneClient>, String)>(
-      (ref) => (lignes, filtre) async {
-        final octets = await EtatClients.pdf(
-          lignes,
-          filtre: filtre,
-          entete: const EnteteEtablissement(),
-        );
-        await Printing.layoutPdf(
-          onLayout: (_) => octets,
-          name: EtatClients.titre,
-          format: PdfPageFormat.a4,
-        );
-      },
+/// Jamais un `Printing.layoutPdf` ni une écriture de fichier recopiés dans un
+/// écran : un test de widget n'a pas de greffon natif, et il doit exister un
+/// seul endroit où le document est produit.
+final exporterRegistreClientsPdfProvider =
+    Provider<Future<String?> Function(List<LigneClient>, String)>(
+      (ref) =>
+          (lignes, filtre) async => ref
+              .read(enregistrementExportProvider)
+              .exporter(
+                base: 'registre_clients',
+                type: TypeFichierEnregistre.pdf,
+                octets: await EtatClients.pdf(
+                  lignes,
+                  filtre: filtre,
+                  entete: await ref.read(lireEnteteEtablissementProvider)(),
+                ),
+              ),
     );
 
-/// L'export tableur — rend le **chemin** du fichier écrit.
+/// L'export tableur — rend le **chemin** du fichier écrit, `null` : annulé.
 ///
 /// Un export silencieux est un export que personne ne retrouve.
 ///
 /// Fichier **CSV**, pas XLSX : convention serveur RG-19, écart nommé en PA-111.
 final exporterRegistreClientsProvider =
-    Provider<Future<String> Function(List<LigneClient>, String)>(
-      (ref) => (lignes, filtre) async {
-        final dossier = await getApplicationDocumentsDirectory();
-        final m = DateTime.now();
-        final horodatage =
-            '${m.year}'
-            '${m.month.toString().padLeft(2, '0')}'
-            '${m.day.toString().padLeft(2, '0')}-'
-            '${m.hour.toString().padLeft(2, '0')}'
-            '${m.minute.toString().padLeft(2, '0')}'
-            '${m.second.toString().padLeft(2, '0')}';
-        final fichier = File(
-          p.join(dossier.path, 'registre-clients-$horodatage.csv'),
-        );
-        await fichier.writeAsBytes(
-          EtatClients.csvOctets(lignes, filtre: filtre),
-        );
-        return fichier.path;
-      },
+    Provider<Future<String?> Function(List<LigneClient>, String)>(
+      (ref) =>
+          (lignes, filtre) => ref
+              .read(enregistrementExportProvider)
+              .exporter(
+                base: 'registre_clients',
+                type: TypeFichierEnregistre.csv,
+                octets: EtatClients.csvOctets(lignes, filtre: filtre),
+              ),
     );

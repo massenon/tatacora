@@ -59,12 +59,14 @@ class EmployeService
      *
      * @throws RuntimeException service inconnu, type de contrat ou statut hors registre
      */
-    public function creerEmploye(array $donnees): Employe
+    public function creerEmploye(array $donnees, ?string $id = null): Employe
     {
         $this->exigerRegistres($donnees);
 
-        return DB::transaction(function () use ($donnees): Employe {
+        return DB::transaction(function () use ($donnees, $id): Employe {
             return Employe::create([
+                // Audit de couverture (18/10/2026) : l'UUID du poste.
+                ...($id !== null ? ['id' => $id] : []),
                 'matricule' => $this->matriculeSuivant(),
                 'nom' => trim((string) ($donnees['nom'] ?? '')),
                 'prenom' => trim((string) ($donnees['prenom'] ?? '')),

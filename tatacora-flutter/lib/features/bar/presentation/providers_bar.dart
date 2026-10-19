@@ -1,11 +1,9 @@
-import 'dart:io';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 
+import '../../../core/fichiers/enregistrement_export.dart';
+import '../../../core/impression/entete_parametree.dart';
 import '../impression/etat_carte.dart';
 import '../impression/etat_ventes_bar.dart';
 
@@ -366,28 +364,39 @@ void _rafraichirCatalogue(Ref ref) {
     ..invalidate(boissonsProvider);
 }
 
-/// Les trois documents, exposés comme **actions injectables**.
+/// Les documents de la carte, exposés comme **actions injectables**.
 ///
 /// Jamais un `Printing.layoutPdf` recopié dans un écran : un test de widget n'a
 /// pas de greffon natif, et il doit exister un seul endroit où l'impression est
 /// déclenchée.
-final imprimerCarteProvider =
-    Provider<Future<void> Function(List<LigneCarte>, String)>(
-      (ref) => (lignes, filtre) async {
-        final octets = await EtatCarteBar.pdf(lignes, filtre: filtre);
-        await Printing.layoutPdf(
-          onLayout: (_) => octets,
-          name: EtatCarteBar.titre,
-          format: PdfPageFormat.a4,
-        );
-      },
+///
+/// « Exporter » (PDF comme tableur) passe par la fenêtre « Enregistrer sous »
+/// ([enregistrementExportProvider], 14/10/2026) et rend le CHEMIN écrit,
+/// `null` : annulé. Seule la fiche des prix s'imprime encore directement.
+final exporterCartePdfProvider =
+    Provider<Future<String?> Function(List<LigneCarte>, String)>(
+      (ref) =>
+          (lignes, filtre) async => ref
+              .read(enregistrementExportProvider)
+              .exporter(
+                base: 'carte_bar',
+                type: TypeFichierEnregistre.pdf,
+                octets: await EtatCarteBar.pdf(
+                  lignes,
+                  filtre: filtre,
+                  entete: await ref.read(lireEnteteEtablissementProvider)(),
+                ),
+              ),
     );
 
 /// Rend le **nombre d'articles écartés** faute de tarif : l'écran le dit.
 final imprimerFichePrixProvider =
     Provider<Future<int> Function(List<LigneCarte>)>(
       (ref) => (lignes) async {
-        final (octets, ecartes) = await EtatCarteBar.ficheDesPrix(lignes);
+        final (octets, ecartes) = await EtatCarteBar.ficheDesPrix(
+          lignes,
+          entete: await ref.read(lireEnteteEtablissementProvider)(),
+        );
         await Printing.layoutPdf(
           onLayout: (_) => octets,
           name: EtatCarteBar.titreFiche,
@@ -397,81 +406,71 @@ final imprimerFichePrixProvider =
       },
     );
 
-/// Le document de l'onglet « Ventes du Bar » (PA-197), action injectable.
+/// Le document de l'onglet « Ventes du Bar » (PA-197), action injectable —
+/// enregistré par la fenêtre « Enregistrer sous », rend le CHEMIN écrit.
 ///
 /// Il reçoit le JEU FILTRÉ ENTIER déjà lu — la lecture (et son refus, sa
 /// coupure) reste à l'écran, qui doit pouvoir dire pourquoi rien n'est produit.
-final imprimerVentesBarProvider =
+final exporterVentesBarPdfProvider =
     Provider<
-      Future<void> Function(
+      Future<String?> Function(
         List<LigneVenteBar>,
         TotauxVentesBar,
         String filtre,
         List<LigneCarte> carte,
       )
     >(
-      (ref) => (lignes, totaux, filtre, carte) async {
-        final octets = await EtatVentesBar.pdf(
-          lignes,
-          totaux,
-          filtre: filtre,
-          carte: carte,
-        );
-        await Printing.layoutPdf(
-          onLayout: (_) => octets,
-          name: EtatVentesBar.titre,
-          format: PdfPageFormat.a4.landscape,
-        );
-      },
+      (ref) =>
+          (lignes, totaux, filtre, carte) async => ref
+              .read(enregistrementExportProvider)
+              .exporter(
+                base: 'ventes_du_bar',
+                type: TypeFichierEnregistre.pdf,
+                octets: await EtatVentesBar.pdf(
+                  lignes,
+                  totaux,
+                  filtre: filtre,
+                  carte: carte,
+                  entete: await ref.read(lireEnteteEtablissementProvider)(),
+                ),
+              ),
     );
 
-/// Le tableur de l'onglet « Ventes du Bar » — rend le **chemin** écrit.
+/// Le tableur de l'onglet « Ventes du Bar » — rend le **chemin** écrit,
+/// `null` : annulé.
 final exporterVentesBarProvider =
     Provider<
-      Future<String> Function(
+      Future<String?> Function(
         List<LigneVenteBar>,
         TotauxVentesBar,
         String filtre,
         List<LigneCarte> carte,
       )
     >(
-      (ref) => (lignes, totaux, filtre, carte) async {
-        final dossier = await getApplicationDocumentsDirectory();
-        final m = DateTime.now();
-        final horodatage =
-            '${m.year}'
-            '${m.month.toString().padLeft(2, '0')}'
-            '${m.day.toString().padLeft(2, '0')}-'
-            '${m.hour.toString().padLeft(2, '0')}'
-            '${m.minute.toString().padLeft(2, '0')}'
-            '${m.second.toString().padLeft(2, '0')}';
-        final fichier = File(
-          p.join(dossier.path, 'ventes-du-bar-$horodatage.csv'),
-        );
-        await fichier.writeAsBytes(
-          EtatVentesBar.csvOctets(lignes, totaux, filtre: filtre, carte: carte),
-        );
-        return fichier.path;
-      },
+      (ref) =>
+          (lignes, totaux, filtre, carte) => ref
+              .read(enregistrementExportProvider)
+              .exporter(
+                base: 'ventes_du_bar',
+                type: TypeFichierEnregistre.csv,
+                octets: EtatVentesBar.csvOctets(
+                  lignes,
+                  totaux,
+                  filtre: filtre,
+                  carte: carte,
+                ),
+              ),
     );
 
-/// L'export tableur — rend le **chemin** du fichier écrit.
+/// L'export tableur — rend le **chemin** du fichier écrit, `null` : annulé.
 final exporterCarteProvider =
-    Provider<Future<String> Function(List<LigneCarte>, String)>(
-      (ref) => (lignes, filtre) async {
-        final dossier = await getApplicationDocumentsDirectory();
-        final m = DateTime.now();
-        final horodatage =
-            '${m.year}'
-            '${m.month.toString().padLeft(2, '0')}'
-            '${m.day.toString().padLeft(2, '0')}-'
-            '${m.hour.toString().padLeft(2, '0')}'
-            '${m.minute.toString().padLeft(2, '0')}'
-            '${m.second.toString().padLeft(2, '0')}';
-        final fichier = File(p.join(dossier.path, 'carte-bar-$horodatage.csv'));
-        await fichier.writeAsBytes(
-          EtatCarteBar.csvOctets(lignes, filtre: filtre),
-        );
-        return fichier.path;
-      },
+    Provider<Future<String?> Function(List<LigneCarte>, String)>(
+      (ref) =>
+          (lignes, filtre) => ref
+              .read(enregistrementExportProvider)
+              .exporter(
+                base: 'carte_bar',
+                type: TypeFichierEnregistre.csv,
+                octets: EtatCarteBar.csvOctets(lignes, filtre: filtre),
+              ),
     );

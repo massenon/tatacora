@@ -25,16 +25,45 @@ final class FichierLu {
   final Uint8List octets;
 }
 
+/// Le type d'un fichier enregistré — il fixe le filtre de la fenêtre
+/// « Enregistrer sous » (14/10/2026 : les exports PDF passent aussi par elle).
+enum TypeFichierEnregistre {
+  csv('CSV', ['csv', 'txt']),
+  pdf('PDF', ['pdf']),
+
+  /// La copie de la base du poste (Import & Export, « Générer une sauvegarde
+  /// de la base »).
+  sauvegarde('Base SQLite', ['sqlite']),
+
+  /// L'export d'une table (Import & Export, « Exporter une table existante »).
+  json('JSON', ['json']);
+
+  const TypeFichierEnregistre(this.libelle, this.extensions);
+
+  /// Le nom du filtre dans la fenêtre native.
+  final String libelle;
+
+  /// Les extensions acceptées — la première est celle du fichier.
+  final List<String> extensions;
+
+  /// L'extension du fichier, sans point.
+  String get extension => extensions.first;
+}
+
 /// Ce que le poste sait faire avec un fichier choisi par l'utilisateur.
 abstract interface class SelecteurFichiers {
   /// Ouvre la fenêtre « Ouvrir » filtrée sur les CSV. `null` : annulé.
   Future<FichierLu?> ouvrirCsv();
 
-  /// Ouvre la fenêtre « Enregistrer sous » avec [nomSuggere], puis écrit
-  /// [octets] à l'emplacement choisi. Rend le CHEMIN écrit, `null` : annulé.
+  /// Ouvre la fenêtre « Enregistrer sous » avec [nomSuggere], filtrée sur
+  /// [type] et ouverte sur [dossierInitial] quand il est donné, puis écrit
+  /// [octets] à l'emplacement choisi. Rend le CHEMIN écrit, `null` : annulé
+  /// (et rien n'est écrit).
   Future<String?> enregistrerSous({
     required String nomSuggere,
     required List<int> octets,
+    TypeFichierEnregistre type = TypeFichierEnregistre.csv,
+    String? dossierInitial,
   });
 }
 
@@ -46,6 +75,9 @@ final class SelecteurFichiersNatif implements SelecteurFichiers {
     label: 'CSV',
     extensions: ['csv', 'txt'],
   );
+
+  static XTypeGroup _groupe(TypeFichierEnregistre type) =>
+      XTypeGroup(label: type.libelle, extensions: type.extensions);
 
   @override
   Future<FichierLu?> ouvrirCsv() async {
@@ -60,10 +92,15 @@ final class SelecteurFichiersNatif implements SelecteurFichiers {
   Future<String?> enregistrerSous({
     required String nomSuggere,
     required List<int> octets,
+    TypeFichierEnregistre type = TypeFichierEnregistre.csv,
+    String? dossierInitial,
   }) async {
     final emplacement = await FileSelectorPlatform.instance.getSaveLocation(
-      acceptedTypeGroups: const [_csv],
-      options: SaveDialogOptions(suggestedName: nomSuggere),
+      acceptedTypeGroups: [_groupe(type)],
+      options: SaveDialogOptions(
+        suggestedName: nomSuggere,
+        initialDirectory: dossierInitial,
+      ),
     );
     if (emplacement == null) return null;
     final fichier = File(emplacement.path);

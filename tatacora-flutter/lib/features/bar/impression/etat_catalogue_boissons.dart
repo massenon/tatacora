@@ -1,5 +1,8 @@
 import 'dart:convert';
 
+import '../../../core/format/formats.dart';
+import '../../../core/impression/etat_tabulaire_a4.dart';
+
 import '../domain/entities/boisson.dart';
 
 /// L'export du **catalogue des boissons** — la modale « Exporter » du moteur
@@ -75,4 +78,36 @@ final class EtatCatalogueBoissons {
     List<Boisson> boissons, {
     required String filtre,
   }) => utf8.encode(csv(boissons, filtre: filtre));
+
+  /// Le « PDF Officiel A4 Imprimable » du catalogue affiché (directive du PO
+  /// du 14/10/2026) : les quatre [colonnes] du CSV, dans son ordre, nommées
+  /// en clair pour le papier ; le prix en FCFA à droite ; un stock inconnu
+  /// reste une case VIDE, jamais « 0 ». Portrait.
+  static EtatTabulaireA4 etatA4(
+    List<Boisson> boissons, {
+    required String filtre,
+  }) => EtatTabulaireA4(
+    titre: 'Catalogue des boissons',
+    portee: 'Filtre appliqué : $filtre',
+    mentions: const [
+      'Stock disponible vide : aucun point de stockage du bar ne le calcule '
+          '- la donnée est inconnue, ce n\'est pas une rupture.',
+    ],
+    colonnes: const [
+      ColonneEtat('Nom', largeur: 3),
+      ColonneEtat('Catégorie', largeur: 2),
+      ColonneEtat.nombre('Prix', largeur: 1.5),
+      ColonneEtat.nombre('Stock disponible', largeur: 1.5),
+    ],
+    lignes: [
+      for (final b in boissons)
+        [
+          b.libelle,
+          b.categorieLibelle ?? '',
+          formaterMontantDecimal(b.prixVente, suffixe: 'FCFA') ?? b.prixVente,
+          b.stockDisponible ?? '',
+        ],
+    ],
+    resume: '${boissons.length} boisson(s)',
+  );
 }

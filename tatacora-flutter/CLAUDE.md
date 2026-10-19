@@ -247,7 +247,7 @@ lib/features/<module>/{domain,data,presentation}
 
 Seul `SessionsCaisseDao` écrit `sessions_caisse_local` ; montants en centimes. Ouverture et clôture répliquent `PosComptant` (le serveur n'a pas de service), refus dans l'ordre du serveur, messages relus par PHP (`tool/caisse/rejouer_caisse.php` rejoue le vrai composant). **Aucune pièce comptable** : le serveur n'en passe aucune. Depuis le lot 5 (D231), le panier au comptant porte `session_encaissement_id` et `especesDeLaSessionProvider` rend les espèces de la session : la clôture calcule théorique et écart comme le serveur (D221–D223 dépassés), et DIT les ventes en espèces sans session (lot 6, R2). `sessionOuverteLaPlusRecente` est appelée en production depuis le lot 5 (encaissement de facture et tableau de bord : la caisse « la plus récente tous points confondus », comme le serveur). La trésorerie de caisse de M11 est calculée depuis le lot 5 (D234). Piège : un `abort(403)` rendu par le harnais Livewire est une exception, pas un statut.
 
-## Base locale Drift — schéma **v21**, 53 tables (v21 : colonne `fournisseurs_local.actif`, aucune table ; v20 : `reglements_fournisseur_local` ; v19 : huit colonnes d'annulation sur `reservations_local`, aucune table ; v18 : `paiements_facture_local` + colonne `paniers_local.session_encaissement_id` ; v17 : `sessions_caisse_local` ; v16 : deux colonnes `ecriture_id`/`ecriture_refus` sur `depenses_local`, aucune table ; v15 : six tables du moteur comptable M10 ; v14 : quatre tables du restaurant ; v11 : `parametres_systeme_local` ; v12 : sept colonnes de stock, aucune table neuve ; v13 : cinq tables d'achats)
+## Base locale Drift — schéma **v21**, 53 tables ⚠ (titre historique : v29, 62 tables depuis le 18/10/2026) (v21 : colonne `fournisseurs_local.actif`, aucune table ; v20 : `reglements_fournisseur_local` ; v19 : huit colonnes d'annulation sur `reservations_local`, aucune table ; v18 : `paiements_facture_local` + colonne `paniers_local.session_encaissement_id` ; v17 : `sessions_caisse_local` ; v16 : deux colonnes `ecriture_id`/`ecriture_refus` sur `depenses_local`, aucune table ; v15 : six tables du moteur comptable M10 ; v14 : quatre tables du restaurant ; v11 : `parametres_systeme_local` ; v12 : sept colonnes de stock, aucune table neuve ; v13 : cinq tables d'achats)
 
 Historique des versions dans `lib/core/database/app_database.dart`, chacune avec
 sa raison : v2 fiche de réservation (`tarifNuit`, `reference`…), v3 panier,
@@ -279,11 +279,269 @@ oblige à rouvrir le test le jour où une table entre au périmètre offline, et
 à se demander si elle y a sa place. La taille de la base conditionne la durée de
 la fenêtre hors ligne.
 
+## File d'envoi (lot F1, 15/10/2026) — la synchronisation REVIENT, en tâche de fond
+
+Décisions du PO des 14–15/10/2026 : « zéro réseau » devient une règle d'USAGE (le
+poste marche des jours sans réseau), la synchronisation une tâche de fond qui ne
+bloque jamais un geste (la clôture de caisse d'abord). Le poste pousse des
+documents SOURCES, jamais une écriture (D246) ; il crée ET modifie son catalogue.
+
+- **Schéma v26** : `operations_sync_local` (58 tables), seul auteur
+  `OperationsSyncDao` (`features/synchronisation/`). `enfiler` LÈVE hors d'une
+  transaction Drift : chaque écrivain l'appelle dans SA transaction. `seq`
+  (AUTOINCREMENT) est l'ordre d'envoi ; le payload est FIGÉ au contrat du serveur
+  (`domain/charges_synchronisation.dart`, conversions d'unités en tête).
+- `TableSynchronisee` est relu du registre PHP par un test ; aucune table
+  d'écritures ; une `modification` sur une table que le serveur ne modifie pas est
+  refusée à l'enfilement.
+- **Ancrage extérieur** : `tool/sync/valider_charge.php` pousse la file d'une
+  journée complète au VRAI `SynchronisationService` sur `tatacora_test` (rollback)
+  et relit les lignes écrites (`charges_contre_serveur_test.dart`).
+- Ne partent PAS : la vente sur séjour (phase 2 serveur), les alignements
+  descendants (`aligner*`), le cycle des unités, l'envoi/clôture d'une commande,
+  le rattrapage d'une dépense, le stock d'ouverture, tout ce qui précède la v26.
+  Le mode démo n'enfile rien (`AppDatabase.fileSynchronisationActive`).
+- Depuis F2b, l'écran `/synchronisation` LIT la file (section F2b). Le
+  moteur d'envoi existe depuis F2a. Piège rencontré : `m.createTable` ne crée PAS les
+  index `@TableIndex`, et un `CREATE INDEX` nu échoue sur un fichier rabaissé.
+
+## Moteur d'envoi et appairage (lot F2a, 15/10/2026)
+
+- **Transport** : `package:http` (pur Dart, déjà transitif) derrière
+  `TransportSynchronisation` (`data/transport_synchronisation.dart`) — rend une
+  `IssueHttp` (`ReponseHttp` | `ServeurInjoignable`), ne lève jamais ; 20 s de
+  connexion et de requête ; `Accept: application/json`, Bearer. Tests :
+  `MockClient` ou `FauxTransport` (`test/features/synchronisation/support/`).
+- **Appairage** (Paramètres → onglet « Synchronisation », Administrateurs
+  seulement, `peutAdministrerComptes`) : `POST /login` avec `poste` = nom du
+  poste nettoyé (`nettoyerNomPoste`) ; `poste_id`, `jeton_api`, `serveur`,
+  `appaire_le`, `compte` (+ `appairage_refuse` posé par le moteur sur 401/403)
+  dans `poste.json` À CÔTÉ de `smtp_mot_de_passe`, écrit en E/S SYNCHRONES via
+  `poste.json.tmp` + renommage (une file de `Future` statique s'était bloquée
+  entre deux tests : zone FakeAsync morte). Le mot de passe serveur n'est écrit
+  nulle part ; les refus sont des phrases (`TextesAppairage`), jamais le corps.
+- **`SyncManager.synchroniserMaintenant()`** (`data/sync_manager.dart`) : un
+  futur partagé dans le processus + le bail de `reclamerLot` entre processus ;
+  `libererBauxExpires` puis `reclamerLot(50)` → `POST /sync` → `marquerResultat`
+  en boucle. Politique : injoignable/408/429/5xx = repli 30 s→2 min→5 min→15 min
+  →1 h (ou `Retry-After`) et arrêt ; 401/403 = lot rendu INTACT
+  (`rendreEnAttente`, la tentative ne compte pas), refus consigné, plus rien
+  avant réappairage ou « Tester la connexion » réussi ; 422 = bissection (seule
+  l'opération fautive est `rejete`, et une opération suivante du même élément
+  encore réclamée est rendue puis BLOQUÉE) ; 413 = taille ÷ 2 ; autre 4xx =
+  `rejete` + alerte. Démonstration (`synchronisationInterditeProvider`) et poste
+  non appairé : aucune requête. File vide : aucun `POST` (depuis F2b, chaque passage
+  descend le catalogue : un `GET /referentiels`, sur son propre repli).
+- **Déclencheurs, chacun avec son appelant prouvé** : `main.dart` (après la
+  première image) lit `synchronisationAutomatiqueProvider` (une fois + toutes
+  les 5 min) ; `cloturerLaCaisse` appelle `declencheurSynchronisationProvider`
+  sans l'attendre (un transport qui lève ou ne répond jamais ne change rien à
+  la clôture) ; le bouton « Synchroniser maintenant » de l'onglet. Le dernier
+  bilan : `dernierBilanSynchronisationProvider` (pour l'écran de F2b).
+- **Bout en bout** : `synchronisation_serveur_reel_test.dart` démarre
+  `php artisan serve --no-reload` sur `tatacora_test` (sans `--no-reload`,
+  artisan RETIRE `DB_DATABASE` de l'environnement du serveur, qui relirait
+  `.env` = la base de dev), tient le verrou de `tatacora_test` tout l'essai, et
+  `tool/sync/serveur_reel.php` prend un instantané puis RESTAURE chaque table
+  modifiée (le serveur écrit pour de bon). `HttpOverrides.global = null`.
+- Production : `https://logirestock.digitonpro.com/api/v1`. Un appairage fait
+  vers une autre adresse que celle du build rend `autreServeur`, rien ne part.
+
+## Descente du catalogue et écran de synchronisation (lot F2b, 15/10/2026)
+
+- **Schéma v27** (60 tables) : `etat_synchronisation_local` (clé/valeur :
+  `descente.curseur`, repli propre `descente.echecs`/`prochaine_tentative`,
+  bilan `descente.derniere`, éléments gardés `element_differe:<table>:<id>`,
+  et `operation_remplacee:<uuid>` écrit par `OperationsSyncDao.renvoyer`) et
+  `correspondances_sync_local` (table, id_serveur → id_local, origine
+  `flux`|`file`|`libelle`). Aucune clé primaire locale n'est réécrite.
+- **`DescenteCatalogue`** (`data/descente_catalogue.dart`), appelée par
+  `SyncManager` APRÈS l'envoi, sauf 401/403 ; son PROPRE repli (une descente
+  en échec ne retarde jamais un envoi, un envoi en échec n'empêche pas la
+  descente). `GET /referentiels?poste_id&depuis&limite` page après page ;
+  chaque page dans UNE transaction : correspondances, puis chaque élément dans
+  un point de sauvegarde (une ligne fautive est comptée refusée, la page
+  passe), puis le curseur — jamais avant. 422 = curseur oublié, reprise du
+  début. Les `fusionne_avec` de la file sont retenus en correspondances avant
+  chaque descente (le flux des correspondances n'arrive qu'en fin de
+  catalogue).
+- **`AligneurCatalogue`** : un écrivain par table, n'enfile JAMAIS (balayage
+  du source + compte de la file). Ligne locale avec une opération
+  `en_attente`/`en_cours`/`bloque` → CONSERVÉE, élément gardé ; repris quand
+  plus rien n'attend : appliqué si le serveur a gardé sa version
+  (`version_serveur_conservee`, rejet, fusion), oublié si la modification du
+  poste a été appliquée (la nouvelle version redescend). Homonyme local
+  (clé naturelle) non encore poussé → conservé (pas de doublon avant la
+  fusion). Dépendance absente → gardé, repris en boucle en fin de descente et
+  à la suivante. Conversions inverses de F1 par `entierDepuisDecimal` (chaîne,
+  jamais `double`) ; une fraction de franc est REFUSÉE. Archives : fournisseur
+  `actif`, unité `hors_service` (une unité existante ne reçoit que
+  l'archivage, son statut reste celui du cycle local) ; un ARTICLE archivé
+  reste (aucune archive locale), et le bilan le compte. Centres de coût :
+  reconnus par id puis libellé normalisé, jamais renommés, créés seulement
+  s'ils manquent. `cree_par` d'une création descendue = compte connecté, à
+  défaut le plus ancien administrateur actif (écart nommé ; sans compte, la
+  ligne attend).
+- **Bail** : `SyncManager` le PROLONGE avant chaque `POST /sync`
+  (`prolongerBail`) — une bissection longue n'est jamais reprise par un autre
+  processus.
+- **Écran `/synchronisation`** (`presentation/ecran_synchronisation.dart`,
+  ajout du PO déclaré dans `classification-exemptions.json`, hors menu, gardé
+  par Paramètres, lien depuis Paramètres → Synchronisation) : état, compteurs
+  par statut, dernière descente, « À traiter » paginé (rejetées, conflits,
+  bloquées ; « Renvoyer » = même document, même horodatage, NOUVEL uuid,
+  l'ancienne reste rejetée et marquée remplacée, la remplaçante passe devant
+  les bloquées ; « Débloquer » seulement quand les antérieures sont abouties ;
+  les deux réservés aux Administrateurs ; conflit = « arbitrage sur le
+  serveur »), signalements du serveur en français (registre relu de
+  `AnomalieSynchronisation`). « Synchronisé » ne se dit que du confirmé.
+- **Bout en bout** : `synchronisation_serveur_reel_test.dart` crée un
+  catalogue AU SERVEUR (`serveur_reel.php creer_catalogue`), le descend, et
+  rejoue le dernier écrit gagnant (`renommer`) contre une modification locale.
+
+## Descente des clients et des réservations, bouton de la barre (lot F3, 16/10/2026)
+
+Décision du PO du 16/10/2026 (« le poste B aura-t-il ce que le poste A a
+enregistré ? ») : le flux `GET /referentiels` porte aussi `clients` puis
+`reservations` (de TOUS les postes, filtrés par M3 / M1), après le parc et
+les fournisseurs, avant les centres de coût. Les ventes, dépenses, caisses,
+commandes et réceptions des autres postes NE descendent PAS (consultées au
+serveur, seul comptable, D246).
+
+- **Client** (`AligneurCatalogue._client`) : dernière saisie gagnante (une
+  fiche en suspens est conservée), aucun contrôle d'homonyme (le serveur ne
+  fusionne jamais deux clients), `solde` ne descend pas, un client archivé
+  reste proposé (compté dans `archivesNonPortees`).
+- **Réservation** (`_reservation`) : NOUVELLE → écrite sans pièce (le
+  serveur a passé celle de l'acompte), référence `SRV-` + 8 caractères,
+  tarif absent = 0 (précédent `ReservationDto`), aucune ligne de service,
+  canal non descendu ; elle occupe la chambre pour `chevauchant` (RG-01).
+  EXISTANTE → seul le STATUT bouge, et seulement vers l'avant
+  (`en_attente` → `confirmee` → `en_cours` → `terminee`) ; annulée ici =
+  intouchable ; annulée au serveur = annulée ici avec ses conditions, sans
+  pièce. Dates, unité, montants d'une réservation existante ne sont PAS
+  réécrits (écart nommé : le poste ne pousse que la création).
+- **Bouton de la barre supérieure** (`presentation/bouton_synchronisation.dart`,
+  AJOUT du PO, à gauche de la cloche) : voyant pur `voyantDe`
+  (`domain/voyant_synchronisation.dart`) — gris / rouge (+ nombre à traiter
+  ou jeton refusé) / orange (+ nombre en attente) / vert (RIEN en attente) ;
+  les comptes sont relus au signal de tables de Drift (`surveillerFile` ; une requête `.watch()` laisse un minuteur que le banc refuse, et le bouton est sur TOUS les écrans), le badge
+  suit une vente enfilée sans attendre le moteur. La modale : compteurs,
+  dernier passage, dernière réception, « Synchroniser maintenant » (TOUS les
+  comptes), « Voir le détail » seulement si `accesRoute('/synchronisation')`
+  l'autorise. La pastille « Réseau » de la vue reste refusée.
+- Piège rencontré : un faux serveur qui reprend APRÈS le curseur ne re-sert
+  pas un élément « modifié » ; sans `effacerCurseur()` entre deux descentes,
+  les cas « rien n'est réécrit » passaient À VIDE. Et la sonde des écrivains
+  ne lisait pas `_db.into(t)` : l'aligneur y échappait jusqu'au F3 (déclaré
+  exception nommée depuis).
+
+## Documents de tous les postes, POS hébergés, factures (lots F4–F5, 17/10/2026)
+
+Décisions du PO du 17/10/2026 (« NE PLUS LIMITER », Q1 = A, Q2 = A,
+« F-AAAA-NNNNN au serveur ») : la section F3 ci-dessus est DÉPASSÉE sur un
+point — ventes, dépenses, caisses, commandes, réceptions, règlements,
+mouvements de stock, tourisme, séjours, factures, avoirs et encaissements de
+TOUS les postes descendent (`aligneur_documents.dart`), schéma **v28**
+(61 tables : `origines_documents_local`, le poste d'origine).
+
+- **Q1** : un document descendu n'a JAMAIS de pièce locale (le journal du
+  poste ne tient que ses pièces) ; le rattrapage d'une dépense descendue est
+  refusé ; les entrées de stock de SA réception ne redescendent pas au poste
+  qui les a écrites (`tablesMiroirs` au serveur).
+- **Facture** : numéro PROVISOIRE `PROV-AAAA-NNNNN` sous synchronisation
+  (l'ancien `F-` en démonstration), imprimé « FACTURE PROVISOIRE » ;
+  émission et annulation s'enfilent (`factures`) ; le numéro du serveur est
+  posé par `FactureDao.regulariserNumeros` — depuis la réponse de l'envoi
+  (`SyncManager`) ET depuis la descente (réponse perdue). Les avoirs
+  désignent leur facture par NUMÉRO (clé étrangère) : réécrits ensemble,
+  contraintes différées. Une pièce d'avant (`non_transmissible`) ne part
+  jamais ; si le serveur attribue son numéro à une autre, elle devient
+  `LOC-<numéro>`.
+- **Encaissement** : part (`paiements`, centimes, caisse du poste) si sa
+  facture part ; au serveur, une facture non certifiée et une caisse
+  inconnue sont ADMISES et signalées (l'argent est reçu). L'annulation d'un
+  paiement régularisé retrouve la pièce passée sous le numéro provisoire
+  par l'UUID du paiement (et dans ce seul cas : la parité serveur tient).
+- **Lot F6 (17/10/2026)** : partent l'annulation d'une réservation (taux et
+  MONTANT remboursé, mode `montant` : même somme au centime), son
+  déplacement (chambre, dates, comparées au JOUR, depuis
+  `ReservationDao.enregistrer`), l'envoi et la clôture d'une commande — et
+  seulement si le serveur détient le document
+  (`DocumentsAutresPostes.connuDuServeur` : descendu, ou création en file non
+  rejetée). **Q3** : un document descendu (réservation, facture,
+  encaissement) ne s'annule ici que par `administrateur`, `super_admin` ou
+  `comptable` (`peutAnnuler`), comme au serveur. Les autres retouches d'une
+  fiche de réservation restent locales ; le poste n'annule qu'un panier
+  OUVERT (aucune annulation de vente ne part). Un document de CE poste
+  annulé AU SERVEUR (vente, encaissement, règlement fournisseur) suit en
+  statut ET sa pièce locale est contre-passée en entier, une seule fois
+  (18/10/2026).
+
+## Tous les modules, bouton « Synchroniser », cohérence (18/10/2026)
+
+Décisions du PO du 18/10/2026 (« tous les modules » ; « le serveur doit
+avoir aussi le bouton synchroniser » ; tables du restaurant « il faut le
+créer »). Schéma **v29** (62 tables : `occupations_tables_local`).
+
+- **Montent en plus** : tables de salle et additions ouvertes (une table
+  occupée ailleurs se refuse, `TableOccupeeAilleurs`), véhicules et
+  contrats (M8), employés et bulletins (M13 ; matricule et numéro du
+  serveur régularisés), règlements fournisseur, mouvements de stock SAISIS
+  (`StocksDao.ajouterMouvement`, `envoyer: false` pour l'entrée d'une
+  réception), paramètres (UN enregistrement de l'écran = une opération,
+  dernier écrit gagnant clé par clé), rôles (libellé + matrice entière),
+  modèles de notification (couple événement × canal), canal d'une
+  réservation (par son NOM). Tout descend aussi, aligné par clé naturelle ;
+  une retouche locale en attente est gardée (`ConserveLocalement`).
+- **Jamais** : comptes et mots de passe (PA-103), messages de notification
+  tracés, pièces du serveur (Q1 = A). Non portés faute d'écran ou de table :
+  congés, plannings, entretiens de véhicules, indisponibilités de la carte.
+- **Bouton du serveur** : la PWA (menu de compte « Synchroniser les
+  postes ») et l'écran du même nom ici (`/synchronisation-postes`, ouvert à
+  tout compte) enregistrent une DEMANDE ; le poste la lit toutes les 30 s
+  (`SyncManager.suivreDemandeDuServeur`, `GET /sync/demande`) et passe
+  aussitôt (envoi puis descente, repli levé). Le flux reçoit `en_attente`.
+- **Contrôle de cohérence (P1-1)** : écran de synchronisation, « Contrôler
+  maintenant » — `GET /sync/coherence` (par table et par jour MÉTIER,
+  nombre et total en centimes) contre les mêmes comptes locaux
+  (`ControleCoherence.requetes`) ; « Ce poste a tout reçu jusqu'au … ».
+- **Essai de réception** : `essai_cinq_postes_test.dart`, cinq postes contre
+  le vrai serveur avec coupures au hasard (avant envoi, réponse perdue) :
+  rien de perdu ni doublé, cohérence sans écart sur chaque poste, conflit
+  RG-01 réel dans « À traiter ». ⚠ Le flux ne livre qu'au-delà de son
+  HORIZON (5 s) ; un banc qui avance l'horloge du moteur doit la donner
+  AUSSI au DAO de la file (l'échéance d'une reprise se juge sur elle).
+
+## Configurations saisies à l'écran : mot de passe SMTP, appairage (19/10/2026)
+
+Décision du PO du 19/10/2026 (« enregistrer les configurations dans le poste
+et le web » ; serveur : « chiffré en base » ; poste : « onglet Email »).
+
+- **Poste** : Paramètres → Email (SMTP), champ « Mot de passe SMTP »
+  (`widgets/champ_mot_de_passe_smtp.dart`, Administrateurs seulement) →
+  `EcrivainConfigurationPoste.enregistrerMotDePasseSmtp` / `effacer…` dans
+  `poste.json` (+ `smtp_mot_de_passe_le`/`_par`), JAMAIS dans Drift ; l'écran
+  ne relit que l'ÉTAT (`etatMotDePasseSmtp`). Écart nommé : la mention de la
+  vue (« chiffré sur le serveur », repli `.env`) est fausse ici.
+- **Serveur** : `secrets_configuration` (cast `encrypted`, `APP_KEY`), registre
+  fermé `SecretsConfigurationService::CLES`, exclu de l'export, conservé par
+  la réinitialisation, jamais dans le flux ; `ConfigurationMailService`
+  l'applique avant `MAIL_PASSWORD`.
+- **Révocation d'appairage** : « Synchroniser les postes » (PWA et poste),
+  colonne « Appairage », bouton « Révoquer » (Administrateurs, jamais son
+  propre poste) → `POST /sync/postes/{poste}/revocation` supprime les jetons
+  de ce NOM ; le poste révoqué reçoit 401 et garde sa file.
+
 ## Synchronisation — ⚠ HISTORIQUE, retirée par « zéro réseau »
 
 ⚠ **Vérifié le 12/10/2026 : `synchroniserMaintenant`, `DeclencheurSynchronisation`,
 `dioProvider` et `dioEnLigneProvider` n'existent plus dans `lib/`** (seules
-subsistent des mentions en commentaire). Le poste ne pousse ni ne descend rien.
+subsistent des mentions en commentaire). **Depuis le lot F2a (15/10/2026),
+`synchroniserMaintenant` existe de nouveau** — dans `SyncManager`, voir la
+section F2a ; depuis F2b il pousse la file PUIS descend le catalogue
+(section F2b). La phrase « le poste ne pousse ni ne descend rien » est
+périmée.
 Cette section et les deux suivantes (« socle réseau », « écrans qui exigent le
 réseau ») décrivent l'état d'avant ; elles sont gardées pour leurs leçons, pas
 comme description du code.
@@ -486,8 +744,8 @@ Commandes non reformatés.
 
 **M6 Stocks est LOCAL depuis le 09/10/2026** (schéma v12, D115–D130 du ticket).
 Les trois tables de stock (`articles_local`, `points_stockage_local`,
-`mouvements_stock_local`) ont un seul auteur, `StocksDao` ; personne ne les
-descend. Stock, CMP et dernier prix d'achat ne sont jamais stockés : ils sont
+`mouvements_stock_local`) ont un seul auteur de SAISIE, `StocksDao` ; depuis F2b,
+points et articles DESCENDENT aussi (`AligneurCatalogue`, jamais enfilé). Stock, CMP et dernier prix d'achat ne sont jamais stockés : ils sont
 rejoués depuis les mouvements (`domain/calcul_stock.dart`, entiers). Un CMP sans
 entrée valorisée s'affiche « — », jamais 0 ; M11 dit « hors N article(s) sans
 coût ». ⚠ `MouvementsStockLocal.statutSync` a pour défaut

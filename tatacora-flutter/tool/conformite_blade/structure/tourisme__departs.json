@@ -1,0 +1,398 @@
+{
+    "_lisez-moi": "PRODUIT par ExtraireStructureBladeTest, jamais ecrit a la main. Chaque variante (onglet) : les textes VISIBLES de <main>, dans l'ordre du document.",
+    "vue": "tourisme/departs",
+    "jeu": "parc",
+    "onglets": {
+        "departs": [
+            {
+                "type": "h1",
+                "texte": "Tourisme"
+            },
+            {
+                "type": "p",
+                "texte": "Circuits, départs, guides et capacités. La capacité est contrôlée — jamais réservation par réservation. Un départ ne peut pas exister sans guide."
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "div",
+                "texte": "Départs planifiés"
+            },
+            {
+                "type": "div",
+                "texte": "0 complet(s)"
+            },
+            {
+                "type": "div",
+                "texte": "Places vendues"
+            },
+            {
+                "type": "div",
+                "texte": "0 / 0"
+            },
+            {
+                "type": "div",
+                "texte": "Capacité offerte"
+            },
+            {
+                "type": "div",
+                "texte": "Taux de remplissage"
+            },
+            {
+                "type": "div",
+                "texte": "Sur la période"
+            },
+            {
+                "type": "div",
+                "texte": "Chiffre d'affaires"
+            },
+            {
+                "type": "div",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "div",
+                "texte": "Réservations confirmées"
+            },
+            {
+                "type": "div",
+                "texte": "Reste à encaisser"
+            },
+            {
+                "type": "div",
+                "texte": "Soldes clients"
+            },
+            {
+                "type": "div",
+                "texte": "Durée indéterminée"
+            },
+            {
+                "type": "div",
+                "texte": "Véhicule sous-bloqué"
+            },
+            {
+                "type": "onglet",
+                "texte": "Départs planifiés",
+                "cle": "departs"
+            },
+            {
+                "type": "onglet",
+                "texte": "Réservations",
+                "cle": "reservations"
+            },
+            {
+                "type": "onglet",
+                "texte": "Catalogue",
+                "cle": "catalogue"
+            },
+            {
+                "type": "champ",
+                "texte": "Circuit, client, guide, n°…"
+            },
+            {
+                "type": "option",
+                "texte": "Circuits et excursions"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les départs"
+            },
+            {
+                "type": "option",
+                "texte": "Places disponibles"
+            },
+            {
+                "type": "option",
+                "texte": "Complets"
+            },
+            {
+                "type": "option",
+                "texte": "Aucune réservation"
+            },
+            {
+                "type": "option",
+                "texte": "Planifiés"
+            },
+            {
+                "type": "option",
+                "texte": "Tous"
+            },
+            {
+                "type": "option",
+                "texte": "Annulés"
+            },
+            {
+                "type": "button",
+                "texte": "+ Réservation"
+            },
+            {
+                "type": "div",
+                "texte": "Aucun départ ne correspond à ces critères."
+            }
+        ],
+        "reservations": [
+            {
+                "type": "h1",
+                "texte": "Tourisme"
+            },
+            {
+                "type": "p",
+                "texte": "Circuits, départs, guides et capacités. La capacité est contrôlée — jamais réservation par réservation. Un départ ne peut pas exister sans guide."
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "div",
+                "texte": "Départs planifiés"
+            },
+            {
+                "type": "div",
+                "texte": "0 complet(s)"
+            },
+            {
+                "type": "div",
+                "texte": "Places vendues"
+            },
+            {
+                "type": "div",
+                "texte": "0 / 0"
+            },
+            {
+                "type": "div",
+                "texte": "Capacité offerte"
+            },
+            {
+                "type": "div",
+                "texte": "Taux de remplissage"
+            },
+            {
+                "type": "div",
+                "texte": "Sur la période"
+            },
+            {
+                "type": "div",
+                "texte": "Chiffre d'affaires"
+            },
+            {
+                "type": "div",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "div",
+                "texte": "Réservations confirmées"
+            },
+            {
+                "type": "div",
+                "texte": "Reste à encaisser"
+            },
+            {
+                "type": "div",
+                "texte": "Soldes clients"
+            },
+            {
+                "type": "div",
+                "texte": "Durée indéterminée"
+            },
+            {
+                "type": "div",
+                "texte": "Véhicule sous-bloqué"
+            },
+            {
+                "type": "onglet",
+                "texte": "Départs planifiés",
+                "cle": "departs"
+            },
+            {
+                "type": "onglet",
+                "texte": "Réservations",
+                "cle": "reservations"
+            },
+            {
+                "type": "onglet",
+                "texte": "Catalogue",
+                "cle": "catalogue"
+            },
+            {
+                "type": "champ",
+                "texte": "Circuit, client, guide, n°…"
+            },
+            {
+                "type": "option",
+                "texte": "Circuits et excursions"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les départs"
+            },
+            {
+                "type": "option",
+                "texte": "Places disponibles"
+            },
+            {
+                "type": "option",
+                "texte": "Complets"
+            },
+            {
+                "type": "option",
+                "texte": "Aucune réservation"
+            },
+            {
+                "type": "option",
+                "texte": "Planifiés"
+            },
+            {
+                "type": "option",
+                "texte": "Tous"
+            },
+            {
+                "type": "option",
+                "texte": "Annulés"
+            },
+            {
+                "type": "button",
+                "texte": "+ Réservation"
+            },
+            {
+                "type": "div",
+                "texte": "Aucune réservation ne correspond."
+            }
+        ],
+        "catalogue": [
+            {
+                "type": "h1",
+                "texte": "Tourisme"
+            },
+            {
+                "type": "p",
+                "texte": "Circuits, départs, guides et capacités. La capacité est contrôlée — jamais réservation par réservation. Un départ ne peut pas exister sans guide."
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "div",
+                "texte": "Départs planifiés"
+            },
+            {
+                "type": "div",
+                "texte": "0 complet(s)"
+            },
+            {
+                "type": "div",
+                "texte": "Places vendues"
+            },
+            {
+                "type": "div",
+                "texte": "0 / 0"
+            },
+            {
+                "type": "div",
+                "texte": "Capacité offerte"
+            },
+            {
+                "type": "div",
+                "texte": "Taux de remplissage"
+            },
+            {
+                "type": "div",
+                "texte": "Sur la période"
+            },
+            {
+                "type": "div",
+                "texte": "Chiffre d'affaires"
+            },
+            {
+                "type": "div",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "div",
+                "texte": "Réservations confirmées"
+            },
+            {
+                "type": "div",
+                "texte": "Reste à encaisser"
+            },
+            {
+                "type": "div",
+                "texte": "Soldes clients"
+            },
+            {
+                "type": "div",
+                "texte": "Durée indéterminée"
+            },
+            {
+                "type": "div",
+                "texte": "Véhicule sous-bloqué"
+            },
+            {
+                "type": "onglet",
+                "texte": "Départs planifiés",
+                "cle": "departs"
+            },
+            {
+                "type": "onglet",
+                "texte": "Réservations",
+                "cle": "reservations"
+            },
+            {
+                "type": "onglet",
+                "texte": "Catalogue",
+                "cle": "catalogue"
+            },
+            {
+                "type": "champ",
+                "texte": "Circuit, client, guide, n°…"
+            },
+            {
+                "type": "option",
+                "texte": "Circuits et excursions"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les départs"
+            },
+            {
+                "type": "option",
+                "texte": "Places disponibles"
+            },
+            {
+                "type": "option",
+                "texte": "Complets"
+            },
+            {
+                "type": "option",
+                "texte": "Aucune réservation"
+            },
+            {
+                "type": "option",
+                "texte": "Planifiés"
+            },
+            {
+                "type": "option",
+                "texte": "Tous"
+            },
+            {
+                "type": "option",
+                "texte": "Annulés"
+            },
+            {
+                "type": "button",
+                "texte": "+ Prestation"
+            },
+            {
+                "type": "button",
+                "texte": "+ Réservation"
+            },
+            {
+                "type": "div",
+                "texte": "Aucune prestation ne correspond."
+            }
+        ]
+    }
+}

@@ -1,0 +1,133 @@
+{
+    "_lisez-moi": "PRODUIT par ExtraireStructureBladeTest, jamais ecrit a la main. Chaque variante (onglet) : les textes VISIBLES de <main>, dans l'ordre du document.",
+    "vue": "transverse/mon-profil",
+    "jeu": "parc",
+    "onglets": {
+        "principal": [
+            {
+                "type": "h1",
+                "texte": "Mon profil"
+            },
+            {
+                "type": "p",
+                "texte": "Vos informations personnelles, votre mot de passe et la trace de vos dernières actions dans le système."
+            },
+            {
+                "type": "p",
+                "texte": "compte.structure"
+            },
+            {
+                "type": "p",
+                "texte": "Administrateur"
+            },
+            {
+                "type": "h2",
+                "texte": "MÉTADONNÉES DE SESSION"
+            },
+            {
+                "type": "p",
+                "texte": "Dernière connexion"
+            },
+            {
+                "type": "p",
+                "texte": "Adresse IP du poste"
+            },
+            {
+                "type": "p",
+                "texte": "127.0.0.1"
+            },
+            {
+                "type": "p",
+                "texte": "Statut du compte"
+            },
+            {
+                "type": "p",
+                "texte": "Actif"
+            },
+            {
+                "type": "p",
+                "texte": "L'adresse IP affichée est celle relevée par le poste. Sur l'application réelle elle vient du serveur : une adresse déclarée par le navigateur ne prouve rien et ne doit jamais servir de contrôle d'accès."
+            },
+            {
+                "type": "h2",
+                "texte": "Informations personnelles"
+            },
+            {
+                "type": "label",
+                "texte": "Nom complet"
+            },
+            {
+                "type": "p",
+                "texte": "Aucune fiche employé n'est rattachée à ce compte."
+            },
+            {
+                "type": "label",
+                "texte": "Email"
+            },
+            {
+                "type": "p",
+                "texte": "Non porté par le schéma. ex. nom@tatacora.com"
+            },
+            {
+                "type": "label",
+                "texte": "Téléphone"
+            },
+            {
+                "type": "p",
+                "texte": "Non porté par le schéma. +229 01 XX XX XX XX"
+            },
+            {
+                "type": "label",
+                "texte": "Fonction"
+            },
+            {
+                "type": "p",
+                "texte": "La fonction et les droits d'accès (RBAC) sont gérés par l'administrateur système — voir . Un utilisateur qui pourrait modifier sa propre fonction contournerait la matrice de droits en un clic."
+            },
+            {
+                "type": "a",
+                "texte": "Rôles & Permissions"
+            },
+            {
+                "type": "h2",
+                "texte": "Modifier le mot de passe"
+            },
+            {
+                "type": "p",
+                "texte": "Le changement est immédiat et ne ferme pas votre session."
+            },
+            {
+                "type": "button",
+                "texte": "Modifier le mot de passe"
+            },
+            {
+                "type": "h2",
+                "texte": "Journal d'audit — 10 dernières actions"
+            },
+            {
+                "type": "p",
+                "texte": "Vos actions uniquement. Le journal complet, tous utilisateurs, est réservé aux profils qui y ont droit."
+            },
+            {
+                "type": "a",
+                "texte": "Journal complet →"
+            },
+            {
+                "type": "th",
+                "texte": "DATE / HEURE"
+            },
+            {
+                "type": "th",
+                "texte": "ACTION"
+            },
+            {
+                "type": "th",
+                "texte": "MODULE"
+            },
+            {
+                "type": "td",
+                "texte": "Aucune action tracée pour ce compte."
+            }
+        ]
+    }
+}

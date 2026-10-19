@@ -57,7 +57,11 @@ Future<void> main() async {
     );
   }
 
-  final base = AppDatabase();
+  // Lot F1 : la démonstration n'alimente JAMAIS la file d'envoi — ses données
+  // sont fictives (`AppDatabase.fileSynchronisationActive`). Le défaut du
+  // flavor `demo` le dit déjà ; on l'écrit ici pour qu'aucune régression du
+  // défaut ne le défasse.
+  final base = AppDatabase(fileSynchronisation: false);
   // Le référentiel comptable (plan du PO, journaux, centres, exercice) est
   // installé EXPLICITEMENT ici, et AVANT l'amorçage : le moteur ne doit jamais
   // être servi sur un plan vide, y compris en démonstration, et les dépenses du
@@ -86,6 +90,8 @@ class ApplicationDemo extends ConsumerWidget {
     return MaterialApp.router(
       title: 'TATACORA AFRIQUE — Démonstration',
       debugShowCheckedModeBanner: false,
+      // Le messager de la garde du routeur (« Accès refusé à ce module. »).
+      scaffoldMessengerKey: messagerApplication,
       theme: AppTheme.clair,
       routerConfig: ref.watch(routeurProvider),
     );

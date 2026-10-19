@@ -10,14 +10,12 @@
 /// écran ne doit un jour acquérir une branche « si connecté ».
 library;
 
-import 'dart:io';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 import '../../../core/di/providers.dart';
+import '../../../core/fichiers/enregistrement_export.dart';
 import '../../../core/format/formats.dart';
+import '../../../core/impression/export_etat_a4.dart';
 import '../../../core/rbac/garde_acces.dart';
 import '../data/employe_dao.dart';
 import '../data/paie_dao.dart';
@@ -464,6 +462,9 @@ final etatPaieProvider = FutureProvider<EtatPaie>((ref) async {
 
   final List<String> entetes;
   final List<List<String>> lignes;
+  // Les colonnes de montant (FCFA au PDF) et celles que le PDF totalise.
+  var montants = const <int>{};
+  var totalisees = const <int>{};
 
   switch (onglet) {
     case OngletPaie.personnel:
@@ -491,6 +492,8 @@ final etatPaieProvider = FutureProvider<EtatPaie>((ref) async {
             e.salaireBase.toString(),
           ],
       ];
+      montants = const {7};
+      totalisees = const {7};
 
       // Le personnel est filtré par quatre contrôles : la portée les nomme
       // TOUS. (Le composant n'en nomme que deux ; en nommer davantage ne peut
@@ -533,6 +536,8 @@ final etatPaieProvider = FutureProvider<EtatPaie>((ref) async {
             b.chargesPatronalesConfirmees.toString(),
           ],
       ];
+      montants = const {2, 3, 4, 5, 6, 7};
+      totalisees = const {2, 3, 4, 5, 6, 7};
 
     case OngletPaie.livre:
       final t = await ref.watch(totauxLivreProvider.future);
@@ -573,6 +578,7 @@ final etatPaieProvider = FutureProvider<EtatPaie>((ref) async {
               ],
               ['COÛT TOTAL EMPLOYEUR', '${t.coutMin} — ${t.coutMax}'],
             ];
+      montants = const {1};
 
     case OngletPaie.declarations:
       final declarations = await ref.watch(declarationsProvider.future);
@@ -590,6 +596,7 @@ final etatPaieProvider = FutureProvider<EtatPaie>((ref) async {
                   d.complet ? 'Montant arrêté' : 'Incomplet',
                 ],
             ];
+      montants = const {2};
 
     case OngletPaie.bareme:
       final bareme = await ref.watch(baremeAfficheProvider.future);
@@ -609,6 +616,7 @@ final etatPaieProvider = FutureProvider<EtatPaie>((ref) async {
             l.cumul.toString(),
           ],
       ];
+      montants = const {2, 3};
   }
 
   return EtatPaie(
@@ -617,32 +625,36 @@ final etatPaieProvider = FutureProvider<EtatPaie>((ref) async {
     entetes: entetes,
     lignes: lignes,
     portee: morceaux.join(' · '),
+    colonnesMontant: montants,
+    colonnesTotalisees: totalisees,
   );
 });
 
-/// L'export tableur — rend le **chemin** du fichier écrit.
+/// L'export tableur — rend le **chemin** du fichier écrit, `null` : annulé
+/// dans la fenêtre « Enregistrer sous » (14/10/2026).
 ///
 /// Exposé comme action injectable, jamais appelé depuis un widget : un test de
 /// widget n'a pas de greffon natif, et il doit exister un seul endroit où un
 /// fichier est écrit. Un export silencieux est un export que personne ne
-/// retrouve — l'écran affiche le chemin rendu ici.
-final exporterPaieProvider = Provider<Future<String> Function(EtatPaie)>(
-  (ref) => (etat) async {
-    final dossier = await getApplicationDocumentsDirectory();
-    final m = DateTime.now();
-    final horodatage =
-        '${m.year}'
-        '${m.month.toString().padLeft(2, '0')}'
-        '${m.day.toString().padLeft(2, '0')}-'
-        '${m.hour.toString().padLeft(2, '0')}'
-        '${m.minute.toString().padLeft(2, '0')}'
-        '${m.second.toString().padLeft(2, '0')}';
-    final fichier = File(
-      p.join(dossier.path, '${etat.prefixeFichier}_$horodatage.csv'),
-    );
-    await fichier.writeAsBytes(etat.csvOctets());
-    return fichier.path;
-  },
+/// retrouve — le toast commun dit le nom du fichier.
+final exporterPaieProvider = Provider<Future<String?> Function(EtatPaie)>(
+  (ref) =>
+      (etat) => ref
+          .read(enregistrementExportProvider)
+          .exporter(
+            base: etat.prefixeFichier,
+            type: TypeFichierEnregistre.csv,
+            octets: etat.csvOctets(),
+          ),
+);
+
+/// L'export « PDF Officiel A4 Imprimable » de l'onglet affiché — mêmes
+/// colonnes et mêmes lignes que le CSV, en-tête lu des paramètres. Rend le
+/// chemin écrit, `null` : annulé.
+final exporterPaiePdfProvider = Provider<Future<String?> Function(EtatPaie)>(
+  (ref) =>
+      (etat) =>
+          enregistrerEtatA4(ref, etat.etatA4(), base: etat.prefixeFichier),
 );
 
 /// Recharge tout ce qui dépend de la paie, après une écriture.

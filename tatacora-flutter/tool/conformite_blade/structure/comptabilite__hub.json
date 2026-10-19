@@ -1,0 +1,2005 @@
+{
+    "_lisez-moi": "PRODUIT par ExtraireStructureBladeTest, jamais ecrit a la main. Chaque variante (onglet) : les textes VISIBLES de <main>, dans l'ordre du document.",
+    "vue": "comptabilite/hub",
+    "jeu": "parc",
+    "onglets": {
+        "saisie": [
+            {
+                "type": "h1",
+                "texte": "Comptabilité — SYSCOHADA révisé"
+            },
+            {
+                "type": "p",
+                "texte": "Système Normal. Une écriture validée est : la seule correction est la contre-passation."
+            },
+            {
+                "type": "option",
+                "texte": "Choisir un exercice"
+            },
+            {
+                "type": "onglet",
+                "texte": "Passer écriture",
+                "cle": "saisie"
+            },
+            {
+                "type": "onglet",
+                "texte": "Journal",
+                "cle": "journal"
+            },
+            {
+                "type": "onglet",
+                "texte": "Grand livre",
+                "cle": "grandlivre"
+            },
+            {
+                "type": "onglet",
+                "texte": "Balance générale",
+                "cle": "balance"
+            },
+            {
+                "type": "onglet",
+                "texte": "Compte de résultat",
+                "cle": "resultat"
+            },
+            {
+                "type": "onglet",
+                "texte": "Bilan",
+                "cle": "bilan"
+            },
+            {
+                "type": "onglet",
+                "texte": "Analytique",
+                "cle": "analytique"
+            },
+            {
+                "type": "onglet",
+                "texte": "Immobilisations",
+                "cle": "immo"
+            },
+            {
+                "type": "onglet",
+                "texte": "Plan comptable",
+                "cle": "plan"
+            },
+            {
+                "type": "onglet",
+                "texte": "Clôtures",
+                "cle": "clotures"
+            },
+            {
+                "type": "label",
+                "texte": "Journal"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les journaux"
+            },
+            {
+                "type": "label",
+                "texte": "Inclure les brouillons"
+            },
+            {
+                "type": "option",
+                "texte": "Toutes"
+            },
+            {
+                "type": "option",
+                "texte": "Validées seules"
+            },
+            {
+                "type": "option",
+                "texte": "Brouillons seuls"
+            },
+            {
+                "type": "onglet",
+                "texte": "Réinitialiser",
+                "cle": "saisie"
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun exercice comptable n'est sélectionné"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun exercice comptable n'a encore été ouvert. Cela se fait depuis l'application TATACORA."
+            },
+            {
+                "type": "p",
+                "texte": "Pilotage financier SYSCOHADA — plan comptable, journal, bilan, clôture et analytique."
+            },
+            {
+                "type": "span",
+                "texte": "Plan Comptable"
+            },
+            {
+                "type": "span",
+                "texte": "Comptes SYSCOHADA (Classes 1 à 7)"
+            },
+            {
+                "type": "span",
+                "texte": "Journal Comptable"
+            },
+            {
+                "type": "span",
+                "texte": "Écritures Débit/Crédit, saisie manuelle"
+            },
+            {
+                "type": "span",
+                "texte": "Bilan de l'Entreprise"
+            },
+            {
+                "type": "span",
+                "texte": "Actif / Passif, équilibre comptable"
+            },
+            {
+                "type": "span",
+                "texte": "Compte de Résultat"
+            },
+            {
+                "type": "span",
+                "texte": "Produits, charges et résultat net de l'exercice"
+            },
+            {
+                "type": "span",
+                "texte": "Tableau des Flux de Trésorerie"
+            },
+            {
+                "type": "span",
+                "texte": "TAFIRE — variation de trésorerie sur la période"
+            },
+            {
+                "type": "span",
+                "texte": "Notes Annexes"
+            },
+            {
+                "type": "span",
+                "texte": "Compléments d'information au Bilan et au Compte de Résultat"
+            },
+            {
+                "type": "span",
+                "texte": "Clôture Périodique"
+            },
+            {
+                "type": "span",
+                "texte": "Bascule d'exercice fiscal, report à nouveau"
+            },
+            {
+                "type": "span",
+                "texte": "Comptabilité Analytique"
+            },
+            {
+                "type": "span",
+                "texte": "Marges réelles par filière (Hébergement, Restauration, Bar, Tourisme, Véhicules)"
+            },
+            {
+                "type": "span",
+                "texte": "Grand Livre"
+            },
+            {
+                "type": "span",
+                "texte": "Écritures par compte, solde progressif"
+            },
+            {
+                "type": "span",
+                "texte": "Balance Générale"
+            },
+            {
+                "type": "span",
+                "texte": "Soldes de tous les comptes"
+            },
+            {
+                "type": "span",
+                "texte": "États Financiers"
+            },
+            {
+                "type": "span",
+                "texte": "Vue consolidée — Bilan, Résultat, Flux, Notes Annexes en un export unique"
+            }
+        ],
+        "journal": [
+            {
+                "type": "h1",
+                "texte": "Comptabilité — SYSCOHADA révisé"
+            },
+            {
+                "type": "p",
+                "texte": "Système Normal. Une écriture validée est : la seule correction est la contre-passation."
+            },
+            {
+                "type": "option",
+                "texte": "Choisir un exercice"
+            },
+            {
+                "type": "onglet",
+                "texte": "Passer écriture",
+                "cle": "saisie"
+            },
+            {
+                "type": "onglet",
+                "texte": "Journal",
+                "cle": "journal"
+            },
+            {
+                "type": "onglet",
+                "texte": "Grand livre",
+                "cle": "grandlivre"
+            },
+            {
+                "type": "onglet",
+                "texte": "Balance générale",
+                "cle": "balance"
+            },
+            {
+                "type": "onglet",
+                "texte": "Compte de résultat",
+                "cle": "resultat"
+            },
+            {
+                "type": "onglet",
+                "texte": "Bilan",
+                "cle": "bilan"
+            },
+            {
+                "type": "onglet",
+                "texte": "Analytique",
+                "cle": "analytique"
+            },
+            {
+                "type": "onglet",
+                "texte": "Immobilisations",
+                "cle": "immo"
+            },
+            {
+                "type": "onglet",
+                "texte": "Plan comptable",
+                "cle": "plan"
+            },
+            {
+                "type": "onglet",
+                "texte": "Clôtures",
+                "cle": "clotures"
+            },
+            {
+                "type": "label",
+                "texte": "Journal"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les journaux"
+            },
+            {
+                "type": "label",
+                "texte": "Inclure les brouillons"
+            },
+            {
+                "type": "option",
+                "texte": "Toutes"
+            },
+            {
+                "type": "option",
+                "texte": "Validées seules"
+            },
+            {
+                "type": "option",
+                "texte": "Brouillons seuls"
+            },
+            {
+                "type": "onglet",
+                "texte": "Réinitialiser",
+                "cle": "journal"
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "span",
+                "texte": "Consultation — cet écran ne modifie rien."
+            },
+            {
+                "type": "p",
+                "texte": "Aucun exercice comptable n'est sélectionné"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun exercice comptable n'a encore été ouvert. Cela se fait depuis l'application TATACORA."
+            },
+            {
+                "type": "p",
+                "texte": "Pilotage financier SYSCOHADA — plan comptable, journal, bilan, clôture et analytique."
+            },
+            {
+                "type": "span",
+                "texte": "Plan Comptable"
+            },
+            {
+                "type": "span",
+                "texte": "Comptes SYSCOHADA (Classes 1 à 7)"
+            },
+            {
+                "type": "span",
+                "texte": "Journal Comptable"
+            },
+            {
+                "type": "span",
+                "texte": "Écritures Débit/Crédit, saisie manuelle"
+            },
+            {
+                "type": "span",
+                "texte": "Bilan de l'Entreprise"
+            },
+            {
+                "type": "span",
+                "texte": "Actif / Passif, équilibre comptable"
+            },
+            {
+                "type": "span",
+                "texte": "Compte de Résultat"
+            },
+            {
+                "type": "span",
+                "texte": "Produits, charges et résultat net de l'exercice"
+            },
+            {
+                "type": "span",
+                "texte": "Tableau des Flux de Trésorerie"
+            },
+            {
+                "type": "span",
+                "texte": "TAFIRE — variation de trésorerie sur la période"
+            },
+            {
+                "type": "span",
+                "texte": "Notes Annexes"
+            },
+            {
+                "type": "span",
+                "texte": "Compléments d'information au Bilan et au Compte de Résultat"
+            },
+            {
+                "type": "span",
+                "texte": "Clôture Périodique"
+            },
+            {
+                "type": "span",
+                "texte": "Bascule d'exercice fiscal, report à nouveau"
+            },
+            {
+                "type": "span",
+                "texte": "Comptabilité Analytique"
+            },
+            {
+                "type": "span",
+                "texte": "Marges réelles par filière (Hébergement, Restauration, Bar, Tourisme, Véhicules)"
+            },
+            {
+                "type": "span",
+                "texte": "Grand Livre"
+            },
+            {
+                "type": "span",
+                "texte": "Écritures par compte, solde progressif"
+            },
+            {
+                "type": "span",
+                "texte": "Balance Générale"
+            },
+            {
+                "type": "span",
+                "texte": "Soldes de tous les comptes"
+            },
+            {
+                "type": "span",
+                "texte": "États Financiers"
+            },
+            {
+                "type": "span",
+                "texte": "Vue consolidée — Bilan, Résultat, Flux, Notes Annexes en un export unique"
+            }
+        ],
+        "grandlivre": [
+            {
+                "type": "h1",
+                "texte": "Comptabilité — SYSCOHADA révisé"
+            },
+            {
+                "type": "p",
+                "texte": "Système Normal. Une écriture validée est : la seule correction est la contre-passation."
+            },
+            {
+                "type": "option",
+                "texte": "Choisir un exercice"
+            },
+            {
+                "type": "onglet",
+                "texte": "Passer écriture",
+                "cle": "saisie"
+            },
+            {
+                "type": "onglet",
+                "texte": "Journal",
+                "cle": "journal"
+            },
+            {
+                "type": "onglet",
+                "texte": "Grand livre",
+                "cle": "grandlivre"
+            },
+            {
+                "type": "onglet",
+                "texte": "Balance générale",
+                "cle": "balance"
+            },
+            {
+                "type": "onglet",
+                "texte": "Compte de résultat",
+                "cle": "resultat"
+            },
+            {
+                "type": "onglet",
+                "texte": "Bilan",
+                "cle": "bilan"
+            },
+            {
+                "type": "onglet",
+                "texte": "Analytique",
+                "cle": "analytique"
+            },
+            {
+                "type": "onglet",
+                "texte": "Immobilisations",
+                "cle": "immo"
+            },
+            {
+                "type": "onglet",
+                "texte": "Plan comptable",
+                "cle": "plan"
+            },
+            {
+                "type": "onglet",
+                "texte": "Clôtures",
+                "cle": "clotures"
+            },
+            {
+                "type": "label",
+                "texte": "Journal"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les journaux"
+            },
+            {
+                "type": "label",
+                "texte": "Inclure les brouillons"
+            },
+            {
+                "type": "option",
+                "texte": "Toutes"
+            },
+            {
+                "type": "option",
+                "texte": "Validées seules"
+            },
+            {
+                "type": "option",
+                "texte": "Brouillons seuls"
+            },
+            {
+                "type": "onglet",
+                "texte": "Réinitialiser",
+                "cle": "grandlivre"
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "span",
+                "texte": "Consultation — cet écran ne modifie rien."
+            },
+            {
+                "type": "p",
+                "texte": "Aucun exercice comptable n'est sélectionné"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun exercice comptable n'a encore été ouvert. Cela se fait depuis l'application TATACORA."
+            },
+            {
+                "type": "p",
+                "texte": "Pilotage financier SYSCOHADA — plan comptable, journal, bilan, clôture et analytique."
+            },
+            {
+                "type": "span",
+                "texte": "Plan Comptable"
+            },
+            {
+                "type": "span",
+                "texte": "Comptes SYSCOHADA (Classes 1 à 7)"
+            },
+            {
+                "type": "span",
+                "texte": "Journal Comptable"
+            },
+            {
+                "type": "span",
+                "texte": "Écritures Débit/Crédit, saisie manuelle"
+            },
+            {
+                "type": "span",
+                "texte": "Bilan de l'Entreprise"
+            },
+            {
+                "type": "span",
+                "texte": "Actif / Passif, équilibre comptable"
+            },
+            {
+                "type": "span",
+                "texte": "Compte de Résultat"
+            },
+            {
+                "type": "span",
+                "texte": "Produits, charges et résultat net de l'exercice"
+            },
+            {
+                "type": "span",
+                "texte": "Tableau des Flux de Trésorerie"
+            },
+            {
+                "type": "span",
+                "texte": "TAFIRE — variation de trésorerie sur la période"
+            },
+            {
+                "type": "span",
+                "texte": "Notes Annexes"
+            },
+            {
+                "type": "span",
+                "texte": "Compléments d'information au Bilan et au Compte de Résultat"
+            },
+            {
+                "type": "span",
+                "texte": "Clôture Périodique"
+            },
+            {
+                "type": "span",
+                "texte": "Bascule d'exercice fiscal, report à nouveau"
+            },
+            {
+                "type": "span",
+                "texte": "Comptabilité Analytique"
+            },
+            {
+                "type": "span",
+                "texte": "Marges réelles par filière (Hébergement, Restauration, Bar, Tourisme, Véhicules)"
+            },
+            {
+                "type": "span",
+                "texte": "Grand Livre"
+            },
+            {
+                "type": "span",
+                "texte": "Écritures par compte, solde progressif"
+            },
+            {
+                "type": "span",
+                "texte": "Balance Générale"
+            },
+            {
+                "type": "span",
+                "texte": "Soldes de tous les comptes"
+            },
+            {
+                "type": "span",
+                "texte": "États Financiers"
+            },
+            {
+                "type": "span",
+                "texte": "Vue consolidée — Bilan, Résultat, Flux, Notes Annexes en un export unique"
+            }
+        ],
+        "balance": [
+            {
+                "type": "h1",
+                "texte": "Comptabilité — SYSCOHADA révisé"
+            },
+            {
+                "type": "p",
+                "texte": "Système Normal. Une écriture validée est : la seule correction est la contre-passation."
+            },
+            {
+                "type": "option",
+                "texte": "Choisir un exercice"
+            },
+            {
+                "type": "onglet",
+                "texte": "Passer écriture",
+                "cle": "saisie"
+            },
+            {
+                "type": "onglet",
+                "texte": "Journal",
+                "cle": "journal"
+            },
+            {
+                "type": "onglet",
+                "texte": "Grand livre",
+                "cle": "grandlivre"
+            },
+            {
+                "type": "onglet",
+                "texte": "Balance générale",
+                "cle": "balance"
+            },
+            {
+                "type": "onglet",
+                "texte": "Compte de résultat",
+                "cle": "resultat"
+            },
+            {
+                "type": "onglet",
+                "texte": "Bilan",
+                "cle": "bilan"
+            },
+            {
+                "type": "onglet",
+                "texte": "Analytique",
+                "cle": "analytique"
+            },
+            {
+                "type": "onglet",
+                "texte": "Immobilisations",
+                "cle": "immo"
+            },
+            {
+                "type": "onglet",
+                "texte": "Plan comptable",
+                "cle": "plan"
+            },
+            {
+                "type": "onglet",
+                "texte": "Clôtures",
+                "cle": "clotures"
+            },
+            {
+                "type": "label",
+                "texte": "Journal"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les journaux"
+            },
+            {
+                "type": "label",
+                "texte": "Inclure les brouillons"
+            },
+            {
+                "type": "option",
+                "texte": "Toutes"
+            },
+            {
+                "type": "option",
+                "texte": "Validées seules"
+            },
+            {
+                "type": "option",
+                "texte": "Brouillons seuls"
+            },
+            {
+                "type": "onglet",
+                "texte": "Réinitialiser",
+                "cle": "balance"
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "span",
+                "texte": "Consultation — cet écran ne modifie rien."
+            },
+            {
+                "type": "p",
+                "texte": "Aucun exercice comptable n'est sélectionné"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun exercice comptable n'a encore été ouvert. Cela se fait depuis l'application TATACORA."
+            },
+            {
+                "type": "p",
+                "texte": "Pilotage financier SYSCOHADA — plan comptable, journal, bilan, clôture et analytique."
+            },
+            {
+                "type": "span",
+                "texte": "Plan Comptable"
+            },
+            {
+                "type": "span",
+                "texte": "Comptes SYSCOHADA (Classes 1 à 7)"
+            },
+            {
+                "type": "span",
+                "texte": "Journal Comptable"
+            },
+            {
+                "type": "span",
+                "texte": "Écritures Débit/Crédit, saisie manuelle"
+            },
+            {
+                "type": "span",
+                "texte": "Bilan de l'Entreprise"
+            },
+            {
+                "type": "span",
+                "texte": "Actif / Passif, équilibre comptable"
+            },
+            {
+                "type": "span",
+                "texte": "Compte de Résultat"
+            },
+            {
+                "type": "span",
+                "texte": "Produits, charges et résultat net de l'exercice"
+            },
+            {
+                "type": "span",
+                "texte": "Tableau des Flux de Trésorerie"
+            },
+            {
+                "type": "span",
+                "texte": "TAFIRE — variation de trésorerie sur la période"
+            },
+            {
+                "type": "span",
+                "texte": "Notes Annexes"
+            },
+            {
+                "type": "span",
+                "texte": "Compléments d'information au Bilan et au Compte de Résultat"
+            },
+            {
+                "type": "span",
+                "texte": "Clôture Périodique"
+            },
+            {
+                "type": "span",
+                "texte": "Bascule d'exercice fiscal, report à nouveau"
+            },
+            {
+                "type": "span",
+                "texte": "Comptabilité Analytique"
+            },
+            {
+                "type": "span",
+                "texte": "Marges réelles par filière (Hébergement, Restauration, Bar, Tourisme, Véhicules)"
+            },
+            {
+                "type": "span",
+                "texte": "Grand Livre"
+            },
+            {
+                "type": "span",
+                "texte": "Écritures par compte, solde progressif"
+            },
+            {
+                "type": "span",
+                "texte": "Balance Générale"
+            },
+            {
+                "type": "span",
+                "texte": "Soldes de tous les comptes"
+            },
+            {
+                "type": "span",
+                "texte": "États Financiers"
+            },
+            {
+                "type": "span",
+                "texte": "Vue consolidée — Bilan, Résultat, Flux, Notes Annexes en un export unique"
+            }
+        ],
+        "resultat": [
+            {
+                "type": "h1",
+                "texte": "Comptabilité — SYSCOHADA révisé"
+            },
+            {
+                "type": "p",
+                "texte": "Système Normal. Une écriture validée est : la seule correction est la contre-passation."
+            },
+            {
+                "type": "option",
+                "texte": "Choisir un exercice"
+            },
+            {
+                "type": "onglet",
+                "texte": "Passer écriture",
+                "cle": "saisie"
+            },
+            {
+                "type": "onglet",
+                "texte": "Journal",
+                "cle": "journal"
+            },
+            {
+                "type": "onglet",
+                "texte": "Grand livre",
+                "cle": "grandlivre"
+            },
+            {
+                "type": "onglet",
+                "texte": "Balance générale",
+                "cle": "balance"
+            },
+            {
+                "type": "onglet",
+                "texte": "Compte de résultat",
+                "cle": "resultat"
+            },
+            {
+                "type": "onglet",
+                "texte": "Bilan",
+                "cle": "bilan"
+            },
+            {
+                "type": "onglet",
+                "texte": "Analytique",
+                "cle": "analytique"
+            },
+            {
+                "type": "onglet",
+                "texte": "Immobilisations",
+                "cle": "immo"
+            },
+            {
+                "type": "onglet",
+                "texte": "Plan comptable",
+                "cle": "plan"
+            },
+            {
+                "type": "onglet",
+                "texte": "Clôtures",
+                "cle": "clotures"
+            },
+            {
+                "type": "label",
+                "texte": "Journal"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les journaux"
+            },
+            {
+                "type": "label",
+                "texte": "Inclure les brouillons"
+            },
+            {
+                "type": "option",
+                "texte": "Toutes"
+            },
+            {
+                "type": "option",
+                "texte": "Validées seules"
+            },
+            {
+                "type": "option",
+                "texte": "Brouillons seuls"
+            },
+            {
+                "type": "onglet",
+                "texte": "Réinitialiser",
+                "cle": "resultat"
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "span",
+                "texte": "Consultation — cet écran ne modifie rien."
+            },
+            {
+                "type": "p",
+                "texte": "Aucun exercice comptable n'est sélectionné"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun exercice comptable n'a encore été ouvert. Cela se fait depuis l'application TATACORA."
+            },
+            {
+                "type": "p",
+                "texte": "Pilotage financier SYSCOHADA — plan comptable, journal, bilan, clôture et analytique."
+            },
+            {
+                "type": "span",
+                "texte": "Plan Comptable"
+            },
+            {
+                "type": "span",
+                "texte": "Comptes SYSCOHADA (Classes 1 à 7)"
+            },
+            {
+                "type": "span",
+                "texte": "Journal Comptable"
+            },
+            {
+                "type": "span",
+                "texte": "Écritures Débit/Crédit, saisie manuelle"
+            },
+            {
+                "type": "span",
+                "texte": "Bilan de l'Entreprise"
+            },
+            {
+                "type": "span",
+                "texte": "Actif / Passif, équilibre comptable"
+            },
+            {
+                "type": "span",
+                "texte": "Compte de Résultat"
+            },
+            {
+                "type": "span",
+                "texte": "Produits, charges et résultat net de l'exercice"
+            },
+            {
+                "type": "span",
+                "texte": "Tableau des Flux de Trésorerie"
+            },
+            {
+                "type": "span",
+                "texte": "TAFIRE — variation de trésorerie sur la période"
+            },
+            {
+                "type": "span",
+                "texte": "Notes Annexes"
+            },
+            {
+                "type": "span",
+                "texte": "Compléments d'information au Bilan et au Compte de Résultat"
+            },
+            {
+                "type": "span",
+                "texte": "Clôture Périodique"
+            },
+            {
+                "type": "span",
+                "texte": "Bascule d'exercice fiscal, report à nouveau"
+            },
+            {
+                "type": "span",
+                "texte": "Comptabilité Analytique"
+            },
+            {
+                "type": "span",
+                "texte": "Marges réelles par filière (Hébergement, Restauration, Bar, Tourisme, Véhicules)"
+            },
+            {
+                "type": "span",
+                "texte": "Grand Livre"
+            },
+            {
+                "type": "span",
+                "texte": "Écritures par compte, solde progressif"
+            },
+            {
+                "type": "span",
+                "texte": "Balance Générale"
+            },
+            {
+                "type": "span",
+                "texte": "Soldes de tous les comptes"
+            },
+            {
+                "type": "span",
+                "texte": "États Financiers"
+            },
+            {
+                "type": "span",
+                "texte": "Vue consolidée — Bilan, Résultat, Flux, Notes Annexes en un export unique"
+            }
+        ],
+        "bilan": [
+            {
+                "type": "h1",
+                "texte": "Comptabilité — SYSCOHADA révisé"
+            },
+            {
+                "type": "p",
+                "texte": "Système Normal. Une écriture validée est : la seule correction est la contre-passation."
+            },
+            {
+                "type": "option",
+                "texte": "Choisir un exercice"
+            },
+            {
+                "type": "onglet",
+                "texte": "Passer écriture",
+                "cle": "saisie"
+            },
+            {
+                "type": "onglet",
+                "texte": "Journal",
+                "cle": "journal"
+            },
+            {
+                "type": "onglet",
+                "texte": "Grand livre",
+                "cle": "grandlivre"
+            },
+            {
+                "type": "onglet",
+                "texte": "Balance générale",
+                "cle": "balance"
+            },
+            {
+                "type": "onglet",
+                "texte": "Compte de résultat",
+                "cle": "resultat"
+            },
+            {
+                "type": "onglet",
+                "texte": "Bilan",
+                "cle": "bilan"
+            },
+            {
+                "type": "onglet",
+                "texte": "Analytique",
+                "cle": "analytique"
+            },
+            {
+                "type": "onglet",
+                "texte": "Immobilisations",
+                "cle": "immo"
+            },
+            {
+                "type": "onglet",
+                "texte": "Plan comptable",
+                "cle": "plan"
+            },
+            {
+                "type": "onglet",
+                "texte": "Clôtures",
+                "cle": "clotures"
+            },
+            {
+                "type": "label",
+                "texte": "Journal"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les journaux"
+            },
+            {
+                "type": "label",
+                "texte": "Inclure les brouillons"
+            },
+            {
+                "type": "option",
+                "texte": "Toutes"
+            },
+            {
+                "type": "option",
+                "texte": "Validées seules"
+            },
+            {
+                "type": "option",
+                "texte": "Brouillons seuls"
+            },
+            {
+                "type": "onglet",
+                "texte": "Réinitialiser",
+                "cle": "bilan"
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "span",
+                "texte": "Consultation — cet écran ne modifie rien."
+            },
+            {
+                "type": "p",
+                "texte": "Aucun exercice comptable n'est sélectionné"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun exercice comptable n'a encore été ouvert. Cela se fait depuis l'application TATACORA."
+            },
+            {
+                "type": "p",
+                "texte": "Pilotage financier SYSCOHADA — plan comptable, journal, bilan, clôture et analytique."
+            },
+            {
+                "type": "span",
+                "texte": "Plan Comptable"
+            },
+            {
+                "type": "span",
+                "texte": "Comptes SYSCOHADA (Classes 1 à 7)"
+            },
+            {
+                "type": "span",
+                "texte": "Journal Comptable"
+            },
+            {
+                "type": "span",
+                "texte": "Écritures Débit/Crédit, saisie manuelle"
+            },
+            {
+                "type": "span",
+                "texte": "Bilan de l'Entreprise"
+            },
+            {
+                "type": "span",
+                "texte": "Actif / Passif, équilibre comptable"
+            },
+            {
+                "type": "span",
+                "texte": "Compte de Résultat"
+            },
+            {
+                "type": "span",
+                "texte": "Produits, charges et résultat net de l'exercice"
+            },
+            {
+                "type": "span",
+                "texte": "Tableau des Flux de Trésorerie"
+            },
+            {
+                "type": "span",
+                "texte": "TAFIRE — variation de trésorerie sur la période"
+            },
+            {
+                "type": "span",
+                "texte": "Notes Annexes"
+            },
+            {
+                "type": "span",
+                "texte": "Compléments d'information au Bilan et au Compte de Résultat"
+            },
+            {
+                "type": "span",
+                "texte": "Clôture Périodique"
+            },
+            {
+                "type": "span",
+                "texte": "Bascule d'exercice fiscal, report à nouveau"
+            },
+            {
+                "type": "span",
+                "texte": "Comptabilité Analytique"
+            },
+            {
+                "type": "span",
+                "texte": "Marges réelles par filière (Hébergement, Restauration, Bar, Tourisme, Véhicules)"
+            },
+            {
+                "type": "span",
+                "texte": "Grand Livre"
+            },
+            {
+                "type": "span",
+                "texte": "Écritures par compte, solde progressif"
+            },
+            {
+                "type": "span",
+                "texte": "Balance Générale"
+            },
+            {
+                "type": "span",
+                "texte": "Soldes de tous les comptes"
+            },
+            {
+                "type": "span",
+                "texte": "États Financiers"
+            },
+            {
+                "type": "span",
+                "texte": "Vue consolidée — Bilan, Résultat, Flux, Notes Annexes en un export unique"
+            }
+        ],
+        "analytique": [
+            {
+                "type": "h1",
+                "texte": "Comptabilité — SYSCOHADA révisé"
+            },
+            {
+                "type": "p",
+                "texte": "Système Normal. Une écriture validée est : la seule correction est la contre-passation."
+            },
+            {
+                "type": "option",
+                "texte": "Choisir un exercice"
+            },
+            {
+                "type": "onglet",
+                "texte": "Passer écriture",
+                "cle": "saisie"
+            },
+            {
+                "type": "onglet",
+                "texte": "Journal",
+                "cle": "journal"
+            },
+            {
+                "type": "onglet",
+                "texte": "Grand livre",
+                "cle": "grandlivre"
+            },
+            {
+                "type": "onglet",
+                "texte": "Balance générale",
+                "cle": "balance"
+            },
+            {
+                "type": "onglet",
+                "texte": "Compte de résultat",
+                "cle": "resultat"
+            },
+            {
+                "type": "onglet",
+                "texte": "Bilan",
+                "cle": "bilan"
+            },
+            {
+                "type": "onglet",
+                "texte": "Analytique",
+                "cle": "analytique"
+            },
+            {
+                "type": "onglet",
+                "texte": "Immobilisations",
+                "cle": "immo"
+            },
+            {
+                "type": "onglet",
+                "texte": "Plan comptable",
+                "cle": "plan"
+            },
+            {
+                "type": "onglet",
+                "texte": "Clôtures",
+                "cle": "clotures"
+            },
+            {
+                "type": "label",
+                "texte": "Journal"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les journaux"
+            },
+            {
+                "type": "label",
+                "texte": "Inclure les brouillons"
+            },
+            {
+                "type": "option",
+                "texte": "Toutes"
+            },
+            {
+                "type": "option",
+                "texte": "Validées seules"
+            },
+            {
+                "type": "option",
+                "texte": "Brouillons seuls"
+            },
+            {
+                "type": "onglet",
+                "texte": "Réinitialiser",
+                "cle": "analytique"
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "span",
+                "texte": "Consultation — cet écran ne modifie rien."
+            },
+            {
+                "type": "p",
+                "texte": "Aucun exercice comptable n'est sélectionné"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun exercice comptable n'a encore été ouvert. Cela se fait depuis l'application TATACORA."
+            },
+            {
+                "type": "p",
+                "texte": "Pilotage financier SYSCOHADA — plan comptable, journal, bilan, clôture et analytique."
+            },
+            {
+                "type": "span",
+                "texte": "Plan Comptable"
+            },
+            {
+                "type": "span",
+                "texte": "Comptes SYSCOHADA (Classes 1 à 7)"
+            },
+            {
+                "type": "span",
+                "texte": "Journal Comptable"
+            },
+            {
+                "type": "span",
+                "texte": "Écritures Débit/Crédit, saisie manuelle"
+            },
+            {
+                "type": "span",
+                "texte": "Bilan de l'Entreprise"
+            },
+            {
+                "type": "span",
+                "texte": "Actif / Passif, équilibre comptable"
+            },
+            {
+                "type": "span",
+                "texte": "Compte de Résultat"
+            },
+            {
+                "type": "span",
+                "texte": "Produits, charges et résultat net de l'exercice"
+            },
+            {
+                "type": "span",
+                "texte": "Tableau des Flux de Trésorerie"
+            },
+            {
+                "type": "span",
+                "texte": "TAFIRE — variation de trésorerie sur la période"
+            },
+            {
+                "type": "span",
+                "texte": "Notes Annexes"
+            },
+            {
+                "type": "span",
+                "texte": "Compléments d'information au Bilan et au Compte de Résultat"
+            },
+            {
+                "type": "span",
+                "texte": "Clôture Périodique"
+            },
+            {
+                "type": "span",
+                "texte": "Bascule d'exercice fiscal, report à nouveau"
+            },
+            {
+                "type": "span",
+                "texte": "Comptabilité Analytique"
+            },
+            {
+                "type": "span",
+                "texte": "Marges réelles par filière (Hébergement, Restauration, Bar, Tourisme, Véhicules)"
+            },
+            {
+                "type": "span",
+                "texte": "Grand Livre"
+            },
+            {
+                "type": "span",
+                "texte": "Écritures par compte, solde progressif"
+            },
+            {
+                "type": "span",
+                "texte": "Balance Générale"
+            },
+            {
+                "type": "span",
+                "texte": "Soldes de tous les comptes"
+            },
+            {
+                "type": "span",
+                "texte": "États Financiers"
+            },
+            {
+                "type": "span",
+                "texte": "Vue consolidée — Bilan, Résultat, Flux, Notes Annexes en un export unique"
+            }
+        ],
+        "immo": [
+            {
+                "type": "h1",
+                "texte": "Comptabilité — SYSCOHADA révisé"
+            },
+            {
+                "type": "p",
+                "texte": "Système Normal. Une écriture validée est : la seule correction est la contre-passation."
+            },
+            {
+                "type": "option",
+                "texte": "Choisir un exercice"
+            },
+            {
+                "type": "onglet",
+                "texte": "Passer écriture",
+                "cle": "saisie"
+            },
+            {
+                "type": "onglet",
+                "texte": "Journal",
+                "cle": "journal"
+            },
+            {
+                "type": "onglet",
+                "texte": "Grand livre",
+                "cle": "grandlivre"
+            },
+            {
+                "type": "onglet",
+                "texte": "Balance générale",
+                "cle": "balance"
+            },
+            {
+                "type": "onglet",
+                "texte": "Compte de résultat",
+                "cle": "resultat"
+            },
+            {
+                "type": "onglet",
+                "texte": "Bilan",
+                "cle": "bilan"
+            },
+            {
+                "type": "onglet",
+                "texte": "Analytique",
+                "cle": "analytique"
+            },
+            {
+                "type": "onglet",
+                "texte": "Immobilisations",
+                "cle": "immo"
+            },
+            {
+                "type": "onglet",
+                "texte": "Plan comptable",
+                "cle": "plan"
+            },
+            {
+                "type": "onglet",
+                "texte": "Clôtures",
+                "cle": "clotures"
+            },
+            {
+                "type": "label",
+                "texte": "Journal"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les journaux"
+            },
+            {
+                "type": "label",
+                "texte": "Inclure les brouillons"
+            },
+            {
+                "type": "option",
+                "texte": "Toutes"
+            },
+            {
+                "type": "option",
+                "texte": "Validées seules"
+            },
+            {
+                "type": "option",
+                "texte": "Brouillons seuls"
+            },
+            {
+                "type": "onglet",
+                "texte": "Réinitialiser",
+                "cle": "immo"
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun exercice comptable n'est sélectionné"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun exercice comptable n'a encore été ouvert. Cela se fait depuis l'application TATACORA."
+            },
+            {
+                "type": "p",
+                "texte": "Pilotage financier SYSCOHADA — plan comptable, journal, bilan, clôture et analytique."
+            },
+            {
+                "type": "span",
+                "texte": "Plan Comptable"
+            },
+            {
+                "type": "span",
+                "texte": "Comptes SYSCOHADA (Classes 1 à 7)"
+            },
+            {
+                "type": "span",
+                "texte": "Journal Comptable"
+            },
+            {
+                "type": "span",
+                "texte": "Écritures Débit/Crédit, saisie manuelle"
+            },
+            {
+                "type": "span",
+                "texte": "Bilan de l'Entreprise"
+            },
+            {
+                "type": "span",
+                "texte": "Actif / Passif, équilibre comptable"
+            },
+            {
+                "type": "span",
+                "texte": "Compte de Résultat"
+            },
+            {
+                "type": "span",
+                "texte": "Produits, charges et résultat net de l'exercice"
+            },
+            {
+                "type": "span",
+                "texte": "Tableau des Flux de Trésorerie"
+            },
+            {
+                "type": "span",
+                "texte": "TAFIRE — variation de trésorerie sur la période"
+            },
+            {
+                "type": "span",
+                "texte": "Notes Annexes"
+            },
+            {
+                "type": "span",
+                "texte": "Compléments d'information au Bilan et au Compte de Résultat"
+            },
+            {
+                "type": "span",
+                "texte": "Clôture Périodique"
+            },
+            {
+                "type": "span",
+                "texte": "Bascule d'exercice fiscal, report à nouveau"
+            },
+            {
+                "type": "span",
+                "texte": "Comptabilité Analytique"
+            },
+            {
+                "type": "span",
+                "texte": "Marges réelles par filière (Hébergement, Restauration, Bar, Tourisme, Véhicules)"
+            },
+            {
+                "type": "span",
+                "texte": "Grand Livre"
+            },
+            {
+                "type": "span",
+                "texte": "Écritures par compte, solde progressif"
+            },
+            {
+                "type": "span",
+                "texte": "Balance Générale"
+            },
+            {
+                "type": "span",
+                "texte": "Soldes de tous les comptes"
+            },
+            {
+                "type": "span",
+                "texte": "États Financiers"
+            },
+            {
+                "type": "span",
+                "texte": "Vue consolidée — Bilan, Résultat, Flux, Notes Annexes en un export unique"
+            }
+        ],
+        "plan": [
+            {
+                "type": "h1",
+                "texte": "Comptabilité — SYSCOHADA révisé"
+            },
+            {
+                "type": "p",
+                "texte": "Système Normal. Une écriture validée est : la seule correction est la contre-passation."
+            },
+            {
+                "type": "option",
+                "texte": "Choisir un exercice"
+            },
+            {
+                "type": "onglet",
+                "texte": "Passer écriture",
+                "cle": "saisie"
+            },
+            {
+                "type": "onglet",
+                "texte": "Journal",
+                "cle": "journal"
+            },
+            {
+                "type": "onglet",
+                "texte": "Grand livre",
+                "cle": "grandlivre"
+            },
+            {
+                "type": "onglet",
+                "texte": "Balance générale",
+                "cle": "balance"
+            },
+            {
+                "type": "onglet",
+                "texte": "Compte de résultat",
+                "cle": "resultat"
+            },
+            {
+                "type": "onglet",
+                "texte": "Bilan",
+                "cle": "bilan"
+            },
+            {
+                "type": "onglet",
+                "texte": "Analytique",
+                "cle": "analytique"
+            },
+            {
+                "type": "onglet",
+                "texte": "Immobilisations",
+                "cle": "immo"
+            },
+            {
+                "type": "onglet",
+                "texte": "Plan comptable",
+                "cle": "plan"
+            },
+            {
+                "type": "onglet",
+                "texte": "Clôtures",
+                "cle": "clotures"
+            },
+            {
+                "type": "label",
+                "texte": "Journal"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les journaux"
+            },
+            {
+                "type": "label",
+                "texte": "Inclure les brouillons"
+            },
+            {
+                "type": "option",
+                "texte": "Toutes"
+            },
+            {
+                "type": "option",
+                "texte": "Validées seules"
+            },
+            {
+                "type": "option",
+                "texte": "Brouillons seuls"
+            },
+            {
+                "type": "onglet",
+                "texte": "Réinitialiser",
+                "cle": "plan"
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "span",
+                "texte": "Consultation — cet écran ne modifie rien."
+            },
+            {
+                "type": "p",
+                "texte": "Aucun exercice comptable n'est sélectionné"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun exercice comptable n'a encore été ouvert. Cela se fait depuis l'application TATACORA."
+            },
+            {
+                "type": "p",
+                "texte": "Pilotage financier SYSCOHADA — plan comptable, journal, bilan, clôture et analytique."
+            },
+            {
+                "type": "span",
+                "texte": "Plan Comptable"
+            },
+            {
+                "type": "span",
+                "texte": "Comptes SYSCOHADA (Classes 1 à 7)"
+            },
+            {
+                "type": "span",
+                "texte": "Journal Comptable"
+            },
+            {
+                "type": "span",
+                "texte": "Écritures Débit/Crédit, saisie manuelle"
+            },
+            {
+                "type": "span",
+                "texte": "Bilan de l'Entreprise"
+            },
+            {
+                "type": "span",
+                "texte": "Actif / Passif, équilibre comptable"
+            },
+            {
+                "type": "span",
+                "texte": "Compte de Résultat"
+            },
+            {
+                "type": "span",
+                "texte": "Produits, charges et résultat net de l'exercice"
+            },
+            {
+                "type": "span",
+                "texte": "Tableau des Flux de Trésorerie"
+            },
+            {
+                "type": "span",
+                "texte": "TAFIRE — variation de trésorerie sur la période"
+            },
+            {
+                "type": "span",
+                "texte": "Notes Annexes"
+            },
+            {
+                "type": "span",
+                "texte": "Compléments d'information au Bilan et au Compte de Résultat"
+            },
+            {
+                "type": "span",
+                "texte": "Clôture Périodique"
+            },
+            {
+                "type": "span",
+                "texte": "Bascule d'exercice fiscal, report à nouveau"
+            },
+            {
+                "type": "span",
+                "texte": "Comptabilité Analytique"
+            },
+            {
+                "type": "span",
+                "texte": "Marges réelles par filière (Hébergement, Restauration, Bar, Tourisme, Véhicules)"
+            },
+            {
+                "type": "span",
+                "texte": "Grand Livre"
+            },
+            {
+                "type": "span",
+                "texte": "Écritures par compte, solde progressif"
+            },
+            {
+                "type": "span",
+                "texte": "Balance Générale"
+            },
+            {
+                "type": "span",
+                "texte": "Soldes de tous les comptes"
+            },
+            {
+                "type": "span",
+                "texte": "États Financiers"
+            },
+            {
+                "type": "span",
+                "texte": "Vue consolidée — Bilan, Résultat, Flux, Notes Annexes en un export unique"
+            }
+        ],
+        "clotures": [
+            {
+                "type": "h1",
+                "texte": "Comptabilité — SYSCOHADA révisé"
+            },
+            {
+                "type": "p",
+                "texte": "Système Normal. Une écriture validée est : la seule correction est la contre-passation."
+            },
+            {
+                "type": "option",
+                "texte": "Choisir un exercice"
+            },
+            {
+                "type": "onglet",
+                "texte": "Passer écriture",
+                "cle": "saisie"
+            },
+            {
+                "type": "onglet",
+                "texte": "Journal",
+                "cle": "journal"
+            },
+            {
+                "type": "onglet",
+                "texte": "Grand livre",
+                "cle": "grandlivre"
+            },
+            {
+                "type": "onglet",
+                "texte": "Balance générale",
+                "cle": "balance"
+            },
+            {
+                "type": "onglet",
+                "texte": "Compte de résultat",
+                "cle": "resultat"
+            },
+            {
+                "type": "onglet",
+                "texte": "Bilan",
+                "cle": "bilan"
+            },
+            {
+                "type": "onglet",
+                "texte": "Analytique",
+                "cle": "analytique"
+            },
+            {
+                "type": "onglet",
+                "texte": "Immobilisations",
+                "cle": "immo"
+            },
+            {
+                "type": "onglet",
+                "texte": "Plan comptable",
+                "cle": "plan"
+            },
+            {
+                "type": "onglet",
+                "texte": "Clôtures",
+                "cle": "clotures"
+            },
+            {
+                "type": "label",
+                "texte": "Journal"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les journaux"
+            },
+            {
+                "type": "label",
+                "texte": "Inclure les brouillons"
+            },
+            {
+                "type": "option",
+                "texte": "Toutes"
+            },
+            {
+                "type": "option",
+                "texte": "Validées seules"
+            },
+            {
+                "type": "option",
+                "texte": "Brouillons seuls"
+            },
+            {
+                "type": "onglet",
+                "texte": "Réinitialiser",
+                "cle": "clotures"
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun exercice comptable n'est sélectionné"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun exercice comptable n'a encore été ouvert. Cela se fait depuis l'application TATACORA."
+            },
+            {
+                "type": "p",
+                "texte": "Pilotage financier SYSCOHADA — plan comptable, journal, bilan, clôture et analytique."
+            },
+            {
+                "type": "span",
+                "texte": "Plan Comptable"
+            },
+            {
+                "type": "span",
+                "texte": "Comptes SYSCOHADA (Classes 1 à 7)"
+            },
+            {
+                "type": "span",
+                "texte": "Journal Comptable"
+            },
+            {
+                "type": "span",
+                "texte": "Écritures Débit/Crédit, saisie manuelle"
+            },
+            {
+                "type": "span",
+                "texte": "Bilan de l'Entreprise"
+            },
+            {
+                "type": "span",
+                "texte": "Actif / Passif, équilibre comptable"
+            },
+            {
+                "type": "span",
+                "texte": "Compte de Résultat"
+            },
+            {
+                "type": "span",
+                "texte": "Produits, charges et résultat net de l'exercice"
+            },
+            {
+                "type": "span",
+                "texte": "Tableau des Flux de Trésorerie"
+            },
+            {
+                "type": "span",
+                "texte": "TAFIRE — variation de trésorerie sur la période"
+            },
+            {
+                "type": "span",
+                "texte": "Notes Annexes"
+            },
+            {
+                "type": "span",
+                "texte": "Compléments d'information au Bilan et au Compte de Résultat"
+            },
+            {
+                "type": "span",
+                "texte": "Clôture Périodique"
+            },
+            {
+                "type": "span",
+                "texte": "Bascule d'exercice fiscal, report à nouveau"
+            },
+            {
+                "type": "span",
+                "texte": "Comptabilité Analytique"
+            },
+            {
+                "type": "span",
+                "texte": "Marges réelles par filière (Hébergement, Restauration, Bar, Tourisme, Véhicules)"
+            },
+            {
+                "type": "span",
+                "texte": "Grand Livre"
+            },
+            {
+                "type": "span",
+                "texte": "Écritures par compte, solde progressif"
+            },
+            {
+                "type": "span",
+                "texte": "Balance Générale"
+            },
+            {
+                "type": "span",
+                "texte": "Soldes de tous les comptes"
+            },
+            {
+                "type": "span",
+                "texte": "États Financiers"
+            },
+            {
+                "type": "span",
+                "texte": "Vue consolidée — Bilan, Résultat, Flux, Notes Annexes en un export unique"
+            }
+        ]
+    }
+}

@@ -64,6 +64,7 @@ class Vente extends Model
         'session_id',
         'point_vente',
         'client_id',
+        'reservation_id',
         'client_mention',
         'table',
         'table_id',

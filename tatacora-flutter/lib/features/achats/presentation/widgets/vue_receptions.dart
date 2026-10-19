@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../shared_widgets/liste_paginee.dart';
 import '../../data/achats_api.dart';
 import '../../domain/entities/bon_reception.dart';
 import '../../impression/etat_liste_achats.dart';
@@ -170,7 +171,13 @@ class _VueReceptionsState extends ConsumerState<VueReceptions> {
                     ),
                   ),
                 )
-              : _table(page.elements),
+              // Dix bons par page (PO, 14/10/2026) ; l'export emporte toutes
+              // les lignes reçues (`_liste`), jamais la seule page.
+              : ListePaginee<BonReception>(
+                  elements: page.elements,
+                  prefixeCle: 'receptions-pagination',
+                  constructeur: (_, tranche) => _table(tranche),
+                ),
         ),
         // Le bloc « Ce que cet onglet ne rend pas » qui suivait est RETIRÉ
         // (directive absolue du PO, 14/10/2026). Écarts toujours vrais : pas

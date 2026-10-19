@@ -70,6 +70,11 @@ final class EtatRegistreFactures {
 
   final EnteteEtablissement entete;
 
+  /// Le même document sous l'en-tête lu des paramètres au moment d'éditer
+  /// (`lireEnteteEtablissementProvider`).
+  EtatRegistreFactures avecEntete(EnteteEtablissement autre) =>
+      EtatRegistreFactures(pieces: pieces, filtre: filtre, entete: autre);
+
   bool get estVide => pieces.isEmpty;
 
   int get montantTotal => pieces.fold(0, (total, p) => total + p.montantTotal);

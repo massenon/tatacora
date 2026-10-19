@@ -473,6 +473,7 @@ class PosHeberges extends PageMetier
                 $vente = $ventes->enregistrer([
                     'point_vente' => $this->posteDeVente(),
                     'client_id' => $reservation->client_id,
+                    'reservation_id' => $reservation->id,
                     'table' => $reservation->unite?->numero,
                     'mode_paiement' => 'note_chambre',
                     // La remise du panier (PO 02/09/2026) : le net vient de

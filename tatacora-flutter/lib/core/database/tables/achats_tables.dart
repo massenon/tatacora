@@ -6,7 +6,7 @@
 ///
 /// | Table | Qui l'écrit | Qui la lit | Qui la descend |
 /// |---|---|---|---|
-/// | `fournisseurs_local` | `AchatsDao.creerFournisseur` / `modifierFournisseur`, seul auteur (modale « Fournisseur ») | l'écran Fournisseurs (liste, détail, export), le sélecteur de la commande, `AchatsDao.creerCommande` (clé étrangère) | personne : zéro réseau |
+/// | `fournisseurs_local` | `AchatsDao.creerFournisseur` / `modifierFournisseur`, seul auteur (modale « Fournisseur ») | l'écran Fournisseurs (liste, détail, export), le sélecteur de la commande, `AchatsDao.creerCommande` (clé étrangère) | `AligneurCatalogue` (descente du catalogue, lot F2b, 15/10/2026 — jamais enfilé) |
 /// | `commandes_achat_local` | `AchatsDao.creerCommande` (naissance), `envoyerCommande` / `cloturerCommande` (statut) et `AchatsDao.enregistrerReception` (statut déduit du verdict), seul auteur | l'écran Approvisionnement (commandes, dettes), l'écran Fournisseurs (commandes), la modale de réception, le rapprochement, les indicateurs | personne |
 /// | `lignes_commande_achat_local` | `AchatsDao.creerCommande`, dans la même transaction que la commande — jamais modifiées ensuite | le montant (calculé), la modale de réception, le rapprochement, les besoins déjà commandés | personne |
 /// | `bons_reception_local` | `AchatsDao.enregistrerReception`, seul auteur | l'onglet Réceptions, le détail d'une commande (« déjà reçu »), le rapprochement | personne |
@@ -24,7 +24,7 @@
 ///
 /// | Colonne | Qui l'écrit | Qui la lit | Qui la descend |
 /// |---|---|---|---|
-/// | `actif` | `AchatsDao.archiverFournisseur` / `restaurerFournisseur`, seul auteur (le défaut `true` est celui de la création) | la liste des fournisseurs (pastille « Archivé », bouton « Restaurer » ou « Supprimer »), le sélecteur de la modale de commande (actifs seulement), le lot d'archivage (un archivé n'est pas re-archivé) | personne : zéro réseau |
+/// | `actif` | `AchatsDao.archiverFournisseur` / `restaurerFournisseur`, seul auteur (le défaut `true` est celui de la création) | la liste des fournisseurs (pastille « Archivé », bouton « Restaurer » ou « Supprimer »), le sélecteur de la modale de commande (actifs seulement), le lot d'archivage (un archivé n'est pas re-archivé) | `AligneurCatalogue` (descente du catalogue, lot F2b, 15/10/2026 — jamais enfilé) |
 ///
 /// Les fournisseurs d'AVANT la v21 naissent `actif = true` : c'est un FAIT, pas
 /// une déduction — le geste d'archivage était refusé, aucun n'a donc été

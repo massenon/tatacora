@@ -1,0 +1,667 @@
+{
+    "_lisez-moi": "PRODUIT par ExtraireStructureBladeTest, jamais ecrit a la main. Chaque variante (onglet) : les textes VISIBLES de <main>, dans l'ordre du document.",
+    "vue": "vehicules/locations",
+    "jeu": "parc",
+    "onglets": {
+        "parc": [
+            {
+                "type": "h1",
+                "texte": "Véhicules & Locations"
+            },
+            {
+                "type": "p",
+                "texte": "Parc, contrats de location, planning et immobilisations. Un véhicule loué ou immobilisé pour entretien n'est proposé nulle part ailleurs."
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "div",
+                "texte": "Parc"
+            },
+            {
+                "type": "div",
+                "texte": "Aucune immobilisation"
+            },
+            {
+                "type": "div",
+                "texte": "Contrats actifs"
+            },
+            {
+                "type": "div",
+                "texte": "0 annulé(s)"
+            },
+            {
+                "type": "div",
+                "texte": "Chiffre d'affaires"
+            },
+            {
+                "type": "div",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "div",
+                "texte": "0 jour(s) loué(s)"
+            },
+            {
+                "type": "div",
+                "texte": "Taux d'occupation"
+            },
+            {
+                "type": "div",
+                "texte": "Sur la période"
+            },
+            {
+                "type": "div",
+                "texte": "Reste à encaisser"
+            },
+            {
+                "type": "div",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "div",
+                "texte": "Soldes de location"
+            },
+            {
+                "type": "div",
+                "texte": "Jours loués"
+            },
+            {
+                "type": "div",
+                "texte": "Toutes catégories"
+            },
+            {
+                "type": "onglet",
+                "texte": "Parc & disponibilité",
+                "cle": "parc"
+            },
+            {
+                "type": "onglet",
+                "texte": "Contrats",
+                "cle": "contrats"
+            },
+            {
+                "type": "onglet",
+                "texte": "Planning du parc",
+                "cle": "planning"
+            },
+            {
+                "type": "onglet",
+                "texte": "Immobilisations",
+                "cle": "immo"
+            },
+            {
+                "type": "champ",
+                "texte": "Véhicule, client, n° de contrat…"
+            },
+            {
+                "type": "option",
+                "texte": "Toutes catégories"
+            },
+            {
+                "type": "option",
+                "texte": "Berline"
+            },
+            {
+                "type": "option",
+                "texte": "4x4"
+            },
+            {
+                "type": "option",
+                "texte": "Pick-up"
+            },
+            {
+                "type": "option",
+                "texte": "Moto"
+            },
+            {
+                "type": "option",
+                "texte": "Scooter"
+            },
+            {
+                "type": "option",
+                "texte": "Vélo"
+            },
+            {
+                "type": "option",
+                "texte": "Bus"
+            },
+            {
+                "type": "option",
+                "texte": "Contrats actifs"
+            },
+            {
+                "type": "option",
+                "texte": "Tous"
+            },
+            {
+                "type": "option",
+                "texte": "Annulés"
+            },
+            {
+                "type": "button",
+                "texte": "+ Véhicule"
+            },
+            {
+                "type": "button",
+                "texte": "Immobiliser"
+            },
+            {
+                "type": "button",
+                "texte": "+ Contrat"
+            },
+            {
+                "type": "p",
+                "texte": "C'est une caractéristique du tarif catalogue, pas une option facturée en plus. Le permis n'est exigé que pour les catégories qui le requièrent."
+            },
+            {
+                "type": "div",
+                "texte": "Aucun véhicule ne correspond."
+            }
+        ],
+        "contrats": [
+            {
+                "type": "h1",
+                "texte": "Véhicules & Locations"
+            },
+            {
+                "type": "p",
+                "texte": "Parc, contrats de location, planning et immobilisations. Un véhicule loué ou immobilisé pour entretien n'est proposé nulle part ailleurs."
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "div",
+                "texte": "Parc"
+            },
+            {
+                "type": "div",
+                "texte": "Aucune immobilisation"
+            },
+            {
+                "type": "div",
+                "texte": "Contrats actifs"
+            },
+            {
+                "type": "div",
+                "texte": "0 annulé(s)"
+            },
+            {
+                "type": "div",
+                "texte": "Chiffre d'affaires"
+            },
+            {
+                "type": "div",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "div",
+                "texte": "0 jour(s) loué(s)"
+            },
+            {
+                "type": "div",
+                "texte": "Taux d'occupation"
+            },
+            {
+                "type": "div",
+                "texte": "Sur la période"
+            },
+            {
+                "type": "div",
+                "texte": "Reste à encaisser"
+            },
+            {
+                "type": "div",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "div",
+                "texte": "Soldes de location"
+            },
+            {
+                "type": "div",
+                "texte": "Jours loués"
+            },
+            {
+                "type": "div",
+                "texte": "Toutes catégories"
+            },
+            {
+                "type": "onglet",
+                "texte": "Parc & disponibilité",
+                "cle": "parc"
+            },
+            {
+                "type": "onglet",
+                "texte": "Contrats",
+                "cle": "contrats"
+            },
+            {
+                "type": "onglet",
+                "texte": "Planning du parc",
+                "cle": "planning"
+            },
+            {
+                "type": "onglet",
+                "texte": "Immobilisations",
+                "cle": "immo"
+            },
+            {
+                "type": "champ",
+                "texte": "Véhicule, client, n° de contrat…"
+            },
+            {
+                "type": "option",
+                "texte": "Toutes catégories"
+            },
+            {
+                "type": "option",
+                "texte": "Berline"
+            },
+            {
+                "type": "option",
+                "texte": "4x4"
+            },
+            {
+                "type": "option",
+                "texte": "Pick-up"
+            },
+            {
+                "type": "option",
+                "texte": "Moto"
+            },
+            {
+                "type": "option",
+                "texte": "Scooter"
+            },
+            {
+                "type": "option",
+                "texte": "Vélo"
+            },
+            {
+                "type": "option",
+                "texte": "Bus"
+            },
+            {
+                "type": "option",
+                "texte": "Contrats actifs"
+            },
+            {
+                "type": "option",
+                "texte": "Tous"
+            },
+            {
+                "type": "option",
+                "texte": "Annulés"
+            },
+            {
+                "type": "button",
+                "texte": "+ Véhicule"
+            },
+            {
+                "type": "button",
+                "texte": "Immobiliser"
+            },
+            {
+                "type": "button",
+                "texte": "+ Contrat"
+            },
+            {
+                "type": "div",
+                "texte": "Aucun contrat ne correspond à ces critères."
+            }
+        ],
+        "planning": [
+            {
+                "type": "h1",
+                "texte": "Véhicules & Locations"
+            },
+            {
+                "type": "p",
+                "texte": "Parc, contrats de location, planning et immobilisations. Un véhicule loué ou immobilisé pour entretien n'est proposé nulle part ailleurs."
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "div",
+                "texte": "Parc"
+            },
+            {
+                "type": "div",
+                "texte": "Aucune immobilisation"
+            },
+            {
+                "type": "div",
+                "texte": "Contrats actifs"
+            },
+            {
+                "type": "div",
+                "texte": "0 annulé(s)"
+            },
+            {
+                "type": "div",
+                "texte": "Chiffre d'affaires"
+            },
+            {
+                "type": "div",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "div",
+                "texte": "0 jour(s) loué(s)"
+            },
+            {
+                "type": "div",
+                "texte": "Taux d'occupation"
+            },
+            {
+                "type": "div",
+                "texte": "Sur la période"
+            },
+            {
+                "type": "div",
+                "texte": "Reste à encaisser"
+            },
+            {
+                "type": "div",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "div",
+                "texte": "Soldes de location"
+            },
+            {
+                "type": "div",
+                "texte": "Jours loués"
+            },
+            {
+                "type": "div",
+                "texte": "Toutes catégories"
+            },
+            {
+                "type": "onglet",
+                "texte": "Parc & disponibilité",
+                "cle": "parc"
+            },
+            {
+                "type": "onglet",
+                "texte": "Contrats",
+                "cle": "contrats"
+            },
+            {
+                "type": "onglet",
+                "texte": "Planning du parc",
+                "cle": "planning"
+            },
+            {
+                "type": "onglet",
+                "texte": "Immobilisations",
+                "cle": "immo"
+            },
+            {
+                "type": "champ",
+                "texte": "Véhicule, client, n° de contrat…"
+            },
+            {
+                "type": "option",
+                "texte": "Toutes catégories"
+            },
+            {
+                "type": "option",
+                "texte": "Berline"
+            },
+            {
+                "type": "option",
+                "texte": "4x4"
+            },
+            {
+                "type": "option",
+                "texte": "Pick-up"
+            },
+            {
+                "type": "option",
+                "texte": "Moto"
+            },
+            {
+                "type": "option",
+                "texte": "Scooter"
+            },
+            {
+                "type": "option",
+                "texte": "Vélo"
+            },
+            {
+                "type": "option",
+                "texte": "Bus"
+            },
+            {
+                "type": "option",
+                "texte": "Contrats actifs"
+            },
+            {
+                "type": "option",
+                "texte": "Tous"
+            },
+            {
+                "type": "option",
+                "texte": "Annulés"
+            },
+            {
+                "type": "button",
+                "texte": "+ Véhicule"
+            },
+            {
+                "type": "button",
+                "texte": "Immobiliser"
+            },
+            {
+                "type": "button",
+                "texte": "+ Contrat"
+            },
+            {
+                "type": "h3",
+                "texte": "Planning du parc — 14 jour(s)"
+            },
+            {
+                "type": "span",
+                "texte": "libre"
+            },
+            {
+                "type": "span",
+                "texte": "location"
+            },
+            {
+                "type": "span",
+                "texte": "immobilisé"
+            },
+            {
+                "type": "th",
+                "texte": "Véhicule"
+            }
+        ],
+        "immo": [
+            {
+                "type": "h1",
+                "texte": "Véhicules & Locations"
+            },
+            {
+                "type": "p",
+                "texte": "Parc, contrats de location, planning et immobilisations. Un véhicule loué ou immobilisé pour entretien n'est proposé nulle part ailleurs."
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "div",
+                "texte": "Parc"
+            },
+            {
+                "type": "div",
+                "texte": "Aucune immobilisation"
+            },
+            {
+                "type": "div",
+                "texte": "Contrats actifs"
+            },
+            {
+                "type": "div",
+                "texte": "0 annulé(s)"
+            },
+            {
+                "type": "div",
+                "texte": "Chiffre d'affaires"
+            },
+            {
+                "type": "div",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "div",
+                "texte": "0 jour(s) loué(s)"
+            },
+            {
+                "type": "div",
+                "texte": "Taux d'occupation"
+            },
+            {
+                "type": "div",
+                "texte": "Sur la période"
+            },
+            {
+                "type": "div",
+                "texte": "Reste à encaisser"
+            },
+            {
+                "type": "div",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "div",
+                "texte": "Soldes de location"
+            },
+            {
+                "type": "div",
+                "texte": "Jours loués"
+            },
+            {
+                "type": "div",
+                "texte": "Toutes catégories"
+            },
+            {
+                "type": "onglet",
+                "texte": "Parc & disponibilité",
+                "cle": "parc"
+            },
+            {
+                "type": "onglet",
+                "texte": "Contrats",
+                "cle": "contrats"
+            },
+            {
+                "type": "onglet",
+                "texte": "Planning du parc",
+                "cle": "planning"
+            },
+            {
+                "type": "onglet",
+                "texte": "Immobilisations",
+                "cle": "immo"
+            },
+            {
+                "type": "champ",
+                "texte": "Véhicule, client, n° de contrat…"
+            },
+            {
+                "type": "option",
+                "texte": "Toutes catégories"
+            },
+            {
+                "type": "option",
+                "texte": "Berline"
+            },
+            {
+                "type": "option",
+                "texte": "4x4"
+            },
+            {
+                "type": "option",
+                "texte": "Pick-up"
+            },
+            {
+                "type": "option",
+                "texte": "Moto"
+            },
+            {
+                "type": "option",
+                "texte": "Scooter"
+            },
+            {
+                "type": "option",
+                "texte": "Vélo"
+            },
+            {
+                "type": "option",
+                "texte": "Bus"
+            },
+            {
+                "type": "option",
+                "texte": "Contrats actifs"
+            },
+            {
+                "type": "option",
+                "texte": "Tous"
+            },
+            {
+                "type": "option",
+                "texte": "Annulés"
+            },
+            {
+                "type": "button",
+                "texte": "+ Véhicule"
+            },
+            {
+                "type": "button",
+                "texte": "Immobiliser"
+            },
+            {
+                "type": "button",
+                "texte": "+ Contrat"
+            },
+            {
+                "type": "h3",
+                "texte": "Immobilisations du parc"
+            },
+            {
+                "type": "th",
+                "texte": "Véhicule"
+            },
+            {
+                "type": "th",
+                "texte": "Motif"
+            },
+            {
+                "type": "th",
+                "texte": "Jours"
+            },
+            {
+                "type": "th",
+                "texte": "Commentaire"
+            },
+            {
+                "type": "th",
+                "texte": "Enregistré par"
+            },
+            {
+                "type": "td",
+                "texte": "Aucune immobilisation enregistrée."
+            }
+        ]
+    }
+}

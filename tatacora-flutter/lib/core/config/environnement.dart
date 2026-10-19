@@ -44,9 +44,14 @@ final class Environnement {
     libelle: 'Recette',
   );
 
+  /// Le serveur de production — décision du PO du 15/10/2026 (lot F2a).
+  /// C'est le SEUL serveur auquel un poste de production s'appaire et
+  /// pousse sa file : l'appairage enregistre cette adresse dans `poste.json`
+  /// (`serveur`), et le moteur d'envoi refuse un appairage fait vers une
+  /// autre (`EtatSynchronisation.autreServeur`).
   static const Environnement _production = Environnement._(
     flavor: Flavor.production,
-    baseUrl: 'https://api.tatacora-erp.com/api/v1',
+    baseUrl: 'https://logirestock.digitonpro.com/api/v1',
     libelle: 'Production',
   );
 

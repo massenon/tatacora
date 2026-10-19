@@ -3,6 +3,9 @@ import 'package:uuid/uuid.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/database/tables/clients_table.dart';
+import '../../synchronisation/data/operations_sync_dao.dart';
+import '../../synchronisation/domain/charges_synchronisation.dart';
+import '../../synchronisation/domain/operation_sync.dart';
 import '../domain/entities/client.dart';
 
 part 'client_dao.g.dart';
@@ -94,6 +97,22 @@ class ClientDao extends DatabaseAccessor<AppDatabase> with _$ClientDaoMixin {
           // sans fin que PA-59/60/61 condamnent, et la raison même pour
           // laquelle la file a été retirée plutôt que laissée à grossir.
           statutSync: const Value('local'),
+        ),
+      );
+      // Lot F1 (15/10/2026) : la file d'envoi revient, en tâche de fond. Le
+      // client part au serveur dans CETTE transaction. `statut_sync` reste
+      // `local` : aucun écran n'annonce d'attente tant que le moteur d'envoi
+      // (F2) n'existe pas.
+      await OperationsSyncDao(attachedDatabase).enfiler(
+        table: TableSynchronisee.clients,
+        entiteId: client.id,
+        type: TypeOperationSync.creation,
+        payload: chargeClient(
+          nom: client.nom,
+          prenom: client.prenom,
+          telephone: client.telephone,
+          email: client.email,
+          typeClient: client.type.code,
         ),
       );
     });

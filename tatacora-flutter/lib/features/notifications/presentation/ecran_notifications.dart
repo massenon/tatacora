@@ -11,7 +11,9 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../shared_widgets/bouton_standard.dart';
-import '../../bar/presentation/widgets/modale_export_carte.dart';
+import '../../../shared_widgets/liste_paginee.dart';
+import '../../../shared_widgets/modale_export.dart';
+import '../../../shared_widgets/toast_export.dart';
 import '../../restaurant/presentation/widgets/coquille_restaurant.dart'
     show TextesRestaurant;
 import '../../restaurant/presentation/widgets/corps_carte_commun.dart'
@@ -73,10 +75,8 @@ import 'widgets/modales_notifications.dart';
 /// 3. **Le détail « E-mails partis, comptés en base »** (l.162) : ce poste n'a
 ///    aucun transport, l'annoncer ferait attendre un envoi qui ne viendra
 ///    pas. La carte dit « Aucun transport sur ce poste ».
-/// 4. **Le choix PDF de l'export** (l.119, `modale-export`) : la modale est
-///    celle de la vue (partiel partagé), mais aucun A4 des notifications n'est
-///    classé au registre de `pdf_directive_test.dart` (`sansPdf`) ; le choix
-///    PDF est refusé avec son message ([EcranNotifications.pdfNonProduit]).
+/// 4. ~~**Le choix PDF de l'export**~~ — PRODUIT le 14/10/2026 (directive du
+///    PO) : l'état A4 de l'onglet affiché, mêmes colonnes que le CSV.
 /// 5. **L'état replié de la bande, d'une session à l'autre** (l.140) : la vue
 ///    le retient en `localStorage`. Aucun magasin de préférences n'est
 ///    embarqué (voir `kpisNotificationsDepliesProvider`).
@@ -98,18 +98,6 @@ class EcranNotifications extends ConsumerWidget {
   /// Le titre de la modale d'export — `export_titre`, « Exporter — :onglet ».
   static String titreExport(OngletNotifications onglet) =>
       'Exporter — ${onglet.libelle}';
-
-  /// Le refus du choix PDF : aucun A4 de cet écran n'existe.
-  static const String pdfNonProduit =
-      'Le PDF des notifications n’est pas produit sur ce poste : aucun état A4 '
-      'de cet écran n’est classé dans l’en-tête et les visas de l’application. '
-      'Rien n’a été écrit. Choisissez « Tableur Excel » pour obtenir la liste '
-      'affichée en CSV.';
-
-  /// La ligne d'aide posée sous les deux choix de la modale, AVANT le clic.
-  static const String aidePdf =
-      'Le PDF n’est pas produit sur ce poste : seul le tableur (CSV) est '
-      'écrit.';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -280,42 +268,31 @@ class _EnTete extends ConsumerWidget {
   /// puis le document.
   ///
   /// - **Tableur Excel** : le CSV (BOM UTF-8, point-virgule), écrit par
-  ///   `exporterNotificationsProvider`, chemin affiché.
-  /// - **PDF Officiel A4** : [EcranNotifications.pdfNonProduit].
+  ///   `exporterNotificationsProvider` par la fenêtre « Enregistrer sous »,
+  ///   nom du fichier dit par le toast commun.
+  /// - **PDF Officiel A4** : l'état A4 de l'onglet affiché, mêmes colonnes
+  ///   (`exporterNotificationsPdfProvider`).
   Future<void> _exporter(BuildContext context, WidgetRef ref) async {
     final onglet = ref.read(ongletNotificationsProvider);
     final format = await choisirFormatExport(
       context,
       titre: EcranNotifications.titreExport(onglet),
-      aide: EcranNotifications.aidePdf,
     );
     if (format == null || !context.mounted) return;
 
-    // Le refus du PDF passe avant celui de la liste vide : il ne dépend pas
-    // des lignes, et le dire d'abord évite d'envoyer élargir un filtre pour un
-    // document qu'aucun filtre ne produira.
-    if (format == FormatExport.pdf) {
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          const SnackBar(
-            content: Text(
-              EcranNotifications.pdfNonProduit,
-              key: Key('notifications-export-pdf-absent'),
-            ),
-          ),
-        );
-      return;
-    }
-
-    try {
-      final chemin = await ref.read(exporterNotificationsProvider)();
-      if (!context.mounted) return;
-      _dire(context, 'Export écrit : $chemin');
-    } on ExportVide {
-      if (!context.mounted) return;
-      _dire(context, ExportVide.message);
-    }
+    // La fenêtre « Enregistrer sous », puis le toast commun (14/10/2026).
+    // Une liste vide se refuse avec SON message, pas comme un échec.
+    await executerExport(context, () async {
+      try {
+        return await switch (format) {
+          FormatExport.pdf => ref.read(exporterNotificationsPdfProvider)(),
+          FormatExport.excel => ref.read(exporterNotificationsProvider)(),
+        };
+      } on ExportVide {
+        if (context.mounted) _dire(context, ExportVide.message);
+        return null;
+      }
+    });
   }
 }
 
@@ -1029,24 +1006,30 @@ class _Panneau extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Consumer(
-      builder: (context, ref, _) => switch (ref.watch(
-        ongletNotificationsProvider,
-      )) {
-        OngletNotifications.file => _PanneauFile(
-          groupes: vue.groupes,
-          peutEcrire: peutEcrire,
-        ),
-        OngletNotifications.modeles => _PanneauModeles(
-          modeles: vue.modeles,
-          peutEcrire: peutEcrire,
-        ),
-        OngletNotifications.declencheurs => _PanneauDeclencheurs(
-          declencheurs: vue.declencheurs,
-          tousModeles: vue.tousModeles,
-        ),
-        OngletNotifications.journal => _PanneauJournal(journal: vue.journal),
-        OngletNotifications.canaux => _PanneauCanaux(enFile: vue.enFile),
-      },
+      builder: (context, ref, _) =>
+          switch (ref.watch(ongletNotificationsProvider)) {
+            OngletNotifications.file => _PanneauFile(
+              groupes: vue.groupes,
+              peutEcrire: peutEcrire,
+            ),
+            OngletNotifications.modeles => _PanneauModeles(
+              modeles: vue.modeles,
+              peutEcrire: peutEcrire,
+            ),
+            OngletNotifications.declencheurs => _PanneauDeclencheurs(
+              declencheurs: vue.declencheurs,
+              tousModeles: vue.tousModeles,
+            ),
+            OngletNotifications.journal => _PanneauJournal(
+              journal: vue.journal,
+              cleFiltre: (
+                ref.watch(rechercheNotificationsProvider),
+                ref.watch(canalFiltreProvider),
+                ref.watch(publicFiltreProvider),
+              ),
+            ),
+            OngletNotifications.canaux => _PanneauCanaux(enFile: vue.enFile),
+          },
     );
   }
 }
@@ -1768,9 +1751,12 @@ class _PanneauDeclencheurs extends StatelessWidget {
 /* --------------------------------------------------------------- journal */
 
 class _PanneauJournal extends StatelessWidget {
-  const _PanneauJournal({required this.journal});
+  const _PanneauJournal({required this.journal, required this.cleFiltre});
 
   final List<MessageNotification> journal;
+
+  /// La recherche et les filtres : les changer ramène à la page 1.
+  final Object cleFiltre;
 
   @override
   Widget build(BuildContext context) {
@@ -1820,80 +1806,13 @@ class _PanneauJournal extends StatelessWidget {
         ],
       ),
       enfants: [
-        _Tableau(
-          colonnes: const [
-            'Date',
-            'Destinataire',
-            'Déclencheur',
-            'Canal',
-            'Statut',
-            'Envoi système',
-            'Par',
-            'Commentaire',
-          ],
-          lignes: [
-            for (final m in journal)
-              DataRow(
-                cells: [
-                  DataCell(Text(formaterDate(m.traiteLe ?? m.composeLe))),
-                  DataCell(
-                    Text(
-                      m.destinataire,
-                      key: Key('notifications-journal-${m.id}'),
-                      style: styleContenuCarte(
-                        TaillesContenu.t13,
-                        poids: FontWeight.w600,
-                        couleur: Ardoise.c800,
-                      ),
-                    ),
-                  ),
-                  DataCell(Text(m.declencheur?.libelle ?? '')),
-                  DataCell(Text(m.canal?.libelle ?? '')),
-                  DataCell(
-                    m.statut == StatutMessageNotification.transmisALaMain
-                        ? _Pastille(
-                            texte: m.statut.libelle,
-                            fond: PaletteMaitre.emeraude50,
-                            texteCouleur: PaletteMaitre.emeraude700,
-                            taille: TaillesContenu.t11,
-                            horizontal: AppSpacing.xs,
-                          )
-                        : _Pastille(
-                            texte: m.statut.libelle,
-                            fond: Ardoise.c100,
-                            texteCouleur: Ardoise.c500,
-                            taille: TaillesContenu.t11,
-                            horizontal: AppSpacing.xs,
-                          ),
-                  ),
-                  DataCell(
-                    // Dérivé du STATUT, jamais écrit en dur : le jour où un
-                    // transport écrira, la colonne suivra (PA-61).
-                    _Pastille(
-                      cle: Key('notifications-envoi-systeme-${m.id}'),
-                      texte: m.statut.estUnEnvoiDuSysteme ? 'oui' : 'non',
-                      fond: m.statut.estUnEnvoiDuSysteme
-                          ? PaletteMaitre.emeraude50
-                          : PaletteMaitre.rouge50,
-                      texteCouleur: m.statut.estUnEnvoiDuSysteme
-                          ? PaletteMaitre.emeraude700
-                          : PaletteMaitre.rouge900,
-                      taille: TaillesContenu.t11,
-                      horizontal: AppSpacing.xs,
-                    ),
-                  ),
-                  DataCell(Text(m.auteurAffiche)),
-                  DataCell(
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        maxWidth: AppLayout.bulleMessageNotification,
-                      ),
-                      child: Text(m.commentaireAffiche),
-                    ),
-                  ),
-                ],
-              ),
-          ],
+        // Dix messages par page (PO, 14/10/2026).
+        ListePaginee<MessageNotification>(
+          elements: journal,
+          prefixeCle: 'notifications-journal-pagination',
+          cleRemiseAZero: cleFiltre,
+          masquerSiVide: true,
+          constructeur: (_, page) => _tableauJournal(page),
         ),
         if (journal.isEmpty)
           const _LigneVide(
@@ -1911,6 +1830,83 @@ class _PanneauJournal extends StatelessWidget {
       ],
     );
   }
+
+  /// Le tableau du journal pour [page] — les lignes de la page affichée.
+  static Widget _tableauJournal(List<MessageNotification> page) => _Tableau(
+    colonnes: const [
+      'Date',
+      'Destinataire',
+      'Déclencheur',
+      'Canal',
+      'Statut',
+      'Envoi système',
+      'Par',
+      'Commentaire',
+    ],
+    lignes: [
+      for (final m in page)
+        DataRow(
+          cells: [
+            DataCell(Text(formaterDate(m.traiteLe ?? m.composeLe))),
+            DataCell(
+              Text(
+                m.destinataire,
+                key: Key('notifications-journal-${m.id}'),
+                style: styleContenuCarte(
+                  TaillesContenu.t13,
+                  poids: FontWeight.w600,
+                  couleur: Ardoise.c800,
+                ),
+              ),
+            ),
+            DataCell(Text(m.declencheur?.libelle ?? '')),
+            DataCell(Text(m.canal?.libelle ?? '')),
+            DataCell(
+              m.statut == StatutMessageNotification.transmisALaMain
+                  ? _Pastille(
+                      texte: m.statut.libelle,
+                      fond: PaletteMaitre.emeraude50,
+                      texteCouleur: PaletteMaitre.emeraude700,
+                      taille: TaillesContenu.t11,
+                      horizontal: AppSpacing.xs,
+                    )
+                  : _Pastille(
+                      texte: m.statut.libelle,
+                      fond: Ardoise.c100,
+                      texteCouleur: Ardoise.c500,
+                      taille: TaillesContenu.t11,
+                      horizontal: AppSpacing.xs,
+                    ),
+            ),
+            DataCell(
+              // Dérivé du STATUT, jamais écrit en dur : le jour où un
+              // transport écrira, la colonne suivra (PA-61).
+              _Pastille(
+                cle: Key('notifications-envoi-systeme-${m.id}'),
+                texte: m.statut.estUnEnvoiDuSysteme ? 'oui' : 'non',
+                fond: m.statut.estUnEnvoiDuSysteme
+                    ? PaletteMaitre.emeraude50
+                    : PaletteMaitre.rouge50,
+                texteCouleur: m.statut.estUnEnvoiDuSysteme
+                    ? PaletteMaitre.emeraude700
+                    : PaletteMaitre.rouge900,
+                taille: TaillesContenu.t11,
+                horizontal: AppSpacing.xs,
+              ),
+            ),
+            DataCell(Text(m.auteurAffiche)),
+            DataCell(
+              ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: AppLayout.bulleMessageNotification,
+                ),
+                child: Text(m.commentaireAffiche),
+              ),
+            ),
+          ],
+        ),
+    ],
+  );
 }
 
 /* ---------------------------------------------------------------- canaux */

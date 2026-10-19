@@ -4,14 +4,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/di/providers.dart';
 import '../../../core/rbac/garde_acces.dart';
+import '../../transverse/domain/comptes_utilisateurs.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../shared_widgets/bouton_standard.dart';
 import '../data/parametres_depot_local.dart';
 import '../domain/enregistrer_parametres.dart';
 import '../domain/entities/parametre.dart';
 import '../domain/resultats_parametres.dart';
+import 'widgets/cadre_modale_parametre.dart';
+import 'widgets/champ_mot_de_passe_smtp.dart';
 import 'widgets/champ_parametre.dart';
+import 'widgets/onglet_espaces_tables.dart';
+import 'widgets/onglet_synchronisation.dart';
 
 // Les refus de la vue, DITS dans le code plutôt qu'affichés (la vue n'a plus de
 // section de refus à l'écran — directive du 31/08/2026). Ce sont des champs ou
@@ -22,8 +28,8 @@ import 'widgets/champ_parametre.dart';
 //    « •••••••••••••••• » de la « Clé API WhatsApp Business » : un secret
 //    n'entre JAMAIS dans `parametres_systeme`, lisible par tout profil ayant
 //    l'écran ; il vit en `.env`.
-//  - Refus, onglet « email » — le champ « Mot de passe SMTP » :
-//    même règle (`.env`, `MAIL_PASSWORD`).
+//  - (Levé le 19/10/2026, onglet « email » : le champ « Mot de passe SMTP »
+//    est SAISI — décision du PO —, écrit dans `poste.json`, jamais en base.)
 //  - Refus, onglet « activation » — le pied de formulaire
 //    unique du maître (« Annuler » / « Enregistrer les paramètres ») : cet écran
 //    enregistre une clé à la fois, par fenêtre ; un enregistrement groupé
@@ -71,6 +77,12 @@ const _onglets = <(String, String)>[
   ('tables', 'Espaces & tables'),
   ('activation', 'Activation & Sécurité'),
 ];
+
+/// L'onglet AJOUTÉ par le poste (lot F2a, 15/10/2026, décision du PO) :
+/// l'appairage au serveur. La vue n'en a pas — le serveur ne s'appaire pas à
+/// lui-même. Affiché aux seuls Administrateurs (`rolesAdministration`, la
+/// règle de « Comptes utilisateurs »).
+const _ongletSynchronisation = ('synchronisation', 'Synchronisation');
 
 /// Les clés que le maître loge sous « Informations légales & fiscales ».
 const _clesLegales = {
@@ -169,6 +181,11 @@ class _PageState extends ConsumerState<_Page> {
             children: [
               const _EnTete(),
               _BarreOnglets(
+                onglets: [
+                  ..._onglets,
+                  if (peutAdministrerComptes(ref.watch(sessionProvider)?.role))
+                    _ongletSynchronisation,
+                ],
                 actif: _onglet,
                 onChoisir: (o) => setState(() => _onglet = o),
               ),
@@ -229,6 +246,9 @@ class _PageState extends ConsumerState<_Page> {
           enfants: [
             const _TitreSection('Configuration Email (SMTP)'),
             for (final d in de((_) => true)) _Cellule(enfant: ligne(d)),
+            // « Mot de passe SMTP » : SAISI depuis le 19/10/2026 (décision du
+            // PO), écrit dans `poste.json`, jamais dans la base.
+            _Cellule(enfant: ChampMotDePasseSmtp(peutEcrire: peutEcrire)),
           ],
         );
       case 'activation':
@@ -249,10 +269,21 @@ class _PageState extends ConsumerState<_Page> {
               _Cellule(enfant: ligne(d)),
           ],
         );
+      case 'tables':
+        // Le référentiel des tables de salle du poste (`tables_local`, seul
+        // écrivain `TablesPosDao`) — le même que lit le point de vente.
+        return OngletEspacesTables(peutEcrire: peutEcrire);
+      case 'synchronisation':
+        // L'onglet refait lui-même la vérification du rôle.
+        return const OngletSynchronisation();
       default:
-        // Logo & Apparence, Canaux de réservation, Espaces & tables : leur
-        // contenu (téléversement, canaux, tables de salle) n'a pas encore de
-        // source sur ce poste. Dit en une ligne, jamais un onglet vide.
+        // Logo & Apparence, Canaux de réservation : leur contenu n'a pas de
+        // source sur ce poste. Logo et favicon sont des FICHIERS téléversés
+        // (aucune clé de `parametres_systeme_local`, aucun stockage de
+        // fichier) ; les canaux sont un référentiel du serveur
+        // (`canaux_reservation`) sans table locale — le poste ne connaît que
+        // la liste fermée de la fiche de réservation. Dit en une ligne,
+        // jamais un onglet vide.
         return const _Grille(
           enfants: [
             _Cellule(
@@ -270,6 +301,10 @@ class _PageState extends ConsumerState<_Page> {
   }
 
   /// « Modifier » : une fenêtre qui n'enregistre que CETTE clé.
+  ///
+  /// Fenêtre COMPACTE (PO, 14/10/2026) : l'`AlertDialog` d'avant sortait trop
+  /// haute (« Raison sociale ») ; un `Dialog` borné, à la hauteur de son
+  /// contenu, la remplace — mêmes champ, validation et enregistrement.
   Future<void> _modifier(DefinitionParametre d) async {
     Object? saisie;
     String? erreur;
@@ -278,31 +313,31 @@ class _PageState extends ConsumerState<_Page> {
     await showDialog<void>(
       context: context,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setLocal) => AlertDialog(
-          title: Text(d.libelle),
-          content: SizedBox(
-            width: 420,
-            child: ChampParametre(
-              definition: d,
-              saisie: saisie,
-              erreur: erreur,
-              modifiable: true,
-              onChange: (v) => setLocal(() {
-                saisie = v;
-                erreur = null;
-              }),
-            ),
+        builder: (ctx, setLocal) => CadreModaleParametre(
+          titre: d.libelle,
+          champ: ChampParametre(
+            definition: d,
+            saisie: saisie,
+            erreur: erreur,
+            modifiable: true,
+            onChange: (v) => setLocal(() {
+              saisie = v;
+              erreur = null;
+            }),
           ),
           actions: [
-            TextButton(
+            BoutonStandard(
               key: const Key('param-annuler'),
+              libelle: 'Annuler',
               onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Annuler'),
             ),
-            FilledButton(
+            BoutonStandard(
               key: const Key('param-enregistrer'),
+              libelle: 'Enregistrer',
+              variante: VarianteBouton.primaire,
               // Désactivé tant que rien n'a changé : un envoi vide ne
-              // modifierait rien et rendrait tout de même « enregistré ».
+              // modifierait rien et rendrait tout de même
+              // « enregistré ».
               onPressed: saisie == null || envoi
                   ? null
                   : () async {
@@ -321,9 +356,10 @@ class _PageState extends ConsumerState<_Page> {
                         case EcritureAcceptee(:final message):
                           Navigator.of(ctx).pop();
                           _dire(message);
-                          // La valeur affichée est celle de la base, normalisée
-                          // par le registre : la relire est le seul moyen de
-                          // montrer ce qui a réellement été enregistré.
+                          // La valeur affichée est celle de la base,
+                          // normalisée par le registre : la relire
+                          // est le seul moyen de montrer ce qui a
+                          // réellement été enregistré.
                           ref.invalidate(parametresProvider);
                         case EcritureRefusee(:final motif, :final parCle):
                           setLocal(() {
@@ -332,7 +368,6 @@ class _PageState extends ConsumerState<_Page> {
                           });
                       }
                     },
-              child: const Text('Enregistrer'),
             ),
           ],
         ),
@@ -409,8 +444,13 @@ class _EnTete extends StatelessWidget {
 
 /// `<div class="flex flex-wrap gap-2 mb-5">` et `Onglets::classes()`.
 class _BarreOnglets extends StatelessWidget {
-  const _BarreOnglets({required this.actif, required this.onChoisir});
+  const _BarreOnglets({
+    required this.onglets,
+    required this.actif,
+    required this.onChoisir,
+  });
 
+  final List<(String, String)> onglets;
   final String actif;
   final ValueChanged<String> onChoisir;
 
@@ -422,7 +462,7 @@ class _BarreOnglets extends StatelessWidget {
         spacing: AppSpacing.xs, // gap-2
         runSpacing: AppSpacing.xs,
         children: [
-          for (final (cle, libelle) in _onglets)
+          for (final (cle, libelle) in onglets)
             _Onglet(
               key: Key('param-onglet-$cle'),
               libelle: libelle,

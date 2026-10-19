@@ -57,15 +57,15 @@
 /// synchronisation du serveur, il faudra dire lequel des deux fait foi. Voir
 /// `docs/PLAN_ACTION_SEQUENCE_POST_AUDIT.md`, PA-99.
 ///
-/// ## Ce registre ne part PAS au serveur, et ce n'est pas un oubli
+/// ## Ce registre part au serveur depuis le lot F5c (17/10/2026)
 ///
-/// `SynchronisationService::TABLES_SYNCHRONISABLES` ne connaît que
-/// `reservations` et `clients` ; `routes/api.php` n'expose aucune route de
-/// facturation. Une facture poussée serait rejetée à chaque tentative,
-/// indéfiniment. Afficher « en attente de synchronisation » sur une pièce qui
-/// ne partira jamais serait l'indicateur qui affirme un état qu'il n'a pas
-/// vérifié — PA-59 / PA-60 / PA-61. La colonne [statutTransmission] dit donc
-/// `non_transmissible`, et l'écran le dit en toutes lettres.
+/// ⚠ Jusqu'au 17/10/2026, il ne partait pas (le serveur n'avait pas de table
+/// `factures` au registre de synchronisation). Décision du PO (Q2) : la pièce
+/// du poste naît PROVISOIRE (`PROV-AAAA-NNNNN`), part par la file d'envoi,
+/// et reçoit le numéro continu du serveur (`F-AAAA-NNNNN`, `AV-…` pour un
+/// avoir) ; les pièces des autres postes descendent. [statutTransmission]
+/// dit où en est chaque pièce (`StatutTransmissionPiece`) ; une pièce
+/// d'avant reste `non_transmissible` et ne part jamais.
 library;
 
 import 'package:drift/drift.dart';
@@ -165,8 +165,9 @@ class PiecesFacturationLocal extends Table {
   TextColumn get motifAnnulation => text().nullable()();
   DateTimeColumn get dateAnnulation => dateTime().nullable()();
 
-  /// Voir l'en-tête : `non_transmissible` tant que le serveur n'a ni table
-  /// `factures` au registre de synchronisation, ni route d'API.
+  /// Voir l'en-tête et `StatutTransmissionPiece` : `non_transmissible`
+  /// (pièce d'avant le lot F5c, ou démonstration), `en_attente`,
+  /// `transmise`, `recue`.
   TextColumn get statutTransmission =>
       text().withDefault(const Constant('non_transmissible'))();
 

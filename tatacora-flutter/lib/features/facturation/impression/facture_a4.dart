@@ -544,7 +544,12 @@ final class FactureA4 {
       auteur: auteur,
       dateEdition: dateEdition,
       lignesEntete: entete.lignesA4,
-      titre: _t(estAvoir ? 'AVOIR ${piece.numero}' : 'FACTURE ${piece.numero}'),
+      // Lot F5c : un numéro PROVISOIRE (avant le numéro continu du serveur)
+      // se dit sur le papier — la pièce ne vaut pas facture numérotée.
+      titre: _t(
+        '${estAvoir ? 'AVOIR' : 'FACTURE'}'
+        '${piece.estProvisoire ? ' PROVISOIRE' : ''} ${piece.numero}',
+      ),
       identification: [
         for (final (libelle, valeur) in <(String, String?)>[
           ('Date d\'émission', _horodatage(piece.dateEmission)),

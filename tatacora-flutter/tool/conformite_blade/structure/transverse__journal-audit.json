@@ -1,0 +1,149 @@
+{
+    "_lisez-moi": "PRODUIT par ExtraireStructureBladeTest, jamais ecrit a la main. Chaque variante (onglet) : les textes VISIBLES de <main>, dans l'ordre du document.",
+    "vue": "transverse/journal-audit",
+    "jeu": "parc",
+    "onglets": {
+        "principal": [
+            {
+                "type": "h1",
+                "texte": "Journal d'Audit"
+            },
+            {
+                "type": "p",
+                "texte": "Traçabilité intégrale de toute action sensible — utilisateur, action, entité concernée, date et heure (, chap. 11.4 du CdCF)"
+            },
+            {
+                "type": "champ",
+                "texte": "Rechercher (utilisateur, action, détail)..."
+            },
+            {
+                "type": "option",
+                "texte": "Toutes les actions"
+            },
+            {
+                "type": "option",
+                "texte": "Création"
+            },
+            {
+                "type": "th",
+                "texte": "Utilisateur"
+            },
+            {
+                "type": "th",
+                "texte": "Action"
+            },
+            {
+                "type": "th",
+                "texte": "Détail"
+            },
+            {
+                "type": "th",
+                "texte": "Date"
+            },
+            {
+                "type": "th",
+                "texte": "Heure"
+            },
+            {
+                "type": "th",
+                "texte": "Poste"
+            },
+            {
+                "type": "span",
+                "texte": "Création"
+            },
+            {
+                "type": "td",
+                "texte": "Client : KORA"
+            },
+            {
+                "type": "td",
+                "texte": "15/10/2026"
+            },
+            {
+                "type": "td",
+                "texte": "04:40:08"
+            },
+            {
+                "type": "td",
+                "texte": "127.0.0.1"
+            },
+            {
+                "type": "span",
+                "texte": "Création"
+            },
+            {
+                "type": "td",
+                "texte": "Client : KORA Jean"
+            },
+            {
+                "type": "td",
+                "texte": "15/10/2026"
+            },
+            {
+                "type": "td",
+                "texte": "04:40:08"
+            },
+            {
+                "type": "td",
+                "texte": "127.0.0.1"
+            },
+            {
+                "type": "span",
+                "texte": "Création"
+            },
+            {
+                "type": "td",
+                "texte": "unites_hebergement :"
+            },
+            {
+                "type": "span",
+                "texte": "01a13ddc-475f-7130-951d-f96d3a954a82"
+            },
+            {
+                "type": "td",
+                "texte": "15/10/2026"
+            },
+            {
+                "type": "td",
+                "texte": "04:40:08"
+            },
+            {
+                "type": "td",
+                "texte": "127.0.0.1"
+            },
+            {
+                "type": "span",
+                "texte": "Création"
+            },
+            {
+                "type": "td",
+                "texte": "unites_hebergement :"
+            },
+            {
+                "type": "span",
+                "texte": "01a13ddc-4761-738f-bcbf-caf478e780cb"
+            },
+            {
+                "type": "td",
+                "texte": "15/10/2026"
+            },
+            {
+                "type": "td",
+                "texte": "04:40:08"
+            },
+            {
+                "type": "td",
+                "texte": "127.0.0.1"
+            },
+            {
+                "type": "p",
+                "texte": "🔒 Ce journal est en lecture seule pour tous les profils, y compris l'Administrateur, conformément au chap. 11.4 du CdCF."
+            },
+            {
+                "type": "p",
+                "texte": "4 entrée(s) au registre pour ce filtre."
+            }
+        ]
+    }
+}

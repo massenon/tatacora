@@ -1,0 +1,1226 @@
+{
+    "_lisez-moi": "PRODUIT par ExtraireStructureBladeTest, jamais ecrit a la main. Chaque variante (onglet) : les textes VISIBLES de <main>, dans l'ordre du document.",
+    "vue": "notifications/hub",
+    "jeu": "parc",
+    "onglets": {
+        "file": [
+            {
+                "type": "h1",
+                "texte": "Notifications"
+            },
+            {
+                "type": "p",
+                "texte": "Le référentiel des notifications : modèles de messages, événements déclencheurs et canaux de diffusion. Relisez les textes avant que les canaux soient contractés."
+            },
+            {
+                "type": "button",
+                "texte": "Détecter maintenant"
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "p",
+                "texte": "Seul l’e-mail peut réellement partir, et sous conditions."
+            },
+            {
+                "type": "p",
+                "texte": "WhatsApp, Android et SMS restent à transmettre à la main : aucun des trois n’est contracté, ni configuré. Pour l’e-mail, l’envoi n’a lieu que si l’adresse du destinataire est connue et qu’un relais SMTP réel est configuré ; sinon le message reste en file, avec la raison affichée. Un message marqué « envoyé » alors que rien n’est parti serait pire que pas de module du tout : le Gérant croirait son client prévenu."
+            },
+            {
+                "type": "span",
+                "texte": "Indicateurs des notifications"
+            },
+            {
+                "type": "div",
+                "texte": "En file d’attente"
+            },
+            {
+                "type": "div",
+                "texte": "Composés, prêts, non partis"
+            },
+            {
+                "type": "div",
+                "texte": "Réellement envoyés"
+            },
+            {
+                "type": "div",
+                "texte": "E-mails partis, comptés en base"
+            },
+            {
+                "type": "div",
+                "texte": "Transmis à la main"
+            },
+            {
+                "type": "div",
+                "texte": "Par un opérateur"
+            },
+            {
+                "type": "div",
+                "texte": "Abandonnés"
+            },
+            {
+                "type": "div",
+                "texte": "Avec motif"
+            },
+            {
+                "type": "div",
+                "texte": "Modèles actifs"
+            },
+            {
+                "type": "div",
+                "texte": "0 / 0"
+            },
+            {
+                "type": "div",
+                "texte": "9 déclencheurs"
+            },
+            {
+                "type": "div",
+                "texte": "Canaux branchés"
+            },
+            {
+                "type": "div",
+                "texte": "0 / 4"
+            },
+            {
+                "type": "div",
+                "texte": "Dépendances externes"
+            },
+            {
+                "type": "onglet",
+                "texte": "File d’attente",
+                "cle": "file"
+            },
+            {
+                "type": "onglet",
+                "texte": "Modèles",
+                "cle": "modeles"
+            },
+            {
+                "type": "onglet",
+                "texte": "Déclencheurs",
+                "cle": "declencheurs"
+            },
+            {
+                "type": "onglet",
+                "texte": "Journal",
+                "cle": "journal"
+            },
+            {
+                "type": "onglet",
+                "texte": "Canaux",
+                "cle": "canaux"
+            },
+            {
+                "type": "champ",
+                "texte": "Destinataire, contenu, modèle…"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les canaux"
+            },
+            {
+                "type": "option",
+                "texte": "WhatsApp"
+            },
+            {
+                "type": "option",
+                "texte": "E-mail"
+            },
+            {
+                "type": "option",
+                "texte": "Android (push)"
+            },
+            {
+                "type": "option",
+                "texte": "SMS"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les publics"
+            },
+            {
+                "type": "option",
+                "texte": "Client"
+            },
+            {
+                "type": "option",
+                "texte": "Salarié"
+            },
+            {
+                "type": "option",
+                "texte": "Équipe interne"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les états"
+            },
+            {
+                "type": "option",
+                "texte": "Actifs"
+            },
+            {
+                "type": "option",
+                "texte": "Désactivés"
+            },
+            {
+                "type": "button",
+                "texte": "+ Modèle"
+            },
+            {
+                "type": "div",
+                "texte": "Aucun message en attente. Lancez « Détecter maintenant » pour composer les messages du jour."
+            }
+        ],
+        "modeles": [
+            {
+                "type": "h1",
+                "texte": "Notifications"
+            },
+            {
+                "type": "p",
+                "texte": "Le référentiel des notifications : modèles de messages, événements déclencheurs et canaux de diffusion. Relisez les textes avant que les canaux soient contractés."
+            },
+            {
+                "type": "button",
+                "texte": "Détecter maintenant"
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "p",
+                "texte": "Seul l’e-mail peut réellement partir, et sous conditions."
+            },
+            {
+                "type": "p",
+                "texte": "WhatsApp, Android et SMS restent à transmettre à la main : aucun des trois n’est contracté, ni configuré. Pour l’e-mail, l’envoi n’a lieu que si l’adresse du destinataire est connue et qu’un relais SMTP réel est configuré ; sinon le message reste en file, avec la raison affichée. Un message marqué « envoyé » alors que rien n’est parti serait pire que pas de module du tout : le Gérant croirait son client prévenu."
+            },
+            {
+                "type": "span",
+                "texte": "Indicateurs des notifications"
+            },
+            {
+                "type": "div",
+                "texte": "En file d’attente"
+            },
+            {
+                "type": "div",
+                "texte": "Composés, prêts, non partis"
+            },
+            {
+                "type": "div",
+                "texte": "Réellement envoyés"
+            },
+            {
+                "type": "div",
+                "texte": "E-mails partis, comptés en base"
+            },
+            {
+                "type": "div",
+                "texte": "Transmis à la main"
+            },
+            {
+                "type": "div",
+                "texte": "Par un opérateur"
+            },
+            {
+                "type": "div",
+                "texte": "Abandonnés"
+            },
+            {
+                "type": "div",
+                "texte": "Avec motif"
+            },
+            {
+                "type": "div",
+                "texte": "Modèles actifs"
+            },
+            {
+                "type": "div",
+                "texte": "0 / 0"
+            },
+            {
+                "type": "div",
+                "texte": "9 déclencheurs"
+            },
+            {
+                "type": "div",
+                "texte": "Canaux branchés"
+            },
+            {
+                "type": "div",
+                "texte": "0 / 4"
+            },
+            {
+                "type": "div",
+                "texte": "Dépendances externes"
+            },
+            {
+                "type": "onglet",
+                "texte": "File d’attente",
+                "cle": "file"
+            },
+            {
+                "type": "onglet",
+                "texte": "Modèles",
+                "cle": "modeles"
+            },
+            {
+                "type": "onglet",
+                "texte": "Déclencheurs",
+                "cle": "declencheurs"
+            },
+            {
+                "type": "onglet",
+                "texte": "Journal",
+                "cle": "journal"
+            },
+            {
+                "type": "onglet",
+                "texte": "Canaux",
+                "cle": "canaux"
+            },
+            {
+                "type": "champ",
+                "texte": "Destinataire, contenu, modèle…"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les canaux"
+            },
+            {
+                "type": "option",
+                "texte": "WhatsApp"
+            },
+            {
+                "type": "option",
+                "texte": "E-mail"
+            },
+            {
+                "type": "option",
+                "texte": "Android (push)"
+            },
+            {
+                "type": "option",
+                "texte": "SMS"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les publics"
+            },
+            {
+                "type": "option",
+                "texte": "Client"
+            },
+            {
+                "type": "option",
+                "texte": "Salarié"
+            },
+            {
+                "type": "option",
+                "texte": "Équipe interne"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les états"
+            },
+            {
+                "type": "option",
+                "texte": "Actifs"
+            },
+            {
+                "type": "option",
+                "texte": "Désactivés"
+            },
+            {
+                "type": "button",
+                "texte": "+ Modèle"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun résultat"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun modèle ne correspond."
+            }
+        ],
+        "declencheurs": [
+            {
+                "type": "h1",
+                "texte": "Notifications"
+            },
+            {
+                "type": "p",
+                "texte": "Le référentiel des notifications : modèles de messages, événements déclencheurs et canaux de diffusion. Relisez les textes avant que les canaux soient contractés."
+            },
+            {
+                "type": "button",
+                "texte": "Détecter maintenant"
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "p",
+                "texte": "Seul l’e-mail peut réellement partir, et sous conditions."
+            },
+            {
+                "type": "p",
+                "texte": "WhatsApp, Android et SMS restent à transmettre à la main : aucun des trois n’est contracté, ni configuré. Pour l’e-mail, l’envoi n’a lieu que si l’adresse du destinataire est connue et qu’un relais SMTP réel est configuré ; sinon le message reste en file, avec la raison affichée. Un message marqué « envoyé » alors que rien n’est parti serait pire que pas de module du tout : le Gérant croirait son client prévenu."
+            },
+            {
+                "type": "span",
+                "texte": "Indicateurs des notifications"
+            },
+            {
+                "type": "div",
+                "texte": "En file d’attente"
+            },
+            {
+                "type": "div",
+                "texte": "Composés, prêts, non partis"
+            },
+            {
+                "type": "div",
+                "texte": "Réellement envoyés"
+            },
+            {
+                "type": "div",
+                "texte": "E-mails partis, comptés en base"
+            },
+            {
+                "type": "div",
+                "texte": "Transmis à la main"
+            },
+            {
+                "type": "div",
+                "texte": "Par un opérateur"
+            },
+            {
+                "type": "div",
+                "texte": "Abandonnés"
+            },
+            {
+                "type": "div",
+                "texte": "Avec motif"
+            },
+            {
+                "type": "div",
+                "texte": "Modèles actifs"
+            },
+            {
+                "type": "div",
+                "texte": "0 / 0"
+            },
+            {
+                "type": "div",
+                "texte": "9 déclencheurs"
+            },
+            {
+                "type": "div",
+                "texte": "Canaux branchés"
+            },
+            {
+                "type": "div",
+                "texte": "0 / 4"
+            },
+            {
+                "type": "div",
+                "texte": "Dépendances externes"
+            },
+            {
+                "type": "onglet",
+                "texte": "File d’attente",
+                "cle": "file"
+            },
+            {
+                "type": "onglet",
+                "texte": "Modèles",
+                "cle": "modeles"
+            },
+            {
+                "type": "onglet",
+                "texte": "Déclencheurs",
+                "cle": "declencheurs"
+            },
+            {
+                "type": "onglet",
+                "texte": "Journal",
+                "cle": "journal"
+            },
+            {
+                "type": "onglet",
+                "texte": "Canaux",
+                "cle": "canaux"
+            },
+            {
+                "type": "champ",
+                "texte": "Destinataire, contenu, modèle…"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les canaux"
+            },
+            {
+                "type": "option",
+                "texte": "WhatsApp"
+            },
+            {
+                "type": "option",
+                "texte": "E-mail"
+            },
+            {
+                "type": "option",
+                "texte": "Android (push)"
+            },
+            {
+                "type": "option",
+                "texte": "SMS"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les publics"
+            },
+            {
+                "type": "option",
+                "texte": "Client"
+            },
+            {
+                "type": "option",
+                "texte": "Salarié"
+            },
+            {
+                "type": "option",
+                "texte": "Équipe interne"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les états"
+            },
+            {
+                "type": "option",
+                "texte": "Actifs"
+            },
+            {
+                "type": "option",
+                "texte": "Désactivés"
+            },
+            {
+                "type": "button",
+                "texte": "+ Modèle"
+            },
+            {
+                "type": "h3",
+                "texte": "Déclencheurs — 9 événements du registre"
+            },
+            {
+                "type": "th",
+                "texte": "Déclencheur"
+            },
+            {
+                "type": "th",
+                "texte": "Public"
+            },
+            {
+                "type": "th",
+                "texte": "Module"
+            },
+            {
+                "type": "th",
+                "texte": "Modèles"
+            },
+            {
+                "type": "th",
+                "texte": "Variables"
+            },
+            {
+                "type": "div",
+                "texte": "Séjour — arrivée demain"
+            },
+            {
+                "type": "div",
+                "texte": "Rappel la veille de l’arrivée, avec les informations d’accès."
+            },
+            {
+                "type": "td",
+                "texte": "Client"
+            },
+            {
+                "type": "td",
+                "texte": "0 / 0"
+            },
+            {
+                "type": "td",
+                "texte": "{client} {date_arrivee} {date_depart} {nuits}"
+            },
+            {
+                "type": "div",
+                "texte": "Séjour — départ du jour"
+            },
+            {
+                "type": "div",
+                "texte": "Remerciement au départ, avec le solde restant s’il y en a un."
+            },
+            {
+                "type": "td",
+                "texte": "Client"
+            },
+            {
+                "type": "td",
+                "texte": "0 / 0"
+            },
+            {
+                "type": "td",
+                "texte": "{client} {date_depart} {reste_du}"
+            },
+            {
+                "type": "div",
+                "texte": "Créance échue — plus de 30 jours"
+            },
+            {
+                "type": "div",
+                "texte": "Relance amiable sur une créance que le moteur signale à relancer."
+            },
+            {
+                "type": "td",
+                "texte": "Client"
+            },
+            {
+                "type": "td",
+                "texte": "0 / 0"
+            },
+            {
+                "type": "td",
+                "texte": "{client} {montant} {anciennete}"
+            },
+            {
+                "type": "div",
+                "texte": "Créance de plus de 90 jours"
+            },
+            {
+                "type": "div",
+                "texte": "Alerte au Gérant : une provision pour dépréciation est à envisager."
+            },
+            {
+                "type": "td",
+                "texte": "Équipe interne"
+            },
+            {
+                "type": "td",
+                "texte": "0 / 0"
+            },
+            {
+                "type": "td",
+                "texte": "{nb_clients} {montant} {part}"
+            },
+            {
+                "type": "div",
+                "texte": "Article sous le seuil d’alerte"
+            },
+            {
+                "type": "div",
+                "texte": "Alerte au magasinier, article par article."
+            },
+            {
+                "type": "td",
+                "texte": "Équipe interne"
+            },
+            {
+                "type": "td",
+                "texte": "0 / 0"
+            },
+            {
+                "type": "td",
+                "texte": "{article} {stock} {seuil} {point}"
+            },
+            {
+                "type": "div",
+                "texte": "Circuit — départ demain"
+            },
+            {
+                "type": "div",
+                "texte": "Rappel aux clients inscrits, avec l’heure et le guide."
+            },
+            {
+                "type": "td",
+                "texte": "Client"
+            },
+            {
+                "type": "td",
+                "texte": "0 / 0"
+            },
+            {
+                "type": "td",
+                "texte": "{client} {circuit} {date} {guide} {personnes}"
+            },
+            {
+                "type": "div",
+                "texte": "Véhicule — restitution du jour"
+            },
+            {
+                "type": "div",
+                "texte": "Rappel de restitution, avec le solde éventuel."
+            },
+            {
+                "type": "td",
+                "texte": "Client"
+            },
+            {
+                "type": "td",
+                "texte": "0 / 0"
+            },
+            {
+                "type": "td",
+                "texte": "{client} {vehicule} {date} {reste_du}"
+            },
+            {
+                "type": "div",
+                "texte": "Bulletin de paie disponible"
+            },
+            {
+                "type": "div",
+                "texte": "Information au salarié : son bulletin du mois est établi."
+            },
+            {
+                "type": "td",
+                "texte": "Salarié"
+            },
+            {
+                "type": "span",
+                "texte": "M13"
+            },
+            {
+                "type": "td",
+                "texte": "0 / 0"
+            },
+            {
+                "type": "td",
+                "texte": "{employe} {periode} {net}"
+            },
+            {
+                "type": "div",
+                "texte": "Échéance VPS — le 10 du mois"
+            },
+            {
+                "type": "div",
+                "texte": "Rappel au Comptable : le VPS est exigible au plus tard le 10."
+            },
+            {
+                "type": "td",
+                "texte": "Équipe interne"
+            },
+            {
+                "type": "span",
+                "texte": "M13"
+            },
+            {
+                "type": "td",
+                "texte": "0 / 0"
+            },
+            {
+                "type": "td",
+                "texte": "{periode} {montant} {echeance}"
+            }
+        ],
+        "journal": [
+            {
+                "type": "h1",
+                "texte": "Notifications"
+            },
+            {
+                "type": "p",
+                "texte": "Le référentiel des notifications : modèles de messages, événements déclencheurs et canaux de diffusion. Relisez les textes avant que les canaux soient contractés."
+            },
+            {
+                "type": "button",
+                "texte": "Détecter maintenant"
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "p",
+                "texte": "Seul l’e-mail peut réellement partir, et sous conditions."
+            },
+            {
+                "type": "p",
+                "texte": "WhatsApp, Android et SMS restent à transmettre à la main : aucun des trois n’est contracté, ni configuré. Pour l’e-mail, l’envoi n’a lieu que si l’adresse du destinataire est connue et qu’un relais SMTP réel est configuré ; sinon le message reste en file, avec la raison affichée. Un message marqué « envoyé » alors que rien n’est parti serait pire que pas de module du tout : le Gérant croirait son client prévenu."
+            },
+            {
+                "type": "span",
+                "texte": "Indicateurs des notifications"
+            },
+            {
+                "type": "div",
+                "texte": "En file d’attente"
+            },
+            {
+                "type": "div",
+                "texte": "Composés, prêts, non partis"
+            },
+            {
+                "type": "div",
+                "texte": "Réellement envoyés"
+            },
+            {
+                "type": "div",
+                "texte": "E-mails partis, comptés en base"
+            },
+            {
+                "type": "div",
+                "texte": "Transmis à la main"
+            },
+            {
+                "type": "div",
+                "texte": "Par un opérateur"
+            },
+            {
+                "type": "div",
+                "texte": "Abandonnés"
+            },
+            {
+                "type": "div",
+                "texte": "Avec motif"
+            },
+            {
+                "type": "div",
+                "texte": "Modèles actifs"
+            },
+            {
+                "type": "div",
+                "texte": "0 / 0"
+            },
+            {
+                "type": "div",
+                "texte": "9 déclencheurs"
+            },
+            {
+                "type": "div",
+                "texte": "Canaux branchés"
+            },
+            {
+                "type": "div",
+                "texte": "0 / 4"
+            },
+            {
+                "type": "div",
+                "texte": "Dépendances externes"
+            },
+            {
+                "type": "onglet",
+                "texte": "File d’attente",
+                "cle": "file"
+            },
+            {
+                "type": "onglet",
+                "texte": "Modèles",
+                "cle": "modeles"
+            },
+            {
+                "type": "onglet",
+                "texte": "Déclencheurs",
+                "cle": "declencheurs"
+            },
+            {
+                "type": "onglet",
+                "texte": "Journal",
+                "cle": "journal"
+            },
+            {
+                "type": "onglet",
+                "texte": "Canaux",
+                "cle": "canaux"
+            },
+            {
+                "type": "champ",
+                "texte": "Destinataire, contenu, modèle…"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les canaux"
+            },
+            {
+                "type": "option",
+                "texte": "WhatsApp"
+            },
+            {
+                "type": "option",
+                "texte": "E-mail"
+            },
+            {
+                "type": "option",
+                "texte": "Android (push)"
+            },
+            {
+                "type": "option",
+                "texte": "SMS"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les publics"
+            },
+            {
+                "type": "option",
+                "texte": "Client"
+            },
+            {
+                "type": "option",
+                "texte": "Salarié"
+            },
+            {
+                "type": "option",
+                "texte": "Équipe interne"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les états"
+            },
+            {
+                "type": "option",
+                "texte": "Actifs"
+            },
+            {
+                "type": "option",
+                "texte": "Désactivés"
+            },
+            {
+                "type": "button",
+                "texte": "+ Modèle"
+            },
+            {
+                "type": "h3",
+                "texte": "Journal — 0 message(s)"
+            },
+            {
+                "type": "span",
+                "texte": "La colonne « Envoi système » dit « oui » uniquement pour un message que le transport a réellement accepté — WhatsApp, Android et SMS restent « non » tant qu’aucun n’est branché."
+            },
+            {
+                "type": "th",
+                "texte": "Date"
+            },
+            {
+                "type": "th",
+                "texte": "Destinataire"
+            },
+            {
+                "type": "th",
+                "texte": "Déclencheur"
+            },
+            {
+                "type": "th",
+                "texte": "Canal"
+            },
+            {
+                "type": "th",
+                "texte": "Statut"
+            },
+            {
+                "type": "th",
+                "texte": "Envoi système"
+            },
+            {
+                "type": "th",
+                "texte": "Par"
+            },
+            {
+                "type": "th",
+                "texte": "Commentaire"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun résultat"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun message n’est encore parti. Ce journal lit la table réelle des envois — il se remplit dès qu’un e-mail est réellement délivré."
+            }
+        ],
+        "canaux": [
+            {
+                "type": "h1",
+                "texte": "Notifications"
+            },
+            {
+                "type": "p",
+                "texte": "Le référentiel des notifications : modèles de messages, événements déclencheurs et canaux de diffusion. Relisez les textes avant que les canaux soient contractés."
+            },
+            {
+                "type": "button",
+                "texte": "Détecter maintenant"
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "p",
+                "texte": "Seul l’e-mail peut réellement partir, et sous conditions."
+            },
+            {
+                "type": "p",
+                "texte": "WhatsApp, Android et SMS restent à transmettre à la main : aucun des trois n’est contracté, ni configuré. Pour l’e-mail, l’envoi n’a lieu que si l’adresse du destinataire est connue et qu’un relais SMTP réel est configuré ; sinon le message reste en file, avec la raison affichée. Un message marqué « envoyé » alors que rien n’est parti serait pire que pas de module du tout : le Gérant croirait son client prévenu."
+            },
+            {
+                "type": "span",
+                "texte": "Indicateurs des notifications"
+            },
+            {
+                "type": "div",
+                "texte": "En file d’attente"
+            },
+            {
+                "type": "div",
+                "texte": "Composés, prêts, non partis"
+            },
+            {
+                "type": "div",
+                "texte": "Réellement envoyés"
+            },
+            {
+                "type": "div",
+                "texte": "E-mails partis, comptés en base"
+            },
+            {
+                "type": "div",
+                "texte": "Transmis à la main"
+            },
+            {
+                "type": "div",
+                "texte": "Par un opérateur"
+            },
+            {
+                "type": "div",
+                "texte": "Abandonnés"
+            },
+            {
+                "type": "div",
+                "texte": "Avec motif"
+            },
+            {
+                "type": "div",
+                "texte": "Modèles actifs"
+            },
+            {
+                "type": "div",
+                "texte": "0 / 0"
+            },
+            {
+                "type": "div",
+                "texte": "9 déclencheurs"
+            },
+            {
+                "type": "div",
+                "texte": "Canaux branchés"
+            },
+            {
+                "type": "div",
+                "texte": "0 / 4"
+            },
+            {
+                "type": "div",
+                "texte": "Dépendances externes"
+            },
+            {
+                "type": "onglet",
+                "texte": "File d’attente",
+                "cle": "file"
+            },
+            {
+                "type": "onglet",
+                "texte": "Modèles",
+                "cle": "modeles"
+            },
+            {
+                "type": "onglet",
+                "texte": "Déclencheurs",
+                "cle": "declencheurs"
+            },
+            {
+                "type": "onglet",
+                "texte": "Journal",
+                "cle": "journal"
+            },
+            {
+                "type": "onglet",
+                "texte": "Canaux",
+                "cle": "canaux"
+            },
+            {
+                "type": "champ",
+                "texte": "Destinataire, contenu, modèle…"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les canaux"
+            },
+            {
+                "type": "option",
+                "texte": "WhatsApp"
+            },
+            {
+                "type": "option",
+                "texte": "E-mail"
+            },
+            {
+                "type": "option",
+                "texte": "Android (push)"
+            },
+            {
+                "type": "option",
+                "texte": "SMS"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les publics"
+            },
+            {
+                "type": "option",
+                "texte": "Client"
+            },
+            {
+                "type": "option",
+                "texte": "Salarié"
+            },
+            {
+                "type": "option",
+                "texte": "Équipe interne"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les états"
+            },
+            {
+                "type": "option",
+                "texte": "Actifs"
+            },
+            {
+                "type": "option",
+                "texte": "Désactivés"
+            },
+            {
+                "type": "button",
+                "texte": "+ Modèle"
+            },
+            {
+                "type": "h3",
+                "texte": "Canaux de diffusion"
+            },
+            {
+                "type": "th",
+                "texte": "Canal"
+            },
+            {
+                "type": "th",
+                "texte": "État"
+            },
+            {
+                "type": "th",
+                "texte": "Ce qui bloque"
+            },
+            {
+                "type": "th",
+                "texte": "Limite"
+            },
+            {
+                "type": "th",
+                "texte": "Destinataire attendu"
+            },
+            {
+                "type": "th",
+                "texte": "En file"
+            },
+            {
+                "type": "td",
+                "texte": "WhatsApp"
+            },
+            {
+                "type": "span",
+                "texte": "non branché"
+            },
+            {
+                "type": "td",
+                "texte": "API WhatsApp Business non contractée — contrat commercial et numéro vérifié requis."
+            },
+            {
+                "type": "td",
+                "texte": "4096 car."
+            },
+            {
+                "type": "td",
+                "texte": "telephone"
+            },
+            {
+                "type": "td",
+                "texte": "E-mail"
+            },
+            {
+                "type": "span",
+                "texte": "non branché"
+            },
+            {
+                "type": "td",
+                "texte": "Aucun relais SMTP réel configuré."
+            },
+            {
+                "type": "td",
+                "texte": "email"
+            },
+            {
+                "type": "td",
+                "texte": "Android (push)"
+            },
+            {
+                "type": "span",
+                "texte": "non branché"
+            },
+            {
+                "type": "td",
+                "texte": "L’application Flutter n’est pas démarrée : aucun appareil n’est enregistré."
+            },
+            {
+                "type": "td",
+                "texte": "240 car."
+            },
+            {
+                "type": "td",
+                "texte": "appareil"
+            },
+            {
+                "type": "td",
+                "texte": "SMS"
+            },
+            {
+                "type": "span",
+                "texte": "non branché"
+            },
+            {
+                "type": "td",
+                "texte": "Aucun agrégateur SMS retenu."
+            },
+            {
+                "type": "td",
+                "texte": "160 car."
+            },
+            {
+                "type": "td",
+                "texte": "telephone"
+            },
+            {
+                "type": "p",
+                "texte": "Le canal WhatsApp suppose un contrat WhatsApp Business et un numéro vérifié — c’est le plus long à obtenir, et c’est aussi celui que le Gîte utilise déjà à la main. L’e-mail ne demande qu’un relais SMTP. Le canal Android attend l’application Flutter, qui n’est pas démarrée. Le SMS suppose un agrégateur retenu."
+            },
+            {
+                "type": "p",
+                "texte": "Aucun de ces quatre points n’est un développement : ce sont des décisions et des contrats. Les modèles, eux, sont prêts et relisibles dès maintenant."
+            }
+        ]
+    }
+}

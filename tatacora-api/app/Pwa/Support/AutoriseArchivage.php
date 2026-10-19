@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Pwa\Support;
 
 use App\Models\User;
-use App\Shared\Parametres\Services\OptionsSystemeService;
+use App\Shared\Rbac\Services\DroitArchivageService;
 
 /**
  * QUI PEUT ARCHIVER dans la PWA — la règle, écrite UNE fois.
@@ -79,6 +79,11 @@ trait AutoriseArchivage
      * fait deux. Le nom local est conservé — il dit ce que la règle fait ICI,
      * archiver sans la bascule.
      *
+     * ⚠ Depuis le 15/10/2026, le prédicat lui-même vit sur
+     * `DroitArchivageService` (la synchronisation archive aussi), qui lit
+     * `User::ROLES_ADMINISTRATION` directement : cette constante n'est plus
+     * qu'un alias documentaire, conservé pour les tests qui la nomment.
+     *
      * @var list<string>
      */
     protected const ROLES_ARCHIVAGE_HORS_BASCULE = User::ROLES_ADMINISTRATION;
@@ -94,19 +99,13 @@ trait AutoriseArchivage
     {
         $utilisateur = auth()->user();
 
-        if (! $utilisateur instanceof User || ! $utilisateur->estActif()) {
-            return false;
-        }
-
-        if ($utilisateur->niveauSurModule(static::MODULE) !== 'C') {
-            return false;
-        }
-
-        if (in_array((string) $utilisateur->role?->libelle, self::ROLES_ARCHIVAGE_HORS_BASCULE, true)) {
-            return true;
-        }
-
-        return app(OptionsSystemeService::class)->suppressionActive();
+        // La règle vit dans `DroitArchivageService` depuis le 15/10/2026 : la
+        // synchronisation hors connexion archive aussi (fournisseurs), et la
+        // recopier là-bas en aurait fait deux auteurs.
+        return app(DroitArchivageService::class)->peutArchiver(
+            $utilisateur instanceof User ? $utilisateur : null,
+            static::MODULE,
+        );
     }
 
     /**

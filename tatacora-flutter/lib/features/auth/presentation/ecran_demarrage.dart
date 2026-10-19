@@ -19,8 +19,9 @@ import '../../../core/theme/app_text_styles.dart';
 /// D385 : « LogiRestock », nom d'un autre produit, est remplacé ; seconde
 /// décision du même jour, PA-209, D389 : la mention est « Système de gestion
 /// Intégré », casse exacte du PO).
+// Directive PO du 14/10/2026 : même libellé que la barre supérieure.
 const String localisationDemarrage =
-    'Natitingou, Bénin — Système de gestion Intégré';
+    'Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)';
 
 /// Écran de démarrage — **traduction de `prototype_v2/pages/splash.html`**.
 ///

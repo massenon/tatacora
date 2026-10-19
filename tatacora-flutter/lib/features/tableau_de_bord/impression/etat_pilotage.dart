@@ -54,6 +54,11 @@ final class EtatPilotage {
 
   final EnteteEtablissement entete;
 
+  /// Le même document sous l'en-tête lu des paramètres au moment d'éditer
+  /// (`lireEnteteEtablissementProvider`).
+  EtatPilotage avecEntete(EnteteEtablissement autre) =>
+      EtatPilotage(periode: periode, kpis: kpis, lignes: lignes, entete: autre);
+
   /// Les en-têtes du maître, au mot.
   static const List<String> entetes = ['Rubrique', 'Indicateur', 'Valeur'];
 

@@ -27,6 +27,20 @@ class PointStockage extends Model
 
     protected $table = 'points_stockage';
 
+    /**
+     * Le registre FERMÉ des types de point — les quatre points du Gîte
+     * (`StocksSeeder`), et l'énumération `TypePoint` du poste Flutter.
+     *
+     * Posé le 15/10/2026 avec la création de points hors connexion (lot S2) :
+     * la colonne est une chaîne libre au schéma, et RG-05 retrouve un point
+     * par son type. Un « Cuisines » au pluriel créé sur un poste ferait
+     * disparaître le point de toute recherche par type sans que rien ne le
+     * dise. `null` reste admis, comme au schéma.
+     *
+     * @var list<string>
+     */
+    public const TYPES = ['magasin', 'cuisine', 'bar', 'garage'];
+
     protected $fillable = ['id', 'libelle', 'type'];
 
     /**

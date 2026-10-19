@@ -1,0 +1,599 @@
+{
+    "_lisez-moi": "PRODUIT par ExtraireStructureBladeTest, jamais ecrit a la main. Chaque variante (onglet) : les textes VISIBLES de <main>, dans l'ordre du document.",
+    "vue": "crm/clients-creances",
+    "jeu": "clients",
+    "onglets": {
+        "clients": [
+            {
+                "type": "h1",
+                "texte": "Clients & Créances"
+            },
+            {
+                "type": "p",
+                "texte": "Le solde d'un client est : factures certifiées non soldées, diminuées des règlements reçus. Il ne se saisit jamais."
+            },
+            {
+                "type": "a",
+                "texte": "Réservations"
+            },
+            {
+                "type": "button",
+                "texte": "+ Nouveau client"
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "div",
+                "texte": "Créances totales"
+            },
+            {
+                "type": "div",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "div",
+                "texte": "0 pièce(s) · 0 client(s)"
+            },
+            {
+                "type": "div",
+                "texte": "Dont + de 90 jours"
+            },
+            {
+                "type": "div",
+                "texte": "Part de la créance totale sur cette tranche"
+            },
+            {
+                "type": "div",
+                "texte": "0 à 30 jours"
+            },
+            {
+                "type": "div",
+                "texte": "Récent, non échu"
+            },
+            {
+                "type": "div",
+                "texte": "Encaissé sur 30 j"
+            },
+            {
+                "type": "div",
+                "texte": "Recouvrements réellement enregistrés"
+            },
+            {
+                "type": "div",
+                "texte": "Clients à relancer"
+            },
+            {
+                "type": "div",
+                "texte": "Plus de 30 j sans relance récente"
+            },
+            {
+                "type": "onglet",
+                "texte": "Liste des clients",
+                "cle": "clients"
+            },
+            {
+                "type": "onglet",
+                "texte": "Suivi des dettes",
+                "cle": "dettes"
+            },
+            {
+                "type": "onglet",
+                "texte": "Relances clients",
+                "cle": "relances"
+            },
+            {
+                "type": "onglet",
+                "texte": "Historique & avances",
+                "cle": "avances"
+            },
+            {
+                "type": "champ",
+                "texte": "Rechercher un client…"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les clients"
+            },
+            {
+                "type": "option",
+                "texte": "Débiteurs uniquement"
+            },
+            {
+                "type": "option",
+                "texte": "Sans dette"
+            },
+            {
+                "type": "th",
+                "texte": "Client"
+            },
+            {
+                "type": "th",
+                "texte": "Téléphone"
+            },
+            {
+                "type": "th",
+                "texte": "Type"
+            },
+            {
+                "type": "th",
+                "texte": "Solde dû"
+            },
+            {
+                "type": "th",
+                "texte": "Pièces"
+            },
+            {
+                "type": "th",
+                "texte": "Ancienneté"
+            },
+            {
+                "type": "span",
+                "texte": "KORA"
+            },
+            {
+                "type": "td",
+                "texte": "97111111"
+            },
+            {
+                "type": "td",
+                "texte": "Particulier"
+            },
+            {
+                "type": "button",
+                "texte": "Historique"
+            },
+            {
+                "type": "button",
+                "texte": "Supprimer"
+            },
+            {
+                "type": "span",
+                "texte": "KORA Jean"
+            },
+            {
+                "type": "td",
+                "texte": "+229 01 00 00 00 01"
+            },
+            {
+                "type": "td",
+                "texte": "Particulier"
+            },
+            {
+                "type": "button",
+                "texte": "Historique"
+            },
+            {
+                "type": "button",
+                "texte": "Supprimer"
+            }
+        ],
+        "dettes": [
+            {
+                "type": "h1",
+                "texte": "Clients & Créances"
+            },
+            {
+                "type": "p",
+                "texte": "Le solde d'un client est : factures certifiées non soldées, diminuées des règlements reçus. Il ne se saisit jamais."
+            },
+            {
+                "type": "a",
+                "texte": "Réservations"
+            },
+            {
+                "type": "button",
+                "texte": "+ Nouveau client"
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "div",
+                "texte": "Créances totales"
+            },
+            {
+                "type": "div",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "div",
+                "texte": "0 pièce(s) · 0 client(s)"
+            },
+            {
+                "type": "div",
+                "texte": "Dont + de 90 jours"
+            },
+            {
+                "type": "div",
+                "texte": "Part de la créance totale sur cette tranche"
+            },
+            {
+                "type": "div",
+                "texte": "0 à 30 jours"
+            },
+            {
+                "type": "div",
+                "texte": "Récent, non échu"
+            },
+            {
+                "type": "div",
+                "texte": "Encaissé sur 30 j"
+            },
+            {
+                "type": "div",
+                "texte": "Recouvrements réellement enregistrés"
+            },
+            {
+                "type": "div",
+                "texte": "Clients à relancer"
+            },
+            {
+                "type": "div",
+                "texte": "Plus de 30 j sans relance récente"
+            },
+            {
+                "type": "onglet",
+                "texte": "Liste des clients",
+                "cle": "clients"
+            },
+            {
+                "type": "onglet",
+                "texte": "Suivi des dettes",
+                "cle": "dettes"
+            },
+            {
+                "type": "onglet",
+                "texte": "Relances clients",
+                "cle": "relances"
+            },
+            {
+                "type": "onglet",
+                "texte": "Historique & avances",
+                "cle": "avances"
+            },
+            {
+                "type": "champ",
+                "texte": "Rechercher un client…"
+            },
+            {
+                "type": "p",
+                "texte": "Les tranches classent chaque pièce par ancienneté depuis sa date d'émission. Au-delà de 90 jours, le recouvrement devient incertain et une provision pour dépréciation doit être envisagée — son taux relève d'une décision du Comptable et du Gérant, il n'est pas calculé ici."
+            },
+            {
+                "type": "th",
+                "texte": "Client"
+            },
+            {
+                "type": "th",
+                "texte": "0 à 30 jours"
+            },
+            {
+                "type": "th",
+                "texte": "31 à 60 jours"
+            },
+            {
+                "type": "th",
+                "texte": "61 à 90 jours"
+            },
+            {
+                "type": "th",
+                "texte": "Plus de 90 jours"
+            },
+            {
+                "type": "th",
+                "texte": "Total dû"
+            },
+            {
+                "type": "td",
+                "texte": "Aucune créance en cours. Tous les clients sont à jour."
+            }
+        ],
+        "relances": [
+            {
+                "type": "h1",
+                "texte": "Clients & Créances"
+            },
+            {
+                "type": "p",
+                "texte": "Le solde d'un client est : factures certifiées non soldées, diminuées des règlements reçus. Il ne se saisit jamais."
+            },
+            {
+                "type": "a",
+                "texte": "Réservations"
+            },
+            {
+                "type": "button",
+                "texte": "+ Nouveau client"
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "div",
+                "texte": "Créances totales"
+            },
+            {
+                "type": "div",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "div",
+                "texte": "0 pièce(s) · 0 client(s)"
+            },
+            {
+                "type": "div",
+                "texte": "Dont + de 90 jours"
+            },
+            {
+                "type": "div",
+                "texte": "Part de la créance totale sur cette tranche"
+            },
+            {
+                "type": "div",
+                "texte": "0 à 30 jours"
+            },
+            {
+                "type": "div",
+                "texte": "Récent, non échu"
+            },
+            {
+                "type": "div",
+                "texte": "Encaissé sur 30 j"
+            },
+            {
+                "type": "div",
+                "texte": "Recouvrements réellement enregistrés"
+            },
+            {
+                "type": "div",
+                "texte": "Clients à relancer"
+            },
+            {
+                "type": "div",
+                "texte": "Plus de 30 j sans relance récente"
+            },
+            {
+                "type": "onglet",
+                "texte": "Liste des clients",
+                "cle": "clients"
+            },
+            {
+                "type": "onglet",
+                "texte": "Suivi des dettes",
+                "cle": "dettes"
+            },
+            {
+                "type": "onglet",
+                "texte": "Relances clients",
+                "cle": "relances"
+            },
+            {
+                "type": "onglet",
+                "texte": "Historique & avances",
+                "cle": "avances"
+            },
+            {
+                "type": "champ",
+                "texte": "Rechercher un client…"
+            },
+            {
+                "type": "p",
+                "texte": "La relance est tracée, pas envoyée. Aucun canal (WhatsApp, e-mail) n'est branché sur ce système : enregistrer un envoi qui n'a pas eu lieu ferait croire à un suivi inexistant."
+            },
+            {
+                "type": "h3",
+                "texte": "Clients à relancer (0)"
+            },
+            {
+                "type": "th",
+                "texte": "Client"
+            },
+            {
+                "type": "th",
+                "texte": "Montant dû"
+            },
+            {
+                "type": "th",
+                "texte": "Ancienneté max"
+            },
+            {
+                "type": "th",
+                "texte": "Dernière relance"
+            },
+            {
+                "type": "td",
+                "texte": "Aucun client à relancer : toutes les créances de plus de 30 jours ont été relancées récemment."
+            },
+            {
+                "type": "h3",
+                "texte": "Historique des relances (0)"
+            },
+            {
+                "type": "th",
+                "texte": "Date"
+            },
+            {
+                "type": "th",
+                "texte": "Client"
+            },
+            {
+                "type": "th",
+                "texte": "Canal"
+            },
+            {
+                "type": "th",
+                "texte": "Montant réclamé"
+            },
+            {
+                "type": "th",
+                "texte": "Promesse"
+            },
+            {
+                "type": "th",
+                "texte": "Par"
+            },
+            {
+                "type": "td",
+                "texte": "Aucune relance enregistrée."
+            }
+        ],
+        "avances": [
+            {
+                "type": "h1",
+                "texte": "Clients & Créances"
+            },
+            {
+                "type": "p",
+                "texte": "Le solde d'un client est : factures certifiées non soldées, diminuées des règlements reçus. Il ne se saisit jamais."
+            },
+            {
+                "type": "a",
+                "texte": "Réservations"
+            },
+            {
+                "type": "button",
+                "texte": "+ Nouveau client"
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "div",
+                "texte": "Créances totales"
+            },
+            {
+                "type": "div",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "div",
+                "texte": "0 pièce(s) · 0 client(s)"
+            },
+            {
+                "type": "div",
+                "texte": "Dont + de 90 jours"
+            },
+            {
+                "type": "div",
+                "texte": "Part de la créance totale sur cette tranche"
+            },
+            {
+                "type": "div",
+                "texte": "0 à 30 jours"
+            },
+            {
+                "type": "div",
+                "texte": "Récent, non échu"
+            },
+            {
+                "type": "div",
+                "texte": "Encaissé sur 30 j"
+            },
+            {
+                "type": "div",
+                "texte": "Recouvrements réellement enregistrés"
+            },
+            {
+                "type": "div",
+                "texte": "Clients à relancer"
+            },
+            {
+                "type": "div",
+                "texte": "Plus de 30 j sans relance récente"
+            },
+            {
+                "type": "onglet",
+                "texte": "Liste des clients",
+                "cle": "clients"
+            },
+            {
+                "type": "onglet",
+                "texte": "Suivi des dettes",
+                "cle": "dettes"
+            },
+            {
+                "type": "onglet",
+                "texte": "Relances clients",
+                "cle": "relances"
+            },
+            {
+                "type": "onglet",
+                "texte": "Historique & avances",
+                "cle": "avances"
+            },
+            {
+                "type": "champ",
+                "texte": "Rechercher un client…"
+            },
+            {
+                "type": "h3",
+                "texte": "Avances et acomptes (0)"
+            },
+            {
+                "type": "th",
+                "texte": "Date"
+            },
+            {
+                "type": "th",
+                "texte": "Client"
+            },
+            {
+                "type": "th",
+                "texte": "Origine"
+            },
+            {
+                "type": "th",
+                "texte": "Avance versée"
+            },
+            {
+                "type": "th",
+                "texte": "Reste dû"
+            },
+            {
+                "type": "td",
+                "texte": "Aucune avance enregistrée."
+            },
+            {
+                "type": "h3",
+                "texte": "Recouvrements encaissés (0)"
+            },
+            {
+                "type": "th",
+                "texte": "Date"
+            },
+            {
+                "type": "th",
+                "texte": "Client"
+            },
+            {
+                "type": "th",
+                "texte": "Pièce"
+            },
+            {
+                "type": "th",
+                "texte": "Mode"
+            },
+            {
+                "type": "th",
+                "texte": "Référence"
+            },
+            {
+                "type": "th",
+                "texte": "Montant"
+            },
+            {
+                "type": "th",
+                "texte": "Par"
+            },
+            {
+                "type": "td",
+                "texte": "Aucun recouvrement enregistré."
+            }
+        ]
+    }
+}

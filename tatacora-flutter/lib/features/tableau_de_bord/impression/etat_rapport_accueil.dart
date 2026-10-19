@@ -58,6 +58,18 @@ final class EtatRapportAccueil {
 
   final EnteteEtablissement entete;
 
+  /// Le même document sous l'en-tête lu des paramètres au moment d'éditer
+  /// (`lireEnteteEtablissementProvider`).
+  EtatRapportAccueil avecEntete(EnteteEtablissement autre) =>
+      EtatRapportAccueil(
+        titre: titre,
+        periode: periode,
+        entetes: entetes,
+        lignes: lignes,
+        code: code,
+        entete: autre,
+      );
+
   /// Le pied du gabarit du serveur, au mot.
   static const String piedInterne =
       'Document de gestion interne — il ne vaut pas facture et ne porte '

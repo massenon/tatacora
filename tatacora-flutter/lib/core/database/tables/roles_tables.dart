@@ -26,9 +26,12 @@
 ///
 /// | Colonne | Qui l'écrit | Qui la lit | Qui la descend |
 /// |---|---|---|---|
-/// | toutes | `RolesDao`, SEUL auteur : `installerSocle` (les rôles du socle ABSENTS, jamais réécrits — `RolePermissionSeeder::completerRolesNouveaux`), `creerRole`, `definirDroits`, `retablirSocle` | `RolesDao.roles` (écran Rôles & Permissions) | personne : zéro réseau |
+/// | toutes | `RolesDao`, SEUL auteur : `installerSocle` (les rôles du socle ABSENTS, jamais réécrits — `RolePermissionSeeder::completerRolesNouveaux`), `creerRole`, `definirDroits`, `retablirSocle`, et `inscrireDescendu` (la descente, lot 10e) | `RolesDao.roles` (écran Rôles & Permissions) | le flux `roles` du serveur (lot 10e, 18/10/2026) : la matrice du serveur, par l'aligneur du catalogue, appariée au rôle local par son LIBELLÉ |
 ///
-/// Aucune colonne de synchronisation : rien ne part nulle part.
+/// Aucune colonne de synchronisation : depuis le lot 10e, `creerRole`,
+/// `definirDroits` et `retablirSocle` enfilent leur geste (`roles`, libellé
+/// et matrice entière) dans la transaction de l'écriture. Les COMPTES ne
+/// partent jamais (PA-103).
 library;
 
 import 'package:drift/drift.dart';

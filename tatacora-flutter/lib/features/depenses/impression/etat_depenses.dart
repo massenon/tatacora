@@ -1,5 +1,8 @@
 import 'dart:convert';
 
+import '../../../core/format/formats.dart';
+import '../../../core/impression/etat_tabulaire_a4.dart';
+import '../../../core/impression/visas.dart';
 import '../domain/categories_depense.dart';
 import '../domain/entities/depense.dart';
 import '../domain/filtre_depenses.dart';
@@ -78,6 +81,9 @@ final class EtatDepenses {
   static const String comptabilisee = 'comptabilisée';
   static const String nonComptabilisee = 'non comptabilisée';
 
+  /// Lot F4 : une dépense descendue d'un autre poste (pièce au serveur).
+  static const String pieceAuServeur = 'pièce au serveur';
+
   bool get vide => lignes.isEmpty;
 
   /// Le total décaissé du document — somme des montants, eux-mêmes sommes des
@@ -112,25 +118,63 @@ final class EtatDepenses {
     tampon.writeln(entetes.map(_e).join(';'));
 
     for (final depense in lignes) {
-      tampon.writeln(
-        [
-          _date(depense.dateTransaction),
-          depense.libelle,
-          depense.naturesAffichees,
-          _comptes(depense, libelles),
-          depense.tresorerie?.libelle ?? tiretAbsence,
-          // Nombre brut : ni séparateur de milliers, ni unité.
-          depense.montantTotal.toString(),
-          depense.estComptabilisee ? comptabilisee : nonComptabilisee,
-          depense.numeroPiece ?? tiretAbsence,
-        ].map(_e).join(';'),
-      );
+      tampon.writeln(_cellules(depense, papier: false).map(_e).join(';'));
     }
 
     return tampon.toString();
   }
 
   List<int> csvOctets() => utf8.encode(csv());
+
+  /// Les cellules d'une dépense — les MÊMES pour le tableur et le papier ;
+  /// seul le montant change de forme : nombre brut au CSV (ni séparateur de
+  /// milliers, ni unité), « 56 000 FCFA » au PDF.
+  List<String> _cellules(Depense depense, {required bool papier}) => [
+    _date(depense.dateTransaction),
+    depense.libelle,
+    depense.naturesAffichees,
+    _comptes(depense, libelles),
+    depense.tresorerie?.libelle ?? tiretAbsence,
+    papier
+        ? formaterFcfa(depense.montantTotal)
+        : depense.montantTotal.toString(),
+    depense.estComptabilisee
+        ? comptabilisee
+        : depense.pieceAuServeur
+        ? pieceAuServeur
+        : nonComptabilisee,
+    depense.numeroPiece ?? tiretAbsence,
+  ];
+
+  /// Le « PDF Officiel A4 Imprimable » (directive du PO du 14/10/2026) : les
+  /// colonnes, les lignes, la portée et les mentions du CSV, plus le total
+  /// décaissé. Huit colonnes : PAYSAGE. Les visas sont ceux du gabarit serveur
+  /// du même état (`pdf/depenses-rapport.blade.php`), pas ceux de la directive.
+  EtatTabulaireA4 etatA4() => EtatTabulaireA4(
+    titre: titre,
+    portee: portee,
+    visas: Visas.depenses,
+    mentions: [
+      for (final m in mentions) m.replaceFirst('Ce fichier', 'Ce document'),
+    ],
+    colonnes: [
+      for (final (i, entete) in entetes.indexed)
+        i == 5
+            ? ColonneEtat.nombre(entete)
+            : ColonneEtat(entete, largeur: i == 1 ? 2.2 : (i == 3 ? 2 : 1.2)),
+    ],
+    lignes: [for (final d in lignes) _cellules(d, papier: true)],
+    totaux: [
+      'Total',
+      '${lignes.length} dépense(s)',
+      '',
+      '',
+      '',
+      formaterFcfa(total),
+      '',
+      '',
+    ],
+  );
 
   /// Les comptes distincts d'une dépense, dans l'ordre de ses lignes.
   static String _comptes(Depense depense, LibellesDesComptes libelles) {

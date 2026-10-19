@@ -12,12 +12,17 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/mesures_transverses.dart';
+import '../../../shared_widgets/bouton_standard.dart';
+import '../../../shared_widgets/modale_export.dart';
 import '../../../shared_widgets/pied_pagination.dart';
+import '../../../shared_widgets/toast_export.dart';
 import '../../transverse/presentation/widgets/briques_transverses.dart';
 import '../domain/consultation_comptable.dart';
 import '../domain/entities/comptabilite.dart';
 import '../domain/montant_comptable.dart';
+import '../impression/etat_journal_comptable.dart';
 import 'providers_consultation_comptable.dart';
+import 'widgets/modale_ecriture.dart';
 
 /// Le hub **Comptabilité — SYSCOHADA révisé** — lot D du plan du Product
 /// Owner (14/10/2026), lecture du moteur M10 LOCAL (`MoteurComptable`,
@@ -39,14 +44,18 @@ import 'providers_consultation_comptable.dart';
 ///   sur ce poste — « — », et une ligne qui le dit (jamais un zéro).
 ///   L'alerte « Comptabilité déséquilibrée » de la vue en dépend : non rendue.
 /// - **Passer écriture** : l'encadré des contrôles est rendu ; « + Nouvelle
-///   écriture » DIT que la saisie manuelle n'est pas portée (le moteur ne
-///   passe ici que les pièces des ventes, dépenses, règlements et
-///   encaissements).
+///   écriture » ouvre la modale « Passer une écriture » (PO, 14/10/2026,
+///   `widgets/modale_ecriture.dart`), écrite par le moteur LOCAL — en
+///   brouillon, ou passée et validée — sous le droit d'écriture M10.
 /// - **Grand livre, Compte de résultat, Bilan, Analytique, Immobilisations,
 ///   Plan comptable, Clôtures** : l'onglet est cliquable et DIT qu'il n'est pas
 ///   calculé sur ce poste — aucun chiffre plutôt qu'un chiffre faux.
-/// - **Exporter** : la vue exporte le journal (PDF/Excel) ; le clic DIT
-///   qu'aucun export comptable n'est produit ici.
+/// - **Exporter** : la vue exporte le journal (PDF/Excel) ; ici aussi
+///   (directive du PO du 14/10/2026). Le bouton n'existe que sur l'onglet
+///   **Journal** — comme le registre CRM, un bouton n'est offert que là où il
+///   produit quelque chose : il exporte les écritures affichées (exercice,
+///   statut, journal), en CSV ou en PDF A4 paysage avec les totaux
+///   ([EtatJournalComptable]).
 /// - **Tuiles** : celles qui correspondent à un onglet l'ouvrent ; Flux de
 ///   trésorerie, Notes annexes et États financiers DISENT qu'ils ne sont pas
 ///   portés (ce sont des pages séparées de la vue).
@@ -112,13 +121,18 @@ abstract final class TextesComptabilite {
   static const String indicateursSurCePoste =
       'Sur ce poste : les six indicateurs ne sont pas calculés — seuls le '
       'journal et la balance générale sont lus.';
-  static const String saisieNonPortee =
-      "La saisie manuelle d'une écriture n'est pas portée sur ce poste : seules "
-      'les pièces des ventes, dépenses, règlements et encaissements y sont '
-      "passées. Rien n'a été enregistré.";
-  static const String exportNonProduit =
-      "Aucun export comptable n'est produit sur ce poste : rien n'a été "
-      'exporté.';
+  static const String saisieSansDroit =
+      "Votre profil n'a pas le droit de passer une écriture comptable.";
+
+  /// Le titre de la modale d'export — la vue exporte le journal.
+  static const String titreExport = 'Exporter — Journal comptable';
+
+  /// Le statut retenu par le filtre, en clair — pour la portée de l'export.
+  static String libelleStatut(FiltreStatutEcritures s) => switch (s) {
+    FiltreStatutEcritures.toutes => statutToutes,
+    FiltreStatutEcritures.validee => statutValidee,
+    FiltreStatutEcritures.brouillon => statutBrouillon,
+  };
   static String ongletNonCalcule(String libelle) =>
       "« $libelle » n'est pas calculé sur ce poste : seuls le journal et la "
       "balance générale y sont lus. Aucun chiffre n'est affiché plutôt qu'un "
@@ -251,6 +265,63 @@ class _EcranComptabiliteState extends ConsumerState<EcranComptabilite> {
     _page = 1;
   });
 
+  /// « Exporter » de l'onglet Journal : la modale de format, puis le document.
+  ///
+  /// L'export porte sur CE QUI EST AFFICHÉ — l'exercice, le statut et le
+  /// journal choisis, toutes pages confondues — et il le DIT (PA-119). Une
+  /// liste vide se REFUSE, au PDF comme au tableur.
+  Future<void> _exporterJournal(
+    DonneesComptabilite? donnees,
+    ExerciceComptable? exercice,
+  ) async {
+    final format = await choisirFormatExport(
+      context,
+      titre: TextesComptabilite.titreExport,
+    );
+    if (format == null || !mounted) return;
+
+    final lignes = (donnees == null || exercice == null)
+        ? const <EcritureComptable>[]
+        : porteeEcritures(
+            donnees.ecritures,
+            exerciceId: exercice.id,
+            statut: _statut,
+            journalId: _journalId,
+          );
+    if (donnees == null || exercice == null || lignes.isEmpty) {
+      direTransverse(
+        context,
+        EtatJournalComptable.refusVide,
+        cle: const Key('compta-export-vide'),
+      );
+      return;
+    }
+
+    final etat = EtatJournalComptable(
+      lignes: lignes,
+      portee: EtatJournalComptable.decrirePortee(
+        exercice: exercice,
+        statut: TextesComptabilite.libelleStatut(_statut),
+        journal: donnees.journaux.where((j) => j.id == _journalId).firstOrNull,
+      ),
+      journaux: {for (final j in donnees.journaux) j.id: j},
+      comptes: donnees.comptes,
+      centres: {for (final c in donnees.centres) c.id: c},
+    );
+    // La fenêtre d'enregistrement du système (choix du dossier), puis le
+    // toast commun. Le nom du bouton du système n'est pas écrit ici : par
+    // sous-chaîne, il « portait » le bouton de la modale d'immobilisation,
+    // que cet écran ne rend pas (gain de mesure refusé le 15/10/2026).
+    await executerExport(
+      context,
+      () => switch (format) {
+        FormatExport.pdf => ref.read(exporterJournalComptablePdfProvider)(etat),
+        FormatExport.excel => ref.read(exporterJournalComptableProvider)(etat),
+      },
+      cleSucces: const Key('compta-export-fait'),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final droits = ref.watch(droitsProvider);
@@ -316,6 +387,10 @@ class _EcranComptabiliteState extends ConsumerState<EcranComptabilite> {
             _statut = FiltreStatutEcritures.toutes;
             _page = 1;
           }),
+          // Seul l'onglet Journal s'exporte : ailleurs, le bouton n'existe pas.
+          onExporter: _onglet == 'journal'
+              ? () => _exporterJournal(donnees, exercice)
+              : null,
         ),
         const SizedBox(height: AppSpacing.md),
         if (lu.hasError)
@@ -565,6 +640,7 @@ class _BarreFiltres extends StatelessWidget {
     required this.onJournal,
     required this.onStatut,
     required this.onReinitialiser,
+    required this.onExporter,
   });
 
   final List<JournalComptable> journaux;
@@ -574,6 +650,10 @@ class _BarreFiltres extends StatelessWidget {
   final ValueChanged<String?> onJournal;
   final ValueChanged<FiltreStatutEcritures> onStatut;
   final VoidCallback onReinitialiser;
+
+  /// L'export de l'onglet affiché, ou `null` : l'onglet ne s'exporte pas, et
+  /// le bouton n'est pas rendu.
+  final VoidCallback? onExporter;
 
   @override
   Widget build(BuildContext context) {
@@ -660,17 +740,15 @@ class _BarreFiltres extends StatelessWidget {
             padding: bouton,
             onTap: onReinitialiser,
           ),
-          BoutonTransverse(
-            cle: const Key('compta-exporter'),
-            libelle: TextesComptabilite.exporter,
-            taille: TaillesContenu.t12,
-            padding: bouton,
-            onTap: () => direTransverse(
-              context,
-              TextesComptabilite.exportNonProduit,
-              cle: const Key('compta-export-non-produit'),
+          // Le bouton standard (PO, 14/10/2026) : le même « Exporter » que
+          // sur les autres écrans, qui ouvre la MÊME modale d'export. Rendu
+          // sur l'onglet Journal seulement — le seul qui s'exporte.
+          if (onExporter != null)
+            BoutonStandard(
+              key: const Key('compta-exporter'),
+              libelle: TextesComptabilite.exporter,
+              onPressed: onExporter,
             ),
-          ),
           if (consultation)
             Text(
               TextesComptabilite.lectureSeule,
@@ -704,7 +782,13 @@ class _Panneau extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (onglet == 'saisie') return _Saisie(exercice: exercice);
+    if (onglet == 'saisie') {
+      return _Saisie(
+        exercice: exercice,
+        journaux: donnees.journaux,
+        centres: donnees.centres,
+      );
+    }
     final ex = exercice;
     if (ex == null) return _AucunExercice(vide: donnees.exercices.isEmpty);
     switch (onglet) {
@@ -795,13 +879,19 @@ class _AucunExercice extends StatelessWidget {
 
 /// L'onglet « Passer écriture » : l'encadré gris des contrôles, puis
 /// l'encadré rouge sans exercice ouvert, ou la carte du bouton.
-class _Saisie extends StatelessWidget {
-  const _Saisie({required this.exercice});
+class _Saisie extends ConsumerWidget {
+  const _Saisie({
+    required this.exercice,
+    required this.journaux,
+    required this.centres,
+  });
 
   final ExerciceComptable? exercice;
+  final List<JournalComptable> journaux;
+  final List<CentreDeCout> centres;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final ouvert = exercice?.statut == StatutExercice.ouvert;
     final gris = styleTransverse(TaillesContenu.t13, couleur: Ardoise.c700);
     return Column(
@@ -875,11 +965,23 @@ class _Saisie extends StatelessWidget {
                     horizontal: AppSpacing.md,
                     vertical: AppSpacing.xsPlus,
                   ),
-                  onTap: () => direTransverse(
-                    context,
-                    TextesComptabilite.saisieNonPortee,
-                    cle: const Key('compta-saisie-non-portee'),
-                  ),
+                  // La modale « Passer une écriture » (PO, 14/10/2026), écrite
+                  // par le moteur LOCAL. Le moteur ne connaît pas le RBAC :
+                  // le droit d'écriture M10 se vérifie ICI.
+                  onTap: () =>
+                      ref
+                          .read(droitsProvider)
+                          .peutEcrire(ModuleTatacora.m10Comptabilite)
+                      ? ouvrirModaleEcriture(
+                          context,
+                          journaux: journaux,
+                          centres: centres,
+                        )
+                      : direTransverse(
+                          context,
+                          TextesComptabilite.saisieSansDroit,
+                          cle: const Key('compta-saisie-sans-droit'),
+                        ),
                 ),
               ],
             ),

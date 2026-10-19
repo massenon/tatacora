@@ -12,7 +12,8 @@ import '../../domain/entities/ventes_bar.dart';
 import '../../impression/etat_ventes_bar.dart';
 import '../providers_bar.dart';
 import '../providers_catalogue_boissons.dart';
-import 'modale_export_carte.dart';
+import '../../../../shared_widgets/modale_export.dart';
+import '../../../../shared_widgets/toast_export.dart';
 import 'table_carte.dart';
 
 /// Les mots du panneau, au mot de la vue (`carte_pwa.commun.ventes_*`).
@@ -149,25 +150,25 @@ Future<void> exporterVentesBar(BuildContext context, WidgetRef ref) async {
 
   final carte = await ref.read(carteBarProvider.future);
   final description = descriptionFiltreVentes(filtre);
-  switch (format) {
-    case FormatExport.pdf:
-      await ref.read(imprimerVentesBarProvider)(
+  if (!context.mounted) return;
+  await executerExport(
+    context,
+    () => switch (format) {
+      FormatExport.pdf => ref.read(exporterVentesBarPdfProvider)(
         lignes,
         totaux,
         description,
         carte,
-      );
-    case FormatExport.excel:
-      final chemin = await ref.read(exporterVentesBarProvider)(
+      ),
+      FormatExport.excel => ref.read(exporterVentesBarProvider)(
         lignes,
         totaux,
         description,
         carte,
-      );
-      if (context.mounted) {
-        dire('Ventes exportées : $chemin', 'ventes-bar-export-fait');
-      }
-  }
+      ),
+    },
+    cleSucces: const Key('ventes-bar-export-fait'),
+  );
 }
 
 /// La barre de filtres du panneau (vue l.559-588).

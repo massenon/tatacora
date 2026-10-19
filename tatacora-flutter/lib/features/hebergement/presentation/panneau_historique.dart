@@ -10,7 +10,8 @@ import '../../../core/theme/app_durations.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../shared_widgets/bouton_standard.dart';
-import '../../bar/presentation/widgets/modale_export_carte.dart';
+import '../../../shared_widgets/modale_export.dart';
+import '../../../shared_widgets/toast_export.dart';
 import '../domain/entities/historique_reservations.dart';
 import '../domain/entities/service_reservation.dart';
 import '../impression/etat_historique.dart';
@@ -490,37 +491,16 @@ class _PanneauHistoriqueState extends ConsumerState<PanneauHistorique> {
       );
       return;
     }
-    switch (format) {
-      case FormatExport.pdf:
-        await _imprimer();
-      case FormatExport.excel:
-        await _exporter();
-    }
-  }
-
-  Future<void> _imprimer() async {
-    final etat = _etatCourant;
-    if (etat == null) return;
-    await ref.read(imprimerEtatHistoriqueProvider)(etat);
-  }
-
-  Future<void> _exporter() async {
-    final etat = _etatCourant;
-    if (etat == null) return;
-
-    final chemin = await ref.read(exporterEtatHistoriqueProvider)(etat);
-    if (!mounted) return;
-
-    // Le chemin est DIT. Un export silencieux est un export que personne ne
-    // retrouve : l'utilisateur clique, rien ne bouge à l'écran, et il
-    // recommence jusqu'à croire que la fonction est cassée.
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Export enregistré sur ce poste : $chemin',
-          key: const Key('hist-export-chemin'),
-        ),
-      ),
+    // La fenêtre « Enregistrer sous », puis le toast commun (14/10/2026) :
+    // le nom du fichier est DIT. Un export silencieux est un export que
+    // personne ne retrouve.
+    await executerExport(
+      context,
+      () => switch (format) {
+        FormatExport.pdf => ref.read(exporterEtatHistoriquePdfProvider)(etat),
+        FormatExport.excel => ref.read(exporterEtatHistoriqueProvider)(etat),
+      },
+      cleSucces: const Key('hist-export-chemin'),
     );
   }
 

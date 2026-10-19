@@ -1,0 +1,100 @@
+{
+  "_lisez-moi": "PRODUIT par FIGER_BARRE=1 flutter test test/core/qualite/barre_laterale_blade_test.dart. Cliquet de la barre latérale (Phase 1B) : recul et progrès non resserré font échouer.",
+  "roles": {
+    "achats": {
+      "jetons": 9,
+      "ordonnes": 9,
+      "manquantes": 0,
+      "enTrop": 0,
+      "inertes": 0
+    },
+    "administrateur": {
+      "jetons": 40,
+      "ordonnes": 40,
+      "manquantes": 0,
+      "enTrop": 1,
+      "inertes": 0
+    },
+    "barman": {
+      "jetons": 16,
+      "ordonnes": 16,
+      "manquantes": 0,
+      "enTrop": 0,
+      "inertes": 0
+    },
+    "comptable": {
+      "jetons": 36,
+      "ordonnes": 36,
+      "manquantes": 0,
+      "enTrop": 0,
+      "inertes": 0
+    },
+    "cuisine": {
+      "jetons": 11,
+      "ordonnes": 11,
+      "manquantes": 0,
+      "enTrop": 0,
+      "inertes": 0
+    },
+    "gerant": {
+      "jetons": 22,
+      "ordonnes": 22,
+      "manquantes": 0,
+      "enTrop": 0,
+      "inertes": 0
+    },
+    "guide": {
+      "jetons": 5,
+      "ordonnes": 5,
+      "manquantes": 0,
+      "enTrop": 0,
+      "inertes": 0
+    },
+    "magasinier": {
+      "jetons": 17,
+      "ordonnes": 17,
+      "manquantes": 0,
+      "enTrop": 0,
+      "inertes": 0
+    },
+    "receptionniste": {
+      "jetons": 28,
+      "ordonnes": 28,
+      "manquantes": 0,
+      "enTrop": 0,
+      "inertes": 0
+    },
+    "rh": {
+      "jetons": 11,
+      "ordonnes": 11,
+      "manquantes": 0,
+      "enTrop": 0,
+      "inertes": 0
+    },
+    "super_admin": {
+      "jetons": 40,
+      "ordonnes": 40,
+      "manquantes": 0,
+      "enTrop": 1,
+      "inertes": 0
+    },
+    "vehicules": {
+      "jetons": 9,
+      "ordonnes": 9,
+      "manquantes": 0,
+      "enTrop": 0,
+      "inertes": 0
+    }
+  },
+  "pied": {
+    "attendus": 4,
+    "absents": 0
+  },
+  "actif": {
+    "visitees": 24,
+    "concordent": 24
+  },
+  "icones": {
+    "identique": 1
+  }
+}

@@ -6,6 +6,9 @@ import '../../comptabilite/data/comptabilite_dao.dart';
 import '../../comptabilite/data/moteur_comptable.dart';
 import '../../comptabilite/domain/entities/comptabilite.dart';
 import '../../comptabilite/domain/refus_comptable.dart';
+import '../../synchronisation/data/operations_sync_dao.dart';
+import '../../synchronisation/domain/charges_synchronisation.dart';
+import '../../synchronisation/domain/operation_sync.dart';
 import '../domain/categories_depense.dart';
 import '../domain/entities/depense.dart';
 import '../domain/repositories/depenses_repository.dart';
@@ -127,8 +130,12 @@ class DepenseDao extends DatabaseAccessor<AppDatabase>
       attachedDatabase,
     ).numerosDePiece(entetes.map((e) => e.ecritureId).whereType<String>());
 
+    final origines = await _origines(entetes.map((e) => e.id));
     return entetes
-        .map((e) => _versDepense(e, parDepense[e.id] ?? const [], numeros))
+        .map(
+          (e) =>
+              _versDepense(e, parDepense[e.id] ?? const [], numeros, origines),
+        )
         .toList(growable: false);
   }
 
@@ -156,7 +163,22 @@ class DepenseDao extends DatabaseAccessor<AppDatabase>
       entete,
       lignes.map(_versLigne).toList(growable: false),
       numeros,
+      await _origines([id]),
     );
+  }
+
+  /// Les dépenses DESCENDUES d'un autre poste parmi [ids] (lot F4), avec
+  /// leur poste d'origine (`null` : saisie au serveur).
+  Future<Map<String, String?>> _origines(Iterable<String> ids) async {
+    final liste = ids.toList(growable: false);
+    if (liste.isEmpty) return const {};
+    final o = attachedDatabase.originesDocumentsLocal;
+    final lignes =
+        await (select(o)..where(
+              (x) => x.tableServeur.equals('depenses') & x.entiteId.isIn(liste),
+            ))
+            .get();
+    return {for (final l in lignes) l.entiteId: l.posteOrigine};
   }
 
   /* ================================================================== */
@@ -217,6 +239,44 @@ class DepenseDao extends DatabaseAccessor<AppDatabase>
       );
 
       await _insererLignes(id, lignes, maintenant);
+
+      // Lot F1 : la dépense part au serveur (document SOURCE — la pièce
+      // ci-dessus ne part jamais, D246 : le serveur passe la sienne). Le
+      // centre est relu sur la PIÈCE passée, seule à le porter
+      // (`depenses_local` n'a pas de colonne centre).
+      final centre = await _centreDeLaPiece(piece);
+      final ecrites =
+          await (select(attachedDatabase.lignesDepenseLocal)
+                ..where((l) => l.depenseId.equals(id))
+                ..orderBy([
+                  (l) => OrderingTerm.asc(l.ajouteeLe),
+                  (l) => OrderingTerm.asc(l.rowId),
+                ]))
+              .get();
+      await OperationsSyncDao(attachedDatabase).enfiler(
+        table: TableSynchronisee.depenses,
+        entiteId: id,
+        type: TypeOperationSync.creation,
+        payload: chargeDepense(
+          dateTransaction: dateTransaction,
+          tresorerie: tresorerie.code,
+          libelle: libelleNet,
+          centreId: centre?.id,
+          centreLibelle: centre?.libelle,
+          lignes: [
+            for (final l in ecrites)
+              (
+                libelle: l.libelle,
+                compteCharge: l.compteCharge,
+                nature: l.nature,
+                famille: l.famille,
+                montant: l.montant,
+              ),
+          ],
+        ),
+        horodatage: maintenant,
+        dateMetier: jourIso(dateTransaction),
+      );
     });
 
     // Relu plutôt que composé de mémoire : c'est la base qui fait foi, et le
@@ -257,6 +317,9 @@ class DepenseDao extends DatabaseAccessor<AppDatabase>
     final depense = await parId(depenseId);
     if (depense == null) throw const RefusDepense.introuvable();
     if (depense.estComptabilisee) return depense;
+    // Lot F4 : la pièce d'une dépense descendue est au SERVEUR (Q1) — la
+    // passer ici doublerait la charge et la sortie de trésorerie.
+    if (depense.recueDuServeur) throw const RefusDepense.recueDuServeur();
 
     final tresorerie = depense.tresorerie;
     if (tresorerie == null) {
@@ -405,6 +468,18 @@ class DepenseDao extends DatabaseAccessor<AppDatabase>
     }
   }
 
+  /// Le centre de coût de la pièce passée — celui de sa ligne de TRÉSORERIE
+  /// (la seule au crédit), que le moteur a pu prendre du compte quand la
+  /// saisie n'en nommait pas. `null` : la pièce n'en porte aucun.
+  Future<CentreDeCout?> _centreDeLaPiece(List<EcritureComptable> piece) async {
+    String? centreId;
+    for (final ligne in piece) {
+      if (ligne.creditCentimes > 0) centreId = ligne.centreId;
+    }
+    if (centreId == null) return null;
+    return ComptabiliteDao(attachedDatabase).centreParId(centreId);
+  }
+
   /// L'identifiant de la ligne de trésorerie de la pièce : la seule au CRÉDIT.
   ///
   /// Reconnue à son SENS (dans une dépense, les charges sont au débit et la
@@ -433,6 +508,7 @@ class DepenseDao extends DatabaseAccessor<AppDatabase>
     DepensesLocalData d,
     List<LigneDepense> lignes,
     Map<String, String> numeros,
+    Map<String, String?> origines,
   ) => Depense(
     id: d.id,
     dateTransaction: d.dateTransaction,
@@ -445,6 +521,8 @@ class DepenseDao extends DatabaseAccessor<AppDatabase>
     ecritureId: d.ecritureId,
     numeroPiece: d.ecritureId == null ? null : numeros[d.ecritureId],
     ecritureRefus: d.ecritureRefus,
+    recueDuServeur: origines.containsKey(d.id),
+    posteOrigine: origines[d.id],
   );
 
   LigneDepense _versLigne(LignesDepenseLocalData l) => LigneDepense(

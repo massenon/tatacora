@@ -10,6 +10,10 @@ import '../../../core/database/tables/hebergement_tables.dart';
 import '../domain/entities/categorie_hebergement.dart';
 import '../domain/refus_parc.dart';
 
+import '../../synchronisation/data/operations_sync_dao.dart';
+import '../../synchronisation/domain/charges_synchronisation.dart';
+import '../../synchronisation/domain/operation_sync.dart';
+
 part 'parc_dao.g.dart';
 
 /// Accès Drift au **parc d'hébergement** — catégories et unités.
@@ -178,6 +182,17 @@ class ParcDao extends DatabaseAccessor<AppDatabase> with _$ParcDaoMixin {
           tarifBase: tarifBase.toDouble(),
         ),
       );
+      // Lot F1 : la création part au serveur, dans CETTE transaction.
+      await _file.enfiler(
+        table: TableSynchronisee.categoriesHebergement,
+        entiteId: id,
+        type: TypeOperationSync.creation,
+        payload: chargeCategorieHebergement(
+          libelle: propre,
+          tarifBaseFrancs: tarifBase,
+          capaciteMax: capaciteMax,
+        ),
+      );
     });
 
     return (await categorieParId(id))!;
@@ -217,6 +232,24 @@ class ParcDao extends DatabaseAccessor<AppDatabase> with _$ParcDaoMixin {
           tarifBase: Value(tarifBase.toDouble()),
         ),
       );
+      // Lot F1 : seuls les champs changés partent.
+      await _file.enfiler(
+        table: TableSynchronisee.categoriesHebergement,
+        entiteId: id,
+        type: TypeOperationSync.modification,
+        payload: champsModifies(
+          chargeCategorieHebergement(
+            libelle: existante.libelle,
+            tarifBaseFrancs: existante.tarifBase,
+            capaciteMax: existante.capaciteMax,
+          ),
+          chargeCategorieHebergement(
+            libelle: propre,
+            tarifBaseFrancs: tarifBase,
+            capaciteMax: capaciteMax,
+          ),
+        ),
+      );
     });
 
     return (await categorieParId(id))!;
@@ -254,6 +287,17 @@ class ParcDao extends DatabaseAccessor<AppDatabase> with _$ParcDaoMixin {
           statut: StatutUniteLocal.libre,
         ),
       );
+      // Lot F1 : la création part au serveur (le statut ne part jamais : le
+      // cycle appartient au serveur, qui l'ignore).
+      await _file.enfiler(
+        table: TableSynchronisee.unitesHebergement,
+        entiteId: id,
+        type: TypeOperationSync.creation,
+        payload: chargeUniteHebergement(
+          numero: propre,
+          categorieId: categorieId,
+        ),
+      );
     });
 
     return id;
@@ -272,7 +316,7 @@ class ParcDao extends DatabaseAccessor<AppDatabase> with _$ParcDaoMixin {
     if (propre.isEmpty) throw const NumeroUniteRequis();
 
     await transaction(() async {
-      await _exigerUnite(id);
+      final avant = await _exigerUnite(id);
       await _exigerCategorie(categorieId);
       await _exigerNumeroLibre(propre, exclureId: id);
 
@@ -282,6 +326,19 @@ class ParcDao extends DatabaseAccessor<AppDatabase> with _$ParcDaoMixin {
         UnitesHebergementLocalCompanion(
           numero: Value(propre),
           categorieId: Value(categorieId),
+        ),
+      );
+      // Lot F1 : seuls les champs changés partent.
+      await _file.enfiler(
+        table: TableSynchronisee.unitesHebergement,
+        entiteId: id,
+        type: TypeOperationSync.modification,
+        payload: champsModifies(
+          chargeUniteHebergement(
+            numero: avant.numero,
+            categorieId: avant.categorieId,
+          ),
+          chargeUniteHebergement(numero: propre, categorieId: categorieId),
         ),
       );
     });
@@ -345,6 +402,14 @@ class ParcDao extends DatabaseAccessor<AppDatabase> with _$ParcDaoMixin {
           statut: Value(StatutUniteLocal.horsService),
         ),
       );
+      // Lot F1 : l'archivage part en `actif: false` — le serveur l'applique
+      // par son service, sous SA règle de droits.
+      await _file.enfiler(
+        table: TableSynchronisee.unitesHebergement,
+        entiteId: uniteId,
+        type: TypeOperationSync.modification,
+        payload: const {'actif': false},
+      );
     });
   }
 
@@ -354,18 +419,33 @@ class ParcDao extends DatabaseAccessor<AppDatabase> with _$ParcDaoMixin {
   /// que rien ne tient (PA-59/60/61). L'unité revient `libre`, jamais dans
   /// l'état qu'elle portait avant : cet état n'est stocké nulle part, et le
   /// deviner afficherait une occupation que personne n'a constatée.
+  ///
+  /// Depuis le lot F1, la restauration part au serveur (`actif: true`), dans
+  /// la même transaction que l'écriture.
   Future<void> restaurer(String uniteId) async {
-    final unite = await _exigerUnite(uniteId);
-    if (unite.statut != StatutUniteLocal.horsService) return;
+    await transaction(() async {
+      final unite = await _exigerUnite(uniteId);
+      if (unite.statut != StatutUniteLocal.horsService) return;
 
-    await (update(
-      unitesHebergementLocal,
-    )..where((u) => u.id.equals(uniteId))).write(
-      const UnitesHebergementLocalCompanion(
-        statut: Value(StatutUniteLocal.libre),
-      ),
-    );
+      await (update(
+        unitesHebergementLocal,
+      )..where((u) => u.id.equals(uniteId))).write(
+        const UnitesHebergementLocalCompanion(
+          statut: Value(StatutUniteLocal.libre),
+        ),
+      );
+      await _file.enfiler(
+        table: TableSynchronisee.unitesHebergement,
+        entiteId: uniteId,
+        type: TypeOperationSync.modification,
+        payload: const {'actif': true},
+      );
+    });
   }
+
+  /// La file d'envoi (lot F1). Son propre générateur d'UUID : celui de ce DAO
+  /// est injectable.
+  OperationsSyncDao get _file => OperationsSyncDao(attachedDatabase);
 
   /* ================================================================== */
   /* Gardes et correspondances                                           */

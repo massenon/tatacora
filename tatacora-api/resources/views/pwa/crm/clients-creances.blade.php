@@ -174,9 +174,14 @@
                  partagée), ajouté le 02/09/2026 — jusque-là seul « Excel »
                  était porté. Registre : `App\Pwa\Support\DerogationsMaquette`
                  (export_bouton_unique).
-                 Jeton : maitre-refuse:m3-clients-creances.html#page --}}
-            <button type="button" wire:click="ouvrirExport"
-                    class="text-[13px] px-3.5 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50">{{ __('pwa.export.bouton') }}</button>
+                 Jeton : maitre-refuse:m3-clients-creances.html#page
+                 Directive PO du 14/10/2026 : le bouton n'est AFFICHÉ que sur
+                 l'onglet « Liste des clients » — les trois autres onglets ne
+                 le montrent plus (le refus de `ouvrirExport()` reste en garde). --}}
+            @if ($onglet === 'clients')
+              <button type="button" wire:click="ouvrirExport"
+                      class="text-[13px] px-3.5 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50">{{ __('pwa.export.bouton') }}</button>
+            @endif
           </div>
         </div>
 

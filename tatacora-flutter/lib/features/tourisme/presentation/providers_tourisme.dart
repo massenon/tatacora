@@ -17,13 +17,11 @@
 /// faire échouer la compilation.
 library;
 
-import 'dart:io';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 import '../../../core/di/providers.dart';
+import '../../../core/fichiers/enregistrement_export.dart';
+import '../../../core/impression/export_etat_a4.dart';
 import '../../../core/format/formats.dart';
 import '../../../core/rbac/garde_acces.dart';
 import '../../crm/data/client_dao.dart';
@@ -449,35 +447,31 @@ void rechargerTourisme(WidgetRef ref) {
 /* L'export — le bouton « Exporter » de la vue (l.116-117)                 */
 /* ====================================================================== */
 
-/// Le dossier où l'export écrit — injectable, pour qu'un test écrive dans un
-/// répertoire temporaire au lieu des Documents de la personne qui lance la
-/// suite (précédent : l'export des notifications, 09/10/2026).
-final dossierExportTourismeProvider = Provider<Future<Directory> Function()>(
-  (ref) => getApplicationDocumentsDirectory,
-);
-
-/// Écrit le CSV de l'état et rend le CHEMIN du fichier : un export silencieux
-/// est un export que personne ne retrouve.
+/// Enregistre le CSV de l'état par la fenêtre « Enregistrer sous »
+/// (14/10/2026) et rend le CHEMIN du fichier, `null` : annulé. Un export
+/// silencieux est un export que personne ne retrouve.
 ///
 /// Injecté comme **action**, jamais appelé depuis un widget : un test de widget
-/// n'a pas de dossier Documents, et il doit exister un seul endroit où le
-/// fichier s'écrit.
+/// n'a pas de greffon natif, et il doit exister un seul endroit où le fichier
+/// s'écrit.
 final exporterTourismeProvider =
-    Provider<Future<String> Function(EtatTourisme)>(
-      (ref) => (etat) async {
-        final dossier = await ref.read(dossierExportTourismeProvider)();
-        final m = DateTime.now();
-        final horodatage =
-            '${m.year}'
-            '${m.month.toString().padLeft(2, '0')}'
-            '${m.day.toString().padLeft(2, '0')}-'
-            '${m.hour.toString().padLeft(2, '0')}'
-            '${m.minute.toString().padLeft(2, '0')}'
-            '${m.second.toString().padLeft(2, '0')}';
-        final fichier = File(p.join(dossier.path, 'tourisme-$horodatage.csv'));
-        await fichier.writeAsBytes(etat.csvOctets());
-        return fichier.path;
-      },
+    Provider<Future<String?> Function(EtatTourisme)>(
+      (ref) =>
+          (etat) => ref
+              .read(enregistrementExportProvider)
+              .exporter(
+                base: 'tourisme',
+                type: TypeFichierEnregistre.csv,
+                octets: etat.csvOctets(),
+              ),
+    );
+
+/// L'export « PDF Officiel A4 Imprimable » de l'onglet affiché — mêmes
+/// colonnes, mêmes lignes que le CSV, en-tête lu des paramètres.
+final exporterTourismePdfProvider =
+    Provider<Future<String?> Function(EtatTourisme)>(
+      (ref) =>
+          (etat) => enregistrerEtatA4(ref, etat.etatA4(), base: 'tourisme'),
     );
 
 /// La description du filtre APPLIQUÉ à l'onglet [onglet], écrite en tête du

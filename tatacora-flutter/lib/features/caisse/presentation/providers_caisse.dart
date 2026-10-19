@@ -1,9 +1,12 @@
 /// Les providers des sessions de caisse.
 ///
-/// ## Tout vient de la base LOCALE, et rien ne part
+/// ## Tout vient de la base LOCALE ; l'envoi est en tâche de fond
 ///
-/// Aucun `Dio`, aucun client d'API. Comme `providers_depenses.dart` : la session
-/// de caisse EST sur le poste et y reste (zéro réseau).
+/// Aucun client d'API ici. Comme `providers_depenses.dart` : la session de
+/// caisse EST sur le poste, lue et écrite localement. Depuis le lot F2a
+/// (15/10/2026), ses opérations partent au serveur par le moteur d'envoi,
+/// que la clôture DÉCLENCHE sans l'attendre ([cloturerLaCaisse]) — aucun
+/// geste de caisse ne dépend du réseau.
 ///
 /// ## Aucun `autoDispose`, et un `invalidate` APRÈS chaque geste
 ///
@@ -20,6 +23,7 @@ import '../../../core/rbac/garde_acces.dart';
 import '../data/sessions_caisse_dao.dart';
 import '../../pos/domain/entities/panier.dart';
 import '../../pos/presentation/providers_pos.dart';
+import '../../synchronisation/presentation/providers_synchronisation.dart';
 import '../domain/entities/session_caisse.dart';
 import '../domain/especes_de_la_session.dart';
 import '../domain/indicateur_caisse.dart';
@@ -161,8 +165,21 @@ Future<String> cloturerLaCaisse(WidgetRef ref, String? constateSaisi) async {
       peutEcrire: _peutEcrire(ref),
       especesEncaisseesCentimes: especes,
     );
+    // Lot F2a : la clôture ÉCRITE (et son opération de file), la
+    // synchronisation part en tâche de fond. Elle n'est PAS attendue et ne
+    // peut rien faire échouer ici : le déclencheur rend aussitôt et avale
+    // toute erreur.
+    _declencherSynchronisation(ref);
     return messageCloture(cloture.session.point, cloture.ecartCentimes);
   } finally {
     ref.invalidate(sessionDuBarProvider);
+  }
+}
+
+void _declencherSynchronisation(WidgetRef ref) {
+  try {
+    ref.read(declencheurSynchronisationProvider)();
+  } on Object {
+    // Jamais : la clôture est faite, elle ne dépend pas du réseau.
   }
 }

@@ -49,6 +49,7 @@ use App\Pwa\Livewire\Transverse\MonProfil;
 use App\Pwa\Livewire\Transverse\PageTransverse;
 use App\Pwa\Livewire\Transverse\Parametres;
 use App\Pwa\Livewire\Transverse\RolesPermissions;
+use App\Pwa\Livewire\Transverse\SynchronisationPostes;
 use App\Pwa\Livewire\Transverse\VerrouSession;
 use App\Pwa\Livewire\Vehicules\Locations;
 use App\Shared\Rbac\Models\JournalSecurite;
@@ -258,6 +259,15 @@ final class PwaActionsReluesTest extends TestCase
         ],
         JournalAudit::class => ['render'],
 
+        // Le bouton « Synchroniser » du serveur (18/10/2026, décision PO) :
+        // `synchroniser()` est inscrite dans
+        // `PwaEcritureAutoriseeTest::ECRITURES_HORS_MODULE` (une demande
+        // horodatée, aucune donnée métier).
+        // Révocation d'appairage (19/10/2026) : réservée aux Administrateurs,
+        // confirmée par la modale ; `demanderRevocation`/`annulerRevocation`
+        // n'écrivent rien.
+        SynchronisationPostes::class => ['render', 'synchroniser', 'demanderRevocation', 'annulerRevocation', 'revoquer'],
+
         // Mon profil — le changement de mot de passe (01/09/2026, directive
         // du Product Owner). `changerMotDePasse()` n'exige AUCUN module RBAC
         // (voir son docblock) : elle est inscrite dans
@@ -323,6 +333,10 @@ final class PwaActionsReluesTest extends TestCase
             // courriel — garde `exigerEcriture(self::MODULE)` quand meme, un
             // profil en lecture n'a pas a declencher d'envoi.
             'envoyerEmailTest',
+            // Mot de passe SMTP saisi, CHIFFRE en base (19/10/2026, decision
+            // du PO) : `exigerEcriture(self::MODULE)` ET rôle
+            // d'administration ; la valeur n'est jamais rechargee.
+            'enregistrerMotDePasseSmtp', 'effacerMotDePasseSmtp',
             // Logo & Apparence — televersement reel via `WithFileUploads`
             // (fichiers remplaces, jamais accumules ; servis par la route
             // `pwa.apparence`, sans storage:link).

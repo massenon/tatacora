@@ -5,7 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/boisson.dart';
 import '../../domain/entities/carte_bar.dart';
 import '../providers_bar.dart';
-import 'modale_export_carte.dart';
+import '../../../../shared_widgets/modale_export.dart';
+import '../../../../shared_widgets/toast_export.dart';
 import 'vue_ventes_bar.dart';
 
 /// Les documents de la carte — la vue, corps partagé des cartes l.101-109.
@@ -47,12 +48,15 @@ abstract final class BarreExportsCarte {
     if (format == null || !context.mounted) return;
     if (!_verifier(context, lignes)) return;
 
-    switch (format) {
-      case FormatExport.pdf:
-        await ref.read(imprimerCarteProvider)(lignes, _libelleFiltre(ref));
-      case FormatExport.excel:
-        await _tableur(context, ref, lignes);
-    }
+    final filtre = _libelleFiltre(ref);
+    await executerExport(
+      context,
+      () => switch (format) {
+        FormatExport.pdf => ref.read(exporterCartePdfProvider)(lignes, filtre),
+        FormatExport.excel => ref.read(exporterCarteProvider)(lignes, filtre),
+      },
+      cleSucces: const Key('carte-export-fait'),
+    );
   }
 
   /// « Imprimer la fiche des prix » — directement, sans modale.
@@ -100,26 +104,5 @@ abstract final class BarreExportsCarte {
     ];
 
     return parties.isEmpty ? 'Carte complète' : parties.join(' — ');
-  }
-
-  static Future<void> _tableur(
-    BuildContext context,
-    WidgetRef ref,
-    List<LigneCarte> lignes,
-  ) async {
-    final chemin = await ref.read(exporterCarteProvider)(
-      lignes,
-      _libelleFiltre(ref),
-    );
-    if (!context.mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Carte exportée : $chemin',
-          key: const Key('carte-export-fait'),
-        ),
-      ),
-    );
   }
 }

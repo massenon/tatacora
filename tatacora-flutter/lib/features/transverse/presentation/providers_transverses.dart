@@ -1,8 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/di/providers.dart';
+import '../data/comptes_utilisateurs_dao.dart';
 import '../data/lecteur_comptes_poste.dart';
 import '../data/roles_dao.dart';
+import '../domain/comptes_utilisateurs.dart';
 import '../domain/roles_du_poste.dart';
 
 /// Le lecteur des comptes du poste (lot D, 14/10/2026).
@@ -41,4 +43,31 @@ final compteSessionActifProvider = FutureProvider.autoDispose<bool?>((ref) {
   final session = ref.watch(sessionProvider);
   if (session == null) return Future.value();
   return ref.watch(lecteurComptesPosteProvider).estActif(session.utilisateurId);
+});
+
+/// L'écrivain des comptes du poste (Lot J2, 14/10/2026).
+final comptesUtilisateursDaoProvider = Provider<ComptesUtilisateursDao>(
+  (ref) => ComptesUtilisateursDao(ref.watch(baseLocaleProvider)),
+);
+
+/// Ce que l'écran « Comptes utilisateurs » affiche : les comptes et les rôles
+/// proposés à la création.
+typedef ComptesEtRoles = ({
+  List<CompteUtilisateur> comptes,
+  List<RoleDuPoste> roles,
+});
+
+/// Les comptes et les rôles — relus à chaque visite (aucun cache). Pose
+/// d'abord les rôles du socle qui MANQUENT (`RolesDao.installerSocle`) : sur
+/// un poste où « Rôles & Permissions » n'a jamais été ouvert, `roles_local`
+/// est vide, et la liste des rôles le serait aussi.
+final comptesEtRolesProvider = FutureProvider.autoDispose<ComptesEtRoles>((
+  ref,
+) async {
+  final roles = ref.watch(rolesDaoProvider);
+  await roles.installerSocle();
+  return (
+    comptes: await ref.watch(comptesUtilisateursDaoProvider).comptes(),
+    roles: await roles.roles(),
+  );
 });

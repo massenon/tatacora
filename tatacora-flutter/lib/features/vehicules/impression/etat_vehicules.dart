@@ -1,5 +1,9 @@
 import 'dart:convert';
 
+import '../../../core/format/formats.dart';
+import '../../../core/impression/etat_tabulaire_a4.dart';
+import '../domain/indicateurs_vehicules.dart' show sommeDecimales;
+
 /// L'export de M8 — les boutons « Excel » et « PDF » de l'en-tête
 /// (`m8-locations.html` l.41-42), servis par `etatCourant()`
 /// (`m8-locations.js` l.407-448).
@@ -75,6 +79,64 @@ final class EtatVehicules {
   }
 
   List<int> csvOctets() => utf8.encode(csv());
+
+  /// Les colonnes de MONTANT (décimaux du schéma) : FCFA, à droite, au PDF.
+  static const Set<String> colonnesMontant = {
+    'Tarif/jour',
+    'Montant période',
+    'Montant',
+    'Acompte',
+    'Reste dû',
+  };
+
+  /// Les colonnes de nombre entier, à droite au PDF.
+  static const Set<String> colonnesNombre = {'Places', 'Jours'};
+
+  /// Les colonnes que le PDF totalise — le montant des lignes retenues.
+  static const Set<String> colonnesTotalisees = {'Montant période', 'Montant'};
+
+  /// Le « PDF Officiel A4 Imprimable » de l'onglet affiché (directive du PO du
+  /// 14/10/2026) : les colonnes, les lignes, la période et les mentions du
+  /// CSV. Une cellule sans source reste VIDE, comme au tableur. Sept colonnes
+  /// et plus : paysage.
+  EtatTabulaireA4 etatA4() => EtatTabulaireA4(
+    titre: titre,
+    portee: periode,
+    mentions: mentions,
+    colonnes: [
+      for (final e in entetes)
+        colonnesMontant.contains(e) || colonnesNombre.contains(e)
+            ? ColonneEtat.nombre(e)
+            : ColonneEtat(e),
+    ],
+    lignes: [
+      for (final ligne in lignes)
+        [
+          for (final (i, c) in ligne.indexed)
+            colonnesMontant.contains(entetes[i]) ? _fcfa(c) : (c ?? ''),
+        ],
+    ],
+    totaux: entetes.any(colonnesTotalisees.contains)
+        ? [
+            for (final (i, e) in entetes.indexed)
+              if (i == 0)
+                'Total'
+              else if (colonnesTotalisees.contains(e))
+                _fcfa(
+                  sommeDecimales([
+                    for (final l in lignes)
+                      if (l[i] != null) l[i]!,
+                  ]),
+                )
+              else
+                '',
+          ]
+        : null,
+  );
+
+  /// Un décimal du schéma (« 4500.00 ») en FCFA ; vide s'il n'existe pas.
+  static String _fcfa(String? brut) =>
+      brut == null ? '' : formaterMontantDecimal(brut, suffixe: 'FCFA') ?? brut;
 
   static String _e(String v) => v.replaceAll(';', ',').replaceAll('\n', ' ');
 }

@@ -1,0 +1,113 @@
+{
+    "_lisez-moi": "PRODUIT par ExtraireStructureBladeTest, jamais ecrit a la main. Chaque variante (onglet) : les textes VISIBLES de <main>, dans l'ordre du document.",
+    "vue": "facturation/facturation",
+    "jeu": "parc",
+    "onglets": {
+        "principal": [
+            {
+                "type": "h1",
+                "texte": "Facturation & Caisse MECeF"
+            },
+            {
+                "type": "p",
+                "texte": "Émission de factures normalisées MECeF (DGI Bénin), consolidation multi-activités et suivi des encaissements"
+            },
+            {
+                "type": "h2",
+                "texte": "Registre des factures émises"
+            },
+            {
+                "type": "p",
+                "texte": "Une seule séquence de numéros, toutes origines confondues — POS au comptant, séjours clôturés et factures directes."
+            },
+            {
+                "type": "champ",
+                "texte": "N°, client…"
+            },
+            {
+                "type": "option",
+                "texte": "Toutes les activités"
+            },
+            {
+                "type": "option",
+                "texte": "Hébergement"
+            },
+            {
+                "type": "option",
+                "texte": "Restaurant"
+            },
+            {
+                "type": "option",
+                "texte": "Bar"
+            },
+            {
+                "type": "option",
+                "texte": "Véhicules"
+            },
+            {
+                "type": "option",
+                "texte": "Tourisme"
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "span",
+                "texte": "Pièces"
+            },
+            {
+                "type": "span",
+                "texte": "Avoirs"
+            },
+            {
+                "type": "span",
+                "texte": "Montant"
+            },
+            {
+                "type": "span",
+                "texte": "MECeF —"
+            },
+            {
+                "type": "th",
+                "texte": "Date"
+            },
+            {
+                "type": "th",
+                "texte": "Client"
+            },
+            {
+                "type": "th",
+                "texte": "Origine"
+            },
+            {
+                "type": "th",
+                "texte": "Activités"
+            },
+            {
+                "type": "th",
+                "texte": "Montant"
+            },
+            {
+                "type": "th",
+                "texte": "Mode de paiement"
+            },
+            {
+                "type": "th",
+                "texte": "Statut"
+            },
+            {
+                "type": "td",
+                "texte": "Essayez de modifier votre recherche ou vos filtres. Aucune facture émise. Encaissez au point de vente ou clôturez un séjour."
+            },
+            {
+                "type": "span",
+                "texte": "Aucun résultat"
+            },
+            {
+                "type": "p",
+                "texte": "Affichage de - sur"
+            }
+        ]
+    }
+}

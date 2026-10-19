@@ -10,6 +10,7 @@ use App\Domain\Comptabilite\Support\ComptesSyscohada;
 use App\Domain\Depenses\Services\DepenseService;
 use App\Domain\Facturation\Models\Facture;
 use App\Domain\Facturation\Models\Paiement;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -72,9 +73,28 @@ class EncaissementFactureService
      * @throws RuntimeException refus local : facture non figée, caisse fermée,
      *                          montant invalide ou supérieur au reste dû
      */
-    public function encaisser(Facture $facture, string $montant, string $modePaiement): Paiement
-    {
-        if (! $facture->estFigee()) {
+    public function encaisser(
+        Facture $facture,
+        string $montant,
+        string $modePaiement,
+        ?string $id = null,
+        ?string $sessionId = null,
+        ?CarbonInterface $quand = null,
+        bool $nonFigeeAdmise = false,
+    ): Paiement {
+        // Lot F5d (17/10/2026), pour la seule synchronisation — aucun appelant
+        // en ligne ne passe ces paramètres : `$id` (l'UUID du poste ; un
+        // rejeu rend le paiement déjà écrit), `$sessionId` (la caisse du
+        // POSTE qui a reçu l'argent, si le serveur la connaît), `$quand` (la
+        // date métier, D246), `$nonFigeeAdmise` (le poste a DÉJÀ reçu
+        // l'argent sur une facture que le serveur n'a pas certifiée — la
+        // certification n'est pas lancée, PA-17 : refuser perdrait un
+        // encaissement réel ; le gestionnaire le SIGNALE).
+        if ($id !== null && ($existant = Paiement::find($id)) !== null) {
+            return $existant;
+        }
+
+        if (! $nonFigeeAdmise && ! $facture->estFigee()) {
             throw new RuntimeException(__('facturation.encaissement_facture_non_figee'));
         }
 
@@ -94,10 +114,11 @@ class EncaissementFactureService
 
         // Le tiroir OUVERT — pas « le dernier connu » : un encaissement hors
         // session fausserait la clôture de caisse de tout le monde.
-        $session = SessionCaisse::query()
-            ->whereNull('date_cloture')
-            ->orderByDesc('date_ouverture')
-            ->first();
+        $session = ($sessionId === null ? null : SessionCaisse::find($sessionId))
+            ?? SessionCaisse::query()
+                ->whereNull('date_cloture')
+                ->orderByDesc('date_ouverture')
+                ->first();
 
         if ($session === null) {
             throw new RuntimeException(__('facturation.encaissement_caisse_fermee'));
@@ -105,20 +126,21 @@ class EncaissementFactureService
 
         $tresorerie = DepenseService::TRESORERIES[self::TRESORERIE_PAR_MODE[$modePaiement]];
 
-        return DB::transaction(function () use ($facture, $montant, $modePaiement, $session, $tresorerie): Paiement {
+        return DB::transaction(function () use ($facture, $montant, $modePaiement, $session, $tresorerie, $id, $quand): Paiement {
             $paiement = Paiement::create([
+                ...($id !== null ? ['id' => $id] : []),
                 'facture_id' => $facture->id,
                 'session_id' => $session->id,
                 'mode_paiement' => $modePaiement,
                 'montant' => bcadd($montant, '0', self::PRECISION),
-                'date_paiement' => now(),
+                'date_paiement' => $quand ?? now(),
             ]);
 
             $libelle = sprintf('Encaissement %s — %s', (string) $facture->numero_mecef, $paiement->id);
 
             $this->ecritures->passerEtValider([
                 'journal' => $tresorerie['journal'],
-                'date' => now()->toDateString(),
+                'date' => ($quand ?? now())->toDateString(),
                 'libelle' => $libelle,
                 'lignes' => [
                     ['compte' => $tresorerie['compte'], 'debit' => $montant, 'credit' => '0'],

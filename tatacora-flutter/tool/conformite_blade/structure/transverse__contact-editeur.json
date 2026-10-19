@@ -1,0 +1,81 @@
+{
+    "_lisez-moi": "PRODUIT par ExtraireStructureBladeTest, jamais ecrit a la main. Chaque variante (onglet) : les textes VISIBLES de <main>, dans l'ordre du document.",
+    "vue": "transverse/contact-editeur",
+    "jeu": "parc",
+    "onglets": {
+        "principal": [
+            {
+                "type": "h1",
+                "texte": "Contactez l'éditeur"
+            },
+            {
+                "type": "p",
+                "texte": "Assistance technique, suggestions et signalement d'anomalies."
+            },
+            {
+                "type": "p",
+                "texte": "Avant de nous contacter"
+            },
+            {
+                "type": "p",
+                "texte": "Consultez d'abord l' — la réponse à votre question s'y trouve peut-être déjà."
+            },
+            {
+                "type": "a",
+                "texte": "Aide & FAQ"
+            },
+            {
+                "type": "a",
+                "texte": "Ouvrir l'aide"
+            },
+            {
+                "type": "button",
+                "texte": "Envoyer un message"
+            },
+            {
+                "type": "button",
+                "texte": "Signaler un bug"
+            },
+            {
+                "type": "h2",
+                "texte": "Vos envois"
+            },
+            {
+                "type": "p",
+                "texte": "Vos 50 derniers envois. « Transmis » signifie que le courriel est réellement parti vers l'éditeur."
+            },
+            {
+                "type": "p",
+                "texte": "Aucun envoi depuis ce compte."
+            },
+            {
+                "type": "h2",
+                "texte": "Coordonnées de l'éditeur"
+            },
+            {
+                "type": "p",
+                "texte": "Dr MASSENON Rhodes"
+            },
+            {
+                "type": "p",
+                "texte": "Éditeur du logiciel"
+            },
+            {
+                "type": "a",
+                "texte": "rarhodes06@gmail.com"
+            },
+            {
+                "type": "a",
+                "texte": "contact@massenonrhodes.com"
+            },
+            {
+                "type": "a",
+                "texte": "+229 01 51 33 50 40"
+            },
+            {
+                "type": "span",
+                "texte": "Lun-Ven, 8h-17h (GMT)"
+            }
+        ]
+    }
+}

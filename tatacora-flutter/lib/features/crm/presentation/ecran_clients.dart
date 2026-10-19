@@ -11,6 +11,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/donnees_absentes.dart';
 import '../../../shared_widgets/bouton_standard.dart';
+import '../../../shared_widgets/liste_paginee.dart';
 import '../../caisse/domain/montant_caisse.dart' show formaterCentimesEnFcfa;
 import '../../facturation/domain/creances.dart';
 import '../../facturation/domain/entities/paiement_facture.dart';
@@ -197,6 +198,7 @@ class _EtatEcranClients extends ConsumerState<EcranClients> {
               _Filtres(avecEtat: _onglet == 'clients'),
               switch (_onglet) {
                 'dettes' => _OngletDettes(
+                  terme: terme,
                   lignes: detteAffichee,
                   totalDuCentimes: creances == null
                       ? null
@@ -214,11 +216,20 @@ class _EtatEcranClients extends ConsumerState<EcranClients> {
                     child: Center(child: CircularProgressIndicator()),
                   ),
                   error: (e, _) => Center(child: Text('$e')),
-                  data: (lignes) => TableClients(
-                    lignes: lignes,
-                    maintenant: maintenant,
-                    peutEncaisser: peutEncaisser,
-                    onRecouvrement: _ouvrirRecouvrement,
+                  // Dix lignes par page (PO, 14/10/2026) ; « Exporter » lit
+                  // `registreFiltreProvider`, la liste ENTIÈRE.
+                  data: (lignes) => ListePaginee<LigneClient>(
+                    key: const Key('clients-registre-pagine'),
+                    elements: lignes,
+                    prefixeCle: 'clients-pagination',
+                    cleRemiseAZero: (terme, ref.watch(etatCreanceProvider)),
+                    masquerSiVide: true,
+                    constructeur: (_, page) => TableClients(
+                      lignes: page,
+                      maintenant: maintenant,
+                      peutEncaisser: peutEncaisser,
+                      onRecouvrement: _ouvrirRecouvrement,
+                    ),
                   ),
                 ),
               },
@@ -326,11 +337,14 @@ class _EnTete extends ConsumerWidget {
                   plein: true,
                   onTap: () => _nouveauClient(context, ref),
                 ),
-              _Bouton(
-                cle: const Key('clients-exporter'),
-                libelle: 'Exporter',
-                onTap: () => _exporter(context),
-              ),
+              // PO, 14/10/2026 : « Exporter » n'est AFFICHÉ que sur l'onglet
+              // « Liste des clients », le seul que l'export sait servir.
+              if (onglet == 'clients')
+                _Bouton(
+                  cle: const Key('clients-exporter'),
+                  libelle: 'Exporter',
+                  onTap: () => _exporter(context, ref),
+                ),
             ],
           ),
         ],
@@ -360,27 +374,12 @@ class _EnTete extends ConsumerWidget {
   }
 
   /// UN bouton « Exporter » (dérogation du Product Owner du 01/09/2026,
-  /// `DerogationsMaquette::export_bouton_unique`) : le format s'y choisit.
-  /// L'export n'est offert que sur la liste, comme dans la vue.
-  void _exporter(BuildContext context) {
-    if (onglet != 'clients') {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'L’export n’est offert que sur l’onglet Liste des clients.',
-          ),
-        ),
-      );
-      return;
-    }
-
-    showDialog<void>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Exporter — Clients & Créances'),
-        content: BarreExportsClients(lignes: lignes),
-      ),
-    );
+  /// `DerogationsMaquette::export_bouton_unique`) : le format s'y choisit,
+  /// dans la modale d'export partagée (14/10/2026).
+  /// L'export n'est offert que sur la liste : le bouton n'est affiché que sur
+  /// cet onglet (PO, 14/10/2026).
+  void _exporter(BuildContext context, WidgetRef ref) {
+    BarreExportsClients.exporter(context, ref, lignes);
   }
 }
 
@@ -851,7 +850,14 @@ class _Encadre extends StatelessWidget {
 }
 
 class _OngletDettes extends StatelessWidget {
-  const _OngletDettes({required this.lignes, required this.totalDuCentimes});
+  const _OngletDettes({
+    required this.terme,
+    required this.lignes,
+    required this.totalDuCentimes,
+  });
+
+  /// La recherche : la changer ramène la pagination à la page 1.
+  final String terme;
 
   /// La balance âgée (filtrée par la recherche), ou `null` tant que les créances
   /// ne sont pas lues.
@@ -886,7 +892,20 @@ class _OngletDettes extends StatelessWidget {
             ),
           ],
         ),
-        _TableauDettes(lignes: lignes, totalDuCentimes: totalDuCentimes),
+        if (lignes == null)
+          _TableauDettes(lignes: null, totalDuCentimes: totalDuCentimes)
+        else
+          ListePaginee<LigneDetteAgee>(
+            elements: lignes!,
+            prefixeCle: 'clients-dettes-pagination',
+            cleRemiseAZero: terme,
+            masquerSiVide: true,
+            constructeur: (_, page) => _TableauDettes(
+              lignes: page,
+              toutes: lignes,
+              totalDuCentimes: totalDuCentimes,
+            ),
+          ),
       ],
     );
   }
@@ -897,9 +916,18 @@ class _OngletDettes extends StatelessWidget {
 /// Total dû` puis la colonne d'actions, vide ici (« Détail » ouvre la modale
 /// d'historique, qui n'a pas d'écran sur ce poste).
 class _TableauDettes extends StatelessWidget {
-  const _TableauDettes({required this.lignes, required this.totalDuCentimes});
+  const _TableauDettes({
+    required this.lignes,
+    required this.totalDuCentimes,
+    this.toutes,
+  });
 
+  /// Les lignes de la PAGE affichée.
   final List<LigneDetteAgee>? lignes;
+
+  /// Toutes les lignes (la liste paginée entière) — le pied totalise CELLES-CI,
+  /// jamais la seule page. `null` : [lignes] est la liste entière.
+  final List<LigneDetteAgee>? toutes;
   final int? totalDuCentimes;
 
   static const _colonnes = [
@@ -1036,7 +1064,7 @@ class _TableauDettes extends StatelessWidget {
                   ),
                   for (final t in TrancheAge.values)
                     _cellule(
-                      _montantOuTiret(totalDeLaTranche(l, t)),
+                      _montantOuTiret(totalDeLaTranche(toutes ?? l, t)),
                       droite: true,
                       style: _t(TaillesContenu.t13, poids: FontWeight.bold),
                     ),
@@ -1177,11 +1205,23 @@ class _OngletAvances extends StatelessWidget {
               ? 'Recouvrements encaissés'
               : 'Recouvrements encaissés (${affiches.length})',
         ),
-        _TableauRecouvrements(
-          paiements: affiches,
-          clients: clients,
-          creances: creances,
-        ),
+        if (affiches == null)
+          _TableauRecouvrements(
+            paiements: null,
+            clients: clients,
+            creances: creances,
+          )
+        else
+          ListePaginee<PaiementFacture>(
+            elements: affiches,
+            prefixeCle: 'clients-recouvrements-pagination',
+            masquerSiVide: true,
+            constructeur: (_, page) => _TableauRecouvrements(
+              paiements: page,
+              clients: clients,
+              creances: creances,
+            ),
+          ),
       ],
     );
   }

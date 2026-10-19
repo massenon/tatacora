@@ -1,0 +1,278 @@
+{
+    "_lisez-moi": "PRODUIT par ExtraireStructureBladeTest, jamais ecrit a la main. Chaque variante (onglet) : les textes VISIBLES de <main>, dans l'ordre du document.",
+    "vue": "stocks/inventaires",
+    "jeu": "parc",
+    "onglets": {
+        "fiche": [
+            {
+                "type": "h1",
+                "texte": "Inventaires & Fiches de stock"
+            },
+            {
+                "type": "p",
+                "texte": "Stock initial, entrées, sorties et stock théorique sur une période — le stock est , jamais saisi."
+            },
+            {
+                "type": "a",
+                "texte": "Gestion des Stocks"
+            },
+            {
+                "type": "onglet",
+                "texte": "Fiche de stock",
+                "cle": "fiche"
+            },
+            {
+                "type": "onglet",
+                "texte": "Inventaire physique",
+                "cle": "inventaire"
+            },
+            {
+                "type": "onglet",
+                "texte": "Inventaires clôturés",
+                "cle": "historique"
+            },
+            {
+                "type": "label",
+                "texte": "Article"
+            },
+            {
+                "type": "option",
+                "texte": "Créez d'abord un article dans l'écran Stocks."
+            },
+            {
+                "type": "label",
+                "texte": "Point de stockage"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les points"
+            },
+            {
+                "type": "onglet",
+                "texte": "7 jours",
+                "cle": "fiche"
+            },
+            {
+                "type": "onglet",
+                "texte": "30 jours",
+                "cle": "fiche"
+            },
+            {
+                "type": "onglet",
+                "texte": "90 jours",
+                "cle": "fiche"
+            },
+            {
+                "type": "onglet",
+                "texte": "Ce mois",
+                "cle": "fiche"
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "p",
+                "texte": "Articles au catalogue"
+            },
+            {
+                "type": "p",
+                "texte": "Articles mouvementes"
+            },
+            {
+                "type": "p",
+                "texte": "Mouvements sur la periode"
+            },
+            {
+                "type": "p",
+                "texte": "Valeur du stock theorique"
+            },
+            {
+                "type": "p",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "p",
+                "texte": "Chaque ligne garde l'unite et le solde de son propre article : les quantites d'articles differents ne s'additionnent pas."
+            },
+            {
+                "type": "h2",
+                "texte": "Détail des mouvements"
+            },
+            {
+                "type": "span",
+                "texte": "0 mouvement(s)"
+            },
+            {
+                "type": "th",
+                "texte": "Date"
+            },
+            {
+                "type": "th",
+                "texte": "Article"
+            },
+            {
+                "type": "th",
+                "texte": "Type"
+            },
+            {
+                "type": "th",
+                "texte": "Motif"
+            },
+            {
+                "type": "th",
+                "texte": "Entrée"
+            },
+            {
+                "type": "th",
+                "texte": "Sortie"
+            },
+            {
+                "type": "th",
+                "texte": "Solde"
+            },
+            {
+                "type": "th",
+                "texte": "Utilisateur"
+            },
+            {
+                "type": "td",
+                "texte": "Aucun mouvement sur cette période."
+            }
+        ],
+        "inventaire": [
+            {
+                "type": "h1",
+                "texte": "Inventaires & Fiches de stock"
+            },
+            {
+                "type": "p",
+                "texte": "Stock initial, entrées, sorties et stock théorique sur une période — le stock est , jamais saisi."
+            },
+            {
+                "type": "a",
+                "texte": "Gestion des Stocks"
+            },
+            {
+                "type": "onglet",
+                "texte": "Fiche de stock",
+                "cle": "fiche"
+            },
+            {
+                "type": "onglet",
+                "texte": "Inventaire physique",
+                "cle": "inventaire"
+            },
+            {
+                "type": "onglet",
+                "texte": "Inventaires clôturés",
+                "cle": "historique"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun inventaire en cours"
+            },
+            {
+                "type": "p",
+                "texte": "Ouvrir un inventaire fige le stock théorique de chaque article à cet instant."
+            },
+            {
+                "type": "h2",
+                "texte": "Cycle d’inventaire par magasin"
+            },
+            {
+                "type": "p",
+                "texte": "La périodicité signale une échéance ; elle n’empêche jamais de lancer un inventaire."
+            },
+            {
+                "type": "th",
+                "texte": "Magasin"
+            },
+            {
+                "type": "th",
+                "texte": "Periodicite"
+            },
+            {
+                "type": "th",
+                "texte": "Dernier inventaire cloture"
+            },
+            {
+                "type": "th",
+                "texte": "Etat"
+            },
+            {
+                "type": "td",
+                "texte": "Aucun point de stockage n'est défini : un inventaire porte sur un point, il ne peut pas être ouvert sans lui."
+            }
+        ],
+        "historique": [
+            {
+                "type": "h1",
+                "texte": "Inventaires & Fiches de stock"
+            },
+            {
+                "type": "p",
+                "texte": "Stock initial, entrées, sorties et stock théorique sur une période — le stock est , jamais saisi."
+            },
+            {
+                "type": "a",
+                "texte": "Gestion des Stocks"
+            },
+            {
+                "type": "onglet",
+                "texte": "Fiche de stock",
+                "cle": "fiche"
+            },
+            {
+                "type": "onglet",
+                "texte": "Inventaire physique",
+                "cle": "inventaire"
+            },
+            {
+                "type": "onglet",
+                "texte": "Inventaires clôturés",
+                "cle": "historique"
+            },
+            {
+                "type": "th",
+                "texte": "Date"
+            },
+            {
+                "type": "th",
+                "texte": "Point"
+            },
+            {
+                "type": "th",
+                "texte": "Articles"
+            },
+            {
+                "type": "th",
+                "texte": "Régularisés"
+            },
+            {
+                "type": "th",
+                "texte": "Manquants"
+            },
+            {
+                "type": "th",
+                "texte": "Excédents"
+            },
+            {
+                "type": "th",
+                "texte": "Impact net"
+            },
+            {
+                "type": "th",
+                "texte": "Par"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun inventaire clôturé"
+            },
+            {
+                "type": "p",
+                "texte": "Les inventaires clôturés et leurs régularisations apparaîtront ici."
+            }
+        ]
+    }
+}

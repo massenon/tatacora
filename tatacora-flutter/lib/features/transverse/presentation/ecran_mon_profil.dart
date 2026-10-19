@@ -11,6 +11,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/mesures_transverses.dart';
+import '../../../shared_widgets/bouton_standard.dart';
+import '../../auth/domain/session_repository.dart';
 import 'providers_transverses.dart';
 import 'widgets/briques_transverses.dart';
 
@@ -35,8 +37,12 @@ import 'widgets/briques_transverses.dart';
 ///   compte → employé, il affiche le NOM DU COMPTE saisi à sa création
 ///   (`utilisateurs_local.nom`). Écart nommé.
 /// - **Fonction** : « — » (aucune fiche RH rattachée).
-/// - **Mot de passe** : aucun écran de ce poste ne le change ; le bouton est
-///   rendu et DIT qu'il n'y a pas de geste (Article 3.3).
+/// - **Mot de passe** : RÉEL depuis le 14/10/2026 — la modale de la vue
+///   (ancien, nouveau, confirmation) écrit par
+///   `SessionRepositoryLocal.changerMotDePasse` : l'ancien est vérifié contre
+///   le dérivé PBKDF2 stocké, le nouveau est dérivé comme à la création du
+///   compte. La note de la vue (« ont lieu côté serveur ») est REMPLACÉE par
+///   la phrase vraie (piège 13).
 /// - **Journal d'audit** : ce poste n'en tient pas ; le tableau dit pourquoi
 ///   il est vide, au lieu de « Aucune action tracée » qui se lirait comme
 ///   « vous n'avez rien fait ».
@@ -163,9 +169,26 @@ abstract final class TextesProfil {
   static const String sansFicheRhPoste =
       'Sur ce poste : nom saisi à la création du compte — aucune fiche '
       'employé ne lui est rattachée.';
-  static const String mdpSansGeste =
-      "Le changement de mot de passe n'est pas disponible sur ce poste : "
-      "aucun écran ne l'écrit encore. Rien n'a été modifié.";
+
+  /// La modale « Modifier le mot de passe » (`pwa.profil.mdp_*`).
+  static const String mdpAncien = 'Ancien mot de passe';
+  static const String mdpNouveau = 'Nouveau mot de passe';
+  static const String mdpConfirmation = 'Confirmer le nouveau mot de passe';
+  static const String mdpRegle = 'Min. 8 caractères.';
+  static const String mdpBouton = 'Mettre à jour le mot de passe';
+  static const String mdpConfirmationInvalide =
+      'Le nouveau mot de passe et sa confirmation ne correspondent pas.';
+  static const String mdpObligatoire = 'Ce champ est obligatoire.';
+  static const String mdpMiseAJour = 'Mot de passe mis à jour.';
+  static const String annuler = 'Annuler';
+
+  /// REMPLACEMENT déclaré (piège 13) — la vue dit « La vérification de
+  /// l'ancien mot de passe et le hachage du nouveau ont lieu côté serveur » ;
+  /// sur ce poste, ils ont lieu sur le poste.
+  static const String mdpNoteSurCePoste =
+      "La vérification de l'ancien mot de passe et le hachage du nouveau ont "
+      'lieu sur ce poste : seul un dérivé PBKDF2 est enregistré, jamais le '
+      'mot de passe.';
   static const String journalSurCePoste =
       "Ce poste ne tient pas de journal d'audit : aucune action n'y est "
       'tracée.';
@@ -489,15 +512,283 @@ class _MotDePasse extends StatelessWidget {
             horizontal: AppSpacing.mdPlus,
             vertical: AppSpacing.xsPlus,
           ),
-          onTap: () => direTransverse(
-            context,
-            TextesProfil.mdpSansGeste,
-            cle: const Key('profil-mdp-message'),
-          ),
+          onTap: () => _ouvrirModaleMotDePasse(context),
         ),
       ],
     ),
   );
+}
+
+Future<void> _ouvrirModaleMotDePasse(BuildContext context) async {
+  final fait = await showDialog<bool>(
+    context: context,
+    barrierColor: AppColors.voileModale,
+    builder: (_) => const _ModaleMotDePasse(),
+  );
+  if (fait == true && context.mounted) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          behavior: SnackBarBehavior.floating,
+          backgroundColor: AppColors.succes,
+          content: Text(
+            TextesProfil.mdpMiseAJour,
+            key: Key('profil-mdp-mis-a-jour'),
+          ),
+        ),
+      );
+  }
+}
+
+/// La modale « Modifier le mot de passe » — fenêtre COMPACTE (`Dialog` borné
+/// à 480 px, la largeur de la vue), trois champs masqués, la note, puis
+/// « Annuler » / « Mettre à jour le mot de passe ». Les saisies sont vidées
+/// après chaque tentative refusée de l'ancien mot de passe, comme au
+/// serveur : un mot de passe soumis ne survit pas à l'échec de sa
+/// vérification.
+class _ModaleMotDePasse extends ConsumerStatefulWidget {
+  const _ModaleMotDePasse();
+
+  @override
+  ConsumerState<_ModaleMotDePasse> createState() => _ModaleMotDePasseState();
+}
+
+class _ModaleMotDePasseState extends ConsumerState<_ModaleMotDePasse> {
+  final _ancien = TextEditingController();
+  final _nouveau = TextEditingController();
+  final _confirmation = TextEditingController();
+  String? _erreurAncien;
+  String? _erreurNouveau;
+  String? _erreurConfirmation;
+  bool _enCours = false;
+
+  @override
+  void dispose() {
+    _ancien.dispose();
+    _nouveau.dispose();
+    _confirmation.dispose();
+    super.dispose();
+  }
+
+  Future<void> _valider() async {
+    if (_enCours) return;
+    final ancien = _ancien.text;
+    final nouveau = _nouveau.text;
+    final confirmation = _confirmation.text;
+
+    // Les règles de saisie du serveur, dans son ordre.
+    setState(() {
+      _erreurAncien = ancien.isEmpty ? TextesProfil.mdpObligatoire : null;
+      _erreurNouveau = nouveau.isEmpty
+          ? TextesProfil.mdpObligatoire
+          : nouveau.length < 8
+          ? TextesProfil.mdpRegle
+          : null;
+      _erreurConfirmation = confirmation.isEmpty
+          ? TextesProfil.mdpObligatoire
+          : null;
+    });
+    if (_erreurAncien != null ||
+        _erreurNouveau != null ||
+        _erreurConfirmation != null) {
+      return;
+    }
+    if (nouveau != confirmation) {
+      setState(
+        () => _erreurConfirmation = TextesProfil.mdpConfirmationInvalide,
+      );
+      return;
+    }
+
+    final login = ref.read(sessionProvider)?.login;
+    if (login == null) return;
+    setState(() => _enCours = true);
+    // Laisse la fenêtre se redessiner (bouton grisé) avant la dérivation
+    // PBKDF2, qui occupe le poste un instant.
+    await Future<void>.delayed(Duration.zero);
+    try {
+      await ref
+          .read(depotSessionProvider)
+          .changerMotDePasse(login: login, ancien: ancien, nouveau: nouveau);
+      if (mounted) Navigator.of(context).pop(true);
+    } on EchecConnexion catch (e) {
+      if (!mounted) return;
+      final identique = nouveau == ancien;
+      setState(() {
+        _enCours = false;
+        if (identique) {
+          _erreurNouveau = e.message;
+        } else {
+          _erreurAncien = e.message;
+          _ancien.clear();
+          _nouveau.clear();
+          _confirmation.clear();
+        }
+      });
+    }
+  }
+
+  Widget _champ({
+    required Key cle,
+    required String libelle,
+    required TextEditingController controleur,
+    required String? erreur,
+    required List<String> autofill,
+    String? aide,
+  }) => Padding(
+    padding: const EdgeInsets.only(bottom: AppSpacing.md),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          libelle,
+          style: styleTransverse(
+            TaillesContenu.t15,
+            poids: FontWeight.w600,
+            couleur: Ardoise.c700,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xxs),
+        TextField(
+          key: cle,
+          controller: controleur,
+          obscureText: true,
+          autocorrect: false,
+          enableSuggestions: false,
+          autofillHints: autofill,
+          enabled: !_enCours,
+          onSubmitted: (_) => _valider(),
+          style: styleTransverse(TaillesContenu.sm),
+          decoration: InputDecoration(
+            isDense: true,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              borderSide: const BorderSide(color: Ardoise.c200),
+            ),
+          ),
+        ),
+        if (erreur != null) ...[
+          const SizedBox(height: AppSpacing.unit),
+          Text(
+            erreur,
+            style: styleTransverse(
+              TaillesContenu.t12,
+              couleur: AppColors.erreur,
+            ),
+          ),
+        ],
+        if (aide != null) ...[
+          const SizedBox(height: AppSpacing.xxs),
+          Text(
+            aide,
+            style: styleTransverse(TaillesContenu.t12, couleur: Ardoise.c400),
+          ),
+        ],
+      ],
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      key: const Key('profil-mdp-modale'),
+      backgroundColor: AppColors.neutre0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.roundedXl),
+      ),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(
+          maxWidth: MesuresTransverses.modaleMotDePasse,
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                TextesProfil.mdpTitre,
+                style: styleTransverse(
+                  TaillesContenu.base,
+                  poids: FontWeight.bold,
+                  couleur: AppColors.navy,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.unit),
+              Text(
+                TextesProfil.mdpSousTitre,
+                style: styleTransverse(
+                  TaillesContenu.t13,
+                  couleur: Ardoise.c500,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              _champ(
+                cle: const Key('profil-mdp-ancien'),
+                libelle: TextesProfil.mdpAncien,
+                controleur: _ancien,
+                erreur: _erreurAncien,
+                autofill: const [AutofillHints.password],
+              ),
+              _champ(
+                cle: const Key('profil-mdp-nouveau'),
+                libelle: TextesProfil.mdpNouveau,
+                controleur: _nouveau,
+                erreur: _erreurNouveau,
+                autofill: const [AutofillHints.newPassword],
+                aide: TextesProfil.mdpRegle,
+              ),
+              _champ(
+                cle: const Key('profil-mdp-confirmation'),
+                libelle: TextesProfil.mdpConfirmation,
+                controleur: _confirmation,
+                erreur: _erreurConfirmation,
+                autofill: const [AutofillHints.newPassword],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: AppSpacing.xsPlus,
+                ),
+                decoration: BoxDecoration(
+                  color: PaletteMaitre.ambre50,
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                ),
+                child: Text(
+                  TextesProfil.mdpNoteSurCePoste,
+                  style: styleTransverse(
+                    TaillesContenu.t13,
+                    couleur: PaletteTransverse.texteOr,
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.mdPlus),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  BoutonStandard(
+                    key: const Key('profil-mdp-annuler'),
+                    libelle: TextesProfil.annuler,
+                    onPressed: _enCours
+                        ? null
+                        : () => Navigator.of(context).pop(false),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  BoutonStandard(
+                    key: const Key('profil-mdp-valider'),
+                    variante: VarianteBouton.or,
+                    libelle: TextesProfil.mdpBouton,
+                    onPressed: _enCours ? null : _valider,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// Le journal des dernières actions : titre, « Journal complet → », tableau à

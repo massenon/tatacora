@@ -55,10 +55,24 @@ final class Depense {
     this.ecritureId,
     this.numeroPiece,
     this.ecritureRefus,
+    this.recueDuServeur = false,
+    this.posteOrigine,
   });
 
   final String id;
   final DateTime dateTransaction;
+
+  /// Lot F4 (17/10/2026) : la dépense a été saisie sur un AUTRE poste (ou au
+  /// serveur) et DESCENDUE ici. Sa pièce existe au serveur, pas sur ce poste
+  /// (décision Q1 du PO) : elle ne se rattrape JAMAIS ici — elle serait
+  /// comptée deux fois. Lu de `origines_documents_local`.
+  final bool recueDuServeur;
+
+  /// Le poste qui l'a saisie (`null` : saisie au serveur, ou sur ce poste).
+  final String? posteOrigine;
+
+  /// La pièce de cette dépense est tenue par le SERVEUR, pas par ce poste.
+  bool get pieceAuServeur => recueDuServeur && ecritureId == null;
 
   /// `null` si la valeur stockée n'est plus au registre — jamais un repli sur
   /// « Caisse », qui gonflerait l'indicateur des espèces.
@@ -187,6 +201,12 @@ final class RefusDepense implements Exception {
           'ligne, ou saisissez son montant.';
 
   /// Le rattrapage cible une dépense qui n'est plus sur ce poste.
+  /// Lot F4 : une dépense descendue d'un autre poste ne se rattrape pas ici.
+  const RefusDepense.recueDuServeur()
+    : message =
+          'Cette dépense vient d\'un autre poste : sa pièce est passée au '
+          'serveur. La comptabiliser ici la compterait deux fois.';
+
   const RefusDepense.introuvable()
     : message = 'Cette dépense n\'existe plus sur ce poste.';
 

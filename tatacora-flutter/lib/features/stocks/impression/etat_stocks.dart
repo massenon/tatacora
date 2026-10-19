@@ -1,9 +1,13 @@
 import 'dart:convert';
 
+import '../../../core/format/formats.dart';
+import '../../../core/impression/etat_tabulaire_a4.dart';
+import '../../../core/impression/visas.dart';
+
 import '../domain/entities/etat_stock.dart';
 
 /// L'export du **référentiel des stocks** — le bouton d'export de la page
-/// (`stocks.blade.php` l.243-244), tableur seulement.
+/// (`stocks.blade.php` l.243-244), tableur (CSV) et PDF A4.
 ///
 /// @see RG-19 Convention d'export
 /// @see EF-M14-02 État des stocks
@@ -28,13 +32,13 @@ import '../domain/entities/etat_stock.dart';
 ///    « — », pas un zéro : son coût est INCONNU, et un zéro de tableur se
 ///    somme.
 ///
-/// ## Le tableur est un CSV, et le PDF n'est pas produit
+/// ## Le tableur est un CSV ; le PDF est l'état A4 des mêmes colonnes
 ///
-/// Convention RG-19 : BOM UTF-8 et point-virgule. Le choix du PDF reste offert
-/// par la modale partagée et répond par un message : aucun A4 de cet état
-/// n'existe sur ce poste (en-tête unique et visas, arbitrage PA-192).
-/// Les montants et les quantités partent en nombres BRUTS : un tableur ne sait
-/// pas additionner « 12 sacs ».
+/// Convention RG-19 : BOM UTF-8 et point-virgule. Les montants et les
+/// quantités partent en nombres BRUTS : un tableur ne sait pas additionner
+/// « 12 sacs ». Le « PDF Officiel A4 Imprimable » (directive du PO du
+/// 14/10/2026) reprend colonnes, lignes, filtre et mentions, en paysage (dix
+/// colonnes), montants en FCFA à droite ([etatA4]).
 final class EtatStocks {
   const EtatStocks({
     required this.lignes,
@@ -137,28 +141,56 @@ final class EtatStocks {
     tampon.writeln(entetes.map(_e).join(';'));
 
     for (final l in lignes) {
-      final journalier = l.estJournalier;
-
-      tampon.writeln(
-        [
-          l.libelle,
-          l.categorie ?? _tiret,
-          l.uniteMesure,
-          l.pointLibelle ?? _tiret,
-          l.suivi.libelle,
-          journalier ? 'non suivi' : l.stock,
-          journalier ? _tiret : l.seuilAlerte,
-          l.prixAchat ?? _tiret,
-          l.cmpInconnu ? _tiret : l.coutMoyenPondere,
-          (journalier || l.valeurInconnue) ? _tiret : l.valeurStock,
-        ].map(_e).join(';'),
-      );
+      tampon.writeln(_cellules(l, papier: false).map(_e).join(';'));
     }
 
     return tampon.toString();
   }
 
   List<int> csvOctets() => utf8.encode(csv());
+
+  /// Les cellules d'un article, les mêmes au tableur et au papier ; seuls les
+  /// trois montants changent de forme (nombre brut au CSV, FCFA au PDF). Le
+  /// tiret d'une valeur inconnue reste un tiret.
+  List<String> _cellules(LigneStock l, {required bool papier}) {
+    final journalier = l.estJournalier;
+    String montant(String? brut) => brut == null
+        ? _tiret
+        : (papier
+              ? formaterMontantDecimal(brut, suffixe: 'FCFA') ?? brut
+              : brut);
+
+    return [
+      l.libelle,
+      l.categorie ?? _tiret,
+      l.uniteMesure,
+      l.pointLibelle ?? _tiret,
+      l.suivi.libelle,
+      journalier ? 'non suivi' : l.stock,
+      journalier ? _tiret : l.seuilAlerte,
+      montant(l.prixAchat),
+      l.cmpInconnu ? _tiret : montant(l.coutMoyenPondere),
+      (journalier || l.valeurInconnue) ? _tiret : montant(l.valeurStock),
+    ];
+  }
+
+  /// Le « PDF Officiel A4 Imprimable » des articles affichés (paysage). Les
+  /// visas sont ceux du gabarit serveur du même état
+  /// (`pdf/stocks-etat.blade.php`), pas ceux de la directive.
+  EtatTabulaireA4 etatA4() => EtatTabulaireA4(
+    titre: titre,
+    visas: Visas.etatStocks,
+    portee: 'Filtre appliqué : $portee',
+    mentions: [
+      for (final m in mentions) m.replaceFirst('Ce fichier', 'Ce document'),
+    ],
+    colonnes: [
+      for (final (i, e) in entetes.indexed)
+        i >= 5 ? ColonneEtat.nombre(e) : ColonneEtat(e, largeur: 1.2),
+    ],
+    lignes: [for (final l in lignes) _cellules(l, papier: true)],
+    resume: '${lignes.length} article(s)',
+  );
 
   /// Le point-virgule est le séparateur : un point-virgule DANS une valeur
   /// casserait la colonne, et un saut de ligne casserait la ligne.

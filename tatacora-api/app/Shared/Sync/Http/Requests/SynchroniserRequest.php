@@ -42,6 +42,13 @@ final class SynchroniserRequest extends FormRequest
             'operations.*.entite_id' => ['required', 'uuid'],
             'operations.*.payload' => ['required', 'array'],
 
+            // ⚠ `payload.date_metier` (D246, 15/10/2026) n'est PAS validee ici :
+            // une regle sur une sous-cle fait rendre a `validated()` le payload
+            // reduit a ses seules sous-cles validees — le document entier
+            // disparaissait (essaye le 15/10/2026). Elle est controlee par
+            // operation dans `SynchronisationService::contexte()`, et une date
+            // illisible y est un rejet de l'operation, pas du lot.
+
             // Horodatage de l'APPAREIL au moment de la saisie, jamais celui de
             // reception serveur : c'est lui qui arbitre le last-write-wins.
             'operations.*.horodatage_client' => ['required', 'date'],

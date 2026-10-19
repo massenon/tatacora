@@ -180,8 +180,14 @@ final class Facturer {
   /* ================================================================== */
 
   /// Annule une facture **par avoir**. Rien n'est effacé.
-  Future<AnnulationParAvoir> annuler(String pieceId, String motif) =>
-      _depot.annuler(pieceId, motif);
+  ///
+  /// [auteurId] : le compte qui annule — une facture d'un AUTRE poste ne
+  /// s'annule que par l'administration ou le comptable (Q3, lot F6).
+  Future<AnnulationParAvoir> annuler(
+    String pieceId,
+    String motif, {
+    String? auteurId,
+  }) => _depot.annuler(pieceId, motif, auteurId: auteurId);
 
   /// La facture émise d'une réservation, **avoirs exclus**.
   ///

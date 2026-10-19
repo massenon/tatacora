@@ -1,5 +1,6 @@
 // Vue Blade maîtresse (PA-183) : pwa/transverse/contact-editeur.blade.php
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/navigation/coquille_vue.dart';
@@ -8,8 +9,13 @@ import '../../../core/theme/app_breakpoints.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/di/providers.dart';
 import '../../../core/theme/mesures_transverses.dart';
+import '../data/envoi_messages_editeur.dart';
+import '../domain/messages_editeur.dart';
+import 'providers_contact_editeur.dart';
 import 'widgets/briques_transverses.dart';
+import 'widgets/modales_contact_editeur.dart';
 
 /// L'écran **Contactez l'éditeur** — lot D du plan du Product Owner
 /// (14/10/2026).
@@ -19,15 +25,29 @@ import 'widgets/briques_transverses.dart';
 /// deux boutons « Envoyer un message » / « Signaler un bug », puis « Vos
 /// envois ») ; colonne des coordonnées de l'éditeur.
 ///
-/// ## Ce que ce poste ne fait pas, et le DIT (D421)
+/// ## Le poste ENVOIE — directive du PO du 14/10/2026 (Lot J2 partie 2)
 ///
-/// La vue ouvre une modale, ENREGISTRE l'envoi et le transmet par courriel
-/// (`ContactEditeur::envoyerMessage` / `signalerBug`). Ce poste est zéro
-/// réseau : il n'envoie rien et n'enregistre aucun envoi. Les deux boutons
-/// sont rendus, comme à la vue, et leur clic DIT qu'aucun message ne part,
-/// avec les coordonnées de l'éditeur (Article 3.3 : jamais un bouton muet ;
-/// jamais un formulaire qui ferait croire à un envoi). « Vos envois » rend
-/// l'état vide de la vue — vrai sur ce poste — suivi de la raison.
+/// Jusqu'au 14/10/2026 (D421), les deux boutons DISAIENT seulement qu'aucun
+/// message ne partait : le poste était zéro réseau. Le Product Owner a
+/// ordonné l'envoi réel. Comme à la vue (`ContactEditeur::envoyerMessage` /
+/// `signalerBug`), chaque bouton ouvre sa modale ; « Envoyer » ÉCRIT d'abord
+/// le message dans la boîte d'envoi du poste (`messages_editeur_local`,
+/// `en_attente`), PUIS tente l'envoi SMTP à l'éditeur, borné à 20 s, sans
+/// retenir l'écran. Accepté : « Transmis ». Refusé ou hors connexion : le
+/// message reste en attente et repart seul (`relanceMessagesEditeurProvider`,
+/// au démarrage puis toutes les 5 min). Jamais perdu, jamais supprimé.
+///
+/// C'est l'une des DEUX actions réseau du poste, avec la synchronisation en
+/// tâche de fond (lot F2a, 15/10/2026). Tout le reste lit et écrit la base
+/// locale.
+///
+/// « Vos envois » rend la liste RÉELLE des 50 derniers envois du compte, avec
+/// leur statut mesuré. AJOUT du poste (aucune vue ne l'a) : l'encart
+/// « Messages en attente d'envoi » — leur nombre pour tout le poste, la
+/// dernière raison d'échec (le mot de passe SMTP absent de
+/// `%APPDATA%\TATACORA\poste.json`, par exemple) et « Renvoyer maintenant » :
+/// sur un poste dont la connexion tombe, l'opérateur doit savoir ce qui n'est
+/// pas parti.
 ///
 /// Les adresses et le téléphone sont rendus en TEXTE sélectionnable : la vue
 /// pose des liens `mailto:`/`tel:`, que ce poste n'ouvre pas (aucun greffon
@@ -95,14 +115,35 @@ abstract final class TextesContact {
       'Vos 50 derniers envois. « Transmis » signifie que le courriel est réellement parti vers l\'éditeur.';
   static const String envoisVide = 'Aucun envoi depuis ce compte.';
 
-  /// AJOUT déclaré (D421) : ce que le clic dit, et la raison sous la liste.
-  static const String aucunEnvoi =
-      "Ce poste n'envoie aucun message à l'éditeur : il ne communique avec "
-      'aucun serveur, et rien n\'est enregistré. Écrivez à $editeurEmail1 '
-      'ou appelez le $editeurTelephone.';
-  static const String envoisSurCePoste =
-      "Sur ce poste : aucun envoi n'est enregistré — ni message ni "
-      'signalement ne part de ce poste.';
+  static const String envoisStatutTransmis = 'Transmis';
+  static const String envoisStatutATransmettre = "En attente d'envoi";
+  static const String messageEnvoye = "Message envoyé à l'éditeur.";
+  static const String bugSignale = "Signalement envoyé à l'éditeur.";
+
+  /// AJOUTS du poste (Lot J2 partie 2) — l'envoi, la file, ses raisons.
+  static const String envoisStatutEchec = 'Échec — à renvoyer';
+  static const String enregistreEnFile =
+      'Message enregistré sur ce poste — il partira dès que la connexion '
+      'reviendra.';
+  static String enregistreNonConfigure(String raison) =>
+      'Message enregistré sur ce poste, mais il ne peut pas partir : $raison '
+      'Il partira dès que ce sera réglé.';
+  static const String fileTitre = "Messages en attente d'envoi";
+  static String fileDetail(int n) => n > 1
+      ? "$n messages écrits sur ce poste n'ont pas encore été acceptés par la "
+            'messagerie : relance automatique au démarrage puis toutes les 5 '
+            'minutes.'
+      : "1 message écrit sur ce poste n'a pas encore été accepté par la "
+            'messagerie : relance automatique au démarrage puis toutes les 5 '
+            'minutes.';
+  static String fileEchecs(int n) =>
+      '$n message${n > 1 ? 's ont' : ' a'} épuisé les relances automatiques : '
+      '« Renvoyer maintenant » ${n > 1 ? 'les' : 'le'} remet en file.';
+  static String derniereErreur(String raison) => 'Dernière erreur : $raison';
+  static const String renvoyer = 'Renvoyer maintenant';
+  static String bilanRenvoi(int envoyes, int restants) =>
+      '$envoyes envoyé${envoyes > 1 ? 's' : ''}, $restants encore en attente.';
+  static const String renvoiEnCours = 'Un envoi est déjà en cours.';
 }
 
 /// L'encart or : `rounded-xl border p-4 mb-6`, fond `#FFFBEB`, bordure
@@ -201,8 +242,79 @@ class _AvantDeContacter extends StatelessWidget {
   }
 }
 
-/// `lg:col-span-2 space-y-5` : les deux boutons, puis « Vos envois ».
-class _ColonneFormulaires extends StatelessWidget {
+/// Le geste d'un des deux boutons : la modale ÉCRIT le message, puis l'envoi
+/// est tenté HORS de la modale — l'écran reste utilisable pendant les 20 s
+/// au plus que peut durer la tentative — et son issue est DITE.
+Future<void> _contacter(
+  BuildContext context,
+  WidgetRef ref,
+  TypeMessageEditeur type,
+) async {
+  final service = ref.read(serviceMessagesEditeurProvider);
+  final session = ref.read(sessionProvider);
+  final revision = ref.read(revisionBoiteEditeurProvider.notifier);
+  final messager = ScaffoldMessenger.of(context);
+  final ecrit = await ouvrirModaleContact(
+    context,
+    type: type,
+    enregistrer: (saisie) => service.enregistrer(
+      saisie,
+      auteurId: session?.utilisateurId,
+      auteurLogin: session?.login,
+    ),
+  );
+  if (ecrit == null) return;
+  revision.avancer();
+  final resultat = await service.envoyer(ecrit);
+  revision.avancer();
+  switch (resultat.issue) {
+    case IssueEnvoiEditeur.envoye:
+      _toast(
+        messager,
+        type == TypeMessageEditeur.bug
+            ? TextesContact.bugSignale
+            : TextesContact.messageEnvoye,
+        fond: AppColors.succes,
+        cle: const Key('contact-toast-envoye'),
+      );
+    case IssueEnvoiEditeur.nonConfigure:
+      _toast(
+        messager,
+        TextesContact.enregistreNonConfigure(resultat.raison ?? ''),
+        fond: AppColors.alerte,
+        cle: const Key('contact-toast-non-configure'),
+      );
+    case IssueEnvoiEditeur.echoue:
+    case IssueEnvoiEditeur.dejaEnCours:
+      _toast(
+        messager,
+        TextesContact.enregistreEnFile,
+        fond: AppColors.alerte,
+        cle: const Key('contact-toast-en-file'),
+      );
+  }
+}
+
+void _toast(
+  ScaffoldMessengerState messager,
+  String texte, {
+  required Color fond,
+  required Key cle,
+}) {
+  messager
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: fond,
+        content: Text(texte, key: cle),
+      ),
+    );
+}
+
+/// `lg:col-span-2 space-y-5` : les deux boutons, l'encart de la file (ajout
+/// du poste), puis « Vos envois ».
+class _ColonneFormulaires extends ConsumerWidget {
   const _ColonneFormulaires();
 
   static const String _avion =
@@ -211,16 +323,13 @@ class _ColonneFormulaires extends StatelessWidget {
       r'<rect x="8" y="6" width="8" height="14" rx="4"/><path stroke-linecap="round" d="M19 8l-3 2M5 8l3 2M19 16l-3-2M5 16l3-2M12 6V4M9 4h6"/>';
 
   @override
-  Widget build(BuildContext context) {
-    void dire() => direTransverse(
-      context,
-      TextesContact.aucunEnvoi,
-      cle: const Key('contact-aucun-envoi'),
-    );
+  Widget build(BuildContext context, WidgetRef ref) {
     const marge = EdgeInsets.symmetric(
       horizontal: AppSpacing.md,
       vertical: AppSpacing.xsPlus,
     );
+    final envois = ref.watch(envoisDuCompteProvider);
+    final file = ref.watch(etatFileEditeurProvider).value;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -235,7 +344,7 @@ class _ColonneFormulaires extends StatelessWidget {
               trace: _avion,
               taille: TaillesContenu.t15,
               padding: marge,
-              onTap: dire,
+              onTap: () => _contacter(context, ref, TypeMessageEditeur.message),
             ),
             BoutonTransverse(
               cle: const Key('contact-signaler-bug'),
@@ -245,10 +354,14 @@ class _ColonneFormulaires extends StatelessWidget {
               padding: marge,
               couleurContour: Ardoise.c200,
               couleurTexteContour: Ardoise.c500,
-              onTap: dire,
+              onTap: () => _contacter(context, ref, TypeMessageEditeur.bug),
             ),
           ],
         ),
+        if (file != null && file.enAttente + file.enEchec > 0) ...[
+          const SizedBox(height: AppSpacing.mdPlus),
+          _FileEnAttente(etat: file),
+        ],
         const SizedBox(height: AppSpacing.mdPlus),
         CarteTransverse(
           padding: EdgeInsets.zero,
@@ -285,38 +398,222 @@ class _ColonneFormulaires extends StatelessWidget {
                   ],
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.mdPlus,
-                  vertical: AppSpacing.xl,
-                ),
-                child: Column(
+              switch (envois) {
+                AsyncData(:final value) when value.isNotEmpty => Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(
-                      TextesContact.envoisVide,
-                      key: const Key('contact-envois-vide'),
-                      textAlign: TextAlign.center,
-                      style: styleTransverse(
-                        TaillesContenu.t13,
-                        couleur: Ardoise.c400,
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xxs),
-                    Text(
-                      TextesContact.envoisSurCePoste,
-                      textAlign: TextAlign.center,
-                      style: styleTransverse(
-                        TaillesContenu.t12,
-                        couleur: Ardoise.c400,
-                      ),
-                    ),
+                    for (var i = 0; i < value.length; i++) ...[
+                      if (i > 0) const Divider(height: 1, color: Ardoise.c100),
+                      _LigneEnvoi(envoi: value[i]),
+                    ],
                   ],
                 ),
-              ),
+                AsyncError(:final error) => Padding(
+                  padding: const EdgeInsets.all(AppSpacing.mdPlus),
+                  child: Text(
+                    '$error',
+                    style: styleTransverse(
+                      TaillesContenu.t13,
+                      couleur: AppColors.erreur,
+                    ),
+                  ),
+                ),
+                _ => Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.mdPlus,
+                    vertical: AppSpacing.xl,
+                  ),
+                  child: Text(
+                    TextesContact.envoisVide,
+                    key: const Key('contact-envois-vide'),
+                    textAlign: TextAlign.center,
+                    style: styleTransverse(
+                      TaillesContenu.t13,
+                      couleur: Ardoise.c400,
+                    ),
+                  ),
+                ),
+              },
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Une ligne de « Vos envois » : `px-5 py-3.5`, pastille BUG / MESSAGE, objet,
+/// extrait du message (180 caractères), date `d/m/Y H:i` et statut.
+class _LigneEnvoi extends StatelessWidget {
+  const _LigneEnvoi({required this.envoi});
+
+  final MessageEditeur envoi;
+
+  @override
+  Widget build(BuildContext context) {
+    final bug = envoi.type == TypeMessageEditeur.bug;
+    final (statut, couleurStatut) = switch (envoi.statut) {
+      StatutMessageEditeur.envoye => (
+        TextesContact.envoisStatutTransmis,
+        AppColors.succes,
+      ),
+      StatutMessageEditeur.enAttente => (
+        TextesContact.envoisStatutATransmettre,
+        AppColors.alerte,
+      ),
+      StatutMessageEditeur.echec => (
+        TextesContact.envoisStatutEchec,
+        AppColors.erreur,
+      ),
+    };
+    final corps = envoi.corps.length > MesuresTransverses.extraitEnvoi
+        ? '${envoi.corps.substring(0, MesuresTransverses.extraitEnvoi)}...'
+        : envoi.corps;
+    return Padding(
+      key: Key('contact-envoi-${envoi.id}'),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.mdPlus,
+        vertical: AppSpacing.smPlus,
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            margin: const EdgeInsets.only(top: AppSpacing.unit),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.xxs,
+              vertical: AppSpacing.demi,
+            ),
+            decoration: BoxDecoration(
+              color: bug ? AppColors.badgeRougeFond : AppColors.badgeBleuFond,
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+            ),
+            child: Text(
+              bug ? 'BUG' : 'MESSAGE',
+              style: styleTransverse(
+                TaillesContenu.t10,
+                poids: FontWeight.bold,
+                couleur: bug ? AppColors.erreur : AppColors.info,
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.xsPlus),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  envoi.sujet,
+                  style: styleTransverse(
+                    TaillesContenu.t15,
+                    poids: FontWeight.w600,
+                    couleur: Ardoise.c700,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.demi),
+                Text(
+                  corps,
+                  style: styleTransverse(
+                    TaillesContenu.t13,
+                    couleur: Ardoise.c500,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.unit),
+                Text.rich(
+                  TextSpan(
+                    style: styleTransverse(
+                      TaillesContenu.t12,
+                      couleur: Ardoise.c400,
+                    ),
+                    children: [
+                      TextSpan(text: '${dateHeureEditeur(envoi.creeLe)} · '),
+                      TextSpan(
+                        text: statut,
+                        style: TextStyle(color: couleurStatut),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// AJOUT du poste — « Messages en attente d'envoi » : combien, pourquoi, et
+/// « Renvoyer maintenant ». Rendu seulement quand la file n'est pas vide.
+class _FileEnAttente extends ConsumerWidget {
+  const _FileEnAttente({required this.etat});
+
+  final EtatFileEditeur etat;
+
+  Future<void> _renvoyer(BuildContext context, WidgetRef ref) async {
+    final service = ref.read(serviceMessagesEditeurProvider);
+    final revision = ref.read(revisionBoiteEditeurProvider.notifier);
+    final messager = ScaffoldMessenger.of(context);
+    final bilan = await service.relancer(forcer: true);
+    revision.avancer();
+    _toast(
+      messager,
+      bilan == null
+          ? TextesContact.renvoiEnCours
+          : TextesContact.bilanRenvoi(bilan.envoyes, bilan.restants),
+      fond: bilan != null && bilan.restants == 0
+          ? AppColors.succes
+          : AppColors.alerte,
+      cle: const Key('contact-toast-renvoi'),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final texte = styleTransverse(
+      TaillesContenu.t13,
+      couleur: PaletteTransverse.texteOr,
+    );
+    final total = etat.enAttente + etat.enEchec;
+    final erreur = etat.derniereErreur;
+    return EncadreTransverse(
+      key: const Key('contact-file-en-attente'),
+      fond: PaletteMaitre.ambre50,
+      bordure: PaletteMaitre.ambre200,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${TextesContact.fileTitre} ($total)',
+            style: styleTransverse(
+              TaillesContenu.t15,
+              poids: FontWeight.bold,
+              couleur: PaletteTransverse.texteOr,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.demi),
+          Text(TextesContact.fileDetail(total), style: texte),
+          if (etat.enEchec > 0) ...[
+            const SizedBox(height: AppSpacing.demi),
+            Text(TextesContact.fileEchecs(etat.enEchec), style: texte),
+          ],
+          if (erreur != null) ...[
+            const SizedBox(height: AppSpacing.xxs),
+            SelectableText(
+              TextesContact.derniereErreur(erreur),
+              key: const Key('contact-file-erreur'),
+              style: texte.copyWith(fontWeight: FontWeight.w600),
+            ),
+          ],
+          const SizedBox(height: AppSpacing.sm),
+          BoutonTransverse(
+            cle: const Key('contact-renvoyer'),
+            libelle: TextesContact.renvoyer,
+            fond: AppColors.gold,
+            onTap: () => _renvoyer(context, ref),
+          ),
+        ],
+      ),
     );
   }
 }

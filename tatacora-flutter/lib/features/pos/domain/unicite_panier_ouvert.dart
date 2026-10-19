@@ -93,3 +93,20 @@ final class TableDejaServie implements Exception {
       'Reprenez-le plutôt que d’en ouvrir un second : deux paniers sur une '
       'table scinderaient l’addition.';
 }
+
+/// La table est occupée sur un AUTRE poste (ou à la PWA) — lot F6, arbitrage
+/// des tables entre postes (décision du PO du 18/10/2026). La phrase est
+/// celle du serveur (`sync.tables.occupee`), qui refuserait l'ouverture.
+final class TableOccupeeAilleurs implements Exception {
+  const TableOccupeeAilleurs({required this.tableId, required this.libelle});
+
+  final String tableId;
+  final String libelle;
+
+  String get message =>
+      'Table $libelle déjà occupée par un autre poste (ou à la PWA) : '
+      "encaissez ou libérez la table là-bas avant de l'ouvrir ici.";
+
+  @override
+  String toString() => message;
+}

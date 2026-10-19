@@ -10,7 +10,9 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../shared_widgets/bouton_standard.dart';
-import '../../bar/presentation/widgets/modale_export_carte.dart';
+import '../../../shared_widgets/liste_paginee.dart';
+import '../../../shared_widgets/modale_export.dart';
+import '../../../shared_widgets/toast_export.dart';
 import '../data/stocks_api.dart';
 import '../domain/entities/etat_stock.dart';
 import '../domain/import_articles.dart';
@@ -156,6 +158,12 @@ class _Corps extends ConsumerWidget {
         ),
         _CarteTableau(
           lignes: lignes,
+          cleFiltre: (
+            ref.watch(rechercheStockProvider),
+            ref.watch(categorieStockProvider),
+            ref.watch(suiviStockProvider),
+            ref.watch(etatFiltreProvider),
+          ),
           onFiche: (l) => _ouvrirFiche(context, ref, l),
           onMouvement: (l) => _ouvrirMouvement(context, ref, l),
           onModifier: (l) => _modifier(context, ref, l),
@@ -249,8 +257,8 @@ class _Corps extends ConsumerWidget {
   /// L'export porte sur CE QUI EST AFFICHÉ, toutes lignes confondues, et il DIT
   /// son filtre (PA-119). Une liste vide se REFUSE : un fichier sans ligne se
   /// lirait « il n'y a aucun article », alors qu'il veut dire « le filtre n'a
-  /// rien retenu ». Le choix du PDF reste offert, comme dans la vue, et répond
-  /// par un message : aucun A4 de cet état n'existe sur ce poste (PA-192).
+  /// rien retenu ». Le PDF est l'état A4 des mêmes colonnes (directive du PO
+  /// du 14/10/2026).
   Future<void> _exporter(
     BuildContext context,
     WidgetRef ref,
@@ -274,23 +282,8 @@ class _Corps extends ConsumerWidget {
       context,
       titre: 'Exporter — Articles en stock',
       sousTitre: 'Le document porte les filtres affichés : $portee',
-      // PDF présélectionné comme la vue (demande du PO du 14/10/2026) ; son
-      // refus est dit après le clic.
-      aide: TextesStocks.aidePdf,
     );
     if (format == null || !context.mounted) return;
-
-    if (format == FormatExport.pdf) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            TextesStocks.pdfNonProduit,
-            key: Key('stocks-export-pdf-absent'),
-          ),
-        ),
-      );
-      return;
-    }
 
     if (lignes.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -307,17 +300,14 @@ class _Corps extends ConsumerWidget {
       arreteAu: etat.arreteAu,
       sansValorisation: etat.kpis.sansValorisation,
     );
-    final chemin = await ref.read(exporterStocksProvider)(fichier);
-    if (!context.mounted) return;
-
-    // Un export silencieux est un export que personne ne retrouve.
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Export écrit : $chemin',
-          key: const Key('stocks-export-fait'),
-        ),
-      ),
+    // La fenêtre « Enregistrer sous », puis le toast commun (14/10/2026).
+    await executerExport(
+      context,
+      () => switch (format) {
+        FormatExport.pdf => ref.read(exporterStocksPdfProvider)(fichier),
+        FormatExport.excel => ref.read(exporterStocksProvider)(fichier),
+      },
+      cleSucces: const Key('stocks-export-fait'),
     );
   }
 }
@@ -325,14 +315,6 @@ class _Corps extends ConsumerWidget {
 /// Les phrases propres à ce poste — ce que la vue ne dit pas parce que son
 /// serveur sait faire ce que ce poste ne sait pas encore.
 abstract final class TextesStocks {
-  static const String aidePdf =
-      'Le PDF n’est pas produit sur ce poste : seul le tableur (CSV) est écrit.';
-
-  static const String pdfNonProduit =
-      'Le PDF n’est pas produit sur ce poste : aucun état A4 des stocks '
-      'n’existe encore. Rien n’a '
-      'été écrit — choisissez le tableur.';
-
   static const String ventesSansSortie =
       'Ce stock ne compte que les mouvements saisis sur ce poste : les ventes '
       'du bar et du restaurant n’y écrivent aucune sortie, il peut donc '
@@ -851,12 +833,16 @@ class _Liste<T> extends StatelessWidget {
 class _CarteTableau extends StatelessWidget {
   const _CarteTableau({
     required this.lignes,
+    required this.cleFiltre,
     required this.onFiche,
     required this.onMouvement,
     required this.onModifier,
   });
 
   final List<LigneStock> lignes;
+
+  /// Les filtres posés : les changer ramène la pagination à la page 1.
+  final Object cleFiltre;
   final void Function(LigneStock) onFiche;
   final void Function(LigneStock) onMouvement;
   final void Function(LigneStock) onModifier;
@@ -925,11 +911,18 @@ class _CarteTableau extends StatelessWidget {
               ),
             )
           else
-            TableStocks(
-              lignes: lignes,
-              onFiche: onFiche,
-              onMouvement: onMouvement,
-              onModifier: onModifier,
+            // Dix articles par page (PO, 14/10/2026) ; l'export reçoit la
+            // liste filtrée ENTIÈRE (`_exporter`).
+            ListePaginee<LigneStock>(
+              elements: lignes,
+              prefixeCle: 'stocks-pagination',
+              cleRemiseAZero: cleFiltre,
+              constructeur: (_, page) => TableStocks(
+                lignes: page,
+                onFiche: onFiche,
+                onMouvement: onMouvement,
+                onModifier: onModifier,
+              ),
             ),
         ],
       ),

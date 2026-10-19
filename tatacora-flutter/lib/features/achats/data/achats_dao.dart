@@ -2,6 +2,10 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../synchronisation/data/documents_autres_postes.dart';
+import '../../synchronisation/data/operations_sync_dao.dart';
+import '../../synchronisation/domain/charges_synchronisation.dart';
+import '../../synchronisation/domain/operation_sync.dart';
 import '../../../core/format/cle_comparaison.dart';
 import '../../stocks/data/stocks_dao.dart';
 import '../../stocks/domain/entities/etat_stock.dart' show SuiviArticle;
@@ -248,11 +252,17 @@ class AchatsDao extends DatabaseAccessor<AppDatabase> {
           creePar: auteurId,
         ),
       );
-      return _fournisseur(
-        await (select(
-          attachedDatabase.fournisseursLocal,
-        )..where((f) => f.id.equals(saisie.id))).getSingle(),
+      final ecrit = await (select(
+        attachedDatabase.fournisseursLocal,
+      )..where((f) => f.id.equals(saisie.id))).getSingle();
+      // Lot F1 : la fiche part au serveur, dans CETTE transaction.
+      await _file.enfiler(
+        table: TableSynchronisee.fournisseurs,
+        entiteId: ecrit.id,
+        type: TypeOperationSync.creation,
+        payload: _chargeFournisseur(ecrit),
       );
+      return _fournisseur(ecrit);
     });
   }
 
@@ -285,13 +295,35 @@ class AchatsDao extends DatabaseAccessor<AppDatabase> {
           modifiePar: Value(auteurId),
         ),
       );
-      return _fournisseur(
-        await (select(
-          attachedDatabase.fournisseursLocal,
-        )..where((f) => f.id.equals(saisie.id))).getSingle(),
+      final ecrit = await (select(
+        attachedDatabase.fournisseursLocal,
+      )..where((f) => f.id.equals(saisie.id))).getSingle();
+      // Lot F1 : seuls les champs changés partent.
+      await _file.enfiler(
+        table: TableSynchronisee.fournisseurs,
+        entiteId: ecrit.id,
+        type: TypeOperationSync.modification,
+        payload: champsModifies(
+          _chargeFournisseur(existant),
+          _chargeFournisseur(ecrit),
+        ),
       );
+      return _fournisseur(ecrit);
     });
   }
+
+  /// La file d'envoi (lot F1). Son propre générateur d'UUID : celui de ce DAO
+  /// est injectable.
+  OperationsSyncDao get _file => OperationsSyncDao(attachedDatabase);
+
+  static Map<String, Object?> _chargeFournisseur(FournisseursLocalData f) =>
+      chargeFournisseur(
+        raisonSociale: f.raisonSociale,
+        contact: f.contact,
+        categorie: f.categorie,
+        conditionsPaiement: f.conditionsPaiement,
+        evaluation: f.evaluation,
+      );
 
   /* ================================================================== */
   /* Fournisseurs — archivage (D63)                                       */
@@ -404,6 +436,14 @@ class AchatsDao extends DatabaseAccessor<AppDatabase> {
           modifiePar: Value(auteurId),
         ),
       );
+      // Lot F1 : l'archivage part en `actif: false` (le serveur l'applique
+      // sous SA règle de droits, `DroitArchivageService`).
+      await _file.enfiler(
+        table: TableSynchronisee.fournisseurs,
+        entiteId: id,
+        type: TypeOperationSync.modification,
+        payload: const {'actif': false},
+      );
     });
   }
 
@@ -465,6 +505,13 @@ class AchatsDao extends DatabaseAccessor<AppDatabase> {
             modifieLe: Value(_maintenant()),
             modifiePar: Value(auteurId),
           ),
+        );
+        // Lot F1 : la restauration part en `actif: true`.
+        await _file.enfiler(
+          table: TableSynchronisee.fournisseurs,
+          entiteId: id,
+          type: TypeOperationSync.modification,
+          payload: const {'actif': true},
         );
       }
       return _fournisseur(
@@ -801,6 +848,32 @@ class AchatsDao extends DatabaseAccessor<AppDatabase> {
         await into(attachedDatabase.lignesCommandeAchatLocal).insert(l);
       }
 
+      // Lot F1 : la commande part au serveur (création seule : le serveur
+      // n'accepte aucune modification d'une commande — `envoyerCommande` et
+      // `cloturerCommande` restent locales, point ouvert).
+      await _file.enfiler(
+        table: TableSynchronisee.commandesAchat,
+        entiteId: id,
+        type: TypeOperationSync.creation,
+        payload: chargeCommandeAchat(
+          fournisseurId: saisie.fournisseurId,
+          dateCommande: saisie.dateCommande,
+          statut: saisie.statut.code,
+          lignes: [
+            for (final l in lignes)
+              (
+                articleId: l.articleId.value,
+                articleLibelle: l.articleLibelle.value,
+                uniteMesure: l.uniteMesure.value,
+                quantiteCentiemes: l.quantiteCentiemes.value,
+                prixUnitaireCentimes: l.prixUnitaireCentimes.value,
+                rang: l.rang.value,
+              ),
+          ],
+        ),
+        dateMetier: saisie.dateCommande,
+      );
+
       return (await commande(id))!;
     });
   }
@@ -823,8 +896,25 @@ class AchatsDao extends DatabaseAccessor<AppDatabase> {
           statut: Value(StatutCommande.envoyee.code),
         ),
       );
+      await _envoyerStatut(id, StatutCommande.envoyee.code);
       return (await commande(id))!;
     });
+  }
+
+  /// Lot F6 (17/10/2026) : le statut part au serveur, par son service
+  /// (`envoyer`, `cloturer`), si le serveur détient la commande.
+  Future<void> _envoyerStatut(String id, String statut) async {
+    if (!await DocumentsAutresPostes(
+      attachedDatabase,
+    ).connuDuServeur(TableSynchronisee.commandesAchat, id)) {
+      return;
+    }
+    await OperationsSyncDao(attachedDatabase).enfiler(
+      table: TableSynchronisee.commandesAchat,
+      entiteId: id,
+      type: TypeOperationSync.modification,
+      payload: chargeStatutCommande(statut),
+    );
   }
 
   /// RG-10 : une commande ne se clôture que si elle est `receptionnee` —
@@ -847,6 +937,7 @@ class AchatsDao extends DatabaseAccessor<AppDatabase> {
           statut: Value(StatutCommande.cloturee.code),
         ),
       );
+      await _envoyerStatut(id, StatutCommande.cloturee.code);
       return (await commande(id))!;
     });
   }
@@ -1048,6 +1139,8 @@ class AchatsDao extends DatabaseAccessor<AppDatabase> {
             centiemes: e.value,
             motif: MessagesAchats.motifReception(commande: c.id, bon: bonId),
             auteurId: auteurId,
+            // Lot 10f : le BON part, le serveur écrit ses entrées.
+            envoyer: false,
           );
           if (issue is! MouvementPose) {
             // Une entrée ne peut pas être en rupture ; si le DAO du stock rend
@@ -1062,6 +1155,27 @@ class AchatsDao extends DatabaseAccessor<AppDatabase> {
           CommandesAchatLocalCompanion(
             statut: Value(statutApresReception(conformite).code),
           ),
+        );
+
+        // Lot F1 : le bon part au serveur, qui recalcule son verdict et
+        // SIGNALE l'écart avec celui du poste. Le nouveau statut de la
+        // commande ne part pas : le serveur le dérive de SA réception.
+        await _file.enfiler(
+          table: TableSynchronisee.bonsReception,
+          entiteId: bonId,
+          type: TypeOperationSync.creation,
+          payload: chargeBonReception(
+            commandeId: c.id,
+            dateReception: _jour(maintenant),
+            pointStockageId: point.id,
+            conformite: conformite.code,
+            lignes: [
+              for (final e in recues.entries)
+                (articleId: e.key, quantiteCentiemes: e.value),
+            ],
+          ),
+          horodatage: maintenant,
+          dateMetier: _jour(maintenant),
         );
 
         return (await receptions(

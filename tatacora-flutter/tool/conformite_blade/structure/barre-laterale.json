@@ -1,0 +1,2133 @@
+{
+    "_lisez-moi": "PRODUIT par ExtraireBarreLateraleTest, jamais ecrit a la main. Par role : droits (16 modules) et barre laterale rendue. `actif` : pour chaque entree visitee par l'administrateur, les entrees allumees.",
+    "roles": {
+        "achats": {
+            "droits": {
+                "M1": "-",
+                "M2": "-",
+                "M3": "-",
+                "M4": "-",
+                "M5": "-",
+                "M6": "L",
+                "M7": "C",
+                "M8": "-",
+                "M9": "-",
+                "M10": "-",
+                "M11": "L",
+                "M12": "-",
+                "M13": "-",
+                "M14": "L",
+                "ROLES": "-",
+                "PARAM": "-"
+            },
+            "barre": {
+                "entrees": [
+                    {
+                        "type": "epingle",
+                        "groupe": null,
+                        "nom": "Tableau de bord",
+                        "badge": "Tous modules",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa",
+                        "icone": "73c3b0fc"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "STOCKS & ACHATS",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "STOCKS & ACHATS",
+                        "nom": "Stocks",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/stocks",
+                        "icone": "1f18fa1a"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "STOCKS & ACHATS",
+                        "nom": "Inventaires & Fiches",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/stocks/inventaires",
+                        "icone": "1f18fa1a"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "STOCKS & ACHATS",
+                        "nom": "Approvisionnement",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/achats/approvisionnement",
+                        "icone": "5ab86cbc"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "STOCKS & ACHATS",
+                        "nom": "Fournisseurs",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/achats",
+                        "icone": "5ab86cbc"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "PILOTAGE & ADMINISTRATION",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "États & Rapports",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/etats",
+                        "icone": "9aa42aad"
+                    }
+                ],
+                "pied": {
+                    "lignes": [
+                        "barre.achats",
+                        "Achats",
+                        "TATACORA AFRIQUE — PAEB / FAGUEZ SARL"
+                    ],
+                    "deconnexion": "Déconnexion"
+                }
+            }
+        },
+        "administrateur": {
+            "droits": {
+                "M1": "C",
+                "M2": "C",
+                "M3": "C",
+                "M4": "C",
+                "M5": "C",
+                "M6": "C",
+                "M7": "C",
+                "M8": "C",
+                "M9": "C",
+                "M10": "C",
+                "M11": "C",
+                "M12": "C",
+                "M13": "C",
+                "M14": "C",
+                "ROLES": "C",
+                "PARAM": "C"
+            },
+            "barre": {
+                "entrees": [
+                    {
+                        "type": "epingle",
+                        "groupe": null,
+                        "nom": "Tableau de bord",
+                        "badge": "Tous modules",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa",
+                        "icone": "73c3b0fc"
+                    },
+                    {
+                        "type": "epingle",
+                        "groupe": null,
+                        "nom": "Point de vente",
+                        "badge": "Comptant",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/pos/comptant",
+                        "icone": "02e5a4b7"
+                    },
+                    {
+                        "type": "epingle",
+                        "groupe": null,
+                        "nom": "POS clients hébergés",
+                        "badge": "Panier ouvert",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/pos/heberges",
+                        "icone": "23846c83"
+                    },
+                    {
+                        "type": "epingle",
+                        "groupe": null,
+                        "nom": "Historique des ventes",
+                        "badge": "Journal",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/historique-ventes",
+                        "icone": "93521697"
+                    },
+                    {
+                        "type": "epingle",
+                        "groupe": null,
+                        "nom": "Dépense courante",
+                        "badge": "Trésorerie",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/depenses",
+                        "icone": "adea5acf"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "RÉSERVATIONS & SÉJOURS",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "RÉSERVATIONS & SÉJOURS",
+                        "nom": "Réservations",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/reservations",
+                        "icone": "83cb9e3e"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "RÉSERVATIONS & SÉJOURS",
+                        "nom": "Hébergement",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/hebergement",
+                        "icone": "23846c83"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "CLIENTS & FACTURATION",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "CLIENTS & FACTURATION",
+                        "nom": "Clients & Créances",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/clients",
+                        "icone": "f3c7b1b9"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "CLIENTS & FACTURATION",
+                        "nom": "Facturation",
+                        "badge": "MECeF",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/facturation",
+                        "icone": "93521697"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "STOCKS & ACHATS",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "STOCKS & ACHATS",
+                        "nom": "Stocks",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/stocks",
+                        "icone": "1f18fa1a"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "STOCKS & ACHATS",
+                        "nom": "Inventaires & Fiches",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/stocks/inventaires",
+                        "icone": "1f18fa1a"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "STOCKS & ACHATS",
+                        "nom": "Approvisionnement",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/achats/approvisionnement",
+                        "icone": "5ab86cbc"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "STOCKS & ACHATS",
+                        "nom": "Fournisseurs",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/achats",
+                        "icone": "5ab86cbc"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "RESTAURATION & BAR",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "RESTAURATION & BAR",
+                        "nom": "Restaurant",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/restaurant/carte",
+                        "icone": "2479dd77"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "RESTAURATION & BAR",
+                        "nom": "Bar",
+                        "badge": "Stock",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/bar/carte",
+                        "icone": "02e5a4b7"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "TOURISME & VÉHICULES",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "TOURISME & VÉHICULES",
+                        "nom": "Tourisme",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/tourisme",
+                        "icone": "82108748"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "TOURISME & VÉHICULES",
+                        "nom": "Véhicules & Locations",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/vehicules",
+                        "icone": "dc1e0eb1"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "FINANCE",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "FINANCE",
+                        "nom": "Comptabilité",
+                        "badge": "SYSCOHADA",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/comptabilite",
+                        "icone": "adea5acf"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "RESSOURCES HUMAINES",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "RESSOURCES HUMAINES",
+                        "nom": "Personnel & Paie",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/paie",
+                        "icone": "4be7147d"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "PILOTAGE & ADMINISTRATION",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "États & Rapports",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/etats",
+                        "icone": "9aa42aad"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Notifications",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/notifications",
+                        "icone": "7c1e5d16"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Import & Export",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/import-export",
+                        "icone": "a4e5b27c"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Rôles & Permissions",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/roles-permissions",
+                        "icone": "c494d96d"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Paramètres",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/parametres",
+                        "icone": "cf62b51c"
+                    }
+                ],
+                "pied": {
+                    "lignes": [
+                        "barre.administrateur",
+                        "Administrateur",
+                        "TATACORA AFRIQUE — PAEB / FAGUEZ SARL"
+                    ],
+                    "deconnexion": "Déconnexion"
+                }
+            }
+        },
+        "barman": {
+            "droits": {
+                "M1": "-",
+                "M2": "-",
+                "M3": "L",
+                "M4": "-",
+                "M5": "C",
+                "M6": "C",
+                "M7": "-",
+                "M8": "-",
+                "M9": "-",
+                "M10": "-",
+                "M11": "L",
+                "M12": "-",
+                "M13": "-",
+                "M14": "L",
+                "ROLES": "-",
+                "PARAM": "-"
+            },
+            "barre": {
+                "entrees": [
+                    {
+                        "type": "epingle",
+                        "groupe": null,
+                        "nom": "Tableau de bord",
+                        "badge": "Tous modules",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa",
+                        "icone": "73c3b0fc"
+                    },
+                    {
+                        "type": "epingle",
+                        "groupe": null,
+                        "nom": "Point de vente",
+                        "badge": "Comptant",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/pos/comptant",
+                        "icone": "02e5a4b7"
+                    },
+                    {
+                        "type": "epingle",
+                        "groupe": null,
+                        "nom": "Historique des ventes",
+                        "badge": "Journal",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/historique-ventes",
+                        "icone": "93521697"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "CLIENTS & FACTURATION",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "CLIENTS & FACTURATION",
+                        "nom": "Clients & Créances",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/clients",
+                        "icone": "f3c7b1b9"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "STOCKS & ACHATS",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "STOCKS & ACHATS",
+                        "nom": "Stocks",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/stocks",
+                        "icone": "1f18fa1a"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "STOCKS & ACHATS",
+                        "nom": "Inventaires & Fiches",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/stocks/inventaires",
+                        "icone": "1f18fa1a"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "RESTAURATION & BAR",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "RESTAURATION & BAR",
+                        "nom": "Bar",
+                        "badge": "Stock",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/bar/carte",
+                        "icone": "02e5a4b7"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "PILOTAGE & ADMINISTRATION",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "États & Rapports",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/etats",
+                        "icone": "9aa42aad"
+                    }
+                ],
+                "pied": {
+                    "lignes": [
+                        "barre.barman",
+                        "Barman",
+                        "TATACORA AFRIQUE — PAEB / FAGUEZ SARL"
+                    ],
+                    "deconnexion": "Déconnexion"
+                }
+            }
+        },
+        "comptable": {
+            "droits": {
+                "M1": "L",
+                "M2": "L",
+                "M3": "L",
+                "M4": "L",
+                "M5": "L",
+                "M6": "L",
+                "M7": "L",
+                "M8": "L",
+                "M9": "L",
+                "M10": "C",
+                "M11": "L",
+                "M12": "-",
+                "M13": "L",
+                "M14": "C",
+                "ROLES": "-",
+                "PARAM": "-"
+            },
+            "barre": {
+                "entrees": [
+                    {
+                        "type": "epingle",
+                        "groupe": null,
+                        "nom": "Tableau de bord",
+                        "badge": "Tous modules",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa",
+                        "icone": "73c3b0fc"
+                    },
+                    {
+                        "type": "epingle",
+                        "groupe": null,
+                        "nom": "Point de vente",
+                        "badge": "Comptant",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/pos/comptant",
+                        "icone": "02e5a4b7"
+                    },
+                    {
+                        "type": "epingle",
+                        "groupe": null,
+                        "nom": "POS clients hébergés",
+                        "badge": "Panier ouvert",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/pos/heberges",
+                        "icone": "23846c83"
+                    },
+                    {
+                        "type": "epingle",
+                        "groupe": null,
+                        "nom": "Historique des ventes",
+                        "badge": "Journal",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/historique-ventes",
+                        "icone": "93521697"
+                    },
+                    {
+                        "type": "epingle",
+                        "groupe": null,
+                        "nom": "Dépense courante",
+                        "badge": "Trésorerie",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/depenses",
+                        "icone": "adea5acf"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "RÉSERVATIONS & SÉJOURS",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "RÉSERVATIONS & SÉJOURS",
+                        "nom": "Réservations",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/reservations",
+                        "icone": "83cb9e3e"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "RÉSERVATIONS & SÉJOURS",
+                        "nom": "Hébergement",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/hebergement",
+                        "icone": "23846c83"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "CLIENTS & FACTURATION",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "CLIENTS & FACTURATION",
+                        "nom": "Clients & Créances",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/clients",
+                        "icone": "f3c7b1b9"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "CLIENTS & FACTURATION",
+                        "nom": "Facturation",
+                        "badge": "MECeF",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/facturation",
+                        "icone": "93521697"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "STOCKS & ACHATS",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "STOCKS & ACHATS",
+                        "nom": "Stocks",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/stocks",
+                        "icone": "1f18fa1a"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "STOCKS & ACHATS",
+                        "nom": "Inventaires & Fiches",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/stocks/inventaires",
+                        "icone": "1f18fa1a"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "STOCKS & ACHATS",
+                        "nom": "Approvisionnement",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/achats/approvisionnement",
+                        "icone": "5ab86cbc"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "STOCKS & ACHATS",
+                        "nom": "Fournisseurs",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/achats",
+                        "icone": "5ab86cbc"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "RESTAURATION & BAR",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "RESTAURATION & BAR",
+                        "nom": "Restaurant",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/restaurant/carte",
+                        "icone": "2479dd77"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "RESTAURATION & BAR",
+                        "nom": "Bar",
+                        "badge": "Stock",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/bar/carte",
+                        "icone": "02e5a4b7"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "TOURISME & VÉHICULES",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "TOURISME & VÉHICULES",
+                        "nom": "Tourisme",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/tourisme",
+                        "icone": "82108748"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "TOURISME & VÉHICULES",
+                        "nom": "Véhicules & Locations",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/vehicules",
+                        "icone": "dc1e0eb1"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "FINANCE",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "FINANCE",
+                        "nom": "Comptabilité",
+                        "badge": "SYSCOHADA",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/comptabilite",
+                        "icone": "adea5acf"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "RESSOURCES HUMAINES",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "RESSOURCES HUMAINES",
+                        "nom": "Personnel & Paie",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/paie",
+                        "icone": "4be7147d"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "PILOTAGE & ADMINISTRATION",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "États & Rapports",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/etats",
+                        "icone": "9aa42aad"
+                    }
+                ],
+                "pied": {
+                    "lignes": [
+                        "barre.comptable",
+                        "Comptable",
+                        "TATACORA AFRIQUE — PAEB / FAGUEZ SARL"
+                    ],
+                    "deconnexion": "Déconnexion"
+                }
+            }
+        },
+        "cuisine": {
+            "droits": {
+                "M1": "-",
+                "M2": "-",
+                "M3": "L",
+                "M4": "C",
+                "M5": "-",
+                "M6": "C",
+                "M7": "-",
+                "M8": "-",
+                "M9": "-",
+                "M10": "-",
+                "M11": "L",
+                "M12": "-",
+                "M13": "-",
+                "M14": "L",
+                "ROLES": "-",
+                "PARAM": "-"
+            },
+            "barre": {
+                "entrees": [
+                    {
+                        "type": "epingle",
+                        "groupe": null,
+                        "nom": "Tableau de bord",
+                        "badge": "Tous modules",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa",
+                        "icone": "73c3b0fc"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "CLIENTS & FACTURATION",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "CLIENTS & FACTURATION",
+                        "nom": "Clients & Créances",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/clients",
+                        "icone": "f3c7b1b9"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "STOCKS & ACHATS",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "STOCKS & ACHATS",
+                        "nom": "Stocks",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/stocks",
+                        "icone": "1f18fa1a"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "STOCKS & ACHATS",
+                        "nom": "Inventaires & Fiches",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/stocks/inventaires",
+                        "icone": "1f18fa1a"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "RESTAURATION & BAR",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "RESTAURATION & BAR",
+                        "nom": "Restaurant",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/restaurant/carte",
+                        "icone": "2479dd77"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "PILOTAGE & ADMINISTRATION",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "États & Rapports",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/etats",
+                        "icone": "9aa42aad"
+                    }
+                ],
+                "pied": {
+                    "lignes": [
+                        "barre.cuisine",
+                        "Cuisine",
+                        "TATACORA AFRIQUE — PAEB / FAGUEZ SARL"
+                    ],
+                    "deconnexion": "Déconnexion"
+                }
+            }
+        },
+        "gerant": {
+            "droits": {
+                "M1": "C",
+                "M2": "C",
+                "M3": "C",
+                "M4": "C",
+                "M5": "C",
+                "M6": "C",
+                "M7": "C",
+                "M8": "C",
+                "M9": "C",
+                "M10": "C",
+                "M11": "C",
+                "M12": "C",
+                "M13": "C",
+                "M14": "C",
+                "ROLES": "L",
+                "PARAM": "L"
+            },
+            "barre": {
+                "entrees": [
+                    {
+                        "type": "epingle",
+                        "groupe": null,
+                        "nom": "Tableau de bord",
+                        "badge": "Tous modules",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa",
+                        "icone": "73c3b0fc"
+                    },
+                    {
+                        "type": "epingle",
+                        "groupe": null,
+                        "nom": "Point de vente",
+                        "badge": "Comptant",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/pos/comptant",
+                        "icone": "02e5a4b7"
+                    },
+                    {
+                        "type": "epingle",
+                        "groupe": null,
+                        "nom": "POS clients hébergés",
+                        "badge": "Panier ouvert",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/pos/heberges",
+                        "icone": "23846c83"
+                    },
+                    {
+                        "type": "epingle",
+                        "groupe": null,
+                        "nom": "Historique des ventes",
+                        "badge": "Journal",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/historique-ventes",
+                        "icone": "93521697"
+                    },
+                    {
+                        "type": "epingle",
+                        "groupe": null,
+                        "nom": "Dépense courante",
+                        "badge": "Trésorerie",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/depenses",
+                        "icone": "adea5acf"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "RÉSERVATIONS & SÉJOURS",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "RÉSERVATIONS & SÉJOURS",
+                        "nom": "Réservations",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/reservations",
+                        "icone": "83cb9e3e"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "RÉSERVATIONS & SÉJOURS",
+                        "nom": "Hébergement",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/hebergement",
+                        "icone": "23846c83"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "STOCKS & ACHATS",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "STOCKS & ACHATS",
+                        "nom": "Stocks",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/stocks",
+                        "icone": "1f18fa1a"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "STOCKS & ACHATS",
+                        "nom": "Inventaires & Fiches",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/stocks/inventaires",
+                        "icone": "1f18fa1a"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "STOCKS & ACHATS",
+                        "nom": "Approvisionnement",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/achats/approvisionnement",
+                        "icone": "5ab86cbc"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "STOCKS & ACHATS",
+                        "nom": "Fournisseurs",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/achats",
+                        "icone": "5ab86cbc"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "RESTAURATION & BAR",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "RESTAURATION & BAR",
+                        "nom": "Restaurant",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/restaurant/carte",
+                        "icone": "2479dd77"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "RESTAURATION & BAR",
+                        "nom": "Bar",
+                        "badge": "Stock",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/bar/carte",
+                        "icone": "02e5a4b7"
+                    }
+                ],
+                "pied": {
+                    "lignes": [
+                        "barre.gerant",
+                        "Gerant",
+                        "TATACORA AFRIQUE — PAEB / FAGUEZ SARL"
+                    ],
+                    "deconnexion": "Déconnexion"
+                }
+            }
+        },
+        "guide": {
+            "droits": {
+                "M1": "-",
+                "M2": "-",
+                "M3": "L",
+                "M4": "-",
+                "M5": "-",
+                "M6": "-",
+                "M7": "-",
+                "M8": "L",
+                "M9": "C",
+                "M10": "-",
+                "M11": "-",
+                "M12": "-",
+                "M13": "-",
+                "M14": "-",
+                "ROLES": "-",
+                "PARAM": "-"
+            },
+            "barre": {
+                "entrees": [
+                    {
+                        "type": "groupe",
+                        "nom": "CLIENTS & FACTURATION",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "CLIENTS & FACTURATION",
+                        "nom": "Clients & Créances",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/clients",
+                        "icone": "f3c7b1b9"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "TOURISME & VÉHICULES",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "TOURISME & VÉHICULES",
+                        "nom": "Tourisme",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/tourisme",
+                        "icone": "82108748"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "TOURISME & VÉHICULES",
+                        "nom": "Véhicules & Locations",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/vehicules",
+                        "icone": "dc1e0eb1"
+                    }
+                ],
+                "pied": {
+                    "lignes": [
+                        "barre.guide",
+                        "Guide",
+                        "TATACORA AFRIQUE — PAEB / FAGUEZ SARL"
+                    ],
+                    "deconnexion": "Déconnexion"
+                }
+            }
+        },
+        "magasinier": {
+            "droits": {
+                "M1": "-",
+                "M2": "-",
+                "M3": "-",
+                "M4": "L",
+                "M5": "L",
+                "M6": "C",
+                "M7": "C",
+                "M8": "-",
+                "M9": "-",
+                "M10": "-",
+                "M11": "L",
+                "M12": "-",
+                "M13": "-",
+                "M14": "L",
+                "ROLES": "-",
+                "PARAM": "-"
+            },
+            "barre": {
+                "entrees": [
+                    {
+                        "type": "epingle",
+                        "groupe": null,
+                        "nom": "Tableau de bord",
+                        "badge": "Tous modules",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa",
+                        "icone": "73c3b0fc"
+                    },
+                    {
+                        "type": "epingle",
+                        "groupe": null,
+                        "nom": "Point de vente",
+                        "badge": "Comptant",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/pos/comptant",
+                        "icone": "02e5a4b7"
+                    },
+                    {
+                        "type": "epingle",
+                        "groupe": null,
+                        "nom": "Historique des ventes",
+                        "badge": "Journal",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/historique-ventes",
+                        "icone": "93521697"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "STOCKS & ACHATS",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "STOCKS & ACHATS",
+                        "nom": "Stocks",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/stocks",
+                        "icone": "1f18fa1a"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "STOCKS & ACHATS",
+                        "nom": "Inventaires & Fiches",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/stocks/inventaires",
+                        "icone": "1f18fa1a"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "STOCKS & ACHATS",
+                        "nom": "Approvisionnement",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/achats/approvisionnement",
+                        "icone": "5ab86cbc"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "STOCKS & ACHATS",
+                        "nom": "Fournisseurs",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/achats",
+                        "icone": "5ab86cbc"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "RESTAURATION & BAR",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "RESTAURATION & BAR",
+                        "nom": "Restaurant",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/restaurant/carte",
+                        "icone": "2479dd77"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "RESTAURATION & BAR",
+                        "nom": "Bar",
+                        "badge": "Stock",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/bar/carte",
+                        "icone": "02e5a4b7"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "PILOTAGE & ADMINISTRATION",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "États & Rapports",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/etats",
+                        "icone": "9aa42aad"
+                    }
+                ],
+                "pied": {
+                    "lignes": [
+                        "barre.magasinier",
+                        "Magasinier",
+                        "TATACORA AFRIQUE — PAEB / FAGUEZ SARL"
+                    ],
+                    "deconnexion": "Déconnexion"
+                }
+            }
+        },
+        "receptionniste": {
+            "droits": {
+                "M1": "C",
+                "M2": "C",
+                "M3": "C",
+                "M4": "L",
+                "M5": "L",
+                "M6": "L",
+                "M7": "-",
+                "M8": "L",
+                "M9": "L",
+                "M10": "-",
+                "M11": "L",
+                "M12": "L",
+                "M13": "-",
+                "M14": "L",
+                "ROLES": "-",
+                "PARAM": "-"
+            },
+            "barre": {
+                "entrees": [
+                    {
+                        "type": "epingle",
+                        "groupe": null,
+                        "nom": "Tableau de bord",
+                        "badge": "Tous modules",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa",
+                        "icone": "73c3b0fc"
+                    },
+                    {
+                        "type": "epingle",
+                        "groupe": null,
+                        "nom": "Point de vente",
+                        "badge": "Comptant",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/pos/comptant",
+                        "icone": "02e5a4b7"
+                    },
+                    {
+                        "type": "epingle",
+                        "groupe": null,
+                        "nom": "POS clients hébergés",
+                        "badge": "Panier ouvert",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/pos/heberges",
+                        "icone": "23846c83"
+                    },
+                    {
+                        "type": "epingle",
+                        "groupe": null,
+                        "nom": "Historique des ventes",
+                        "badge": "Journal",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/historique-ventes",
+                        "icone": "93521697"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "RÉSERVATIONS & SÉJOURS",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "RÉSERVATIONS & SÉJOURS",
+                        "nom": "Réservations",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/reservations",
+                        "icone": "83cb9e3e"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "RÉSERVATIONS & SÉJOURS",
+                        "nom": "Hébergement",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/hebergement",
+                        "icone": "23846c83"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "CLIENTS & FACTURATION",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "CLIENTS & FACTURATION",
+                        "nom": "Clients & Créances",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/clients",
+                        "icone": "f3c7b1b9"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "CLIENTS & FACTURATION",
+                        "nom": "Facturation",
+                        "badge": "MECeF",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/facturation",
+                        "icone": "93521697"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "STOCKS & ACHATS",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "STOCKS & ACHATS",
+                        "nom": "Stocks",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/stocks",
+                        "icone": "1f18fa1a"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "STOCKS & ACHATS",
+                        "nom": "Inventaires & Fiches",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/stocks/inventaires",
+                        "icone": "1f18fa1a"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "RESTAURATION & BAR",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "RESTAURATION & BAR",
+                        "nom": "Restaurant",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/restaurant/carte",
+                        "icone": "2479dd77"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "RESTAURATION & BAR",
+                        "nom": "Bar",
+                        "badge": "Stock",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/bar/carte",
+                        "icone": "02e5a4b7"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "TOURISME & VÉHICULES",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "TOURISME & VÉHICULES",
+                        "nom": "Tourisme",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/tourisme",
+                        "icone": "82108748"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "TOURISME & VÉHICULES",
+                        "nom": "Véhicules & Locations",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/vehicules",
+                        "icone": "dc1e0eb1"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "PILOTAGE & ADMINISTRATION",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "États & Rapports",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/etats",
+                        "icone": "9aa42aad"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Notifications",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/notifications",
+                        "icone": "7c1e5d16"
+                    }
+                ],
+                "pied": {
+                    "lignes": [
+                        "barre.receptionniste",
+                        "Receptionniste",
+                        "TATACORA AFRIQUE — PAEB / FAGUEZ SARL"
+                    ],
+                    "deconnexion": "Déconnexion"
+                }
+            }
+        },
+        "rh": {
+            "droits": {
+                "M1": "-",
+                "M2": "-",
+                "M3": "-",
+                "M4": "-",
+                "M5": "-",
+                "M6": "-",
+                "M7": "-",
+                "M8": "-",
+                "M9": "-",
+                "M10": "L",
+                "M11": "L",
+                "M12": "-",
+                "M13": "C",
+                "M14": "L",
+                "ROLES": "-",
+                "PARAM": "-"
+            },
+            "barre": {
+                "entrees": [
+                    {
+                        "type": "epingle",
+                        "groupe": null,
+                        "nom": "Tableau de bord",
+                        "badge": "Tous modules",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa",
+                        "icone": "73c3b0fc"
+                    },
+                    {
+                        "type": "epingle",
+                        "groupe": null,
+                        "nom": "Dépense courante",
+                        "badge": "Trésorerie",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/depenses",
+                        "icone": "adea5acf"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "FINANCE",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "FINANCE",
+                        "nom": "Comptabilité",
+                        "badge": "SYSCOHADA",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/comptabilite",
+                        "icone": "adea5acf"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "RESSOURCES HUMAINES",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "RESSOURCES HUMAINES",
+                        "nom": "Personnel & Paie",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/paie",
+                        "icone": "4be7147d"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "PILOTAGE & ADMINISTRATION",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "États & Rapports",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/etats",
+                        "icone": "9aa42aad"
+                    }
+                ],
+                "pied": {
+                    "lignes": [
+                        "barre.rh",
+                        "Rh",
+                        "TATACORA AFRIQUE — PAEB / FAGUEZ SARL"
+                    ],
+                    "deconnexion": "Déconnexion"
+                }
+            }
+        },
+        "super_admin": {
+            "droits": {
+                "M1": "C",
+                "M2": "C",
+                "M3": "C",
+                "M4": "C",
+                "M5": "C",
+                "M6": "C",
+                "M7": "C",
+                "M8": "C",
+                "M9": "C",
+                "M10": "C",
+                "M11": "C",
+                "M12": "C",
+                "M13": "C",
+                "M14": "C",
+                "ROLES": "C",
+                "PARAM": "C"
+            },
+            "barre": {
+                "entrees": [
+                    {
+                        "type": "epingle",
+                        "groupe": null,
+                        "nom": "Tableau de bord",
+                        "badge": "Tous modules",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa",
+                        "icone": "73c3b0fc"
+                    },
+                    {
+                        "type": "epingle",
+                        "groupe": null,
+                        "nom": "Point de vente",
+                        "badge": "Comptant",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/pos/comptant",
+                        "icone": "02e5a4b7"
+                    },
+                    {
+                        "type": "epingle",
+                        "groupe": null,
+                        "nom": "POS clients hébergés",
+                        "badge": "Panier ouvert",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/pos/heberges",
+                        "icone": "23846c83"
+                    },
+                    {
+                        "type": "epingle",
+                        "groupe": null,
+                        "nom": "Historique des ventes",
+                        "badge": "Journal",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/historique-ventes",
+                        "icone": "93521697"
+                    },
+                    {
+                        "type": "epingle",
+                        "groupe": null,
+                        "nom": "Dépense courante",
+                        "badge": "Trésorerie",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/depenses",
+                        "icone": "adea5acf"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "RÉSERVATIONS & SÉJOURS",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "RÉSERVATIONS & SÉJOURS",
+                        "nom": "Réservations",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/reservations",
+                        "icone": "83cb9e3e"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "RÉSERVATIONS & SÉJOURS",
+                        "nom": "Hébergement",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/hebergement",
+                        "icone": "23846c83"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "CLIENTS & FACTURATION",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "CLIENTS & FACTURATION",
+                        "nom": "Clients & Créances",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/clients",
+                        "icone": "f3c7b1b9"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "CLIENTS & FACTURATION",
+                        "nom": "Facturation",
+                        "badge": "MECeF",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/facturation",
+                        "icone": "93521697"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "STOCKS & ACHATS",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "STOCKS & ACHATS",
+                        "nom": "Stocks",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/stocks",
+                        "icone": "1f18fa1a"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "STOCKS & ACHATS",
+                        "nom": "Inventaires & Fiches",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/stocks/inventaires",
+                        "icone": "1f18fa1a"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "STOCKS & ACHATS",
+                        "nom": "Approvisionnement",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/achats/approvisionnement",
+                        "icone": "5ab86cbc"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "STOCKS & ACHATS",
+                        "nom": "Fournisseurs",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/achats",
+                        "icone": "5ab86cbc"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "RESTAURATION & BAR",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "RESTAURATION & BAR",
+                        "nom": "Restaurant",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/restaurant/carte",
+                        "icone": "2479dd77"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "RESTAURATION & BAR",
+                        "nom": "Bar",
+                        "badge": "Stock",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/bar/carte",
+                        "icone": "02e5a4b7"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "TOURISME & VÉHICULES",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "TOURISME & VÉHICULES",
+                        "nom": "Tourisme",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/tourisme",
+                        "icone": "82108748"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "TOURISME & VÉHICULES",
+                        "nom": "Véhicules & Locations",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/vehicules",
+                        "icone": "dc1e0eb1"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "FINANCE",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "FINANCE",
+                        "nom": "Comptabilité",
+                        "badge": "SYSCOHADA",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/comptabilite",
+                        "icone": "adea5acf"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "RESSOURCES HUMAINES",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "RESSOURCES HUMAINES",
+                        "nom": "Personnel & Paie",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/paie",
+                        "icone": "4be7147d"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "PILOTAGE & ADMINISTRATION",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "États & Rapports",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/etats",
+                        "icone": "9aa42aad"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Notifications",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/notifications",
+                        "icone": "7c1e5d16"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Import & Export",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/import-export",
+                        "icone": "a4e5b27c"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Rôles & Permissions",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/roles-permissions",
+                        "icone": "c494d96d"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Paramètres",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/parametres",
+                        "icone": "cf62b51c"
+                    }
+                ],
+                "pied": {
+                    "lignes": [
+                        "barre.super_admin",
+                        "Super_admin",
+                        "TATACORA AFRIQUE — PAEB / FAGUEZ SARL"
+                    ],
+                    "deconnexion": "Déconnexion"
+                }
+            }
+        },
+        "vehicules": {
+            "droits": {
+                "M1": "-",
+                "M2": "-",
+                "M3": "L",
+                "M4": "-",
+                "M5": "-",
+                "M6": "-",
+                "M7": "-",
+                "M8": "C",
+                "M9": "L",
+                "M10": "-",
+                "M11": "L",
+                "M12": "-",
+                "M13": "-",
+                "M14": "L",
+                "ROLES": "-",
+                "PARAM": "-"
+            },
+            "barre": {
+                "entrees": [
+                    {
+                        "type": "epingle",
+                        "groupe": null,
+                        "nom": "Tableau de bord",
+                        "badge": "Tous modules",
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa",
+                        "icone": "73c3b0fc"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "CLIENTS & FACTURATION",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "CLIENTS & FACTURATION",
+                        "nom": "Clients & Créances",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/clients",
+                        "icone": "f3c7b1b9"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "TOURISME & VÉHICULES",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "TOURISME & VÉHICULES",
+                        "nom": "Tourisme",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/tourisme",
+                        "icone": "82108748"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "TOURISME & VÉHICULES",
+                        "nom": "Véhicules & Locations",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/vehicules",
+                        "icone": "dc1e0eb1"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "PILOTAGE & ADMINISTRATION",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "États & Rapports",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/etats",
+                        "icone": "9aa42aad"
+                    }
+                ],
+                "pied": {
+                    "lignes": [
+                        "barre.vehicules",
+                        "Vehicules",
+                        "TATACORA AFRIQUE — PAEB / FAGUEZ SARL"
+                    ],
+                    "deconnexion": "Déconnexion"
+                }
+            }
+        }
+    },
+    "actif": {
+        "Tableau de bord": [
+            "Tableau de bord"
+        ],
+        "Point de vente": [
+            "Point de vente"
+        ],
+        "POS clients hébergés": [
+            "POS clients hébergés"
+        ],
+        "Historique des ventes": [
+            "Historique des ventes"
+        ],
+        "Dépense courante": [
+            "Dépense courante"
+        ],
+        "Réservations": [
+            "Réservations"
+        ],
+        "Hébergement": [
+            "Hébergement"
+        ],
+        "Clients & Créances": [
+            "Clients & Créances"
+        ],
+        "Facturation": [
+            "Facturation"
+        ],
+        "Stocks": [
+            "Stocks"
+        ],
+        "Inventaires & Fiches": [
+            "Inventaires & Fiches"
+        ],
+        "Approvisionnement": [
+            "Approvisionnement"
+        ],
+        "Fournisseurs": [
+            "Fournisseurs"
+        ],
+        "Restaurant": [
+            "Restaurant"
+        ],
+        "Bar": [
+            "Bar"
+        ],
+        "Tourisme": [
+            "Tourisme"
+        ],
+        "Véhicules & Locations": [
+            "Véhicules & Locations"
+        ],
+        "Comptabilité": [
+            "Comptabilité"
+        ],
+        "Personnel & Paie": [
+            "Personnel & Paie"
+        ],
+        "États & Rapports": [
+            "États & Rapports"
+        ],
+        "Notifications": [
+            "Notifications"
+        ],
+        "Import & Export": [
+            "Import & Export"
+        ],
+        "Rôles & Permissions": [
+            "Rôles & Permissions"
+        ],
+        "Paramètres": [
+            "Paramètres"
+        ]
+    }
+}

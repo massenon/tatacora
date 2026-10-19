@@ -13,7 +13,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Lot F4 (17/10/2026) : le poste d'origine des documents, retenu
+        // pendant qu'une opération de synchronisation est appliquée. Une
+        // instance par requête ou par tâche (`scoped`) : une portée oubliée ne
+        // déborde jamais sur la requête suivante.
+        $this->app->scoped(\App\Shared\Sync\Support\OrigineDocuments::class);
     }
 
     /**

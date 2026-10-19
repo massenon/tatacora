@@ -61,7 +61,16 @@ class CommandeAchatService
     /**
      * Crée une commande et ses lignes dans la même transaction.
      *
+     * ## `id` optionnel — la synchronisation (15/10/2026, lot S3)
+     *
+     * Un poste hors connexion pose l'UUID de sa commande (décision du Product
+     * Owner du 15/10/2026). Une commande qui existe déjà sous cet identifiant
+     * est RENDUE telle quelle — vérifié sous verrou DANS la transaction : un
+     * rejeu ne crée ni seconde commande ni second engagement fournisseur. La
+     * route d'API, elle, continue d'interdire `id` (`CreerCommandeAchatRequest`).
+     *
      * @param  array{
+     *     id?: string,
      *     fournisseur_id: string,
      *     date_commande: string,
      *     statut?: string,
@@ -71,7 +80,16 @@ class CommandeAchatService
     public function creer(array $donnees): CommandeAchat
     {
         return DB::transaction(function () use ($donnees): CommandeAchat {
+            if (isset($donnees['id'])) {
+                $existante = CommandeAchat::query()->whereKey((string) $donnees['id'])->lockForUpdate()->first();
+
+                if ($existante !== null) {
+                    return $existante->load(['lignes.article', 'fournisseur']);
+                }
+            }
+
             $commande = CommandeAchat::create([
+                ...(isset($donnees['id']) ? ['id' => (string) $donnees['id']] : []),
                 'fournisseur_id' => $donnees['fournisseur_id'],
                 'date_commande' => $donnees['date_commande'],
                 'statut' => $donnees['statut'] ?? 'brouillon',

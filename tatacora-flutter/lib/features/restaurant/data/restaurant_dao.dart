@@ -4,6 +4,9 @@ import 'package:uuid/uuid.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/format/cle_comparaison.dart';
 import '../../stocks/data/stocks_dao.dart';
+import '../../synchronisation/data/operations_sync_dao.dart';
+import '../../synchronisation/domain/charges_synchronisation.dart';
+import '../../synchronisation/domain/operation_sync.dart';
 import '../../stocks/domain/calcul_stock.dart';
 import '../../stocks/domain/entities/etat_stock.dart' show SuiviArticle;
 import '../domain/calcul_restaurant.dart';
@@ -450,6 +453,7 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
             creePar: auteurId!,
           ),
         );
+        await _enfilerMenu(nouveau, avant: null);
         return nouveau;
       }
 
@@ -473,6 +477,7 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
           modifiePar: Value(auteurId),
         ),
       );
+      await _enfilerMenu(cible, avant: existant);
       return cible;
     });
 
@@ -525,6 +530,9 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
 
       final cible = saisie.id;
       late final String recetteId;
+      // Lot F1 : le document AVANT l'écriture, pour n'envoyer que ce qui
+      // change (`null` = création).
+      final avant = cible == null ? null : await _chargeRecette(cible);
       if (cible == null) {
         recetteId = _uuid.v4();
         await into(attachedDatabase.recettesLocal).insert(
@@ -566,6 +574,15 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
           ),
         );
       }
+      final apres = (await _chargeRecette(recetteId))!;
+      await _file.enfiler(
+        table: TableSynchronisee.recettes,
+        entiteId: recetteId,
+        type: avant == null
+            ? TypeOperationSync.creation
+            : TypeOperationSync.modification,
+        payload: avant == null ? apres : champsModifies(avant, apres),
+      );
       return recetteId;
     });
 
@@ -630,6 +647,7 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
             creePar: auteurId!,
           ),
         );
+        await _enfilerPlat(nouveau, avant: null);
         return nouveau;
       }
 
@@ -664,9 +682,89 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
           modifiePar: Value(auteurId),
         ),
       );
+      await _enfilerPlat(existant.id, avant: existant);
       return existant.id;
     });
 
     return (await plat(id))!;
+  }
+
+  /* ================================================================== */
+  /* La file d'envoi (lot F1, 15/10/2026)                                */
+  /* ================================================================== */
+
+  /// Son propre générateur d'UUID : celui de ce DAO peut être injecté.
+  OperationsSyncDao get _file => OperationsSyncDao(attachedDatabase);
+
+  static Map<String, Object?> _chargeMenu(MenusLocalData m) => chargeMenu(
+    libelle: m.libelle,
+    type: m.type,
+    dateDebut: m.dateDebut,
+    dateFin: m.dateFin,
+  );
+
+  /// Enfile la création ([avant] nul) ou les champs changés du menu [id],
+  /// relu après écriture — dans la transaction de l'appelant.
+  Future<void> _enfilerMenu(String id, {required MenusLocalData? avant}) async {
+    final apres = await (select(
+      attachedDatabase.menusLocal,
+    )..where((m) => m.id.equals(id))).getSingle();
+    await _file.enfiler(
+      table: TableSynchronisee.menus,
+      entiteId: id,
+      type: avant == null
+          ? TypeOperationSync.creation
+          : TypeOperationSync.modification,
+      payload: avant == null
+          ? _chargeMenu(apres)
+          : champsModifies(_chargeMenu(avant), _chargeMenu(apres)),
+    );
+  }
+
+  /// Le document `recettes` (fiche + composition entière), ou `null` si la
+  /// fiche n'existe pas. Composition triée par article : l'ordre de saisie
+  /// n'est pas stocké, et une comparaison avant/après doit être stable.
+  Future<Map<String, Object?>?> _chargeRecette(String id) async {
+    final r = await (select(
+      attachedDatabase.recettesLocal,
+    )..where((x) => x.id.equals(id))).getSingleOrNull();
+    if (r == null) return null;
+    final lignes =
+        await (select(attachedDatabase.ingredientsRecetteLocal)
+              ..where((l) => l.recetteId.equals(id))
+              ..orderBy([(l) => OrderingTerm.asc(l.articleId)]))
+            .get();
+    return chargeRecette(
+      libelle: r.libelle,
+      lignes: [
+        for (final l in lignes)
+          (articleId: l.articleId, milliemes: l.quantiteMilliemes),
+      ],
+    );
+  }
+
+  static Map<String, Object?> _chargePlat(PlatsLocalData p) => chargePlat(
+    libelle: p.libelle,
+    menuId: p.menuId,
+    recetteId: p.recetteId,
+    prixVenteFrancs: p.prixVente,
+    prixProvisoire: p.prixProvisoire,
+    prixCorrigeMain: p.prixCorrigeMain,
+  );
+
+  Future<void> _enfilerPlat(String id, {required PlatsLocalData? avant}) async {
+    final apres = await (select(
+      attachedDatabase.platsLocal,
+    )..where((p) => p.id.equals(id))).getSingle();
+    await _file.enfiler(
+      table: TableSynchronisee.plats,
+      entiteId: id,
+      type: avant == null
+          ? TypeOperationSync.creation
+          : TypeOperationSync.modification,
+      payload: avant == null
+          ? _chargePlat(apres)
+          : champsModifies(_chargePlat(avant), _chargePlat(apres)),
+    );
   }
 }

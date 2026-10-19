@@ -7,6 +7,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../shared_widgets/tableau_tatacora.dart';
+import '../../../../shared_widgets/toast_export.dart';
 import '../../domain/entities/vente.dart';
 import '../../impression/etat_journal_ventes.dart';
 import '../providers_ventes.dart';
@@ -378,21 +379,14 @@ class _Pied extends ConsumerWidget {
 
   EtatVente _etat() => EtatVente(vente: vente);
 
-  Future<void> _telecharger(BuildContext context, WidgetRef ref) async {
-    final chemin = await ref.read(exporterVenteProvider)(_etat());
-    if (!context.mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          // « enregistré sur ce poste », jamais « en attente de
-          // synchronisation » : rien de ce journal ne part au serveur.
-          'Document enregistré sur ce poste : $chemin',
-          key: const Key('vente-detail-chemin'),
-        ),
-      ),
-    );
-  }
+  /// « Télécharger » — la fenêtre « Enregistrer sous » puis le toast commun
+  /// (14/10/2026). Annulé : rien n'est écrit, rien n'est dit.
+  Future<void> _telecharger(BuildContext context, WidgetRef ref) =>
+      executerExport(
+        context,
+        () => ref.read(exporterVenteProvider)(_etat()),
+        cleSucces: const Key('vente-detail-chemin'),
+      );
 }
 
 /// Ouvre le détail d'une vente.

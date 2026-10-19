@@ -6,10 +6,10 @@
 ///
 /// | Table | Qui l'écrit | Qui la lit | Qui la descend |
 /// |---|---|---|---|
-/// | `menus_local` | `RestaurantDao.enregistrerMenu`, seul auteur (modale de saisie d'un menu) | l'onglet des menus, le sélecteur de la modale de plat, la carte du restaurant (type du menu = catégorie) | personne : zéro réseau |
-/// | `recettes_local` | `RestaurantDao.enregistrerRecette`, seul auteur (modale de saisie d'une fiche) | l'onglet des fiches, le sélecteur de la modale de plat, la carte (libellé de la fiche) | personne |
-/// | `ingredients_recette_local` | `RestaurantDao.remplacerComposition`, seul auteur, dans UNE transaction avec la fiche (remplacement intégral, jamais fusion) | le coût matière, les portions vendables, la carte, la fiche détail d'un plat | personne |
-/// | `plats_local` | `RestaurantDao.enregistrerPlat`, seul auteur (modale de saisie d'un plat) | l'onglet du catalogue, la carte, le rayon Restaurant du point de vente (`CatalogueDao`), la vérification d'existence d'une ligne de panier (`PanierDao`) | personne |
+/// | `menus_local` | `RestaurantDao.enregistrerMenu`, seul auteur (modale de saisie d'un menu) | l'onglet des menus, le sélecteur de la modale de plat, la carte du restaurant (type du menu = catégorie) | `AligneurCatalogue` (descente du catalogue, lot F2b, 15/10/2026 — jamais enfilé) |
+/// | `recettes_local` | `RestaurantDao.enregistrerRecette`, seul auteur (modale de saisie d'une fiche) | l'onglet des fiches, le sélecteur de la modale de plat, la carte (libellé de la fiche) | `AligneurCatalogue` (descente du catalogue, lot F2b, 15/10/2026 — jamais enfilé) |
+/// | `ingredients_recette_local` | `RestaurantDao.remplacerComposition`, seul auteur, dans UNE transaction avec la fiche (remplacement intégral, jamais fusion) | le coût matière, les portions vendables, la carte, la fiche détail d'un plat | `AligneurCatalogue` (descente du catalogue, lot F2b, 15/10/2026 — jamais enfilé) |
+/// | `plats_local` | `RestaurantDao.enregistrerPlat`, seul auteur (modale de saisie d'un plat) | l'onglet du catalogue, la carte, le rayon Restaurant du point de vente (`CatalogueDao`), la vérification d'existence d'une ligne de panier (`PanierDao`) | `AligneurCatalogue` (descente du catalogue, lot F2b, 15/10/2026 — jamais enfilé) |
 ///
 /// Aucun seeder, aucune migration ne sème de ligne : un menu, une fiche ou un
 /// plat « d'usine » serait plausible, donc invisible — et un plat posé par le

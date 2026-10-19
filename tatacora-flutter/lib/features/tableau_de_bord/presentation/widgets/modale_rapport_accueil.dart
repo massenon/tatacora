@@ -1,17 +1,14 @@
 // Vue Blade maîtresse (PA-183) : pwa/livewire/accueil.blade.php
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
-import 'package:pdf/pdf.dart';
-import 'package:printing/printing.dart';
 
+import '../../../../core/fichiers/enregistrement_export.dart';
+import '../../../../core/impression/entete_parametree.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
-import '../../../bar/presentation/widgets/modale_export_carte.dart';
+import '../../../../shared_widgets/modale_export.dart';
+import '../../../../shared_widgets/toast_export.dart';
 import '../../../facturation/presentation/providers_paiements.dart';
 import '../../../hebergement/presentation/providers_hebergement.dart';
 import '../../../restaurant/presentation/widgets/coquille_modale_restaurant.dart';
@@ -39,9 +36,8 @@ import 'champs_modale_accueil.dart';
 /// rapport `synthese` par défaut) — lot C du plan du PO, 14/10/2026.
 ///
 /// Les six rapports sont COMPOSÉS sur ce poste ([rapports_accueil.dart]) et
-/// rendus en PDF A4 (`EtatRapportAccueil.pdf`, action injectable
-/// [imprimerRapportAccueilProvider]) ou en tableur CSV
-/// ([exporterRapportAccueilProvider]). Une liste vide se REFUSE, modale
+/// rendus en PDF A4 (`EtatRapportAccueil.pdf`) ou en tableur CSV, enregistrés
+/// par la fenêtre « Enregistrer sous » ([exporterRapportAccueilProvider]). Une liste vide se REFUSE, modale
 /// ouverte, avec la phrase de la vue (PA-119).
 ///
 /// ## Écarts nommés (14/10/2026)
@@ -54,29 +50,32 @@ import 'champs_modale_accueil.dart';
 ///   n'affiche pas l'erreur `typeRapport` (rien ne se passe) ; ce poste DIT
 ///   le refus (Article 3.3 : aucun contrôle muet).
 
-/// L'impression d'un rapport — un seul endroit déclenche `Printing`.
-final imprimerRapportAccueilProvider =
-    Provider<Future<void> Function(EtatRapportAccueil)>(
-      (ref) => (etat) async {
-        await Printing.layoutPdf(
-          onLayout: (_) => etat.pdf(),
-          name: etat.titre,
-          format: PdfPageFormat.a4,
-        );
-      },
-    );
-
-/// L'écriture du tableur — rend le CHEMIN du fichier, pour être affiché : un
-/// export silencieux est un export que personne ne retrouve.
+/// L'enregistrement d'un rapport — PDF ou tableur — par la fenêtre
+/// « Enregistrer sous » (14/10/2026) : rend le CHEMIN du fichier, `null` :
+/// annulé. Le nom suggéré reste celui du serveur
+/// (`EtatRapportAccueil.nomFichier`).
 final exporterRapportAccueilProvider =
-    Provider<Future<String> Function(EtatRapportAccueil)>(
-      (ref) => (etat) async {
-        final dossier = await getApplicationDocumentsDirectory();
-        final fichier = File(
-          p.join(dossier.path, '${etat.nomFichier(DateTime.now())}.csv'),
-        );
-        await fichier.writeAsBytes(etat.csvOctets());
-        return fichier.path;
+    Provider<Future<String?> Function(EtatRapportAccueil, FormatExport)>(
+      (ref) => (etat, format) async {
+        final type = switch (format) {
+          FormatExport.pdf => TypeFichierEnregistre.pdf,
+          FormatExport.excel => TypeFichierEnregistre.csv,
+        };
+        final octets = switch (format) {
+          FormatExport.pdf =>
+            await etat
+                .avecEntete(await ref.read(lireEnteteEtablissementProvider)())
+                .pdf(),
+          FormatExport.excel => etat.csvOctets(),
+        };
+        return ref
+            .read(enregistrementExportProvider)
+            .enregistrerFichier(
+              nomSuggere:
+                  '${etat.nomFichier(DateTime.now())}.${type.extension}',
+              octets: octets,
+              type: type,
+            );
       },
     );
 
@@ -154,22 +153,20 @@ Future<EtatRapportAccueil> composerRapportAccueil(
   );
 }
 
-/// Produit [etat] dans [format] ; rend le message à afficher (chemin du
-/// tableur) ou `null`.
-Future<String?> produireRapportAccueil(
+/// Produit [etat] dans [format] par la fenêtre « Enregistrer sous », puis
+/// dit l'issue par le toast commun ([messager] : pris avant qu'une modale ne
+/// se ferme).
+Future<void> produireRapportAccueil(
   WidgetRef ref,
+  ScaffoldMessengerState messager,
   EtatRapportAccueil etat,
-  FormatExport format,
-) async {
-  switch (format) {
-    case FormatExport.pdf:
-      await ref.read(imprimerRapportAccueilProvider)(etat);
-      return null;
-    case FormatExport.excel:
-      final chemin = await ref.read(exporterRapportAccueilProvider)(etat);
-      return 'Tableur (CSV) enregistré sur ce poste : $chemin';
-  }
-}
+  FormatExport format, {
+  required Key cleSucces,
+}) => executerExportAvec(
+  messager,
+  () => ref.read(exporterRapportAccueilProvider)(etat, format),
+  cleSucces: cleSucces,
+);
 
 /// « Exporter » de l'en-tête — `ouvrirExport` puis `genererExport` : la modale
 /// partagée (titre `accueil_pwa.export_titre`, sous-titre de la note des
@@ -197,14 +194,13 @@ Future<void> exporterSyntheseAccueil(
       );
     return;
   }
-  final message = await produireRapportAccueil(ref, etat, format);
-  if (message != null) {
-    messager
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(content: Text(message, key: const Key('tdb-exporter-csv'))),
-      );
-  }
+  await produireRapportAccueil(
+    ref,
+    messager,
+    etat,
+    format,
+    cleSucces: const Key('tdb-exporter-csv'),
+  );
 }
 
 /// `$set('etatFormulaire', 'rapport')`.
@@ -238,14 +234,13 @@ class _ModaleRapportState extends ConsumerState<_ModaleRapport> {
     }
     final messager = ScaffoldMessenger.of(context);
     Navigator.of(context).pop();
-    final message = await produireRapportAccueil(ref, etat, _format);
-    if (message != null) {
-      messager
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(content: Text(message, key: const Key('tdb-rapport-csv'))),
-        );
-    }
+    await produireRapportAccueil(
+      ref,
+      messager,
+      etat,
+      _format,
+      cleSucces: const Key('tdb-rapport-csv'),
+    );
   }
 
   @override

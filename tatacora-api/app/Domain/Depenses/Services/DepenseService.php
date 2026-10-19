@@ -94,13 +94,36 @@ class DepenseService
     /**
      * Enregistre une dépense multi-lignes ET sa pièce comptable.
      *
-     * @param  array{date_transaction?: string, tresorerie?: string, centre_id?: string|null, libelle?: string, recu_path?: string|null, lignes?: list<array{compte_charge: string, montant: string|float, libelle?: string|null, nature?: string, famille?: string, centre_id?: string}>}  $donnees
+     * ## L'identifiant du client et l'année du numéro (15/10/2026, lot S3)
+     *
+     * Pour la synchronisation des postes hors connexion (décision du Product
+     * Owner du 15/10/2026), deux ajouts OPTIONNELS, sans effet sur les
+     * appelants en ligne :
+     *
+     * - `$donnees['id']` — l'UUID posé par le poste. Une dépense qui existe
+     *   déjà sous cet identifiant est RENDUE telle quelle, sans seconde pièce
+     *   ni second numéro : un rejeu (coupure réseau, mémoire d'idempotence
+     *   purgée) ne décaisse pas deux fois. Vérifié avant ET sous verrou dans
+     *   la transaction — même raisonnement que `VenteService::enregistrer()`.
+     * - `$anneeNumero` — l'année de la séquence `DEP-AAAA-…`. En ligne, la
+     *   dépense est saisie le jour même et l'année du jour convient (défaut,
+     *   inchangé). Une dépense du 31/12 synchronisée le 02/01 doit porter un
+     *   numéro de SON exercice : la synchronisation passe l'année de
+     *   `date_transaction`.
+     *
+     * @param  array{id?: string, date_transaction?: string, tresorerie?: string, centre_id?: string|null, libelle?: string, recu_path?: string|null, lignes?: list<array{compte_charge: string, montant: string|float, libelle?: string|null, nature?: string, famille?: string, centre_id?: string}>}  $donnees
      *
      * @throws RuntimeException trésorerie inconnue, aucune ligne, montant nul,
      *                          ou pièce comptable refusée (compte, journal, exercice, centre)
      */
-    public function enregistrer(array $donnees, ?User $utilisateur = null): Depense
+    public function enregistrer(array $donnees, ?User $utilisateur = null, ?int $anneeNumero = null): Depense
     {
+        $identifiant = isset($donnees['id']) ? (string) $donnees['id'] : null;
+
+        if ($identifiant !== null && ($existante = Depense::find($identifiant)) !== null) {
+            return $existante;
+        }
+
         $lignes = $donnees['lignes'] ?? [];
 
         if ($lignes === []) {
@@ -134,8 +157,15 @@ class DepenseService
             $date,
             $libelle,
             $montantTotal,
-            $utilisateur
+            $utilisateur,
+            $identifiant,
+            $anneeNumero
         ): Depense {
+            if ($identifiant !== null
+                && ($concurrente = Depense::query()->whereKey($identifiant)->lockForUpdate()->first()) !== null) {
+                return $concurrente;
+            }
+
             // La pièce est passée D'ABORD : si elle est refusée, la dépense
             // n'est jamais écrite, et l'opérateur reçoit la raison comptable
             // plutôt qu'un enregistrement muet.
@@ -147,7 +177,8 @@ class DepenseService
             ]);
 
             $depense = Depense::create([
-                'numero' => $this->sequences->suivant('depenses', self::PREFIXE_NUMERO),
+                ...($identifiant !== null ? ['id' => $identifiant] : []),
+                'numero' => $this->sequences->suivant('depenses', self::PREFIXE_NUMERO, $anneeNumero),
                 'date_transaction' => $date,
                 'tresorerie' => $tresorerieCode,
                 'compte_tresorerie' => $tresorerie['compte'],

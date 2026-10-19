@@ -39,8 +39,12 @@ abstract final class LibellesCoquille {
   /// SECONDE DÉCISION DU PO DU 13/10/2026 (PA-209, D389) : « Système
   /// d'Information Intégré » devient « Système de gestion Intégré », casse
   /// exacte du PO. La clé de la vue a changé d'abord ; ce client la suit.
+  ///
+  /// TROISIÈME DÉCISION DU PO DU 14/10/2026 : la ligne sous la marque
+  /// devient « Système de gestion Intégré — Gîte Chez Noël, Natitingou
+  /// (Bénin) », comme la clé serveur `rapports.entete.localisation`.
   static const String localisation =
-      'Natitingou, Bénin — Système de gestion Intégré';
+      'Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)';
 
   /// `pwa.alt_logo` — le texte de remplacement du logo, rendu en sémantique.
   static const String altLogo = 'Logo TATACORA AFRIQUE';
@@ -75,6 +79,9 @@ abstract final class LibellesCoquille {
   static const String parametresCompte = 'Paramètres du compte';
   static const String importExport = 'Import & Export';
   static const String journalAudit = "Journal d'Audit";
+
+  /// Décision PO du 18/10/2026 : le bouton « Synchroniser » du serveur.
+  static const String synchronisationPostes = 'Synchroniser les postes';
   static const String aideAPropos = 'Aide & À propos';
   static const String contactEditeur = "Contactez l'éditeur";
 
@@ -160,6 +167,11 @@ abstract final class TracesCoquille {
   /// La cloche (`transverse/cloche-notifications` l.15), tracé 20 px.
   static const String cloche =
       r'<path stroke-linecap="round" stroke-linejoin="round" d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path stroke-linecap="round" stroke-linejoin="round" d="M13.73 21a2 2 0 01-3.46 0"/>';
+
+  /// Le bouton de SYNCHRONISATION (lot F3, ajout du PO du 16/10/2026 — la
+  /// vue n'en a pas) : deux flèches en cercle, tracé 20 px comme la cloche.
+  static const String synchronisation =
+      r'<path stroke-linecap="round" stroke-linejoin="round" d="M3 12a9 9 0 019-9 9.75 9.75 0 016.74 2.74L21 8M21 3v5h-5M21 12a9 9 0 01-9 9 9.75 9.75 0 01-6.74-2.74L3 16M8 16H3v5"/>';
 
   /// La loupe du champ de recherche (`transverse/recherche-globale` l.9).
   static const String loupe =

@@ -16,13 +16,11 @@
 /// jamais « les chiffres d'hier ».
 library;
 
-import 'dart:io';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 import '../../../core/di/providers.dart';
+import '../../../core/fichiers/enregistrement_export.dart';
+import '../../../core/impression/export_etat_a4.dart';
 import '../../comptabilite/domain/entities/comptabilite.dart';
 import '../../comptabilite/domain/refus_comptable.dart';
 import '../../comptabilite/presentation/providers_comptabilite.dart';
@@ -159,33 +157,36 @@ final class MessageSuccesNotifier extends Notifier<String?> {
   void effacer() => state = null;
 }
 
-/// L'export tableur — rend le **chemin** du fichier écrit.
+/// L'export tableur — rend le **chemin** du fichier écrit, `null` : annulé
+/// dans la fenêtre « Enregistrer sous » (14/10/2026).
 ///
 /// Exposé comme action injectable, jamais appelé depuis un widget : un test de
 /// widget n'a pas de greffon natif, et il doit exister un seul endroit où un
 /// fichier est écrit. Un export silencieux est un export que personne ne
-/// retrouve — l'écran affiche le chemin rendu ici.
+/// retrouve — le toast commun dit le nom du fichier.
 final exporterDepensesProvider =
-    Provider<Future<String> Function(EtatDepenses)>(
-      (ref) => (etat) async {
-        final dossier = await getApplicationDocumentsDirectory();
-        final m = DateTime.now();
-        final horodatage =
-            '${m.year}'
-            '${m.month.toString().padLeft(2, '0')}'
-            '${m.day.toString().padLeft(2, '0')}-'
-            '${m.hour.toString().padLeft(2, '0')}'
-            '${m.minute.toString().padLeft(2, '0')}'
-            '${m.second.toString().padLeft(2, '0')}';
-        final fichier = File(
-          p.join(
-            dossier.path,
-            '${EtatDepenses.prefixeFichier}-$horodatage.csv',
+    Provider<Future<String?> Function(EtatDepenses)>(
+      (ref) =>
+          (etat) => ref
+              .read(enregistrementExportProvider)
+              .exporter(
+                base: EtatDepenses.prefixeFichier,
+                type: TypeFichierEnregistre.csv,
+                octets: etat.csvOctets(),
+              ),
+    );
+
+/// L'export « PDF Officiel A4 Imprimable » de la liste affichée — mêmes
+/// colonnes, mêmes lignes et même portée que le CSV, en-tête lu des
+/// paramètres. Rend le chemin écrit, `null` : annulé.
+final exporterDepensesPdfProvider =
+    Provider<Future<String?> Function(EtatDepenses)>(
+      (ref) =>
+          (etat) => enregistrerEtatA4(
+            ref,
+            etat.etatA4(),
+            base: EtatDepenses.prefixeFichier,
           ),
-        );
-        await fichier.writeAsBytes(etat.csvOctets());
-        return fichier.path;
-      },
     );
 
 /// La raison du dernier rattrapage refusé, affichée en bandeau rouge au-dessus
@@ -205,40 +206,24 @@ final class RefusRattrapageNotifier extends Notifier<String?> {
   void effacer() => state = null;
 }
 
-/// Le centre de coût choisi au bandeau de rattrapage (`$centreRattrapage` du
-/// composant, `wire:model` du `<select>`, vue l.126-131).
-///
-/// **Chaîne vide = « Choisir un centre »**, qui est l'état de départ : la
-/// dépense ne mémorise aucun centre, donc rien ne pré-remplit le choix. Le geste
-/// « Comptabiliser » le passe TEL QUEL au dépôt, vide compris — c'est le moteur
-/// qui refuse (RG-12), pas l'écran, qui ne fabrique donc aucune phrase de refus.
-///
-/// `autoDispose`, parce que la vie du composant Livewire est celle de la page :
-/// quitter l'écran remet le choix à « Choisir un centre ». `EcranDepenses` y
-/// reste abonné tant qu'il est monté, si bien que le rechargement de la liste
-/// (le bandeau disparaît un instant) n'efface pas le choix de l'opérateur.
-final centreRattrapageProvider =
-    NotifierProvider.autoDispose<CentreRattrapageNotifier, String>(
-      CentreRattrapageNotifier.new,
-    );
-
-final class CentreRattrapageNotifier extends Notifier<String> {
-  @override
-  String build() => '';
-
-  void choisir(String centreId) => state = centreId;
-}
-
 /// Le geste « Comptabiliser » d'une dépense sans pièce (`comptabiliserDepense`
 /// de la vue, `DepenseService::comptabiliser`).
 ///
-/// Explicite : il n'est atteint que par le bouton de la ligne. Succès, le
+/// Explicite : il n'est atteint que par le bouton de la ligne, APRÈS la
+/// fenêtre « Comptabiliser la dépense » où l'opérateur choisit le centre de
+/// coût de la pièce ([centreId], obligatoire depuis le 10/10/2026 : la dépense
+/// ne mémorise aucun centre, rien n'est deviné). Cette fenêtre remplace le
+/// `<select>` du bandeau ambre de la vue, retiré par le PO le 14/10/2026. Succès, le
 /// bandeau vert dit « Dépense {numéro de pièce} comptabilisée. » — la vue écrit
 /// le numéro `DEP-…` de la dépense, que ce poste n'alloue pas (voir
 /// `tables/depenses_tables.dart`) ; c'est le numéro de PIÈCE qui le remplace.
 /// Refus, le bandeau rouge dit la phrase du moteur (celle du serveur), la raison
 /// est consignée sur la dépense, et RIEN n'est écrit.
-Future<void> comptabiliserLaDepense(WidgetRef ref, Depense depense) async {
+Future<void> comptabiliserLaDepense(
+  WidgetRef ref,
+  Depense depense, {
+  required String centreId,
+}) async {
   final refus = ref.read(refusRattrapageDepenseProvider.notifier)..effacer();
   final succes = ref.read(messageSuccesDepenseProvider.notifier)..effacer();
   try {
@@ -247,9 +232,9 @@ Future<void> comptabiliserLaDepense(WidgetRef ref, Depense depense) async {
         .comptabiliser(
           depense.id,
           auteurId: ref.read(sessionProvider)?.utilisateurId ?? '',
-          // Le centre du bandeau, obligatoire (10/10/2026) : lu AU CLIC, jamais
-          // mémorisé sur la dépense.
-          centreId: ref.read(centreRattrapageProvider),
+          // Le centre choisi dans la fenêtre, obligatoire (10/10/2026) :
+          // jamais mémorisé sur la dépense.
+          centreId: centreId,
         );
     succes.definir('Dépense ${faite.numeroPiece ?? ''} comptabilisée.');
   } on RefusComptable catch (e) {

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/format/formats.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
+import '../../../../shared_widgets/liste_paginee.dart';
 import '../../../restaurant/presentation/widgets/coquille_restaurant.dart';
 import '../../../restaurant/presentation/widgets/tableau_restaurant.dart';
 import '../../domain/entities/circuit.dart';
@@ -85,13 +86,21 @@ class _Corps extends StatelessWidget {
           // Le titre du cadre à la vue (l.537), au mot — tiret cadratin
           // compris.
           titre: 'Catalogue — tarifs opposables au client',
-          corps: TableauRestaurant(
-            gabarit: gabaritTourisme,
-            colonnes: VueCatalogue.colonnes,
-            clesLignes: [
-              for (final c in circuits) Key('tourisme-circuit-${c.id}'),
-            ],
-            lignes: [for (final c in circuits) _ligne(context, c)],
+          // Dix prestations par page (PO, 14/10/2026).
+          corps: Consumer(
+            builder: (context, ref, _) => ListePaginee<Circuit>(
+              elements: circuits,
+              prefixeCle: 'tourisme-catalogue-pagination',
+              cleRemiseAZero: ref.watch(rechercheTourismeProvider),
+              constructeur: (_, page) => TableauRestaurant(
+                gabarit: gabaritTourisme,
+                colonnes: VueCatalogue.colonnes,
+                clesLignes: [
+                  for (final c in page) Key('tourisme-circuit-${c.id}'),
+                ],
+                lignes: [for (final c in page) _ligne(context, c)],
+              ),
+            ),
           ),
         ),
         // L'encadré « Le catalogue est enregistré sur ce poste » (absent de

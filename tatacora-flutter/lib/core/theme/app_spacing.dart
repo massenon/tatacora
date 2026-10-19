@@ -199,6 +199,12 @@ abstract final class AppLayout {
   /// ENTRE CROCHETS : elle ne vient d'aucune echelle.
   static const double champRechercheHistorique = 180;
 
+  /// Le champ « Mot de passe SMTP » de Paramètres → Email (SMTP) : la vue le
+  /// pose en `flex-1 min-w-0` à côté de ses boutons ; ici une largeur
+  /// bornée, la ligne passant à la suivante (`Wrap`) quand la colonne est
+  /// étroite.
+  static const double champMotDePasseSmtp = 280;
+
   /// Une liste de filtre de l'historique. Le maitre les laisse a leur largeur
   /// naturelle (`<select>` sans classe de largeur) ; en Flutter un
   /// `DropdownButtonFormField` sans borne s'etire sur toute la ligne, ce qui
@@ -821,6 +827,30 @@ abstract final class AppLayout {
   /// COMPTE dans la taille du controle, celle de Flutter non : on l'ajoute au
   /// remplissage pour que la hauteur mesuree coincide.
   static const double bordureControle = 1;
+
+  /// La hauteur FIXE du bouton d'action standard (`BoutonStandard`),
+  /// bordure comprise — décision du Product Owner du 14/10/2026 (40 px,
+  /// rayon `AppRadius.roundedMd`), en écart assumé des ~37 px de la vue.
+  static const double hauteurBoutonStandard = 40;
+
+  /// La fenêtre « Modifier » d'un paramètre — compacte (PO, 14/10/2026) :
+  /// l'`AlertDialog` d'avant sortait trop haute (« Raison sociale »).
+  static const double modaleParametre = 440;
+
+  /// La hauteur maximale de la fenêtre « Modifier » d'un paramètre.
+  static const double hauteurMaxModaleParametre = 420;
+
+  /// La modale « Passer une écriture » de la comptabilité (PO, 14/10/2026) :
+  /// assez large pour la grille Compte / Libellé / Débit / Crédit.
+  static const double modaleEcriture = 900;
+
+  /// La hauteur maximale de la modale « Passer une écriture » — les lignes
+  /// défilent au-delà.
+  static const double hauteurMaxModaleEcriture = 640;
+
+  /// La hauteur maximale de la liste des comptes proposés à la frappe dans
+  /// cette modale — elle défile au-delà.
+  static const double hauteurMaxPropositionsCompte = 240;
 
   /// L'icone de l'ecran d'accueil de l'apercu — `<svg width="48"
   /// height="48" stroke="#CBD5E1">` (`m14-etats-studio.js` l.120).

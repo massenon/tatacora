@@ -2,6 +2,10 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../synchronisation/data/documents_autres_postes.dart';
+import '../../synchronisation/data/operations_sync_dao.dart';
+import '../../synchronisation/domain/charges_synchronisation.dart';
+import '../../synchronisation/domain/operation_sync.dart';
 import '../domain/entities/contrat_location.dart';
 import '../domain/entities/vehicule.dart';
 import '../domain/regles_vehicules.dart';
@@ -226,6 +230,7 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
         throw RefusVehicule(MessagesVehicules.immatriculationDejaPrise(plaque));
       }
 
+      final avant = await _ligneVehicule(identifiant);
       await into(attachedDatabase.vehiculesLocal).insertOnConflictUpdate(
         VehiculesLocalCompanion.insert(
           id: identifiant,
@@ -235,6 +240,15 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
           statut: statut.code,
         ),
       );
+      await _envoyer(identifiant, {
+        if (avant != null && avant.immatriculation != plaque)
+          'immatriculation': plaque,
+        if (avant != null && avant.categorie != categorie.code)
+          'categorie': categorie.code,
+        if (avant != null && avant.tarifJour.round() != tarifJour)
+          'tarif_jour': tarifJour,
+        if (avant != null && avant.statut != statut.code) 'statut': statut.code,
+      });
 
       return Vehicule(
         id: identifiant,
@@ -270,6 +284,7 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
       await (update(attachedDatabase.vehiculesLocal)
             ..where((v) => v.id.equals(vehiculeId)))
           .write(VehiculesLocalCompanion(statut: Value(statut.code)));
+      await _envoyer(vehiculeId, {'statut': statut.code});
 
       return _versVehicule(ligne.copyWith(statut: statut.code));
     });
@@ -320,6 +335,7 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
       await (update(attachedDatabase.vehiculesLocal)
             ..where((v) => v.id.equals(vehiculeId)))
           .write(const VehiculesLocalCompanion(statut: Value('hors_service')));
+      await _envoyer(vehiculeId, {'statut': 'hors_service'});
 
       return _versVehicule(ligne.copyWith(statut: 'hors_service'));
     });
@@ -415,6 +431,25 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
             ..where((v) => v.id.equals(saisie.vehiculeId)))
           .write(const VehiculesLocalCompanion(statut: Value('loue')));
 
+      // Audit de couverture (18/10/2026) : le contrat part — le véhicule
+      // d'abord s'il est inconnu du serveur ; les numéros de pièce et de
+      // permis de la SAISIE voyagent dans la charge (jamais en base ici).
+      await _envoyer(saisie.vehiculeId, const {});
+      await OperationsSyncDao(attachedDatabase).enfiler(
+        table: TableSynchronisee.contratsLocation,
+        entiteId: id,
+        type: TypeOperationSync.creation,
+        payload: chargeContratLocation(
+          vehiculeId: saisie.vehiculeId,
+          clientId: saisie.clientId,
+          guideId: saisie.guideId,
+          debut: debut,
+          fin: fin,
+          pieceIdentite: saisie.pieceIdentite.trim(),
+          permisConduire: saisie.permisConduire?.trim(),
+        ),
+      );
+
       return ContratLocation(
         id: id,
         immatriculation: vehicule.immatriculation,
@@ -433,6 +468,50 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
   }
 
   /* --------------------------------------------------------------- privé */
+
+  /// Audit de couverture (18/10/2026) : le véhicule part au serveur. Inconnu
+  /// du serveur → sa CRÉATION (valeurs courantes ; le serveur le crée
+  /// disponible, un autre statut suit en modification) ; connu → les seuls
+  /// [champs] changés. « Loué » ne part jamais (le serveur le déduit des
+  /// contrats). Dans la transaction du geste.
+  Future<void> _envoyer(String id, Map<String, Object?> champs) async {
+    final file = OperationsSyncDao(attachedDatabase);
+    final transmis = champs.entries
+        .where((e) => !(e.key == 'statut' && e.value == 'loue'))
+        .fold(<String, Object?>{}, (m, e) => m..[e.key] = e.value);
+    if (await DocumentsAutresPostes(
+      attachedDatabase,
+    ).connuDuServeur(TableSynchronisee.vehicules, id)) {
+      if (transmis.isEmpty) return;
+      await file.enfiler(
+        table: TableSynchronisee.vehicules,
+        entiteId: id,
+        type: TypeOperationSync.modification,
+        payload: transmis,
+      );
+      return;
+    }
+    final v = await _ligneVehicule(id);
+    if (v == null) return;
+    await file.enfiler(
+      table: TableSynchronisee.vehicules,
+      entiteId: id,
+      type: TypeOperationSync.creation,
+      payload: chargeVehicule(
+        immatriculation: v.immatriculation,
+        categorie: v.categorie,
+        tarifJour: v.tarifJour.round(),
+      ),
+    );
+    if (v.statut != 'disponible' && v.statut != 'loue') {
+      await file.enfiler(
+        table: TableSynchronisee.vehicules,
+        entiteId: id,
+        type: TypeOperationSync.modification,
+        payload: {'statut': v.statut},
+      );
+    }
+  }
 
   Future<VehiculesLocalData?> _ligneVehicule(String id) => (select(
     attachedDatabase.vehiculesLocal,

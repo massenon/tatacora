@@ -1,0 +1,89 @@
+{
+    "_lisez-moi": "PRODUIT par ExtraireStructureBladeTest, jamais ecrit a la main. Chaque variante (onglet) : les textes VISIBLES de <main>, dans l'ordre du document.",
+    "vue": "pos/heberges",
+    "jeu": "parc",
+    "onglets": {
+        "principal": [
+            {
+                "type": "h1",
+                "texte": "Point de vente — clients hébergés"
+            },
+            {
+                "type": "p",
+                "texte": "Le panier reste ouvert de l’arrivée au départ. Bar, restaurant, tourisme et location y entrent ensemble — un seul panier, une seule facture à la clôture."
+            },
+            {
+                "type": "p",
+                "texte": "Paniers ouverts"
+            },
+            {
+                "type": "p",
+                "texte": "En-cours séjours"
+            },
+            {
+                "type": "p",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "h2",
+                "texte": "Séjours en cours"
+            },
+            {
+                "type": "p",
+                "texte": "Un panier par séjour, jamais deux."
+            },
+            {
+                "type": "p",
+                "texte": "Aucun séjour en cours. Le POS hébergés n’a de sens que pour un client présent."
+            },
+            {
+                "type": "champ",
+                "texte": "Rechercher une consommation ou une prestation…"
+            },
+            {
+                "type": "button",
+                "texte": "Tout"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun article ne correspond à cette recherche."
+            },
+            {
+                "type": "h2",
+                "texte": "Panier"
+            },
+            {
+                "type": "p",
+                "texte": "Panier ouvert de l’arrivée au départ : il survit au changement d’équipe et de navigateur. Enregistré sur ce poste — il ne part vers aucun autre."
+            },
+            {
+                "type": "p",
+                "texte": "Sélectionnez un séjour à gauche pour voir ou ouvrir son panier."
+            },
+            {
+                "type": "span",
+                "texte": "Total du séjour"
+            },
+            {
+                "type": "span",
+                "texte": "0 FCFA"
+            },
+            {
+                "type": "label",
+                "texte": "Remise"
+            },
+            {
+                "type": "option",
+                "texte": "Aucune"
+            },
+            {
+                "type": "option",
+                "texte": "FCFA"
+            },
+            {
+                "type": "button",
+                "texte": "Clôturer et facturer"
+            }
+        ]
+    }
+}

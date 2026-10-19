@@ -88,5 +88,10 @@ return [
             . 'les dates de début et de fin sont obligatoires.',
         'periode_inversee' => 'La date de fin ne peut pas précéder la date de début.',
         'page_trop_grande' => 'Au plus :max éléments par page.',
+        // Points de stockage créés hors connexion (lot S2, 15/10/2026).
+        'point_libelle_obligatoire' => 'Le libellé du point de stockage est obligatoire.',
+        'point_type_inconnu' => 'Type de point inconnu : un point est un magasin, une cuisine, un bar '
+            . 'ou un garage. Un type hors registre ferait disparaître le point de toute recherche par type.',
+        'point_identifiant_deja_pris' => 'Cet identifiant est déjà utilisé par un autre point de stockage.',
     ],
 ];

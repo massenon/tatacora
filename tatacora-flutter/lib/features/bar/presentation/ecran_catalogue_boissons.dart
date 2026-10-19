@@ -5,6 +5,9 @@ import 'package:go_router/go_router.dart';
 import '../../../core/format/formats.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../shared_widgets/bouton_standard.dart';
+import '../../../shared_widgets/modale_export.dart';
+import '../../../shared_widgets/toast_export.dart';
 // Le maître ne possède qu'UN moteur CRUD pour tout le dépôt — `crud-ui.js` et
 // `crud-engine.js` —, et `m5-bar.html` le configure exactement comme
 // `m4-restauration.html`. Son portage Flutter vit dans `features/restaurant/`
@@ -24,7 +27,6 @@ import '../domain/entities/boisson.dart';
 import 'providers_catalogue_boissons.dart';
 import 'widgets/modale_boisson.dart';
 import 'widgets/modale_detail_boisson.dart';
-import 'widgets/modale_export_boissons.dart';
 
 /// L'écran **Bar & POS Boissons** — `prototype_v2/pages/m5-bar.html`.
 ///
@@ -347,27 +349,20 @@ class _BarreOutilsState extends ConsumerState<_BarreOutils> {
         ),
         OutlinedButton.icon(
           key: const Key('boissons-importer'),
-          // Aucune route n'accepte d'import : le bouton dit pourquoi au lieu
-          // d'ouvrir une modale qui n'enregistrerait rien (Article 6).
-          onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              key: Key('boissons-import-refuse'),
-              content: Text(
-                // Réécrit le 14/10/2026 (directive du PO) : la modale
-                // d'import de la vue n'est pas portée, aucune route n'existe.
-                'L’import de boissons n’est pas disponible sur ce poste : un '
-                'fichier déposé ici ne créerait aucune boisson.',
-              ),
-            ),
-          ),
+          // L'import de la carte du bar passe par l'onglet « Importer les
+          // données » de l'écran Import & Export (14/10/2026) : contrôle,
+          // rapport, puis une transaction unique — le module y est
+          // présélectionné.
+          onPressed: () => context.go('/import-export?module=m5-bar'),
           icon: const Icon(Icons.upload_outlined, size: AppLayout.iconeChamp),
           label: const Text('Importer', style: TextesRestaurant.petitCrud),
         ),
-        OutlinedButton.icon(
+        // Le bouton standard (PO, 14/10/2026) : le même « Exporter » que sur
+        // les autres écrans.
+        BoutonStandard(
           key: const Key('boissons-exporter'),
+          libelle: 'Exporter',
           onPressed: () => _exporter(context),
-          icon: const Icon(Icons.download_outlined, size: AppLayout.iconeChamp),
-          label: const Text('Exporter', style: TextesRestaurant.petitCrud),
         ),
         FilledButton.icon(
           key: const Key('boissons-ajouter'),
@@ -389,27 +384,50 @@ class _BarreOutilsState extends ConsumerState<_BarreOutils> {
     if (enregistre == true) ref.invalidate(boissonsProvider);
   }
 
+  /// « Exporter » — la modale d'export PARTAGÉE (PO, 14/10/2026 : l'ancienne
+  /// modale du moteur CRUD est retirée). Le tableur passe par la fenêtre
+  /// « Enregistrer sous », le PDF aussi : l'état A4 des mêmes colonnes
+  /// (directive du PO du 14/10/2026).
   Future<void> _exporter(BuildContext context) async {
     final boissons = _boissonsAffichees;
     final filtre = _filtreLisible(ref);
 
-    final confirme = await ouvrirModaleExportBoissons(
+    final format = await choisirFormatExport(
       context,
-      nombre: boissons.length,
-      filtre: filtre,
+      titre: titreExport,
+      aide: 'Filtre appliqué : $filtre',
     );
-    if (confirme != true || !context.mounted) return;
+    if (format == null || !context.mounted) return;
 
-    final chemin = await ref.read(exporterBoissonsProvider)(boissons, filtre);
-    if (!context.mounted) return;
+    void dire(String texte, String cle) => ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(texte, key: Key(cle))));
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        key: const Key('boissons-export-fait'),
-        content: Text('Export écrit : $chemin'),
-      ),
+    // Une liste vide se **refuse** (PA-119) : une page blanche remise au
+    // comptable se lit comme « aucune boisson », alors qu'elle veut dire
+    // « le filtre n'a rien retenu ».
+    if (boissons.isEmpty) {
+      return dire(TextesExport.vide, 'boissons-export-vide');
+    }
+
+    await executerExport(
+      context,
+      () => switch (format) {
+        FormatExport.pdf => ref.read(exporterBoissonsPdfProvider)(
+          boissons,
+          filtre,
+        ),
+        FormatExport.excel => ref.read(exporterBoissonsProvider)(
+          boissons,
+          filtre,
+        ),
+      },
+      cleSucces: const Key('boissons-export-fait'),
     );
   }
+
+  /// Le titre de la modale — « Exporter — `entiteLabelPluriel` ».
+  static const String titreExport = 'Exporter — Boissons';
 }
 
 /// Le filtre courant, en clair — un export DIT son filtre (PA-119).

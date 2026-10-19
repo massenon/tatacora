@@ -142,7 +142,7 @@ class TableSalleService
         return $resultat;
     }
 
-    public function creer(string $cleEspace, int $numero, ?int $places = null): TableSalle
+    public function creer(string $cleEspace, int $numero, ?int $places = null, ?string $id = null): TableSalle
     {
         $espace = self::espace($cleEspace);
 
@@ -157,6 +157,8 @@ class TableSalleService
         $this->refuserNumero($cleEspace, $numero, $espace['prefixe']);
 
         return TableSalle::create([
+            // Lot F6 (synchronisation) : l'UUID du poste qui a créé la table.
+            ...($id !== null ? ['id' => $id] : []),
             'espace' => $cleEspace,
             'numero' => $numero,
             'libelle' => $espace['prefixe'] . $numero,
@@ -181,6 +183,24 @@ class TableSalleService
         // Le libellé SUIT le numéro — jamais figé (tables-engine.js).
         $table->numero = $numero;
         $table->libelle = $espace['prefixe'] . $numero;
+        $table->save();
+
+        return $table;
+    }
+
+    /**
+     * Le nombre de places — lot F6 (une table modifiée sur un poste). Une
+     * table a au moins une place (contrainte du schéma).
+     */
+    public function changerPlaces(string $id, int $places): TableSalle
+    {
+        $table = $this->tableOuRefus($id);
+
+        if ($places < 1) {
+            throw new RuntimeException(__('ventes.table_places_invalides'));
+        }
+
+        $table->places = $places;
         $table->save();
 
         return $table;

@@ -36,6 +36,8 @@ class ExportTableService
         // Secrets et authentification — jamais exportables, quel que soit le rôle.
         'utilisateurs',
         'personal_access_tokens',
+        // Secrets techniques chiffrés (mot de passe SMTP, 19/10/2026).
+        'secrets_configuration',
         // Technique framework — pas une donnée de l'entreprise.
         'migrations',
         'cache',

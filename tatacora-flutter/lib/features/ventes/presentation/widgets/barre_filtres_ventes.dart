@@ -5,6 +5,8 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../shared_widgets/bouton_standard.dart';
+import '../../../../shared_widgets/modale_export.dart';
+import '../../../../shared_widgets/toast_export.dart';
 import '../../../pos/domain/entities/mode_reglement.dart';
 import '../../../pos/domain/entities/reference_catalogue.dart';
 import '../../domain/entities/vente.dart';
@@ -304,91 +306,55 @@ class _ChampDate extends StatelessWidget {
 }
 
 /// `text-[12px] px-3 py-1.5 rounded-lg bg-[var(--navy)] text-white font-semibold`
-class _BoutonExporter extends StatelessWidget {
+///
+/// Il ouvre la modale d'export PARTAGÉE (PO, 14/10/2026) — l'ancien dialogue
+/// à deux boutons « Export Excel » / « Export PDF » est retiré. Le document
+/// choisi passe par la fenêtre « Enregistrer sous », et l'issue est dite par
+/// le toast commun.
+class _BoutonExporter extends ConsumerWidget {
   const _BoutonExporter();
+
+  /// Le titre de la modale (PO, 14/10/2026).
+  static const String titreModale = 'Exporter le journal des ventes';
 
   /// Le bouton standard compact (PO, 14/10/2026).
   @override
-  Widget build(BuildContext context) => BoutonStandard(
+  Widget build(BuildContext context, WidgetRef ref) => BoutonStandard(
     key: const Key('ventes-exporter'),
-    libelle: 'Exporter',
+    libelle: TextesExport.bouton,
     variante: VarianteBouton.primaire,
     // `text-[12px] px-3 py-1.5 … font-semibold` : pas `compact`, qui
     // rendrait le texte en graisse normale.
     taillePolice: TaillesContenu.t12,
     margeHorizontale: AppSpacing.sm,
     margeVerticale: AppSpacing.xxs,
-    onPressed: () => showDialog<void>(
-      context: context,
-      builder: (_) => const AlertDialog(
-        title: Text('Exporter — Historique des ventes'),
-        content: _BoutonsExport(),
-      ),
-    ),
+    onPressed: () => _exporter(context, ref),
   );
-}
-
-class _BoutonsExport extends ConsumerWidget {
-  const _BoutonsExport();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Wrap(
-      spacing: AppSpacing.xs,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        // Bouton standard (PO, 14/10/2026). Le libellé du maître. L'écart de
-        // FORMAT — CSV et non XLSX — est nommé dans l'en-tête de
-        // `table_ventes.dart`, pas masqué sous un autre mot.
-        BoutonStandard(
-          key: const Key('ventes-export-excel'),
-          libelle: 'Export Excel',
-          onPressed: () => _exporter(context, ref),
-        ),
-        BoutonStandard(
-          key: const Key('ventes-export-pdf'),
-          libelle: 'Export PDF',
-          variante: VarianteBouton.primaire,
-          onPressed: () => _imprimer(context, ref),
-        ),
-      ],
-    );
-  }
-
-  /// Vrai quand il n'y a rien à exporter ; le dit alors, avec le mot du maître.
-  bool _refuse(BuildContext context, EtatJournalVentes etat) {
-    if (!etat.estVide) return false;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(messageExportVentesVide, key: Key('ventes-export-vide')),
-      ),
-    );
-    return true;
-  }
-
-  Future<void> _imprimer(BuildContext context, WidgetRef ref) async {
-    final etat = composerEtatJournal(ref);
-    if (_refuse(context, etat)) return;
-    await ref.read(imprimerJournalVentesProvider)(etat);
-  }
 
   Future<void> _exporter(BuildContext context, WidgetRef ref) async {
+    final format = await choisirFormatExport(context, titre: titreModale);
+    if (format == null || !context.mounted) return;
+
     final etat = composerEtatJournal(ref);
-    if (_refuse(context, etat)) return;
-
-    final chemin = await ref.read(exporterJournalVentesProvider)(etat);
-    if (!context.mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          // « enregistré sur ce poste » — jamais « en attente de
-          // synchronisation » : rien de ce journal ne part au serveur.
-          'Export enregistré sur ce poste : $chemin',
-          key: const Key('ventes-export-chemin'),
+    if (etat.estVide) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            messageExportVentesVide,
+            key: Key('ventes-export-vide'),
+          ),
         ),
-      ),
+      );
+      return;
+    }
+
+    await executerExport(
+      context,
+      () => switch (format) {
+        FormatExport.pdf => ref.read(exporterJournalVentesPdfProvider)(etat),
+        FormatExport.excel => ref.read(exporterJournalVentesProvider)(etat),
+      },
+      cleSucces: const Key('ventes-export-chemin'),
     );
   }
 }

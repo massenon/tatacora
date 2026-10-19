@@ -1,0 +1,41 @@
+{
+    "_lisez-moi": "PRODUIT par ExtraireStructureBladeTest, jamais ecrit a la main. Chaque variante (onglet) : les textes VISIBLES de <main>, dans l'ordre du document.",
+    "vue": "demarrage",
+    "jeu": "parc",
+    "onglets": {
+        "principal": [
+            {
+                "type": "h1",
+                "texte": "TATACORA AFRIQUE"
+            },
+            {
+                "type": "p",
+                "texte": "GÎTE CHEZ NOËL — AGENCE DE VOYAGES & HÉBERGEMENT"
+            },
+            {
+                "type": "p",
+                "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+            },
+            {
+                "type": "p",
+                "texte": "Initialisation du système..."
+            },
+            {
+                "type": "p",
+                "texte": "Réalisé dans le cadre du"
+            },
+            {
+                "type": "span",
+                "texte": "PAEB"
+            },
+            {
+                "type": "span",
+                "texte": "FAGUEZ SARL"
+            },
+            {
+                "type": "p",
+                "texte": "Projet d'Appui à l'Entrepreneuriat au Bénin"
+            }
+        ]
+    }
+}

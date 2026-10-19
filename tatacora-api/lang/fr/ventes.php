@@ -28,12 +28,21 @@ return [
         ."Accepter la ligne obligerait l'écran à transmettre un prix au clavier — c'est l'anti-patron "
         .'que le prototype porte et que ce dépôt refuse.',
 
+    // Synchronisation (décision PO du 15/10/2026) : le prix du POSTE fait
+    // foi — encore faut-il qu'il en porte un.
+    'prix_impose_invalide' => 'La ligne « :article » ne porte pas de prix lisible : une vente faite hors connexion '
+        .'garde le prix annoncé au client, et sans lui le serveur devrait en inventer un.',
+
     'deja_annulee' => 'La vente :numero est déjà annulée.',
 
     'motif_sortie_stock' => 'Vente :numero — :article',
 
     'motif_annulation_stock' => 'Annulation vente :numero',
 
+    // Vente synchronisée d'un plat sans composition (décision PO du 15/10/2026) :
+    // la vente est gardée, la déduction de cette ligne est écartée et signalée.
+    'stock_non_sorti_plat_sans_composition' => 'Stock non sorti : le plat « :plat » n\'a aucune composition '
+        . '(fiche technique vide, aucun article lié). Complétez sa fiche et régularisez le stock de cuisine.',
     'stock_deja_sorti_commande' => 'Stock déjà sorti à la transmission en cuisine '
         .'(commande :commande) : la vente ne le déduit pas une seconde fois.',
 
@@ -130,6 +139,7 @@ return [
 
     'table_introuvable' => 'Table introuvable.',
 
+    'table_places_invalides' => 'Une table compte au moins une place.',
     'table_panier_ouvert' => 'La table :libelle porte un panier ouvert. Encaissez l\'addition avant '
         .'de la désactiver : les consommations servies n\'auraient plus de table pour les porter '
         .'jusqu\'à l\'addition.',

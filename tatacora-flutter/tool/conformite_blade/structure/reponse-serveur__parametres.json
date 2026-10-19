@@ -1,0 +1,306 @@
+{
+    "data": {
+        "parametres": [
+            {
+                "cle": "entreprise_raison_sociale",
+                "groupe": "entreprise",
+                "libelle": "Raison sociale",
+                "type": "texte",
+                "choix": [],
+                "aide": null,
+                "valeur": null
+            },
+            {
+                "cle": "entreprise_promoteur",
+                "groupe": "entreprise",
+                "libelle": "Nom du promoteur",
+                "type": "texte",
+                "choix": [],
+                "aide": "Imprimé sous la raison sociale dans l’en-tête des états quand il est renseigné — jamais un nom deviné.",
+                "valeur": null
+            },
+            {
+                "cle": "entreprise_adresse",
+                "groupe": "entreprise",
+                "libelle": "Adresse du siège d'exploitation",
+                "type": "texte",
+                "choix": [],
+                "aide": null,
+                "valeur": null
+            },
+            {
+                "cle": "entreprise_telephone",
+                "groupe": "entreprise",
+                "libelle": "Téléphone principal",
+                "type": "texte",
+                "choix": [],
+                "aide": null,
+                "valeur": null
+            },
+            {
+                "cle": "entreprise_email",
+                "groupe": "entreprise",
+                "libelle": "Email de contact",
+                "type": "texte",
+                "choix": [],
+                "aide": null,
+                "valeur": null
+            },
+            {
+                "cle": "communication_whatsapp",
+                "groupe": "entreprise",
+                "libelle": "Numéro WhatsApp Business",
+                "type": "texte",
+                "choix": [],
+                "aide": "Le numéro, pas la clé d’API — celle-ci vit en configuration serveur. Imprimé dans l’en-tête des états quand il est renseigné.",
+                "valeur": null
+            },
+            {
+                "cle": "entreprise_site_web",
+                "groupe": "entreprise",
+                "libelle": "Site web",
+                "type": "texte",
+                "choix": [],
+                "aide": null,
+                "valeur": null
+            },
+            {
+                "cle": "entreprise_ifu",
+                "groupe": "entreprise",
+                "libelle": "IFU (Identifiant Fiscal Unique)",
+                "type": "texte",
+                "choix": [],
+                "aide": "L’IFU est obligatoire pour la facturation MECeF. Laissé vide, la mention n’apparaît sur aucun document : imprimer un exemple de format serait un faux identifiant fiscal.",
+                "valeur": null
+            },
+            {
+                "cle": "entreprise_rccm",
+                "groupe": "entreprise",
+                "libelle": "RCCM",
+                "type": "texte",
+                "choix": [],
+                "aide": "Même règle que l’IFU : absent tant qu’il n’est pas renseigné.",
+                "valeur": null
+            },
+            {
+                "cle": "entreprise_numero_mecef",
+                "groupe": "entreprise",
+                "libelle": "N° Contribuable MECeF",
+                "type": "texte",
+                "choix": [],
+                "aide": "Fourni par la DGI. Identifiant, donc paramétrable — la CLÉ D’API MECeF, elle, vit en configuration serveur et n’apparaîtra jamais ici.",
+                "valeur": null
+            },
+            {
+                "cle": "tva_active",
+                "groupe": "fiscalite",
+                "libelle": "Assujettissement à la TVA",
+                "type": "booleen",
+                "choix": [],
+                "aide": "Ne peut pas être activé tant que le taux n’est pas renseigné : la facture lèverait au comptoir.",
+                "valeur": null
+            },
+            {
+                "cle": "taux_tva",
+                "groupe": "fiscalite",
+                "libelle": "Taux de TVA (%)",
+                "type": "decimal",
+                "choix": [],
+                "aide": null,
+                "valeur": null
+            },
+            {
+                "cle": "convention_prix",
+                "groupe": "fiscalite",
+                "libelle": "Convention des prix du catalogue",
+                "type": "choix",
+                "choix": [
+                    "ht",
+                    "ttc"
+                ],
+                "aide": "« ht » : la TVA s’ajoute aux tarifs. « ttc » : elle en est extraite.",
+                "valeur": null
+            },
+            {
+                "cle": "fiscalite_regime",
+                "groupe": "fiscalite",
+                "libelle": "Régime fiscal",
+                "type": "choix",
+                "choix": [
+                    "reel_normal",
+                    "reel_simplifie",
+                    "tpu"
+                ],
+                "aide": "Imprimé avec l’IFU et le RCCM dans les mentions légales des états quand il est renseigné.",
+                "valeur": null
+            },
+            {
+                "cle": "taux_cnss_salarie",
+                "groupe": "social",
+                "libelle": "CNSS part salariale (%)",
+                "type": "decimal",
+                "choix": [],
+                "aide": null,
+                "valeur": null
+            },
+            {
+                "cle": "taux_cnss_pension_employeur",
+                "groupe": "social",
+                "libelle": "CNSS pension, part patronale (%)",
+                "type": "decimal",
+                "choix": [],
+                "aide": null,
+                "valeur": null
+            },
+            {
+                "cle": "taux_cnss_prestations_familiales",
+                "groupe": "social",
+                "libelle": "CNSS prestations familiales (%)",
+                "type": "decimal",
+                "choix": [],
+                "aide": null,
+                "valeur": null
+            },
+            {
+                "cle": "taux_vps",
+                "groupe": "social",
+                "libelle": "Versement Patronal sur Salaires (%)",
+                "type": "decimal",
+                "choix": [],
+                "aide": "Assiette : total des bruts, sans plafond. Jamais une retenue salariale.",
+                "valeur": null
+            },
+            {
+                "cle": "taux_cnss_risques_professionnels",
+                "groupe": "social",
+                "libelle": "CNSS risques professionnels (%)",
+                "type": "decimal",
+                "choix": [],
+                "aide": "Non confirmé pour l’hôtellerie : la charge patronale reste publiée en fourchette tant qu’il est vide. Bornes réglementaires 1 à 4 %.",
+                "valeur": null
+            },
+            {
+                "cle": "tolerance_reception_pct",
+                "groupe": "exploitation",
+                "libelle": "Tolérance de réception (%)",
+                "type": "decimal",
+                "choix": [],
+                "aide": "RG-10 — écart de quantité toléré entre le bon de commande et la réception, en % : au-delà, la réception est refusée. Tant que ce champ est vide, aucune réception n’est possible — une tolérance devinée ferait accepter ou refuser des livraisons sur un critère arbitraire.",
+                "valeur": null
+            },
+            {
+                "cle": "hebergement_taux_annulation_moins_24h",
+                "groupe": "exploitation",
+                "libelle": "Taux d’annulation — moins de 24h avant la prestation (%)",
+                "type": "decimal",
+                "choix": [],
+                "aide": "Pré-remplit le formulaire d’annulation d’une réservation à moins de 24h de la prestation (référence client : 50 %). Reste modifiable au cas par cas dans le formulaire — ce paramètre ne change jamais une annulation déjà enregistrée.",
+                "valeur": null
+            },
+            {
+                "cle": "delai_preavis_conge_jours",
+                "groupe": "exploitation",
+                "libelle": "Préavis de congé (jours)",
+                "type": "entier",
+                "choix": [],
+                "aide": null,
+                "valeur": null
+            },
+            {
+                "cle": "couverture_minimale_par_service",
+                "groupe": "exploitation",
+                "libelle": "Effectif minimal présent par service",
+                "type": "entier",
+                "choix": [],
+                "aide": null,
+                "valeur": null
+            },
+            {
+                "cle": "duree_retention_audit_jours",
+                "groupe": "exploitation",
+                "libelle": "Rétention du journal d’audit (jours)",
+                "type": "entier",
+                "choix": [],
+                "aide": "Vide ou 0 : aucune purge n’a lieu. La durée contractuelle n’est pas tranchée (PA-08) — la renseigner DÉMARRE la suppression définitive de traces d’audit.",
+                "valeur": null
+            },
+            {
+                "cle": "email_smtp_hote",
+                "groupe": "email",
+                "libelle": "Serveur SMTP",
+                "type": "texte",
+                "choix": [],
+                "aide": "Vide : la configuration serveur (.env) reste seule maîtresse. Renseigné, il prend la main sur elle pour tous les envois.",
+                "valeur": null
+            },
+            {
+                "cle": "email_smtp_port",
+                "groupe": "email",
+                "libelle": "Port",
+                "type": "entier",
+                "choix": [],
+                "aide": null,
+                "valeur": null
+            },
+            {
+                "cle": "email_smtp_securite",
+                "groupe": "email",
+                "libelle": "Sécurité",
+                "type": "choix",
+                "choix": [
+                    "tls",
+                    "ssl",
+                    "aucune"
+                ],
+                "aide": null,
+                "valeur": null
+            },
+            {
+                "cle": "email_smtp_utilisateur",
+                "groupe": "email",
+                "libelle": "Utilisateur SMTP",
+                "type": "texte",
+                "choix": [],
+                "aide": "Le mot de passe SMTP, lui, reste en configuration serveur (.env) et n’apparaîtra jamais ici.",
+                "valeur": null
+            },
+            {
+                "cle": "activation_suppression",
+                "groupe": "activation",
+                "libelle": "Suppression d'un enregistrement",
+                "type": "booleen",
+                "choix": [],
+                "aide": "Affiche le bouton Supprimer dans tous les modules. La suppression reste un archivage : l'élément part aux archives et peut être restauré.",
+                "valeur": null
+            },
+            {
+                "cle": "reinitialisation_seeders",
+                "groupe": "activation",
+                "libelle": "Réinitialisation des données de test",
+                "type": "booleen",
+                "choix": [],
+                "aide": "Ouvre l'onglet qui vide les jeux de démonstration. À laisser fermé dès que l'exploitation réelle a commencé.",
+                "valeur": null
+            },
+            {
+                "cle": "activation_alertes_ouverture",
+                "groupe": "activation",
+                "libelle": "Alertes à l'ouverture de session",
+                "type": "booleen",
+                "choix": [],
+                "aide": "Affiche les stocks critiques et les créances échues dès la connexion.",
+                "valeur": null
+            }
+        ],
+        "etats": {
+            "tva": {
+                "code": "inactive",
+                "libelle": "TVA inactive — aucune taxe n’est ajoutée aux factures."
+            },
+            "mecef": {
+                "code": "non_configuree",
+                "libelle": "MECeF non configurée — les factures mentionnent que la certification électronique est en attente d'inscription auprès de la DGI."
+            }
+        }
+    }
+}

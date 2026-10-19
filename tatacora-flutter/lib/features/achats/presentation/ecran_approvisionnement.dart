@@ -6,11 +6,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../shared_widgets/bouton_standard.dart';
+import '../../../shared_widgets/modale_export.dart';
 import '../../caisse/domain/montant_caisse.dart' show formaterCentimesEnFcfa;
 import '../domain/messages_reglement.dart';
 import '../impression/etat_liste_achats.dart';
 import 'providers_achats.dart';
 import 'widgets/bandeaux_appro.dart';
+import 'widgets/barre_outils_achats.dart';
 import 'widgets/coquille_achats.dart';
 import 'widgets/vue_besoins.dart';
 import 'widgets/vue_commandes.dart';
@@ -130,8 +133,10 @@ class _EcranApprovisionnementState
     );
   }
 
-  /// « Exporter » de l'en-tête : le format se choisit dans une fenêtre, comme
-  /// dans la vue (un seul bouton, dérogation du Product Owner du 01/09/2026).
+  /// « Exporter » de l'en-tête : le format se choisit dans la modale d'export
+  /// PARTAGÉE (PO, 14/10/2026 — l'ancien dialogue « Excel (CSV) » / « PDF »
+  /// est retiré), comme dans la vue (un seul bouton, dérogation du Product
+  /// Owner du 01/09/2026).
   Future<void> _exporter(BuildContext context) async {
     final liste = _besoins.currentState?.construireListe();
     if (liste == null || liste.estVide) {
@@ -144,38 +149,13 @@ class _EcranApprovisionnementState
       return;
     }
 
-    final format = await showDialog<String>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Exporter'),
-        content: const Text(
-          'Le fichier porte sur ce qui est affiché, filtre compris.',
-        ),
-        actions: [
-          TextButton(
-            key: const Key('appro-export-excel'),
-            onPressed: () => Navigator.of(context).pop('csv'),
-            child: const Text('Excel (CSV)'),
-          ),
-          TextButton(
-            key: const Key('appro-export-pdf'),
-            onPressed: () => Navigator.of(context).pop('pdf'),
-            child: const Text('PDF'),
-          ),
-        ],
-      ),
+    final format = await choisirFormatExport(
+      context,
+      titre: 'Exporter — ${liste.titre}',
+      sousTitre: 'Le fichier porte sur ce qui est affiché, filtre compris.',
     );
     if (format == null || !context.mounted) return;
-
-    if (format == 'pdf') {
-      await ref.read(imprimerListeAchatsProvider)(liste);
-      return;
-    }
-    final chemin = await ref.read(exporterListeAchatsProvider)(liste);
-    if (!context.mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('Export écrit : $chemin')));
+    await enregistrerListeAchats(context, ref, liste, format);
   }
 }
 
@@ -263,11 +243,12 @@ class _EnTete extends StatelessWidget {
               spacing: AppSpacing.xs, // gap-2
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                _Bouton(
-                  cle: const Key('appro-exporter'),
+                // Le bouton standard (PO, 14/10/2026) : le même « Exporter »
+                // que sur les autres écrans.
+                BoutonStandard(
+                  key: const Key('appro-exporter'),
                   libelle: 'Exporter',
-                  icone: Icons.file_download_outlined,
-                  onTap: onExporter,
+                  onPressed: onExporter,
                 ),
                 _Bouton(
                   cle: const Key('besoins-commander'),
@@ -288,13 +269,11 @@ class _Bouton extends StatelessWidget {
     required Key cle,
     required this.libelle,
     required this.onTap,
-    this.icone,
     this.plein = false,
   }) : super(key: cle);
 
   final String libelle;
   final VoidCallback onTap;
-  final IconData? icone;
   final bool plein;
 
   @override
@@ -315,22 +294,13 @@ class _Bouton extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppRadius.roundedLg),
             border: plein ? null : Border.all(color: AppColors.neutre200),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (icone != null) ...[
-                Icon(icone, size: AppLayout.iconeChamp, color: texte),
-                const SizedBox(width: AppSpacing.xs),
-              ],
-              Text(
-                libelle,
-                style: _t(
-                  TaillesContenu.t12,
-                  poids: FontWeight.w600,
-                  couleur: texte,
-                ),
-              ),
-            ],
+          child: Text(
+            libelle,
+            style: _t(
+              TaillesContenu.t12,
+              poids: FontWeight.w600,
+              couleur: texte,
+            ),
           ),
         ),
       ),

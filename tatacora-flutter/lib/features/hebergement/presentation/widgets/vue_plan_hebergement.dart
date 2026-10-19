@@ -43,11 +43,8 @@
 ///   (`reservationDuJourDeLUnite`), séjour en cours (`reservationAuSejourEnCoursDeLUnite`),
 ///   refus et succès aux mots du composant ([MessagesPlanHebergement]). Le
 ///   motif du 09/10/2026 (« cette table n'existe pas sur ce poste ») est périmé.
-/// - **Le PDF de l'export** (l.185-188 et le partiel `modale-export`),
-///   09/10/2026 : le choix « PDF Officiel A4 » est offert comme à la vue, mais
-///   aucun A4 du parc n'existe (en-tête unique et visas, arbitrage PA-192) ; le
-///   clic répond par [MessagesPlanHebergement.pdfNonProduit]. Le tableur (CSV)
-///   est réellement écrit ([EtatParc]).
+/// - ~~**Le PDF de l'export**~~ — PRODUIT le 14/10/2026 (directive du PO) :
+///   l'état A4 du parc, mêmes colonnes que le CSV ([EtatParc.etatA4]).
 /// - **« Importer »** (l.140-145) : la vue le déclare elle-même refusé,
 ///   `unites_hebergement` n'ayant aucun moteur d'import.
 /// - **La barre d'action groupée** « Supprimer » (l.200-213) : refusée par la
@@ -73,7 +70,8 @@ import '../../../../core/theme/app_colors.dart';
 // inutile, et l'analyseur le signale.
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
-import '../../../bar/presentation/widgets/modale_export_carte.dart';
+import '../../../../shared_widgets/modale_export.dart';
+import '../../../../shared_widgets/toast_export.dart';
 import '../../../parametres/presentation/providers_options_systeme.dart';
 import '../../../restaurant/presentation/widgets/corps_carte_commun.dart'
     show grandEcranCarte, styleContenuCarte;
@@ -112,15 +110,6 @@ abstract final class MessagesPlanHebergement {
   static String checkoutFait(String numero) =>
       "Check-out effectué. L'unité $numero passe en nettoyage avant d'être "
       'reproposée.';
-
-  /// Le choix « PDF Officiel A4 Imprimable » de la modale d'export.
-  static const String pdfNonProduit =
-      'Le PDF Officiel A4 du parc n’est pas produit sur ce poste : seul le '
-      'tableur (CSV) est écrit. Rien n’a été exporté.';
-
-  /// La ligne d'aide posée sous les deux choix de la modale, avant le clic.
-  static const String aidePdf =
-      'Le PDF n’est pas produit sur ce poste : seul le tableur (CSV) est écrit.';
 }
 
 class VuePlanHebergement extends ConsumerWidget {
@@ -289,23 +278,8 @@ class _BarreOutils extends ConsumerWidget {
       context,
       titre: "Exporter — Unités d'hébergement",
       sousTitre: "Le parc tel qu'il est affiché, filtres compris.",
-      // PDF présélectionné comme la vue (demande du PO du 14/10/2026) ; son
-      // refus est dit après le clic.
-      aide: MessagesPlanHebergement.aidePdf,
     );
     if (format == null || !context.mounted) return;
-
-    if (format == FormatExport.pdf) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            MessagesPlanHebergement.pdfNonProduit,
-            key: Key('plan-export-pdf-absent'),
-          ),
-        ),
-      );
-      return;
-    }
 
     final unites = await ref.read(parcFiltreProvider.future);
     if (!context.mounted) return;
@@ -330,17 +304,15 @@ class _BarreOutils extends ConsumerWidget {
       ),
       aujourdHui: ref.read(horlogeHebergementProvider)(),
     );
-    final chemin = await ref.read(exporterParcProvider)(etat);
     if (!context.mounted) return;
-
-    // Un export silencieux est un export que personne ne retrouve.
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Export écrit : $chemin',
-          key: const Key('plan-export-fait'),
-        ),
-      ),
+    // La fenêtre « Enregistrer sous », puis le toast commun (14/10/2026).
+    await executerExport(
+      context,
+      () => switch (format) {
+        FormatExport.pdf => ref.read(exporterParcPdfProvider)(etat),
+        FormatExport.excel => ref.read(exporterParcProvider)(etat),
+      },
+      cleSucces: const Key('plan-export-fait'),
     );
   }
 }

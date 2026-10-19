@@ -39,6 +39,7 @@ library;
 
 import 'dart:convert';
 
+import '../../../core/fichiers/lecture_csv.dart';
 import 'calcul_stock.dart';
 import 'entities/etat_stock.dart';
 import 'entities/mouvement_stock.dart';
@@ -129,65 +130,80 @@ final class BilanImportArticles {
           : TextesImportArticles.bilanPartiel(crees, refusees.length));
 }
 
-/// Lit un CSV au point-virgule comme `fgetcsv` : guillemets, guillemets
-/// doublés, séparateur et saut de ligne protégés entre guillemets. Le BOM
-/// UTF-8 de tête est retiré (les CSV du poste en portent un).
-List<List<String>> lireCsvPointVirgule(String contenu) {
-  var texte = contenu;
-  if (texte.startsWith('\u{FEFF}')) texte = texte.substring(1);
-
-  final lignes = <List<String>>[];
-  var champs = <String>[];
-  final champ = StringBuffer();
-  var entreGuillemets = false;
-  var i = 0;
-
-  void finirChamp() {
-    champs.add(champ.toString());
-    champ.clear();
-  }
-
-  void finirLigne() {
-    finirChamp();
-    lignes.add(champs);
-    champs = <String>[];
-  }
-
-  while (i < texte.length) {
-    final c = texte[i];
-    if (entreGuillemets) {
-      if (c == '"') {
-        if (i + 1 < texte.length && texte[i + 1] == '"') {
-          champ.write('"');
-          i++;
-        } else {
-          entreGuillemets = false;
-        }
-      } else {
-        champ.write(c);
-      }
-    } else if (c == '"') {
-      entreGuillemets = true;
-    } else if (c == ';') {
-      finirChamp();
-    } else if (c == '\r') {
-      // `\r\n` : le `\n` qui suit ferme la ligne.
-      if (!(i + 1 < texte.length && texte[i + 1] == '\n')) finirLigne();
-    } else if (c == '\n') {
-      finirLigne();
-    } else {
-      champ.write(c);
-    }
-    i++;
-  }
-  if (champ.isNotEmpty || champs.isNotEmpty) finirLigne();
-  return lignes;
-}
+/// Lit un CSV au point-virgule comme `fgetcsv` — le lecteur commun du poste
+/// (`core/fichiers/lecture_csv.dart`), au séparateur du serveur.
+List<List<String>> lireCsvPointVirgule(String contenu) =>
+    lireCsv(contenu, separateur: ';');
 
 /// `is_numeric` de PHP sur une chaîne déjà rognée : entier ou décimal à point,
 /// signe et exposant admis. « 12,5 » n'est PAS numérique pour le serveur.
 bool estNumeriquePhp(String valeur) =>
     RegExp(r'^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$').hasMatch(valeur);
+
+/// Une ligne du CSV d'articles, lue — la saisie à enregistrer et, quand le
+/// stock d'ouverture est ignoré, sa RAISON (écart n° 2 de l'en-tête).
+typedef LigneArticleLue = ({SaisieArticle saisie, String? reserve});
+
+/// Lit UNE ligne du CSV d'articles ([colonnes] dans l'ordre de
+/// [colonnesImportArticles]) — les règles du serveur, une par une (voir
+/// l'en-tête). Partagée par l'import de l'écran Stocks ([importerArticles]) et
+/// par l'onglet « Importer les données » de l'écran Import & Export : les deux
+/// portes d'entrée lisent une ligne de la MÊME façon.
+LigneArticleLue lireLigneArticle(
+  List<String> colonnes, {
+  required Map<String, String> pointsParLibelle,
+  required String Function() nouvelId,
+}) {
+  String? colonne(int i) => i < colonnes.length ? colonnes[i] : null;
+
+  final nom = (colonne(0) ?? '').trim();
+  final pointLibelle = (colonne(5) ?? '').trim();
+  final pointId = pointsParLibelle[pointLibelle];
+  final suivi =
+      SuiviArticle.depuisCode((colonne(6) ?? '').trim()) ??
+      SuiviArticle.permanent;
+  final journalier = suivi == SuiviArticle.journalier;
+  final seuil = journalier ? '0' : (colonne(4) ?? '0').trim();
+  final ouverture = (colonne(7) ?? '0').trim();
+  final prix = (colonne(3) ?? '').trim();
+  final categorie = (colonne(1) ?? '').trim();
+
+  // La condition EXACTE du serveur pour écrire l'entrée d'ouverture.
+  final ouvertureEcrite =
+      !journalier &&
+      pointId != null &&
+      estNumeriquePhp(ouverture) &&
+      (lireCentiemes(ouverture) ?? 0) > 0;
+
+  String? reserve;
+  if (!journalier && !ouvertureEcrite && ouverture.isNotEmpty) {
+    final quantite = estNumeriquePhp(ouverture)
+        ? (lireCentiemes(ouverture) ?? 0)
+        : null;
+    if (quantite == null) {
+      reserve = 'quantité « $ouverture » illisible';
+    } else if (quantite > 0 && pointId == null) {
+      reserve = pointLibelle.isEmpty
+          ? 'aucun point de stockage'
+          : 'point de stockage « $pointLibelle » inconnu';
+    }
+  }
+
+  return (
+    saisie: SaisieArticle(
+      id: nouvelId(),
+      libelle: nom,
+      categorie: categorie.isEmpty ? null : categorie,
+      uniteMesure: (colonne(2) ?? '').trim(),
+      seuilAlerte: seuil,
+      suivi: suivi,
+      pointStockageId: pointId,
+      stockOuverture: ouvertureEcrite ? ouverture : '',
+      valeurAchat: ouvertureEcrite && estNumeriquePhp(prix) ? prix : '',
+    ),
+    reserve: reserve,
+  );
+}
 
 /// Importe [contenu] : une ligne = un appel à [enregistrer] (validation et
 /// transaction de `StocksApi.enregistrerArticle`). [nouvelId] fournit l'UUID
@@ -212,58 +228,18 @@ Future<BilanImportArticles> importerArticles({
   final reserves = <String>[];
   var numero = 1;
 
-  String? colonne(List<String> c, int i) => i < c.length ? c[i] : null;
-
   for (final colonnes in lignes.skip(1)) {
     numero++;
     if (colonnes.every((v) => v.trim().isEmpty)) continue;
 
-    final nom = (colonne(colonnes, 0) ?? '').trim();
-    final pointLibelle = (colonne(colonnes, 5) ?? '').trim();
-    final pointId = pointsParLibelle[pointLibelle];
-    final suivi =
-        SuiviArticle.depuisCode((colonne(colonnes, 6) ?? '').trim()) ??
-        SuiviArticle.permanent;
-    final journalier = suivi == SuiviArticle.journalier;
-    final seuil = journalier ? '0' : (colonne(colonnes, 4) ?? '0').trim();
-    final ouverture = (colonne(colonnes, 7) ?? '0').trim();
-    final prix = (colonne(colonnes, 3) ?? '').trim();
-    final categorie = (colonne(colonnes, 1) ?? '').trim();
-
-    // La condition EXACTE du serveur pour écrire l'entrée d'ouverture.
-    final ouvertureEcrite =
-        !journalier &&
-        pointId != null &&
-        estNumeriquePhp(ouverture) &&
-        (lireCentiemes(ouverture) ?? 0) > 0;
-
-    String? reserve;
-    if (!journalier && !ouvertureEcrite && ouverture.isNotEmpty) {
-      final quantite = estNumeriquePhp(ouverture)
-          ? (lireCentiemes(ouverture) ?? 0)
-          : null;
-      if (quantite == null) {
-        reserve = 'quantité « $ouverture » illisible';
-      } else if (quantite > 0 && pointId == null) {
-        reserve = pointLibelle.isEmpty
-            ? 'aucun point de stockage'
-            : 'point de stockage « $pointLibelle » inconnu';
-      }
-    }
-
-    final resultat = await enregistrer(
-      SaisieArticle(
-        id: nouvelId(),
-        libelle: nom,
-        categorie: categorie.isEmpty ? null : categorie,
-        uniteMesure: (colonne(colonnes, 2) ?? '').trim(),
-        seuilAlerte: seuil,
-        suivi: suivi,
-        pointStockageId: pointId,
-        stockOuverture: ouvertureEcrite ? ouverture : '',
-        valeurAchat: ouvertureEcrite && estNumeriquePhp(prix) ? prix : '',
-      ),
+    final lue = lireLigneArticle(
+      colonnes,
+      pointsParLibelle: pointsParLibelle,
+      nouvelId: nouvelId,
     );
+    final nom = lue.saisie.libelle;
+    final reserve = lue.reserve;
+    final resultat = await enregistrer(lue.saisie);
 
     switch (resultat) {
       case LigneImportee():

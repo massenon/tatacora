@@ -121,6 +121,11 @@ abstract final class MesuresTransverses {
   /// `largeur="480px"` — « Modifier les droits ».
   static const double modaleDroits = 480;
 
+  /// Les modales de « Comptes utilisateurs » (Lot J2, ajout du poste sans
+  /// vue) : la largeur de « Modifier les droits », la plus proche des
+  /// formulaires compacts de la vue.
+  static const double modaleCompte = modaleDroits;
+
   /// `max-h-[55vh]` — la liste des modules de « Modifier les droits ».
   static const double fractionListeDroits = 0.55;
 
@@ -137,6 +142,21 @@ abstract final class MesuresTransverses {
   /// Lignes par page des tableaux de ce lot — la valeur du moteur de la vue
   /// (10 par page, comme `pied_pagination.dart`).
   static const int lignesParPage = 10;
+
+  /// `max-h-80` — la liste des anomalies du rapport de contrôle d'un import
+  /// (Import & Export, onglet « Importer les données »).
+  static const double hauteurRapportImport = 320;
+
+  /// `largeur="480px"` — la modale « Modifier le mot de passe » de Mon profil.
+  static const double modaleMotDePasse = 480;
+
+  /// `largeur="560px"` — les modales « Envoyer un message » et « Signaler un
+  /// bug » de Contactez l'éditeur.
+  static const double modaleContact = 560;
+
+  /// `Str::limit($envoi->corps, 180)` — l'extrait d'un envoi dans « Vos
+  /// envois ».
+  static const int extraitEnvoi = 180;
 }
 
 /// Les couleurs de ce lot qui n'avaient pas de jeton.

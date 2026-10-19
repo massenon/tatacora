@@ -76,6 +76,15 @@ final class ConfirmationReservation {
 
   final EnteteEtablissement entete;
 
+  /// Le même document sous l'en-tête lu des paramètres au moment d'éditer
+  /// (`lireEnteteEtablissementProvider`).
+  ConfirmationReservation avecEntete(EnteteEtablissement autre) =>
+      ConfirmationReservation(
+        reservation: reservation,
+        emiseLe: emiseLe,
+        entete: autre,
+      );
+
   /// Les lignes du tableau, telles qu'elles s'impriment.
   List<List<String>> get lignes => [
     for (final l in reservation.lignes)

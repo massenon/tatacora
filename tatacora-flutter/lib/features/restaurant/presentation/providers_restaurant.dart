@@ -17,15 +17,13 @@
 /// l'export cite (PA-119).
 library;
 
-import 'dart:io';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 
 import '../../../core/di/providers.dart';
+import '../../../core/fichiers/enregistrement_export.dart';
+import '../../../core/impression/entete_parametree.dart';
 import '../../../core/rbac/garde_acces.dart';
 import '../../stocks/presentation/providers_stocks.dart';
 import '../data/restaurant_api.dart';
@@ -306,17 +304,23 @@ final compositionProvider = FutureProvider.autoDispose
 /* l'impression est declenchee.                                            */
 /* ====================================================================== */
 
-/// Le tableau de gestion en PDF — bouton « PDF » du maitre (l.38).
-final imprimerCarteRestaurantProvider =
-    Provider<Future<void> Function(List<LigneCarteRestaurant>, String)>(
-      (ref) => (lignes, filtre) async {
-        final octets = await EtatCarteRestaurant.pdf(lignes, filtre: filtre);
-        await Printing.layoutPdf(
-          onLayout: (_) => octets,
-          name: EtatCarteRestaurant.titre,
-          format: PdfPageFormat.a4,
-        );
-      },
+/// Le tableau de gestion en PDF — « Générer & Télécharger », format PDF.
+/// Enregistré par la fenêtre « Enregistrer sous » (14/10/2026) ; rend le
+/// CHEMIN écrit, `null` : annulé.
+final exporterCarteRestaurantPdfProvider =
+    Provider<Future<String?> Function(List<LigneCarteRestaurant>, String)>(
+      (ref) =>
+          (lignes, filtre) async => ref
+              .read(enregistrementExportProvider)
+              .exporter(
+                base: 'carte_restaurant',
+                type: TypeFichierEnregistre.pdf,
+                octets: await EtatCarteRestaurant.pdf(
+                  lignes,
+                  filtre: filtre,
+                  entete: await ref.read(lireEnteteEtablissementProvider)(),
+                ),
+              ),
     );
 
 /// La fiche des prix — bouton « Imprimer la fiche des prix » (l.45).
@@ -328,6 +332,7 @@ final imprimerFichePrixRestaurantProvider =
       (ref) => (lignes) async {
         final (octets, ecartes) = await EtatCarteRestaurant.ficheDesPrix(
           lignes,
+          entete: await ref.read(lireEnteteEtablissementProvider)(),
         );
         await Printing.layoutPdf(
           onLayout: (_) => octets,
@@ -338,34 +343,18 @@ final imprimerFichePrixRestaurantProvider =
       },
     );
 
-/// Le dossier où s'écrit l'export tableur. **Injectable** : un test d'export de
-/// bout en bout écrit dans un dossier temporaire, jamais dans les documents de la
-/// machine, et relit les octets réellement écrits (BOM compris).
-final dossierExportRestaurantProvider = Provider<Future<Directory> Function()>(
-  (ref) => getApplicationDocumentsDirectory,
-);
-
-/// L'export tableur — bouton « Excel » (l.37). Rend le **chemin** du fichier.
+/// L'export tableur — « Générer & Télécharger », format tableur. Rend le
+/// **chemin** du fichier, `null` : annulé.
+///
+/// `utf8.encode` (dans `csvOctets`) : le BOM (U+FEFF) devient EF BB BF.
 final exporterCarteRestaurantProvider =
-    Provider<Future<String> Function(List<LigneCarteRestaurant>, String)>(
-      (ref) => (lignes, filtre) async {
-        final dossier = await ref.read(dossierExportRestaurantProvider)();
-        final m = DateTime.now();
-        final horodatage =
-            '${m.year}'
-            '${m.month.toString().padLeft(2, '0')}'
-            '${m.day.toString().padLeft(2, '0')}-'
-            '${m.hour.toString().padLeft(2, '0')}'
-            '${m.minute.toString().padLeft(2, '0')}'
-            '${m.second.toString().padLeft(2, '0')}';
-        final fichier = File(
-          p.join(dossier.path, 'carte-restaurant-$horodatage.csv'),
-        );
-        // `utf8.encode` : le BOM (U+FEFF) devient EF BB BF. Écrire les unités
-        // UTF-16 tronquerait chaque accent.
-        await fichier.writeAsBytes(
-          EtatCarteRestaurant.csvOctets(lignes, filtre: filtre),
-        );
-        return fichier.path;
-      },
+    Provider<Future<String?> Function(List<LigneCarteRestaurant>, String)>(
+      (ref) =>
+          (lignes, filtre) => ref
+              .read(enregistrementExportProvider)
+              .exporter(
+                base: 'carte_restaurant',
+                type: TypeFichierEnregistre.csv,
+                octets: EtatCarteRestaurant.csvOctets(lignes, filtre: filtre),
+              ),
     );

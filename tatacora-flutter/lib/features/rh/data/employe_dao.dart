@@ -7,6 +7,10 @@ import '../../../core/database/app_database.dart';
 // réexporte pas. Sans cette ligne, le mixin généré est VIDE — sans erreur de
 // génération, ce qui rend le diagnostic trompeur (leçon `reservation_dao.dart`).
 import '../../../core/database/tables/rh_tables.dart';
+import '../../synchronisation/data/documents_autres_postes.dart';
+import '../../synchronisation/data/operations_sync_dao.dart';
+import '../../synchronisation/domain/charges_synchronisation.dart';
+import '../../synchronisation/domain/operation_sync.dart';
 import '../domain/entities/employe.dart';
 import '../domain/entities/taux_paie.dart';
 import '../domain/refus_rh.dart';
@@ -206,6 +210,7 @@ class EmployeDao extends DatabaseAccessor<AppDatabase> with _$EmployeDaoMixin {
           statut: Value(statut.code),
         ),
       );
+      await envoyerAuServeur(id);
     });
 
     return (await parId(id))!;
@@ -252,6 +257,7 @@ class EmployeDao extends DatabaseAccessor<AppDatabase> with _$EmployeDaoMixin {
           statut: Value(statut.code),
         ),
       );
+      await envoyerAuServeur(id, modification: true);
     });
 
     return (await parId(id))!;
@@ -271,11 +277,76 @@ class EmployeDao extends DatabaseAccessor<AppDatabase> with _$EmployeDaoMixin {
       throw EmployeDejaArchive(employe.nomComplet());
     }
 
-    await (update(employesLocal)..where((e) => e.id.equals(id))).write(
-      const EmployesLocalCompanion(statut: Value('parti')),
-    );
+    await transaction(() async {
+      await (update(employesLocal)..where((e) => e.id.equals(id))).write(
+        const EmployesLocalCompanion(statut: Value('parti')),
+      );
+      await envoyerAuServeur(id, archivage: true);
+    });
 
     return (await parId(id))!;
+  }
+
+  /* ================================================================== */
+  /* Synchronisation — audit de couverture (18/10/2026)                  */
+  /* ================================================================== */
+
+  /// Le dossier part au serveur, dans la transaction du geste : inconnu du
+  /// serveur → sa CRÉATION (valeurs courantes) ; connu → le dossier entier en
+  /// modification ([modification]) ou l'archivage seul ([archivage]).
+  Future<void> envoyerAuServeur(
+    String id, {
+    bool modification = false,
+    bool archivage = false,
+  }) async {
+    final e = await (select(
+      employesLocal,
+    )..where((x) => x.id.equals(id))).getSingleOrNull();
+    if (e == null) return;
+    final service = await (select(
+      servicesRhLocal,
+    )..where((s) => s.id.equals(e.serviceId))).getSingleOrNull();
+    final charge = chargeEmploye(
+      nom: e.nom,
+      prenom: e.prenom,
+      poste: e.poste,
+      serviceId: e.serviceId,
+      serviceLibelle: service?.libelle ?? '',
+      dateEmbauche: e.dateEmbauche,
+      salaireBase: e.salaireBase,
+      dateFinContrat: e.dateFinContrat,
+      numeroCnss: e.numeroCnss,
+      typeContrat: e.typeContrat,
+      statut: e.statut,
+    );
+    final file = OperationsSyncDao(attachedDatabase);
+    final connu = await DocumentsAutresPostes(
+      attachedDatabase,
+    ).connuDuServeur(TableSynchronisee.employes, id);
+    if (!connu) {
+      await file.enfiler(
+        table: TableSynchronisee.employes,
+        entiteId: id,
+        type: TypeOperationSync.creation,
+        payload: charge,
+      );
+      return;
+    }
+    if (!modification && !archivage) return;
+    await file.enfiler(
+      table: TableSynchronisee.employes,
+      entiteId: id,
+      type: TypeOperationSync.modification,
+      payload: archivage ? const {'statut': 'parti'} : charge,
+    );
+  }
+
+  /// Le MATRICULE attribué par le serveur remplace celui du poste (réponse
+  /// de l'envoi, ou descente).
+  Future<void> regulariserMatricule(String id, String matricule) async {
+    await (update(employesLocal)..where((e) => e.id.equals(id))).write(
+      EmployesLocalCompanion(matricule: Value(matricule)),
+    );
   }
 
   /* ================================================================== */

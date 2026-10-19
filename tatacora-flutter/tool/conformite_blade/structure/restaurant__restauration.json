@@ -1,0 +1,302 @@
+{
+    "_lisez-moi": "PRODUIT par ExtraireStructureBladeTest, jamais ecrit a la main. Chaque variante (onglet) : les textes VISIBLES de <main>, dans l'ordre du document.",
+    "vue": "restaurant/restauration",
+    "jeu": "parc",
+    "onglets": {
+        "plats": [
+            {
+                "type": "h1",
+                "texte": "Restaurant & Cuisine"
+            },
+            {
+                "type": "p",
+                "texte": "Gestion des menus, fiches de recette et prise de commande, avec déduction automatique du stock cuisine"
+            },
+            {
+                "type": "button",
+                "texte": "Nouveau menu"
+            },
+            {
+                "type": "button",
+                "texte": "Nouvelle fiche technique"
+            },
+            {
+                "type": "button",
+                "texte": "Nouveau plat"
+            },
+            {
+                "type": "onglet",
+                "texte": "Catalogue des plats",
+                "cle": "plats"
+            },
+            {
+                "type": "onglet",
+                "texte": "Fiches techniques",
+                "cle": "fiches"
+            },
+            {
+                "type": "onglet",
+                "texte": "Menus",
+                "cle": "menus"
+            },
+            {
+                "type": "div",
+                "texte": "Plats au catalogue"
+            },
+            {
+                "type": "div",
+                "texte": "Avec fiche technique"
+            },
+            {
+                "type": "div",
+                "texte": "0 / 0"
+            },
+            {
+                "type": "div",
+                "texte": "Sans fiche technique"
+            },
+            {
+                "type": "div",
+                "texte": "Retirés de la carte"
+            },
+            {
+                "type": "champ",
+                "texte": "Rechercher un plat..."
+            },
+            {
+                "type": "option",
+                "texte": "Toutes les catégories"
+            },
+            {
+                "type": "option",
+                "texte": "Entrées"
+            },
+            {
+                "type": "option",
+                "texte": "Plats complets"
+            },
+            {
+                "type": "option",
+                "texte": "Nos sauces"
+            },
+            {
+                "type": "option",
+                "texte": "Garnitures"
+            },
+            {
+                "type": "option",
+                "texte": "Accompagnements"
+            },
+            {
+                "type": "option",
+                "texte": "Sandwicherie"
+            },
+            {
+                "type": "option",
+                "texte": "Pizzas"
+            },
+            {
+                "type": "option",
+                "texte": "Nos desserts"
+            },
+            {
+                "type": "option",
+                "texte": "Jus maison & cafés"
+            },
+            {
+                "type": "option",
+                "texte": "Formules & brochettes"
+            },
+            {
+                "type": "th",
+                "texte": "Plat"
+            },
+            {
+                "type": "th",
+                "texte": "Catégorie"
+            },
+            {
+                "type": "th",
+                "texte": "Prix de vente"
+            },
+            {
+                "type": "th",
+                "texte": "Disponible"
+            },
+            {
+                "type": "td",
+                "texte": "Essayez de modifier votre recherche ou vos filtres. Aucun plat ne correspond à ces critères."
+            },
+            {
+                "type": "span",
+                "texte": "Aucun résultat"
+            },
+            {
+                "type": "p",
+                "texte": "Affichage de - sur"
+            }
+        ],
+        "fiches": [
+            {
+                "type": "h1",
+                "texte": "Restaurant & Cuisine"
+            },
+            {
+                "type": "p",
+                "texte": "Gestion des menus, fiches de recette et prise de commande, avec déduction automatique du stock cuisine"
+            },
+            {
+                "type": "button",
+                "texte": "Nouveau menu"
+            },
+            {
+                "type": "button",
+                "texte": "Nouvelle fiche technique"
+            },
+            {
+                "type": "button",
+                "texte": "Nouveau plat"
+            },
+            {
+                "type": "onglet",
+                "texte": "Catalogue des plats",
+                "cle": "plats"
+            },
+            {
+                "type": "onglet",
+                "texte": "Fiches techniques",
+                "cle": "fiches"
+            },
+            {
+                "type": "onglet",
+                "texte": "Menus",
+                "cle": "menus"
+            },
+            {
+                "type": "p",
+                "texte": "Une fiche sans ingrédient ne décrémente aucun stock, et le point de vente REFUSE la vente du plat qui l'utilise. Ouvrez la fiche, posez ses articles de stock et leurs quantités par portion : le coût matière se calcule tout seul."
+            },
+            {
+                "type": "div",
+                "texte": "Fiches techniques"
+            },
+            {
+                "type": "div",
+                "texte": "Fiches vides — vente refusée"
+            },
+            {
+                "type": "div",
+                "texte": "Compositions provisoires"
+            },
+            {
+                "type": "div",
+                "texte": "Quantités posées, jamais pesées"
+            },
+            {
+                "type": "champ",
+                "texte": "Rechercher une fiche technique..."
+            },
+            {
+                "type": "span",
+                "texte": "Fiches vides seulement"
+            },
+            {
+                "type": "span",
+                "texte": "Ce sont elles qui bloquent la vente au comptoir."
+            },
+            {
+                "type": "th",
+                "texte": "Fiche technique"
+            },
+            {
+                "type": "th",
+                "texte": "Plat servi"
+            },
+            {
+                "type": "th",
+                "texte": "Ingrédients"
+            },
+            {
+                "type": "th",
+                "texte": "Coût matière"
+            },
+            {
+                "type": "th",
+                "texte": "État"
+            },
+            {
+                "type": "td",
+                "texte": "Essayez de modifier votre recherche ou vos filtres. Aucune fiche technique ne correspond à ces critères."
+            },
+            {
+                "type": "span",
+                "texte": "Aucun résultat"
+            },
+            {
+                "type": "p",
+                "texte": "Affichage de - sur"
+            }
+        ],
+        "menus": [
+            {
+                "type": "h1",
+                "texte": "Restaurant & Cuisine"
+            },
+            {
+                "type": "p",
+                "texte": "Gestion des menus, fiches de recette et prise de commande, avec déduction automatique du stock cuisine"
+            },
+            {
+                "type": "button",
+                "texte": "Nouveau menu"
+            },
+            {
+                "type": "button",
+                "texte": "Nouvelle fiche technique"
+            },
+            {
+                "type": "button",
+                "texte": "Nouveau plat"
+            },
+            {
+                "type": "onglet",
+                "texte": "Catalogue des plats",
+                "cle": "plats"
+            },
+            {
+                "type": "onglet",
+                "texte": "Fiches techniques",
+                "cle": "fiches"
+            },
+            {
+                "type": "onglet",
+                "texte": "Menus",
+                "cle": "menus"
+            },
+            {
+                "type": "th",
+                "texte": "Menu"
+            },
+            {
+                "type": "th",
+                "texte": "Type de carte"
+            },
+            {
+                "type": "th",
+                "texte": "Saison"
+            },
+            {
+                "type": "th",
+                "texte": "Plats rattachés"
+            },
+            {
+                "type": "td",
+                "texte": "Aucun menu n'existe encore. Le bouton « Nouveau menu » en crée un : sans lui, aucun plat ne peut être enregistré (`plats.menu_id` est obligatoire)."
+            },
+            {
+                "type": "span",
+                "texte": "Aucun résultat"
+            }
+        ]
+    }
+}

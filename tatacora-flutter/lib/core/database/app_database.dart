@@ -7,17 +7,25 @@ import 'package:drift/native.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../config/environnement.dart';
+
 import 'tables/achats_tables.dart';
 import 'tables/alertes_vues_tables.dart';
 import 'tables/bar_tables.dart';
 import 'tables/caisse_tables.dart';
 import 'declencheurs_comptables.dart';
+import 'emplacement_base.dart';
 import 'tables/clients_table.dart';
 import 'tables/comptabilite_tables.dart';
 import 'tables/depenses_tables.dart';
+import 'tables/descente_sync_tables.dart';
+import 'tables/occupations_tables_tables.dart';
+import 'tables/origines_documents_tables.dart';
 import 'tables/facturation_tables.dart';
 import 'tables/hebergement_tables.dart';
+import 'tables/messages_editeur_tables.dart';
 import 'tables/notifications_tables.dart';
+import 'tables/operations_sync_tables.dart';
 import 'tables/paiements_facture_tables.dart';
 import 'tables/panier_tables.dart';
 import 'tables/parametres_tables.dart';
@@ -171,16 +179,48 @@ part 'app_database.g.dart';
     // (le socle du CdCF est posé par `RolesDao.installerSocle`). Seul auteur :
     // `RolesDao` (voir `tables/roles_tables.dart`).
     RolesLocal,
+
+    // v25 (14/10/2026) — LA BOÎTE D'ENVOI DE « CONTACTEZ L'ÉDITEUR », réplique
+    // de `messages_editeur` au serveur (directive du PO, Lot J2 partie 2) : UNE
+    // table NEUVE. Aucune table existante n'est touchée, rien n'est semé. Seul
+    // auteur : `MessagesEditeurDao` (voir `tables/messages_editeur_tables.dart`).
+    MessagesEditeurLocal,
+
+    // v26 (15/10/2026) — LA FILE D'ENVOI du poste (décisions du PO des
+    // 14–15/10/2026 : la synchronisation revient comme tâche de fond) : UNE
+    // table NEUVE. Aucune table existante n'est touchée, rien n'est semé. Seul
+    // auteur : `OperationsSyncDao` (voir `tables/operations_sync_tables.dart`).
+    OperationsSyncLocal,
+
+    // v27 (15/10/2026) — LA DESCENTE DU CATALOGUE (lot F2b) : DEUX tables
+    // NEUVES, l'état de la synchronisation (clé/valeur : curseur, repli,
+    // éléments à rejouer) et les correspondances identifiant serveur →
+    // identifiant local. Aucune table existante n'est touchée, rien n'est
+    // semé. Qui écrit, qui lit : voir `tables/descente_sync_tables.dart`.
+    EtatSynchronisationLocal,
+    CorrespondancesSyncLocal,
+    OriginesDocumentsLocal,
+    // v29 (18/10/2026, lot F6) : l'occupation des tables par les AUTRES
+    // postes. Qui écrit, qui lit : `tables/occupations_tables_tables.dart`.
+    OccupationsTablesLocal,
   ],
 )
 class AppDatabase extends _$AppDatabase {
-  AppDatabase() : super(_ouvrir());
+  /// La base du poste. [fileSynchronisation] vaut `false` par défaut dans le
+  /// flavor de démonstration (`ENV=demo`) : un jeu fictif ne doit jamais
+  /// entrer dans la file d'envoi — voir [fileSynchronisationActive].
+  AppDatabase({bool? fileSynchronisation})
+    : fileSynchronisationActive =
+          fileSynchronisation ?? !Environnement.actuel.estHorsLigneIntegral,
+      super(_ouvrir());
 
   /// Constructeur de test — base en mémoire (`SEEDER_TEST_FLUTTER.md` §2).
   ///
   /// Sans lui, chaque test toucherait le fichier réel de la machine et les
   /// tests deviendraient dépendants de leur ordre d'exécution.
-  AppDatabase.enMemoire() : super(NativeDatabase.memory());
+  AppDatabase.enMemoire({bool fileSynchronisation = true})
+    : fileSynchronisationActive = fileSynchronisation,
+      super(NativeDatabase.memory());
 
   /// Constructeur de test sur un **fichier réel**.
   ///
@@ -188,8 +228,21 @@ class AppDatabase extends _$AppDatabase {
   /// jour : ni la survie des données à la fermeture de l'application, ni le
   /// passage par `onUpgrade`. Les deux chemins n'existent que sur fichier, et
   /// tant qu'aucun test ne les emprunte, ils ne sont écrits que sur le papier.
-  AppDatabase.surFichier(File fichier)
-    : super(NativeDatabase(fichier, logStatements: false));
+  AppDatabase.surFichier(File fichier, {bool fileSynchronisation = true})
+    : fileSynchronisationActive = fileSynchronisation,
+      super(NativeDatabase(fichier, logStatements: false));
+
+  /// La file d'envoi (`operations_sync_local`, v26) reçoit-elle les écritures
+  /// métier de cette base ?
+  ///
+  /// `false` en mode DÉMONSTRATION (décision du 15/10/2026, lot F1) : le jeu
+  /// de démonstration et tout ce qu'on y saisit sont fictifs, et la file est
+  /// la seule voie par laquelle une donnée du poste atteint le serveur. Plutôt
+  /// qu'une file « qui ne part jamais » (une attente sans fin, PA-59/60/61),
+  /// rien n'y entre : `OperationsSyncDao.enfiler` ne fait rien, et le dit en
+  /// rendant `null`. `main_demo.dart` le pose EXPLICITEMENT, en plus du défaut
+  /// lié au flavor.
+  final bool fileSynchronisationActive;
 
   /// v2 (18/08/2026) — M1 Hébergement : `reference`, `tarifNuit`, `motifRejet`
   /// et `motifAnnulation` ajoutés à `ReservationsLocal`, et `statutSync`
@@ -287,8 +340,39 @@ class AppDatabase extends _$AppDatabase {
   /// ajoutée. Création d'un rôle, droits d'un rôle recopiés sur ses comptes,
   /// rétablissement du socle, comme `RolePermissionService` au serveur. Qui
   /// écrit, qui lit, qui descend : voir `tables/roles_tables.dart`.
+  ///
+  /// v25 (14/10/2026) — « CONTACTEZ L'ÉDITEUR » ENVOIE (directive du PO, Lot
+  /// J2 partie 2) : une table neuve (`messages_editeur_local`, 56 -> 57
+  /// tables), aucune colonne ajoutée. Le message s'y écrit AVANT la tentative
+  /// SMTP (action réseau du poste, avec la synchronisation). Qui écrit, qui lit, qui
+  /// descend : voir `tables/messages_editeur_tables.dart`.
+  ///
+  /// v26 (15/10/2026) — LA FILE D'ENVOI (décisions du PO des 14–15/10/2026,
+  /// lot F1) : une table neuve (`operations_sync_local`, 57 -> 58 tables) et
+  /// ses deux index, aucune colonne ajoutée. Chaque écrivain d'une table
+  /// synchronisée y dépose, dans SA transaction, le document source au
+  /// contrat du serveur. Qui écrit, qui lit, qui descend : voir
+  /// `tables/operations_sync_tables.dart`.
+  ///
+  /// v27 (15/10/2026) — LA DESCENTE DU CATALOGUE (lot F2b) : deux tables
+  /// neuves (`etat_synchronisation_local`, `correspondances_sync_local`, 58 ->
+  /// 60 tables), aucune colonne ajoutée. Le catalogue du serveur descend sur
+  /// le poste par `GET /referentiels` ; le curseur, le repli de la descente et
+  /// les correspondances d'identifiants y vivent. Qui écrit, qui lit : voir
+  /// `tables/descente_sync_tables.dart`.
+  ///
+  /// v28 (17/10/2026) — L'ORIGINE DES DOCUMENTS DESCENDUS (lot F4, « NE PLUS
+  /// LIMITER ») : une table neuve (`origines_documents_local`, 60 -> 61
+  /// tables), aucune colonne ajoutée. Les documents des autres postes
+  /// descendent sans pièce locale ; cette table dit lesquels, et de quel
+  /// poste. Qui écrit, qui lit : voir `tables/origines_documents_tables.dart`.
+  ///
+  /// v29 (18/10/2026) — L'ARBITRAGE DES TABLES (lot F6, décision du PO :
+  /// « il faut le créer ») : une table neuve (`occupations_tables_local`,
+  /// 61 -> 62 tables), aucune colonne ajoutée. Une table occupée sur un autre
+  /// poste (ou à la PWA) l'est aussi ici.
   @override
-  int get schemaVersion => 24;
+  int get schemaVersion => 29;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -871,6 +955,84 @@ class AppDatabase extends _$AppDatabase {
         // puisqu'aucune version ultérieure n'a modifié cette table (piège 3).
         await m.createTable(rolesLocal);
       }
+
+      if (from < 25) {
+        // LA BOÎTE D'ENVOI DE « CONTACTEZ L'ÉDITEUR » (14/10/2026, Lot J2
+        // partie 2). Une table NEUVE : aucune table existante n'est touchée,
+        // AUCUNE ligne n'est fabriquée — avant la v25, le poste n'enregistrait
+        // aucun envoi (l'écran le disait), il n'y a donc rien à reprendre.
+        // `createTable` crée la définition COURANTE, exacte ici puisqu'aucune
+        // version ultérieure n'a modifié cette table (le jour où une v26 y
+        // ajoutera une colonne, elle devra la tester avant `addColumn` —
+        // piège 3).
+        await m.createTable(messagesEditeurLocal);
+      }
+
+      if (from < 26) {
+        // LA FILE D'ENVOI (15/10/2026, lot F1). Une table NEUVE et ses deux
+        // index : aucune table existante n'est touchée, AUCUNE ligne n'est
+        // fabriquée — la migration ne sait pas ce que le serveur détient
+        // déjà ; reprendre l'existant d'un poste est une décision à part
+        // (amorçage, F2), pas un effet de bord de la mise à jour.
+        // `createTable` crée la définition COURANTE, exacte ici puisqu'aucune
+        // version ultérieure n'a modifié cette table (le jour où une v27 y
+        // ajoutera une colonne, elle devra la tester avant `addColumn` —
+        // piège 3). `createTable` ne pose PAS les index déclarés par
+        // `@TableIndex` : ils sont créés ici, chacun SEULEMENT s'il manque —
+        // un fichier dont la version a été rabaissée sans retirer la table
+        // (fixtures de `cycle_de_vie_test`) les porte déjà, et un
+        // `CREATE INDEX` nu y échoue sur « index already exists » (rencontré
+        // en écrivant cette version). Le test de migration v26 les relit dans
+        // `sqlite_master`.
+        await m.createTable(operationsSyncLocal);
+        for (final index in [
+          idxOperationsSyncStatutSeq,
+          idxOperationsSyncEntite,
+        ]) {
+          final present = await m.database
+              .customSelect(
+                "SELECT 1 FROM sqlite_master WHERE type = 'index' "
+                'AND name = ?',
+                variables: [Variable.withString(index.entityName)],
+              )
+              .get();
+          if (present.isEmpty) await m.createIndex(index);
+        }
+      }
+
+      if (from < 27) {
+        // LA DESCENTE DU CATALOGUE (15/10/2026, lot F2b). Deux tables NEUVES,
+        // sans index déclaré : aucune table existante n'est touchée, AUCUNE
+        // ligne n'est fabriquée — sans curseur, la première descente part du
+        // début du catalogue serveur, ce qui est exact pour un poste qui n'a
+        // jamais rien reçu ; sans correspondance, chaque identifiant serveur
+        // est pris tel quel, et la file (`fusionne_avec`) puis le flux du
+        // serveur les rétablissent à la première descente. `createTable` crée
+        // la définition COURANTE, exacte ici puisqu'aucune version ultérieure
+        // n'a modifié ces tables (le jour où une v28 y ajoutera une colonne,
+        // elle devra la tester avant `addColumn` — piège 3).
+        await m.createTable(etatSynchronisationLocal);
+        await m.createTable(correspondancesSyncLocal);
+      }
+      if (from < 28) {
+        // L'ORIGINE DES DOCUMENTS DESCENDUS (17/10/2026, lot F4). Une table
+        // NEUVE, sans index déclaré : rien d'existant n'est touché, AUCUNE
+        // ligne n'est fabriquée — tout ce que le poste détient avant la v28
+        // a été saisi ICI (rien d'autre que le catalogue, les clients et les
+        // réservations ne descendait), ce que l'absence de ligne signifie.
+        // Pour les réservations et les clients DÉJÀ descendus (F3), l'origine
+        // est inconnue : aucune pièce n'en dépend (ni rattrapage, ni
+        // annulation ne lisent cette table pour eux). `createTable` crée la
+        // définition COURANTE, exacte ici (piège 3 : une v29 qui y ajoute une
+        // colonne la testera avant `addColumn`).
+        await m.createTable(originesDocumentsLocal);
+      }
+      if (from < 29) {
+        // L'OCCUPATION DES TABLES PAR LES AUTRES POSTES (18/10/2026, lot F6).
+        // Une table NEUVE, sans index ni clé étrangère : rien d'existant
+        // n'est touché, aucune ligne n'est fabriquée (la descente la remplit).
+        await m.createTable(occupationsTablesLocal);
+      }
     },
 
     beforeOpen: (details) async {
@@ -882,7 +1044,10 @@ class AppDatabase extends _$AppDatabase {
   );
 }
 
-/// Ouvre la base dans le répertoire de documents de l'application.
+/// Ouvre la base — depuis le 17/10/2026 HORS du dossier Documents
+/// (`emplacement_base.dart` : `%LOCALAPPDATA%\TATACORA\donnees`, décision du
+/// PO), en déménageant au premier démarrage celle qu'un poste plus ancien a
+/// laissée dans Documents.
 ///
 /// **Divergence assumée avec le Sprint 0 (à consigner au registre PA).** La
 /// spécification liste `sqlite3_flutter_libs` et son
@@ -896,8 +1061,18 @@ class AppDatabase extends _$AppDatabase {
 /// nécessaire.
 LazyDatabase _ouvrir() {
   return LazyDatabase(() async {
-    final dossier = await getApplicationDocumentsDirectory();
-    final fichier = File(p.join(dossier.path, 'tatacora.sqlite'));
-    return NativeDatabase.createInBackground(fichier);
+    final windows = Platform.isWindows
+        ? dossierBaseWindows(Platform.environment)
+        : null;
+    final neuf = windows != null
+        ? Directory(windows)
+        : Directory(
+            p.join((await getApplicationSupportDirectory()).path, 'donnees'),
+          );
+    final emplacement = await preparerEmplacementBase(
+      dossierNeuf: neuf,
+      dossierAncien: await getApplicationDocumentsDirectory(),
+    );
+    return NativeDatabase.createInBackground(emplacement.fichier);
   });
 }

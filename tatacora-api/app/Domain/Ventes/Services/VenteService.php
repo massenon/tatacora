@@ -15,10 +15,12 @@ use App\Domain\Numerotation\Services\SequenceDocumentService;
 use App\Domain\Restaurant\Models\CommandeRestaurant;
 use App\Domain\Restaurant\Models\Plat;
 use App\Domain\Restaurant\Services\CommandeRestaurantService;
+use App\Domain\Restaurant\Services\DeductionStockCuisineService;
 use App\Domain\Stocks\Models\PointStockage;
 use App\Domain\Stocks\Services\MouvementStockService;
 use App\Domain\Ventes\Models\LigneVente;
 use App\Domain\Ventes\Models\Vente;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Facades\DB;
@@ -113,6 +115,13 @@ class VenteService
     private const PREFIXE_NUMERO = 'V';
 
     private const TYPE_POINT_BAR = 'bar';
+
+    /**
+     * Cause portée par une entrée de `stock_non_impacte` quand un plat vendu
+     * hors connexion n'avait aucune composition (décision PO du 15/10/2026,
+     * chemin synchronisé seulement — voir `deduireStock()`).
+     */
+    public const CAUSE_PLAT_SANS_COMPOSITION = 'plat_sans_composition';
 
     /**
      * @var array<string, string>
@@ -267,6 +276,7 @@ class VenteService
         private readonly SequenceDocumentService $sequences,
         private readonly PasserEcritureService $ecritures,
         private readonly CalculTvaService $tva,
+        private readonly DeductionStockCuisineService $deductionCuisine,
     ) {
     }
 
@@ -283,17 +293,46 @@ class VenteService
      * brut figé du catalogue : le ticket montre les lignes, la remise, puis
      * le net — jamais des prix unitaires réécrits.
      *
-     * @param  array{id?: string, point_vente?: string, session_id?: string|null, client_id?: string|null, client_mention?: string|null, table?: string|null, table_id?: string|null, mode_paiement?: string, remise_type?: string, remise_valeur?: string, utilisateur_id?: string|null, commande_id?: string|null, validation_rupture?: bool, lignes?: list<array{module: string, reference_id: string, quantite: int|string}>}  $donnees
+     * ## Trois paramètres OPTIONNELS, pour la seule synchronisation (15/10/2026)
+     *
+     * Décisions du Product Owner du 15/10/2026 (lot S3) : un poste hors
+     * connexion pousse la vente qu'il a DÉJÀ faite. Aucun appelant en ligne ne
+     * les passe, et leur valeur par défaut reproduit exactement le
+     * comportement d'avant.
+     *
+     * - `$dateVente` — la date MÉTIER (D246) : elle date la pièce, la vente
+     *   (`created_at`, que le journal de caisse et le rattrapage lisent), les
+     *   sorties de stock, et choisit l'ANNÉE de la séquence : une vente du
+     *   31/12 synchronisée le 02/01 est un `V-<année du 31/12>-…`.
+     * - `$prixImposes` — le prix de CHAQUE ligne vient de l'appelant
+     *   (`lignes.*.prix_unitaire`) : le poste a annoncé et encaissé ce prix,
+     *   il fait foi. C'est l'exception assumée à « prix jamais accepté de
+     *   l'appelant » plus haut : en ligne, accepter un prix ressusciterait
+     *   PA-24 ; hors connexion, le refuser réécrirait un ticket déjà remis au
+     *   client. Le prix du catalogue serveur est conservé À CÔTÉ
+     *   (`lignes_vente.prix_catalogue`) pour que l'écart soit SIGNALÉ — jamais
+     *   corrigé en silence.
+     * - `$sansBonDeCuisine` — les lignes M4 sortent les denrées par
+     *   `DeductionStockCuisineService::deduireLignes()`, SANS créer ni
+     *   transmettre de commande de cuisine : l'assiette est servie depuis
+     *   longtemps, un bon imprimé maintenant n'aurait aucun sens. RG-05 est
+     *   tenue par le même calcul que la transmission.
+     *
+     * @param  array{id?: string, point_vente?: string, session_id?: string|null, client_id?: string|null, reservation_id?: string|null, client_mention?: string|null, table?: string|null, table_id?: string|null, mode_paiement?: string, remise_type?: string, remise_valeur?: string, utilisateur_id?: string|null, commande_id?: string|null, validation_rupture?: bool, lignes?: list<array{module: string, reference_id: string, quantite: int|string, prix_unitaire?: string}>}  $donnees
      *
      * @throws RuntimeException panier vide, mode de paiement ou module inconnu,
      *                          quantité non positive, remise hors bornes,
-     *                          référence de catalogue introuvable,
+     *                          référence de catalogue introuvable, prix imposé absent ou négatif,
      *                          ou pièce comptable refusée (journal, compte, exercice, centre)
      * @throws \App\Domain\Stocks\Exceptions\RuptureStockException
      * @throws \App\Domain\Restaurant\Exceptions\RecetteManquanteException
      */
-    public function enregistrer(array $donnees): Vente
-    {
+    public function enregistrer(
+        array $donnees,
+        ?CarbonInterface $dateVente = null,
+        bool $prixImposes = false,
+        bool $sansBonDeCuisine = false,
+    ): Vente {
         $lignes = $donnees['lignes'] ?? [];
 
         if ($lignes === []) {
@@ -316,7 +355,7 @@ class VenteService
             return $existante;
         }
 
-        $resolues = $this->resoudreLignes($lignes);
+        $resolues = $this->resoudreLignes($lignes, $prixImposes);
 
         // Le total est arrêté AVANT la transaction, depuis les lignes
         // résolues : la pièce comptable en a besoin, et il n'a jamais été
@@ -345,24 +384,38 @@ class VenteService
             $identifiant,
             $net,
             $ventilation,
-            $compteContrepartie
+            $compteContrepartie,
+            $dateVente,
+            $sansBonDeCuisine
         ): Vente {
+            // Seconde vérification, SOUS VERROU et dans la transaction : deux
+            // rejeux concurrents du même document (le poste relance pendant
+            // que la première requête écrit encore) passeraient tous deux le
+            // contrôle d'avant. Le verrou les sérialise — le second retrouve
+            // la vente du premier, sans numéro ni pièce de plus.
+            $concurrente = Vente::query()->whereKey($identifiant)->lockForUpdate()->first();
+
+            if ($concurrente !== null) {
+                return $concurrente;
+            }
+
             // Le numéro est alloué DANS la transaction : `suivant()` lit le
             // maximum sous verrou sur cette même table, donc un rejet plus bas
-            // le rend réellement à la séquence.
-            $numero = $this->sequences->suivant('ventes', self::PREFIXE_NUMERO);
+            // le rend réellement à la séquence. L'année est celle de la vente
+            // (date métier), pas celle de sa réception.
+            $numero = $this->sequences->suivant('ventes', self::PREFIXE_NUMERO, $dateVente?->year);
 
             // La pièce est passée D'ABORD, comme dans `DepenseService` : si
             // elle est refusée, ni la vente, ni ses lignes, ni la sortie de
             // stock n'existent — et le caissier reçoit la raison comptable.
             $piece = $this->ecritures->passerEtValider([
                 'journal' => self::JOURNAL,
-                'date' => now()->toDateString(),
+                'date' => ($dateVente ?? now())->toDateString(),
                 'libelle' => $this->libelleDeLaPiece($numero),
                 'lignes' => $this->lignesDeLaPiece($ventilation, $compteContrepartie, $net),
             ]);
 
-            $vente = Vente::create([
+            $vente = new Vente([
                 'id' => $identifiant,
                 'numero' => $numero,
                 'session_id' => $donnees['session_id'] ?? null,
@@ -376,6 +429,9 @@ class VenteService
                     : trim((string) $donnees['client_mention']),
                 'table' => $donnees['table'] ?? null,
                 'table_id' => $donnees['table_id'] ?? null,
+                // Lot F5 (17/10/2026) : le séjour d'une vente en note de
+                // chambre — les autres postes la rattachent sans deviner.
+                'reservation_id' => $donnees['reservation_id'] ?? null,
                 // Le NET après remise : c'est l'argent réellement encaissé —
                 // le théorique de caisse et la pièce comptable le lisent.
                 'montant_total' => $net,
@@ -389,6 +445,15 @@ class VenteService
                 'ecriture_id' => $this->ligneDeContrepartie($piece),
             ]);
 
+            if ($dateVente !== null) {
+                // `created_at` est la date de la vente pour tous ses lecteurs
+                // (journal du jour, filtres, rattrapage `comptabiliser()`).
+                // Eloquent ne l'écrase pas quand elle est déjà posée.
+                $vente->created_at = $dateVente;
+            }
+
+            $vente->save();
+
             foreach ($resolues as $ligne) {
                 LigneVente::create([
                     'vente_id' => $vente->id,
@@ -397,12 +462,13 @@ class VenteService
                     'categorie' => $ligne['categorie'],
                     'module' => $ligne['module'],
                     'prix_unitaire' => $ligne['prix_unitaire'],
+                    'prix_catalogue' => $ligne['prix_catalogue'] ?? null,
                     'quantite' => $ligne['quantite'],
                     'montant' => $ligne['montant'],
                 ]);
             }
 
-            $nonImpacte = $this->deduireStock($vente, $resolues, $donnees);
+            $nonImpacte = $this->deduireStock($vente, $resolues, $donnees, $dateVente, $sansBonDeCuisine);
 
             $vente->update([
                 // Tableau vide plutôt que `null` : « rien à signaler » et
@@ -619,10 +685,15 @@ class VenteService
      * une erreur de saisie, pas une condition de course, et la découvrir après
      * avoir alloué un numéro le brûlerait pour rien.
      *
+     * Prix IMPOSÉS (synchronisation seulement, voir `enregistrer()`) : le
+     * prix de la ligne remplace celui du catalogue, qui est gardé dans
+     * `prix_catalogue`. La référence, le module et la quantité restent
+     * contrôlés exactement comme en ligne.
+     *
      * @param  list<array<string, mixed>>  $lignes
      * @return list<array<string, mixed>>
      */
-    private function resoudreLignes(array $lignes): array
+    private function resoudreLignes(array $lignes, bool $prixImposes = false): array
     {
         $resolues = [];
 
@@ -646,12 +717,43 @@ class VenteService
 
             $reference = (string) $ligne['reference_id'];
 
-            $resolues[] = $module === 'M5'
+            $resolue = $module === 'M5'
                 ? $this->resoudreBoisson($reference, $quantite)
                 : $this->resoudrePlat($reference, $quantite);
+
+            if ($prixImposes) {
+                $resolue = $this->imposerPrix($resolue, $ligne['prix_unitaire'] ?? null);
+            }
+
+            $resolues[] = $resolue;
         }
 
         return $resolues;
+    }
+
+    /**
+     * Remplace le prix figé du catalogue par celui du poste, et garde le
+     * premier à côté pour le signalement de l'écart.
+     *
+     * @param  array<string, mixed>  $resolue
+     * @return array<string, mixed>
+     *
+     * @throws RuntimeException prix absent, illisible ou négatif
+     */
+    private function imposerPrix(array $resolue, mixed $prix): array
+    {
+        if (! is_numeric($prix) || bccomp((string) $prix, '0', self::PRECISION) < 0) {
+            throw new RuntimeException(__('ventes.prix_impose_invalide', ['article' => $resolue['nom']]));
+        }
+
+        $impose = bcadd((string) $prix, '0', self::PRECISION);
+
+        return [
+            ...$resolue,
+            'prix_catalogue' => $resolue['prix_unitaire'],
+            'prix_unitaire' => $impose,
+            'montant' => bcmul($impose, (string) $resolue['quantite'], self::PRECISION),
+        ];
     }
 
     /**
@@ -713,8 +815,13 @@ class VenteService
      * @param  array<string, mixed>  $donnees
      * @return list<array{ligne: string, module: string, motif: string}>
      */
-    private function deduireStock(Vente $vente, array $resolues, array $donnees): array
-    {
+    private function deduireStock(
+        Vente $vente,
+        array $resolues,
+        array $donnees,
+        ?CarbonInterface $dateVente = null,
+        bool $sansBonDeCuisine = false,
+    ): array {
         $validationRupture = (bool) ($donnees['validation_rupture'] ?? false);
         $commandeId = $donnees['commande_id'] ?? null;
         $nonImpacte = [];
@@ -735,11 +842,53 @@ class VenteService
                         'article' => $ligne['nom'],
                     ]),
                     validationRupture: $validationRupture,
+                    dateMouvement: $dateVente,
                 );
             }
         }
 
         if ($lignesRestaurant === []) {
+            return $nonImpacte;
+        }
+
+        if ($sansBonDeCuisine) {
+            // Vente synchronisée (15/10/2026) : l'assiette est servie, aucun
+            // bon de cuisine n'a de sens — mais les denrées sont sorties, par
+            // le MÊME calcul que la transmission (voir `enregistrer()`).
+            //
+            // Un plat SANS composition (fiche vide, aucun lien direct) ne fait
+            // PAS rejeter la vente (décision du Product Owner du 15/10/2026) :
+            // elle a été servie et encaissée hors connexion, la refuser ferait
+            // disparaître l'argent des livres. La ligne est écartée de la
+            // déduction et la vente le DIT (`stock_non_impacte`, cause
+            // `plat_sans_composition`) ; la synchronisation en fait une
+            // anomalie à examiner. En ligne, ce chemin n'est jamais pris : un
+            // plat sans fiche y reste refusé (`RecetteManquanteException`).
+            $aDeduire = [];
+
+            foreach ($lignesRestaurant as $ligne) {
+                $plat = Plat::query()->with('recette')->findOrFail((string) $ligne['reference_id']);
+
+                if (! $this->deductionCuisine->aDeQuoiDeduire($plat)) {
+                    $nonImpacte[] = [
+                        'ligne' => (string) $ligne['nom'],
+                        'module' => 'M4',
+                        'motif' => __('ventes.stock_non_sorti_plat_sans_composition', ['plat' => $plat->libelle]),
+                        'cause' => self::CAUSE_PLAT_SANS_COMPOSITION,
+                        'plat_id' => $plat->id,
+                        'quantite' => (int) $ligne['quantite'],
+                    ];
+
+                    continue;
+                }
+
+                $aDeduire[] = ['plat' => $plat, 'quantite' => (int) $ligne['quantite']];
+            }
+
+            if ($aDeduire !== []) {
+                $this->deductionCuisine->deduireLignes($aDeduire, $validationRupture, $dateVente);
+            }
+
             return $nonImpacte;
         }
 

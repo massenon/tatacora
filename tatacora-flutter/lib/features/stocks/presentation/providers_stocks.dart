@@ -1,12 +1,9 @@
-import 'dart:io';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
-import 'package:pdf/pdf.dart';
-import 'package:printing/printing.dart';
 
 import '../../../core/di/providers.dart';
+import '../../../core/fichiers/enregistrement_export.dart';
+import '../../../core/impression/entete_parametree.dart';
+import '../../../core/impression/export_etat_a4.dart';
 import '../../../core/rbac/garde_acces.dart';
 import '../data/stocks_api.dart';
 import '../data/stocks_dao.dart';
@@ -260,47 +257,43 @@ final ficheStockProvider = FutureProvider.autoDispose<ResultatFiche?>((
       );
 });
 
-/// L'impression de la fiche, exposée comme **action injectable**.
+/// L'export PDF de la fiche, exposé comme **action injectable** — enregistré
+/// par la fenêtre « Enregistrer sous » (14/10/2026), rend le CHEMIN écrit,
+/// `null` : annulé.
 ///
-/// Jamais un `Printing.layoutPdf` recopié dans un écran : un test de widget n'a
-/// pas de greffon natif, et il doit exister un seul endroit où l'impression est
-/// déclenchée.
-final imprimerFicheStockProvider =
-    Provider<Future<void> Function(FicheStock, String?)>(
-      (ref) => (fiche, pointLibelle) async {
-        final octets = await EtatFicheStock.pdf(
-          fiche,
-          pointLibelle: pointLibelle,
-        );
-        await Printing.layoutPdf(
-          onLayout: (_) => octets,
-          name: '${EtatFicheStock.titre} - ${fiche.article.libelle}',
-          format: PdfPageFormat.a4,
-        );
-      },
+/// Jamais un `Printing.layoutPdf` ni une écriture de fichier recopiés dans un
+/// écran : un test de widget n'a pas de greffon natif, et il doit exister un
+/// seul endroit où le document est produit.
+final exporterFicheStockPdfProvider =
+    Provider<Future<String?> Function(FicheStock, String?)>(
+      (ref) =>
+          (fiche, pointLibelle) async => ref
+              .read(enregistrementExportProvider)
+              .exporter(
+                base: 'fiche_stock',
+                type: TypeFichierEnregistre.pdf,
+                octets: await EtatFicheStock.pdf(
+                  fiche,
+                  pointLibelle: pointLibelle,
+                  entete: await ref.read(lireEnteteEtablissementProvider)(),
+                ),
+              ),
     );
 
-/// L'export tableur — rend le **chemin** du fichier écrit.
+/// L'export tableur — rend le **chemin** du fichier écrit, `null` : annulé.
 final exporterFicheStockProvider =
-    Provider<Future<String> Function(FicheStock, String?)>(
-      (ref) => (fiche, pointLibelle) async {
-        final dossier = await getApplicationDocumentsDirectory();
-        final m = DateTime.now();
-        final horodatage =
-            '${m.year}'
-            '${m.month.toString().padLeft(2, '0')}'
-            '${m.day.toString().padLeft(2, '0')}-'
-            '${m.hour.toString().padLeft(2, '0')}'
-            '${m.minute.toString().padLeft(2, '0')}'
-            '${m.second.toString().padLeft(2, '0')}';
-        final fichier = File(
-          p.join(dossier.path, 'fiche-stock-$horodatage.csv'),
-        );
-        await fichier.writeAsBytes(
-          EtatFicheStock.csvOctets(fiche, pointLibelle: pointLibelle),
-        );
-        return fichier.path;
-      },
+    Provider<Future<String?> Function(FicheStock, String?)>(
+      (ref) =>
+          (fiche, pointLibelle) => ref
+              .read(enregistrementExportProvider)
+              .exporter(
+                base: 'fiche_stock',
+                type: TypeFichierEnregistre.csv,
+                octets: EtatFicheStock.csvOctets(
+                  fiche,
+                  pointLibelle: pointLibelle,
+                ),
+              ),
     );
 
 /* ====================================================================== */
@@ -324,27 +317,32 @@ final journalArticleProvider = FutureProvider.autoDispose
 /* L'export tableur de l'état — la modale partagée, puis le fichier         */
 /* ====================================================================== */
 
-/// L'export tableur du référentiel — rend le **chemin** du fichier écrit.
+/// L'export tableur du référentiel — rend le **chemin** du fichier écrit,
+/// `null` : annulé dans la fenêtre « Enregistrer sous » (14/10/2026).
 ///
 /// Action injectable, comme `exporterParcProvider` : un test de widget n'a pas
 /// de greffon natif, et il doit exister un seul endroit où ce fichier est
-/// écrit. Un export silencieux est un export que personne ne retrouve — l'écran
-/// affiche le chemin rendu ici.
-final exporterStocksProvider = Provider<Future<String> Function(EtatStocks)>(
-  (ref) => (etat) async {
-    final dossier = await getApplicationDocumentsDirectory();
-    final m = DateTime.now();
-    final horodatage =
-        '${m.year}'
-        '${m.month.toString().padLeft(2, '0')}'
-        '${m.day.toString().padLeft(2, '0')}-'
-        '${m.hour.toString().padLeft(2, '0')}'
-        '${m.minute.toString().padLeft(2, '0')}'
-        '${m.second.toString().padLeft(2, '0')}';
-    final fichier = File(
-      p.join(dossier.path, '${EtatStocks.prefixeFichier}-$horodatage.csv'),
-    );
-    await fichier.writeAsBytes(etat.csvOctets());
-    return fichier.path;
-  },
+/// écrit. Un export silencieux est un export que personne ne retrouve — le
+/// toast commun dit le nom du fichier.
+final exporterStocksProvider = Provider<Future<String?> Function(EtatStocks)>(
+  (ref) =>
+      (etat) => ref
+          .read(enregistrementExportProvider)
+          .exporter(
+            base: EtatStocks.prefixeFichier,
+            type: TypeFichierEnregistre.csv,
+            octets: etat.csvOctets(),
+          ),
 );
+
+/// L'export « PDF Officiel A4 Imprimable » des articles affichés — mêmes
+/// colonnes, mêmes lignes que le CSV, en-tête lu des paramètres.
+final exporterStocksPdfProvider =
+    Provider<Future<String?> Function(EtatStocks)>(
+      (ref) =>
+          (etat) => enregistrerEtatA4(
+            ref,
+            etat.etatA4(),
+            base: EtatStocks.prefixeFichier,
+          ),
+    );

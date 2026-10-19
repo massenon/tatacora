@@ -7,7 +7,8 @@ import '../../../core/donnees_absentes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../bar/presentation/widgets/modale_export_carte.dart';
+import '../../../shared_widgets/modale_export.dart';
+import '../../../shared_widgets/toast_export.dart';
 import '../data/restaurant_api.dart';
 import '../domain/entities/carte_restaurant.dart';
 import 'providers_restaurant.dart';
@@ -234,7 +235,14 @@ class _PageAvecDonnees extends ConsumerWidget {
           OngletCarte.carteDuJour =>
             carte.lignes.isEmpty
                 ? const EtatVideCarteRestaurant()
-                : VueCarteDuJour(lignes: carte.lignes),
+                : VueCarteDuJour(
+                    lignes: carte.lignes,
+                    cleFiltre: (
+                      ref.watch(rechercheCarteRestaurantProvider),
+                      ref.watch(categorieCarteRestaurantProvider),
+                      ref.watch(etatCarteRestaurantProvider),
+                    ),
+                  ),
           OngletCarte.couvertureDuStock => VueCouverture(
             couverture: carte.couverture,
             indicateurs: carte.indicateurs,
@@ -478,25 +486,20 @@ class _EnTete extends ConsumerWidget {
     }
 
     final filtres = _filtreLisible(donnees);
-    switch (format) {
-      case FormatExport.pdf:
-        await ref.read(imprimerCarteRestaurantProvider)(
+    await executerExport(
+      context,
+      () => switch (format) {
+        FormatExport.pdf => ref.read(exporterCarteRestaurantPdfProvider)(
           donnees.lignes,
           filtres,
-        );
-      case FormatExport.excel:
-        final chemin = await ref.read(exporterCarteRestaurantProvider)(
+        ),
+        FormatExport.excel => ref.read(exporterCarteRestaurantProvider)(
           donnees.lignes,
           filtres,
-        );
-        if (context.mounted) {
-          _dire(
-            context,
-            'Export écrit : $chemin',
-            'carte-restaurant-export-fait',
-          );
-        }
-    }
+        ),
+      },
+      cleSucces: const Key('carte-restaurant-export-fait'),
+    );
   }
 
   Future<void> _fichePrix(BuildContext context, WidgetRef ref) async {

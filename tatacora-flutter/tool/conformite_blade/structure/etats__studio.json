@@ -1,0 +1,125 @@
+{
+    "_lisez-moi": "PRODUIT par ExtraireStructureBladeTest, jamais ecrit a la main. Chaque variante (onglet) : les textes VISIBLES de <main>, dans l'ordre du document.",
+    "vue": "etats/studio",
+    "jeu": "parc",
+    "onglets": {
+        "principal": [
+            {
+                "type": "h1",
+                "texte": "États & Rapports"
+            },
+            {
+                "type": "champ",
+                "texte": "Rechercher un état…  (touche /)"
+            },
+            {
+                "type": "button",
+                "texte": "Tous"
+            },
+            {
+                "type": "button",
+                "texte": "M10"
+            },
+            {
+                "type": "button",
+                "texte": "M11"
+            },
+            {
+                "type": "button",
+                "texte": "M13"
+            },
+            {
+                "type": "span",
+                "texte": "État des stocks — tous points de stockage"
+            },
+            {
+                "type": "p",
+                "texte": "M11"
+            },
+            {
+                "type": "span",
+                "texte": "Tableau de bord — synthèse consolidée"
+            },
+            {
+                "type": "span",
+                "texte": "M11"
+            },
+            {
+                "type": "span",
+                "texte": "État du parc de véhicules"
+            },
+            {
+                "type": "span",
+                "texte": "État des locations de véhicules"
+            },
+            {
+                "type": "span",
+                "texte": "État des réservations"
+            },
+            {
+                "type": "span",
+                "texte": "État des créances clients"
+            },
+            {
+                "type": "span",
+                "texte": "État des ventes"
+            },
+            {
+                "type": "p",
+                "texte": "M10"
+            },
+            {
+                "type": "span",
+                "texte": "État des dépenses"
+            },
+            {
+                "type": "span",
+                "texte": "M10"
+            },
+            {
+                "type": "span",
+                "texte": "Balance générale"
+            },
+            {
+                "type": "span",
+                "texte": "M10"
+            },
+            {
+                "type": "span",
+                "texte": "État des achats et dettes fournisseurs"
+            },
+            {
+                "type": "span",
+                "texte": "État des réservations de circuits"
+            },
+            {
+                "type": "p",
+                "texte": "M13"
+            },
+            {
+                "type": "span",
+                "texte": "État Paie & Effectif"
+            },
+            {
+                "type": "span",
+                "texte": "M13"
+            },
+            {
+                "type": "p",
+                "texte": "12 état(s) · droits portés par le module source"
+            },
+            {
+                "type": "p",
+                "texte": "Choisissez un état dans le catalogue"
+            },
+            {
+                "type": "p",
+                "texte": "12 état(s) sont éditables avec vos droits. L'aperçu s'affiche immédiatement : vous ne consultez que ce que le moteur d'états calcule réellement."
+            },
+            {
+                "type": "p",
+                "texte": "Les droits sont portés par le de chaque état, pas par M14 : un magasinier ne lit pas le livre de paie parce qu'il a accès aux « États »."
+            }
+        ]
+    }
+}

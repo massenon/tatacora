@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../../../core/format/formats.dart';
+import '../../../core/impression/etat_tabulaire_a4.dart';
 import '../domain/departs.dart';
 import '../domain/entities/circuit.dart';
 import '../domain/entities/reservation_tour.dart';
@@ -19,9 +20,10 @@ import '../domain/entities/reservation_tour.dart';
 /// ## « Excel » est rendu en CSV, et l'écart est nommé
 ///
 /// Convention serveur RG-19 : BOM UTF-8 et point-virgule. Aucune bibliothèque
-/// XLSX n'est embarquée (même écart que PA-111). Le PDF n'est pas produit sur
-/// ce poste : aucun état A4 de M9 n'est classé dans l'en-tête et les visas de
-/// l'application (arbitrage PA-192, 09/10/2026).
+/// XLSX n'est embarquée (même écart que PA-111). Le « PDF Officiel A4
+/// Imprimable » (directive du PO du 14/10/2026) reprend les colonnes, les
+/// lignes, le filtre et les mentions du CSV par le gabarit commun
+/// ([etatA4]) — paysage : chaque onglet a sept colonnes ou plus.
 ///
 /// ## Les colonnes sans source partent VIDES, jamais à zéro
 ///
@@ -86,6 +88,69 @@ final class EtatTourisme {
   List<int> csvOctets() => utf8.encode(csv());
 
   static String _e(String v) => v.replaceAll(';', ',').replaceAll('\n', ' ');
+
+  /// Les colonnes de MONTANT (entiers FCFA) : « 56 000 FCFA », à droite.
+  static const Set<String> colonnesMontant = {
+    'Prix / pers.',
+    'CA',
+    'Montant',
+    'Acompte',
+    'Reste dû',
+    'Prix',
+  };
+
+  /// Les colonnes de nombre, à droite au PDF.
+  static const Set<String> colonnesNombre = {
+    'Pers.',
+    'Remplissage',
+    'Départs planifiés',
+  };
+
+  /// Les colonnes que le PDF totalise.
+  static const Set<String> colonnesTotalisees = {'CA', 'Montant'};
+
+  /// Le « PDF Officiel A4 Imprimable » de l'onglet affiché : les colonnes et
+  /// les lignes du CSV ; une case sans source reste VIDE, comme au tableur.
+  EtatTabulaireA4 etatA4() => EtatTabulaireA4(
+    titre: 'Tourisme — $titre',
+    portee: filtre,
+    mentions: mentions,
+    colonnes: [
+      for (final e in entetes)
+        colonnesMontant.contains(e) || colonnesNombre.contains(e)
+            ? ColonneEtat.nombre(e)
+            : ColonneEtat(e),
+    ],
+    lignes: [
+      for (final ligne in lignes)
+        [
+          for (final (i, c) in ligne.indexed)
+            colonnesMontant.contains(entetes[i]) ? _fcfa(c) : (c ?? ''),
+        ],
+    ],
+    totaux: entetes.any(colonnesTotalisees.contains)
+        ? [
+            for (final (i, e) in entetes.indexed)
+              if (i == 0)
+                'Total'
+              else if (colonnesTotalisees.contains(e))
+                formaterFcfa(
+                  lignes.fold<int>(
+                    0,
+                    (somme, l) => somme + (int.tryParse(l[i] ?? '') ?? 0),
+                  ),
+                )
+              else
+                '',
+          ]
+        : null,
+  );
+
+  /// Un montant entier brut en FCFA ; vide s'il n'existe pas.
+  static String _fcfa(String? brut) {
+    final valeur = int.tryParse(brut ?? '');
+    return valeur == null ? (brut ?? '') : formaterFcfa(valeur);
+  }
 
   /// Les en-têtes de `TourismeExport::entetesDe()`, onglet par onglet.
   static const List<String> entetesDeparts = [

@@ -6,9 +6,12 @@ namespace App\Domain\Restaurant\Services;
 
 use App\Domain\Restaurant\Exceptions\RecetteManquanteException;
 use App\Domain\Restaurant\Models\CommandeRestaurant;
+use App\Domain\Restaurant\Models\Plat;
 use App\Domain\Stocks\Models\Article;
 use App\Domain\Stocks\Models\PointStockage;
 use App\Domain\Stocks\Services\MouvementStockService;
+use Carbon\CarbonInterface;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -70,11 +73,47 @@ class DeductionStockCuisineService
      */
     public function deduire(CommandeRestaurant $commande, bool $validationRupture = false): array
     {
+        return $this->deduireLignes(
+            $commande->lignes()->with('plat.recette')->get()
+                ->map(static fn ($ligne): array => ['plat' => $ligne->plat, 'quantite' => (int) $ligne->quantite])
+                ->all(),
+            $validationRupture,
+        );
+    }
+
+    /**
+     * La même déduction, sur des lignes `plat × quantité` SANS commande de
+     * cuisine — extraite le 15/10/2026 pour la synchronisation des ventes
+     * (lot S3, décision du Product Owner).
+     *
+     * Pourquoi : une vente faite hors connexion au restaurant a DÉJÀ été
+     * servie. Créer et transmettre une commande au moment de la
+     * synchronisation imprimerait un bon de cuisine pour une assiette mangée
+     * il y a trois jours (`CommandeTransmiseCuisine` alimente le bon et les
+     * notifications). Mais les denrées ont bien quitté la cuisine : RG-05
+     * s'applique quand même. Le calcul reste UNIQUE — `deduire()` délègue
+     * ici — pour qu'une fiche technique modifiée change les deux chemins à la
+     * fois.
+     *
+     * `$dateMouvement` : la date MÉTIER de la vente (D246) ; `null` = maintenant.
+     *
+     * @param  iterable<array{plat: \App\Domain\Restaurant\Models\Plat, quantite: int}>  $lignes
+     * @return list<array{article_id: string, quantite: string, plat: string}>
+     *
+     * @throws RecetteManquanteException
+     * @throws \App\Domain\Stocks\Exceptions\RuptureStockException
+     */
+    public function deduireLignes(
+        iterable $lignes,
+        bool $validationRupture = false,
+        ?CarbonInterface $dateMouvement = null,
+    ): array {
         $pointCuisine = $this->pointCuisine();
         $sorties = [];
 
-        foreach ($commande->lignes()->with('plat.recette')->get() as $ligne) {
-            $plat = $ligne->plat;
+        foreach ($lignes as $ligne) {
+            $plat = $ligne['plat'];
+            $nombre = (int) $ligne['quantite'];
 
             // Lien DIRECT au stock : le plat se revend en l'état (bouteille
             // d'eau servie à table). Le maître l'admet nommément
@@ -85,15 +124,16 @@ class DeductionStockCuisineService
             // conditionnement ensemble, ou aucun des deux.
             if ($plat->aUnLienDirectAuStock()) {
                 $quantite = $this->mouvements->arrondirQuantite(
-                    $plat->stockConsommePour((string) $ligne->quantite),
+                    $plat->stockConsommePour((string) $nombre),
                 );
 
                 $this->mouvements->sortie(
                     articleId: (string) $plat->article_id,
                     pointId: $pointCuisine->id,
                     quantite: $quantite,
-                    motif: __('restaurant.motif_vente', ['plat' => $plat->libelle, 'quantite' => $ligne->quantite]),
+                    motif: __('restaurant.motif_vente', ['plat' => $plat->libelle, 'quantite' => $nombre]),
                     validationRupture: $validationRupture,
+                    dateMouvement: $dateMouvement,
                 );
 
                 $sorties[] = [
@@ -110,9 +150,7 @@ class DeductionStockCuisineService
             // que le schéma NE couvre PAS est une recette dont la nomenclature
             // est vide : elle se vendrait sans rien consommer, et l'écart
             // n'apparaîtrait qu'à l'inventaire, imputé à une perte physique.
-            $ingredients = DB::table('ingredients_recette')
-                ->where('recette_id', $plat->recette_id)
-                ->get(['article_id', 'quantite_unitaire']);
+            $ingredients = $this->ingredients($plat);
 
             if ($ingredients->isEmpty()) {
                 throw new RecetteManquanteException($plat->libelle);
@@ -172,7 +210,7 @@ class DeductionStockCuisineService
                 // revu par l'Architecte, ce service ne peut pas le corriger.
                 $quantiteExacte = bcmul(
                     (string) $ingredient->quantite_unitaire,
-                    (string) $ligne->quantite,
+                    (string) $nombre,
                     3,
                 );
 
@@ -185,8 +223,9 @@ class DeductionStockCuisineService
                     articleId: (string) $ingredient->article_id,
                     pointId: $pointCuisine->id,
                     quantite: $quantite,
-                    motif: __('restaurant.motif_vente', ['plat' => $plat->libelle, 'quantite' => $ligne->quantite]),
+                    motif: __('restaurant.motif_vente', ['plat' => $plat->libelle, 'quantite' => $nombre]),
                     validationRupture: $validationRupture,
+                    dateMouvement: $dateMouvement,
                 );
 
                 $sorties[] = [
@@ -198,6 +237,34 @@ class DeductionStockCuisineService
         }
 
         return $sorties;
+    }
+
+    /**
+     * Le plat a-t-il de quoi sortir du stock — un lien direct, ou une fiche
+     * dont la nomenclature n'est pas vide ? `false` est exactement le cas où
+     * `deduireLignes()` lève `RecetteManquanteException`.
+     *
+     * PUBLIQUE depuis le 15/10/2026 (décision du Product Owner) : une vente
+     * SYNCHRONISÉE a déjà été servie et encaissée — la refuser pour une fiche
+     * vide ferait disparaître l'argent des livres. `VenteService` (chemin
+     * `sansBonDeCuisine`, réservé à la synchronisation) écarte donc ces
+     * lignes de la déduction et les SIGNALE ; il pose la question ici pour
+     * que le critère reste celui de la déduction elle-même. En ligne, rien ne
+     * change : la vente d'un plat sans fiche reste refusée.
+     */
+    public function aDeQuoiDeduire(Plat $plat): bool
+    {
+        return $plat->aUnLienDirectAuStock() || $this->ingredients($plat)->isNotEmpty();
+    }
+
+    /**
+     * @return Collection<int, object{article_id: string, quantite_unitaire: string}>
+     */
+    private function ingredients(Plat $plat): Collection
+    {
+        return DB::table('ingredients_recette')
+            ->where('recette_id', $plat->recette_id)
+            ->get(['article_id', 'quantite_unitaire']);
     }
 
     /**

@@ -1,0 +1,2569 @@
+{
+    "_lisez-moi": "PRODUIT par ExtraireBarreSuperieureTest, jamais ecrit a la main. Par role et variante (barre, menu-profil, cloche) : textes, info-bulles et invites du <header>, dans l'ordre du document.",
+    "roles": {
+        "achats": {
+            "barre": [
+                {
+                    "type": "info-bulle",
+                    "texte": "Masquer ou afficher le menu latéral (vue plein écran)"
+                },
+                {
+                    "type": "span",
+                    "texte": "TATACORA AFRIQUE"
+                },
+                {
+                    "type": "span",
+                    "texte": "Gîte Chez Noël"
+                },
+                {
+                    "type": "p",
+                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "champ",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "span",
+                    "texte": "Réseau"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.achats"
+                },
+                {
+                    "type": "p",
+                    "texte": "Achats"
+                }
+            ],
+            "menu-profil": [
+                {
+                    "type": "info-bulle",
+                    "texte": "Masquer ou afficher le menu latéral (vue plein écran)"
+                },
+                {
+                    "type": "span",
+                    "texte": "TATACORA AFRIQUE"
+                },
+                {
+                    "type": "span",
+                    "texte": "Gîte Chez Noël"
+                },
+                {
+                    "type": "p",
+                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "champ",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "span",
+                    "texte": "Réseau"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.achats"
+                },
+                {
+                    "type": "p",
+                    "texte": "Achats"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.achats"
+                },
+                {
+                    "type": "p",
+                    "texte": "Achats"
+                },
+                {
+                    "type": "a",
+                    "texte": "Mon profil"
+                },
+                {
+                    "type": "span",
+                    "texte": "Paramètres du compte"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Votre profil n'a pas accès à cet écran"
+                },
+                {
+                    "type": "span",
+                    "texte": "Import & Export"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Votre profil n'a pas accès à cet écran"
+                },
+                {
+                    "type": "a",
+                    "texte": "Journal d'Audit"
+                },
+                {
+                    "type": "a",
+                    "texte": "Aide & À propos"
+                },
+                {
+                    "type": "a",
+                    "texte": "Contactez l'éditeur"
+                },
+                {
+                    "type": "button",
+                    "texte": "Déconnexion"
+                }
+            ],
+            "cloche": [
+                {
+                    "type": "info-bulle",
+                    "texte": "Masquer ou afficher le menu latéral (vue plein écran)"
+                },
+                {
+                    "type": "span",
+                    "texte": "TATACORA AFRIQUE"
+                },
+                {
+                    "type": "span",
+                    "texte": "Gîte Chez Noël"
+                },
+                {
+                    "type": "p",
+                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "champ",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "span",
+                    "texte": "Réseau"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "span",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "button",
+                    "texte": "Tout marquer comme lu"
+                },
+                {
+                    "type": "button",
+                    "texte": "Toutes"
+                },
+                {
+                    "type": "button",
+                    "texte": "Non lues"
+                },
+                {
+                    "type": "p",
+                    "texte": "Aucune notification."
+                },
+                {
+                    "type": "a",
+                    "texte": "Voir toutes les notifications →"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.achats"
+                },
+                {
+                    "type": "p",
+                    "texte": "Achats"
+                }
+            ]
+        },
+        "administrateur": {
+            "barre": [
+                {
+                    "type": "info-bulle",
+                    "texte": "Masquer ou afficher le menu latéral (vue plein écran)"
+                },
+                {
+                    "type": "span",
+                    "texte": "TATACORA AFRIQUE"
+                },
+                {
+                    "type": "span",
+                    "texte": "Gîte Chez Noël"
+                },
+                {
+                    "type": "p",
+                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "champ",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "span",
+                    "texte": "Réseau"
+                },
+                {
+                    "type": "a",
+                    "texte": "Caisse fermée"
+                },
+                {
+                    "type": "a",
+                    "texte": "Vente"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.administrateur"
+                },
+                {
+                    "type": "p",
+                    "texte": "Administrateur"
+                }
+            ],
+            "menu-profil": [
+                {
+                    "type": "info-bulle",
+                    "texte": "Masquer ou afficher le menu latéral (vue plein écran)"
+                },
+                {
+                    "type": "span",
+                    "texte": "TATACORA AFRIQUE"
+                },
+                {
+                    "type": "span",
+                    "texte": "Gîte Chez Noël"
+                },
+                {
+                    "type": "p",
+                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "champ",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "span",
+                    "texte": "Réseau"
+                },
+                {
+                    "type": "a",
+                    "texte": "Caisse fermée"
+                },
+                {
+                    "type": "a",
+                    "texte": "Vente"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.administrateur"
+                },
+                {
+                    "type": "p",
+                    "texte": "Administrateur"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.administrateur"
+                },
+                {
+                    "type": "p",
+                    "texte": "Administrateur"
+                },
+                {
+                    "type": "a",
+                    "texte": "Mon profil"
+                },
+                {
+                    "type": "a",
+                    "texte": "Paramètres du compte"
+                },
+                {
+                    "type": "a",
+                    "texte": "Import & Export"
+                },
+                {
+                    "type": "a",
+                    "texte": "Journal d'Audit"
+                },
+                {
+                    "type": "a",
+                    "texte": "Aide & À propos"
+                },
+                {
+                    "type": "a",
+                    "texte": "Contactez l'éditeur"
+                },
+                {
+                    "type": "button",
+                    "texte": "Déconnexion"
+                }
+            ],
+            "cloche": [
+                {
+                    "type": "info-bulle",
+                    "texte": "Masquer ou afficher le menu latéral (vue plein écran)"
+                },
+                {
+                    "type": "span",
+                    "texte": "TATACORA AFRIQUE"
+                },
+                {
+                    "type": "span",
+                    "texte": "Gîte Chez Noël"
+                },
+                {
+                    "type": "p",
+                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "champ",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "span",
+                    "texte": "Réseau"
+                },
+                {
+                    "type": "a",
+                    "texte": "Caisse fermée"
+                },
+                {
+                    "type": "a",
+                    "texte": "Vente"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "span",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "button",
+                    "texte": "Tout marquer comme lu"
+                },
+                {
+                    "type": "button",
+                    "texte": "Toutes"
+                },
+                {
+                    "type": "button",
+                    "texte": "Non lues"
+                },
+                {
+                    "type": "p",
+                    "texte": "Aucune notification."
+                },
+                {
+                    "type": "a",
+                    "texte": "Voir toutes les notifications →"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.administrateur"
+                },
+                {
+                    "type": "p",
+                    "texte": "Administrateur"
+                }
+            ]
+        },
+        "barman": {
+            "barre": [
+                {
+                    "type": "info-bulle",
+                    "texte": "Masquer ou afficher le menu latéral (vue plein écran)"
+                },
+                {
+                    "type": "span",
+                    "texte": "TATACORA AFRIQUE"
+                },
+                {
+                    "type": "span",
+                    "texte": "Gîte Chez Noël"
+                },
+                {
+                    "type": "p",
+                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "champ",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "span",
+                    "texte": "Réseau"
+                },
+                {
+                    "type": "a",
+                    "texte": "Caisse fermée"
+                },
+                {
+                    "type": "a",
+                    "texte": "Vente"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.barman"
+                },
+                {
+                    "type": "p",
+                    "texte": "Barman"
+                }
+            ],
+            "menu-profil": [
+                {
+                    "type": "info-bulle",
+                    "texte": "Masquer ou afficher le menu latéral (vue plein écran)"
+                },
+                {
+                    "type": "span",
+                    "texte": "TATACORA AFRIQUE"
+                },
+                {
+                    "type": "span",
+                    "texte": "Gîte Chez Noël"
+                },
+                {
+                    "type": "p",
+                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "champ",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "span",
+                    "texte": "Réseau"
+                },
+                {
+                    "type": "a",
+                    "texte": "Caisse fermée"
+                },
+                {
+                    "type": "a",
+                    "texte": "Vente"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.barman"
+                },
+                {
+                    "type": "p",
+                    "texte": "Barman"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.barman"
+                },
+                {
+                    "type": "p",
+                    "texte": "Barman"
+                },
+                {
+                    "type": "a",
+                    "texte": "Mon profil"
+                },
+                {
+                    "type": "span",
+                    "texte": "Paramètres du compte"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Votre profil n'a pas accès à cet écran"
+                },
+                {
+                    "type": "span",
+                    "texte": "Import & Export"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Votre profil n'a pas accès à cet écran"
+                },
+                {
+                    "type": "a",
+                    "texte": "Journal d'Audit"
+                },
+                {
+                    "type": "a",
+                    "texte": "Aide & À propos"
+                },
+                {
+                    "type": "a",
+                    "texte": "Contactez l'éditeur"
+                },
+                {
+                    "type": "button",
+                    "texte": "Déconnexion"
+                }
+            ],
+            "cloche": [
+                {
+                    "type": "info-bulle",
+                    "texte": "Masquer ou afficher le menu latéral (vue plein écran)"
+                },
+                {
+                    "type": "span",
+                    "texte": "TATACORA AFRIQUE"
+                },
+                {
+                    "type": "span",
+                    "texte": "Gîte Chez Noël"
+                },
+                {
+                    "type": "p",
+                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "champ",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "span",
+                    "texte": "Réseau"
+                },
+                {
+                    "type": "a",
+                    "texte": "Caisse fermée"
+                },
+                {
+                    "type": "a",
+                    "texte": "Vente"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "span",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "button",
+                    "texte": "Tout marquer comme lu"
+                },
+                {
+                    "type": "button",
+                    "texte": "Toutes"
+                },
+                {
+                    "type": "button",
+                    "texte": "Non lues"
+                },
+                {
+                    "type": "p",
+                    "texte": "Aucune notification."
+                },
+                {
+                    "type": "a",
+                    "texte": "Voir toutes les notifications →"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.barman"
+                },
+                {
+                    "type": "p",
+                    "texte": "Barman"
+                }
+            ]
+        },
+        "comptable": {
+            "barre": [
+                {
+                    "type": "info-bulle",
+                    "texte": "Masquer ou afficher le menu latéral (vue plein écran)"
+                },
+                {
+                    "type": "span",
+                    "texte": "TATACORA AFRIQUE"
+                },
+                {
+                    "type": "span",
+                    "texte": "Gîte Chez Noël"
+                },
+                {
+                    "type": "p",
+                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "champ",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "span",
+                    "texte": "Réseau"
+                },
+                {
+                    "type": "a",
+                    "texte": "Caisse fermée"
+                },
+                {
+                    "type": "a",
+                    "texte": "Vente"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.comptable"
+                },
+                {
+                    "type": "p",
+                    "texte": "Comptable"
+                }
+            ],
+            "menu-profil": [
+                {
+                    "type": "info-bulle",
+                    "texte": "Masquer ou afficher le menu latéral (vue plein écran)"
+                },
+                {
+                    "type": "span",
+                    "texte": "TATACORA AFRIQUE"
+                },
+                {
+                    "type": "span",
+                    "texte": "Gîte Chez Noël"
+                },
+                {
+                    "type": "p",
+                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "champ",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "span",
+                    "texte": "Réseau"
+                },
+                {
+                    "type": "a",
+                    "texte": "Caisse fermée"
+                },
+                {
+                    "type": "a",
+                    "texte": "Vente"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.comptable"
+                },
+                {
+                    "type": "p",
+                    "texte": "Comptable"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.comptable"
+                },
+                {
+                    "type": "p",
+                    "texte": "Comptable"
+                },
+                {
+                    "type": "a",
+                    "texte": "Mon profil"
+                },
+                {
+                    "type": "span",
+                    "texte": "Paramètres du compte"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Votre profil n'a pas accès à cet écran"
+                },
+                {
+                    "type": "span",
+                    "texte": "Import & Export"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Votre profil n'a pas accès à cet écran"
+                },
+                {
+                    "type": "a",
+                    "texte": "Journal d'Audit"
+                },
+                {
+                    "type": "a",
+                    "texte": "Aide & À propos"
+                },
+                {
+                    "type": "a",
+                    "texte": "Contactez l'éditeur"
+                },
+                {
+                    "type": "button",
+                    "texte": "Déconnexion"
+                }
+            ],
+            "cloche": [
+                {
+                    "type": "info-bulle",
+                    "texte": "Masquer ou afficher le menu latéral (vue plein écran)"
+                },
+                {
+                    "type": "span",
+                    "texte": "TATACORA AFRIQUE"
+                },
+                {
+                    "type": "span",
+                    "texte": "Gîte Chez Noël"
+                },
+                {
+                    "type": "p",
+                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "champ",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "span",
+                    "texte": "Réseau"
+                },
+                {
+                    "type": "a",
+                    "texte": "Caisse fermée"
+                },
+                {
+                    "type": "a",
+                    "texte": "Vente"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "span",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "button",
+                    "texte": "Tout marquer comme lu"
+                },
+                {
+                    "type": "button",
+                    "texte": "Toutes"
+                },
+                {
+                    "type": "button",
+                    "texte": "Non lues"
+                },
+                {
+                    "type": "p",
+                    "texte": "Aucune notification."
+                },
+                {
+                    "type": "a",
+                    "texte": "Voir toutes les notifications →"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.comptable"
+                },
+                {
+                    "type": "p",
+                    "texte": "Comptable"
+                }
+            ]
+        },
+        "cuisine": {
+            "barre": [
+                {
+                    "type": "info-bulle",
+                    "texte": "Masquer ou afficher le menu latéral (vue plein écran)"
+                },
+                {
+                    "type": "span",
+                    "texte": "TATACORA AFRIQUE"
+                },
+                {
+                    "type": "span",
+                    "texte": "Gîte Chez Noël"
+                },
+                {
+                    "type": "p",
+                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "champ",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "span",
+                    "texte": "Réseau"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.cuisine"
+                },
+                {
+                    "type": "p",
+                    "texte": "Cuisine"
+                }
+            ],
+            "menu-profil": [
+                {
+                    "type": "info-bulle",
+                    "texte": "Masquer ou afficher le menu latéral (vue plein écran)"
+                },
+                {
+                    "type": "span",
+                    "texte": "TATACORA AFRIQUE"
+                },
+                {
+                    "type": "span",
+                    "texte": "Gîte Chez Noël"
+                },
+                {
+                    "type": "p",
+                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "champ",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "span",
+                    "texte": "Réseau"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.cuisine"
+                },
+                {
+                    "type": "p",
+                    "texte": "Cuisine"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.cuisine"
+                },
+                {
+                    "type": "p",
+                    "texte": "Cuisine"
+                },
+                {
+                    "type": "a",
+                    "texte": "Mon profil"
+                },
+                {
+                    "type": "span",
+                    "texte": "Paramètres du compte"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Votre profil n'a pas accès à cet écran"
+                },
+                {
+                    "type": "span",
+                    "texte": "Import & Export"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Votre profil n'a pas accès à cet écran"
+                },
+                {
+                    "type": "a",
+                    "texte": "Journal d'Audit"
+                },
+                {
+                    "type": "a",
+                    "texte": "Aide & À propos"
+                },
+                {
+                    "type": "a",
+                    "texte": "Contactez l'éditeur"
+                },
+                {
+                    "type": "button",
+                    "texte": "Déconnexion"
+                }
+            ],
+            "cloche": [
+                {
+                    "type": "info-bulle",
+                    "texte": "Masquer ou afficher le menu latéral (vue plein écran)"
+                },
+                {
+                    "type": "span",
+                    "texte": "TATACORA AFRIQUE"
+                },
+                {
+                    "type": "span",
+                    "texte": "Gîte Chez Noël"
+                },
+                {
+                    "type": "p",
+                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "champ",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "span",
+                    "texte": "Réseau"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "span",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "button",
+                    "texte": "Tout marquer comme lu"
+                },
+                {
+                    "type": "button",
+                    "texte": "Toutes"
+                },
+                {
+                    "type": "button",
+                    "texte": "Non lues"
+                },
+                {
+                    "type": "p",
+                    "texte": "Aucune notification."
+                },
+                {
+                    "type": "a",
+                    "texte": "Voir toutes les notifications →"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.cuisine"
+                },
+                {
+                    "type": "p",
+                    "texte": "Cuisine"
+                }
+            ]
+        },
+        "gerant": {
+            "barre": [
+                {
+                    "type": "info-bulle",
+                    "texte": "Masquer ou afficher le menu latéral (vue plein écran)"
+                },
+                {
+                    "type": "span",
+                    "texte": "TATACORA AFRIQUE"
+                },
+                {
+                    "type": "span",
+                    "texte": "Gîte Chez Noël"
+                },
+                {
+                    "type": "p",
+                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "champ",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "span",
+                    "texte": "Réseau"
+                },
+                {
+                    "type": "a",
+                    "texte": "Caisse fermée"
+                },
+                {
+                    "type": "a",
+                    "texte": "Vente"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.gerant"
+                },
+                {
+                    "type": "p",
+                    "texte": "Gerant"
+                }
+            ],
+            "menu-profil": [
+                {
+                    "type": "info-bulle",
+                    "texte": "Masquer ou afficher le menu latéral (vue plein écran)"
+                },
+                {
+                    "type": "span",
+                    "texte": "TATACORA AFRIQUE"
+                },
+                {
+                    "type": "span",
+                    "texte": "Gîte Chez Noël"
+                },
+                {
+                    "type": "p",
+                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "champ",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "span",
+                    "texte": "Réseau"
+                },
+                {
+                    "type": "a",
+                    "texte": "Caisse fermée"
+                },
+                {
+                    "type": "a",
+                    "texte": "Vente"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.gerant"
+                },
+                {
+                    "type": "p",
+                    "texte": "Gerant"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.gerant"
+                },
+                {
+                    "type": "p",
+                    "texte": "Gerant"
+                },
+                {
+                    "type": "a",
+                    "texte": "Mon profil"
+                },
+                {
+                    "type": "a",
+                    "texte": "Paramètres du compte"
+                },
+                {
+                    "type": "a",
+                    "texte": "Import & Export"
+                },
+                {
+                    "type": "a",
+                    "texte": "Journal d'Audit"
+                },
+                {
+                    "type": "a",
+                    "texte": "Aide & À propos"
+                },
+                {
+                    "type": "a",
+                    "texte": "Contactez l'éditeur"
+                },
+                {
+                    "type": "button",
+                    "texte": "Déconnexion"
+                }
+            ],
+            "cloche": [
+                {
+                    "type": "info-bulle",
+                    "texte": "Masquer ou afficher le menu latéral (vue plein écran)"
+                },
+                {
+                    "type": "span",
+                    "texte": "TATACORA AFRIQUE"
+                },
+                {
+                    "type": "span",
+                    "texte": "Gîte Chez Noël"
+                },
+                {
+                    "type": "p",
+                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "champ",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "span",
+                    "texte": "Réseau"
+                },
+                {
+                    "type": "a",
+                    "texte": "Caisse fermée"
+                },
+                {
+                    "type": "a",
+                    "texte": "Vente"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "span",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "button",
+                    "texte": "Tout marquer comme lu"
+                },
+                {
+                    "type": "button",
+                    "texte": "Toutes"
+                },
+                {
+                    "type": "button",
+                    "texte": "Non lues"
+                },
+                {
+                    "type": "p",
+                    "texte": "Aucune notification."
+                },
+                {
+                    "type": "a",
+                    "texte": "Voir toutes les notifications →"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.gerant"
+                },
+                {
+                    "type": "p",
+                    "texte": "Gerant"
+                }
+            ]
+        },
+        "guide": {
+            "barre": [
+                {
+                    "type": "info-bulle",
+                    "texte": "Masquer ou afficher le menu latéral (vue plein écran)"
+                },
+                {
+                    "type": "span",
+                    "texte": "TATACORA AFRIQUE"
+                },
+                {
+                    "type": "span",
+                    "texte": "Gîte Chez Noël"
+                },
+                {
+                    "type": "p",
+                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "champ",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "span",
+                    "texte": "Réseau"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.guide"
+                },
+                {
+                    "type": "p",
+                    "texte": "Guide"
+                }
+            ],
+            "menu-profil": [
+                {
+                    "type": "info-bulle",
+                    "texte": "Masquer ou afficher le menu latéral (vue plein écran)"
+                },
+                {
+                    "type": "span",
+                    "texte": "TATACORA AFRIQUE"
+                },
+                {
+                    "type": "span",
+                    "texte": "Gîte Chez Noël"
+                },
+                {
+                    "type": "p",
+                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "champ",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "span",
+                    "texte": "Réseau"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.guide"
+                },
+                {
+                    "type": "p",
+                    "texte": "Guide"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.guide"
+                },
+                {
+                    "type": "p",
+                    "texte": "Guide"
+                },
+                {
+                    "type": "a",
+                    "texte": "Mon profil"
+                },
+                {
+                    "type": "span",
+                    "texte": "Paramètres du compte"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Votre profil n'a pas accès à cet écran"
+                },
+                {
+                    "type": "span",
+                    "texte": "Import & Export"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Votre profil n'a pas accès à cet écran"
+                },
+                {
+                    "type": "span",
+                    "texte": "Journal d'Audit"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Votre profil n'a pas accès à cet écran"
+                },
+                {
+                    "type": "a",
+                    "texte": "Aide & À propos"
+                },
+                {
+                    "type": "a",
+                    "texte": "Contactez l'éditeur"
+                },
+                {
+                    "type": "button",
+                    "texte": "Déconnexion"
+                }
+            ],
+            "cloche": [
+                {
+                    "type": "info-bulle",
+                    "texte": "Masquer ou afficher le menu latéral (vue plein écran)"
+                },
+                {
+                    "type": "span",
+                    "texte": "TATACORA AFRIQUE"
+                },
+                {
+                    "type": "span",
+                    "texte": "Gîte Chez Noël"
+                },
+                {
+                    "type": "p",
+                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "champ",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "span",
+                    "texte": "Réseau"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "span",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "button",
+                    "texte": "Tout marquer comme lu"
+                },
+                {
+                    "type": "button",
+                    "texte": "Toutes"
+                },
+                {
+                    "type": "button",
+                    "texte": "Non lues"
+                },
+                {
+                    "type": "p",
+                    "texte": "Aucune notification."
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.guide"
+                },
+                {
+                    "type": "p",
+                    "texte": "Guide"
+                }
+            ]
+        },
+        "magasinier": {
+            "barre": [
+                {
+                    "type": "info-bulle",
+                    "texte": "Masquer ou afficher le menu latéral (vue plein écran)"
+                },
+                {
+                    "type": "span",
+                    "texte": "TATACORA AFRIQUE"
+                },
+                {
+                    "type": "span",
+                    "texte": "Gîte Chez Noël"
+                },
+                {
+                    "type": "p",
+                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "champ",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "span",
+                    "texte": "Réseau"
+                },
+                {
+                    "type": "a",
+                    "texte": "Caisse fermée"
+                },
+                {
+                    "type": "a",
+                    "texte": "Vente"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.magasinier"
+                },
+                {
+                    "type": "p",
+                    "texte": "Magasinier"
+                }
+            ],
+            "menu-profil": [
+                {
+                    "type": "info-bulle",
+                    "texte": "Masquer ou afficher le menu latéral (vue plein écran)"
+                },
+                {
+                    "type": "span",
+                    "texte": "TATACORA AFRIQUE"
+                },
+                {
+                    "type": "span",
+                    "texte": "Gîte Chez Noël"
+                },
+                {
+                    "type": "p",
+                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "champ",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "span",
+                    "texte": "Réseau"
+                },
+                {
+                    "type": "a",
+                    "texte": "Caisse fermée"
+                },
+                {
+                    "type": "a",
+                    "texte": "Vente"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.magasinier"
+                },
+                {
+                    "type": "p",
+                    "texte": "Magasinier"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.magasinier"
+                },
+                {
+                    "type": "p",
+                    "texte": "Magasinier"
+                },
+                {
+                    "type": "a",
+                    "texte": "Mon profil"
+                },
+                {
+                    "type": "span",
+                    "texte": "Paramètres du compte"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Votre profil n'a pas accès à cet écran"
+                },
+                {
+                    "type": "span",
+                    "texte": "Import & Export"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Votre profil n'a pas accès à cet écran"
+                },
+                {
+                    "type": "a",
+                    "texte": "Journal d'Audit"
+                },
+                {
+                    "type": "a",
+                    "texte": "Aide & À propos"
+                },
+                {
+                    "type": "a",
+                    "texte": "Contactez l'éditeur"
+                },
+                {
+                    "type": "button",
+                    "texte": "Déconnexion"
+                }
+            ],
+            "cloche": [
+                {
+                    "type": "info-bulle",
+                    "texte": "Masquer ou afficher le menu latéral (vue plein écran)"
+                },
+                {
+                    "type": "span",
+                    "texte": "TATACORA AFRIQUE"
+                },
+                {
+                    "type": "span",
+                    "texte": "Gîte Chez Noël"
+                },
+                {
+                    "type": "p",
+                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "champ",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "span",
+                    "texte": "Réseau"
+                },
+                {
+                    "type": "a",
+                    "texte": "Caisse fermée"
+                },
+                {
+                    "type": "a",
+                    "texte": "Vente"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "span",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "button",
+                    "texte": "Tout marquer comme lu"
+                },
+                {
+                    "type": "button",
+                    "texte": "Toutes"
+                },
+                {
+                    "type": "button",
+                    "texte": "Non lues"
+                },
+                {
+                    "type": "p",
+                    "texte": "Aucune notification."
+                },
+                {
+                    "type": "a",
+                    "texte": "Voir toutes les notifications →"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.magasinier"
+                },
+                {
+                    "type": "p",
+                    "texte": "Magasinier"
+                }
+            ]
+        },
+        "receptionniste": {
+            "barre": [
+                {
+                    "type": "info-bulle",
+                    "texte": "Masquer ou afficher le menu latéral (vue plein écran)"
+                },
+                {
+                    "type": "span",
+                    "texte": "TATACORA AFRIQUE"
+                },
+                {
+                    "type": "span",
+                    "texte": "Gîte Chez Noël"
+                },
+                {
+                    "type": "p",
+                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "champ",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "span",
+                    "texte": "Réseau"
+                },
+                {
+                    "type": "a",
+                    "texte": "Caisse fermée"
+                },
+                {
+                    "type": "a",
+                    "texte": "Vente"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.receptionniste"
+                },
+                {
+                    "type": "p",
+                    "texte": "Receptionniste"
+                }
+            ],
+            "menu-profil": [
+                {
+                    "type": "info-bulle",
+                    "texte": "Masquer ou afficher le menu latéral (vue plein écran)"
+                },
+                {
+                    "type": "span",
+                    "texte": "TATACORA AFRIQUE"
+                },
+                {
+                    "type": "span",
+                    "texte": "Gîte Chez Noël"
+                },
+                {
+                    "type": "p",
+                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "champ",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "span",
+                    "texte": "Réseau"
+                },
+                {
+                    "type": "a",
+                    "texte": "Caisse fermée"
+                },
+                {
+                    "type": "a",
+                    "texte": "Vente"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.receptionniste"
+                },
+                {
+                    "type": "p",
+                    "texte": "Receptionniste"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.receptionniste"
+                },
+                {
+                    "type": "p",
+                    "texte": "Receptionniste"
+                },
+                {
+                    "type": "a",
+                    "texte": "Mon profil"
+                },
+                {
+                    "type": "span",
+                    "texte": "Paramètres du compte"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Votre profil n'a pas accès à cet écran"
+                },
+                {
+                    "type": "span",
+                    "texte": "Import & Export"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Votre profil n'a pas accès à cet écran"
+                },
+                {
+                    "type": "a",
+                    "texte": "Journal d'Audit"
+                },
+                {
+                    "type": "a",
+                    "texte": "Aide & À propos"
+                },
+                {
+                    "type": "a",
+                    "texte": "Contactez l'éditeur"
+                },
+                {
+                    "type": "button",
+                    "texte": "Déconnexion"
+                }
+            ],
+            "cloche": [
+                {
+                    "type": "info-bulle",
+                    "texte": "Masquer ou afficher le menu latéral (vue plein écran)"
+                },
+                {
+                    "type": "span",
+                    "texte": "TATACORA AFRIQUE"
+                },
+                {
+                    "type": "span",
+                    "texte": "Gîte Chez Noël"
+                },
+                {
+                    "type": "p",
+                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "champ",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "span",
+                    "texte": "Réseau"
+                },
+                {
+                    "type": "a",
+                    "texte": "Caisse fermée"
+                },
+                {
+                    "type": "a",
+                    "texte": "Vente"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "span",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "button",
+                    "texte": "Tout marquer comme lu"
+                },
+                {
+                    "type": "button",
+                    "texte": "Toutes"
+                },
+                {
+                    "type": "button",
+                    "texte": "Non lues"
+                },
+                {
+                    "type": "p",
+                    "texte": "Aucune notification."
+                },
+                {
+                    "type": "a",
+                    "texte": "Voir toutes les notifications →"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.receptionniste"
+                },
+                {
+                    "type": "p",
+                    "texte": "Receptionniste"
+                }
+            ]
+        },
+        "rh": {
+            "barre": [
+                {
+                    "type": "info-bulle",
+                    "texte": "Masquer ou afficher le menu latéral (vue plein écran)"
+                },
+                {
+                    "type": "span",
+                    "texte": "TATACORA AFRIQUE"
+                },
+                {
+                    "type": "span",
+                    "texte": "Gîte Chez Noël"
+                },
+                {
+                    "type": "p",
+                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "champ",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "span",
+                    "texte": "Réseau"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.rh"
+                }
+            ],
+            "menu-profil": [
+                {
+                    "type": "info-bulle",
+                    "texte": "Masquer ou afficher le menu latéral (vue plein écran)"
+                },
+                {
+                    "type": "span",
+                    "texte": "TATACORA AFRIQUE"
+                },
+                {
+                    "type": "span",
+                    "texte": "Gîte Chez Noël"
+                },
+                {
+                    "type": "p",
+                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "champ",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "span",
+                    "texte": "Réseau"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.rh"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.rh"
+                },
+                {
+                    "type": "a",
+                    "texte": "Mon profil"
+                },
+                {
+                    "type": "span",
+                    "texte": "Paramètres du compte"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Votre profil n'a pas accès à cet écran"
+                },
+                {
+                    "type": "span",
+                    "texte": "Import & Export"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Votre profil n'a pas accès à cet écran"
+                },
+                {
+                    "type": "a",
+                    "texte": "Journal d'Audit"
+                },
+                {
+                    "type": "a",
+                    "texte": "Aide & À propos"
+                },
+                {
+                    "type": "a",
+                    "texte": "Contactez l'éditeur"
+                },
+                {
+                    "type": "button",
+                    "texte": "Déconnexion"
+                }
+            ],
+            "cloche": [
+                {
+                    "type": "info-bulle",
+                    "texte": "Masquer ou afficher le menu latéral (vue plein écran)"
+                },
+                {
+                    "type": "span",
+                    "texte": "TATACORA AFRIQUE"
+                },
+                {
+                    "type": "span",
+                    "texte": "Gîte Chez Noël"
+                },
+                {
+                    "type": "p",
+                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "champ",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "span",
+                    "texte": "Réseau"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "span",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "button",
+                    "texte": "Tout marquer comme lu"
+                },
+                {
+                    "type": "button",
+                    "texte": "Toutes"
+                },
+                {
+                    "type": "button",
+                    "texte": "Non lues"
+                },
+                {
+                    "type": "p",
+                    "texte": "Aucune notification."
+                },
+                {
+                    "type": "a",
+                    "texte": "Voir toutes les notifications →"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.rh"
+                }
+            ]
+        },
+        "super_admin": {
+            "barre": [
+                {
+                    "type": "info-bulle",
+                    "texte": "Masquer ou afficher le menu latéral (vue plein écran)"
+                },
+                {
+                    "type": "span",
+                    "texte": "TATACORA AFRIQUE"
+                },
+                {
+                    "type": "span",
+                    "texte": "Gîte Chez Noël"
+                },
+                {
+                    "type": "p",
+                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "champ",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "span",
+                    "texte": "Réseau"
+                },
+                {
+                    "type": "a",
+                    "texte": "Caisse fermée"
+                },
+                {
+                    "type": "a",
+                    "texte": "Vente"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.super_admin"
+                },
+                {
+                    "type": "p",
+                    "texte": "Super_admin"
+                }
+            ],
+            "menu-profil": [
+                {
+                    "type": "info-bulle",
+                    "texte": "Masquer ou afficher le menu latéral (vue plein écran)"
+                },
+                {
+                    "type": "span",
+                    "texte": "TATACORA AFRIQUE"
+                },
+                {
+                    "type": "span",
+                    "texte": "Gîte Chez Noël"
+                },
+                {
+                    "type": "p",
+                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "champ",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "span",
+                    "texte": "Réseau"
+                },
+                {
+                    "type": "a",
+                    "texte": "Caisse fermée"
+                },
+                {
+                    "type": "a",
+                    "texte": "Vente"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.super_admin"
+                },
+                {
+                    "type": "p",
+                    "texte": "Super_admin"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.super_admin"
+                },
+                {
+                    "type": "p",
+                    "texte": "Super_admin"
+                },
+                {
+                    "type": "a",
+                    "texte": "Mon profil"
+                },
+                {
+                    "type": "a",
+                    "texte": "Paramètres du compte"
+                },
+                {
+                    "type": "a",
+                    "texte": "Import & Export"
+                },
+                {
+                    "type": "a",
+                    "texte": "Journal d'Audit"
+                },
+                {
+                    "type": "a",
+                    "texte": "Aide & À propos"
+                },
+                {
+                    "type": "a",
+                    "texte": "Contactez l'éditeur"
+                },
+                {
+                    "type": "button",
+                    "texte": "Déconnexion"
+                }
+            ],
+            "cloche": [
+                {
+                    "type": "info-bulle",
+                    "texte": "Masquer ou afficher le menu latéral (vue plein écran)"
+                },
+                {
+                    "type": "span",
+                    "texte": "TATACORA AFRIQUE"
+                },
+                {
+                    "type": "span",
+                    "texte": "Gîte Chez Noël"
+                },
+                {
+                    "type": "p",
+                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "champ",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "span",
+                    "texte": "Réseau"
+                },
+                {
+                    "type": "a",
+                    "texte": "Caisse fermée"
+                },
+                {
+                    "type": "a",
+                    "texte": "Vente"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "span",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "button",
+                    "texte": "Tout marquer comme lu"
+                },
+                {
+                    "type": "button",
+                    "texte": "Toutes"
+                },
+                {
+                    "type": "button",
+                    "texte": "Non lues"
+                },
+                {
+                    "type": "p",
+                    "texte": "Aucune notification."
+                },
+                {
+                    "type": "a",
+                    "texte": "Voir toutes les notifications →"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.super_admin"
+                },
+                {
+                    "type": "p",
+                    "texte": "Super_admin"
+                }
+            ]
+        },
+        "vehicules": {
+            "barre": [
+                {
+                    "type": "info-bulle",
+                    "texte": "Masquer ou afficher le menu latéral (vue plein écran)"
+                },
+                {
+                    "type": "span",
+                    "texte": "TATACORA AFRIQUE"
+                },
+                {
+                    "type": "span",
+                    "texte": "Gîte Chez Noël"
+                },
+                {
+                    "type": "p",
+                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "champ",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "span",
+                    "texte": "Réseau"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.vehicules"
+                },
+                {
+                    "type": "p",
+                    "texte": "Vehicules"
+                }
+            ],
+            "menu-profil": [
+                {
+                    "type": "info-bulle",
+                    "texte": "Masquer ou afficher le menu latéral (vue plein écran)"
+                },
+                {
+                    "type": "span",
+                    "texte": "TATACORA AFRIQUE"
+                },
+                {
+                    "type": "span",
+                    "texte": "Gîte Chez Noël"
+                },
+                {
+                    "type": "p",
+                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "champ",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "span",
+                    "texte": "Réseau"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.vehicules"
+                },
+                {
+                    "type": "p",
+                    "texte": "Vehicules"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.vehicules"
+                },
+                {
+                    "type": "p",
+                    "texte": "Vehicules"
+                },
+                {
+                    "type": "a",
+                    "texte": "Mon profil"
+                },
+                {
+                    "type": "span",
+                    "texte": "Paramètres du compte"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Votre profil n'a pas accès à cet écran"
+                },
+                {
+                    "type": "span",
+                    "texte": "Import & Export"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Votre profil n'a pas accès à cet écran"
+                },
+                {
+                    "type": "a",
+                    "texte": "Journal d'Audit"
+                },
+                {
+                    "type": "a",
+                    "texte": "Aide & À propos"
+                },
+                {
+                    "type": "a",
+                    "texte": "Contactez l'éditeur"
+                },
+                {
+                    "type": "button",
+                    "texte": "Déconnexion"
+                }
+            ],
+            "cloche": [
+                {
+                    "type": "info-bulle",
+                    "texte": "Masquer ou afficher le menu latéral (vue plein écran)"
+                },
+                {
+                    "type": "span",
+                    "texte": "TATACORA AFRIQUE"
+                },
+                {
+                    "type": "span",
+                    "texte": "Gîte Chez Noël"
+                },
+                {
+                    "type": "p",
+                    "texte": "Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "champ",
+                    "texte": "Rechercher partout…"
+                },
+                {
+                    "type": "span",
+                    "texte": "Réseau"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "span",
+                    "texte": "Notifications"
+                },
+                {
+                    "type": "button",
+                    "texte": "Tout marquer comme lu"
+                },
+                {
+                    "type": "button",
+                    "texte": "Toutes"
+                },
+                {
+                    "type": "button",
+                    "texte": "Non lues"
+                },
+                {
+                    "type": "p",
+                    "texte": "Aucune notification."
+                },
+                {
+                    "type": "a",
+                    "texte": "Voir toutes les notifications →"
+                },
+                {
+                    "type": "p",
+                    "texte": "barre.vehicules"
+                },
+                {
+                    "type": "p",
+                    "texte": "Vehicules"
+                }
+            ]
+        }
+    }
+}

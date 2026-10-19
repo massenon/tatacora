@@ -6,12 +6,14 @@ namespace App\Domain\Facturation\Models;
 
 use App\Domain\Crm\Models\Client;
 use App\Domain\Facturation\Observers\FactureObserver;
+use App\Domain\Numerotation\Services\SequenceDocumentService;
 use App\Shared\Audit\Traits\Auditable;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * Facture normalisée MECeF (M2).
@@ -43,6 +45,8 @@ class Facture extends Model
 
     protected $fillable = [
         'id',
+        'numero',
+        'origine',
         'numero_mecef',
         'client_id',
         'date_emission',
@@ -80,6 +84,23 @@ class Facture extends Model
      * Pour savoir si une facture a une valeur fiscale, c'est
      * {@see estCertifiee()} qu'il faut appeler — jamais celle-ci.
      */
+    /**
+     * Lot F5c (décision PO du 17/10/2026) : le numéro continu `F-AAAA-NNNNN`,
+     * alloué à la création, à l'année de l'ÉMISSION — un seul point pour la
+     * PWA et la synchronisation. La création doit avoir lieu dans une
+     * transaction (le verrou de la séquence y est tenu).
+     */
+    protected static function booted(): void
+    {
+        static::creating(static function (Facture $facture): void {
+            $facture->numero ??= app(SequenceDocumentService::class)->suivant(
+                'factures',
+                'F',
+                $facture->date_emission === null ? null : (int) Carbon::parse($facture->date_emission)->format('Y'),
+            );
+        });
+    }
+
     public function estFigee(): bool
     {
         return $this->statut === 'certifiee';

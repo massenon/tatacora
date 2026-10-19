@@ -2,6 +2,9 @@ import 'package:drift/drift.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/format/cle_comparaison.dart';
+import '../../synchronisation/data/operations_sync_dao.dart';
+import '../../synchronisation/domain/charges_synchronisation.dart';
+import '../../synchronisation/domain/operation_sync.dart';
 import '../domain/entities/article_vendable.dart';
 import '../domain/entities/reference_catalogue.dart';
 import '../domain/repositories/panier_repository.dart';
@@ -164,8 +167,43 @@ class CatalogueDao extends DatabaseAccessor<AppDatabase>
   ///
   /// L'identifiant fait foi : réenregistrer la même boisson la remplace, il
   /// n'en naît jamais une seconde.
-  Future<void> enregistrerBoisson(BoissonDistante boisson) =>
-      _ecrireBoisson(boisson);
+  ///
+  /// Depuis le lot F1 (15/10/2026), la saisie part aussi dans la file d'envoi,
+  /// dans la MÊME transaction : `creation` (document complet) si la boisson
+  /// n'existait pas, `modification` (les seuls champs changés) sinon.
+  /// [alignerCatalogue] n'enfile RIEN : ce qu'il écrit vient du serveur (ou du
+  /// jeu de démonstration), le renvoyer serait une boucle.
+  Future<void> enregistrerBoisson(BoissonDistante boisson) {
+    return transaction(() async {
+      final avant = await (select(
+        attachedDatabase.cartesBoissonLocal,
+      )..where((c) => c.id.equals(boisson.id))).getSingleOrNull();
+      await _ecrireBoisson(boisson);
+      final apres = await (select(
+        attachedDatabase.cartesBoissonLocal,
+      )..where((c) => c.id.equals(boisson.id))).getSingle();
+      await OperationsSyncDao(attachedDatabase).enfiler(
+        table: TableSynchronisee.cartesBoisson,
+        entiteId: boisson.id,
+        type: avant == null
+            ? TypeOperationSync.creation
+            : TypeOperationSync.modification,
+        payload: avant == null
+            ? _chargeBoisson(apres)
+            : champsModifies(_chargeBoisson(avant), _chargeBoisson(apres)),
+      );
+    });
+  }
+
+  /// Le document `cartes_boisson` du serveur, depuis la ligne locale (la
+  /// chaîne vide « sans lien de stock » redevient `null`).
+  static Map<String, Object?> _chargeBoisson(CartesBoissonLocalData b) =>
+      chargeBoisson(
+        libelle: b.libelle,
+        articleId: b.articleId.isEmpty ? null : b.articleId,
+        categorie: b.categorie,
+        prixVenteFrancs: b.prixVente.round(),
+      );
 
   /// Les boissons du catalogue local, triées par libellé.
   ///

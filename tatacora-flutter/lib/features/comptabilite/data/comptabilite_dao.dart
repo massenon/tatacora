@@ -76,6 +76,17 @@ class ComptabiliteDao extends DatabaseAccessor<AppDatabase> {
         : CentreDeCout(id: r.id, libelle: r.libelle, type: r.type);
   }
 
+  /// Le centre d'identifiant [id], ou `null` (lot F1 : la dépense relit
+  /// celui de sa pièce pour l'envoyer au serveur).
+  Future<CentreDeCout?> centreParId(String id) async {
+    final r = await (select(
+      attachedDatabase.centresCoutLocal,
+    )..where((c) => c.id.equals(id))).getSingleOrNull();
+    return r == null
+        ? null
+        : CentreDeCout(id: r.id, libelle: r.libelle, type: r.type);
+  }
+
   Future<CompteDuPlan?> compteParNumero(String numero) async {
     final r = await (select(
       attachedDatabase.planComptableLocal,
@@ -210,6 +221,33 @@ class ComptabiliteDao extends DatabaseAccessor<AppDatabase> {
   /// pièce (PA-52), donc `EncaissementFactureService::annuler` retrouve la pièce
   /// par son libellé « Encaissement `n°` — `id du paiement` », unique par
   /// l'identifiant du paiement. Répliqué tel quel.
+  /// Les lignes dont le libellé commence par [prefixe] et finit par
+  /// [suffixe] — une pièce retrouvée par l'UUID de son document quand le
+  /// numéro cité au libellé a changé depuis (lot F5c). Les deux bornes sont
+  /// comparées EXACTEMENT (aucun joker) : un `%` ou un `_` du texte ne
+  /// s'interprète pas.
+  Future<List<EcritureComptable>> lignesParSuffixeLibelle(
+    String suffixe, {
+    required String prefixe,
+  }) async => [
+    for (final r
+        in await (select(attachedDatabase.ecrituresLocal)
+              ..where(
+                (e) =>
+                    e.libelle.substr(1, prefixe.length).equals(prefixe) &
+                    CustomExpression<String>(
+                      'substr(libelle, -${suffixe.length})',
+                    ).equals(suffixe),
+              )
+              ..orderBy([
+                (e) => OrderingTerm(
+                  expression: const CustomExpression<int>('rowid'),
+                ),
+              ]))
+            .get())
+      _ecriture(r),
+  ];
+
   Future<List<EcritureComptable>> lignesParLibelle(String libelle) async => [
     for (final r
         in await (select(attachedDatabase.ecrituresLocal)

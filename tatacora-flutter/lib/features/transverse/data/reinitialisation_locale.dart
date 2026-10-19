@@ -24,8 +24,9 @@
 /// `plats_local`, `tables_local`), la carte du bar (`cartes_boisson_local`),
 /// `vehicules_local`, `circuits_local`, le paramétrage comptable
 /// (`exercices_local`, `journaux_local`, `centres_cout_local`,
-/// `plan_comptable_local`), `services_rh_local` et
-/// `modeles_notification_local`.
+/// `plan_comptable_local`), `services_rh_local`,
+/// `modeles_notification_local` et la boîte d'envoi à l'éditeur
+/// (`messages_editeur_local`, comme `messages_editeur` au serveur).
 ///
 /// ## Un geste d'ADMINISTRATION, hors des gardes RG-11 — délibérément
 ///
@@ -55,6 +56,7 @@ import '../../../core/database/app_database.dart';
 import '../../../core/database/declencheurs_comptables.dart';
 import '../../../core/rbac/regle_archivage.dart';
 import '../../parametres/data/parametres_dao.dart';
+import '../../parametres/data/parametres_depot_local.dart';
 import '../../parametres/domain/options_systeme.dart';
 
 /// Les tables que la réinitialisation NE TOUCHE PAS — voir l'entête.
@@ -94,6 +96,9 @@ const Set<String> tablesPreserveesLocales = {
   // M13 / M12 — référentiels sans donnée personnelle.
   'services_rh_local',
   'modeles_notification_local',
+  // La boîte d'envoi à l'éditeur (v25) — `messages_editeur` est GARDÉE au
+  // serveur (`TABLES_PRESERVEES`) : un message en attente ne se perd pas.
+  'messages_editeur_local',
 };
 
 /// Les quatre triggers RG-11, retirés puis recréés dans la transaction.
@@ -314,12 +319,24 @@ class ReinitialisationLocale {
         "WHERE statut = 'loue'",
       );
       await creerDeclencheursComptables(_base);
+      // Les vingt paramètres d'établissement (Lot J2) : leurs tables sont
+      // GARDÉES, mais un poste « comme neuf » doit les avoir tous — une clé
+      // vidée depuis est reposée, une valeur saisie n'est jamais réécrite.
+      // ÉCART nommé avec le serveur, qui garde `parametres_systeme` sans
+      // rejouer son seeder.
+      await ParametresDepotLocal(_base).installerParametresInitiaux();
       return total;
     });
 
     // Les écrans à l'écoute des tables vidées ou remises à jour se relisent.
     _base.notifyUpdates({
-      for (final t in [...ordre, 'unites_hebergement_local', 'vehicules_local'])
+      for (final t in [
+        ...ordre,
+        'unites_hebergement_local',
+        'vehicules_local',
+        'parametres_systeme_local',
+        'taux_paie_local',
+      ])
         TableUpdate(t),
     });
 

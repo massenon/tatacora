@@ -1,0 +1,183 @@
+{
+    "_lisez-moi": "PRODUIT par ExtraireStructureBladeTest, jamais ecrit a la main. Chaque variante (onglet) : les textes VISIBLES de <main>, dans l'ordre du document.",
+    "vue": "achats/achats",
+    "jeu": "parc",
+    "onglets": {
+        "fournisseurs": [
+            {
+                "type": "h1",
+                "texte": "Fournisseurs & Achats"
+            },
+            {
+                "type": "p",
+                "texte": "Référentiel fournisseurs, commandes d'achat et rapprochement à trois voies"
+            },
+            {
+                "type": "onglet",
+                "texte": "Fournisseurs",
+                "cle": "fournisseurs"
+            },
+            {
+                "type": "onglet",
+                "texte": "Commandes d'achat",
+                "cle": "commandes"
+            },
+            {
+                "type": "champ",
+                "texte": "Rechercher un fournisseur..."
+            },
+            {
+                "type": "option",
+                "texte": "Toutes les évaluations"
+            },
+            {
+                "type": "option",
+                "texte": "Excellent"
+            },
+            {
+                "type": "option",
+                "texte": "Bon"
+            },
+            {
+                "type": "option",
+                "texte": "Moyen"
+            },
+            {
+                "type": "option",
+                "texte": "À revoir"
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "span",
+                "texte": "Ajouter fournisseur"
+            },
+            {
+                "type": "th",
+                "texte": "Fournisseur"
+            },
+            {
+                "type": "th",
+                "texte": "Contact"
+            },
+            {
+                "type": "th",
+                "texte": "Catégorie fournie"
+            },
+            {
+                "type": "th",
+                "texte": "Conditions"
+            },
+            {
+                "type": "th",
+                "texte": "Évaluation"
+            },
+            {
+                "type": "th",
+                "texte": "Actions"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun résultat"
+            },
+            {
+                "type": "p",
+                "texte": "Essayez de modifier votre recherche ou vos filtres."
+            },
+            {
+                "type": "p",
+                "texte": "Affichage de - sur"
+            }
+        ],
+        "commandes": [
+            {
+                "type": "h1",
+                "texte": "Fournisseurs & Achats"
+            },
+            {
+                "type": "p",
+                "texte": "Référentiel fournisseurs, commandes d'achat et rapprochement à trois voies"
+            },
+            {
+                "type": "onglet",
+                "texte": "Fournisseurs",
+                "cle": "fournisseurs"
+            },
+            {
+                "type": "onglet",
+                "texte": "Commandes d'achat",
+                "cle": "commandes"
+            },
+            {
+                "type": "champ",
+                "texte": "Rechercher une commande (fournisseur)..."
+            },
+            {
+                "type": "option",
+                "texte": "Tous les statuts"
+            },
+            {
+                "type": "option",
+                "texte": "Brouillon"
+            },
+            {
+                "type": "option",
+                "texte": "Envoyée"
+            },
+            {
+                "type": "option",
+                "texte": "Réceptionnée partiellement"
+            },
+            {
+                "type": "option",
+                "texte": "Réceptionnée"
+            },
+            {
+                "type": "option",
+                "texte": "Clôturée"
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "span",
+                "texte": "Ajouter commande d'achat"
+            },
+            {
+                "type": "th",
+                "texte": "Fournisseur"
+            },
+            {
+                "type": "th",
+                "texte": "Date de commande"
+            },
+            {
+                "type": "th",
+                "texte": "Montant estimé"
+            },
+            {
+                "type": "th",
+                "texte": "Statut"
+            },
+            {
+                "type": "th",
+                "texte": "Actions"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun résultat"
+            },
+            {
+                "type": "p",
+                "texte": "Essayez de modifier votre recherche ou vos filtres."
+            },
+            {
+                "type": "p",
+                "texte": "Affichage de - sur"
+            }
+        ]
+    }
+}

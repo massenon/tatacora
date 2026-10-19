@@ -1,10 +1,13 @@
 import 'dart:convert';
 
+import '../../../core/format/formats.dart';
+import '../../../core/impression/etat_tabulaire_a4.dart';
+
 import '../domain/entities/etat_du_jour.dart';
 import '../domain/entities/unite_hebergement.dart';
 
 /// L'export du **parc d'hébergement** — le bouton d'export du plan
-/// (`hebergement.blade.php` l.185-188), tableur seulement.
+/// (`hebergement.blade.php` l.185-188), tableur (CSV) et PDF A4.
 ///
 /// ⚠ Le libellé du bouton n'est volontairement pas recopié ici : ce fichier est
 /// importé par `providers_hebergement.dart`, donc atteint par d'autres écrans,
@@ -30,14 +33,14 @@ import '../domain/entities/unite_hebergement.dart';
 /// celle de l'écran sur le même jeu de lignes. Le fichier DIT à quelle date il
 /// vaut — un état du jour relu une semaine plus tard n'est plus celui-là.
 ///
-/// ## « Excel » est rendu en CSV, et le PDF n'est pas produit
+/// ## « Excel » est rendu en CSV ; le PDF est l'état A4 des mêmes colonnes
 ///
 /// Convention RG-19 : BOM UTF-8 et point-virgule, ce qu'attend un Excel en
-/// configuration française ; aucune bibliothèque XLSX n'est embarquée. Le choix
-/// « PDF Officiel A4 » reste offert par la modale de la vue et répond par un
-/// message : aucun A4 du parc n'existe (en-tête unique et visas, arbitrage
-/// PA-192). Le tarif part en nombre BRUT : un tableur ne sait pas additionner
-/// « 28 000 FCFA », l'unité est dite une fois dans l'en-tête.
+/// configuration française ; aucune bibliothèque XLSX n'est embarquée. Le tarif
+/// part en nombre BRUT : un tableur ne sait pas additionner « 28 000 FCFA »,
+/// l'unité est dite une fois dans l'en-tête. Le « PDF Officiel A4 » (directive
+/// du PO du 14/10/2026) reprend colonnes, lignes, portée et mentions, en
+/// portrait (quatre colonnes), tarif en FCFA à droite ([etatA4]).
 final class EtatParc {
   const EtatParc({
     required this.unites,
@@ -115,23 +118,41 @@ final class EtatParc {
     tampon.writeln(entetes.map(_e).join(';'));
 
     for (final unite in unites) {
-      tampon.writeln(
-        [
-          unite.numero,
-          unite.categorieLibelle,
-          // Nombre brut : ni séparateur de milliers, ni unité.
-          unite.tarifBase.toString(),
-          // Une unité sans état calculé n'est pas « Libre » : elle porte le
-          // tiret, jamais un statut plausible.
-          etats[unite.id]?.libelle ?? '—',
-        ].map(_e).join(';'),
-      );
+      tampon.writeln(_cellules(unite, papier: false).map(_e).join(';'));
     }
 
     return tampon.toString();
   }
 
   List<int> csvOctets() => utf8.encode(csv());
+
+  /// Les cellules d'une unité, les mêmes au tableur et au papier ; seul le
+  /// tarif change de forme (nombre brut au CSV, FCFA au PDF).
+  List<String> _cellules(UniteHebergement unite, {required bool papier}) => [
+    unite.numero,
+    unite.categorieLibelle,
+    papier ? formaterFcfa(unite.tarifBase) : unite.tarifBase.toString(),
+    // Une unité sans état calculé n'est pas « Libre » : elle porte le
+    // tiret, jamais un statut plausible.
+    etats[unite.id]?.libelle ?? '—',
+  ];
+
+  /// Le « PDF Officiel A4 Imprimable » du parc affiché (portrait).
+  EtatTabulaireA4 etatA4() => EtatTabulaireA4(
+    titre: titre,
+    portee: 'Filtre appliqué : $portee',
+    mentions: [
+      for (final m in mentions) m.replaceFirst('Ce fichier', 'Ce document'),
+    ],
+    colonnes: [
+      ColonneEtat(entetes[0]),
+      ColonneEtat(entetes[1]),
+      ColonneEtat.nombre(entetes[2]),
+      ColonneEtat(entetes[3]),
+    ],
+    lignes: [for (final u in unites) _cellules(u, papier: true)],
+    resume: '${unites.length} unité(s)',
+  );
 
   static String _date(DateTime d) =>
       '${d.day.toString().padLeft(2, '0')}/'

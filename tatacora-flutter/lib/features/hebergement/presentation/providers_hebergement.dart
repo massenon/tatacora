@@ -1,14 +1,13 @@
 library;
 
-import 'dart:io';
-
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/di/providers.dart';
+import '../../../core/fichiers/enregistrement_export.dart';
+import '../../../core/impression/entete_parametree.dart';
+import '../../../core/impression/export_etat_a4.dart';
 import '../../../core/rbac/garde_acces.dart';
 import '../../comptabilite/presentation/providers_comptabilite.dart';
 import '../../crm/data/client_dao.dart';
@@ -151,15 +150,23 @@ final rayonsServicesProvider = FutureProvider.autoDispose
 /// panneau deviendrait intestable. Surtout, **il doit exister un endroit unique
 /// où l'impression est déclenchée** — un `Printing.layoutPdf` recopié dans
 /// chaque écran serait un chemin de plus à ne jamais exécuter (PA-63).
-final imprimerEtatHistoriqueProvider =
-    Provider<Future<void> Function(EtatHistorique)>(
-      (ref) => (etat) async {
-        await Printing.layoutPdf(
-          onLayout: (_) => etat.pdf(),
-          name: EtatHistorique.titre,
-          format: PdfPageFormat.a4.landscape,
-        );
-      },
+///
+/// « Générer & Télécharger », format PDF : le document passe par la fenêtre
+/// « Enregistrer sous » (14/10/2026). Rend le CHEMIN écrit, `null` : annulé.
+final exporterEtatHistoriquePdfProvider =
+    Provider<Future<String?> Function(EtatHistorique)>(
+      (ref) =>
+          (etat) async => ref
+              .read(enregistrementExportProvider)
+              .exporter(
+                base: 'historique_reservations',
+                type: TypeFichierEnregistre.pdf,
+                octets: await etat
+                    .avecEntete(
+                      await ref.read(lireEnteteEtablissementProvider)(),
+                    )
+                    .pdf(),
+              ),
     );
 
 /// L'impression de la **confirmation de réservation**, exposée comme action.
@@ -171,43 +178,35 @@ final imprimerEtatHistoriqueProvider =
 final imprimerConfirmationReservationProvider =
     Provider<Future<void> Function(ConfirmationReservation)>(
       (ref) => (document) async {
+        final papier = document.avecEntete(
+          await ref.read(lireEnteteEtablissementProvider)(),
+        );
         await Printing.layoutPdf(
-          onLayout: (_) => document.pdf(),
+          onLayout: (_) => papier.pdf(),
           name: 'Confirmation ${document.reservation.reference}',
           format: PdfPageFormat.a4,
         );
       },
     );
 
-/// L'export tableur — rend le **chemin** du fichier écrit.
+/// L'export tableur — rend le **chemin** du fichier écrit, `null` : annulé.
 ///
-/// Le chemin est rendu pour être **affiché**. Un export silencieux est un
-/// export que personne ne retrouve : l'utilisateur clique, rien ne se passe à
-/// l'écran, et il recommence.
+/// Le fichier est enregistré par la fenêtre « Enregistrer sous » (14/10/2026)
+/// et son nom est DIT par le toast commun. Un export silencieux est un export
+/// que personne ne retrouve.
 ///
 /// ⚠ Fichier **CSV**, pas XLSX : l'écart avec le maître est expliqué en tête
 /// de `impression/etat_historique.dart`.
 final exporterEtatHistoriqueProvider =
-    Provider<Future<String> Function(EtatHistorique)>(
-      (ref) => (etat) async {
-        final dossier = await getApplicationDocumentsDirectory();
-        // Un horodatage dans le nom : deux exports du même jour ne doivent pas
-        // s'écraser l'un l'autre, surtout quand ils portent des filtres
-        // différents.
-        final maintenant = DateTime.now();
-        final horodatage =
-            '${maintenant.year}'
-            '${maintenant.month.toString().padLeft(2, '0')}'
-            '${maintenant.day.toString().padLeft(2, '0')}-'
-            '${maintenant.hour.toString().padLeft(2, '0')}'
-            '${maintenant.minute.toString().padLeft(2, '0')}'
-            '${maintenant.second.toString().padLeft(2, '0')}';
-        final fichier = File(
-          p.join(dossier.path, 'historique-reservations-$horodatage.csv'),
-        );
-        await fichier.writeAsBytes(etat.csvOctets());
-        return fichier.path;
-      },
+    Provider<Future<String?> Function(EtatHistorique)>(
+      (ref) =>
+          (etat) => ref
+              .read(enregistrementExportProvider)
+              .exporter(
+                base: 'historique_reservations',
+                type: TypeFichierEnregistre.csv,
+                octets: etat.csvOctets(),
+              ),
     );
 
 final consulterDisponibilitesProvider = Provider<ConsulterDisponibilites>(
@@ -465,29 +464,29 @@ final parcPagineProvider =
       );
     });
 
-/// L'export tableur du parc — rend le **chemin** du fichier écrit.
+/// L'export tableur du parc — rend le **chemin** du fichier écrit, `null` :
+/// annulé dans la fenêtre « Enregistrer sous » (14/10/2026).
 ///
 /// Action injectable, comme `exporterDepensesProvider` : un test de widget n'a
 /// pas de greffon natif, et il doit exister un seul endroit où ce fichier est
-/// écrit. Un export silencieux est un export que personne ne retrouve — l'écran
-/// affiche le chemin rendu ici.
-final exporterParcProvider = Provider<Future<String> Function(EtatParc)>(
-  (ref) => (etat) async {
-    final dossier = await getApplicationDocumentsDirectory();
-    final m = DateTime.now();
-    final horodatage =
-        '${m.year}'
-        '${m.month.toString().padLeft(2, '0')}'
-        '${m.day.toString().padLeft(2, '0')}-'
-        '${m.hour.toString().padLeft(2, '0')}'
-        '${m.minute.toString().padLeft(2, '0')}'
-        '${m.second.toString().padLeft(2, '0')}';
-    final fichier = File(
-      p.join(dossier.path, '${EtatParc.prefixeFichier}-$horodatage.csv'),
-    );
-    await fichier.writeAsBytes(etat.csvOctets());
-    return fichier.path;
-  },
+/// écrit.
+final exporterParcProvider = Provider<Future<String?> Function(EtatParc)>(
+  (ref) =>
+      (etat) => ref
+          .read(enregistrementExportProvider)
+          .exporter(
+            base: EtatParc.prefixeFichier,
+            type: TypeFichierEnregistre.csv,
+            octets: etat.csvOctets(),
+          ),
+);
+
+/// L'export « PDF Officiel A4 Imprimable » du parc affiché — mêmes colonnes,
+/// mêmes lignes que le CSV, en-tête lu des paramètres.
+final exporterParcPdfProvider = Provider<Future<String?> Function(EtatParc)>(
+  (ref) =>
+      (etat) =>
+          enregistrerEtatA4(ref, etat.etatA4(), base: EtatParc.prefixeFichier),
 );
 
 /// Toutes les réservations, de la plus récente à la plus ancienne.

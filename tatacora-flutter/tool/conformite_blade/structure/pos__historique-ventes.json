@@ -1,0 +1,137 @@
+{
+    "_lisez-moi": "PRODUIT par ExtraireStructureBladeTest, jamais ecrit a la main. Chaque variante (onglet) : les textes VISIBLES de <main>, dans l'ordre du document.",
+    "vue": "pos/historique-ventes",
+    "jeu": "parc",
+    "onglets": {
+        "principal": [
+            {
+                "type": "h1",
+                "texte": "Historique des ventes"
+            },
+            {
+                "type": "p",
+                "texte": "Le journal des , pas des factures. Une vente peut exister sans facture si l’émission a échoué ; une vente annulée reste une vente, là où une facture annulée produit un avoir. Ici on retrouve un , pas un ."
+            },
+            {
+                "type": "span",
+                "texte": "V-2026-00016"
+            },
+            {
+                "type": "span",
+                "texte": "F-2026-00042"
+            },
+            {
+                "type": "span",
+                "texte": "Indicateurs du journal"
+            },
+            {
+                "type": "champ",
+                "texte": "N° de vente, table, chambre…"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les postes"
+            },
+            {
+                "type": "option",
+                "texte": "Toutes les activités"
+            },
+            {
+                "type": "option",
+                "texte": "Hébergement"
+            },
+            {
+                "type": "option",
+                "texte": "Restaurant"
+            },
+            {
+                "type": "option",
+                "texte": "Bar"
+            },
+            {
+                "type": "option",
+                "texte": "Véhicules"
+            },
+            {
+                "type": "option",
+                "texte": "Tourisme"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les règlements"
+            },
+            {
+                "type": "option",
+                "texte": "Espèces"
+            },
+            {
+                "type": "option",
+                "texte": "Mobile Money"
+            },
+            {
+                "type": "option",
+                "texte": "Carte bancaire"
+            },
+            {
+                "type": "option",
+                "texte": "Virement"
+            },
+            {
+                "type": "option",
+                "texte": "Porté sur la note de chambre"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les statuts"
+            },
+            {
+                "type": "option",
+                "texte": "Validées"
+            },
+            {
+                "type": "option",
+                "texte": "Annulées"
+            },
+            {
+                "type": "button",
+                "texte": "Exporter"
+            },
+            {
+                "type": "p",
+                "texte": "Filtre appliqué : Aucun filtre — tout le registre"
+            },
+            {
+                "type": "th",
+                "texte": "Date"
+            },
+            {
+                "type": "th",
+                "texte": "Poste"
+            },
+            {
+                "type": "th",
+                "texte": "Activités"
+            },
+            {
+                "type": "th",
+                "texte": "Règlement"
+            },
+            {
+                "type": "th",
+                "texte": "Montant"
+            },
+            {
+                "type": "th",
+                "texte": "Statut"
+            },
+            {
+                "type": "th",
+                "texte": "Actions"
+            },
+            {
+                "type": "td",
+                "texte": "Aucune vente ne correspond à ces critères."
+            }
+        ]
+    }
+}

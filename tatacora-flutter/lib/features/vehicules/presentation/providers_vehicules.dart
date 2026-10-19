@@ -17,13 +17,11 @@
 /// rien n'emprunte.
 library;
 
-import 'dart:io';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 import '../../../core/di/providers.dart';
+import '../../../core/fichiers/enregistrement_export.dart';
+import '../../../core/impression/export_etat_a4.dart';
 import '../data/vehicule_dao.dart';
 import '../domain/entities/contrat_location.dart';
 import '../domain/entities/vehicule.dart';
@@ -217,37 +215,26 @@ void rechargerVehicules(WidgetRef ref) {
 /* Les exports                                                             */
 /* ====================================================================== */
 
-/// Écrit le CSV de l'onglet courant et rend son chemin.
+/// Enregistre le CSV de l'onglet courant par la fenêtre « Enregistrer sous »
+/// (14/10/2026) et rend son chemin, `null` : annulé.
 ///
 /// Injecté comme **action**, jamais appelé depuis un widget.
 final exporterVehiculesProvider =
-    Provider<Future<String> Function(EtatVehicules)>(
+    Provider<Future<String?> Function(EtatVehicules)>(
       (ref) =>
-          (etat) => ecrireCsvVehicules(
-            'vehicules',
-            etat.csvOctets(),
-            dossier: getApplicationDocumentsDirectory,
-          ),
+          (etat) => ref
+              .read(enregistrementExportProvider)
+              .exporter(
+                base: 'vehicules',
+                type: TypeFichierEnregistre.csv,
+                octets: etat.csvOctets(),
+              ),
     );
 
-/// Écrit [octets] dans `<prefixe>-<horodatage>.csv` du dossier rendu par
-/// [dossier] et rend le chemin. Le dossier est injectable : un test écrit dans
-/// un dossier temporaire au lieu du dossier Documents de la machine.
-Future<String> ecrireCsvVehicules(
-  String prefixe,
-  List<int> octets, {
-  required Future<Directory> Function() dossier,
-}) async {
-  final dossierCible = await dossier();
-  final m = DateTime.now();
-  final horodatage =
-      '${m.year}'
-      '${m.month.toString().padLeft(2, '0')}'
-      '${m.day.toString().padLeft(2, '0')}-'
-      '${m.hour.toString().padLeft(2, '0')}'
-      '${m.minute.toString().padLeft(2, '0')}'
-      '${m.second.toString().padLeft(2, '0')}';
-  final fichier = File(p.join(dossierCible.path, '$prefixe-$horodatage.csv'));
-  await fichier.writeAsBytes(octets);
-  return fichier.path;
-}
+/// L'export « PDF Officiel A4 Imprimable » de l'onglet affiché — mêmes
+/// colonnes, mêmes lignes que le CSV, en-tête lu des paramètres.
+final exporterVehiculesPdfProvider =
+    Provider<Future<String?> Function(EtatVehicules)>(
+      (ref) =>
+          (etat) => enregistrerEtatA4(ref, etat.etatA4(), base: 'vehicules'),
+    );
