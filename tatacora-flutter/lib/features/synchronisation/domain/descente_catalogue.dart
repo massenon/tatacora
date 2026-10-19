@@ -332,6 +332,12 @@ enum EtatDescente {
   /// 401 / 403 : refus consigné, plus rien avant réappairage.
   refusee('Catalogue refusé par le serveur — réappairer le poste.'),
 
+  /// 409 `generation_perimee` : le serveur a été réinitialisé (19/10/2026).
+  serveurReinitialise(
+    'Catalogue refusé : le serveur a été réinitialisé — réinitialiser ce '
+    'poste.',
+  ),
+
   /// Réponse illisible ou 4xx inattendu.
   alerte('Descente du catalogue interrompue : réponse inattendue du serveur.');
 

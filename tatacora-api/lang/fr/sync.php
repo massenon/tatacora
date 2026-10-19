@@ -146,4 +146,9 @@ return [
         'revocation_soi_meme' => 'Ce poste ne révoque pas son propre appairage : utilisez « Dissocier » '
             . '(Paramètres → Synchronisation).',
     ],
+
+    // Génération des données (19/10/2026).
+    'generation_perimee' => 'Le serveur a été réinitialisé le :date : ce poste travaille avec les données d\'avant. '
+        . 'Plus rien ne part ni n\'arrive tant qu\'il n\'a pas été réinitialisé à son tour '
+        . '(Import & Export → Réinitialiser comme neuf).',
 ];

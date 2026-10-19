@@ -5,7 +5,12 @@
 /// ## Mêmes règles que le serveur
 ///
 /// * **Environnement** : refus en build `production`
-///   (`Environnement.actuel.estProduction`), comme `app()->isProduction()`.
+///   (`Environnement.actuel.estProduction`), comme `app()->isProduction()` —
+///   SAUF quand ce poste a constaté que le SERVEUR a été réinitialisé
+///   (19/10/2026, essais en production : génération des données, 409
+///   `generation_perimee`). Le poste ne synchronise plus : sa remise à neuf
+///   est alors le seul chemin, et la bascule locale n'est pas exigée (le
+///   geste a été autorisé au serveur). Le rôle et « VIDER » le restent.
 /// * **Bascule** `reinitialisation_seeders` (`parametres_systeme_local`), lue
 ///   par `OptionsSysteme.actif` : fermée par défaut, relue AU MOMENT D'AGIR.
 /// * **Rôle** : administrateur ou super_admin (`rolesAdministration`).
@@ -58,6 +63,7 @@ import '../../../core/rbac/regle_archivage.dart';
 import '../../parametres/data/parametres_dao.dart';
 import '../../parametres/data/parametres_depot_local.dart';
 import '../../parametres/domain/options_systeme.dart';
+import '../../synchronisation/data/descente_catalogue_dao.dart';
 
 /// Les tables que la réinitialisation NE TOUCHE PAS — voir l'entête.
 const Set<String> tablesPreserveesLocales = {
@@ -154,6 +160,15 @@ class ReinitialisationLocale {
 
   /// `estAutorisee()` du serveur.
   bool get estAutorisee => !_environnement.estProduction;
+
+  /// Le serveur a été réinitialisé depuis la dernière synchronisation de ce
+  /// poste (19/10/2026) — la date, ou `null`.
+  Future<DateTime?> reinitialisationServeur() =>
+      DescenteCatalogueDao(_base).reinitialisationServeur();
+
+  /// Le serveur annonce la phase d'essais en production (19/10/2026).
+  Future<bool> phaseEssaisServeur() =>
+      DescenteCatalogueDao(_base).phaseEssaisServeur();
 
   /// La bascule d'activation, relue depuis la base — le LECTEUR de la clé
   /// `reinitialisation_seeders` sur ce poste.
@@ -256,10 +271,11 @@ class ReinitialisationLocale {
   /// Vide la base comme neuve. Lève [ReinitialisationRefusee] — et n'écrit
   /// rien — sur tout refus.
   Future<BilanReinitialisation> executer({required String? role}) async {
-    if (!estAutorisee) {
+    final serveurReinitialise = await reinitialisationServeur() != null;
+    if (!estAutorisee && !serveurReinitialise) {
       throw const ReinitialisationRefusee(RefusReinitialisation.production);
     }
-    if (!await estOuverte()) {
+    if (!serveurReinitialise && !await estOuverte()) {
       throw const ReinitialisationRefusee(RefusReinitialisation.bascule);
     }
     if (!estPermisA(role)) {

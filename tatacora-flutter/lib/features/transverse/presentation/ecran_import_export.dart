@@ -17,6 +17,7 @@ import '../../../core/theme/mesures_transverses.dart';
 import '../../../shared_widgets/bouton_standard.dart';
 import '../../../shared_widgets/cadre_tirete.dart';
 import '../../../shared_widgets/toast_export.dart';
+import '../../synchronisation/domain/reinitialisation_serveur.dart';
 import '../data/importeurs_locaux.dart';
 import '../data/reinitialisation_locale.dart';
 import '../data/sauvegarde_locale.dart';
@@ -58,7 +59,9 @@ import 'widgets/briques_transverses.dart';
 ///   est rendu, suivi d'une ligne « Sur ce poste ».
 /// - **Réinitialiser** : « Réinitialiser comme neuf » (demande du PO du
 ///   14/10/2026, lot E), réplique LOCALE du serveur
-///   (`data/reinitialisation_locale.dart`) : refus en build production,
+///   (`data/reinitialisation_locale.dart`) : refus en build production
+///   (sauf serveur réinitialisé depuis, 19/10/2026 — bandeau rouge ; et la
+///   phase d'essais annoncée par le serveur — bandeau ambre, phrase de la vue),
 ///   bascule `reinitialisation_seeders` de Paramètres, rôles d'administration,
 ///   saisie du mot « VIDER », une transaction. Les trois états de la vue
 ///   (production, verrouillé, ouvert) et sa modale sont rendus. Écart NOMMÉ :
@@ -276,6 +279,10 @@ abstract final class TextesImportExport {
   static const String annuler = 'Annuler';
   static const String seedersPhraseInvalide =
       'La phrase tapée ne correspond pas à $seedersPhraseConfirmation.';
+  // Phase d'essais en production (19/10/2026) — la phrase de la vue,
+  // affichée quand le SERVEUR l'annonce (en-tête de synchronisation).
+  static const String resetPhaseEssais =
+      "Phase d'essais en Production : la réinitialisation reste possible pour effacer les essais avant la mise en service. Chaque poste devra ensuite être réinitialisé à son tour. Retirez TATACORA_PHASE_ESSAIS du fichier .env le jour de la mise en service réelle.";
   static const String resetEnvironnementProduction =
       "Cet écran s'exécute en Production : la réinitialisation est désactivée, quel que soit votre rôle — c'est l'environnement qui refuse, pas un droit qui manque.";
 
@@ -1883,6 +1890,11 @@ typedef _EtatSeeders = ({
   bool ouverte,
   List<String> effacables,
   List<String> preservees,
+  // Le serveur a été réinitialisé (19/10/2026) : la remise à neuf de CE
+  // poste s'ouvre, même en build production et bascule fermée.
+  DateTime? serveurReinitialiseLe,
+  // Le serveur annonce la phase d'essais en production.
+  bool phaseEssais,
 });
 
 class _PanneauSeedersState extends ConsumerState<_PanneauSeeders> {
@@ -1908,23 +1920,58 @@ class _PanneauSeedersState extends ConsumerState<_PanneauSeeders> {
   // après chaque réinitialisation, jamais gardées d'une visite à l'autre.
   Future<_EtatSeeders> _lire() async {
     final moteur = _moteur;
+    final serveurReinitialiseLe = await moteur.reinitialisationServeur();
     return (
-      ouverte: await moteur.estOuverte(),
+      ouverte: serveurReinitialiseLe != null || await moteur.estOuverte(),
       effacables: await moteur.tablesEffacables(),
       preservees: await moteur.tablesPreservees(),
+      serveurReinitialiseLe: serveurReinitialiseLe,
+      phaseEssais: await moteur.phaseEssaisServeur(),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final autorisee = _moteur.estAutorisee;
     return FutureBuilder<_EtatSeeders>(
       future: _etat,
       builder: (context, instantane) {
         final etat = instantane.data;
+        final reinitialiseLe = etat?.serveurReinitialiseLe;
+        final autorisee = _moteur.estAutorisee || reinitialiseLe != null;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (reinitialiseLe != null) ...[
+              EncadreTransverse(
+                key: const Key('ie-seeders-serveur-reinitialise'),
+                fond: PaletteMaitre.rouge50,
+                bordure: PaletteMaitre.rouge200,
+                child: Text(
+                  TextesReinitialisationServeur.constatee(reinitialiseLe),
+                  style: styleTransverse(
+                    TaillesContenu.t13,
+                    poids: FontWeight.w600,
+                    couleur: PaletteMaitre.rouge900,
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.mdPlus),
+            ],
+            if (etat?.phaseEssais ?? false) ...[
+              EncadreTransverse(
+                key: const Key('ie-seeders-phase-essais'),
+                fond: PaletteMaitre.ambre50,
+                bordure: PaletteMaitre.ambre200,
+                child: Text(
+                  TextesImportExport.resetPhaseEssais,
+                  style: styleTransverse(
+                    TaillesContenu.t13,
+                    couleur: PaletteMaitre.ambre900,
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.mdPlus),
+            ],
             if (!autorisee) ...[
               EncadreTransverse(
                 key: const Key('ie-seeders-production'),

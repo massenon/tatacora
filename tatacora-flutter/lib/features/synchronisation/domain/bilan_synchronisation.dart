@@ -27,6 +27,12 @@ enum EtatSynchronisation {
   /// 403 : le `poste_id` n'est pas celui du jeton. Idem.
   posteNonReconnu,
 
+  /// 409 `generation_perimee` (19/10/2026) : le serveur a été réinitialisé
+  /// depuis la dernière synchronisation de ce poste. Le lot est rendu
+  /// INTACT ; plus rien ne part ni n'arrive avant la réinitialisation de CE
+  /// poste (Import & Export → Réinitialiser comme neuf).
+  serveurReinitialise,
+
   /// Un refus que le moteur ne sait pas rejouer (4xx inattendu, réponse
   /// illisible) : les opérations en cause sont consignées, la synchronisation
   /// s'arrête.
@@ -46,6 +52,9 @@ enum EtatSynchronisation {
     jetonRefuse => 'Jeton refusé — réappairer le poste.',
     posteNonReconnu =>
       'Poste non reconnu par le serveur — réappairer le poste.',
+    serveurReinitialise =>
+      'Le serveur a été réinitialisé : réinitialisez ce poste (Import & '
+          'Export → Réinitialiser comme neuf) avant de reprendre.',
     alerte => 'Synchronisation interrompue : des opérations sont refusées.',
   };
 }

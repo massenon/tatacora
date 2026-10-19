@@ -8,6 +8,7 @@ import '../domain/bilan_synchronisation.dart';
 import '../domain/descente_catalogue.dart';
 import '../domain/operation_sync.dart';
 import 'descente_catalogue.dart';
+import 'descente_catalogue_dao.dart';
 import 'operations_sync_dao.dart';
 import 'transport_synchronisation.dart';
 
@@ -36,6 +37,9 @@ import 'transport_synchronisation.dart';
 ///  * 401 → jeton refusé : le lot est rendu INTACT, le refus est consigné dans
 ///    `poste.json`, plus aucun envoi avant un nouvel appairage ;
 ///  * 403 → poste non reconnu : idem ;
+///  * 409 `generation_perimee` → le serveur a été réinitialisé depuis : le
+///    lot est rendu INTACT, la réinitialisation est consignée, plus rien ne
+///    part ni n'arrive avant la réinitialisation de CE poste (19/10/2026) ;
 ///  * 422 sur le lot ENTIER → bissection : le lot est coupé en deux, puis
 ///    encore, jusqu'à isoler la ou les opérations fautives — elles seules sont
 ///    `rejete` (code 422, phrase du serveur), les autres partent ;
@@ -104,6 +108,13 @@ class SyncManager {
 
   Future<BilanSynchronisation>? _enCours;
 
+  /// L'état de synchronisation du poste : la génération des données
+  /// retenue, la réinitialisation du serveur constatée (19/10/2026).
+  late final DescenteCatalogueDao _etat = DescenteCatalogueDao(
+    _dao.attachedDatabase,
+    maintenant: _maintenant,
+  );
+
   /// Synchronise la file, jusqu'à ce qu'aucune opération ne soit échue ou
   /// qu'une condition d'arrêt survienne. Ne lève jamais.
   Future<BilanSynchronisation> synchroniserMaintenant() {
@@ -137,14 +148,24 @@ class SyncManager {
           _normaliser(appairage.serveur) != _normaliser(url)) {
         return false;
       }
+      if (await _etat.reinitialisationServeur() != null) return false;
+      final generation = await _etat.generation();
       final issue = await _transport.get(
-        urlServeur(
-          appairage.serveur,
-          '/sync/demande',
-        ).replace(queryParameters: {'poste_id': appairage.posteId}),
+        urlServeur(appairage.serveur, '/sync/demande').replace(
+          queryParameters: {
+            'poste_id': appairage.posteId,
+            'generation': ?generation,
+          },
+        ),
         jeton: appairage.jetonApi,
       );
+      final reinitialise = reinitialisationRefusee(issue, _maintenant());
+      if (reinitialise != null) {
+        await _etat.consignerReinitialisationServeur(reinitialise);
+        return false;
+      }
       if (issue is! ReponseHttp || issue.statut != 200) return false;
+      await _etat.retenirAnnoncesServeur(issue.entetes);
       final data = issue.corps?['data'];
       final demande = data is Map ? data['demandee_le'] : null;
       if (demande is! String || demande == _demandeSuivie) return false;
@@ -201,6 +222,14 @@ class SyncManager {
     if (_normaliser(appairage.serveur) != _normaliser(url)) {
       return const BilanSynchronisation(etat: EtatSynchronisation.autreServeur);
     }
+    // Le serveur a été réinitialisé depuis (19/10/2026) : aucune requête
+    // avant la réinitialisation de ce poste, qui oublie cet état.
+    if (await _etat.reinitialisationServeur() != null) {
+      return const BilanSynchronisation(
+        etat: EtatSynchronisation.serveurReinitialise,
+        codeHttp: 409,
+      );
+    }
 
     await _dao.libererBauxExpires();
     final envoi = await _envoyerFile(appairage);
@@ -208,13 +237,21 @@ class SyncManager {
     final descente = _descente;
     if (descente == null ||
         envoi.etat == EtatSynchronisation.jetonRefuse ||
-        envoi.etat == EtatSynchronisation.posteNonReconnu) {
+        envoi.etat == EtatSynchronisation.posteNonReconnu ||
+        envoi.etat == EtatSynchronisation.serveurReinitialise) {
       return envoi;
     }
     final bilanDescente = await descente.descendre(
       appairage,
       surRefus: _consignerRefus,
     );
+    if (bilanDescente.etat == EtatDescente.serveurReinitialise) {
+      return envoi.copierAvec(
+        etat: EtatSynchronisation.serveurReinitialise,
+        codeHttp: 409,
+        descente: bilanDescente,
+      );
+    }
     if (bilanDescente.etat == EtatDescente.refusee) {
       // Le refus vaut pour tout le poste : plus rien ne part non plus.
       return envoi.copierAvec(
@@ -235,7 +272,7 @@ class SyncManager {
       appairage,
       urlServeur(appairage.serveur, '/sync'),
       taille: tailleLot,
-    );
+    )..generation = await _etat.generation();
     while (c.requetes < maxRequetes) {
       final lot = await _dao.reclamerLot(taille: c.taille, bail: bail);
       if (lot.isEmpty) return c.bilan(EtatSynchronisation.termine);
@@ -283,9 +320,28 @@ class SyncManager {
       jeton: c.appairage.jetonApi,
       corps: {
         'poste_id': c.appairage.posteId,
+        // La génération des données retenue (19/10/2026) — absente sur un
+        // poste neuf ou réinitialisé, qui adopte celle du serveur.
+        'generation': ?c.generation,
         'operations': [for (final o in aEnvoyer) _auProtocole(o)],
       },
     );
+
+    final reinitialise = reinitialisationRefusee(issue, _maintenant());
+    if (reinitialise != null) {
+      await _etat.consignerReinitialisationServeur(reinitialise);
+      return const _Arret(
+        EtatSynchronisation.serveurReinitialise,
+        codeHttp: 409,
+      );
+    }
+    if (issue case ReponseHttp(
+      :final statut,
+      :final entetes,
+    ) when statut >= 200 && statut < 300) {
+      await _etat.retenirAnnoncesServeur(entetes);
+      c.generation ??= entetes[enteteGeneration];
+    }
 
     switch (issue) {
       case ServeurInjoignable(:final raison):
@@ -607,6 +663,9 @@ final class _Contexte {
 
   /// L'identifiant du lot réclamé en cours (renouvellement du bail).
   String? lotId;
+
+  /// La génération des données rappelée au serveur (`null` : à adopter).
+  String? generation;
 
   /// Les opérations du lot dont le sort est consigné.
   final Set<String> traites = {};

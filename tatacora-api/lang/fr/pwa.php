@@ -1815,7 +1815,8 @@ return [
         'seeders_confirmer' => 'Vider définitivement',
         'seeders_phrase_invalide' => 'La phrase tapée ne correspond pas à :phrase.',
         'seeders_fait' => ':nombre table(s) vidée(s), :lignes ligne(s) supprimée(s). Les paramètres, les droits, '
-            . 'le journal et les référentiels gardés sont intacts — sauvegarde :sauvegarde générée juste avant.',
+            . 'le journal et les référentiels gardés sont intacts — sauvegarde :sauvegarde générée juste avant. '
+            . 'Les postes Windows s\'arrêtent de synchroniser jusqu\'à leur propre réinitialisation.',
         'reset_refuse_role' => 'Réinitialisation refusée : ce geste est réservé à l\'Administrateur.',
         'reset_cycle' => 'Réinitialisation refusée : les tables :tables se référencent en boucle, aucun ordre de '
             . 'vidage ne respecte leurs clés étrangères.',
@@ -1827,6 +1828,10 @@ return [
             . 'Paramètres › Activation & Sécurité.',
         'reset_environnement_production' => 'Cet écran s\'exécute en Production : la réinitialisation est '
             . 'désactivée, quel que soit votre rôle — c\'est l\'environnement qui refuse, pas un droit qui manque.',
+        // Phase d'essais en production (19/10/2026).
+        'reset_phase_essais' => 'Phase d\'essais en Production : la réinitialisation reste possible pour effacer les '
+            . 'essais avant la mise en service. Chaque poste devra ensuite être réinitialisé à son tour. Retirez '
+            . 'TATACORA_PHASE_ESSAIS du fichier .env le jour de la mise en service réelle.',
     ],
 
     /*

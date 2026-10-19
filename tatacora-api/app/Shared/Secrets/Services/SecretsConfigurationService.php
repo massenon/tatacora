@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Shared\Audit\Models\JournalAudit;
 use App\Shared\Secrets\Models\SecretConfiguration;
 use Illuminate\Contracts\Encryption\DecryptException;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -66,7 +67,15 @@ class SecretsConfigurationService
     /** La valeur en clair, pour l'usage technique SEUL (l'envoi d'un courriel). */
     public function lire(string $cle): ?string
     {
-        $secret = SecretConfiguration::query()->where('cle', $cle)->first();
+        try {
+            $secret = SecretConfiguration::query()->where('cle', $cle)->first();
+        } catch (QueryException) {
+            // Code déployé, migration pas encore jouée : l'envoi de courriel
+            // ne doit pas tomber pour autant — le `.env` s'applique.
+            Log::warning('Table secrets_configuration absente (migration non jouée ?) : le repli .env s\'applique.');
+
+            return null;
+        }
 
         if ($secret === null) {
             return null;

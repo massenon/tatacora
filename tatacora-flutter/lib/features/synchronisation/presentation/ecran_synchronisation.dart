@@ -12,6 +12,7 @@ import '../../../shared_widgets/bouton_standard.dart';
 import '../../../shared_widgets/liste_paginee.dart';
 import '../../transverse/domain/comptes_utilisateurs.dart';
 import '../../transverse/presentation/widgets/briques_transverses.dart';
+import '../domain/reinitialisation_serveur.dart';
 import '../domain/bilan_synchronisation.dart';
 import '../domain/descente_catalogue.dart';
 import '../domain/operation_sync.dart';
@@ -267,6 +268,14 @@ class _CarteEtat extends ConsumerWidget {
                           ? EtatSynchronisation.posteNonReconnu.libelle
                           : EtatSynchronisation.jetonRefuse.libelle,
                       cle: const Key('sync-ecran-refus'),
+                      couleur: AppColors.erreur,
+                      poids: FontWeight.w600,
+                    ),
+                  if (ref.watch(reinitialisationServeurProvider).value
+                      case final le?)
+                    _ligneTexte(
+                      TextesReinitialisationServeur.constatee(le),
+                      cle: const Key('sync-ecran-serveur-reinitialise'),
                       couleur: AppColors.erreur,
                       poids: FontWeight.w600,
                     ),

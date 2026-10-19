@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 use App\Domain\Facturation\Jobs\RejouerCertificationsMecefEnEchecJob;
 use App\Domain\Stocks\Jobs\VerifierSeuilsStockJob;
-use App\Shared\ContactEditeur\Services\MessageEditeurService;
 use App\Shared\Audit\Jobs\PurgerJournalAuditJob;
 use App\Shared\Backup\Jobs\SauvegardeBaseQuotidienneJob;
+use App\Shared\ContactEditeur\Services\MessageEditeurService;
+use App\Shared\Exploitation\Services\BattementPlanificateur;
 use App\Shared\Sync\Jobs\NettoyerDeduplicationSyncJob;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -22,6 +23,19 @@ use Illuminate\Support\Facades\Schedule;
 | Sur cPanel mutualise, un seul cron systeme appelle `schedule:run` chaque
 | minute ; c'est Laravel qui distribue ensuite (CPANEL_DEPLOYMENT.md §6).
 */
+
+// Le BATTEMENT du planificateur (19/10/2026) : la preuve que le cron cPanel
+// tourne, lue par `tatacora:verifier-production`. Sans lui, un cron jamais
+// configure ne se voit pas : toutes les taches ci-dessous seraient mortes en
+// silence.
+Artisan::command('tatacora:battement-planificateur', function (BattementPlanificateur $battement): int {
+    $battement->battre();
+
+    return 0;
+})->purpose('Pose l\'heure du dernier passage du planificateur (preuve que le cron tourne)');
+
+Schedule::command('tatacora:battement-planificateur')
+    ->everyMinute();
 
 // Contournement de l'absence de processus persistant sur hebergement mutualise :
 // la file est videe par salves d'une minute plutot que par un worker permanent.

@@ -528,6 +528,14 @@
             </div>
           @endunless
 
+          {{-- Phase d'essais en production (19/10/2026, décision du PO) :
+               `TATACORA_PHASE_ESSAIS=true` au `.env`. Dit tant qu'elle dure. --}}
+          @if ($reinitialisationPhaseEssais)
+            <div id="phase-essais" class="rounded-xl p-4 mb-5" style="background:#FFFBEB;border:1px solid #FDE68A">
+              <p class="text-[13px]" style="color:#78350F">{{ __('pwa.import_export.reset_phase_essais') }}</p>
+            </div>
+          @endif
+
           @if (! $reinitialisationOuverte)
             {{-- L'état VERROUILLÉ du maître (l.261-273) — la bascule
                  `reinitialisation_seeders` est fermée. --}}

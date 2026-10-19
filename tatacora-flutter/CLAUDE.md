@@ -533,6 +533,36 @@ et le web » ; serveur : « chiffré en base » ; poste : « onglet Email »).
   propre poste) → `POST /sync/postes/{poste}/revocation` supprime les jetons
   de ce NOM ; le poste révoqué reçoit 401 et garde sa file.
 
+## Essais en production, génération des données (19/10/2026)
+
+Décision du PO du 19/10/2026 (« les essais en production suivis de la
+réinitialisation, sur le web et le poste » ; procédure :
+`docs/ESSAIS_EN_PRODUCTION_ET_REINITIALISATION.md`).
+
+- **Serveur** : la réinitialisation « comme neuf » ouvre une GÉNÉRATION
+  nouvelle (`generations_donnees`, conservée). Les routes `/sync`,
+  `/sync/demande`, `/sync/coherence`, `/referentiels` donnent
+  `X-Tatacora-Generation` (+ `X-Tatacora-Phase-Essais`) et REFUSENT (409,
+  code `generation_perimee`) une `generation` rappelée qui n'est plus la
+  courante. En Production, la réinitialisation n'existe que pendant la phase
+  d'essais (`TATACORA_PHASE_ESSAIS=true` au `.env`).
+- **Poste** : `DescenteCatalogueDao` retient la PREMIÈRE génération vue
+  (`serveur.generation`) et la rappelle (corps du `POST /sync`, paramètre des
+  `GET`) ; sur 409, le lot est rendu INTACT, `serveur.reinitialise_le` est
+  consigné, plus aucune requête (`EtatSynchronisation.serveurReinitialise`,
+  voyant rouge). `ReinitialisationLocale` s'ouvre alors même en build
+  production et bascule fermée (rôle et « VIDER » exigés) ; elle vide
+  `etat_synchronisation_local`, donc le poste réadopte la génération nouvelle.
+- ⚠ Un poste d'une version antérieure ne connaît pas la génération : il doit
+  être mis à jour AVANT la réinitialisation du serveur.
+
+## Exploitation : cron et vérifications (19/10/2026)
+
+`docs/LISTE_DES_CRON_JOBS_CPANEL.md` (une ligne cron `schedule:run`, test
+`ListeCronDocumenteeTest` qui confronte le planning au document) ;
+`php artisan tatacora:verifier-production` et
+`docs/VERIFICATIONS_APRES_MISE_EN_PRODUCTION.md` (liste serveur + postes).
+
 ## Synchronisation — ⚠ HISTORIQUE, retirée par « zéro réseau »
 
 ⚠ **Vérifié le 12/10/2026 : `synchroniserMaintenant`, `DeclencheurSynchronisation`,

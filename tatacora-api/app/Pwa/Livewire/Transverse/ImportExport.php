@@ -553,6 +553,7 @@ class ImportExport extends PageTransverse
 
             // Onglet 4 — seeders
             'reinitialisationAutorisee' => $reinitialisation->estAutorisee(),
+            'reinitialisationPhaseEssais' => $reinitialisation->enPhaseEssais(),
             'reinitialisationOuverte' => $reinitialisation->estOuverte(),
             'reinitialisationPermise' => $reinitialisation->estPermisA(auth()->user()),
             'tablesEffacables' => $reinitialisation->tablesEffacables(),
