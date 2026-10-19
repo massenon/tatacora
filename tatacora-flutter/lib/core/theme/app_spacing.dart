@@ -199,6 +199,12 @@ abstract final class AppLayout {
   /// ENTRE CROCHETS : elle ne vient d'aucune echelle.
   static const double champRechercheHistorique = 180;
 
+  /// Le champ « Mot de passe SMTP » de Paramètres → Email (SMTP) : la vue le
+  /// pose en `flex-1 min-w-0` à côté de ses boutons ; ici une largeur
+  /// bornée, la ligne passant à la suivante (`Wrap`) quand la colonne est
+  /// étroite.
+  static const double champMotDePasseSmtp = 280;
+
   /// Une liste de filtre de l'historique. Le maitre les laisse a leur largeur
   /// naturelle (`<select>` sans classe de largeur) ; en Flutter un
   /// `DropdownButtonFormField` sans borne s'etire sur toute la ligne, ce qui

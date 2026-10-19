@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Shared\Mail\Services;
 
 use App\Shared\Parametres\Services\ParametreSystemeService;
+use App\Shared\Secrets\Services\SecretsConfigurationService;
 use Illuminate\Support\Facades\Mail;
 
 /**
@@ -36,6 +37,12 @@ use Illuminate\Support\Facades\Mail;
  * profil ayant accès à l'écran — règle absolue du dépôt, reprise de
  * `ParametreSystemeService`.
  *
+ * Depuis le 19/10/2026 (décision du Product Owner, « chiffré en base »), un
+ * administrateur peut le SAISIR dans ce même onglet : il est rangé chiffré
+ * par `APP_KEY` dans `secrets_configuration` (jamais `parametres_systeme`),
+ * jamais réaffiché, jamais exporté ni synchronisé. Renseigné, il prévaut sur
+ * `MAIL_PASSWORD` ; effacé ou indéchiffrable, `.env` reprend.
+ *
  * `appliquer()` superpose ces clés à la configuration d'environnement AU
  * MOMENT de l'envoi : tant que le serveur SMTP n'est pas renseigné en
  * Paramètres, la configuration `.env` reste seule maîtresse. `estReelle()`
@@ -64,6 +71,7 @@ class ConfigurationMailService
 
     public function __construct(
         private readonly ParametreSystemeService $parametres,
+        private readonly SecretsConfigurationService $secrets,
     ) {
     }
 
@@ -71,11 +79,20 @@ class ConfigurationMailService
      * Superpose les clés SMTP de `parametres_systeme` à la configuration
      * d'exécution. Sans hôte paramétré, ne touche à rien.
      *
-     * Le mot de passe n'est JAMAIS lu des paramètres : celui de `.env`
-     * (`mail.mailers.smtp.password`) reste tel quel.
+     * Le mot de passe n'est JAMAIS lu des paramètres : il vient du secret
+     * chiffré quand un administrateur l'a saisi, sinon celui de `.env`
+     * (`mail.mailers.smtp.password`) reste tel quel — et il vaut aussi pour
+     * un hôte resté en `.env`.
      */
     public function appliquer(): void
     {
+        $motDePasse = $this->secrets->lire(SecretsConfigurationService::SMTP_MOT_DE_PASSE);
+
+        if ($motDePasse !== null) {
+            config(['mail.mailers.smtp.password' => $motDePasse]);
+            Mail::purge('smtp');
+        }
+
         $hote = $this->parametres->get(self::CLE_SMTP_HOTE);
 
         if (blank($hote)) {

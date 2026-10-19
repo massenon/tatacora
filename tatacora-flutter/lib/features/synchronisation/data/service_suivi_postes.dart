@@ -10,6 +10,8 @@ final class EtatPosteServeur {
     required this.derniereDescente,
     required this.enAttente,
     required this.demandeSuivie,
+    this.appaire = false,
+    this.jetonUtiliseLe,
   });
 
   final String posteId;
@@ -18,6 +20,10 @@ final class EtatPosteServeur {
   final DateTime? derniereDescente;
   final int? enAttente;
   final bool demandeSuivie;
+
+  /// Un jeton du nom de ce poste existe au serveur (19/10/2026).
+  final bool appaire;
+  final DateTime? jetonUtiliseLe;
 }
 
 /// L'état des postes et la dernière demande, ou la raison de leur absence.
@@ -26,10 +32,18 @@ sealed class IssueSuiviPostes {
 }
 
 final class SuiviPostesLu extends IssueSuiviPostes {
-  const SuiviPostesLu({required this.demandeeLe, required this.postes});
+  const SuiviPostesLu({
+    required this.demandeeLe,
+    required this.postes,
+    this.cePoste,
+  });
 
   final DateTime? demandeeLe;
   final List<EtatPosteServeur> postes;
+
+  /// Le nom de CE poste : il ne révoque pas son propre appairage (il se
+  /// « Dissocie », Paramètres → Synchronisation).
+  final String? cePoste;
 }
 
 final class SuiviPostesIndisponible extends IssueSuiviPostes {
@@ -71,6 +85,7 @@ class ServiceSuiviPostes {
     if (data is! Map) return const SuiviPostesIndisponible(horsReseau);
     final postes = data['postes'];
     return SuiviPostesLu(
+      cePoste: appairage.posteId,
       demandeeLe: _date(data['demandee_le']),
       postes: [
         if (postes is List)
@@ -82,6 +97,8 @@ class ServiceSuiviPostes {
               derniereDescente: _date(p['derniere_descente']),
               enAttente: p['en_attente'] as int?,
               demandeSuivie: p['demande_suivie'] == true,
+              appaire: p['appaire'] == true,
+              jetonUtiliseLe: _date(p['jeton_utilise_le']),
             ),
       ],
     );
@@ -99,6 +116,31 @@ class ServiceSuiviPostes {
     final data = _donnees(issue);
     return data is Map ? _date(data['demandee_le']) : null;
   }
+
+  /// Révoque l'appairage d'un AUTRE poste (Administrateurs, 19/10/2026) :
+  /// ses jetons sont supprimés au serveur, le poste révoqué reçoit 401 et
+  /// garde sa file intacte. Rend la phrase à dire.
+  Future<String> revoquer(String posteId) async {
+    final appairage = await _appairage();
+    if (appairage == null) return nonAppaire;
+    final issue = await _transport.post(
+      urlServeur(
+        appairage.serveur,
+        '/sync/postes/${Uri.encodeComponent(posteId)}/revocation',
+      ),
+      jeton: appairage.jetonApi,
+    );
+    if (issue is! ReponseHttp) return horsReseau;
+    if (issue.estSucces) return revocationFaite(posteId);
+    if (issue.statut == 403) return revocationReservee;
+    final message = issue.corps?['message'];
+    return message is String && message.isNotEmpty ? message : horsReseau;
+  }
+
+  static String revocationFaite(String poste) =>
+      'Appairage du poste « $poste » révoqué.';
+  static const String revocationReservee =
+      "Seul un Administrateur peut révoquer l'appairage d'un poste.";
 
   Future<AppairagePoste?> _appairage() async {
     if (_url == null) return null;

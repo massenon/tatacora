@@ -263,7 +263,10 @@ final class PwaActionsReluesTest extends TestCase
         // `synchroniser()` est inscrite dans
         // `PwaEcritureAutoriseeTest::ECRITURES_HORS_MODULE` (une demande
         // horodatée, aucune donnée métier).
-        SynchronisationPostes::class => ['render', 'synchroniser'],
+        // Révocation d'appairage (19/10/2026) : réservée aux Administrateurs,
+        // confirmée par la modale ; `demanderRevocation`/`annulerRevocation`
+        // n'écrivent rien.
+        SynchronisationPostes::class => ['render', 'synchroniser', 'demanderRevocation', 'annulerRevocation', 'revoquer'],
 
         // Mon profil — le changement de mot de passe (01/09/2026, directive
         // du Product Owner). `changerMotDePasse()` n'exige AUCUN module RBAC
@@ -330,6 +333,10 @@ final class PwaActionsReluesTest extends TestCase
             // courriel — garde `exigerEcriture(self::MODULE)` quand meme, un
             // profil en lecture n'a pas a declencher d'envoi.
             'envoyerEmailTest',
+            // Mot de passe SMTP saisi, CHIFFRE en base (19/10/2026, decision
+            // du PO) : `exigerEcriture(self::MODULE)` ET rôle
+            // d'administration ; la valeur n'est jamais rechargee.
+            'enregistrerMotDePasseSmtp', 'effacerMotDePasseSmtp',
             // Logo & Apparence — televersement reel via `WithFileUploads`
             // (fichiers remplaces, jamais accumules ; servis par la route
             // `pwa.apparence`, sans storage:link).

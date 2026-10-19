@@ -414,12 +414,24 @@
                 "texte": "Le mot de passe SMTP, lui, reste en configuration serveur (.env) et n’apparaîtra jamais ici."
             },
             {
-                "type": "p",
+                "type": "label",
                 "texte": "Mot de passe SMTP"
             },
             {
+                "type": "champ",
+                "texte": "Saisir un nouveau mot de passe"
+            },
+            {
+                "type": "button",
+                "texte": "Enregistrer le mot de passe"
+            },
+            {
                 "type": "p",
-                "texte": "Secret technique : n'entrera jamais dans les paramètres système — il vit en configuration serveur (.env), et l'envoi de test ci-dessous l'emprunte réellement."
+                "texte": "Non renseigné ici."
+            },
+            {
+                "type": "p",
+                "texte": "Secret technique : n'entre jamais dans les paramètres système. Rangé chiffré sur le serveur, il n'est jamais réaffiché, exporté ni synchronisé ; sans lui, la configuration serveur (.env) s'applique. L'envoi de test ci-dessous l'emprunte réellement."
             },
             {
                 "type": "button",

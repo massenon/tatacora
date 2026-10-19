@@ -14,6 +14,7 @@ import '../domain/enregistrer_parametres.dart';
 import '../domain/entities/parametre.dart';
 import '../domain/resultats_parametres.dart';
 import 'widgets/cadre_modale_parametre.dart';
+import 'widgets/champ_mot_de_passe_smtp.dart';
 import 'widgets/champ_parametre.dart';
 import 'widgets/onglet_espaces_tables.dart';
 import 'widgets/onglet_synchronisation.dart';
@@ -27,8 +28,8 @@ import 'widgets/onglet_synchronisation.dart';
 //    « •••••••••••••••• » de la « Clé API WhatsApp Business » : un secret
 //    n'entre JAMAIS dans `parametres_systeme`, lisible par tout profil ayant
 //    l'écran ; il vit en `.env`.
-//  - Refus, onglet « email » — le champ « Mot de passe SMTP » :
-//    même règle (`.env`, `MAIL_PASSWORD`).
+//  - (Levé le 19/10/2026, onglet « email » : le champ « Mot de passe SMTP »
+//    est SAISI — décision du PO —, écrit dans `poste.json`, jamais en base.)
 //  - Refus, onglet « activation » — le pied de formulaire
 //    unique du maître (« Annuler » / « Enregistrer les paramètres ») : cet écran
 //    enregistre une clé à la fois, par fenêtre ; un enregistrement groupé
@@ -245,6 +246,9 @@ class _PageState extends ConsumerState<_Page> {
           enfants: [
             const _TitreSection('Configuration Email (SMTP)'),
             for (final d in de((_) => true)) _Cellule(enfant: ligne(d)),
+            // « Mot de passe SMTP » : SAISI depuis le 19/10/2026 (décision du
+            // PO), écrit dans `poste.json`, jamais dans la base.
+            _Cellule(enfant: ChampMotDePasseSmtp(peutEcrire: peutEcrire)),
           ],
         );
       case 'activation':

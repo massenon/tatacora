@@ -1087,6 +1087,18 @@ return [
         'aucun_poste' => 'Aucun poste ne s\'est encore synchronisé avec ce serveur.',
         'note' => 'Un poste éteint ou hors réseau suivra la demande à sa prochaine connexion : '
             . 'rien de ce qui a été enregistré n\'est perdu.',
+        // Appairage des postes (19/10/2026, décision du PO).
+        'col_appairage' => 'Appairage',
+        'appaire' => 'Appairé',
+        'appaire_utilise' => 'Appairé — dernier usage :date',
+        'revoque' => 'Non appairé',
+        'bouton_revoquer' => 'Révoquer',
+        'revocation_titre' => 'Révoquer l\'appairage du poste « :poste » ?',
+        'revocation_texte' => 'Le poste ne pourra plus envoyer ni recevoir tant qu\'un Administrateur ne l\'aura pas '
+            . 'réappairé (Paramètres → Synchronisation, sur le poste). Ce qu\'il a enregistré reste dans sa file : '
+            . 'rien n\'est perdu.',
+        'revocation_confirmer' => 'Révoquer l\'appairage',
+        'revocation_faite' => 'Appairage du poste « :poste » révoqué.',
     ],
 
     'journal_audit' => [
@@ -1424,8 +1436,22 @@ return [
         'communication_message_mention' => 'Porté par les modèles du module Notifications (un texte par '
             . 'évènement et par canal) : une seconde source de texte ici finirait par diverger de la première.',
         'email_motdepasse_libelle' => 'Mot de passe SMTP',
-        'email_motdepasse_mention' => 'Secret technique : n\'entrera jamais dans les paramètres système — il '
-            . 'vit en configuration serveur (.env), et l\'envoi de test ci-dessous l\'emprunte réellement.',
+        'email_motdepasse_mention' => 'Secret technique : n\'entre jamais dans les paramètres système. Rangé '
+            . 'chiffré sur le serveur, il n\'est jamais réaffiché, exporté ni synchronisé ; sans lui, la '
+            . 'configuration serveur (.env) s\'applique. L\'envoi de test ci-dessous l\'emprunte réellement.',
+        // Saisie du mot de passe SMTP (19/10/2026, « chiffré en base »).
+        'email_motdepasse_invite' => 'Saisir un nouveau mot de passe',
+        'email_motdepasse_enregistrer' => 'Enregistrer le mot de passe',
+        'email_motdepasse_effacer' => 'Effacer',
+        'email_motdepasse_renseigne' => 'Renseigné le :date par :par — jamais réaffiché.',
+        // Commun au serveur et au poste (le repli `.env` est dit par la mention).
+        'email_motdepasse_absent' => 'Non renseigné ici.',
+        'email_motdepasse_reserve' => 'Seul un Administrateur peut saisir ou effacer ce mot de passe.',
+        'email_motdepasse_enregistre' => 'Mot de passe SMTP enregistré (chiffré).',
+        'email_motdepasse_efface' => 'Mot de passe SMTP effacé : la configuration serveur (.env) s\'applique.',
+        'secret_invalide' => 'Le mot de passe doit compter entre 1 et :max caractères.',
+        'secret_inconnu' => 'Secret inconnu : « :cle ».',
+        'secret_reserve' => 'Réservé aux Administrateurs.',
 
         /*
          * ONGLET « EMAIL (SMTP) » — le test d'envoi RÉEL (02/09/2026). Trois

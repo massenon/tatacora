@@ -104,7 +104,7 @@ class ReinitialisationDonneesTestService
         'migrations',
         // Identité et réglages — le compte, les droits, les paramètres.
         'utilisateurs', 'roles', 'permissions', 'permission_role',
-        'personal_access_tokens', 'parametres_systeme',
+        'personal_access_tokens', 'parametres_systeme', 'secrets_configuration',
         // Journaux et traces — RG-15.
         'journal_audit', 'journal_securite', 'journal_imports',
         'historique_prix_carte', 'messages_editeur', 'etats_planifies',

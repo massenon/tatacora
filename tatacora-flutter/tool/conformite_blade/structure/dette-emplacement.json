@@ -111,8 +111,8 @@
     "ongletsNonCliquables": 0
   },
   "transverse/parametres": {
-    "blade": 147,
-    "ordonnes": 81,
+    "blade": 150,
+    "ordonnes": 82,
     "ongletsNonCliquables": 1
   },
   "livewire/accueil": {
@@ -156,8 +156,8 @@
     "ongletsNonCliquables": 0
   },
   "transverse/synchronisation-postes": {
-    "blade": 12,
-    "ordonnes": 12,
+    "blade": 13,
+    "ordonnes": 13,
     "ongletsNonCliquables": 0
   }
 }

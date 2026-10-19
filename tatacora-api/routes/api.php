@@ -79,6 +79,9 @@ Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
     // Le même bouton, et l'état des postes, depuis l'écran du poste.
     Route::post('/sync/demande', [SuiviPostesController::class, 'demander']);
     Route::get('/sync/postes', [SuiviPostesController::class, 'etats']);
+    // Révoquer l'appairage d'un AUTRE poste (Administrateurs, 19/10/2026).
+    Route::post('/sync/postes/{poste}/revocation', [SuiviPostesController::class, 'revoquer'])
+        ->where('poste', '[^/]{1,100}');
     // Le contrôle de cohérence du poste (P1-1) : les comptes du serveur.
     Route::get('/sync/coherence', CoherenceController::class);
 

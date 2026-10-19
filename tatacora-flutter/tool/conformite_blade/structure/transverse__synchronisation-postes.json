@@ -45,6 +45,10 @@
                 "texte": "Dernière demande"
             },
             {
+                "type": "th",
+                "texte": "Appairage"
+            },
+            {
                 "type": "td",
                 "texte": "Aucun poste ne s'est encore synchronisé avec ce serveur."
             },

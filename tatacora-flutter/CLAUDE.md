@@ -513,6 +513,26 @@ créer »). Schéma **v29** (62 tables : `occupations_tables_local`).
   HORIZON (5 s) ; un banc qui avance l'horloge du moteur doit la donner
   AUSSI au DAO de la file (l'échéance d'une reprise se juge sur elle).
 
+## Configurations saisies à l'écran : mot de passe SMTP, appairage (19/10/2026)
+
+Décision du PO du 19/10/2026 (« enregistrer les configurations dans le poste
+et le web » ; serveur : « chiffré en base » ; poste : « onglet Email »).
+
+- **Poste** : Paramètres → Email (SMTP), champ « Mot de passe SMTP »
+  (`widgets/champ_mot_de_passe_smtp.dart`, Administrateurs seulement) →
+  `EcrivainConfigurationPoste.enregistrerMotDePasseSmtp` / `effacer…` dans
+  `poste.json` (+ `smtp_mot_de_passe_le`/`_par`), JAMAIS dans Drift ; l'écran
+  ne relit que l'ÉTAT (`etatMotDePasseSmtp`). Écart nommé : la mention de la
+  vue (« chiffré sur le serveur », repli `.env`) est fausse ici.
+- **Serveur** : `secrets_configuration` (cast `encrypted`, `APP_KEY`), registre
+  fermé `SecretsConfigurationService::CLES`, exclu de l'export, conservé par
+  la réinitialisation, jamais dans le flux ; `ConfigurationMailService`
+  l'applique avant `MAIL_PASSWORD`.
+- **Révocation d'appairage** : « Synchroniser les postes » (PWA et poste),
+  colonne « Appairage », bouton « Révoquer » (Administrateurs, jamais son
+  propre poste) → `POST /sync/postes/{poste}/revocation` supprime les jetons
+  de ce NOM ; le poste révoqué reçoit 401 et garde sa file.
+
 ## Synchronisation — ⚠ HISTORIQUE, retirée par « zéro réseau »
 
 ⚠ **Vérifié le 12/10/2026 : `synchroniserMaintenant`, `DeclencheurSynchronisation`,

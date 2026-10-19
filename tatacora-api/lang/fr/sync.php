@@ -138,4 +138,12 @@ return [
         'table_incoherente' => 'Le gestionnaire :gestionnaire déclare la table « :declaree », enregistré sous « :cle ».',
         'modification_non_declaree' => 'La table « :table » ne synchronise aucune modification : le moteur n\'aurait pas dû appeler modifier().',
     ],
+
+    // Révocation de l'appairage d'un poste (19/10/2026).
+    'postes' => [
+        'revocation_reservee' => 'Seul un Administrateur peut révoquer l\'appairage d\'un poste.',
+        'poste_non_appaire' => 'Le poste « :poste » n\'a aucun appairage actif sur le serveur.',
+        'revocation_soi_meme' => 'Ce poste ne révoque pas son propre appairage : utilisez « Dissocier » '
+            . '(Paramètres → Synchronisation).',
+    ],
 ];

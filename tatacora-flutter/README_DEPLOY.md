@@ -154,10 +154,22 @@ panne du disque fait perdre toutes les saisies du poste.
 « Contactez l'éditeur » (« Envoyer un message », « Signaler un bug ») envoie
 réellement un courriel à l'éditeur. Le serveur, le port, la sécurité et
 l'utilisateur SMTP se règlent dans **Paramètres → « Email (SMTP) »**. Le **mot
-de passe**, lui, n'est **jamais** enregistré dans le logiciel ni dans sa base :
-il se pose dans un fichier du poste.
+de passe**, lui, n'est **jamais** enregistré dans la base : il vit dans un
+fichier du poste (`%APPDATA%\TATACORA\poste.json`).
 
-Sur chaque poste :
+**Depuis le 19/10/2026, le plus simple** : un Administrateur ouvre
+**Paramètres → « Email (SMTP) »**, saisit le mot de passe dans le champ
+« Mot de passe SMTP », puis clique **« Enregistrer le mot de passe »**. Le
+poste l'écrit dans `poste.json` (l'appairage et les autres clés sont
+conservés). L'écran ne le réaffiche jamais : il dit seulement « Renseigné le …
+par … ». **« Effacer »** le retire.
+
+*(Côté serveur web, le même champ existe dans la PWA ; là, le mot de passe est
+rangé **chiffré** en base par la clé `APP_KEY` du `.env` — jamais exporté ni
+synchronisé — et prévaut sur `MAIL_PASSWORD`. Changer `APP_KEY` le rend
+illisible : il faut alors le ressaisir, le `.env` reprenant entre-temps.)*
+
+À défaut (ou pour préparer un poste à l'avance), à la main, sur chaque poste :
 
 1. Ouvrir l'Explorateur, taper `%APPDATA%` dans la barre d'adresse, Entrée.
 2. Créer le dossier **`TATACORA`** s'il n'existe pas.
@@ -231,6 +243,13 @@ Ce que l'appairage écrit : le nom du poste, le jeton, l'adresse du serveur, la
 date et l'identifiant du compte, dans `%APPDATA%\TATACORA\poste.json` (à côté
 du mot de passe SMTP, qui est conservé). Le fichier est remplacé d'un bloc à
 chaque écriture. **Ne pas modifier ces clés à la main.**
+
+**Révoquer un poste perdu ou remplacé** (19/10/2026) : depuis la PWA (menu
+de compte → « Synchroniser les postes ») ou depuis un AUTRE poste (même
+écran), un Administrateur clique **« Révoquer »** sur la ligne du poste, puis
+confirme. Le poste révoqué ne peut plus ni envoyer ni recevoir ; ce qu'il a
+enregistré reste dans sa file et partira après un réappairage. Un poste ne
+révoque pas son propre appairage : il utilise « Dissocier ».
 
 **« Dissocier »** retire le jeton du poste (et le révoque au serveur si le
 réseau est là). Les opérations en attente **restent sur le poste** : elles

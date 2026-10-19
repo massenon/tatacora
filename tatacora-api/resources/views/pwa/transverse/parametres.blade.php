@@ -32,9 +32,10 @@
       de la « Clé API WhatsApp Business » : un secret n'entre JAMAIS dans
       `parametres_systeme`, lisible par tout profil ayant l'écran — il vit en
       `.env`. Le champ du maître est rendu en ligne, avec sa mention réelle.
-    maitre-refuse:parametres.html#email — le champ « Mot de passe SMTP » :
-      même règle (.env, `MAIL_PASSWORD`) ; le bouton « Envoyer un email de
-      test », lui, est RÉEL depuis le 02/09/2026.
+    (Levé le 19/10/2026 : le champ « Mot de passe SMTP » de l'onglet
+      #email est SAISI — décision du Product Owner, « chiffré en base » :
+      `secrets_configuration`, jamais `parametres_systeme` ; le bouton
+      « Envoyer un email de test » est RÉEL depuis le 02/09/2026.)
     maitre-refuse:parametres.html#activation — le pied de formulaire unique du
       maître (« Annuler » / « Enregistrer les paramètres ») : cet écran
       enregistre une clé à la fois, par modale (`enregistrerParametre()`) —
@@ -229,11 +230,37 @@
                 ])
               @endforeach
 
-              {{-- « Mot de passe SMTP » (maquette l.92-93) — REFUSÉ : secret,
-                   `.env` (`MAIL_PASSWORD`) seulement (entête, #email). --}}
+              {{-- « Mot de passe SMTP » (maquette l.92-93) — SAISI depuis le
+                   19/10/2026 (décision du Product Owner, « chiffré en base ») :
+                   champ en écriture seule, rangé chiffré dans
+                   `secrets_configuration`, jamais réaffiché ; l'écran ne
+                   montre que son ÉTAT. Saisie réservée aux Administrateurs. --}}
               <div class="groupe-champ">
-                <p class="block text-[15px] font-semibold text-slate-700 mb-1.5">{{ __('pwa.parametres.email_motdepasse_libelle') }}</p>
-                <p class="text-[13px] font-mono-tatacora px-2.5 py-1 rounded bg-slate-100 text-slate-400 inline-block">—</p>
+                <label for="mot-de-passe-smtp" class="block text-[15px] font-semibold text-slate-700 mb-1.5">{{ __('pwa.parametres.email_motdepasse_libelle') }}</label>
+                @if ($peutSaisirSecret)
+                  <div class="flex flex-wrap items-center gap-2">
+                    <input id="mot-de-passe-smtp" type="password" autocomplete="new-password" wire:model="motDePasseSmtp"
+                           placeholder="{{ __('pwa.parametres.email_motdepasse_invite') }}"
+                           class="champ flex-1 min-w-0 border border-slate-200 rounded-lg px-3 py-2.5 text-sm">
+                    <button type="button" wire:click="enregistrerMotDePasseSmtp" wire:loading.attr="disabled"
+                            class="btn px-3 py-2.5 rounded-lg bg-[var(--navy)] text-white text-[13px] font-semibold">{{ __('pwa.parametres.email_motdepasse_enregistrer') }}</button>
+                    @if ($etatMotDePasseSmtp['renseigne'])
+                      <button type="button" wire:click="effacerMotDePasseSmtp" wire:loading.attr="disabled"
+                              class="btn px-3 py-2.5 rounded-lg border border-slate-200 text-[13px] font-semibold text-slate-600">{{ __('pwa.parametres.email_motdepasse_effacer') }}</button>
+                    @endif
+                  </div>
+                  @error('motDePasseSmtp') <p class="text-[12px] text-red-600 mt-1">{{ $message }}</p> @enderror
+                @endif
+                <p class="text-[13px] text-slate-600 mt-1.5">
+                  @if ($etatMotDePasseSmtp['renseigne'])
+                    {{ __('pwa.parametres.email_motdepasse_renseigne', ['date' => $etatMotDePasseSmtp['modifie_le']?->format('d/m/Y H:i') ?? '—', 'par' => $etatMotDePasseSmtp['par'] ?? '—']) }}
+                  @else
+                    {{ __('pwa.parametres.email_motdepasse_absent') }}
+                  @endif
+                </p>
+                @unless ($peutSaisirSecret)
+                  <p class="text-[12px] text-slate-400 mt-1">{{ __('pwa.parametres.email_motdepasse_reserve') }}</p>
+                @endunless
                 <p class="text-[12px] text-slate-400 mt-1.5">{{ __('pwa.parametres.email_motdepasse_mention') }}</p>
               </div>
 

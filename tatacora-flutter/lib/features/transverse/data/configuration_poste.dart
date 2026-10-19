@@ -62,6 +62,22 @@ import 'package:path_provider/path_provider.dart';
 /// La clé du mot de passe SMTP dans `poste.json`.
 const String cleMotDePasseSmtp = 'smtp_mot_de_passe';
 
+/// Quand et par qui le mot de passe SMTP a été saisi à l'écran (19/10/2026) —
+/// l'écran ne montre que cet ÉTAT, jamais la valeur.
+const String cleMotDePasseSmtpLe = 'smtp_mot_de_passe_le';
+const String cleMotDePasseSmtpPar = 'smtp_mot_de_passe_par';
+
+/// L'état du mot de passe SMTP du poste, sans sa valeur.
+final class EtatMotDePasseSmtp {
+  const EtatMotDePasseSmtp({required this.renseigne, this.le, this.par});
+
+  final bool renseigne;
+
+  /// `null` : posé à la main dans le fichier, ou jamais saisi.
+  final DateTime? le;
+  final String? par;
+}
+
 /// Le chemin à DIRE à l'opérateur (sans dépendre de la machine).
 const String cheminConfigurationPosteAffiche = r'%APPDATA%\TATACORA\poste.json';
 
@@ -128,6 +144,21 @@ class LecteurConfigurationPoste {
       return MotDePasseAbsent(TextesConfigurationPoste.cleAbsente(chemin));
     }
     return MotDePasseLu(valeur);
+  }
+
+  /// L'ÉTAT du mot de passe SMTP — jamais sa valeur.
+  Future<EtatMotDePasseSmtp> etatMotDePasseSmtp() async {
+    final contenu = await _lireObjet(await _chemin());
+    final valeur = contenu?[cleMotDePasseSmtp];
+    if (valeur is! String || valeur.isEmpty) {
+      return const EtatMotDePasseSmtp(renseigne: false);
+    }
+    final par = contenu?[cleMotDePasseSmtpPar];
+    return EtatMotDePasseSmtp(
+      renseigne: true,
+      le: DateTime.tryParse('${contenu?[cleMotDePasseSmtpLe]}'),
+      par: par is String && par.isNotEmpty ? par : null,
+    );
   }
 
   /// L'appairage du poste, relu à CHAQUE appel — `null` quand le poste n'est
@@ -269,8 +300,10 @@ final class ConfigurationPosteIllisible implements Exception {
       'modifié. Corrigez-le ou supprimez-le, puis recommencez.';
 }
 
-/// Écrit les clés d'APPAIRAGE de `poste.json` — et elles seules : le mot de
-/// passe SMTP et toute autre clé posée à la main sont conservés.
+/// Écrit les clés d'APPAIRAGE de `poste.json` et, depuis le 19/10/2026
+/// (décision du PO : « enregistrer les configurations dans le poste »), le
+/// mot de passe SMTP saisi dans Paramètres → Email (SMTP). Chaque geste ne
+/// touche que SES clés : toute autre clé posée à la main est conservée.
 ///
 /// L'écriture est ATOMIQUE : le contenu complet part dans `poste.json.tmp`
 /// (même dossier, donc même volume), vidé sur le disque, puis renommé sur
@@ -306,6 +339,33 @@ class EcrivainConfigurationPoste {
           'le': le.toUtc().toIso8601String(),
         };
       });
+
+  /// Enregistre le mot de passe SMTP saisi à l'écran, avec quand et par qui.
+  /// Le fichier reste dans le profil Windows de l'utilisateur, hors du dépôt
+  /// et hors de la base ; la valeur n'est jamais relue par l'écran.
+  Future<void> enregistrerMotDePasseSmtp(
+    String valeur, {
+    required String par,
+    required DateTime le,
+  }) {
+    if (valeur.isEmpty) {
+      throw ArgumentError.value('***', 'valeur', 'mot de passe vide');
+    }
+    return _modifier((contenu) {
+      contenu
+        ..[cleMotDePasseSmtp] = valeur
+        ..[cleMotDePasseSmtpLe] = le.toUtc().toIso8601String()
+        ..[cleMotDePasseSmtpPar] = par;
+    });
+  }
+
+  /// Efface le mot de passe SMTP (et son état) ; le reste du fichier demeure.
+  Future<void> effacerMotDePasseSmtp() => _modifier((contenu) {
+    contenu
+      ..remove(cleMotDePasseSmtp)
+      ..remove(cleMotDePasseSmtpLe)
+      ..remove(cleMotDePasseSmtpPar);
+  });
 
   /// Efface le refus consigné (le serveur a de nouveau accepté le jeton).
   Future<void> effacerRefus() =>
