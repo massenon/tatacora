@@ -204,6 +204,10 @@ void main() {
     // rendu dans la carte du formulaire de Paramètres comme les autres
     // onglets, donc dans `<main>` — échelle EFFECTIVE.
     'lib/features/parametres/presentation/widgets/onglet_synchronisation.dart',
+    // Le champ « Mot de passe SMTP » de l'onglet Email (SMTP) (19/10/2026) :
+    // le bloc `groupe-champ` du panneau `@elseif ($onglet === 'email')` de
+    // la vue de Paramètres, dans `<main>` — échelle EFFECTIVE.
+    'lib/features/parametres/presentation/widgets/champ_mot_de_passe_smtp.dart',
     // Inventaires & Fiches de stock, repris sur la vue le 08/10/2026 (Phase 2,
     // écran n° 2) : le fichier rend le CORPS de la page, ses trois onglets
     // compris ; aucune modale n'y est ouverte.
