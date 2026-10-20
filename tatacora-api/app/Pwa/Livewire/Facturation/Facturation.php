@@ -12,6 +12,7 @@ use App\Domain\Ventes\Services\VenteService;
 use App\Exports\FacturationExport;
 use App\Pwa\Livewire\Concerns\FormulaireModal;
 use App\Pwa\Livewire\PageMetier;
+use App\Pwa\Support\ExerciceConsulte;
 use App\Pwa\Support\MontantFcfa;
 use App\Shared\ReportEngine\Services\ReportHeaderService;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -482,6 +483,9 @@ class Facturation extends PageMetier
         // L'absence de relation est signalee au rapport, pas comblee ici —
         // `app/Domain/**` est hors du perimetre de ce lot.
         $requete = Facture::query()->with(['lignes', 'avoirs']);
+        // Sélecteur d'exercice global (PO, 20/10/2026) : le registre porte sur
+        // les factures ÉMISES dans l'exercice consulté.
+        ExerciceConsulte::borner($requete, 'date_emission');
 
         if ($activite !== '') {
             $requete->whereHas('lignes', static function ($l) use ($activite): void {

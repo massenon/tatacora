@@ -11,6 +11,7 @@ use App\Domain\Depenses\Services\DepenseService;
 use App\Exports\DepensesExport;
 use App\Pwa\Livewire\Concerns\FormulaireModal;
 use App\Pwa\Livewire\PageMetier;
+use App\Pwa\Support\ExerciceConsulte;
 use App\Pwa\Support\MontantFcfa;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
@@ -617,12 +618,15 @@ class Depenses extends PageMetier
     private function requete(): Builder
     {
         $famille = $this->famille;
+        // Sélecteur d'exercice global (PO, 20/10/2026) : la liste porte sur
+        // l'exercice CONSULTÉ ; « du / au » l'affinent sans en sortir.
+        [$du, $au] = ExerciceConsulte::datesDansLExercice($this->du, $this->au);
 
         return app(DepenseService::class)
             ->filtrer([
                 'recherche' => $this->recherche,
-                'du' => $this->du,
-                'au' => $this->au,
+                'du' => $du,
+                'au' => $au,
                 'tresorerie' => array_key_exists($this->tresorerie, self::TRESORERIES) ? $this->tresorerie : '',
             ])
             ->when(
@@ -764,6 +768,10 @@ class Depenses extends PageMetier
     private function descriptionDuFiltre(): string
     {
         $morceaux = [];
+        $portee = ExerciceConsulte::libelle();
+        if ($portee !== '') {
+            $morceaux[] = $portee;
+        }
 
         if ($this->recherche !== '') {
             $morceaux[] = __('depenses_pwa.filtre_recherche', ['terme' => $this->recherche]);

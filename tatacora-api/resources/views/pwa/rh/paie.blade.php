@@ -113,7 +113,9 @@
 
           <div class="flex flex-wrap gap-2 items-center">
             <label class="text-[12px] text-slate-500">{{ __('rh_pwa.periode') }}</label>
-            <input type="month" wire:model.live="periode" class="text-[13px] border border-slate-300 rounded-lg px-2.5 py-2">
+            @php($bornesExercice = \App\Pwa\Support\ExerciceConsulte::bornes())
+            <input type="month" wire:model.live="periode" class="text-[13px] border border-slate-300 rounded-lg px-2.5 py-2"
+                   @if ($bornesExercice !== null) min="{{ $bornesExercice[0]->format('Y-m') }}" max="{{ $bornesExercice[1]->subDay()->format('Y-m') }}" @endif>
 
             {{-- Exporter est une LECTURE : offert a tout role qui peut ouvrir
                  l'ecran (PA-119).

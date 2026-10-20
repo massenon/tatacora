@@ -9,6 +9,7 @@ use App\Domain\Comptabilite\Models\ExerciceComptable;
 use App\Domain\Comptabilite\Models\JournalComptable;
 use App\Models\User;
 use App\Pwa\Livewire\PageMetier;
+use App\Pwa\Support\ExerciceConsulte;
 use Illuminate\Database\Eloquent\Collection;
 use Livewire\Attributes\Url;
 
@@ -88,12 +89,26 @@ abstract class PageComptabilite extends PageMetier
      */
     protected function exercice(): ?ExerciceComptable
     {
+        // Sélecteur d'exercice global (PO, 20/10/2026) : sans `?exercice=`,
+        // l'écran consulte l'exercice de la SESSION (`ExerciceConsulte`).
         if ($this->exerciceId === '') {
-            return null;
+            return ExerciceConsulte::exercice();
         }
 
-        return ExerciceComptable::query()->find($this->exerciceId);
+        $exercice = ExerciceComptable::query()->find($this->exerciceId);
+
+        // Un exercice choisi ici (sélecteur du hub, lien N-1 / N+1, lien
+        // profond) DEVIENT l'exercice consulté partout — une fois par requête.
+        if ($exercice !== null && ! $this->exerciceRetenu) {
+            ExerciceConsulte::choisir($exercice->id);
+            $this->exerciceRetenu = true;
+        }
+
+        return $exercice;
     }
+
+    /** Non publique : remise à `false` à chaque requête Livewire. */
+    private bool $exerciceRetenu = false;
 
     /**
      * La valeur de filtre reellement appliquee — un etat DIT son filtre
@@ -154,6 +169,14 @@ abstract class PageComptabilite extends PageMetier
         // L'utilisateur et le menu viennent de `PageMetier`, partages avec
         // toutes les pages de la PWA (Article 10). Ce qui s'y ajoute ici est
         // propre a M10 : aucune autre page ne filtre par exercice.
+        // Sélecteur d'exercice global (20/10/2026) : sans `?exercice=`, le
+        // sélecteur de l'écran montre l'exercice de la SESSION plutôt que
+        // « Choisir un exercice ». Posé au rendu, jamais par une méthode
+        // publique (une action Livewire de plus à relire, PA-67).
+        if ($this->exerciceId === '') {
+            $this->exerciceId = (string) ExerciceConsulte::exercice()?->id;
+        }
+
         return array_merge(parent::socle(), [
             'exercice' => $this->exercice(),
             'exercices' => $this->exercices(),

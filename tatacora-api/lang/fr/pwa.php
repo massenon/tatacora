@@ -352,6 +352,13 @@ return [
          * de PA-59/60/61. Le mot restant ne dit que ce qui est établi : la page
          * vient d'être servie par le réseau.
          */
+        // Sélecteur d'exercice global (PO, 20/10/2026, SPEC_SELECTEUR_EXERCICE).
+        'exercice_consulte' => 'Exercice',
+        'exercice_option' => ':annee — :statut',
+        'exercice_statuts' => ['ouvert' => 'ouvert', 'en_cloture' => 'en clôture', 'cloture' => 'clôturé'],
+        'exercice_pastille' => 'Vous consultez :annee (:statut)',
+        'exercice_revenir' => 'Revenir à :annee',
+        'exercice_portee' => 'Exercice :annee (:statut)',
         'reseau' => 'Réseau',
 
         // maquette — `shell.js` l.126. La capitale d'« Audit » est celle du

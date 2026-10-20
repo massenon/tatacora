@@ -170,6 +170,11 @@
          Voir le docblock de `RechercheGlobale`. --}}
     <livewire:pwa.recherche-globale />
 
+    {{-- AJOUT à la maquette (PO, 20/10/2026) : le sélecteur d'exercice
+         global — affiché seulement sur les écrans qui le suivent. Voir
+         `SelecteurExercice`. --}}
+    <livewire:pwa.selecteur-exercice />
+
     {{-- maquette — shell.js l.114-117. Le libellé est « Réseau » et non
          « Réseau Synchronisé » : l'écart et sa raison vivent dans
          `pwa.coquille.reseau`. --}}

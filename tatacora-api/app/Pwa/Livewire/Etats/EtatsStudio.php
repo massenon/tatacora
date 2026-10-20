@@ -6,6 +6,7 @@ namespace App\Pwa\Livewire\Etats;
 
 use App\Domain\Etats\Services\CatalogueEtatsService;
 use App\Pwa\Livewire\PageMetier;
+use App\Pwa\Support\ExerciceConsulte;
 use App\Shared\ReportEngine\Contracts\EtatInterface;
 use App\Shared\ReportEngine\Data\EtatResultat;
 use Illuminate\Support\Facades\Auth;
@@ -218,10 +219,14 @@ class EtatsStudio extends PageMetier
             // ⚠ `calculer()` et RIEN D'AUTRE. `GenerateurEtatService::generer()`
             // archiverait dans `etats_generes` (l.80) : c'est une ecriture, et
             // elle n'a aucun chemin depuis cette page.
+            // Sélecteur d'exercice global (PO, 20/10/2026) : l'état porte sur
+            // l'exercice CONSULTÉ — ses bornes pour les états datés, son année
+            // pour la balance. Un état sans dates (stocks, parc) les ignore.
+            $filtres = self::filtresDeLExercice();
             /** @var EtatResultat $resultat */
-            $resultat = $etat->calculer([]);
-            $titre = $etat->libelle([]);
-            $periode = $etat->periode([]);
+            $resultat = $etat->calculer($filtres);
+            $titre = $etat->libelle($filtres);
+            $periode = $etat->periode($filtres);
             $moduleSource = $etat->module();
         }
 
@@ -237,5 +242,20 @@ class EtatsStudio extends PageMetier
             'totalAccessibles' => count($accessibles),
             // `data-module="M14"` — celui du `<body>` du maitre (l.32).
         ]))->layout('layouts.pwa', ['module' => 'M14']);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private static function filtresDeLExercice(): array
+    {
+        $exercice = ExerciceConsulte::exercice();
+        $bornes = ExerciceConsulte::bornes($exercice);
+
+        return $exercice === null || $bornes === null ? [] : [
+            'date_debut' => $bornes[0]->toDateString(),
+            'date_fin' => $bornes[1]->subDay()->toDateString(),
+            'exercice_annee' => (string) $exercice->annee,
+        ];
     }
 }

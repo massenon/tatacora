@@ -93,5 +93,9 @@ class AppServiceProvider extends ServiceProvider
             'pwa.recherche-globale',
             \App\Pwa\Livewire\Transverse\RechercheGlobale::class,
         );
+        \Livewire\Livewire::component(
+            'pwa.selecteur-exercice',
+            \App\Pwa\Livewire\Transverse\SelecteurExercice::class,
+        );
     }
 }

@@ -1,6 +1,8 @@
 # Spécification — Sélecteur d'exercice comptable (web + poste)
 
-> Statut : **brouillon à valider par le Product Owner**. Rédigé le 20/10/2026.
+> Statut : **validé et livré** (web + poste) le 20/10/2026. Décisions du PO :
+> les factures, les achats et la paie suivent aussi le sélecteur (Q1 = oui) ;
+> il est visible pour tous les rôles qui ouvrent ces écrans (Q3 = oui).
 > Suite logique des lots 1 à 4 de la bascule et de la clôture d'exercice
 > ([`CLOTURE_EXERCICE_SYSCOHADA.md`](CLOTURE_EXERCICE_SYSCOHADA.md)).
 
@@ -125,6 +127,9 @@ poste).**
 | Tableau de bord : période « Exercice entier » | oui | oui (indicateurs calculables) |
 | Studio des états : période par défaut | oui | oui (aperçus) |
 | Dépenses : filtre de période par défaut | oui | oui |
+| Factures (registre) : factures émises dans l'exercice | oui | oui |
+| Achats : commandes passées dans l'exercice (registre et approvisionnement), réceptions de l'exercice | oui | oui |
+| Paie : mois proposé (le mois courant, ou le dernier mois de l'exercice passé) ; choix du mois borné à l'exercice | oui | oui |
 
 - [ ] Un écran qui suit le sélecteur l'indique dans son en-tête : « Exercice
   2025 — en clôture ».
@@ -196,9 +201,9 @@ d'usage.
 
 | # | Question | Qui | Bloquante ? |
 |---|---|---|---|
-| Q1 | La liste R2 est-elle la bonne ? Faut-il y ajouter les factures, les achats ou la paie (filtrés par exercice), ou les garder sur leurs filtres de période actuels ? | Product Owner | **Oui** |
+| Q1 | ~~La liste R2 est-elle la bonne ? Faut-il y ajouter les factures, les achats ou la paie ?~~ **Tranché le 20/10/2026 : oui**, ajoutés à R2. | Product Owner | — |
 | Q2 | L'exercice choisi doit-il survivre à la déconnexion (R9 en P0) ? | Product Owner | Non |
-| Q3 | Les rôles sans accès à M10 (réception, bar) voient-ils le sélecteur ? Proposition : oui, mais seulement sur les écrans de R2 qu'ils peuvent ouvrir. Il est masqué sur les écrans opérationnels. | Product Owner | Oui |
+| Q3 | ~~Les rôles sans accès à M10 voient-ils le sélecteur ?~~ **Tranché le 20/10/2026 : oui**, sur les écrans de R2 qu'ils peuvent ouvrir ; masqué sur les écrans du jour. | Product Owner | — |
 | Q4 | Sur le poste, où placer le sélecteur dans la barre supérieure déjà chargée (bouton de synchronisation, cloche) ? | Design / PO | Non |
 | Q5 | En janvier, pendant que N−1 est « en clôture », l'exercice par défaut doit-il être N (proposition) ou N−1 pour le comptable ? | Product Owner, comptable | Non |
 | Q6 | Le tableau de bord utilise la classe `Periode` (mois, trimestre, année…). Ajoute-t-on une période « exercice » ou fait-on suivre « Exercice entier » à l'exercice choisi ? | Ingénierie | Non |
@@ -223,3 +228,38 @@ d'usage.
 
 Chaque phase est livrée avec ses tests (serveur et poste), les deux suites
 complètes vertes, et le comparateur Blade → Flutter en PASS.
+
+## 9. Livré (20/10/2026)
+
+**Web (PWA).**
+- `App\Pwa\Support\ExerciceConsulte` garde l'exercice choisi en session et
+  porte la date de référence et les bornes de l'exercice.
+- Le composant `SelecteurExercice`, dans la barre supérieure, propose la
+  liste « 2026 — ouvert ». Il affiche la pastille « Vous consultez 2025
+  (clôturé) » et le lien « Revenir à 2026 ».
+- Il n'apparaît que sur les écrans de R2.
+- Le sélecteur du hub Comptabilité reste à sa place, synchronisé avec le
+  sélecteur global. Un lien `?exercice=` devient le choix global.
+
+**Poste.** `exercice_consulte.dart` et `SelecteurExerciceBarre` reprennent le
+même comportement, avec les mêmes mots. Le choix est gardé en mémoire et
+revient au défaut à la reconnexion.
+
+Branchements sur le poste :
+- hub Comptabilité ;
+- horloge du tableau de bord ;
+- mois de la paie ;
+- dépenses ;
+- registre des factures ;
+- commandes et réceptions.
+
+**Écarts nommés sur le poste.**
+- **États** : les aperçus sont des photographies du jour. Quand un autre
+  exercice est consulté, une ligne le dit : « Sur ce poste : aperçu du jour,
+  pas de l'exercice choisi. »
+- **Dettes fournisseurs** (commandes non clôturées) : elles restent un état
+  du jour, toutes années confondues, sur le web comme sur le poste.
+
+**R4 prouvé par un test.** Une dépense saisie pendant qu'un exercice passé
+est consulté va dans l'exercice de sa date.
+

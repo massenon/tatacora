@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../comptabilite/presentation/exercice_consulte.dart';
 import '../../../core/fichiers/enregistrement_export.dart';
 import '../../../core/format/formats.dart';
 import '../../../core/impression/entete_parametree.dart';
@@ -209,8 +210,12 @@ class EcranPilotageConsolide extends ConsumerWidget {
 /// L'horloge du tableau de bord — injectable : la période (« Ce mois » par
 /// défaut) dépend du jour, et un test qui lirait l'heure réelle serait vert un jour et
 /// rouge le lendemain.
+///
+/// Sélecteur d'exercice global (PO, 20/10/2026) : c'est l'horloge de
+/// l'EXERCICE CONSULTÉ — aujourd'hui pour l'exercice en cours, son dernier
+/// jour pour un exercice passé (`exercice_consulte.dart`).
 final horlogeTableauDeBordProvider = Provider<DateTime Function()>(
-  (ref) => DateTime.now,
+  (ref) => ref.watch(horlogeExerciceConsulteProvider),
 );
 
 /// La masse salariale du MOIS COURANT — somme des bruts des bulletins retenus

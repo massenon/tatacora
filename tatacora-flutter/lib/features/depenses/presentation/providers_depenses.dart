@@ -18,6 +18,7 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../comptabilite/presentation/exercice_consulte.dart';
 import '../../../core/di/providers.dart';
 import '../../../core/fichiers/enregistrement_export.dart';
 import '../../../core/impression/export_etat_a4.dart';
@@ -117,8 +118,14 @@ final class FiltreDepensesNotifier extends Notifier<FiltreDepenses> {
 /// seconde source pour l'un des trois les ferait diverger (PA-119, PA-121).
 final depensesFiltreesProvider = FutureProvider<List<Depense>>((ref) async {
   final toutes = await ref.watch(depensesProvider.future);
+  // Sélecteur d'exercice global (PO, 20/10/2026) : la liste porte sur
+  // l'exercice CONSULTÉ ; « du / au » l'affinent sans en sortir.
+  final exercice = ref.watch(exerciceConsulteProvider);
   return filtrerDepenses(
-    toutes,
+    [
+      for (final d in toutes)
+        if (dansLExercice(exercice, d.dateTransaction.toIso8601String())) d,
+    ],
     ref.watch(filtreDepensesProvider),
     libelles: ref.watch(libellesComptesProvider),
   );

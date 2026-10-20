@@ -115,6 +115,11 @@ final class PwaEcritureAutoriseeTest extends TestCase
         // jamais une table metier — meme famille que `deverrouiller`.
         'avancer',
 
+        // Le sélecteur d'exercice global — `revenir()` (20/10/2026) : oublie
+        // l'exercice choisi, rangé dans la SESSION (`ExerciceConsulte`),
+        // jamais une table métier — même famille que `avancer`.
+        'revenir',
+
         // 4. L'EXPORT ET L'IMPRESSION — inscrits le 31/08/2026.
         //
         // Un export ne produit rien de neuf : il rend, sur un autre papier,

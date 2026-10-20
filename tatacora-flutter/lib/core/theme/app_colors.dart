@@ -543,6 +543,10 @@ abstract final class OpacitesCoquille {
   /// `border-white/15` — la bordure de l'indicateur de caisse.
   static const double bordureCaisse = 0.15;
 
+  /// `text-white/60` — le libellé « Exercice » du sélecteur d'exercice
+  /// (`pwa/transverse/selecteur-exercice`, 20/10/2026).
+  static const double libelleExercice = 0.60;
+
   /// `border-red-400/60` — la bordure de l'indicateur d'une caisse ouverte
   /// depuis plus de 24 h.
   static const double bordureCaisseTardive = 0.60;

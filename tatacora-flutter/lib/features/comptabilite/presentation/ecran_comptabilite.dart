@@ -21,6 +21,7 @@ import '../domain/consultation_comptable.dart';
 import '../domain/entities/comptabilite.dart';
 import '../domain/montant_comptable.dart';
 import '../impression/etat_journal_comptable.dart';
+import 'exercice_consulte.dart';
 import 'providers_consultation_comptable.dart';
 import 'widgets/modale_ecriture.dart';
 
@@ -245,9 +246,6 @@ class _EcranComptabiliteState extends ConsumerState<EcranComptabilite> {
       ? widget.ongletInitial!
       : 'saisie';
 
-  /// `null` : pas encore choisi — l'exercice ouvert le plus récent s'applique.
-  String? _exerciceId;
-  bool _exerciceChoisi = false;
   String? _journalId;
   FiltreStatutEcritures _statut = FiltreStatutEcritures.toutes;
   int _page = 1;
@@ -342,12 +340,21 @@ class _EcranComptabiliteState extends ConsumerState<EcranComptabilite> {
     }
     final lu = ref.watch(donneesComptabiliteProvider);
     final donnees = lu.value;
-    final exerciceId = _exerciceChoisi
-        ? _exerciceId
-        : donnees?.exerciceOuvert?.id;
-    final exercice = donnees?.exercices
-        .where((e) => e.id == exerciceId)
-        .firstOrNull;
+    // L'exercice consulté est celui du SÉLECTEUR GLOBAL (PO, 20/10/2026,
+    // `exercice_consulte.dart`) : choisi ici, il vaut pour tous les écrans
+    // qui le suivent ; sans choix, l'exercice ouvert le plus récent.
+    final exercice = exerciceConsulteParmi(
+      donnees?.exercices ?? const [],
+      ref.watch(exerciceChoisiProvider),
+    );
+    final exerciceId = exercice?.id;
+    void choisirExercice(String? id) {
+      final defaut = exerciceParDefaut(donnees?.exercices ?? const []);
+      ref
+          .read(exerciceChoisiProvider.notifier)
+          .choisir(id == defaut?.id ? null : id);
+      setState(() => _page = 1);
+    }
 
     return PageTransverse(
       largeurMax: MesuresTransverses.pageComptabilite,
@@ -359,21 +366,13 @@ class _EcranComptabiliteState extends ConsumerState<EcranComptabilite> {
           repartition: (donnees == null || exercice == null)
               ? null
               : repartitionStatuts(donnees.ecritures, exerciceId: exercice.id),
-          onExercice: (id) => setState(() {
-            _exerciceChoisi = true;
-            _exerciceId = id;
-            _page = 1;
-          }),
+          onExercice: choisirExercice,
         ),
         if (exercice != null)
           _NavigationExercices(
             exercice: exercice,
             exercices: donnees?.exercices ?? const [],
-            onExercice: (id) => setState(() {
-              _exerciceChoisi = true;
-              _exerciceId = id;
-              _page = 1;
-            }),
+            onExercice: choisirExercice,
           ),
         const _BandeIndicateurs(),
         const SizedBox(height: AppSpacing.mdPlus), // mb-5

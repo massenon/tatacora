@@ -11,6 +11,7 @@ import '../../features/synchronisation/presentation/bouton_synchronisation.dart'
 import '../../features/auth/domain/session.dart';
 import '../../features/caisse/domain/indicateur_caisse.dart';
 import '../../features/caisse/presentation/providers_caisse.dart';
+import '../../features/comptabilite/presentation/widgets/selecteur_exercice_barre.dart';
 import '../../features/recherche_globale/presentation/recherche_globale_barre.dart';
 import '../navigation/coquille_vue.dart';
 import '../navigation/navigation_tatacora.dart';
@@ -406,6 +407,10 @@ class _BarreSuperieure extends ConsumerWidget implements PreferredSizeWidget {
           // écarts au serveur sont nommés dans
           // `features/recherche_globale/domain/recherche_globale.dart`.
           if (moyen) const RechercheGlobaleBarre(),
+          // AJOUT du PO (20/10/2026) — le sélecteur d'exercice global
+          // (`<livewire:pwa.selecteur-exercice />`, juste après la recherche),
+          // sur les seuls écrans qui le suivent.
+          if (moyen) SelecteurExerciceBarre(routeActive: routeActive),
           //
           // REFUSÉ — la pastille « Réseau » (l.154-157). Ce poste est ZÉRO
           // RÉSEAU (14/09/2026) : un badge vert affirmerait une liaison qui
