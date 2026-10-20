@@ -416,6 +416,10 @@ void main() {
     'lib/features/alertes/presentation/cloche_notifications.dart':
         'Châssis. La cloche et son panneau vivent dans la barre supérieure '
         '(`partials/barre-superieure`, frère de `<main>`), lot B du 14/10/2026.',
+    'lib/features/comptabilite/presentation/widgets/selecteur_exercice_barre.dart':
+        'Châssis. Le sélecteur d exercice global (ajout du PO du 20/10/2026, '
+        '`<livewire:pwa.selecteur-exercice />`) vit dans la barre supérieure, '
+        'après la recherche, frère de `<main>` : échelle déclarée.',
     'lib/features/synchronisation/presentation/bouton_synchronisation.dart':
         'Châssis. Le bouton de synchronisation (ajout du PO du 16/10/2026, lot '
         'F3) vit dans la barre supérieure à côté de la cloche, et sa modale '
