@@ -29,6 +29,11 @@
     financier » est interdit : une liasse déposée sur des références inventées
     est rejetée, et le bilan s'équilibre quand même.
     Refus déclaré : maitre-refuse:m10-syscohada.html#bilan
+
+    ## Colonne comparative N-1 (lot 3, 20/10/2026)
+
+    Quand l'exercice précédent existe, chaque tableau gagne une colonne : le
+    NET du même poste (même code technique) en N-1, et son total.
 --}}
 @php
     use App\Pwa\Support\MontantFcfa;
@@ -47,6 +52,15 @@
         ['PASSIF', 'left'],
         ['Montant', 'right'],
     ];
+
+    $bilanPrecedent ??= null;
+    $netsPrecedents = $bilanPrecedent === null ? [] : collect([...$bilanPrecedent->actif, ...$bilanPrecedent->passif])
+        ->mapWithKeys(fn ($p): array => [$p->section.'|'.$p->code => $p->net])->all();
+    if ($bilanPrecedent !== null) {
+        $colonneN1 = [__('comptabilite_pwa.colonne_exercice_precedent', ['annee' => $precedent->annee]), 'right'];
+        $colonnesActif[] = $colonneN1;
+        $colonnesPassif[] = $colonneN1;
+    }
 
     $styleSoldeFinal = 'background: var(--navy); color: #fff; font-weight: 700;';
 @endphp
@@ -106,6 +120,9 @@
                 <td class="px-3 py-2 text-right">{{ MontantFcfa::formatOuTiret($poste->brut) }}</td>
                 <td class="px-3 py-2 text-right text-red-600">{{ MontantFcfa::formatOuTiret($poste->amortissement) }}</td>
                 <td class="px-3 py-2 text-right font-semibold">{{ MontantFcfa::formatOuTiret($poste->net) }}</td>
+                @if ($bilanPrecedent !== null)
+                  <td class="px-3 py-2 text-right text-slate-500">{{ MontantFcfa::formatOuTiret($netsPrecedents[$poste->section.'|'.$poste->code] ?? '0.00') }}</td>
+                @endif
               </tr>
             @endforeach
             <tr style="{{ $styleSoldeFinal }}">
@@ -113,6 +130,9 @@
               <td class="px-3 py-2.5 text-right">{{ MontantFcfa::format($bilan->totalActifBrut) }}</td>
               <td class="px-3 py-2.5 text-right">{{ MontantFcfa::format($bilan->totalActifAmortissement) }}</td>
               <td class="px-3 py-2.5 text-right">{{ MontantFcfa::format($bilan->totalActif) }}</td>
+              @if ($bilanPrecedent !== null)
+                <td class="px-3 py-2.5 text-right opacity-80">{{ MontantFcfa::format($bilanPrecedent->totalActif) }}</td>
+              @endif
             </tr>
           </tbody>
         </table>
@@ -135,11 +155,17 @@
                   @endif
                 </td>
                 <td class="px-3 py-2 text-right font-semibold {{ MontantFcfa::estNegatif($poste->net) ? 'text-red-600' : '' }}">{{ MontantFcfa::formatOuTiret($poste->net) }}</td>
+                @if ($bilanPrecedent !== null)
+                  <td class="px-3 py-2 text-right text-slate-500">{{ MontantFcfa::formatOuTiret($netsPrecedents[$poste->section.'|'.$poste->code] ?? '0.00') }}</td>
+                @endif
               </tr>
             @endforeach
             <tr style="{{ $styleSoldeFinal }}">
               <td class="px-3 py-2.5" colspan="2">TOTAL PASSIF</td>
               <td class="px-3 py-2.5 text-right">{{ MontantFcfa::format($bilan->totalPassif) }}</td>
+              @if ($bilanPrecedent !== null)
+                <td class="px-3 py-2.5 text-right opacity-80">{{ MontantFcfa::format($bilanPrecedent->totalPassif) }}</td>
+              @endif
             </tr>
           </tbody>
         </table>

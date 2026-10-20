@@ -27,6 +27,35 @@ réouverture réservée **au comptable** ; archive au format **SYSCOHADA révis�
   apparaît en 131/139. La balance le signale (« à-nouveaux provisoires de
   N »).
 
+## 1 bis. Consulter N, N−1, N+1 (lot 3)
+
+Dans la PWA, hub Comptabilité :
+
+- **Navigation entre exercices** : sous l'en-tête, « ← Exercice N−1 » et
+  « Exercice N+1 → » (en plus du sélecteur), sur l'onglet affiché.
+- **Statut de l'exercice consulté** : un bandeau le dit.
+  - En clôture : les modules n'y écrivent plus ; le comptable y passe ses
+    écritures d'inventaire.
+  - Clôturé : lecture seule ; seule la réouverture par le comptable permet
+    d'y corriger.
+- **Comparatif N / N−1** : le compte de résultat et le bilan ont une colonne
+  « Exercice N−1 » quand l'exercice précédent existe. Elle reprend le même
+  poste (même ligne de la cascade, même poste du bilan, mêmes totaux) avec le
+  même filtre de statut.
+- **À-nouveaux provisoires** : la balance de N+1 affiche un encadré quand
+  elle les inclut.
+- **Saisie d'inventaire en clôture** : « Passer écriture » accepte un
+  exercice en clôture (ouvert ou en clôture : oui ; clôturé : non). Les
+  journaux CL et AN ne s'y choisissent pas, car seule la clôture les écrit.
+
+Sur le poste (Windows) :
+
+- Les mêmes boutons de navigation et le même bandeau de statut, aux mêmes
+  mots.
+- Un exercice qui n'est pas ouvert n'offre pas « Nouvelle écriture ».
+- Le poste ne connaît que ses propres écritures : le compte de résultat, le
+  bilan et le comparatif ne s'y calculent pas. Ils se consultent dans la PWA.
+
 ## 2. La clôture, onglet « Clôtures » de la Comptabilité (PWA)
 
 | Étape | Bouton | Effet |

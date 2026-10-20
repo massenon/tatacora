@@ -64,6 +64,15 @@ class ClotureExerciceService
 
     public const JOURNAL_A_NOUVEAUX = 'AN';
 
+    /**
+     * Les journaux que seule la clôture écrit : une saisie manuelle y est
+     * refusée (une pièce passée à la main au journal CL disparaîtrait des
+     * états, qui l'excluent).
+     *
+     * @var list<string>
+     */
+    public const JOURNAUX_RESERVES = [self::JOURNAL_CLOTURE, self::JOURNAL_A_NOUVEAUX];
+
     public const CENTRE_DE_CLOTURE = 'Structure';
 
     /** Décision du PO du 20/10/2026 : « Qui a le droit de rouvrir ? LE COMPTABLE ». */

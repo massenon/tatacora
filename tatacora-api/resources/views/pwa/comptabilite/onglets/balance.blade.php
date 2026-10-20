@@ -48,6 +48,13 @@
         '8' => 'Hors activités ordinaires', '9' => 'Analytique',
     ];
 @endphp
+@if ($balance->aNouveauxProvisoiresDe !== null)
+  {{-- Lot 3 (20/10/2026) : les à-nouveaux PROVISOIRES de N-1 (calculés,
+       jamais écrits — `BalanceGeneraleService`) sont dits, jamais tus. --}}
+  <div id="a-nouveaux-provisoires" class="rounded-xl p-3.5 mb-4" style="background:#EFF6FF;border:1px solid #BFDBFE">
+    <p class="text-[13px]" style="color:#1E3A8A">{{ __('comptabilite_pwa.a_nouveaux_provisoires', ['annee' => $balance->aNouveauxProvisoiresDe]) }}</p>
+  </div>
+@endif
 @if (! $balance->equilibree)
   <div class="rounded-xl p-3.5 mb-4" style="background:#FEF2F2;border:1px solid #FECACA">
     <p class="text-[13px]" style="color:#7F1D1D">

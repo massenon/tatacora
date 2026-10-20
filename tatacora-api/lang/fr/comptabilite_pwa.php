@@ -137,6 +137,14 @@ return [
     'reouvrir_reserve' => 'Seul le comptable peut rouvrir un exercice clôturé.',
     'exercice_rouvert' => 'Exercice :annee rouvert : il repasse en clôture.',
 
+    // --- Navigation N-1 / N+1 et comparatif (lot 3, 20/10/2026) ----------
+    'exercice_precedent' => 'Exercice :annee',
+    'exercice_suivant' => 'Exercice :annee',
+    'bandeau_en_cloture' => 'Exercice :annee en clôture : les ventes, les dépenses et les autres modules n’y écrivent plus. Seul le comptable y passe encore ses écritures d’inventaire, dans la PWA.',
+    'bandeau_cloture' => 'Exercice :annee clôturé : consultation en lecture seule. Pour le corriger, le comptable le rouvre depuis l’onglet Clôtures.',
+    'colonne_exercice_precedent' => 'Exercice :annee',
+    'a_nouveaux_provisoires' => 'Cette balance comprend les à-nouveaux PROVISOIRES de l’exercice :annee, qui n’est pas encore clôturé : ils sont calculés à chaque lecture et deviendront définitifs à sa clôture.',
+
     // --- Archive légale de clôture (lot 4) --------------------------------
     'archive_titre' => 'Archive de clôture — exercice :annee',
     'archive_ecran' => 'Archive légale',

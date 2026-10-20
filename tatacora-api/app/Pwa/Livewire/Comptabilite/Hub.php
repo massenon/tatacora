@@ -7,6 +7,7 @@ namespace App\Pwa\Livewire\Comptabilite;
 use App\Domain\Comptabilite\Exceptions\EtatTropVolumineuxException;
 use App\Domain\Comptabilite\Models\CentreCout;
 use App\Domain\Comptabilite\Models\CompteComptable;
+use App\Domain\Comptabilite\Models\ExerciceComptable;
 use App\Domain\Comptabilite\Models\Immobilisation;
 use App\Domain\Comptabilite\Services\AnalytiqueService;
 use App\Domain\Comptabilite\Services\ArchiveClotureService;
@@ -26,6 +27,7 @@ use App\Exports\ComptabiliteJournalExport;
 use App\Models\User;
 use App\Pwa\Livewire\Concerns\FormulaireModal;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
@@ -499,7 +501,7 @@ class Hub extends PageComptabilite
     private function enregistrerPiece(PasserEcritureService $service, bool $valider): void
     {
         $valide = $this->validerEcriture([
-            'journalCode' => ['required', 'string', 'exists:journaux_comptables,code'],
+            'journalCode' => ['required', 'string', 'exists:journaux_comptables,code', Rule::notIn(ClotureExerciceService::JOURNAUX_RESERVES)],
             'dateEcriture' => ['required', 'date'],
             'libellePiece' => ['required', 'string', 'max:255'],
             'lignesPiece' => ['required', 'array', 'min:2'],
@@ -545,6 +547,10 @@ class Hub extends PageComptabilite
             'date' => (string) $valide['dateEcriture'],
             'libelle' => trim((string) $valide['libellePiece']),
             'lignes' => $lignes,
+            // La saisie du hub est celle du COMPTABLE (droit d'écriture M10) :
+            // elle passe aussi dans un exercice EN CLÔTURE — ses écritures
+            // d'inventaire (lot 2). Les modules, eux, restent à `ouvert`.
+            'statuts_exercice_admis' => ['ouvert', 'en_cloture'],
         ];
 
         try {
@@ -857,10 +863,20 @@ class Hub extends PageComptabilite
                 'grandlivre' => $this->grandLivre($exerciceId, $statuts, $filtre),
                 'balance' => ['balance' => app(BalanceGeneraleService::class)
                     ->genererPourExercice($exerciceId, $statuts, $filtre)],
-                'resultat' => ['resultat' => app(CompteResultatService::class)
-                    ->genererPourExercice($exerciceId, $statuts, $filtre)],
-                'bilan' => ['bilan' => app(BilanService::class)
-                    ->genererPourExercice($exerciceId, $statuts, $filtre)],
+                // Lot 3 (20/10/2026) : la colonne comparative N-1, même portée
+                // de statuts, quand l'exercice précédent existe.
+                'resultat' => [
+                    'resultat' => app(CompteResultatService::class)->genererPourExercice($exerciceId, $statuts, $filtre),
+                    'precedent' => $precedent = $this->exercicePrecedent(),
+                    'resultatPrecedent' => $precedent === null ? null : app(CompteResultatService::class)
+                        ->genererPourExercice($precedent->id, $statuts, $filtre),
+                ],
+                'bilan' => [
+                    'bilan' => app(BilanService::class)->genererPourExercice($exerciceId, $statuts, $filtre),
+                    'precedent' => $precedent = $this->exercicePrecedent(),
+                    'bilanPrecedent' => $precedent === null ? null : app(BilanService::class)
+                        ->genererPourExercice($precedent->id, $statuts, $filtre),
+                ],
                 'analytique' => ['analytique' => app(AnalytiqueService::class)
                     ->genererPourExercice($exerciceId, $statuts, $filtre)],
                 'immo' => ['tableauImmobilisations' => app(ImmobilisationService::class)
@@ -872,6 +888,19 @@ class Hub extends PageComptabilite
         } catch (EtatTropVolumineuxException $exception) {
             return ['refusDeVolume' => $exception->getMessage()];
         }
+    }
+
+    /**
+     * L'exercice N-1 de l'exercice consulté, s'il existe — la colonne
+     * comparative du compte de résultat et du bilan (lot 3).
+     */
+    private function exercicePrecedent(): ?ExerciceComptable
+    {
+        $exercice = $this->exercice();
+
+        return $exercice === null
+            ? null
+            : ExerciceComptable::query()->where('annee', $exercice->annee - 1)->first();
     }
 
     /**

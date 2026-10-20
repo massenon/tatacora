@@ -117,6 +117,18 @@ abstract final class TextesComptabilite {
   static String brouillons(int n) => '$n brouillon(s)';
   static const String tiret = '—';
 
+  /// Navigation temporelle et statut de l'exercice consulté (lot 3,
+  /// 20/10/2026) — les mots de la vue du hub (`#navigation-exercices`,
+  /// `#bandeau-statut-exercice`), au caractère près.
+  static String exerciceVoisin(int annee) => 'Exercice $annee';
+  static String bandeauEnCloture(int annee) =>
+      'Exercice $annee en clôture : les ventes, les dépenses et les autres '
+      'modules n’y écrivent plus. Seul le comptable y passe encore ses '
+      'écritures d’inventaire, dans la PWA.';
+  static String bandeauCloture(int annee) =>
+      'Exercice $annee clôturé : consultation en lecture seule. Pour le '
+      'corriger, le comptable le rouvre depuis l’onglet Clôtures.';
+
   /// AJOUTS déclarés (D417).
   static const String indicateursSurCePoste =
       'Sur ce poste : les six indicateurs ne sont pas calculés — seuls le '
@@ -353,6 +365,16 @@ class _EcranComptabiliteState extends ConsumerState<EcranComptabilite> {
             _page = 1;
           }),
         ),
+        if (exercice != null)
+          _NavigationExercices(
+            exercice: exercice,
+            exercices: donnees?.exercices ?? const [],
+            onExercice: (id) => setState(() {
+              _exerciceChoisi = true;
+              _exerciceId = id;
+              _page = 1;
+            }),
+          ),
         const _BandeIndicateurs(),
         const SizedBox(height: AppSpacing.mdPlus), // mb-5
         Wrap(
@@ -424,6 +446,88 @@ class _EcranComptabiliteState extends ConsumerState<EcranComptabilite> {
             if (_defilement.hasClients) _defilement.jumpTo(0);
           },
         ),
+      ],
+    );
+  }
+}
+
+/// `#navigation-exercices` et `#bandeau-statut-exercice` de la vue du hub
+/// (lot 3, 20/10/2026) : N-1 et N+1 en un clic ; un exercice en clôture ou
+/// clôturé le DIT. Le moteur du poste refuse déjà d'y écrire (il n'admet
+/// qu'un exercice ouvert) — l'écran ne laisse pas croire le contraire.
+class _NavigationExercices extends StatelessWidget {
+  const _NavigationExercices({
+    required this.exercice,
+    required this.exercices,
+    required this.onExercice,
+  });
+
+  final ExerciceComptable exercice;
+  final List<ExerciceComptable> exercices;
+  final ValueChanged<String?> onExercice;
+
+  @override
+  Widget build(BuildContext context) {
+    ExerciceComptable? voisin(int annee) =>
+        exercices.where((e) => e.annee == annee).firstOrNull;
+    final precedent = voisin(exercice.annee - 1);
+    final suivant = voisin(exercice.annee + 1);
+    final (fond, bordure, texte, message) = switch (exercice.statut) {
+      StatutExercice.ouvert => (null, null, null, null),
+      StatutExercice.enCloture => (
+        PaletteMaitre.ambre50,
+        PaletteMaitre.ambre200,
+        PaletteMaitre.ambre900,
+        TextesComptabilite.bandeauEnCloture(exercice.annee),
+      ),
+      StatutExercice.cloture => (
+        Ardoise.c100,
+        Ardoise.c300,
+        Ardoise.c700,
+        TextesComptabilite.bandeauCloture(exercice.annee),
+      ),
+    };
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (precedent != null || suivant != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm), // mb-3
+            child: Wrap(
+              spacing: AppSpacing.xs, // gap-2
+              runSpacing: AppSpacing.xs,
+              children: [
+                if (precedent != null)
+                  BoutonTransverse(
+                    cle: const Key('compta-exercice-precedent'),
+                    libelle:
+                        '← ${TextesComptabilite.exerciceVoisin(precedent.annee)}',
+                    onTap: () => onExercice(precedent.id),
+                  ),
+                if (suivant != null)
+                  BoutonTransverse(
+                    cle: const Key('compta-exercice-suivant'),
+                    libelle:
+                        '${TextesComptabilite.exerciceVoisin(suivant.annee)} →',
+                    onTap: () => onExercice(suivant.id),
+                  ),
+              ],
+            ),
+          ),
+        if (message != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.md), // mb-4
+            child: EncadreTransverse(
+              key: const Key('compta-bandeau-statut'),
+              fond: fond!,
+              bordure: bordure!,
+              padding: const EdgeInsets.all(AppSpacing.smPlus),
+              child: Text(
+                message,
+                style: styleTransverse(TaillesContenu.t13, couleur: texte!),
+              ),
+            ),
+          ),
       ],
     );
   }
