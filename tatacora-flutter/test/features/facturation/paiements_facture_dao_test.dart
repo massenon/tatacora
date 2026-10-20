@@ -10,7 +10,8 @@ import 'package:tatacora_flutter/features/facturation/domain/entities/piece_fact
 import 'package:tatacora_flutter/features/facturation/domain/messages_encaissement.dart';
 import 'package:tatacora_flutter/features/facturation/domain/regles_encaissement.dart';
 
-import '../comptabilite/support/outils_comptabilite.dart' show moteurSur;
+import '../comptabilite/support/outils_comptabilite.dart'
+    show exerciceClos, moteurSur;
 import 'support/outils_encaissement.dart';
 
 /// L'encaissement d'une facture — le DAO, sur une VRAIE base, avec le VRAI
@@ -382,6 +383,9 @@ void main() {
         );
         addTearDown(ancienne.close);
         final dao2 = paiementsDaoSur(ancienne);
+        // Et l'exercice de l'encaissement est CLÔTURÉ : manquant, il
+        // s'ouvrirait de lui-même depuis le 20/10/2026.
+        await exerciceClos(ancienne, jourEncaissement.year);
         await ouvrirCaissePour(ancienne);
         final piece = await emettreFacture(ancienne);
         final avant = await empreinte(ancienne);

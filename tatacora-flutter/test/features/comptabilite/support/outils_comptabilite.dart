@@ -238,3 +238,22 @@ Future<T> _sousVerrouDeFichier<T>(
     }
   }
 }
+
+/// Un exercice de [annee] CLÔTURÉ — la façon de faire refuser une pièce
+/// depuis le 20/10/2026 : l'exercice MANQUANT de l'année en cours s'ouvre
+/// désormais de lui-même à sa première pièce (passage d'année).
+Future<void> exerciceClos(AppDatabase db, int annee) async {
+  final dao = ComptabiliteDao(db);
+  final existant =
+      await dao.exerciceDeLAnnee(annee) ??
+      await dao.insererExercice(
+        annee: annee,
+        dateDebut: '$annee-01-01',
+        dateFin: '$annee-12-31',
+      );
+  await dao.marquerCloture(
+    existant.id,
+    quand: DateTime(annee, 12, 31),
+    auteurId: auteurEssai,
+  );
+}

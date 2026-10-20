@@ -803,8 +803,13 @@ jamais dans la migration. La correspondance rôle → compte (`ComptesSyscohada`
 refus sont ceux du serveur, relus par PHP. Tout test qui lance PHP porte
 `@Timeout(Duration(minutes: 2))` ; `rejouer_scenario.php` exige MySQL
 `tatacora_test`. L'exercice de l'année courante s'ouvre à chaque démarrage
-(écart assumé avec le serveur, D210) ; un poste laissé allumé au passage d'année
-doit redémarrer.
+(écart assumé avec le serveur, D210) ET, depuis le 20/10/2026, à la première
+pièce de l'année (`MoteurComptable`, règle `ouvertureAutomatiquePermise` :
+année en cours, la suivante en décembre ; date réelle, année sans exercice) —
+un poste laissé allumé au passage d'année n'a plus à redémarrer. Le serveur
+fait de même (`ExerciceComptableService::assurer`, tâche
+`tatacora:ouvrir-exercices`), et ses exercices DESCENDENT avec leur statut
+(`TableDescendue.exercicesComptables`, apparié par l'année).
 
 **Lot 3 Dépenses (D205–D215)** : la dépense écrit sa pièce dans la même
 transaction (`DepenseDao.enregistrer` → `MoteurComptable.passerEtValider` ; le

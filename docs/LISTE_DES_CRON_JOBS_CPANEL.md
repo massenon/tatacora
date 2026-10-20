@@ -39,6 +39,7 @@ l'heure du Bénin (02:00 UTC = 03:00 à Natitingou).
 |---|---|---|---|
 | `tatacora:battement-planificateur` | chaque minute | Pose l'heure du dernier passage (preuve du cron). | `verifier-production` signale « planificateur : ÉCHEC ». |
 | `queue:work --stop-when-empty --max-time=50` | chaque minute, sans chevauchement | Vide la file de tâches (courriels, notifications, certifications) par salves de 50 s. | Les courriels et notifications restent en attente (`jobs`). |
+| `tatacora:ouvrir-exercices` | chaque jour à 00:05 UTC | Ouvre l'exercice comptable de l'année en cours s'il manque, et celui de l'année suivante dès le 1er décembre. | Le 1er janvier, ventes, dépenses et encaissements refusés jusqu'à la première pièce (qui l'ouvre à la volée) ; `verifier-production` le signale. |
 | `VerifierSeuilsStockJob` (RG-07) | toutes les 15 min | Filet de sécurité des alertes de stock bas (un seuil relevé sans mouvement). | Pas d'alerte de seuil hors mouvement. |
 | `RejouerCertificationsMecefEnEchecJob` (RG-03) | toutes les 30 min | Rejoue la certification DGI des factures dont l'envoi MECeF a échoué. | Factures restées non certifiées. |
 | `SauvegardeBaseQuotidienneJob` | chaque jour à 02:00 UTC | Sauvegarde complète (`mysqldump`) dans `storage/app/sauvegardes/`, rétention appliquée. Échoue bruyamment. | Aucune sauvegarde : `verifier-production` le dit après 26 h. |

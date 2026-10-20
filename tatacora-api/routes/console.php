@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Domain\Comptabilite\Services\ExerciceComptableService;
 use App\Domain\Facturation\Jobs\RejouerCertificationsMecefEnEchecJob;
 use App\Domain\Stocks\Jobs\VerifierSeuilsStockJob;
 use App\Shared\Audit\Jobs\PurgerJournalAuditJob;
@@ -36,6 +37,25 @@ Artisan::command('tatacora:battement-planificateur', function (BattementPlanific
 
 Schedule::command('tatacora:battement-planificateur')
     ->everyMinute();
+
+// Passage d'annee (20/10/2026) : l'exercice comptable de l'annee en cours est
+// ouvert s'il manque, et celui de l'annee SUIVANTE des le 1er decembre — sans
+// quoi, le 1er janvier, toute vente et toute depense serait refusee jusqu'a
+// une ouverture manuelle. Les pieces l'ouvrent aussi a la volee (filet).
+Artisan::command('tatacora:ouvrir-exercices', function (ExerciceComptableService $exercices): int {
+    $annees = [now()->year, ...(now()->month === 12 ? [now()->year + 1] : [])];
+
+    foreach ($annees as $annee) {
+        $exercice = $exercices->assurer($annee, 'planificateur');
+        $this->info("Exercice {$annee} : {$exercice->statut}.");
+    }
+
+    return 0;
+})->purpose('Ouvre l\'exercice de l\'annee en cours, et celui de l\'annee suivante en decembre');
+
+Schedule::command('tatacora:ouvrir-exercices')
+    ->dailyAt('00:05')
+    ->withoutOverlapping();
 
 // Contournement de l'absence de processus persistant sur hebergement mutualise :
 // la file est videe par salves d'une minute plutot que par un worker permanent.

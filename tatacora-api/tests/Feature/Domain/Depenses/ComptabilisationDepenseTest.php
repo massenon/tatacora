@@ -235,11 +235,12 @@ final class ComptabilisationDepenseTest extends TestCase
         }
 
         // Absence d'exercice : message distinct, parce que la correction
-        // s'applique à un autre endroit.
+        // s'applique à un autre endroit. Une année PASSÉE : celle du jour
+        // s'ouvre d'elle-même à sa première pièce depuis le 20/10/2026.
         ExerciceComptable::query()->delete();
 
         try {
-            $this->depenseDeMarche();
+            $this->depenseDeMarche(now()->subYears(2)->toDateString());
             $this->fail('Une date hors exercice aurait dû refuser.');
         } catch (RuntimeException $refus) {
             $this->assertStringContainsString('Aucun exercice', $refus->getMessage());
@@ -400,10 +401,10 @@ final class ComptabilisationDepenseTest extends TestCase
 
     // ------------------------------------------------------------ Fixtures
 
-    private function depenseDeMarche(): Depense
+    private function depenseDeMarche(?string $date = null): Depense
     {
         return $this->depenses->enregistrer([
-            'date_transaction' => now()->toDateString(),
+            'date_transaction' => $date ?? now()->toDateString(),
             'tresorerie' => 'caisse',
             'libelle' => 'Marché du matin',
             'lignes' => [

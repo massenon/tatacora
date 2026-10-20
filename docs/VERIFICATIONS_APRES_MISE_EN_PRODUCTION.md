@@ -38,6 +38,7 @@ php artisan tatacora:verifier-production
 | courriel, secret_smtp | transport configuré, mot de passe déchiffrable |
 | administrateur | au moins un compte d'administration actif |
 | phase_essais, bascule_reinitialisation | OK (sauf pendant la phase d'essais) |
+| exercice_comptable | l'exercice de l'année en cours est ouvert (en décembre : aussi l'année suivante) |
 | mecef | « actif » une fois la certification DGI branchée |
 
 ## B. Serveur — à la main (10 minutes)

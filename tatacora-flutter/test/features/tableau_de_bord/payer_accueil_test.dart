@@ -9,6 +9,7 @@ import 'package:tatacora_flutter/features/tableau_de_bord/presentation/ecran_pil
     show horlogeTableauDeBordProvider;
 import 'package:tatacora_flutter/features/tableau_de_bord/presentation/widgets/reservations_du_jour.dart';
 
+import '../comptabilite/support/outils_comptabilite.dart' show exerciceClos;
 import '../facturation/support/outils_encaissement.dart';
 
 /// « Payer » du tableau « Réservations du jour » de l'accueil (lot C du
@@ -100,8 +101,10 @@ void main() {
       'paiement, ni écriture ; la modale reste ouverte avec le motif', (
     tester,
   ) async {
-    // Référentiel installé en 2025 : l'exercice 2026 n'existe pas.
+    // Référentiel installé en 2025, et l'exercice du jour CLÔTURÉ (manquant,
+    // il s'ouvrirait de lui-même depuis le 20/10/2026).
     db = await baseEncaissement(maintenant: DateTime(2025, 6, 1));
+    await tester.runAsync(() => exerciceClos(db, jourEncaissement.year));
     await tester.runAsync(semer);
     await monter(tester);
 

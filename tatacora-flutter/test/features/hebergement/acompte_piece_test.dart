@@ -143,6 +143,9 @@ void main() {
     );
 
     test('hors exercice : refus, rien d’écrit', () async {
+      // Un exercice 2040 CLÔTURÉ : manquant, il s'ouvrirait de lui-même à sa
+      // première pièce depuis le 20/10/2026.
+      await exerciceClos(db, 2040);
       final hors = ReservationRepositoryLocal(
         ReservationDao(
           db,

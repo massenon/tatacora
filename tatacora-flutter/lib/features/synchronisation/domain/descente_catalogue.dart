@@ -105,7 +105,12 @@ enum TableDescendue {
   modelesNotification(
     'modeles_notification',
     TableSynchronisee.modelesNotification,
-  );
+  ),
+
+  /// Passage d'année (20/10/2026) : les exercices du serveur et leur statut
+  /// — une clôture faite au serveur verrouille l'année ici aussi. Le poste ne
+  /// les pousse pas.
+  exercicesComptables('exercices_comptables', null);
 
   const TableDescendue(this.nomServeur, this.tableSynchronisee);
 
@@ -163,6 +168,7 @@ String libelleTableServeur(String nom) => switch (nom) {
   'parametres_systeme' => 'Paramètres',
   'roles' => 'Rôles et permissions',
   'modeles_notification' => 'Modèles de notification',
+  'exercices_comptables' => 'Exercices comptables',
   _ => nom,
 };
 

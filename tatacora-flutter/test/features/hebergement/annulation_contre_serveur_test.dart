@@ -204,7 +204,10 @@ final _scenario = <Map<String, Object?>>[
   {'op': 'effacer_tarif', 'ref': 'r10'},
   {'op': 'compter'},
 
-  // --- Le refus d'une pièce n'écrit RIEN : pas d'exercice -------------------
+  // --- Le refus d'une pièce n'écrit RIEN : exercice clôturé ----------------
+  // (Manquant, l'exercice de l'année en cours s'ouvrirait de lui-même à sa
+  // première pièce depuis le 20/10/2026.)
+  {'op': 'exercice_clos', 'annee': 2035},
   {'op': 'horloge', 'date': '2035-01-02'},
   _reserver('rx', 'u1', '2035-02-01', '2035-02-03', '1000', 'especes'),
   {'op': 'horloge', 'date': '2031-06-15'},
@@ -338,7 +341,7 @@ void main() {
         if ((r as Map).containsKey('compte')) r['compte'] as Map,
     ];
     // Neuf réservations (6 pièces d'acompte), puis une dixième avec sa pièce,
-    // puis le refus de `rx` (exercice 2035 absent) : si le refus avait écrit, on
+    // puis le refus de `rx` (exercice 2035 clôturé) : si le refus avait écrit, on
     // lirait 11 réservations.
     expect(comptes[0], {'reservations': 10, 'ecritures': 14});
     expect(comptes[1], {'reservations': 10, 'ecritures': 14});
@@ -586,6 +589,10 @@ Future<List<Map<String, Object?>>> _jouerLocalement(
       case 'horloge':
         final j = jour(op['date']! as String);
         maintenant = DateTime(j.year, j.month, j.day, 10);
+        resultats.add({'ok': true});
+
+      case 'exercice_clos':
+        await exerciceClos(db, op['annee']! as int);
         resultats.add({'ok': true});
 
       case 'reserver':

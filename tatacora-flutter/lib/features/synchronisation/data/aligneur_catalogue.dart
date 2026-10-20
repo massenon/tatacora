@@ -5,7 +5,10 @@ import 'package:drift/drift.dart';
 import '../../../core/database/app_database.dart';
 import '../../achats/domain/entities/fournisseur.dart';
 import '../../achats/data/reglements_fournisseur_dao.dart';
+import '../../comptabilite/data/comptabilite_dao.dart';
 import '../../comptabilite/data/moteur_comptable.dart';
+import '../../comptabilite/domain/entities/comptabilite.dart'
+    show StatutExercice;
 import '../../facturation/data/facture_dao.dart';
 import '../../hebergement/domain/entities/fiche_reservation.dart'
     show CanalReservation;
@@ -129,6 +132,7 @@ class AligneurCatalogue {
       TableDescendue.parametresSysteme => _parametre(e),
       TableDescendue.roles => _role(idLocal, e),
       TableDescendue.modelesNotification => _modeleNotification(idLocal, e),
+      TableDescendue.exercicesComptables => _exercice(e),
     };
   }
 
@@ -1221,6 +1225,34 @@ class AligneurCatalogue {
     await ParametresDepotLocal(_db).inscrireDescendue(
       cle,
       valeur is String && valeur.isNotEmpty ? valeur : null,
+    );
+    return const Aligne();
+  }
+
+  /// Un exercice du serveur (20/10/2026), apparié par son ANNÉE (unique des
+  /// deux côtés) : l'exercice local garde son identifiant — ses écritures le
+  /// désignent —, il prend les dates et le STATUT du serveur, qui est maître
+  /// de la clôture. Un exercice absent d'ici y naît.
+  Future<IssueAlignement> _exercice(ElementCatalogue e) async {
+    final d = e.donnees;
+    final annee = d['annee'] is int
+        ? d['annee']! as int
+        : int.tryParse('${d['annee']}');
+    final debut = _texte(d['date_debut']);
+    final fin = _texte(d['date_fin']);
+    final brut = _texte(d['statut']);
+    final statut = StatutExercice.values
+        .where((x) => x.valeur == brut)
+        .firstOrNull;
+    if (annee == null || debut == null || fin == null || statut == null) {
+      return const RefuseParLePoste('exercice illisible');
+    }
+    await ComptabiliteDao(_db).alignerExerciceDescendu(
+      annee: annee,
+      dateDebut: debut.substring(0, 10),
+      dateFin: fin.substring(0, 10),
+      statut: statut,
+      dateCloture: DateTime.tryParse(_texte(d['date_cloture']) ?? ''),
     );
     return const Aligne();
   }

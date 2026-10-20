@@ -181,6 +181,9 @@ class CatalogueDescendantService
         'roles' => ['libelle', 'description'],
         // Lot 10f : la configuration M12 (les messages restent sur leur poste).
         'modeles_notification' => ['evenement', 'canal', 'objet', 'contenu_template', 'actif'],
+        // Passage d'année (20/10/2026) : les exercices et leur STATUT — une
+        // clôture faite au serveur verrouille aussi l'année sur les postes.
+        'exercices_comptables' => ['annee', 'date_debut', 'date_fin', 'statut', 'date_cloture'],
     ];
 
     /**
@@ -190,11 +193,12 @@ class CatalogueDescendantService
      * des rôles donne leurs droits aux comptes du poste : un caissier qui
      * synchronise en a besoin autant qu'un administrateur. Aucune ne porte
      * de secret (`RegistreParametres::MOTIFS_SECRET`, ni compte ni mot de
-     * passe).
+     * passe). Les exercices (20/10/2026) aussi : toute vente passe sa pièce
+     * dans l'exercice de sa date, quel que soit le droit sur M10.
      *
      * @var list<string>
      */
-    public const LECTURE_LIBRE = ['parametres_systeme', 'roles'];
+    public const LECTURE_LIBRE = ['parametres_systeme', 'roles', 'exercices_comptables'];
 
     /**
      * Tables descendues sans être synchronisables — leur module est déclaré
@@ -211,6 +215,9 @@ class CatalogueDescendantService
         // Lot F5c : l'avoir n'a pas de gestionnaire (il naît de l'annulation
         // d'une facture), il se lit sous le module de la facturation.
         'avoirs' => 'M2',
+        // Passage d'année (20/10/2026) : reçus par tout compte (une vente
+        // passe sa pièce dans l'exercice de sa date), écrits au seul serveur.
+        'exercices_comptables' => 'M10',
     ];
 
     /**

@@ -65,6 +65,7 @@ class PasserEcritureService
     public function __construct(
         private readonly EcritureComptableService $ecritures,
         private readonly SequenceDocumentService $sequences,
+        private readonly ExerciceComptableService $exercices,
     ) {
     }
 
@@ -242,6 +243,19 @@ class PasserEcritureService
             ->whereDate('date_debut', '<=', $date)
             ->whereDate('date_fin', '>=', $date)
             ->first();
+
+        // Passage d'année (20/10/2026) : l'exercice de l'année en cours (ou de
+        // la suivante, en décembre) s'ouvre de lui-même à sa première pièce.
+        // Seulement une date RÉELLE dont l'année n'a aucun exercice : une date
+        // impossible (« 2031-02-30 ») reste un refus, jamais l'exercice voisin.
+        $jour = \DateTimeImmutable::createFromFormat('!Y-m-d', substr($date, 0, 10));
+        $annee = $jour !== false && $jour->format('Y-m-d') === substr($date, 0, 10) ? (int) $jour->format('Y') : null;
+        if ($exercice === null
+            && $annee !== null
+            && ExerciceComptableService::ouvertureAutomatiquePermise($annee)
+            && ! ExerciceComptable::query()->where('annee', $annee)->exists()) {
+            $exercice = $this->exercices->assurer($annee, 'premiere_piece');
+        }
 
         if ($exercice === null) {
             throw new RuntimeException(__('depenses.exercice_absent', ['date' => $date]));

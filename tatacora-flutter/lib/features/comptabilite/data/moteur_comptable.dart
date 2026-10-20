@@ -140,7 +140,27 @@ class MoteurComptable {
           {'code': demande.journal},
         );
       }
-      final exercice = exerciceOuvertPour(await _dao.exercices(), demande.date);
+      // Passage d'année (20/10/2026) : un poste laissé allumé la nuit du
+      // 31/12 n'attend plus son redémarrage — la première pièce de l'année
+      // ouvre l'exercice qui manque, dans SA transaction (refusée, elle
+      // n'ouvre rien).
+      var exercices = await _dao.exercices();
+      // Seulement une date RÉELLE dont l'année n'a aucun exercice ici : une
+      // date impossible (« 2031-02-30 ») reste un refus, jamais un doublon.
+      final anneePiece = DateTime.tryParse(demande.date)?.year;
+      if (exerciceCouvrant(exercices, demande.date) == null &&
+          anneePiece != null &&
+          formaterDateIso(DateTime.parse(demande.date)) == demande.date &&
+          !exercices.any((x) => x.annee == anneePiece) &&
+          ouvertureAutomatiquePermise(anneePiece, _maintenant())) {
+        await _dao.insererExercice(
+          annee: anneePiece,
+          dateDebut: '$anneePiece-01-01',
+          dateFin: '$anneePiece-12-31',
+        );
+        exercices = await _dao.exercices();
+      }
+      final exercice = exerciceOuvertPour(exercices, demande.date);
 
       final resolues = <_LigneResolue>[];
       for (final ligne in demande.lignes) {

@@ -90,6 +90,9 @@ void main() {
       await autre.customStatement('SELECT 1');
       await semerAuteur(autre);
       await baseInstalleeSur(autre, DateTime(2031, 6, 15));
+      // L'exercice de la pièce est CLÔTURÉ (un exercice manquant de l'année
+      // en cours s'ouvrirait de lui-même depuis le 20/10/2026).
+      await exerciceClos(autre, jourReglement.year);
       final commande = await semerCommande(autre);
       final daoSansExercice = ReglementsFournisseurDao(
         autre,

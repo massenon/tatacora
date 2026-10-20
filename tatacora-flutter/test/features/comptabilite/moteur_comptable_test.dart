@@ -1218,14 +1218,15 @@ void main() {
       },
     );
 
-    test('LE CAS DU 01/01/2027 : le démarrage du premier janvier ouvre 2027 — '
-        'pas avant', () async {
+    test('LE CAS DU 01/01/2027 : un poste laissé allumé la nuit du 31/12 — '
+        'la PREMIÈRE pièce de 2027 ouvre l’exercice, sans redémarrage '
+        '(passage d’année, 20/10/2026)', () async {
       // Un poste installé en 2026 : l'exercice 2026 est ouvert.
       final poste = await baseInstallee(maintenant: DateTime(2026, 12, 31));
       addTearDown(poste.close);
       final au2027 = moteurSur(
         poste,
-        maintenant: () => DateTime(2027, 1, 1, 8),
+        maintenant: () => DateTime(2027, 1, 1, 0, 30),
       );
       final dao2 = ComptabiliteDao(poste);
       final restaurant = (await dao2.centreParLibelle('Restaurant'))!.id;
@@ -1243,35 +1244,43 @@ void main() {
         ],
       );
 
-      // Le dernier jour de 2026 passe ; le premier de 2027 est refusé TANT
-      // QUE le poste n'a pas redémarré (la limite de l'ouverture au
-      // démarrage : un poste laissé allumé de la Saint-Sylvestre au premier
-      // janvier ne l'a pas vue passer).
+      // Le dernier jour de 2026 passe ; le premier de 2027 aussi — jusqu'au
+      // 20/10/2026, il était refusé tant que le poste n'avait pas redémarré.
       expect(
         await au2027.passer(piece('2026-12-31'), auteurId: auteurEssai),
         hasLength(2),
       );
-      final e = await refus(
-        au2027.passer(piece('2027-01-01'), auteurId: auteurEssai),
-      );
-      expect(e.motif, MotifRefus.exerciceAbsent);
       expect(
-        e.message,
-        phrase('depenses.exercice_absent', {'date': '2027-01-01'}),
+        await au2027.passer(piece('2027-01-01'), auteurId: auteurEssai),
+        hasLength(2),
+      );
+      final ouvert = (await dao2.exerciceDeLAnnee(2027))!;
+      expect(ouvert.statut, StatutExercice.ouvert);
+      expect(ouvert.dateDebut, '2027-01-01');
+      expect(ouvert.dateFin, '2027-12-31');
+      // 2026 reste ouvert : écritures d'inventaire en N pendant N+1.
+      expect(
+        (await dao2.exerciceDeLAnnee(2026))!.statut,
+        StatutExercice.ouvert,
       );
 
-      // Le démarrage du 01/01/2027 ouvre 2027 (D197, option (b)) : le geste
-      // manuel n'est plus nécessaire.
+      // Une date FANTAISISTE ou une année passée manquante n'ouvre rien.
+      for (final date in ['2031-05-04', '2019-03-02']) {
+        final e = await refus(
+          au2027.passer(piece(date), auteurId: auteurEssai),
+        );
+        expect(e.motif, MotifRefus.exerciceAbsent, reason: date);
+      }
+      expect(await dao2.exerciceDeLAnnee(2031), isNull);
+      expect(await dao2.exerciceDeLAnnee(2019), isNull);
+
+      // Le démarrage suivant ne recrée rien (D197, option (b) : idempotent).
       final bilan = await installerReferentielComptable(
         poste,
         contenuPlan: lirePlanEmbarque(),
         maintenant: DateTime(2027, 1, 1),
       );
-      expect(bilan.exerciceSeme, 2027);
-      expect(
-        await au2027.passer(piece('2027-01-01'), auteurId: auteurEssai),
-        hasLength(2),
-      );
+      expect(bilan.exerciceSeme, isNull);
 
       // Le geste explicite reste le chemin des AUTRES années, et refuse
       // d'ouvrir une année qui existe déjà.
