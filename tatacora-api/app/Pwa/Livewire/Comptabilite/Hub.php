@@ -23,6 +23,7 @@ use App\Domain\Comptabilite\Services\JournalGeneralService;
 use App\Domain\Comptabilite\Services\PasserEcritureService;
 use App\Domain\Comptabilite\Services\PlanComptableService;
 use App\Exports\ComptabiliteJournalExport;
+use App\Models\User;
 use App\Pwa\Livewire\Concerns\FormulaireModal;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\View\View;
@@ -677,12 +678,12 @@ class Hub extends PageComptabilite
      */
     public function demarrerCloture(ClotureExerciceService $service): void
     {
-        $this->gesteDeCloture(fn ($exercice, $utilisateur) => $service->demarrer($exercice, $utilisateur), 'comptabilite_pwa.cloture_demarree');
+        $this->gesteDeCloture($this->exigerEcriture(self::MODULE), fn ($exercice, $utilisateur) => $service->demarrer($exercice, $utilisateur), 'comptabilite_pwa.cloture_demarree');
     }
 
     public function reprendreSaisie(ClotureExerciceService $service): void
     {
-        $this->gesteDeCloture(fn ($exercice, $utilisateur) => $service->reprendreSaisie($exercice, $utilisateur), 'comptabilite_pwa.saisie_reprise');
+        $this->gesteDeCloture($this->exigerEcriture(self::MODULE), fn ($exercice, $utilisateur) => $service->reprendreSaisie($exercice, $utilisateur), 'comptabilite_pwa.saisie_reprise');
     }
 
     public function cloturerExercice(ClotureExerciceService $service, ArchiveClotureService $archives): void
@@ -690,7 +691,7 @@ class Hub extends PageComptabilite
         // L'archive légale (lot 4) suit la clôture, HORS de sa transaction :
         // un PDF qui échouerait ne défait pas une clôture passée — l'écran
         // propose alors de générer l'archive (`genererArchive`).
-        $this->gesteDeCloture(function ($exercice, $utilisateur) use ($service, $archives) {
+        $this->gesteDeCloture($this->exigerEcriture(self::MODULE), function ($exercice, $utilisateur) use ($service, $archives) {
             $cloture = $service->cloturer($exercice, $utilisateur);
 
             try {
@@ -708,7 +709,7 @@ class Hub extends PageComptabilite
      */
     public function genererArchive(ClotureExerciceService $service, ArchiveClotureService $archives): void
     {
-        $this->gesteDeCloture(function ($exercice, $utilisateur) use ($service, $archives) {
+        $this->gesteDeCloture($this->exigerEcriture(self::MODULE), function ($exercice, $utilisateur) use ($service, $archives) {
             $cloture = $service->clotureActive($exercice->id)
                 ?? throw new RuntimeException(__('comptabilite.archive_sans_cloture'));
             $archives->archiver($cloture, $utilisateur);
@@ -743,18 +744,20 @@ class Hub extends PageComptabilite
 
     public function rouvrirExercice(ClotureExerciceService $service): void
     {
-        $this->gesteDeCloture(function ($exercice, $utilisateur) use ($service) {
+        $this->gesteDeCloture($this->exigerEcriture(self::MODULE), function ($exercice, $utilisateur) use ($service) {
             $service->rouvrir($exercice, $utilisateur, $this->motifReouverture);
             $this->motifReouverture = '';
         }, 'comptabilite_pwa.exercice_rouvert');
     }
 
     /**
+     * Chaque action publique garde ELLE-MÊME (`exigerEcriture(self::MODULE)`,
+     * relu par `PwaEcritureAutoriseeTest`) et passe l'utilisateur ici.
+     *
      * @param  callable(\App\Domain\Comptabilite\Models\ExerciceComptable, \App\Models\User): mixed  $geste
      */
-    private function gesteDeCloture(callable $geste, string $succes): void
+    private function gesteDeCloture(User $utilisateur, callable $geste, string $succes): void
     {
-        $utilisateur = $this->exigerEcriture(self::MODULE);
         $exercice = $this->exercice();
 
         if ($exercice === null) {

@@ -39,6 +39,7 @@ php artisan tatacora:verifier-production
 | administrateur | au moins un compte d'administration actif |
 | phase_essais, bascule_reinitialisation | OK (sauf pendant la phase d'essais) |
 | exercice_comptable | l'exercice de l'année en cours est ouvert (en décembre : aussi l'année suivante) |
+| archives_cloture | chaque exercice clôturé a son archive légale, et elle rend encore son empreinte SHA-256 (ÉCHEC si un fichier a changé) |
 | mecef | « actif » une fois la certification DGI branchée |
 
 ## B. Serveur — à la main (10 minutes)

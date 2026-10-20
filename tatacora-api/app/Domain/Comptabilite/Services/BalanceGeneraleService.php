@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Domain\Comptabilite\Services;
 
-use App\Domain\Comptabilite\Models\ClotureExercice;
 use App\Domain\Comptabilite\Models\CompteComptable;
 use App\Domain\Comptabilite\Models\EcritureComptable;
 use App\Domain\Comptabilite\Models\ExerciceComptable;
@@ -36,8 +35,8 @@ use Illuminate\Support\Facades\DB;
  *
  * ## Les À-NOUVEAUX PROVISOIRES de N+1 (lot 2, 20/10/2026)
  *
- * Tant que l'exercice PRÉCÉDENT n'a pas de clôture active (pas encore
- * clôturé, ou clôturé avant le lot 2 sans pièce d'à-nouveaux), ses soldes de
+ * Tant que l'exercice PRÉCÉDENT n'est pas clôturé (ouvert, en clôture, ou
+ * rouvert — qui repasse en clôture), ses soldes de
  * bilan (classes 1 à 5) et son résultat (en 131 ou 139) s'ajoutent à cette
  * balance — calculés à chaque lecture, donc « dynamiques » : une écriture
  * d'inventaire passée en N se voit aussitôt en N+1. Ils ne s'écrivent pas
@@ -183,7 +182,7 @@ class BalanceGeneraleService
     /**
      * Ajoute à [parCompte] les à-nouveaux provisoires de l'exercice précédent
      * — voir l'entête. Rend l'année de cet exercice, ou `null` s'il n'y en a
-     * pas à ajouter (aucun exercice précédent, ou clôture active).
+     * pas à ajouter (aucun exercice précédent, ou exercice précédent clôturé).
      *
      * @param  array<string, array{compte_id: string, numero: string, libelle: string, classe: string, debit: string, credit: string}>  $parCompte
      */
@@ -194,8 +193,11 @@ class BalanceGeneraleService
             ? null
             : ExerciceComptable::query()->where('annee', $exercice->annee - 1)->first();
 
-        if ($precedent === null
-            || ClotureExercice::query()->where('exercice_id', $precedent->id)->whereNull('rouverte_le')->exists()) {
+        // N-1 CLÔTURÉ : ses à-nouveaux sont écrits au journal AN (ou, pour une
+        // clôture d'avant le lot 2, n'existent pas) — rien de provisoire.
+        // Rouvert, il repasse en clôture : ses AN sont contre-passés et les
+        // provisoires reviennent.
+        if ($precedent === null || $precedent->statut === 'cloture') {
             return null;
         }
 

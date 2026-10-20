@@ -13,6 +13,7 @@ use App\Domain\Comptabilite\Services\PasserEcritureService;
 use App\Models\User;
 use App\Pwa\Livewire\Comptabilite\Hub;
 use App\Shared\Backup\Services\ReinitialisationDonneesTestService;
+use App\Shared\Exploitation\Services\VerificationProductionService;
 use App\Shared\Parametres\Models\ParametreSysteme;
 use App\Shared\Rbac\Models\Role;
 use Database\Seeders\ComptabiliteReferentielSeeder;
@@ -173,6 +174,25 @@ final class ArchiveClotureTest extends TestCase
         $hub()->assertSee(__('comptabilite_pwa.archive_absente'))
             ->call('genererArchive')->assertHasNoErrors();
         $this->assertNotNull($cloture->refresh()->archive_empreinte);
+    }
+
+    #[Test]
+    public function la_verification_de_production_rougit_sur_une_archive_absente_ou_alteree(): void
+    {
+        $controle = fn (): array => collect(app(VerificationProductionService::class)->executer())
+            ->firstWhere('controle', 'archives_cloture');
+
+        $this->assertSame('ok', $controle()['issue']);
+
+        $cloture = $this->cloturer();
+        $this->assertSame('attention', $controle()['issue']);
+        $this->assertStringContainsString('2026', $controle()['detail']);
+
+        $cloture = app(ArchiveClotureService::class)->archiver($cloture, $this->comptable);
+        $this->assertSame('ok', $controle()['issue']);
+
+        Storage::disk(ArchiveClotureService::DISQUE)->put($cloture->archive_chemin.'/balance.csv', 'falsifié');
+        $this->assertSame('echec', $controle()['issue']);
     }
 
     #[Test]
