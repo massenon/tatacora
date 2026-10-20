@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Shared\Backup\Services;
 
+use App\Domain\Comptabilite\Services\ArchiveClotureService;
 use App\Models\User;
 use App\Shared\Audit\Models\JournalAudit;
 use App\Shared\Parametres\Services\ParametreSystemeService;
 use App\Shared\Sync\Services\GenerationDonneesService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use RuntimeException;
 
@@ -355,6 +357,17 @@ class ReinitialisationDonneesTestService
             DB::table('vehicules')
                 ->where('statut', 'loue')
                 ->update(['statut' => 'disponible']);
+            //    Un exercice démarré en clôture ou clôturé PENDANT LES ESSAIS
+            //    (20/10/2026) : ses écritures et sa clôture sont effacées, il
+            //    redevient ouvert — daté, pour redescendre aux postes.
+            DB::table('exercices_comptables')
+                ->where('statut', '!=', 'ouvert')
+                ->update([
+                    'statut' => 'ouvert',
+                    'date_cloture' => null,
+                    'utilisateur_cloture_id' => null,
+                    'updated_at' => now(),
+                ]);
 
             // 5. Une génération NOUVELLE : les postes d'avant s'arrêtent.
             $generation = $this->generations->ouvrir($auteur);
@@ -378,6 +391,11 @@ class ReinitialisationDonneesTestService
 
             return ['total' => $total, 'generation' => $generation->generation];
         });
+
+        // Les archives de clôture des essais suivent leurs clôtures (vidées
+        // ci-dessus) : une « archive légale » d'un exercice d'essai ne doit
+        // pas survivre. Hors transaction — un fichier ne se défait pas.
+        Storage::disk(ArchiveClotureService::DISQUE)->deleteDirectory('archives/exercices');
 
         return [
             'videes' => count($ordre),

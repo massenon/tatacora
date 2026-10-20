@@ -148,6 +148,10 @@ final class PwaEcritureAutoriseeTest extends TestCase
         'ouvrirExport',
         'genererExport',
         'exporterPdf',
+        // Lot 4 (20/10/2026) : délivre l'archive de clôture DÉJÀ écrite,
+        // vérifiée contre son empreinte — `ArchiveClotureService::zip()` ne
+        // persiste rien (fichier temporaire supprimé après l'envoi).
+        'telechargerArchive',
         // `exporterExcel` a QUITTÉ cette liste le 02/09/2026 : plus aucune
         // méthode publique ne porte ce nom (export unifié, dérogation PO du
         // 01/09/2026 — `ClientsCreances` et `Facturation` sont passées à

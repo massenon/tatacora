@@ -46,6 +46,10 @@ final readonly class BalanceGenerale
         public bool $equilibree,
         public RepartitionStatuts $statuts,
         public array $filtresAppliques,
+        // Lot 2 (20/10/2026) : l'année dont les À-NOUVEAUX PROVISOIRES sont
+        // compris dans cette balance (exercice précédent sans clôture
+        // active), ou `null`. Calculés, jamais écrits.
+        public ?int $aNouveauxProvisoiresDe = null,
     ) {
     }
 }

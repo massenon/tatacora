@@ -9,8 +9,10 @@ use App\Domain\Comptabilite\Models\CentreCout;
 use App\Domain\Comptabilite\Models\CompteComptable;
 use App\Domain\Comptabilite\Models\Immobilisation;
 use App\Domain\Comptabilite\Services\AnalytiqueService;
+use App\Domain\Comptabilite\Services\ArchiveClotureService;
 use App\Domain\Comptabilite\Services\BalanceGeneraleService;
 use App\Domain\Comptabilite\Services\BilanService;
+use App\Domain\Comptabilite\Services\ClotureExerciceService;
 use App\Domain\Comptabilite\Services\CompteResultatService;
 use App\Domain\Comptabilite\Services\EtatClotureService;
 use App\Domain\Comptabilite\Services\ExerciceComptableService;
@@ -28,7 +30,9 @@ use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
 use Maatwebsite\Excel\Facades\Excel;
 use RuntimeException;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Response;
+use Throwable;
 
 /**
  * Hub Comptabilite SYSCOHADA — `prototype_v2/pages/m10-syscohada.html`.
@@ -307,6 +311,9 @@ class Hub extends PageComptabilite
     // --- Modale « Ouvrir un exercice » -----------------------------------
 
     public string $anneeOuverture = '';
+
+    /** Le motif de la réouverture d'un exercice clôturé (lot 2, 20/10/2026). */
+    public string $motifReouverture = '';
 
     // --- Modale d'export unifiée (`pwa.partials.modale-export`) ----------
 
@@ -662,11 +669,90 @@ class Hub extends PageComptabilite
     }
 
     /**
-     * Clôture l'exercice CONSULTÉ — statut seulement, REFUSÉ si des écritures
-     * y restent en brouillon. Voir `ExerciceComptableService` pour le
-     * périmètre volontairement minimal de ce geste.
+     * La clôture SYSCOHADA annuelle de l'exercice CONSULTÉ (lot 2,
+     * 20/10/2026) — `ClotureExerciceService` : démarrer (ouvert → en
+     * clôture), reprendre la saisie, clôturer définitivement (solde des
+     * comptes de gestion en 131/139, à-nouveaux au journal AN, verrou), et
+     * rouvrir (le comptable seul, motif obligatoire).
      */
-    public function cloturerExercice(ExerciceComptableService $service): void
+    public function demarrerCloture(ClotureExerciceService $service): void
+    {
+        $this->gesteDeCloture(fn ($exercice, $utilisateur) => $service->demarrer($exercice, $utilisateur), 'comptabilite_pwa.cloture_demarree');
+    }
+
+    public function reprendreSaisie(ClotureExerciceService $service): void
+    {
+        $this->gesteDeCloture(fn ($exercice, $utilisateur) => $service->reprendreSaisie($exercice, $utilisateur), 'comptabilite_pwa.saisie_reprise');
+    }
+
+    public function cloturerExercice(ClotureExerciceService $service, ArchiveClotureService $archives): void
+    {
+        // L'archive légale (lot 4) suit la clôture, HORS de sa transaction :
+        // un PDF qui échouerait ne défait pas une clôture passée — l'écran
+        // propose alors de générer l'archive (`genererArchive`).
+        $this->gesteDeCloture(function ($exercice, $utilisateur) use ($service, $archives) {
+            $cloture = $service->cloturer($exercice, $utilisateur);
+
+            try {
+                $archives->archiver($cloture, $utilisateur);
+            } catch (Throwable $echec) {
+                report($echec);
+            }
+        }, 'comptabilite_pwa.exercice_cloture');
+    }
+
+    /**
+     * L'archive légale d'une clôture passée qui n'en a pas encore (la
+     * génération a échoué après la clôture). Une archive existante n'est
+     * jamais réécrite.
+     */
+    public function genererArchive(ClotureExerciceService $service, ArchiveClotureService $archives): void
+    {
+        $this->gesteDeCloture(function ($exercice, $utilisateur) use ($service, $archives) {
+            $cloture = $service->clotureActive($exercice->id)
+                ?? throw new RuntimeException(__('comptabilite.archive_sans_cloture'));
+            $archives->archiver($cloture, $utilisateur);
+        }, 'comptabilite_pwa.archive_generee');
+    }
+
+    /**
+     * Télécharge l'archive légale (ZIP : écritures, balance, états PDF,
+     * manifeste). Une LECTURE : l'archive est vérifiée, jamais réécrite.
+     */
+    public function telechargerArchive(ClotureExerciceService $service, ArchiveClotureService $archives): ?BinaryFileResponse
+    {
+        $exercice = $this->exercice();
+        $cloture = $exercice === null ? null : $service->clotureActive($exercice->id);
+
+        if ($exercice === null || $cloture === null || $cloture->archive_empreinte === null) {
+            $this->addError('cloture', __('comptabilite.archive_sans_cloture'));
+
+            return null;
+        }
+
+        try {
+            $zip = $archives->zip($cloture);
+        } catch (RuntimeException $refus) {
+            $this->addError('cloture', $refus->getMessage());
+
+            return null;
+        }
+
+        return response()->download($zip, 'archive_exercice_'.$exercice->annee.'.zip')->deleteFileAfterSend();
+    }
+
+    public function rouvrirExercice(ClotureExerciceService $service): void
+    {
+        $this->gesteDeCloture(function ($exercice, $utilisateur) use ($service) {
+            $service->rouvrir($exercice, $utilisateur, $this->motifReouverture);
+            $this->motifReouverture = '';
+        }, 'comptabilite_pwa.exercice_rouvert');
+    }
+
+    /**
+     * @param  callable(\App\Domain\Comptabilite\Models\ExerciceComptable, \App\Models\User): mixed  $geste
+     */
+    private function gesteDeCloture(callable $geste, string $succes): void
     {
         $utilisateur = $this->exigerEcriture(self::MODULE);
         $exercice = $this->exercice();
@@ -678,14 +764,15 @@ class Hub extends PageComptabilite
         }
 
         try {
-            $exercice = $service->cloturer($exercice, $utilisateur);
+            $geste($exercice, $utilisateur);
         } catch (RuntimeException $refus) {
             $this->addError('cloture', $refus->getMessage());
 
             return;
         }
 
-        session()->flash('pwa-succes', __('comptabilite_pwa.exercice_cloture', ['annee' => (string) $exercice->annee]));
+        $this->resetErrorBag('cloture');
+        session()->flash('pwa-succes', __($succes, ['annee' => (string) $exercice->annee]));
     }
 
     public function fermerModales(): void
@@ -829,6 +916,9 @@ class Hub extends PageComptabilite
             'cloture' => $exercice === null ? null : app(EtatClotureService::class)
                 ->genererPourExercice($exercice, $statuts, $filtre),
             'exerciceIdConsulte' => $exerciceId,
+            // Lot 2 : la clôture active (pièces passées) et le droit de rouvrir.
+            'clotureActive' => $exercice === null ? null : app(ClotureExerciceService::class)->clotureActive($exercice->id),
+            'peutRouvrir' => auth()->user()?->role?->libelle === ClotureExerciceService::ROLE_REOUVERTURE,
         ];
     }
 

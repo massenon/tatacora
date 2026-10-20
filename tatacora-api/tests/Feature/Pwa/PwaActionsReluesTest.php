@@ -193,6 +193,12 @@ final class PwaActionsReluesTest extends TestCase
             'ouvrirNouveauCompte', 'enregistrerCompte',
             'ouvrirNouvelleImmo', 'enregistrerImmo', 'ouvrirPlanAmortissement',
             'ouvrirFormulaireExercice', 'enregistrerExercice', 'cloturerExercice',
+            // Lot 2 (20/10/2026) : la clôture SYSCOHADA annuelle, chaque geste
+            // garde `exigerEcriture(M10)` ; rouvrir est réservé au comptable
+            // par le service.
+            'demarrerCloture', 'reprendreSaisie', 'rouvrirExercice',
+            // Lot 4 : l'archive légale — générer (écriture M10), télécharger.
+            'genererArchive', 'telechargerArchive',
             'fermerModales',
         ],
         PlanComptable::class => ['render'],

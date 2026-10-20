@@ -26,6 +26,10 @@ réinitialisation.
 - Un référentiel créé sur un poste pendant les essais (article, chambre…)
   n'est gardé que s'il **était déjà au serveur** au moment de la
   réinitialisation : synchronisez avant si vous voulez le garder.
+- Un exercice **démarré en clôture ou clôturé pendant les essais** redevient
+  **ouvert**, et les archives de clôture d'essai
+  (`storage/app/private/archives/exercices/`) sont **effacées** : aucune
+  « archive légale » d'un exercice d'essai ne survit.
 
 ## Avant les essais
 

@@ -72,7 +72,7 @@ class PasserEcritureService
     /**
      * Écrit une pièce en BROUILLON, à partir de codes métier.
      *
-     * @param  array{journal: string, date: string, libelle: string, lignes: list<array<string, mixed>>}  $donnees
+     * @param  array{journal: string, date: string, libelle: string, lignes: list<array<string, mixed>>, statuts_exercice_admis?: list<string>}  $donnees
      *                                                                                                              Chaque ligne : `compte` (numéro), `debit` et/ou `credit`,
      *                                                                                                              `libelle` (optionnel), `centre_id` (optionnel — voir la note de classe).
      * @return Collection<int, EcritureComptable>
@@ -83,7 +83,10 @@ class PasserEcritureService
     {
         $journal = $this->journal((string) $donnees['journal']);
         $date = (string) $donnees['date'];
-        $exercice = $this->exerciceOuvert($date);
+        // Les statuts d'exercice admis (lot 2, 20/10/2026) : `ouvert` seul pour
+        // les modules ; la clôture et les écritures d'inventaire du comptable
+        // admettent aussi `en_cloture`.
+        $exercice = $this->exerciceOuvert($date, $donnees['statuts_exercice_admis'] ?? ['ouvert']);
         $libelle = (string) $donnees['libelle'];
 
         $lignes = [];
@@ -148,7 +151,7 @@ class PasserEcritureService
      * d'être opposables. Le choix se fait à l'appel, en un mot, pas en
      * dupliquant la mécanique.
      *
-     * @param  array{journal: string, date: string, libelle: string, lignes: list<array<string, mixed>>}  $donnees
+     * @param  array{journal: string, date: string, libelle: string, lignes: list<array<string, mixed>>, statuts_exercice_admis?: list<string>}  $donnees
      * @return Collection<int, EcritureComptable>
      */
     public function passerEtValider(array $donnees): Collection
@@ -237,7 +240,10 @@ class PasserEcritureService
      * datant la pièce autrement. Un message unique enverrait chercher au
      * mauvais endroit.
      */
-    private function exerciceOuvert(string $date): ExerciceComptable
+    /**
+     * @param  list<string>  $statutsAdmis
+     */
+    private function exerciceOuvert(string $date, array $statutsAdmis = ['ouvert']): ExerciceComptable
     {
         $exercice = ExerciceComptable::query()
             ->whereDate('date_debut', '<=', $date)
@@ -261,7 +267,7 @@ class PasserEcritureService
             throw new RuntimeException(__('depenses.exercice_absent', ['date' => $date]));
         }
 
-        if ($exercice->statut !== 'ouvert') {
+        if (! in_array($exercice->statut, $statutsAdmis, true)) {
             throw new RuntimeException(__('depenses.exercice_clos', [
                 'annee' => (string) $exercice->annee,
                 'statut' => $exercice->statut,

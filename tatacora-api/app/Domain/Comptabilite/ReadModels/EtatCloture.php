@@ -10,22 +10,16 @@ namespace App\Domain\Comptabilite\ReadModels;
  * @see EF-M10-07 Cloture comptable periodique avec verrouillage
  * @see RG-11 Immutabilite d'une ecriture validee
  *
- * ## AUCUNE ACTION DE CLOTURE N'EST EXPOSEE, et le maitre non plus n'en a
+ * ## L'action de clôture est exposée (lot 2, 20/10/2026)
  *
- * `m10-cloture.html` n'a AUCUN bouton : ni « Clôturer », ni « Valider », ni
- * « Reporter ». C'est une checklist de diagnostic en lecture seule — le fichier
- * ne contient pas un seul `addEventListener`. Cet etat en est la transcription
- * fidele.
- *
- * `actionExposee` vaut donc `false`, et `limitesNonVerifiables` dit pourquoi
- * l'action ne pourrait pas etre offerte meme si le maitre la demandait :
- *
- * - **Le report a nouveau n'existe nulle part** (Partie 4 §2.1 etape 6). Sans
- *   lui, cloturer laisserait l'exercice suivant sans aucun solde d'ouverture.
- * - **Le perimetre de la cloture n'est pas arbitre (PA-28)** : « Cloture
- *   Periodique » (mensuelle) et « Cloture d'Exercice » (annuelle) restent deux
- *   concepts distincts non tranches — le maitre l'ecrit lui-meme en tete de sa
- *   page.
+ * Jusqu'au 20/10/2026, `m10-cloture.html` était une checklist en lecture
+ * seule : aucun report à nouveau n'existait et le périmètre (mensuel ou
+ * annuel, PA-28) n'était pas arbitré. Le PO a tranché — clôture ANNUELLE,
+ * réouverture par le comptable — et `ClotureExerciceService` porte le geste
+ * (onglet « Clôtures » du hub). `actionExposee` vaut `true` ; les étapes 2 à
+ * 5 se lisent sur la clôture réelle (statut de l'exercice, clôture active,
+ * balance après clôture). La page `pwa.comptabilite.cloture` reste, elle, un
+ * diagnostic sans bouton.
  *
  * ## Trois listes, et la distinction est le livrable
  *
@@ -35,20 +29,17 @@ namespace App\Domain\Comptabilite\ReadModels;
  *   l'element manquant est cree.
  * - `blocagesDeDonnees` : brouillons restants, balance ou bilan desequilibres.
  *   Ils se corrigent en SAISISSANT.
- * - `limitesNonVerifiables` : les deux ci-dessus, litterales et nommees comme
- *   telles. L'absence d'un MECANISME et l'absence d'un ARBITRAGE ne se
- *   constatent dans aucune table ; les deguiser en controle aurait produit un
- *   faux constat.
+ * - `limitesNonVerifiables` : ce qui ne se constate dans aucune table,
+ *   littéral et nommé comme tel (vide depuis le lot 2).
  *
  * `conditionsVerifiablesReunies` ne porte que les deux PREMIERES listes. Y
  * verser les limites litterales l'aurait fige a `false` par construction : le
  * champ n'apprendrait plus rien et affirmerait un etat qu'aucun controle n'a
  * produit — la forme meme de PA-59/60/61, retournee.
  *
- * Une cloture est IRREVERSIBLE et verrouille definitivement des ecritures. Un
- * bouton qui confirmerait sans ecrire serait exactement ce que l'Article 6
- * interdit ; un bouton qui ecrirait sans report a nouveau serait pire — il
- * produirait un exercice suivant faux, sans moyen de revenir en arriere.
+ * Une clôture verrouille des écritures : elle ÉCRIT son report à nouveau
+ * (journal AN) en même temps, et ne se défait que par contre-passation, au
+ * comptable seul (`ClotureExerciceService::rouvrir`).
  *
  * ## Les etapes portent un ETAT, et « non verifiable » n'est pas « conforme »
  *
