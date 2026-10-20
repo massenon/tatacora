@@ -145,6 +145,13 @@ return [
     'colonne_exercice_precedent' => 'Exercice :annee',
     'a_nouveaux_provisoires' => 'Cette balance comprend les à-nouveaux PROVISOIRES de l’exercice :annee, qui n’est pas encore clôturé : ils sont calculés à chaque lecture et deviendront définitifs à sa clôture.',
 
+    // --- Alerte avant de démarrer une clôture ----------------------------
+    'alerte_postes_titre' => 'Des postes n’ont peut-être pas tout envoyé.',
+    'alerte_postes_detail' => 'Une fois l’exercice :annee en clôture, le serveur refuse les pièces datées de :annee que ces postes enverraient encore. Demandez-leur de synchroniser (« Synchroniser les postes ») avant de démarrer.',
+    'alerte_postes_en_attente' => ':nombre opération(s) à envoyer',
+    'alerte_postes_jamais' => 'aucun état reçu : on ne sait pas',
+    'alerte_postes_silencieux' => 'sans nouvelles depuis le :date : on ne sait pas',
+
     // --- Archive légale de clôture (lot 4) --------------------------------
     'archive_titre' => 'Archive de clôture — exercice :annee',
     'archive_ecran' => 'Archive légale',

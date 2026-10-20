@@ -626,6 +626,10 @@ return [
         'sans_nature' => ':nombre compte(s) sans nature renseignée — la '
             . 'colonne affiche « — », qui n\'est pas une nature.',
 
+        'note_ouverture_variation' => 'Ouverture · variation de l\'exercice',
+        'solde_ouverture' => 'Solde d\'ouverture',
+        'solde_cloture' => 'Solde de clôture',
+        'ouverture_provisoire' => 'Ouverture PROVISOIRE : l\'exercice :annee n\'est pas clôturé, son report à nouveau est calculé à chaque lecture.',
         'solde_ouverture_inconnu' => 'Solde d\'ouverture inconnu, jamais zéro : '
             . 'aucun report à nouveau n\'existe encore. Le solde progressif '
             . 'part donc des seuls mouvements de l\'exercice.',

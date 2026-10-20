@@ -103,6 +103,17 @@
 
   @if ($grandLivre->soldeOuverture === null)
     <p class="text-[13px] text-slate-400">{{ __('pwa.comptabilite.solde_ouverture_inconnu') }}</p>
+  @else
+    @php($ouvertureProvisoire = $grandLivre->ouvertureProvisoire)
+  <div id="soldes-grand-livre" class="text-[13px] text-slate-600 mt-3 flex flex-wrap gap-x-6 gap-y-1">
+    <span>{{ __('pwa.comptabilite.solde_ouverture') }} :
+      <strong>{{ MontantFcfa::format(ltrim((string) $grandLivre->soldeOuverture, '-')) }} {{ MontantFcfa::estNegatif((string) $grandLivre->soldeOuverture) ? 'C' : 'D' }}</strong></span>
+    <span>{{ __('pwa.comptabilite.solde_cloture') }} :
+      <strong>{{ MontantFcfa::format(ltrim((string) $grandLivre->soldeCloture, '-')) }} {{ MontantFcfa::estNegatif((string) $grandLivre->soldeCloture) ? 'C' : 'D' }}</strong></span>
+  </div>
+  @if ($ouvertureProvisoire)
+    <p class="text-[12px] text-blue-800 mt-1">{{ __('pwa.comptabilite.ouverture_provisoire', ['annee' => $grandLivre->anneeOuverture]) }}</p>
+  @endif
   @endif
 @endif
 @endif

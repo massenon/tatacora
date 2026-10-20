@@ -71,6 +71,11 @@ class NotesAnnexesService
     ): NotesAnnexes {
         $balance = $this->balance->genererPourExercice($exercice->id, $statuts, $filtreStatut);
         $lignes = $balance->lignes;
+        // Le report à nouveau existe (lot 2, 20/10/2026) : les notes 2 et 3
+        // portent l'OUVERTURE de chaque compte et la variation de l'exercice.
+        $report = $this->balance->soldesOuverture($exercice->id);
+        $ouverture = $report['connu'] ? $report['soldes'] : null;
+        $motifReport = $report['connu'] ? null : self::MOTIF_REPORT_ABSENT;
 
         $notes = [
             new Note(
@@ -83,18 +88,15 @@ class NotesAnnexesService
                 numero: 2,
                 titre: 'Tableau des immobilisations',
                 etat: NotesAnnexes::ETAT_DISPONIBLE,
-                postes: $this->postesParPrefixe($lignes, RubriquesSyscohada::IMMOBILISATIONS_BRUTES, debitrice: true),
-                // Les acquisitions sont reelles ; c'est la valeur d'OUVERTURE
-                // qui manque, et avec elle la variation. Le motif accompagne
-                // une note pourtant disponible : il borne ce qu'elle dit.
-                motif: self::MOTIF_REPORT_ABSENT,
+                postes: $this->postesParPrefixe($lignes, RubriquesSyscohada::IMMOBILISATIONS_BRUTES, debitrice: true, ouverture: $ouverture),
+                motif: $motifReport,
             ),
             new Note(
                 numero: 3,
                 titre: 'Tableau des amortissements',
                 etat: NotesAnnexes::ETAT_DISPONIBLE,
-                postes: $this->postesParPrefixe($lignes, RubriquesSyscohada::AMORTISSEMENTS, debitrice: false),
-                motif: self::MOTIF_REPORT_ABSENT,
+                postes: $this->postesParPrefixe($lignes, RubriquesSyscohada::AMORTISSEMENTS, debitrice: false, ouverture: $ouverture),
+                motif: $motifReport,
             ),
             new Note(
                 numero: 4,
@@ -153,9 +155,10 @@ class NotesAnnexesService
      *
      * @param  list<LigneBalance>  $lignes
      * @param  list<string>  $prefixes
-     * @return list<array{libelle: string, montant: string, prefixes: list<string>}>
+     * @param  array<string, string>|null  $ouverture  soldes d'ouverture (débit − crédit) par compte
+     * @return list<array{libelle: string, montant: string, prefixes: list<string>, ouverture?: string, variation?: string}>
      */
-    private function postesParPrefixe(array $lignes, array $prefixes, bool $debitrice): array
+    private function postesParPrefixe(array $lignes, array $prefixes, bool $debitrice, ?array $ouverture = null): array
     {
         $postes = [];
 
@@ -168,11 +171,20 @@ class NotesAnnexesService
                 ? bcsub($ligne->totalDebit, $ligne->totalCredit, self::PRECISION)
                 : bcsub($ligne->totalCredit, $ligne->totalDebit, self::PRECISION);
 
-            $postes[] = [
+            $poste = [
                 'libelle' => $ligne->libelle.' ('.$ligne->numeroCompte.')',
                 'montant' => $montant,
                 'prefixes' => [$ligne->numeroCompte],
             ];
+
+            if ($ouverture !== null) {
+                $net = $ouverture[$ligne->numeroCompte] ?? '0.00';
+                $depart = $debitrice ? $net : bcsub('0.00', $net, self::PRECISION);
+                $poste['ouverture'] = $depart;
+                $poste['variation'] = bcsub($montant, $depart, self::PRECISION);
+            }
+
+            $postes[] = $poste;
         }
 
         return $postes;

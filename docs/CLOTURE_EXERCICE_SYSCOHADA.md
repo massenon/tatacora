@@ -56,6 +56,22 @@ Sur le poste (Windows) :
 - Le poste ne connaît que ses propres écritures : le compte de résultat, le
   bilan et le comparatif ne s'y calculent pas. Ils se consultent dans la PWA.
 
+## 1 ter. Soldes d'ouverture et alerte avant clôture
+
+- **Grand livre** : sous le tableau d'un compte, le *solde d'ouverture* et le
+  *solde de clôture*. Pour un compte de bilan, l'ouverture est l'à-nouveau :
+  écrit au journal AN si l'exercice précédent est clôturé, **provisoire**
+  (calculé, et dit tel) sinon. Les comptes de gestion (6 à 9) repartent de
+  zéro. Si l'exercice précédent a été clôturé sans pièce d'à-nouveaux
+  (avant la clôture SYSCOHADA), l'ouverture reste « inconnue », jamais zéro.
+- **Notes annexes 2 et 3** (immobilisations, amortissements) : chaque compte
+  porte son ouverture et la variation de l'exercice.
+- **Avant « Démarrer la clôture »** : l'onglet Clôtures liste les postes
+  appairés qui ont des opérations à envoyer, ou dont l'état est inconnu (rien
+  reçu, ou plus de nouvelles depuis 24 h). C'est un avertissement, il ne
+  bloque pas : une fois N en clôture, le serveur refuse leurs pièces datées de
+  N. Faites d'abord « Synchroniser les postes ».
+
 ## 2. La clôture, onglet « Clôtures » de la Comptabilité (PWA)
 
 | Étape | Bouton | Effet |

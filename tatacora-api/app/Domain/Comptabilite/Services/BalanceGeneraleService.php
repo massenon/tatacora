@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Comptabilite\Services;
 
+use App\Domain\Comptabilite\Models\ClotureExercice;
 use App\Domain\Comptabilite\Models\CompteComptable;
 use App\Domain\Comptabilite\Models\EcritureComptable;
 use App\Domain\Comptabilite\Models\ExerciceComptable;
@@ -188,6 +189,44 @@ class BalanceGeneraleService
      */
     private function ajouterANouveauxProvisoires(string $exerciceId, array &$parCompte): ?int
     {
+        $calcul = $this->calculerANouveauxProvisoires($exerciceId);
+
+        if ($calcul === null) {
+            return null;
+        }
+
+        $ajouts = $calcul['ajouts'];
+
+        foreach ($ajouts as [$compteId, $numero, $libelle, $classe, $net]) {
+            if (bccomp($net, '0.00', self::PRECISION) === 0) {
+                continue;
+            }
+
+            $parCompte[$numero] ??= [
+                'compte_id' => $compteId, 'numero' => $numero, 'libelle' => $libelle, 'classe' => $classe,
+                'debit' => '0.00', 'credit' => '0.00',
+            ];
+
+            if (bccomp($net, '0.00', self::PRECISION) > 0) {
+                $parCompte[$numero]['debit'] = bcadd($parCompte[$numero]['debit'], $net, self::PRECISION);
+            } else {
+                $parCompte[$numero]['credit'] = bcadd($parCompte[$numero]['credit'], bcsub('0.00', $net, self::PRECISION), self::PRECISION);
+            }
+        }
+
+        return $calcul['annee'];
+    }
+
+    /**
+     * Les à-nouveaux PROVISOIRES de l'exercice : les soldes de bilan de
+     * l'exercice précédent (non clôturé) et son résultat en 131/139 —
+     * `null` quand il n'y a rien de provisoire (aucun précédent, ou précédent
+     * clôturé : ses à-nouveaux sont alors ÉCRITS au journal AN).
+     *
+     * @return array{annee: int, ajouts: list<array{0: string, 1: string, 2: string, 3: string, 4: string}>}|null
+     */
+    private function calculerANouveauxProvisoires(string $exerciceId): ?array
+    {
         $exercice = ExerciceComptable::query()->find($exerciceId);
         $precedent = $exercice === null
             ? null
@@ -230,23 +269,59 @@ class BalanceGeneraleService
             }
         }
 
-        foreach ($ajouts as [$compteId, $numero, $libelle, $classe, $net]) {
-            if (bccomp($net, '0.00', self::PRECISION) === 0) {
-                continue;
+        return ['annee' => $precedent->annee, 'ajouts' => $ajouts];
+    }
+
+    /**
+     * Les SOLDES D'OUVERTURE de l'exercice, compte par compte (débit − crédit)
+     * — le report à nouveau, lu là où il est (lot « grand livre et notes
+     * annexes », 20/10/2026) :
+     *
+     *  - exercice précédent CLÔTURÉ : la pièce d'à-nouveaux écrite au journal
+     *    AN, validée ;
+     *  - précédent non clôturé : les à-nouveaux PROVISOIRES, calculés ;
+     *  - aucun précédent : exercice inaugural, aucun report.
+     *
+     * @return array{soldes: array<string, string>, provisoire: bool, annee: int|null, connu: bool}
+     */
+    public function soldesOuverture(string $exerciceId): array
+    {
+        $calcul = $this->calculerANouveauxProvisoires($exerciceId);
+
+        if ($calcul !== null) {
+            $soldes = [];
+            foreach ($calcul['ajouts'] as [, $numero, , , $net]) {
+                $soldes[$numero] = bcadd($soldes[$numero] ?? '0.00', $net, self::PRECISION);
             }
 
-            $parCompte[$numero] ??= [
-                'compte_id' => $compteId, 'numero' => $numero, 'libelle' => $libelle, 'classe' => $classe,
-                'debit' => '0.00', 'credit' => '0.00',
-            ];
+            return ['soldes' => $soldes, 'provisoire' => true, 'annee' => $calcul['annee'], 'connu' => true];
+        }
 
-            if (bccomp($net, '0.00', self::PRECISION) > 0) {
-                $parCompte[$numero]['debit'] = bcadd($parCompte[$numero]['debit'], $net, self::PRECISION);
-            } else {
-                $parCompte[$numero]['credit'] = bcadd($parCompte[$numero]['credit'], bcsub('0.00', $net, self::PRECISION), self::PRECISION);
+        // Précédent CLÔTURÉ sans clôture enregistrée (clôturé avant le lot 2 :
+        // aucune pièce d'à-nouveaux) : l'ouverture est INCONNUE, pas zéro.
+        $exercice = ExerciceComptable::query()->find($exerciceId);
+        $precedent = $exercice === null ? null : ExerciceComptable::query()->where('annee', $exercice->annee - 1)->first();
+        $connu = $precedent === null
+            || ClotureExercice::query()->where('exercice_id', $precedent->id)->whereNull('rouverte_le')->exists();
+
+        $journalAn = JournalComptable::query()->where('code', 'AN')->value('id');
+        $soldes = [];
+
+        if ($journalAn !== null) {
+            $lignes = $this->portee->requete($exerciceId, ['validee'])
+                ->where('ecritures_comptables.journal_id', $journalAn)
+                ->join('plan_comptable', 'ecritures_comptables.compte_id', '=', 'plan_comptable.id')
+                ->groupBy('plan_comptable.numero_compte')
+                ->get([
+                    'plan_comptable.numero_compte',
+                    DB::raw('SUM(ecritures_comptables.debit) - SUM(ecritures_comptables.credit) AS net'),
+                ]);
+
+            foreach ($lignes as $ligne) {
+                $soldes[(string) $ligne->getAttribute('numero_compte')] = bcadd((string) $ligne->getAttribute('net'), '0', self::PRECISION);
             }
         }
 
-        return $precedent->annee;
+        return ['soldes' => $soldes, 'provisoire' => false, 'annee' => null, 'connu' => $connu];
     }
 }

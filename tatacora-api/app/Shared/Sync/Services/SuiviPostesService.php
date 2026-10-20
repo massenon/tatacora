@@ -152,6 +152,48 @@ class SuiviPostesService
         return $lignes;
     }
 
+    /** Au-delà, un poste silencieux n'a plus d'état connu (lot « alerte avant clôture »). */
+    public const SILENCE_MAX_HEURES = 24;
+
+    /**
+     * Les postes APPAIRÉS dont on ne peut pas affirmer qu'ils ont tout envoyé
+     * — l'alerte AVANT de démarrer une clôture (20/10/2026) : une fois N en
+     * clôture, le serveur refuse les pièces datées de N.
+     *
+     *  - `en_attente` : le poste a dit avoir N opérations à envoyer ;
+     *  - `inconnu` : aucun état reçu, ou plus de nouvelles depuis
+     *    `SILENCE_MAX_HEURES` — on ne dit pas « à jour », on dit qu'on ne sait pas.
+     *
+     * @return list<array{poste_id: string, en_attente: int, inconnu: bool, derniere_descente: ?CarbonImmutable}>
+     */
+    public function postesNonAJour(): array
+    {
+        $alertes = [];
+
+        foreach ($this->etats() as $poste) {
+            if (! $poste['appaire']) {
+                continue;
+            }
+
+            $descente = $poste['derniere_descente'];
+            $enAttente = (int) ($poste['en_attente'] ?? 0);
+            $inconnu = $poste['en_attente'] === null
+                || $descente === null
+                || $descente->lessThan(now()->subHours(self::SILENCE_MAX_HEURES));
+
+            if ($enAttente > 0 || $inconnu) {
+                $alertes[] = [
+                    'poste_id' => $poste['poste_id'],
+                    'en_attente' => $enAttente,
+                    'inconnu' => $inconnu,
+                    'derniere_descente' => $descente,
+                ];
+            }
+        }
+
+        return $alertes;
+    }
+
     /**
      * Les jetons des COMPTES (le seul porteur de jetons du dépôt).
      *

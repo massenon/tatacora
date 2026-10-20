@@ -1013,6 +1013,7 @@ final class ApiComptabiliteTest extends TestCase
             GrandLivreService::class,
             fn ($app): GrandLivreService => new GrandLivreService(
                 $app->make(PorteeEcrituresService::class),
+                $app->make(\App\Domain\Comptabilite\Services\BalanceGeneraleService::class),
                 1,
             ),
         );

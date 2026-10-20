@@ -951,6 +951,11 @@ class Hub extends PageComptabilite
             // Lot 2 : la clôture active (pièces passées) et le droit de rouvrir.
             'clotureActive' => $exercice === null ? null : app(ClotureExerciceService::class)->clotureActive($exercice->id),
             'peutRouvrir' => auth()->user()?->role?->libelle === ClotureExerciceService::ROLE_REOUVERTURE,
+            // Alerte AVANT de démarrer : postes qui n'ont peut-être pas tout
+            // envoyé (une fois N en clôture, leurs pièces datées de N sont refusées).
+            'postesNonAJour' => $exercice !== null && $exercice->statut === 'ouvert'
+                ? app(\App\Shared\Sync\Services\SuiviPostesService::class)->postesNonAJour()
+                : [],
         ];
     }
 

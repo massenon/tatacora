@@ -56,6 +56,12 @@
                         <span class="text-slate-600">{{ $poste['libelle'] }}</span>
                         <span class="font-mono-tatacora text-slate-700">{{ MontantFcfa::format($poste['montant']) }}</span>
                       </div>
+                      @if (isset($poste['ouverture']))
+                        <div class="flex justify-between text-[12px] text-slate-400 pl-4">
+                          <span>{{ __('pwa.comptabilite.note_ouverture_variation') }}</span>
+                          <span class="font-mono-tatacora">{{ MontantFcfa::format($poste['ouverture']) }} · {{ MontantFcfa::format($poste['variation']) }}</span>
+                        </div>
+                      @endif
                     @endforeach
                   </div>
                 @endif

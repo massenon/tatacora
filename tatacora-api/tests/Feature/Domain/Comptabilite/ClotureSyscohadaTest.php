@@ -348,6 +348,71 @@ final class ClotureSyscohadaTest extends TestCase
         $this->assertSame('non_atteint', $etat()['Solde des comptes de gestion (classes 6/7 → 131/139)']);
     }
 
+    #[Test]
+    public function le_grand_livre_et_les_notes_lisent_le_report_a_nouveau(): void
+    {
+        $this->exploiter(); // 5711 : +70 000 net en 2026 (100 000 - 30 000)
+        $n1 = app(\App\Domain\Comptabilite\Services\ExerciceComptableService::class)->assurer(2027, 'test');
+        $banque = \App\Domain\Comptabilite\Models\CompteComptable::query()->where('numero_compte', '5711')->firstOrFail();
+        $grandLivre = fn () => app(\App\Domain\Comptabilite\Services\GrandLivreService::class)
+            ->genererPourCompte($n1->id, $banque, ['validee']);
+
+        // 2026 non clôturé : ouverture PROVISOIRE de 2027 = 70 000 D.
+        $provisoire = $grandLivre();
+        $this->assertSame('70000.00', $provisoire->soldeOuverture);
+        $this->assertSame('70000.00', $provisoire->soldeCloture);
+        $this->assertTrue($provisoire->ouvertureProvisoire);
+        $this->assertNull($provisoire->motifSoldesIndisponibles);
+
+        // Un compte de gestion repart de zéro.
+        $vente = \App\Domain\Comptabilite\Models\CompteComptable::query()->where('numero_compte', '7011')->firstOrFail();
+        $this->assertSame('0.00', app(\App\Domain\Comptabilite\Services\GrandLivreService::class)
+            ->genererPourCompte($n1->id, $vente, ['validee'])->soldeOuverture);
+
+        // Clôture de 2026 : le report est ÉCRIT (journal AN), même montant,
+        // et il fait partie des lignes du grand livre — plus provisoire.
+        $this->service()->demarrer($this->n, $this->comptable);
+        $this->service()->cloturer($this->n->refresh(), $this->comptable);
+        $definitif = $grandLivre();
+        $this->assertSame('70000.00', $definitif->soldeOuverture);
+        $this->assertSame('70000.00', $definitif->soldeCloture);
+        $this->assertFalse($definitif->ouvertureProvisoire);
+        $this->assertCount(1, $definitif->lignes);
+
+        // Les notes 2 et 3 portent ouverture et variation, sans motif.
+        $notes = app(\App\Domain\Comptabilite\Services\NotesAnnexesService::class)->genererPourExercice($n1, ['validee']);
+        $this->assertNull($notes->notes[1]->motif);
+    }
+
+    #[Test]
+    public function l_alerte_liste_les_postes_qui_n_ont_peut_etre_pas_tout_envoye(): void
+    {
+        foreach (['poste-a', 'poste-b', 'poste-c', 'poste-d'] as $poste) {
+            $this->comptable->createToken($poste);
+        }
+        $etat = fn (string $poste, ?int $attente, $quand) => \App\Shared\Sync\Models\EtatPosteSynchronisation::query()->create([
+            'poste_id' => $poste, 'en_attente' => $attente, 'derniere_descente_le' => $quand,
+        ]);
+        $etat('poste-a', 3, now()->subMinutes(5));   // 3 opérations à envoyer
+        $etat('poste-b', 0, now()->subMinutes(5));   // à jour
+        $etat('poste-c', 0, now()->subHours(30));    // silencieux depuis 30 h
+        // poste-d : appairé, jamais rien reçu
+
+        $alertes = collect(app(\App\Shared\Sync\Services\SuiviPostesService::class)->postesNonAJour())->keyBy('poste_id');
+
+        $this->assertSame(['poste-a', 'poste-c', 'poste-d'], $alertes->keys()->sort()->values()->all());
+        $this->assertSame(3, $alertes['poste-a']['en_attente']);
+        $this->assertFalse($alertes['poste-a']['inconnu']);
+        $this->assertTrue($alertes['poste-c']['inconnu']);
+        $this->assertTrue($alertes['poste-d']['inconnu']);
+
+        // L'onglet Clôtures la montre AVANT de démarrer, et plus ensuite.
+        $hub = fn () => Livewire::withQueryParams(['exercice' => $this->n->id])->test(Hub::class, ['onglet' => 'clotures']);
+        $hub()->assertSeeHtml('id="alerte-postes"')->assertSee('poste-a')->assertDontSee('poste-b');
+        $this->service()->demarrer($this->n, $this->comptable);
+        $hub()->assertDontSeeHtml('id="alerte-postes"');
+    }
+
     private function utilisateur(string $role): User
     {
         return User::create([

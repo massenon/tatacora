@@ -198,6 +198,26 @@
       @enderror
 
       @if ($exercice->statut === 'ouvert')
+        @if ($postesNonAJour !== [])
+          <div id="alerte-postes" class="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3">
+            <p class="text-[13px] font-semibold text-amber-900">{{ __('comptabilite_pwa.alerte_postes_titre') }}</p>
+            <p class="text-[12px] text-amber-900 mt-1">{{ __('comptabilite_pwa.alerte_postes_detail', ['annee' => $exercice->annee]) }}</p>
+            <ul class="list-disc pl-5 mt-1.5">
+              @foreach ($postesNonAJour as $poste)
+                <li class="text-[12px] text-amber-900">
+                  <span class="font-mono">{{ $poste['poste_id'] }}</span> —
+                  @if ($poste['en_attente'] > 0)
+                    {{ __('comptabilite_pwa.alerte_postes_en_attente', ['nombre' => $poste['en_attente']]) }}
+                  @else
+                    {{ $poste['derniere_descente'] === null
+                        ? __('comptabilite_pwa.alerte_postes_jamais')
+                        : __('comptabilite_pwa.alerte_postes_silencieux', ['date' => $poste['derniere_descente']->format('d/m/Y H:i')]) }}
+                  @endif
+                </li>
+              @endforeach
+            </ul>
+          </div>
+        @endif
         <h3 class="text-[14px] font-bold mb-1" style="color:var(--navy)">{{ __('comptabilite_pwa.cloture_demarrer', ['annee' => $exercice->annee]) }}</h3>
         <p class="text-[12px] text-slate-500 mb-3">{{ __('comptabilite_pwa.cloture_demarrer_note', ['annee' => $exercice->annee]) }}</p>
         <button type="button" wire:click="demarrerCloture"

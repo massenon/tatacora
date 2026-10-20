@@ -584,11 +584,14 @@ final class ApiEtatsFinanciersTest extends TestCase
         $this->assertSame(NotesAnnexes::ETAT_NON_SAISIE, $note7['etat']);
         $this->assertNull($note7['texte']);
 
-        // Note 2 — immobilisations : disponible, MAIS bornée par l'absence de
-        // report à nouveau, qui rend la valeur d'ouverture inconnue.
+        // Note 2 — immobilisations : disponible, plus bornée par l'absence de
+        // report à nouveau (lot 2, 20/10/2026) : l'ouverture et la variation
+        // sont rendues (exercice inaugural : ouverture 0).
         $this->assertSame(NotesAnnexes::ETAT_DISPONIBLE, $note2['etat']);
-        $this->assertSame(NotesAnnexesService::MOTIF_REPORT_ABSENT, $note2['motif']);
+        $this->assertNull($note2['motif']);
         $this->assertSame('300000.00', $note2['postes'][0]['montant']);
+        $this->assertSame('0.00', $note2['postes'][0]['ouverture']);
+        $this->assertSame('300000.00', $note2['postes'][0]['variation']);
 
         // Note 1 — texte traduit, jamais une chaîne en dur dans le service.
         $this->assertSame(__('comptabilite.notes.regles_et_methodes'), $note1['texte']);

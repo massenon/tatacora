@@ -39,6 +39,7 @@ class GrandLivreService
 
     public function __construct(
         private readonly PorteeEcrituresService $portee,
+        private readonly BalanceGeneraleService $balance,
         private readonly int $maxLignes = JournalGeneralService::MAX_LIGNES_DEFAUT,
     ) {
     }
@@ -81,15 +82,30 @@ class GrandLivreService
             $lignes[] = new LigneGrandLivre($ecriture, $solde);
         }
 
+        // Le report à nouveau existe (lot 2) : l'ouverture se LIT. Les comptes
+        // de gestion (classes 6 à 9) repartent de zéro chaque exercice ; les
+        // comptes de bilan portent leur à-nouveau — écrit (précédent
+        // clôturé, déjà DANS les lignes ci-dessus) ou provisoire (calculé,
+        // absent des lignes : il s'ajoute).
+        $report = $this->balance->soldesOuverture($exerciceId);
+        $gestion = in_array(substr((string) $compte->numero_compte, 0, 1), ['6', '7', '8', '9'], true);
+        $inconnue = ! $gestion && ! $report['connu'];
+        $ouverture = $gestion ? '0.00' : ($report['soldes'][(string) $compte->numero_compte] ?? '0.00');
+
         return new GrandLivre(
             exerciceId: $exerciceId,
             compte: $compte,
             lignes: $lignes,
-            // Nomme « mouvements » et non « cloture » : sans report a nouveau,
-            // ce cumul n'est pas le solde du compte. Voir `GrandLivre`.
             soldeMouvements: $solde,
             statuts: $this->portee->statuts($exerciceId, $statuts, compteId: $compte->id),
             filtresAppliques: ['statut' => $filtreStatut],
+            // Ouverture INCONNUE (précédent clôturé avant le lot 2, sans pièce
+            // d'à-nouveaux) : « — », jamais zéro (Article 7).
+            soldeOuverture: $inconnue ? null : $ouverture,
+            soldeCloture: $inconnue ? null : ($report['provisoire'] ? bcadd($ouverture, $solde, self::PRECISION) : $solde),
+            motifSoldesIndisponibles: $inconnue ? GrandLivre::MOTIF_REPORT_ABSENT : null,
+            ouvertureProvisoire: $report['provisoire'] && ! $gestion,
+            anneeOuverture: $report['annee'],
         );
     }
 
