@@ -68,10 +68,9 @@ final class BilanInstallation {
 /// ni rouvert. Les années passées ne sont pas comblées : ouvrir 2025 sur un poste
 /// éteint depuis 2024 serait un choix comptable, pas un démarrage.
 ///
-/// ⚠ **Limite restante** : l'ouverture a lieu au DÉMARRAGE. Un poste allumé le
-/// 31/12 et laissé ouvert jusqu'au 01/01 ne l'a pas vue passer ; le refus d'une
-/// dépense datée du premier janvier dit alors « aucun exercice ne couvre la
-/// date », et le redémarrage le lève.
+/// (Limite levée le 20/10/2026 : un poste allumé le 31/12 et laissé ouvert
+/// jusqu'au 01/01 ouvre l'exercice à sa première pièce de l'année —
+/// `MoteurComptable`, règle `ouvertureAutomatiquePermise`.)
 ///
 /// ## Qui l'appelle
 ///

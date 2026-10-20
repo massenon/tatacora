@@ -209,18 +209,22 @@ final readonly class Periode
      * saisie**. On rend le mois courant, dont `libelle()` imprime les dates
      * réelles — l'écran affiche donc exactement ce qu'il calcule.
      */
-    public static function resoudre(string $cle, ?string $du = null, ?string $au = null): self
+    public static function resoudre(string $cle, ?string $du = null, ?string $au = null, ?CarbonImmutable $reference = null): self
     {
+        // `$reference` : la date à partir de laquelle « ce mois », « cette
+        // année »… se calculent — aujourd'hui par défaut, le dernier jour de
+        // l'exercice consulté quand il est passé (sélecteur d'exercice,
+        // 20/10/2026).
         return match ($cle) {
-            'aujourdhui' => self::aujourdhui(),
-            'semaine' => self::semaine(),
-            'mois' => self::mois(),
-            'trimestre' => self::trimestre(),
-            'semestre' => self::semestre(),
-            'annee' => self::annee(),
+            'aujourdhui' => self::aujourdhui($reference),
+            'semaine' => self::semaine($reference),
+            'mois' => self::mois($reference),
+            'trimestre' => self::trimestre($reference),
+            'semestre' => self::semestre($reference),
+            'annee' => self::annee($reference),
             'personnalisee' => ($du !== null && $du !== '' && $au !== null && $au !== '')
                 ? self::personnalisee($du, $au)
-                : self::mois(),
+                : self::mois($reference),
             default => throw new InvalidArgumentException(
                 __('tableaux_de_bord.periode_calendaire_inconnue', ['code' => $cle]),
             ),

@@ -352,6 +352,13 @@ return [
          * de PA-59/60/61. Le mot restant ne dit que ce qui est établi : la page
          * vient d'être servie par le réseau.
          */
+        // Sélecteur d'exercice global (PO, 20/10/2026, SPEC_SELECTEUR_EXERCICE).
+        'exercice_consulte' => 'Exercice',
+        'exercice_option' => ':annee — :statut',
+        'exercice_statuts' => ['ouvert' => 'ouvert', 'en_cloture' => 'en clôture', 'cloture' => 'clôturé'],
+        'exercice_pastille' => 'Vous consultez :annee (:statut)',
+        'exercice_revenir' => 'Revenir à :annee',
+        'exercice_portee' => 'Exercice :annee (:statut)',
         'reseau' => 'Réseau',
 
         // maquette — `shell.js` l.126. La capitale d'« Audit » est celle du
@@ -656,7 +663,9 @@ return [
             'inventaire_physique_hors_domaine_m10' => 'L\'inventaire physique relève des stocks (M6), hors de la comptabilité.',
             'action_de_cloture_non_exposee' => 'L\'action de clôture n\'est exposée par aucune route du serveur.',
             'depend_d_une_etape_non_atteinte' => 'Dépend d\'une étape précédente qui n\'est pas atteinte.',
-            'journal_a_nouveaux_absent' => 'Aucun journal d\'à-nouveaux (AN) n\'existe au référentiel.',
+            'cloture_non_demarree' => 'La clôture n\'est pas démarrée (onglet « Clôtures » de la comptabilité).',
+            'cloture_non_passee' => 'La clôture définitive n\'est pas encore passée.',
+            'journal_a_nouveaux_absent' => 'Les journaux de clôture (CL) et d\'à-nouveaux (AN) ne sont pas tous deux au référentiel.',
             'comptes_de_resultat_absents' => 'Les comptes 131 et 139 ne sont pas tous deux au plan comptable.',
             'centre_de_cloture_absent' => 'Le centre de coût qui porte les écritures de clôture est absent.',
             'ecritures_en_brouillon' => 'Des écritures restent en brouillon.',
@@ -1815,7 +1824,8 @@ return [
         'seeders_confirmer' => 'Vider définitivement',
         'seeders_phrase_invalide' => 'La phrase tapée ne correspond pas à :phrase.',
         'seeders_fait' => ':nombre table(s) vidée(s), :lignes ligne(s) supprimée(s). Les paramètres, les droits, '
-            . 'le journal et les référentiels gardés sont intacts — sauvegarde :sauvegarde générée juste avant.',
+            . 'le journal et les référentiels gardés sont intacts — sauvegarde :sauvegarde générée juste avant. '
+            . 'Les postes Windows s\'arrêtent de synchroniser jusqu\'à leur propre réinitialisation.',
         'reset_refuse_role' => 'Réinitialisation refusée : ce geste est réservé à l\'Administrateur.',
         'reset_cycle' => 'Réinitialisation refusée : les tables :tables se référencent en boucle, aucun ordre de '
             . 'vidage ne respecte leurs clés étrangères.',
@@ -1827,6 +1837,10 @@ return [
             . 'Paramètres › Activation & Sécurité.',
         'reset_environnement_production' => 'Cet écran s\'exécute en Production : la réinitialisation est '
             . 'désactivée, quel que soit votre rôle — c\'est l\'environnement qui refuse, pas un droit qui manque.',
+        // Phase d'essais en production (19/10/2026).
+        'reset_phase_essais' => 'Phase d\'essais en Production : la réinitialisation reste possible pour effacer les '
+            . 'essais avant la mise en service. Chaque poste devra ensuite être réinitialisé à son tour. Retirez '
+            . 'TATACORA_PHASE_ESSAIS du fichier .env le jour de la mise en service réelle.',
     ],
 
     /*

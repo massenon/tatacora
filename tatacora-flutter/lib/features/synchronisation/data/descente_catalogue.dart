@@ -142,6 +142,7 @@ class DescenteCatalogue {
     await _db.transaction(_dao.retenirFusionsDeLaFile);
 
     var curseur = await _dao.curseur();
+    final generation = await _dao.generation();
     var curseurOublie = false;
     var complet = false;
     _Echec? echec;
@@ -154,9 +155,30 @@ class DescenteCatalogue {
           // Le bouton « Synchroniser » du serveur (18/10/2026) : la PWA
           // affiche la file que ce poste déclare encore à envoyer.
           'en_attente': '${await _enAttente()}',
+          // La génération des données retenue (19/10/2026) : un serveur
+          // réinitialisé depuis refuse (409) au lieu de servir un catalogue
+          // que ce poste mêlerait à ses données d'essai.
+          'generation': ?generation,
         },
       );
       final issue = await _transport.get(url, jeton: appairage.jetonApi);
+      final reinitialise = reinitialisationRefusee(issue, _maintenant());
+      if (reinitialise != null) {
+        await _dao.consignerReinitialisationServeur(reinitialise);
+        final bilan = c.bilan(
+          EtatDescente.serveurReinitialise,
+          codeHttp: 409,
+          maintenant: _maintenant(),
+        );
+        await _dao.consignerBilan(bilan);
+        return bilan;
+      }
+      if (issue case ReponseHttp(
+        :final statut,
+        :final entetes,
+      ) when statut >= 200 && statut < 300) {
+        await _dao.retenirAnnoncesServeur(entetes);
+      }
       // Dans un `switch` de Dart 3, `break` sort du `switch` (pas de la
       // boucle) : chaque cas qui doit ARRÊTER la descente pose [echec] et
       // tombe sur le `break` qui suit ; `continue` passe à la page suivante.

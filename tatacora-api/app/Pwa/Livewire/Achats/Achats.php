@@ -13,6 +13,7 @@ use App\Exports\FournisseursExport;
 use App\Pwa\Livewire\Concerns\FormulaireModal;
 use App\Pwa\Livewire\PageMetier;
 use App\Pwa\Support\AutoriseArchivage;
+use App\Pwa\Support\ExerciceConsulte;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
@@ -600,7 +601,9 @@ class Achats extends PageMetier
 
         // `lignes` est chargé d'avance : `montantTotal()` les parcourt, et une
         // page de 25 commandes en ferait 25 requêtes de plus sans cela.
-        return CommandeAchat::query()
+        // Sélecteur d'exercice global (PO, 20/10/2026) : les commandes PASSÉES
+        // dans l'exercice consulté.
+        return ExerciceConsulte::borner(CommandeAchat::query(), 'date_commande')
             ->with(['fournisseur', 'lignes'])
             ->when($terme !== '', static fn (Builder $q): Builder => $q->whereHas(
                 'fournisseur',

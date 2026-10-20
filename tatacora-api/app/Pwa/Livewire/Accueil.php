@@ -38,6 +38,7 @@ use App\Models\User;
 use App\Pwa\Livewire\Concerns\FormulaireModal;
 use App\Pwa\Livewire\Tourisme\Departs as EcranTourisme;
 use App\Pwa\Livewire\Vehicules\Locations as EcranVehicules;
+use App\Pwa\Support\ExerciceConsulte;
 use App\Pwa\Support\MenuLateral;
 use App\Pwa\Support\MontantFcfa;
 use App\Shared\Integrite\Exceptions\ChevauchementDetecteException;
@@ -1399,7 +1400,7 @@ final class Accueil extends PageMetier
         if ($tableauDeBordAutorise) {
             try {
                 $indicateurs = $service->indicateurs($periode);
-                $series = $service->serieMensuelle($this->moisSerieBornee());
+                $series = $service->serieMensuelle($this->moisSerieBornee(), ExerciceConsulte::reference());
                 $ventilation = $service->ventilationParActivite($periode);
                 $occupation = $service->tauxOccupation($periode);
             } catch (\Throwable $echec) {
@@ -1563,7 +1564,31 @@ final class Accueil extends PageMetier
      */
     private function periode(): Periode
     {
-        return Periode::resoudre($this->codePeriodeValide(), $this->du, $this->au);
+        // Sélecteur d'exercice global (PO, 20/10/2026) : les périodes
+        // relatives se calculent dans l'exercice CONSULTÉ, et une période
+        // personnalisée y est bornée.
+        [$du, $au] = $this->bornerAExercice($this->du, $this->au);
+
+        return Periode::resoudre($this->codePeriodeValide(), $du, $au, ExerciceConsulte::reference());
+    }
+
+    /**
+     * Les dates saisies, ramenées dans l'exercice consulté (une date vide
+     * reste vide : la période personnalisée n'est pas encore saisie).
+     *
+     * @return array{0: string, 1: string}
+     */
+    private function bornerAExercice(string $du, string $au): array
+    {
+        $bornes = ExerciceConsulte::bornes();
+        if ($bornes === null || $du === '' || $au === '') {
+            return [$du, $au];
+        }
+
+        $premier = $bornes[0]->toDateString();
+        $dernier = $bornes[1]->subDay()->toDateString();
+
+        return [max($premier, min($dernier, $du)), max($premier, min($dernier, $au))];
     }
 
     private function codePeriodeValide(): string

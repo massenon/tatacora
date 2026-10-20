@@ -12,6 +12,7 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../comptabilite/presentation/exercice_consulte.dart';
 import '../../../core/di/providers.dart';
 import '../../../core/fichiers/enregistrement_export.dart';
 import '../../../core/format/formats.dart';
@@ -170,7 +171,10 @@ final periodePaieProvider = NotifierProvider<_PeriodeNotifier, String>(
 
 final class _PeriodeNotifier extends Notifier<String> {
   @override
-  String build() => PeriodePaie.deLaDate(DateTime.now()).code;
+  // Sélecteur d'exercice global (PO, 20/10/2026) : le mois courant, ou le
+  // dernier mois de l'exercice consulté quand il est passé.
+  String build() =>
+      PeriodePaie.deLaDate(ref.watch(horlogeExerciceConsulteProvider)()).code;
 
   void definir(String periode) => state = periode;
 }
@@ -178,7 +182,7 @@ final class _PeriodeNotifier extends Notifier<String> {
 final periodeValideProvider = Provider<PeriodePaie>(
   (ref) =>
       PeriodePaie.depuisTexte(ref.watch(periodePaieProvider)) ??
-      PeriodePaie.deLaDate(DateTime.now()),
+      PeriodePaie.deLaDate(ref.watch(horlogeExerciceConsulteProvider)()),
 );
 
 final recherchePersonnelProvider = NotifierProvider<_TexteNotifier, String>(

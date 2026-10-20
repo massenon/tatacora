@@ -476,6 +476,43 @@ class ComptabiliteDao extends DatabaseAccessor<AppDatabase> {
     return (await exercice(id))!;
   }
 
+  /// L'exercice de [annee] tel que le SERVEUR le détient (descente du
+  /// catalogue, 20/10/2026) : créé s'il manque ici, sinon ses dates et son
+  /// statut sont ceux du serveur — maître de la clôture. L'identifiant
+  /// local, que désignent les écritures, ne change jamais.
+  Future<void> alignerExerciceDescendu({
+    required int annee,
+    required String dateDebut,
+    required String dateFin,
+    required StatutExercice statut,
+    DateTime? dateCloture,
+  }) async {
+    final existant = await exerciceDeLAnnee(annee);
+    if (existant == null) {
+      await into(attachedDatabase.exercicesLocal).insert(
+        ExercicesLocalCompanion.insert(
+          id: nouvelId(),
+          annee: annee,
+          dateDebut: dateDebut,
+          dateFin: dateFin,
+          statut: Value(statut.valeur),
+          dateCloture: Value(dateCloture),
+        ),
+      );
+      return;
+    }
+    await (update(
+      attachedDatabase.exercicesLocal,
+    )..where((e) => e.id.equals(existant.id))).write(
+      ExercicesLocalCompanion(
+        dateDebut: Value(dateDebut),
+        dateFin: Value(dateFin),
+        statut: Value(statut.valeur),
+        dateCloture: Value(dateCloture),
+      ),
+    );
+  }
+
   Future<void> marquerCloture(
     String exerciceId, {
     required DateTime quand,

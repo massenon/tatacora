@@ -202,6 +202,21 @@ try {
                     $resultats[] = ['ok' => true];
                     break;
 
+                // Un exercice CLÔTURÉ (20/10/2026) : manquant, celui de
+                // l'année en cours s'ouvrirait de lui-même à sa première
+                // pièce — un refus de pièce se provoque ainsi.
+                case 'exercice_clos':
+                    \App\Domain\Comptabilite\Models\ExerciceComptable::query()->updateOrCreate(
+                        ['annee' => (int) $op['annee']],
+                        [
+                            'date_debut' => $op['annee'] . '-01-01',
+                            'date_fin' => $op['annee'] . '-12-31',
+                            'statut' => 'cloture',
+                        ],
+                    );
+                    $resultats[] = ['ok' => true];
+                    break;
+
                 case 'reserver':
                     $id = (string) Str::uuid();
                     $reservations[$op['ref']] = $id;

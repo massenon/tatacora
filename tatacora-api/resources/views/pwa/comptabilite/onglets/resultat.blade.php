@@ -15,6 +15,12 @@
     précèdent. Masquer une ligne par un filtre texte romprait la cascade sans
     recalculer les soldes qui en dépendent. Même famille de refus que
     `App\Pwa\Livewire\Comptabilite\Balance`.
+
+    ## Colonne comparative N-1 (lot 3, 20/10/2026)
+
+    Quand l'exercice précédent existe, une dernière colonne porte le montant
+    de la MÊME ligne (même code de la cascade) en N-1 — calculé par le même
+    Service, même filtre de statut. Un exercice inaugural n'en a pas.
 --}}
 @php
     use App\Pwa\Support\MontantFcfa;
@@ -26,6 +32,13 @@
         ['Charges', 'right'],
         ['Produits / Solde', 'right'],
     ];
+
+    $resultatPrecedent ??= null;
+    $montantsPrecedents = $resultatPrecedent === null ? [] : collect($resultatPrecedent->lignes)
+        ->mapWithKeys(fn ($l): array => [$l->code => $l->montant])->all();
+    if ($resultatPrecedent !== null) {
+        $colonnesEntete[] = [__('comptabilite_pwa.colonne_exercice_precedent', ['annee' => $precedent->annee]), 'right'];
+    }
 
     $styleSoldeIntermediaire = 'background: #F1F5F9; font-weight: 700;';
     $styleSoldeFinal = 'background: var(--navy); color: #fff; font-weight: 700;';
@@ -60,6 +73,9 @@
               <td class="px-3 py-2.5 text-left">{{ $ligne->libelle }}</td>
               <td class="px-3 py-2.5"></td>
               <td class="px-3 py-2.5 text-right {{ ! $final && MontantFcfa::estNegatif($ligne->montant) ? 'text-red-600' : '' }}">{{ MontantFcfa::format($ligne->montant) }}</td>
+              @if ($resultatPrecedent !== null)
+                <td class="px-3 py-2.5 text-right opacity-80">{{ MontantFcfa::format($montantsPrecedents[$ligne->code] ?? '0.00') }}</td>
+              @endif
             </tr>
           @else
             @php($charge = $ligne->sens === 'charge')
@@ -76,6 +92,9 @@
                    des deux sens, et « 0 F » y ferait lire un montant. --}}
               <td class="px-3 py-2 text-right {{ $charge ? 'text-red-600' : 'text-slate-300' }}">{{ $charge ? MontantFcfa::formatOuTiret($ligne->montant) : '—' }}</td>
               <td class="px-3 py-2 text-right {{ $charge ? 'text-slate-300' : 'text-emerald-700 font-semibold' }}">{{ $charge ? '—' : MontantFcfa::formatOuTiret($ligne->montant) }}</td>
+              @if ($resultatPrecedent !== null)
+                <td class="px-3 py-2 text-right text-slate-500">{{ MontantFcfa::formatOuTiret($montantsPrecedents[$ligne->code] ?? '0.00') }}</td>
+              @endif
             </tr>
           @endif
         @endforeach

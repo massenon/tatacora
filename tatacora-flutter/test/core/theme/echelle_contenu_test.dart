@@ -204,6 +204,10 @@ void main() {
     // rendu dans la carte du formulaire de Paramètres comme les autres
     // onglets, donc dans `<main>` — échelle EFFECTIVE.
     'lib/features/parametres/presentation/widgets/onglet_synchronisation.dart',
+    // Le champ « Mot de passe SMTP » de l'onglet Email (SMTP) (19/10/2026) :
+    // le bloc `groupe-champ` du panneau `@elseif ($onglet === 'email')` de
+    // la vue de Paramètres, dans `<main>` — échelle EFFECTIVE.
+    'lib/features/parametres/presentation/widgets/champ_mot_de_passe_smtp.dart',
     // Inventaires & Fiches de stock, repris sur la vue le 08/10/2026 (Phase 2,
     // écran n° 2) : le fichier rend le CORPS de la page, ses trois onglets
     // compris ; aucune modale n'y est ouverte.
@@ -412,6 +416,10 @@ void main() {
     'lib/features/alertes/presentation/cloche_notifications.dart':
         'Châssis. La cloche et son panneau vivent dans la barre supérieure '
         '(`partials/barre-superieure`, frère de `<main>`), lot B du 14/10/2026.',
+    'lib/features/comptabilite/presentation/widgets/selecteur_exercice_barre.dart':
+        'Châssis. Le sélecteur d exercice global (ajout du PO du 20/10/2026, '
+        '`<livewire:pwa.selecteur-exercice />`) vit dans la barre supérieure, '
+        'après la recherche, frère de `<main>` : échelle déclarée.',
     'lib/features/synchronisation/presentation/bouton_synchronisation.dart':
         'Châssis. Le bouton de synchronisation (ajout du PO du 16/10/2026, lot '
         'F3) vit dans la barre supérieure à côté de la cloche, et sa modale '

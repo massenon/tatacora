@@ -73,6 +73,10 @@ final class Environnement {
     _ => _dev,
   };
 
+  /// L'environnement de production, pour éprouver ses verrous en test
+  /// (un test ne peut pas changer `--dart-define=ENV`).
+  static Environnement get production => _production;
+
   bool get estProduction => flavor == Flavor.production;
 
   /// Mode local intégral : aucune requête réseau ne doit partir.

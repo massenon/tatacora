@@ -603,6 +603,9 @@ class AchatsDao extends DatabaseAccessor<AppDatabase> {
     String? fournisseurId,
     int page = 1,
     int parPage = 200,
+    // Sélecteur d'exercice global (PO, 20/10/2026) : bornes INCLUSES
+    // (`AAAA-MM-JJ`) de l'exercice consulté, `null` pour tout.
+    ({String debut, String fin})? periode,
   }) async {
     final commandes = await select(attachedDatabase.commandesAchatLocal).get();
     final fournisseurs = {
@@ -620,6 +623,7 @@ class AchatsDao extends DatabaseAccessor<AppDatabase> {
           if (fournisseurId != null && c.fournisseurId != fournisseurId) {
             return false;
           }
+          if (!_dansPeriode(c.dateCommande, periode)) return false;
           if (terme.isEmpty) return true;
           return _cle(fournisseurs[c.fournisseurId] ?? '').contains(terme);
         }).toList()..sort((a, b) {
@@ -641,6 +645,14 @@ class AchatsDao extends DatabaseAccessor<AppDatabase> {
       page,
       parPage,
     );
+  }
+
+  /// La date ISO tombe-t-elle dans [periode] (bornes INCLUSES) ?
+  static bool _dansPeriode(String date, ({String debut, String fin})? periode) {
+    if (periode == null || date.length < 10) return true;
+    final jour = date.substring(0, 10);
+    return jour.compareTo(periode.debut) >= 0 &&
+        jour.compareTo(periode.fin) <= 0;
   }
 
   /// Le décompte des commandes dont le statut est l'un de [statuts] — jamais
@@ -950,6 +962,7 @@ class AchatsDao extends DatabaseAccessor<AppDatabase> {
     String? commandeId,
     int page = 1,
     int parPage = 200,
+    ({String debut, String fin})? periode,
   }) async {
     final b = attachedDatabase.bonsReceptionLocal;
     final c = attachedDatabase.commandesAchatLocal;
@@ -962,6 +975,12 @@ class AchatsDao extends DatabaseAccessor<AppDatabase> {
       innerJoin(p, p.id.equalsExp(b.pointStockageId)),
     ]);
     if (commandeId != null) requete.where(b.commandeId.equals(commandeId));
+    if (periode != null) {
+      requete.where(
+        b.dateReception.isBiggerOrEqualValue(periode.debut) &
+            b.dateReception.isSmallerOrEqualValue('${periode.fin}\uffff'),
+      );
+    }
     requete.orderBy([
       OrderingTerm.desc(b.dateReception),
       OrderingTerm.desc(b.creeLe),

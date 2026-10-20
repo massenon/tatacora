@@ -180,38 +180,83 @@
   </div>
 
   {{--
-      « Clôturer l'exercice <année> » (maître l.491-494) — porté le
-      01/09/2026, PÉRIMÈTRE MINIMAL commandé par le Product Owner : ce
-      bouton ne vérifie QUE l'absence de brouillon (`ExerciceComptableService`),
-      PAS les six blocages/avertissements d'`EtatClotureService` affichés
-      au-dessus — deux notions de « clôturable » distinctes, volontairement
-      non fusionnées : fusionner ferait bloquer ce geste minimal sur une
-      exigence (journal AN, comptes 131/139…) qu'il ne prétend pas satisfaire.
+      « Clôturer l'exercice <année> » (maître l.491-494) — la clôture
+      SYSCOHADA ANNUELLE complète depuis le 20/10/2026 (lot 2, décisions du
+      Product Owner : annuelle seulement, réouverture par le comptable),
+      `ClotureExerciceService`. Le geste dépend du statut :
+        ouvert     → « Démarrer la clôture »
+        en_cloture → « Clôturer définitivement » (la liste de contrôle
+                     ci-dessus doit être réunie) ou « Reprendre la saisie »
+        cloture    → « Rouvrir » (le comptable seul, motif obligatoire)
   --}}
-  @if ($exercice !== null && $exercice->statut !== 'cloture')
-    <div class="bg-white rounded-xl border border-slate-200 p-4 mt-3">
-      <h3 class="text-[14px] font-bold mb-1" style="color:var(--navy)">{{ __('comptabilite_pwa.cloturer_exercice', ['annee' => $exercice->annee]) }}</h3>
-      <p class="text-[12px] text-slate-500 mb-3">{{ __('comptabilite_pwa.cloture_perimetre_note') }}</p>
-
-      @if ($indicateurs !== null && $indicateurs->statuts->brouillon > 0)
-        <div class="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
-          <p class="text-[13px] text-red-800">
-            {{ __('pwa.comptabilite.repartition', ['validee' => $indicateurs->statuts->validee, 'brouillon' => $indicateurs->statuts->brouillon]) }}
-            — {{ __('comptabilite.cloture_brouillons_restants', ['nombre' => $indicateurs->statuts->brouillon, 'annee' => $exercice->annee]) }}
-          </p>
-        </div>
-      @endif
-
+  @if ($exercice !== null)
+    <div id="geste-cloture" class="bg-white rounded-xl border border-slate-200 p-4 mt-3">
       @error('cloture')
         <div class="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
           <p class="text-[13px] text-red-800">{{ $message }}</p>
         </div>
       @enderror
 
-      <button type="button" wire:click="cloturerExercice"
-              class="text-[13px] px-4 py-2.5 rounded-lg font-semibold bg-[var(--navy)] text-white hover:opacity-90">
-        {{ __('comptabilite_pwa.cloturer_exercice', ['annee' => $exercice->annee]) }}
-      </button>
+      @if ($exercice->statut === 'ouvert')
+        <h3 class="text-[14px] font-bold mb-1" style="color:var(--navy)">{{ __('comptabilite_pwa.cloture_demarrer', ['annee' => $exercice->annee]) }}</h3>
+        <p class="text-[12px] text-slate-500 mb-3">{{ __('comptabilite_pwa.cloture_demarrer_note', ['annee' => $exercice->annee]) }}</p>
+        <button type="button" wire:click="demarrerCloture"
+                class="text-[13px] px-4 py-2.5 rounded-lg font-semibold bg-[var(--navy)] text-white hover:opacity-90">
+          {{ __('comptabilite_pwa.cloture_demarrer', ['annee' => $exercice->annee]) }}
+        </button>
+      @elseif ($exercice->statut === 'en_cloture')
+        <h3 class="text-[14px] font-bold mb-1" style="color:var(--navy)">{{ __('comptabilite_pwa.cloture_definitive', ['annee' => $exercice->annee]) }}</h3>
+        <p class="text-[12px] text-slate-500 mb-3">{{ __('comptabilite_pwa.cloture_definitive_note') }}</p>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" wire:click="cloturerExercice"
+                  class="text-[13px] px-4 py-2.5 rounded-lg font-semibold bg-[var(--navy)] text-white hover:opacity-90">
+            {{ __('comptabilite_pwa.cloture_definitive', ['annee' => $exercice->annee]) }}
+          </button>
+          <button type="button" wire:click="reprendreSaisie"
+                  class="text-[13px] px-4 py-2.5 rounded-lg border border-slate-300 hover:bg-slate-50">
+            {{ __('comptabilite_pwa.cloture_reprendre') }}
+          </button>
+        </div>
+      @else
+        @if ($clotureActive !== null)
+          <p class="text-[13px] text-slate-600 mb-3">{{ __('comptabilite_pwa.cloture_passee', [
+              'date' => $clotureActive->cloturee_le->format('d/m/Y H:i'),
+              'cloture' => $clotureActive->piece_cloture ?? '—',
+              'an' => $clotureActive->piece_a_nouveaux ?? '—',
+          ]) }}</p>
+          <div id="archive-cloture" class="border border-slate-200 rounded-lg p-3 mb-4">
+            <h3 class="text-[14px] font-bold mb-1" style="color:var(--navy)">{{ __('comptabilite_pwa.archive_ecran') }}</h3>
+            <p class="text-[12px] text-slate-500 mb-2">{{ __('comptabilite_pwa.archive_ecran_note') }}</p>
+            @if ($clotureActive->archive_empreinte !== null)
+              <p class="text-[12px] text-slate-600 mb-2">{{ __('comptabilite_pwa.archive_empreinte') }}
+                <code class="break-all text-[11px]">{{ $clotureActive->archive_empreinte }}</code></p>
+              <button type="button" wire:click="telechargerArchive"
+                      class="text-[13px] px-4 py-2.5 rounded-lg border border-slate-300 hover:bg-slate-50 font-semibold">
+                {{ __('comptabilite_pwa.archive_telecharger') }}
+              </button>
+            @else
+              <p class="text-[12px] text-amber-700 mb-2">{{ __('comptabilite_pwa.archive_absente') }}</p>
+              <button type="button" wire:click="genererArchive"
+                      class="text-[13px] px-4 py-2.5 rounded-lg bg-[var(--navy)] text-white hover:opacity-90 font-semibold">
+                {{ __('comptabilite_pwa.archive_generer') }}
+              </button>
+            @endif
+          </div>
+        @endif
+        <h3 class="text-[14px] font-bold mb-1" style="color:var(--navy)">{{ __('comptabilite_pwa.reouvrir', ['annee' => $exercice->annee]) }}</h3>
+        <p class="text-[12px] text-slate-500 mb-3">{{ __('comptabilite_pwa.reouvrir_note') }}</p>
+        @if ($peutRouvrir)
+          <label for="motif-reouverture" class="block text-[13px] font-semibold text-slate-700 mb-1">{{ __('comptabilite_pwa.reouvrir_motif') }}</label>
+          <textarea id="motif-reouverture" wire:model="motifReouverture" rows="2"
+                    class="champ w-full border border-slate-200 rounded-lg px-3 py-2 text-sm mb-2"></textarea>
+          <button type="button" wire:click="rouvrirExercice"
+                  class="text-[13px] px-4 py-2.5 rounded-lg border border-red-200 text-red-700 hover:bg-red-50 font-semibold">
+            {{ __('comptabilite_pwa.reouvrir', ['annee' => $exercice->annee]) }}
+          </button>
+        @else
+          <p class="text-[12px] text-slate-400">{{ __('comptabilite_pwa.reouvrir_reserve') }}</p>
+        @endif
+      @endif
     </div>
   @endif
 @endif

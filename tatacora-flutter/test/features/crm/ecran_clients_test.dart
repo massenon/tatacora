@@ -13,6 +13,7 @@ import 'package:tatacora_flutter/features/facturation/domain/creances.dart';
 import 'package:tatacora_flutter/features/facturation/domain/entities/piece_facturation.dart';
 import 'package:tatacora_flutter/features/facturation/domain/messages_encaissement.dart';
 
+import '../comptabilite/support/outils_comptabilite.dart' show exerciceClos;
 import '../facturation/support/outils_encaissement.dart';
 
 /// L'écran Clients & Créances — ses quatre onglets, et le geste « Recouvrement ».
@@ -789,6 +790,9 @@ void main() {
       // Référentiel installé en 2025 : pas d'exercice 2026.
       await db.close();
       db = await baseEncaissement(maintenant: DateTime(2025, 6, 1));
+      // Et l'exercice du jour est CLÔTURÉ (manquant, il s'ouvrirait de lui-même
+      // depuis le 20/10/2026).
+      await exerciceClos(db, jourEncaissement.year);
       final c = await debiteurAvecCaisse();
       await monter(tester);
 

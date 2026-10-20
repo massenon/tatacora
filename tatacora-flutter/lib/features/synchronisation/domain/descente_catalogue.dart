@@ -105,7 +105,12 @@ enum TableDescendue {
   modelesNotification(
     'modeles_notification',
     TableSynchronisee.modelesNotification,
-  );
+  ),
+
+  /// Passage d'année (20/10/2026) : les exercices du serveur et leur statut
+  /// — une clôture faite au serveur verrouille l'année ici aussi. Le poste ne
+  /// les pousse pas.
+  exercicesComptables('exercices_comptables', null);
 
   const TableDescendue(this.nomServeur, this.tableSynchronisee);
 
@@ -163,6 +168,7 @@ String libelleTableServeur(String nom) => switch (nom) {
   'parametres_systeme' => 'Paramètres',
   'roles' => 'Rôles et permissions',
   'modeles_notification' => 'Modèles de notification',
+  'exercices_comptables' => 'Exercices comptables',
   _ => nom,
 };
 
@@ -331,6 +337,12 @@ enum EtatDescente {
 
   /// 401 / 403 : refus consigné, plus rien avant réappairage.
   refusee('Catalogue refusé par le serveur — réappairer le poste.'),
+
+  /// 409 `generation_perimee` : le serveur a été réinitialisé (19/10/2026).
+  serveurReinitialise(
+    'Catalogue refusé : le serveur a été réinitialisé — réinitialiser ce '
+    'poste.',
+  ),
 
   /// Réponse illisible ou 4xx inattendu.
   alerte('Descente du catalogue interrompue : réponse inattendue du serveur.');

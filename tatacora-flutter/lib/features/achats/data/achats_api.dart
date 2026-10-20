@@ -282,6 +282,7 @@ final class AchatsApi {
     String? fournisseurId,
     int page = 1,
     int? parPage,
+    ({String debut, String fin})? periode,
   }) async {
     if (!_peutLire()) return _refusLecture();
     return AchatsRecu(
@@ -289,6 +290,7 @@ final class AchatsApi {
         recherche: recherche,
         statut: statut,
         fournisseurId: fournisseurId,
+        periode: periode,
         page: page,
         parPage: parPage ?? 200,
       ),
@@ -405,11 +407,16 @@ final class AchatsApi {
     String? commandeId,
     ConformiteReception? conformite,
     int page = 1,
+    ({String debut, String fin})? periode,
   }) async {
     if (!_peutLire()) return _refusLecture();
     if (conformite == null) {
       return AchatsRecu(
-        await _dao.receptions(commandeId: commandeId, page: page),
+        await _dao.receptions(
+          commandeId: commandeId,
+          page: page,
+          periode: periode,
+        ),
       );
     }
     // Le filtre de conformité n'est plus offert par l'écran (PA-185) : il reste

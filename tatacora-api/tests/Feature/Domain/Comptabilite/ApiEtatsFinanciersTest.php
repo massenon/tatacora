@@ -460,44 +460,32 @@ final class ApiEtatsFinanciersTest extends TestCase
     // ---------------------------------------------------------------- CLÔTURE
 
     /**
-     * EF-M10-07 — l'état de clôture est en LECTURE, et il distingue ce qui est
-     * VÉRIFIÉ de ce qui est DÉCLARÉ.
+     * EF-M10-07 — l'état de clôture distingue ce qui est VÉRIFIÉ de ce qui
+     * est DÉCLARÉ.
      *
-     * `blocages_structurels` est recalculé à chaque appel contre le référentiel ;
-     * `limites_non_verifiables` porte les deux faits qu'aucune requête ne peut
-     * constater — l'absence d'un mécanisme (report à nouveau) et l'absence d'un
-     * arbitrage (PA-28). Les confondre aurait figé l'indicateur à `false` pour
-     * toujours, et un indicateur qui ne peut pas changer n'informe personne.
+     * `blocages_structurels` est recalculé à chaque appel contre le
+     * référentiel. Depuis le lot 2 (20/10/2026), la clôture est EXPOSÉE
+     * (onglet « Clôtures » du hub) et `limites_non_verifiables` est vide : le
+     * report à nouveau existe (journal AN) et le périmètre est arbitré
+     * (annuel). Les étapes 2 à 5 se lisent sur la clôture réelle.
      */
     #[Test]
-    public function ef_m10_07_la_cloture_expose_son_etat_jamais_son_action(): void
+    public function ef_m10_07_la_cloture_expose_son_etat_et_son_action(): void
     {
         $cloture = $this->getJson('/api/v1/comptabilite/cloture?'.$this->portee())->assertOk()->json('data');
 
-        $this->assertFalse($cloture['action_exposee']);
-        $this->assertSame(
-            EtatClotureService::LIMITES_NON_VERIFIABLES,
-            $cloture['limites_non_verifiables'],
-        );
+        $this->assertTrue($cloture['action_exposee']);
+        $this->assertSame([], $cloture['limites_non_verifiables']);
 
-        // Le journal AN n'existe pas au référentiel de ce test : le blocage est
-        // CONSTATÉ, pas déclaré.
-        $this->assertContains(
-            EtatClotureService::BLOCAGE_JOURNAL_AN_ABSENT,
-            $cloture['blocages_structurels'],
-        );
+        // Les journaux CL et AN (migration du lot 2), les comptes 131/139 et le
+        // centre « Structure » existent : aucun blocage structurel.
+        $this->assertSame([], $cloture['blocages_structurels']);
 
-        // Les comptes 131/139 et le centre « Structure » existent : ils ne
-        // figurent donc PAS aux blocages. C'est ce qui prouve que la liste est
-        // dérivée et non écrite en dur.
-        $this->assertNotContains(
-            EtatClotureService::BLOCAGE_COMPTES_RESULTAT_ABSENTS,
-            $cloture['blocages_structurels'],
-        );
-        $this->assertNotContains(
-            EtatClotureService::BLOCAGE_CENTRE_STRUCTURE_ABSENT,
-            $cloture['blocages_structurels'],
-        );
+        // Exercice ouvert : la clôture n'est pas démarrée, rien n'est passé.
+        $etapes = collect($cloture['etapes'])->keyBy('libelle');
+        $this->assertSame('non_atteint', $etapes["Bloque toute nouvelle saisie sur l'exercice"]['etat']);
+        $this->assertSame(EtatClotureService::MOTIF_CLOTURE_NON_DEMARREE, $etapes["Bloque toute nouvelle saisie sur l'exercice"]['motif']);
+        $this->assertSame('non_atteint', $etapes['Verrou définitif RG-11bis']['etat']);
 
         $this->assertContains(EtatClotureService::AVERTISSEMENT_IMPOT, $cloture['avertissements']);
         $this->assertSame('22000.00', $cloture['resultat_a_reporter']);
@@ -517,8 +505,14 @@ final class ApiEtatsFinanciersTest extends TestCase
         CompteComptable::query()->whereIn('numero_compte', ['131', '139'])->delete();
         CentreCout::query()->where('libelle', 'Structure')->update(['libelle' => 'Siège']);
 
+        \App\Domain\Comptabilite\Models\JournalComptable::query()->where('code', 'AN')->update(['code' => 'ANX']);
+
         $cloture = $this->getJson('/api/v1/comptabilite/cloture?'.$this->portee())->assertOk()->json('data');
 
+        $this->assertContains(
+            EtatClotureService::BLOCAGE_JOURNAL_AN_ABSENT,
+            $cloture['blocages_structurels'],
+        );
         $this->assertContains(
             EtatClotureService::BLOCAGE_COMPTES_RESULTAT_ABSENTS,
             $cloture['blocages_structurels'],

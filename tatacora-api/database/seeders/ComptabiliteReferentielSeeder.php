@@ -78,7 +78,8 @@ class ComptabiliteReferentielSeeder extends Seeder
     ];
 
     /**
-     * Les cinq journaux de `MODULE_COMPTABILITE_COMPLET.md` §2.
+     * Les cinq journaux de `MODULE_COMPTABILITE_COMPLET.md` §2 — ceux que le
+     * poste réplique (`ComptesSyscohada.journaux`).
      *
      * @var array<string, string>
      */
@@ -88,6 +89,17 @@ class ComptabiliteReferentielSeeder extends Seeder
         'BQ' => 'Journal de banque',
         'CAI' => 'Journal de caisse',
         'OD' => 'Journal des opérations diverses',
+    ];
+
+    /**
+     * Les journaux de la clôture SYSCOHADA (20/10/2026) : le poste n'y saisit
+     * jamais — la clôture se fait au serveur — d'où une liste à part.
+     *
+     * @var array<string, string>
+     */
+    private const JOURNAUX_DE_CLOTURE = [
+        'CL' => 'Journal de clôture',
+        'AN' => 'Journal des à-nouveaux',
     ];
 
     /**
@@ -148,7 +160,7 @@ class ComptabiliteReferentielSeeder extends Seeder
 
     private function semerJournaux(): void
     {
-        foreach (self::JOURNAUX as $code => $libelle) {
+        foreach ([...self::JOURNAUX, ...self::JOURNAUX_DE_CLOTURE] as $code => $libelle) {
             JournalComptable::firstOrCreate(['code' => $code], ['libelle' => $libelle]);
         }
     }

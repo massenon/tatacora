@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:drift/drift.dart' show TableUpdateQuery;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../comptabilite/presentation/providers_comptabilite.dart';
@@ -300,6 +301,21 @@ final comptesFileSynchronisationProvider =
       return dao.compteParStatut();
     });
 
+/// La réinitialisation du serveur constatée par ce poste (19/10/2026), ou
+/// `null`. Relue à chaque écriture de l'état de synchronisation (signal de
+/// tables de Drift) : le voyant passe au rouge dès le refus, et revient dès
+/// que la réinitialisation de ce poste a vidé cet état.
+final reinitialisationServeurProvider = FutureProvider.autoDispose<DateTime?>((
+  ref,
+) {
+  final db = ref.watch(baseLocaleProvider);
+  final abonnement = db
+      .tableUpdates(TableUpdateQuery.onTable(db.etatSynchronisationLocal))
+      .listen((_) => ref.invalidateSelf());
+  ref.onDispose(abonnement.cancel);
+  return DescenteCatalogueDao(db).reinitialisationServeur();
+});
+
 /// Le voyant du bouton de la barre supérieure, ou `null` tant que la file
 /// ou l'appairage ne sont pas lus (aucune couleur n'est affirmée avant).
 final voyantSynchronisationProvider =
@@ -316,6 +332,8 @@ final voyantSynchronisationProvider =
         interdite: interdite,
         appaire: appairage.value != null,
         refusJeton: appairage.value?.refus != null,
+        serveurReinitialise:
+            ref.watch(reinitialisationServeurProvider).value != null,
         comptes: comptes.value ?? const {},
         bilan: ref.watch(dernierBilanSynchronisationProvider),
         enCours: ref.watch(synchronisationEnCoursProvider),

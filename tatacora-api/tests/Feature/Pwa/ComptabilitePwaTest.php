@@ -488,14 +488,12 @@ final class ComptabilitePwaTest extends TestCase
         $this->assertStringNotContainsString(e(__('pwa.comptabilite.refus_titre')), $html);
         $this->assertStringNotContainsString(e(__('pwa.comptabilite.refus_actions_cloture')), $html);
 
-        // ⚠ CE QUI RESTE A L'ECRAN EST D'UNE AUTRE NATURE, et doit y rester :
         // « Ce que ce contrôle ne peut pas vérifier » est un ETAT calcule par
         // `EtatClotureService` (`limitesNonVerifiables`), pas une declaration
-        // de portage. Le confondre avec un refus le ferait disparaitre, et
-        // l'ecran affirmerait alors une conformite qu'il n'a pas verifiee.
-        if ($this->exercice->annee > 0) {
-            $this->assertStringContainsString(e(__('pwa.comptabilite.limites_titre')), $html);
-        }
+        // de portage : il suit la liste. Vide depuis le lot 2 (20/10/2026 —
+        // report à nouveau et périmètre annuel), la section n'est pas rendue.
+        $this->assertSame([], \App\Domain\Comptabilite\Services\EtatClotureService::LIMITES_NON_VERIFIABLES);
+        $this->assertStringNotContainsString(e(__('pwa.comptabilite.limites_titre')), $html);
 
         // ⚠ UN piege d'assertion, rencontre en ecrivant ce cas :
         //    on ne peut pas chercher `wire:click` sur la PAGE ENTIERE — la

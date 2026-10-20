@@ -542,7 +542,9 @@ final class ApiComptabiliteTest extends TestCase
 
         $reponse = $this->getJson('/api/v1/comptabilite/journaux')->assertOk();
 
-        $this->assertSame(['ACH', 'OD', 'VTE'], array_column($reponse->json('data'), 'code'));
+        // AN et CL : les journaux de clôture, posés par la migration du lot 2
+        // (20/10/2026) — servis comme les autres, dans l'ordre des codes.
+        $this->assertSame(['ACH', 'AN', 'CL', 'OD', 'VTE'], array_column($reponse->json('data'), 'code'));
     }
 
     /**

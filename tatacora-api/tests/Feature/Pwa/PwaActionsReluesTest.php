@@ -193,6 +193,12 @@ final class PwaActionsReluesTest extends TestCase
             'ouvrirNouveauCompte', 'enregistrerCompte',
             'ouvrirNouvelleImmo', 'enregistrerImmo', 'ouvrirPlanAmortissement',
             'ouvrirFormulaireExercice', 'enregistrerExercice', 'cloturerExercice',
+            // Lot 2 (20/10/2026) : la clôture SYSCOHADA annuelle, chaque geste
+            // garde `exigerEcriture(M10)` ; rouvrir est réservé au comptable
+            // par le service.
+            'demarrerCloture', 'reprendreSaisie', 'rouvrirExercice',
+            // Lot 4 : l'archive légale — générer (écriture M10), télécharger.
+            'genererArchive', 'telechargerArchive',
             'fermerModales',
         ],
         PlanComptable::class => ['render'],
@@ -289,6 +295,10 @@ final class PwaActionsReluesTest extends TestCase
         // qui fait le geste (`alertes_vues`) : voir `ECRITURES_HORS_MODULE`.
         \App\Pwa\Livewire\Transverse\ClocheNotifications::class => ['render', 'marquerToutLu', 'marquerLu'],
         \App\Pwa\Livewire\Transverse\RechercheGlobale::class => ['render'],
+        // Le sélecteur d'exercice global (20/10/2026) — quatrième widget de la
+        // barre. Choisir et revenir n'écrivent que la SESSION
+        // (`ExerciceConsulte`) ; voir `METHODES_DE_LECTURE`.
+        \App\Pwa\Livewire\Transverse\SelecteurExercice::class => ['render', 'mount', 'updatedExerciceId', 'revenir'],
         // Les modales d'ouverture de session (02/09/2026) — troisieme
         // composant de chassis. Les deux ecritures sont declarees au
         // registre multi-modules de PwaEcritureAutoriseeTest.

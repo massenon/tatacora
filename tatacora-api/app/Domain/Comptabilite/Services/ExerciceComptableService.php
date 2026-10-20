@@ -7,7 +7,9 @@ namespace App\Domain\Comptabilite\Services;
 use App\Domain\Comptabilite\Models\EcritureComptable;
 use App\Domain\Comptabilite\Models\ExerciceComptable;
 use App\Models\User;
+use App\Shared\Audit\Models\JournalAudit;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use RuntimeException;
 
 /**
@@ -72,6 +74,75 @@ class ExerciceComptableService
             'date_fin' => sprintf('%d-12-31', $annee),
             'statut' => 'ouvert',
         ]));
+    }
+
+    /**
+     * L'exercice de [annee], OUVERT S'IL MANQUE — lot 1 du passage d'année
+     * (décision du Product Owner du 20/10/2026 : « quand on bascule à
+     * N+1, toutes les données des modules sont enregistrées »).
+     *
+     * Sans lui, le 1er janvier, toute vente, dépense, encaissement, acompte
+     * ou règlement était refusé (« aucun exercice ne couvre la date ») tant
+     * qu'un Administrateur n'avait pas ouvert l'année à la main — et les
+     * ventes des postes tombaient « À traiter ».
+     *
+     * Idempotent et sûr en concurrence : deux premières ventes de l'année
+     * simultanées n'ouvrent qu'UN exercice (`annee` unique, `insertOrIgnore`,
+     * relecture verrouillée qui voit la ligne de l'autre transaction).
+     * N'ouvre jamais qu'un exercice MANQUANT : un exercice clôturé reste
+     * clôturé. Tracé au journal d'audit quand il crée.
+     */
+    public function assurer(int $annee, string $motif): ExerciceComptable
+    {
+        if ($annee < 2000 || $annee > 2100) {
+            throw new RuntimeException(__('comptabilite.exercice_annee_invalide'));
+        }
+
+        $existant = ExerciceComptable::query()->where('annee', $annee)->first();
+
+        if ($existant !== null) {
+            return $existant;
+        }
+
+        $id = (string) Str::uuid();
+        $cree = DB::table('exercices_comptables')->insertOrIgnore([
+            'id' => $id,
+            'annee' => $annee,
+            'date_debut' => sprintf('%d-01-01', $annee),
+            'date_fin' => sprintf('%d-12-31', $annee),
+            'statut' => 'ouvert',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]) === 1;
+
+        if ($cree) {
+            JournalAudit::create([
+                'id' => (string) Str::uuid(),
+                'utilisateur_id' => auth()->id(),
+                'action' => 'exercice_ouvert_automatiquement',
+                'entite_concernee' => 'exercices_comptables',
+                'entite_id' => $id,
+                'valeur_avant' => null,
+                'valeur_apres' => ['annee' => $annee, 'motif' => $motif],
+                'adresse_poste' => request()->ip(),
+            ]);
+        }
+
+        return ExerciceComptable::query()->where('annee', $annee)->lockForUpdate()->firstOrFail();
+    }
+
+    /**
+     * L'année d'une pièce qui peut ouvrir son exercice D'ELLE-MÊME : l'année
+     * en cours, et la suivante en décembre seulement (une date mal saisie,
+     * « 2062 », ne crée pas un exercice ; une année passée manquante non
+     * plus — elle se crée à la main, en connaissance de cause).
+     */
+    public static function ouvertureAutomatiquePermise(int $annee): bool
+    {
+        $maintenant = now();
+
+        return $annee === $maintenant->year
+            || ($annee === $maintenant->year + 1 && $maintenant->month === 12);
     }
 
     /**

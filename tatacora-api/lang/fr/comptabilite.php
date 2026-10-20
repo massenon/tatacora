@@ -122,4 +122,27 @@ return [
         . "en brouillon y subsistent encore. Validez-les ou contre-passez-les avant de clôturer — "
         . "une pièce en brouillon n'est pas opposable, la clôturer verrouillerait l'exercice sur "
         . "un état que personne n'a confirmé.",
+
+    /*
+     * Clôture SYSCOHADA annuelle (lot 2, décisions du PO du 20/10/2026 :
+     * clôture ANNUELLE, réouverture par LE COMPTABLE) — `ClotureExerciceService`.
+     */
+    'cloture_demarrage_impossible' => "La clôture de l'exercice :annee ne peut pas démarrer : il est :statut (seul un exercice ouvert peut entrer en clôture).",
+    'cloture_reprise_impossible' => "La saisie de l'exercice :annee ne peut pas reprendre : il est :statut.",
+    'cloture_exige_en_cloture' => "L'exercice :annee doit d'abord entrer en clôture (« Démarrer la clôture ») : les modules n'y passent alors plus de pièce, seules les écritures d'inventaire du comptable y entrent.",
+    'cloture_ordre' => "L'exercice :annee ne peut pas être clôturé avant l'exercice :precedent : les exercices se clôturent dans l'ordre (ses à-nouveaux en dépendent).",
+    'cloture_conditions_non_reunies' => "L'exercice :annee ne peut pas être clôturé : :blocages",
+    'cloture_suivant_clos' => "L'exercice :annee est déjà clôturé : les à-nouveaux ne peuvent pas y être reportés.",
+    'libelle_piece_cloture' => 'Clôture :annee — solde des comptes de gestion',
+    'libelle_piece_a_nouveaux' => 'À-nouveaux de l\'exercice :annee',
+    'libelle_reouverture' => 'Réouverture de l\'exercice :annee — :motif',
+    'reouverture_reservee' => 'Seul le comptable peut rouvrir un exercice clôturé.',
+    'reouverture_non_cloture' => "L'exercice :annee n'est pas clôturé : il n'y a rien à rouvrir.",
+    'reouverture_motif' => 'Le motif de la réouverture est obligatoire (:min caractères au moins) : il est écrit au journal d\'audit et sur les contre-passations.',
+    'reouverture_suivant_clos' => "L'exercice :annee ne peut pas être rouvert : l'exercice :suivant, qui porte ses à-nouveaux, est déjà clôturé. Rouvrez d'abord :suivant.",
+
+    // --- Archive légale de clôture (lot 4, 20/10/2026) ----------------------
+    'archive_cloture_rouverte' => 'Cette clôture a été rouverte : son archive n\'est plus celle de l\'exercice.',
+    'archive_sans_cloture' => "Cet exercice n'a pas de clôture active : il n'y a pas d'archive.",
+    'archive_alteree' => "L'archive de clôture ne correspond plus à son empreinte : un fichier a été modifié ou supprimé. Elle n'est pas délivrée.",
 ];

@@ -15,6 +15,7 @@ use App\Models\User;
 use App\Pwa\Livewire\Concerns\FormulaireModal;
 use App\Pwa\Livewire\PageMetier;
 use App\Pwa\Support\AutoriseArchivage;
+use App\Pwa\Support\ExerciceConsulte;
 use App\Pwa\Support\MontantFcfa;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\CarbonImmutable;
@@ -214,7 +215,9 @@ class Paie extends PageMetier
     public function mount(): void
     {
         if ($this->periode === '') {
-            $this->periode = CarbonImmutable::today()->format('Y-m');
+            // Sélecteur d'exercice global (PO, 20/10/2026) : le mois courant,
+            // ou le dernier mois de l'exercice consulté quand il est passé.
+            $this->periode = ExerciceConsulte::reference()->format('Y-m');
         }
     }
 
@@ -751,9 +754,18 @@ class Paie extends PageMetier
      */
     private function periodeValide(): string
     {
-        return preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $this->periode) === 1
+        $reference = ExerciceConsulte::reference()->format('Y-m');
+        if (preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $this->periode) !== 1) {
+            return $reference;
+        }
+
+        // Un mois hors de l'exercice consulté (lien ancien, saisie) y revient.
+        $bornes = ExerciceConsulte::bornes();
+
+        return $bornes === null
+            || ($this->periode >= $bornes[0]->format('Y-m') && $this->periode <= $bornes[1]->subDay()->format('Y-m'))
             ? $this->periode
-            : CarbonImmutable::today()->format('Y-m');
+            : $reference;
     }
 
     private function periodeLongue(string $periode): string

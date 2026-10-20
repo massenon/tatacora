@@ -15,6 +15,7 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../comptabilite/presentation/exercice_consulte.dart';
 import '../../../core/di/providers.dart';
 import '../../../core/fichiers/enregistrement_export.dart';
 import '../../../core/impression/entete_parametree.dart';
@@ -210,13 +211,19 @@ final commandesProvider = FutureProvider.autoDispose
           .commandes(
             recherche: terme.isEmpty ? null : terme,
             statut: ref.watch(statutCommandeProvider),
+            // Sélecteur d'exercice global (PO, 20/10/2026).
+            periode: bornesDeLExercice(ref.watch(exerciceConsulteProvider)),
           );
     });
 
 final receptionsProvider = FutureProvider.autoDispose
     .family<ResultatAchats<PageAchats<BonReception>>, void>(
       // Sans filtre : la vue n'en offre aucun sur cet onglet (PA-185).
-      (ref, _) => ref.watch(achatsApiProvider).receptions(),
+      (ref, _) => ref
+          .watch(achatsApiProvider)
+          .receptions(
+            periode: bornesDeLExercice(ref.watch(exerciceConsulteProvider)),
+          ),
     );
 
 final fournisseursProvider = FutureProvider.autoDispose
@@ -244,6 +251,7 @@ final commandesAchatsProvider = FutureProvider.autoDispose
             recherche: terme.isEmpty ? null : terme,
             statut: ref.watch(statutCommandesAchatsProvider),
             page: ref.watch(pageCommandesAchatsProvider),
+            periode: bornesDeLExercice(ref.watch(exerciceConsulteProvider)),
             // `Achats::PAR_PAGE` : 25 par page sur cet écran, là où
             // l'Approvisionnement montre jusqu'à 200 lignes sans pagination.
             parPage: 25,

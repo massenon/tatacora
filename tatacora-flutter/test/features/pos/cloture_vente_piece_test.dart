@@ -199,15 +199,22 @@ void main() {
       final p = await garni();
       final avant = (await ecritures(), await sequences());
 
-      // Une horloge qui sort de l'exercice ouvert : la pièce est refusée.
-      final hors = panierDaoSur(db, horloge: DateTime(2040, 1, 2, 10));
+      // L'exercice de la vente est CLÔTURÉ : la pièce est refusée. (Une
+      // horloge hors exercice ne suffit plus depuis le 20/10/2026 : la
+      // première pièce de l'année ouvre son exercice.)
+      final exercice = (await ComptabiliteDao(db).exercices()).single;
+      await ComptabiliteDao(db).marquerCloture(
+        exercice.id,
+        quand: DateTime(2031, 6, 15),
+        auteurId: auteurEssai,
+      );
       await expectLater(
-        cloturer(p, avec: hors),
+        cloturer(p),
         throwsA(
           isA<RefusComptable>().having(
             (e) => e.motif,
             'motif',
-            MotifRefus.exerciceAbsent,
+            MotifRefus.exerciceNonOuvert,
           ),
         ),
       );

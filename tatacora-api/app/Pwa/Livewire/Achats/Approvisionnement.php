@@ -17,6 +17,7 @@ use App\Domain\Stocks\Services\ConsultationStockService;
 use App\Exports\AchatsExport;
 use App\Pwa\Livewire\Concerns\FormulaireModal;
 use App\Pwa\Livewire\PageMetier;
+use App\Pwa\Support\ExerciceConsulte;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -717,7 +718,10 @@ class Approvisionnement extends PageMetier
     {
         $terme = trim($this->recherche);
 
-        return CommandeAchat::query()
+        // Sélecteur d'exercice global (PO, 20/10/2026) : commandes et
+        // réceptions de l'exercice consulté. Les dettes fournisseurs (commandes
+        // non clôturées) restent un état du JOUR, toutes années confondues.
+        return ExerciceConsulte::borner(CommandeAchat::query(), 'date_commande')
             ->with(['fournisseur', 'lignes'])
             ->when(
                 $this->statut !== '' && in_array($this->statut, CommandeAchat::STATUTS, true),
@@ -738,7 +742,7 @@ class Approvisionnement extends PageMetier
      */
     private function receptions(): Collection
     {
-        return BonReception::query()
+        return ExerciceConsulte::borner(BonReception::query(), 'date_reception')
             ->with(['commande.fournisseur'])
             ->orderByDesc('date_reception')
             ->orderBy('id')

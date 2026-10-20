@@ -7,7 +7,7 @@
 /// | Teinte | Quand | Ce que la phrase affirme |
 /// |---|---|---|
 /// | gris | démonstration, poste non appairé, serveur injoignable sans rien en attente | rien ne part (ou : on ne sait pas joindre le serveur) |
-/// | rouge | refus du jeton, opération rejetée / en conflit / bloquée | quelque chose attend un humain |
+/// | rouge | refus du jeton, serveur réinitialisé, opération rejetée / en conflit / bloquée | quelque chose attend un humain |
 /// | orange | opérations en attente ou en cours d'envoi | N opérations ne sont pas encore au serveur |
 /// | vert | AUCUNE opération en attente, aucune à traiter | tout ce que ce poste a saisi est au serveur |
 ///
@@ -59,6 +59,9 @@ abstract final class TextesVoyant {
       'Poste non appairé : rien ne part, rien ne descend.';
   static const jetonRefuse =
       'Jeton refusé par le serveur — réappairer le poste.';
+  static const serveurReinitialise =
+      'Le serveur a été réinitialisé : réinitialisez ce poste avant de '
+      'reprendre la synchronisation.';
   static String aTraiter(int n) =>
       '$n opération(s) refusée(s), en conflit ou bloquée(s) : à traiter.';
   static String enAttente(int n) =>
@@ -79,6 +82,7 @@ VoyantSynchronisation voyantDe({
   required bool interdite,
   required bool appaire,
   required bool refusJeton,
+  bool serveurReinitialise = false,
   required Map<StatutOperationSync, int> comptes,
   required BilanSynchronisation? bilan,
   required bool enCours,
@@ -110,6 +114,13 @@ VoyantSynchronisation voyantDe({
       teinte: TeinteVoyant.rouge,
       badge: badge(attente + aTraiter),
       phrase: TextesVoyant.jetonRefuse,
+    );
+  }
+  if (serveurReinitialise) {
+    return VoyantSynchronisation(
+      teinte: TeinteVoyant.rouge,
+      badge: badge(attente + aTraiter),
+      phrase: TextesVoyant.serveurReinitialise,
     );
   }
   if (aTraiter > 0) {

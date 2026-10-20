@@ -43,6 +43,7 @@ final class PdfExportConformiteTest extends TestCase
         'carte',
         'carte-ventes',
         'clients-creances',
+        'comptabilite-etats-cloture',
         'comptabilite-journal-rapport',
         'dashboard-rapport',
         'depenses-rapport',

@@ -28,6 +28,17 @@ class DescenteCatalogueDao extends DatabaseAccessor<AppDatabase> {
   static const cleProchaineTentative = 'descente.prochaine_tentative';
   static const prefixeDiffere = 'element_differe:';
 
+  /// La GÉNÉRATION des données du serveur avec laquelle ce poste travaille
+  /// (19/10/2026) — et, quand le serveur a été réinitialisé depuis, la date
+  /// de cette réinitialisation : plus rien ne part ni n'arrive avant la
+  /// réinitialisation de CE poste, qui vide cette table (donc ces clés).
+  static const cleGeneration = 'serveur.generation';
+  static const cleReinitialiseLe = 'serveur.reinitialise_le';
+
+  /// La phase d'essais en production annoncée par le serveur (en-tête
+  /// `X-Tatacora-Phase-Essais`), relue à chaque réponse.
+  static const clePhaseEssais = 'serveur.phase_essais';
+
   $EtatSynchronisationLocalTable get _etat =>
       attachedDatabase.etatSynchronisationLocal;
   $CorrespondancesSyncLocalTable get _correspondances =>
@@ -52,6 +63,42 @@ class DescenteCatalogueDao extends DatabaseAccessor<AppDatabase> {
 
   Future<void> _effacer(String cle) =>
       (delete(_etat)..where((e) => e.cle.equals(cle))).go();
+
+  /// La génération retenue, ou `null` (poste neuf ou réinitialisé : il
+  /// adoptera celle du serveur).
+  Future<String?> generation() => _lire(cleGeneration);
+
+  /// Retient la génération du serveur — la PREMIÈRE seulement : une autre,
+  /// plus tard, ne s'adopte jamais en silence (le serveur la refuse, 409).
+  Future<void> retenirGeneration(String valeur) async {
+    if (valeur.isEmpty || await generation() != null) return;
+    await _ecrire(cleGeneration, valeur);
+  }
+
+  /// Consigne que le serveur a été réinitialisé (409 `generation_perimee`).
+  Future<void> consignerReinitialisationServeur(DateTime le) =>
+      _ecrire(cleReinitialiseLe, le.toUtc().toIso8601String());
+
+  /// Quand le serveur a été réinitialisé, si ce poste l'a constaté et n'a
+  /// pas encore été réinitialisé lui-même ; `null` sinon.
+  Future<DateTime?> reinitialisationServeur() async {
+    final v = await _lire(cleReinitialiseLe);
+    return v == null ? null : DateTime.tryParse(v)?.toLocal();
+  }
+
+  /// Retient ce que le serveur annonce d'une réponse réussie : la
+  /// génération (la première seulement) et la phase d'essais.
+  Future<void> retenirAnnoncesServeur(Map<String, String> entetes) async {
+    final g = entetes['x-tatacora-generation'];
+    if (g != null) await retenirGeneration(g);
+    final essais = entetes['x-tatacora-phase-essais'];
+    if (essais != null) {
+      await _ecrire(clePhaseEssais, essais == '1' ? '1' : '0');
+    }
+  }
+
+  /// Vrai si le serveur a annoncé, à sa dernière réponse, la phase d'essais.
+  Future<bool> phaseEssaisServeur() async => await _lire(clePhaseEssais) == '1';
 
   /// Le curseur OPAQUE du serveur, ou `null` (depuis le début).
   Future<String?> curseur() => _lire(cleCurseur);

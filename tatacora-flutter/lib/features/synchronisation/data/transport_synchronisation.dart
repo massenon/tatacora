@@ -154,3 +154,19 @@ Uri urlServeur(String base, String chemin) {
   final c = chemin.startsWith('/') ? chemin : '/$chemin';
   return Uri.parse('$b$c');
 }
+
+/// L'en-tête par lequel le serveur donne sa GÉNÉRATION des données
+/// (19/10/2026), en minuscules comme [ReponseHttp.entetes].
+const String enteteGeneration = 'x-tatacora-generation';
+
+/// Le refus « le serveur a été réinitialisé depuis » : 409, code
+/// `generation_perimee`. Rend la date de la réinitialisation (à défaut,
+/// [maintenant]), ou `null` si [issue] n'est pas ce refus.
+DateTime? reinitialisationRefusee(IssueHttp issue, DateTime maintenant) {
+  if (issue is! ReponseHttp ||
+      issue.statut != 409 ||
+      issue.corps?['code'] != 'generation_perimee') {
+    return null;
+  }
+  return DateTime.tryParse('${issue.corps?['reinitialisee_le']}') ?? maintenant;
+}

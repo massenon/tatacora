@@ -282,3 +282,13 @@ La désinstallation **ne supprime ni la base** (`%LOCALAPPDATA%\TATACORA\donnees
 réinstallation retrouve toutes les données. Pour effacer réellement les
 données d'un poste (poste réformé), supprimer ces deux fichiers à la main,
 **après** en avoir fait une sauvegarde.
+
+---
+
+## Voir aussi (19/10/2026)
+
+- `docs/ESSAIS_EN_PRODUCTION_ET_REINITIALISATION.md` — essais en
+  production, puis réinitialisation du serveur et de chaque poste.
+- `docs/VERIFICATIONS_APRES_MISE_EN_PRODUCTION.md` — la liste à dérouler
+  après chaque mise en production (serveur et postes).
+- `docs/LISTE_DES_CRON_JOBS_CPANEL.md` — la tâche cron du serveur.

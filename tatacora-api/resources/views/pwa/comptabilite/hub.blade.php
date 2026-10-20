@@ -96,6 +96,36 @@
              qui invite a le refaire. --}}
         @include('pwa.partials.toast-succes')
 
+        {{-- Navigation temporelle et statut de l'exercice consulté (lot 3,
+             20/10/2026) : N-1 et N+1 en un clic ; un exercice en clôture ou
+             clôturé le DIT — les services refusent déjà d'y écrire, l'écran
+             ne laisse pas croire le contraire. --}}
+        @if ($exercice !== null)
+          @php
+            $exercicePrecedent = $exercices->firstWhere('annee', $exercice->annee - 1);
+            $exerciceSuivant = $exercices->firstWhere('annee', $exercice->annee + 1);
+          @endphp
+          <div id="navigation-exercices" class="flex flex-wrap items-center gap-2 mb-3">
+            @if ($exercicePrecedent !== null)
+              <a href="{{ route('pwa.comptabilite.hub', ['exercice' => $exercicePrecedent->id, 'onglet' => $ongletActif]) }}" wire:navigate
+                 class="text-[13px] px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50">← {{ __('comptabilite_pwa.exercice_precedent', ['annee' => $exercicePrecedent->annee]) }}</a>
+            @endif
+            @if ($exerciceSuivant !== null)
+              <a href="{{ route('pwa.comptabilite.hub', ['exercice' => $exerciceSuivant->id, 'onglet' => $ongletActif]) }}" wire:navigate
+                 class="text-[13px] px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50">{{ __('comptabilite_pwa.exercice_suivant', ['annee' => $exerciceSuivant->annee]) }} →</a>
+            @endif
+          </div>
+          @if ($exercice->statut === 'en_cloture')
+            <div id="bandeau-statut-exercice" class="rounded-xl p-3.5 mb-4" style="background:#FFFBEB;border:1px solid #FDE68A">
+              <p class="text-[13px]" style="color:#78350F">{{ __('comptabilite_pwa.bandeau_en_cloture', ['annee' => $exercice->annee]) }}</p>
+            </div>
+          @elseif ($exercice->statut === 'cloture')
+            <div id="bandeau-statut-exercice" class="rounded-xl p-3.5 mb-4" style="background:#F1F5F9;border:1px solid #CBD5E1">
+              <p class="text-[13px]" style="color:#334155">{{ __('comptabilite_pwa.bandeau_cloture', ['annee' => $exercice->annee]) }}</p>
+            </div>
+          @endif
+        @endif
+
         @if ($indicateurs !== null && ! $indicateurs->equilibre)
           {{-- `#alerte-globale` (l.51 / init l.56) — les deux phrases du maître. --}}
           <div class="rounded-xl p-3.5 mb-4" style="background:#FEF2F2;border:1px solid #FECACA">
@@ -305,7 +335,8 @@
             <label class="block text-[12px] font-semibold text-slate-600 mb-1">{{ __('comptabilite_pwa.champ_journal') }} <span class="text-red-500">*</span></label>
             <select wire:model="journalCode" class="w-full text-[13px] border border-slate-300 rounded-lg px-3 py-2 bg-white">
               <option value="">{{ __('comptabilite_pwa.choisir') }}</option>
-              @foreach ($journaux as $unJournal)
+              {{-- CL et AN : les journaux que seule la clôture écrit. --}}
+              @foreach ($journaux->reject(fn ($j) => in_array($j->code, \App\Domain\Comptabilite\Services\ClotureExerciceService::JOURNAUX_RESERVES, true)) as $unJournal)
                 <option value="{{ $unJournal->code }}">{{ $unJournal->code }} — {{ $unJournal->libelle }}</option>
               @endforeach
             </select>

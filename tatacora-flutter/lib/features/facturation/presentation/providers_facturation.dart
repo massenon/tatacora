@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../comptabilite/presentation/exercice_consulte.dart';
 import '../../../core/di/providers.dart';
 import '../../../core/fichiers/enregistrement_export.dart';
 import '../../../core/impression/entete_parametree.dart';
@@ -267,9 +268,15 @@ final registreProvider = FutureProvider<List<PieceFacturation>>((ref) async {
 
   final terme = ref.watch(rechercheFactureProvider).trim().toLowerCase();
   final module = ref.watch(moduleFiltreProvider);
+  // Sélecteur d'exercice global (PO, 20/10/2026) : les pièces ÉMISES dans
+  // l'exercice consulté.
+  final exercice = ref.watch(exerciceConsulteProvider);
 
   return pieces
       .where((p) {
+        if (!dansLExercice(exercice, p.dateEmission.toIso8601String())) {
+          return false;
+        }
         if (terme.isNotEmpty) {
           final champs = '${p.numero} ${p.clientNom}'.toLowerCase();
           if (!champs.contains(terme)) return false;

@@ -27,6 +27,7 @@ use App\Shared\Sync\Http\Controllers\DemandeSynchronisationController;
 use App\Shared\Sync\Http\Controllers\ReferentielsController;
 use App\Shared\Sync\Http\Controllers\SuiviPostesController;
 use App\Shared\Sync\Http\Controllers\SyncController;
+use App\Shared\Sync\Http\Middleware\GenerationDesDonnees;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -71,11 +72,11 @@ Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
     // Synchronisation differee du client Flutter — LARAVEL_SYNC_FLUTTER.md.
     // Pas de middleware `module:` : un lot traverse plusieurs domaines, et le
     // controle d'acces se fait par table dans le registre du service.
-    Route::post('/sync', SyncController::class);
+    Route::post('/sync', SyncController::class)->middleware(GenerationDesDonnees::class);
 
     // Le bouton « Synchroniser » du serveur (décision PO du 18/10/2026) : le
     // poste lit ici, toutes les 30 s, la dernière demande faite à la PWA.
-    Route::get('/sync/demande', DemandeSynchronisationController::class);
+    Route::get('/sync/demande', DemandeSynchronisationController::class)->middleware(GenerationDesDonnees::class);
     // Le même bouton, et l'état des postes, depuis l'écran du poste.
     Route::post('/sync/demande', [SuiviPostesController::class, 'demander']);
     Route::get('/sync/postes', [SuiviPostesController::class, 'etats']);
@@ -83,14 +84,16 @@ Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
     Route::post('/sync/postes/{poste}/revocation', [SuiviPostesController::class, 'revoquer'])
         ->where('poste', '[^/]{1,100}');
     // Le contrôle de cohérence du poste (P1-1) : les comptes du serveur.
-    Route::get('/sync/coherence', CoherenceController::class);
+    Route::get('/sync/coherence', CoherenceController::class)->middleware(GenerationDesDonnees::class);
 
     // Le CATALOGUE descendant des postes — décision PO du 15/10/2026 (le
     // serveur est maître, les postes téléchargent ; contrat dans le docblock
     // de `ReferentielsController`). Pas de middleware `module:` : le flux
     // traverse M1/M4/M5/M6/M7/M10, et chaque table n'y entre que si
     // l'utilisateur LIT son module (filtrage dans le service).
-    Route::get('/referentiels', ReferentielsController::class);
+    // La génération des données (19/10/2026) : un poste d'avant une
+    // réinitialisation du serveur est refusé (409) sur ces quatre routes.
+    Route::get('/referentiels', ReferentielsController::class)->middleware(GenerationDesDonnees::class);
 
     Route::prefix('hebergement')->group(function () {
         // Le PARC entier — referentiel descendant du client Flutter (PA-128).

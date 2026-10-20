@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Shared\Backup\Services;
 
+use App\Domain\Comptabilite\Services\ArchiveClotureService;
 use App\Models\User;
 use App\Shared\Audit\Models\JournalAudit;
 use App\Shared\Parametres\Services\ParametreSystemeService;
+use App\Shared\Sync\Services\GenerationDonneesService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use RuntimeException;
 
@@ -76,13 +79,24 @@ use RuntimeException;
  *
  * ## Quatre verrous, revérifiés à l'exécution
  *
- *  1. L'ENVIRONNEMENT — `app()->isProduction()` refuse toujours.
+ *  1. L'ENVIRONNEMENT — `app()->isProduction()` refuse, SAUF pendant la
+ *     phase d'essais en production (`TATACORA_PHASE_ESSAIS=true` au `.env`,
+ *     décision du Product Owner du 19/10/2026 : « les essais en production
+ *     suivis de la réinitialisation ») ; la variable se retire à la mise en
+ *     service réelle.
  *  2. La BASCULE `reinitialisation_seeders`, fermée par défaut.
  *  3. Le RÔLE — administrateur ou super_admin (`User::estAdministrateur()`).
  *  4. La SAISIE du mot de confirmation — vérifiée par l'écran.
  *
  * Une sauvegarde complète est générée AVANT, hors transaction : si
  * `mysqldump` échoue, rien n'est vidé et le motif s'affiche dans la modale.
+ *
+ * ## Les POSTES suivent : la génération des données (19/10/2026)
+ *
+ * La réinitialisation ouvre une GÉNÉRATION nouvelle
+ * (`GenerationDonneesService`). Un poste qui a synchronisé avant est refusé
+ * (409) tant qu'il n'a pas été réinitialisé à son tour : sa file d'essai ne
+ * repart pas vers le serveur remis à neuf.
  *
  * @see RG-15 la réinitialisation est journalisée
  */
@@ -105,6 +119,8 @@ class ReinitialisationDonneesTestService
         // Identité et réglages — le compte, les droits, les paramètres.
         'utilisateurs', 'roles', 'permissions', 'permission_role',
         'personal_access_tokens', 'parametres_systeme', 'secrets_configuration',
+        // La génération des données : l'historique des réinitialisations.
+        'generations_donnees',
         // Journaux et traces — RG-15.
         'journal_audit', 'journal_securite', 'journal_imports',
         'historique_prix_carte', 'messages_editeur', 'etats_planifies',
@@ -134,12 +150,19 @@ class ReinitialisationDonneesTestService
     public function __construct(
         private readonly SauvegardeManuelleService $sauvegardes,
         private readonly ParametreSystemeService $parametres,
+        private readonly GenerationDonneesService $generations,
     ) {
     }
 
     public function estAutorisee(): bool
     {
-        return ! app()->isProduction();
+        return ! app()->isProduction() || $this->enPhaseEssais();
+    }
+
+    /** La phase d'essais en production (`.env`) — voir `config/tatacora.php`. */
+    public function enPhaseEssais(): bool
+    {
+        return app()->isProduction() && config('tatacora.phase_essais') === true;
     }
 
     /**
@@ -248,7 +271,7 @@ class ReinitialisationDonneesTestService
     }
 
     /**
-     * @return array{videes: int, lignes: int, sauvegarde: string}
+     * @return array{videes: int, lignes: int, sauvegarde: string, generation: string}
      */
     public function executer(?User $auteur, ?string $sessionConservee = null): array
     {
@@ -289,7 +312,7 @@ class ReinitialisationDonneesTestService
         // rien n'est vidé — pas de filet, pas de saut.
         $sauvegarde = basename($this->sauvegardes->genererMaintenant()['fichier']);
 
-        $lignes = DB::transaction(function () use ($ordre, $effacables, $references, $aDetacher, $auteur, $sessionConservee, $sauvegarde): int {
+        $lignes = DB::transaction(function () use ($ordre, $effacables, $references, $aDetacher, $auteur, $sessionConservee, $sauvegarde): array {
             // 1. Les tables gardées lâchent leurs références vers les vidées.
             foreach ($aDetacher as $reference) {
                 DB::table($reference['source'])
@@ -334,8 +357,22 @@ class ReinitialisationDonneesTestService
             DB::table('vehicules')
                 ->where('statut', 'loue')
                 ->update(['statut' => 'disponible']);
+            //    Un exercice démarré en clôture ou clôturé PENDANT LES ESSAIS
+            //    (20/10/2026) : ses écritures et sa clôture sont effacées, il
+            //    redevient ouvert — daté, pour redescendre aux postes.
+            DB::table('exercices_comptables')
+                ->where('statut', '!=', 'ouvert')
+                ->update([
+                    'statut' => 'ouvert',
+                    'date_cloture' => null,
+                    'utilisateur_cloture_id' => null,
+                    'updated_at' => now(),
+                ]);
 
-            // 5. La trace — RG-15 : le journal d'audit survit et le dit.
+            // 5. Une génération NOUVELLE : les postes d'avant s'arrêtent.
+            $generation = $this->generations->ouvrir($auteur);
+
+            // 6. La trace — RG-15 : le journal d'audit survit et le dit.
             JournalAudit::create([
                 'utilisateur_id' => $auteur?->id,
                 'action' => 'Réinitialisation',
@@ -346,17 +383,25 @@ class ReinitialisationDonneesTestService
                     'tables_videes' => $ordre,
                     'lignes_supprimees' => $total,
                     'sauvegarde' => $sauvegarde,
+                    'generation' => $generation->generation,
+                    'phase_essais' => $this->enPhaseEssais(),
                 ],
                 'adresse_poste' => request()->ip(),
             ]);
 
-            return $total;
+            return ['total' => $total, 'generation' => $generation->generation];
         });
+
+        // Les archives de clôture des essais suivent leurs clôtures (vidées
+        // ci-dessus) : une « archive légale » d'un exercice d'essai ne doit
+        // pas survivre. Hors transaction — un fichier ne se défait pas.
+        Storage::disk(ArchiveClotureService::DISQUE)->deleteDirectory('archives/exercices');
 
         return [
             'videes' => count($ordre),
-            'lignes' => $lignes,
+            'lignes' => $lignes['total'],
             'sauvegarde' => $sauvegarde,
+            'generation' => $lignes['generation'],
         ];
     }
 

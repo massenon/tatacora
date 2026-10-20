@@ -108,6 +108,15 @@ ExerciceComptable? exerciceCouvrant(
   return null;
 }
 
+/// L'année d'une pièce qui peut ouvrir son exercice D'ELLE-MÊME (passage
+/// d'année, 20/10/2026) — la même règle que le serveur
+/// (`ExerciceComptableService::ouvertureAutomatiquePermise`) : l'année en
+/// cours, et la suivante en décembre seulement. Une date mal saisie
+/// (« 2062 ») ou une année passée manquante n'ouvre rien.
+bool ouvertureAutomatiquePermise(int annee, DateTime maintenant) =>
+    annee == maintenant.year ||
+    (annee == maintenant.year + 1 && maintenant.month == 12);
+
 /// L'exercice qui couvre la date ET qui est encore ouvert.
 ///
 /// Deux refus distincts, et l'écart compte : « aucun exercice » se corrige en

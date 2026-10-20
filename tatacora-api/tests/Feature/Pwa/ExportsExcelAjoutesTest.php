@@ -379,8 +379,13 @@ final class ExportsExcelAjoutesTest extends TestCase
         $this->comptabiliteJeu();
         $this->actingAs($this->utilisateur('comptable'));
 
+        // Depuis le sélecteur d'exercice global (20/10/2026), l'écran a
+        // toujours un exercice par défaut : le refus porte sur un exercice
+        // INTROUVABLE (identifiant d'URL inconnu), le seul « sans exercice »
+        // qui reste.
         Livewire::test(Hub::class)
             ->set('onglet', 'journal')
+            ->set('exerciceId', 'exercice-inconnu')
             ->call('genererExport')
             ->assertHasErrors('export');
     }
