@@ -39,7 +39,13 @@
       <h2 class="text-xl font-bold text-center mb-1" style="color:var(--navy)">{{ __('pwa.marque') }}</h2>
       <p class="text-[15px] text-slate-400 text-center mb-6">{{ __('pwa.connexion.sous_titre') }}</p>
 
-      <form id="formulaire-connexion" class="space-y-4" wire:submit="seConnecter">
+      {{-- ⚠ `method="post"` + `onsubmit="return false"` : sans eux, un navigateur dont
+           Livewire n'a pas démarré (script bloqué, 404 sur son adresse, cache périmé)
+           ENVOIE LE FORMULAIRE EN GET et l'identifiant comme le mot de passe finissent
+           dans l'adresse, l'historique et les journaux du serveur (constaté en local le
+           21/10/2026). Le repli est désormais inerte : rien ne part, le mot de passe ne
+           quitte jamais le champ. Livewire, lui, écoute toujours `submit`. --}}
+      <form id="formulaire-connexion" class="space-y-4" method="post" action="{{ route('pwa.connexion') }}" onsubmit="return false" wire:submit="seConnecter">
         <div class="groupe-champ">
           <label for="champ-identifiant" class="block text-[15px] font-semibold text-slate-700 mb-1.5">{{ __('pwa.connexion.login') }} <span class="text-red-500">*</span></label>
           <input id="champ-identifiant" name="identifiant" type="text" wire:model="login" autocomplete="username" autofocus class="champ w-full border border-slate-200 rounded-lg px-3.5 py-3 text-sm @error('login') champ-erreur @enderror" placeholder="{{ __('pwa.connexion.exemple_login') }}">
