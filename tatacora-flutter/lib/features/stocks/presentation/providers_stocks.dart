@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:drift/drift.dart' show BooleanExpressionOperators;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/di/providers.dart';
@@ -8,6 +11,7 @@ import '../../../core/rbac/garde_acces.dart';
 import '../data/stocks_api.dart';
 import '../data/stocks_dao.dart';
 import '../domain/entities/etat_stock.dart';
+import '../domain/stock_en_attente.dart';
 import '../domain/entities/fiche_stock.dart';
 import '../impression/etat_fiche_stock.dart';
 import '../impression/etat_stocks.dart';
@@ -111,6 +115,56 @@ final etatStockProvider = FutureProvider.autoDispose<ResultatStock>(
         etat: ref.watch(etatFiltreProvider),
       ),
 );
+
+/// Ce que les ventes du bar ENCORE EN FILE sortiront du stock (RG-05,
+/// 21/10/2026) — à DIRE à côté du stock, jamais à y soustraire : le serveur
+/// sort le stock à la réception de la vente, et ces sorties redescendent ; un
+/// mouvement local serait compté deux fois. Voir `stock_en_attente.dart`.
+///
+/// Les ventes `en_attente`, `en_cours` et `bloque` comptent ; `synchronise`
+/// et `rejete` non (la première est chez le serveur, la seconde n'y entrera
+/// jamais). Une boisson sans facteur reçu n'est pas estimée et est comptée à
+/// part.
+final stockEnAttenteProvider = FutureProvider.autoDispose<StockEnAttente>((
+  ref,
+) async {
+  final db = ref.watch(baseLocaleProvider);
+  final operations =
+      await (db.select(db.operationsSyncLocal)..where(
+            (o) =>
+                o.tableServeur.equals('ventes') &
+                o.type.equals('creation') &
+                o.statut.isIn(const ['en_attente', 'en_cours', 'bloque']),
+          ))
+          .get();
+  if (operations.isEmpty) return StockEnAttente.vide;
+
+  final ventes = <({String boissonId, int quantite})>[];
+  for (final o in operations) {
+    final Object? charge;
+    try {
+      charge = jsonDecode(o.payload);
+    } on FormatException {
+      continue;
+    }
+    final lignes = charge is Map ? charge['lignes'] : null;
+    if (lignes is! List) continue;
+    for (final l in lignes) {
+      if (l is Map && l['module_source'] == 'M5' && l['quantite'] is int) {
+        ventes.add((
+          boissonId: '${l['code_article']}',
+          quantite: l['quantite'] as int,
+        ));
+      }
+    }
+  }
+
+  final boissons = {
+    for (final b in await db.select(db.cartesBoissonLocal).get())
+      b.id: (articleId: b.articleId, facteur: b.unitesVendables),
+  };
+  return agregerStockEnAttente(ventes: ventes, boissons: boissons);
+});
 
 /// Les points de stockage de CE poste. Une liste vide est la vérité (aucun point
 /// n'a été créé), pas une donnée manquante : le sélecteur dit comment en créer

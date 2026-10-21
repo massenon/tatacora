@@ -7,6 +7,7 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../../restaurant/presentation/widgets/coquille_restaurant.dart';
 import '../../../restaurant/presentation/widgets/tableau_restaurant.dart';
 import '../../domain/entities/etat_stock.dart';
+import '../../domain/stock_en_attente.dart';
 
 /// Le gabarit du tableau des stocks — `stocks.blade.php` l.301-330 :
 /// `<thead class="bg-[var(--navy)] text-[11px] uppercase tracking-wide
@@ -62,12 +63,17 @@ class TableStocks extends StatelessWidget {
   const TableStocks({
     super.key,
     required this.lignes,
+    this.enAttente = StockEnAttente.vide,
     required this.onFiche,
     required this.onMouvement,
     required this.onModifier,
   });
 
   final List<LigneStock> lignes;
+
+  /// Ce que les ventes du bar encore en file sortiront (RG-05) : une mention
+  /// sous le stock, jamais une soustraction.
+  final StockEnAttente enAttente;
 
   /// Les trois actions de ligne de la vue (l.406-411).
   ///
@@ -141,15 +147,27 @@ class TableStocks extends StatelessWidget {
               key: Key('stocks-non-suivi-${l.id}'),
               style: _t(couleur: Ardoise.c300),
             )
-          : Text(
-              l.stock,
-              key: Key('stocks-stock-${l.id}'),
-              style: _t(
-                poids: FontWeight.w600,
-                couleur: l.enRupture
-                    ? PaletteMaitre.rouge600
-                    : (l.sousSeuil ? PaletteMaitre.ambre600 : null),
-              ),
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  l.stock,
+                  key: Key('stocks-stock-${l.id}'),
+                  style: _t(
+                    poids: FontWeight.w600,
+                    couleur: l.enRupture
+                        ? PaletteMaitre.rouge600
+                        : (l.sousSeuil ? PaletteMaitre.ambre600 : null),
+                  ),
+                ),
+                if (enAttente.pour(l.id) > 0)
+                  Text(
+                    TextesStockEnAttente.sortie(enAttente.pour(l.id)),
+                    key: Key('stocks-en-attente-${l.id}'),
+                    style: _t(couleur: Ardoise.c400),
+                  ),
+              ],
             ),
       // Le seuil n'a pas de sens sans stock (l.380).
       Text(journalier ? '—' : l.seuilAlerte, style: _t(couleur: Ardoise.c400)),

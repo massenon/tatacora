@@ -143,7 +143,7 @@ void main() {
     // l'occupation des tables par les autres postes ; auteur :
     // `AligneurCatalogue`).
     expect(base.allTables.length, 62);
-    expect(base.schemaVersion, 29);
+    expect(base.schemaVersion, 30);
     expect(
       base.allTables.map((t) => t.actualTableName).toSet().containsAll({
         'origines_documents_local',

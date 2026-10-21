@@ -364,6 +364,7 @@ class AligneurCatalogue {
       }
       article = local;
     }
+    final unites = _decimalPositif(d['unites_vendables_par_unite_stock']);
     final t = _db.cartesBoissonLocal;
     if (await (_db.select(
           t,
@@ -388,9 +389,18 @@ class AligneurCatalogue {
             libelle: libelle,
             categorie: categorie!,
             prixVente: prix.toDouble(),
+            unitesVendables: Value(unites),
           ),
         );
     return const Aligne();
+  }
+
+  /// Un décimal strictement positif, gardé EN TEXTE (`24.0000`) ; tout le
+  /// reste est « non reçu » (`null`) — jamais un 1 inventé.
+  static String? _decimalPositif(Object? brut) {
+    final texte = brut?.toString().trim();
+    if (texte == null || !RegExp(r'^\d+(\.\d+)?$').hasMatch(texte)) return null;
+    return double.parse(texte) > 0 ? texte : null;
   }
 
   /* ================================================================== */

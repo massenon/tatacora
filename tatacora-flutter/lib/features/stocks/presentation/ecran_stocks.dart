@@ -18,6 +18,7 @@ import '../domain/entities/etat_stock.dart';
 import '../domain/import_articles.dart';
 import '../domain/messages_stock.dart';
 import '../impression/etat_stocks.dart';
+import '../domain/stock_en_attente.dart';
 import 'providers_stocks.dart';
 import 'widgets/modale_article.dart';
 import 'widgets/modale_import_articles.dart';
@@ -917,11 +918,18 @@ class _CarteTableau extends StatelessWidget {
               elements: lignes,
               prefixeCle: 'stocks-pagination',
               cleRemiseAZero: cleFiltre,
-              constructeur: (_, page) => TableStocks(
-                lignes: page,
-                onFiche: onFiche,
-                onMouvement: onMouvement,
-                onModifier: onModifier,
+              constructeur: (_, page) => Consumer(
+                builder: (context, ref, _) => TableStocks(
+                  lignes: page,
+                  // RG-05 : ce que les ventes encore en file sortiront — dit,
+                  // jamais soustrait (`stock_en_attente.dart`).
+                  enAttente:
+                      ref.watch(stockEnAttenteProvider).value ??
+                      StockEnAttente.vide,
+                  onFiche: onFiche,
+                  onMouvement: onMouvement,
+                  onModifier: onModifier,
+                ),
               ),
             ),
         ],

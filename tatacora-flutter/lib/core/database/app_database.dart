@@ -372,7 +372,7 @@ class AppDatabase extends _$AppDatabase {
   /// 61 -> 62 tables), aucune colonne ajoutée. Une table occupée sur un autre
   /// poste (ou à la PWA) l'est aussi ici.
   @override
-  int get schemaVersion => 29;
+  int get schemaVersion => 30;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1032,6 +1032,30 @@ class AppDatabase extends _$AppDatabase {
         // Une table NEUVE, sans index ni clé étrangère : rien d'existant
         // n'est touché, aucune ligne n'est fabriquée (la descente la remplit).
         await m.createTable(occupationsTablesLocal);
+      }
+      if (from < 30) {
+        // LE FACTEUR DE CONVERSION DES BOISSONS (21/10/2026, stock estimé hors
+        // ligne). Une colonne AJOUTÉE à `cartes_boisson_local`, jamais une
+        // table recréée. NULLABLE : aucune valeur n'est fabriquée pour les
+        // boissons d'avant (un défaut de 1 serait faux pour un casier de 24).
+        // Le curseur de descente est OUBLIÉ : le catalogue redescend une fois,
+        // et l'aligneur — idempotent — remplit la colonne.
+        //
+        // ⚠ Ajout CONDITIONNEL (piège 3) : une fixture ramenée en arrière
+        // depuis la définition courante porte déjà la colonne.
+        final colonnes = await m.database
+            .customSelect('PRAGMA table_info(cartes_boisson_local)')
+            .get();
+        final noms = {for (final c in colonnes) c.data['name'] as String};
+        if (!noms.contains('unites_vendables')) {
+          await m.addColumn(
+            cartesBoissonLocal,
+            cartesBoissonLocal.unitesVendables,
+          );
+        }
+        await m.database.customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
       }
     },
 

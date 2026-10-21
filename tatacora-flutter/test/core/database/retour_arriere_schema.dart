@@ -92,6 +92,11 @@ const tablesAjouteesEnV28 = <String>{'origines_documents_local'};
 const tablesAjouteesEnV29 = <String>{'occupations_tables_local'};
 
 const _ajoutsParVersion = <int, List<String>>{
+  // La v30 (facteur de conversion des boissons, 21/10/2026) AJOUTE une colonne
+  // nullable à `cartes_boisson_local` : retour arriere symetrique, la colonne
+  // n'est ni indexee ni referencee.
+  30: <String>['ALTER TABLE cartes_boisson_local DROP COLUMN unites_vendables'],
+
   // La v29 (occupation des tables, lot F6 du 18/10/2026) ajoute UNE table
   // neuve, sans index ni cle etrangere : retour arriere symetrique.
   29: <String>['DROP TABLE occupations_tables_local'],

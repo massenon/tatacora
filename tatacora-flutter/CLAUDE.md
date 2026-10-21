@@ -556,6 +556,18 @@ réinitialisation, sur le web et le poste » ; procédure :
 - ⚠ Un poste d'une version antérieure ne connaît pas la génération : il doit
   être mis à jour AVANT la réinitialisation du serveur.
 
+## Stock estimé hors ligne, RG-05 (21/10/2026, schéma v30)
+
+Le serveur sort le stock d'une vente à sa RÉCEPTION et ces sorties redescendent
+à tous les postes (celui qui a vendu compris) : un mouvement LOCAL serait compté
+deux fois. Le poste DIT donc ce que ses ventes encore en file sortiront
+(« −X en attente d'envoi », sous le stock de l'écran Stocks) sans rien écrire ni
+soustraire (`stock_en_attente.dart`, `stockEnAttenteProvider`). Le facteur de
+conversion (`unites_vendables_par_unite_stock`) descend dans la colonne
+`cartes_boisson_local.unites_vendables` (v30, NULLABLE : jamais un 1 inventé ; la
+migration oublie le curseur pour que le catalogue redescende). Seules les
+boissons (M5) sont estimées ; les plats (M4) ne le sont pas.
+
 ## Exploitation : cron et vérifications (19/10/2026)
 
 `docs/LISTE_DES_CRON_JOBS_CPANEL.md` (une ligne cron `schedule:run`, test

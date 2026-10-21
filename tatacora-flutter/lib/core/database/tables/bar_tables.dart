@@ -20,6 +20,12 @@ class CartesBoissonLocal extends Table {
   TextColumn get categorie => text()(); // 'locale' | 'maison' | 'importee'
   RealColumn get prixVente => real()();
 
+  /// `unites_vendables_par_unite_stock` du serveur (v30, 21/10/2026) : combien
+  /// d'unités VENDUES font une unité de STOCK (un casier de 24 = `24.0000`).
+  /// Texte décimal tel que le serveur l'envoie, jamais un `double`. `null` :
+  /// pas encore reçu — le stock estimé ignore alors la ligne et le DIT.
+  TextColumn get unitesVendables => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }
