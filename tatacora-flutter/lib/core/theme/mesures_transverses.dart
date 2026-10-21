@@ -136,6 +136,18 @@ abstract final class MesuresTransverses {
   /// minimale qui garde l'en-tête sur une ligne.
   static const double colonneTableauMin = 110;
 
+  /// Les colonnes FIXES du tableau « Comptes utilisateurs » (21/10/2026). Sans
+  /// elles, chaque colonne libre prenait la largeur de la plus large cellule
+  /// (les deux boutons d'action) et le tableau débordait de la fenêtre. Seul
+  /// le nom reste libre. Largeurs choisies sur le plus long contenu de chaque
+  /// colonne (« Administrateur système », une date `jj/mm/aaaa`, deux boutons).
+  static const double colonneCompteIdentifiant = 140;
+  static const double colonneCompteRole = 190;
+  static const double colonneCompteStatut = 100;
+  static const double colonneCompteCreeLe = 120;
+  static const double colonneCompteMotDePasse = 150;
+  static const double colonneCompteActions = 280;
+
   /// La colonne « Intitulé » / « Libellé » des tableaux comptables.
   static const double colonneLibelleCompta = 220;
 

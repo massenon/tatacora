@@ -12,7 +12,7 @@
       "jetons": 41,
       "ordonnes": 41,
       "manquantes": 0,
-      "enTrop": 1,
+      "enTrop": 2,
       "inertes": 0
     },
     "barman": {
@@ -40,7 +40,7 @@
       "jetons": 24,
       "ordonnes": 24,
       "manquantes": 0,
-      "enTrop": 0,
+      "enTrop": 1,
       "inertes": 0
     },
     "guide": {
@@ -75,7 +75,7 @@
       "jetons": 41,
       "ordonnes": 41,
       "manquantes": 0,
-      "enTrop": 1,
+      "enTrop": 2,
       "inertes": 0
     },
     "vehicules": {

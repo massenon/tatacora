@@ -14,7 +14,7 @@
         16,
         7
       ],
-      "enTrop": 3
+      "enTrop": 2
     },
     "administrateur": {
       "barre": [
@@ -29,7 +29,7 @@
         19,
         10
       ],
-      "enTrop": 3
+      "enTrop": 2
     },
     "barman": {
       "barre": [
@@ -44,7 +44,7 @@
         19,
         10
       ],
-      "enTrop": 3
+      "enTrop": 2
     },
     "comptable": {
       "barre": [
@@ -59,7 +59,7 @@
         19,
         10
       ],
-      "enTrop": 3
+      "enTrop": 2
     },
     "cuisine": {
       "barre": [
@@ -74,7 +74,7 @@
         16,
         7
       ],
-      "enTrop": 3
+      "enTrop": 2
     },
     "gerant": {
       "barre": [
@@ -89,7 +89,7 @@
         19,
         10
       ],
-      "enTrop": 3
+      "enTrop": 2
     },
     "guide": {
       "barre": [
@@ -104,7 +104,7 @@
         15,
         7
       ],
-      "enTrop": 3
+      "enTrop": 2
     },
     "magasinier": {
       "barre": [
@@ -119,7 +119,7 @@
         19,
         10
       ],
-      "enTrop": 3
+      "enTrop": 2
     },
     "receptionniste": {
       "barre": [
@@ -134,7 +134,7 @@
         19,
         10
       ],
-      "enTrop": 3
+      "enTrop": 2
     },
     "rh": {
       "barre": [
@@ -149,7 +149,7 @@
         15,
         6
       ],
-      "enTrop": 4
+      "enTrop": 3
     },
     "super_admin": {
       "barre": [
@@ -164,7 +164,7 @@
         19,
         10
       ],
-      "enTrop": 3
+      "enTrop": 2
     },
     "vehicules": {
       "barre": [
@@ -179,7 +179,7 @@
         16,
         7
       ],
-      "enTrop": 3
+      "enTrop": 2
     }
   },
   "total": {

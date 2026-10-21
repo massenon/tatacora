@@ -66,7 +66,7 @@ class TableauVentes extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                     height: 1.5,
                     letterSpacing: 0.5,
-                    color: CouleursTableau.enteteTexte,
+                    color: AppColors.neutre0,
                   ),
                 ),
             ],

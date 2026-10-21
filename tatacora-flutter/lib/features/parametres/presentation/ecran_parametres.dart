@@ -16,6 +16,7 @@ import '../domain/resultats_parametres.dart';
 import 'widgets/cadre_modale_parametre.dart';
 import 'widgets/champ_mot_de_passe_smtp.dart';
 import 'widgets/champ_parametre.dart';
+import 'widgets/onglet_apparence.dart';
 import 'widgets/onglet_espaces_tables.dart';
 import 'widgets/onglet_synchronisation.dart';
 
@@ -273,14 +274,15 @@ class _PageState extends ConsumerState<_Page> {
         // Le référentiel des tables de salle du poste (`tables_local`, seul
         // écrivain `TablesPosDao`) — le même que lit le point de vente.
         return OngletEspacesTables(peutEcrire: peutEcrire);
+      case 'apparence':
+        // Logo et favicon téléversés, charte en lecture seule (21/10/2026).
+        return OngletApparence(peutEcrire: peutEcrire);
       case 'synchronisation':
         // L'onglet refait lui-même la vérification du rôle.
         return const OngletSynchronisation();
       default:
-        // Logo & Apparence, Canaux de réservation : leur contenu n'a pas de
-        // source sur ce poste. Logo et favicon sont des FICHIERS téléversés
-        // (aucune clé de `parametres_systeme_local`, aucun stockage de
-        // fichier) ; les canaux sont un référentiel du serveur
+        // Canaux de réservation : leur contenu n'a pas de source sur ce
+        // poste. Les canaux sont un référentiel du serveur
         // (`canaux_reservation`) sans table locale — le poste ne connaît que
         // la liste fermée de la fiche de réservation. Dit en une ligne,
         // jamais un onglet vide.

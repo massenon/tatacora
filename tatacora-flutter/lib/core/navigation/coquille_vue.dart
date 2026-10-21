@@ -103,12 +103,6 @@ abstract final class LibellesCoquille {
   static String ecranNonPorte(String nom) =>
       '« $nom » : écran non encore porté sur ce poste.';
 
-  /// La pastille d'environnement, hors production seulement — AJOUT déclaré
-  /// (la vue n'en a pas : elle est servie par un seul serveur ; voir
-  /// `_BarreSuperieure`). Aucune clé de langue ne la porte : la chaîne vit ici,
-  /// avec les autres libellés de la coquille, pas dans le widget.
-  static String environnement(String libelle) => 'Environnement : $libelle';
-
   /// `pwa.recherche_globale.*` — la recherche globale de la barre supérieure.
   static const String rechercheInvite = 'Rechercher partout…';
   static const String rechercheTropCourt =

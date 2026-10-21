@@ -112,7 +112,7 @@
   },
   "transverse/parametres": {
     "blade": 150,
-    "ordonnes": 82,
+    "ordonnes": 91,
     "ongletsNonCliquables": 1
   },
   "livewire/accueil": {

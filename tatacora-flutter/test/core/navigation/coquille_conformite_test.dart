@@ -318,7 +318,12 @@ void main() {
 
     test('aucun libellé, aucune page d’origine n’est en double', () {
       final noms = toutesLesDestinations.map((d) => d.nom).toList();
-      final pages = toutesLesDestinations.map((d) => d.page).toList();
+      // Les ajouts du poste partagent la même page factice (`pageAjoutDuPoste`,
+      // vérifiée plus haut) : seules les entrées de la VUE ont une page propre.
+      final pages = [
+        for (final d in toutesLesDestinations)
+          if (!estAjout(d)) d.page,
+      ];
 
       expect(noms.toSet(), hasLength(noms.length), reason: 'libellé en double');
       expect(
@@ -402,11 +407,10 @@ void main() {
       // de menu n'existe que pour qui connaît son URL — c'est-à-dire pour
       // personne, au comptoir.
       const horsMenu = {
-        // Trois chemins n'ont volontairement pas d'entrée : ils précèdent la
+        // Deux chemins n'ont volontairement pas d'entrée : ils précèdent la
         // session ou sont atteints par un geste, pas par le menu.
         '/demarrage',
         '/connexion',
-        '/synchronisation',
       };
 
       // Le MENU DE COMPTE de la barre supérieure est aussi un menu (D424) :

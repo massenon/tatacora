@@ -278,6 +278,18 @@ class _Tableau extends StatelessWidget {
             (titre: TextesComptes.colMotDePasse, alignement: TextAlign.left),
             (titre: TextesComptes.colActions, alignement: TextAlign.right),
           ],
+          // Largeurs FIXES (21/10/2026) : sans elles, chaque colonne libre
+          // prenait la largeur de la plus large cellule du tableau (les deux
+          // boutons d'action) et la page débordait de la fenêtre. Seul le nom
+          // reste libre et prend le reste.
+          largeurs: const {
+            1: MesuresTransverses.colonneCompteIdentifiant,
+            2: MesuresTransverses.colonneCompteRole,
+            3: MesuresTransverses.colonneCompteStatut,
+            4: MesuresTransverses.colonneCompteCreeLe,
+            5: MesuresTransverses.colonneCompteMotDePasse,
+            6: MesuresTransverses.colonneCompteActions,
+          },
           vide: TextesComptes.vide,
           cleVide: const Key('comptes-vide'),
           lignes: [for (final c in page) _ligne(c)],

@@ -461,6 +461,15 @@ const List<GroupeMenu> groupesMenu = [
         page: 'parametres.html',
         route: '/parametres',
       ),
+      // 21/10/2026 : lien direct vers l'écran de synchronisation (jusque-là
+      // atteint seulement par Paramètres → Synchronisation).
+      DestinationMenu(
+        nom: 'Synchronisation',
+        icone: IconeModule.importExport,
+        module: ModuleTatacora.parametres,
+        page: '(ajout du poste, sans page de la vue)',
+        route: '/synchronisation',
+      ),
     ],
   ),
 ];

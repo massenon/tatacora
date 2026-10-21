@@ -204,6 +204,11 @@ void main() {
     // rendu dans la carte du formulaire de Paramètres comme les autres
     // onglets, donc dans `<main>` — échelle EFFECTIVE.
     'lib/features/parametres/presentation/widgets/onglet_synchronisation.dart',
+    // L'onglet « Logo & Apparence » (21/10/2026) : le panneau
+    // `@elseif ($onglet === 'apparence')` de la vue de Paramètres, dans
+    // `<main>` — échelle EFFECTIVE. Sa modale n'emploie que les styles de
+    // `TextesModaleRestaurant`.
+    'lib/features/parametres/presentation/widgets/onglet_apparence.dart',
     // Le champ « Mot de passe SMTP » de l'onglet Email (SMTP) (19/10/2026) :
     // le bloc `groupe-champ` du panneau `@elseif ($onglet === 'email')` de
     // la vue de Paramètres, dans `<main>` — échelle EFFECTIVE.

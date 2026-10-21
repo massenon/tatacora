@@ -675,6 +675,15 @@ abstract final class AppLayout {
   /// [pageVehicules] : les deux vues posent la même classe.
   static const double pageCongesPlannings = 1600;
 
+  /// Paramètres → Logo & Apparence : l'aperçu du logo (`w-20 h-20`), celui du
+  /// favicon (`w-10 h-10`) et une pastille de la charte (`w-12 h-12`).
+  static const double apercuLogo = 80;
+  static const double apercuFavicon = 40;
+  static const double pastilleCharte = 48;
+
+  /// La modale « Changer le logo » / « Changer le favicon » — `largeur="440px"`.
+  static const double modaleApparence = 440;
+
   /// Les deux `<select>` de filtre de « Congés & Plannings » (service, statut)
   /// n'ont AUCUNE largeur à la vue : le navigateur les dimensionne sur leur
   /// plus long libellé (`px-3 py-2`, 13 px). Un champ Flutter n'a pas de

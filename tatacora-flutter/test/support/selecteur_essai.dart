@@ -56,6 +56,11 @@ final class SelecteurEssai implements SelecteurFichiers {
   @override
   Future<FichierLu?> ouvrirCsv() async => lu;
 
+  /// Ce que rend « Ouvrir » pour une image : le même [lu].
+  @override
+  Future<FichierLu?> ouvrirImage({required List<String> extensions}) async =>
+      lu;
+
   @override
   Future<String?> enregistrerSous({
     required String nomSuggere,

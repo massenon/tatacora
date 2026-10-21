@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../config/environnement.dart';
 import '../di/providers.dart';
 import '../../features/alertes/presentation/cloche_notifications.dart';
 import '../../features/synchronisation/presentation/bouton_synchronisation.dart';
@@ -18,6 +17,7 @@ import '../navigation/navigation_tatacora.dart';
 import '../navigation/trace_svg.dart';
 import '../rbac/garde_acces.dart';
 import '../responsive/breakpoints.dart';
+import '../../features/parametres/data/apparence_poste.dart';
 import '../theme/app_assets.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_shadows.dart';
@@ -176,7 +176,6 @@ class _BarreSuperieure extends ConsumerWidget implements PreferredSizeWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(sessionProvider);
     final droits = ref.watch(droitsProvider);
-    final env = Environnement.actuel;
     final large = Breakpoints.de(context) == Palier.desktop;
     final moyen = Breakpoints.de(context) != Palier.mobile;
     final blancAttenue = AppColors.neutre0.withValues(
@@ -264,13 +263,24 @@ class _BarreSuperieure extends ConsumerWidget implements PreferredSizeWidget {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(AppRadius.md),
-                child: Image.asset(
-                  AppAssets.logo,
-                  width: AppLayout.logoBarreSuperieureLargeur,
-                  height: AppLayout.logoBarreSuperieure,
-                  fit: BoxFit.contain,
-                  excludeFromSemantics: true,
-                ),
+                // Le logo téléversé (Paramètres → Logo & Apparence), à défaut
+                // l'actif livré.
+                child: switch (ref.watch(logoTeleverseProvider).value) {
+                  final octets? => Image.memory(
+                    octets,
+                    width: AppLayout.logoBarreSuperieureLargeur,
+                    height: AppLayout.logoBarreSuperieure,
+                    fit: BoxFit.contain,
+                    excludeFromSemantics: true,
+                  ),
+                  _ => Image.asset(
+                    AppAssets.logo,
+                    width: AppLayout.logoBarreSuperieureLargeur,
+                    height: AppLayout.logoBarreSuperieure,
+                    fit: BoxFit.contain,
+                    excludeFromSemantics: true,
+                  ),
+                },
               ),
             ),
           ),
@@ -419,18 +429,9 @@ class _BarreSuperieure extends ConsumerWidget implements PreferredSizeWidget {
           // de la synchronisation est dit par le bouton de synchronisation
           // (plus loin, lot F3), pas par une pastille « Réseau ».
           //
-          // AJOUT déclaré — la pastille d'ENVIRONNEMENT, hors production
-          // seulement (`bandeauVisible`). La vue n'en a pas : elle est servie
-          // par UN serveur ; un poste Flutter peut tourner en démonstration ou
-          // en recette, et le confondre avec la production serait une faute de
-          // saisie sur de vraies données. Posée à l'emplacement de la pastille
-          // « Réseau », avec sa forme ; absente en production, où la barre est
-          // celle de la vue (décalage mesuré : `geometrie_blade_test` ne se
-          // lance qu'avec `ENV=production`, D79).
-          if (env.bandeauVisible) ...[
-            _Pastille(texte: LibellesCoquille.environnement(env.libelle)),
-            const SizedBox(width: AppSpacing.sm), // mr-3
-          ],
+          // La pastille d'ENVIRONNEMENT (« Environnement : Développement ») est
+          // RETIRÉE le 21/10/2026, à la demande du PO : la barre est celle de
+          // la vue.
 
           // `#indicateur-caisse` (l.167-186) — `hidden md:block`, rôle avec M5.
           if (moyen && peutVendre) _IndicateurCaisse(routeActive: routeActive),
@@ -455,43 +456,6 @@ class _BarreSuperieure extends ConsumerWidget implements PreferredSizeWidget {
           if (session != null) ClocheNotifications(routeActive: routeActive),
           if (session != null) _MenuProfil(session: session),
         ],
-      ),
-    );
-  }
-}
-
-/// La pastille d'environnement — la FORME de la pastille « Réseau » de la vue
-/// (`px-3 py-1.5 rounded-full`, fond à 15 %, bordure à 40 %, `text-xs
-/// font-semibold`), en or et non en vert : elle ne dit pas « tout va bien ».
-class _Pastille extends StatelessWidget {
-  const _Pastille({required this.texte});
-
-  final String texte;
-
-  @override
-  Widget build(BuildContext context) {
-    const couleur = AppColors.gold;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xxs,
-      ),
-      decoration: BoxDecoration(
-        color: couleur.withValues(alpha: OpacitesCoquille.fondPastille),
-        border: Border.all(
-          color: couleur.withValues(alpha: OpacitesCoquille.bordurePastille),
-        ),
-        borderRadius: BorderRadius.circular(AppRadius.roundedFull),
-      ),
-      child: Text(
-        texte,
-        style: TextStyle(
-          color: couleur,
-          fontFamily: AppTextStyles.police,
-          fontSize: Tailles.t12,
-          fontWeight: FontWeight.w600,
-        ),
       ),
     );
   }

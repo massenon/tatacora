@@ -184,6 +184,23 @@ void main() {
       );
     });
 
+    testWidgets('l’en-tête du tableau est BLANC sur le fond navy (la vue : '
+        '`text-white/90`), jamais le gris des en-têtes clairs', (tester) async {
+      await monter(tester);
+
+      for (final titre in ['N°', 'DATE', 'POSTE', 'MONTANT', 'ACTIONS']) {
+        final texte = tester.widget<Text>(
+          find
+              .descendant(
+                of: find.byType(TableauVentes),
+                matching: find.text(titre),
+              )
+              .first,
+        );
+        expect(texte.style?.color, AppColors.neutre0, reason: titre);
+      }
+    });
+
     testWidgets(
       'le bandeau « Journal enregistré sur ce poste » est RETIRÉ (demande du '
       'PO, la vue ne l’a pas) — et rien ne promet un envoi au serveur',

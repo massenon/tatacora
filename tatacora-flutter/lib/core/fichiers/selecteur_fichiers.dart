@@ -55,6 +55,11 @@ abstract interface class SelecteurFichiers {
   /// Ouvre la fenêtre « Ouvrir » filtrée sur les CSV. `null` : annulé.
   Future<FichierLu?> ouvrirCsv();
 
+  /// Ouvre la fenêtre « Ouvrir » filtrée sur des images ([extensions] sans
+  /// point : `png`, `jpg`, `ico`…) — le logo et le favicon (Paramètres, Logo &
+  /// Apparence). `null` : annulé.
+  Future<FichierLu?> ouvrirImage({required List<String> extensions});
+
   /// Ouvre la fenêtre « Enregistrer sous » avec [nomSuggere], filtrée sur
   /// [type] et ouverte sur [dossierInitial] quand il est donné, puis écrit
   /// [octets] à l'emplacement choisi. Rend le CHEMIN écrit, `null` : annulé
@@ -83,6 +88,15 @@ final class SelecteurFichiersNatif implements SelecteurFichiers {
   Future<FichierLu?> ouvrirCsv() async {
     final fichier = await FileSelectorPlatform.instance.openFile(
       acceptedTypeGroups: const [_csv],
+    );
+    if (fichier == null) return null;
+    return FichierLu(nom: fichier.name, octets: await fichier.readAsBytes());
+  }
+
+  @override
+  Future<FichierLu?> ouvrirImage({required List<String> extensions}) async {
+    final fichier = await FileSelectorPlatform.instance.openFile(
+      acceptedTypeGroups: [XTypeGroup(label: 'Images', extensions: extensions)],
     );
     if (fichier == null) return null;
     return FichierLu(nom: fichier.name, octets: await fichier.readAsBytes());

@@ -40,6 +40,16 @@ const Map<String, AjoutMenuPoste> ajoutsMenuPoste = {
         'désactive ou réinitialise un compte. Réservée aux rôles '
         'd’administration (`rolesExiges`).',
   ),
+  'Synchronisation': (
+    groupe: 'Pilotage & administration',
+    apres: 'Paramètres',
+    date: '21/10/2026',
+    raison:
+        'Demande du PO : un lien direct vers l’écran de synchronisation de '
+        'ce poste (file d’envoi, « À traiter », dernière descente). La PWA '
+        'n’a pas cet écran : c’est un instrument du poste hors ligne. Il '
+        'reste gardé par le module Paramètres.',
+  ),
 };
 
 /// La page d'origine que porte un ajout du poste dans
