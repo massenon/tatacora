@@ -167,6 +167,7 @@ class CatalogueDescendantService
         // Audit de couverture (18/10/2026) : le parc M8 et ses contrats.
         'vehicules' => ['immatriculation', 'categorie', 'annee', 'transmission', 'capacite', 'tarif_jour', 'statut'],
         'contrats_location' => ['vehicule_id', 'client_id', 'guide_id', 'date_debut', 'date_fin', 'numero', 'statut', 'montant'],
+        'entretiens_vehicule' => ['vehicule_id', 'type', 'date', 'cout', 'chauffeur_id'],
         // Audit de couverture (18/10/2026) : M13 — le référentiel des services,
         // le dossier des employés, puis la paie.
         'services' => ['libelle'],

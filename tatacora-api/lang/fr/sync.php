@@ -95,6 +95,8 @@ return [
         'statut_non_synchronisable' => 'Statut « :statut » refusé : « loué » se déduit des contrats.',
         'inconnu' => 'Contrat refusé : le véhicule n\'est pas connu du serveur (pas encore reçu, ou refusé).',
         'client_inconnu' => 'Contrat refusé : le client n\'est pas connu du serveur (pas encore reçu, ou refusé).',
+        'inconnu_entretien' => 'Entretien refusé : le véhicule n\'est pas connu du serveur (pas encore reçu, ou refusé).',
+        'chauffeur_inconnu' => 'Entretien refusé : le chauffeur n\'est pas connu du serveur (pas encore reçu, ou refusé).',
     ],
     'rh' => [
         'service_inconnu' => 'Employé refusé : le service « :libelle » n\'existe pas au serveur.',

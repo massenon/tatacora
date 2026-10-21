@@ -16,6 +16,7 @@ use App\Shared\Sync\Gestionnaires\GestionnaireCommandesAchat;
 use App\Shared\Sync\Gestionnaires\GestionnaireContratsLocation;
 use App\Shared\Sync\Gestionnaires\GestionnaireDepenses;
 use App\Shared\Sync\Gestionnaires\GestionnaireEmployes;
+use App\Shared\Sync\Gestionnaires\GestionnaireEntretiensVehicule;
 use App\Shared\Sync\Gestionnaires\GestionnaireFactures;
 use App\Shared\Sync\Gestionnaires\GestionnaireFournisseurs;
 use App\Shared\Sync\Gestionnaires\GestionnaireGuides;
@@ -141,6 +142,7 @@ class RegistreSynchronisation
         // (après le client et le guide qu'ils citent).
         'vehicules' => GestionnaireVehicules::class,
         'contrats_location' => GestionnaireContratsLocation::class,
+        'entretiens_vehicule' => GestionnaireEntretiensVehicule::class,
         // Audit de couverture (18/10/2026) : le dossier RH, puis la paie.
         'employes' => GestionnaireEmployes::class,
         'bulletins_paie' => GestionnaireBulletinsPaie::class,
