@@ -90,7 +90,7 @@ final class RegistreGestionnairesSynchronisationTest extends TestCase
             // commande avant son bon, l'ouverture de caisse avant ses ventes.
             'commandes_achat', 'bons_reception', 'reglements_fournisseur', 'sessions_caisse', 'tables_salle', 'paniers', 'ventes', 'depenses', 'factures', 'paiements',
             // Tourisme (F4, 17/10/2026) — les définitions avant la réservation.
-            'circuits', 'guides', 'reservations_tour', 'vehicules', 'contrats_location', 'entretiens_vehicule', 'employes', 'bulletins_paie',
+            'circuits', 'guides', 'reservations_tour', 'vehicules', 'contrats_location', 'entretiens_vehicule', 'employes', 'bulletins_paie', 'plannings', 'conges',
             // Lot 10e (18/10/2026) : le paramétrage et les rôles.
             'parametres_systeme', 'roles',
             // Lot 10f : les mouvements de stock saisis sur un poste.

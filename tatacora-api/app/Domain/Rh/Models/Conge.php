@@ -41,6 +41,14 @@ class Conge extends Model
 
     public const STATUT_REFUSE = 'refuse';
 
+    /**
+     * Les natures d'absence — registre FERMÉ (21/10/2026), relu par la PWA, le
+     * poste et la synchronisation : `type` n'est pas du texte libre.
+     *
+     * @var list<string>
+     */
+    public const TYPES = ['annuel', 'maladie', 'exceptionnel', 'maternite'];
+
     protected $table = 'conges';
 
     protected $fillable = [

@@ -49,7 +49,7 @@ final class GestionnaireIndisponibilitesCarte extends GestionnaireAbstrait
 
     public function modulesRequis(array $payload): array
     {
-        return [isset($payload['plat_id']) && $payload['plat_id'] !== null ? 'M4' : 'M5'];
+        return [isset($payload['plat_id']) ? 'M4' : 'M5'];
     }
 
     public function serviceDomaine(): string

@@ -110,6 +110,7 @@ final class MenuLateral
         ]],
         ['groupe' => 'Ressources humaines', 'items' => [
             ['nom' => 'Personnel & Paie', 'icone' => 'rh', 'module' => 'M13', 'route' => 'pwa.paie'],
+            ['nom' => 'Congés & Plannings', 'icone' => 'rh', 'module' => 'M13', 'route' => 'pwa.conges-plannings'],
         ]],
         ['groupe' => 'Pilotage & administration', 'items' => [
             ['nom' => 'États & Rapports', 'icone' => 'etats', 'module' => 'M14', 'route' => 'pwa.etats.studio'],

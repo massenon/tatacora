@@ -13,6 +13,7 @@ use App\Shared\Sync\Gestionnaires\GestionnaireCategoriesHebergement;
 use App\Shared\Sync\Gestionnaires\GestionnaireCircuits;
 use App\Shared\Sync\Gestionnaires\GestionnaireClients;
 use App\Shared\Sync\Gestionnaires\GestionnaireCommandesAchat;
+use App\Shared\Sync\Gestionnaires\GestionnaireConges;
 use App\Shared\Sync\Gestionnaires\GestionnaireContratsLocation;
 use App\Shared\Sync\Gestionnaires\GestionnaireDepenses;
 use App\Shared\Sync\Gestionnaires\GestionnaireEmployes;
@@ -27,6 +28,7 @@ use App\Shared\Sync\Gestionnaires\GestionnaireMouvementsStock;
 use App\Shared\Sync\Gestionnaires\GestionnairePaiements;
 use App\Shared\Sync\Gestionnaires\GestionnairePaniersTable;
 use App\Shared\Sync\Gestionnaires\GestionnaireParametres;
+use App\Shared\Sync\Gestionnaires\GestionnairePlannings;
 use App\Shared\Sync\Gestionnaires\GestionnairePlats;
 use App\Shared\Sync\Gestionnaires\GestionnairePointsStockage;
 use App\Shared\Sync\Gestionnaires\GestionnaireRecettes;
@@ -146,6 +148,9 @@ class RegistreSynchronisation
         // Audit de couverture (18/10/2026) : le dossier RH, puis la paie.
         'employes' => GestionnaireEmployes::class,
         'bulletins_paie' => GestionnaireBulletinsPaie::class,
+        // 21/10/2026 : les plannings (RG-13) puis les congés (RG-14).
+        'plannings' => GestionnairePlannings::class,
+        'conges' => GestionnaireConges::class,
         // Lot 10e : le paramétrage (un enregistrement de l'écran = une
         // opération) et le référentiel des rôles. Jamais les comptes.
         'parametres_systeme' => GestionnaireParametres::class,

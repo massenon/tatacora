@@ -99,6 +99,10 @@ return [
         'chauffeur_inconnu' => 'Entretien refusé : le chauffeur n\'est pas connu du serveur (pas encore reçu, ou refusé).',
     ],
     'rh' => [
+        'employe_inconnu_planning' => 'Planning refusé : l\'employé n\'est pas connu du serveur (pas encore reçu, ou refusé).',
+        'service_inconnu_planning' => 'Planning refusé : le service n\'est pas connu du serveur (pas encore reçu, ou refusé).',
+        'employe_inconnu_conge' => 'Congé refusé : l\'employé n\'est pas connu du serveur (pas encore reçu, ou refusé).',
+        'conge_champ_non_modifiable' => 'Un congé ne se décide que par son statut de validation (champ(s) refusé(s) : :champs).',
         'service_inconnu' => 'Employé refusé : le service « :libelle » n\'existe pas au serveur.',
         'employe_inconnu' => 'Bulletin refusé : l\'employé n\'est pas connu du serveur (pas encore reçu, ou refusé).',
         'champ_non_modifiable' => 'Champ(s) d\'employé non synchronisable(s) : :champs.',

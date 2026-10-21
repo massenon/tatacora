@@ -179,6 +179,8 @@ class CatalogueDescendantService
             'numero', 'employe_id', 'periode', 'salaire_base', 'total_primes', 'total_retenues', 'cnss_salarie', 'its',
             'charges_patronales_confirmees', 'net_a_payer', 'statut', 'motif_annulation',
         ],
+        'plannings' => ['employe_id', 'service_id', 'date', 'heure_debut', 'heure_fin'],
+        'conges' => ['employe_id', 'type', 'date_debut', 'date_fin', 'statut_validation'],
         'centres_cout' => ['libelle', 'type'],
         // Lot 10e (18/10/2026) : le paramétrage de l'établissement, et les
         // rôles avec leur matrice (`droits`, lue du pivot). Jamais un compte.

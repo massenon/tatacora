@@ -31,6 +31,7 @@ use App\Pwa\Livewire\Pos\PosComptant;
 use App\Pwa\Livewire\Pos\PosHeberges;
 use App\Pwa\Livewire\Restaurant\CarteRestaurant;
 use App\Pwa\Livewire\Restaurant\Restauration;
+use App\Pwa\Livewire\Rh\CongesPlannings as PwaCongesPlannings;
 use App\Pwa\Livewire\Rh\Paie as PwaPaie;
 use App\Pwa\Livewire\Stocks\Inventaires;
 use App\Pwa\Livewire\Stocks\Stocks;
@@ -225,6 +226,11 @@ Route::prefix('pwa')
             // client a retiré — le défaut même que le bloc ci-dessus décrit.
             Route::middleware('module:M13,L')
                 ->get('/paie', PwaPaie::class)->name('pwa.paie');
+
+            // CONGÉS & PLANNINGS (M13) — écran créé le 21/10/2026 : les services
+            // de domaine (RG-13, RG-14) n'avaient aucun écran.
+            Route::middleware('module:M13,L')
+                ->get('/rh/conges-plannings', PwaCongesPlannings::class)->name('pwa.conges-plannings');
 
             // NOTIFICATIONS (M12)
             Route::middleware('module:M12,L')

@@ -37,6 +37,7 @@ use App\Pwa\Livewire\Pos\PosComptant;
 use App\Pwa\Livewire\Pos\PosHeberges;
 use App\Pwa\Livewire\Restaurant\CarteRestaurant;
 use App\Pwa\Livewire\Restaurant\Restauration;
+use App\Pwa\Livewire\Rh\CongesPlannings;
 use App\Pwa\Livewire\Rh\Paie as PwaPaie;
 use App\Pwa\Livewire\Stocks\Inventaires;
 use App\Pwa\Livewire\Stocks\Stocks;
@@ -725,6 +726,16 @@ final class PwaActionsReluesTest extends TestCase
             // `archiverEmployes` appelle `exigerEcriture(self::MODULE)` ET
             // la bascule ; `updatedToutSelectionne` est un cycle de vie.
             'updatedToutSelectionne', 'ouvrirArchivageEmployes', 'archiverEmployes',
+        ],
+        // M13 — Conges & Plannings (21/10/2026). `ouvrirPlanification` et
+        // `ouvrirDemandeConge` deleguent a `ouvrirFormulaire()` ; les deux
+        // `enregistrer*` a `validerEcriture()` ; `validerConge` et
+        // `refuserConge` appellent `exigerEcriture(self::MODULE)` directement.
+        CongesPlannings::class => [
+            'render',
+            'ouvrirPlanification', 'enregistrerPlanning',
+            'ouvrirDemandeConge', 'enregistrerConge',
+            'validerConge', 'refuserConge', 'fermerModales',
         ],
         // M12 — referentiel reel (modeles, declencheurs, journal). La FILE
         // D'ATTENTE (01/09/2026) — cinq actions reelles. `detecterMaintenant`
