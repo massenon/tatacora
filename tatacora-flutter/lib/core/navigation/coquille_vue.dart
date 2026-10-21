@@ -55,6 +55,19 @@ abstract final class LibellesCoquille {
   /// `pwa.accueil.deconnexion`.
   static const String deconnexion = 'Déconnexion';
 
+  /// `pwa.coquille.banniere_lecture_titre` — le gras du bandeau de la coquille.
+  static const String banniereLectureTitre = 'Accès lecture seule';
+
+  /// `pwa.coquille.banniere_lecture_detail` — la suite du bandeau, UN seul
+  /// littéral (la vue écrit « les actions d'écriture » à la place des trois
+  /// boutons du maître ; écart motivé dans le partiel de la vue).
+  static const String banniereLectureDetail =
+      "sur ce module avec le profil actuel — les actions d'écriture sont masquées (droits RBAC).";
+
+  /// `pwa.coquille.banniere_changer_profil` — la flèche fait partie du libellé.
+  static const String banniereChangerProfil =
+      'Se connecter avec un autre profil →';
+
   /// `pwa.coquille.ouvrir_menu` — l'`aria-label` du bouton de menu mobile.
   static const String ouvrirMenu = 'Ouvrir le menu';
 

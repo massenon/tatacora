@@ -1,3 +1,4 @@
+// Vue Blade maîtresse (PA-183) : pwa/transverse/parametres.blade.php
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -28,6 +29,15 @@ abstract final class TextesEspacesTables {
       " : les consommations servies n'auraient plus de table pour les porter "
       "jusqu'à l'addition.";
   static const String boutonAjouter = 'Ajouter une table';
+  static const String boutonRetablir = 'Rétablir le jeu initial';
+  static const String retablirTitre = 'Rétablir le jeu initial ?';
+  static const String retablirMessage =
+      "Les treize tables d'origine remplaceront la configuration actuelle. Les ventes déjà enregistrées ne sont pas touchées.";
+  static const String retablirConfirmer = 'Rétablir';
+  static const String jeuRetabli = 'Jeu initial rétabli.';
+  static const String espaceChoisir = 'Choisir un espace…';
+  static const String espaceInconnu =
+      "Espace inconnu : « ». Les espaces sont un registre fermé — en ajouter un change la convention de nommage et l'organisation du service.";
   static const String boutonRenumeroter = 'Renuméroter';
   static const String boutonDesactiver = 'Désactiver';
   static const String boutonReactiver = 'Réactiver';
@@ -66,10 +76,10 @@ abstract final class TextesEspacesTables {
 /// Comptoir affiché avec la raison de son vide.
 ///
 /// Gestes : « Ajouter une table », « Renuméroter », « Désactiver » /
-/// « Réactiver ». Non porté : « Rétablir le jeu initial » — la vue REMPLACE
-/// la configuration par les treize tables d'origine, ce qui supprimerait des
-/// tables, et le référentiel du poste ne supprime jamais (une vente passée
-/// pointerait vers une table inexistante).
+/// « Réactiver », « Rétablir le jeu initial ». Ce dernier est porté depuis le
+/// 21/10/2026 : l'ancien commentaire disait qu'il « supprimerait des tables »,
+/// ce que le serveur ne fait pas — il crée celles qui manquent, réactive les
+/// autres et DÉSACTIVE celles hors du jeu (`TablesPosDao.retablirJeuInitial`).
 class OngletEspacesTables extends ConsumerWidget {
   const OngletEspacesTables({required this.peutEcrire, super.key});
 
@@ -101,6 +111,7 @@ class OngletEspacesTables extends ConsumerWidget {
   static String _motif(Object e) => switch (e) {
     ArgumentError(:final message) => '$message',
     TableOccupee(:final libelle) => TextesEspacesTables.tableOccupee(libelle),
+    JeuInitialRefuse() => '$e',
     _ => '$e',
   };
 
@@ -158,6 +169,70 @@ class OngletEspacesTables extends ConsumerWidget {
       if (context.mounted) {
         _dire(context, TextesEspacesTables.tableRenumerotee);
       }
+    } on Object catch (e) {
+      if (context.mounted) _dire(context, _motif(e), erreur: true);
+    }
+  }
+
+  /// « Rétablir le jeu initial » : la confirmation de la vue
+  /// (`tables_retablir_titre`), puis `retablirJeuInitial`.
+  Future<void> _retablir(BuildContext context, WidgetRef ref) async {
+    final confirme = await showDialog<bool>(
+      context: context,
+      barrierColor: AppColors.voileModale,
+      builder: (ctx) => Dialog(
+        key: const Key('param-modale-retablir'),
+        backgroundColor: AppColors.neutre0,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: Largeurs.maxSm),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  TextesEspacesTables.retablirTitre,
+                  style: _t(
+                    TaillesContenu.base,
+                    poids: FontWeight.bold,
+                    couleur: AppColors.navy,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  TextesEspacesTables.retablirMessage,
+                  style: _t(TaillesContenu.t13),
+                ),
+                const SizedBox(height: AppSpacing.mdPlus),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    BoutonStandard(
+                      key: const Key('param-retablir-annuler'),
+                      libelle: TextesEspacesTables.annuler,
+                      onPressed: () => Navigator.of(ctx).pop(false),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    BoutonStandard(
+                      key: const Key('param-retablir-confirmer'),
+                      variante: VarianteBouton.primaire,
+                      libelle: TextesEspacesTables.retablirConfirmer,
+                      onPressed: () => Navigator.of(ctx).pop(true),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    if (confirme != true || !context.mounted) return;
+    try {
+      await ref.read(tablesPosDaoProvider).retablirJeuInitial();
+      ref.invalidate(salleProvider);
+      if (context.mounted) _dire(context, TextesEspacesTables.jeuRetabli);
     } on Object catch (e) {
       if (context.mounted) _dire(context, _motif(e), erreur: true);
     }
@@ -249,13 +324,28 @@ class OngletEspacesTables extends ConsumerWidget {
             ),
             if (peutEcrire) ...[
               const SizedBox(width: AppSpacing.md),
-              BoutonStandard(
-                key: const Key('param-tables-ajouter'),
-                variante: VarianteBouton.primaire,
-                libelle: TextesEspacesTables.boutonAjouter,
-                onPressed: salle.hasValue
-                    ? () => _ajouter(context, ref, rayons)
-                    : null,
+              IntrinsicWidth(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    BoutonStandard(
+                      key: const Key('param-tables-ajouter'),
+                      variante: VarianteBouton.primaire,
+                      libelle: TextesEspacesTables.boutonAjouter,
+                      onPressed: salle.hasValue
+                          ? () => _ajouter(context, ref, rayons)
+                          : null,
+                    ),
+                    const SizedBox(height: AppSpacing.xs), // gap-2
+                    BoutonStandard(
+                      key: const Key('param-tables-retablir'),
+                      libelle: TextesEspacesTables.boutonRetablir,
+                      onPressed: salle.hasValue
+                          ? () => _retablir(context, ref)
+                          : null,
+                    ),
+                  ],
+                ),
               ),
             ],
           ],
@@ -408,7 +498,8 @@ class _ModaleTable extends StatefulWidget {
 }
 
 class _ModaleTableState extends State<_ModaleTable> {
-  late EspacePos _espace = widget.table?.espace ?? EspacePos.restaurant;
+  /// `null` : « Choisir un espace… » (l'invite de la vue, `table_espace_choisir`).
+  late EspacePos? _espace = widget.table?.espace;
   late final _numero = TextEditingController(
     text: widget.table == null ? '' : '${widget.table!.numero}',
   );
@@ -425,15 +516,22 @@ class _ModaleTableState extends State<_ModaleTable> {
   void _valider() {
     final numero = int.tryParse(_numero.text.trim());
     final places = int.tryParse(_places.text.trim());
+    final espace = _espace;
+    if (widget.table == null && espace == null) {
+      setState(() => _erreur = TextesEspacesTables.espaceInconnu);
+      return;
+    }
     if (numero == null ||
         numero < 1 ||
         (widget.table == null && (places == null || places < 1))) {
       setState(() => _erreur = TextesEspacesTables.entierAttendu);
       return;
     }
-    Navigator.of(
-      context,
-    ).pop((espace: _espace, numero: numero, places: places ?? 4));
+    Navigator.of(context).pop((
+      espace: espace ?? EspacePos.restaurant,
+      numero: numero,
+      places: places ?? 4,
+    ));
   }
 
   @override
@@ -485,12 +583,13 @@ class _ModaleTableState extends State<_ModaleTable> {
                 DropdownButtonFormField<EspacePos>(
                   key: const Key('param-table-espace'),
                   initialValue: _espace,
+                  hint: const Text(TextesEspacesTables.espaceChoisir),
                   decoration: decoration,
                   items: [
                     for (final e in EspacePos.avecTablesSeulement)
                       DropdownMenuItem(value: e, child: Text(e.libelle)),
                   ],
-                  onChanged: (e) => setState(() => _espace = e ?? _espace),
+                  onChanged: (e) => setState(() => _espace = e),
                 ),
                 const SizedBox(height: AppSpacing.sm),
               ],

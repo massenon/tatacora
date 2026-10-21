@@ -11,16 +11,19 @@
 /// le tente après la fermeture, sans retenir la saisie (le poste ne doit
 /// jamais rester figé sur une connexion qui ne vient pas).
 ///
-/// ## Ce qui n'est pas porté, et pourquoi
+/// ## La capture d'écran (21/10/2026)
 ///
-/// « Capture d'écran (optionnel) » — PNG ou JPG, 2 Mo maximum : NON porté sur
-/// ce poste. Le courriel du serveur joint la capture depuis son disque
-/// public ; le poste n'a pas encore de pièce jointe à son envoi. Le
-/// signalement part sans elle, ce que le serveur fait aussi quand le fichier
-/// manque.
+/// « Capture d'écran (optionnel) » — PNG ou JPG, 2 Mo maximum — est portée :
+/// le fichier est choisi par la fenêtre « Ouvrir » du poste, contrôlé comme le
+/// serveur (`image`, `mimes:png,jpg,jpeg`, `max:2048`), rangé à côté du
+/// message écrit ([joindreCapture]) et joint au courriel à l'envoi (voir
+/// `captures_editeur.dart`). Le signalement part sans elle quand aucune n'est
+/// choisie, ou quand le fichier manque.
 library;
 
 import 'package:flutter/material.dart';
+
+import '../../../../core/fichiers/selecteur_fichiers.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -28,6 +31,7 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/theme/mesures_transverses.dart';
 import '../../../../shared_widgets/bouton_standard.dart';
 import '../../../restaurant/presentation/widgets/coquille_modale_restaurant.dart';
+import '../../data/captures_editeur.dart';
 import '../../domain/messages_editeur.dart';
 
 /// Les textes des deux modales (`pwa.contact.*`), au mot.
@@ -54,10 +58,15 @@ abstract final class TextesModalesContact {
   static const String bugEtapes = 'Étapes pour reproduire';
   static const String bugEtapesInvite = '1. Aller dans... 2. Cliquer sur...';
   static const String bugEtapesNote =
-      "C'est le champ le plus utile du formulaire. Un bug que l'éditeur sait "
-      "reproduire est corrigé ; un bug décrit sans ses étapes est d'abord une "
-      'enquête.';
+      "C'est le champ le plus utile du formulaire. Un bug que l'éditeur sait reproduire est corrigé ; un bug décrit sans ses étapes est d'abord une enquête.";
+  static const String bugCapture = "Capture d'écran (optionnel)";
+  static const String bugCaptureInvite = 'PNG ou JPG, 2 Mo maximum.';
   static const String bugBouton = 'Signaler le bug';
+
+  /// Le champ fichier de la vue (`<input type="file">`) : son bouton natif et
+  /// son état vide, rendus ici par le poste.
+  static const String captureChoisir = 'Choisir un fichier';
+  static const String captureAucune = 'Aucun fichier choisi';
 
   static const String annuler = 'Annuler';
 
@@ -123,17 +132,37 @@ Future<MessageEditeur?> ouvrirModaleContact(
   required TypeMessageEditeur type,
   required Future<MessageEditeur> Function(SaisieMessageEditeur saisie)
   enregistrer,
+  Future<FichierLu?> Function()? choisirCapture,
+  Future<void> Function(MessageEditeur ecrit, FichierLu capture)?
+  joindreCapture,
 }) => showDialog<MessageEditeur>(
   context: context,
-  builder: (_) => _ModaleContact(type: type, enregistrer: enregistrer),
+  builder: (_) => _ModaleContact(
+    type: type,
+    enregistrer: enregistrer,
+    choisirCapture: choisirCapture,
+    joindreCapture: joindreCapture,
+  ),
 );
 
 class _ModaleContact extends StatefulWidget {
-  const _ModaleContact({required this.type, required this.enregistrer});
+  const _ModaleContact({
+    required this.type,
+    required this.enregistrer,
+    this.choisirCapture,
+    this.joindreCapture,
+  });
 
   final TypeMessageEditeur type;
   final Future<MessageEditeur> Function(SaisieMessageEditeur saisie)
   enregistrer;
+
+  /// La fenêtre « Ouvrir » des images ; absente, le champ ne se montre pas.
+  final Future<FichierLu?> Function()? choisirCapture;
+
+  /// Range la capture choisie à côté du message écrit.
+  final Future<void> Function(MessageEditeur ecrit, FichierLu capture)?
+  joindreCapture;
 
   @override
   State<_ModaleContact> createState() => _ModaleContactState();
@@ -144,6 +173,7 @@ class _ModaleContactState extends State<_ModaleContact> {
   final _corps = TextEditingController();
   final _etapes = TextEditingController();
   String? _module;
+  FichierLu? _capture;
   Map<String, String> _erreurs = const {};
   String? _refus;
   bool _enCours = false;
@@ -190,6 +220,10 @@ class _ModaleContactState extends State<_ModaleContact> {
           requis: false,
         ),
       );
+      final capture = _capture;
+      if (capture != null) {
+        noter('capture', verifierCapture(capture.nom, capture.octets.length));
+      }
     } else {
       noter(
         'objet',
@@ -232,6 +266,10 @@ class _ModaleContactState extends State<_ModaleContact> {
           );
     try {
       final ecrit = await widget.enregistrer(saisie);
+      final capture = _capture;
+      if (_bug && capture != null) {
+        await widget.joindreCapture?.call(ecrit, capture);
+      }
       if (mounted) Navigator.of(context).pop(ecrit);
     } on Object catch (erreur) {
       // L'écriture LOCALE a échoué (base indisponible) : la saisie reste
@@ -273,6 +311,67 @@ class _ModaleContactState extends State<_ModaleContact> {
       Text(_erreurs[cle]!, key: Key('contact-erreur-$cle'), style: _erreur),
     ],
   ];
+
+  /// `<input type="file" wire:model="captureBug" accept="image/png,image/jpeg">`
+  /// puis `bug_capture_invite` : le bouton natif, le nom choisi, la consigne.
+  List<Widget> _champCapture() => [
+    const EtiquetteChampRestaurant(
+      texte: TextesModalesContact.bugCapture,
+      obligatoire: false,
+    ),
+    DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.neutre0,
+        borderRadius: BorderRadius.circular(AppRadius.roundedLg),
+        border: Border.all(color: Ardoise.c200),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm,
+          vertical: AppSpacing.xsPlus,
+        ),
+        child: Row(
+          children: [
+            BoutonStandard(
+              key: const Key('contact-capture-choisir'),
+              libelle: TextesModalesContact.captureChoisir,
+              taillePolice: Tailles.t13,
+              margeHorizontale: AppSpacing.sm,
+              onPressed: _enCours ? null : _choisirCapture,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                _capture?.nom ?? TextesModalesContact.captureAucune,
+                key: const Key('contact-capture-nom'),
+                overflow: TextOverflow.ellipsis,
+                style: _saisie,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+    const SizedBox(height: AppSpacing.xxs),
+    const Text(TextesModalesContact.bugCaptureInvite, style: _aide),
+    if (_erreurs['capture'] != null) ...[
+      const SizedBox(height: AppSpacing.unit),
+      Text(
+        _erreurs['capture']!,
+        key: const Key('contact-erreur-capture'),
+        style: _erreur,
+      ),
+    ],
+  ];
+
+  Future<void> _choisirCapture() async {
+    final choisie = await widget.choisirCapture!();
+    if (choisie == null || !mounted) return;
+    setState(() {
+      _capture = choisie;
+      _erreurs = {..._erreurs}..remove('capture');
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -324,6 +423,10 @@ class _ModaleContactState extends State<_ModaleContact> {
               obligatoire: false,
               note: TextesModalesContact.bugEtapesNote,
             ),
+            if (widget.choisirCapture != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              ..._champCapture(),
+            ],
           ]
         : <Widget>[
             ..._champ(

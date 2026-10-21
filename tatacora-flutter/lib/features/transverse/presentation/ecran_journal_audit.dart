@@ -11,84 +11,120 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/mesures_transverses.dart';
+import '../domain/journal_poste.dart';
+import 'providers_transverses.dart';
 import 'widgets/briques_transverses.dart';
 
-/// L'écran **Journal d'Audit** — lot D du plan du Product Owner (14/10/2026).
+/// L'écran **Journal d'Audit** — lot D du plan du Product Owner (14/10/2026),
+/// rendu actif le 21/10/2026 (ordre du PO « tout doit être au complet »).
 ///
 /// Structure de la vue : en-tête ; rangée recherche + filtre d'action ;
 /// tableau à six colonnes (Utilisateur, Action, Détail, Date, Heure, Poste) ;
-/// mention de lecture seule ; décompte.
+/// mention de lecture seule ; décompte, ou troncature au-delà de
+/// [plafondJournalAudit] lignes.
 ///
-/// ## Aucune source sur ce poste (D423)
+/// ## La source de ce poste : la file d'envoi
 ///
-/// Le registre de la vue est `journal_audit` du serveur, écrit par les
-/// observateurs d'audit. Ce poste n'a AUCUNE table d'audit (le schéma Drift
-/// n'en porte pas) : le tableau rend son état vide avec la raison, jamais
-/// « Aucune entrée ne correspond à votre recherche » (qui supposerait un
-/// registre filtré), et le décompte ne dit pas « 0 entrée(s) » (un zéro
-/// plausible). La recherche et le filtre sont rendus, inactifs, avec la même
-/// raison en infobulle : il n'y a rien à filtrer.
+/// Le registre de la vue est `journal_audit` du serveur, écrit par ses
+/// observateurs. Ce poste n'a aucune table d'audit ; son registre inaltérable
+/// est la file d'envoi (voir `journal_poste.dart`) : chaque création et chaque
+/// modification qu'il a écrites, avec l'instant d'écriture. La colonne
+/// Utilisateur et la colonne Poste y valent « — » (donnée absente, Article 7
+/// de la vue) : la file ne conserve ni l'un ni l'autre. Une phrase au pied
+/// de l'écran le dit.
 ///
 /// Droit : la route de la vue exige M14 en lecture (`module:M14,L`) ; sans
 /// lui, l'écran le DIT.
-class EcranJournalAudit extends ConsumerWidget {
+class EcranJournalAudit extends ConsumerStatefulWidget {
   const EcranJournalAudit({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<EcranJournalAudit> createState() => _EtatEcranJournalAudit();
+}
+
+class _EtatEcranJournalAudit extends ConsumerState<EcranJournalAudit> {
+  final _recherche = TextEditingController();
+  ActionJournalPoste? _action;
+
+  @override
+  void dispose() {
+    _recherche.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final droits = ref.watch(droitsProvider);
     if (!droits.peutLire(ModuleTatacora.m14Etats)) {
       return const RefusDroitTransverse(message: LibellesCoquille.sansDroit);
     }
     final large = MediaQuery.sizeOf(context).width >= AppBreakpoints.lg;
+    final toutes = ref.watch(journalDuPosteProvider).value ?? const [];
+    final vue = filtrerJournalPoste(
+      toutes,
+      recherche: _recherche.text,
+      action: _action,
+    );
+    // Les actions RÉELLEMENT présentes, comme la vue (`actionsPresentes`) : un
+    // filtre qui propose une valeur inatteignable passe pour cassé.
+    final presentes = [
+      for (final a in ActionJournalPoste.values)
+        if (toutes.any((e) => e.action == a)) a,
+    ];
     final filtres = [
-      Tooltip(
-        message: TextesJournalAudit.aucuneSource,
-        child: TextField(
-          key: const Key('journal-recherche'),
-          enabled: false,
-          style: styleTransverse(TaillesContenu.sm),
-          decoration: InputDecoration(
-            isDense: true,
-            hintText: TextesJournalAudit.recherche,
-            prefixIcon: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: AppSpacing.smPlus),
-              child: IconeTrace(
-                trace: TracesCoquille.loupe,
-                taille: MesuresTransverses.iconePetite,
-                couleur: AppColors.neutre400,
-              ),
+      TextField(
+        key: const Key('journal-recherche'),
+        controller: _recherche,
+        onChanged: (_) => setState(() {}),
+        style: styleTransverse(TaillesContenu.sm),
+        decoration: InputDecoration(
+          isDense: true,
+          hintText: TextesJournalAudit.recherche,
+          prefixIcon: const Padding(
+            padding: EdgeInsets.symmetric(horizontal: AppSpacing.smPlus),
+            child: IconeTrace(
+              trace: TracesCoquille.loupe,
+              taille: MesuresTransverses.iconePetite,
+              couleur: AppColors.neutre400,
             ),
-            prefixIconConstraints: const BoxConstraints(),
-            filled: true,
-            fillColor: AppColors.neutre0,
-            disabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppRadius.md),
-              borderSide: const BorderSide(color: Ardoise.c200),
-            ),
+          ),
+          prefixIconConstraints: const BoxConstraints(),
+          filled: true,
+          fillColor: AppColors.neutre0,
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            borderSide: const BorderSide(color: Ardoise.c200),
           ),
         ),
       ),
-      Tooltip(
-        message: TextesJournalAudit.aucuneSource,
-        child: Container(
-          key: const Key('journal-filtre-action'),
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm,
-            vertical: AppSpacing.xsPlus,
-          ),
-          decoration: BoxDecoration(
-            color: AppColors.neutre0,
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            border: Border.all(color: Ardoise.c200),
-          ),
-          child: Text(
-            TextesJournalAudit.toutesActions,
+      Container(
+        key: const Key('journal-filtre-action'),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+        decoration: BoxDecoration(
+          color: AppColors.neutre0,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          border: Border.all(color: Ardoise.c200),
+        ),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<ActionJournalPoste?>(
+            value: _action,
             style: styleTransverse(TaillesContenu.t15, couleur: Ardoise.c400),
+            items: [
+              const DropdownMenuItem<ActionJournalPoste?>(
+                child: Text(TextesJournalAudit.toutesActions),
+              ),
+              for (final a in presentes)
+                DropdownMenuItem<ActionJournalPoste?>(
+                  value: a,
+                  child: Text(a.libelle),
+                ),
+            ],
+            onChanged: (a) => setState(() => _action = a),
           ),
         ),
       ),
     ];
+    final tronque = vue.total > plafondJournalAudit;
 
     return PageTransverse(
       largeurMax: MesuresTransverses.pageLarge,
@@ -113,10 +149,10 @@ class EcranJournalAudit extends ConsumerWidget {
           filtres[1],
         ],
         const SizedBox(height: AppSpacing.md), // mb-4
-        const CarteTransverse(
+        CarteTransverse(
           padding: EdgeInsets.zero,
           child: TableauTransverse(
-            colonnes: [
+            colonnes: const [
               (
                 titre: TextesJournalAudit.colUtilisateur,
                 alignement: TextAlign.left,
@@ -127,9 +163,42 @@ class EcranJournalAudit extends ConsumerWidget {
               (titre: TextesJournalAudit.colHeure, alignement: TextAlign.left),
               (titre: TextesJournalAudit.colPoste, alignement: TextAlign.left),
             ],
-            lignes: [],
-            vide: TextesJournalAudit.aucuneSource,
-            cleVide: Key('journal-vide'),
+            lignes: [
+              for (final e in vue.entrees)
+                [
+                  // Article 7 de la vue : « — » quand la donnée n'existe pas.
+                  celluleTexte(
+                    TextesJournalAudit.absent,
+                    couleur: Ardoise.c700,
+                    poids: FontWeight.w500,
+                  ),
+                  _pastilleAction(e.action),
+                  celluleTexte(
+                    // Le séparateur de la vue n'est PAS un tiret cadratin.
+                    '${e.libelleTable} : ${e.entiteId}',
+                    couleur: Ardoise.c500,
+                  ),
+                  celluleTexte(
+                    _date(e.dateHeure),
+                    couleur: Ardoise.c500,
+                    mono: true,
+                    taille: TaillesContenu.t15,
+                  ),
+                  celluleTexte(
+                    _heure(e.dateHeure),
+                    couleur: Ardoise.c500,
+                    mono: true,
+                    taille: TaillesContenu.t15,
+                  ),
+                  celluleTexte(
+                    TextesJournalAudit.absent,
+                    couleur: Ardoise.c400,
+                    taille: TaillesContenu.t15,
+                  ),
+                ],
+            ],
+            vide: TextesJournalAudit.vide,
+            cleVide: const Key('journal-vide'),
           ),
         ),
         const SizedBox(height: AppSpacing.sm), // mt-3
@@ -138,14 +207,71 @@ class EcranJournalAudit extends ConsumerWidget {
           style: styleTransverse(TaillesContenu.t13, couleur: Ardoise.c400),
         ),
         const SizedBox(height: AppSpacing.xs), // mt-2
+        if (tronque)
+          Text(
+            TextesJournalAudit.tronque(plafondJournalAudit, vue.total),
+            key: const Key('journal-decompte'),
+            style: styleTransverse(
+              TaillesContenu.t13,
+              couleur: PaletteMaitre.ambre900,
+            ),
+          )
+        else
+          Text(
+            TextesJournalAudit.decompte(vue.total),
+            key: const Key('journal-decompte'),
+            style: styleTransverse(TaillesContenu.t13, couleur: Ardoise.c400),
+          ),
+        // AJOUT du poste, absent de la vue : d'où vient ce registre.
+        const SizedBox(height: AppSpacing.xs),
         Text(
-          TextesJournalAudit.decompteSurCePoste,
-          key: const Key('journal-decompte'),
+          TextesJournalAudit.sourceDuPoste,
+          key: const Key('journal-source-poste'),
           style: styleTransverse(TaillesContenu.t13, couleur: Ardoise.c400),
         ),
       ],
     );
   }
+
+  /// La pastille d'action — `text-[15px] font-semibold px-2.5 py-1 rounded`,
+  /// aux couleurs du registre de la vue (`JournalAudit::ACTIONS`).
+  static Widget _pastilleAction(ActionJournalPoste a) {
+    final (fond, texte) = switch (a) {
+      ActionJournalPoste.creation => (AppColors.badgeBleuFond, AppColors.info),
+      ActionJournalPoste.modification => (
+        AppColors.reserveGoldFond,
+        AppColors.gold,
+      ),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xsPlus, // px-2.5
+        vertical: AppSpacing.unit, // py-1
+      ),
+      decoration: BoxDecoration(
+        color: fond,
+        borderRadius: BorderRadius.circular(AppRadius.sm), // rounded
+      ),
+      child: Text(
+        a.libelle,
+        style: styleTransverse(
+          TaillesContenu.t15,
+          poids: FontWeight.w600,
+          couleur: texte,
+        ),
+      ),
+    );
+  }
+
+  static String _deux(int n) => n.toString().padLeft(2, '0');
+
+  /// `d/m/Y` de la vue.
+  static String _date(DateTime d) =>
+      '${_deux(d.day)}/${_deux(d.month)}/${d.year}';
+
+  /// `H:i:s` de la vue.
+  static String _heure(DateTime d) =>
+      '${_deux(d.hour)}:${_deux(d.minute)}:${_deux(d.second)}';
 }
 
 /// Les textes de la vue (`pwa.journal_audit.*`), au mot.
@@ -164,10 +290,24 @@ abstract final class TextesJournalAudit {
   static const String mentionLectureSeule =
       "🔒 Ce journal est en lecture seule pour tous les profils, y compris l'Administrateur, conformément au chap. 11.4 du CdCF.";
 
-  /// AJOUTS déclarés (D423).
-  static const String aucuneSource =
-      "Ce poste ne tient pas de journal d'audit : aucune action n'y est "
-      "tracée, il n'y a donc rien à afficher ni à filtrer.";
-  static const String decompteSurCePoste =
-      "Aucun registre sur ce poste : le décompte de la vue ne s'applique pas.";
+  /// `pwa.journal_audit.vide`.
+  static const String vide = 'Aucune entrée ne correspond à votre recherche.';
+
+  /// La donnée absente — « — » (Article 7 de la vue).
+  static const String absent = '—';
+
+  /// `pwa.journal_audit.decompte` — « :total entrée(s) au registre pour ce
+  /// filtre. »
+  static String decompte(int total) =>
+      '$total entrée(s) au registre pour ce filtre.';
+
+  /// `pwa.journal_audit.tronque` — « Seules les :plafond entrées les plus
+  /// récentes sont affichées sur :total. Affinez la recherche ou le filtre
+  /// d'action pour atteindre les autres. »
+  static String tronque(int plafond, int total) =>
+      "Seules les $plafond entrées les plus récentes sont affichées sur $total. Affinez la recherche ou le filtre d'action pour atteindre les autres.";
+
+  /// AJOUT déclaré (D423, révisé le 21/10/2026) : la source de ce registre.
+  static const String sourceDuPoste =
+      "Registre de ce poste : chaque création et chaque modification qu'il a écrites, avec l'heure d'écriture. L'utilisateur et le poste n'y sont pas conservés, les connexions et les suppressions non plus.";
 }

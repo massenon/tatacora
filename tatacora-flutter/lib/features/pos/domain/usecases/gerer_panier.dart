@@ -137,6 +137,14 @@ final class GererPanier {
 
   Future<Panier> annuler(String panierId, String motif) =>
       _depot.annuler(panierId, motif);
+
+  /// Annule une vente ENCAISSÉE — le geste du journal du jour et du détail
+  /// d'une vente (`VenteService::annuler`). Voir `PanierRepository.annulerVente`.
+  Future<Panier> annulerVente(
+    String panierId,
+    String motif, {
+    required String auteurId,
+  }) => _depot.annulerVente(panierId, motif, auteurId: auteurId);
 }
 
 /// Les indicateurs de l'en-tête du point de vente.

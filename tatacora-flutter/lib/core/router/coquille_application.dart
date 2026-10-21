@@ -23,6 +23,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_shadows.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_text_styles.dart';
+import '../theme/mesures_transverses_complement.dart';
 import 'panneau_acces_rapide.dart';
 
 /// La coquille — barre supérieure et barre latérale de la VUE (PA-183).
@@ -120,6 +121,9 @@ class CoquilleApplication extends ConsumerWidget {
           Column(
             children: [
               _BarreSuperieure(routeActive: routeActive),
+              // `#shell-banniere` : le bandeau « Accès lecture seule », sous la
+              // barre supérieure et avant le corps (`partials/banniere`).
+              BandeauLectureSeule(routeActive: routeActive),
               Expanded(
                 child: Row(
                   // La barre latérale et la page occupent TOUTE la hauteur
@@ -1370,6 +1374,137 @@ class _PiedBarreLaterale extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Les routes dont l'écran de la vue N'OFFRE PAS d'écriture : la vue
+/// (`BanniereEcriture::pour`) ne rend le bandeau que pour un composant qui
+/// porte une constante `MODULE` ET le trait `AutoriseEcriture` ; l'état de
+/// consultation pure ne dit rien. Journal d'Audit, États, Mon profil, Aide,
+/// Contact et les écrans de synchronisation (ajouts du poste) n'ont ni l'une
+/// ni l'autre.
+const Set<String> routesSansBandeauLectureSeule = {
+  '/journal-audit',
+  '/etats',
+  '/mon-profil',
+  '/aide-a-propos',
+  '/contact-editeur',
+  '/synchronisation',
+  '/synchronisation-postes',
+  '/comptes-utilisateurs',
+};
+
+/// Le module d'un chemin, lu au MÊME registre que la garde du routeur
+/// ([toutesLesDestinations], [modulesDesRoutesHorsMenu]) : l'entrée du menu la
+/// plus spécifique dont le chemin est un préfixe. `null` : route sans module.
+ModuleTatacora? moduleDeLaRoute(String chemin) {
+  DestinationMenu? porteuse;
+  for (final d in toutesLesDestinations) {
+    final route = d.route;
+    if (route == null) continue;
+    if (route == chemin ||
+        (chemin.startsWith('$route/') &&
+            (porteuse == null || route.length > porteuse.route!.length))) {
+      porteuse = d;
+      if (route == chemin) break;
+    }
+  }
+  return porteuse?.module ?? modulesDesRoutesHorsMenu[chemin];
+}
+
+/// Le bandeau d'accès en lecture seule — `partials/banniere`.
+///
+/// Rendu quand le module de l'écran offre l'écriture et que le profil n'y a
+/// pas le niveau `C` (`BanniereEcriture::LECTURE_SEULE`) ; rien sinon, comme la
+/// zone `#shell-banniere` laissée vide. Le bouton referme la session
+/// (`seDeconnecter` de la vue), le seul chemin de fermeture de ce poste aussi.
+class BandeauLectureSeule extends ConsumerWidget {
+  const BandeauLectureSeule({required this.routeActive, super.key});
+
+  final String routeActive;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (routesSansBandeauLectureSeule.contains(routeActive)) {
+      return const SizedBox.shrink();
+    }
+    final module = moduleDeLaRoute(routeActive);
+    final droits = ref.watch(droitsProvider);
+    if (module == null || droits.peutEcrire(module)) {
+      return const SizedBox.shrink();
+    }
+    final etroit = Breakpoints.de(context) == Palier.mobile;
+    final texte = Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(
+            text: LibellesCoquille.banniereLectureTitre,
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          const TextSpan(text: ' '),
+          const TextSpan(text: LibellesCoquille.banniereLectureDetail),
+        ],
+      ),
+      style: TextStyle(
+        color: PaletteMaitre.ambre900,
+        fontFamily: AppTextStyles.police,
+        fontSize: Tailles.t12,
+      ),
+    );
+    final bouton = InkWell(
+      key: const Key('bouton-changer-compte-banniere'),
+      borderRadius: BorderRadius.circular(AppRadius.lg),
+      onTap: () => ref.read(sessionProvider.notifier).deconnecter(),
+      child: Container(
+        padding: MesuresBandeauLectureSeule.margeBouton,
+        decoration: BoxDecoration(
+          color: PaletteMaitre.ambre900,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+        ),
+        child: Text(
+          LibellesCoquille.banniereChangerProfil,
+          style: TextStyle(
+            color: AppColors.neutre0,
+            fontFamily: AppTextStyles.police,
+            fontSize: Tailles.t11,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+    return Container(
+      key: const Key('shell-banniere'),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg, // px-6
+        vertical: AppSpacing.sm, // py-3
+      ),
+      decoration: const BoxDecoration(
+        color: PaletteMaitre.ambre50, // bg-amber-50
+        border: Border(
+          bottom: BorderSide(
+            color: PaletteMaitre.ambre300, // border-amber-300
+            width: MesuresBandeauLectureSeule.filetBas,
+          ),
+        ),
+      ),
+      child: etroit
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                texte,
+                const SizedBox(height: AppSpacing.xs), // gap-2
+                bouton,
+              ],
+            )
+          : Row(
+              children: [
+                Expanded(child: texte),
+                const SizedBox(width: AppSpacing.xs), // gap-2
+                bouton,
+              ],
+            ),
     );
   }
 }

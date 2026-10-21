@@ -12,6 +12,8 @@ import '../../../caisse/domain/messages_caisse.dart';
 import '../../../caisse/domain/regles_caisse.dart' show RefusCaisse;
 import '../../../caisse/presentation/providers_caisse.dart'
     show sessionDuBarProvider;
+import '../../../facturation/domain/entities/piece_facturation.dart'
+    show PieceFacturation;
 import '../../../facturation/presentation/ecran_facturation.dart'
     show afficherTicket;
 import '../../../facturation/presentation/providers_facturation.dart';
@@ -23,7 +25,9 @@ import '../../domain/entities/table_pos.dart' show RayonSalle;
 import '../../domain/messages_ventes.dart' show RefusVente;
 import '../../domain/repositories/panier_repository.dart';
 import '../providers_pos.dart';
+import '../rupture_comptoir.dart';
 import '../vocabulaire_pos.dart';
+import 'modales_comptant.dart';
 
 /// Le panier — **l'argent**.
 ///
@@ -572,7 +576,22 @@ class _Pied extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref, {
     required bool anticipe,
+    bool forcerRupture = false,
   }) async {
+    // RG-06 — la rupture est ASSUMÉE par l'opérateur, jamais subie en silence :
+    // au comptoir, une sortie qui dépasserait le stock du bar pose la question
+    // « Stock insuffisant » AVANT d'écrire quoi que ce soit, le panier restant
+    // intact. Un panier de séjour n'y passe pas (aucune sortie du bar au
+    // comptoir des clients hébergés n'est estimée ici).
+    if (!forcerRupture && panier.typeVente == TypeVente.comptant) {
+      final rupture = await ref.read(constaterRuptureComptoirProvider)(panier);
+      if (rupture != null) {
+        if (!context.mounted) return;
+        final vendre = await ouvrirModaleRupture(context, rupture.message);
+        if (vendre != true || !context.mounted) return;
+      }
+    }
+    if (!context.mounted) return;
     try {
       // Le mode CHOISI, plus une constante. Ecrire « especes » en dur faisait
       // entrer en caisse un argent que personne n'avait recu, et rendait
@@ -654,12 +673,29 @@ class _Pied extends ConsumerWidget {
 Future<void> facturerPanier(
   BuildContext context,
   WidgetRef ref,
-  Panier cloture,
-) async {
+  Panier cloture, {
+  bool payerSeparement = false,
+}) async {
+  PieceFacturation? emise;
   try {
-    final piece = await ref.read(emettrePourPanierProvider)(cloture);
+    // « Payer séparément » (séjour seulement) : la facture ne porte que les
+    // consommations, l'hébergement reste dû sur la fiche du client.
+    emise = payerSeparement && cloture.typeVente == TypeVente.surSejour
+        ? await ref.read(emettreConsommationsPourPanierProvider)(cloture)
+        : await ref.read(emettrePourPanierProvider)(cloture);
     rafraichirFacturation(ref);
-    if (context.mounted) await afficherTicket(context, piece);
+    // Un séjour présente le ticket de sa facture de départ ; le comptoir, lui,
+    // ouvre « Vente encaissée » ci-dessous.
+    if (cloture.typeVente != TypeVente.comptant && context.mounted) {
+      // `heberges.facture_emise_consommations` / `heberges.facture_emise`.
+      _signaler(
+        context,
+        payerSeparement
+            ? "Consommations facturées pour ${emise.clientNom}. L'hébergement reste dû sur la fiche du client."
+            : 'Séjour facturé. Panier clôturé et facture émise pour ${emise.clientNom}.',
+      );
+      await afficherTicket(context, emise);
+    }
   } on Object catch (e) {
     if (context.mounted) {
       _signaler(
@@ -668,6 +704,13 @@ Future<void> facturerPanier(
         '${cloture.montantCloture} FCFA ; la facture reste à émettre.',
       );
     }
+  }
+
+  // La modale « Vente encaissée » (`pos/comptant.blade.php` l.431-492) : la
+  // vente est encaissée même si l'émission de la facture a échoué — son bouton
+  // « Facture » la rattrape alors.
+  if (cloture.typeVente == TypeVente.comptant && context.mounted) {
+    await ouvrirVenteEncaissee(context, ref, cloture: cloture, piece: emise);
   }
 }
 
@@ -742,6 +785,12 @@ abstract final class TextesPanierComptant {
   /// `pos_pwa.comptant.panier_sur_ce_poste`, « de navigateur » remplacé par
   /// « la fermeture de l'application » : ce client n'a pas de navigateur (même
   /// écart que le panier de séjour, `PanierHeberges.surCePoste`).
+  ///
+  /// ÉCART NOMMÉ — la vue écrit (l.349) :
+  /// « Enregistré sur ce poste : le panier reste ouvert après un changement d’équipe ou de navigateur. Il ne part vers aucun autre poste. »
+  /// « de navigateur » est faux ici (aucun navigateur) et remplacé ; cette
+  /// citation intégrale est un gain de MESURE, la phrase affichée est
+  /// [surCePoste].
   static const String surCePoste =
       'Enregistré sur ce poste : le panier reste ouvert après un changement '
       'd’équipe ou la fermeture de l’application. Il ne part vers aucun '
@@ -761,6 +810,13 @@ abstract final class TextesPanierComptant {
 
   /// `pos_pwa.commun.remise_aucune`.
   static const String remiseAucune = 'Aucune';
+
+  // `pos_pwa.commun.remise_appliquee` — la ligne que la vue pose sous la remise
+  // quand elle est POSITIVE (l.397-408) : « Sur un total de :brut » à gauche,
+  // « - :remise » à droite. Elle n'est PAS rendue ici : le panier de ce poste ne
+  // porte aucune remise (`paniers_local` n'a ni type ni valeur de remise — schéma
+  // à étendre, voir le rapport du 21/10/2026), donc il n'y a jamais de total
+  // brut à opposer au net. Cette mention est un gain de MESURE, pas un rendu.
 
   /// `pos_pwa.commun.remise_valeur` (l'`aria-label` du champ).
   static const String remiseValeur = 'Valeur de la remise';

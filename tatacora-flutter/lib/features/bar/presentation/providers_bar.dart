@@ -215,6 +215,25 @@ final creerBoissonProvider =
       },
     );
 
+/// Renomme et reclasse une boisson — la modale « Modifier la boisson — » de la
+/// vue. Le prix et le lien au stock ne bougent pas (`BoissonsApi.modifier`).
+final modifierBoissonProvider =
+    Provider<
+      Future<ResultatBar<Boisson>> Function(
+        String id, {
+        required String libelle,
+        required CategorieBoisson categorie,
+      })
+    >(
+      (ref) => (id, {required libelle, required categorie}) async {
+        final resultat = await ref
+            .read(boissonsApiProvider)
+            .modifier(id, libelle: libelle, categorie: categorie);
+        if (resultat is BarRecu<Boisson>) _rafraichirCatalogue(ref);
+        return resultat;
+      },
+    );
+
 /// Change le PRIX d'une boisson — la modale « Modifier le prix — » de la vue.
 ///
 /// @see EF-M5-02 Carte des boissons

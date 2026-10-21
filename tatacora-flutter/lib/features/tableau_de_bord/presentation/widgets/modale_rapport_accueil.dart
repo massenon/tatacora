@@ -31,6 +31,9 @@ import '../ecran_tableau_de_bord.dart'
         tableauDeBordLocalProvider;
 import 'champs_modale_accueil.dart';
 
+/// Les libellés des six types de rapport viennent du registre
+/// `accueil_pwa.modale_rapport.<type>` (clé composée à la volée par la vue).
+///
 /// La modale « Générer un rapport » de la vue d'accueil (l.1721-1746) et le
 /// document que produit « Exporter » (l.300, `ouvrirExport` → `genererExport`,
 /// rapport `synthese` par défaut) — lot C du plan du PO, 14/10/2026.

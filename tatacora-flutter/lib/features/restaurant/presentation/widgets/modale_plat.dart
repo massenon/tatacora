@@ -328,10 +328,7 @@ class _Corps extends StatelessWidget {
                     ),
                     const Text(
                       // `aide_prix_provisoire`.
-                      'À cocher quand le tarif a été posé faute de relevé : il '
-                      'reste à confronter à la carte physique. La marque '
-                      "s'imprime en regard du prix, y compris sur la fiche "
-                      'remise au client.',
+                      "À cocher quand le tarif a été posé faute de relevé : il reste à confronter à la carte physique. La marque s'imprime en regard du prix, y compris sur la fiche remise au client.",
                       style: TextesModaleRestaurant.aide,
                     ),
                   ],
@@ -345,10 +342,7 @@ class _Corps extends StatelessWidget {
             padding: const EdgeInsets.only(top: AppSpacing.xs),
             child: Text(
               // `etat_prix_corrige_main` — un ÉTAT dérivé, en lecture seule.
-              'Ce tarif a été corrigé à la main : la marque « corrigé à la '
-              "main » s'imprime en regard du prix. Elle est posée "
-              "automatiquement quand le prix d'un article provisoire est "
-              'modifié, et ne se lève pas depuis cet écran.',
+              "Ce tarif a été corrigé à la main : la marque « corrigé à la main » s'imprime en regard du prix. Elle est posée automatiquement quand le prix d'un article provisoire est modifié, et ne se lève pas depuis cet écran.",
               key: const Key('modale-plat-corrige-main'),
               style: TextesModaleRestaurant.aide.copyWith(
                 color: PaletteMaitre.ambre600,
@@ -405,8 +399,7 @@ class _Corps extends StatelessWidget {
               'n’est pas « il n’y en a aucune » : on ne sait pas.',
           // `aide_fiche`.
           aide:
-              'Obligatoire : un plat se décrémente par sa fiche technique '
-              '(EF-M4-02). Créez d’abord la recette si elle n’existe pas.',
+              "Obligatoire : un plat se décrémente par sa fiche technique (EF-M4-02). Créez d'abord la recette si elle n'existe pas.",
           cleCreer: const Key('modale-plat-creer-fiche'),
           libelleCreer: 'Créer une fiche technique',
           onCreer: onCreerFiche,

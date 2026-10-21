@@ -2,12 +2,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/di/providers.dart' show droitsProvider;
 import '../../../../core/format/formats.dart';
+import '../../../../core/rbac/garde_acces.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../shared_widgets/tableau_tatacora.dart';
 import '../../../../shared_widgets/toast_export.dart';
+import '../../../pos/domain/messages_ventes.dart' show RefusVente;
 import '../../domain/entities/vente.dart';
 import '../../impression/etat_journal_ventes.dart';
 import '../providers_ventes.dart';
@@ -19,13 +22,16 @@ import '../providers_ventes.dart';
 ///
 /// Rendus : l'en-tête (référence, date, poste, table), les lignes avec leur
 /// activité, le total précédé du règlement, l'encadré ambre « Porté en note »,
-/// l'encadré d'annulation, et les trois boutons du pied.
+/// l'encadré rouge des articles sans lien au stock, l'encadré d'annulation, le
+/// champ « Motif de l'annulation » avec « Annuler la vente », et les boutons du
+/// pied dont « Ticket 80 mm ».
 ///
-/// **Non rendu, et nommé** : l'encadré rouge des articles sans lien au stock
-/// (l.303-306). Ce client n'écrit **aucun** mouvement de stock — les trois
-/// tables de stock restent délibérément vides (PA-134) et le stock est calculé
-/// par le serveur. Un encadré qui ne s'afficherait jamais serait indistinguable
-/// d'un écran cassé ; le nommer une fois, en clair, dit que la fonction manque.
+/// **L'annulation d'une vente encaissée est portée** (21/10/2026, ordre du PO :
+/// « tout doit être au complet ») : `PanierDao.annulerVente` contre-passe la
+/// pièce, la vente reste au journal marquée annulée, et l'annulation part au
+/// serveur, qui compense les sorties de stock. L'encadré des articles sans lien
+/// au stock lit le catalogue d'AUJOURD'HUI (`stock_non_impacte` du serveur est
+/// écrit à la vente) — écart nommé à `CatalogueDao.referencesSansLienDeStock`.
 ///
 /// ## Le maître n'a AUCUNE hauteur maximale, et il n'en faut pas non plus ici
 ///
@@ -215,6 +221,17 @@ class _Corps extends StatelessWidget {
             texteCouleur: CouleursTableau.alerteTexte,
           ),
         ],
+        if (vente.aDesLignesSansImpactStock) ...[
+          const SizedBox(height: AppSpacing.sm),
+          _Encadre(
+            cle: const Key('vente-detail-stock'),
+            // `pos_pwa.journal.detail_stock`, au mot.
+            texte:
+                '${vente.lignesSansImpactStock.length} article(s) n’ont décrémenté aucun stock : ${vente.lignesSansImpactStock.join(', ')}. Leur lien au stock est absent.',
+            fond: CouleursTableau.refusFond,
+            texteCouleur: CouleursTableau.refusTexte,
+          ),
+        ],
         if (vente.estAnnulee) ...[
           const SizedBox(height: AppSpacing.sm),
           _Encadre(
@@ -226,6 +243,10 @@ class _Corps extends StatelessWidget {
             fond: CouleursTableau.neutreFond,
             texteCouleur: CouleursTableau.neutreTexte,
           ),
+        ],
+        if (!vente.estAnnulee) ...[
+          const SizedBox(height: AppSpacing.sm),
+          _BlocAnnulation(vente: vente),
         ],
         const SizedBox(height: AppSpacing.sm),
         _Encadre(
@@ -362,6 +383,13 @@ class _Pied extends ConsumerWidget {
             onPressed: () => Navigator.of(context).pop(),
             child: const Text('Fermer'),
           ),
+          // `detail_ticket_thermique` : la MÊME vente sur le rouleau 80 mm
+          // (PA-101), sans dépendre d'une facture.
+          OutlinedButton(
+            key: const Key('vente-detail-ticket-80'),
+            onPressed: () => ref.read(imprimerTicketVenteProvider)(vente),
+            child: const Text('Ticket 80 mm'),
+          ),
           OutlinedButton(
             key: const Key('vente-detail-imprimer'),
             onPressed: () => ref.read(imprimerVenteProvider)(_etat()),
@@ -387,6 +415,133 @@ class _Pied extends ConsumerWidget {
         () => ref.read(exporterVenteProvider)(_etat()),
         cleSucces: const Key('vente-detail-chemin'),
       );
+}
+
+/// Le bloc d'annulation de la vue (l.480-494) : « Motif de l'annulation », le
+/// champ, « Annuler la vente » — RG-02, le motif est OBLIGATOIRE parce que le
+/// journal doit dire pourquoi. Réservé à qui écrit sur M5 (masquage d'interface,
+/// premier des niveaux de RG-16 ; le DAO refuse aussi la vente d'un autre poste
+/// à qui n'est ni administrateur ni comptable).
+class _BlocAnnulation extends ConsumerStatefulWidget {
+  const _BlocAnnulation({required this.vente});
+
+  final Vente vente;
+
+  @override
+  ConsumerState<_BlocAnnulation> createState() => _EtatBlocAnnulation();
+}
+
+class _EtatBlocAnnulation extends ConsumerState<_BlocAnnulation> {
+  final _motif = TextEditingController();
+  String? _erreur;
+  bool _envoi = false;
+
+  @override
+  void dispose() {
+    _motif.dispose();
+    super.dispose();
+  }
+
+  Future<void> _annuler() async {
+    final messager = ScaffoldMessenger.of(context);
+    final navigateur = Navigator.of(context);
+    setState(() {
+      _envoi = true;
+      _erreur = null;
+    });
+    try {
+      await annulerUneVente(ref, widget.vente.id, _motif.text);
+    } on RefusVente catch (e) {
+      if (mounted) {
+        setState(() {
+          _envoi = false;
+          _erreur = e.message;
+        });
+      }
+      return;
+    }
+    navigateur.pop();
+    messager.showSnackBar(
+      SnackBar(
+        content: Text(
+          'Vente ${widget.vente.referenceLocale} annulée. Elle reste au journal.',
+          key: const Key('vente-detail-annulee-message'),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final peutEcrire = ref
+        .watch(droitsProvider)
+        .peutEcrire(ModuleTatacora.m5Bar);
+    if (!peutEcrire) return const SizedBox.shrink();
+
+    const etiquette = TextStyle(
+      fontFamily: AppTextStyles.police,
+      fontSize: Tailles.t12,
+      fontWeight: FontWeight.w600,
+      color: AppColors.neutre700,
+    );
+
+    return Container(
+      padding: const EdgeInsets.only(top: AppSpacing.sm),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: AppColors.neutre100)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // `detail_motif`.
+          const Text('Motif de l’annulation', style: etiquette),
+          const SizedBox(height: AppSpacing.xxs),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  key: const Key('vente-detail-motif'),
+                  controller: _motif,
+                  enabled: !_envoi,
+                  style: const TextStyle(
+                    fontFamily: AppTextStyles.police,
+                    fontSize: Tailles.t12,
+                  ),
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xs),
+              // `detail_annuler`, en rouge `--erreur` comme la vue.
+              FilledButton(
+                key: const Key('vente-detail-annuler'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.erreur,
+                ),
+                onPressed: _envoi ? null : _annuler,
+                child: const Text('Annuler la vente'),
+              ),
+            ],
+          ),
+          if (_erreur != null)
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.xs),
+              child: Text(
+                _erreur!,
+                key: const Key('vente-detail-annulation-refus'),
+                style: const TextStyle(
+                  fontFamily: AppTextStyles.police,
+                  fontSize: Tailles.t12,
+                  color: AppColors.erreur,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Ouvre le détail d'une vente.

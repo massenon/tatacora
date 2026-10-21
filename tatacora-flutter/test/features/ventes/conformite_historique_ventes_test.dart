@@ -496,23 +496,18 @@ void main() {
       );
     });
 
-    test('le badge « stock ✕ » de la vue existe, et n’est pas porté', () {
-      // L'écart est réel des deux côtés : la vue le pose, ce client ne le
-      // rend pas, et il le NOMME. Sans ce cas, quelqu'un le rajouterait un jour
-      // sans savoir qu'il ne s'afficherait jamais.
+    test('le badge « stock ✕ » de la vue existe, et EST porté', () {
+      // Porté depuis le 21/10/2026 : la vue le pose sur les lignes sans lien
+      // au stock, et `table_ventes.dart` le rend (clé `vente-badge-stock`).
       expect(_texteVisible(maitre()), contains('stock ✕'));
 
-      // Le panneau « Ce que cet écran ne rend pas » n'est plus affiché (Phase 2,
-      // 08/10/2026) : le refus est NOMMÉ dans l'en-tête de `table_ventes.dart`
-      // (commentaire, relu ici en brut). Depuis le 14/10/2026 (directive du
-      // PO), aucune référence interne « PA-134 » n'est plus affichée : la carte
-      // « Sans impact stock » dit « Non tenu ici ».
-      final enTete = File(
+      final table = File(
         'lib/features/ventes/presentation/widgets/table_ventes.dart',
       ).readAsStringSync();
-      expect(enTete, contains('Le badge « stock ✕ »'));
+      expect(table, contains("'stock ✕'"));
+      expect(table, contains('vente-badge-stock'));
       expect(codeDart(), isNot(contains('PA-134')));
-      expect(codeDart(), contains('Non tenu ici'));
+      expect(codeDart(), contains('Toutes les ventes ont décrémenté'));
     });
   });
 

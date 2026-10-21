@@ -35,6 +35,7 @@ JournalVentes composerJournal({
   required List<Panier> paniers,
   Map<String, String> libellesTables = const {},
   Map<String, String> numeroFactureParPanier = const {},
+  Set<String> sansLienStock = const {},
 }) {
   final ventes = <Vente>[];
   var ouverts = 0;
@@ -45,6 +46,7 @@ JournalVentes composerJournal({
       panier,
       libelleTable: tableId == null ? null : libellesTables[tableId],
       numeroFacture: numeroFactureParPanier[panier.id],
+      sansLienStock: sansLienStock,
     );
     if (vente == null) {
       ouverts++;
@@ -252,6 +254,7 @@ final class KpisJournalVentes {
     required this.ventesSansReglement,
     required this.montantSansReglement,
     required this.avecFacture,
+    this.sansImpactStock = 0,
   });
 
   factory KpisJournalVentes.calculer(List<Vente> liste) {
@@ -276,8 +279,15 @@ final class KpisJournalVentes {
           .where((v) => v.encaisse == null)
           .fold(0, (t, v) => t + v.montant),
       avecFacture: liste.where((v) => v.aUneFacture).length,
+      // `$validees->filter(aDesLignesSansImpactStock)->count()` de la vue.
+      sansImpactStock: validees
+          .where((v) => v.aDesLignesSansImpactStock)
+          .length,
     );
   }
+
+  /// Les ventes validées dont au moins une ligne n'a décrémenté aucun stock.
+  final int sansImpactStock;
 
   /// Ventes **validées**. Les annulées sont comptées à part : les additionner
   /// gonflerait le journal d'un chiffre d'affaires qui n'a pas eu lieu.

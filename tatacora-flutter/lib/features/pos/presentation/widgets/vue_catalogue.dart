@@ -370,27 +370,33 @@ class _Grille extends ConsumerWidget {
         horizontal: AppSpacing.mdPlus,
         vertical: AppSpacing.md,
       ),
-      child: LayoutBuilder(
-        builder: (context, contraintes) {
-          final largeur =
-              (contraintes.maxWidth - AppSpacing.xsPlus * (nombre - 1)) /
-              nombre;
-          return Wrap(
-            spacing: AppSpacing.xsPlus,
-            runSpacing: AppSpacing.xsPlus,
-            children: [
-              for (final article in articles)
-                SizedBox(
-                  width: largeur,
-                  child: _Carte(
-                    article: article,
-                    onAjouter: onAjouter,
-                    actif: actif,
-                  ),
-                ),
-            ],
-          );
-        },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          LayoutBuilder(
+            builder: (context, contraintes) {
+              final largeur =
+                  (contraintes.maxWidth - AppSpacing.xsPlus * (nombre - 1)) /
+                  nombre;
+              return Wrap(
+                spacing: AppSpacing.xsPlus,
+                runSpacing: AppSpacing.xsPlus,
+                children: [
+                  for (final article in articles)
+                    SizedBox(
+                      width: largeur,
+                      child: _Carte(
+                        article: article,
+                        onAjouter: onAjouter,
+                        actif: actif,
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+          const _LegendesCatalogue(),
+        ],
       ),
     );
   }
@@ -421,7 +427,12 @@ class _Carte extends StatelessWidget {
       article.module.libelle,
       if (article.categorie != null && article.categorie!.isNotEmpty)
         article.categorie!,
-      if (article.detail != null && article.detail!.isNotEmpty) article.detail!,
+      // Le point orange dit déjà « fiche technique absente » : ne pas le doubler
+      // d'une phrase que la vue n'écrit pas.
+      if (!article.sansLienStock &&
+          article.detail != null &&
+          article.detail!.isNotEmpty)
+        article.detail!,
     ].join(' · ');
 
     // `text-left p-3 rounded-xl border` (l.263) : blanche bordée slate-200,
@@ -442,16 +453,49 @@ class _Carte extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // `text-[13px] font-semibold leading-snug` navy.
-              Text(
-                article.libelle,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: styleContenuCarte(
-                  TaillesContenu.t13,
-                  poids: FontWeight.w600,
-                  couleur: AppColors.navy,
-                ).copyWith(height: Tailles.interligneSnug),
+              // `flex items-start justify-between gap-1.5` : le libellé, puis —
+              // à droite — le point orange OU la marque « P » (jamais les deux).
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    // `text-[13px] font-semibold leading-snug` navy.
+                    child: Text(
+                      article.libelle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: styleContenuCarte(
+                        TaillesContenu.t13,
+                        poids: FontWeight.w600,
+                        couleur: AppColors.navy,
+                      ).copyWith(height: Tailles.interligneSnug),
+                    ),
+                  ),
+                  if (article.estVendable && article.sansLienStock) ...[
+                    const SizedBox(width: AppSpacing.xxs),
+                    const Tooltip(
+                      // `point_orange_infobulle`.
+                      message:
+                          'Vendable, mais ne décrémente aucun stock — fiche technique absente',
+                      child: PointOrangeCatalogue(
+                        key: Key('pos-point-orange'),
+                        decalage: true,
+                      ),
+                    ),
+                  ] else if (article.estVendable &&
+                      article.compositionProvisoire) ...[
+                    const SizedBox(width: AppSpacing.xxs),
+                    const Tooltip(
+                      // `composition_provisoire_infobulle`.
+                      message:
+                          'Fiche technique provisoire : le stock décrémenté par ce plat est approximatif — ses quantités ont été posées, jamais pesées.',
+                      child: MarqueProvisoireCatalogue(
+                        key: Key('pos-marque-provisoire'),
+                      ),
+                    ),
+                  ],
+                ],
               ),
               // `mt-2 text-[15px] font-bold` or — « Prix à définir » sans
               // tarif (`pos_pwa.commun.prix_a_definir`).
@@ -488,5 +532,121 @@ class _Carte extends StatelessWidget {
     return cliquable
         ? carte
         : Opacity(opacity: AppColors.opaciteArticleInactif, child: carte);
+  }
+}
+
+/// Le point orange de la vue — `w-1.5 h-1.5 rounded-full bg-amber-400`
+/// (`mt-1.5` sur la carte, aucun décalage dans la légende).
+class PointOrangeCatalogue extends StatelessWidget {
+  const PointOrangeCatalogue({super.key, this.decalage = false});
+
+  final bool decalage;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: EdgeInsets.only(top: decalage ? AppSpacing.xxs : 0),
+    child: Container(
+      width: LargeursPos.pointOrange,
+      height: LargeursPos.pointOrange,
+      decoration: const BoxDecoration(
+        color: PaletteMaitre.ambre400,
+        shape: BoxShape.circle,
+      ),
+    ),
+  );
+}
+
+/// La marque « P » des compositions posées — `text-[9px] leading-none font-bold
+/// px-1 py-0.5 rounded`, fond `#FDF3E0`, texte `#B8891E`. Une LETTRE, pas un
+/// point : deux points de couleurs voisines à la même place seraient
+/// indiscernables au comptoir.
+class MarqueProvisoireCatalogue extends StatelessWidget {
+  const MarqueProvisoireCatalogue({super.key});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(
+      horizontal: AppSpacing.unit,
+      vertical: AppSpacing.demi,
+    ),
+    decoration: BoxDecoration(
+      color: AppColors.reserveGoldFond,
+      borderRadius: BorderRadius.circular(AppRadius.rounded),
+    ),
+    child: Text(
+      // `composition_provisoire_marque`.
+      'P',
+      style: styleContenuCarte(
+        TaillesContenu.t9,
+        poids: FontWeight.bold,
+        couleur: AppColors.reserveGoldTexte,
+      ).copyWith(height: Tailles.interligneAucun),
+    ),
+  );
+}
+
+/// Les trois lignes sous la grille (l.281-312) : la légende du point orange,
+/// celle de la marque « P », puis l'écart daté sur le prix provisoire.
+class _LegendesCatalogue extends StatelessWidget {
+  const _LegendesCatalogue();
+
+  @override
+  Widget build(BuildContext context) {
+    final style = styleContenuCarte(TaillesContenu.t11, couleur: Ardoise.c400);
+    return Padding(
+      // `mt-4`.
+      padding: const EdgeInsets.only(top: AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            key: const Key('pos-legende-point-orange'),
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const PointOrangeCatalogue(),
+              const SizedBox(width: AppSpacing.xxs),
+              Expanded(
+                child: Text(
+                  // `point_orange_legende`.
+                  'Point orange : article vendable qui ne décrémente aucun stock, faute de fiche technique (EF-M4-02).',
+                  style: style,
+                ),
+              ),
+            ],
+          ),
+          // `mt-1.5`.
+          const SizedBox(height: AppSpacing.xxs),
+          Row(
+            key: const Key('pos-legende-marque-p'),
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              const MarqueProvisoireCatalogue(),
+              const SizedBox(width: AppSpacing.xxs),
+              Expanded(
+                child: Text(
+                  // `composition_provisoire_legende`.
+                  'Marque P : la fiche technique du plat est provisoire, le stock décrémenté est approximatif. Elle se lève depuis Restaurant & Cuisine, onglet « Fiches techniques ».',
+                  style: style,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xxs),
+          Text(
+            key: const Key('pos-legende-sans-prix-provisoire'),
+            // ÉCART NOMMÉ — la vue d'encaissement écrit, sous ses légendes
+            // (`sans_prix_provisoire`, « écart déclaré et daté » du 31/08/2026) :
+            // « Aucun prix n’est signalé comme provisoire : le schéma ne porte pas cette information (31/08/2026). »
+            // C'est FAUSSE depuis PA-161 (b) : `plats.prix_provisoire` existe au
+            // serveur comme dans `plats_local`, et la carte du restaurant rend
+            // la marque. Phrase VRAIE affichée, au plus près des mots de la
+            // vue ; vue à faire corriger (ticket au Lead). Cette citation est un
+            // gain de MESURE, pas un rendu.
+            'Aucun prix n’est signalé comme provisoire à la caisse : la marque « prix provisoire » se lit sur la carte du restaurant et sur la fiche des prix.',
+            style: style,
+          ),
+        ],
+      ),
+    );
   }
 }

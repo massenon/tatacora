@@ -1982,12 +1982,14 @@ class _CarteClassement extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Le titre du classement : `accueil_pwa.top_ventes.<clé>` (food,
+          // drinks, circuit, location), composé à la volée par la vue.
           _LibelleMajuscule(classement.libelle),
           // Le critère est ANNONCÉ : un classement par quantité et un
           // classement par montant ne donnent pas le même ordre, et le
           // lecteur doit savoir lequel il regarde (le maître, au mot).
           Text(
-            'classé par ${classement.tri.libelle}',
+            classement.tri.libelle,
             style: TextStyle(fontSize: TaillesContenu.t11, color: Ardoise.c400),
           ),
           const SizedBox(height: AppSpacing.xs),

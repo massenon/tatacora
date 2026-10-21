@@ -1,6 +1,9 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sqlite3/sqlite3.dart' show OpenMode, sqlite3;
 import 'package:tatacora_flutter/core/database/app_database.dart';
 import 'package:tatacora_flutter/core/di/providers.dart';
 import 'package:tatacora_flutter/core/rbac/garde_acces.dart';
@@ -12,6 +15,7 @@ import 'package:tatacora_flutter/features/parametres/data/parametres_dao.dart';
 import 'package:tatacora_flutter/features/parametres/domain/options_systeme.dart';
 import 'package:tatacora_flutter/features/transverse/data/reinitialisation_locale.dart';
 import 'package:tatacora_flutter/features/transverse/data/roles_dao.dart';
+import 'package:tatacora_flutter/features/transverse/data/sauvegardes_poste.dart';
 import 'package:tatacora_flutter/features/transverse/presentation/ecran_import_export.dart';
 
 import '../comptabilite/support/outils_comptabilite.dart';
@@ -226,5 +230,71 @@ void main() {
     expect(find.byKey(const Key('ie-seeders-modale')), findsOneWidget);
     final clients = await tester.runAsync(() => compter('clients_local'));
     expect(clients, 1);
+  });
+
+  group('le filet : une sauvegarde complète, générée JUSTE AVANT', () {
+    late Directory dossier;
+    late SauvegardesPoste sauvegardes;
+
+    setUp(() {
+      dossier = Directory.systemTemp.createTempSync('reinit_svg_');
+      sauvegardes = SauvegardesPoste(
+        db,
+        cheminConfiguration: () async => '${dossier.path}/poste.json',
+      );
+    });
+    tearDown(() => dossier.deleteSync(recursive: true));
+
+    test('la sauvegarde est rangée AVANT le vidage et contient les données '
+        'd\'avant', () async {
+      await semer();
+      await ouvrirBascule();
+      final bilan = await ReinitialisationLocale(
+        db,
+        sauvegardes: sauvegardes,
+      ).executer(role: 'administrateur');
+
+      expect(bilan.sauvegarde, isNotNull);
+      final fichiers = await sauvegardes.fichiers();
+      expect(fichiers.map((f) => f.nom), [bilan.sauvegarde]);
+      expect(fichiers.single.telechargee, isFalse);
+      // La base est vidée ; la copie, elle, porte encore le client.
+      expect(await compter('clients_local'), 0);
+      final copie = sqlite3.open(
+        '${dossier.path}/sauvegardes/${bilan.sauvegarde}',
+        mode: OpenMode.readOnly,
+      );
+      addTearDown(copie.close);
+      expect(
+        copie.select('SELECT COUNT(*) AS n FROM clients_local').single['n'],
+        1,
+      );
+    });
+
+    test(
+      'une sauvegarde qui ÉCHOUE refuse le geste : rien n\'est vidé',
+      () async {
+        await semer();
+        await ouvrirBascule();
+        // Un fichier à la place du dossier `sauvegardes/` : la copie est
+        // impossible.
+        File('${dossier.path}/sauvegardes').writeAsStringSync('occupé');
+        await expectLater(
+          ReinitialisationLocale(
+            db,
+            sauvegardes: sauvegardes,
+          ).executer(role: 'administrateur'),
+          throwsA(
+            isA<ReinitialisationRefusee>().having(
+              (e) => e.message,
+              'message',
+              startsWith('Réinitialisation refusée : la sauvegarde complète'),
+            ),
+          ),
+        );
+        expect(await compter('clients_local'), 1);
+        expect(await compter('ecritures_local'), greaterThan(0));
+      },
+    );
   });
 }

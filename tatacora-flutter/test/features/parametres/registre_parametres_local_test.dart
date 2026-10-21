@@ -39,7 +39,11 @@ const Map<String, Set<String>> _nommeesSansLecture = {
     'convention_prix',
   },
   // L'écran CLASSE ces clés par onglet (`_clesLegales`, `_clesCommunication`,
-  // `_cleAdresse`) : il les nomme pour les placer, il ne les lit pas.
+  // `_cleAdresse`) : il les nomme pour les placer, il ne les lit pas. Il
+  // nomme aussi deux bascules (21/10/2026) pour leur poser la pastille de
+  // RISQUE de la vue (`_risqueDe`) : un habillage, aucun module n'y lit la
+  // valeur — l'état d'une bascule passe par `OptionsSysteme.actif`, le lecteur
+  // commun.
   'lib/features/parametres/presentation/ecran_parametres.dart': {
     'entreprise_ifu',
     'entreprise_rccm',
@@ -47,6 +51,8 @@ const Map<String, Set<String>> _nommeesSansLecture = {
     'communication_whatsapp',
     'entreprise_site_web',
     'entreprise_adresse',
+    'activation_suppression',
+    'activation_alertes_ouverture',
   },
 };
 
@@ -404,7 +410,7 @@ void main() {
           exemptions++;
         }
       }
-      expect(exemptions, 10);
+      expect(exemptions, 12);
     });
   });
 

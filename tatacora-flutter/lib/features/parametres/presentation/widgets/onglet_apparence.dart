@@ -1,3 +1,4 @@
+// Vue Blade maîtresse (PA-183) : pwa/transverse/parametres.blade.php
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -31,6 +32,13 @@ abstract final class TextesOngletApparence {
       "Logo remplacé — l'ancien fichier n'est pas conservé.";
   static const faviconEnregistre =
       "Favicon remplacé — l'ancien fichier n'est pas conservé.";
+
+  /// `apparence_logo_alt` / `apparence_favicon_alt` — l'`alt` des deux aperçus.
+  static const logoAlt = 'Logo actuel';
+  static const faviconAlt = 'Favicon actuel';
+
+  /// `apparence_televersement` : la phrase affichée pendant l'envoi.
+  static const televersement = 'Téléversement en cours…';
   static const charteTitre =
       'Couleurs de la charte graphique (lecture seule — chap. 9.3.1 du CdCF)';
   static const choisir = 'Choisir un fichier';
@@ -64,6 +72,7 @@ class OngletApparence extends ConsumerWidget {
             cle: const Key('apparence-logo-apercu'),
             octets: logo,
             cote: AppLayout.apercuLogo,
+            alt: TextesOngletApparence.logoAlt,
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
@@ -100,6 +109,7 @@ class OngletApparence extends ConsumerWidget {
             cle: const Key('apparence-favicon-apercu'),
             octets: favicon,
             cote: AppLayout.apercuFavicon,
+            alt: TextesOngletApparence.faviconAlt,
           ),
           const SizedBox(width: AppSpacing.md),
           if (peutEcrire)
@@ -195,26 +205,37 @@ class _Bloc extends StatelessWidget {
 /// Un aperçu : le fichier téléversé, à défaut l'actif livré — `object-contain`
 /// dans un cadre arrondi à anneau.
 class _Apercu extends StatelessWidget {
-  const _Apercu({required Key cle, required this.octets, required this.cote})
-    : super(key: cle);
+  const _Apercu({
+    required Key cle,
+    required this.octets,
+    required this.cote,
+    required this.alt,
+  }) : super(key: cle);
 
   final Uint8List? octets;
   final double cote;
 
+  /// L'`alt` de la vue, rendu en sémantique.
+  final String alt;
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: cote,
-      height: cote,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(AppRadius.roundedLg),
-        border: Border.all(color: Ardoise.c100, width: AppLayout.anneauLogo),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadius.roundedLg),
-        child: octets == null
-            ? Image.asset(AppAssets.logo, fit: BoxFit.contain)
-            : Image.memory(octets!, fit: BoxFit.contain),
+    return Semantics(
+      label: alt,
+      image: true,
+      child: Container(
+        width: cote,
+        height: cote,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppRadius.roundedLg),
+          border: Border.all(color: Ardoise.c100, width: AppLayout.anneauLogo),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(AppRadius.roundedLg),
+          child: octets == null
+              ? Image.asset(AppAssets.logo, fit: BoxFit.contain)
+              : Image.memory(octets!, fit: BoxFit.contain),
+        ),
       ),
     );
   }
@@ -305,25 +326,41 @@ class _ModaleImageState extends ConsumerState<_ModaleImage> {
       largeur: AppLayout.modaleApparence,
       refus: _refus,
       cleRefus: const Key('modale-apparence-refus'),
-      corps: Row(
+      corps: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          OutlinedButton(
-            key: const Key('modale-apparence-choisir'),
-            onPressed: _envoi ? null : _choisir,
-            child: const Text(
-              TextesOngletApparence.choisir,
-              style: TextesModaleRestaurant.bouton,
-            ),
+          Row(
+            children: [
+              OutlinedButton(
+                key: const Key('modale-apparence-choisir'),
+                onPressed: _envoi ? null : _choisir,
+                child: const Text(
+                  TextesOngletApparence.choisir,
+                  style: TextesModaleRestaurant.bouton,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Text(
+                  _choisi?.nom ?? TextesOngletApparence.aucunFichier,
+                  key: const Key('modale-apparence-nom'),
+                  overflow: TextOverflow.ellipsis,
+                  style: TextesModaleRestaurant.aide,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: AppSpacing.sm),
-          Expanded(
-            child: Text(
-              _choisi?.nom ?? TextesOngletApparence.aucunFichier,
-              key: const Key('modale-apparence-nom'),
-              overflow: TextOverflow.ellipsis,
+          // `wire:loading` de la vue : la phrase n'est montrée que pendant
+          // l'envoi.
+          if (_envoi) ...[
+            const SizedBox(height: AppSpacing.xs),
+            const Text(
+              TextesOngletApparence.televersement,
+              key: Key('modale-apparence-televersement'),
               style: TextesModaleRestaurant.aide,
             ),
-          ),
+          ],
         ],
       ),
       actions: [

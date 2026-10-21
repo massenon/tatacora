@@ -2,11 +2,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/di/providers.dart';
 import '../../../core/format/formats.dart';
+import '../../../core/rbac/garde_acces.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../shared_widgets/bouton_standard.dart';
+import '../../achats/presentation/widgets/composants_crud_achats.dart'
+    show CaseSelectionAchats;
+import '../../achats/presentation/widgets/modale_archivage_achats.dart';
+import '../../bar/data/boissons_api.dart' show BarRecu, BarRefuse;
+import '../../pos/data/dto/catalogue_dto.dart' show IndisponibiliteDistante;
 import '../data/restaurant_api.dart';
 import '../domain/entities/carte_restaurant.dart';
 import '../domain/entities/plat.dart';
@@ -29,13 +36,17 @@ import 'widgets/tableau_restaurant.dart';
 // « Nouveau menu », « Nouvelle fiche technique » (composition comprise) et
 // « Nouveau plat ».
 //
+// Les cases de sélection, « Retirer de la carte » et la colonne « Disponible »
+// sont rendues depuis le 21/10/2026 (v31) : la disponibilité du jour est lue de
+// `indisponibilites_carte_local`, et « Retirer de la carte » écrit le motif
+// `retire` par `RetraitsPlats` (même geste que la vue : le plat reste au
+// catalogue, rien n'est effacé). La sélection ne porte aucun geste de groupe —
+// la vue non plus : la suppression groupée y est interdite (RG-02), la case
+// rend la sélection visible et le compteur « N sélectionné(s) » la dit.
+//
 // Ce que la vue porte et que cet écran ne rend pas, et pourquoi :
-//  - la case de sélection de chaque ligne et la barre « N sélectionné(s) » :
-//    aucun geste de groupe n'existe côté client ;
-//  - « Retirer de la carte » et la colonne « Disponible » : aucune table ne
-//    porte la disponibilité du jour (D15) — la colonne rend « — » ;
-//  - la carte « Retirés de la carte » et « Compositions provisoires » : « — »,
-//    pour la même raison (aucune source) ;
+//  - la carte « Compositions provisoires » : « — », aucune source (la marque
+//    « provisoire » d'une fiche n'a pas de colonne sur ce poste) ;
 //  - le champ « Catégorie » du formulaire de plat : la vue écrit une colonne de
 //    dix valeurs que ce poste ne porte pas, la catégorie est ici celle du menu
 //    (arbitrage D100, ouvert).
@@ -187,21 +198,24 @@ class _OngletPlats extends ConsumerWidget {
     final k = compteurs is RestaurantRecu<CompteursCatalogue>
         ? compteurs.donnees
         : null;
+    // Les retraits en cours (`$indisponibilites->count()` de la vue). Tant que
+    // la lecture n'est pas revenue : « — », jamais « 0 », qui se lirait « aucun
+    // plat retiré ».
+    final retires = ref.watch(platsRetiresProvider).value;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Les quatre cartes de la vue. Les trois premières sont COMPTÉES du
-        // catalogue entier (un zéro y est une mesure) ; « Retirés de la carte »
-        // n'a aucune source (D15) : « — », jamais « 0 », qui se lirait « aucun
-        // plat retiré ».
+        // Les quatre cartes de la vue, toutes COMPTÉES (un zéro y est une
+        // mesure).
         _GrilleCartes(
           cartes: [
-            ('Plats au catalogue', k?.total.toString(), null, null),
+            ('Plats au catalogue', k?.total.toString(), null, null, null),
             (
               'Avec fiche technique',
               k == null ? null : '${k.avecFiche} / ${k.total}',
               PaletteMaitre.emeraude600,
+              null,
               null,
             ),
             (
@@ -211,12 +225,16 @@ class _OngletPlats extends ConsumerWidget {
                   ? PaletteMaitre.ambre600
                   : PaletteMaitre.emeraude600,
               null,
+              null,
             ),
             (
               'Retirés de la carte',
+              retires?.length.toString(),
+              (retires?.length ?? 0) > 0
+                  ? PaletteMaitre.ambre600
+                  : Ardoise.c400,
               null,
               null,
-              MessagesRestaurant.disponibiliteAbsente,
             ),
           ],
           colonnes: 4,
@@ -268,7 +286,9 @@ class _GrilleCartes extends StatelessWidget {
     required this.cles,
   });
 
-  final List<(String, String?, Color?, String?)> cartes;
+  /// Libellé, valeur, couleur de la valeur, raison de l'absence, détail (la
+  /// seconde ligne de la carte : `fiches_kpi_provisoires_detail`).
+  final List<(String, String?, Color?, String?, String?)> cartes;
   final int colonnes;
   final String cles;
 
@@ -294,6 +314,7 @@ class _GrilleCartes extends StatelessWidget {
                       libelle: cartes[i].$1,
                       valeur: cartes[i].$2,
                       accent: cartes[i].$3,
+                      detail: cartes[i].$5,
                     ),
                   ),
                 ),
@@ -337,6 +358,7 @@ class _BarreOutilsState extends ConsumerState<_BarreOutils> {
             invite: 'Rechercher un plat...',
             onChanged: (v) {
               ref.read(rechercheRestaurationProvider.notifier).definir(v);
+              ref.read(selectionPlatsProvider.notifier).vider();
               // `pageActuelle = 1` du maître : rester en page 4 après un filtre
               // qui n'en rend qu'une afficherait une page vide.
               ref.read(pageRestaurationProvider.notifier).premiere();
@@ -379,6 +401,7 @@ class _BarreOutilsState extends ConsumerState<_BarreOutils> {
                 ],
                 onChanged: (c) {
                   ref.read(categorieRestaurationProvider.notifier).definir(c);
+                  ref.read(selectionPlatsProvider.notifier).vider();
                   ref.read(pageRestaurationProvider.notifier).premiere();
                 },
               ),
@@ -508,11 +531,9 @@ class _OngletFichesState extends ConsumerState<_OngletFiches> {
         Padding(
           padding: const EdgeInsets.only(bottom: AppSpacing.md), // mb-4
           child: Text(
-            // `fiches_bandeau`, au mot.
-            'Une fiche sans ingrédient ne décrémente aucun stock, et le point '
-            "de vente REFUSE la vente du plat qui l'utilise. Ouvrez la fiche, "
-            'posez ses articles de stock et leurs quantités par portion : le '
-            'coût matière se calcule tout seul.',
+            // `fiches_bandeau`, au mot — en UN littéral : le comparateur ne
+            // recolle pas deux morceaux.
+            "Une fiche sans ingrédient ne décrémente aucun stock, et le point de vente REFUSE la vente du plat qui l'utilise. Ouvrez la fiche, posez ses articles de stock et leurs quantités par portion : le coût matière se calcule tout seul.",
             style: TextesRestaurant.petitCrud.copyWith(
               fontSize: TaillesContenu.t13,
               height: 1.5,
@@ -532,13 +553,14 @@ class _OngletFichesState extends ConsumerState<_OngletFiches> {
         ),
         _GrilleCartes(
           cartes: [
-            ('Fiches techniques', k?.total.toString(), null, null),
+            ('Fiches techniques', k?.total.toString(), null, null, null),
             (
               'Fiches vides — vente refusée',
               k?.vides.toString(),
               (k?.vides ?? 0) > 0
                   ? PaletteMaitre.rouge600
                   : PaletteMaitre.emeraude600,
+              null,
               null,
             ),
             // Aucune marque « composition provisoire » n'existe sur ce poste :
@@ -548,6 +570,7 @@ class _OngletFichesState extends ConsumerState<_OngletFiches> {
               null,
               null,
               MessagesRestaurant.compositionProvisoireAbsente,
+              'Quantités posées, jamais pesées',
             ),
           ],
           colonnes: 3,
@@ -786,10 +809,11 @@ class _EtatFicheBadge extends StatelessWidget {
         'Aucun stock suivi',
         AppColors.badgeBleuFond,
         AppColors.info,
-        'Cette fiche est composée, et elle ne décrémente aucun stock : tous '
-            'ses ingrédients sont suivis « au jour le jour » (achetés le matin, '
-            'jamais inventoriés). La vente passe, rien ne bouge, et c’est '
-            'correct.',
+        // `fiches_etat_sans_suivi_infobulle`, au mot — la vue l'écrit SANS
+        // accents (« composee », « decremente ») et avec l'apostrophe
+        // typographique de « c’est » : défaut de la vue, repris tel quel
+        // parce que la vue est le maître (signalé dans le rapport).
+        'Cette fiche est composee, et elle ne decremente aucun stock : tous ses ingredients sont suivis « au jour le jour » (achetes le matin, jamais inventories). La vente passe, rien ne bouge, et c’est correct.',
       ),
       EtatFiche.composee => (
         // `fiches_etat_composee`.
@@ -807,7 +831,34 @@ class _EtatFicheBadge extends StatelessWidget {
       couleur: couleur,
       compacte: true,
     );
-    return aide == null ? pastille : Tooltip(message: aide, child: pastille);
+    final etat = aide == null
+        ? pastille
+        : Tooltip(message: aide, child: pastille);
+    if (!fiche.compositionProvisoire) return etat;
+
+    // La marque « composition provisoire » (`composition_provisoire`) : À CÔTÉ
+    // de l'état, pas à sa place — une fiche provisoire est bel et bien
+    // composée, elle décrémente une quantité que personne n'a mesurée.
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        etat,
+        const SizedBox(width: AppSpacing.unit), // ml-1
+        Tooltip(
+          // `fiches_etat_provisoire_infobulle`, au mot.
+          message:
+              "Les quantités de cette fiche ont été POSÉES pour débloquer le service, elles n'ont jamais été pesées. Le stock décrémenté à chaque vente est donc approximatif. Enregistrez la composition relevée en cuisine : la marque tombe d'elle-même.",
+          child: PastilleRestaurant(
+            cle: Key('restauration-fiche-provisoire-${fiche.id}'),
+            // `fiches_etat_provisoire`.
+            texte: 'Provisoire',
+            fond: AppColors.reserveGoldFond,
+            couleur: AppColors.reserveGoldTexte,
+            compacte: true,
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -896,9 +947,7 @@ class _OngletMenus extends ConsumerWidget {
                 cle: Key('restauration-menus-vide'),
                 // `menus_aucun`, au mot.
                 detail:
-                    "Aucun menu n'existe encore. Le bouton « Nouveau menu » en "
-                    'crée un : sans lui, aucun plat ne peut être enregistré '
-                    '(`plats.menu_id` est obligatoire).',
+                    "Aucun menu n'existe encore. Le bouton « Nouveau menu » en crée un : sans lui, aucun plat ne peut être enregistré (`plats.menu_id` est obligatoire).",
               ),
               clesLignes: [
                 for (final m in donnees.elements)
@@ -1050,6 +1099,11 @@ class _EtatVide extends StatelessWidget {
 }
 
 /// Le tableau et sa pagination — `crud-ui.js` l.62-82.
+///
+/// La première colonne est la case de sélection du maître (`#crud-case-tout`) :
+/// « Tout sélectionner » coche TOUS les plats que le filtre retient — pas
+/// seulement la page affichée, comme `requetePlats()->pluck('id')` de la vue —
+/// et chaque ligne porte « Sélectionner cette ligne ».
 class _Tableau extends ConsumerWidget {
   const _Tableau({required this.page});
 
@@ -1057,21 +1111,69 @@ class _Tableau extends ConsumerWidget {
 
   /// Les colonnes du maître (`m4-restauration.html` l.77-121), dans son ordre.
   ///
-  /// **La colonne « Disponible » est conservée sans donnée.** La retirer
-  /// supprimerait un élément visible du maître ; la remplir de « Oui »
-  /// annoncerait qu'un plat est à la carte du jour sans que personne l'ait
-  /// décidé (PA-61). Elle porte « — », et sa raison est au bloc « Ce que cet
-  /// écran ne rend pas ».
+  /// La colonne d'actions n'a pas d'en-tête (`<th></th>`) ; la première est la
+  /// case de sélection, dont l'en-tête est une case et non un texte.
+  static const _libelleActions = 'Actions';
+
+  /// `th w-10` : la colonne de la case ne reçoit aucune part du surplus.
+  static const _largeursFixes = {0: AppLayout.colonneSelection};
+
   static const colonnes = [
     ColonneRestaurant('Plat'),
     ColonneRestaurant('Catégorie', aDroite: true),
     ColonneRestaurant('Prix de vente', aDroite: true),
     ColonneRestaurant('Disponible', aDroite: true),
-    ColonneRestaurant('Actions', aDroite: true),
+    ColonneRestaurant(_libelleActions, aDroite: true),
   ];
+
+  /// Les ids de TOUS les plats que le filtre retient (`toutSelectionne`).
+  Future<Set<String>> _tousLesPlatsFiltres(WidgetRef ref) async {
+    final r = await ref
+        .read(restaurantApiProvider)
+        .plats(
+          recherche: _terme(ref),
+          categorie: ref.read(categorieRestaurationProvider),
+          page: 1,
+          parPage: 1 << 30,
+        );
+    return switch (r) {
+      RestaurantRecu<PageRestaurant<Plat>>(:final donnees) => {
+        for (final p in donnees.elements) p.id,
+      },
+      _ => const <String>{},
+    };
+  }
+
+  static String? _terme(WidgetRef ref) {
+    final t = ref.read(rechercheRestaurationProvider).trim();
+    return t.isEmpty ? null : t;
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final selection = ref.watch(selectionPlatsProvider);
+    final retires = ref.watch(platsRetiresProvider).value ?? const {};
+    final toutCoche =
+        page.total > 0 &&
+        selection.length >= page.total &&
+        page.elements.every((p) => selection.contains(p.id));
+
+    final caseTout = CaseSelectionAchats(
+      cle: const Key('restauration-tout'),
+      valeur: toutCoche,
+      // `aria-label` de la vue (`selection_tout`).
+      etiquette: 'Tout sélectionner',
+      surMarine: true,
+      onChanged: (coche) async {
+        if (!coche) {
+          ref.read(selectionPlatsProvider.notifier).vider();
+          return;
+        }
+        final tous = await _tousLesPlatsFiltres(ref);
+        ref.read(selectionPlatsProvider.notifier).definir(tous);
+      },
+    );
+
     return CadreTableauRestaurant(
       corps: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1081,7 +1183,8 @@ class _Tableau extends ConsumerWidget {
             _EnteteMarine(
               // La dernière colonne de la vue n'a pas de titre (`<th></th>`).
               colonnes: [
-                for (final c in colonnes) c.titre == 'Actions' ? '' : c.titre,
+                for (final c in colonnes)
+                  c.titre == _libelleActions ? '' : c.titre,
               ],
               aDroite: {
                 for (final c in colonnes)
@@ -1094,7 +1197,11 @@ class _Tableau extends ConsumerWidget {
           ] else
             TableauRestaurant(
               gabarit: GabaritTableau.crud,
-              colonnes: colonnes,
+              colonnes: [
+                ColonneRestaurant('', enteteSpecial: caseTout),
+                ...colonnes,
+              ],
+              largeursFixes: _largeursFixes,
               vide: const EtatVideCrud(),
               clesLignes: [
                 for (final p in page.elements)
@@ -1103,7 +1210,16 @@ class _Tableau extends ConsumerWidget {
               lignes: [
                 for (final p in page.elements)
                   [
-                    Text(p.libelle, style: TextesRestaurant.corpsCrud),
+                    CaseSelectionAchats(
+                      cle: Key('restauration-case-${p.id}'),
+                      valeur: selection.contains(p.id),
+                      // `aria-label` de la vue (`selection_ligne`).
+                      etiquette: 'Sélectionner cette ligne',
+                      onChanged: (coche) => ref
+                          .read(selectionPlatsProvider.notifier)
+                          .basculer(p.id, coche: coche),
+                    ),
+                    _NomPlat(plat: p, retrait: retires[p.id]),
                     _BadgeCategorie(plat: p),
                     Text(
                       // « FCFA » partout, PWA comprise — décision du Product
@@ -1115,7 +1231,7 @@ class _Tableau extends ConsumerWidget {
                         color: AppColors.gold,
                       ),
                     ),
-                    const _BadgeDisponible(),
+                    _BadgeDisponible(plat: p, retrait: retires[p.id]),
                     _Actions(plat: p),
                   ],
               ],
@@ -1123,8 +1239,46 @@ class _Tableau extends ConsumerWidget {
           _Pagination(
             cle: 'restauration',
             page: page,
-            onPage: (n) =>
-                ref.read(pageRestaurationProvider.notifier).definir(n),
+            selectionnes: selection.length,
+            onPage: (n) {
+              ref.read(selectionPlatsProvider.notifier).vider();
+              ref.read(pageRestaurationProvider.notifier).definir(n);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Le nom du plat — et, quand il est retiré de la carte, le motif en ambre en
+/// dessous (`{{ $indisponibilite->libelleMotif() }}`, la ligne ajoutée par la
+/// vue : `opacity-55` sur la ligne entière).
+class _NomPlat extends StatelessWidget {
+  const _NomPlat({required this.plat, required this.retrait});
+
+  final Plat plat;
+  final IndisponibiliteDistante? retrait;
+
+  @override
+  Widget build(BuildContext context) {
+    final texte = Text(plat.libelle, style: TextesRestaurant.corpsCrud);
+    if (retrait == null) return texte;
+    return Opacity(
+      opacity: AppLayout.opaciteLigneRetiree,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          texte,
+          Text(
+            retrait!.commentaire == null
+                ? retrait!.libelle
+                : '${retrait!.libelle} — ${retrait!.commentaire}',
+            key: Key('restauration-retrait-${plat.id}'),
+            style: TextesRestaurant.mention.copyWith(
+              color: PaletteMaitre.ambre700,
+            ),
           ),
         ],
       ),
@@ -1164,44 +1318,96 @@ class _BadgeCategorie extends StatelessWidget {
   }
 }
 
-/// La pastille « Disponible » du maître (l.106-120) — **sans donnée**.
-///
-/// Elle porte « — » sur le fond de repli du moteur, jamais « Oui » ni « Non ».
-/// Un défaut permissif annoncerait qu'un plat est à la carte du jour sans que
-/// personne l'ait décidé (PA-61) ; un « Non » retirerait de la vente un plat
-/// que personne n'a retiré.
+/// La pastille « Disponible » — « Oui » (vert) ou « Non » (rouge, le motif en
+/// infobulle), lue de `indisponibilites_carte_local` comme la vue lit
+/// `indisponibilites_carte` (`disponible_oui`, `disponible_non`).
 class _BadgeDisponible extends StatelessWidget {
-  const _BadgeDisponible();
+  const _BadgeDisponible({required this.plat, required this.retrait});
+
+  final Plat plat;
+  final IndisponibiliteDistante? retrait;
 
   @override
   Widget build(BuildContext context) {
-    return const Tooltip(
-      message:
-          'Aucune colonne du schéma ne porte la disponibilité du jour. '
-          '« — » veut dire « on ne sait pas », pas « non ».',
+    final r = retrait;
+    if (r == null) {
+      return PastilleRestaurant(
+        cle: Key('restauration-disponible-${plat.id}'),
+        texte: 'Oui',
+        fond: AppColors.badgeVertFond,
+        couleur: AppColors.succes,
+      );
+    }
+    return Tooltip(
+      message: r.libelle,
       child: PastilleRestaurant(
-        cle: Key('restauration-disponible-absent'),
-        texte: CarteIndicateurRestaurant.absent,
-        fond: AppColors.badgeGrisFond,
-        couleur: AppColors.badgeGrisTexte,
+        cle: Key('restauration-disponible-${plat.id}'),
+        texte: 'Non',
+        fond: AppColors.badgeRougeFond,
+        couleur: AppColors.erreur,
       ),
     );
   }
 }
 
-/// Les actions de ligne — `crud-engine.js` l.233-246.
+/// Les actions de ligne — `restauration.blade.php` : « Modifier » et « Retirer
+/// de la carte » (`action_editer`, `action_archiver`), plus le détail du maître.
 ///
-/// Le maître en pose quatre ; **deux seulement sont rendues**, et ce n'est pas
-/// un choix de ce portage : « Dupliquer » et « Supprimer » sont retirées de
-/// l'écran par le moteur lui-même tant que `OptionsSysteme` ne les a pas
-/// ouvertes, et elles sont fermées par défaut.
+/// « Retirer de la carte » ouvre la modale d'archivage partagée : ses verrous
+/// sont calculés AVANT (plat déjà retiré, addition ouverte qui le porte), le
+/// bouton de confirmation disparaît quand ils bloquent, et la confirmation
+/// écrit le motif `retire` — rien n'est effacé. Le droit d'écriture M4 est
+/// relu à chaque geste (`exigerEcriture`).
 class _Actions extends ConsumerWidget {
   const _Actions({required this.plat});
 
   final Plat plat;
 
+  Future<void> _retirer(BuildContext context, WidgetRef ref) async {
+    final messager = ScaffoldMessenger.of(context);
+    final retraits = ref.read(retraitsPlatsProvider);
+    final verrous = await retraits.verrous(plat.id);
+    if (!context.mounted) return;
+
+    final confirme = await ouvrirArchivageAchats(
+      context,
+      element: plat.libelle,
+      // `archiver_titre` — la vue passe son propre titre au composant.
+      titre: 'Retirer « ${plat.libelle} » de la carte ?',
+      // `archiver_message`, au mot.
+      message:
+          "Le plat quitte la carte du jour et reste au catalogue — rien n'est effacé. Il revient depuis la carte du restaurant, bouton « Remettre ».",
+      messagesVerrou: verrous,
+      bloque: verrous.isNotEmpty,
+      // `archiver_confirmer`.
+      libelleConfirmer: 'Retirer de la carte',
+    );
+    if (confirme != true) return;
+
+    // Les verrous sont RECALCULÉS : ceux affichés datent de l'ouverture de la
+    // modale, une addition a pu naître depuis (`confirmerRetraitDuPlat`).
+    if ((await retraits.verrous(plat.id)).isNotEmpty) return;
+    final r = await retraits.retirer(platId: plat.id, motif: 'retire');
+    final texte = switch (r) {
+      BarRecu<String>(:final donnees) =>
+        // `archive`, de la vue.
+        'Le plat « $donnees » est retiré de la carte.',
+      BarRefuse<String>(:final motif) => motif,
+      _ => 'Le plat n’a pas pu être retiré de la carte.',
+    };
+    messager.showSnackBar(
+      SnackBar(
+        content: Text(texte, key: const Key('restauration-retrait-issue')),
+      ),
+    );
+    invaliderRestaurant(ref);
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final peutEcrire = ref
+        .watch(droitsProvider)
+        .peutEcrire(ModuleTatacora.m4Restaurant);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -1229,6 +1435,17 @@ class _Actions extends ConsumerWidget {
             color: Ardoise.c500,
           ),
         ),
+        if (peutEcrire)
+          IconButton(
+            key: Key('restauration-retirer-${plat.id}'),
+            tooltip: 'Retirer de la carte',
+            onPressed: () => _retirer(context, ref),
+            icon: const Icon(
+              Icons.archive_outlined,
+              size: AppLayout.iconeChamp,
+              color: Ardoise.c500,
+            ),
+          ),
       ],
     );
   }
@@ -1244,7 +1461,12 @@ class _Pagination<T> extends StatelessWidget {
     required this.cle,
     required this.page,
     required this.onPage,
+    this.selectionnes = 0,
   });
+
+  /// Le compteur de sélection que la vue ajoute au décompte (`selectionnes`) :
+  /// 0 = rien n'est coché, rien ne s'affiche.
+  final int selectionnes;
 
   final String cle;
   final PageRestaurant<T> page;
@@ -1269,9 +1491,25 @@ class _Pagination<T> extends StatelessWidget {
         spacing: AppSpacing.xs,
         runSpacing: AppSpacing.xs,
         children: [
-          Text(
-            // La formulation du maître (l.254), au mot.
-            'Affichage de ${page.premier}-${page.dernier} sur ${page.total}',
+          Text.rich(
+            // La formulation du maître (l.254), au mot — et, quand des cases
+            // sont cochées, « N sélectionné(s) » en gras marine (`selectionnes`).
+            TextSpan(
+              children: [
+                TextSpan(
+                  text:
+                      'Affichage de ${page.premier}-${page.dernier} sur ${page.total}',
+                ),
+                if (selectionnes > 0)
+                  TextSpan(
+                    text: '  $selectionnes sélectionné(s)',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.navy,
+                    ),
+                  ),
+              ],
+            ),
             key: Key('$cle-decompte'),
             style: TextesRestaurant.petitCrud,
           ),

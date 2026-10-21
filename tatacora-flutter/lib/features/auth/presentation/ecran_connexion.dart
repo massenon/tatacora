@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/di/providers.dart';
+import '../../../core/navigation/coquille_vue.dart';
 import '../../../core/responsive/breakpoints.dart';
 import '../../../core/theme/app_assets.dart';
 import '../../../core/theme/app_colors.dart';
@@ -236,7 +237,11 @@ class _EtatEcranConnexion extends ConsumerState<EcranConnexion> {
             // invisible se retape entièrement à la moindre faute.
             suffixIcon: IconButton(
               icon: Icon(_masque ? Icons.visibility : Icons.visibility_off),
-              tooltip: _masque ? 'Afficher' : 'Masquer',
+              // `:aria-label` de la vue (`pwa.connexion.afficher_mot_de_passe` /
+              // `masquer_mot_de_passe`) : la phrase entière, pas un mot.
+              tooltip: _masque
+                  ? 'Afficher le mot de passe'
+                  : 'Masquer le mot de passe',
               onPressed: () => setState(() => _masque = !_masque),
             ),
           ),
@@ -420,7 +425,12 @@ class _Logo extends StatelessWidget {
         border: Border.all(color: AppColors.gold, width: 2), // ring-2
       ),
       clipBehavior: Clip.antiAlias,
-      child: Image.asset(AppAssets.logo, fit: BoxFit.contain),
+      // `alt="{{ __('pwa.alt_logo') }}"` : le texte de remplacement du logo.
+      child: Image.asset(
+        AppAssets.logo,
+        fit: BoxFit.contain,
+        semanticLabel: LibellesCoquille.altLogo,
+      ),
     );
   }
 }

@@ -128,11 +128,10 @@ class _VueReceptionsState extends ConsumerState<VueReceptions> {
       children: [
         CadreListeAchats(
           titre: 'Bons de réception',
-          // ÉCART NOMMÉ (D276) — la vue dit : « Chaque réception a généré une
-          // entrée de stock valorisée au prix de la commande, qui a recalculé le
-          // coût moyen pondéré de l'article. » (`lang/fr/achats_pwa.php`,
-          // `appro.receptions_detail`, onglet Réceptions de la vue
-          // d'approvisionnement). C'est FAUX, et le serveur EXÉCUTÉ le
+          // ÉCART NOMMÉ (D276) — la vue dit, onglet Réceptions de la vue
+          // d'approvisionnement (`appro.receptions_detail`) :
+          // « Chaque réception a généré une entrée de stock valorisée au prix de la commande, qui a recalculé le coût moyen pondéré de l'article. »
+          // C'est FAUX, et le serveur EXÉCUTÉ le
           // prouve (`tool/achats/rejouer_receptions.php`) : `ReceptionService`
           // appelle `entree()` sans coût, le coût moyen pondéré et le dernier prix
           // d'achat de l'article sont INCHANGÉS après une réception. Décision du

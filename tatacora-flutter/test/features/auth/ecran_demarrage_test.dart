@@ -84,6 +84,16 @@ void main() {
       // Le maître écrit la mention en minuscules et la met en capitales par
       // CSS (`uppercase`). Le résultat affiché est ce qui compte.
       expect(find.text('RÉALISÉ DANS LE CADRE DU'), findsOneWidget);
+      // Le logo porte son `alt` (`pwa.alt_logo`), rendu en sémantique.
+      expect(
+        find.byWidgetPredicate(
+          (w) =>
+              w is Semantics &&
+              w.properties.label == 'Logo TATACORA AFRIQUE' &&
+              w.properties.image == true,
+        ),
+        findsOneWidget,
+      );
 
       // Deux images : la photo de fond et le logo.
       expect(

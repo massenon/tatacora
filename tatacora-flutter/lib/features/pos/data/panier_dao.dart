@@ -12,6 +12,8 @@ import '../../../core/database/tables/hebergement_tables.dart';
 import '../../../core/database/tables/panier_tables.dart';
 import '../../../core/database/tables/tourisme_tables.dart';
 import '../../../core/database/tables/vehicules_tables.dart';
+import '../../facturation/domain/regles_encaissement.dart'
+    show estVideAuSensDePhp;
 import '../../caisse/data/sessions_caisse_dao.dart';
 import '../../caisse/domain/entities/session_caisse.dart';
 import '../../caisse/domain/messages_caisse.dart';
@@ -682,6 +684,104 @@ class PanierDao extends DatabaseAccessor<AppDatabase> with _$PanierDaoMixin {
     });
 
     return (await parId(panierId))!;
+  }
+
+  /// Annule une VENTE encaissée — `VenteService::annuler`, RG-02 : la vente
+  /// reste au journal, marquée annulée, rien n'est effacé.
+  ///
+  /// ## Dans l'ordre du serveur
+  ///
+  /// Le motif d'abord (`PosComptant::annulerVente` : « le journal doit dire
+  /// pourquoi »), puis la vente (absente : un panier ouvert n'est pas une vente),
+  /// puis « déjà annulée ». S'y ajoute la règle Q3 de ce poste : la vente d'un
+  /// AUTRE poste ne s'annule que par l'administration ou le comptable, comme le
+  /// serveur le refuserait à la synchronisation.
+  ///
+  /// ## Ce que l'annulation écrit, dans UNE transaction
+  ///
+  /// 1. la pièce `VTE` de la vente est CONTRE-PASSÉE en entier (RG-11 : jamais
+  ///    supprimée) — une vente d'avant la pièce (31/08/2026) n'en a pas, et il
+  ///    n'y a alors rien à inverser ;
+  /// 2. le panier passe à `annule`, son motif écrit ; son montant figé, son mode
+  ///    et sa session restent : ils disent ce qui a été encaissé avant
+  ///    l'annulation ;
+  /// 3. l'opération `ventes` / modification (`statut: annulee`, `motif`) part en
+  ///    file si le serveur détient la vente. C'est LE SERVEUR qui compense les
+  ///    sorties de stock (retour des boissons) et passe sa propre contre-pièce :
+  ///    le poste n'écrit aucun mouvement de stock (RG-05, D240), il n'a donc
+  ///    rien à compenser.
+  ///
+  /// Une facture émise pour la vente n'est PAS annulée : le serveur ne le fait
+  /// pas non plus (une facture s'annule par avoir, autre geste).
+  Future<Panier> annulerVente(
+    String panierId,
+    String motif, {
+    required String auteurId,
+  }) async {
+    // Avant toute lecture : un câblage manquant est une erreur de programme.
+    final moteurComptable = await _moteurObligatoire();
+
+    if (estVideAuSensDePhp(motif)) {
+      throw const RefusVente(MessagesVentes.motifAnnulationObligatoire);
+    }
+    final motifNet = motif.trim();
+
+    await transaction(() async {
+      final entete = await (select(
+        paniersLocal,
+      )..where((p) => p.id.equals(panierId))).getSingleOrNull();
+      final statut = entete == null
+          ? null
+          : StatutPanier.depuisCode(entete.statut);
+      if (entete == null || statut == StatutPanier.ouvert) {
+        throw const RefusVente(MessagesVentes.venteAbsente);
+      }
+      if (statut == StatutPanier.annule) {
+        throw RefusVente(MessagesVentes.dejaAnnulee(_numero(panierId)));
+      }
+      if (!await DocumentsAutresPostes(
+        attachedDatabase,
+      ).peutAnnuler(TableSynchronisee.ventes.nomServeur, panierId, auteurId)) {
+        throw const RefusVente(DocumentsAutresPostes.refus);
+      }
+
+      final lignes = await ComptabiliteDao(
+        attachedDatabase,
+      ).lignesParLibelle(libelleDeLaPiece(panierId));
+      if (lignes.isNotEmpty) {
+        await moteurComptable.contrepasserPiece(
+          lignes,
+          auteurId: auteurId,
+          motif: MessagesVentes.libelleContrepassation(_numero(panierId)),
+        );
+      }
+
+      await (update(paniersLocal)..where((p) => p.id.equals(panierId))).write(
+        PaniersLocalCompanion(
+          statut: Value(StatutPanier.annule.code),
+          motifAnnulation: Value(motifNet),
+        ),
+      );
+
+      if (await DocumentsAutresPostes(
+        attachedDatabase,
+      ).connuDuServeur(TableSynchronisee.ventes, panierId)) {
+        await OperationsSyncDao(attachedDatabase).enfiler(
+          table: TableSynchronisee.ventes,
+          entiteId: panierId,
+          type: TypeOperationSync.modification,
+          payload: chargeAnnulationVente(motif: motifNet),
+        );
+      }
+    });
+
+    return (await parId(panierId))!;
+  }
+
+  /// La référence lue à l'écran (`Vente.referenceLocale`) : huit caractères.
+  static String _numero(String panierId) {
+    final brut = panierId.replaceAll('-', '').toUpperCase();
+    return brut.length <= 8 ? brut : brut.substring(0, 8);
   }
 
   /* ================================================================== */

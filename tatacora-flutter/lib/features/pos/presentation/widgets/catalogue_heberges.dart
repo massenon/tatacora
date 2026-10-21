@@ -8,6 +8,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../restaurant/presentation/widgets/corps_carte_commun.dart'
     show styleContenuCarte;
+import '../../data/piece_de_la_vente.dart' show modulesEncaissables;
 import '../../domain/entities/article_vendable.dart';
 import '../providers_pos.dart';
 
@@ -32,13 +33,16 @@ import '../providers_pos.dart';
 ///
 /// ## Ce que la vue rend et que cette colonne ne rend pas
 ///
-/// - **La mention « Tourisme et location ne sont pas encaissables au comptoir »**
-///   (l.161-163, `prestation_refusee`). La vue refuse ces prestations parce que
-///   leur prix devrait être saisi au clavier (`MODULES_ENCAISSABLES`). Sur ce
-///   poste, `PanierDao.ajouterLigne` fige prix et libellé DEPUIS le catalogue
-///   local (règle 3) : le motif est faux ici, et l'afficher interdirait un
-///   geste que le poste sait faire. Relu le 09/10/2026 contre `gerer_panier`
-///   et `catalogue_dao.dart` ; les prestations restent ajoutables.
+/// - La mention « Tourisme et location ne sont pas encaissables au comptoir »
+///   (l.161-163, `prestation_refusee`) EST rendue depuis le 21/10/2026, et la
+///   carte d'une prestation n'est plus ajoutable (`@disabled(! $ajoutable)`,
+///   `$item['encaissable']`). Relu contre `PanierDao.cloturer` : le poste refuse
+///   M8 et M9 à la clôture (`MessagesVentes.moduleNonEncaissable`), exactement
+///   comme `VenteService::MODULES_ENCAISSABLES` — la ligne ajoutée n'aurait
+///   donc jamais pu être encaissée. Le décrire en conditions (« leur prix
+///   devrait être saisi au clavier ») est la phrase de la vue ; la règle, elle,
+///   est la même ici. La relecture du 09/10/2026 qui jugeait le motif faux
+///   confondait « le poste fige le prix » et « le poste encaisse la ligne ».
 class CatalogueHeberges extends ConsumerStatefulWidget {
   const CatalogueHeberges({
     required this.actif,
@@ -63,6 +67,10 @@ class CatalogueHeberges extends ConsumerStatefulWidget {
 
   /// `pos_pwa.heberges.tarif_manquant`.
   static const String tarifManquant = 'tarif manquant';
+
+  /// `pos_pwa.heberges.prestation_refusee`, au mot.
+  static const String prestationRefusee =
+      'Tourisme et location ne sont pas encaissables au comptoir (31/08/2026) : leur prix devrait être saisi au clavier, ce que le registre des ventes refuse. Ces prestations passent par leur propre module.';
 
   @override
   ConsumerState<CatalogueHeberges> createState() => _CatalogueHebergesState();
@@ -350,7 +358,10 @@ class _Carte extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tarifConnu = article.estVendable;
-    final ajoutable = actif && tarifConnu;
+    // `$item['encaissable']` : tourisme et location se vendent par leur propre
+    // module (`MODULES_ENCAISSABLES`).
+    final encaissable = modulesEncaissables.contains(article.module.code);
+    final ajoutable = actif && tarifConnu && encaissable;
 
     final carte = Material(
       color: ajoutable ? AppColors.neutre0 : Ardoise.c50,
@@ -402,6 +413,19 @@ class _Carte extends StatelessWidget {
                   couleur: Ardoise.c400,
                 ),
               ),
+              // `@unless ($item['encaissable'])` : `text-[10px] text-amber-700
+              // mt-1 block`.
+              if (!encaissable) ...[
+                const SizedBox(height: AppSpacing.unit),
+                Text(
+                  CatalogueHeberges.prestationRefusee,
+                  key: Key('pos-prestation-refusee-${article.reference.code}'),
+                  style: styleContenuCarte(
+                    TaillesContenu.t10,
+                    couleur: PaletteMaitre.ambre700,
+                  ),
+                ),
+              ],
             ],
           ),
         ),

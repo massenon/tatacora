@@ -154,6 +154,24 @@ void main() {
   });
 
   group('Libellés — au caractère près', () {
+    testWidgets('le bouton « œil » dit la PHRASE de la vue, et les logos '
+        'portent leur `alt`', (tester) async {
+      await monter(tester, 1280);
+      // `pwa.connexion.afficher_mot_de_passe` / `masquer_mot_de_passe`.
+      expect(find.byTooltip('Afficher le mot de passe'), findsOneWidget);
+      await tester.tap(find.byTooltip('Afficher le mot de passe'));
+      await tester.pump();
+      expect(find.byTooltip('Masquer le mot de passe'), findsOneWidget);
+      expect(find.byTooltip('Afficher le mot de passe'), findsNothing);
+      // `pwa.alt_logo`, rendu en sémantique sur CHAQUE logo de la vue.
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is Image && w.semanticLabel == 'Logo TATACORA AFRIQUE',
+        ),
+        findsWidgets,
+      );
+    });
+
     testWidgets('les textes du formulaire sont ceux du maître', (tester) async {
       await monter(tester, 1280);
 

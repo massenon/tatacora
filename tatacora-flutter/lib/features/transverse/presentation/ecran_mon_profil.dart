@@ -43,9 +43,9 @@ import 'widgets/briques_transverses.dart';
 ///   le dérivé PBKDF2 stocké, le nouveau est dérivé comme à la création du
 ///   compte. La note de la vue (« ont lieu côté serveur ») est REMPLACÉE par
 ///   la phrase vraie (piège 13).
-/// - **Journal d'audit** : ce poste n'en tient pas ; le tableau dit pourquoi
-///   il est vide, au lieu de « Aucune action tracée » qui se lirait comme
-///   « vous n'avez rien fait ».
+/// - **Journal d'audit** : la file d'envoi du poste ne conserve pas
+///   l'utilisateur ; le tableau reste vide et le dit, après la phrase de la
+///   vue (« Aucune action tracée pour ce compte »), vraie au sens strict.
 class EcranMonProfil extends ConsumerWidget {
   const EcranMonProfil({super.key});
 
@@ -166,9 +166,11 @@ abstract final class TextesProfil {
   static const String tiret = '—';
 
   /// AJOUTS déclarés (D422).
+  /// `pwa.profil.sans_fiche_rh` (mot pour mot : vraie ici, aucun compte du
+  /// poste n'est lié à un employé) suivie de ce que le poste affiche à la
+  /// place d'un nom de fiche.
   static const String sansFicheRhPoste =
-      'Sur ce poste : nom saisi à la création du compte — aucune fiche '
-      'employé ne lui est rattachée.';
+      "Aucune fiche employé n'est rattachée à ce compte. Sur ce poste : nom saisi à la création du compte.";
 
   /// La modale « Modifier le mot de passe » (`pwa.profil.mdp_*`).
   static const String mdpAncien = 'Ancien mot de passe';
@@ -189,9 +191,13 @@ abstract final class TextesProfil {
       "La vérification de l'ancien mot de passe et le hachage du nouveau ont "
       'lieu sur ce poste : seul un dérivé PBKDF2 est enregistré, jamais le '
       'mot de passe.';
+
+  /// `pwa.profil.journal_vide` (« Aucune action tracée pour ce compte. »),
+  /// vraie ici au sens strict : la file d'envoi du poste ne conserve pas
+  /// l'utilisateur, aucune action n'est donc tracée AU NOM de ce compte ; le
+  /// journal complet du poste (Journal d'Audit) liste ce que le poste a écrit.
   static const String journalSurCePoste =
-      "Ce poste ne tient pas de journal d'audit : aucune action n'y est "
-      'tracée.';
+      "Aucune action tracée pour ce compte. Sur ce poste, l'utilisateur n'est pas conservé : le journal complet liste les écritures du poste.";
 }
 
 TextStyle get _etiquette =>

@@ -372,13 +372,16 @@ void main() {
     List<dynamic> surcharges = const [],
     DateTime? maintenant,
     AppDatabase? base,
+    Widget? ecran,
+    Size? taille,
   }) async {
     await monterCoquille(
       tester,
       role: 'administrateur',
       droits: droits,
       routeActive: '/tableau-de-bord',
-      enfant: const EcranTableauDeBord(),
+      taille: taille ?? const Size(1600, 1400),
+      enfant: ecran ?? const EcranTableauDeBord(),
       surcharges: [
         baseLocaleProvider.overrideWithValue(base ?? db),
         horlogeTableauDeBordProvider.overrideWithValue(
@@ -608,6 +611,90 @@ void main() {
         expect(ys, orderedEquals([...ys]..sort()), reason: cle);
       }
     });
+
+    testWidgets('une période DEMANDÉE que le sélecteur ne connaît pas retombe '
+        'sur « Ce mois » ET le nomme', (tester) async {
+      await monter(
+        tester,
+        ecran: const EcranTableauDeBord(periodeDemandee: 'siecle'),
+      );
+      expect(
+        tester
+            .widget<Text>(
+              find.descendant(
+                of: find.byKey(const Key('tdb-periode-inconnue')),
+                matching: find.byType(Text),
+              ),
+            )
+            .data,
+        "La période demandée (« siecle ») n'existe pas. Les chiffres ci-dessous sont ceux de la période par défaut, « Ce mois » — ils ne répondent pas à la demande qui a été faite.",
+      );
+      expect(
+        tester
+            .state<FormFieldState<PeriodeTableauDeBord>>(
+              find.byKey(const Key('tdb-periode')),
+            )
+            .value,
+        PeriodeTableauDeBord.mois,
+      );
+    });
+
+    testWidgets('une période demandée CONNUE est appliquée UNE fois, sans '
+        'bandeau ; le sélecteur reste libre ensuite', (tester) async {
+      await monter(
+        tester,
+        ecran: const EcranTableauDeBord(periodeDemandee: 'trimestre'),
+      );
+      expect(find.byKey(const Key('tdb-periode-inconnue')), findsNothing);
+      PeriodeTableauDeBord? choisie() => tester
+          .state<FormFieldState<PeriodeTableauDeBord>>(
+            find.byKey(const Key('tdb-periode')),
+          )
+          .value;
+      expect(choisie(), PeriodeTableauDeBord.trimestre);
+
+      await tester.tap(find.byKey(const Key('tdb-periode')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Ce mois').last);
+      await tester.pumpAndSettle();
+      expect(choisie(), PeriodeTableauDeBord.mois, reason: 'jamais réécrasé');
+    });
+
+    testWidgets('sous `lg`, les huit cartes sont repliées derrière « '
+        'Indicateurs clés (8) » ; à partir de `lg`, la grille', (tester) async {
+      // La barre supérieure déborde sous ~1 100 px (poste de bureau, décision
+      // du PO du 08/10/2026) : ce débordement-là n'est pas l'objet du cas.
+      final ancien = FlutterError.onError;
+      FlutterError.onError = (d) {
+        if (!d.toString().contains('overflowed')) ancien?.call(d);
+      };
+      addTearDown(() => FlutterError.onError = ancien);
+      await monter(tester, taille: const Size(1020, 1800));
+      expect(find.byKey(const Key('tdb-kpis-accordeon')), findsOneWidget);
+      expect(find.text('Indicateurs clés (8)'), findsOneWidget);
+      expect(find.byKey(const Key('tdb-valeur-taux_occupation')), findsNothing);
+      await tester.tap(find.byKey(const Key('tdb-kpis-accordeon-bouton')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const Key('tdb-valeur-taux_occupation')),
+        findsOneWidget,
+      );
+      await tester.tap(find.byKey(const Key('tdb-kpis-accordeon-bouton')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('tdb-valeur-taux_occupation')), findsNothing);
+    });
+
+    testWidgets(
+      'à partir de `lg`, aucun accordéon : la grille des huit cartes',
+      (tester) async {
+        await monter(tester);
+        expect(find.byKey(const Key('tdb-kpis-accordeon')), findsNothing);
+        expect(
+          find.byKey(const Key('tdb-valeur-taux_occupation')),
+          findsOneWidget,
+        );
+      },
+    );
 
     testWidgets('à l’ouverture, la période est celle de la VUE : « Ce mois », '
         'le mois civil ENTIER', (tester) async {
@@ -2110,6 +2197,13 @@ void main() {
       // Et le document est réellement composé (octets PDF, pas une promesse).
       final octets = await etat.pdf();
       expect(String.fromCharCodes(octets.take(5)), '%PDF-');
+      // La rubrique des cartes de la bande, en tête du document
+      // (`accueil_pwa.etat_consolide.rubrique_indicateurs`), imprimable.
+      expect(EtatPilotage.rubriqueIndicateurs, 'Indicateurs consolidés');
+      expect(
+        caracteresNonImprimables(texteTicket(EtatPilotage.rubriqueIndicateurs)),
+        isEmpty,
+      );
     });
   });
 

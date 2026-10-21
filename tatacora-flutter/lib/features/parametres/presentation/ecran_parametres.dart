@@ -1,22 +1,29 @@
 // Vue Blade maîtresse (PA-183) : pwa/transverse/parametres.blade.php
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/di/providers.dart';
 import '../../../core/rbac/garde_acces.dart';
 import '../../transverse/domain/comptes_utilisateurs.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_shadows.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/theme/mesures_transverses.dart' show PaletteTransverse;
+import '../../../core/theme/mesures_transverses_complement.dart';
 import '../../../shared_widgets/bouton_standard.dart';
 import '../data/parametres_depot_local.dart';
 import '../domain/enregistrer_parametres.dart';
 import '../domain/entities/parametre.dart';
+import '../domain/options_systeme.dart';
 import '../domain/resultats_parametres.dart';
 import 'widgets/cadre_modale_parametre.dart';
+import 'widgets/bouton_email_test.dart';
 import 'widgets/champ_mot_de_passe_smtp.dart';
 import 'widgets/champ_parametre.dart';
 import 'widgets/onglet_apparence.dart';
+import 'widgets/onglet_canaux.dart';
 import 'widgets/onglet_espaces_tables.dart';
 import 'widgets/onglet_synchronisation.dart';
 
@@ -37,7 +44,21 @@ import 'widgets/onglet_synchronisation.dart';
 //    écraserait en silence le changement d'un autre Administrateur.
 //  - Refus, onglet « identite » — les invites d'exemple
 //    (« Ex. 3202612345678 ») : l'écran affiche des valeurs, pas des champs.
+////  - REFUS du 21/10/2026, onglet « canaux » (ajout, renommage, désactivation et
+//    réactivation d'un canal de réservation) : le serveur tient ce
+//    référentiel dans `canaux_reservation` et le synchronise nulle part ; ce
+//    poste n'en a ni table ni contrat de synchronisation, et sa fiche de
+//    réservation lit l'énumération `CanalReservation` (le jeu initial). Une
+//    écriture locale ne serait ni lue par la fiche ni envoyée au serveur : elle
+//    divergerait. L'onglet rend ce que le poste sait (les canaux, leur emploi)
+//    et le dit. Changement requis : une table locale, un contrat de
+//    synchronisation (création, renommage, activation) et une fiche qui lit la
+//    table. Jetons, un par bloc refusé :
+//      blade-refuse:transverse/parametres#canaux
+//      blade-refuse:transverse/parametres#modale:parametres.canaux_modale_titre_ajout
+//      blade-refuse:transverse/parametres#modale:parametres.canaux_bouton_desactiver
 //
+
 // Les libellés des champs viennent du serveur (registre `RegistreParametres`) :
 //  libelles-du-serveur:transverse/parametres
 
@@ -236,10 +257,36 @@ class _PageState extends ConsumerState<_Page> {
           ],
         );
       case 'communication':
+        final communication = de((_) => true);
+        // Dans l'ordre de la vue : WhatsApp, la clé API (un secret, rendu en
+        // ligne et refusé comme valeur), le site web sur deux colonnes, puis
+        // le message de bienvenue (porté par les modèles de Notifications).
         return _Grille(
           enfants: [
             const _TitreSection('Canaux de notification (Module M12)'),
-            for (final d in de((_) => true)) _Cellule(enfant: ligne(d)),
+            for (final d in communication.where(
+              (d) => d.cle != 'entreprise_site_web',
+            ))
+              _Cellule(enfant: ligne(d)),
+            const _Cellule(
+              enfant: _ChampRefuse(
+                cle: 'param-cle-api-whatsapp',
+                libelle: _TextesCommunication.cleApiLibelle,
+                mention: _TextesCommunication.cleApiMention,
+              ),
+            ),
+            for (final d in communication.where(
+              (d) => d.cle == 'entreprise_site_web',
+            ))
+              _Cellule(pleine: true, enfant: ligne(d)),
+            const _Cellule(
+              pleine: true,
+              enfant: _ChampRefuse(
+                cle: 'param-message-bienvenue',
+                libelle: _TextesCommunication.messageLibelle,
+                mention: _TextesCommunication.messageMention,
+              ),
+            ),
           ],
         );
       case 'email':
@@ -250,6 +297,12 @@ class _PageState extends ConsumerState<_Page> {
             // « Mot de passe SMTP » : SAISI depuis le 19/10/2026 (décision du
             // PO), écrit dans `poste.json`, jamais dans la base.
             _Cellule(enfant: ChampMotDePasseSmtp(peutEcrire: peutEcrire)),
+            // « Envoyer un email de test » : RÉEL, par la configuration SMTP de
+            // ce poste ; il rapporte ce que le transport a répondu.
+            _Cellule(
+              pleine: true,
+              enfant: BoutonEmailTest(peutEcrire: peutEcrire),
+            ),
           ],
         );
       case 'activation':
@@ -258,17 +311,27 @@ class _PageState extends ConsumerState<_Page> {
           'social': de((d) => d.groupe == 'social'),
           'exploitation': de((d) => d.groupe == 'exploitation'),
         };
-        return _Grille(
-          enfants: [
-            const _TitreSection('Actions sensibles'),
-            for (final d in regroupes['activation']!)
-              _Cellule(enfant: ligne(d)),
-            const _TitreSection('Charges sociales', filet: true),
-            for (final d in regroupes['social']!) _Cellule(enfant: ligne(d)),
-            const _TitreSection('Exploitation', filet: true),
-            for (final d in regroupes['exploitation']!)
-              _Cellule(enfant: ligne(d)),
+        return _OngletActivation(
+          bascules: regroupes['activation']!,
+          peutEcrire: peutEcrire,
+          onBasculer: _basculer,
+          groupes: [
+            (
+              _TextesActivation.sectionSocial,
+              [
+                for (final d in regroupes['social']!)
+                  _Cellule(enfant: ligne(d)),
+              ],
+            ),
+            (
+              _TextesActivation.sectionExploitation,
+              [
+                for (final d in regroupes['exploitation']!)
+                  _Cellule(enfant: ligne(d)),
+              ],
+            ),
           ],
+          versRestauration: () => GoRouter.of(context).go('/import-export'),
         );
       case 'tables':
         // Le référentiel des tables de salle du poste (`tables_local`, seul
@@ -280,25 +343,12 @@ class _PageState extends ConsumerState<_Page> {
       case 'synchronisation':
         // L'onglet refait lui-même la vérification du rôle.
         return const OngletSynchronisation();
+      case 'canaux':
+        // Le jeu initial des canaux du poste, leur emploi relu des
+        // réservations ; l'administration du référentiel est au serveur.
+        return const OngletCanaux();
       default:
-        // Canaux de réservation : leur contenu n'a pas de source sur ce
-        // poste. Les canaux sont un référentiel du serveur
-        // (`canaux_reservation`) sans table locale — le poste ne connaît que
-        // la liste fermée de la fiche de réservation. Dit en une ligne,
-        // jamais un onglet vide.
-        return const _Grille(
-          enfants: [
-            _Cellule(
-              pleine: true,
-              enfant: _Note(
-                cle: Key('param-onglet-sans-source'),
-                texte:
-                    'Cet onglet n’a pas encore de source de données sur ce '
-                    'poste : rien n’y est affiché.',
-              ),
-            ),
-          ],
-        );
+        return const SizedBox.shrink();
     }
   }
 
@@ -377,12 +427,43 @@ class _PageState extends ConsumerState<_Page> {
     );
   }
 
-  void _dire(String message) {
+  /// Une bascule d'activation, appliquée AU CLIC — jamais au bouton
+  /// Enregistrer : « un réglage de sécurité laissé en attente d'un
+  /// enregistrement qu'on oublie donne l'illusion d'une protection qui n'est
+  /// pas posée » (`Parametres::basculerOption`). L'écriture passe par
+  /// l'unique `EnregistrerParametres` (donc par la file d'envoi, que le Journal
+  /// d'Audit de ce poste relit).
+  Future<void> _basculer(DefinitionParametre d) async {
+    final active = !OptionsSysteme.actif(d.cle, d.valeur);
+    final r = await ref
+        .read(enregistrerParametresProvider)
+        .executer(
+          {d.cle: active ? 'true' : 'false'},
+          peutEcrire: ref
+              .read(droitsProvider)
+              .peutEcrire(ModuleTatacora.parametres),
+          auteurId: ref.read(sessionProvider)?.utilisateurId,
+        );
+    if (!mounted) return;
+    switch (r) {
+      case EcritureAcceptee():
+        _dire(
+          active
+              ? _TextesActivation.activee(d.libelle)
+              : _TextesActivation.desactivee(d.libelle),
+        );
+        ref.invalidate(parametresProvider);
+      case EcritureRefusee(:final motif, :final parCle):
+        _dire(parCle[d.cle] ?? motif, erreur: true);
+    }
+  }
+
+  void _dire(String message, {bool erreur = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         key: const Key('param-message'),
         content: Text(message),
-        backgroundColor: AppColors.succes,
+        backgroundColor: erreur ? AppColors.erreur : AppColors.succes,
       ),
     );
   }
@@ -428,8 +509,7 @@ class _EnTete extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xxs), // mt-1.5
           Text(
-            'Identité de l’entreprise, informations légales, canaux de '
-            'communication et paramétrage technique du système.',
+            "Identité de l'entreprise, informations légales, canaux de communication et paramétrage technique du système.",
             style: TextStyle(
               fontFamily: AppTextStyles.police,
               fontSize: TaillesContenu.t15,
@@ -871,6 +951,470 @@ class _Note extends StatelessWidget {
               style: Theme.of(
                 context,
               ).textTheme.labelMedium?.copyWith(color: AppColors.neutre500),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/* ====================================================================== */
+/* Communication — les deux champs refusés, rendus en ligne                */
+/* ====================================================================== */
+
+/// Les mots des deux champs du maître que ce poste ne tient pas comme valeurs
+/// (`pwa.parametres.communication_*`) : un secret (la clé API), et un texte
+/// que portent déjà les modèles de Notifications (le message de bienvenue).
+abstract final class _TextesCommunication {
+  static const String cleApiLibelle = 'Clé API WhatsApp Business';
+  static const String cleApiMention =
+      "Secret technique : n'entrera jamais dans les paramètres système, lisibles par tout profil ayant accès à cet écran — il vit en configuration serveur.";
+  static const String messageLibelle =
+      'Message de bienvenue (notifications automatiques)';
+  static const String messageMention =
+      'Porté par les modèles du module Notifications (un texte par évènement et par canal) : une seconde source de texte ici finirait par diverger de la première.';
+}
+
+/// `groupe-champ` d'un champ refusé comme valeur : le libellé, « — » dans une
+/// pastille mono (`font-mono-tatacora px-2.5 py-1 rounded bg-slate-100
+/// text-slate-400`), puis la mention qui dit pourquoi.
+class _ChampRefuse extends StatelessWidget {
+  const _ChampRefuse({
+    required this.cle,
+    required this.libelle,
+    required this.mention,
+  });
+
+  final String cle;
+  final String libelle;
+  final String mention;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      key: Key(cle),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          libelle,
+          style: TextStyle(
+            fontFamily: AppTextStyles.police,
+            fontSize: TaillesContenu.t15,
+            height: 1.5,
+            fontWeight: FontWeight.w600,
+            color: AppColors.neutre700,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xxs), // mb-1.5
+        Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xsPlus, // px-2.5
+            vertical: AppSpacing.unit, // py-1
+          ),
+          decoration: BoxDecoration(
+            color: AppColors.neutre100,
+            borderRadius: BorderRadius.circular(AppRadius.rounded),
+          ),
+          child: Text(
+            '—',
+            style: TextStyle(
+              fontFamily: AppTextStyles.policeMonospace,
+              fontSize: TaillesContenu.t13,
+              height: 1.5,
+              color: AppColors.neutre400,
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xxs), // mt-1.5
+        Text(
+          mention,
+          style: TextStyle(
+            fontFamily: AppTextStyles.police,
+            fontSize: TaillesContenu.t12,
+            height: 1.5,
+            color: AppColors.neutre400,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/* ====================================================================== */
+/* Activation & Sécurité — les bascules de la vue                          */
+/* ====================================================================== */
+
+/// Les mots de l'onglet (`pwa.parametres.activation_*`, `suppression_rappel_*`,
+/// `risque_*`, `bascule_*`), découpés autour des `<strong>` de la vue comme
+/// ses clés de langue.
+abstract final class _TextesActivation {
+  static const String sectionActions = 'Actions sensibles';
+  static const String sectionSocial = 'Charges sociales';
+  static const String sectionExploitation = 'Exploitation';
+  static const String sectionSuppression = 'Rappel sur la suppression';
+  static const String horsOnglet =
+      'Servi par le registre serveur — le maître ne pose pas de champ dédié pour ce groupe sous cet onglet, et le masquer ailleurs rendrait ses réglages invisibles.';
+
+  static const String introA =
+      "Ces bascules commandent ce que l'application propose";
+  static const String introFortProfils = 'à tous les profils';
+  static const String introB = ', dans ';
+  static const String introFortModules = 'tous les modules';
+  static const String introC =
+      ". Elles ne remplacent pas les droits RBAC, qui disent ce que chaque profil a le droit de faire : les deux s'appliquent, et la plus restrictive gagne.";
+
+  static const String infoA = 'Une action désactivée est';
+  static const String infoFort = 'retirée';
+  static const String infoB =
+      " de l'écran, pas grisée : un bouton grisé invite à cliquer et ne produit qu'un refus. Chaque changement est tracé au journal d'audit.";
+
+  static const String risqueFaible = 'Risque faible';
+  static const String risqueModere = 'Risque modéré';
+  static const String risqueEleve = 'Risque élevé';
+
+  static String activee(String titre) => '$titre — activée.';
+  static String desactivee(String titre) => '$titre — désactivée.';
+
+  static const String rappelA = 'Même activée, la suppression';
+  static const String rappelFort = 'archive';
+  static const String rappelB =
+      " : l'enregistrement complet part aux archives et reste restaurable depuis ";
+  static const String rappelLien = 'Import & Export › Restaurer';
+  static const String rappelC =
+      ". Un élément engagé dans une réservation ou une vente encaissée est refusé à l'archivage — la ligne correspondante deviendrait illisible.";
+}
+
+/// Le risque du maître de chaque bascule (`Parametres::bascules`, un `match` à
+/// clés littérales) : suppression `moyen`, réinitialisation `eleve`, alertes
+/// d'ouverture `faible`, toute autre `eleve`.
+({String libelle, Color fond, Color texte}) _risqueDe(String cle) =>
+    switch (cle) {
+      'activation_suppression' => (
+        libelle: _TextesActivation.risqueModere,
+        fond: PaletteMaitre.ambre50,
+        texte: PaletteTransverse.texteOr,
+      ),
+      'activation_alertes_ouverture' => (
+        libelle: _TextesActivation.risqueFaible,
+        fond: AppColors.badgeVertFond,
+        texte: PaletteTransverse.texteVert,
+      ),
+      _ => (
+        libelle: _TextesActivation.risqueEleve,
+        fond: AppColors.badgeRougeFond,
+        texte: PaletteTransverse.texteRouge,
+      ),
+    };
+
+TextStyle _styleActivation(
+  double taille, {
+  FontWeight? poids,
+  Color couleur = AppColors.neutre500,
+}) => TextStyle(
+  fontFamily: AppTextStyles.police,
+  fontSize: taille,
+  height: 1.5,
+  fontWeight: poids,
+  color: couleur,
+);
+
+/// L'onglet « Activation & Sécurité » : titre, phrase d'introduction,
+/// encadré bleu, une rangée à bascule par option (pastille de risque, titre,
+/// aide du registre), puis les groupes « Charges sociales » et
+/// « Exploitation » (servis par le registre) et le rappel sur la suppression.
+class _OngletActivation extends StatelessWidget {
+  const _OngletActivation({
+    required this.bascules,
+    required this.peutEcrire,
+    required this.onBasculer,
+    required this.groupes,
+    required this.versRestauration,
+  });
+
+  final List<DefinitionParametre> bascules;
+  final bool peutEcrire;
+  final Future<void> Function(DefinitionParametre) onBasculer;
+  final List<(String, List<Widget>)> groupes;
+  final VoidCallback versRestauration;
+
+  @override
+  Widget build(BuildContext context) {
+    const fort = TextStyle(fontWeight: FontWeight.bold);
+    Widget separe(Widget enfant) => Container(
+      margin: const EdgeInsets.only(top: AppSpacing.mdPlus), // mt-5
+      padding: const EdgeInsets.only(top: AppSpacing.md), // pt-4
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: AppColors.neutre100)),
+      ),
+      child: enfant,
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.md), // mb-4
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const _TitreSection(_TextesActivation.sectionActions),
+              Text.rich(
+                TextSpan(
+                  style: _styleActivation(TaillesContenu.t15),
+                  children: const [
+                    TextSpan(text: _TextesActivation.introA),
+                    TextSpan(text: ' '),
+                    TextSpan(
+                      text: _TextesActivation.introFortProfils,
+                      style: fort,
+                    ),
+                    TextSpan(text: _TextesActivation.introB),
+                    TextSpan(
+                      text: _TextesActivation.introFortModules,
+                      style: fort,
+                    ),
+                    TextSpan(text: _TextesActivation.introC),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        Container(
+          key: const Key('param-activation-info'),
+          margin: const EdgeInsets.only(bottom: AppSpacing.md), // mb-4
+          padding: MesuresBasculeActivation.margeInfo,
+          decoration: BoxDecoration(
+            color: AppColors.badgeBleuFond,
+            borderRadius: BorderRadius.circular(AppRadius.roundedLg),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(top: AppSpacing.demi), // mt-0.5
+                child: Icon(
+                  Icons.info_outline,
+                  size: MesuresBasculeActivation.iconeInfo,
+                  color: AppColors.info,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.xsPlus), // gap-2.5
+              Expanded(
+                child: Text.rich(
+                  TextSpan(
+                    style: _styleActivation(
+                      TaillesContenu.t13,
+                      couleur: PaletteMaitre.bleu900,
+                    ),
+                    children: const [
+                      TextSpan(text: _TextesActivation.infoA),
+                      TextSpan(text: ' '),
+                      TextSpan(text: _TextesActivation.infoFort, style: fort),
+                      TextSpan(text: _TextesActivation.infoB),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        for (final d in bascules)
+          _Bascule(
+            definition: d,
+            peutEcrire: peutEcrire,
+            onBasculer: () => onBasculer(d),
+          ),
+        for (final (titre, cellules) in groupes)
+          separe(
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _TitreSection(titre),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.sm), // mb-3
+                  child: Text(
+                    _TextesActivation.horsOnglet,
+                    style: _styleActivation(
+                      TaillesContenu.t12,
+                      couleur: AppColors.neutre400,
+                    ),
+                  ),
+                ),
+                _Grille(enfants: cellules),
+              ],
+            ),
+          ),
+        separe(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const _TitreSection(_TextesActivation.sectionSuppression),
+              Text.rich(
+                TextSpan(
+                  style: _styleActivation(TaillesContenu.t15),
+                  children: [
+                    const TextSpan(text: _TextesActivation.rappelA),
+                    const TextSpan(text: ' '),
+                    const TextSpan(
+                      text: _TextesActivation.rappelFort,
+                      style: fort,
+                    ),
+                    const TextSpan(text: _TextesActivation.rappelB),
+                    WidgetSpan(
+                      alignment: PlaceholderAlignment.baseline,
+                      baseline: TextBaseline.alphabetic,
+                      child: InkWell(
+                        key: const Key('param-rappel-restaurer'),
+                        onTap: versRestauration,
+                        child: Text(
+                          _TextesActivation.rappelLien,
+                          style: _styleActivation(
+                            TaillesContenu.t15,
+                            poids: FontWeight.w600,
+                            couleur: AppColors.navy,
+                          ).copyWith(decoration: TextDecoration.underline),
+                        ),
+                      ),
+                    ),
+                    const TextSpan(text: _TextesActivation.rappelC),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Une rangée de bascule (`flex items-start gap-3 rounded-lg border
+/// border-slate-200 p-3.5`) : l'interrupteur `role="switch"`, le titre et la
+/// pastille de risque, l'aide du registre — et, quand l'aide du serveur
+/// promet plus que ce poste ne fait, la correction « Sur ce poste : … ».
+class _Bascule extends StatelessWidget {
+  const _Bascule({
+    required this.definition,
+    required this.peutEcrire,
+    required this.onBasculer,
+  });
+
+  final DefinitionParametre definition;
+  final bool peutEcrire;
+  final VoidCallback onBasculer;
+
+  @override
+  Widget build(BuildContext context) {
+    final active = OptionsSysteme.actif(definition.cle, definition.valeur);
+    final risque = _risqueDe(definition.cle);
+    return Container(
+      key: Key('param-bascule-${definition.cle}'),
+      margin: const EdgeInsets.only(bottom: AppSpacing.xsPlus), // space-y-2.5
+      padding: const EdgeInsets.all(AppSpacing.smPlus), // p-3.5
+      decoration: BoxDecoration(
+        border: Border.all(color: AppColors.neutre200),
+        borderRadius: BorderRadius.circular(AppRadius.roundedLg),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.demi), // mt-0.5
+            child: Semantics(
+              toggled: active,
+              label: definition.libelle,
+              child: GestureDetector(
+                key: Key('param-bascule-interrupteur-${definition.cle}'),
+                // `disabled` sans le droit d'écrire : l'interrupteur se voit,
+                // il ne répond pas.
+                onTap: peutEcrire ? onBasculer : null,
+                child: Container(
+                  width: MesuresBasculeActivation.largeur,
+                  height: MesuresBasculeActivation.hauteur,
+                  decoration: BoxDecoration(
+                    color: active
+                        ? AppColors.succes
+                        : MesuresBasculeActivation.pisteInactive,
+                    borderRadius: BorderRadius.circular(AppRadius.roundedFull),
+                  ),
+                  child: Stack(
+                    children: [
+                      Positioned(
+                        top: MesuresBasculeActivation.haut,
+                        left: active
+                            ? MesuresBasculeActivation.decalageActif
+                            : MesuresBasculeActivation.decalageInactif,
+                        child: Container(
+                          width: MesuresBasculeActivation.curseur,
+                          height: MesuresBasculeActivation.curseur,
+                          decoration: const BoxDecoration(
+                            color: AppColors.neutre0,
+                            shape: BoxShape.circle,
+                            boxShadow: AppShadows.tailwindSm,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm), // gap-3
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: AppSpacing.xs, // gap-2
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      definition.libelle,
+                      style: _styleActivation(
+                        TaillesContenu.t15,
+                        poids: FontWeight.w600,
+                        couleur: AppColors.neutre700,
+                      ),
+                    ),
+                    Container(
+                      padding: MesuresBasculeActivation.margePastille,
+                      decoration: BoxDecoration(
+                        color: risque.fond,
+                        borderRadius: BorderRadius.circular(AppRadius.rounded),
+                      ),
+                      child: Text(
+                        risque.libelle,
+                        style: _styleActivation(
+                          TaillesContenu.t11,
+                          poids: FontWeight.bold,
+                          couleur: risque.texte,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (definition.aide != null) ...[
+                  const SizedBox(height: AppSpacing.demi), // mt-0.5
+                  Text(
+                    aideAffichee(definition.aide!),
+                    style: _styleActivation(TaillesContenu.t13),
+                  ),
+                ],
+                if (definition.correction != null) ...[
+                  const SizedBox(height: AppSpacing.unit),
+                  Text(
+                    definition.correction!,
+                    key: Key('param-correction-${definition.cle}'),
+                    style: _styleActivation(
+                      TaillesContenu.t12,
+                      couleur: AppColors.neutre700,
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
         ],

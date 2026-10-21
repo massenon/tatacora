@@ -36,6 +36,7 @@ class TableCarte extends StatelessWidget {
   const TableCarte({
     super.key,
     required this.lignes,
+    this.onModifier,
     this.onModifierPrix,
     this.onLierAuStock,
     this.onRetirer,
@@ -44,6 +45,9 @@ class TableCarte extends StatelessWidget {
   });
 
   final List<LigneCarte> lignes;
+
+  /// « Modifier » la boisson (l.438-441) : renomme et reclasse. Propre au bar.
+  final ValueChanged<LigneCarte>? onModifier;
 
   final ValueChanged<LigneCarte>? onModifierPrix;
 
@@ -71,12 +75,14 @@ class TableCarte extends StatelessWidget {
       );
     }
 
+    final modifier = onModifier;
     final modifierPrix = onModifierPrix;
     final lierAuStock = onLierAuStock;
     final retirer = onRetirer;
     final remettre = onRemettre;
     final historique = onHistorique;
     final actions =
+        modifier != null ||
         modifierPrix != null ||
         lierAuStock != null ||
         retirer != null ||
@@ -279,6 +285,15 @@ class TableCarte extends StatelessWidget {
                                       ? 'Modifier le lien'
                                       : 'Lier au stock',
                                 ),
+                              ),
+                              const SizedBox(width: AppSpacing.unit),
+                            ],
+                            if (modifier != null) ...[
+                              OutlinedButton(
+                                key: Key('carte-modifier-${l.id}'),
+                                onPressed: () => modifier(l),
+                                // `bouton_modifier_boisson`.
+                                child: const Text('Modifier'),
                               ),
                               const SizedBox(width: AppSpacing.unit),
                             ],

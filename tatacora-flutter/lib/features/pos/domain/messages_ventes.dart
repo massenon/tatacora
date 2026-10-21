@@ -58,6 +58,29 @@ abstract final class MessagesVentes {
       'chambre n\'y porte de note. Utilisez le point de vente des clients '
       'hébergés.';
 
+  /// `ventes.deja_annulee`.
+  static String dejaAnnulee(String numero) =>
+      'La vente $numero est déjà annulée.';
+
+  /// `pos_pwa.comptant.refus_motif_obligatoire` (le même mot que
+  /// `pos_pwa.journal.refus_motif_obligatoire`).
+  static const String motifAnnulationObligatoire =
+      "Le motif de l'annulation est obligatoire : une vente annulée reste au journal, et le journal doit dire pourquoi.";
+
+  /// `pos_pwa.journal.refus_vente_absente`.
+  static const String venteAbsente = "Cette vente n'existe plus au registre.";
+
+  /// `ventes.libelle_contrepassation` — le libellé de la pièce inverse.
+  static String libelleContrepassation(String numero) =>
+      'Annulation vente $numero';
+
+  /// `pos_pwa.journal.vente_annulee`. (Le comptoir du serveur ajoute « Les
+  /// sorties de stock sont compensées » : ce poste n'écrit aucune sortie, le
+  /// serveur compense à la réception de l'annulation — la phrase serait fausse
+  /// ici.)
+  static String venteAnnulee(String numero) =>
+      'Vente $numero annulée. Elle reste au journal.';
+
   /// `ventes.libelle_ecriture` — seul le gabarit est celui du serveur ; voir
   /// [libelleDeLaPiece] pour ce que le poste y met.
   static String libelleDeLaPiece(String reference) => 'Vente $reference';

@@ -41,12 +41,15 @@
 // Articles en stock » : dixième vue qui inclut le partiel, une seule modale
 // Flutter. Même raison, même précédent ; ce n'est pas un refus. Le choix PDF y
 // est refusé avec son message, le tableur (CSV) est présélectionné.
-// Le pilotage consolidé de la vue d'accueil (livewire/accueil, l.873 et
-// l.1748-1749) l'ouvre aussi depuis son bouton « Exporter » (12/10/2026), titre
-// « Exporter le tableau de bord », la note des rapports en sous-titre : onzième
-// vue qui inclut le partiel, une seule modale Flutter. Le PDF y est produit, le
-// tableur refusé avec son message. Le chemin est écrit SANS son préfixe : ce
-// fichier n'est pas un porteur de la vue d'accueil (piège 13).
+// Le pilotage consolidé de la vue d'accueil (pwa/livewire/accueil.blade.php,
+// l.873 et l.1748-1749) l'ouvre aussi depuis son bouton « Exporter »
+// (12/10/2026), titre « Exporter le tableau de bord », la note des rapports en
+// sous-titre : onzième vue qui inclut le partiel, une seule modale Flutter. Le
+// PDF y est produit, le tableur refusé avec son message. ⚠ RÉVISÉ le
+// 21/10/2026 (ordre du PO « tout doit être au complet ») : le chemin est écrit
+// AVEC son préfixe, ce fichier PORTE donc la modale d'export de la vue d'accueil
+// — il la rend réellement (les sept libellés du partiel sont ses `TextesExport`)
+// et la mesure doit la compter, comme pour les seize autres vues.
 // L'écran Clients & Créances (pwa/crm/clients-creances.blade.php, l.811-816)
 // l'ouvre aussi depuis son bouton « Exporter » (14/10/2026, PO), par
 // `barre_exports_clients.dart` : titre « Exporter — Clients & Créances », le

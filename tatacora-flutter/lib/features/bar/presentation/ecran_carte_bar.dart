@@ -18,6 +18,7 @@ import 'widgets/barre_exports_carte.dart';
 import '../../../shared_widgets/modale_export.dart';
 import 'widgets/modale_historique_prix.dart';
 import 'widgets/modale_lien_stock.dart';
+import 'widgets/modale_modifier_boisson.dart';
 import 'widgets/modale_nouvelle_boisson.dart';
 import 'widgets/modale_prix_boisson.dart';
 import 'widgets/modale_retrait_carte.dart';
@@ -549,6 +550,9 @@ class _PanneauCarte extends StatelessWidget {
           ),
           constructeur: (_, page) => TableCarte(
             lignes: page,
+            onModifier: peutEcrire
+                ? (l) => ouvrirModaleModifierBoisson(context, l)
+                : null,
             onModifierPrix: peutEcrire
                 ? (l) => ouvrirModalePrixBoisson(context, l)
                 : null,

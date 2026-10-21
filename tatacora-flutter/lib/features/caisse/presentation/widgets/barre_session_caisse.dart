@@ -3,7 +3,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/format/formats.dart';
 import '../../../../core/rbac/garde_acces.dart';
@@ -15,6 +14,8 @@ import '../../../../shared_widgets/bouton_standard.dart';
 import '../../../pos/domain/entities/mode_reglement.dart';
 import '../../../pos/domain/entities/panier.dart';
 import '../../../pos/presentation/providers_pos.dart' show paniersProvider;
+import '../../../pos/presentation/widgets/modales_comptant.dart'
+    show ouvrirJournalDuJour;
 import '../../domain/entities/session_caisse.dart';
 import '../../domain/messages_caisse.dart';
 import '../../domain/montant_caisse.dart';
@@ -55,8 +56,8 @@ import 'modale_ouverture_caisse.dart';
 /// * ⚠ RENDUS depuis le 14/10/2026 (consigne du PO) : « N vente(s) »,
 ///   « CA … », « Encaissé … » et « En note … » (l.112-131), calculés par
 ///   [compteursDeSession] sur les paniers rattachés à la session ; et
-///   « Journal du jour » (l.134-136), qui ouvre l'écran Historique des ventes
-///   faute de modale portée (écart nommé à l'appel). Note : la vue ne compte
+///   « Journal du jour » (l.134-136), qui ouvre SA modale depuis le 21/10/2026
+///   (`ouvrirJournalDuJour`, ventes de la session, « annuler » par ligne). Note : la vue ne compte
 ///   que des ventes rattachées, et ce poste a des ventes d'avant la v18 qui ne
 ///   le sont pas ; la clôture les DIT (`MessagesCaisse.ventesSansSession`).
 /// * « Aucune vente n'est possible tant que la caisse n'est pas ouverte. »
@@ -187,8 +188,10 @@ Widget _pastille(Color couleur) => Container(
 ///
 /// Sur ce poste, une vente de la session est un panier CLÔTURÉ dont
 /// `sessionEncaissementId` désigne la session (écrit à la clôture depuis la
-/// v18) ; un panier clôturé ne s'annule pas (l'avoir est une autre pièce). Le
-/// montant est `montantCloture`, figé à la clôture. Ajouté le 14/10/2026
+/// v18). Depuis le 21/10/2026 elle peut être ANNULÉE (`PanierDao.annulerVente`) :
+/// elle reste alors comptée dans « N vente(s) » et sort du CA, de « Encaissé » et
+/// de « En note », comme `estAnnulee()` de la vue. Le montant est
+/// `montantCloture`, figé à la clôture. Ajouté le 14/10/2026
 /// (consigne du PO, NOUVELLE_INSTRUCTION1 §2) : le « reste à livrer » de la
 /// doc d'en-tête est levé pour les compteurs.
 ({int nombre, int chiffreAffaires, int encaisse, int enNote})
@@ -198,9 +201,12 @@ compteursDeSession(List<Panier> paniers, String sessionId) {
   var encaisse = 0;
   var enNote = 0;
   for (final p in paniers) {
-    if (p.statut != StatutPanier.cloture) continue;
+    if (p.statut == StatutPanier.ouvert) continue;
     if (p.sessionEncaissementId != sessionId) continue;
     nombre++;
+    // `if ($venteSession->estAnnulee()) { continue; }` (l.115) : comptée,
+    // jamais additionnée.
+    if (p.statut == StatutPanier.annule) continue;
     final montant = p.montantCloture ?? p.total;
     ca += montant;
     final mode = ModeReglement.values
@@ -323,14 +329,13 @@ class _Ouverte extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(child: informations),
-        // « Journal du jour » (vue l.135-136). La vue ouvre une modale des
-        // ventes de la session ; ce poste ne la porte pas encore : le bouton
-        // ouvre l'écran Historique des ventes, qui liste ces ventes. Jamais
-        // un bouton inerte (Article 3.3). Écart nommé le 14/10/2026.
+        // « Journal du jour » (vue l.135-136) : la modale des ventes de la
+        // session, portée le 21/10/2026 (elle ouvrait jusque-là l'écran
+        // Historique des ventes, faute de modale — écart du 14/10/2026 levé).
         _BoutonContour(
           cle: const Key('caisse-journal'),
           libelle: MessagesCaisse.journalDuJour,
-          onPressed: () => context.go('/historique-ventes'),
+          onPressed: () => ouvrirJournalDuJour(context),
         ),
         // `gap-x-6` entre les deux boutons de droite.
         const SizedBox(width: AppSpacing.xs),

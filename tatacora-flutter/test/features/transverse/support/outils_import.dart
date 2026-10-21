@@ -19,6 +19,8 @@ import 'package:tatacora_flutter/features/restaurant/data/restaurant_dao.dart';
 import 'package:tatacora_flutter/features/restaurant/domain/entities/plat.dart';
 import 'package:tatacora_flutter/features/stocks/data/stocks_dao.dart';
 import 'package:tatacora_flutter/features/stocks/domain/entities/etat_stock.dart';
+import 'package:tatacora_flutter/features/synchronisation/presentation/providers_synchronisation.dart'
+    show cheminConfigurationPosteProvider;
 
 /// L'auteur de toutes les saisies d'essai.
 const String auteurImport = 'u-import';
@@ -282,12 +284,18 @@ Future<AppDatabase> baseImport() async {
 
 /// Les surcharges d'un conteneur (ou d'un écran) monté sur [db], avec une
 /// session qui porte [droits].
+///
+/// [cheminPoste] : le `poste.json` fictif dont le dossier héberge `sauvegardes/`
+/// (les sauvegardes conservées du poste). Absent, un dossier SANS entrée-sortie
+/// asynchrone : le temps d'un test de widget est simulé.
 List<Override> surchargesImport(
   AppDatabase db, {
   Map<String, String> droits = droitsImportComplets,
+  String cheminPoste = '/inexistant/poste.json',
 }) {
   final garde = GardeAcces.depuisJson(droits);
   return [
+    cheminConfigurationPosteProvider.overrideWithValue(() async => cheminPoste),
     baseLocaleProvider.overrideWithValue(db),
     droitsProvider.overrideWithValue(garde),
     sessionProvider.overrideWithBuild(

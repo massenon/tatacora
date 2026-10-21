@@ -71,6 +71,27 @@ String depuisCentiemes(int centiemes) {
   return '${negatif ? '-' : ''}$unites.${reste.toString().padLeft(2, '0')}';
 }
 
+/// Le coût [brut] (« 833.3333 ») arrondi au centième SUPÉRIEUR OU ÉGAL à la
+/// demi-unité (demi vers le haut), ou `null` s'il est illisible ou s'arrondit à
+/// zéro. Calculé sur les chiffres de la chaîne, jamais par un `double`.
+///
+/// Sert au prix unitaire PRÉ-REMPLI d'un bon de commande : le serveur y pose
+/// le coût moyen pondéré tel quel, et la ligne de commande ne porte que deux
+/// décimales.
+String? arrondirAuCentieme(String brut) {
+  final texte = brut.trim();
+  final m = RegExp(r'^(\d+)(?:\.(\d+))?$').firstMatch(texte);
+  if (m == null) return null;
+
+  final unites = int.tryParse(m.group(1)!);
+  if (unites == null) return null;
+  final decimales = (m.group(2) ?? '').padRight(3, '0');
+  var centiemes = unites * _echelle + int.parse(decimales.substring(0, 2));
+  if (int.parse(decimales[2]) >= 5) centiemes += 1;
+
+  return centiemes <= 0 ? null : depuisCentiemes(centiemes);
+}
+
 /// `a - b`, ou `null` si l'un des deux est illisible.
 String? soustraire(String a, String b) {
   final ca = enCentiemes(a);

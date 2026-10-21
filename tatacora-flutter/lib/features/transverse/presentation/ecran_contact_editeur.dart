@@ -10,7 +10,9 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/di/providers.dart';
+import '../../../core/fichiers/selecteur_fichiers.dart';
 import '../../../core/theme/mesures_transverses.dart';
+import '../data/captures_editeur.dart';
 import '../data/envoi_messages_editeur.dart';
 import '../domain/messages_editeur.dart';
 import 'providers_contact_editeur.dart';
@@ -114,6 +116,9 @@ abstract final class TextesContact {
   static const String envoisSousTitre =
       'Vos 50 derniers envois. « Transmis » signifie que le courriel est réellement parti vers l\'éditeur.';
   static const String envoisVide = 'Aucun envoi depuis ce compte.';
+
+  /// `pwa.contact.envois_capture`.
+  static const String envoisCapture = '1 capture jointe';
 
   static const String envoisStatutTransmis = 'Transmis';
   static const String envoisStatutATransmettre = "En attente d'envoi";
@@ -262,6 +267,16 @@ Future<void> _contacter(
       auteurId: session?.utilisateurId,
       auteurLogin: session?.login,
     ),
+    choisirCapture: () => ref
+        .read(selecteurFichiersProvider)
+        .ouvrirImage(extensions: BornesCapture.extensions),
+    joindreCapture: (ecrit, capture) async {
+      await service.captures.joindre(
+        ecrit.id,
+        nom: capture.nom,
+        octets: capture.octets,
+      );
+    },
   );
   if (ecrit == null) return;
   revision.avancer();
@@ -329,6 +344,8 @@ class _ColonneFormulaires extends ConsumerWidget {
       vertical: AppSpacing.xsPlus,
     );
     final envois = ref.watch(envoisDuCompteProvider);
+    final avecCapture =
+        ref.watch(envoisAvecCaptureProvider).value ?? const <String>{};
     final file = ref.watch(etatFileEditeurProvider).value;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -404,7 +421,10 @@ class _ColonneFormulaires extends ConsumerWidget {
                   children: [
                     for (var i = 0; i < value.length; i++) ...[
                       if (i > 0) const Divider(height: 1, color: Ardoise.c100),
-                      _LigneEnvoi(envoi: value[i]),
+                      _LigneEnvoi(
+                        envoi: value[i],
+                        avecCapture: avecCapture.contains(value[i].id),
+                      ),
                     ],
                   ],
                 ),
@@ -445,9 +465,12 @@ class _ColonneFormulaires extends ConsumerWidget {
 /// Une ligne de « Vos envois » : `px-5 py-3.5`, pastille BUG / MESSAGE, objet,
 /// extrait du message (180 caractères), date `d/m/Y H:i` et statut.
 class _LigneEnvoi extends StatelessWidget {
-  const _LigneEnvoi({required this.envoi});
+  const _LigneEnvoi({required this.envoi, this.avecCapture = false});
 
   final MessageEditeur envoi;
+
+  /// `@if ($envoi->capture_nom)` : « · 1 capture jointe ».
+  final bool avecCapture;
 
   @override
   Widget build(BuildContext context) {
@@ -527,6 +550,10 @@ class _LigneEnvoi extends StatelessWidget {
                     ),
                     children: [
                       TextSpan(text: '${dateHeureEditeur(envoi.creeLe)} · '),
+                      if (avecCapture)
+                        const TextSpan(
+                          text: '${TextesContact.envoisCapture} · ',
+                        ),
                       TextSpan(
                         text: statut,
                         style: TextStyle(color: couleurStatut),

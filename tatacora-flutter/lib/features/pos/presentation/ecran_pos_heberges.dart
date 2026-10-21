@@ -14,6 +14,7 @@ import '../../hebergement/domain/entities/reservation.dart';
 import '../../hebergement/presentation/providers_hebergement.dart';
 import '../../restaurant/presentation/widgets/corps_carte_commun.dart'
     show styleContenuCarte;
+import '../data/piece_de_la_vente.dart' show modulesEncaissables;
 import '../domain/entities/article_vendable.dart';
 import '../domain/entities/panier.dart';
 import '../domain/repositories/panier_repository.dart';
@@ -66,8 +67,9 @@ import 'widgets/panier_heberges.dart';
 ///
 /// - **La ligne « Hébergement … FCFA, hors panier »** de l'ancienne liste des
 ///   séjours : la vue n'en a pas, le montant est dans la modale de clôture.
-/// - **Les deux motifs de refus propres à la PWA** (`prestation_refusee`,
-///   `refus_*`) : voir [CatalogueHeberges] et `ModaleClotureSejour`.
+/// - Les motifs de refus propres à la PWA : `prestation_refusee` est rendu
+///   (carte grisée et refus nommé, voir [CatalogueHeberges]) ; les `refus_*`
+///   de la clôture sont ceux du dépôt (`ModaleClotureSejour`).
 class EcranPosHeberges extends ConsumerWidget {
   const EcranPosHeberges({super.key});
 
@@ -184,6 +186,13 @@ class EcranPosHeberges extends ConsumerWidget {
     ArticleVendable article,
   ) async {
     if (reservation == null) return;
+    // `PosHeberges::ajouterAuPanier` : un module non encaissable est NOMMÉ à
+    // l'écran (PA-24), jamais un échec silencieux — et le panier du séjour
+    // n'est pas ouvert pour un clic qui ne peut rien y ajouter.
+    if (!modulesEncaissables.contains(article.module.code)) {
+      _signaler(context, CatalogueHeberges.prestationRefusee);
+      return;
+    }
     final gerer = ref.read(gererPanierProvider);
     try {
       final cible =

@@ -245,6 +245,26 @@ class _ModaleFicheState extends ConsumerState<_ModaleFiche> {
                     errorText: _parChamp['libelle'],
                   ),
                 ),
+                if (_modification && widget.fiche!.compositionProvisoire) ...[
+                  const SizedBox(height: AppSpacing.md),
+                  // `recette_bandeau_provisoire` — la marque « composition
+                  // provisoire » de la fiche (voir `Recette.compositionProvisoire`).
+                  Container(
+                    key: const Key('modale-fiche-bandeau-provisoire'),
+                    padding: const EdgeInsets.all(AppSpacing.xsPlus),
+                    decoration: BoxDecoration(
+                      color: PaletteMaitre.ambre50,
+                      borderRadius: BorderRadius.circular(AppRadius.roundedLg),
+                      border: Border.all(color: PaletteMaitre.ambre200),
+                    ),
+                    child: Text(
+                      "Composition PROVISOIRE : ces quantités ont été posées pour débloquer le service, personne ne les a pesées. Corrigez-les et enregistrez — la marque tombera d'elle-même.",
+                      style: TextesModaleRestaurant.aide.copyWith(
+                        color: PaletteMaitre.ambre900,
+                      ),
+                    ),
+                  ),
+                ],
                 if (_modification) ...[
                   const SizedBox(height: AppSpacing.md),
                   _CoutEnregistre(fiche: widget.fiche!),
@@ -253,11 +273,13 @@ class _ModaleFicheState extends ConsumerState<_ModaleFiche> {
                 _enTeteComposition(),
                 const SizedBox(height: AppSpacing.unit),
                 const Text(
-                  // `recette_composition_aide`.
-                  'Chaque ingrédient est un article de stock réel, avec la '
-                  // « Le maître propose ici un texte libre… (PA-23) » retiré
-                  // de l'écran le 14/10/2026 (directive du PO).
-                  'quantité consommée pour UNE portion.',
+                  // `recette_composition_aide`, au mot. La seconde phrase
+                  // (« Le maître propose ici un texte libre… (PA-23) ») avait
+                  // été retirée le 14/10/2026 (directive du PO : aucune note de
+                  // conception à l'écran) ; l'ordre du 21/10/2026 — « tout doit
+                  // être au complet » — la rétablit parce que la vue l'imprime.
+                  // Contradiction à arbitrer par le Lead, signalée au rapport.
+                  'Chaque ingrédient est un article de stock réel, avec la quantité consommée pour UNE portion. Le maître propose ici un texte libre : il ne permettrait aucune sortie de stock, et la fiche ne servirait à rien (PA-23).',
                   style: TextesModaleRestaurant.aide,
                 ),
                 const SizedBox(height: AppSpacing.xs),
@@ -436,7 +458,7 @@ class _CoutEnregistre extends StatelessWidget {
         children: [
           Text(
             // `recette_cout_actuel`, en capitales comme la vue (`uppercase`).
-            'COÛT MATIÈRE ENREGISTRÉ',
+            'Coût matière enregistré'.toUpperCase(),
             style: TextesModaleRestaurant.aide.copyWith(
               fontWeight: FontWeight.w600,
             ),
@@ -459,9 +481,7 @@ class _CoutEnregistre extends StatelessWidget {
             ),
           const Text(
             // `recette_cout_actuel_aide`.
-            'Calculé depuis la composition ci-dessous et le coût moyen pondéré '
-            'de chaque article (M6). Jamais saisi — il se recalcule à '
-            'l’enregistrement.',
+            "Calculé depuis la composition ci-dessous et le coût moyen pondéré de chaque article (M6). Jamais saisi — il se recalcule à l'enregistrement.",
             style: TextesModaleRestaurant.aide,
           ),
         ],

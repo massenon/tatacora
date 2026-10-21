@@ -20,9 +20,9 @@ import 'dialogue_detail_vente.dart';
 ///    n'existe sur ce poste. La colonne N° porte la référence réelle de la
 ///    vente, abrégée ; en fabriquer un serait pire que de ne pas en avoir
 ///    (deux postes hors ligne attribueraient les mêmes numéros).
-///  - **Le badge « stock ✕ »** : ce poste n'écrit aucun mouvement de stock
-///    (PA-134) ; un badge qui ne s'affiche jamais est indistinguable d'un
-///    écran cassé.
+///  - Le badge « stock ✕ » EST rendu depuis le 21/10/2026 : il lit le
+///    catalogue d'AUJOURD'HUI (`CatalogueDao.referencesSansLienDeStock`), là où
+///    le serveur l'écrit à la vente (`stock_non_impacte`) — écart nommé.
 ///  - **La recherche par chambre ou par numéro de facture** : un panier de
 ///    séjour porte la réservation, pas l'unité ; c'est le registre des
 ///    factures qui répond à la seconde question.
@@ -206,16 +206,31 @@ class _Statut extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (vente.estAnnulee) {
-      return const PastilleStatut.refus('annulée');
-    }
-    return switch (vente.encaisse) {
-      true => const PastilleStatut.succes('encaissée'),
-      false => const PastilleStatut.alerte('en note'),
-      // Le quatrième cas, que la vue n'a pas : ni encaissée ni en note. Le
-      // ranger dans l'une des deux affirmerait un état non vérifié.
-      null => const PastilleStatut.alerte('règlement inconnu'),
-    };
+    final principal = vente.estAnnulee
+        ? const PastilleStatut.refus('annulée')
+        : switch (vente.encaisse) {
+            true => const PastilleStatut.succes('encaissée'),
+            false => const PastilleStatut.alerte('en note'),
+            // Le quatrième cas, que la vue n'a pas : ni encaissée ni en note.
+            // Le ranger dans l'une des deux affirmerait un état non vérifié.
+            null => const PastilleStatut.alerte('règlement inconnu'),
+          };
+
+    // `ml-1 px-2 py-0.5 rounded text-[11px] font-semibold bg-red-50
+    // text-red-700` : le badge « stock ✕ » — `badge_stock`, son infobulle
+    // `badge_stock_infobulle`.
+    if (!vente.aDesLignesSansImpactStock) return principal;
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: AppSpacing.unit,
+      children: [
+        principal,
+        const Tooltip(
+          message: 'Articles sans lien au stock : la vente n’a rien décrémenté',
+          child: PastilleStatut.refus('stock ✕', key: Key('vente-badge-stock')),
+        ),
+      ],
+    );
   }
 }
 

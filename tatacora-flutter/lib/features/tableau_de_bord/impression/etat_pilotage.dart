@@ -62,6 +62,10 @@ final class EtatPilotage {
   /// Les en-têtes du maître, au mot.
   static const List<String> entetes = ['Rubrique', 'Indicateur', 'Valeur'];
 
+  /// `accueil_pwa.etat_consolide.rubrique_indicateurs` : la rubrique des cartes
+  /// de la bande, que ce document imprime en tête, au-dessus des cartes.
+  static const String rubriqueIndicateurs = 'Indicateurs consolidés';
+
   Future<Uint8List> pdf() async {
     final document = pw.Document();
     final editeLe = DateTime.now();
@@ -85,6 +89,11 @@ final class EtatPilotage {
           edition: editeLe,
         ),
         build: (c) => [
+          pw.Text(
+            texteTicket(rubriqueIndicateurs),
+            style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.SizedBox(height: 4),
           pw.Row(
             children: [
               for (final e in kpis.entries)

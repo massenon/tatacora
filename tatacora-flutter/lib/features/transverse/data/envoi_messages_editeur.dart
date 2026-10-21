@@ -37,8 +37,10 @@ import 'package:mailer/mailer.dart';
 import 'package:mailer/smtp_server.dart';
 
 import '../../../core/config/environnement.dart';
+import '../../../core/impression/entete_etablissement.dart' show ClesEntete;
 import '../../parametres/data/parametres_dao.dart';
 import '../domain/messages_editeur.dart';
+import 'captures_editeur.dart';
 import 'configuration_poste.dart';
 import 'messages_editeur_dao.dart';
 
@@ -101,6 +103,22 @@ abstract final class TextesEnvoiEditeur {
       '$detail';
 }
 
+/// Les phrases de « Envoyer un email de test » (Paramètres, Email (SMTP)) —
+/// `pwa.parametres.email_test_*`, au mot.
+abstract final class TextesEmailDeTest {
+  static const String objet = 'Email de test — TATACORA AFRIQUE';
+  static const String corps =
+      "Cet email confirme que la configuration SMTP de TATACORA AFRIQUE fonctionne. Il a été envoyé depuis l'écran Paramètres, onglet Email (SMTP).";
+  static const String sansAdresse =
+      "Aucune adresse de destination : renseignez d'abord « Email de contact » (onglet Identité & Légal).";
+  static String echec(String erreur) =>
+      "Échec de l'envoi — le transport a répondu : $erreur";
+  static String envoye(String adresse) => 'Email de test envoyé à $adresse.';
+}
+
+/// L'issue d'un email de test : réussi ou non, et ce que l'écran dit.
+typedef ResultatEmailDeTest = ({bool succes, String detail});
+
 /// La configuration SMTP complète d'un envoi. Le mot de passe n'apparaît
 /// dans aucun `toString`.
 final class ConfigurationSmtp {
@@ -158,16 +176,23 @@ class ServiceMessagesEditeur {
     required this._dao,
     required this._parametres,
     LecteurConfigurationPoste? configuration,
+    CapturesEditeur? captures,
     TransportSmtp? transport,
     DateTime Function()? maintenant,
     bool? envoiAutorise,
   }) : _configuration = configuration ?? LecteurConfigurationPoste(),
+       captures =
+           captures ??
+           CapturesEditeur(cheminConfiguration: configuration?.chemin),
        _transport = transport ?? _transportMailer,
        _maintenant = maintenant ?? DateTime.now,
        _envoiAutorise =
            envoiAutorise ?? !Environnement.actuel.estHorsLigneIntegral;
 
   final MessagesEditeurDao _dao;
+
+  /// Le rangement des captures d'écran des signalements de bug.
+  final CapturesEditeur captures;
   final ParametresDao _parametres;
   final LecteurConfigurationPoste _configuration;
   final TransportSmtp _transport;
@@ -201,6 +226,43 @@ class ServiceMessagesEditeur {
       return (issue: IssueEnvoiEditeur.nonConfigure, raison: configuration);
     }
     return _tenter(message, configuration as ConfigurationSmtp);
+  }
+
+  /// « Envoyer un email de test » : envoie UN vrai courriel à l'« Email de
+  /// contact » des paramètres par la configuration SMTP effective de ce poste,
+  /// et rapporte ce que le transport a répondu — jamais un succès simulé
+  /// (`Parametres::envoyerEmailTest`). Trois issues : pas d'adresse, pas de
+  /// configuration (la raison dite par le poste : serveur, utilisateur ou mot
+  /// de passe absent), échec ou succès du transport.
+  Future<ResultatEmailDeTest> envoyerEmailDeTest() async {
+    final valeurs = await _parametres.lireTout();
+    final adresse = valeurs[ClesEntete.email]?.trim() ?? '';
+    if (adresse.isEmpty) {
+      return (succes: false, detail: TextesEmailDeTest.sansAdresse);
+    }
+    final configuration = await _lireConfiguration();
+    if (configuration is String) return (succes: false, detail: configuration);
+    final smtp = configuration as ConfigurationSmtp;
+    final courriel = Message()
+      ..from = Address(smtp.utilisateur, nomExpediteurEditeur)
+      ..recipients = [adresse]
+      ..subject = TextesEmailDeTest.objet
+      ..text = TextesEmailDeTest.corps;
+    try {
+      await _transport(
+        courriel,
+        smtp.serveur,
+        PolitiqueRelanceEditeur.delaiEnvoi,
+      );
+    } on Object catch (erreur) {
+      return (
+        succes: false,
+        detail: TextesEmailDeTest.echec(
+          _expurger(_raison(erreur), smtp.motDePasse),
+        ),
+      );
+    }
+    return (succes: true, detail: TextesEmailDeTest.envoye(adresse));
   }
 
   /// Relance les messages `en_attente`, le plus ancien d'abord. Sans
@@ -270,6 +332,12 @@ class ServiceMessagesEditeur {
         ..recipients = [adresseSupportEditeur]
         ..subject = objetCourrielEditeur(courant.sujet)
         ..text = corpsCourrielEditeur(courant);
+      // La capture d'écran du signalement, jointe comme le fait le courriel du
+      // serveur (`attachFromStorageDisk`) quand le fichier existe.
+      final capture = await captures.de(courant.id);
+      if (capture != null) {
+        courriel.attachments = [FileAttachment(capture)];
+      }
       try {
         await _transport(
           courriel,

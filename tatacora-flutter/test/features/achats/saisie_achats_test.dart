@@ -428,4 +428,20 @@ void main() {
       expect(messageExportVide, contains('le filtre n’a rien retenu'));
     });
   });
+
+  group('arrondirAuCentieme — le prix unitaire PRÉ-REMPLI du bon', () {
+    test('arrondit au centième, demi vers le haut, sur les chiffres', () {
+      expect(arrondirAuCentieme('1250.4349'), '1250.43');
+      expect(arrondirAuCentieme('1250.435'), '1250.44');
+      expect(arrondirAuCentieme('2500'), '2500.00');
+      expect(arrondirAuCentieme('0.005'), '0.01');
+    });
+
+    test('illisible ou nul : null, jamais un zéro inventé', () {
+      expect(arrondirAuCentieme(''), isNull);
+      expect(arrondirAuCentieme('abc'), isNull);
+      expect(arrondirAuCentieme('-3'), isNull);
+      expect(arrondirAuCentieme('0.004'), isNull);
+    });
+  });
 }

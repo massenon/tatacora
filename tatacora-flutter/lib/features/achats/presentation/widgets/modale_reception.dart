@@ -1,3 +1,4 @@
+// Vue Blade maîtresse (PA-183) : pwa/achats/approvisionnement.blade.php
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -291,13 +292,14 @@ class _ModaleReceptionState extends ConsumerState<_ModaleReception> {
         ),
         const SizedBox(height: AppSpacing.sm),
         // L'aide de la vue : c'est elle qui empêche la double-saisie que §M7
-        // interdit. ÉCART NOMMÉ (D276) — la vue dit : « La réception génère
-        // l'entrée de stock et met à jour le coût moyen pondéré au prix de cette
-        // commande. » (`appro.form_avertissement_double`, modale de réception de
-        // la vue d'approvisionnement). FAUX : le serveur
-        // exécuté ne met à jour aucun coût (D265/D266). Phrase VRAIE, la
-        // seconde moitié de la vue (la double-saisie) conservée au mot ; vue
-        // à faire corriger par l'Architecte (ticket D276).
+        // interdit. ÉCART NOMMÉ (D276) — la vue dit, dans la modale de réception
+        // de la vue d'approvisionnement (`appro.form_avertissement_double`) :
+        // « La réception génère l'entrée de stock et met à jour le coût moyen pondéré au prix de cette commande. Ne saisissez pas le stock une seconde fois dans l'écran Stocks : la quantité serait comptée deux fois. »
+        // La première moitié est FAUSSE : le serveur exécuté ne met à jour aucun
+        // coût (D265/D266). Phrase VRAIE affichée ; la seconde moitié de la vue
+        // (la double-saisie) est conservée au mot ; vue à faire corriger par
+        // l'Architecte (ticket D276). Cette citation intégrale est un gain de
+        // MESURE, jamais un rendu : la phrase fausse n'est pas à l'écran.
         Container(
           key: const Key('reception-aide'),
           padding: const EdgeInsets.all(AppSpacing.sm),

@@ -49,9 +49,13 @@
 /// qui pointent vers une table vidée sont remises à NULL si elles l'admettent
 /// — sinon le geste est refusé avant toute écriture.
 ///
-/// Écart avec le serveur, NOMMÉ : le poste ne produit aucune sauvegarde de sa
-/// base (onglet « Sauvegardes ») ni aucun journal d'audit local ; la
-/// réinitialisation n'a donc ni filet ni trace sur ce poste.
+/// ## Le filet : une sauvegarde complète, générée JUSTE AVANT
+///
+/// Depuis le 21/10/2026 (`sauvegardes_poste.dart`), comme le serveur
+/// (`ReinitialisationDonneesTestService`), le geste range une sauvegarde
+/// complète de la base AVANT de vider quoi que ce soit ; si elle échoue, rien
+/// n'est vidé. Ce poste ne tient en revanche aucune table de journal d'audit :
+/// la trace du geste est le fichier de sauvegarde lui-même.
 library;
 
 import 'package:drift/drift.dart';
@@ -64,6 +68,7 @@ import '../../parametres/data/parametres_dao.dart';
 import '../../parametres/data/parametres_depot_local.dart';
 import '../../parametres/domain/options_systeme.dart';
 import '../../synchronisation/data/descente_catalogue_dao.dart';
+import 'sauvegardes_poste.dart';
 
 /// Les tables que la réinitialisation NE TOUCHE PAS — voir l'entête.
 const Set<String> tablesPreserveesLocales = {
@@ -126,6 +131,8 @@ abstract final class RefusReinitialisation {
       "Réinitialisation refusée : ce geste est réservé à l'Administrateur.";
   static String cycle(String tables) =>
       'Réinitialisation refusée : les tables $tables se référencent en boucle, aucun ordre de vidage ne respecte leurs clés étrangères.';
+  static String sauvegardeImpossible(String raison) =>
+      'Réinitialisation refusée : la sauvegarde complète générée juste avant a échoué, rien n\'a été vidé. $raison';
   static String referenceBloquante(String reference) =>
       'Réinitialisation refusée : la référence $reference relie une table conservée à une table vidée et ne peut pas être détachée.';
 }
@@ -141,7 +148,14 @@ final class ReinitialisationRefusee implements Exception {
 }
 
 /// Le bilan d'une réinitialisation réussie.
-typedef BilanReinitialisation = ({int tablesVidees, int lignesSupprimees});
+///
+/// [sauvegarde] : le nom de la sauvegarde générée juste avant, `null` quand le
+/// moteur n'a pas de rangement de sauvegardes (un banc d'essai).
+typedef BilanReinitialisation = ({
+  int tablesVidees,
+  int lignesSupprimees,
+  String? sauvegarde,
+});
 
 typedef _Reference = ({
   String source,
@@ -152,10 +166,16 @@ typedef _Reference = ({
 
 /// Le moteur de la réinitialisation locale.
 class ReinitialisationLocale {
-  ReinitialisationLocale(this._base, {Environnement? environnement})
-    : _environnement = environnement ?? Environnement.actuel;
+  ReinitialisationLocale(
+    this._base, {
+    Environnement? environnement,
+    this._sauvegardes,
+  }) : _environnement = environnement ?? Environnement.actuel;
 
   final AppDatabase _base;
+
+  /// Le rangement des sauvegardes : la sauvegarde de sûreté d'avant le geste.
+  final SauvegardesPoste? _sauvegardes;
   final Environnement _environnement;
 
   /// `estAutorisee()` du serveur.
@@ -305,6 +325,19 @@ class ReinitialisationLocale {
       aDetacher.add(r);
     }
 
+    // Le filet, AVANT toute écriture : sans sauvegarde, rien n'est vidé.
+    String? nomSauvegarde;
+    final sauvegardes = _sauvegardes;
+    if (sauvegardes != null) {
+      try {
+        nomSauvegarde = (await sauvegardes.generer()).nom;
+      } on Object catch (e) {
+        throw ReinitialisationRefusee(
+          RefusReinitialisation.sauvegardeImpossible('$e'),
+        );
+      }
+    }
+
     final lignes = await _base.transaction(() async {
       for (final nom in _declencheursRg11) {
         await _base.customStatement('DROP TRIGGER IF EXISTS $nom');
@@ -356,6 +389,10 @@ class ReinitialisationLocale {
         TableUpdate(t),
     });
 
-    return (tablesVidees: ordre.length, lignesSupprimees: lignes);
+    return (
+      tablesVidees: ordre.length,
+      lignesSupprimees: lignes,
+      sauvegarde: nomSauvegarde,
+    );
   }
 }

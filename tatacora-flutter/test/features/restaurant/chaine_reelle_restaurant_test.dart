@@ -270,14 +270,15 @@ void main() {
         textesSous(tester, const Key('restauration-kpi-2')),
         contains('0'),
       );
-      // « Retirés de la carte » n'a AUCUNE source : « — », jamais « 0 ».
+      // « Retirés de la carte » est COMPTÉ (retraits de la carte, v31) : un
+      // poste neuf en a zéro, mesuré, jamais « — ».
       expect(
         textesSous(tester, const Key('restauration-kpi-3')),
-        contains('—'),
+        containsAll(['RETIRÉS DE LA CARTE', '0']),
       );
       expect(
         textesSous(tester, const Key('restauration-kpi-3')),
-        isNot(contains('0')),
+        isNot(contains('—')),
       );
 
       expect(find.text('Aucun résultat'), findsOneWidget);
@@ -1017,6 +1018,88 @@ void main() {
 
       final octets = octetsExportes(tester, type: TypeFichierEnregistre.pdf);
       expect(ascii.decode(octets.sublist(0, 4)), '%PDF');
+    });
+  });
+
+  /* ==================================================================== */
+  /* Les gestes du catalogue : sélection, retrait de la carte              */
+  /* ==================================================================== */
+
+  group('Le catalogue des plats : sélection et retrait de la carte', () {
+    testWidgets('cocher une ligne compte « 1 sélectionné(s) », « Tout '
+        'sélectionner » les prend toutes', (tester) async {
+      final ids = await garni();
+      await monter(tester, const EcranRestauration());
+
+      expect(find.textContaining('sélectionné(s)'), findsNothing);
+      await toucher(tester, Key('restauration-case-${ids.plat}'));
+      expect(find.textContaining('1 sélectionné(s)'), findsOneWidget);
+
+      await toucher(tester, Key('restauration-case-${ids.plat}'));
+      expect(find.textContaining('sélectionné(s)'), findsNothing);
+
+      await toucher(tester, const Key('restauration-tout'));
+      expect(find.textContaining('1 sélectionné(s)'), findsOneWidget);
+    });
+
+    testWidgets('« Retirer de la carte » DEMANDE confirmation, écrit le '
+        'retrait, l’enfile, et le compteur le suit', (tester) async {
+      final ids = await garni(libelle: 'Poulet DG');
+      await monter(tester, const EcranRestauration());
+
+      await toucher(tester, Key('restauration-retirer-${ids.plat}'));
+      expect(find.text('Retirer « Poulet DG » de la carte ?'), findsOneWidget);
+
+      // Annuler n'écrit rien.
+      await toucher(tester, const Key('achats-archivage-annuler'));
+      expect(await db.select(db.indisponibilitesCarteLocal).get(), isEmpty);
+
+      await toucher(tester, Key('restauration-retirer-${ids.plat}'));
+      await toucher(tester, const Key('achats-archivage-confirmer'));
+
+      final lignes = await db.select(db.indisponibilitesCarteLocal).get();
+      expect(lignes, hasLength(1));
+      expect(
+        find.text('Le plat « Poulet DG » est retiré de la carte.'),
+        findsOneWidget,
+      );
+      expect(
+        textesSous(tester, const Key('restauration-kpi-3')),
+        containsAll(['RETIRÉS DE LA CARTE', '1']),
+      );
+      final file = await OperationsSyncDao(db).operations();
+      expect(file, isNotEmpty, reason: 'le retrait part au serveur');
+    });
+
+    testWidgets('un plat DÉJÀ retiré ne se retire pas deux fois : le verrou '
+        'est dit', (tester) async {
+      final ids = await garni(libelle: 'Poulet DG');
+      await monter(tester, const EcranRestauration());
+
+      await toucher(tester, Key('restauration-retirer-${ids.plat}'));
+      await toucher(tester, const Key('achats-archivage-confirmer'));
+      await toucher(tester, Key('restauration-retirer-${ids.plat}'));
+
+      expect(
+        find.byKey(const Key('achats-archivage-impossible')),
+        findsOneWidget,
+      );
+      expect(
+        await db.select(db.indisponibilitesCarteLocal).get(),
+        hasLength(1),
+      );
+    });
+
+    testWidgets('sans droit d’écriture sur M4, le bouton n’est pas offert', (
+      tester,
+    ) async {
+      final ids = await garni();
+      await monter(
+        tester,
+        const EcranRestauration(),
+        avec: surcharges(m4: 'L'),
+      );
+      expect(find.byKey(Key('restauration-retirer-${ids.plat}')), findsNothing);
     });
   });
 }

@@ -73,6 +73,19 @@ abstract interface class PanierRepository {
   });
 
   Future<Panier> annuler(String panierId, String motif);
+
+  /// Annule une VENTE encaissée (`VenteService::annuler`, RG-02) : le panier
+  /// clôturé devient annulé, sa pièce comptable est contre-passée EN ENTIER, et
+  /// la vente reste au journal. À distinguer d'[annuler], qui n'accepte qu'un
+  /// panier OUVERT (un service abandonné avant paiement).
+  ///
+  /// Lève `RefusVente` — motif vide, vente absente ou déjà annulée, document
+  /// d'un autre poste (Q3) — sans rien écrire.
+  Future<Panier> annulerVente(
+    String panierId,
+    String motif, {
+    required String auteurId,
+  });
 }
 
 /// Le catalogue vendable, tel que le poste le connaît **hors ligne**.

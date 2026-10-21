@@ -1,3 +1,6 @@
+// Vue Blade maîtresse (PA-183) : pwa/restaurant/restauration.blade.php
+// (ces phrases sont celles de ses modales : un fichier de messages qui porte les
+// mots d'une modale doit citer la vue, et chaque phrase tient en UN littéral).
 /// Les phrases de refus de M4 qui sont CELLES DU SERVEUR, mot pour mot.
 ///
 /// `lang/fr/restaurant.php` (clés `validation.*`) dit déjà pourquoi chaque
@@ -145,20 +148,13 @@ abstract final class MessagesRestaurant {
   // ----------------------------------------------------------------------
 
   static const aucunMenu =
-      "Aucun menu n'existe encore : un plat ne peut pas être créé sans lui. "
-      "Créez d'abord un menu — vous reviendrez ici avec votre saisie.";
+      "Aucun menu n'existe encore : un plat ne peut pas être créé sans lui. Créez d'abord un menu — vous reviendrez ici avec votre saisie.";
   static const aucuneFiche =
-      "Aucune fiche technique n'existe encore : un plat ne peut pas être créé "
-      "sans elle. Créez d'abord la fiche — vous reviendrez ici avec votre "
-      'saisie.';
+      "Aucune fiche technique n'existe encore : un plat ne peut pas être créé sans elle. Créez d'abord la fiche — vous reviendrez ici avec votre saisie.";
   static const recetteSansIngredient =
-      'Sans ingrédient, cette fiche ne décrémente aucun stock : le point de '
-      "vente REFUSERA la vente du plat qui l'utilise. Ajoutez au moins un "
-      "article de stock, ou revenez la composer depuis l'onglet « Fiches "
-      'techniques ».';
+      "Sans ingrédient, cette fiche ne décrémente aucun stock : le point de vente REFUSERA la vente du plat qui l'utilise. Ajoutez au moins un article de stock, ou revenez la composer depuis l'onglet « Fiches techniques ».";
   static const recetteAucunArticle =
-      'Aucun article de stock ne correspond. Élargissez la recherche, ou créez '
-      "l'article depuis l'écran Stocks (M6).";
+      "Aucun article de stock ne correspond. Élargissez la recherche, ou créez l'article depuis l'écran Stocks (M6).";
 
   /// `restauration.cree` / `restauration.modifie`.
   static String platEnregistre(String libelle, {required bool creation}) =>

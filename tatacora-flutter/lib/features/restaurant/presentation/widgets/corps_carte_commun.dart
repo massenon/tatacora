@@ -775,3 +775,14 @@ class AvertissementCarte extends StatelessWidget {
     ),
   );
 }
+
+/// Le bouton propre au restaurant que le corps partagé de la vue rend sous
+/// `@if ($page['lien_catalogue'] ?? false)` (`pwa/carte/corps.blade.php`
+/// l.139-142, `carte_pwa.restaurant.bouton_catalogue`).
+///
+/// Il vit ICI, avec le corps partagé, comme dans la vue : le bar passe le même
+/// corps SANS `lien_catalogue` et ne rend donc jamais ce bouton (il crée ses
+/// boissons sur place) — mais le libellé appartient au corps, pas à un rayon.
+abstract final class TextesCorpsCarte {
+  static const lienCatalogue = 'Plats, fiches techniques & menus';
+}

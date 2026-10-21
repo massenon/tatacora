@@ -117,6 +117,19 @@ void main() {
       await monter(tester);
 
       expect(find.byKey(const Key('notifications-bandeau')), findsOneWidget);
+      // Les deux phrases de la vue (`notifications_pwa.bandeau_titre` et
+      // `bandeau_texte`), mot pour mot : elles restent VRAIES de ce poste.
+      expect(
+        find.text('Seul l’e-mail peut réellement partir, et sous conditions.'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          'sinon le message reste en file, avec la raison affichée.',
+        ),
+        findsOneWidget,
+      );
+      // Et la phrase du POSTE, qui dit ce que ces conditions donnent ici.
       expect(
         find.textContaining('Aucun message ne part de ce poste'),
         findsOneWidget,

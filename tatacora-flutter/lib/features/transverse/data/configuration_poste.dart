@@ -123,6 +123,10 @@ class LecteurConfigurationPoste {
 
   final Future<String> Function() _chemin;
 
+  /// Le chemin de `poste.json` que ce lecteur lit — les captures d'écran des
+  /// signalements se rangent à côté.
+  Future<String> Function() get chemin => _chemin;
+
   Future<LectureMotDePasse> motDePasseSmtp() async {
     final chemin = await _chemin();
     final fichier = File(chemin);

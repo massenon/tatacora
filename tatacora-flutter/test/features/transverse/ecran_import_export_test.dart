@@ -9,6 +9,7 @@ import 'package:sqlite3/sqlite3.dart';
 import 'package:tatacora_flutter/core/database/app_database.dart';
 import 'package:tatacora_flutter/core/fichiers/selecteur_fichiers.dart';
 import 'package:tatacora_flutter/core/theme/app_theme.dart';
+import 'package:tatacora_flutter/features/transverse/data/sauvegardes_poste.dart';
 import 'package:tatacora_flutter/features/transverse/presentation/ecran_import_export.dart';
 
 import '../../support/selecteur_essai.dart';
@@ -24,11 +25,16 @@ void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
 
   late AppDatabase db;
+  late Directory poste;
 
   setUp(() async {
     db = await baseImport();
+    poste = Directory.systemTemp.createTempSync('poste_ie_');
   });
-  tearDown(() => db.close());
+  tearDown(() async {
+    await db.close();
+    poste.deleteSync(recursive: true);
+  });
 
   Future<SelecteurEssai> monter(
     WidgetTester tester, {
@@ -44,7 +50,11 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          ...surchargesImport(db, droits: droits),
+          ...surchargesImport(
+            db,
+            droits: droits,
+            cheminPoste: '${poste.path}/poste.json',
+          ),
           ...selecteur.surcharges,
         ],
         child: MaterialApp(
@@ -280,7 +290,7 @@ void main() {
 
   group('« Sauvegardes de la base »', () {
     testWidgets('« Générer une sauvegarde de la base » : une base SQLite '
-        'VALIDE, enregistrée par la fenêtre, relue ligne à ligne', (
+        'VALIDE, RANGÉE sur le poste, bandeau vert, ligne « non téléchargée »', (
       tester,
     ) async {
       await tester.runAsync(
@@ -289,8 +299,9 @@ void main() {
           "VALUES ('cli-1', 'KORA', '+229 01 00 00 00 01', 'particulier')",
         ),
       );
-      final selecteur = await monter(tester);
+      await monter(tester);
       await cliquer(tester, find.byKey(const Key('ie-onglet-sauvegardes')));
+      expect(find.byKey(const Key('ie-sauvegardes-vide')), findsOneWidget);
       await cliquer(tester, find.byKey(const Key('ie-generer-sauvegarde')));
       await attendre(
         tester,
@@ -300,42 +311,186 @@ void main() {
             .isNotEmpty,
       );
 
-      final f = selecteur.dernier;
-      expect(f.type, TypeFichierEnregistre.sauvegarde);
+      final fichiers = Directory('${poste.path}/sauvegardes')
+          .listSync()
+          .whereType<File>()
+          .where((f) => f.path.endsWith('.sqlite'))
+          .toList();
+      expect(fichiers, hasLength(1));
+      final nom = fichiers.single.path.split(RegExp(r'[\\/]')).last;
       expect(
-        f.nom,
+        nom,
         matches(
           RegExp(
-            r'^tatacora_sauvegarde_\d{4}-\d{2}-\d{2}_\d{2}h\d{2}\.sqlite$',
+            r'^tatacora_sauvegarde_\d{4}-\d{2}-\d{2}_\d{2}h\d{2}m\d{2}\.sqlite$',
           ),
         ),
       );
-      expect(ascii.decode(f.octets.sublist(0, 15)), 'SQLite format 3');
+      final octets = fichiers.single.readAsBytesSync();
+      expect(ascii.decode(octets.sublist(0, 15)), 'SQLite format 3');
       expect(
         tester
             .widget<Text>(find.byKey(const Key('ie-sauvegarde-generee')))
             .data,
-        startsWith('Sauvegarde générée : ${f.nom} ('),
+        startsWith('Sauvegarde générée : $nom ('),
+      );
+      // Le bandeau vert, la ligne de la liste « non téléchargée », le compteur.
+      expect(find.byKey(const Key('ie-bandeau-generee')), findsOneWidget);
+      expect(find.text('Sauvegarde générée'), findsOneWidget);
+      expect(find.byKey(Key('ie-sauvegarde-$nom')), findsOneWidget);
+      expect(find.textContaining('non téléchargée'), findsOneWidget);
+      expect(
+        tester.widget<Text>(find.byKey(const Key('ie-kpi-sauvegardes'))).data,
+        '1',
       );
 
       final relu = await tester.runAsync(() async {
-        final dossier = await Directory.systemTemp.createTemp('tatacora_ie_');
+        final base = sqlite3.open(
+          fichiers.single.path,
+          mode: OpenMode.readOnly,
+        );
         try {
-          final fichier = File('${dossier.path}/copie.sqlite');
-          await fichier.writeAsBytes(f.octets);
-          final base = sqlite3.open(fichier.path, mode: OpenMode.readOnly);
-          try {
-            return base
-                .select("SELECT nom FROM clients_local WHERE id = 'cli-1'")
-                .single['nom'];
-          } finally {
-            base.close();
-          }
+          return base
+              .select("SELECT nom FROM clients_local WHERE id = 'cli-1'")
+              .single['nom'];
         } finally {
-          await dossier.delete(recursive: true);
+          base.close();
         }
       });
       expect(relu, 'KORA');
+    });
+
+    testWidgets('« Télécharger » écrit la copie par la fenêtre ET la marque '
+        'téléchargée ; annuler dans la fenêtre ne marque rien', (tester) async {
+      final selecteur = await monter(tester);
+      await cliquer(tester, find.byKey(const Key('ie-onglet-sauvegardes')));
+      await cliquer(tester, find.byKey(const Key('ie-generer-sauvegarde')));
+      await attendre(
+        tester,
+        () => find.byKey(const Key('ie-bandeau-generee')).evaluate().isNotEmpty,
+      );
+      final nom = Directory('${poste.path}/sauvegardes')
+          .listSync()
+          .whereType<File>()
+          .firstWhere((f) => f.path.endsWith('.sqlite'))
+          .path
+          .split(RegExp(r'[\\/]'))
+          .last;
+
+      // Annulé : rien n'est écrit, la copie reste « non téléchargée ».
+      selecteur.annuler = true;
+      await cliquer(
+        tester,
+        find.byKey(const Key('ie-bandeau-generee-telecharger')),
+      );
+      await attendre(tester, () => false);
+      expect(selecteur.ecrits, isEmpty);
+      expect(find.textContaining('non téléchargée'), findsOneWidget);
+
+      selecteur.annuler = false;
+      await cliquer(tester, find.byKey(Key('ie-telecharger-$nom')));
+      await attendre(
+        tester,
+        () => find
+            .byKey(const Key('ie-sauvegarde-telechargee'))
+            .evaluate()
+            .isNotEmpty,
+      );
+      expect(selecteur.dernier.type, TypeFichierEnregistre.sauvegarde);
+      expect(selecteur.dernier.nom, nom);
+      expect(
+        ascii.decode(selecteur.dernier.octets.sublist(0, 15)),
+        'SQLite format 3',
+      );
+      expect(
+        File('${poste.path}/sauvegardes/$nom.telechargee').existsSync(),
+        isTrue,
+      );
+      expect(find.textContaining('non téléchargée'), findsNothing);
+      expect(find.byKey(const Key('ie-bandeau-generee')), findsNothing);
+    });
+
+    testWidgets('une copie rangée jamais téléchargée : le bandeau OR de la '
+        'vue, puis plus rien une fois téléchargée', (tester) async {
+      final selecteur = await monter(tester);
+      final copie = await tester.runAsync(
+        () => SauvegardesPoste(
+          db,
+          cheminConfiguration: () async => '${poste.path}/poste.json',
+        ).generer(),
+      );
+      await cliquer(tester, find.byKey(const Key('ie-onglet-sauvegardes')));
+      await attendre(
+        tester,
+        () => find.byKey(const Key('ie-bandeau-rappel')).evaluate().isNotEmpty,
+      );
+      expect(
+        find.text('Sauvegarde en attente de téléchargement'),
+        findsOneWidget,
+      );
+      expect(find.textContaining("n'a pas été téléchargée."), findsOneWidget);
+      await cliquer(
+        tester,
+        find.byKey(const Key('ie-bandeau-rappel-telecharger')),
+      );
+      await attendre(tester, () => selecteur.ecrits.isNotEmpty);
+      expect(selecteur.dernier.nom, copie!.nom);
+      await attendre(
+        tester,
+        () => find.byKey(const Key('ie-bandeau-rappel')).evaluate().isEmpty,
+      );
+      expect(find.byKey(const Key('ie-bandeau-rappel')), findsNothing);
+    });
+
+    testWidgets('« Retirer » une copie jamais téléchargée : la confirmation '
+        'forte de la vue', (tester) async {
+      await monter(tester);
+      await cliquer(tester, find.byKey(const Key('ie-onglet-sauvegardes')));
+      await cliquer(tester, find.byKey(const Key('ie-generer-sauvegarde')));
+      await attendre(
+        tester,
+        () => find.byKey(const Key('ie-bandeau-generee')).evaluate().isNotEmpty,
+      );
+      final nom = Directory('${poste.path}/sauvegardes')
+          .listSync()
+          .whereType<File>()
+          .firstWhere((f) => f.path.endsWith('.sqlite'))
+          .path
+          .split(RegExp(r'[\\/]'))
+          .last;
+
+      // « Retirer » d'une copie jamais téléchargée : la modale du maître.
+      await cliquer(tester, find.byKey(Key('ie-retirer-$nom')));
+      expect(find.byKey(const Key('ie-modale-retrait')), findsOneWidget);
+      expect(find.text('Sauvegarde jamais téléchargée'), findsOneWidget);
+      expect(
+        find.text(
+          'La retirer la perd définitivement : il n\'en existe aucune copie ailleurs.',
+        ),
+        findsOneWidget,
+      );
+      // Annuler : la copie reste.
+      await cliquer(tester, find.byKey(const Key('ie-retrait-annuler')));
+      expect(File('${poste.path}/sauvegardes/$nom').existsSync(), isTrue);
+
+      // Confirmer : la copie et son témoin disparaissent, la liste est vide.
+      await cliquer(tester, find.byKey(Key('ie-retirer-$nom')));
+      await cliquer(tester, find.byKey(const Key('ie-retrait-confirmer')));
+      await attendre(
+        tester,
+        () => find
+            .byKey(const Key('ie-sauvegarde-retiree'))
+            .evaluate()
+            .isNotEmpty,
+      );
+      expect(File('${poste.path}/sauvegardes/$nom').existsSync(), isFalse);
+      expect(find.byKey(const Key('ie-sauvegardes-vide')), findsOneWidget);
+      expect(
+        find.text(
+          'Aucune sauvegarde. Utilisez le bouton ci-dessus pour en générer une.',
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('« Exporter une table existante » : utilisateurs_local '

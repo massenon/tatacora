@@ -262,24 +262,23 @@ class _BandeIndicateurs extends ConsumerWidget {
         detail: 'Créance client, réglée au départ',
         accent: kpis.enNote > 0 ? CouleursTableau.accentAlerte : null,
       ),
-      // ⚠ La cinquième carte de la vue, SANS chiffre.
-      //
-      // Elle compte les ventes dont des articles n'ont décrémenté aucun stock.
-      // Ce client n'écrit **aucun** mouvement de stock : les trois tables de
-      // stock restent délibérément vides (PA-134). Afficher `0` reprendrait
-      // mot pour mot « Toutes les ventes ont décrémenté » sur un écran qui n'a
-      // rien décrémenté du tout — l'indicateur qui affirme un état qu'il n'a
-      // pas vérifié.
-      const _CarteKpi(
-        cle: Key('ventes-kpi-stock'),
+      // La cinquième carte de la vue : les ventes validées dont des articles
+      // n'ont décrémenté aucun stock (`$sansImpactStockCount`). Chiffrée depuis
+      // le 21/10/2026 : elle lit le catalogue d'AUJOURD'HUI (un article sans
+      // lien au stock), là où le serveur écrit `stock_non_impacte` à la vente.
+      // Le zéro dit « toutes les ventes ont décrémenté » comme la vue — ce qui
+      // est vrai du LIEN au stock, l'écriture du mouvement étant celle du
+      // serveur à la réception de la vente (RG-05).
+      _CarteKpi(
+        cle: const Key('ventes-kpi-stock'),
         libelle: 'Sans impact stock',
-        valeur: null,
-        // Court, parce que la rangée de cartes s'étire sur la plus haute : une
-        // phrase de six lignes ici repousserait tout le tableau. La raison
-        // complète est ci-dessus — afficher 0 dirait « toutes les ventes ont
-        // décrémenté ».
-        // « (PA-134) » retiré du texte affiché le 14/10/2026 (directive PO).
-        detail: 'Non tenu ici',
+        valeur: '${kpis.sansImpactStock}',
+        detail: kpis.sansImpactStock > 0
+            ? 'Articles sans lien au stock'
+            : 'Toutes les ventes ont décrémenté',
+        accent: kpis.sansImpactStock > 0
+            ? PaletteMaitre.rouge600
+            : Ardoise.c400,
       ),
     ];
 

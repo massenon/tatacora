@@ -126,6 +126,41 @@ final class EtatJournalVentes {
   /// Le maître aligne à droite la seule colonne de montant (`[5]`).
   static const Set<int> colonnesNumeriques = {5};
 
+  /// `pos_pwa.document.detail_lignes_titre` — le titre de la seconde partie du
+  /// journal imprimé (`historique-ventes.blade.php` l.360).
+  static const String titreDetailLignes = 'Détail des lignes';
+
+  /// Les six entêtes du détail des lignes (l.363-368) : sans accent sur
+  /// « Activite » et « Quantite », comme le maître les écrit — c'est le ticket
+  /// de chaque vente, précédé de son N°.
+  static const List<String> entetesDetail = [
+    'N°',
+    'Article',
+    'Activite',
+    'Quantite',
+    'Prix unitaire',
+    'Montant',
+  ];
+
+  /// La colonne que le détail CENTRE (« Quantite ») et celles qu'il aligne à
+  /// droite (prix unitaire, montant).
+  static const Set<int> detailCentrees = {3};
+  static const Set<int> detailNumeriques = {4, 5};
+
+  /// La ligne de signature du journal imprimé (l.397 et l.401) : 27 soulignés,
+  /// plus longue que celle des autres rapports (20).
+  static const String ligneVisa = '___________________________';
+
+  /// Une ligne du détail — source unique du PDF.
+  List<String> cellulesDetail(Vente v, LigneVente l) => [
+    v.referenceLocale,
+    l.libelle,
+    l.module.libelle,
+    '${l.quantite}',
+    '${l.prixUnitaire}',
+    '${l.montant}',
+  ];
+
   final List<Vente> ventes;
   final KpisJournalVentes kpis;
 
@@ -257,7 +292,38 @@ final class EtatJournalVentes {
                 for (final i in colonnesNumeriques) i: pw.Alignment.centerRight,
               },
             ),
-          zoneSignaturesA4(visas: Visas.journalVentes),
+          if (!estVide) ...[
+            // « Détail des lignes » (l.359-385) : le ticket de chaque vente
+            // AFFICHÉE, précédé de son N° — mêmes lignes que le détail d'une
+            // vente, jamais une seconde formule.
+            pw.SizedBox(height: 16),
+            pw.Text(
+              texteTicket(titreDetailLignes),
+              style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.SizedBox(height: 6),
+            pw.TableHelper.fromTextArray(
+              headers: entetesDetail.map(texteTicket).toList(),
+              data: [
+                for (final v in ventes)
+                  for (final l in v.lignes)
+                    cellulesDetail(v, l).map(texteTicket).toList(),
+              ],
+              headerStyle: pw.TextStyle(
+                fontSize: 8,
+                fontWeight: pw.FontWeight.bold,
+              ),
+              cellStyle: const pw.TextStyle(fontSize: 8),
+              headerDecoration: const pw.BoxDecoration(
+                color: PdfColors.grey300,
+              ),
+              cellAlignments: {
+                for (final i in detailCentrees) i: pw.Alignment.center,
+                for (final i in detailNumeriques) i: pw.Alignment.centerRight,
+              },
+            ),
+          ],
+          zoneSignaturesA4(visas: Visas.journalVentes, ligne: ligneVisa),
         ],
       ),
     );
@@ -391,8 +457,11 @@ final class EtatVente {
             _encadre(
               'Vente annulée'
               '${vente.motifAnnulation == null ? '' : ' — ${vente.motifAnnulation}'}. '
-              'Elle reste au journal : rien n’est effacé. Aucun montant n’a été '
-              'encaissé puis rendu — le service a été abandonné avant paiement.',
+              'Elle reste au journal : rien n’est effacé.'
+              // Une vente annulée sans montant figé n'a jamais été payée ;
+              // avec un montant figé, elle l'avait été et sa pièce est
+              // contre-passée.
+              '${vente.montantFige ? '' : ' Aucun montant n’a été encaissé puis rendu — le service a été abandonné avant paiement.'}',
             ),
           ],
         ],

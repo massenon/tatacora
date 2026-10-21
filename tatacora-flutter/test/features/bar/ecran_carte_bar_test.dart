@@ -310,6 +310,45 @@ void main() {
     expect(find.byKey(const Key('carte-remettre-b-1')), findsNothing);
   });
 
+  testWidgets('« Modifier » ouvre la modale de la vue, change le libellé '
+      'sans toucher au prix, et dit « est à jour »', (tester) async {
+    final db = await monter(
+      tester,
+      avant: (db) => CatalogueDao(db).enregistrerBoisson(
+        const BoissonDistante(
+          id: 'b-1',
+          articleId: null,
+          libelle: 'Béninoise 33 cl',
+          categorie: 'locale',
+          prixVente: 500,
+          stockDisponible: null,
+        ),
+      ),
+    );
+
+    await tester.ensureVisible(find.byKey(const Key('carte-modifier-b-1')));
+    await tester.tap(find.byKey(const Key('carte-modifier-b-1')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('modale-modifier-boisson')), findsOneWidget);
+    expect(find.text('Modifier la boisson — Béninoise 33 cl'), findsOneWidget);
+    expect(find.text('Enregistrer la boisson'), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const Key('modifier-boisson-libelle')),
+      'Béninoise 50 cl',
+    );
+    await tester.tap(find.byKey(const Key('modifier-boisson-confirmer')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('modale-modifier-boisson')), findsNothing);
+    expect(find.text('« Béninoise 50 cl » est à jour.'), findsOneWidget);
+    final ligne = await (db.select(
+      db.cartesBoissonLocal,
+    )..where((b) => b.id.equals('b-1'))).getSingle();
+    expect(ligne.libelle, 'Béninoise 50 cl');
+    expect(ligne.prixVente, 500, reason: 'le prix reste celui de la boisson');
+  });
+
   test('le registre des catégories est celui de la base, dans son ordre', () {
     // Relu depuis le modèle serveur, pas recopié ici : une liste écrite des
     // deux côtés ne vérifierait que la copie (piège 12).

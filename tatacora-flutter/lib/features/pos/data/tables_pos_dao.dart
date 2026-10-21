@@ -279,6 +279,67 @@ class TablesPosDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
+  /// « Rétablir le jeu initial » de Paramètres › Espaces & tables — les treize
+  /// tables du jeu initial, SANS toucher les ventes (`TableSalleService::
+  /// retablirJeuInitial`, relu le 21/10/2026). Rien ne se supprime :
+  ///
+  ///  * une table du jeu initial absente est CRÉÉE ; présente, elle est
+  ///    réactivée et remise à quatre places, son libellé suivant le numéro ;
+  ///  * une table HORS du jeu initial encore active est DÉSACTIVÉE, jamais
+  ///    supprimée — ses ventes passées continuent de la citer ;
+  ///  * une table au panier OUVERT fait refuser l'opération ENTIÈRE, avant
+  ///    toute écriture ([JeuInitialRefuse]) : la rétablir à moitié laisserait
+  ///    la salle dans un état que personne n'a demandé.
+  ///
+  /// Une transaction ; chaque retouche part au serveur comme celle d'un geste
+  /// isolé (création, `places`, `actif`).
+  Future<void> retablirJeuInitial() => transaction(() async {
+    final existantes = await select(tablesLocal).get();
+    final ouvertes = [
+      for (final t in existantes)
+        if (await estOccupee(t.id)) t.libelle,
+    ];
+    if (ouvertes.isNotEmpty) throw JeuInitialRefuse(ouvertes);
+
+    final conservees = <String>{};
+    for (final entree in jeuInitial.entries) {
+      final espace = entree.key;
+      for (var numero = 1; numero <= entree.value; numero++) {
+        TablesLocalData? ligne;
+        for (final t in existantes) {
+          if (t.espace == espace.code && t.numero == numero) ligne = t;
+        }
+        if (ligne == null) {
+          final cree = await creer(espace: espace, numero: numero);
+          conservees.add(cree.id);
+          continue;
+        }
+        conservees.add(ligne.id);
+        final champs = <String, Object?>{
+          if (ligne.places != 4) 'places': 4,
+          if (!ligne.actif) 'actif': true,
+        };
+        await assurerConnueDuServeur(ligne.id);
+        await (update(tablesLocal)..where((t) => t.id.equals(ligne!.id))).write(
+          TablesLocalCompanion(
+            libelle: Value('${espace.prefixe}$numero'),
+            places: const Value(4),
+            actif: const Value(true),
+          ),
+        );
+        if (champs.isNotEmpty) await _envoyer(ligne.id, champs);
+      }
+    }
+    for (final t in existantes) {
+      if (conservees.contains(t.id) || !t.actif) continue;
+      await assurerConnueDuServeur(t.id);
+      await (update(tablesLocal)..where((x) => x.id.equals(t.id))).write(
+        const TablesLocalCompanion(actif: Value(false)),
+      );
+      await _envoyer(t.id, {'actif': false});
+    }
+  });
+
   /* ================================================================== */
   /* Synchronisation — lot F6 (18/10/2026)                               */
   /* ================================================================== */
@@ -331,6 +392,18 @@ class TablesPosDao extends DatabaseAccessor<AppDatabase>
     final e = a.espace.index.compareTo(b.espace.index);
     return e != 0 ? e : a.numero.compareTo(b.numero);
   }
+}
+
+/// Refus de rétablir le jeu initial : des paniers sont ouverts sur ces tables
+/// (`ventes.table_jeu_initial_paniers_ouverts`, au mot).
+final class JeuInitialRefuse implements Exception {
+  const JeuInitialRefuse(this.libelles);
+
+  final List<String> libelles;
+
+  @override
+  String toString() =>
+      "Impossible de rétablir le jeu initial : un panier est ouvert sur ${libelles.join(', ')}. Encaissez ou clôturez d'abord — rétablir la salle à moitié la laisserait dans un état que personne n'a demandé.";
 }
 
 /// Refus de désactiver une table servie.

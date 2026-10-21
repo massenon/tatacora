@@ -1,10 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/di/providers.dart';
+import '../../synchronisation/presentation/providers_synchronisation.dart';
 import '../data/comptes_utilisateurs_dao.dart';
 import '../data/lecteur_comptes_poste.dart';
 import '../data/roles_dao.dart';
 import '../domain/comptes_utilisateurs.dart';
+import '../domain/journal_poste.dart';
 import '../domain/roles_du_poste.dart';
 
 /// Le lecteur des comptes du poste (lot D, 14/10/2026).
@@ -71,3 +73,16 @@ final comptesEtRolesProvider = FutureProvider.autoDispose<ComptesEtRoles>((
     roles: await roles.roles(),
   );
 });
+
+/// Le Journal d'Audit de ce poste : la file d'envoi, relue à chaque visite
+/// (aucun cache). Lecture seule, par `OperationsSyncDao` — le seul qui lise la
+/// file.
+final journalDuPosteProvider =
+    FutureProvider.autoDispose<List<EntreeJournalPoste>>((ref) async {
+      final operations = await ref
+          .watch(operationsSyncDaoProvider)
+          .operations();
+      return [
+        for (final o in operations) EntreeJournalPoste.depuisOperation(o),
+      ];
+    });

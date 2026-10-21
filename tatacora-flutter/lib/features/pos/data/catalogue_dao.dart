@@ -152,6 +152,34 @@ class CatalogueDao extends DatabaseAccessor<AppDatabase>
     };
   }
 
+  /// Les références du catalogue dont la vente ne sortirait AUCUN stock — la
+  /// lecture qui rend `stock_non_impacte` (« Articles sans lien au stock »,
+  /// journal des ventes et ticket) : une boisson sans article de stock, un plat
+  /// dont la fiche technique n'a aucun ingrédient. Clés de la forme `M5:<id>` /
+  /// `M4:<id>` ([ReferenceCatalogue.toString]).
+  ///
+  /// ⚠ Écart nommé : le serveur écrit cette liste sur la vente AU MOMENT de la
+  /// vente (`ventes.stock_non_impacte`) ; ce poste la relit du catalogue
+  /// d'AUJOURD'HUI. Un lien posé après la vente la ferait disparaître d'ici.
+  Future<Set<String>> referencesSansLienDeStock() async {
+    final sans = <String>{};
+    for (final b in await select(attachedDatabase.cartesBoissonLocal).get()) {
+      if (b.articleId.isEmpty) sans.add('${ModuleVendable.m5Bar.code}:${b.id}');
+    }
+    final composees = {
+      for (final i in await select(
+        attachedDatabase.ingredientsRecetteLocal,
+      ).get())
+        i.recetteId,
+    };
+    for (final p in await select(attachedDatabase.platsLocal).get()) {
+      if (!composees.contains(p.recetteId)) {
+        sans.add('${ModuleVendable.m4Restaurant.code}:${p.id}');
+      }
+    }
+    return sans;
+  }
+
   /* ================================================================== */
   /* La SAISIE locale des boissons — 14/09/2026                          */
   /* ================================================================== */
@@ -322,6 +350,9 @@ class CatalogueDao extends DatabaseAccessor<AppDatabase>
           detail: composees.contains(l.readTable(p).recetteId)
               ? null
               : detailFicheVide,
+          // Le point orange de la vue : un plat sans ingrédient ne décrémente
+          // rien (`lien_stock` faux).
+          sansLienStock: !composees.contains(l.readTable(p).recetteId),
         ),
     ];
     // Le même ordre que la carte : libellé sans accent, puis identifiant.

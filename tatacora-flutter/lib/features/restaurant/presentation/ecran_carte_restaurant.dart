@@ -231,6 +231,23 @@ class _PageAvecDonnees extends ConsumerWidget {
             texte:
                 "Aucun point de stockage de type « cuisine » n'est encore déclaré : le stock vendable ne peut pas être calculé, et aucun chiffre n'est affiché. Ce qui dort au magasin n'est pas servi en salle.",
           ),
+        // Un ÉCHEC de lecture se NOMME (`$stocksNonConsultes > 0`, corps l.278-283) :
+        // il ne se replie ni sur zéro ni sur une liste vide, « 0 » se lirait
+        // « rupture ». Sur ce poste, la lecture est locale : l'échec n'est
+        // possible que pour un plat dont le motif d'absence de stock n'est pas
+        // du registre (`MotifSansStock.inconnu`) — on ne sait pas lire son
+        // stock, le chiffre est absent, il n'est pas nul.
+        if (carte.lignes.any(
+          (l) =>
+              l.portionsVendables == null &&
+              l.motifSansStock == MotifSansStock.inconnu,
+        ))
+          const AvertissementCarte(
+            cle: Key('carte-restaurant-stock-non-consulte'),
+            // `carte_pwa.commun.stock_non_consulte_detail`, au mot.
+            texte:
+                "Le stock de cet article n'a pas pu être lu : le chiffre est absent, il n'est pas nul.",
+          ),
         switch (onglet) {
           OngletCarte.carteDuJour =>
             carte.lignes.isEmpty
@@ -416,7 +433,7 @@ class _EnTete extends ConsumerWidget {
         // aucun clic (Article 3.3). Une NAVIGATION, pas une action.
         BoutonEnteteCarte(
           key: const Key('carte-restaurant-vers-plats'),
-          libelle: 'Plats, fiches techniques & menus',
+          libelle: TextesCorpsCarte.lienCatalogue,
           style: StyleBoutonEntete.plein,
           onPressed: () => context.go('/restaurant/plats'),
         ),

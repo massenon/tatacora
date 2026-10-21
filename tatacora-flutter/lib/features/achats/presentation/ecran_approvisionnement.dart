@@ -151,7 +151,9 @@ class _EcranApprovisionnementState
 
     final format = await choisirFormatExport(
       context,
-      titre: 'Exporter — ${liste.titre}',
+      // `achats_pwa.export.titre_appro` : la vue donne UN titre à la page, quel
+      // que soit l'onglet (le tableau exporté, lui, se nomme dans le fichier).
+      titre: 'Exporter — Approvisionnement',
       sousTitre: 'Le fichier porte sur ce qui est affiché, filtre compris.',
     );
     if (format == null || !context.mounted) return;
@@ -225,8 +227,7 @@ class _EnTete extends StatelessWidget {
                   children: const [
                     TextSpan(
                       text:
-                          'Commandes fournisseurs, réceptions et dettes — la '
-                          'réception génère l’entrée de stock, ',
+                          "Commandes fournisseurs, réceptions et dettes — la réception génère l'entrée de stock, ",
                     ),
                     TextSpan(
                       text: 'jamais une double saisie',

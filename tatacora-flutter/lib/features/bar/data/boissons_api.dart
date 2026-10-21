@@ -350,6 +350,53 @@ final class BoissonsApi {
     return BarRecu(_versBoisson(ecrite));
   }
 
+  /// « Modifier la boisson » — le libellé et la catégorie, et RIEN d'autre
+  /// (`CarteBar::enregistrerModificationBoisson`, `CarteBoissonService::modifier`
+  /// ne reçoit que ces deux clés) : le prix, le lien au stock et l'historique
+  /// restent ceux de la boisson. Le prix est donc RELU au catalogue juste avant
+  /// l'écriture, jamais repris de la ligne affichée.
+  ///
+  /// Mêmes règles que `EnregistrerBoissonRequest` : libellé requis, 255
+  /// caractères au plus, catégorie du registre fermé ; le poste refuse en plus
+  /// un libellé déjà pris (deux entrées de même nom au comptoir).
+  Future<ResultatBar<Boisson>> modifier(
+    String id, {
+    required String libelle,
+    required CategorieBoisson categorie,
+  }) async {
+    final actuelle = await _catalogue.boissonDuCatalogue(id);
+    if (actuelle == null) return _introuvable();
+
+    final nom = libelle.trim();
+    if (nom.isEmpty || nom.length > 255) {
+      return BarRefuse(
+        motif: TextesCatalogueLocal.saisieRefusee,
+        erreurs: {
+          'libelle': nom.isEmpty
+              ? TextesCatalogueLocal.libelleManquant
+              : TextesCatalogueLocal.libelleTropLong,
+        },
+      );
+    }
+    if (await _catalogue.libelleBoissonExiste(nom, sauf: id)) {
+      return BarRefuse(
+        motif: TextesCatalogueLocal.saisieRefusee,
+        erreurs: {'libelle': TextesCatalogueLocal.libelleDejaPris(nom)},
+      );
+    }
+
+    final ecrite = BoissonDistante(
+      id: actuelle.id,
+      articleId: actuelle.articleId,
+      libelle: nom,
+      categorie: categorie.code,
+      prixVente: actuelle.prixVente,
+      stockDisponible: null,
+    );
+    await _catalogue.enregistrerBoisson(ecrite);
+    return BarRecu(_versBoisson(ecrite));
+  }
+
   /* ================================================================== */
   /* Le retrait de la carte du jour (v31, 21/10/2026)                    */
   /* ================================================================== */

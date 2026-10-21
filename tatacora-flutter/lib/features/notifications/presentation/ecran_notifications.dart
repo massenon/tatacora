@@ -58,10 +58,14 @@ import 'widgets/modales_notifications.dart';
 ///    recopier ferait de cet écran l'exemple même de ce qu'il dénonce. Le
 ///    bloc est rendu à sa place, avec la phrase de conséquence du maître
 ///    verbatim.
-///    Aucun jeton `blade-refuse:` n'est posé (09/10/2026) : le comparateur
-///    mesure ce texte dans le bloc « page », qu'on ne peut pas refuser en
-///    entier sans masquer le reste de la page. Les deux paragraphes restent
-///    donc comptés dans la dette (3 libellés absents), honnêtement.
+///    ⚠ RÉVISÉ le 21/10/2026 (ordre du PO « tout doit être au complet ») : les
+///    deux phrases de la vue sont relues une à une, et elles restent VRAIES de
+///    ce poste (seul l'e-mail peut partir, sous conditions ; sinon le message
+///    reste en file avec sa raison). Elles sont donc rendues mot pour mot, et
+///    la phrase du poste (« Aucun message ne part de ce poste ») s'y ajoute.
+///    Reste faux ici, et NON rendu : la phrase du journal vide (l.484) — « il
+///    se remplit dès qu'un e-mail est réellement délivré » —, remplacée par la
+///    vraie (1 libellé absent, déclaré au rapport).
 /// 2. **Le bouton « Envoyer »** (l.284-285) : la vue ne le rend que pour un
 ///    message e-mail dont l'adresse est connue ET si un mailer réel existe.
 ///    Aucune des deux conditions ne peut être vraie ici, et un bouton qui
@@ -337,8 +341,12 @@ class _Bandeau extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // `notifications_pwa.bandeau_titre`, mot pour mot (l.131). Vrai
+                // de ce poste aussi : seul l'e-mail PEUT partir, et sous
+                // conditions que ce poste ne remplit pas (voir la phrase du
+                // poste, ci-dessous).
                 Text(
-                  'Aucun message ne part de ce poste.',
+                  'Seul l’e-mail peut réellement partir, et sous conditions.',
                   style: styleContenuCarte(
                     TaillesContenu.t14,
                     poids: FontWeight.bold,
@@ -347,16 +355,28 @@ class _Bandeau extends StatelessWidget {
                 ),
                 // `mt-1` — 4 px.
                 const SizedBox(height: AppSpacing.unit),
+                // `notifications_pwa.bandeau_texte`, mot pour mot (l.132), en
+                // UN littéral. Chaque affirmation reste vraie ici : le message
+                // « reste en file, avec la raison affichée », et aucun n'est
+                // marqué « envoyé » sans l'être (PA-59/60/61).
                 Text(
-                  'WhatsApp, e-mail, Android et SMS restent à transmettre à la '
-                  'main : aucun des quatre n’est contracté ni configuré, et ce '
-                  'poste travaille hors ligne. Les messages sont composés et '
-                  'mis en file, mais le destinataire n’a rien reçu : appelez-le, '
-                  'puis tracez la transmission à la main. Un message marqué '
-                  '« envoyé » alors que rien n’est parti serait pire que pas de '
-                  'module du tout : le Gérant croirait son client prévenu.',
+                  'WhatsApp, Android et SMS restent à transmettre à la main : aucun des trois n’est contracté, ni configuré. Pour l’e-mail, l’envoi n’a lieu que si l’adresse du destinataire est connue et qu’un relais SMTP réel est configuré ; sinon le message reste en file, avec la raison affichée. Un message marqué « envoyé » alors que rien n’est parti serait pire que pas de module du tout : le Gérant croirait son client prévenu.',
                   style: styleContenuCarte(
                     TaillesContenu.t13,
+                    couleur: PaletteMaitre.rouge900,
+                  ),
+                ),
+                // La phrase du POSTE, ajoutée à la vue : aucun relais n'est
+                // branché aux notifications de ce poste (hors ligne), donc
+                // aucune des conditions de l'e-mail n'est remplie ici.
+                const SizedBox(height: AppSpacing.unit),
+                Text(
+                  'Aucun message ne part de ce poste : le destinataire n’a '
+                  'rien reçu, appelez-le, puis tracez la transmission à la '
+                  'main.',
+                  style: styleContenuCarte(
+                    TaillesContenu.t13,
+                    poids: FontWeight.bold,
                     couleur: PaletteMaitre.rouge900,
                   ),
                 ),

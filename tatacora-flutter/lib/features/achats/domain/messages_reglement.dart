@@ -95,10 +95,7 @@ abstract final class MessagesReglement {
 
   /// `achats_pwa.appro.dettes_portee`.
   static const String dettesPortee =
-      'Cette liste porte sur les commandes non clôturées. « Réglé » et « Reste '
-      'dû » viennent des règlements réellement enregistrés. La colonne '
-      "« Ancienneté » mesure l'âge du bon de commande, pas le retard d'un "
-      'paiement.';
+      "Cette liste porte sur les commandes non clôturées. « Réglé » et « Reste dû » viennent des règlements réellement enregistrés. La colonne « Ancienneté » mesure l'âge du bon de commande, pas le retard d'un paiement.";
 
   /// `pwa.appro.dettes_vide`.
   static const String dettesVide =

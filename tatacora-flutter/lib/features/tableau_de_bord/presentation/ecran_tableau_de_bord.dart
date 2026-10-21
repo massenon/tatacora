@@ -1,6 +1,7 @@
 // Vue Blade maîtresse (PA-183) : pwa/livewire/accueil.blade.php
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/di/providers.dart';
 import '../../../core/format/formats.dart';
@@ -168,10 +169,17 @@ final seriesTableauDeBordProvider = FutureProvider.autoDispose<ResultatSeries>(
 /// `domain/entities/tableau_de_bord.dart`. Aucun cache : les fournisseurs sont
 /// `autoDispose`, et chaque visite recalcule (PA-59/60/61).
 class EcranTableauDeBord extends ConsumerWidget {
-  const EcranTableauDeBord({super.key});
+  /// [periodeDemandee] : le code de période DEMANDÉ par l'adresse
+  /// (`/tableau-de-bord?periode=…`, la propriété `#[Url] filtrePeriode` du
+  /// composant de la vue). Absent, il est lu de l'adresse de la route, quand
+  /// l'écran est monté par le routeur.
+  const EcranTableauDeBord({this.periodeDemandee, super.key});
+
+  final String? periodeDemandee;
 
   /// Les libellés et les notes des huit indicateurs, indexés par la clé du
-  /// serveur — ceux de `lang/fr/accueil_pwa.php` (`kpi.<clé>.libelle|note`),
+  /// serveur — ceux de `lang/fr/accueil_pwa.php` (clés `accueil_pwa.kpi.<clé>.libelle`
+  /// et `accueil_pwa.kpi.<clé>.note`, composées à la volée par la vue),
   /// relus par un test : une copie qui divergerait de la vue resterait verte.
   ///
   /// Registre **fermé** : une clé inconnue s'affiche avec sa clé brute plutôt
@@ -203,6 +211,26 @@ class EcranTableauDeBord extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // A3 — LE REPLI DE PÉRIODE SE DIT. Une période demandée que le sélecteur ne
+    // connaît pas retombe sur le défaut ET le nomme (`periodeRefusee()` de la
+    // vue) ; une période connue est appliquée UNE fois, à l'ouverture (sinon
+    // l'adresse écraserait chaque choix du sélecteur).
+    final demande =
+        periodeDemandee ??
+        GoRouter.maybeOf(
+          context,
+        )?.routeInformationProvider.value.uri.queryParameters['periode'];
+    final connue = demande == null
+        ? null
+        : PeriodeTableauDeBord.parCode(demande);
+    final refusee = (demande != null && connue == null) ? demande : null;
+    return _AppliquePeriodeDemandee(
+      periode: connue,
+      child: _corps(context, ref, refusee),
+    );
+  }
+
+  Widget _corps(BuildContext context, WidgetRef ref, String? refusee) {
     final resultat = ref.watch(tableauDeBordProvider);
     final onglet = ref.watch(ongletTableauDeBordProvider);
     final autorise = ref
@@ -227,7 +255,12 @@ class EcranTableauDeBord extends ConsumerWidget {
         children: [
           Padding(
             padding: EdgeInsets.fromLTRB(marge, marge, marge, 0),
-            child: const _EnTete(),
+            child: Column(
+              children: [
+                const _EnTete(),
+                if (refusee != null) _BandeauPeriodeInconnue(code: refusee),
+              ],
+            ),
           ),
           Expanded(
             child: EcranPilotageConsolide(
@@ -253,6 +286,7 @@ class EcranTableauDeBord extends ConsumerWidget {
         enfants: [
           const _EnTete(),
           const SizedBox(height: AppSpacing.mdPlus), // mb-5
+          if (refusee != null) _BandeauPeriodeInconnue(code: refusee),
           PanneauTableauCroise(tableau: tableau),
         ],
       );
@@ -263,6 +297,7 @@ class EcranTableauDeBord extends ConsumerWidget {
       enfants: [
         const _EnTete(),
         const SizedBox(height: AppSpacing.mdPlus), // mb-5
+        if (refusee != null) _BandeauPeriodeInconnue(code: refusee),
         resultat.when(
           loading: () => const Padding(
             padding: EdgeInsets.all(AppSpacing.xl),
@@ -822,4 +857,67 @@ String noteCarteIndicateur(IndicateurTableauDeBord indicateur) {
   // Un indicateur sans source n'a jamais de mention (`indisponible`).
   final mention = indicateur.mention;
   return mention == null ? base : '$base · $mention';
+}
+
+/// Applique UNE fois la période demandée par l'adresse (`#[Url]` de la vue).
+class _AppliquePeriodeDemandee extends ConsumerStatefulWidget {
+  const _AppliquePeriodeDemandee({required this.periode, required this.child});
+
+  final PeriodeTableauDeBord? periode;
+  final Widget child;
+
+  @override
+  ConsumerState<_AppliquePeriodeDemandee> createState() =>
+      _EtatAppliquePeriodeDemandee();
+}
+
+class _EtatAppliquePeriodeDemandee
+    extends ConsumerState<_AppliquePeriodeDemandee> {
+  @override
+  void initState() {
+    super.initState();
+    final p = widget.periode;
+    if (p == null) return;
+    // Hors de la construction : un fournisseur ne se modifie pas pendant elle.
+    Future.microtask(() {
+      if (mounted) ref.read(periodeTableauDeBordProvider.notifier).definir(p);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
+}
+
+/// « La période demandée (« x ») n'existe pas… » — `accueil_pwa.periode_inconnue`
+/// (l.309-313) : `rounded-xl px-4 py-3 mb-5 text-[13px]`, fond `#FFFBEB`,
+/// liseré `#FDE68A`, texte `#78350F`.
+class _BandeauPeriodeInconnue extends StatelessWidget {
+  const _BandeauPeriodeInconnue({required this.code});
+
+  final String code;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('tdb-periode-inconnue'),
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: AppSpacing.mdPlus), // mb-5
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md, // px-4
+        vertical: AppSpacing.sm, // py-3
+      ),
+      decoration: BoxDecoration(
+        color: PaletteMaitre.ambre50,
+        border: Border.all(color: PaletteMaitre.ambre200),
+        borderRadius: BorderRadius.circular(AppRadius.roundedXl),
+      ),
+      child: Text(
+        "La période demandée (« $code ») n'existe pas. Les chiffres ci-dessous sont ceux de la période par défaut, « ${PeriodeTableauDeBord.parDefaut.libelle} » — ils ne répondent pas à la demande qui a été faite.",
+        style: styleExploitation(
+          TaillesContenu.t13,
+          couleur: PaletteMaitre.ambre900,
+        ),
+      ),
+    );
+  }
 }

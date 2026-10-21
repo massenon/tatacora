@@ -9,8 +9,11 @@ import '../../restaurant/presentation/providers_restaurant.dart';
 import '../../stocks/presentation/providers_stocks.dart';
 import '../../tourisme/presentation/providers_tourisme.dart';
 import '../../vehicules/presentation/providers_vehicules.dart';
+import '../../synchronisation/presentation/providers_synchronisation.dart'
+    show cheminConfigurationPosteProvider;
 import '../data/importeurs_locaux.dart';
 import '../data/sauvegarde_locale.dart';
+import '../data/sauvegardes_poste.dart';
 
 /// Les importeurs du poste, dans l'ordre du registre du serveur
 /// (`ReferentielsImport::definitions()`). Chaque écrivain est celui que
@@ -45,6 +48,22 @@ final moteurImportProvider = Provider<MoteurImportLocal>(
 final sauvegardeLocaleProvider = Provider<SauvegardeLocale>(
   (ref) => SauvegardeLocale(ref.watch(baseLocaleProvider)),
 );
+
+/// Les sauvegardes CONSERVÉES sur ce poste (dossier `sauvegardes/` à côté de
+/// `poste.json`) — l'onglet « Sauvegardes de la base » et le filet d'avant
+/// « Réinitialiser comme neuf ».
+final sauvegardesPosteProvider = Provider<SauvegardesPoste>(
+  (ref) => SauvegardesPoste(
+    ref.watch(baseLocaleProvider),
+    cheminConfiguration: ref.watch(cheminConfigurationPosteProvider),
+  ),
+);
+
+/// La liste des sauvegardes rangées — relue après chaque geste (on invalide).
+final fichiersSauvegardeProvider =
+    FutureProvider.autoDispose<List<FichierSauvegarde>>(
+      (ref) => ref.watch(sauvegardesPosteProvider).fichiers(),
+    );
 
 /// Une entrée de « Historique des imports ».
 final class EntreeHistoriqueImport {

@@ -189,9 +189,13 @@ OccupationPilotage calculerOccupation({
 /// Le critère de tri d'un classement — ANNONCÉ à l'écran : « un classement
 /// par quantité et un classement par montant ne donnent pas le même ordre, et
 /// le lecteur doit savoir lequel il regarde » (`tableau-de-bord.js`).
+///
+/// Le libellé est la PHRASE de la vue (`accueil_pwa.top_ventes.par_quantite` et
+/// `par_montant`), en un seul littéral : « classé par quantité vendue » /
+/// « classé par montant ».
 enum TriClassement {
-  quantite('quantité vendue'),
-  montant('montant');
+  quantite('classé par quantité vendue'),
+  montant('classé par montant');
 
   const TriClassement(this.libelle);
   final String libelle;

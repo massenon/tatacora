@@ -20,7 +20,7 @@ import '../../../shared_widgets/toast_export.dart';
 import '../../synchronisation/domain/reinitialisation_serveur.dart';
 import '../data/importeurs_locaux.dart';
 import '../data/reinitialisation_locale.dart';
-import '../data/sauvegarde_locale.dart';
+import '../data/sauvegardes_poste.dart';
 import '../domain/import_referentiels.dart';
 import 'providers_import_export.dart';
 import 'widgets/briques_transverses.dart';
@@ -46,17 +46,32 @@ import 'widgets/briques_transverses.dart';
 ///   tout dans UNE transaction. Écart nommé : une ligne déjà présente (clé
 ///   naturelle) est IGNORÉE, jamais dupliquée. L'historique est celui de la
 ///   session (aucune table `journal_imports` sur le poste), et le dit.
-/// - **Sauvegardes** : « Générer une sauvegarde de la base » enregistre une
-///   copie cohérente de la base (`VACUUM INTO`, `data/sauvegarde_locale.dart`)
-///   par « Enregistrer sous » ; « Exporter une table existante » rend une
-///   table en JSON (comptes exclus). Le poste n'en CONSERVE aucune : les
-///   indicateurs sans source affichent « — » (jamais « Quotidien (02h00) »,
-///   qui décrit le serveur), et les phrases de la vue qui décrivent le
-///   serveur (rythme, liste vide, rétention) sont REMPLACÉES par la phrase
-///   vraie (piège 13).
-/// - **Restaurer** : aucun registre d'archives sur ce poste ; un élément
-///   archivé s'y réintègre depuis l'écran de son module. L'encadré de la vue
-///   est rendu, suivi d'une ligne « Sur ce poste ».
+/// - **Sauvegardes** (portées à la vue le 21/10/2026, `data/sauvegardes_poste.dart`) :
+///   « Générer une sauvegarde de la base » RANGE une copie cohérente de la base
+///   (`VACUUM INTO`) dans `sauvegardes/`, à côté de `poste.json` ; la liste,
+///   les bandeaux (vert après génération, or pour la plus récente jamais
+///   téléchargée), « Télécharger » (fenêtre « Enregistrer sous », qui marque la
+///   copie téléchargée), « Retirer de la liste » (avec sa confirmation forte
+///   quand la copie n'a jamais été téléchargée) et la rétention de trente jours
+///   sont ceux de la vue. « Exporter une table existante » rend une table en
+///   JSON (comptes exclus). ÉCARTS nommés (piège 13) : « Rythme automatique »
+///   reste « — » (« Quotidien (02h00) » décrit le serveur ; une application de
+///   bureau n'est pas allumée à 02h00), et les quatre phrases de la vue qui
+///   disent « ce serveur » (« la sauvegarde automatique tourne chaque nuit… »,
+///   « tant qu'elle reste sur ce serveur », la rétention, la modale de retrait)
+///   disent ici « ce poste », ou la vérité du poste.
+/// - **Restaurer** : REFUSÉ (21/10/2026). Le serveur tient un registre
+///   d'archives (éléments supprimés de tous les modules, restaurables ou
+///   purgeables depuis cet onglet) ; ce poste n'en a aucun : un élément
+///   « archivé » n'y est qu'un drapeau de son module (fournisseur inactif,
+///   unité hors service), qui se réintègre depuis l'écran de ce module. Un
+///   registre transverse demanderait une table d'archives (changement de
+///   schéma), des écritures dans des modules qui ne sont pas ceux de cet écran
+///   et un contrat de synchronisation de la purge (suppression définitive,
+///   que le serveur ne reçoit nulle part). L'encadré de la vue est rendu,
+///   suivi d'une ligne « Sur ce poste ». Jetons, un par bloc refusé :
+///     blade-refuse:transverse/import-export#restaurer
+///     blade-refuse:transverse/import-export#modale:import_export.purge_titre
 /// - **Réinitialiser** : « Réinitialiser comme neuf » (demande du PO du
 ///   14/10/2026, lot E), réplique LOCALE du serveur
 ///   (`data/reinitialisation_locale.dart`) : refus en build production
@@ -64,9 +79,9 @@ import 'widgets/briques_transverses.dart';
 ///   phase d'essais annoncée par le serveur — bandeau ambre, phrase de la vue),
 ///   bascule `reinitialisation_seeders` de Paramètres, rôles d'administration,
 ///   saisie du mot « VIDER », une transaction. Les trois états de la vue
-///   (production, verrouillé, ouvert) et sa modale sont rendus. Écart NOMMÉ :
-///   la vue promet « une sauvegarde complète générée juste avant » ; le poste
-///   n'en produit aucune, la phrase est remplacée par la vraie (piège 13).
+///   (production, verrouillé, ouvert) et sa modale sont rendus. Depuis le
+///   21/10/2026 la phrase de la vue est VRAIE : une sauvegarde complète est
+///   rangée juste avant le vidage, et rien n'est vidé si elle échoue.
 ///
 /// Droit : la route de la vue exige PARAM en lecture (`module:PARAM,L`).
 class EcranImportExport extends ConsumerStatefulWidget {
@@ -227,6 +242,8 @@ abstract final class TextesImportExport {
   // « Exporter une table existante », RÉELS depuis le 14/10/2026.
   static String sauvegardeGeneree(String fichier, String taille) =>
       'Sauvegarde générée : $fichier ($taille).';
+  static String sauvegardeEnregistree(String fichier) =>
+      'Sauvegarde enregistrée : $fichier.';
   static String sauvegardeEchec(Object erreur) =>
       'La sauvegarde a échoué : $erreur';
   static const String exportTableTitre = 'Exporter une table existante';
@@ -236,13 +253,44 @@ abstract final class TextesImportExport {
   static const String exportTableChoisir = 'Sélectionnez une table.';
   static const String actionTelecharger = 'Télécharger';
 
+  /// REMPLACEMENT déclaré (piège 13) de `sauvegardes_rythme` (« La sauvegarde
+  /// automatique tourne chaque nuit à 02h00… ») : une application de bureau
+  /// n'est pas allumée à 02h00, aucune sauvegarde automatique n'a lieu ici.
   static const String rythmeSurCePoste =
-      "Sur ce poste : aucune sauvegarde automatique n'a lieu, et aucune n'est "
-      'conservée.';
-  static const String sauvegardesVideSurCePoste =
-      'Aucune sauvegarde conservée sur ce poste : « Générer une sauvegarde de '
-      "la base » enregistre une copie complète à l'emplacement que vous "
-      "choisissez — c'est cet emplacement qui la met à l'abri.";
+      "Sur ce poste : aucune sauvegarde automatique n'a lieu. « Générer une sauvegarde de la base » en range une copie complète, à la demande, et une est rangée avant chaque réinitialisation.";
+
+  /// `sauvegardes_vide` (au mot).
+  static const String sauvegardesVide =
+      'Aucune sauvegarde. Utilisez le bouton ci-dessus pour en générer une.';
+
+  /// `sauvegarde_contenu`, `action_retirer`, `sauvegarde_non_telechargee`.
+  static const String sauvegardeContenu = 'Base complète';
+  static const String actionRetirer = 'Retirer de la liste';
+  static const String sauvegardeNonTelechargee = 'non téléchargée';
+
+  /// `bandeau_generee_*` et `bandeau_rappel_*` : « sur ce serveur » devient
+  /// « sur ce poste » — c'est là que vivent les fichiers (ÉCART nommé).
+  static const String bandeauGenereeTitre = 'Sauvegarde générée';
+  static String bandeauGenereeTexte(String fichier) =>
+      "$fichier — téléchargez-la : tant qu'elle reste sur ce poste, elle ne protège de rien.";
+  static const String bandeauRappelTitre =
+      'Sauvegarde en attente de téléchargement';
+  static String bandeauRappelTexte(String fichier, String date) =>
+      "$fichier du $date n'a pas été téléchargée.";
+
+  /// `sauvegardes_retention` : « conservées sur ce serveur » devient « sur ce
+  /// poste ».
+  static const String sauvegardesRetention =
+      "Les sauvegardes des 30 derniers jours sont conservées sur ce poste. Une sauvegarde restée sur la machine ne protège de rien : c'est le téléchargement qui la met à l'abri.";
+
+  /// La modale de retrait — `retrait_*` (« sur ce serveur » → « sur ce poste »).
+  static const String retraitTitre = 'Sauvegarde jamais téléchargée';
+  static const String retraitMessage =
+      "Cette sauvegarde n'existe que sur ce poste.";
+  static const String retraitDetail =
+      "La retirer la perd définitivement : il n'en existe aucune copie ailleurs.";
+  static const String retraitConfirmer = 'Retirer quand même';
+  static const String sauvegardeRetiree = 'Sauvegarde retirée de la liste.';
   static const String restaurerSurCePoste =
       "Sur ce poste : aucun registre d'archives n'est tenu ici — un élément "
       "archivé se réintègre depuis l'écran de son module.";
@@ -255,6 +303,11 @@ abstract final class TextesImportExport {
       'Paramètres › Activation & Sécurité';
   static const String seedersBandeauTitre =
       "Fonction ouverte — à refermer dès que l'exploitation réelle commence";
+
+  /// `seeders_bandeau_texte` (au mot) — vraie sur ce poste depuis le
+  /// 21/10/2026 : la sauvegarde de sûreté est rangée AVANT le vidage.
+  static const String seedersBandeauTexte =
+      "Une sauvegarde complète est générée automatiquement avant chaque réinitialisation. C'est le seul filet si la bascule était restée ouverte par erreur.";
   static const String seedersVideTitre = 'Ce qui sera vidé';
   static const String seedersVideTexte =
       "Tout ce que l'exploitation produit : clients, employés et paie, fournisseurs, guides, réservations et séjours, ventes, factures, mouvements de stock, achats, dépenses, locations, écritures comptables, notifications, caches et files de tâches.";
@@ -286,18 +339,17 @@ abstract final class TextesImportExport {
   static const String resetEnvironnementProduction =
       "Cet écran s'exécute en Production : la réinitialisation est désactivée, quel que soit votre rôle — c'est l'environnement qui refuse, pas un droit qui manque.";
 
-  /// REMPLACEMENTS déclarés (piège 13) — la vue annonce une sauvegarde
-  /// complète générée avant chaque réinitialisation (bandeau et modale de
-  /// l'onglet « seeders ») ; le poste n'en produit AUCUNE : la phrase vraie
-  /// prend sa place, avec le maximum des mots de la vue.
-  static const String seedersBandeauTexteSurCePoste =
-      "Sur ce poste, aucune sauvegarde n'est générée avant la réinitialisation : "
-      'rien ne permet de revenir en arrière si la bascule était restée ouverte par erreur.';
-  static const String seedersModaleTexte2FinSurCePoste =
-      ". Sur ce poste, aucune sauvegarde n'est générée juste avant.";
-  static String seedersFaitSurCePoste(int tables, int lignes) =>
+  /// `seeders_modale_texte_2_fin` (au mot) : vraie depuis le 21/10/2026.
+  static const String seedersModaleTexte2Fin =
+      '. Une sauvegarde complète est générée juste avant.';
+  static String seedersFaitSurCePoste(
+    int tables,
+    int lignes, {
+    String? sauvegarde,
+  }) =>
       '$tables table(s) vidée(s), $lignes ligne(s) supprimée(s). Les '
-      'paramètres, les droits et les référentiels gardés sont intacts.';
+      'paramètres, les droits et les référentiels gardés sont intacts'
+      '${sauvegarde == null ? '.' : ' — sauvegarde $sauvegarde générée juste avant.'}';
 }
 
 class _EcranImportExportState extends ConsumerState<EcranImportExport> {
@@ -1442,6 +1494,16 @@ class _PanneauSauvegardes extends ConsumerStatefulWidget {
 class _PanneauSauvegardesState extends ConsumerState<_PanneauSauvegardes> {
   bool _enCours = false;
 
+  /// Le nom de la sauvegarde que ce geste vient de produire : le bandeau VERT
+  /// (`sauvegardeGeneree` du composant) ; sinon, le bandeau OR dit celle qui
+  /// n'a jamais été téléchargée.
+  String? _genere;
+
+  static const String _corbeille =
+      r'<path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z"/>';
+  static const String _traceTelecharger =
+      r'<path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>';
+
   static String _taille(int octets) {
     if (octets >= 1024 * 1024) {
       return '${(octets / (1024 * 1024)).toStringAsFixed(1)} Mo';
@@ -1449,11 +1511,13 @@ class _PanneauSauvegardesState extends ConsumerState<_PanneauSauvegardes> {
     return '${(octets / 1024).ceil()} Ko';
   }
 
-  Future<void> _generer() async {
-    if (_enCours) return;
-    setState(() => _enCours = true);
-    final messager = ScaffoldMessenger.of(context);
-    void dire(String texte, Color fond, Key cle) => messager
+  static String _deux(int n) => n.toString().padLeft(2, '0');
+  static String _jour(DateTime d) =>
+      '${_deux(d.day)}/${_deux(d.month)}/${d.year}';
+  static String _heure(DateTime d) => '${_deux(d.hour)}:${_deux(d.minute)}';
+
+  void _dire(String texte, Color fond, Key cle) {
+    ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
@@ -1462,29 +1526,30 @@ class _PanneauSauvegardesState extends ConsumerState<_PanneauSauvegardes> {
           content: Text(texte, key: cle),
         ),
       );
+  }
+
+  /// « Générer une sauvegarde de la base » : une copie complète RANGÉE sur le
+  /// poste (`SauvegardesPoste.generer`), puis le bandeau vert.
+  Future<void> _generer() async {
+    if (_enCours) return;
+    setState(() => _enCours = true);
     try {
-      final octets = await ref.read(sauvegardeLocaleProvider).composer();
-      final chemin = await ref
-          .read(enregistrementExportProvider)
-          .enregistrerFichier(
-            nomSuggere: SauvegardeLocale.nomSuggere(),
-            octets: octets,
-            type: TypeFichierEnregistre.sauvegarde,
-          );
-      // Annulé dans la fenêtre : rien n'est écrit, rien n'est dit.
-      if (chemin != null && messager.mounted) {
-        dire(
+      final fichier = await ref.read(sauvegardesPosteProvider).generer();
+      ref.invalidate(fichiersSauvegardeProvider);
+      if (mounted) {
+        setState(() => _genere = fichier.nom);
+        _dire(
           TextesImportExport.sauvegardeGeneree(
-            nomDuFichier(chemin),
-            _taille(octets.length),
+            fichier.nom,
+            _taille(fichier.taille),
           ),
           AppColors.succes,
           const Key('ie-sauvegarde-generee'),
         );
       }
     } on Object catch (e) {
-      if (messager.mounted) {
-        dire(
+      if (mounted) {
+        _dire(
           TextesImportExport.sauvegardeEchec(e),
           AppColors.erreur,
           const Key('ie-sauvegarde-echec'),
@@ -1492,6 +1557,76 @@ class _PanneauSauvegardesState extends ConsumerState<_PanneauSauvegardes> {
       }
     } finally {
       if (mounted) setState(() => _enCours = false);
+    }
+  }
+
+  /// « Télécharger » : la copie rangée est écrite là où l'opérateur le choisit
+  /// (fenêtre « Enregistrer sous ») ; ce n'est qu'alors qu'elle est marquée
+  /// téléchargée — annuler dans la fenêtre ne met rien à l'abri.
+  Future<void> _telecharger(String nom) async {
+    try {
+      final sauvegardes = ref.read(sauvegardesPosteProvider);
+      final octets = await sauvegardes.lire(nom);
+      final chemin = await ref
+          .read(enregistrementExportProvider)
+          .enregistrerFichier(
+            nomSuggere: nom,
+            octets: octets,
+            type: TypeFichierEnregistre.sauvegarde,
+          );
+      if (chemin == null) return;
+      await sauvegardes.marquerTelechargee(nom);
+      ref.invalidate(fichiersSauvegardeProvider);
+      if (mounted) {
+        if (_genere == nom) setState(() => _genere = null);
+        _dire(
+          TextesImportExport.sauvegardeEnregistree(nomDuFichier(chemin)),
+          AppColors.succes,
+          const Key('ie-sauvegarde-telechargee'),
+        );
+      }
+    } on Object catch (e) {
+      if (mounted) {
+        _dire(
+          TextesImportExport.sauvegardeEchec(e),
+          AppColors.erreur,
+          const Key('ie-sauvegarde-echec'),
+        );
+      }
+    }
+  }
+
+  /// « Retirer de la liste » : la confirmation forte ne s'ouvre QUE pour une
+  /// sauvegarde jamais téléchargée (`retirerSauvegarde` du composant) ; une
+  /// sauvegarde téléchargée se retire directement.
+  Future<void> _retirer(FichierSauvegarde fichier) async {
+    if (!fichier.telechargee) {
+      final confirme = await showDialog<bool>(
+        context: context,
+        barrierColor: AppColors.voileModale,
+        builder: (_) => const _ModaleRetraitSauvegarde(),
+      );
+      if (confirme != true || !mounted) return;
+    }
+    try {
+      await ref.read(sauvegardesPosteProvider).retirer(fichier.nom);
+      ref.invalidate(fichiersSauvegardeProvider);
+      if (mounted) {
+        if (_genere == fichier.nom) setState(() => _genere = null);
+        _dire(
+          TextesImportExport.sauvegardeRetiree,
+          AppColors.succes,
+          const Key('ie-sauvegarde-retiree'),
+        );
+      }
+    } on Object catch (e) {
+      if (mounted) {
+        _dire(
+          TextesImportExport.sauvegardeEchec(e),
+          AppColors.erreur,
+          const Key('ie-sauvegarde-echec'),
+        );
+      }
     }
   }
 
@@ -1521,6 +1656,12 @@ class _PanneauSauvegardesState extends ConsumerState<_PanneauSauvegardes> {
     final peutEcrire = widget.peutEcrire;
     final nombreTables = widget.nombreTables;
     final largeur = MediaQuery.sizeOf(context).width;
+    final fichiers =
+        ref.watch(fichiersSauvegardeProvider).value ??
+        const <FichierSauvegarde>[];
+    final enAttente = fichiers.isNotEmpty && !fichiers.first.telechargee
+        ? fichiers.first
+        : null;
     Widget kpi(String libelle, String valeur, {Key? cle}) => CarteTransverse(
       padding: const EdgeInsets.all(AppSpacing.md),
       child: Column(
@@ -1544,9 +1685,96 @@ class _PanneauSauvegardesState extends ConsumerState<_PanneauSauvegardes> {
         ],
       ),
     );
+
+    // Un bandeau de la vue : icône, titre, texte, et « Télécharger » à droite
+    // pour qui écrit.
+    Widget bandeau({
+      required Key cle,
+      required Key cleBouton,
+      required Color fond,
+      required Color bordure,
+      required Color encre,
+      required Color bouton,
+      required String titre,
+      required String texte,
+      required String nom,
+    }) => Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.mdPlus), // mb-5
+      child: EncadreTransverse(
+        key: cle,
+        fond: fond,
+        bordure: bordure,
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    titre,
+                    style: styleTransverse(
+                      TaillesContenu.t15,
+                      poids: FontWeight.bold,
+                      couleur: encre,
+                    ),
+                  ),
+                  Text(
+                    texte,
+                    style: styleTransverse(TaillesContenu.t13, couleur: encre),
+                  ),
+                ],
+              ),
+            ),
+            if (peutEcrire) ...[
+              const SizedBox(width: AppSpacing.sm),
+              BoutonTransverse(
+                cle: Key(
+                  '${cle.toString().replaceAll(RegExp(r"[\[\]<>']"), '')}-telecharger',
+                ),
+                libelle: TextesImportExport.actionTelecharger,
+                fond: bouton,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.xs,
+                ),
+                onTap: () => _telecharger(nom),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (_genere != null)
+          bandeau(
+            cle: const Key('ie-bandeau-generee'),
+            cleBouton: const Key('ie-bandeau-generee-telecharger'),
+            fond: AppColors.badgeVertFond,
+            bordure: PaletteTransverse.vert300,
+            encre: PaletteTransverse.texteVert,
+            bouton: AppColors.succes,
+            titre: TextesImportExport.bandeauGenereeTitre,
+            texte: TextesImportExport.bandeauGenereeTexte(_genere!),
+            nom: _genere!,
+          )
+        else if (enAttente != null)
+          bandeau(
+            cle: const Key('ie-bandeau-rappel'),
+            cleBouton: const Key('ie-bandeau-rappel-telecharger'),
+            fond: PaletteMaitre.ambre50,
+            bordure: PaletteMaitre.ambre200,
+            encre: PaletteTransverse.texteOr,
+            bouton: AppColors.gold,
+            titre: TextesImportExport.bandeauRappelTitre,
+            texte: TextesImportExport.bandeauRappelTexte(
+              enAttente.nom,
+              _jour(enAttente.date),
+            ),
+            nom: enAttente.nom,
+          ),
         GrilleTransverse(
           colonnes: largeur >= AppBreakpoints.sm
               ? MesuresTransverses.colonnesKpiSauvegardes
@@ -1558,8 +1786,18 @@ class _PanneauSauvegardesState extends ConsumerState<_PanneauSauvegardes> {
               '$nombreTables',
               cle: const Key('ie-kpi-tables'),
             ),
-            kpi(TextesImportExport.kpiSauvegardes, TextesImportExport.tiret),
-            kpi(TextesImportExport.kpiDerniere, TextesImportExport.tiret),
+            kpi(
+              TextesImportExport.kpiSauvegardes,
+              '${fichiers.length}',
+              cle: const Key('ie-kpi-sauvegardes'),
+            ),
+            kpi(
+              TextesImportExport.kpiDerniere,
+              fichiers.isEmpty
+                  ? TextesImportExport.tiret
+                  : _jour(fichiers.first.date),
+              cle: const Key('ie-kpi-derniere'),
+            ),
             kpi(TextesImportExport.kpiRythme, TextesImportExport.tiret),
           ],
         ),
@@ -1606,10 +1844,10 @@ class _PanneauSauvegardesState extends ConsumerState<_PanneauSauvegardes> {
           child: Text(TextesImportExport.rythmeSurCePoste, style: _aide),
         ),
         const SizedBox(height: AppSpacing.md),
-        const CarteTransverse(
+        CarteTransverse(
           padding: EdgeInsets.zero,
           child: TableauTransverse(
-            colonnes: [
+            colonnes: const [
               (
                 titre: TextesImportExport.colFichier,
                 alignement: TextAlign.left,
@@ -1621,12 +1859,148 @@ class _PanneauSauvegardesState extends ConsumerState<_PanneauSauvegardes> {
                 alignement: TextAlign.right,
               ),
             ],
-            lignes: [],
-            vide: TextesImportExport.sauvegardesVideSurCePoste,
-            cleVide: Key('ie-sauvegardes-vide'),
+            lignes: [
+              for (final f in fichiers)
+                [
+                  Column(
+                    key: Key('ie-sauvegarde-${f.nom}'),
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      celluleTexte(
+                        f.nom,
+                        couleur: Ardoise.c700,
+                        poids: FontWeight.w600,
+                        mono: true,
+                      ),
+                      celluleTexte(
+                        '${_taille(f.taille)}${f.telechargee ? '' : ' · ${TextesImportExport.sauvegardeNonTelechargee}'}',
+                        couleur: Ardoise.c400,
+                        taille: TaillesContenu.t12,
+                      ),
+                    ],
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      celluleTexte(_jour(f.date)),
+                      celluleTexte(
+                        _heure(f.date),
+                        couleur: Ardoise.c400,
+                        taille: TaillesContenu.t12,
+                      ),
+                    ],
+                  ),
+                  celluleTexte(TextesImportExport.sauvegardeContenu),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (peutEcrire) ...[
+                        BoutonTransverse(
+                          cle: Key('ie-telecharger-${f.nom}'),
+                          libelle: TextesImportExport.actionTelecharger,
+                          fond: AppColors.navy,
+                          trace: _traceTelecharger,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.sm,
+                            vertical: AppSpacing.xxs,
+                          ),
+                          onTap: () => _telecharger(f.nom),
+                        ),
+                        const SizedBox(width: AppSpacing.unit),
+                        Tooltip(
+                          message: TextesImportExport.actionRetirer,
+                          child: InkWell(
+                            key: Key('ie-retirer-${f.nom}'),
+                            onTap: () => _retirer(f),
+                            child: Padding(
+                              padding: const EdgeInsets.all(AppSpacing.xxs),
+                              child: IconeTrace(
+                                trace: _corbeille,
+                                taille: MesuresTransverses.iconePetite,
+                                couleur: Ardoise.c400,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+            ],
+            vide: TextesImportExport.sauvegardesVide,
+            cleVide: const Key('ie-sauvegardes-vide'),
           ),
         ),
+        const SizedBox(height: AppSpacing.sm), // mt-3
+        Text(TextesImportExport.sauvegardesRetention, style: _aide),
       ],
+    );
+  }
+}
+
+/// La confirmation forte de « Retirer de la liste » pour une sauvegarde jamais
+/// téléchargée (`Dialogue.confirmer`) : titre, message, détail, Annuler /
+/// « Retirer quand même ». Rend `true` quand on retire.
+class _ModaleRetraitSauvegarde extends StatelessWidget {
+  const _ModaleRetraitSauvegarde();
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      key: const Key('ie-modale-retrait'),
+      backgroundColor: AppColors.neutre0,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: Largeurs.maxSm),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                TextesImportExport.retraitTitre,
+                style: styleTransverse(
+                  TaillesContenu.base,
+                  poids: FontWeight.bold,
+                  couleur: AppColors.navy,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                TextesImportExport.retraitMessage,
+                style: styleTransverse(TaillesContenu.t13),
+              ),
+              const SizedBox(height: AppSpacing.unit),
+              Text(
+                TextesImportExport.retraitDetail,
+                style: styleTransverse(
+                  TaillesContenu.t13,
+                  couleur: Ardoise.c500,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.mdPlus),
+              Wrap(
+                alignment: WrapAlignment.end,
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.xs,
+                children: [
+                  BoutonTransverse(
+                    cle: const Key('ie-retrait-annuler'),
+                    libelle: TextesImportExport.annuler,
+                    onTap: () => Navigator.of(context).pop(false),
+                  ),
+                  BoutonTransverse(
+                    cle: const Key('ie-retrait-confirmer'),
+                    libelle: TextesImportExport.retraitConfirmer,
+                    fond: AppColors.erreur,
+                    onTap: () => Navigator.of(context).pop(true),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -1907,8 +2281,10 @@ class _PanneauSeedersState extends ConsumerState<_PanneauSeeders> {
 
   late Future<_EtatSeeders> _etat;
 
-  ReinitialisationLocale get _moteur =>
-      ReinitialisationLocale(ref.read(baseLocaleProvider));
+  ReinitialisationLocale get _moteur => ReinitialisationLocale(
+    ref.read(baseLocaleProvider),
+    sauvegardes: ref.read(sauvegardesPosteProvider),
+  );
 
   @override
   void initState() {
@@ -2168,7 +2544,7 @@ class _PanneauSeedersState extends ConsumerState<_PanneauSeeders> {
                   ),
                   const SizedBox(height: AppSpacing.unit),
                   Text(
-                    TextesImportExport.seedersBandeauTexteSurCePoste,
+                    TextesImportExport.seedersBandeauTexte,
                     style: styleTransverse(
                       TaillesContenu.t13,
                       couleur: PaletteTransverse.texteRouge,
@@ -2232,6 +2608,7 @@ class _PanneauSeedersState extends ConsumerState<_PanneauSeeders> {
       TextesImportExport.seedersFaitSurCePoste(
         bilan.tablesVidees,
         bilan.lignesSupprimees,
+        sauvegarde: bilan.sauvegarde,
       ),
       cle: const Key('ie-seeders-fait'),
     );
@@ -2334,7 +2711,7 @@ class _ModaleReinitialisationState extends State<_ModaleReinitialisation> {
                       style: texte.copyWith(fontWeight: FontWeight.bold),
                     ),
                     const TextSpan(
-                      text: TextesImportExport.seedersModaleTexte2FinSurCePoste,
+                      text: TextesImportExport.seedersModaleTexte2Fin,
                     ),
                   ],
                 ),

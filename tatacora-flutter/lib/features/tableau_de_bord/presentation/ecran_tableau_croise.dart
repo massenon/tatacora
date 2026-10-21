@@ -110,7 +110,10 @@ TextStyle _style(double taille, {FontWeight? poids, Color? couleur}) =>
 
 /// Les quatre propriétés du composant (`$croiseLigne`, `$croiseColonne`,
 /// `$croiseMesure`, `$croiseSources`) et leurs défauts : activité, mois,
-/// montant, les trois sources.
+/// montant, les trois sources. Les libellés des listes « Lignes », « Colonnes »
+/// et « Mesure » sont ceux des registres `accueil_pwa.croise.axes.<axe>` et
+/// `accueil_pwa.croise.mesures.<mesure>` (clés composées à la volée par la
+/// vue).
 final class ConfigurationCroise {
   const ConfigurationCroise({
     this.ligne = AxeCroise.activite,

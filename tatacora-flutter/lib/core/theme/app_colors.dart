@@ -296,6 +296,11 @@ abstract final class PaletteMaitre {
   /// `m4-restaurant.html` l.20.
   static const Color ambre900 = Color(0xFF78350F);
 
+  /// `#92400E` — `amber-800`. Le texte de l'encadré « Porté en note de chambre »
+  /// du ticket de vente (`pos/comptant.blade.php`, `text-amber-800 bg-amber-50
+  /// border-amber-200`).
+  static const Color ambre800 = Color(0xFF92400E);
+
   /// `#F3F4F6` — le fond de repli d'une pastille dont la valeur n'est
   /// **prevue par aucune couleur** de la configuration (`crud-engine.js`
   /// l.216, `{bg:'#F3F4F6', txt:'#6B7280'}`).

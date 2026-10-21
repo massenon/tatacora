@@ -25,6 +25,7 @@ import '../../../core/di/providers.dart';
 import '../../../core/fichiers/enregistrement_export.dart';
 import '../../../core/impression/entete_parametree.dart';
 import '../../../core/rbac/garde_acces.dart';
+import '../../pos/data/dto/catalogue_dto.dart' show IndisponibiliteDistante;
 import '../../stocks/presentation/providers_stocks.dart';
 import '../data/restaurant_api.dart';
 import '../data/retraits_plats.dart';
@@ -121,6 +122,32 @@ final categorieRestaurationProvider =
 final pageRestaurationProvider = NotifierProvider<_PageNotifier, int>(
   _PageNotifier.new,
 );
+
+/// La sélection du catalogue — `selection` de la vue (cases à cocher), par
+/// identifiant de plat. Elle revient à vide dès qu'un filtre ou une page change,
+/// comme `updated()` de la vue (`$this->selection = []`) : une sélection
+/// survivante serait invisible.
+final selectionPlatsProvider =
+    NotifierProvider<SelectionPlatsNotifier, Set<String>>(
+      SelectionPlatsNotifier.new,
+    );
+
+final class SelectionPlatsNotifier extends Notifier<Set<String>> {
+  @override
+  Set<String> build() => const {};
+
+  void definir(Set<String> valeur) => state = valeur;
+  void basculer(String id, {required bool coche}) =>
+      state = coche ? {...state, id} : ({...state}..remove(id));
+  void vider() => state = const {};
+}
+
+/// Les retraits de la carte en cours, par plat (`indisponibilites_carte_local`)
+/// : la colonne « Disponible » et la carte « Retirés de la carte ».
+final platsRetiresProvider =
+    FutureProvider.autoDispose<Map<String, IndisponibiliteDistante>>(
+      (ref) => ref.watch(retraitsPlatsProvider).retires(),
+    );
 
 /// La recherche de l'onglet des fiches techniques.
 final rechercheFichesProvider = NotifierProvider<_TexteNotifier, String>(
@@ -286,7 +313,8 @@ void invaliderRestaurant(WidgetRef ref) {
     ..invalidate(menusListeProvider)
     ..invalidate(compteursCatalogueProvider)
     ..invalidate(compteursFichesProvider)
-    ..invalidate(articlesFichesProvider);
+    ..invalidate(articlesFichesProvider)
+    ..invalidate(platsRetiresProvider);
 }
 
 /// La fiche détail d'un plat — ce que la modale « Détail » du maître affiche.

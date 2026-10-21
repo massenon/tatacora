@@ -820,6 +820,14 @@ Map<String, Object?> chargeAnnulationBulletin({required String motif}) => {
   'motif': motif,
 };
 
+/// `ventes`, ANNULATION (la seule modification) — `GestionnaireVentes::
+/// modifier` : `statut: annulee` et `motif`, par `VenteService::annuler`
+/// (contre-passation de la pièce du serveur, retour des boissons au stock).
+Map<String, Object?> chargeAnnulationVente({required String motif}) => {
+  'statut': 'annulee',
+  'motif': motif,
+};
+
 /// `parametres_systeme` (création seule, lot 10e) : UN enregistrement de
 /// l'écran Paramètres — les clés réellement modifiées et leur valeur
 /// normalisée (`null` = vidée). Le serveur juge la cohérence sur l'état

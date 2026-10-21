@@ -39,8 +39,7 @@ abstract final class TextesModalesRoles {
   static const String modifierDroitsSousTitre =
       'C = accès complet, L = lecture seule, — = aucun accès.';
   static const String verrouAdministrateur =
-      "Verrouillé : un administrateur ne peut pas se retirer l'accès à "
-      '« Rôles & Permissions ».';
+      "Verrouillé : un administrateur ne peut pas se retirer l'accès à « Rôles & Permissions ».";
   static const String toutRetirer = 'Tout retirer';
   static const String retablirTitre = 'Rétablir le socle du CdCF';
   static const String retablirTexte =

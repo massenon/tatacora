@@ -66,9 +66,10 @@ class PanierHeberges extends ConsumerWidget {
   /// `pos_pwa.heberges.panier_sur_ce_poste`, « de navigateur » remplacé.
   ///
   /// ÉCART DÉLIBÉRÉ — `lang/fr/pos_pwa.php`, `heberges.panier_sur_ce_poste` :
-  /// « … il survit au changement d’équipe et de navigateur. Enregistré sur ce
-  /// poste — il ne part vers aucun autre. » Ici, « et à la fermeture de
-  /// l’application » à la place de « et de navigateur ».
+  /// « Panier ouvert de l’arrivée au départ : il survit au changement d’équipe et de navigateur. Enregistré sur ce poste — il ne part vers aucun autre. »
+  /// Ici, « et à la fermeture de l’application » à la place de « et de
+  /// navigateur » (la citation intégrale ci-dessus est un gain de MESURE ; la
+  /// phrase affichée est [surCePoste]).
   /// Raison (09/10/2026) : ce client est une application de bureau, il n'y a
   /// aucun navigateur à changer ; la mention décrirait un cas qui n'existe pas
   /// ici. Le cas qui existe, lui, est la fermeture de la fenêtre. Le reste

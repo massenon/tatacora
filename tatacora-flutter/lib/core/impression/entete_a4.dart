@@ -131,7 +131,10 @@ pw.Widget piedRapportA4(
 ///
 /// Un document REMIS AU CLIENT n'en porte jamais : un « Visa Ordonnateur » sur
 /// un papier client le ferait lire comme une pièce d'ordonnancement interne.
-pw.Widget zoneSignaturesA4({required List<String> visas}) => pw.Padding(
+pw.Widget zoneSignaturesA4({
+  required List<String> visas,
+  String ligne = '____________________',
+}) => pw.Padding(
   padding: const pw.EdgeInsets.only(top: 30),
   child: pw.Row(
     crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -148,10 +151,7 @@ pw.Widget zoneSignaturesA4({required List<String> visas}) => pw.Padding(
                 ),
               ),
               pw.SizedBox(height: 36),
-              pw.Text(
-                '____________________',
-                style: const pw.TextStyle(fontSize: 8.5),
-              ),
+              pw.Text(ligne, style: const pw.TextStyle(fontSize: 8.5)),
             ],
           ),
         ),
