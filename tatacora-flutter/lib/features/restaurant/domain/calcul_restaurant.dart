@@ -48,6 +48,7 @@ library;
 import '../../../core/format/cle_comparaison.dart';
 import '../../stocks/domain/calcul_stock.dart' show ecrireCentiemes, ecrireCout;
 import '../../stocks/domain/entities/etat_stock.dart' show SuiviArticle;
+import '../../pos/data/dto/catalogue_dto.dart' show IndisponibiliteDistante;
 import 'entities/carte_restaurant.dart';
 import 'entities/plat.dart';
 import 'messages_restaurant.dart';
@@ -409,11 +410,15 @@ final class PlatCalcule {
     this.recetteLibelle,
     this.prixProvisoire = false,
     this.prixCorrigeMain = false,
+    this.indisponibilite,
   });
 
   final String id;
   final String libelle;
   final String menuId;
+
+  /// Le retrait de la carte du jour en cours (v31), ou `null`.
+  final IndisponibiliteDistante? indisponibilite;
 
   /// `menus.type` : la catégorie du plat (comme l'API).
   final String menuType;
@@ -694,6 +699,7 @@ LigneCarteRestaurant _ligne(PlatCalcule p, {required bool pointCuisine}) {
     marge: cout.marge(p.prixFrancs),
     prixProvisoire: p.prixProvisoire,
     prixCorrigeMain: p.prixCorrigeMain,
+    indisponibilite: p.indisponibilite,
   );
 }
 
@@ -703,8 +709,10 @@ IndicateursCarte _indicateurs(List<LigneCarteRestaurant> lignes) {
   var sousSeuil = 0;
   var coutInconnu = 0;
   var provisoires = 0;
+  var retires = 0;
 
   for (final l in lignes) {
+    if (l.estRetire) retires++;
     if (l.lieAuStock) lies++;
     if (l.rupture) rupture++;
     if (l.sousSeuil) sousSeuil++;
@@ -721,12 +729,12 @@ IndicateursCarte _indicateurs(List<LigneCarteRestaurant> lignes) {
     sousSeuil: sousSeuil,
     coutMatiereInconnu: coutInconnu,
     prixProvisoires: provisoires,
-    // Il n'y a aucune colonne de disponibilité sur ce poste : ces deux-là
-    // restent « — » avec leur raison. `prix_provisoires`, lui, est COMPTÉ.
-    absents: const {
-      'disponibles': MessagesRestaurant.disponibiliteAbsente,
-      'indisponibles': MessagesRestaurant.disponibiliteAbsente,
-    },
+    // Depuis la v31 (21/10/2026) la disponibilité du jour a sa table : les
+    // deux sont COMPTÉS, donc plus rien n'est « absent ». Le serveur, lui, les
+    // déclare encore absents de son API (`CarteRestaurantService`) : les
+    // cartes continuent d'interroger `raisonAbsence`.
+    disponibles: lignes.length - retires,
+    indisponibles: retires,
   );
 }
 

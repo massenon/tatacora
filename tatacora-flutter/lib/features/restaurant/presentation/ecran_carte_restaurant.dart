@@ -269,14 +269,19 @@ class _PageAvecDonnees extends ConsumerWidget {
         cle: const Key('carte-restaurant-kpi-articles'),
         libelle: 'Articles à la carte',
         valeur: '${k.plats}',
-        // Le détail de la vue est « N disponible(s) » : il n'existe pas.
+        detail: k.disponibles == null ? null : '${k.disponibles} disponible(s)',
         raison: k.raisonAbsence('disponibles'),
       ),
       CarteKpi(
         cle: const Key('carte-restaurant-kpi-retires'),
         libelle: 'Retirés du jour',
-        valeur: CarteIndicateurRestaurant.absent,
-        accent: Ardoise.c400,
+        valeur: k.indisponibles == null
+            ? CarteIndicateurRestaurant.absent
+            : '${k.indisponibles}',
+        // `$k['indisponibles'] > 0 ? 'text-amber-600' : 'text-slate-400'`.
+        accent: (k.indisponibles ?? 0) > 0
+            ? PaletteMaitre.ambre600
+            : Ardoise.c400,
         detail: 'Rupture ou retrait',
         raison: k.raisonAbsence('indisponibles'),
       ),

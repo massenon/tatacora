@@ -583,10 +583,14 @@ ne double rien (le serveur fusionne, `fusionne_avec`) ; un retrait local encore
 en file est CONSERVÉ face à celui du serveur. Le droit est celui du rayon
 (boisson M5, plat M4). La carte du bar sait désormais l'état de chaque ligne
 (`disponibiliteConnue`), donc « Rendre indispo. » / « Remettre » sont offerts et
-la modale est un vrai formulaire. **Pas encore porté : le restaurant (plats)** —
-le DAO sait retirer un plat, l'écran de la carte du restaurant affiche encore
-« — » (ses indicateurs `disponibles`/`indisponibles` sont confrontés au serveur,
-à traiter avec lui). Piège : la sonde « un SEUL auteur de la file » compte aussi
+la modale est un vrai formulaire. **Le restaurant (plats) l'est aussi** :
+`RetraitsPlats` (même DAO), colonne « Disponible » oui/non, motif ambre sous le
+nom, cartes « Articles à la carte » / « Retirés du jour » COMPTÉES (plus de
+« — »), boutons « Rendre indispo. » / « Remettre » (droit M4). Restent refusés,
+dits : « Lier au stock », « Prix », « Historique des prix ». Écart nommé : le
+filtre d'état « Retirés du jour » reste non servi, parce que l'API du serveur le
+refuse encore (`CarteRestaurantService::ETATS_SANS_SCHEMA`, relu par un test) ;
+le lever demande de changer le serveur ET ce test ensemble. Piège : la sonde « un SEUL auteur de la file » compte aussi
 les LECTURES de `operationsSyncLocal` ; lire la file par `OperationsSyncDao`.
 
 ## Exploitation : cron et vérifications (19/10/2026)

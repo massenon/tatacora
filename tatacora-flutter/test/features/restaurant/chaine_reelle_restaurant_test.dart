@@ -19,6 +19,8 @@ import 'package:tatacora_flutter/features/restaurant/presentation/ecran_carte_re
 import 'package:tatacora_flutter/features/restaurant/presentation/ecran_restauration.dart';
 import 'package:tatacora_flutter/features/restaurant/presentation/providers_restaurant.dart';
 import 'package:tatacora_flutter/features/stocks/data/stocks_dao.dart';
+import 'package:tatacora_flutter/features/synchronisation/data/operations_sync_dao.dart';
+import 'package:tatacora_flutter/features/synchronisation/domain/operation_sync.dart';
 import 'package:tatacora_flutter/features/stocks/domain/entities/etat_stock.dart';
 import 'package:tatacora_flutter/features/stocks/domain/entities/mouvement_stock.dart';
 
@@ -753,10 +755,10 @@ void main() {
         textesSous(tester, const Key('carte-restaurant-kpi-provisoires')),
         contains('0'),
       );
-      // « Retirés du jour » n'a aucune source : « — ».
+      // « Retirés du jour » est COMPTÉ depuis la v31 : zéro est une mesure.
       expect(
         textesSous(tester, const Key('carte-restaurant-kpi-retires')),
-        contains('—'),
+        contains('0'),
       );
       expect(find.textContaining('ne figurent pas sur ce poste'), findsNothing);
     });
@@ -821,6 +823,60 @@ void main() {
       expect(textesSous(tester, Key('carte-restaurant-portions-${ids.plat}')), [
         '25',
       ]);
+    });
+
+    testWidgets('« Rendre indispo. » écrit le retrait d’un plat : « non », '
+        'motif sous le nom, KPI, file d’envoi ; « Remettre » le rend', (
+      tester,
+    ) async {
+      await poste();
+      final ids = await garni();
+      await monter(tester, const EcranCarteRestaurant());
+      expect(
+        textesSous(tester, const Key('carte-restaurant-kpi-retires')),
+        contains('0'),
+      );
+
+      await toucher(tester, Key('carte-restaurant-rendre-indispo-${ids.plat}'));
+      expect(find.byKey(const Key('modale-retrait-carte')), findsOneWidget);
+      await saisir(
+        tester,
+        const Key('retrait-carte-commentaire'),
+        'Plus de poulet',
+      );
+      await toucher(tester, const Key('retrait-carte-confirmer'));
+
+      expect(find.byKey(const Key('modale-retrait-carte')), findsNothing);
+      expect(textesSous(tester, Key('carte-restaurant-retrait-${ids.plat}')), [
+        'Rupture du jour — Plus de poulet',
+      ]);
+      expect(
+        textesSous(tester, const Key('carte-restaurant-kpi-retires')),
+        contains('1'),
+      );
+      expect(
+        textesSous(tester, Key('carte-restaurant-disponible-${ids.plat}')),
+        ['non'],
+      );
+      // Un retrait de plat est une `creation` de `indisponibilites_carte`.
+      final ops = [
+        for (final o in await OperationsSyncDao(
+          db,
+        ).operations(table: TableSynchronisee.indisponibilitesCarte))
+          o.payload,
+      ];
+      expect(ops, hasLength(1));
+      expect(ops.single, contains('"plat_id":"${ids.plat}"'));
+
+      await toucher(tester, Key('carte-restaurant-remettre-${ids.plat}'));
+      expect(
+        textesSous(tester, Key('carte-restaurant-disponible-${ids.plat}')),
+        ['oui'],
+      );
+      expect(
+        find.byKey(Key('carte-restaurant-rendre-indispo-${ids.plat}')),
+        findsOneWidget,
+      );
     });
 
     testWidgets('un plat sans fiche composée : « non suivi », sa raison, et '

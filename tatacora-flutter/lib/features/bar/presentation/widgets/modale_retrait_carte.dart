@@ -37,12 +37,41 @@ import '../providers_bar.dart';
 ///
 Future<bool?> ouvrirModaleRetraitCarte(
   BuildContext context,
+  WidgetRef ref,
   LigneCarte ligne,
-) => showDialog<bool>(
+) => ouvrirModaleRetraitArticle(
+  context,
+  libelle: ligne.libelle,
+  soumettre: (motif, commentaire) async {
+    final r = await ref.read(retirerDeLaCarteProvider)(
+      id: ligne.id,
+      motif: motif,
+      commentaire: commentaire,
+    );
+    return switch (r) {
+      BarRecu<Boisson>(:final donnees) => BarRecu(donnees.libelle),
+      BarRefuse<Boisson>(:final motif, :final erreurs, :final code) =>
+        BarRefuse(motif: motif, erreurs: erreurs, code: code),
+      BarInjoignable<Boisson>() => const BarInjoignable(),
+    };
+  },
+);
+
+/// La même modale pour un article quelconque de la carte du jour (boisson ou
+/// plat) : [soumettre] écrit le retrait et rend le libellé de l'article.
+Future<bool?> ouvrirModaleRetraitArticle(
+  BuildContext context, {
+  required String libelle,
+  required Future<ResultatBar<String>> Function(
+    String motif,
+    String? commentaire,
+  )
+  soumettre,
+}) => showDialog<bool>(
   context: context,
   barrierDismissible: true,
   barrierColor: AppColors.voileModale,
-  builder: (_) => _ModaleRetrait(ligne: ligne),
+  builder: (_) => _ModaleRetrait(libelle: libelle, soumettre: soumettre),
 );
 
 /// Les messages de la modale et du geste « Remettre » — un seul endroit pour
@@ -75,16 +104,18 @@ abstract final class TextesRetraitCarte {
 String libelleOptionMotif(MotifIndisponibilite m) =>
     '${m.libelle} — ${m.temporaire ? TextesRetraitCarte.temporaire : TextesRetraitCarte.definitif}';
 
-class _ModaleRetrait extends ConsumerStatefulWidget {
-  const _ModaleRetrait({required this.ligne});
+class _ModaleRetrait extends StatefulWidget {
+  const _ModaleRetrait({required this.libelle, required this.soumettre});
 
-  final LigneCarte ligne;
+  final String libelle;
+  final Future<ResultatBar<String>> Function(String motif, String? commentaire)
+  soumettre;
 
   @override
-  ConsumerState<_ModaleRetrait> createState() => _ModaleRetraitState();
+  State<_ModaleRetrait> createState() => _ModaleRetraitState();
 }
 
-class _ModaleRetraitState extends ConsumerState<_ModaleRetrait> {
+class _ModaleRetraitState extends State<_ModaleRetrait> {
   final _commentaire = TextEditingController();
 
   // Le premier motif du registre, comme la vue (`motifIndisponibilite`).
@@ -106,7 +137,7 @@ class _ModaleRetraitState extends ConsumerState<_ModaleRetrait> {
       cle: const Key('modale-retrait-carte'),
       titre: TextesRetraitCarte.titre,
       // `:sousTitre="$nom"` (l.57).
-      sousTitre: widget.ligne.libelle,
+      sousTitre: widget.libelle,
       largeur: AppLayout.modaleRetraitCarte,
       refus: _refus,
       cleRefus: const Key('retrait-carte-refus'),
@@ -227,26 +258,22 @@ class _ModaleRetraitState extends ConsumerState<_ModaleRetrait> {
       _parChamp = const {};
     });
 
-    final resultat = await ref.read(retirerDeLaCarteProvider)(
-      id: widget.ligne.id,
-      motif: _motif.code,
-      commentaire: _commentaire.text,
-    );
+    final resultat = await widget.soumettre(_motif.code, _commentaire.text);
     if (!mounted) return;
 
     switch (resultat) {
-      case BarRecu<Boisson>(:final donnees):
+      case BarRecu<String>(:final donnees):
         final messager = ScaffoldMessenger.of(context);
         Navigator.of(context).pop(true);
         messager.showSnackBar(
           SnackBar(
             content: Text(
-              TextesRetraitCarte.retire(donnees.libelle),
+              TextesRetraitCarte.retire(donnees),
               key: const Key('retrait-carte-issue'),
             ),
           ),
         );
-      case BarRefuse<Boisson>(:final motif, :final erreurs):
+      case BarRefuse<String>(:final motif, :final erreurs):
         setState(() {
           _envoi = false;
           _refus = erreurs['etat'] ?? motif;
@@ -254,7 +281,7 @@ class _ModaleRetraitState extends ConsumerState<_ModaleRetrait> {
         });
       // Inatteignable : l'écriture est locale. Le cas reste écrit parce que le
       // registre est FERMÉ.
-      case BarInjoignable<Boisson>():
+      case BarInjoignable<String>():
         setState(() {
           _envoi = false;
           _refus = TextesRetraitCarte.illisible;
@@ -272,19 +299,34 @@ Future<void> remettreALaCarte(
   BuildContext context,
   WidgetRef ref,
   LigneCarte ligne,
+) => remettreArticle(context, () async {
+  final r = await ref.read(remettreALaCarteProvider)(ligne.id);
+  return switch (r) {
+    BarRecu<Boisson>(:final donnees) => BarRecu(donnees.libelle),
+    BarRefuse<Boisson>(:final motif, :final erreurs, :final code) => BarRefuse(
+      motif: motif,
+      erreurs: erreurs,
+      code: code,
+    ),
+    BarInjoignable<Boisson>() => const BarInjoignable(),
+  };
+});
+
+/// « Remettre » pour un article quelconque : [remettre] ferme le retrait et rend
+/// le libellé. Le refus se DIT dans tous les cas.
+Future<void> remettreArticle(
+  BuildContext context,
+  Future<ResultatBar<String>> Function() remettre,
 ) async {
   final messager = ScaffoldMessenger.of(context);
-  final resultat = await ref.read(remettreALaCarteProvider)(ligne.id);
+  final resultat = await remettre();
 
   final texte = switch (resultat) {
-    BarRecu<Boisson>(:final donnees) => TextesRetraitCarte.remis(
-      donnees.libelle,
-    ),
-    BarRefuse<Boisson>(:final motif, :final erreurs) =>
-      erreurs['etat'] ?? motif,
+    BarRecu<String>(:final donnees) => TextesRetraitCarte.remis(donnees),
+    BarRefuse<String>(:final motif, :final erreurs) => erreurs['etat'] ?? motif,
     // Inatteignable : l'écriture est locale. Le cas reste écrit parce que le
     // registre est FERMÉ.
-    BarInjoignable<Boisson>() => TextesRetraitCarte.illisible,
+    BarInjoignable<String>() => TextesRetraitCarte.illisible,
   };
 
   messager.showSnackBar(

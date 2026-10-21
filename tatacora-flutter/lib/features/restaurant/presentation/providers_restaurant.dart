@@ -27,6 +27,7 @@ import '../../../core/impression/entete_parametree.dart';
 import '../../../core/rbac/garde_acces.dart';
 import '../../stocks/presentation/providers_stocks.dart';
 import '../data/restaurant_api.dart';
+import '../data/retraits_plats.dart';
 import '../data/restaurant_dao.dart';
 import '../domain/entities/carte_restaurant.dart';
 import '../domain/entities/plat.dart';
@@ -35,6 +36,11 @@ import '../impression/etat_carte_restaurant.dart';
 /// M4 sur la base LOCALE du poste. Les droits et l'auteur sont lus À CHAQUE
 /// appel (jamais capturés à la construction) : une session qui change entre
 /// deux gestes ne doit pas écrire sous l'identité de la précédente (RG-15).
+/// Le retrait et la remise d'un plat (v31, 21/10/2026).
+final retraitsPlatsProvider = Provider<RetraitsPlats>(
+  (ref) => RetraitsPlats(ref.watch(baseLocaleProvider)),
+);
+
 final restaurantDaoProvider = Provider<RestaurantDao>(
   (ref) => RestaurantDao(
     ref.watch(baseLocaleProvider),

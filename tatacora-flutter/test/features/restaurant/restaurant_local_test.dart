@@ -1016,15 +1016,17 @@ void main() {
       },
     );
 
-    test('une carte vide : zéro plat, pas de taux, les raisons des deux '
-        'indicateurs sans source', () async {
+    test('une carte vide : zéro plat, pas de taux, la disponibilité du jour '
+        'COMPTÉE (zéro est une mesure)', () async {
       final c = recu(await api.carte());
       expect(c.lignes, isEmpty);
       expect(c.indicateurs.plats, 0);
       expect(c.indicateurs.tauxCouverture, isNull);
       expect(c.indicateurs.prixProvisoires, 0);
-      expect(c.indicateurs.raisonAbsence('disponibles'), isNotNull);
-      expect(c.indicateurs.raisonAbsence('indisponibles'), isNotNull);
+      expect(c.indicateurs.disponibles, 0);
+      expect(c.indicateurs.indisponibles, 0);
+      expect(c.indicateurs.raisonAbsence('disponibles'), isNull);
+      expect(c.indicateurs.raisonAbsence('indisponibles'), isNull);
       expect(c.indicateurs.raisonAbsence('prix_provisoires'), isNull);
     });
 

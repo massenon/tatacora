@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tatacora_flutter/features/pos/data/dto/catalogue_dto.dart';
 import 'package:tatacora_flutter/features/restaurant/domain/calcul_restaurant.dart';
 import 'package:tatacora_flutter/features/restaurant/domain/entities/carte_restaurant.dart';
 import 'package:tatacora_flutter/features/restaurant/domain/entities/plat.dart';
@@ -36,7 +37,9 @@ PlatCalcule plat(
   String type = 'local',
   int prix = 1000,
   bool provisoire = false,
+  IndisponibiliteDistante? retrait,
 }) => PlatCalcule(
+  indisponibilite: retrait,
   id: id,
   libelle: libelle,
   menuId: 'm-$type',
@@ -684,8 +687,35 @@ void main() {
       // Coût inconnu : p-2 (fiche vide), p-3 (a-x jamais réceptionné).
       expect(k.coutMatiereInconnu, 2);
       expect(k.prixProvisoires, 2);
-      expect(k.absents.keys, containsAll(['disponibles', 'indisponibles']));
-      expect(k.absents.containsKey('prix_provisoires'), isFalse);
+      // Depuis la v31 la disponibilité du jour est COMPTÉE : plus rien d'absent.
+      expect(k.disponibles, 4);
+      expect(k.indisponibles, 0);
+      expect(k.absents, isEmpty);
+    });
+
+    test('un plat retiré du jour : compté indisponible, motif porté par sa '
+        'ligne, les autres indicateurs inchangés', () {
+      const retrait = IndisponibiliteDistante(
+        motif: 'rupture',
+        libelle: 'Rupture du jour',
+        temporaire: true,
+        commentaire: 'Plus de poulet',
+      );
+      final c = calculerCarte(
+        plats: [
+          plat('p-1', 'Poulet DG', retrait: retrait),
+          plat('p-2', 'Riz'),
+        ],
+        pointCuisineId: null,
+        arreteAu: '2031-01-01',
+      );
+      expect(c.indicateurs.plats, 2);
+      expect(c.indicateurs.disponibles, 1);
+      expect(c.indicateurs.indisponibles, 1);
+      final poulet = c.lignes.firstWhere((l) => l.id == 'p-1');
+      expect(poulet.estRetire, isTrue);
+      expect(poulet.indisponibilite?.commentaire, 'Plus de poulet');
+      expect(c.lignes.firstWhere((l) => l.id == 'p-2').estRetire, isFalse);
     });
 
     test('chaque filtre d’état retient ses plats', () {

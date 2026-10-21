@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/format/cle_comparaison.dart';
+import '../../pos/data/indisponibilites_carte_dao.dart';
 import '../../stocks/data/stocks_dao.dart';
 import '../../synchronisation/data/operations_sync_dao.dart';
 import '../../synchronisation/domain/charges_synchronisation.dart';
@@ -209,6 +210,10 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
         r.id: r.libelle,
     };
 
+    final retraits = await IndisponibilitesCarteDao(
+      attachedDatabase,
+    ).platsRetires();
+
     final p = attachedDatabase.platsLocal;
     final m = attachedDatabase.menusLocal;
     final lignes = await select(
@@ -229,6 +234,7 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
             prixFrancs: l.readTable(p).prixVente,
             prixProvisoire: l.readTable(p).prixProvisoire,
             prixCorrigeMain: l.readTable(p).prixCorrigeMain,
+            indisponibilite: retraits[l.readTable(p).id],
             composition: _ingredients(
               compositions[l.readTable(p).recetteId] ?? const [],
               stock,

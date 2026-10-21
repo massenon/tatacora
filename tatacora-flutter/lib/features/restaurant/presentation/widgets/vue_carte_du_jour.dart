@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/donnees_absentes.dart';
 import '../../../../core/format/formats.dart';
+import '../../../../core/rbac/garde_acces.dart';
+import '../../../../core/di/providers.dart';
+import '../../../bar/presentation/widgets/modale_retrait_carte.dart';
+import '../providers_restaurant.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
@@ -132,10 +137,7 @@ class VueCarteDuJour extends StatelessWidget {
                         style: TextesRestaurant.secondaire,
                       ),
                       _Prix(ligne: l),
-                      const _SansSource(
-                        cle: Key('carte-restaurant-disponible-inconnu'),
-                        quoi: 'Les disponibilités du jour',
-                      ),
+                      _Disponible(ligne: l),
                       _ArticleDeStock(ligne: l),
                       _StockVendable(ligne: l),
                       const _SansSource(
@@ -200,7 +202,57 @@ class _Article extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(ligne.libelle, style: TextesRestaurant.corpsFort);
+    final retrait = ligne.indisponibilite;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(ligne.libelle, style: TextesRestaurant.corpsFort),
+        if (retrait != null)
+          // `{{ libelleMotif() }} — {{ commentaire }}` (l.341-343), ambre.
+          Text(
+            retrait.commentaire == null
+                ? retrait.libelle
+                : '${retrait.libelle} — ${retrait.commentaire}',
+            key: Key('carte-restaurant-retrait-${ligne.id}'),
+            style: TextesRestaurant.mention.copyWith(
+              color: PaletteMaitre.ambre700,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// « Disponible » — `corps.blade.php` l.363-370 : « oui » (émeraude) ou « non »
+/// (ambre), lu de `indisponibilites_carte_local`.
+class _Disponible extends StatelessWidget {
+  const _Disponible({required this.ligne});
+
+  final LigneCarteRestaurant ligne;
+
+  @override
+  Widget build(BuildContext context) {
+    final oui = !ligne.estRetire;
+    return Container(
+      key: Key('carte-restaurant-disponible-${ligne.id}'),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xxs,
+        vertical: AppSpacing.demi,
+      ),
+      decoration: BoxDecoration(
+        color: oui ? PaletteMaitre.emeraude50 : PaletteMaitre.ambre50,
+        borderRadius: BorderRadius.circular(AppSpacing.unit),
+      ),
+      child: Text(
+        // `carte_pwa.commun.export_oui` / `export_non`.
+        oui ? 'oui' : 'non',
+        style: TextesRestaurant.mention.copyWith(
+          fontWeight: FontWeight.w600,
+          color: oui ? PaletteMaitre.emeraude700 : PaletteMaitre.ambre700,
+        ),
+      ),
+    );
   }
 }
 
@@ -409,23 +461,52 @@ class _StockVendable extends StatelessWidget {
 /// « Modifier le lien » et « Délier » que pour un plat à lien direct
 /// (l.403-419) — trois états que ce poste ne peut pas lire. Deviner lequel
 /// afficher serait affirmer un état qu'on n'a pas vérifié.
-class _Actions extends StatelessWidget {
+class _Actions extends ConsumerWidget {
   const _Actions({required this.ligne});
 
   final LigneCarteRestaurant ligne;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final id = ligne.id;
+    final peutEcrire = ref
+        .watch(droitsProvider)
+        .peutEcrire(ModuleTatacora.m4Restaurant);
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _BoutonLigne(
-          cle: Key('carte-restaurant-rendre-indispo-$id'),
-          libelle: 'Rendre indispo.',
-          message: ecritureNonDisponible('Le retrait de la carte du jour'),
-        ),
+        if (peutEcrire && ligne.estRetire)
+          _BoutonLigne(
+            cle: Key('carte-restaurant-remettre-$id'),
+            libelle: 'Remettre',
+            onTap: () async {
+              await remettreArticle(
+                context,
+                () => ref.read(retraitsPlatsProvider).remettre(id),
+              );
+              invaliderRestaurant(ref);
+            },
+          )
+        else if (peutEcrire)
+          _BoutonLigne(
+            cle: Key('carte-restaurant-rendre-indispo-$id'),
+            libelle: 'Rendre indispo.',
+            onTap: () async {
+              final fait = await ouvrirModaleRetraitArticle(
+                context,
+                libelle: ligne.libelle,
+                soumettre: (motif, commentaire) => ref
+                    .read(retraitsPlatsProvider)
+                    .retirer(
+                      platId: id,
+                      motif: motif,
+                      commentaire: commentaire,
+                    ),
+              );
+              if (fait ?? false) invaliderRestaurant(ref);
+            },
+          ),
         // `ml-1` — 4 px entre deux boutons.
         const SizedBox(width: AppSpacing.unit),
         _BoutonLigne(
@@ -455,21 +536,29 @@ class _BoutonLigne extends StatelessWidget {
   const _BoutonLigne({
     required this.cle,
     required this.libelle,
-    required this.message,
+    this.message,
+    this.onTap,
   });
 
   final Key cle;
   final String libelle;
-  final String message;
+
+  /// Le geste que ce poste ne porte pas : le bouton DIT pourquoi.
+  final String? message;
+
+  /// Le geste porté : il écrit.
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       key: cle,
       borderRadius: BorderRadius.circular(AppRadius.rounded),
-      onTap: () => ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message))),
+      onTap:
+          onTap ??
+          () => ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(message ?? ''))),
       child: Container(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.xs,

@@ -558,20 +558,20 @@ void main() {
   });
 
   testWidgets(
-    '« Disponible » et « Réserve » rendent « — » : aucune source, aucun faux oui/non',
+    '« Disponible » dit oui (lu de la base) ; « Réserve » reste « — » faute de source',
     (tester) async {
       await monter(tester);
 
       expect(
         find.byKey(const Key('carte-restaurant-disponible-inconnu')),
-        findsNWidgets(2),
+        findsNothing,
       );
+      expect(find.text('oui'), findsNWidgets(2));
+      expect(find.text('non'), findsNothing);
       expect(
         find.byKey(const Key('carte-restaurant-reserve-inconnue')),
         findsNWidgets(2),
       );
-      expect(find.text('oui'), findsNothing);
-      expect(find.text('non'), findsNothing);
     },
   );
 
@@ -580,10 +580,6 @@ void main() {
   // (`donneeNonDisponible`). Un message vide, ou remplacé par « Aucun
   // changement », se lirait comme un geste réussi ou une liste vide.
   final boutons = <(String, String)>[
-    (
-      'carte-restaurant-rendre-indispo-p-1',
-      ecritureNonDisponible('Le retrait de la carte du jour'),
-    ),
     ('carte-restaurant-lier-p-1', ecritureNonDisponible('Le lien au stock')),
     ('carte-restaurant-prix-p-1', ecritureNonDisponible('Le nouveau prix')),
     (

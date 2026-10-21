@@ -556,7 +556,7 @@ class _PanneauCarte extends StatelessWidget {
                 ? (l) => ouvrirModaleLienStock(context, l)
                 : null,
             onRetirer: peutEcrire
-                ? (l) => ouvrirModaleRetraitCarte(context, l)
+                ? (l) => ouvrirModaleRetraitCarte(context, ref, l)
                 : null,
             onRemettre: peutEcrire
                 ? (l) => remettreALaCarte(context, ref, l)

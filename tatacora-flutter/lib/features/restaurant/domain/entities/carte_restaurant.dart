@@ -21,6 +21,8 @@
 /// inventé est une décision prise à la place de quelqu'un.
 library;
 
+import '../../../pos/data/dto/catalogue_dto.dart' show IndisponibiliteDistante;
+
 /// La catégorie d'un plat — **le type de son menu porteur**, jamais une
 /// colonne de `plats`.
 ///
@@ -230,10 +232,17 @@ final class LigneCarteRestaurant {
     this.prixProvisoire = false,
     this.prixCorrigeMain = false,
     this.recetteLibelle,
+    this.indisponibilite,
   });
 
   final String id;
   final String libelle;
+
+  /// Le retrait de la carte du jour EN COURS (table `indisponibilites_carte_local`,
+  /// v31), ou `null` : le plat est à la carte.
+  final IndisponibiliteDistante? indisponibilite;
+
+  bool get estRetire => indisponibilite != null;
 
   /// Le libellé de la fiche technique du plat — ce que la colonne « Article de
   /// stock » de la vue nomme, en vert, au-dessus du nombre d'ingrédients.
@@ -320,6 +329,8 @@ final class IndicateursCarte {
     this.tauxCouverture,
     this.absents = const {},
     this.prixProvisoires,
+    this.disponibles,
+    this.indisponibles,
   });
 
   final int plats;
@@ -349,6 +360,12 @@ final class IndicateursCarte {
   /// prix ont été confrontés à la carte »). Sur ce poste la colonne existe et le
   /// compte est toujours fait : un zéro y est une mesure.
   final int? prixProvisoires;
+
+  /// Les plats à la carte / retirés du jour (21/10/2026, v31). `null` = non
+  /// compté (le serveur, lui, ne les sert pas) : l'écran rend alors « — » et la
+  /// raison de [absents].
+  final int? disponibles;
+  final int? indisponibles;
 
   /// Les indicateurs du maître qu'aucune colonne ne permet de produire, avec
   /// la raison donnée. Clés : `disponibles`, `indisponibles` et, pour un client
