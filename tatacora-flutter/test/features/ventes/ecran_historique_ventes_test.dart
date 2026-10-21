@@ -19,6 +19,7 @@ import 'package:tatacora_flutter/features/facturation/domain/repositories/factur
 import 'package:tatacora_flutter/features/pos/data/panier_dao.dart';
 import 'package:tatacora_flutter/features/pos/domain/entities/article_vendable.dart';
 import 'package:tatacora_flutter/features/pos/domain/entities/mode_reglement.dart';
+import 'package:tatacora_flutter/features/auth/domain/session.dart';
 import 'package:tatacora_flutter/features/pos/data/panier_repository_local.dart';
 import 'package:tatacora_flutter/features/pos/presentation/providers_pos.dart';
 import 'package:tatacora_flutter/features/pos/domain/entities/panier.dart';
@@ -148,6 +149,16 @@ void main() {
           baseLocaleProvider.overrideWithValue(db),
           if (droits != null) ...[
             droitsProvider.overrideWithValue(GardeAcces.depuisJson(droits)),
+            // Celui qui annule : la contre-pièce nomme son auteur (RG-15).
+            sessionProvider.overrideWithBuild(
+              (ref, notifier) => Session(
+                utilisateurId: caissierEssai,
+                login: 'caissier',
+                nom: 'Caissier',
+                role: 'gerant',
+                droits: GardeAcces.depuisJson(droits),
+              ),
+            ),
             // Le DAO de l'essai, branché sur le moteur de la base d'essai.
             depotPanierProvider.overrideWithValue(
               PanierRepositoryLocal(paniers),
