@@ -206,7 +206,7 @@ void main() {
     expect(actif(tester, valider), isFalse);
     final ecart = find.byKey(const Key('modale-ecriture-ecart'));
     expect(
-      find.descendant(of: ecart, matching: find.textContaining('Écart : ')),
+      find.descendant(of: ecart, matching: find.textContaining('Écart de ')),
       findsOneWidget,
     );
 

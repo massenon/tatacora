@@ -230,6 +230,10 @@ void main() {
         // `MoteurComptable.passer` / `passerEtValider`, seul écrivain de
         // `ecritures_local` (aucun accès direct : voir les cas ci-dessus).
         'modale_ecriture.dart',
+        // 21/10/2026 : « Créer un compte » et « Ouvrir un exercice » du hub
+        // (`MoteurComptable.creerCompte` / `ouvrirExercice`) — des gestes de
+        // référentiel, aucun mouvement d'argent, aucune écriture (`hub_plan_clotures_test.dart`).
+        'modales_hub_comptabilite.dart',
       });
     });
 

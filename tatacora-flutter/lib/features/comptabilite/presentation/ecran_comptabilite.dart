@@ -23,8 +23,10 @@ import '../domain/montant_comptable.dart';
 import '../impression/etat_journal_comptable.dart';
 import 'exercice_consulte.dart';
 import 'providers_consultation_comptable.dart';
+import 'providers_etats_financiers.dart';
 import 'widgets/modale_ecriture.dart';
 import 'widgets/onglets_etats_financiers.dart';
+import 'widgets/onglets_plan_clotures.dart';
 
 /// Le hub **Comptabilité — SYSCOHADA révisé** — lot D du plan du Product
 /// Owner (14/10/2026), lecture du moteur M10 LOCAL (`MoteurComptable`,
@@ -54,9 +56,26 @@ import 'widgets/onglets_etats_financiers.dart';
 ///   descend (`ecritures_serveur_local`, miroir de lecture), avec la colonne
 ///   N-1 de la vue et un encadré de provenance. Le poste n'y mêle JAMAIS ses
 ///   propres pièces : le serveur passe sa pièce pour chaque document reçu.
-/// - **Grand livre, Analytique, Immobilisations, Plan comptable, Clôtures** :
-///   l'onglet est cliquable et DIT qu'il n'est pas calculé sur ce poste —
-///   aucun chiffre plutôt qu'un chiffre faux.
+/// - **Plan comptable** et **Clôtures** (21/10/2026, `widgets/onglets_plan_clotures.dart`) :
+///   le plan entier par classe avec sa recherche et « + Créer un compte »
+///   (`widgets/modales_hub_comptabilite.dart`, `MoteurComptable.creerCompte`) ;
+///   la liste des exercices et « Ouvrir un exercice » (`ouvrirExercice`). Ils
+///   écrivent SUR CE POSTE seulement : ni le compte ni l'exercice n'ont de
+///   table au registre de synchronisation. La clôture annuelle, elle, reste
+///   dite « non portée ».
+/// - **Grand livre, Analytique** : l'onglet est cliquable et DIT qu'il n'est
+///   pas calculé sur ce poste — aucun chiffre plutôt qu'un chiffre faux.
+/// - **Immobilisations** (refusée) : la vue crée une immobilisation, calcule
+///   son plan d'amortissement linéaire (prorata temporis) et les somme au
+///   tableau ; le poste n'a AUCUNE table d'immobilisations (schéma v34) et le
+///   registre de synchronisation n'en connaît pas : saisir ici une
+///   immobilisation qui ne serait stockée nulle part, ou la garder hors de la
+///   file d'envoi, serait écrire dans le vide. Refus, 21/10/2026 — il se lèvera
+///   avec une table `immobilisations_local` et son entrée au registre :
+///  - blade-refuse:comptabilite/hub#modale:immo_modale_titre
+///  - blade-refuse:comptabilite/hub#modale:modale-titre-calcule
+///   (la seconde est la modale « Plan » d'une immobilisation existante :
+///   aucune n'existe sur le poste).
 /// - **Exporter** : la vue exporte le journal (PDF/Excel) ; ici aussi
 ///   (directive du PO du 14/10/2026). Le bouton n'existe que sur l'onglet
 ///   **Journal** — comme le registre CRM, un bouton n'est offert que là où il
@@ -114,6 +133,9 @@ abstract final class TextesComptabilite {
   static const String saisieAucunExerciceDetail =
       'Ouvrez un exercice depuis l’onglet Clôtures avant de saisir la moindre écriture.';
   static const String saisieBouton = 'Nouvelle écriture';
+  static const String desequilibreTitre = 'Comptabilité déséquilibrée.';
+  static const String desequilibreDetail =
+      "Aucun état financier n'est exploitable tant que l'écart subsiste. Vérifiez la balance générale.";
   static const String colNumeroPiece = 'N° pièce';
   static const String journalVide =
       'Aucune pièce ne correspond à ces critères.';
@@ -380,6 +402,7 @@ class _EcranComptabiliteState extends ConsumerState<EcranComptabilite> {
             exercices: donnees?.exercices ?? const [],
             onExercice: choisirExercice,
           ),
+        if (exercice != null) _AlerteDesequilibre(annee: exercice.annee),
         const _BandeIndicateurs(),
         const SizedBox(height: AppSpacing.mdPlus), // mb-5
         Wrap(
@@ -452,6 +475,52 @@ class _EcranComptabiliteState extends ConsumerState<EcranComptabilite> {
           },
         ),
       ],
+    );
+  }
+}
+
+/// `#alerte-globale` de la vue : « Comptabilité déséquilibrée. » et la phrase
+/// qui l'explique, quand la balance générale ou le bilan de l'exercice ne
+/// s'équilibre pas (`@if ($indicateurs !== null && ! $indicateurs->equilibre)`).
+///
+/// Écart : la vue lit les six indicateurs du serveur (filtre de statut compris)
+/// ; ce poste lit les écritures VALIDÉES reçues du serveur
+/// (`comptabiliteEquilibree`), les mêmes que son compte de résultat et son
+/// bilan. Rien n'est écrit tant que tout s'équilibre — un exercice sans
+/// écriture l'est (zéro égale zéro).
+class _AlerteDesequilibre extends ConsumerWidget {
+  const _AlerteDesequilibre({required this.annee});
+
+  final int annee;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final equilibre = ref.watch(comptabiliteEquilibreeProvider(annee)).value;
+    if (equilibre != false) return const SizedBox.shrink();
+    final style = styleTransverse(
+      TaillesContenu.t13,
+      couleur: PaletteMaitre.rouge900,
+    );
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.md), // mb-4
+      child: EncadreTransverse(
+        key: const Key('compta-alerte-globale'),
+        fond: PaletteMaitre.rouge50,
+        bordure: PaletteMaitre.rouge200,
+        padding: const EdgeInsets.all(AppSpacing.smPlus), // p-3.5
+        child: Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(
+                text: '${TextesComptabilite.desequilibreTitre} ',
+                style: style.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const TextSpan(text: TextesComptabilite.desequilibreDetail),
+            ],
+          ),
+          style: style,
+        ),
+      ),
     );
   }
 }
@@ -924,6 +993,10 @@ class _Panneau extends StatelessWidget {
             donnees.comptes,
           ),
         );
+      case 'plan':
+        return const OngletPlan();
+      case 'clotures':
+        return OngletClotures(exercices: donnees.exercices);
       case 'resultat':
         return OngletResultat(annee: ex.annee);
       case 'bilan':

@@ -1,3 +1,5 @@
+// Vue Blade maîtresse (PA-183) : pwa/comptabilite/hub.blade.php
+// (la modale « Passer écriture », `etatFormulaire === 'piece'`).
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -40,6 +42,9 @@ abstract final class TextesModaleEcriture {
   static const String colDebit = 'Débit';
   static const String colCredit = 'Crédit';
   static const String colEcart = 'Écart';
+
+  /// `comptabilite_pwa.piece_ecart` : « Écart de :montant. » — UNE phrase.
+  static String pieceEcart(String montant) => 'Écart de $montant.';
   static const String centreDuCompte = '—';
   static const String tiret = '—';
   static const String totaux = 'Totaux';
@@ -720,7 +725,7 @@ class _ModaleEcritureState extends ConsumerState<ModaleEcriture> {
     );
   }
 
-  /// « Écart : X » en rouge, ou « Pièce équilibrée. » en vert — la pastille
+  /// « Écart de X. » en rouge, ou « Pièce équilibrée. » en vert — la pastille
   /// de la vue, toujours affichée pour que l'écart se lise en continu.
   Widget _pastilleEcart(int ecart) {
     final equilibree = ecart == 0 && _totalDebit > 0;
@@ -749,7 +754,7 @@ class _ModaleEcritureState extends ConsumerState<ModaleEcriture> {
       child: Text(
         equilibree
             ? TextesModaleEcriture.pieceEquilibree
-            : '${TextesModaleEcriture.colEcart} : ${_montant(ecart.abs())}',
+            : TextesModaleEcriture.pieceEcart(_montant(ecart.abs())),
         style: styleTransverse(Tailles.t12, couleur: texte),
       ),
     );

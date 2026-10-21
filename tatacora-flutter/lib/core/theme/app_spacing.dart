@@ -879,6 +879,18 @@ abstract final class AppLayout {
   /// cette modale — elle défile au-delà.
   static const double hauteurMaxPropositionsCompte = 240;
 
+  /// La modale « Créer un compte » du hub comptable — `largeur="520px"`
+  /// (`comptabilite/hub`, `etatFormulaire === 'compte'`).
+  static const double modaleCompte = 520;
+
+  /// La modale « Ouvrir un exercice » du hub comptable — `largeur="420px"`
+  /// (`etatFormulaire === 'exercice'`).
+  static const double modaleExercice = 420;
+
+  /// La largeur du champ de recherche des onglets « Plan comptable » — `flex-1
+  /// max-w-md` de la vue (28 rem).
+  static const double rechercheOngletComptable = 448;
+
   /// L'icone de l'ecran d'accueil de l'apercu — `<svg width="48"
   /// height="48" stroke="#CBD5E1">` (`m14-etats-studio.js` l.120).
   ///
@@ -1249,6 +1261,19 @@ abstract final class AppLayout {
   /// porte qu'une question et son rappel. 420 n'est aucune borne nommee
   /// (`max-w-sm` = 384, `max-w-md` = 448).
   static const double modaleArchivageUnite = 420;
+
+  /// La modale « Émettre un avoir » de la facturation —
+  /// `largeur="560px"` (`facturation.blade.php` l.328). Même nombre que les
+  /// autres 560 : un réglage par écran, jamais partagé.
+  static const double modaleAvoirFacture = 560;
+
+  /// La modale « Réservation rapide » du parc — `largeur="512px"`
+  /// (`hebergement.blade.php` l.564).
+  static const double modaleReservationRapideParc = 512;
+
+  /// La modale « Ajouter un client » de la fiche de réservation —
+  /// `largeur="420px"` (`reservations.blade.php` l.749).
+  static const double modaleClientReservation = 420;
 
   /// La colonne de contenu d'Hebergement — `max-w-[1440px]` (l.56). Valeur
   /// ENTRE CROCHETS, distincte des 1500 px des cartes et des 1600 px de la

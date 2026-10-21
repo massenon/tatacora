@@ -698,3 +698,28 @@ BilanEtat bilanDe(int annee, DonneesEtats d) {
     aNouveauxProvisoiresDe: balance.aNouveauxProvisoiresDe,
   );
 }
+
+/// `IndicateursComptablesService` : `equilibre = balance->equilibree &&
+/// bilan->equilibre` — la balance générale tient SES DEUX égalités (totaux des
+/// mouvements, totaux des soldes) ET le bilan s'équilibre. C'est ce qui allume,
+/// à la vue du hub, l'encadré rouge « Comptabilité déséquilibrée. ».
+///
+/// Calculé ici sur les écritures VALIDÉES reçues du serveur, comme le compte de
+/// résultat et le bilan du poste (le filtre de statut de l'écran ne s'y
+/// applique pas).
+bool comptabiliteEquilibree(int annee, DonneesEtats d) {
+  var debit = 0;
+  var credit = 0;
+  var soldesDebiteurs = 0;
+  var soldesCrediteurs = 0;
+  for (final l in balanceDe(annee, d).lignes) {
+    debit += l.debitCentimes;
+    credit += l.creditCentimes;
+    final net = l.debitCentimes - l.creditCentimes;
+    if (net > 0) soldesDebiteurs += net;
+    if (net < 0) soldesCrediteurs -= net;
+  }
+  return debit == credit &&
+      soldesDebiteurs == soldesCrediteurs &&
+      bilanDe(annee, d).equilibre;
+}

@@ -113,3 +113,26 @@ final exporterJournalComptablePdfProvider =
             base: EtatJournalComptable.prefixeFichier,
           ),
     );
+
+/// Le plan comptable ENTIER du poste, trié par numéro — l'onglet « Plan
+/// comptable » du hub (un tableau par classe), division comprises (le champ
+/// « Compte » de la saisie, lui, n'offre que les comptes imputables). Relu à
+/// chaque visite et après chaque « Créer un compte ».
+final planComptableCompletProvider =
+    FutureProvider.autoDispose<List<CompteDuPlan>>((ref) async {
+      final dao = ref.watch(comptabiliteDaoProvider);
+      return [
+        for (final classe in const [
+          '1',
+          '2',
+          '3',
+          '4',
+          '5',
+          '6',
+          '7',
+          '8',
+          '9',
+        ])
+          ...await dao.comptesDeClasse(classe),
+      ];
+    });

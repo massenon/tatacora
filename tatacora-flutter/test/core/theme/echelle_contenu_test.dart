@@ -317,6 +317,10 @@ void main() {
     // dans le `<main>` de leur vue (`comptabilite/hub`, `transverse/*`).
     'lib/features/comptabilite/presentation/ecran_comptabilite.dart',
     'lib/features/comptabilite/presentation/widgets/onglets_etats_financiers.dart',
+    // Onglets « Plan comptable » et « Clôtures » (21/10/2026) : corps de page,
+    // dans le `<main>` de `comptabilite/hub` ; leurs modales sont dans
+    // `modales_hub_comptabilite.dart`, classé dans l'autre camp.
+    'lib/features/comptabilite/presentation/widgets/onglets_plan_clotures.dart',
     'lib/features/transverse/presentation/ecran_aide_a_propos.dart',
     'lib/features/transverse/presentation/ecran_contact_editeur.dart',
     'lib/features/transverse/presentation/ecran_import_export.dart',
@@ -462,6 +466,11 @@ void main() {
         '`comptabilite_pwa.modale_piece_titre` de `comptabilite/hub.blade.php` '
         '(l.292), posée après `</main>` (l.283). Rendue sur l échelle '
         'effective jusqu au 15/10/2026 : ramenée à la déclarée.',
+    'lib/features/comptabilite/presentation/widgets/modales_hub_comptabilite.dart':
+        'Modales « Créer un compte » et « Ouvrir un exercice » de '
+        '`comptabilite/hub.blade.php` (`<x-pwa.modale>`, `etatFormulaire` '
+        '`compte` et `exercice`), posées après `</main>` : le remappage '
+        'typographique ne les atteint pas.',
     'lib/features/parametres/presentation/widgets/cadre_modale_parametre.dart':
         'Fenêtre « Modifier » de Paramètres (compacte, PO du 14/10/2026), '
         'ouverte par `showDialog` : une modale, hors du contenu de page.',

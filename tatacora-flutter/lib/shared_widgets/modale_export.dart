@@ -61,6 +61,10 @@
 // pwa/achats/approvisionnement.blade.php (l.611, `ecran_approvisionnement.dart`).
 // Même raison, même précédent ; ce n'est pas un refus. La vue d'accueil reste
 // écrite sans préfixe, par la décision consignée plus haut.
+// Le hub Comptabilité (pwa/comptabilite/hub.blade.php, l.648-650) l'ouvre aussi
+// depuis le bouton « Exporter » de l'onglet Journal (21/10/2026), titre
+// « Exporter — Journal comptable » : dix-septième vue qui inclut le partiel,
+// une seule modale Flutter. Même raison, même précédent ; ce n'est pas un refus.
 import 'package:flutter/material.dart';
 
 import '../core/theme/app_colors.dart';

@@ -59,3 +59,12 @@ final provenanceEtatsFinanciersProvider =
             (comptes[StatutOperationSync.enCours] ?? 0),
       );
     });
+
+/// L'exercice [annee] est-il équilibré (balance ET bilan) ? `true` tant que le
+/// poste n'a rien reçu : un zéro égale un zéro, et l'encadré rouge du hub
+/// (`indicateurs->equilibre`) ne s'allume que sur un écart réel.
+final comptabiliteEquilibreeProvider = FutureProvider.autoDispose
+    .family<bool, int>((ref, annee) async {
+      final d = await ref.watch(donneesEtatsFinanciersProvider.future);
+      return comptabiliteEquilibree(annee, d);
+    });
