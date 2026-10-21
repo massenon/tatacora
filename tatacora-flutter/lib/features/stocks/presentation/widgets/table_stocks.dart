@@ -26,12 +26,8 @@ const GabaritTableau gabaritStocks = GabaritTableau(
 /// La raison d'un « — » dans « Valeur d'achat » : elle dit LAQUELLE des deux
 /// valeurs manque.
 ///
-/// ⚠ Écart avec la vue, daté du 09/10/2026. La vue (`jamais_receptionne`) dit
-/// « ni point de rattachement, ni prix d'achat. Les deux se posent à la
-/// première entrée de stock » — vrai du serveur, faux de ce poste : le point
-/// est posé par le FORMULAIRE de l'article, le prix par l'entrée valorisée, et
-/// l'un peut exister sans l'autre. Une phrase qui annonce les deux manquants
-/// sur un article rattaché mentirait.
+/// ⚠ ÉCART AVEC LA VUE, nommé (09/10/2026, repris le 21/10/2026 — règle des
+/// phrases fausses, piège 13). La vue pose, en infobulle sur chaque « — » de « Point » et de « Valeur d'achat » (clé `stocks_pwa.liste.jamais_receptionne`) : « Jamais réceptionné : ni point de rattachement, ni prix d'achat. Les deux se posent à la première entrée de stock. » Cette phrase promet que la première entrée de stock pose LE POINT : ni le serveur (`MouvementStockService` n'écrit jamais `point_stockage_id`) ni ce poste ne le font — le point se pose par le formulaire de l'article, le prix par une entrée VALORISÉE, et l'un peut exister sans l'autre. Sur un article rattaché mais jamais valorisé, elle mentirait deux fois. Le poste dit donc, par cellule, ce qui manque réellement. Un test relit la vue et le serveur : il rougit le jour où la phrase de la vue devient vraie.
 const String raisonSansPrixAchat =
     "Aucune entrée valorisée : le dernier prix d'achat n'est pas connu.";
 
@@ -44,7 +40,9 @@ const String raisonValeurInconnue =
     "Du stock existe mais aucune entrée n'a été valorisée : le coût est "
     "inconnu, la valeur n'est pas calculée.";
 
-/// Le tableau des articles — `stocks.blade.php`, la table des lignes.
+/// Le tableau des articles — `stocks.blade.php`, la table des lignes. Ses
+/// colonnes portent les clés `stocks_pwa.liste.col_*` de la vue (`__('stocks_pwa.liste.'.$colonne['cle'])`,
+/// l.316), dans l'ordre de `$colonnes` (l.61-77).
 ///
 /// ## Les chiffres traversent en CHAÎNES
 ///

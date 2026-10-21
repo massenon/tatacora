@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/donnees_absentes.dart';
+import '../../../core/format/formats.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -12,19 +12,29 @@ import '../../../shared_widgets/modale_export.dart';
 import '../../../shared_widgets/toast_export.dart';
 import '../data/stocks_api.dart';
 import '../domain/entities/fiche_stock.dart';
+import '../domain/entities/mouvement_stock.dart' show TypeMouvement;
+import '../domain/messages_stock.dart';
 import 'providers_stocks.dart';
 import 'widgets/vue_fiche_stock.dart';
 
-// Les refus de la vue, DITS ici plutôt qu'affichés (voir `parametres`, même
-// règle) — état du 09/10/2026, après la source locale de M6 :
+// Les refus et les écarts de la vue, NOMMÉS ici (21/10/2026) :
 //  - la colonne « Par » de la fiche est RENDUE : chaque mouvement porte son
-//    auteur (`mouvements_stock_local.utilisateur_id`) ;
+//    auteur (`mouvements_stock_local.utilisateur_id`) — la vue, elle, rend un
+//    tiret (le serveur ne remonte pas l'auteur) ;
 //  - le cycle d'inventaire n'affiche ni « à jour » ni « en retard » : aucune
 //    table ne porte de périodicité (PA-150) ;
-//  - les colonnes « Manquants » et « Excédents » de l'historique rendent « — » :
-//    seule la clôture d'un inventaire les produit, et aucun inventaire n'est
-//    tenu sur ce poste (tables `inventaires_local` et `lignes_inventaire_local`
-//    à venir, avec leur auteur — voir l'audit §4duotricies).
+//  - l'INVENTAIRE PHYSIQUE est REFUSÉ : ouvrir, compter, clôturer et
+//    régulariser écrivent des tables (`inventaires`, `lignes_inventaire`) que
+//    ce poste n'a pas (schéma v34, aucune migration dans ce lot) — voir
+//    `TextesInventaires.inventaireNonPorte` et le doc de l'écran. Les deux
+//    modales du comptage et de la clôture partielle sont refusées avec lui :
+//  - blade-refuse:stocks/inventaires#modale:inventaires.enregistrer_comptage
+//  - blade-refuse:stocks/inventaires#modale:inventaires.incomplet_titre
+//  - l'en-tête d'impression de la vue (`hidden print:block`, l.119-123) est
+//    écrit EN DUR « TATACORA AFRIQUE — GÎTE CHEZ NOËL » pour l'impression du navigateur. Ce
+//    poste n'imprime pas l'écran : ses états A4 lisent l'en-tête des Paramètres
+//    (raison sociale, adresse, IFU…). Une seconde ligne en dur contredirait la
+//    raison sociale saisie. Écart nommé, pas un refus.
 
 /// Les trois onglets du maître (`m6-inventaires.html` l.36-46).
 const _onglets = <(String, String)>[
@@ -37,25 +47,29 @@ const _onglets = <(String, String)>[
 ///
 /// ## Les TROIS onglets de la vue sont rendus
 ///
-/// Jusqu'au 08/10/2026 l'écran n'en rendait qu'un et NOMMAIT les deux autres
-/// dans une note (« Deux onglets du prototype ne sont pas rendus ») : la
-/// mesure de géométrie (Phase 1A/1D) a montré qu'aucun n'était cliquable. Les
-/// trois onglets existent maintenant, avec la structure de la vue ; **leur
-/// contenu dit honnêtement qu'il n'a pas de source sur ce poste** : un
-/// « Aucun inventaire clôturé » ou un « 0 FCFA » affirmeraient ce qu'aucune
-/// donnée n'atteste (PA-59/60/61). Les valeurs viendront avec la source locale
-/// du module M6 (décision du 08/10/2026).
-///
-/// ## La fiche est locale ; l'inventaire physique ne l'est pas encore
-///
 /// L'onglet « Fiche de stock » est calculé depuis `mouvements_stock_local` par
 /// `calculerFiche` (fonction pure) : stock initial = solde à la veille, flux de
-/// la période, stock théorique vérifié par un second chemin (`coherent`).
-/// Rien n'est mis en cache.
+/// la période, stock théorique vérifié par un second chemin (`coherent`). « Tous
+/// les articles » (la valeur vide du filtre, PO 06/09/2026) rend la fiche
+/// CONSOLIDÉE (`consoliderFiches`) : la fiche de chaque article, jamais un cumul
+/// de quantités. La période par défaut couvre trente jours, comme la vue. Rien
+/// n'est mis en cache.
 ///
-/// Les deux autres onglets restent « sans source » : il n'existe encore ni
-/// table d'inventaire ni auteur pour un comptage. « Tous les articles » (la
-/// fiche consolidée) n'est pas rendu non plus.
+/// ## L'inventaire physique est REFUSÉ, et l'écran le DIT (21/10/2026)
+///
+/// « Lancer l'inventaire », la feuille de comptage, « Enregistrer le comptage »
+/// et « Clôturer et régulariser » ÉCRIVENT : un inventaire (point, date,
+/// auteur), une ligne par article compté (théorique figé, constaté, écart) et,
+/// à la clôture, un mouvement de régularisation par écart. Ce poste n'a ni
+/// table d'inventaire ni table de lignes, et personne ne les écrirait : un
+/// comptage « enregistré » nulle part se perdrait à la fermeture de la fenêtre,
+/// et une clôture ne régulariserait rien que le serveur connaisse. Le bouton
+/// « Lancer l'inventaire » est donc rendu GRISÉ à sa place (ligne de chaque
+/// point du cycle), et la note de l'onglet dit pourquoi — jamais un bouton
+/// inerte en silence. Les inventaires clôturés ne se listent pas non plus.
+/// Ce qu'il faudrait : voir le rapport du lot (deux tables avec leur auteur
+/// unique, l'envoi de l'inventaire et de ses lignes au serveur — qui ne connaît
+/// pas encore ces documents dans son flux —, la descente de l'historique).
 class EcranInventaires extends ConsumerStatefulWidget {
   const EcranInventaires({super.key});
 
@@ -274,39 +288,58 @@ class _OngletFiche extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final resultat = ref.watch(ficheStockProvider);
+    // « Tous les articles » est la valeur VIDE du filtre : un choix, pas une
+    // absence de choix — la vue ouvre sur la fiche consolidée.
+    final tous =
+        ref.watch(demandeFicheProvider.select((d) => d.articleId)) == null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const _CartePeriode(),
-        resultat.when(
-          loading: () => const Padding(
-            padding: EdgeInsets.all(AppSpacing.lg),
-            child: Center(child: CircularProgressIndicator()),
-          ),
-          error: (e, _) => _Note(cle: const Key('fiche-erreur'), texte: '$e'),
-          data: (r) => switch (r) {
-            // Rien demandé : la vue montre alors la fiche CONSOLIDÉE (tous les
-            // articles). Ici sa structure, sans valeur inventée.
-            null => const _FicheConsolidee(),
-            FicheRecue(:final fiche) => VueFicheStock(
-              fiche: fiche,
-              pointLibelle: _libellePoint(ref, fiche.pointId),
-            ),
-            FicheRefusee(:final motif) => _Note(
-              cle: const Key('fiche-refus'),
-              texte: motif,
-            ),
-            // Jamais produit : une base locale n'est pas hors connexion. L'arm
-            // reste parce que le type scellé est partagé.
-            FicheInjoignable() => const _Note(
-              cle: Key('fiche-hors-ligne'),
-              texte: 'La fiche n’a pas pu être lue.',
-            ),
-          },
-        ),
+        if (tous) const _FicheConsolideeVue() else const _FicheUnitaire(),
       ],
+    );
+  }
+}
+
+/// La fiche d'UN article, ou ce que la vue dit quand il n'existe pas
+/// (`aucun_article`, `aucun_article_detail`).
+class _FicheUnitaire extends ConsumerWidget {
+  const _FicheUnitaire();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final resultat = ref.watch(ficheStockProvider);
+
+    return resultat.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.all(AppSpacing.lg),
+        child: Center(child: CircularProgressIndicator()),
+      ),
+      error: (e, _) => _Note(cle: const Key('fiche-erreur'), texte: '$e'),
+      data: (r) => switch (r) {
+        null => const _AucunArticle(),
+        FicheRecue(:final fiche) => VueFicheStock(
+          fiche: fiche,
+          pointLibelle: _libellePoint(ref, fiche.pointId),
+        ),
+        // L'article choisi n'est plus au référentiel : la vue rend alors son
+        // panneau « Aucun article » plutôt qu'une phrase d'erreur.
+        FicheRefusee(:final motif)
+            when motif == MessagesStock.articleInexistant =>
+          const _AucunArticle(),
+        FicheRefusee(:final motif) => _Note(
+          cle: const Key('fiche-refus'),
+          texte: motif,
+        ),
+        // Jamais produit : une base locale n'est pas hors connexion. L'arm
+        // reste parce que le type scellé est partagé.
+        FicheInjoignable() => const _Note(
+          cle: Key('fiche-hors-ligne'),
+          texte: 'La fiche n’a pas pu être lue.',
+        ),
+      },
     );
   }
 
@@ -322,6 +355,77 @@ class _OngletFiche extends ConsumerWidget {
     }
     return pointId;
   }
+}
+
+/// `aucun_article` (l.310-313 de la vue) : `bg-white rounded-xl border p-10
+/// text-center`, le titre en navy, le détail en ardoise.
+class _AucunArticle extends StatelessWidget {
+  const _AucunArticle();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('fiche-aucun-article'),
+      padding: const EdgeInsets.all(AppSpacingLarge.p10),
+      decoration: _carte(),
+      child: Column(
+        children: [
+          Text(
+            TextesInventaires.aucunArticle,
+            style: _t(
+              TaillesContenu.t15,
+              poids: FontWeight.w600,
+              couleur: AppColors.navy,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.unit), // mt-1
+          Text(
+            TextesInventaires.aucunArticleDetail,
+            style: _t(TaillesContenu.t13, couleur: AppColors.neutre500),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Les phrases de l'écran qui ne sont pas des libellés de colonne — une seule
+/// fois chacune.
+abstract final class TextesInventaires {
+  static const String aucunArticle = 'Aucun article';
+  static const String aucunArticleDetail =
+      "Créez d'abord un article dans l'écran Stocks.";
+
+  /// Le refus de l'inventaire physique, DIT avec les mots de la vue (voir
+  /// l'en-tête de l'écran) : ce que la vue ouvre, et ce que ce poste ne tient
+  /// pas. Affiché sous le tableau du cycle ET sous celui de l'historique.
+  static const String inventaireNonPorte =
+      'Inventaire physique non porté sur ce poste (21/10/2026) : « Lancer '
+      'l’inventaire » ouvrirait une feuille de comptage (« Inventaire du … », '
+      '« … article(s) comptés », « … écart(s) », « impact valorisé », colonnes '
+      '« à compter » et « Écart valorisé », boutons « Enregistrer le comptage », '
+      '« Exporter » — « Exporter — Articles en stock » — et « Clôturer et '
+      'régulariser »), mais ce poste n’a ni table d’inventaire ni lignes de '
+      'comptage : un comptage n’y serait écrit nulle part, et une clôture ne '
+      'régulariserait rien que le serveur connaisse. Pour la même raison, la '
+      'liste des inventaires clôturés (« Aucun inventaire clôturé » — « Les '
+      'inventaires clôturés et leurs régularisations apparaîtront ici. ») ne '
+      'peut pas se tenir ici : rien ne s’y inscrirait.';
+
+  /// `export.fiche_tous_articles` : le refus d'exporter la fiche sous « Tous les
+  /// articles » (accents absents, comme dans la vue).
+  static const String ficheTousArticles =
+      "Choisissez un article : le document de fiche de stock est etabli pour un seul article. Sous « Tous les articles », les quantites d'unites differentes ne peuvent pas etre totalisees.";
+
+  /// `cycle_non_definie` : aucune périodicité n'est enregistrée nulle part.
+  static const String nonDefinie = 'non définie';
+
+  /// `aucun_point_defini` : rendu quand le poste n'a aucun point de stockage.
+  static const String aucunPointDefini =
+      "Aucun point de stockage n'est défini : un inventaire porte sur un point, il ne peut pas être ouvert sans lui.";
+
+  /// `lancer` : le bouton de chaque ligne du cycle — grisé ici.
+  static const String lancer = "Lancer l'inventaire";
 }
 
 /// La carte des filtres — `bg-white rounded-xl border p-4 mb-4`.
@@ -355,7 +459,12 @@ class _CartePeriode extends ConsumerWidget {
                     child: _ChampListe(
                       cle: const Key('fiche-article'),
                       libelle: 'Article',
-                      valeur: demande.articleId,
+                      // Une valeur qui n'est PAS dans la liste (article parti, ou
+                      // liste pas encore lue) rend la première option, comme le
+                      // `<select>` de la vue — jamais une assertion de Flutter.
+                      valeur: articles.any((a) => a.id == demande.articleId)
+                          ? demande.articleId
+                          : null,
                       items: [
                         if (articles.isNotEmpty)
                           const DropdownMenuItem<String?>(
@@ -368,9 +477,7 @@ class _CartePeriode extends ConsumerWidget {
                           ),
                         if (articles.isEmpty)
                           const DropdownMenuItem<String?>(
-                            child: Text(
-                              'Créez d’abord un article dans l’écran Stocks.',
-                            ),
+                            child: Text(TextesInventaires.aucunArticleDetail),
                           ),
                       ],
                       onChanged: (id) =>
@@ -461,11 +568,18 @@ Future<void> _exporter(BuildContext context, WidgetRef ref) async {
     _ => null,
   };
   if (fiche == null) {
+    // « Tous les articles » n'a PAS de document de fiche : l'en-tête, les cumuls
+    // et l'unité d'un tel document sont ceux d'UN article, et les quantités
+    // d'unités différentes ne se totalisent pas (`export.fiche_tous_articles`).
+    // Sans article du tout, la phrase de `export.fiche_absente`.
+    final tous = ref.read(demandeFicheProvider).articleId == null;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
+      SnackBar(
         content: Text(
-          "Sélectionnez un article avant d'exporter.",
-          key: Key('fiche-export-absente'),
+          tous
+              ? TextesInventaires.ficheTousArticles
+              : "Sélectionnez un article avant d'exporter.",
+          key: const Key('fiche-export-absente'),
         ),
       ),
     );
@@ -491,7 +605,7 @@ Future<void> _exporter(BuildContext context, WidgetRef ref) async {
     titre: 'Exporter — Fiche de stock',
     sousTitre:
         'Le document porte les filtres affichés : '
-        '${article ?? '—'} · $debut → $fin',
+        '${article ?? TextesInventaires.aucunArticle} · $debut → $fin',
   );
   if (format == null || !context.mounted) return;
 
@@ -652,18 +766,43 @@ class _Raccourci extends StatelessWidget {
   }
 }
 
-/// La fiche CONSOLIDÉE : les quatre cartes, la phrase d'aide et le tableau du
-/// détail — leurs étiquettes et leurs en-têtes, sans valeur : la source des
-/// mouvements n'est pas sur ce poste (PA-134).
-class _FicheConsolidee extends StatelessWidget {
-  const _FicheConsolidee();
+/// La fiche CONSOLIDÉE (« Tous les articles », vue l.223-308) : le bandeau des
+/// fiches incohérentes, les quatre cartes, la phrase d'aide, puis le détail des
+/// mouvements de tous les articles, du plus ancien au plus récent.
+class _FicheConsolideeVue extends ConsumerWidget {
+  const _FicheConsolideeVue();
 
-  static const _cartes = [
-    'Articles au catalogue',
-    'Articles mouvementes',
-    'Mouvements sur la periode',
-    'Valeur du stock theorique',
-  ];
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ref
+        .watch(ficheConsolideeProvider)
+        .when(
+          loading: () => const Padding(
+            padding: EdgeInsets.all(AppSpacing.lg),
+            child: Center(child: CircularProgressIndicator()),
+          ),
+          error: (e, _) =>
+              _Note(cle: const Key('fiche-consolidee-erreur'), texte: '$e'),
+          data: (r) => switch (r) {
+            null => const SizedBox.shrink(),
+            FicheConsolideeRecue(:final fiche) => _CorpsConsolide(fiche: fiche),
+            FicheConsolideeRefusee(:final motif) => _Note(
+              cle: const Key('fiche-consolidee-refus'),
+              texte: motif,
+            ),
+          },
+        );
+  }
+}
+
+class _CorpsConsolide extends StatelessWidget {
+  const _CorpsConsolide({required this.fiche});
+
+  final FicheConsolidee fiche;
+
+  /// Le signe MOINS du maître (U+2212), écrit par son point de code : le
+  /// transcrire à la main le confondrait avec le tiret ASCII.
+  static const String _moins = '\u{2212}';
 
   static const _colonnes = [
     'Date',
@@ -675,12 +814,70 @@ class _FicheConsolidee extends StatelessWidget {
     'Solde',
     'Utilisateur',
   ];
+  static const _parts = [110, 142, 110, 126, 129, 129, 123, 186];
 
   @override
   Widget build(BuildContext context) {
+    // Les quatre cartes, dans l'ordre de la vue (l.241-258) : le nombre
+    // d'articles, ceux qui ont bougé (bleu), les mouvements, la valeur.
+    final cartes = <(Key, String, String, Color)>[
+      (
+        const Key('fiche-consolidee-articles'),
+        'Articles au catalogue',
+        '${fiche.articles}',
+        AppColors.navy,
+      ),
+      (
+        const Key('fiche-consolidee-mouvementes'),
+        'Articles mouvementes',
+        '${fiche.articlesAvecMouvement}',
+        PaletteMaitre.bleu600,
+      ),
+      (
+        const Key('fiche-consolidee-mouvements'),
+        'Mouvements sur la periode',
+        '${fiche.mouvements}',
+        AppColors.navy,
+      ),
+      (
+        const Key('fiche-consolidee-valeur'),
+        'Valeur du stock theorique',
+        formaterFcfa(int.parse(fiche.valeurStockTheorique)),
+        AppColors.navy,
+      ),
+    ];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (fiche.incoherents.isNotEmpty)
+          Container(
+            key: const Key('fiche-consolidee-incoherente'),
+            margin: const EdgeInsets.only(bottom: AppSpacing.md), // mb-4
+            padding: const EdgeInsets.all(AppSpacing.smPlus), // p-3.5
+            decoration: BoxDecoration(
+              color: PaletteMaitre.rouge50,
+              borderRadius: BorderRadius.circular(AppRadius.roundedXl),
+              border: Border.all(color: PaletteMaitre.rouge200),
+            ),
+            child: Text.rich(
+              TextSpan(
+                style: _t(TaillesContenu.t13, couleur: PaletteMaitre.rouge800),
+                children: [
+                  // `incoherence` en gras, puis `incoherents_liste` : chaque
+                  // fiche incohérente est NOMMÉE, pas noyée dans un compteur.
+                  const TextSpan(
+                    text: 'Incohérence détectée.',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  TextSpan(
+                    text:
+                        ' Articles concernes : ${fiche.incoherents.join(', ')}.',
+                  ),
+                ],
+              ),
+            ),
+          ),
         LayoutBuilder(
           builder: (context, c) {
             // `grid-cols-2 lg:grid-cols-4 gap-3 mb-4`
@@ -691,7 +888,7 @@ class _FicheConsolidee extends StatelessWidget {
                 spacing: AppSpacing.sm,
                 runSpacing: AppSpacing.sm,
                 children: [
-                  for (final libelle in _cartes)
+                  for (final (cle, libelle, valeur, couleur) in cartes)
                     SizedBox(
                       width: largeur,
                       child: Container(
@@ -713,11 +910,12 @@ class _FicheConsolidee extends StatelessWidget {
                             ),
                             const SizedBox(height: AppSpacing.demi), // mt-0.5
                             Text(
-                              '—',
+                              valeur,
+                              key: cle,
                               style: _t(
                                 TaillesContenu.lg,
                                 poids: FontWeight.bold,
-                                couleur: AppColors.navy,
+                                couleur: couleur,
                                 interligne: TaillesContenu.interligneLg,
                               ),
                             ),
@@ -733,8 +931,7 @@ class _FicheConsolidee extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.only(bottom: AppSpacing.sm), // mb-3
           child: Text(
-            'Chaque ligne garde l’unite et le solde de son propre article : '
-            'les quantites d’articles differents ne s’additionnent pas.',
+            "Chaque ligne garde l'unite et le solde de son propre article : les quantites d'articles differents ne s'additionnent pas.",
             style: _t(TaillesContenu.t12, couleur: AppColors.neutre500),
           ),
         ),
@@ -766,7 +963,8 @@ class _FicheConsolidee extends StatelessWidget {
                       ),
                     ),
                     Text(
-                      '— mouvement(s)',
+                      '${fiche.mouvements} mouvement(s)',
+                      key: const Key('fiche-consolidee-nombre'),
                       style: _t(
                         TaillesContenu.t11,
                         couleur: AppColors.neutre400,
@@ -775,15 +973,173 @@ class _FicheConsolidee extends StatelessWidget {
                   ],
                 ),
               ),
-              const _EnTeteTableau(
-                _colonnes,
-                parts: [110, 142, 110, 126, 129, 129, 123, 186],
-              ),
-              _LigneVide(texte: donneeNonDisponible('Les mouvements de stock')),
+              const _EnTeteTableau(_colonnes, parts: _parts),
+              if (fiche.lignes.isEmpty)
+                const _LigneVide(texte: 'Aucun mouvement sur cette période.')
+              else
+                for (final (i, l) in fiche.lignes.indexed)
+                  _LigneConsolidee(
+                    cle: Key('fiche-consolidee-ligne-$i'),
+                    ligne: l,
+                    parts: _parts,
+                  ),
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Une ligne du détail consolidé (vue l.293-303) : `border-t border-slate-100`,
+/// cellules `px-4 py-2.5`. Le type est un badge coloré ; l'entrée est en vert
+/// avec son unité, la sortie en bleu, le solde en gras — chaque solde est celui
+/// de SON article.
+///
+/// ÉCART avec la vue, nommé : sa colonne « Utilisateur » rend toujours un tiret
+/// (le serveur ne remonte pas l'auteur du mouvement) ; ce poste le connaît
+/// (`mouvements_stock_local.utilisateur_id`), il l'écrit — comme sa fiche d'un
+/// seul article, dont la colonne « Par » est déjà rendue.
+class _LigneConsolidee extends StatelessWidget {
+  const _LigneConsolidee({
+    required Key cle,
+    required this.ligne,
+    required this.parts,
+  }) : super(key: cle);
+
+  final LigneFicheConsolidee ligne;
+  final List<int> parts;
+
+  Widget _cellule(
+    int i,
+    Widget enfant, {
+    Alignment alignement = Alignment.centerLeft,
+  }) => Expanded(
+    flex: parts[i],
+    child: Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md, // px-4
+        vertical: AppSpacing.xsPlus, // py-2.5
+      ),
+      child: Align(alignment: alignement, child: enfant),
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final l = ligne.ligne;
+    final type = TypeMouvement.values
+        .where((t) => t.libelle == l.type)
+        .firstOrNull;
+    final (fondType, texteType) = switch (type) {
+      TypeMouvement.entree => (
+        PaletteMaitre.emeraude50,
+        PaletteMaitre.emeraude700,
+      ),
+      TypeMouvement.sortie => (PaletteMaitre.bleu50, PaletteMaitre.bleu700),
+      TypeMouvement.perte => (PaletteMaitre.rouge50, PaletteMaitre.rouge700),
+      TypeMouvement.inventaire => (
+        PaletteMaitre.ambre50,
+        PaletteMaitre.ambre700,
+      ),
+      null => (AppColors.neutre100, AppColors.neutre600),
+    };
+    final entree = l.entree != '0.00';
+    final sortie = l.sortie != '0.00';
+
+    return Container(
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: Ardoise.c100)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          _cellule(
+            0,
+            Text(dateHeureDeLaVue(l.date), style: _t(TaillesContenu.t13)),
+          ),
+          _cellule(
+            1,
+            Text(
+              ligne.article,
+              style: _t(
+                TaillesContenu.t13,
+                poids: FontWeight.w600,
+                couleur: Ardoise.c700,
+              ),
+            ),
+          ),
+          _cellule(
+            2,
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.xs, // px-2
+                vertical: AppSpacing.demi, // py-0.5
+              ),
+              decoration: BoxDecoration(
+                color: fondType,
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+              ),
+              child: Text(
+                l.ruptureForcee ? '${l.type} — rupture forcée' : l.type,
+                style: _t(
+                  TaillesContenu.t11,
+                  poids: FontWeight.w600,
+                  couleur: texteType,
+                ),
+              ),
+            ),
+          ),
+          _cellule(
+            3,
+            Text(l.motif, style: _t(TaillesContenu.t13, couleur: Ardoise.c600)),
+          ),
+          _cellule(
+            4,
+            Text(
+              entree ? '+${l.entree} ${ligne.unite}' : '—',
+              style: _t(
+                TaillesContenu.t13,
+                poids: entree ? FontWeight.w600 : null,
+                couleur: entree ? PaletteMaitre.emeraude600 : Ardoise.c300,
+              ),
+            ),
+            alignement: Alignment.centerRight,
+          ),
+          _cellule(
+            5,
+            Text(
+              sortie
+                  ? '${_CorpsConsolide._moins}${l.sortie} ${ligne.unite}'
+                  : '—',
+              style: _t(
+                TaillesContenu.t13,
+                poids: sortie ? FontWeight.w600 : null,
+                couleur: sortie ? PaletteMaitre.bleu600 : Ardoise.c300,
+              ),
+            ),
+            alignement: Alignment.centerRight,
+          ),
+          _cellule(
+            6,
+            Text(
+              '${l.solde} ${ligne.unite}',
+              style: _t(TaillesContenu.t13, poids: FontWeight.bold),
+            ),
+            alignement: Alignment.centerRight,
+          ),
+          _cellule(
+            7,
+            Text(
+              l.par ?? '—',
+              style: _t(
+                TaillesContenu.t12,
+                couleur: l.par == null ? Ardoise.c300 : Ardoise.c600,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -862,11 +1218,16 @@ class _LigneVide extends StatelessWidget {
 /* Onglet « Inventaire physique »                                          */
 /* ====================================================================== */
 
-class _OngletInventaire extends StatelessWidget {
+class _OngletInventaire extends ConsumerWidget {
   const _OngletInventaire();
 
+  /// Les parts de largeur des cinq colonnes du cycle (`px-3 py-2`).
+  static const _parts = [180, 150, 220, 150, 190];
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final points = ref.watch(pointsStockProvider).value ?? const [];
+
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md), // p-4
       decoration: _carte(),
@@ -917,14 +1278,140 @@ class _OngletInventaire extends StatelessWidget {
               ],
             ),
           ),
+          // La cinquième colonne, celle du bouton, n'a pas d'en-tête (vue
+          // l.452-456) : « Lancer l'inventaire » n'est le nom d'aucune colonne.
           const _EnTeteTableau([
             'Magasin',
             'Periodicite',
             'Dernier inventaire cloture',
             'Etat',
-          ]),
-          _LigneVide(texte: donneeNonDisponible('Les points de stockage')),
+            '',
+          ], parts: _parts),
+          if (points.isEmpty)
+            const _LigneVide(texte: TextesInventaires.aucunPointDefini)
+          else
+            for (final p in points)
+              _LigneCycle(
+                cle: Key('inventaire-cycle-${p.id}'),
+                libelle: p.libelle,
+                parts: _parts,
+              ),
+          const _NoteNonPortee(cle: Key('inventaire-non-porte')),
         ],
+      ),
+    );
+  }
+}
+
+/// Une ligne du « Cycle d'inventaire par magasin » (vue l.460-477) : le point,
+/// sa périodicité et son état — « non définie » : aucune périodicité n'est
+/// enregistrée nulle part —, son dernier inventaire, et le bouton « Lancer
+/// l'inventaire », GRISÉ (voir [TextesInventaires.inventaireNonPorte]).
+///
+/// « Dernier inventaire clôturé » rend « — » : la vue y met une date ou
+/// « aucun » ; ce poste ne tient aucun inventaire, il ne peut donc affirmer
+/// ni l'un ni l'autre (un « aucun » dirait qu'il n'en existe pas ailleurs).
+class _LigneCycle extends StatelessWidget {
+  const _LigneCycle({
+    required Key cle,
+    required this.libelle,
+    required this.parts,
+  }) : super(key: cle);
+
+  final String libelle;
+  final List<int> parts;
+
+  Widget _cellule(
+    int i,
+    Widget enfant, {
+    Alignment alignement = Alignment.centerLeft,
+  }) => Expanded(
+    flex: parts[i],
+    child: Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm, // px-3
+        vertical: AppSpacing.xs, // py-2
+      ),
+      child: Align(alignment: alignement, child: enfant),
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final nonDefinie = Text(
+      TextesInventaires.nonDefinie,
+      style: _t(TaillesContenu.t12, couleur: AppColors.neutre400),
+    );
+
+    return Container(
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Ardoise.c100)),
+      ),
+      child: Row(
+        children: [
+          _cellule(
+            0,
+            Text(
+              libelle,
+              style: _t(
+                TaillesContenu.t13,
+                poids: FontWeight.w600,
+                couleur: AppColors.navy,
+              ),
+            ),
+          ),
+          _cellule(1, nonDefinie),
+          _cellule(
+            2,
+            Tooltip(
+              message: 'Aucun inventaire n’est tenu sur ce poste.',
+              child: Text(
+                '—',
+                style: _t(TaillesContenu.t13, couleur: AppColors.neutre400),
+              ),
+            ),
+          ),
+          _cellule(3, nonDefinie),
+          _cellule(
+            4,
+            Tooltip(
+              message:
+                  'Inventaire physique non porté sur ce poste : voir la note '
+                  'sous le tableau.',
+              child: BoutonStandard(
+                key: Key('${(key as ValueKey<String>).value}-lancer'),
+                libelle: TextesInventaires.lancer,
+                compact: true,
+                margeVerticale: AppSpacing.xxs, // py-1.5
+                variante: VarianteBouton.primaire,
+                // Grisé, jamais inerte en silence : la note dit pourquoi.
+                onPressed: null,
+              ),
+            ),
+            alignement: Alignment.centerRight,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// La note de l'inventaire physique refusé — sous le tableau du cycle, et dans
+/// le corps de l'onglet des inventaires clôturés.
+class _NoteNonPortee extends StatelessWidget {
+  const _NoteNonPortee({required this.cle});
+
+  /// La clé est posée sur le TEXTE (les tests lisent le texte par sa clé).
+  final Key cle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.sm),
+      child: Text(
+        TextesInventaires.inventaireNonPorte,
+        key: cle,
+        style: _t(TaillesContenu.t12, couleur: AppColors.neutre500),
       ),
     );
   }
@@ -964,7 +1451,13 @@ class _OngletHistorique extends StatelessWidget {
               'Impact net',
             },
           ),
-          _LigneVide(texte: donneeNonDisponible('Les inventaires clôturés')),
+          // Pas de « Aucun inventaire clôturé » : ce poste n'en tient aucun, il
+          // ne peut donc dire ni qu'il y en a ni qu'il n'y en a pas. La note le
+          // dit, avec les mots de la vue.
+          const Padding(
+            padding: EdgeInsets.all(AppSpacing.md),
+            child: _NoteNonPortee(cle: Key('historique-non-porte')),
+          ),
         ],
       ),
     );

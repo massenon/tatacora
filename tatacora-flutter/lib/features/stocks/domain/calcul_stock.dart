@@ -554,6 +554,64 @@ FicheStock calculerFiche({
   );
 }
 
+/// La fiche CONSOLIDÉE : chaque article garde SA fiche (calculée par
+/// [calculerFiche], jamais par une seconde formule), et le consolidé en tire un
+/// compte d'articles, un compte de mouvements, une VALEUR totale et la liste
+/// nommée des fiches incohérentes — jamais un cumul de quantités.
+///
+/// [fiches] arrive dans l'ordre des libellés. Les lignes sont triées par
+/// (date, article) ; à égalité, l'ordre d'écriture de chaque fiche est gardé.
+FicheConsolidee consoliderFiches(
+  List<FicheStock> fiches, {
+  required DateTime debut,
+  required DateTime fin,
+  String? pointId,
+}) {
+  var valeur = 0;
+  var avecMouvement = 0;
+  final incoherents = <String>[];
+  final lignes = <LigneFicheConsolidee>[];
+
+  for (final f in fiches) {
+    valeur += int.parse(f.valeurStockTheorique);
+    if (!f.coherent) incoherents.add(f.article.libelle);
+    if (f.lignes.isEmpty) continue;
+    avecMouvement++;
+    for (final l in f.lignes) {
+      lignes.add(
+        LigneFicheConsolidee(
+          article: f.article.libelle,
+          unite: f.article.unite,
+          ligne: l,
+        ),
+      );
+    }
+  }
+
+  // `List.sort` n'est pas stable : le rang d'insertion départage.
+  final rang = <LigneFicheConsolidee, int>{
+    for (final (i, l) in lignes.indexed) l: i,
+  };
+  lignes.sort((a, b) {
+    final parDate = a.ligne.date.compareTo(b.ligne.date);
+    if (parDate != 0) return parDate;
+    final parArticle = a.article.compareTo(b.article);
+    if (parArticle != 0) return parArticle;
+    return rang[a]!.compareTo(rang[b]!);
+  });
+
+  return FicheConsolidee(
+    debut: formatIso(debut),
+    fin: formatIso(fin),
+    pointId: pointId,
+    articles: fiches.length,
+    articlesAvecMouvement: avecMouvement,
+    valeurStockTheorique: ecrireFrancs(valeur),
+    incoherents: incoherents,
+    lignes: lignes,
+  );
+}
+
 /// « 2026-10-09 14:03:22 » — la date d'une ligne de fiche.
 String formaterInstantIso(DateTime d) =>
     '${formatIso(d)} '

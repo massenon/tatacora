@@ -2,6 +2,8 @@ import '../domain/calcul_stock.dart';
 import '../domain/entities/etat_stock.dart';
 import '../domain/entities/fiche_stock.dart';
 import '../domain/entities/mouvement_stock.dart';
+import '../../../core/rbac/regle_archivage.dart'
+    show roleNormalise, rolesAdministration;
 import '../domain/messages_stock.dart';
 import '../domain/nombre_saisi.dart';
 import 'stocks_dao.dart';
@@ -61,9 +63,19 @@ sealed class ResultatEcritureArticle {
 }
 
 final class ArticleEnregistre extends ResultatEcritureArticle {
-  const ArticleEnregistre({required this.id, required this.libelle});
+  const ArticleEnregistre({
+    required this.id,
+    required this.libelle,
+    this.messageEntree,
+  });
   final String id;
   final String libelle;
+
+  /// Le message de la vue quand la fiche a AUSSI fait entrer du stock
+  /// (`article.entree_enregistree`) ; `null` : la fiche a été enregistrée sans
+  /// toucher au stock — annoncer une entrée qui n'a pas eu lieu serait un
+  /// indicateur qui affirme un état qu'il n'a pas vérifié.
+  final String? messageEntree;
 }
 
 final class ArticleRefuse extends ResultatEcritureArticle {
@@ -83,6 +95,22 @@ final class ArticleRefuse extends ResultatEcritureArticle {
 
 final class ArticleInjoignable extends ResultatEcritureArticle {
   const ArticleInjoignable();
+}
+
+/// Ce que la fiche CONSOLIDÉE (« Tous les articles ») peut rendre. Jamais
+/// « injoignable » : une base locale n'est pas hors connexion.
+sealed class ResultatFicheConsolidee {
+  const ResultatFicheConsolidee();
+}
+
+final class FicheConsolideeRecue extends ResultatFicheConsolidee {
+  const FicheConsolideeRecue(this.fiche);
+  final FicheConsolidee fiche;
+}
+
+final class FicheConsolideeRefusee extends ResultatFicheConsolidee {
+  const FicheConsolideeRefusee(this.motif);
+  final String motif;
 }
 
 /// Ce que l'enregistrement d'un mouvement peut rendre — EF-M6-02.
@@ -217,12 +245,25 @@ final class StocksApi {
     required this._peutLire,
     required this._peutEcrire,
     required this._auteurId,
-  });
+    String? Function()? roleUtilisateur,
+  }) : _role = roleUtilisateur;
 
   final StocksDao _dao;
   final bool Function() _peutLire;
   final bool Function() _peutEcrire;
   final String? Function() _auteurId;
+
+  /// Le rôle de la session, lu à CHAQUE appel — jamais capturé. `null` (un banc
+  /// qui ne le fournit pas) : personne n'est administrateur.
+  final String? Function()? _role;
+
+  /// `Stocks::peutAjusterLeStock()` : l'entrée depuis la fiche article est un
+  /// geste d'ADMINISTRATION — elle valorise la marchandise et déplace le coût
+  /// moyen pondéré. Le rôle ne dispense jamais du droit d'écriture sur M6 : il
+  /// s'y ajoute.
+  bool get peutAjusterLeStock =>
+      _peutEcrire() &&
+      rolesAdministration.contains(roleNormalise(_role?.call()));
 
   /// Le code du suivi permanent, lu par M5 pour filtrer les articles.
   /// Identifiant métier, pas donnée de transport : conservé.
@@ -284,6 +325,26 @@ final class StocksApi {
     return fiche == null
         ? const FicheRefusee('Article inconnu du référentiel.')
         : FicheRecue(fiche);
+  }
+
+  /// « Tous les articles » : la fiche consolidée sur la période. Les bornes
+  /// inversées sont refusées avec la phrase du serveur, comme pour un article.
+  Future<ResultatFicheConsolidee> ficheConsolidee({
+    required DateTime debut,
+    required DateTime fin,
+    String? pointId,
+  }) async {
+    if (!_peutLire()) return const FicheConsolideeRefusee(refusLectureStocks);
+
+    final j = DateTime(debut.year, debut.month, debut.day);
+    final f = DateTime(fin.year, fin.month, fin.day);
+    if (f.isBefore(j)) {
+      return const FicheConsolideeRefusee(MessagesStock.periodeInversee);
+    }
+
+    return FicheConsolideeRecue(
+      await _dao.ficheConsolidee(debut: debut, fin: fin, pointId: pointId),
+    );
   }
 
   Future<ResultatJournal> mouvements({
@@ -419,6 +480,38 @@ final class StocksApi {
     }
 
     return ArticleEnregistre(id: saisie.id, libelle: saisie.libelle.trim());
+  }
+
+  /// L'ENTRÉE saisie depuis la fiche article (`Stocks::faireEntrerLeStock`,
+  /// directive du PO du 06/09/2026) : un mouvement d'entrée, jamais une valeur
+  /// de stock. Le droit est exigé ICI — l'ouverture d'un bloc ne protège rien.
+  /// Sans coût, l'entrée ne valorise rien (un zéro se lirait « reçu
+  /// gratuitement » et écraserait le coût moyen pondéré).
+  Future<ResultatEcritureMouvement> faireEntrerDepuisFiche({
+    required String articleId,
+    required String pointId,
+    required String quantite,
+    String? coutUnitaire,
+  }) async {
+    if (!_peutEcrire()) {
+      return const MouvementRefuse(motif: refusEcritureStocks, codeHttp: 403);
+    }
+    if (!peutAjusterLeStock) {
+      return const MouvementRefuse(
+        motif: MessagesStock.entreeRefusRole,
+        codeHttp: 403,
+      );
+    }
+    return enregistrerMouvement(
+      SaisieMouvement(
+        articleId: articleId,
+        pointId: pointId,
+        type: TypeMouvement.entree,
+        quantite: quantite,
+        motif: MessagesStock.entreeMotif,
+        coutUnitaire: coutUnitaire,
+      ),
+    );
   }
 
   /// Enregistre un mouvement — ou demande la confirmation de RG-06.

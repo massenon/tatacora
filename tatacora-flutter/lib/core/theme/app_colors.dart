@@ -250,6 +250,11 @@ abstract final class PaletteMaitre {
   /// comptant (`pos/comptant.blade.php` l.199), 14/10/2026.
   static const Color bleu300 = Color(0xFF93C5FD);
 
+  /// `blue-600` — la colonne « Sortie » et la carte « Articles mouvementes » de
+  /// la fiche de stock consolidée (`stocks/inventaires.blade.php` l.248, 300,
+  /// 340 : `text-blue-600`), 21/10/2026. Tailwind : #2563EB.
+  static const Color bleu600 = Color(0xFF2563EB);
+
   /// `blue-700` — 7 emplois. C'est aussi `--info` du maître, au bit près.
   static const Color bleu700 = Color(0xFF1D4ED8);
 

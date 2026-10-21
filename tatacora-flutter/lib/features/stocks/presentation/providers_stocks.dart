@@ -31,6 +31,7 @@ final stocksApiProvider = Provider<StocksApi>(
     peutEcrire: () =>
         ref.read(droitsProvider).peutEcrire(ModuleTatacora.m6Stocks),
     auteurId: () => ref.read(sessionProvider)?.utilisateurId,
+    roleUtilisateur: () => ref.read(sessionProvider)?.role,
   ),
 );
 
@@ -263,9 +264,10 @@ final class DemandeFiche {
     DateTime? debut,
     DateTime? fin,
     String? pointId,
+    bool effacerArticle = false,
     bool effacerPoint = false,
   }) => DemandeFiche(
-    articleId: articleId ?? this.articleId,
+    articleId: effacerArticle ? null : (articleId ?? this.articleId),
     debut: debut ?? this.debut,
     fin: fin ?? this.fin,
     pointId: effacerPoint ? null : (pointId ?? this.pointId),
@@ -277,10 +279,21 @@ final demandeFicheProvider = NotifierProvider<_DemandeNotifier, DemandeFiche>(
 );
 
 final class _DemandeNotifier extends Notifier<DemandeFiche> {
+  /// La période par défaut couvre TRENTE jours, bornes comprises (`Inventaires::
+  /// mount`, PA-135) : « 30 jours » inclut aujourd'hui, sinon le cumul en
+  /// couvrirait trente et un et contredirait le libellé du raccourci. Sans
+  /// article, la vue ouvre sur « Tous les articles » : la fiche consolidée
+  /// exige une période, donc la période est posée d'emblée.
   @override
-  DemandeFiche build() => const DemandeFiche();
+  DemandeFiche build() {
+    final (debut, fin) = RaccourciPeriode.trenteJours.bornes(DateTime.now());
+    return DemandeFiche(debut: debut, fin: fin);
+  }
 
-  void article(String? id) => state = state.copyWith(articleId: id);
+  /// `null` : « Tous les articles » (la valeur VIDE de la vue, PO 06/09/2026) —
+  /// un choix, pas une absence de choix.
+  void article(String? id) =>
+      state = state.copyWith(articleId: id, effacerArticle: id == null);
 
   void point(String? id) =>
       state = state.copyWith(pointId: id, effacerPoint: id == null);
@@ -317,6 +330,26 @@ final ficheStockProvider = FutureProvider.autoDispose<ResultatFiche?>((
         pointId: demande.pointId,
       );
 });
+
+/// La fiche CONSOLIDÉE (« Tous les articles »), `null` tant qu'un article est
+/// choisi : la fiche unitaire est alors celle de [ficheStockProvider].
+final ficheConsolideeProvider =
+    FutureProvider.autoDispose<ResultatFicheConsolidee?>((ref) async {
+      final demande = ref.watch(demandeFicheProvider);
+      if (demande.articleId != null ||
+          demande.debut == null ||
+          demande.fin == null) {
+        return null;
+      }
+
+      return ref
+          .watch(stocksApiProvider)
+          .ficheConsolidee(
+            debut: demande.debut!,
+            fin: demande.fin!,
+            pointId: demande.pointId,
+          );
+    });
 
 /// L'export PDF de la fiche, exposé comme **action injectable** — enregistré
 /// par la fenêtre « Enregistrer sous » (14/10/2026), rend le CHEMIN écrit,

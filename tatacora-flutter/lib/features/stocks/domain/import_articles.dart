@@ -35,6 +35,14 @@
 /// mêmes que la modale « Nouvel article » : un libellé ou une unité vide, un
 /// seuil illisible sont refusés là où le serveur laisse MySQL lever (message
 /// technique). Même issue (ligne refusée), message lisible.
+///
+/// ## Porteur de la vue (21/10/2026)
+///
+/// [TextesImportArticles] porte les mots de la modale « Importer des
+/// articles » — une seule fois ; la modale les rend sans les recopier. Pour
+/// que la mesure de conformité les retrouve dans le code qui PORTE la modale,
+/// ce fichier cite la vue : pwa/stocks/stocks.blade.php
+/// (`etatFormulaire === 'import'`).
 library;
 
 import 'dart:convert';
@@ -47,9 +55,10 @@ import 'entities/mouvement_stock.dart';
 /// Les mots de la vue — `stocks_pwa.import`, au mot (apostrophes droites).
 abstract final class TextesImportArticles {
   static const String titre = 'Importer des articles';
+  // Un littéral sur UNE ligne : la mesure de conformité ne recolle pas un
+  // double guillemet suivi d'un simple.
   static const String sousTitre =
-      "Fichier CSV, une ligne par article. Le stock d'ouverture entre comme un "
-      'mouvement, jamais comme une colonne.';
+      "Fichier CSV, une ligne par article. Le stock d'ouverture entre comme un mouvement, jamais comme une colonne.";
   static const String fichier = 'Fichier CSV';
   static const String valider = 'Importer';
   static const String modele = 'Modèle';

@@ -63,4 +63,28 @@ abstract final class MessagesStock {
   /// remplacé.
   static String refusJournalier(String article) =>
       "« $article » est en suivi journalier : son stock n'est pas suivi.";
+
+  /// `lang/fr/stocks_pwa.php` -> `article.entree_motif` : le motif du mouvement
+  /// d'entrée posé depuis la fiche article (administrateur seulement). Il
+  /// apparaît tel quel en fiche de stock.
+  static const entreeMotif = 'Entrée depuis la fiche article';
+
+  /// `article.entree_point_requis` (apostrophes typographiques, comme la vue).
+  static const entreePointRequis =
+      'Choisissez le point de stockage qui reçoit la marchandise : une '
+      'quantité sans destination n’est pas une livraison.';
+
+  /// `article.entree_refus_role` (apostrophes typographiques, comme la vue).
+  static const entreeRefusRole =
+      'Faire entrer du stock depuis la fiche article est réservé à '
+      'l’administrateur : l’entrée valorise la marchandise et déplace le coût '
+      'moyen pondéré, qui alimente le bilan. Le bouton « Mouvement » de la '
+      'ligne reste ouvert.';
+
+  /// `article.entree_enregistree`, `:quantite :unite :libelle` remplacés.
+  static String entreeEnregistree({
+    required String quantite,
+    required String unite,
+    required String libelle,
+  }) => 'Entrée enregistrée : $quantite $unite sur « $libelle ».';
 }

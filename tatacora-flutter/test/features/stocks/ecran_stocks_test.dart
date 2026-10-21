@@ -15,14 +15,19 @@ import 'package:tatacora_flutter/features/auth/domain/session.dart';
 import 'package:tatacora_flutter/features/stocks/data/stocks_api.dart';
 import 'package:tatacora_flutter/features/stocks/data/stocks_dao.dart';
 import 'package:tatacora_flutter/features/stocks/domain/entities/etat_stock.dart';
+import 'package:tatacora_flutter/features/stocks/domain/entities/fiche_stock.dart';
 import 'package:tatacora_flutter/features/stocks/domain/entities/mouvement_stock.dart';
 import 'package:tatacora_flutter/features/stocks/domain/import_articles.dart';
 import 'package:tatacora_flutter/features/stocks/impression/etat_stocks.dart';
 import 'package:tatacora_flutter/features/stocks/presentation/ecran_inventaires.dart';
 import 'package:tatacora_flutter/features/stocks/presentation/ecran_stocks.dart';
 import 'package:tatacora_flutter/features/stocks/presentation/providers_stocks.dart';
+import 'package:tatacora_flutter/features/stocks/presentation/widgets/table_stocks.dart';
+import 'package:tatacora_flutter/features/stocks/presentation/widgets/vue_fiche_stock.dart';
+import 'package:tatacora_flutter/shared_widgets/bouton_standard.dart';
 
 import '../../support/selecteur_essai.dart';
+import '../../support/vue_blade.dart';
 
 /// L'écran Gestion des Stocks, monté sur une **vraie base locale** — le chemin
 /// que l'exploitant emprunte : clic, modale, `StocksApi`, `StocksDao`, base,
@@ -62,6 +67,7 @@ void main() {
   Future<void> monter(
     WidgetTester tester, {
     String niveau = 'C',
+    String role = 'magasinier',
     Widget ecran = const EcranStocks(),
     Size taille = const Size(1600, 1400),
     List<Override> surcharges = const [],
@@ -76,7 +82,7 @@ void main() {
       utilisateurId: 'u-essai',
       login: 'essai',
       nom: 'Aïcha',
-      role: 'magasinier',
+      role: role,
       droits: droits,
     );
 
@@ -897,6 +903,730 @@ void main() {
       // La confirmation promettait « tracé dans la fiche » : c'est vrai.
       expect(find.text('Sortie — rupture forcée'), findsOneWidget);
       expect(find.byKey(const Key('fiche-rupture-1')), findsOneWidget);
+    });
+  });
+
+  group('Le formulaire d’article : les aides de la vue et l’entrée de la fiche', () {
+    const aides = [
+      "Le petit stock n'est ni décrémenté à la vente, ni inventorié, ni alerté : seule la dépense d'achat est constatée.",
+      "Elle valorise le stock d'ouverture et fixe le premier coût moyen pondéré. Sans elle, l'article entre au bilan pour zéro et la variation de stock — donc le résultat — est fausse.",
+      "Un paramètre, pas un état : il déclenche l'alerte de sous-stock.",
+      "Enregistré comme un MOUVEMENT d'entrée, pas comme une colonne : c'est ce qui le rend visible en fiche de stock.",
+      "Point de rattachement principal de l'article, et point d'imputation de son stock d'ouverture. Il ne limite pas le stock : un article peut être détenu en plusieurs endroits, et le total se calcule point par point.",
+    ];
+
+    testWidgets('« Nouvel article » rend les CINQ aides, sous leur champ, et '
+        'jamais le bloc d’entrée', (tester) async {
+      await semerPoint('Magasin');
+      await monter(tester, role: 'administrateur');
+
+      await toucher(tester, const Key('stocks-nouvel-article'));
+
+      for (final aide in aides) {
+        expect(find.text(aide), findsOneWidget, reason: aide);
+      }
+      // L'entrée de la fiche n'existe qu'en MODIFICATION.
+      expect(find.byKey(const Key('article-bloc-entree')), findsNothing);
+      expect(find.text('Faire entrer du stock'), findsNothing);
+    });
+
+    testWidgets('en suivi journalier, les aides du stock disparaissent avec '
+        'leurs champs', (tester) async {
+      await semerPoint('Magasin');
+      await monter(tester);
+
+      await toucher(tester, const Key('stocks-nouvel-article'));
+      await choisir(
+        tester,
+        const Key('article-suivi'),
+        'Petit stock — acheté au jour le jour (tomates, laitue…)',
+      );
+
+      // Le seuil et le stock d'ouverture n'ont pas de sens sans stock tenu.
+      expect(find.text(aides[2]), findsNothing);
+      expect(find.text(aides[3]), findsNothing);
+      // L'aide du suivi, elle, reste.
+      expect(find.text(aides[0]), findsOneWidget);
+    });
+
+    testWidgets('l’ADMINISTRATEUR fait entrer du stock depuis la fiche : un '
+        'MOUVEMENT d’entrée valorisé, jamais une valeur écrasée', (
+      tester,
+    ) async {
+      final magasin = await semerPoint('Magasin');
+      await semerArticle(
+        'riz',
+        'Riz local',
+        pointId: magasin,
+        ouverture: '10',
+        cout: '1000',
+      );
+      await monter(tester, role: 'administrateur');
+
+      await toucher(tester, const Key('stocks-modifier-riz'));
+      expect(find.byKey(const Key('article-bloc-entree')), findsOneWidget);
+      expect(find.text('Faire entrer du stock'), findsOneWidget);
+      expect(find.text('Quantité à faire entrer'), findsOneWidget);
+      expect(find.text('Point de stockage qui reçoit'), findsOneWidget);
+      expect(find.text('Coût unitaire de cette entrée (FCFA)'), findsOneWidget);
+      expect(
+        texteDe(tester, const Key('article-entree-aide')),
+        startsWith('Ajoute au stock, sans jamais l’écraser'),
+      );
+
+      await saisir(tester, const Key('article-entree-quantite'), '3');
+      await saisir(tester, const Key('article-entree-cout'), '2000');
+      await toucher(tester, const Key('article-enregistrer'));
+
+      expect(find.byKey(const Key('modale-article')), findsNothing);
+      // Le message de la vue (`entree_enregistree`), pas « mis à jour ».
+      expect(
+        find.text('Entrée enregistrée : 3 sac sur « Riz local ».'),
+        findsOneWidget,
+      );
+
+      final mouvements = await db.select(db.mouvementsStockLocal).get();
+      final entree = mouvements.singleWhere(
+        (m) => m.motif == 'Entrée depuis la fiche article',
+      );
+      expect(entree.typeMouvement, 'entree');
+      expect(entree.quantite, 3);
+      expect(entree.pointId, magasin);
+      expect(entree.utilisateurId, 'u-essai');
+      // 2 000 F = 20 000 000 dix-millièmes : l'entrée VALORISE.
+      expect(entree.coutUnitaireDixMilliemes, 20000000);
+      // 10 + 3 : le stock est la SOMME des mouvements.
+      expect(texteDe(tester, const Key('stocks-stock-riz')), '13.00');
+    });
+
+    testWidgets('quantité vide : la fiche s’enregistre SANS toucher au '
+        'stock, et le dit comme avant', (tester) async {
+      final magasin = await semerPoint('Magasin');
+      await semerArticle(
+        'riz',
+        'Riz local',
+        pointId: magasin,
+        ouverture: '10',
+        cout: '1000',
+      );
+      await monter(tester, role: 'administrateur');
+
+      await toucher(tester, const Key('stocks-modifier-riz'));
+      await saisir(tester, const Key('article-seuil'), '7');
+      await toucher(tester, const Key('article-enregistrer'));
+
+      expect(find.text('Article « Riz local » mis à jour.'), findsOneWidget);
+      final mouvements = await db.select(db.mouvementsStockLocal).get();
+      expect(
+        mouvements,
+        hasLength(1),
+        reason: 'le seul mouvement : l’ouverture',
+      );
+    });
+
+    testWidgets('une quantité à zéro n’est pas une entrée : refus de saisie, '
+        'rien d’écrit', (tester) async {
+      final magasin = await semerPoint('Magasin');
+      await semerArticle(
+        'riz',
+        'Riz local',
+        pointId: magasin,
+        ouverture: '10',
+        cout: '1000',
+      );
+      await monter(tester, role: 'administrateur');
+
+      await toucher(tester, const Key('stocks-modifier-riz'));
+      await saisir(tester, const Key('article-entree-quantite'), '0');
+      await toucher(tester, const Key('article-enregistrer'));
+
+      expect(find.byKey(const Key('modale-article')), findsOneWidget);
+      expect(await db.select(db.mouvementsStockLocal).get(), hasLength(1));
+    });
+
+    testWidgets('un poste SANS aucun point : l’entrée est refusée AVANT '
+        'd’écrire quoi que ce soit', (tester) async {
+      await semerArticle('riz', 'Riz local', ouverture: '', cout: '');
+      await monter(tester, role: 'administrateur');
+
+      await toucher(tester, const Key('stocks-modifier-riz'));
+      await saisir(tester, const Key('article-entree-quantite'), '3');
+      await saisir(tester, const Key('article-libelle'), 'Riz local bis');
+      await toucher(tester, const Key('article-enregistrer'));
+
+      expect(find.byKey(const Key('article-refus')), findsOneWidget);
+      expect(
+        find.text(
+          'Choisissez le point de stockage qui reçoit la marchandise : une '
+          'quantité sans destination n’est pas une livraison.',
+        ),
+        findsOneWidget,
+      );
+      // Ni la fiche ni le stock n'ont bougé : la vue enregistrerait d'abord la
+      // fiche puis refuserait l'entrée.
+      final articles = await db.select(db.articlesLocal).get();
+      expect(articles.single.libelle, 'Riz local');
+      expect(await db.select(db.mouvementsStockLocal).get(), isEmpty);
+    });
+
+    testWidgets('un MAGASINIER ne voit pas le bloc, et l’API le refuse '
+        'quand même (l’ouverture d’un bloc ne protège rien)', (tester) async {
+      final magasin = await semerPoint('Magasin');
+      await semerArticle(
+        'riz',
+        'Riz local',
+        pointId: magasin,
+        ouverture: '10',
+        cout: '1000',
+      );
+      await monter(tester);
+
+      await toucher(tester, const Key('stocks-modifier-riz'));
+      expect(find.byKey(const Key('article-bloc-entree')), findsNothing);
+      expect(find.text('Faire entrer du stock'), findsNothing);
+
+      final conteneur = ProviderScope.containerOf(
+        tester.element(find.byType(EcranStocks)),
+      );
+      final refus = await conteneur
+          .read(stocksApiProvider)
+          .faireEntrerDepuisFiche(
+            articleId: 'riz',
+            pointId: magasin,
+            quantite: '3',
+          );
+      expect(refus, isA<MouvementRefuse>());
+      expect(
+        (refus as MouvementRefuse).motif,
+        startsWith('Faire entrer du stock depuis la fiche article est réservé'),
+      );
+      expect(await db.select(db.mouvementsStockLocal).get(), hasLength(1));
+    });
+
+    testWidgets('un article JOURNALIER : pas de bloc d’entrée, même pour '
+        'l’administrateur', (tester) async {
+      await semerPoint('Magasin');
+      await semerArticle(
+        'tomate',
+        'Tomates',
+        suivi: SuiviArticle.journalier,
+        unite: 'kg',
+      );
+      await monter(tester, role: 'administrateur');
+
+      await toucher(tester, const Key('stocks-modifier-tomate'));
+      expect(find.byKey(const Key('article-bloc-entree')), findsNothing);
+    });
+  });
+
+  group('La pagination de la vue : « Précédent », « Suivant »', () {
+    Future<void> semer(int n) async {
+      final magasin = await semerPoint('Magasin');
+      for (var i = 0; i < n; i++) {
+        final id = 'a${i.toString().padLeft(2, '0')}';
+        await semerArticle(id, 'Article $id', pointId: magasin);
+      }
+    }
+
+    testWidgets('25 articles par page, un pied « 1 – 25 / 30 », et les deux '
+        'boutons aux mots de la vue', (tester) async {
+      await semer(30);
+      await monter(tester, taille: const Size(1600, 4000));
+
+      expect(find.byKey(const Key('stocks-ligne-a00')), findsOneWidget);
+      expect(find.byKey(const Key('stocks-ligne-a24')), findsOneWidget);
+      expect(find.byKey(const Key('stocks-ligne-a25')), findsNothing);
+      // Le décompte de l'en-tête est le TOTAL filtré, pas la page.
+      expect(find.text('30 article(s)'), findsOneWidget);
+      expect(
+        texteDe(tester, const Key('stocks-pagination-decompte')),
+        '1 – 25 / 30',
+      );
+      expect(find.text('« Précédent'), findsOneWidget);
+      expect(find.text('Suivant »'), findsOneWidget);
+      // « Précédent » est grisé en page 1.
+      expect(
+        tester
+            .widget<BoutonStandard>(
+              find.byKey(const Key('stocks-pagination-precedent')),
+            )
+            .onPressed,
+        isNull,
+      );
+
+      await toucher(tester, const Key('stocks-pagination-suivant'));
+
+      expect(find.byKey(const Key('stocks-ligne-a24')), findsNothing);
+      expect(find.byKey(const Key('stocks-ligne-a25')), findsOneWidget);
+      expect(find.byKey(const Key('stocks-ligne-a29')), findsOneWidget);
+      expect(
+        texteDe(tester, const Key('stocks-pagination-decompte')),
+        '26 – 30 / 30',
+      );
+      expect(
+        tester
+            .widget<BoutonStandard>(
+              find.byKey(const Key('stocks-pagination-suivant')),
+            )
+            .onPressed,
+        isNull,
+        reason: '« Suivant » est grisé sur la dernière page',
+      );
+
+      await toucher(tester, const Key('stocks-pagination-precedent'));
+      expect(find.byKey(const Key('stocks-ligne-a00')), findsOneWidget);
+    });
+
+    testWidgets('un filtre ramène à la page 1 ; une seule page : aucun pied '
+        '(`hasPages()`)', (tester) async {
+      await semer(30);
+      await monter(tester, taille: const Size(1600, 4000));
+
+      await toucher(tester, const Key('stocks-pagination-suivant'));
+      expect(find.byKey(const Key('stocks-ligne-a25')), findsOneWidget);
+
+      await saisir(tester, const Key('stocks-recherche'), 'Article a2');
+      // « Article a2… » : a20 à a29, dix articles, une page.
+      expect(find.text('10 article(s)'), findsOneWidget);
+      expect(find.byKey(const Key('stocks-pagination')), findsNothing);
+      expect(find.byKey(const Key('stocks-ligne-a20')), findsOneWidget);
+    });
+  });
+
+  group(
+    'Ce que la vue offre pour ARCHIVER, et que ce poste dit ne pas tenir',
+    () {
+      testWidgets('aucune case, aucun « Supprimer » : la note NOMME les gestes '
+          'avec les mots de la vue', (tester) async {
+        final magasin = await semerPoint('Magasin');
+        await semerArticle('riz', 'Riz local', pointId: magasin);
+        await monter(tester, role: 'administrateur');
+
+        // Rien n'est offert qui n'écrirait rien.
+        expect(find.byType(Checkbox), findsNothing);
+        expect(find.text('Supprimer'), findsNothing);
+
+        final note = texteDe(tester, const Key('stocks-limite-archivage'));
+        for (final mot in const [
+          'Supprimer',
+          'Tout sélectionner',
+          'Sélectionner cette ligne',
+          'sélectionné(s)',
+        ]) {
+          expect(note, contains(mot));
+        }
+        // Et elle dit POURQUOI : aucune colonne « actif » locale.
+        expect(note, contains('colonne « actif »'));
+      });
+
+      testWidgets('le schéma local n’a toujours aucune colonne `actif` sur les '
+          'articles : le jour où elle naît, ce test rougit et l’archivage se '
+          'porte', (tester) async {
+        final colonnes =
+            (await db.customSelect('PRAGMA table_info(articles_local)').get())
+                .map((r) => r.read<String>('name'))
+                .toSet();
+        expect(colonnes, isNot(contains('actif')));
+      });
+    },
+  );
+
+  group('Les infobulles de « — » : la phrase de la vue ne ment pas ici', () {
+    const phraseDeLaVue =
+        "Jamais réceptionné : ni point de rattachement, ni prix d'achat. Les deux se posent à la première entrée de stock.";
+
+    testWidgets('l’article sans point ni prix dit ce qui manque, et jamais '
+        '« les deux se posent à la première entrée »', (tester) async {
+      await semerPoint('Magasin');
+      await semerArticle('riz', 'Riz local');
+      await monter(tester);
+
+      final messages = tester
+          .widgetList<Tooltip>(find.byType(Tooltip))
+          .map((t) => t.message ?? '')
+          .toList();
+      expect(messages, contains(raisonSansPoint));
+      expect(messages, contains(raisonSansPrixAchat));
+      for (final m in messages) {
+        expect(m, isNot(contains('Les deux se posent')));
+      }
+      expect(find.text(phraseDeLaVue), findsNothing);
+    });
+
+    test(
+      'la vue DIT encore la phrase, et le serveur ne pose toujours pas le '
+      'point à la première entrée : le jour où l’un change, ce test rougit',
+      () {
+        final lang = VueBlade.fichier(
+          'lang/fr/stocks_pwa.php',
+          role: 'les libellés de l’écran Stocks',
+        );
+        expect(
+          lang
+              .replaceAll("\\'", "'")
+              .replaceAll(RegExp(r"'\s*\n\s*\.\s*'"), ''),
+          contains(phraseDeLaVue),
+        );
+
+        final moteur = VueBlade.fichier(
+          'app/Domain/Stocks/Services/MouvementStockService.php',
+          role: 'le moteur des mouvements de stock',
+        );
+        // La phrase promet que la première entrée pose LE POINT : le moteur du
+        // serveur n'écrit jamais `point_stockage_id`.
+        expect(moteur, isNot(contains('point_stockage_id')));
+        expect(moteur, contains('function entree'));
+      },
+    );
+  });
+
+  group('Inventaires : « Tous les articles », la fiche consolidée de la vue', () {
+    Future<void> semerDeuxArticles() async {
+      final magasin = await semerPoint('Magasin');
+      await semerArticle(
+        'riz',
+        'Riz local',
+        pointId: magasin,
+        ouverture: '10',
+        cout: '1000',
+      );
+      await semerArticle(
+        'biere',
+        'Bière',
+        pointId: magasin,
+        ouverture: '5',
+        cout: '500',
+        unite: 'casier',
+      );
+      final r = await api().enregistrerMouvement(
+        SaisieMouvement(
+          articleId: 'riz',
+          pointId: magasin,
+          type: TypeMouvement.sortie,
+          quantite: '4',
+          motif: 'Banquet',
+        ),
+      );
+      expect(r, isA<MouvementEnregistre>(), reason: '$r');
+    }
+
+    testWidgets('la vue OUVRE sur « Tous les articles », période de trente '
+        'jours : comptes, valeur et détail réels', (tester) async {
+      await semerDeuxArticles();
+      await monter(tester, ecran: const EcranInventaires());
+
+      // Aucun article choisi : la valeur vide du filtre est un CHOIX.
+      expect(
+        find.byKey(const Key('fiche-consolidee-articles')),
+        findsOneWidget,
+      );
+      expect(texteDe(tester, const Key('fiche-consolidee-articles')), '2');
+      expect(texteDe(tester, const Key('fiche-consolidee-mouvementes')), '2');
+      // Trois mouvements : deux ouvertures et une sortie.
+      expect(texteDe(tester, const Key('fiche-consolidee-mouvements')), '3');
+      expect(
+        texteDe(tester, const Key('fiche-consolidee-nombre')),
+        '3 mouvement(s)',
+      );
+      // Riz : 6 × 1 000 F ; bière : 5 × 500 F ; seule la VALEUR se totalise.
+      expect(
+        texteDe(tester, const Key('fiche-consolidee-valeur')),
+        '8 500 FCFA',
+      );
+
+      // La phrase d'aide et les huit colonnes de la vue.
+      expect(
+        find.text(
+          "Chaque ligne garde l'unite et le solde de son propre article : les quantites d'articles differents ne s'additionnent pas.",
+        ),
+        findsOneWidget,
+      );
+      for (final c in const [
+        'DATE',
+        'ARTICLE',
+        'TYPE',
+        'MOTIF',
+        'ENTRÉE',
+        'SORTIE',
+        'SOLDE',
+        'UTILISATEUR',
+      ]) {
+        expect(find.text(c), findsOneWidget, reason: c);
+      }
+
+      // Une ligne : l'entrée en « + », la sortie avec le signe MOINS du maître
+      // (U+2212), le solde de SON article avec SON unité.
+      expect(find.text('+10.00 sac'), findsOneWidget);
+      expect(find.text('+5.00 casier'), findsOneWidget);
+      expect(find.text('\u{2212}4.00 sac'), findsOneWidget);
+      expect(find.text('6.00 sac'), findsOneWidget);
+      expect(find.text('5.00 casier'), findsOneWidget);
+      // Le « qui » est CONNU ici (la vue rend un tiret).
+      expect(find.text('Aïcha'), findsNWidgets(3));
+      // La date de la vue : `d/m/Y H:i`.
+      final aujourdhui = DateTime.now();
+      final jour =
+          '${aujourdhui.day.toString().padLeft(2, '0')}/'
+          '${aujourdhui.month.toString().padLeft(2, '0')}/${aujourdhui.year}';
+      expect(find.textContaining(jour), findsNWidgets(3));
+      expect(
+        find.byKey(const Key('fiche-consolidee-incoherente')),
+        findsNothing,
+      );
+    });
+
+    testWidgets('« Exporter » sous « Tous les articles » : le refus de la vue '
+        '(un document de fiche est établi pour UN article)', (tester) async {
+      await semerDeuxArticles();
+      await monter(tester, ecran: const EcranInventaires());
+
+      await toucher(tester, const Key('fiche-exporter'));
+
+      expect(
+        texteDe(tester, const Key('fiche-export-absente')),
+        startsWith('Choisissez un article : le document de fiche de stock'),
+      );
+      // Aucune modale de format ne s'est ouverte.
+      expect(find.text('Exporter — Fiche de stock'), findsNothing);
+    });
+
+    testWidgets('choisir un article ouvre SA fiche, et « Tous les articles » '
+        'revient au consolidé', (tester) async {
+      await semerDeuxArticles();
+      await monter(tester, ecran: const EcranInventaires());
+
+      await choisir(tester, const Key('fiche-article'), 'Riz local');
+      expect(find.byKey(const Key('fiche-consolidee-valeur')), findsNothing);
+      expect(texteDe(tester, const Key('fiche-theorique')), '6.00 sac');
+      // Le libellé de la vue pour la valeur de la fiche d'un article.
+      expect(find.text('VALEUR DU STOCK THÉORIQUE'), findsOneWidget);
+
+      await choisir(tester, const Key('fiche-article'), 'Tous les articles');
+      expect(find.byKey(const Key('fiche-theorique')), findsNothing);
+      expect(texteDe(tester, const Key('fiche-consolidee-articles')), '2');
+    });
+
+    testWidgets('sans article : le consolidé à zéro, la phrase de la vue, et '
+        'le sélecteur dit où créer le premier', (tester) async {
+      await monter(tester, ecran: const EcranInventaires());
+
+      expect(texteDe(tester, const Key('fiche-consolidee-articles')), '0');
+      expect(texteDe(tester, const Key('fiche-consolidee-valeur')), '0 FCFA');
+      expect(find.text('Aucun mouvement sur cette période.'), findsOneWidget);
+      expect(
+        find.text("Créez d'abord un article dans l'écran Stocks."),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('un article qui n’est plus au référentiel : « Aucun article » '
+        'et son détail, pas une phrase d’erreur', (tester) async {
+      await semerDeuxArticles();
+      await monter(tester, ecran: const EcranInventaires());
+
+      final conteneur = ProviderScope.containerOf(
+        tester.element(find.byType(EcranInventaires)),
+      );
+      conteneur.read(demandeFicheProvider.notifier).article('fantome');
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('fiche-aucun-article')), findsOneWidget);
+      expect(find.text('Aucun article'), findsOneWidget);
+      expect(
+        find.text("Créez d'abord un article dans l'écran Stocks."),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('fiche-refus')), findsNothing);
+    });
+
+    testWidgets('une fiche INCOHÉRENTE est NOMMÉE dans le bandeau, avant les '
+        'chiffres', (tester) async {
+      await monter(
+        tester,
+        ecran: const EcranInventaires(),
+        surcharges: [
+          ficheConsolideeProvider.overrideWith(
+            (ref) async => const FicheConsolideeRecue(
+              FicheConsolidee(
+                debut: '2026-10-01',
+                fin: '2026-10-30',
+                pointId: null,
+                articles: 2,
+                articlesAvecMouvement: 0,
+                valeurStockTheorique: '0',
+                incoherents: ['Riz local', 'Bière'],
+                lignes: [],
+              ),
+            ),
+          ),
+        ],
+      );
+
+      final bandeau = find.byKey(const Key('fiche-consolidee-incoherente'));
+      expect(bandeau, findsOneWidget);
+      final texte = tester
+          .widget<Text>(
+            find.descendant(of: bandeau, matching: find.byType(Text)),
+          )
+          .textSpan!
+          .toPlainText();
+      expect(
+        texte,
+        'Incohérence détectée. Articles concernes : Riz local, Bière.',
+      );
+    });
+
+    testWidgets('la fiche d’UN article incohérente dit les mots de la vue', (
+      tester,
+    ) async {
+      tester.view
+        ..physicalSize = const Size(1200, 1600)
+        ..devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            theme: AppTheme.clair,
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: VueFicheStock(
+                  pointLibelle: null,
+                  fiche: FicheStock(
+                    article: const ArticleFiche(
+                      id: 'riz',
+                      libelle: 'Riz local',
+                      unite: 'sac',
+                      cmp: '1000.0000',
+                    ),
+                    debut: '2026-10-01',
+                    fin: '2026-10-30',
+                    stockInitial: '0.00',
+                    entrees: '10.00',
+                    sorties: '0.00',
+                    pertes: '0.00',
+                    regularisations: '0.00',
+                    stockTheorique: '9.00',
+                    valeurStockTheorique: '9000',
+                    coherent: false,
+                    pointId: null,
+                    lignes: const [],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final texte = tester
+          .widget<Text>(
+            find.descendant(
+              of: find.byKey(const Key('fiche-incoherente')),
+              matching: find.byType(Text),
+            ),
+          )
+          .textSpan!
+          .toPlainText();
+      expect(
+        texte,
+        'Incohérence détectée. Le solde progressif ne retombe pas sur le stock '
+        'théorique. Un mouvement a été écrit hors du moteur de stock — ce '
+        'document ne doit pas servir de justificatif.',
+      );
+      expect(
+        find.textContaining('Aucun mouvement sur cette période.'),
+        findsOneWidget,
+      );
+    });
+  });
+
+  group('Inventaires : l’inventaire physique est REFUSÉ, et l’écran le dit', () {
+    testWidgets('le cycle liste les points, « Lancer l’inventaire » est GRISÉ '
+        'à sa place, la note nomme les gestes de la vue', (tester) async {
+      await semerPoint('Bar');
+      await semerPoint('Magasin');
+      await monter(tester, ecran: const EcranInventaires());
+      await toucher(tester, const Key('inventaires-onglet-inventaire'));
+
+      // Une ligne par point, avec « non définie » (aucune périodicité n'est
+      // enregistrée nulle part) deux fois : périodicité et état.
+      expect(find.text('Bar'), findsOneWidget);
+      expect(find.text('Magasin'), findsOneWidget);
+      expect(find.text('non définie'), findsNWidgets(4));
+
+      // Le bouton existe, au libellé de la vue, et n'a AUCUN geste.
+      final boutons = tester
+          .widgetList<BoutonStandard>(find.byType(BoutonStandard))
+          .where((b) => b.libelle == "Lancer l'inventaire")
+          .toList();
+      expect(boutons, hasLength(2));
+      expect(boutons.every((b) => b.onPressed == null), isTrue);
+
+      final note = texteDe(tester, const Key('inventaire-non-porte'));
+      for (final mot in const [
+        'Lancer l’inventaire',
+        'Inventaire du',
+        'article(s) comptés',
+        'écart(s)',
+        'impact valorisé',
+        'à compter',
+        'Écart valorisé',
+        'Enregistrer le comptage',
+        'Exporter — Articles en stock',
+        'Clôturer et régulariser',
+        'Les inventaires clôturés et leurs régularisations apparaîtront ici.',
+      ]) {
+        expect(note, contains(mot), reason: mot);
+      }
+      // Et la RAISON : ni table d'inventaire ni lignes de comptage.
+      expect(note, contains('ni table d’inventaire'));
+    });
+
+    testWidgets('sans point : la phrase de la vue, et aucun bouton', (
+      tester,
+    ) async {
+      await monter(tester, ecran: const EcranInventaires());
+      await toucher(tester, const Key('inventaires-onglet-inventaire'));
+
+      expect(
+        find.text(
+          "Aucun point de stockage n'est défini : un inventaire porte sur un point, il ne peut pas être ouvert sans lui.",
+        ),
+        findsOneWidget,
+      );
+      expect(find.text("Lancer l'inventaire"), findsNothing);
+    });
+
+    testWidgets('l’historique ne dit NI « aucun » NI « apparaîtront ici » '
+        'comme une promesse : il dit que ce poste n’en tient pas', (
+      tester,
+    ) async {
+      await monter(tester, ecran: const EcranInventaires());
+      await toucher(tester, const Key('inventaires-onglet-historique'));
+
+      final note = texteDe(tester, const Key('historique-non-porte'));
+      expect(note, contains('ne peut pas se tenir ici'));
+      // Aucune ligne n'est inventée, aucun « 0 » non plus.
+      expect(find.text('0'), findsNothing);
+    });
+
+    test('le schéma local n’a toujours ni table d’inventaire ni lignes de '
+        'comptage : le jour où elles naissent, ce test rougit et l’inventaire '
+        'se porte', () async {
+      final tables =
+          (await db
+                  .customSelect(
+                    "SELECT name FROM sqlite_master WHERE type = 'table'",
+                  )
+                  .get())
+              .map((r) => r.read<String>('name'))
+              .toSet();
+      expect(
+        tables.where((t) => t.contains('inventaire')),
+        isEmpty,
+        reason: 'une table d’inventaire est née : portez l’inventaire physique',
+      );
     });
   });
 }

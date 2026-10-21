@@ -248,6 +248,47 @@ class StocksDao extends DatabaseAccessor<AppDatabase> {
     );
   }
 
+  /// La fiche de TOUS les articles (`FicheStockService::pourTousLesArticles`) :
+  /// la fiche de chacun, par [calculerFiche], puis [consoliderFiches]. Les
+  /// articles sont pris dans l'ordre alphabétique de leur libellé, comme le
+  /// serveur (`orderBy('libelle')`).
+  Future<FicheConsolidee> ficheConsolidee({
+    required DateTime debut,
+    required DateTime fin,
+    String? pointId,
+  }) async {
+    final tous = [...await articles()]
+      ..sort(
+        (a, b) => a.libelle.toLowerCase().compareTo(b.libelle.toLowerCase()),
+      );
+    final parArticle = <String, List<MouvementCalcul>>{};
+    for (final m in await mouvementsCalcul()) {
+      parArticle.putIfAbsent(m.articleId, () => []).add(m);
+    }
+
+    return consoliderFiches(
+      [
+        for (final a in tous)
+          calculerFiche(
+            article: ArticleFiche(
+              id: a.id,
+              libelle: a.libelle,
+              unite: a.uniteMesure,
+              cmp: '',
+            ),
+            cmp: coutMoyenPondereDe(parArticle[a.id] ?? const []),
+            mouvements: parArticle[a.id] ?? const [],
+            debut: debut,
+            fin: fin,
+            pointId: pointId,
+          ),
+      ],
+      debut: debut,
+      fin: fin,
+      pointId: pointId,
+    );
+  }
+
   /// Le journal, du plus récent au plus ancien. [total] compte TOUT ce que le
   /// filtre retient, pas la page : une page pleine se lirait « c'est tout ».
   Future<({List<MouvementStock> mouvements, int total})> journal({

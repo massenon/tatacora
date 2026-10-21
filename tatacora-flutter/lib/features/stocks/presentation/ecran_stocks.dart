@@ -10,7 +10,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../shared_widgets/bouton_standard.dart';
-import '../../../shared_widgets/liste_paginee.dart';
 import '../../../shared_widgets/modale_export.dart';
 import '../../../shared_widgets/toast_export.dart';
 import '../data/stocks_api.dart';
@@ -55,17 +54,39 @@ import 'widgets/table_stocks.dart';
 ///    raison, jamais zéro ; le compteur de ces articles est dit sous le
 ///    tableau.
 ///
-/// ## Ce que la vue propose et qui n'est pas rendu (écarts nommés, 09/10/2026)
+/// ## Ce que la vue propose et qui n'est pas rendu (écarts nommés, 21/10/2026)
 ///
 ///  * **L'import CSV et son modèle** (vue l.232-235) : PORTÉS le 14/10/2026
 ///    (demande du PO) — `domain/import_articles.dart`, réplique de
 ///    `Stocks::lancerImport` ; le modèle s'enregistre par la fenêtre
 ///    « Enregistrer sous » du poste.
-///  * **L'archivage** — la case de sélection, le geste de retrait, la
-///    restauration et la pagination (vue l.261-283, 417-443) : aucune colonne
-///    `actif` locale, donc ni lecteur ni auteur. Le tableau affiche toutes les
-///    lignes.
-///  * **Le bloc d'entrée de la fiche article** (administrateur) : voir
+///  * **La pagination** (vue l.433-443) : PORTÉE le 21/10/2026, aux mots de la
+///    vue (« Précédent », « Suivant »), 25 articles par page comme
+///    `Stocks::PAR_PAGE` — l'ancienne règle de 10 lignes du 14/10/2026 cède au
+///    maître ; le pied n'existe que s'il y a plusieurs pages (`hasPages()`).
+///  * **L'ARCHIVAGE est REFUSÉ, et c'est le seul refus de cet écran** : la case
+///    de sélection de chaque ligne et celle de l'en-tête, la barre de sélection
+///    groupée, le bouton « Supprimer » (qui ARCHIVE, `actif = false`), le badge
+///    « Archivé », la restauration et la modale « Confirmer la suppression »
+///    (vue l.261-283, 304-314, 331-336, 343-346, 417-425, 777-798) posent TOUS
+///    un état « archivé » que l'article n'a pas ici : `articles_local` n'a
+///    aucune colonne `actif` (schéma v34, décision du 21/10/2026 : aucune
+///    migration dans ce lot). Offrir ces gestes n'écrirait RIEN, et un
+///    « Article archivé — il reste restaurable » affirmerait ce qui n'a pas
+///    eu lieu (PA-59/60/61). Ce qu'il faudrait : voir le rapport du lot (colonne
+///    `articles_local.actif`, auteur unique dans `StocksDao`, quatre verrous
+///    `stocks_pwa.archivage.verrou_*` rejoués sur les données locales,
+///    modification `actif` envoyée au serveur et descente de l'état). Les mots
+///    de la vue sont NOMMÉS à l'écran (`TextesStocks.archivageNonPorte`).
+///
+///  - blade-refuse:stocks/stocks#modale:modale-archivage
+///
+///  * **L'en-tête d'impression de la vue** (`hidden print:block`, l.112-115) :
+///    la vue l'écrit EN DUR pour l'impression du navigateur — « TATACORA AFRIQUE — GÎTE CHEZ NOËL », puis le titre et l'horodatage. Ce poste n'imprime pas l'écran ; il exporte
+///    l'état A4 (`EtatStocks`), dont l'en-tête est LU des Paramètres (raison
+///    sociale, adresse, IFU…, `EnteteEtablissement`). Y coller une seconde ligne
+///    en dur contredirait la raison sociale saisie. Écart nommé, pas un refus.
+///  * **Le bloc d'entrée de la fiche article** : porté, voir
 ///    `modale_article.dart`.
 class EcranStocks extends ConsumerWidget {
   const EcranStocks({super.key});
@@ -248,8 +269,14 @@ class _Corps extends ConsumerWidget {
     ref.invalidate(etatStockProvider);
     if (!context.mounted) return;
 
+    // `faireEntrerLeStock` rend SON message quand un mouvement a eu lieu ;
+    // sinon la fiche seule est annoncée (jamais une entrée qui n'a pas eu lieu).
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Article « ${modifie.libelle} » mis à jour.')),
+      SnackBar(
+        content: Text(
+          modifie.messageEntree ?? 'Article « ${modifie.libelle} » mis à jour.',
+        ),
+      ),
     );
   }
 
@@ -325,6 +352,18 @@ abstract final class TextesStocks {
       'Ces mouvements ne produisent aucune écriture comptable : un mouvement '
       'de stock n’est pas un mouvement d’argent, et leur valorisation '
       'comptable n’est pas portée sur ce poste (état du 12/10/2026).';
+
+  /// Ce que la vue offre pour ARCHIVER et que ce poste ne peut pas tenir (voir
+  /// l'en-tête de l'écran) — dit avec les mots de la vue : le bouton
+  /// « Supprimer », les cases « Tout sélectionner » et « Sélectionner cette
+  /// ligne », le décompte « sélectionné(s) ».
+  static const String archivageNonPorte =
+      'Archivage non porté sur ce poste (21/10/2026) : la vue y ajoute un '
+      'bouton « Supprimer » (qui archive), une case « Tout sélectionner », une '
+      'case « Sélectionner cette ligne » par article et un décompte '
+      '« sélectionné(s) ». Un article n’a ici aucun état « archivé » — la table '
+      'locale n’a pas de colonne « actif » — : ces gestes n’écriraient rien, et '
+      'dire « archivé » affirmerait ce qui n’a pas eu lieu.';
 
   static String sansValorisation(int n) =>
       '$n article(s) ont du stock mais aucune entrée valorisée : leur valeur '
@@ -829,9 +868,13 @@ class _Liste<T> extends StatelessWidget {
   }
 }
 
+/// Les articles par page — `Stocks::PAR_PAGE` (vue l.1077 du composant).
+const int articlesParPage = 25;
+
 /// La carte du tableau : le décompte et la mention « Stock calculé — non
-/// modifiable ici », puis soit l'état vide de la vue, soit le tableau.
-class _CarteTableau extends StatelessWidget {
+/// modifiable ici », puis soit l'état vide de la vue, soit le tableau et son
+/// pied de pagination.
+class _CarteTableau extends StatefulWidget {
   const _CarteTableau({
     required this.lignes,
     required this.cleFiltre,
@@ -849,7 +892,32 @@ class _CarteTableau extends StatelessWidget {
   final void Function(LigneStock) onModifier;
 
   @override
+  State<_CarteTableau> createState() => _CarteTableauState();
+}
+
+class _CarteTableauState extends State<_CarteTableau> {
+  int _page = 1;
+
+  @override
+  void didUpdateWidget(covariant _CarteTableau ancien) {
+    super.didUpdateWidget(ancien);
+    // Rester en page 3 d'un résultat qui n'en a plus qu'une montrerait un
+    // tableau vide sous un filtre qui trouve pourtant des lignes.
+    if (ancien.cleFiltre != widget.cleFiltre) _page = 1;
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final lignes = widget.lignes;
+    final pages = lignes.isEmpty
+        ? 1
+        : (lignes.length + articlesParPage - 1) ~/ articlesParPage;
+    final page = _page < 1 ? 1 : (_page > pages ? pages : _page);
+    final premier = (page - 1) * articlesParPage;
+    final dernier = premier + articlesParPage > lignes.length
+        ? lignes.length
+        : premier + articlesParPage;
+
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
@@ -872,6 +940,7 @@ class _CarteTableau extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
+                  // `nombre_articles` : le TOTAL filtré, pas la page.
                   '${lignes.length} article(s)',
                   style: _t(TaillesContenu.t12, couleur: AppColors.neutre500),
                 ),
@@ -911,27 +980,102 @@ class _CarteTableau extends StatelessWidget {
                 ],
               ),
             )
-          else
-            // Dix articles par page (PO, 14/10/2026) ; l'export reçoit la
-            // liste filtrée ENTIÈRE (`_exporter`).
-            ListePaginee<LigneStock>(
-              elements: lignes,
-              prefixeCle: 'stocks-pagination',
-              cleRemiseAZero: cleFiltre,
-              constructeur: (_, page) => Consumer(
-                builder: (context, ref, _) => TableStocks(
-                  lignes: page,
-                  // RG-05 : ce que les ventes encore en file sortiront — dit,
-                  // jamais soustrait (`stock_en_attente.dart`).
-                  enAttente:
-                      ref.watch(stockEnAttenteProvider).value ??
-                      StockEnAttente.vide,
-                  onFiche: onFiche,
-                  onMouvement: onMouvement,
-                  onModifier: onModifier,
-                ),
+          else ...[
+            // L'export reçoit la liste filtrée ENTIÈRE (`_exporter`), jamais la
+            // page affichée.
+            Consumer(
+              builder: (context, ref, _) => TableStocks(
+                lignes: lignes.sublist(premier, dernier),
+                // RG-05 : ce que les ventes encore en file sortiront — dit,
+                // jamais soustrait (`stock_en_attente.dart`).
+                enAttente:
+                    ref.watch(stockEnAttenteProvider).value ??
+                    StockEnAttente.vide,
+                onFiche: widget.onFiche,
+                onMouvement: widget.onMouvement,
+                onModifier: widget.onModifier,
               ),
             ),
+            // `@if ($lignes->hasPages())` : le pied n'existe que s'il y a
+            // plusieurs pages.
+            if (pages > 1)
+              _PiedPagination(
+                premier: premier + 1,
+                dernier: dernier,
+                total: lignes.length,
+                precedent: page <= 1
+                    ? null
+                    : () => setState(() => _page = page - 1),
+                suivant: page >= pages
+                    ? null
+                    : () => setState(() => _page = page + 1),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Le pied de la vue (l.433-443) : `px-4 py-3 border-t border-slate-200 flex
+/// items-center justify-between`, le décompte « 1 – 25 / 60 » à gauche, les
+/// deux boutons à droite — « « Précédent » et « Suivant » » (`pagination.*`,
+/// `&laquo;` et `&raquo;`), `text-[12px] px-3 py-1.5 rounded-lg border`,
+/// grisés aux bornes.
+class _PiedPagination extends StatelessWidget {
+  const _PiedPagination({
+    required this.premier,
+    required this.dernier,
+    required this.total,
+    required this.precedent,
+    required this.suivant,
+  });
+
+  final int premier;
+  final int dernier;
+  final int total;
+  final VoidCallback? precedent;
+  final VoidCallback? suivant;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('stocks-pagination'),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md, // px-4
+        vertical: AppSpacing.sm, // py-3
+      ),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: AppColors.neutre200)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            '$premier – $dernier / $total',
+            key: const Key('stocks-pagination-decompte'),
+            style: _t(TaillesContenu.t12, couleur: AppColors.neutre500),
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              BoutonStandard(
+                key: const Key('stocks-pagination-precedent'),
+                libelle: '« Précédent',
+                compact: true,
+                margeVerticale: AppSpacing.xxs, // py-1.5
+                onPressed: precedent,
+              ),
+              const SizedBox(width: AppSpacing.xs), // gap-2
+              BoutonStandard(
+                key: const Key('stocks-pagination-suivant'),
+                libelle: 'Suivant »',
+                compact: true,
+                margeVerticale: AppSpacing.xxs,
+                onPressed: suivant,
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -976,6 +1120,12 @@ class _Limites extends StatelessWidget {
               style: style,
             ),
           ],
+          const SizedBox(height: AppSpacing.unit),
+          Text(
+            TextesStocks.archivageNonPorte,
+            key: const Key('stocks-limite-archivage'),
+            style: style,
+          ),
         ],
       ),
     );

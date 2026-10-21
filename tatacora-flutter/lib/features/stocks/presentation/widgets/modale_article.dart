@@ -7,9 +7,11 @@ import '../../../../core/format/formats.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../restaurant/presentation/widgets/textes_modale_restaurant.dart';
 import '../../data/stocks_api.dart';
 import '../../domain/entities/etat_stock.dart';
 import '../../domain/entities/mouvement_stock.dart';
+import '../../domain/messages_stock.dart';
 import '../../domain/nombre_saisi.dart';
 import '../providers_stocks.dart';
 import 'coquille_modale_stock.dart';
@@ -34,12 +36,27 @@ import 'modale_point.dart';
 /// ont cessé d'être vrais (PA-144) — le panneau est retiré, pas laissé à
 /// vieillir.
 ///
+/// ## Les paragraphes d'aide de la vue sont RENDUS (21/10/2026)
+///
+/// Le formulaire « compact, libellés seuls » du 14/10/2026 est dépassé par
+/// l'ordre du Product Owner du 21/10/2026 (« tout doit être au complet ») : les
+/// cinq aides (`point_aide`, `suivi_aide`, `valeur_achat_aide`, `seuil_aide`,
+/// `stock_ouverture_aide`) sont sous leur champ, `text-[11px] text-slate-400
+/// mt-1`. Elles portent les règles qui empêchent une saisie fausse (« sans
+/// elle, l'article entre au bilan pour zéro »).
+///
+/// ## L'entrée depuis la fiche (vue l.588-620) est RENDUE
+///
+/// En MODIFICATION, pour un administrateur (`StocksApi.peutAjusterLeStock`) et
+/// un article suivi en stock : « Faire entrer du stock » — quantité, point qui
+/// reçoit, coût unitaire. Ce n'est PAS un champ « stock » : c'est un
+/// MOUVEMENT d'entrée (motif « Entrée depuis la fiche article »), posé après
+/// l'enregistrement de la fiche, daté, signé, visible en fiche de stock et
+/// synchronisé comme tout mouvement saisi. Quantité vide : la fiche s'enregistre
+/// sans toucher au stock. Le coût vide ne valorise rien.
+///
 /// ## Les écarts avec la vue, nommés
 ///
-///  * **Le bloc d'entrée de la fiche** (vue l.588-620, administrateur seulement)
-///    n'est pas rendu : ce poste ne distingue pas le rôle « administrateur »
-///    d'un autre en écriture sur M6, et le bouton de mouvement de la ligne fait
-///    la même entrée. (Dette de libellés comptée, pas refusée.)
 ///  * **« Valeur d'achat » en modification** est en lecture seule, comme dans
 ///    la vue : elle est posée par l'entrée, seul geste qui l'établit.
 ///  * **`seuil_reappro`** n'est pas rendu : la vue ne le porte pas, et personne
@@ -80,11 +97,24 @@ class _ModaleArticleState extends ConsumerState<_ModaleArticle> {
   final _seuil = TextEditingController();
   final _valeurAchat = TextEditingController();
   final _stockOuverture = TextEditingController();
+  final _entreeQuantite = TextEditingController();
+  final _entreeCout = TextEditingController();
 
   String? _categorie;
   late String _unite;
   late SuiviArticle _suivi;
   String? _pointId;
+
+  /// Le point CHOISI pour recevoir l'entrée de la fiche (voir
+  /// [_pointQuiRecoit] pour les défauts) — un défaut faux se valide sans se
+  /// lire, mais une liste sans défaut oblige à un clic que l'on oublie.
+  String? _entreePointId;
+
+  /// Le point qui reçoit l'entrée : le choix posé, à défaut le rattachement de
+  /// l'article, à défaut le premier point par libellé (`Stocks::editerArticle`,
+  /// l.369). `null` : le poste n'a AUCUN point — l'entrée est alors refusée.
+  String? _pointQuiRecoit(List<PointStockage> points) =>
+      _entreePointId ?? (points.isEmpty ? null : points.first.id);
 
   /// La clé du champ « Point », pour lui imposer la valeur d'un point qu'on
   /// vient de créer : `initialValue` ne se relit pas après le premier rendu.
@@ -116,6 +146,7 @@ class _ModaleArticleState extends ConsumerState<_ModaleArticle> {
     _unite = a?.uniteMesure ?? unitesMaitre[2];
     _suivi = a?.suivi ?? SuiviArticle.permanent;
     _pointId = a?.pointStockageId;
+    _entreePointId = a?.pointStockageId;
   }
 
   @override
@@ -124,6 +155,8 @@ class _ModaleArticleState extends ConsumerState<_ModaleArticle> {
     _seuil.dispose();
     _valeurAchat.dispose();
     _stockOuverture.dispose();
+    _entreeQuantite.dispose();
+    _entreeCout.dispose();
     super.dispose();
   }
 
@@ -142,8 +175,30 @@ class _ModaleArticleState extends ConsumerState<_ModaleArticle> {
     return vues.toList();
   }
 
+  /// `$articleId !== null && $peutAjusterLeStock && $suiviSaisi !== 'journalier'`
+  /// (vue l.588) : le bloc « Faire entrer du stock » n'est rendu qu'en
+  /// modification, pour un administrateur, sur un article suivi en stock —
+  /// retiré sinon, jamais grisé.
+  bool get _entreeOfferte =>
+      _modification &&
+      ref.read(stocksApiProvider).peutAjusterLeStock &&
+      _suivi != SuiviArticle.journalier;
+
   Future<void> _enregistrer() async {
     if (!(_formulaire.currentState?.validate() ?? false)) return;
+
+    // L'entrée de la fiche : vide, la fiche s'enregistre sans toucher au stock.
+    final quantiteEntree = _entreeOfferte ? _entreeQuantite.text.trim() : '';
+    final pointEntree = _pointQuiRecoit(
+      ref.read(pointsStockProvider).value ?? const [],
+    );
+    if (quantiteEntree.isNotEmpty && pointEntree == null) {
+      // `entree_point_requis`, dit AVANT d'écrire quoi que ce soit : la vue
+      // enregistre d'abord la fiche puis refuse l'entrée, ce qui laisse une
+      // fiche modifiée sous un message d'erreur. Ici, rien n'est écrit.
+      setState(() => _refus = MessagesStock.entreePointRequis);
+      return;
+    }
 
     setState(() {
       _envoiEnCours = true;
@@ -174,7 +229,11 @@ class _ModaleArticleState extends ConsumerState<_ModaleArticle> {
 
     switch (resultat) {
       case ArticleEnregistre():
-        Navigator.of(context).pop(resultat);
+        if (quantiteEntree.isEmpty) {
+          Navigator.of(context).pop(resultat);
+          return;
+        }
+        await _faireEntrer(resultat, quantiteEntree, pointEntree!);
       case ArticleRefuse(:final motif, :final erreurs):
         setState(() {
           _envoiEnCours = false;
@@ -184,6 +243,52 @@ class _ModaleArticleState extends ConsumerState<_ModaleArticle> {
       case ArticleInjoignable():
         // Jamais produit : une base locale n'est pas hors connexion. L'arm
         // reste parce que le type scellé est partagé.
+        setState(() => _envoiEnCours = false);
+    }
+  }
+
+  /// Après la fiche, l'ENTRÉE (`Stocks::faireEntrerLeStock`) : un mouvement
+  /// daté et signé, jamais une valeur de stock. Un refus de l'entrée laisse la
+  /// modale ouverte ET dit que la fiche, elle, est enregistrée.
+  Future<void> _faireEntrer(
+    ArticleEnregistre fiche,
+    String quantite,
+    String pointId,
+  ) async {
+    final cout = _entreeCout.text.trim();
+    final issue = await ref
+        .read(stocksApiProvider)
+        .faireEntrerDepuisFiche(
+          articleId: fiche.id,
+          pointId: pointId,
+          quantite: normaliserNombre(quantite),
+          // `null` reste `null` : sans coût saisi, l'entrée ne valorise rien.
+          coutUnitaire: cout.isEmpty ? null : normaliserNombre(cout),
+        );
+    if (!mounted) return;
+
+    switch (issue) {
+      case MouvementEnregistre():
+        Navigator.of(context).pop(
+          ArticleEnregistre(
+            id: fiche.id,
+            libelle: fiche.libelle,
+            messageEntree: MessagesStock.entreeEnregistree(
+              quantite: quantite,
+              unite: widget.article!.uniteMesure,
+              libelle: fiche.libelle,
+            ),
+          ),
+        );
+      case MouvementRefuse(:final motif, :final erreurs):
+        setState(() {
+          _envoiEnCours = false;
+          _refus = '$motif La fiche est enregistrée ; l’entrée, non.';
+          _erreurs = erreurs;
+        });
+      case RuptureAConfirmer() || MouvementInjoignable():
+        // Une entrée n'est jamais en rupture ; une base locale n'est pas hors
+        // connexion. Les arms restent parce que le type scellé est partagé.
         setState(() => _envoiEnCours = false);
     }
   }
@@ -284,10 +389,6 @@ class _ModaleArticleState extends ConsumerState<_ModaleArticle> {
               initialValue: _suivi,
               isExpanded: true,
               style: _styleChamp,
-              // ÉCART à la vue (l.522, `suivi_aide`) : son paragraphe d'aide
-              // n'est pas rendu — demande du PO du 14/10/2026 (formulaire
-              // compact, libellés seuls). Idem pour le point, la valeur
-              // d'achat, le seuil et le stock d'ouverture.
               decoration: _decoration(),
               items: const [
                 DropdownMenuItem(
@@ -307,6 +408,7 @@ class _ModaleArticleState extends ConsumerState<_ModaleArticle> {
               ],
               onChanged: (s) => setState(() => _suivi = s ?? _suivi),
             ),
+            const _Aide(_aideSuivi),
             if (!_modification && !journalier) ...[
               const SizedBox(height: AppSpacing.sm),
               // L'encadré ambre de la vue autour de la valeur d'achat.
@@ -342,6 +444,7 @@ class _ModaleArticleState extends ConsumerState<_ModaleArticle> {
                               quatreDecimales: true,
                             ),
                     ),
+                    const _Aide(_aideValeurAchat),
                   ],
                 ),
               ),
@@ -360,6 +463,7 @@ class _ModaleArticleState extends ConsumerState<_ModaleArticle> {
                 validator: (v) =>
                     erreurNombre(v ?? '', strictementPositif: false),
               ),
+              const _Aide(_aideSeuil),
               if (!_modification) ...[
                 const SizedBox(height: AppSpacing.sm),
                 const _Etiquette("Stock d'ouverture"),
@@ -375,7 +479,19 @@ class _ModaleArticleState extends ConsumerState<_ModaleArticle> {
                       ? null
                       : erreurNombre(v, strictementPositif: false),
                 ),
+                const _Aide(_aideStockOuverture),
               ],
+            ],
+            if (_entreeOfferte) ...[
+              const SizedBox(height: AppSpacing.sm),
+              _BlocEntree(
+                points: points,
+                pointId: _pointQuiRecoit(points),
+                quantite: _entreeQuantite,
+                cout: _entreeCout,
+                erreurs: _erreurs,
+                onPoint: (p) => setState(() => _entreePointId = p),
+              ),
             ],
             if (_modification) ...[
               const SizedBox(height: AppSpacing.sm),
@@ -396,6 +512,178 @@ class _ModaleArticleState extends ConsumerState<_ModaleArticle> {
   Iterable<String> get _uniteEtCellesDuMaitre sync* {
     yield _unite;
     yield* unitesMaitre;
+  }
+}
+
+/// Les aides de la vue (`stocks_pwa.article.*_aide`), UNE fois chacune. Elles
+/// disent la règle que le champ porte — celle qui empêche une saisie fausse.
+const String _aideSuivi =
+    "Le petit stock n'est ni décrémenté à la vente, ni inventorié, ni alerté : "
+    "seule la dépense d'achat est constatée.";
+// Les aides qui suivent tiennent sur UNE ligne de littéral : la mesure de
+// conformité recolle deux littéraux de MÊME guillemet, pas un double puis un
+// simple.
+const String _aideValeurAchat =
+    "Elle valorise le stock d'ouverture et fixe le premier coût moyen pondéré. Sans elle, l'article entre au bilan pour zéro et la variation de stock — donc le résultat — est fausse.";
+const String _aideSeuil =
+    "Un paramètre, pas un état : il déclenche l'alerte de sous-stock.";
+const String _aideStockOuverture =
+    "Enregistré comme un MOUVEMENT d'entrée, pas comme une colonne : c'est ce qui le rend visible en fiche de stock.";
+const String _aidePoint =
+    "Point de rattachement principal de l'article, et point d'imputation de son stock d'ouverture. Il ne limite pas le stock : un article peut être détenu en plusieurs endroits, et le total se calcule point par point.";
+
+/// `text-[11px] text-slate-400 mt-1` — le paragraphe d'aide sous un champ.
+class _Aide extends StatelessWidget {
+  const _Aide(this.texte);
+
+  final String texte;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.unit), // mt-1
+      child: Text(texte, style: TextesModaleRestaurant.aide),
+    );
+  }
+}
+
+/// `rounded-lg bg-emerald-50 border border-emerald-200 p-3` — « Faire entrer du
+/// stock » (vue l.588-620) : quantité, point qui reçoit, coût unitaire, et la
+/// phrase qui dit que c'est une ENTRÉE, jamais une valeur de stock.
+class _BlocEntree extends StatelessWidget {
+  const _BlocEntree({
+    required this.points,
+    required this.pointId,
+    required this.quantite,
+    required this.cout,
+    required this.erreurs,
+    required this.onPoint,
+  });
+
+  final List<PointStockage> points;
+  final String? pointId;
+  final TextEditingController quantite;
+  final TextEditingController cout;
+  final Map<String, String> erreurs;
+  final ValueChanged<String?> onPoint;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('article-bloc-entree'),
+      padding: const EdgeInsets.all(AppSpacing.sm), // p-3
+      decoration: BoxDecoration(
+        color: PaletteMaitre.emeraude50,
+        borderRadius: BorderRadius.circular(AppRadius.roundedLg),
+        border: Border.all(color: PaletteMaitre.emeraude200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // `text-[11px] font-semibold text-slate-600 mb-2`.
+          const Padding(
+            padding: EdgeInsets.only(bottom: AppSpacing.xs),
+            child: Text(
+              'Faire entrer du stock',
+              style: TextStyle(
+                fontFamily: AppTextStyles.police,
+                fontSize: Tailles.t11,
+                fontWeight: FontWeight.w600,
+                color: Ardoise.c600,
+              ),
+            ),
+          ),
+          // `grid grid-cols-1 sm:grid-cols-2 gap-3`.
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const _Etiquette('Quantité à faire entrer'),
+                    TextFormField(
+                      key: const Key('article-entree-quantite'),
+                      controller: quantite,
+                      style: _styleChamp,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: _decoration(erreur: erreurs['quantite']),
+                      // `gt:0` : une quantité à zéro n'est pas une entrée.
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? null
+                          : erreurNombre(v, strictementPositif: true),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const _Etiquette('Point de stockage qui reçoit'),
+                    DropdownButtonFormField<String?>(
+                      key: const Key('article-entree-point'),
+                      initialValue: points.any((p) => p.id == pointId)
+                          ? pointId
+                          : null,
+                      isExpanded: true,
+                      style: _styleChamp,
+                      decoration: _decoration(),
+                      items: [
+                        for (final p in points)
+                          DropdownMenuItem<String?>(
+                            value: p.id,
+                            child: Text(p.libelle),
+                          ),
+                      ],
+                      onChanged: onPoint,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.sm), // mt-3
+          const _Etiquette('Coût unitaire de cette entrée (FCFA)'),
+          TextFormField(
+            key: const Key('article-entree-cout'),
+            controller: cout,
+            style: _styleChamp,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: _decoration(erreur: erreurs['cout_unitaire']),
+            validator: (v) => (v == null || v.trim().isEmpty)
+                ? null
+                : erreurNombre(
+                    v,
+                    strictementPositif: false,
+                    quatreDecimales: true,
+                  ),
+          ),
+          // `text-[11px] text-slate-500 mt-2`.
+          const Padding(
+            padding: EdgeInsets.only(top: AppSpacing.xs),
+            child: Text(
+              'Ajoute au stock, sans jamais l’écraser : l’entrée est enregistrée '
+              'comme un mouvement daté et signé, visible en fiche article. '
+              'Laissez la quantité vide pour enregistrer la fiche sans toucher '
+              'au stock. Sans coût unitaire, l’entrée ne valorise rien — zéro '
+              'se lirait « reçu gratuitement » et fausserait le coût moyen '
+              'pondéré.',
+              key: Key('article-entree-aide'),
+              style: TextStyle(
+                fontFamily: AppTextStyles.police,
+                fontSize: Tailles.t11,
+                color: Ardoise.c500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -495,8 +783,7 @@ class _ChampPoint extends StatelessWidget {
             initialValue: points.any((p) => p.id == valeur) ? valeur : null,
             isExpanded: true,
             style: _styleChamp,
-            // Le paragraphe d'aide de la vue (`point_aide`) n'est pas rendu :
-            // demande du PO du 14/10/2026 (voir « Mode de suivi »).
+            // L'aide de la vue (`point_aide`) est rendue sous le champ.
             decoration: _decoration(erreur: erreur),
             items: [
               if (modification)
@@ -511,6 +798,7 @@ class _ChampPoint extends StatelessWidget {
                 : null,
           ),
         ),
+        const _Aide(_aidePoint),
         if (points.isEmpty)
           Padding(
             padding: const EdgeInsets.only(top: AppSpacing.xs),
