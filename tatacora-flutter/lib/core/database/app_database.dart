@@ -20,6 +20,7 @@ import 'tables/comptabilite_tables.dart';
 import 'tables/depenses_tables.dart';
 import 'tables/descente_sync_tables.dart';
 import 'tables/indisponibilites_carte_tables.dart';
+import 'tables/conges_plannings_tables.dart';
 import 'tables/entretiens_vehicule_tables.dart';
 import 'tables/occupations_tables_tables.dart';
 import 'tables/origines_documents_tables.dart';
@@ -209,6 +210,8 @@ part 'app_database.g.dart';
     IndisponibilitesCarteLocal,
     // v32 (21/10/2026) : entretiens et carburations des véhicules.
     EntretiensVehiculeLocal,
+    PlanningsLocal,
+    CongesLocal,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -386,7 +389,7 @@ class AppDatabase extends _$AppDatabase {
   /// v32 (21/10/2026) — LES ENTRETIENS DE VÉHICULES : une table neuve
   /// (`entretiens_vehicule_local`, 63 -> 64 tables), aucune colonne ajoutée.
   @override
-  int get schemaVersion => 32;
+  int get schemaVersion => 33;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1062,6 +1065,16 @@ class AppDatabase extends _$AppDatabase {
         // ni clé étrangère ; aucune ligne fabriquée. Le curseur est oublié :
         // les entretiens déjà au serveur redescendent.
         await m.createTable(entretiensVehiculeLocal);
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
+      }
+      if (from < 33) {
+        // LES PLANNINGS ET LES CONGÉS (21/10/2026). Deux tables NEUVES, sans
+        // index ni clé étrangère ; aucune ligne fabriquée. Le curseur est oublié :
+        // les créneaux et les demandes déjà au serveur redescendent.
+        await m.createTable(planningsLocal);
+        await m.createTable(congesLocal);
         await customStatement(
           "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
         );

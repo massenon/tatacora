@@ -52,8 +52,139 @@ extension _AlignementDocuments on AligneurCatalogue {
         TableDescendue.servicesRh => _serviceRh(id, e),
         TableDescendue.employes => _employe(id, e),
         TableDescendue.bulletinsPaie => _bulletin(id, e),
+        TableDescendue.plannings => _planning(id, e),
+        TableDescendue.conges => _conge(id, e),
         _ => throw StateError('${e.table} n’est pas un document'),
       };
+
+  static final RegExp _heure = RegExp(r'^([01]\d|2[0-3]):[0-5]\d');
+
+  /// `HH:MM` d'une heure du serveur (`08:00` ou `08:00:00`), `null` si illisible.
+  static String? _heureCourte(Object? v) {
+    final texte = AligneurCatalogue._texte(v);
+    if (texte == null || !_heure.hasMatch(texte)) return null;
+    return texte.substring(0, 5);
+  }
+
+  /// Un créneau de planning d'un autre poste (ou de la PWA). Un créneau se crée
+  /// et ne se modifie pas : détenu, rien n'est réécrit. RG-13 s'est jouée au
+  /// serveur ; ici on ne la rejoue pas (le serveur est seul arbitre).
+  Future<IssueAlignement> _planning(String id, ElementCatalogue e) async {
+    if (await _existe(_db.planningsLocal, id)) return const Aligne();
+    final d = e.donnees;
+    final employeServeur = AligneurCatalogue._texte(d['employe_id']);
+    final serviceServeur = AligneurCatalogue._texte(d['service_id']);
+    final debut = _heureCourte(d['heure_debut']);
+    final fin = _heureCourte(d['heure_fin']);
+    if (employeServeur == null ||
+        serviceServeur == null ||
+        debut == null ||
+        fin == null ||
+        fin.compareTo(debut) <= 0) {
+      return const RefuseParLePoste('créneau incomplet');
+    }
+    final DateTime jour;
+    try {
+      jour = _jourLocal(d['date']);
+    } on FormatException {
+      return const RefuseParLePoste('date de créneau illisible');
+    }
+    final employe = await _cite(
+      TableDescendue.employes,
+      employeServeur,
+      _db.employesLocal,
+    );
+    if (employe == null) {
+      return const EnAttenteDeDependance('employé pas encore reçu');
+    }
+    final service = await _cite(
+      TableDescendue.servicesRh,
+      serviceServeur,
+      _db.servicesRhLocal,
+    );
+    if (service == null) {
+      return const EnAttenteDeDependance('service pas encore reçu');
+    }
+    await _db
+        .into(_db.planningsLocal)
+        .insert(
+          PlanningsLocalCompanion.insert(
+            id: id,
+            employeId: employe,
+            serviceId: service,
+            date: jour,
+            heureDebut: debut,
+            heureFin: fin,
+          ),
+        );
+    await _retenirOrigine(e, id);
+    return const Aligne();
+  }
+
+  /// Une demande de congé d'un autre poste (ou de la PWA). Détenue : seule la
+  /// DÉCISION descend, et seulement vers l'avant (`en_attente` → `valide` |
+  /// `refuse`) — une demande décidée ne se rouvre jamais. Le validateur ne
+  /// descend pas (écart nommé : « — » à l'écran).
+  Future<IssueAlignement> _conge(String id, ElementCatalogue e) async {
+    final d = e.donnees;
+    final statut = StatutConge.depuisCode(
+      AligneurCatalogue._texte(d['statut_validation']),
+    );
+    if (statut == null) {
+      return const RefuseParLePoste('statut de congé inconnu');
+    }
+    final t = _db.congesLocal;
+    final existant = await (_db.select(
+      t,
+    )..where((c) => c.id.equals(id))).getSingleOrNull();
+    if (existant != null) {
+      if (existant.statutValidation == StatutConge.enAttente.code &&
+          statut != StatutConge.enAttente) {
+        await (_db.update(t)..where((c) => c.id.equals(id))).write(
+          CongesLocalCompanion(statutValidation: Value(statut.code)),
+        );
+      }
+      return const Aligne();
+    }
+    final employeServeur = AligneurCatalogue._texte(d['employe_id']);
+    final type = TypeConge.depuisCode(AligneurCatalogue._texte(d['type']));
+    if (employeServeur == null || type == null) {
+      return const RefuseParLePoste('congé incomplet');
+    }
+    final DateTime debut;
+    final DateTime fin;
+    try {
+      debut = _jourLocal(d['date_debut']);
+      fin = _jourLocal(d['date_fin']);
+    } on FormatException {
+      return const RefuseParLePoste('dates de congé illisibles');
+    }
+    if (fin.isBefore(debut)) {
+      return const RefuseParLePoste('congé : la fin précède le début');
+    }
+    final employe = await _cite(
+      TableDescendue.employes,
+      employeServeur,
+      _db.employesLocal,
+    );
+    if (employe == null) {
+      return const EnAttenteDeDependance('employé pas encore reçu');
+    }
+    await _db
+        .into(t)
+        .insert(
+          CongesLocalCompanion.insert(
+            id: id,
+            employeId: employe,
+            type: type.code,
+            dateDebut: debut,
+            dateFin: fin,
+            statutValidation: Value(statut.code),
+          ),
+        );
+    await _retenirOrigine(e, id);
+    return const Aligne();
+  }
 
   /* ================================================================== */
   /* Outils                                                              */

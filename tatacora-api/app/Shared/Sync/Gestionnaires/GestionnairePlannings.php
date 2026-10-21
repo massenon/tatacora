@@ -62,6 +62,11 @@ final class GestionnairePlannings extends GestionnaireDocumentAbstrait
         $donnees = $this->validerForme($payload, [
             'employe_id' => ['required', 'string'],
             'service_id' => ['required', 'string'],
+            // Le service est reconnu par son identifiant, à défaut par son
+            // LIBELLÉ (le référentiel est semé des deux côtés, sous des
+            // identifiants différents tant que le poste n'a rien reçu) —
+            // comme pour un employé.
+            'service_libelle' => ['nullable', 'string'],
             'date' => ['required', 'date_format:Y-m-d'],
             'heure_debut' => ['required', 'date_format:H:i'],
             'heure_fin' => ['required', 'date_format:H:i', 'after:heure_debut'],
@@ -74,6 +79,10 @@ final class GestionnairePlannings extends GestionnaireDocumentAbstrait
         }
 
         $service = Service::find($this->resoudre('services', $donnees['service_id']));
+
+        if ($service === null && filled($donnees['service_libelle'] ?? null)) {
+            $service = Service::query()->where('libelle', trim((string) $donnees['service_libelle']))->first();
+        }
 
         if ($service === null) {
             throw new RuntimeException(__('sync.rh.service_inconnu_planning'));

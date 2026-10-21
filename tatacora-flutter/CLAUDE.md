@@ -495,10 +495,10 @@ créer »). Schéma **v29** (62 tables : `occupations_tables_local`).
   réservation (par son NOM). Tout descend aussi, aligné par clé naturelle ;
   une retouche locale en attente est gardée (`ConserveLocalement`).
 - **Jamais** : comptes et mots de passe (PA-103), messages de notification
-  tracés, pièces du serveur (Q1 = A). Non portés faute d'écran ou de table :
-  congés et plannings (décision du PO du 21/10/2026, option B : le poste les
-  portera, un module après l'autre). Les indisponibilités de la carte (v31) et
-  les entretiens de véhicules (v32) le sont (sections suivantes).
+  tracés, pièces du serveur (Q1 = A). Rien ne reste « non porté faute d'écran
+  ou de table » depuis le 21/10/2026 (option B du PO : le poste fait ce que le
+  web fait, avec sa synchronisation) : indisponibilités de la carte (v31),
+  entretiens de véhicules (v32), plannings et congés (v33) — sections suivantes.
 - **Bouton du serveur** : la PWA (menu de compte « Synchroniser les
   postes ») et l'écran du même nom ici (`/synchronisation-postes`, ouvert à
   tout compte) enregistrent une DEMANDE ; le poste la lit toutes les 30 s
@@ -606,6 +606,45 @@ PWA (statut ≠ disponibilité) ; sortir un véhicule du parc louable se fait de
 sa ligne. L'onglet « Immobilisations » lit la table. Descente :
 `AligneurDocuments._entretienVehicule` (n'enfile jamais ; véhicule absent =
 attente ; fraction de franc refusée). « Au » reste inerte : aucune colonne de fin.
+
+## Plannings et congés (21/10/2026, schéma v33)
+
+Écran créé d'abord à la PWA (« Congés & Plannings », `pwa/rh/conges-plannings`,
+libellés dans `lang/fr/rh_conges_pwa.php`), repris ici au mot, route
+`/conges-plannings`, menu « Ressources humaines », droit M13. Deux tables
+(66 tables), sans clé étrangère : `plannings_local` (employé, service, jour,
+heures `HH:MM`) et `conges_local` (nature, bornes incluses, statut, login du
+validateur — `null` pour une ligne descendue, l'écran rend « — »). Seul
+écrivain de saisie : `CongesPlanningsDao` (classe simple, pas d'accesseur
+Drift), qui **rejoue RG-13 et RG-14 aux mots du serveur** (`lang/fr/rh.php`
+exécuté par PHP dans `messages_conges_plannings_test.dart`) et enfile chaque
+geste dans sa transaction.
+
+- **RG-13** : même employé, même jour, `début < autreFin && fin > autreDébut`
+  (une borne commune passe) ; refus avant : employé hors effectif, congé VALIDÉ
+  couvrant la date (bornes incluses).
+- **RG-14** : DEMANDER est toujours accepté ; VALIDER lit
+  `delai_preavis_conge_jours` puis `couverture_minimale_par_service` dans
+  `parametres_systeme_local` et **refuse s'ils manquent** (jamais de valeur
+  devinée ; ce fichier est leur `lecteur` déclaré) ; préavis = jours entre
+  aujourd'hui et le premier jour, couverture = effectif `actif` du service −
+  (absents validés qui se recoupent, sans cette demande, + 1) ≥ minimum ;
+  REFUSER garde la demande. Une demande décidée ne se rouvre pas.
+- **Synchronisation** : `plannings` (création seule) et `conges` (création +
+  l'unique modification `statut_validation`), après `bulletins_paie` au registre
+  PHP comme dans `TableSynchronisee` / `TableDescendue`. Le planning porte le
+  service par identifiant (traduit par la correspondance retenue à la descente)
+  ET par libellé : le serveur retombe sur le libellé tant que le poste n'a rien
+  reçu. Le serveur rejoue RG-13/RG-14 avec SES données et ses paramètres : une
+  décision refusée là-bas revient dans « À traiter ». Descente : un créneau ou
+  une demande d'un autre poste s'écrit sans rien renvoyer ; la décision du
+  serveur descend vers l'avant seulement ; une décision locale encore en file
+  est conservée (règle commune de `AligneurCatalogue.aligner`).
+- **Pièges** : la barre latérale de l'administrateur a gagné 35 px — le banc
+  `barre_laterale_blade_test.dart` monte la fenêtre à 1 500 px de haut, sinon
+  « Paramètres » tombe sous le pied et se compte manquant ; les compteurs
+  figés « vingt-quatre destinations » sont passés à 25 ; une phrase de la vue
+  doit tenir en UN littéral pour que le comparateur la trouve (le sous-titre).
 
 ## Exploitation : cron et vérifications (19/10/2026)
 

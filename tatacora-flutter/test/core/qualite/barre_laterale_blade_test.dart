@@ -68,6 +68,11 @@ Future<void> _monter(
   role: role,
   droits: droits,
   routeActive: routeActive,
+  // 1 400 → 1 500 le 21/10/2026 : « Congés & Plannings » (35 px) a fait passer
+  // « Paramètres » sous le pied pour un administrateur, qui se comptait alors
+  // MANQUANT alors qu'il est atteignable par défilement. La mesure porte sur
+  // l'ordre et l'ensemble des entrées, pas sur la hauteur de la fenêtre.
+  taille: const Size(1600, 1500),
 );
 
 List<DestinationMenu> get _toutes => toutesLesDestinations;

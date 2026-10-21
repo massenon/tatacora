@@ -22,6 +22,7 @@ import '../../features/crm/presentation/ecran_clients.dart';
 import '../../features/depenses/presentation/ecran_depenses.dart';
 import '../../features/facturation/presentation/ecran_facturation.dart';
 import '../../features/notifications/presentation/ecran_notifications.dart';
+import '../../features/rh/presentation/ecran_conges_plannings.dart';
 import '../../features/rh/presentation/ecran_paie.dart';
 import '../../features/tourisme/presentation/ecran_tourisme.dart';
 import '../../features/parametres/presentation/ecran_parametres.dart';
@@ -388,6 +389,10 @@ final routeurProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/paie',
             builder: (context, state) => const EcranPaie(),
+          ),
+          GoRoute(
+            path: '/conges-plannings',
+            builder: (context, state) => const EcranCongesPlannings(),
           ),
           GoRoute(
             path: '/notifications',

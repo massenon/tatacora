@@ -1,6 +1,6 @@
 {
   "_lisez-moi": "PRODUIT par --figer-dette. Vue Blade -> fichiers Flutter qui la CITENT (seul ancrage). Un tableau vide = vue sans ecran.",
-  "_regenere-le": "2026-10-20",
+  "_regenere-le": "2026-10-21",
   "vues": {
     "achats/achats": [
       "core/theme/app_spacing.dart",
@@ -191,6 +191,14 @@
       "features/restaurant/presentation/widgets/modale_fiche.dart",
       "features/restaurant/presentation/widgets/modale_menu.dart",
       "features/restaurant/presentation/widgets/modale_plat.dart"
+    ],
+    "rh/conges-plannings": [
+      "core/database/tables/conges_plannings_tables.dart",
+      "features/rh/data/conges_plannings_dao.dart",
+      "features/rh/domain/entities/conge_planning.dart",
+      "features/rh/presentation/ecran_conges_plannings.dart",
+      "features/rh/presentation/providers_conges_plannings.dart",
+      "features/rh/presentation/widgets/modales_conges_plannings.dart"
     ],
     "rh/paie": [
       "core/database/tables/rh_tables.dart",

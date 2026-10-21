@@ -395,6 +395,15 @@ const List<GroupeMenu> groupesMenu = [
         page: 'm13-paie.html',
         route: '/paie',
       ),
+      // 21/10/2026 : l'écran existe d'abord à la PWA (« Congés & Plannings »),
+      // le poste le reprend (RG-13, RG-14) et le synchronise.
+      DestinationMenu(
+        nom: 'Congés & Plannings',
+        icone: IconeModule.rh,
+        module: ModuleTatacora.m13Rh,
+        page: 'm13-conges-plannings.html',
+        route: '/conges-plannings',
+      ),
     ],
   ),
   GroupeMenu(

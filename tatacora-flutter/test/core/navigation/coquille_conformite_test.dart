@@ -152,14 +152,14 @@ void main() {
       expect(destinationsEpinglees.where(estAjout), isEmpty);
     });
 
-    test('vingt-quatre destinations de la PWA, plus les ajouts déclarés', () {
+    test('vingt-cinq destinations de la PWA, plus les ajouts déclarés', () {
       final pwa =
           registre.epinglees.length +
           registre.groupes.fold<int>(0, (s, g) => s + g.items.length);
       expect(destinationsDeLaVue(), hasLength(pwa));
-      expect(destinationsDeLaVue(), hasLength(24));
+      expect(destinationsDeLaVue(), hasLength(25));
       // Le total Flutter : la vue, plus chaque ajout déclaré — et aucun autre.
-      expect(toutesLesDestinations, hasLength(24 + ajoutsMenuPoste.length));
+      expect(toutesLesDestinations, hasLength(25 + ajoutsMenuPoste.length));
     });
 
     test('chaque ajout du poste est daté, motivé, et ABSENT de la PWA', () {
@@ -443,7 +443,7 @@ void main() {
       }
     });
 
-    test('les vingt-quatre destinations ont un écran (D424)', () {
+    test('les vingt-cinq destinations ont un écran (D424)', () {
       final avec = destinationsDeLaVue().where((d) => d.aUnEcran).toList();
       // Les ajouts du poste ont le leur (le routeur le sert : voir « toute
       // route annoncée au menu EXISTE au routeur »).
@@ -460,11 +460,13 @@ void main() {
       // Notifications) avaient un écran livré et AUCUN chemin pour y arriver.
       // 21 → 24 le 14/10/2026 (D417–D419, D424) : Comptabilité, Import &
       // Export et Rôles & Permissions sont portés et branchés.
+      // 24 → 25 le 21/10/2026 : « Congés & Plannings », créé à la PWA et repris
+      // par le poste le même jour.
       expect(
         avec,
-        hasLength(24),
+        hasLength(25),
         reason:
-            'couverture du MENU : ${avec.length}/24 — mettre à jour '
+            'couverture du MENU : ${avec.length}/25 — mettre à jour '
             'AUDIT_CONFORMITE_ECRANS_FLUTTER.md §3 en même temps que ce chiffre',
       );
 

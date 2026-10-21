@@ -118,6 +118,9 @@ void main() {
       'creation vehicules',
       'creation contrats_location',
       'creation employes',
+      'creation plannings',
+      'creation conges',
+      'modification conges',
       'creation sejours',
       'creation ventes',
       'modification sejours',
@@ -216,6 +219,23 @@ void main() {
     expect('${r['matricule']}', isNotEmpty);
     final ecrit = serveur('employes', s.employe);
     expect((ecrit['nom'], ecrit['salaire_base']), ('HOUNSOU', '150000.00'));
+  });
+
+  test('M13 (21/10/2026) : le créneau est écrit par PlanningService, la '
+      'demande de congé est acceptée puis REFUSÉE et conservée', () {
+    final p = resultatDe('plannings', 'creation', s.planning);
+    expect(p['statut'], 'synchronise', reason: '$p');
+    final ecrit = serveur('plannings', s.planning);
+    expect('${ecrit['date']}'.substring(0, 10), '2026-10-23');
+    expect('${ecrit['heure_debut']}', startsWith('08:00'));
+
+    final c = resultatDe('conges', 'creation', s.conge);
+    expect(c['statut'], 'synchronise', reason: '$c');
+    final decision = resultatDe('conges', 'modification', s.conge);
+    expect(decision['statut'], 'synchronise', reason: '$decision');
+    final conge = serveur('conges', s.conge);
+    expect(conge['statut_validation'], 'refuse');
+    expect(conge['validateur_id'], isNotNull);
   });
 
   test('règlement fournisseur (audit) : écrit par le service, à la date du '

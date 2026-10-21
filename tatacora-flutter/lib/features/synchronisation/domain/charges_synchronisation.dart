@@ -711,6 +711,47 @@ Map<String, Object?> chargeEntretienVehicule({
   'chauffeur_id': ?chauffeurId,
 };
 
+/// `plannings` (création) — `GestionnairePlannings` : un créneau se crée, il ne
+/// se modifie pas. Le jour en `AAAA-MM-JJ`, les heures en `HH:MM`. Le service
+/// part par identifiant ET libellé : tant que le poste n'a rien reçu, son
+/// identifiant lui est propre, et le serveur retombe sur le libellé.
+Map<String, Object?> chargePlanning({
+  required String employeId,
+  required String serviceId,
+  required String serviceLibelle,
+  required DateTime date,
+  required String heureDebut,
+  required String heureFin,
+}) => {
+  'employe_id': employeId,
+  'service_id': serviceId,
+  'service_libelle': serviceLibelle,
+  'date': jourIso(date),
+  'heure_debut': heureDebut,
+  'heure_fin': heureFin,
+};
+
+/// `conges` (création) — `GestionnaireConges` : la DEMANDE, toujours acceptée
+/// par le serveur ; sa décision part ensuite en [chargeDecisionConge].
+Map<String, Object?> chargeConge({
+  required String employeId,
+  required String type,
+  required DateTime dateDebut,
+  required DateTime dateFin,
+}) => {
+  'employe_id': employeId,
+  'type': type,
+  'date_debut': jourIso(dateDebut),
+  'date_fin': jourIso(dateFin),
+};
+
+/// `conges` (modification) — la seule admise : la décision, `valide` ou
+/// `refuse`. Le serveur la rejoue par `valider` / `refuser` (RG-14 sur le
+/// préavis et la couverture, avec SES paramètres).
+Map<String, Object?> chargeDecisionConge({required bool valide}) => {
+  'statut_validation': valide ? 'valide' : 'refuse',
+};
+
 /// `contrats_location` (création) — `GestionnaireContratsLocation` : les
 /// numéros de pièce et de permis SAISIS (le poste ne les garde pas en base).
 Map<String, Object?> chargeContratLocation({

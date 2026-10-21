@@ -170,6 +170,7 @@ void main() {
         ...tablesAjouteesEnV29,
         ...tablesAjouteesEnV31,
         ...tablesAjouteesEnV32,
+        ...tablesAjouteesEnV33,
       });
       expect(tablesAvant.difference(await tables(apres)), isEmpty);
 

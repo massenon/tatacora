@@ -85,6 +85,12 @@ enum TableSynchronisee {
   employes('employes', accepteModification: true),
   bulletinsPaie('bulletins_paie', accepteModification: true),
 
+  /// 21/10/2026 : un créneau de planning se crée, il ne se modifie pas (RG-13
+  /// au serveur) ; un congé se DEMANDE, puis sa décision est l'unique
+  /// modification (RG-14 au serveur).
+  plannings('plannings', accepteModification: false),
+  conges('conges', accepteModification: true),
+
   /// Lot 10e (18/10/2026) : un ENREGISTREMENT de l'écran Paramètres (le lot
   /// soumis, sous un identifiant propre au geste — création seule), puis le
   /// référentiel des rôles (libellé et matrice). Jamais un compte.

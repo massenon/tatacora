@@ -9,8 +9,8 @@
       "inertes": 0
     },
     "administrateur": {
-      "jetons": 40,
-      "ordonnes": 40,
+      "jetons": 41,
+      "ordonnes": 41,
       "manquantes": 0,
       "enTrop": 1,
       "inertes": 0
@@ -23,8 +23,8 @@
       "inertes": 0
     },
     "comptable": {
-      "jetons": 36,
-      "ordonnes": 36,
+      "jetons": 37,
+      "ordonnes": 37,
       "manquantes": 0,
       "enTrop": 0,
       "inertes": 0
@@ -37,8 +37,8 @@
       "inertes": 0
     },
     "gerant": {
-      "jetons": 22,
-      "ordonnes": 22,
+      "jetons": 24,
+      "ordonnes": 24,
       "manquantes": 0,
       "enTrop": 0,
       "inertes": 0
@@ -65,15 +65,15 @@
       "inertes": 0
     },
     "rh": {
-      "jetons": 11,
-      "ordonnes": 11,
+      "jetons": 12,
+      "ordonnes": 12,
       "manquantes": 0,
       "enTrop": 0,
       "inertes": 0
     },
     "super_admin": {
-      "jetons": 40,
-      "ordonnes": 40,
+      "jetons": 41,
+      "ordonnes": 41,
       "manquantes": 0,
       "enTrop": 1,
       "inertes": 0
@@ -91,8 +91,8 @@
     "absents": 0
   },
   "actif": {
-    "visitees": 24,
-    "concordent": 24
+    "visitees": 25,
+    "concordent": 25
   },
   "icones": {
     "identique": 1

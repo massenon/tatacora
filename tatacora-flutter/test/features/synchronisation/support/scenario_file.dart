@@ -36,7 +36,9 @@ import 'package:tatacora_flutter/features/pos/domain/entities/article_vendable.d
 import 'package:tatacora_flutter/features/pos/domain/entities/panier.dart';
 import 'package:tatacora_flutter/features/pos/domain/entities/reference_catalogue.dart';
 import 'package:tatacora_flutter/features/restaurant/data/restaurant_dao.dart';
+import 'package:tatacora_flutter/features/rh/data/conges_plannings_dao.dart';
 import 'package:tatacora_flutter/features/rh/data/employe_dao.dart';
+import 'package:tatacora_flutter/features/rh/domain/entities/conge_planning.dart';
 import 'package:tatacora_flutter/features/restaurant/domain/entities/plat.dart';
 import 'package:tatacora_flutter/features/stocks/data/stocks_dao.dart';
 import 'package:tatacora_flutter/features/stocks/domain/entities/etat_stock.dart';
@@ -87,6 +89,8 @@ final class ScenarioFile {
   late String reglement;
   late String vehicule;
   late String employe;
+  late String planning;
+  late String conge;
   late String contrat;
   late String venteSejour;
   late String facture;
@@ -491,6 +495,27 @@ Future<ScenarioFile> jouerJourneeComplete(AppDatabase db) async {
     dateEmbauche: DateTime(2023, 2, 1),
     salaireBase: 150000,
   )).id;
+
+  // M13 (21/10/2026) : un créneau de planning, puis une demande de congé que
+  // le gérant REFUSE (le refus ne dépend d'aucun paramètre du serveur).
+  final rhJour = CongesPlanningsDao(
+    db,
+    maintenant: () => DateTime(2026, 10, 21),
+  );
+  s.planning = (await rhJour.planifier(
+    employeId: s.employe,
+    serviceId: hebergement.id,
+    date: DateTime(2026, 10, 23),
+    heureDebut: '08:00',
+    heureFin: '12:00',
+  )).id;
+  s.conge = (await rhJour.demander(
+    employeId: s.employe,
+    type: TypeConge.annuel,
+    dateDebut: DateTime(2026, 11, 2),
+    dateFin: DateTime(2026, 11, 4),
+  )).id;
+  await rhJour.refuser(s.conge, validateur: 'gerant');
 
   // M1 + POS hébergés (lot F5) : le client arrive, dîne sur la note de
   // chambre, et part.

@@ -418,9 +418,14 @@ Les tests, mesurés le 20/10/2026, sont tous verts : serveur 1 787, poste
    refuse leurs pièces datées de N.
 3. **Libellés de la PWA à reprendre sur le poste.** Il en reste 438, sur 101
    blocs d'écran.
-4. **Synchronisation encore absente** : congés, plannings, entretiens de
-   véhicules (les indisponibilités de la carte sont faites pour le bar depuis
-   le 21/10/2026, le restaurant suit).
+4. ~~**Synchronisation encore absente** : congés, plannings, entretiens de
+   véhicules, indisponibilités de la carte.~~ Fait le 21/10/2026, bar et
+   restaurant compris. L'écran « Congés & Plannings » existe désormais à la
+   PWA **et** sur le poste, avec les mêmes règles (RG-13 pas de double
+   planification, RG-14 préavis et couverture). Pour valider un congé il faut
+   renseigner dans Paramètres le préavis (`delai_preavis_conge_jours`) et la
+   couverture minimale (`couverture_minimale_par_service`) : sans eux la
+   validation est refusée, volontairement.
 5. ~~**Sortie de stock à la vente sur le poste (RG-05).**~~ Fait le
    21/10/2026 : le poste affiche « −X en attente d'envoi » sous le stock.
 6. **Compte de résultat, bilan et comparatif sur le poste.** Cela

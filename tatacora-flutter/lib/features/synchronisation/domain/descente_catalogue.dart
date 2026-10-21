@@ -104,6 +104,11 @@ enum TableDescendue {
   employes('employes', TableSynchronisee.employes),
   bulletinsPaie('bulletins_paie', TableSynchronisee.bulletinsPaie),
 
+  /// 21/10/2026 : les créneaux de planning, puis les demandes de congé (après
+  /// le dossier des employés qu'ils citent).
+  plannings('plannings', TableSynchronisee.plannings),
+  conges('conges', TableSynchronisee.conges),
+
   /// Descendue sans être synchronisable : le poste ne pousse pas ses centres.
   centresCout('centres_cout', null),
 
@@ -178,6 +183,8 @@ String libelleTableServeur(String nom) => switch (nom) {
   'services' => 'Services (RH)',
   'employes' => 'Employés',
   'bulletins_paie' => 'Bulletins de paie',
+  'plannings' => 'Plannings',
+  'conges' => 'Congés',
   'parametres_systeme' => 'Paramètres',
   'roles' => 'Rôles et permissions',
   'modeles_notification' => 'Modèles de notification',

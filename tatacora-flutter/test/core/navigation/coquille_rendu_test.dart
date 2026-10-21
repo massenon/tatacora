@@ -236,7 +236,7 @@ void main() {
       // (`ajouts_menu_poste.dart`) : « Comptes utilisateurs » (PO, 14/10/2026),
       // atteint ici parce que la session est `administrateur` — l'entrée est
       // réservée aux rôles d'administration (`rolesExiges`).
-      expect(visitees, 24 + ajoutsMenuPoste.length);
+      expect(visitees, 25 + ajoutsMenuPoste.length);
     });
 
     testWidgets('plus AUCUNE entrée sans écran (D424) : les trois anciennes ne '

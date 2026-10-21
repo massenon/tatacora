@@ -318,11 +318,13 @@ void main() {
       // contacts, IFU, RCCM, régime fiscal — lues par
       // `entete_etablissement.dart`, lot J1 3/4 du 14/10/2026) ; les QUATRE
       // clés SMTP (lues par `envoi_messages_editeur.dart`, lot J2 du
-      // 14/10/2026). 13 + 10 + 4 = 27.
-      expect(verifies, 27);
+      // 14/10/2026) ; les DEUX réglages de RG-14, préavis et couverture (lus
+      // par `conges_plannings_dao.dart` depuis le 21/10/2026). 13 + 10 + 4 +
+      // 2 = 29.
+      expect(verifies, 29);
     });
 
-    test('4 clés n’ont AUCUN lecteur sur ce poste, et c’est dit', () {
+    test('2 clés n’ont AUCUN lecteur sur ce poste, et c’est dit', () {
       final sansLecteur = [
         for (final s in RegistreParametresLocal.definitions)
           if (s.lecteur == null) s.cle,
@@ -330,11 +332,11 @@ void main() {
       // 20 → 19 le 14/10/2026 : `activation_alertes_ouverture` (cloche) ;
       // 19 → 18 le même jour : `reinitialisation_seeders` (D429) ; 18 → 8 :
       // les dix clés de l'en-tête A4 (lot J1 3/4) ; 8 → 4 : les quatre clés
-      // SMTP (lot J2). Les quatre restantes, NOMMÉES :
+      // SMTP (lot J2) ; 4 → 2 le 21/10/2026 : le préavis et la couverture des
+      // congés (RG-14, `conges_plannings_dao.dart`). Les deux restantes,
+      // NOMMÉES :
       expect(sansLecteur, [
         'entreprise_numero_mecef',
-        'delai_preavis_conge_jours',
-        'couverture_minimale_par_service',
         'duree_retention_audit_jours',
       ]);
       expect(sansLecteur, isNot(contains('reinitialisation_seeders')));
@@ -384,7 +386,7 @@ void main() {
         );
         balayees++;
       }
-      expect(balayees, 27, reason: 'balayage non vide');
+      expect(balayees, 29, reason: 'balayage non vide');
     });
 
     test('chaque exemption NOMME réellement sa clé : une exemption périmée '

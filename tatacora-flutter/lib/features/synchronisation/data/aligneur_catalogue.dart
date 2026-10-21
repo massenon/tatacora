@@ -21,6 +21,7 @@ import '../../facturation/domain/entities/paiement_facture.dart';
 import '../../facturation/domain/entities/piece_facturation.dart';
 import '../../facturation/domain/repositories/facture_repository.dart';
 import '../../restaurant/domain/calcul_restaurant.dart' show typesDeMenu;
+import '../../rh/domain/entities/conge_planning.dart';
 import '../../stocks/domain/calcul_stock.dart' show echelleQuantite;
 import '../../stocks/domain/entities/etat_stock.dart';
 import '../domain/descente_catalogue.dart';
@@ -129,7 +130,9 @@ class AligneurCatalogue {
       TableDescendue.entretiensVehicule ||
       TableDescendue.servicesRh ||
       TableDescendue.employes ||
-      TableDescendue.bulletinsPaie => alignerDocument(idLocal, e),
+      TableDescendue.bulletinsPaie ||
+      TableDescendue.plannings ||
+      TableDescendue.conges => alignerDocument(idLocal, e),
       TableDescendue.centresCout => _centre(e),
       TableDescendue.parametresSysteme => _parametre(e),
       TableDescendue.roles => _role(idLocal, e),

@@ -670,6 +670,20 @@ abstract final class AppLayout {
   /// des autres ecrans.
   static const double pageVehicules = 1600;
 
+  /// La page « Congés & Plannings » — `max-w-[1600px] mx-auto p-5 lg:p-8`
+  /// (`rh/conges-plannings.blade.php`). Valeur ENTRE CROCHETS, la même que
+  /// [pageVehicules] : les deux vues posent la même classe.
+  static const double pageCongesPlannings = 1600;
+
+  /// Les deux `<select>` de filtre de « Congés & Plannings » (service, statut)
+  /// n'ont AUCUNE largeur à la vue : le navigateur les dimensionne sur leur
+  /// plus long libellé (`px-3 py-2`, 13 px). Un champ Flutter n'a pas de
+  /// largeur intrinsèque : ces valeurs sont celles que le plus long libellé
+  /// (« Tous les services », « Tous les statuts ») occupe. À vérifier à
+  /// l'écran.
+  static const double filtreServiceCongesPlannings = 200;
+  static const double filtreStatutCongesPlannings = 180;
+
   /// Le champ de recherche du parc — `min-w-[200px]` sur un conteneur
   /// `flex-1` (`m8-locations.html` l.56). Meme motif exact que
   /// `rechercheMinCarteRestaurant`. Pas `w-52` (208) ni `w-48` (192).
@@ -695,6 +709,10 @@ abstract final class AppLayout {
   /// 520 n'est PAS `max-w-lg` (512) : huit pixels d'ecart, exactement
   /// l'approximation que l'Article 1 interdit au n° 09.
   static const double modaleImmobilisation = 520;
+
+  /// Les modales « Planifier un créneau » et « Demander un congé » —
+  /// `largeur="520px"` (`rh/conges-plannings.blade.php`).
+  static const double modaleCongesPlannings = 520;
 
   /// La modale « Véhicule » — `largeur="560px"` (`vehicules/locations.blade.php`
   /// l.782). Chemin écrit sans son préfixe : ce fichier ne porte pas la vue

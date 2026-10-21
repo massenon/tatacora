@@ -383,6 +383,9 @@ abstract final class RegistreParametresLocal {
       type: TypeParametre.entier,
       minimum: '0',
       maximum: '365',
+      // LUE depuis le 21/10/2026 : valider une demande de congé (RG-14) exige
+      // ce réglage et REFUSE sans lui (`conges_plannings_dao.dart`).
+      lecteur: 'lib/features/rh/data/conges_plannings_dao.dart',
     ),
     SpecParametre(
       cle: 'couverture_minimale_par_service',
@@ -391,6 +394,9 @@ abstract final class RegistreParametresLocal {
       type: TypeParametre.entier,
       minimum: '0',
       maximum: '100',
+      // LUE depuis le 21/10/2026 : valider une demande de congé (RG-14) exige
+      // ce réglage et REFUSE sans lui (`conges_plannings_dao.dart`).
+      lecteur: 'lib/features/rh/data/conges_plannings_dao.dart',
     ),
     SpecParametre(
       cle: 'duree_retention_audit_jours',

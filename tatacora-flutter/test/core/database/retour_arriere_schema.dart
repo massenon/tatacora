@@ -97,7 +97,13 @@ const tablesAjouteesEnV31 = <String>{'indisponibilites_carte_local'};
 /// La table que la v32 AJOUTE (entretiens de véhicules, 21/10/2026).
 const tablesAjouteesEnV32 = <String>{'entretiens_vehicule_local'};
 
+/// Les tables que la v33 AJOUTE (plannings et congés, 21/10/2026).
+const tablesAjouteesEnV33 = <String>{'plannings_local', 'conges_local'};
+
 const _ajoutsParVersion = <int, List<String>>{
+  // La v33 ajoute DEUX tables neuves, sans index ni cle etrangere.
+  33: <String>['DROP TABLE plannings_local', 'DROP TABLE conges_local'],
+
   // La v32 ajoute UNE table neuve, sans index ni cle etrangere.
   32: <String>['DROP TABLE entretiens_vehicule_local'],
 

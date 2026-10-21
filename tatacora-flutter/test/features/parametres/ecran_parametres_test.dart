@@ -352,7 +352,7 @@ void main() {
       // (témoin : sans lui, l'absence ci-dessous pourrait venir d'un onglet
       // mal ouvert) ...
       expect(
-        find.byKey(const Key('param-note-delai_preavis_conge_jours')),
+        find.byKey(const Key('param-note-duree_retention_audit_jours')),
         findsOneWidget,
       );
       // ... celle que `AchatsDao` lit pour juger une réception n'en porte plus :

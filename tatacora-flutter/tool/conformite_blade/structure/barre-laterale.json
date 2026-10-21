@@ -350,6 +350,16 @@
                         "icone": "4be7147d"
                     },
                     {
+                        "type": "entree",
+                        "groupe": "RESSOURCES HUMAINES",
+                        "nom": "Congés & Plannings",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/rh/conges-plannings",
+                        "icone": "4be7147d"
+                    },
+                    {
                         "type": "groupe",
                         "nom": "PILOTAGE & ADMINISTRATION",
                         "actif": false
@@ -794,6 +804,16 @@
                         "icone": "4be7147d"
                     },
                     {
+                        "type": "entree",
+                        "groupe": "RESSOURCES HUMAINES",
+                        "nom": "Congés & Plannings",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/rh/conges-plannings",
+                        "icone": "4be7147d"
+                    },
+                    {
                         "type": "groupe",
                         "nom": "PILOTAGE & ADMINISTRATION",
                         "actif": false
@@ -1096,6 +1116,21 @@
                         "cliquable": true,
                         "href": "/pwa/bar/carte",
                         "icone": "02e5a4b7"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "RESSOURCES HUMAINES",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "RESSOURCES HUMAINES",
+                        "nom": "Congés & Plannings",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/rh/conges-plannings",
+                        "icone": "4be7147d"
                     }
                 ],
                 "pied": {
@@ -1621,6 +1656,16 @@
                         "icone": "4be7147d"
                     },
                     {
+                        "type": "entree",
+                        "groupe": "RESSOURCES HUMAINES",
+                        "nom": "Congés & Plannings",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/rh/conges-plannings",
+                        "icone": "4be7147d"
+                    },
+                    {
                         "type": "groupe",
                         "nom": "PILOTAGE & ADMINISTRATION",
                         "actif": false
@@ -1893,6 +1938,16 @@
                         "icone": "4be7147d"
                     },
                     {
+                        "type": "entree",
+                        "groupe": "RESSOURCES HUMAINES",
+                        "nom": "Congés & Plannings",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/rh/conges-plannings",
+                        "icone": "4be7147d"
+                    },
+                    {
                         "type": "groupe",
                         "nom": "PILOTAGE & ADMINISTRATION",
                         "actif": false
@@ -2113,6 +2168,9 @@
         ],
         "Personnel & Paie": [
             "Personnel & Paie"
+        ],
+        "Congés & Plannings": [
+            "Congés & Plannings"
         ],
         "États & Rapports": [
             "États & Rapports"

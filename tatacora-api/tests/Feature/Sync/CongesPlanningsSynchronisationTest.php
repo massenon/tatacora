@@ -72,6 +72,28 @@ final class CongesPlanningsSynchronisationTest extends TestCase
     }
 
     #[Test]
+    public function un_service_inconnu_par_son_identifiant_est_reconnu_par_son_libelle(): void
+    {
+        $id = $this->uuid();
+
+        // Le poste n'a encore rien reçu : son identifiant de service lui est propre.
+        $this->pousser([$this->creation('plannings', $id, [
+            'employe_id' => $this->chef->id, 'service_id' => $this->uuid(), 'service_libelle' => 'Cuisine',
+            'date' => '2026-10-22', 'heure_debut' => '08:00', 'heure_fin' => '12:00',
+        ])], $this->rh)->assertJsonPath('resultats.0.statut', 'synchronise');
+
+        $this->assertSame($this->cuisine->id, Planning::query()->findOrFail($id)->service_id);
+
+        // Ni identifiant ni libellé connus : le créneau est rejeté, jamais un service inventé.
+        $this->pousser([$this->creation('plannings', $this->uuid(), [
+            'employe_id' => $this->chef->id, 'service_id' => $this->uuid(), 'service_libelle' => 'Inexistant',
+            'date' => '2026-10-23', 'heure_debut' => '08:00', 'heure_fin' => '12:00',
+        ])], $this->rh)->assertJsonPath('resultats.0.statut', 'rejete');
+        $this->assertSame(1, Planning::query()->count());
+        $this->assertSame(1, Service::query()->count());
+    }
+
+    #[Test]
     public function rg13_deux_postes_ne_planifient_jamais_le_meme_employe_sur_le_meme_creneau(): void
     {
         $this->pousser([$this->creneau($this->uuid(), '08:00', '12:00')], $this->rh, 'poste-a');

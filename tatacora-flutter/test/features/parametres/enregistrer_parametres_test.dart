@@ -348,10 +348,14 @@ void main() {
       DefinitionParametre def(String cle) =>
           lu.definitions.firstWhere((d) => d.cle == cle);
 
-      expect(def('delai_preavis_conge_jours').notes, [
+      // Le préavis de congé A UN LECTEUR depuis le 21/10/2026 (RG-14 : valider
+      // une demande le lit et REFUSE sans lui) : plus de note « sans effet ».
+      expect(def('delai_preavis_conge_jours').notes, isEmpty);
+      expect(def('delai_preavis_conge_jours').aide, isNull);
+      // Une clé qui n'a toujours aucun lecteur, elle, le dit.
+      expect(def('duree_retention_audit_jours').notes, [
         'Aucun module de ce poste ne lit encore cette valeur.',
       ]);
-      expect(def('delai_preavis_conge_jours').aide, isNull);
       // Le taux de TVA, lui, A UN LECTEUR depuis le 12/10/2026 (lot 6) : la
       // pièce comptable d'une vente. Le dire « sans effet » serait faux, et
       // l'exploitant ne le renseignerait pas — alors que sans lui une vente est
