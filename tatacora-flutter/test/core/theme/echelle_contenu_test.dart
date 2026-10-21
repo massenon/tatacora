@@ -316,6 +316,7 @@ void main() {
     // Les écrans portés le 14/10/2026 (PA-204, D417–D423) : corps de page,
     // dans le `<main>` de leur vue (`comptabilite/hub`, `transverse/*`).
     'lib/features/comptabilite/presentation/ecran_comptabilite.dart',
+    'lib/features/comptabilite/presentation/widgets/onglets_etats_financiers.dart',
     'lib/features/transverse/presentation/ecran_aide_a_propos.dart',
     'lib/features/transverse/presentation/ecran_contact_editeur.dart',
     'lib/features/transverse/presentation/ecran_import_export.dart',
