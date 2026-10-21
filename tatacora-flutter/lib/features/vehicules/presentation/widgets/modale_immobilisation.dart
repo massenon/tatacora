@@ -9,42 +9,30 @@ import '../../../restaurant/presentation/widgets/textes_modale_restaurant.dart';
 import '../../domain/entities/contrat_location.dart';
 import '../../domain/entities/vehicule.dart';
 import '../../domain/regles_vehicules.dart';
+import '../../../../core/di/providers.dart';
 import '../providers_vehicules.dart';
 
 /// La modale **« Immobiliser un véhicule »** — `largeur="520px"`.
 ///
 /// @see EF-M8-05 Entretien et carburation
 ///
-/// ## Ce que l'immobilisation PEUT faire sur ce poste, et rien de plus
+/// ## Elle écrit un ENTRETIEN daté (v32, 21/10/2026)
 ///
-/// `entretiens_vehicule` **n'a aucune table locale** : ni motif, ni date, ni
-/// coût n'ont où s'écrire. Le seul effet réel disponible est le **statut du
-/// véhicule**, qui existe, et qui commande tout le reste — un véhicule
-/// `entretien` n'est plus louable, et la création de contrat le refuse.
+/// Comme `Locations::enregistrerImmobilisation` : une ligne
+/// `entretiens_vehicule_local` (véhicule, motif du registre fermé, jour, coût en
+/// francs) qui part au serveur et s'affiche dans l'onglet « Immobilisations ».
+/// **Le statut du véhicule n'est PAS touché** — la PWA non plus (statut ≠
+/// disponibilité, RG-02) : pour sortir un véhicule du parc louable, on change
+/// son statut depuis sa ligne du parc.
 ///
-/// Trois conduites étaient possibles, deux sont des mensonges :
+/// Jusqu'au 21/10/2026 cette modale ne pouvait que changer le statut, faute de
+/// table, et disait que le motif, la date et le coût « disparaîtraient ». Ils
+/// sont maintenant écrits.
 ///
-/// 1. **Tout collecter et n'écrire que le statut.** Le motif, la date et le
-///    coût disparaîtraient en silence sous un « Immobilisation enregistrée » —
-///    « un formulaire dont les champs sont collectés puis ignorés »
-///    (Article 6), et personne ne saurait que le journal d'entretien n'existe
-///    pas.
-/// 2. **Retirer la modale.** Un véhicule au garage resterait proposé à la
-///    location : c'est la fonction qui compte, pas le formulaire.
-/// 3. **La rendre honnête.** Le véhicule change d'état, et les trois champs
-///    sans stockage gardent leur place en disant pourquoi ils ne prennent
-///    rien.
+/// ## Un champ reste inerte, et la vue aussi
 ///
-/// C'est la troisième. Le geste utile — sortir un véhicule du parc louable —
-/// est tenu ; ce qui n'existe pas est nommé, à sa place.
-///
-/// ## La promesse de l'ancien maître sur le chevauchement reste non tenue
-///
-/// Il écrivait : « l'immobilisation passe par le même contrôle de chevauchement
-/// qu'une location ». Aucun contrôle de ce genre n'existe — ici comme au
-/// serveur, où le contrôleur écrivait en direct. On PEUT donc immobiliser un
-/// véhicule déjà loué : son contrat court toujours, et le statut n'y change
-/// rien. La modale le dit plutôt que de recopier la promesse.
+/// « Au » : aucune colonne de fin au schéma du serveur. Le champ garde sa place
+/// et le dit.
 Future<bool?> ouvrirModaleImmobilisation(BuildContext context) =>
     showDialog<bool>(
       context: context,
@@ -62,8 +50,23 @@ class _ModaleImmobilisation extends ConsumerStatefulWidget {
 }
 
 class _ModaleImmobilisationState extends ConsumerState<_ModaleImmobilisation> {
+  static String _aujourdhui() {
+    final n = DateTime.now();
+    return '${n.year.toString().padLeft(4, '0')}-'
+        '${n.month.toString().padLeft(2, '0')}-'
+        '${n.day.toString().padLeft(2, '0')}';
+  }
+
+  @override
+  void dispose() {
+    _cout.dispose();
+    super.dispose();
+  }
+
   String? _vehiculeId;
   TypeEntretien _type = TypeEntretien.entretien;
+  String? _date = _aujourdhui();
+  final _cout = TextEditingController(text: '0');
 
   bool _envoi = false;
   String? _refus;
@@ -134,76 +137,49 @@ class _ModaleImmobilisationState extends ConsumerState<_ModaleImmobilisation> {
             ],
             onChanged: (t) => setState(() => _type = t ?? _type),
           ),
-          const SizedBox(height: AppSpacing.xxs),
-          const Text(
-            // Réécrit le 14/10/2026 (directive du PO) : la liste reste le
-            // registre fermé du schéma de référence (`entretien`,
-            // `carburation`), aucune table locale ne porte les entretiens.
-            'Le motif n’est pas enregistré sur ce poste.',
-            key: Key('modale-immobilisation-aide-motif'),
-            style: TextesModaleRestaurant.aide,
-          ),
           const SizedBox(height: AppSpacing.md),
 
           // ------------------------- 3, 4 et 5. Du / Au / Coût (l.750-760)
-          const Row(
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: _ChampInerte(
-                  cle: Key('modale-immobilisation-date'),
-                  etiquette: 'Du',
-                  raison:
-                      'Ce poste n’enregistre pas la date d’une '
-                      'immobilisation. Le véhicule est immobilisé À PARTIR DE '
-                      'MAINTENANT, et il le reste jusqu’à sa remise en service.',
+                child: _ChampDate(
+                  valeur: _date,
+                  erreur: _parChamp['date'],
+                  onChoix: (d) => setState(() => _date = d),
                 ),
               ),
-              SizedBox(width: AppSpacing.sm),
-              Expanded(
+              const SizedBox(width: AppSpacing.sm),
+              const Expanded(
                 child: _ChampInerte(
                   cle: Key('modale-immobilisation-fin'),
                   etiquette: 'Au',
                   raison:
-                      'Aucune date de fin : la remise en service se fait '
-                      'depuis la ligne du véhicule, dans le parc.',
+                      'Aucune date de fin n’existe au schéma : une '
+                      'immobilisation est un fait daté, enregistré à sa date.',
                 ),
               ),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
-          const _ChampInerte(
-            cle: Key('modale-immobilisation-cout'),
-            etiquette: 'Coût (FCFA)',
-            raison:
-                'Aucune colonne de coût sur ce poste. Le saisir ici le ferait '
-                'disparaître, et la dépense d’entretien ne serait comptabilisée '
-                'nulle part — elle relève d’une dépense (M10), pas de cet '
-                'écran.',
+          const EtiquetteChampRestaurant(
+            texte: 'Coût (FCFA)',
+            obligatoire: true,
+          ),
+          TextField(
+            key: const Key('modale-immobilisation-cout'),
+            controller: _cout,
+            keyboardType: TextInputType.number,
+            style: TextesModaleRestaurant.corps,
+            decoration: InputDecoration(
+              isDense: true,
+              border: const OutlineInputBorder(),
+              errorText: _parChamp['cout'],
+              errorMaxLines: 3,
+            ),
           ),
           const SizedBox(height: AppSpacing.md),
-
-          // Ce que le geste fait RÉELLEMENT, dit avant de le faire.
-          Container(
-            key: const Key('modale-immobilisation-note'),
-            padding: const EdgeInsets.all(AppSpacing.xsPlus),
-            decoration: BoxDecoration(
-              color: PaletteMaitre.ambre50,
-              border: Border.all(color: PaletteMaitre.ambre200),
-              borderRadius: BorderRadius.circular(AppRadius.roundedLg),
-            ),
-            child: Text(
-              'Ce que ce geste fait : le véhicule passe en « Entretien » et '
-              'cesse d’être louable — toute nouvelle location le refusera. Ce '
-              'qu’il ne fait pas : il n’ouvre aucun journal d’entretien, et '
-              'l’onglet « Immobilisations » restera vide. ⚠ Un contrat DÉJÀ '
-              'signé sur ce véhicule n’est pas annulé pour autant : il court '
-              'toujours, et rien ici ne le libère.',
-              style: TextesModaleRestaurant.corps.copyWith(
-                color: PaletteMaitre.ambre900,
-              ),
-            ),
-          ),
           if (vehicules.isEmpty && !parc.isLoading) ...[
             const SizedBox(height: AppSpacing.md),
             Text(
@@ -253,10 +229,31 @@ class _ModaleImmobilisationState extends ConsumerState<_ModaleImmobilisation> {
       _parChamp = const {};
     });
 
+    final date = _date == null ? null : DateTime.tryParse(_date!);
+    final cout = int.tryParse(_cout.text.trim().replaceAll(' ', ''));
+    final manques = <String, String>{
+      if (date == null) 'date': MessagesVehicules.dateEntretienManquante,
+      if (cout == null || cout < 0)
+        'cout': MessagesVehicules.coutEntretienInvalide,
+    };
+    if (manques.isNotEmpty) {
+      setState(() {
+        _envoi = false;
+        _parChamp = manques;
+      });
+      return;
+    }
+
     try {
       await ref
           .read(vehiculeDaoProvider)
-          .changerStatut(vehiculeId, StatutVehicule.entretien);
+          .enregistrerEntretien(
+            vehiculeId: vehiculeId,
+            type: _type,
+            date: date!,
+            coutFrancs: cout!,
+            auteur: ref.read(sessionProvider)?.login,
+          );
 
       if (!mounted) return;
       Navigator.of(context).pop(true);
@@ -298,6 +295,62 @@ class _ChampInerte extends StatelessWidget {
           ),
           child: Text(raison, style: TextesModaleRestaurant.aide),
         ),
+      ],
+    );
+  }
+}
+
+/// « Du » — le jour de l'immobilisation (sélecteur de date).
+class _ChampDate extends StatelessWidget {
+  const _ChampDate({
+    required this.valeur,
+    required this.erreur,
+    required this.onChoix,
+  });
+
+  final String? valeur;
+  final String? erreur;
+  final ValueChanged<String?> onChoix;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const EtiquetteChampRestaurant(texte: 'Du', obligatoire: true),
+        OutlinedButton(
+          key: const Key('modale-immobilisation-date'),
+          onPressed: () async {
+            final courant = valeur == null ? null : DateTime.tryParse(valeur!);
+            final choisi = await showDatePicker(
+              context: context,
+              initialDate: courant ?? DateTime.now(),
+              firstDate: DateTime(DateTime.now().year - 5),
+              lastDate: DateTime(DateTime.now().year + 2),
+            );
+            if (choisi == null) return;
+            onChoix(
+              '${choisi.year.toString().padLeft(4, '0')}-'
+              '${choisi.month.toString().padLeft(2, '0')}-'
+              '${choisi.day.toString().padLeft(2, '0')}',
+            );
+          },
+          child: Text(
+            valeur ?? 'jj/mm/aaaa',
+            style: TextesModaleRestaurant.corps,
+          ),
+        ),
+        if (erreur != null)
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.demi),
+            child: Text(
+              erreur!,
+              style: TextesModaleRestaurant.aide.copyWith(
+                color: AppColors.erreur,
+              ),
+            ),
+          ),
       ],
     );
   }

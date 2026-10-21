@@ -695,6 +695,22 @@ Map<String, Object?> chargeVehicule({
   'tarif_jour': tarifJour,
 };
 
+/// `entretiens_vehicule` (création) — `GestionnaireEntretiensVehicule` : un fait
+/// daté (jour, francs entiers), jamais modifié ; le chauffeur est facultatif.
+Map<String, Object?> chargeEntretienVehicule({
+  required String vehiculeId,
+  required String type,
+  required DateTime date,
+  required int coutFrancs,
+  String? chauffeurId,
+}) => {
+  'vehicule_id': vehiculeId,
+  'type': type,
+  'date': jourIso(date),
+  'cout': coutFrancs,
+  'chauffeur_id': ?chauffeurId,
+};
+
 /// `contrats_location` (création) — `GestionnaireContratsLocation` : les
 /// numéros de pièce et de permis SAISIS (le poste ne les garde pas en base).
 Map<String, Object?> chargeContratLocation({

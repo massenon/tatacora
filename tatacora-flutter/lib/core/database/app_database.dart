@@ -20,6 +20,7 @@ import 'tables/comptabilite_tables.dart';
 import 'tables/depenses_tables.dart';
 import 'tables/descente_sync_tables.dart';
 import 'tables/indisponibilites_carte_tables.dart';
+import 'tables/entretiens_vehicule_tables.dart';
 import 'tables/occupations_tables_tables.dart';
 import 'tables/origines_documents_tables.dart';
 import 'tables/facturation_tables.dart';
@@ -206,6 +207,8 @@ part 'app_database.g.dart';
     OccupationsTablesLocal,
     // v31 (21/10/2026) : les retraits de la carte du jour (boissons, plats).
     IndisponibilitesCarteLocal,
+    // v32 (21/10/2026) : entretiens et carburations des véhicules.
+    EntretiensVehiculeLocal,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -379,8 +382,11 @@ class AppDatabase extends _$AppDatabase {
   /// (`indisponibilites_carte_local`, 62 -> 63 tables), aucune colonne ajoutée.
   /// Le poste retire et remet boissons et plats, et reçoit ceux des autres
   /// postes et de la PWA.
+  ///
+  /// v32 (21/10/2026) — LES ENTRETIENS DE VÉHICULES : une table neuve
+  /// (`entretiens_vehicule_local`, 63 -> 64 tables), aucune colonne ajoutée.
   @override
-  int get schemaVersion => 31;
+  int get schemaVersion => 32;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1047,6 +1053,15 @@ class AppDatabase extends _$AppDatabase {
         // n'est fabriquée (la descente la remplit). Le curseur est oublié pour
         // que les retraits déjà au serveur descendent.
         await m.createTable(indisponibilitesCarteLocal);
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
+      }
+      if (from < 32) {
+        // LES ENTRETIENS DE VÉHICULES (21/10/2026). Une table NEUVE, sans index
+        // ni clé étrangère ; aucune ligne fabriquée. Le curseur est oublié :
+        // les entretiens déjà au serveur redescendent.
+        await m.createTable(entretiensVehiculeLocal);
         await customStatement(
           "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
         );

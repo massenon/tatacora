@@ -94,6 +94,10 @@ enum TableDescendue {
   /// Audit de couverture (18/10/2026) : le parc M8 et ses contrats.
   vehicules('vehicules', TableSynchronisee.vehicules),
   contratsLocation('contrats_location', TableSynchronisee.contratsLocation),
+  entretiensVehicule(
+    'entretiens_vehicule',
+    TableSynchronisee.entretiensVehicule,
+  ),
 
   /// Audit de couverture (18/10/2026) : M13.
   servicesRh('services', null),
@@ -169,6 +173,7 @@ String libelleTableServeur(String nom) => switch (nom) {
   'reservations_tour' => 'Réservations de circuits',
   'sejours' => 'Séjours (arrivées et départs)',
   'vehicules' => 'Véhicules',
+  'entretiens_vehicule' => 'Entretiens et carburations',
   'contrats_location' => 'Contrats de location',
   'services' => 'Services (RH)',
   'employes' => 'Employés',

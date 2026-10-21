@@ -1,5 +1,9 @@
 // Vue Blade maîtresse (PA-183) : pwa/vehicules/locations.blade.php
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../domain/entities/contrat_location.dart';
+import '../providers_vehicules.dart';
 
 import '../../../restaurant/presentation/widgets/coquille_restaurant.dart';
 import '../../../restaurant/presentation/widgets/tableau_restaurant.dart';
@@ -8,47 +12,22 @@ import 'vue_parc.dart' show EtatVideVehicules;
 /// L'onglet **« Immobilisations »** de la vue
 /// (`vehicules/locations.blade.php` l.528-581).
 ///
-/// ## Il est RENDU comme la vue le rend, et il est vide
+/// ## Il lit `entretiens_vehicule_local` (v32, 21/10/2026)
 ///
-/// La vue montre TOUJOURS ses sept colonnes, même sans ligne, et loge l'état
-/// vide dans le tableau (une ligne `colspan` sous l'en-tête, l.531-538 et
-/// l.573-575). Ce client fait de même (`videSousEntete`).
+/// Sept colonnes, comme la vue, TOUJOURS affichées, l'état vide logé dans le
+/// tableau (l.531-538, l.573-575). Les lignes viennent des entretiens saisis
+/// ici ou descendus du serveur.
 ///
-/// ⚠ Corrigé le 09/10/2026. Cette doc affirmait que « les en-têtes de colonnes
-/// ne sont PAS affichées, et c'est le maître », d'après l'ancien maître
-/// (`prototype_v2/pages/m8-locations.js` l.202 : `if (!l.length) return
-/// vide(...)`). La vue Blade a tranché dans l'autre sens — l'audit navigateur
-/// du Product Owner avait relevé exactement cette absence (commentaire de la
-/// vue, l.531-538) — et elle est le seul maître (PA-182, PA-183). Le motif
-/// du refus avait cessé d'être vrai : il transformait une décision en oubli
-/// (PA-144).
+/// ## Trois colonnes restent « — », et la vue aussi
 ///
-/// ## Le tableau est vide, et le dit
-///
-/// ÉCART DÉLIBÉRÉ — `vehicules/locations.blade.php` l.557-571.
-/// La vue : sept colonnes remplies depuis `$immobilisations`, relues sur
-/// `entretiens_vehicule`.
-/// Ici : aucune table d'entretiens n'existe sur ce poste (zéro réseau,
-/// 14/09/2026). Le tableau garde ses colonnes et son message (l'encadré qui
-/// disait pourquoi il reste vide est retiré le 14/10/2026, directive du PO).
-/// Raison : écrire « — » dans des lignes qui n'existent pas serait inventer
-/// des immobilisations ; ne rien dire laisserait croire qu'aucun véhicule n'a
-/// été immobilisé.
-///
-/// ## Quatre des sept colonnes n'auraient de toute façon aucune source
-///
-/// | Colonne de la vue | Source |
+/// | Colonne | Source |
 /// |---|---|
 /// | Véhicule | le véhicule immobilisé |
 /// | Motif | `type` (Entretien / Carburation) |
-/// | Du | `date` — **une seule date, pas une plage** |
-/// | Au | **aucune colonne** (vue l.566 : « — ») |
-/// | Jours | **aucune colonne** (vue l.567 : « — ») |
-/// | Commentaire | **aucune colonne** (vue l.568 : « — ») |
-/// | Enregistré par | auteur de la ligne |
-///
-///  - maitre-refuse:m8-locations.html#immo
-class VueImmobilisations extends StatelessWidget {
+/// | Du | `date` — une seule date |
+/// | Au / Jours / Commentaire | aucune colonne au schéma (vue l.564-568 : « — ») |
+/// | Enregistré par | login de qui l'a saisi ; « — » pour une ligne descendue |
+class VueImmobilisations extends ConsumerWidget {
   const VueImmobilisations({super.key});
 
   /// Les colonnes du maître (l.203), dans son ordre. Il ne déclare aucun
@@ -64,7 +43,13 @@ class VueImmobilisations extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final entretiens = switch (ref.watch(entretiensProvider)) {
+      AsyncData(value: final v) => v,
+      _ => const <EntretienVehicule>[],
+    };
+    const tiret = Text('—', style: TextesRestaurant.mention);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
@@ -75,23 +60,37 @@ class VueImmobilisations extends StatelessWidget {
           corps: TableauRestaurant(
             gabarit: GabaritTableau.carte,
             colonnes: colonnes,
-            lignes: const [],
+            clesLignes: [
+              for (final e in entretiens) Key('vehicules-immo-${e.id}'),
+            ],
+            lignes: [
+              for (final e in entretiens)
+                [
+                  Text(e.immatriculation, style: TextesRestaurant.corpsFort),
+                  Text(e.type.libelle, style: TextesRestaurant.secondaire),
+                  Text(_jour(e.date), style: TextesRestaurant.secondaire),
+                  tiret,
+                  tiret,
+                  tiret,
+                  Text(e.auteur ?? '—', style: TextesRestaurant.mention),
+                ],
+            ],
             // L'en-tête reste AU-DESSUS de l'état vide (vue l.545-576).
             videSousEntete: true,
             vide: const EtatVideVehicules(
               cle: Key('vehicules-immo-vide'),
               // `immo_vide` (vue l.574), au mot, dans son propre `Text`.
               message: 'Aucune immobilisation enregistrée.',
-              // La précision « Aucune table ne les porte… » et l'encadré ambre
-              // « Cet onglet ne peut rien afficher » qui suivait le tableau
-              // sont RETIRÉS (directive du PO, 14/10/2026) : l'onglet se
-              // termine sur l'état vide de la vue, au mot. L'écart (aucune
-              // table d'entretiens sur ce poste) reste nommé dans la doc
-              // ci-dessus.
             ),
           ),
         ),
       ],
     );
+  }
+
+  /// `AAAA-MM-JJ` → `JJ/MM/AAAA` (vue : `format('d/m/Y')`).
+  static String _jour(String iso) {
+    final p = iso.split('-');
+    return p.length == 3 ? '${p[2]}/${p[1]}/${p[0]}' : iso;
   }
 }

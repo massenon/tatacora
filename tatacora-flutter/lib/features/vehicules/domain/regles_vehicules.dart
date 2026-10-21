@@ -104,6 +104,13 @@ final class RefusVehicule implements Exception {
 /// sur les deux canaux. L'exploitant qui a vu la phrase sur la PWA doit la
 /// reconnaître ici.
 abstract final class MessagesVehicules {
+  /// Les refus d'une immobilisation (entretien ou carburation).
+  static const String dateEntretienManquante = 'La date est obligatoire.';
+  static const String coutEntretienInvalide =
+      'Le coût est un nombre entier de francs, zéro ou plus.';
+  static const String typeEntretienInconnu =
+      'Le motif doit être « Entretien » ou « Carburation ».';
+
   /// `vehicules.chevauchement` — RG-08.
   static const String chevauchement =
       'Ce véhicule est déjà loué sur cette période.';

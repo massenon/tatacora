@@ -148,6 +148,11 @@ final parcProvider = FutureProvider<List<Vehicule>>(
       .parc(categorie: ref.watch(categorieVehiculesProvider)),
 );
 
+/// Les immobilisations (entretiens et carburations) du parc — v32.
+final entretiensProvider = FutureProvider<List<EntretienVehicule>>(
+  (ref) => ref.watch(vehiculeDaoProvider).entretiens(),
+);
+
 /// Les contrats, **nom du client résolu par le DAO**.
 ///
 /// ⚠ La résolution vit au DAO, pas ici : elle lit `clients_local` dans la même
@@ -208,6 +213,7 @@ void rechargerVehicules(WidgetRef ref) {
   ref
     ..invalidate(parcProvider)
     ..invalidate(contratsProvider)
+    ..invalidate(entretiensProvider)
     ..invalidate(disponibiliteProvider);
 }
 

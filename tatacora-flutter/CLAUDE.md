@@ -496,9 +496,9 @@ créer »). Schéma **v29** (62 tables : `occupations_tables_local`).
   une retouche locale en attente est gardée (`ConserveLocalement`).
 - **Jamais** : comptes et mots de passe (PA-103), messages de notification
   tracés, pièces du serveur (Q1 = A). Non portés faute d'écran ou de table :
-  congés, plannings, entretiens de véhicules (décision du PO du 21/10/2026,
-  option B : le poste les portera, un module après l'autre). Les
-  indisponibilités de la carte le sont depuis la v31 (section suivante).
+  congés et plannings (décision du PO du 21/10/2026, option B : le poste les
+  portera, un module après l'autre). Les indisponibilités de la carte (v31) et
+  les entretiens de véhicules (v32) le sont (sections suivantes).
 - **Bouton du serveur** : la PWA (menu de compte « Synchroniser les
   postes ») et l'écran du même nom ici (`/synchronisation-postes`, ouvert à
   tout compte) enregistrent une DEMANDE ; le poste la lit toutes les 30 s
@@ -592,6 +592,20 @@ filtre d'état « Retirés du jour » reste non servi, parce que l'API du serveu
 refuse encore (`CarteRestaurantService::ETATS_SANS_SCHEMA`, relu par un test) ;
 le lever demande de changer le serveur ET ce test ensemble. Piège : la sonde « un SEUL auteur de la file » compte aussi
 les LECTURES de `operationsSyncLocal` ; lire la file par `OperationsSyncDao`.
+
+## Entretiens de véhicules (21/10/2026, schéma v32)
+
+Table `entretiens_vehicule_local` (64 tables) : un FAIT daté — type
+(`entretien` | `carburation`), jour, coût en francs entiers, chauffeur
+facultatif, login de l'auteur (`null` pour une ligne descendue : l'écran rend
+« — »). Seul écrivain de saisie : `VehiculeDao.enregistrerEntretien` (une
+`creation`, jamais de modification : `accepteModification: false`), qui enfile
+d'abord le véhicule s'il est inconnu du serveur. « Immobiliser » écrit
+désormais cette ligne et **ne touche plus au statut** du véhicule — comme la
+PWA (statut ≠ disponibilité) ; sortir un véhicule du parc louable se fait depuis
+sa ligne. L'onglet « Immobilisations » lit la table. Descente :
+`AligneurDocuments._entretienVehicule` (n'enfile jamais ; véhicule absent =
+attente ; fraction de franc refusée). « Au » reste inerte : aucune colonne de fin.
 
 ## Exploitation : cron et vérifications (19/10/2026)
 

@@ -48,6 +48,7 @@ extension _AlignementDocuments on AligneurCatalogue {
         TableDescendue.reservationsTour => _reservationTour(id, e),
         TableDescendue.vehicules => _vehicule(id, e),
         TableDescendue.contratsLocation => _contratLocation(id, e),
+        TableDescendue.entretiensVehicule => _entretienVehicule(id, e),
         TableDescendue.servicesRh => _serviceRh(id, e),
         TableDescendue.employes => _employe(id, e),
         TableDescendue.bulletinsPaie => _bulletin(id, e),
@@ -693,6 +694,63 @@ extension _AlignementDocuments on AligneurCatalogue {
             dateDebut: debut,
             dateFin: fin,
             statutSync: const Value('synchronise'),
+          ),
+        );
+    await _retenirOrigine(e, id);
+    return const Aligne();
+  }
+
+  /// Un entretien ou une carburation d'un autre poste (ou de la PWA). Un fait
+  /// daté, jamais modifié : détenu, rien n'est réécrit. Le coût est en francs
+  /// entiers (une fraction de franc est refusée, comme pour les prix).
+  Future<IssueAlignement> _entretienVehicule(
+    String id,
+    ElementCatalogue e,
+  ) async {
+    if (await _existe(_db.entretiensVehiculeLocal, id)) return const Aligne();
+    final d = e.donnees;
+    final vehiculeServeur = AligneurCatalogue._texte(d['vehicule_id']);
+    final type = AligneurCatalogue._texte(d['type']);
+    if (vehiculeServeur == null ||
+        (type != 'entretien' && type != 'carburation')) {
+      return const RefuseParLePoste('entretien incomplet');
+    }
+    final DateTime jour;
+    try {
+      jour = _jourLocal(d['date']);
+    } on FormatException {
+      return const RefuseParLePoste('date d’entretien illisible');
+    }
+    final cout = entierDepuisDecimal(d['cout'], 0);
+    if (cout == null || cout < 0) {
+      return RefuseParLePoste(
+        'coût « ${d['cout']} » : une fraction de franc ne se saisit pas sur '
+        'ce poste',
+      );
+    }
+    final vehicule = await _cite(
+      TableDescendue.vehicules,
+      vehiculeServeur,
+      _db.vehiculesLocal,
+    );
+    if (vehicule == null) {
+      return const EnAttenteDeDependance('véhicule pas encore reçu');
+    }
+    final chauffeurServeur = AligneurCatalogue._texte(d['chauffeur_id']);
+    await _db
+        .into(_db.entretiensVehiculeLocal)
+        .insert(
+          EntretiensVehiculeLocalCompanion.insert(
+            id: id,
+            vehiculeId: vehicule,
+            type: type!,
+            date: jour,
+            cout: cout,
+            chauffeurId: Value(
+              chauffeurServeur == null
+                  ? null
+                  : await _dao.idLocal('employes', chauffeurServeur),
+            ),
           ),
         );
     await _retenirOrigine(e, id);

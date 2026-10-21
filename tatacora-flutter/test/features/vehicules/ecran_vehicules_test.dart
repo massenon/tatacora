@@ -745,6 +745,77 @@ void main() {
   });
 
   /* ================================================================== */
+  group('Immobiliser — un entretien daté, écrit et affiché', () {
+    testWidgets('le bouton écrit la ligne, le statut ne bouge pas, l’onglet '
+        'la montre', (tester) async {
+      await semer();
+      final avant = (await dao.vehicule(libre.id))?.statut;
+      await monter(tester);
+
+      await tester.ensureVisible(
+        find.byKey(const Key('vehicules-immobiliser')),
+      );
+      await tester.tap(find.byKey(const Key('vehicules-immobiliser')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('modale-immobilisation')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('modale-immobilisation-vehicule')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('AB 1234 RB').last);
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('modale-immobilisation-cout')),
+        '15000',
+      );
+      await tester.tap(find.byKey(const Key('modale-immobilisation-valider')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('modale-immobilisation')), findsNothing);
+      final lignes = await dao.entretiens();
+      expect(lignes, hasLength(1));
+      expect(lignes.single.coutFrancs, 15000);
+      expect(
+        (await dao.vehicule(libre.id))?.statut,
+        avant,
+        reason: 'statut ≠ disponibilité : la PWA ne le touche pas',
+      );
+
+      await ouvrirOnglet(tester, 'immo');
+      expect(find.text('AB 1234 RB'), findsWidgets);
+      expect(find.text('Entretien'), findsWidgets);
+      expect(find.text('Aucune immobilisation enregistrée.'), findsNothing);
+    });
+
+    testWidgets('un coût illisible est refusé sous son champ, rien n’est '
+        'écrit', (tester) async {
+      await semer();
+      await monter(tester);
+
+      await tester.ensureVisible(
+        find.byKey(const Key('vehicules-immobiliser')),
+      );
+      await tester.tap(find.byKey(const Key('vehicules-immobiliser')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('modale-immobilisation-vehicule')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('AB 1234 RB').last);
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('modale-immobilisation-cout')),
+        'beaucoup',
+      );
+      await tester.tap(find.byKey(const Key('modale-immobilisation-valider')));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(MessagesVehicules.coutEntretienInvalide),
+        findsOneWidget,
+      );
+      expect(await dao.entretiens(), isEmpty);
+    });
+  });
+
+  /* ================================================================== */
   group('La barre de filtres', () {
     testWidgets('large : la recherche est basse, les trois boutons finissent '
         'À DROITE', (tester) async {

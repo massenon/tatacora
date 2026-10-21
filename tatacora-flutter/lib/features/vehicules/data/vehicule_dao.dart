@@ -267,6 +267,97 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
     });
   }
 
+  /// Les immobilisations (entretiens et carburations), de la plus récente à la
+  /// plus ancienne, immatriculation résolue.
+  Future<List<EntretienVehicule>> entretiens() async {
+    final lignes = await (select(
+      attachedDatabase.entretiensVehiculeLocal,
+    )..orderBy([(e) => OrderingTerm.desc(e.date)])).get();
+    if (lignes.isEmpty) return const [];
+
+    final plaques = {
+      for (final v in await select(attachedDatabase.vehiculesLocal).get())
+        v.id: v.immatriculation,
+    };
+
+    return [
+      for (final l in lignes)
+        EntretienVehicule(
+          id: l.id,
+          vehiculeId: l.vehiculeId,
+          immatriculation: plaques[l.vehiculeId] ?? '—',
+          type: TypeEntretien.values.firstWhere(
+            (t) => t.code == l.type,
+            orElse: () => TypeEntretien.entretien,
+          ),
+          date: _iso(l.date),
+          coutFrancs: l.cout,
+          auteur: l.auteur,
+        ),
+    ];
+  }
+
+  /// Enregistre une immobilisation — « Immobiliser » de la PWA
+  /// (`Locations::enregistrerImmobilisation`, EF-M8-05).
+  ///
+  /// Comme la PWA, elle écrit UNE ligne datée et **ne touche pas au statut** du
+  /// véhicule (statut ≠ disponibilité). La ligne part au serveur (`creation`,
+  /// jamais modifiée). [coutFrancs] : francs entiers, zéro ou plus.
+  Future<EntretienVehicule> enregistrerEntretien({
+    required String vehiculeId,
+    required TypeEntretien type,
+    required DateTime date,
+    required int coutFrancs,
+    String? auteur,
+  }) async {
+    if (coutFrancs < 0) {
+      throw const RefusVehicule(MessagesVehicules.coutEntretienInvalide);
+    }
+    return transaction(() async {
+      final ligne = await _ligneVehicule(vehiculeId);
+      if (ligne == null) {
+        throw const RefusVehicule(MessagesVehicules.vehiculeInexistant);
+      }
+      final id = _uuid.v4();
+      final jour = DateTime(date.year, date.month, date.day);
+
+      await into(attachedDatabase.entretiensVehiculeLocal).insert(
+        EntretiensVehiculeLocalCompanion.insert(
+          id: id,
+          vehiculeId: vehiculeId,
+          type: type.code,
+          date: jour,
+          cout: coutFrancs,
+          auteur: Value(auteur),
+        ),
+      );
+      // Le véhicule part AVANT son entretien : s'il n'est pas encore connu du
+      // serveur, sa création est enfilée ici, devant celle de l'entretien.
+      await _envoyer(vehiculeId, const {});
+      await OperationsSyncDao(attachedDatabase).enfiler(
+        table: TableSynchronisee.entretiensVehicule,
+        entiteId: id,
+        type: TypeOperationSync.creation,
+        payload: chargeEntretienVehicule(
+          vehiculeId: vehiculeId,
+          type: type.code,
+          date: jour,
+          coutFrancs: coutFrancs,
+        ),
+      );
+
+      return EntretienVehicule(
+        id: id,
+        vehiculeId: vehiculeId,
+        immatriculation: ligne.immatriculation,
+        type: type,
+        date: _iso(jour),
+        coutFrancs: coutFrancs,
+        auteur: auteur,
+      );
+    });
+  }
+
   /// Change le statut d'un véhicule — immobilisation et remise en service.
   ///
   /// C'est le SEUL effet qu'une immobilisation peut avoir sur ce poste :

@@ -180,3 +180,31 @@ enum TypeEntretien {
   final String code;
   final String libelle;
 }
+
+/// Une immobilisation du parc — un entretien ou une carburation DATÉ (ligne de
+/// `entretiens_vehicule_local`).
+final class EntretienVehicule {
+  const EntretienVehicule({
+    required this.id,
+    required this.vehiculeId,
+    required this.immatriculation,
+    required this.type,
+    required this.date,
+    required this.coutFrancs,
+    this.auteur,
+  });
+
+  final String id;
+  final String vehiculeId;
+
+  /// « — » quand le véhicule n'est pas (encore) détenu ici.
+  final String immatriculation;
+  final TypeEntretien type;
+
+  /// `AAAA-MM-JJ`.
+  final String date;
+  final int coutFrancs;
+
+  /// Le login de qui l'a saisi, ou `null` (ligne descendue du serveur).
+  final String? auteur;
+}

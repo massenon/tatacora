@@ -126,6 +126,7 @@ class AligneurCatalogue {
       TableDescendue.reservationsTour ||
       TableDescendue.vehicules ||
       TableDescendue.contratsLocation ||
+      TableDescendue.entretiensVehicule ||
       TableDescendue.servicesRh ||
       TableDescendue.employes ||
       TableDescendue.bulletinsPaie => alignerDocument(idLocal, e),

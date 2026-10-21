@@ -77,6 +77,9 @@ enum TableSynchronisee {
   vehicules('vehicules', accepteModification: true),
   contratsLocation('contrats_location', accepteModification: false),
 
+  /// 21/10/2026 : un entretien ou une carburation est un fait daté, jamais modifié.
+  entretiensVehicule('entretiens_vehicule', accepteModification: false),
+
   /// Audit de couverture (18/10/2026) : M13 — le dossier (matricule du
   /// serveur), puis le bulletin (recalculé au serveur ; l'annulation).
   employes('employes', accepteModification: true),

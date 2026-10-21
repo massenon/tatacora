@@ -94,7 +94,13 @@ const tablesAjouteesEnV29 = <String>{'occupations_tables_local'};
 /// La table que la v31 AJOUTE (retraits de la carte du jour, 21/10/2026).
 const tablesAjouteesEnV31 = <String>{'indisponibilites_carte_local'};
 
+/// La table que la v32 AJOUTE (entretiens de véhicules, 21/10/2026).
+const tablesAjouteesEnV32 = <String>{'entretiens_vehicule_local'};
+
 const _ajoutsParVersion = <int, List<String>>{
+  // La v32 ajoute UNE table neuve, sans index ni cle etrangere.
+  32: <String>['DROP TABLE entretiens_vehicule_local'],
+
   // La v31 (retraits de la carte du jour, 21/10/2026) ajoute UNE table neuve,
   // sans index ni cle etrangere : retour arriere symetrique.
   31: <String>['DROP TABLE indisponibilites_carte_local'],
