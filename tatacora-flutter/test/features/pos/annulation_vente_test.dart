@@ -11,7 +11,6 @@ import 'package:tatacora_flutter/features/pos/data/piece_de_la_vente.dart';
 import 'package:tatacora_flutter/features/synchronisation/data/operations_sync_dao.dart';
 import 'package:tatacora_flutter/features/synchronisation/domain/operation_sync.dart';
 
-import '../comptabilite/support/outils_comptabilite.dart';
 import '../facturation/support/outils_encaissement.dart';
 import 'support/outils_ventes.dart';
 

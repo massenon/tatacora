@@ -56,6 +56,17 @@ void main() {
     expect(find.byKey(const Key('shell-banniere')), findsNothing);
   });
 
+  testWidgets('un profil SANS aucun droit sur le module n\'est pas « en '
+      'lecture » : aucun bandeau', (tester) async {
+    await monterCoquille(
+      tester,
+      role: 'guide',
+      droits: {...complet, 'M6': '-'},
+      routeActive: '/stocks',
+    );
+    expect(find.byKey(const Key('shell-banniere')), findsNothing);
+  });
+
   testWidgets('un écran de consultation pure n\'affiche jamais le bandeau', (
     tester,
   ) async {

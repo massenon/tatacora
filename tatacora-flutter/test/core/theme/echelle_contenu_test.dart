@@ -390,6 +390,10 @@ void main() {
         'archivage et bulletin (cinq `<x-pwa.modale>` de `rh/paie.blade.php`, '
         'toutes hors `</main>`). Ce fichier ne porte QUE leurs styles, pour '
         'que la frontière de la vue reste une frontière de fichiers.',
+    'lib/features/pos/presentation/widgets/modales_comptant.dart':
+        'Modales de `pos/comptant.blade.php` — « Vente encaissée », journal '
+        'du jour, annulation, « Stock insuffisant » —, toutes posées après '
+        '`</main>` : le remappage typographique ne les atteint pas.',
     'lib/features/pos/presentation/widgets/modale_cloture_sejour.dart':
         'Modale « Clôturer avant le départ ? » de `pos/heberges.blade.php` '
         '(`<x-pwa.modale>`, l.291-369), posée après `</main>` : le remappage '

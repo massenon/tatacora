@@ -1431,7 +1431,12 @@ class BandeauLectureSeule extends ConsumerWidget {
     }
     final module = moduleDeLaRoute(routeActive);
     final droits = ref.watch(droitsProvider);
-    if (module == null || droits.peutEcrire(module)) {
+    // Un profil SANS aucun droit sur le module n'est pas « en lecture » : la
+    // route lui est refusée (`accesRoute`), la vue répond 403 — aucun bandeau
+    // ne décrit un accès qu'il n'a pas.
+    if (module == null ||
+        droits.peutEcrire(module) ||
+        !droits.peutLire(module)) {
       return const SizedBox.shrink();
     }
     final etroit = Breakpoints.de(context) == Palier.mobile;
