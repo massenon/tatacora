@@ -269,6 +269,8 @@ final class PwaEcritureAutoriseeTest extends TestCase
         'marquerLu',
         // `SynchronisationPostes` (18/10/2026) — même schéma.
         'synchroniser',
+        // « Actualiser » (21/10/2026) : relit l'état des postes, n'écrit rien.
+        'actualiser',
         // Révocation d'appairage (19/10/2026) : ouvrir et fermer la
         // confirmation n'écrit rien ; `revoquer` est inscrite ci-dessous.
         'demanderRevocation',

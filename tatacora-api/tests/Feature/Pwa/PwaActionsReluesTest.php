@@ -273,7 +273,7 @@ final class PwaActionsReluesTest extends TestCase
         // Révocation d'appairage (19/10/2026) : réservée aux Administrateurs,
         // confirmée par la modale ; `demanderRevocation`/`annulerRevocation`
         // n'écrivent rien.
-        SynchronisationPostes::class => ['render', 'synchroniser', 'demanderRevocation', 'annulerRevocation', 'revoquer'],
+        SynchronisationPostes::class => ['render', 'actualiser', 'synchroniser', 'demanderRevocation', 'annulerRevocation', 'revoquer'],
 
         // Mon profil — le changement de mot de passe (01/09/2026, directive
         // du Product Owner). `changerMotDePasse()` n'exige AUCUN module RBAC
