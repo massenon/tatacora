@@ -166,6 +166,13 @@ class PaniersLocal extends Table {
 
   @override
   Set<Column> get primaryKey => {id};
+
+  /// v35 (21/10/2026) : remise du panier — `aucune` | `pourcentage` | `montant`.
+  TextColumn get remiseType => text().withDefault(const Constant('aucune'))();
+
+  /// La valeur saisie en CENTIÈMES (12,5 % = 1250 ; 500 F = 50000).
+  IntColumn get remiseValeurCentiemes =>
+      integer().withDefault(const Constant(0))();
 }
 
 /// Une consommation portée au panier.

@@ -84,6 +84,12 @@ class ArticlesLocal extends Table {
 
   @override
   Set<Column> get primaryKey => {id};
+
+  /// v35 (21/10/2026) : `false` = archivé ; `null` ou `true` = actif. NULLABLE
+  /// à dessein : un fichier ramené en arrière par les fixtures n'a pas la
+  /// colonne, et sa lecture typée ne doit pas lever (`DEFAULT 1` à l'ajout).
+  BoolColumn get actif =>
+      boolean().nullable().withDefault(const Constant(true))();
 }
 
 class MouvementsStockLocal extends Table {

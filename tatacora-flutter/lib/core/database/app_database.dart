@@ -21,6 +21,7 @@ import 'tables/depenses_tables.dart';
 import 'tables/descente_sync_tables.dart';
 import 'tables/indisponibilites_carte_tables.dart';
 import 'tables/conges_plannings_tables.dart';
+import 'tables/complements_v35_tables.dart';
 import 'tables/ecritures_serveur_tables.dart';
 import 'tables/entretiens_vehicule_tables.dart';
 import 'tables/occupations_tables_tables.dart';
@@ -214,6 +215,10 @@ part 'app_database.g.dart';
     PlanningsLocal,
     CongesLocal,
     EcrituresServeurLocal,
+    ImmobilisationsLocal,
+    RelancesClientsLocal,
+    InventairesLocal,
+    LignesInventaireLocal,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -391,7 +396,7 @@ class AppDatabase extends _$AppDatabase {
   /// v32 (21/10/2026) — LES ENTRETIENS DE VÉHICULES : une table neuve
   /// (`entretiens_vehicule_local`, 63 -> 64 tables), aucune colonne ajoutée.
   @override
-  int get schemaVersion => 34;
+  int get schemaVersion => 35;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1077,6 +1082,45 @@ class AppDatabase extends _$AppDatabase {
         // aucune ligne fabriquée. Le curseur est oublié : les écritures déjà au
         // serveur descendent.
         await m.createTable(ecrituresServeurLocal);
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
+      }
+
+      if (from < 35) {
+        // LES COMPLÉMENTS DE LA PWA (21/10/2026, « tout au complet ») : quatre
+        // tables NEUVES et cinq colonnes AJOUTÉES (jamais une table recréée : les
+        // saisies hors ligne sont la seule copie). Défauts = faits : tout
+        // article et tout client d'avant est actif, aucune composition n'est
+        // provisoire, aucun panier n'a de remise. Rien n'est déduit.
+        // ⚠ Ajouts CONDITIONNELS (piège 3).
+        Future<Set<String>> colonnesDe(String t) async => {
+          for (final c
+              in await m.database.customSelect('PRAGMA table_info($t)').get())
+            c.data['name'] as String,
+        };
+        if (!(await colonnesDe('articles_local')).contains('actif')) {
+          await m.addColumn(articlesLocal, articlesLocal.actif);
+        }
+        if (!(await colonnesDe('clients_local')).contains('actif')) {
+          await m.addColumn(clientsLocal, clientsLocal.actif);
+        }
+        if (!(await colonnesDe(
+          'recettes_local',
+        )).contains('composition_provisoire')) {
+          await m.addColumn(recettesLocal, recettesLocal.compositionProvisoire);
+        }
+        final paniers = await colonnesDe('paniers_local');
+        if (!paniers.contains('remise_type')) {
+          await m.addColumn(paniersLocal, paniersLocal.remiseType);
+        }
+        if (!paniers.contains('remise_valeur_centiemes')) {
+          await m.addColumn(paniersLocal, paniersLocal.remiseValeurCentiemes);
+        }
+        await m.createTable(immobilisationsLocal);
+        await m.createTable(relancesClientsLocal);
+        await m.createTable(inventairesLocal);
+        await m.createTable(lignesInventaireLocal);
         await customStatement(
           "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
         );

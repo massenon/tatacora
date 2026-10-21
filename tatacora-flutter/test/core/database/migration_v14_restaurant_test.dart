@@ -234,6 +234,8 @@ void main() {
         'cree_par',
         'modifie_le',
         'modifie_par',
+        // v35 : la composition provisoire (ajoutée en dernier).
+        'composition_provisoire',
       ]);
       expect(await colonnes(apres, 'ingredients_recette_local'), [
         'recette_id',
@@ -271,7 +273,8 @@ void main() {
           'article_id_direct',
           'unites_vendables_par_unite_stock',
           'disponible',
-          'composition_provisoire',
+          // `composition_provisoire` n'est plus interdite : la v35 (21/10/2026)
+          // l'ajoute à `recettes_local`, la PWA l'écrivant.
           'categorie',
           'statut_sync',
         ]) {
@@ -448,6 +451,7 @@ void main() {
         ...tablesAjouteesEnV32,
         ...tablesAjouteesEnV33,
         ...tablesAjouteesEnV34,
+        ...tablesAjouteesEnV35,
       });
       expect(apres.difference(avant), isEmpty);
       await db.close();

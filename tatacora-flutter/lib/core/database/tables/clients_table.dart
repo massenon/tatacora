@@ -23,4 +23,9 @@ class ClientsLocal extends Table {
 
   @override
   Set<Column> get primaryKey => {id};
+
+  /// v35 (21/10/2026) : `false` = archivé ; `null` ou `true` = actif (nullable
+  /// à dessein, comme `articles_local.actif`).
+  BoolColumn get actif =>
+      boolean().nullable().withDefault(const Constant(true))();
 }

@@ -103,7 +103,29 @@ const tablesAjouteesEnV33 = <String>{'plannings_local', 'conges_local'};
 /// La table que la v34 AJOUTE (écritures validées du serveur, 21/10/2026).
 const tablesAjouteesEnV34 = <String>{'ecritures_serveur_local'};
 
+/// Les tables que la v35 AJOUTE (21/10/2026).
+const tablesAjouteesEnV35 = <String>{
+  'immobilisations_local',
+  'relances_clients_local',
+  'inventaires_local',
+  'lignes_inventaire_local',
+};
+
 const _ajoutsParVersion = <int, List<String>>{
+  // La v35 ajoute QUATRE tables neuves et CINQ colonnes (sans index ni cle
+  // etrangere) : retour arriere symetrique.
+  35: <String>[
+    'DROP TABLE immobilisations_local',
+    'DROP TABLE relances_clients_local',
+    'DROP TABLE inventaires_local',
+    'DROP TABLE lignes_inventaire_local',
+    'ALTER TABLE articles_local DROP COLUMN actif',
+    'ALTER TABLE clients_local DROP COLUMN actif',
+    'ALTER TABLE recettes_local DROP COLUMN composition_provisoire',
+    'ALTER TABLE paniers_local DROP COLUMN remise_type',
+    'ALTER TABLE paniers_local DROP COLUMN remise_valeur_centiemes',
+  ],
+
   // La v34 ajoute UNE table neuve, sans index ni cle etrangere.
   34: <String>['DROP TABLE ecritures_serveur_local'],
 

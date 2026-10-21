@@ -161,6 +161,8 @@ void main() {
         'seuil_alerte',
         'suivi',
         'point_stockage_id',
+        // v35 : l'archivage d'un article (ajoutée en dernier).
+        'actif',
       ]);
       expect(await colonnes(apres, 'mouvements_stock_local'), [
         'id',
@@ -187,7 +189,7 @@ void main() {
       // à la v25 (boîte d'envoi de l'éditeur), 58 à la v26 (file d'envoi du
       // poste), 60 à la v27 (descente du catalogue). Les 35 premières sont
       // celles que cette migration a laissées.
-      expect(apres.allTables.length, 67);
+      expect(apres.allTables.length, 71);
       await apres.close();
     });
 

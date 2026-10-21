@@ -102,6 +102,11 @@ class RecettesLocal extends Table {
 
   @override
   Set<Column> get primaryKey => {id};
+
+  /// v35 (21/10/2026) : la composition a été posée, jamais pesée.
+  /// `null` ou `false` = composition pesée (nullable à dessein).
+  BoolColumn get compositionProvisoire =>
+      boolean().nullable().withDefault(const Constant(false))();
 }
 
 /// La composition d'une fiche technique : de VRAIES clés étrangères vers les
