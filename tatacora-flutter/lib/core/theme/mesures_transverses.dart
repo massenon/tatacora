@@ -148,6 +148,15 @@ abstract final class MesuresTransverses {
   static const double colonneCompteMotDePasse = 150;
   static const double colonneCompteActions = 280;
 
+  /// Les colonnes FIXES de « Postes & Appairage » (21/10/2026) : sans elles,
+  /// neuf colonnes libres prennent chacune la largeur de la plus large cellule.
+  /// Une date `jj/mm/aaaa hh:mm`, un utilisateur, un état avec sa ligne de
+  /// détail, le bouton « Révoquer ».
+  static const double colonnePosteUtilisateur = 130;
+  static const double colonnePosteDate = 140;
+  static const double colonnePosteEtat = 260;
+  static const double colonnePosteActions = 120;
+
   /// La colonne « Intitulé » / « Libellé » des tableaux comptables.
   static const double colonneLibelleCompta = 220;
 

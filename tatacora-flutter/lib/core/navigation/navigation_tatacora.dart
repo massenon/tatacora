@@ -461,14 +461,17 @@ const List<GroupeMenu> groupesMenu = [
         page: 'parametres.html',
         route: '/parametres',
       ),
-      // 21/10/2026 : lien direct vers l'écran de synchronisation (jusque-là
-      // atteint seulement par Paramètres → Synchronisation).
+      // 21/10/2026 (demande du PO) : « Postes & Appairage », comme la PWA
+      // (`MenuLateral::NAVIGATION`, entrée « Synchronisation »). La route reste
+      // ouverte à tout compte ; l'entrée suit le droit sur Paramètres. L'écran
+      // de la FILE locale reste atteint par Paramètres → Synchronisation et par
+      // « Voir le détail » du bouton de la barre supérieure.
       DestinationMenu(
         nom: 'Synchronisation',
         icone: IconeModule.importExport,
         module: ModuleTatacora.parametres,
-        page: '(ajout du poste, sans page de la vue)',
-        route: '/synchronisation',
+        page: 'synchronisation-postes.html',
+        route: '/synchronisation-postes',
       ),
     ],
   ),
@@ -489,7 +492,7 @@ List<DestinationMenu> get toutesLesDestinations => [
 ///
 /// ## Pourquoi (Phase 1B, 08/10/2026)
 ///
-/// Le Flutter ne filtrait que par module : un `gerant` voyait onze entrées
+/// Le Flutter ne filtrait que par module : un `gerant` voyait onze entrées (douze depuis « Synchronisation », 21/10/2026)
 /// que la vue lui cache. C'est le premier des trois niveaux du RBAC
 /// (masquage d'interface) ; une entrée qui mène à un refus est de plus une
 /// entrée inerte aux yeux de l'utilisateur (Article 3.3). La liste est celle
@@ -506,6 +509,7 @@ const Map<String, Set<String>> nomsMasquesParRole = {
     'Import & Export',
     'Rôles & Permissions',
     'Paramètres',
+    'Synchronisation',
     'Clients & Créances',
     'Facturation',
   },

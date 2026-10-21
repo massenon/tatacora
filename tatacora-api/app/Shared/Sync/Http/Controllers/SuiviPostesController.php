@@ -37,6 +37,10 @@ class SuiviPostesController
                 'demande_suivie' => $p['demande_suivie'],
                 'appaire' => $p['appaire'],
                 'jeton_utilise_le' => $p['jeton_utilise_le']?->toIso8601String(),
+                'appaire_le' => $p['appaire_le']?->toIso8601String(),
+                'expire_le' => $p['expire_le']?->toIso8601String(),
+                'dernier_controle' => $p['dernier_controle']?->toIso8601String(),
+                'etat' => $p['etat'],
             ], $this->suivi->etats()),
         ]]);
     }

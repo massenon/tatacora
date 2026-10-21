@@ -1079,12 +1079,26 @@ return [
     // synchroniser, pour envoyer les données en local si le serveur a été
     // utilisé pour enregistrer des données ».
     'synchronisation_postes' => [
-        'titre_page' => 'Synchroniser les postes — TATACORA AFRIQUE',
-        'titre' => 'Synchroniser les postes',
-        'sous_titre' => 'Ce qui a été enregistré ici part vers les postes Windows à leur prochain passage. '
-            . 'Le bouton les fait passer tout de suite (moins d\'une minute) : chacun envoie sa file, '
-            . 'puis reçoit tout ce que le serveur détient, tous modules.',
-        'bouton' => 'Synchroniser maintenant',
+        'titre_page' => 'Postes & Appairage — TATACORA AFRIQUE',
+        'titre' => 'Postes & Appairage',
+        'sous_titre' => 'Postes Windows appairés au serveur : leur état, leur dernier contact, l\'expiration de '
+            . 'leur jeton et leur dernier contrôle de cohérence. Ce qui a été enregistré ici part vers eux à leur '
+            . 'prochain passage ; la demande les fait passer tout de suite (moins d\'une minute) : chacun envoie '
+            . 'sa file, puis reçoit tout ce que le serveur détient, tous modules.',
+        'bouton' => 'Demander la synchronisation des postes',
+        'actualiser' => 'Actualiser',
+        'col_utilisateur' => 'Utilisateur',
+        'col_appaire_le' => 'Appairé le',
+        'col_contact' => 'Dernier contact',
+        'col_expiration' => 'Expiration',
+        'col_controle' => 'Dernier contrôle',
+        'col_etat' => 'État',
+        'col_actions' => 'Actions',
+        'sans_expiration' => 'Sans expiration',
+        'etat_actif' => 'Actif',
+        'etat_silencieux' => 'Sans nouvelles',
+        'etat_expire' => 'Expiré',
+        'etat_non_appaire' => 'Non appairé',
         'demande_faite' => 'Demande envoyée le :date. Les postes allumés et connectés la suivent dans la minute.',
         'aucune_demande' => 'Aucune demande de synchronisation n\'a encore été faite depuis le serveur.',
         'derniere_demande' => 'Dernière demande : :date',

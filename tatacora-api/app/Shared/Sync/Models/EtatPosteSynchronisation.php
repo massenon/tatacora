@@ -18,13 +18,14 @@ class EtatPosteSynchronisation extends Model
 
     protected $table = 'etats_postes_synchronisation';
 
-    protected $fillable = ['poste_id', 'utilisateur_id', 'derniere_descente_le', 'en_attente', 'demande_lue_le'];
+    protected $fillable = ['poste_id', 'utilisateur_id', 'derniere_descente_le', 'en_attente', 'demande_lue_le', 'dernier_controle_le'];
 
     protected function casts(): array
     {
         return [
             'derniere_descente_le' => 'datetime',
             'demande_lue_le' => 'datetime',
+            'dernier_controle_le' => 'datetime',
             'en_attente' => 'integer',
         ];
     }

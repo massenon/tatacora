@@ -646,6 +646,25 @@ geste dans sa transaction.
   figés « vingt-quatre destinations » sont passés à 25 ; une phrase de la vue
   doit tenir en UN littéral pour que le comparateur la trouve (le sous-titre).
 
+## Postes & Appairage (21/10/2026)
+
+L'écran « Synchroniser les postes » devient **« Postes & Appairage »**, à la PWA
+(`pwa.synchronisation-postes`) et sur le poste (`/synchronisation-postes`),
+inspiré d'une autre application (demande du PO). Neuf colonnes : Poste,
+Utilisateur, Appairé le (premier jeton), Dernier contact (dernier usage du
+jeton), Expiration (jeton le plus durable ; « Sans expiration »), Dernier envoi,
+Dernier contrôle, État, Actions (« Révoquer »), plus « Actualiser » (relit,
+n'écrit rien) et « Demander la synchronisation des postes ». L'**état** est
+calculé par le serveur (`SuiviPostesService::etats()`) : `actif`, `sans
+nouvelles` (jeton valide, silence de plus de 24 h), `expiré`, `non appairé` ;
+un code inconnu se lit « non appairé », jamais « actif ». Le « dernier contrôle »
+est noté quand le poste passe sur `GET /sync/coherence` (colonne
+`dernier_controle_le`, son nom est celui de son jeton). L'entrée de menu
+« Synchronisation » est dans « Pilotage & administration » des deux côtés (droit
+Paramètres, masquée au gérant) en plus de l'entrée du menu de compte ; l'écran
+de la FILE locale du poste (`/synchronisation`) reste atteint par Paramètres →
+Synchronisation et par « Voir le détail » du bouton de la barre supérieure.
+
 ## Exploitation : cron et vérifications (19/10/2026)
 
 `docs/LISTE_DES_CRON_JOBS_CPANEL.md` (une ligne cron `schedule:run`, test

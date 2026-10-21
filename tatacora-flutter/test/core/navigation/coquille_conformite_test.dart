@@ -152,14 +152,14 @@ void main() {
       expect(destinationsEpinglees.where(estAjout), isEmpty);
     });
 
-    test('vingt-cinq destinations de la PWA, plus les ajouts déclarés', () {
+    test('vingt-six destinations de la PWA, plus les ajouts déclarés', () {
       final pwa =
           registre.epinglees.length +
           registre.groupes.fold<int>(0, (s, g) => s + g.items.length);
       expect(destinationsDeLaVue(), hasLength(pwa));
-      expect(destinationsDeLaVue(), hasLength(25));
+      expect(destinationsDeLaVue(), hasLength(26));
       // Le total Flutter : la vue, plus chaque ajout déclaré — et aucun autre.
-      expect(toutesLesDestinations, hasLength(25 + ajoutsMenuPoste.length));
+      expect(toutesLesDestinations, hasLength(26 + ajoutsMenuPoste.length));
     });
 
     test('chaque ajout du poste est daté, motivé, et ABSENT de la PWA', () {
@@ -318,12 +318,7 @@ void main() {
 
     test('aucun libellé, aucune page d’origine n’est en double', () {
       final noms = toutesLesDestinations.map((d) => d.nom).toList();
-      // Les ajouts du poste partagent la même page factice (`pageAjoutDuPoste`,
-      // vérifiée plus haut) : seules les entrées de la VUE ont une page propre.
-      final pages = [
-        for (final d in toutesLesDestinations)
-          if (!estAjout(d)) d.page,
-      ];
+      final pages = toutesLesDestinations.map((d) => d.page).toList();
 
       expect(noms.toSet(), hasLength(noms.length), reason: 'libellé en double');
       expect(
@@ -407,10 +402,11 @@ void main() {
       // de menu n'existe que pour qui connaît son URL — c'est-à-dire pour
       // personne, au comptoir.
       const horsMenu = {
-        // Deux chemins n'ont volontairement pas d'entrée : ils précèdent la
+        // Trois chemins n'ont volontairement pas d'entrée : ils précèdent la
         // session ou sont atteints par un geste, pas par le menu.
         '/demarrage',
         '/connexion',
+        '/synchronisation',
       };
 
       // Le MENU DE COMPTE de la barre supérieure est aussi un menu (D424) :
@@ -447,7 +443,7 @@ void main() {
       }
     });
 
-    test('les vingt-cinq destinations ont un écran (D424)', () {
+    test('les vingt-six destinations ont un écran (D424)', () {
       final avec = destinationsDeLaVue().where((d) => d.aUnEcran).toList();
       // Les ajouts du poste ont le leur (le routeur le sert : voir « toute
       // route annoncée au menu EXISTE au routeur »).
@@ -466,11 +462,13 @@ void main() {
       // Export et Rôles & Permissions sont portés et branchés.
       // 24 → 25 le 21/10/2026 : « Congés & Plannings », créé à la PWA et repris
       // par le poste le même jour.
+      // 25 → 26 le 21/10/2026 : « Synchronisation » (Postes & Appairage), créée à
+      // la PWA et reprise par le poste le même jour.
       expect(
         avec,
-        hasLength(25),
+        hasLength(26),
         reason:
-            'couverture du MENU : ${avec.length}/25 — mettre à jour '
+            'couverture du MENU : ${avec.length}/26 — mettre à jour '
             'AUDIT_CONFORMITE_ECRANS_FLUTTER.md §3 en même temps que ce chiffre',
       );
 

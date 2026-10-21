@@ -91,6 +91,15 @@ class _EtatEcranSynchronisationPostes
     await _relire();
   }
 
+  /// « Actualiser » : relit l'état des postes au serveur. Rien n'est écrit.
+  Future<void> _actualiser() async {
+    setState(() {
+      _confirmation = null;
+      _etat = null;
+    });
+    await _relire();
+  }
+
   Future<void> _synchroniser() async {
     setState(() => _enCours = true);
     final le = await ref.read(serviceSuiviPostesProvider).demander();
@@ -124,11 +133,23 @@ class _EtatEcranSynchronisationPostes
         ),
         Align(
           alignment: Alignment.centerLeft,
-          child: BoutonTransverse(
-            cle: const Key('bouton-synchroniser-postes'),
-            libelle: TextesSynchronisationPostes.bouton,
-            fond: AppColors.navy,
-            onTap: _enCours ? () {} : _synchroniser,
+          child: Wrap(
+            spacing: AppSpacing.xs,
+            runSpacing: AppSpacing.xs,
+            children: [
+              BoutonTransverse(
+                cle: const Key('bouton-actualiser-postes'),
+                libelle: TextesSynchronisationPostes.actualiser,
+                fond: Ardoise.c600,
+                onTap: _actualiser,
+              ),
+              BoutonTransverse(
+                cle: const Key('bouton-synchroniser-postes'),
+                libelle: TextesSynchronisationPostes.bouton,
+                fond: AppColors.navy,
+                onTap: _enCours ? () {} : _synchroniser,
+              ),
+            ],
           ),
         ),
         const SizedBox(height: AppSpacing.md),
@@ -147,116 +168,139 @@ class _EtatEcranSynchronisationPostes
             key: const Key('suivi-postes-indisponible'),
             style: petit,
           ),
-          SuiviPostesLu(:final demandeeLe, :final postes, :final cePoste) =>
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  demandeeLe == null
-                      ? TextesSynchronisationPostes.aucuneDemande
-                      : TextesSynchronisationPostes.derniereDemande(
-                          _horodatage(demandeeLe),
+          SuiviPostesLu(:final demandeeLe, :final postes, :final cePoste) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                demandeeLe == null
+                    ? TextesSynchronisationPostes.aucuneDemande
+                    : TextesSynchronisationPostes.derniereDemande(
+                        _horodatage(demandeeLe),
+                      ),
+                key: const Key('derniere-demande'),
+                style: petit,
+              ),
+              const SizedBox(height: AppSpacing.md),
+              CarteTransverse(
+                padding: EdgeInsets.zero,
+                child: TableauTransverse(
+                  colonnes: const [
+                    (
+                      titre: TextesSynchronisationPostes.colPoste,
+                      alignement: TextAlign.left,
+                    ),
+                    (
+                      titre: TextesSynchronisationPostes.colUtilisateur,
+                      alignement: TextAlign.left,
+                    ),
+                    (
+                      titre: TextesSynchronisationPostes.colAppaireLe,
+                      alignement: TextAlign.left,
+                    ),
+                    (
+                      titre: TextesSynchronisationPostes.colContact,
+                      alignement: TextAlign.left,
+                    ),
+                    (
+                      titre: TextesSynchronisationPostes.colExpiration,
+                      alignement: TextAlign.left,
+                    ),
+                    (
+                      titre: TextesSynchronisationPostes.colMontee,
+                      alignement: TextAlign.left,
+                    ),
+                    (
+                      titre: TextesSynchronisationPostes.colControle,
+                      alignement: TextAlign.left,
+                    ),
+                    (
+                      titre: TextesSynchronisationPostes.colEtat,
+                      alignement: TextAlign.left,
+                    ),
+                    (
+                      titre: TextesSynchronisationPostes.colActions,
+                      alignement: TextAlign.right,
+                    ),
+                  ],
+                  largeurs: const {
+                    1: MesuresTransverses.colonnePosteUtilisateur,
+                    2: MesuresTransverses.colonnePosteDate,
+                    3: MesuresTransverses.colonnePosteDate,
+                    4: MesuresTransverses.colonnePosteDate,
+                    5: MesuresTransverses.colonnePosteDate,
+                    6: MesuresTransverses.colonnePosteDate,
+                    7: MesuresTransverses.colonnePosteEtat,
+                    8: MesuresTransverses.colonnePosteActions,
+                  },
+                  lignes: [
+                    for (final p in postes)
+                      [
+                        Text(p.posteId, style: petit),
+                        Text(
+                          p.utilisateur ?? TextesSynchronisationPostes.jamais,
+                          style: petit,
                         ),
-                  key: const Key('derniere-demande'),
-                  style: petit,
-                ),
-                const SizedBox(height: AppSpacing.md),
-                CarteTransverse(
-                  padding: EdgeInsets.zero,
-                  child: TableauTransverse(
-                    colonnes: const [
-                      (
-                        titre: TextesSynchronisationPostes.colPoste,
-                        alignement: TextAlign.left,
-                      ),
-                      (
-                        titre: TextesSynchronisationPostes.colCompte,
-                        alignement: TextAlign.left,
-                      ),
-                      (
-                        titre: TextesSynchronisationPostes.colMontee,
-                        alignement: TextAlign.left,
-                      ),
-                      (
-                        titre: TextesSynchronisationPostes.colDescente,
-                        alignement: TextAlign.left,
-                      ),
-                      (
-                        titre: TextesSynchronisationPostes.colAttente,
-                        alignement: TextAlign.left,
-                      ),
-                      (
-                        titre: TextesSynchronisationPostes.colDemande,
-                        alignement: TextAlign.left,
-                      ),
-                      (
-                        titre: TextesSynchronisationPostes.colAppairage,
-                        alignement: TextAlign.left,
-                      ),
-                    ],
-                    lignes: [
-                      for (final p in postes)
-                        [
-                          Text(p.posteId, style: petit),
-                          Text(
-                            p.utilisateur ?? TextesSynchronisationPostes.jamais,
-                            style: petit,
-                          ),
-                          Text(_jour(p.derniereMontee), style: petit),
-                          Text(_jour(p.derniereDescente), style: petit),
-                          Text(
-                            p.enAttente?.toString() ??
-                                TextesSynchronisationPostes.jamais,
-                            style: petit,
-                          ),
-                          Text(
-                            p.demandeSuivie
-                                ? TextesSynchronisationPostes.demandeSuivie
-                                : TextesSynchronisationPostes.demandeNonSuivie,
-                            style: styleTransverse(
-                              TaillesContenu.sm,
-                              couleur: p.demandeSuivie
-                                  ? AppColors.succes
-                                  : AppColors.alerte,
-                            ),
-                          ),
-                          Wrap(
-                            spacing: AppSpacing.sm,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            children: [
-                              Text(
-                                !p.appaire
-                                    ? TextesSynchronisationPostes.revoque
-                                    : p.jetonUtiliseLe == null
-                                    ? TextesSynchronisationPostes.appaire
-                                    : TextesSynchronisationPostes.appaireUtilise(
-                                        _jour(p.jetonUtiliseLe),
-                                      ),
-                                style: styleTransverse(
-                                  TaillesContenu.sm,
-                                  couleur: p.appaire
-                                      ? AppColors.succes
-                                      : Ardoise.c500,
-                                ),
+                        Text(_jour(p.appaireLe), style: petit),
+                        Text(_jour(p.jetonUtiliseLe), style: petit),
+                        Text(
+                          !p.appaire
+                              ? TextesSynchronisationPostes.jamais
+                              : p.expireLe == null
+                              ? TextesSynchronisationPostes.sansExpiration
+                              : _jour(p.expireLe),
+                          style: petit,
+                        ),
+                        Text(_jour(p.derniereMontee), style: petit),
+                        Text(_jour(p.dernierControle), style: petit),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              TextesSynchronisationPostes.etat(p.etat),
+                              key: Key('etat-${p.posteId}'),
+                              style: styleTransverse(
+                                TaillesContenu.sm,
+                                poids: FontWeight.w600,
+                                couleur: switch (p.etat) {
+                                  EtatAppairage.actif => AppColors.succes,
+                                  EtatAppairage.silencieux => AppColors.alerte,
+                                  EtatAppairage.expire => AppColors.erreur,
+                                  EtatAppairage.nonAppaire => Ardoise.c500,
+                                },
                               ),
-                              if (admin && p.appaire && p.posteId != cePoste)
-                                BoutonTransverse(
+                            ),
+                            Text(
+                              '${TextesSynchronisationPostes.colAttente} : '
+                              '${p.enAttente?.toString() ?? TextesSynchronisationPostes.jamais} · '
+                              '${p.demandeSuivie ? TextesSynchronisationPostes.demandeSuivie : TextesSynchronisationPostes.demandeNonSuivie}',
+                              style: styleTransverse(
+                                TaillesContenu.t12,
+                                couleur: Ardoise.c500,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: admin && p.appaire && p.posteId != cePoste
+                              ? BoutonTransverse(
                                   cle: Key('revoquer-${p.posteId}'),
                                   libelle: TextesSynchronisationPostes
                                       .boutonRevoquer,
                                   fond: AppColors.erreur,
                                   onTap: () => _revoquer(p.posteId),
-                                ),
-                            ],
-                          ),
-                        ],
-                    ],
-                    vide: TextesSynchronisationPostes.aucunPoste,
-                    cleVide: const Key('suivi-postes-vide'),
-                  ),
+                                )
+                              : const SizedBox.shrink(),
+                        ),
+                      ],
+                  ],
+                  vide: TextesSynchronisationPostes.aucunPoste,
+                  cleVide: const Key('suivi-postes-vide'),
                 ),
-              ],
-            ),
+              ),
+            ],
+          ),
         },
         const SizedBox(height: AppSpacing.md),
         Text(
@@ -281,10 +325,25 @@ class _EtatEcranSynchronisationPostes
 
 /// Les textes de la vue (`pwa.synchronisation_postes.*`), au mot.
 abstract final class TextesSynchronisationPostes {
-  static const String titre = 'Synchroniser les postes';
+  static const String titre = 'Postes & Appairage';
   static const String sousTitre =
-      "Ce qui a été enregistré ici part vers les postes Windows à leur prochain passage. Le bouton les fait passer tout de suite (moins d'une minute) : chacun envoie sa file, puis reçoit tout ce que le serveur détient, tous modules.";
-  static const String bouton = 'Synchroniser maintenant';
+      "Postes Windows appairés au serveur : leur état, leur dernier contact, l'expiration de leur jeton et leur dernier contrôle de cohérence. Ce qui a été enregistré ici part vers eux à leur prochain passage ; la demande les fait passer tout de suite (moins d'une minute) : chacun envoie sa file, puis reçoit tout ce que le serveur détient, tous modules.";
+  static const String bouton = 'Demander la synchronisation des postes';
+  static const String actualiser = 'Actualiser';
+  static const String colUtilisateur = 'Utilisateur';
+  static const String colAppaireLe = 'Appairé le';
+  static const String colContact = 'Dernier contact';
+  static const String colExpiration = 'Expiration';
+  static const String colControle = 'Dernier contrôle';
+  static const String colEtat = 'État';
+  static const String colActions = 'Actions';
+  static const String sansExpiration = 'Sans expiration';
+  static String etat(EtatAppairage e) => switch (e) {
+    EtatAppairage.actif => 'Actif',
+    EtatAppairage.silencieux => 'Sans nouvelles',
+    EtatAppairage.expire => 'Expiré',
+    EtatAppairage.nonAppaire => 'Non appairé',
+  };
   static String demandeFaite(String date) =>
       'Demande envoyée le $date. Les postes allumés et connectés la suivent dans la minute.';
   static const String aucuneDemande =

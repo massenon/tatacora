@@ -64,9 +64,10 @@ final class RevocationAppairageTest extends TestCase
 
         $this->actingAs($this->admin);
         Livewire::test(SynchronisationPostes::class)
-            ->assertSee('Appairage')
+            ->assertSee('Appairé le')
             ->assertSee('PC-RECEPTION')
-            ->assertSee('Appairé — dernier usage 19/10/2026 09:00')
+            ->assertSee('19/10/2026 09:00')
+            ->assertSee('Actif')
             ->call('demanderRevocation', 'PC-RECEPTION')
             ->assertSet('posteARevoquer', 'PC-RECEPTION')
             ->assertSee('Révoquer l\'appairage du poste « PC-RECEPTION » ?')

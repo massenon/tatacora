@@ -57,6 +57,7 @@ final class MenuLateral
             'pwa.import-export',
             'pwa.roles-permissions',
             'pwa.parametres',
+            'pwa.synchronisation-postes',
             'pwa.clients',
             'pwa.facturation',
         ],
@@ -132,6 +133,11 @@ final class MenuLateral
             ['nom' => 'Import & Export', 'icone' => 'import', 'module' => 'PARAM', 'route' => 'pwa.import-export'],
             ['nom' => 'Rôles & Permissions', 'icone' => 'roles', 'module' => 'ROLES', 'route' => 'pwa.roles-permissions'],
             ['nom' => 'Paramètres', 'icone' => 'parametres', 'module' => 'PARAM', 'route' => 'pwa.parametres'],
+            // 21/10/2026 (demande du PO) : « Postes & Appairage » a son entrée de menu,
+            // en plus de celle du menu de compte (qui reste, ouverte à tout
+            // compte). L'entrée de menu suit le droit sur Paramètres ; la route
+            // elle-même n'exige aucun module.
+            ['nom' => 'Synchronisation', 'icone' => 'import', 'module' => 'PARAM', 'route' => 'pwa.synchronisation-postes'],
         ]],
     ];
 

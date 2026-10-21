@@ -12,10 +12,16 @@
             <h1 class="text-lg lg:text-xl font-bold" style="color:var(--navy)">{{ __('pwa.synchronisation_postes.titre') }}</h1>
             <p class="text-[15px] text-slate-500 mt-1.5">{{ __('pwa.synchronisation_postes.sous_titre') }}</p>
           </div>
-          <button id="bouton-synchroniser-postes" type="button" wire:click="synchroniser" wire:loading.attr="disabled"
-                  class="bouton-primaire rounded-lg px-5 py-2.5 text-sm font-semibold text-white bg-[var(--navy)] hover:opacity-90">
-            {{ __('pwa.synchronisation_postes.bouton') }}
-          </button>
+          <div class="flex flex-wrap gap-2 items-center">
+            <button id="bouton-actualiser-postes" type="button" wire:click="actualiser" wire:loading.attr="disabled"
+                    class="rounded-lg px-4 py-2.5 text-sm font-semibold border border-slate-300 text-slate-700 hover:bg-white">
+              {{ __('pwa.synchronisation_postes.actualiser') }}
+            </button>
+            <button id="bouton-synchroniser-postes" type="button" wire:click="synchroniser" wire:loading.attr="disabled"
+                    class="bouton-primaire rounded-lg px-5 py-2.5 text-sm font-semibold text-white bg-[var(--navy)] hover:opacity-90">
+              {{ __('pwa.synchronisation_postes.bouton') }}
+            </button>
+          </div>
         </div>
 
         @if ($refusRevocation)
@@ -40,43 +46,53 @@
               <thead class="bg-[var(--navy)]">
                 <tr class="text-left text-[11px] font-semibold text-white/90 uppercase tracking-wide">
                   <th class="px-5 py-3">{{ __('pwa.synchronisation_postes.col_poste') }}</th>
-                  <th class="px-5 py-3">{{ __('pwa.synchronisation_postes.col_compte') }}</th>
+                  <th class="px-5 py-3">{{ __('pwa.synchronisation_postes.col_utilisateur') }}</th>
+                  <th class="px-5 py-3">{{ __('pwa.synchronisation_postes.col_appaire_le') }}</th>
+                  <th class="px-5 py-3">{{ __('pwa.synchronisation_postes.col_contact') }}</th>
+                  <th class="px-5 py-3">{{ __('pwa.synchronisation_postes.col_expiration') }}</th>
                   <th class="px-5 py-3">{{ __('pwa.synchronisation_postes.col_montee') }}</th>
-                  <th class="px-5 py-3">{{ __('pwa.synchronisation_postes.col_descente') }}</th>
-                  <th class="px-5 py-3">{{ __('pwa.synchronisation_postes.col_attente') }}</th>
-                  <th class="px-5 py-3">{{ __('pwa.synchronisation_postes.col_demande') }}</th>
-                  <th class="px-5 py-3">{{ __('pwa.synchronisation_postes.col_appairage') }}</th>
+                  <th class="px-5 py-3">{{ __('pwa.synchronisation_postes.col_controle') }}</th>
+                  <th class="px-5 py-3">{{ __('pwa.synchronisation_postes.col_etat') }}</th>
+                  <th class="px-5 py-3 text-right">{{ __('pwa.synchronisation_postes.col_actions') }}</th>
                 </tr>
               </thead>
               <tbody id="corps-postes">
                 @forelse ($postes as $poste)
-                  <tr class="border-t border-slate-100">
+                  <tr class="border-t border-slate-100" wire:key="poste-{{ $poste['poste_id'] }}">
                     <td class="px-5 py-3 font-medium text-slate-700">{{ $poste['poste_id'] }}</td>
                     <td class="px-5 py-3 text-slate-600">{{ $poste['utilisateur'] ?? __('pwa.synchronisation_postes.jamais') }}</td>
-                    <td class="px-5 py-3 text-slate-600">{{ $poste['derniere_montee']?->format('d/m/Y H:i') ?? __('pwa.synchronisation_postes.jamais') }}</td>
-                    <td class="px-5 py-3 text-slate-600">{{ $poste['derniere_descente']?->format('d/m/Y H:i') ?? __('pwa.synchronisation_postes.jamais') }}</td>
-                    <td class="px-5 py-3 text-slate-600">{{ $poste['en_attente'] ?? __('pwa.synchronisation_postes.jamais') }}</td>
-                    <td class="px-5 py-3 {{ $poste['demande_suivie'] ? 'text-emerald-700' : 'text-amber-700' }}">
-                      {{ $poste['demande_suivie'] ? __('pwa.synchronisation_postes.demande_suivie') : __('pwa.synchronisation_postes.demande_non_suivie') }}
+                    <td class="px-5 py-3 text-slate-600">{{ $poste['appaire_le']?->format('d/m/Y H:i') ?? __('pwa.synchronisation_postes.jamais') }}</td>
+                    <td class="px-5 py-3 text-slate-600">{{ $poste['jeton_utilise_le']?->format('d/m/Y H:i') ?? __('pwa.synchronisation_postes.jamais') }}</td>
+                    <td class="px-5 py-3 text-slate-600">
+                      @if (! $poste['appaire'])
+                        {{ __('pwa.synchronisation_postes.jamais') }}
+                      @else
+                        {{ $poste['expire_le']?->format('d/m/Y H:i') ?? __('pwa.synchronisation_postes.sans_expiration') }}
+                      @endif
                     </td>
+                    <td class="px-5 py-3 text-slate-600">{{ $poste['derniere_montee']?->format('d/m/Y H:i') ?? __('pwa.synchronisation_postes.jamais') }}</td>
+                    <td class="px-5 py-3 text-slate-600">{{ $poste['dernier_controle']?->format('d/m/Y H:i') ?? __('pwa.synchronisation_postes.jamais') }}</td>
                     <td class="px-5 py-3">
-                      <div class="flex items-center gap-3">
-                        <span class="{{ $poste['appaire'] ? 'text-emerald-700' : 'text-slate-500' }}">
-                          @if ($poste['appaire'])
-                            {{ $poste['jeton_utilise_le'] ? __('pwa.synchronisation_postes.appaire_utilise', ['date' => $poste['jeton_utilise_le']->format('d/m/Y H:i')]) : __('pwa.synchronisation_postes.appaire') }}
-                          @else
-                            {{ __('pwa.synchronisation_postes.revoque') }}
-                          @endif
-                        </span>
-                        @if ($peutRevoquer && $poste['appaire'])
-                          <button type="button" wire:click="demanderRevocation(@js($poste['poste_id']))"
-                                  class="text-[13px] px-3 py-1.5 rounded-lg border border-red-200 text-red-700 hover:bg-red-50">{{ __('pwa.synchronisation_postes.bouton_revoquer') }}</button>
-                        @endif
+                      <span class="text-[11px] px-1.5 py-0.5 rounded font-semibold {{ match ($poste['etat']) {
+                          'actif' => 'bg-emerald-50 text-emerald-700',
+                          'silencieux' => 'bg-amber-50 text-amber-700',
+                          'expire' => 'bg-red-50 text-red-700',
+                          default => 'bg-slate-100 text-slate-600',
+                      } }}">{{ __('pwa.synchronisation_postes.etat_'.$poste['etat']) }}</span>
+                      <div class="text-[12px] text-slate-500 mt-1">
+                        {{ __('pwa.synchronisation_postes.col_attente') }} : {{ $poste['en_attente'] ?? __('pwa.synchronisation_postes.jamais') }}
+                        · {{ $poste['demande_suivie'] ? __('pwa.synchronisation_postes.demande_suivie') : __('pwa.synchronisation_postes.demande_non_suivie') }}
                       </div>
+                    </td>
+                    <td class="px-5 py-3 text-right">
+                      @if ($peutRevoquer && $poste['appaire'])
+                        <button type="button" wire:click="demanderRevocation(@js($poste['poste_id']))"
+                                class="text-[13px] px-3 py-1.5 rounded-lg border border-red-200 text-red-700 hover:bg-red-50">{{ __('pwa.synchronisation_postes.bouton_revoquer') }}</button>
+                      @endif
                     </td>
                   </tr>
                 @empty
-                  <tr><td colspan="7" class="px-5 py-6 text-center text-slate-500">{{ __('pwa.synchronisation_postes.aucun_poste') }}</td></tr>
+                  <tr><td colspan="9" class="px-5 py-6 text-center text-slate-500">{{ __('pwa.synchronisation_postes.aucun_poste') }}</td></tr>
                 @endforelse
               </tbody>
             </table>

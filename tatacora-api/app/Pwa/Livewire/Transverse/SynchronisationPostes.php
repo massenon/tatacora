@@ -30,7 +30,7 @@ use RuntimeException;
  * confirmation par la modale du dépôt, jamais `wire:confirm`. Le poste
  * révoqué garde sa file intacte et le dit jusqu'au réappairage.
  */
-#[Title('Synchroniser les postes — TATACORA AFRIQUE')]
+#[Title('Postes & Appairage — TATACORA AFRIQUE')]
 class SynchronisationPostes extends PageTransverse
 {
     public ?string $confirmation = null;
@@ -39,6 +39,16 @@ class SynchronisationPostes extends PageTransverse
     public ?string $posteARevoquer = null;
 
     public ?string $refusRevocation = null;
+
+    /**
+     * « Actualiser » : relit l'état des postes. Rien n'est écrit — le rendu
+     * suivant interroge `SuiviPostesService::etats()`.
+     */
+    public function actualiser(): void
+    {
+        $this->confirmation = null;
+        $this->refusRevocation = null;
+    }
 
     public function synchroniser(SuiviPostesService $suivi): void
     {

@@ -413,6 +413,16 @@
                         "cliquable": true,
                         "href": "/pwa/parametres",
                         "icone": "cf62b51c"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Synchronisation",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/synchronisation-postes",
+                        "icone": "a4e5b27c"
                     }
                 ],
                 "pied": {
@@ -2001,6 +2011,16 @@
                         "cliquable": true,
                         "href": "/pwa/parametres",
                         "icone": "cf62b51c"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Synchronisation",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/synchronisation-postes",
+                        "icone": "a4e5b27c"
                     }
                 ],
                 "pied": {
@@ -2186,6 +2206,9 @@
         ],
         "Paramètres": [
             "Paramètres"
+        ],
+        "Synchronisation": [
+            "Synchronisation"
         ]
     }
 }

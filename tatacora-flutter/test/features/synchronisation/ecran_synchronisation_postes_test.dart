@@ -25,6 +25,7 @@ final class _ServiceFactice extends ServiceSuiviPostes {
   IssueSuiviPostes etat;
   final DateTime? demande;
   int demandes = 0;
+  int lectures = 0;
   final List<String> revoques = [];
 
   @override
@@ -34,7 +35,10 @@ final class _ServiceFactice extends ServiceSuiviPostes {
   }
 
   @override
-  Future<IssueSuiviPostes> lire() async => etat;
+  Future<IssueSuiviPostes> lire() async {
+    lectures++;
+    return etat;
+  }
 
   @override
   Future<DateTime?> demander() async {
@@ -108,12 +112,115 @@ void main() {
       ),
     );
 
-    expect(find.text('Synchroniser les postes'), findsOneWidget);
+    expect(find.text('Postes & Appairage'), findsOneWidget);
     expect(find.text('Dernière demande : 18/10/2026 10:00:00'), findsOneWidget);
     expect(find.text('COMPTOIR'), findsOneWidget);
-    expect(find.text('18/10/2026 10:00'), findsOneWidget);
-    expect(find.text('Reçue'), findsOneWidget);
-    expect(find.text('Pas encore reçue'), findsOneWidget);
+    expect(
+      find.text('18/10/2026 09:58'),
+      findsOneWidget,
+      reason: 'dernier envoi',
+    );
+    expect(find.textContaining('· Reçue'), findsOneWidget);
+    expect(find.textContaining('· Pas encore reçue'), findsOneWidget);
+  });
+
+  testWidgets('les neuf colonnes de « Postes & Appairage », leurs dates et '
+      'l’état de chaque poste', (tester) async {
+    await monter(
+      tester,
+      _ServiceFactice(
+        SuiviPostesLu(
+          demandeeLe: null,
+          postes: [
+            EtatPosteServeur(
+              posteId: 'COMPTOIR',
+              utilisateur: 'caisse1',
+              derniereMontee: DateTime(2026, 10, 21, 9, 30),
+              derniereDescente: null,
+              enAttente: 3,
+              demandeSuivie: true,
+              appaire: true,
+              appaireLe: DateTime(2026, 10, 1, 8),
+              jetonUtiliseLe: DateTime(2026, 10, 21, 9, 45),
+              expireLe: DateTime(2026, 11, 1, 8),
+              dernierControle: DateTime(2026, 10, 20, 17, 5),
+              etat: EtatAppairage.actif,
+            ),
+            EtatPosteServeur(
+              posteId: 'ANCIEN',
+              utilisateur: null,
+              derniereMontee: null,
+              derniereDescente: null,
+              enAttente: null,
+              demandeSuivie: true,
+              appaire: true,
+              appaireLe: DateTime(2026, 9, 1),
+              jetonUtiliseLe: DateTime(2026, 9, 2),
+              etat: EtatAppairage.silencieux,
+            ),
+            const EtatPosteServeur(
+              posteId: 'PERDU',
+              utilisateur: null,
+              derniereMontee: null,
+              derniereDescente: null,
+              enAttente: null,
+              demandeSuivie: true,
+            ),
+          ],
+        ),
+      ),
+    );
+
+    for (final colonne in [
+      'POSTE',
+      'UTILISATEUR',
+      'APPAIRÉ LE',
+      'DERNIER CONTACT',
+      'EXPIRATION',
+      'DERNIER ENVOI',
+      'DERNIER CONTRÔLE',
+      'ÉTAT',
+      'ACTIONS',
+    ]) {
+      expect(find.text(colonne), findsOneWidget, reason: colonne);
+    }
+    expect(find.text('Actualiser'), findsOneWidget);
+    expect(find.text('Demander la synchronisation des postes'), findsOneWidget);
+    expect(find.text('01/10/2026 08:00'), findsOneWidget, reason: 'appairé le');
+    expect(find.text('21/10/2026 09:45'), findsOneWidget, reason: 'contact');
+    expect(find.text('01/11/2026 08:00'), findsOneWidget, reason: 'expiration');
+    expect(find.text('20/10/2026 17:05'), findsOneWidget, reason: 'contrôle');
+    expect(find.text('Sans expiration'), findsOneWidget, reason: 'ANCIEN');
+
+    expect(
+      tester.widget<Text>(find.byKey(const Key('etat-COMPTOIR'))).data,
+      'Actif',
+    );
+    expect(
+      tester.widget<Text>(find.byKey(const Key('etat-ANCIEN'))).data,
+      'Sans nouvelles',
+    );
+    expect(
+      tester.widget<Text>(find.byKey(const Key('etat-PERDU'))).data,
+      'Non appairé',
+    );
+    expect(find.textContaining('En attente d\'envoi : 3'), findsOneWidget);
+  });
+
+  testWidgets('« Actualiser » relit le serveur sans rien demander', (
+    tester,
+  ) async {
+    final service = _ServiceFactice(
+      const SuiviPostesLu(demandeeLe: null, postes: []),
+    );
+    await monter(tester, service);
+    final lecturesAvant = service.lectures;
+
+    await tester.tap(find.byKey(const Key('bouton-actualiser-postes')));
+    await tester.pumpAndSettle();
+
+    expect(service.lectures, lecturesAvant + 1);
+    expect(service.demandes, 0, reason: 'actualiser n’écrit rien');
   });
 
   testWidgets('le bouton enregistre la demande et la confirme', (tester) async {
@@ -187,12 +294,8 @@ void main() {
       final service = _ServiceFactice(deuxPostes());
       await monter(tester, service, role: 'administrateur');
 
-      expect(find.text('APPAIRAGE'), findsOneWidget);
-      expect(
-        find.text('Appairé — dernier usage 19/10/2026 08:30'),
-        findsNWidgets(2),
-      );
-      expect(find.text('Non appairé'), findsOneWidget);
+      expect(find.text('ACTIONS'), findsOneWidget);
+      expect(find.text('19/10/2026 08:30'), findsNWidgets(2));
       expect(find.byKey(const Key('revoquer-COMPTOIR')), findsNothing);
       expect(find.byKey(const Key('revoquer-ANCIEN')), findsNothing);
 

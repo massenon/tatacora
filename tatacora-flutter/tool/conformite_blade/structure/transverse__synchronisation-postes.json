@@ -6,15 +6,19 @@
         "principal": [
             {
                 "type": "h1",
-                "texte": "Synchroniser les postes"
+                "texte": "Postes & Appairage"
             },
             {
                 "type": "p",
-                "texte": "Ce qui a été enregistré ici part vers les postes Windows à leur prochain passage. Le bouton les fait passer tout de suite (moins d'une minute) : chacun envoie sa file, puis reçoit tout ce que le serveur détient, tous modules."
+                "texte": "Postes Windows appairés au serveur : leur état, leur dernier contact, l'expiration de leur jeton et leur dernier contrôle de cohérence. Ce qui a été enregistré ici part vers eux à leur prochain passage ; la demande les fait passer tout de suite (moins d'une minute) : chacun envoie sa file, puis reçoit tout ce que le serveur détient, tous modules."
             },
             {
                 "type": "button",
-                "texte": "Synchroniser maintenant"
+                "texte": "Actualiser"
+            },
+            {
+                "type": "button",
+                "texte": "Demander la synchronisation des postes"
             },
             {
                 "type": "p",
@@ -26,7 +30,19 @@
             },
             {
                 "type": "th",
-                "texte": "Compte"
+                "texte": "Utilisateur"
+            },
+            {
+                "type": "th",
+                "texte": "Appairé le"
+            },
+            {
+                "type": "th",
+                "texte": "Dernier contact"
+            },
+            {
+                "type": "th",
+                "texte": "Expiration"
             },
             {
                 "type": "th",
@@ -34,19 +50,15 @@
             },
             {
                 "type": "th",
-                "texte": "Dernière réception"
+                "texte": "Dernier contrôle"
             },
             {
                 "type": "th",
-                "texte": "En attente d'envoi"
+                "texte": "État"
             },
             {
                 "type": "th",
-                "texte": "Dernière demande"
-            },
-            {
-                "type": "th",
-                "texte": "Appairage"
+                "texte": "Actions"
             },
             {
                 "type": "td",

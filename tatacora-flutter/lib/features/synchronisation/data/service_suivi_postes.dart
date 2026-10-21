@@ -12,6 +12,10 @@ final class EtatPosteServeur {
     required this.demandeSuivie,
     this.appaire = false,
     this.jetonUtiliseLe,
+    this.appaireLe,
+    this.expireLe,
+    this.dernierControle,
+    this.etat = EtatAppairage.nonAppaire,
   });
 
   final String posteId;
@@ -24,6 +28,36 @@ final class EtatPosteServeur {
   /// Un jeton du nom de ce poste existe au serveur (19/10/2026).
   final bool appaire;
   final DateTime? jetonUtiliseLe;
+
+  /// « Postes & Appairage » (21/10/2026) : le premier jeton, l'expiration du
+  /// plus durable (`null` = sans expiration), le dernier passage sur le
+  /// contrôle de cohérence, et l'état dit par le serveur.
+  final DateTime? appaireLe;
+  final DateTime? expireLe;
+  final DateTime? dernierControle;
+  final EtatAppairage etat;
+}
+
+/// L'état d'appairage d'un poste, tel que le serveur le calcule
+/// (`SuiviPostesService::etats()`) : registre fermé.
+enum EtatAppairage {
+  actif('actif'),
+  silencieux('silencieux'),
+  expire('expire'),
+  nonAppaire('non_appaire');
+
+  const EtatAppairage(this.code);
+
+  final String code;
+
+  /// Un code inconnu se lit « non appairé » : on n'affirme jamais « actif » sur
+  /// ce qu'on ne reconnaît pas.
+  static EtatAppairage depuisCode(Object? code) {
+    for (final e in values) {
+      if (e.code == code) return e;
+    }
+    return nonAppaire;
+  }
 }
 
 /// L'état des postes et la dernière demande, ou la raison de leur absence.
@@ -99,6 +133,10 @@ class ServiceSuiviPostes {
               demandeSuivie: p['demande_suivie'] == true,
               appaire: p['appaire'] == true,
               jetonUtiliseLe: _date(p['jeton_utilise_le']),
+              appaireLe: _date(p['appaire_le']),
+              expireLe: _date(p['expire_le']),
+              dernierControle: _date(p['dernier_controle']),
+              etat: EtatAppairage.depuisCode(p['etat']),
             ),
       ],
     );
