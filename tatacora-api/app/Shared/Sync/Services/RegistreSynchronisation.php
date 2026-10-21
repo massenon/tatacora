@@ -19,6 +19,7 @@ use App\Shared\Sync\Gestionnaires\GestionnaireEmployes;
 use App\Shared\Sync\Gestionnaires\GestionnaireFactures;
 use App\Shared\Sync\Gestionnaires\GestionnaireFournisseurs;
 use App\Shared\Sync\Gestionnaires\GestionnaireGuides;
+use App\Shared\Sync\Gestionnaires\GestionnaireIndisponibilitesCarte;
 use App\Shared\Sync\Gestionnaires\GestionnaireMenus;
 use App\Shared\Sync\Gestionnaires\GestionnaireModelesNotification;
 use App\Shared\Sync\Gestionnaires\GestionnaireMouvementsStock;
@@ -108,6 +109,9 @@ class RegistreSynchronisation
         'menus' => GestionnaireMenus::class,
         'recettes' => GestionnaireRecettes::class,
         'plats' => GestionnairePlats::class,
+        // Lot « indisponibilités de la carte » (21/10/2026) : APRÈS les boissons
+        // et les plats qu'elles citent.
+        'indisponibilites_carte' => GestionnaireIndisponibilitesCarte::class,
         'categories_hebergement' => GestionnaireCategoriesHebergement::class,
         'unites_hebergement' => GestionnaireUnitesHebergement::class,
         // Documents (S3) — même règle d'ordre. Achats : la commande avant son

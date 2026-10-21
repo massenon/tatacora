@@ -109,6 +109,10 @@ class CatalogueDescendantService
         'menus' => ['libelle', 'type', 'date_debut', 'date_fin'],
         'recettes' => ['libelle', 'composition_provisoire'],
         'plats' => ['menu_id', 'recette_id', 'article_id', 'unites_vendables_par_unite_stock', 'libelle', 'prix_vente', 'prix_provisoire', 'prix_corrige_main'],
+        // Lot « indisponibilités de la carte » (21/10/2026) : après les boissons
+        // et les plats qu'elles citent. Le retour (remise à la carte) descend
+        // avec la ligne : une retouche fait avancer le curseur.
+        'indisponibilites_carte' => ['boisson_id', 'plat_id', 'motif', 'commentaire', 'date_indisponibilite', 'date_retour_disponibilite'],
         'categories_hebergement' => ['libelle', 'capacite_max', 'tarif_base'],
         'unites_hebergement' => ['categorie_id', 'numero', 'statut'],
         // Lot F6 (18/10/2026) : le plan de salle, pour l'arbitrage des tables.

@@ -80,6 +80,12 @@ return [
         'occupee' => 'Table :libelle déjà occupée par un autre poste (ou à la PWA) : encaissez ou libérez '
             . 'la table là-bas avant de l\'ouvrir ici.',
     ],
+    'carte' => [
+        'champ_non_modifiable' => 'Une indisponibilité ne se modifie que par sa remise à la carte '
+            . '(champ(s) refusé(s) : :champs).',
+        'un_seul_article' => 'Indisponibilité refusée : une boisson OU un plat, pas les deux ni aucun.',
+        'article_inconnu' => 'Indisponibilité refusée : l\'article n\'est pas connu du serveur (pas encore reçu, ou refusé).',
+    ],
     'reglements' => [
         'commande_inconnue' => 'Règlement refusé : la commande n\'est pas connue du serveur (pas encore reçue, ou refusée).',
     ],

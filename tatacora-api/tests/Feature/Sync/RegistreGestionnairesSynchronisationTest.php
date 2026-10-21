@@ -83,6 +83,8 @@ final class RegistreGestionnairesSynchronisationTest extends TestCase
             'reservations', 'sejours', 'clients', 'fournisseurs',
             // Catalogue (S2, 15/10/2026) — création seule, fusion sur clé naturelle.
             'points_stockage', 'articles', 'cartes_boisson', 'menus', 'recettes', 'plats',
+            // Lot « indisponibilités de la carte » (21/10/2026) : après les boissons et les plats.
+            'indisponibilites_carte',
             'categories_hebergement', 'unites_hebergement',
             // Documents (S3, 15/10/2026) — dans l'ordre de poussée : la
             // commande avant son bon, l'ouverture de caisse avant ses ventes.
