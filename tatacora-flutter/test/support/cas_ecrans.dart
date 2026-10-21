@@ -51,6 +51,7 @@ import 'package:tatacora_flutter/features/tableau_de_bord/presentation/ecran_tab
 import 'package:tatacora_flutter/features/stocks/presentation/ecran_inventaires.dart';
 import 'package:tatacora_flutter/features/stocks/presentation/ecran_stocks.dart';
 import 'package:tatacora_flutter/features/tourisme/presentation/ecran_tourisme.dart';
+import 'package:tatacora_flutter/features/rh/presentation/ecran_conges_plannings.dart';
 import 'package:tatacora_flutter/features/vehicules/presentation/ecran_vehicules.dart';
 import 'package:tatacora_flutter/features/ventes/presentation/ecran_historique_ventes.dart';
 import 'package:tatacora_flutter/features/hebergement/presentation/ecran_hebergement.dart';
@@ -280,6 +281,12 @@ final casEcrans = <CasEcran>[
     jeu: JeuEcran.vide,
     droits: const {'M8': 'C', 'M3': 'C'},
     ecran: () => const EcranVehicules(),
+  ),
+  CasEcran(
+    vue: 'rh/conges-plannings',
+    jeu: JeuEcran.vide,
+    droits: const {'M13': 'C'},
+    ecran: () => const EcranCongesPlannings(),
   ),
   CasEcran(
     vue: 'tourisme/departs',

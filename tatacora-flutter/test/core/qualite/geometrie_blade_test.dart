@@ -328,6 +328,9 @@ void main() {
       // « Synchroniser les postes » (18/10/2026, décision PO) : même cas —
       // mesurée en emplacement, relevé de géométrie à capturer.
       'transverse/synchronisation-postes',
+      // « Congés & Plannings » (21/10/2026) : mesurée en emplacement ; relevé
+      // de géométrie à capturer dans le navigateur de la Phase 1D.
+      'rh/conges-plannings',
     };
     final manquantes = [
       for (final cas in casEcrans)

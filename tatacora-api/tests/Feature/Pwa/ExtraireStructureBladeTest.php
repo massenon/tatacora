@@ -89,6 +89,15 @@ final class ExtraireStructureBladeTest extends TestCase
             ],
             'jeu' => 'parc',
         ],
+        // 21/10/2026 : l'écran créé à la PWA, repris par le poste.
+        'rh/conges-plannings' => [
+            'url' => '/pwa/rh/conges-plannings',
+            'variantes' => [
+                'plannings' => '?onglet=plannings',
+                'conges' => '?onglet=conges',
+            ],
+            'jeu' => 'vide',
+        ],
         'tourisme/departs' => [
             'url' => '/pwa/tourisme',
             'variantes' => [

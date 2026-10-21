@@ -159,5 +159,10 @@
     "blade": 13,
     "ordonnes": 13,
     "ongletsNonCliquables": 0
+  },
+  "rh/conges-plannings": {
+    "blade": 34,
+    "ordonnes": 29,
+    "ongletsNonCliquables": 0
   }
 }

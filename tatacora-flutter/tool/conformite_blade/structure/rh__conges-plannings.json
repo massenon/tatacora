@@ -1,0 +1,159 @@
+{
+    "_lisez-moi": "PRODUIT par ExtraireStructureBladeTest, jamais ecrit a la main. Chaque variante (onglet) : les textes VISIBLES de <main>, dans l'ordre du document.",
+    "vue": "rh/conges-plannings",
+    "jeu": "vide",
+    "onglets": {
+        "plannings": [
+            {
+                "type": "h1",
+                "texte": "Congés & Plannings"
+            },
+            {
+                "type": "p",
+                "texte": "Plannings d'équipe par jour et demandes de congé avec leur validation."
+            },
+            {
+                "type": "button",
+                "texte": "Planifier un créneau"
+            },
+            {
+                "type": "div",
+                "texte": "Créneaux du jour"
+            },
+            {
+                "type": "div",
+                "texte": "21/10/2026"
+            },
+            {
+                "type": "div",
+                "texte": "Demandes en attente"
+            },
+            {
+                "type": "div",
+                "texte": "En congé aujourd'hui"
+            },
+            {
+                "type": "onglet",
+                "texte": "Plannings",
+                "cle": "plannings"
+            },
+            {
+                "type": "onglet",
+                "texte": "Congés",
+                "cle": "conges"
+            },
+            {
+                "type": "label",
+                "texte": "Jour"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les services"
+            },
+            {
+                "type": "th",
+                "texte": "Employé"
+            },
+            {
+                "type": "th",
+                "texte": "Service"
+            },
+            {
+                "type": "th",
+                "texte": "Date"
+            },
+            {
+                "type": "th",
+                "texte": "Début"
+            },
+            {
+                "type": "th",
+                "texte": "Fin"
+            },
+            {
+                "type": "td",
+                "texte": "Aucun créneau planifié ce jour."
+            }
+        ],
+        "conges": [
+            {
+                "type": "h1",
+                "texte": "Congés & Plannings"
+            },
+            {
+                "type": "p",
+                "texte": "Plannings d'équipe par jour et demandes de congé avec leur validation."
+            },
+            {
+                "type": "button",
+                "texte": "Demander un congé"
+            },
+            {
+                "type": "div",
+                "texte": "Créneaux du jour"
+            },
+            {
+                "type": "div",
+                "texte": "21/10/2026"
+            },
+            {
+                "type": "div",
+                "texte": "Demandes en attente"
+            },
+            {
+                "type": "div",
+                "texte": "En congé aujourd'hui"
+            },
+            {
+                "type": "onglet",
+                "texte": "Plannings",
+                "cle": "plannings"
+            },
+            {
+                "type": "onglet",
+                "texte": "Congés",
+                "cle": "conges"
+            },
+            {
+                "type": "option",
+                "texte": "Tous les statuts"
+            },
+            {
+                "type": "option",
+                "texte": "En attente"
+            },
+            {
+                "type": "option",
+                "texte": "Validé"
+            },
+            {
+                "type": "option",
+                "texte": "Refusé"
+            },
+            {
+                "type": "th",
+                "texte": "Employé"
+            },
+            {
+                "type": "th",
+                "texte": "Nature"
+            },
+            {
+                "type": "th",
+                "texte": "Jours"
+            },
+            {
+                "type": "th",
+                "texte": "Statut"
+            },
+            {
+                "type": "th",
+                "texte": "Décidé par"
+            },
+            {
+                "type": "td",
+                "texte": "Aucune demande de congé."
+            }
+        ]
+    }
+}

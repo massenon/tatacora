@@ -31,7 +31,7 @@ class IndisponibilitesCarteDao {
   final Uuid _uuid;
   final DateTime Function() _horloge;
 
-  $IndisponibilitesCarteLocalTable get _t => _db.indisponibilitesCarteLocal;
+  $IndisponibilitesCarteLocalTable get _table => _db.indisponibilitesCarteLocal;
 
   /// Les retraits EN COURS, par identifiant de boisson.
   Future<Map<String, IndisponibiliteDistante>> boissonsRetirees() async =>
@@ -45,7 +45,7 @@ class IndisponibilitesCarteDao {
     String? Function(IndisponibiliteCarteLigne) cle,
   ) async {
     final lignes = await (_db.select(
-      _t,
+      _table,
     )..where((l) => l.dateRetourDisponibilite.isNull())).get();
     return {for (final l in lignes) ?cle(l): _versRetrait(l)};
   }
@@ -73,7 +73,7 @@ class IndisponibilitesCarteDao {
       final note = commentaire?.trim();
       final propre = note == null || note.isEmpty ? null : note;
       await _db
-          .into(_t)
+          .into(_table)
           .insert(
             IndisponibilitesCarteLocalCompanion.insert(
               id: id,
@@ -113,7 +113,7 @@ class IndisponibilitesCarteDao {
       final ligne = await _enCoursDe(boissonId: boissonId, platId: platId);
       if (ligne == null) return false;
       final maintenant = _horloge();
-      await (_db.update(_t)..where((l) => l.id.equals(ligne.id))).write(
+      await (_db.update(_table)..where((l) => l.id.equals(ligne.id))).write(
         IndisponibilitesCarteLocalCompanion(
           dateRetourDisponibilite: Value(maintenant),
         ),
@@ -133,7 +133,7 @@ class IndisponibilitesCarteDao {
     String? boissonId,
     String? platId,
   }) =>
-      (_db.select(_t)..where(
+      (_db.select(_table)..where(
             (l) =>
                 l.dateRetourDisponibilite.isNull() &
                 (boissonId != null
