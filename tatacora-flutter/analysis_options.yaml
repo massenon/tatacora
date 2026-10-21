@@ -29,6 +29,9 @@ analyzer:
     - "**/*.g.dart"
     - "**/*.freezed.dart"
     - "build/**"
+    - android/**
+    - ios/**
+    - windows/**
 
   language:
     strict-casts: true

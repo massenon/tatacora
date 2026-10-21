@@ -91,7 +91,14 @@ const tablesAjouteesEnV28 = <String>{'origines_documents_local'};
 /// lot F6 du 18/10/2026).
 const tablesAjouteesEnV29 = <String>{'occupations_tables_local'};
 
+/// La table que la v31 AJOUTE (retraits de la carte du jour, 21/10/2026).
+const tablesAjouteesEnV31 = <String>{'indisponibilites_carte_local'};
+
 const _ajoutsParVersion = <int, List<String>>{
+  // La v31 (retraits de la carte du jour, 21/10/2026) ajoute UNE table neuve,
+  // sans index ni cle etrangere : retour arriere symetrique.
+  31: <String>['DROP TABLE indisponibilites_carte_local'],
+
   // La v30 (facteur de conversion des boissons, 21/10/2026) AJOUTE une colonne
   // nullable à `cartes_boisson_local` : retour arriere symetrique, la colonne
   // n'est ni indexee ni referencee.

@@ -419,8 +419,10 @@ Les tests, mesurés le 20/10/2026, sont tous verts : serveur 1 787, poste
 3. **Libellés de la PWA à reprendre sur le poste.** Il en reste 438, sur 101
    blocs d'écran.
 4. **Synchronisation encore absente** : congés, plannings, entretiens de
-   véhicules, indisponibilités de la carte.
-5. **Sortie de stock à la vente sur le poste (RG-05).**
+   véhicules (les indisponibilités de la carte sont faites pour le bar depuis
+   le 21/10/2026, le restaurant suit).
+5. ~~**Sortie de stock à la vente sur le poste (RG-05).**~~ Fait le
+   21/10/2026 : le poste affiche « −X en attente d'envoi » sous le stock.
 6. **Compte de résultat, bilan et comparatif sur le poste.** Cela
    exigerait de faire descendre les écritures du serveur, ce qui revient sur
    la décision « Q1 = A ». À trancher par vous.

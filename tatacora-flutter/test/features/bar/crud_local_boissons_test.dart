@@ -6,6 +6,7 @@ import 'package:tatacora_flutter/features/bar/domain/entities/boisson.dart';
 import 'package:tatacora_flutter/features/bar/domain/entities/carte_bar.dart';
 import 'package:tatacora_flutter/features/bar/domain/entities/trace_prix.dart';
 import 'package:tatacora_flutter/features/bar/domain/motif_indisponibilite.dart';
+import 'package:tatacora_flutter/features/pos/data/indisponibilites_carte_dao.dart';
 import 'package:tatacora_flutter/features/pos/data/catalogue_dao.dart';
 import 'package:tatacora_flutter/features/pos/data/panier_dao.dart';
 import 'package:tatacora_flutter/features/pos/domain/entities/article_vendable.dart';
@@ -84,6 +85,7 @@ void main() {
     final dao = CatalogueDao(base);
     final rayons = await dao.rayons();
     final liens = await dao.liensDeStockDesBoissons();
+    final retraits = await IndisponibilitesCarteDao(base).boissonsRetirees();
 
     return composerCarte(
       local: rayons
@@ -97,6 +99,8 @@ void main() {
               prix: a.prix ?? 0,
               articleId: liens[a.reference.code],
               stock: null,
+              indisponibilite: retraits[a.reference.code],
+              disponibiliteConnue: true,
             ),
           )
           .toList(growable: false),
@@ -279,44 +283,81 @@ void main() {
   });
 
   /* ================================================================== */
-  group('Retrait et remise à la carte — REFUSÉS, jamais simulés', () {
-    test('« Rendre indispo. » est refusé, et rien n’est écrit', () async {
+  group('Retrait et remise à la carte — ÉCRITS en base (v31)', () {
+    test('« Rendre indispo. » est écrit, relu par une instance neuve, et la '
+        'boisson est INTACTE', () async {
       final creee = await creer(libelle: 'Béninoise 33 cl', prix: '500');
 
       final r = await source.retirer(
         id: creee.id,
         motif: MotifIndisponibilite.rupture.code,
-        commentaire: 'livraison attendue jeudi',
+        commentaire: '  livraison attendue jeudi ',
       );
+      expect(r, isA<BarRecu<Boisson>>());
 
-      expect(r, isA<BarRefuse<Boisson>>());
-      // Le refus DIT pourquoi : la colonne n'existe pas. Un message vague
-      // laisserait chercher un droit manquant ou une panne.
-      expect((r as BarRefuse<Boisson>).motif, contains('ce poste'));
-      // Et la boisson est INTACTE : aucun état de retrait n'a été bricolé
-      // ailleurs — dans le libellé, la catégorie ou un prix à zéro.
+      // Une carte composée depuis la base : l'état est SU, donc les gestes
+      // sont offerts, et le retrait porte son motif et son commentaire.
+      final ligne = (await carteLocale()).single;
+      expect(ligne.disponibiliteConnue, isTrue);
+      expect(ligne.estRetiree, isTrue);
+      expect(ligne.indisponibilite?.motif, 'rupture');
+      expect(ligne.indisponibilite?.libelle, 'Rupture du jour');
+      expect(ligne.indisponibilite?.commentaire, 'livraison attendue jeudi');
+
+      // Aucun état de retrait n'a été bricolé dans le catalogue.
       final relue = (await catalogueRelu()).single;
       expect(relue.libelle, 'Béninoise 33 cl');
       expect(relue.prixVente, '500');
       expect(relue.categorie, CategorieBoisson.locale);
     });
 
-    test('« Remettre » est refusé aussi — il n’y a rien à lever', () async {
+    test('un motif hors registre et une boisson inconnue sont refusés SANS '
+        'écrire', () async {
       final creee = await creer();
 
-      expect(await source.remettre(creee.id), isA<BarRefuse<Boisson>>());
-      expect(await catalogueRelu(), hasLength(1));
+      final motif = await source.retirer(id: creee.id, motif: 'hors_saison');
+      expect(motif, isA<BarRefuse<Boisson>>());
+      expect((motif as BarRefuse<Boisson>).erreurs, contains('motif'));
+      expect(
+        await source.retirer(id: 'bsn-fantome', motif: 'rupture'),
+        isA<BarRefuse<Boisson>>(),
+      );
+      expect((await carteLocale()).single.estRetiree, isFalse);
     });
 
-    test('la carte n’AFFIRME aucun état de disponibilité', () async {
-      // Sans source qui dise si un article est retiré, l'écran n'offre ni
-      // « Rendre indispo. » ni « Remettre » : le mauvais des deux serait
-      // proposé une fois sur deux.
-      await creer();
-      final locale = await carteLocale();
+    test('retirer deux fois ne double rien, et le refus le DIT', () async {
+      final creee = await creer();
+      await source.retirer(id: creee.id, motif: 'rupture');
 
-      expect(locale.single.disponibiliteConnue, isFalse);
-      expect(locale.single.estRetiree, isFalse);
+      final encore = await source.retirer(id: creee.id, motif: 'saison');
+      expect(encore, isA<BarRefuse<Boisson>>());
+      expect((encore as BarRefuse<Boisson>).motif, contains('déjà retirée'));
+      expect(
+        (await carteLocale()).single.indisponibilite?.motif,
+        'rupture',
+        reason: 'le retrait en cours est celui du premier geste',
+      );
+    });
+
+    test('« Remettre » ferme le retrait ; sur une boisson à la carte, il est '
+        'refusé en le disant', () async {
+      final creee = await creer();
+
+      final rien = await source.remettre(creee.id);
+      expect(rien, isA<BarRefuse<Boisson>>());
+      expect((rien as BarRefuse<Boisson>).motif, contains('n’est pas retirée'));
+
+      await source.retirer(id: creee.id, motif: 'retire');
+      expect(await source.remettre(creee.id), isA<BarRecu<Boisson>>());
+      final ligne = (await carteLocale()).single;
+      expect(ligne.estRetiree, isFalse);
+      expect(ligne.disponibiliteConnue, isTrue);
+
+      // Et la boisson peut être retirée de nouveau : un nouveau retrait.
+      expect(
+        await source.retirer(id: creee.id, motif: 'rupture'),
+        isA<BarRecu<Boisson>>(),
+      );
     });
   });
 

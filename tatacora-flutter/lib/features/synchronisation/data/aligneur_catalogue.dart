@@ -101,6 +101,7 @@ class AligneurCatalogue {
       TableDescendue.menus => _menu(idLocal, d),
       TableDescendue.recettes => _recette(idLocal, d),
       TableDescendue.plats => _plat(idLocal, d),
+      TableDescendue.indisponibilitesCarte => _indisponibilite(idLocal, d),
       TableDescendue.categoriesHebergement => _categorie(idLocal, d),
       TableDescendue.unitesHebergement => _unite(idLocal, e),
       TableDescendue.fournisseurs => _fournisseur(idLocal, e),
@@ -191,6 +192,93 @@ class AligneurCatalogue {
       if (await _file.enSuspens(synchronisee.nomServeur, l.id)) return true;
     }
     return false;
+  }
+
+  /* ================================================================== */
+  /* Retraits de la carte du jour (21/10/2026)                           */
+  /* ================================================================== */
+
+  /// Un retrait du serveur (un autre poste, la PWA). L'article cité doit être
+  /// détenu ici. Le serveur tient UN retrait en cours par article : celui qui
+  /// arrive remplace un retrait local EN COURS du même article (déjà parti), et
+  /// attend si ce dernier n'est pas encore envoyé (l'envoi le fera fusionner).
+  Future<IssueAlignement> _indisponibilite(
+    String id,
+    Map<String, Object?> d,
+  ) async {
+    final motif = _texte(d['motif']);
+    if (motif == null) return const RefuseParLePoste('motif absent');
+    final boissonServeur = _texte(d['boisson_id']);
+    final platServeur = _texte(d['plat_id']);
+    if ((boissonServeur == null) == (platServeur == null)) {
+      return const RefuseParLePoste(
+        'un retrait porte sur une boisson ou sur un plat, pas sur les deux',
+      );
+    }
+    DateTime? instant(Object? v) {
+      if (v == null) return null;
+      final lu = DateTime.tryParse('$v'.trim().replaceFirst(' ', 'T'));
+      if (lu == null) throw const FormatException('instant illisible');
+      return lu;
+    }
+
+    final debut = instant(d['date_indisponibilite']);
+    if (debut == null) return const RefuseParLePoste('date de retrait absente');
+    final retour = instant(d['date_retour_disponibilite']);
+
+    String? boisson;
+    String? plat;
+    if (boissonServeur != null) {
+      boisson = await _cite(
+        TableDescendue.cartesBoisson,
+        boissonServeur,
+        _db.cartesBoissonLocal,
+      );
+      if (boisson == null) {
+        return const EnAttenteDeDependance('boisson pas encore reçue');
+      }
+    } else {
+      plat = await _cite(TableDescendue.plats, platServeur!, _db.platsLocal);
+      if (plat == null) {
+        return const EnAttenteDeDependance('plat pas encore reçu');
+      }
+    }
+
+    final t = _db.indisponibilitesCarteLocal;
+    if (retour == null) {
+      final memeArticle =
+          await (_db.select(t)..where(
+                (l) =>
+                    l.id.equals(id).not() &
+                    l.dateRetourDisponibilite.isNull() &
+                    (boisson != null
+                        ? l.boissonId.equals(boisson)
+                        : l.platId.equals(plat!)),
+              ))
+              .get();
+      for (final autre in memeArticle) {
+        if (await _file.enSuspens('indisponibilites_carte', autre.id)) {
+          return _homonyme;
+        }
+      }
+      for (final autre in memeArticle) {
+        await (_db.delete(t)..where((l) => l.id.equals(autre.id))).go();
+      }
+    }
+    await _db
+        .into(t)
+        .insertOnConflictUpdate(
+          IndisponibilitesCarteLocalCompanion.insert(
+            id: id,
+            boissonId: Value(boisson),
+            platId: Value(plat),
+            motif: motif,
+            commentaire: Value(_texte(d['commentaire'])),
+            dateIndisponibilite: debut,
+            dateRetourDisponibilite: Value(retour),
+          ),
+        );
+    return const Aligne();
   }
 
   static const _homonyme = ConserveLocalement(

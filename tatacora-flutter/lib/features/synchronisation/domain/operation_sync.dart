@@ -32,6 +32,9 @@ enum TableSynchronisee {
   menus('menus', accepteModification: true),
   recettes('recettes', accepteModification: true),
   plats('plats', accepteModification: true),
+
+  /// 21/10/2026 : le retrait (création) et la remise à la carte (modification).
+  indisponibilitesCarte('indisponibilites_carte', accepteModification: true),
   categoriesHebergement('categories_hebergement', accepteModification: true),
   unitesHebergement('unites_hebergement', accepteModification: true),
 

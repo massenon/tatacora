@@ -12,6 +12,8 @@ import 'package:tatacora_flutter/core/theme/app_theme.dart';
 import 'package:tatacora_flutter/features/bar/domain/entities/boisson.dart';
 import 'package:tatacora_flutter/features/bar/domain/entities/carte_bar.dart';
 import 'package:tatacora_flutter/features/bar/presentation/ecran_carte_bar.dart';
+import 'package:tatacora_flutter/features/pos/data/catalogue_dao.dart';
+import 'package:tatacora_flutter/features/pos/data/dto/catalogue_dto.dart';
 import 'package:tatacora_flutter/features/restaurant/presentation/widgets/cadre_ventes_carte.dart';
 
 import '../../support/vue_blade.dart';
@@ -29,9 +31,11 @@ void main() {
   Future<AppDatabase> monter(
     WidgetTester tester, {
     Map<String, String> droits = const {'M5': 'C', 'M6': 'C'},
+    Future<void> Function(AppDatabase db)? avant,
   }) async {
     final db = AppDatabase.enMemoire();
     addTearDown(db.close);
+    if (avant != null) await avant(db);
     tester.view
       ..physicalSize = const Size(1383, 1400)
       ..devicePixelRatio = 1.0;
@@ -261,6 +265,49 @@ void main() {
       findsOneWidget,
     );
     expect(find.descendant(of: carte, matching: find.text('0')), findsNothing);
+  });
+
+  testWidgets('« Rendre indispo. » écrit le retrait, la ligne passe en '
+      '« retirée », « Remettre » la rend à la carte', (tester) async {
+    await monter(
+      tester,
+      avant: (db) => CatalogueDao(db).enregistrerBoisson(
+        const BoissonDistante(
+          id: 'b-1',
+          articleId: null,
+          libelle: 'Béninoise 33 cl',
+          categorie: 'locale',
+          prixVente: 500,
+          stockDisponible: null,
+        ),
+      ),
+    );
+
+    // Le tableau défile à l'horizontale : l'action peut être hors fenêtre.
+    await tester.ensureVisible(find.byKey(const Key('carte-retirer-b-1')));
+    await tester.tap(find.byKey(const Key('carte-retirer-b-1')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('modale-retrait-carte')), findsOneWidget);
+    // Plus aucun refus « faute de colonne » : un formulaire, qui écrit.
+    expect(find.byKey(const Key('retrait-carte-sans-colonne')), findsNothing);
+
+    await tester.enterText(
+      find.byKey(const Key('retrait-carte-commentaire')),
+      'livraison jeudi',
+    );
+    await tester.tap(find.byKey(const Key('retrait-carte-confirmer')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('modale-retrait-carte')), findsNothing);
+    expect(find.byKey(const Key('carte-remettre-b-1')), findsOneWidget);
+    expect(find.byKey(const Key('carte-retirer-b-1')), findsNothing);
+
+    // Le tableau défile à l'horizontale : l'action peut être hors fenêtre.
+    await tester.ensureVisible(find.byKey(const Key('carte-remettre-b-1')));
+    await tester.tap(find.byKey(const Key('carte-remettre-b-1')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('carte-retirer-b-1')), findsOneWidget);
+    expect(find.byKey(const Key('carte-remettre-b-1')), findsNothing);
   });
 
   test('le registre des catégories est celui de la base, dans son ordre', () {

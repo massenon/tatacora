@@ -19,6 +19,7 @@ import 'tables/clients_table.dart';
 import 'tables/comptabilite_tables.dart';
 import 'tables/depenses_tables.dart';
 import 'tables/descente_sync_tables.dart';
+import 'tables/indisponibilites_carte_tables.dart';
 import 'tables/occupations_tables_tables.dart';
 import 'tables/origines_documents_tables.dart';
 import 'tables/facturation_tables.dart';
@@ -203,6 +204,8 @@ part 'app_database.g.dart';
     // v29 (18/10/2026, lot F6) : l'occupation des tables par les AUTRES
     // postes. Qui écrit, qui lit : `tables/occupations_tables_tables.dart`.
     OccupationsTablesLocal,
+    // v31 (21/10/2026) : les retraits de la carte du jour (boissons, plats).
+    IndisponibilitesCarteLocal,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -371,8 +374,13 @@ class AppDatabase extends _$AppDatabase {
   /// « il faut le créer ») : une table neuve (`occupations_tables_local`,
   /// 61 -> 62 tables), aucune colonne ajoutée. Une table occupée sur un autre
   /// poste (ou à la PWA) l'est aussi ici.
+  ///
+  /// v31 (21/10/2026) — LES RETRAITS DE LA CARTE DU JOUR : une table neuve
+  /// (`indisponibilites_carte_local`, 62 -> 63 tables), aucune colonne ajoutée.
+  /// Le poste retire et remet boissons et plats, et reçoit ceux des autres
+  /// postes et de la PWA.
   @override
-  int get schemaVersion => 30;
+  int get schemaVersion => 31;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1032,6 +1040,16 @@ class AppDatabase extends _$AppDatabase {
         // Une table NEUVE, sans index ni clé étrangère : rien d'existant
         // n'est touché, aucune ligne n'est fabriquée (la descente la remplit).
         await m.createTable(occupationsTablesLocal);
+      }
+      if (from < 31) {
+        // LES RETRAITS DE LA CARTE DU JOUR (21/10/2026). Une table NEUVE, sans
+        // index ni clé étrangère : rien d'existant n'est touché, aucune ligne
+        // n'est fabriquée (la descente la remplit). Le curseur est oublié pour
+        // que les retraits déjà au serveur descendent.
+        await m.createTable(indisponibilitesCarteLocal);
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
       }
       if (from < 30) {
         // LE FACTEUR DE CONVERSION DES BOISSONS (21/10/2026, stock estimé hors

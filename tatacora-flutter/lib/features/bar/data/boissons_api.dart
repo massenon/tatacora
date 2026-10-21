@@ -3,6 +3,8 @@ import 'package:uuid/uuid.dart';
 import '../../../core/donnees_absentes.dart';
 import '../../pos/data/catalogue_dao.dart';
 import '../../pos/data/dto/catalogue_dto.dart';
+import '../../pos/data/indisponibilites_carte_dao.dart';
+import '../domain/motif_indisponibilite.dart';
 import '../domain/entities/boisson.dart';
 import '../domain/entities/trace_prix.dart';
 import '../domain/entities/ventes_bar.dart';
@@ -160,9 +162,15 @@ final class SaisieBoisson {
 /// `Policy::delete()` rend `false` partout dans ce projet, et le geste métier
 /// existe à la place : on retire de la carte, on ne détruit pas la ligne.
 final class BoissonsApi {
-  BoissonsApi(this._catalogue, {Uuid? uuid}) : _uuid = uuid ?? const Uuid();
+  BoissonsApi(this._catalogue, {Uuid? uuid, IndisponibilitesCarteDao? retraits})
+    : _uuid = uuid ?? const Uuid(),
+      _retraits =
+          retraits ?? IndisponibilitesCarteDao(_catalogue.attachedDatabase);
 
   final CatalogueDao _catalogue;
+
+  /// Seul écrivain des retraits de la carte du jour (v31, 21/10/2026).
+  final IndisponibilitesCarteDao _retraits;
 
   /// Injectable : un identifiant tiré au hasard rendrait les cas d'essai
   /// illisibles, et l'UUID naît **côté client** par règle de projet.
@@ -343,30 +351,63 @@ final class BoissonsApi {
   }
 
   /* ================================================================== */
-  /* Les quatre gestes que le SCHÉMA LOCAL ne porte pas                  */
+  /* Le retrait de la carte du jour (v31, 21/10/2026)                    */
   /* ================================================================== */
 
-  /// « Rendre indispo. » — **refusé, faute de colonne**.
-  ///
-  /// Le serveur écrivait une ligne `indisponibilites_carte` (motif, commentaire,
-  /// utilisateur, sous verrou). `cartes_boisson_local` n'a que cinq colonnes :
-  /// `id`, `article_id`, `libelle`, `categorie`, `prix_vente`. Il n'existe donc
-  /// **aucun endroit** où écrire un retrait.
-  ///
-  /// Le tenir en mémoire le ferait disparaître à la fermeture de la fenêtre :
-  /// le barman aurait retiré la Béninoise le matin et la verrait revenir à
-  /// midi, sans que personne ne sache s'il faut la racheter. C'est le défaut
-  /// même que la PWA a fermé, et l'inverse serait pire que l'absence.
+  /// « Rendre indispo. » — écrit une ligne `indisponibilites_carte_local`
+  /// (motif du registre fermé, commentaire, instant) et la met en file : le
+  /// serveur la fusionne si la boisson est déjà retirée, et les autres postes
+  /// la reçoivent. Un motif hors registre est refusé AVANT l'écriture.
   Future<ResultatBar<Boisson>> retirer({
     required String id,
     required String motif,
     String? commentaire,
-  }) async => const BarRefuse(motif: TextesCatalogueLocal.retraitSansColonne);
+  }) async {
+    final m = MotifIndisponibilite.values
+        .where((x) => x.code == motif)
+        .firstOrNull;
+    if (m == null) {
+      return BarRefuse(
+        motif: 'Le motif « $motif » n’existe pas.',
+        erreurs: {'motif': 'Choisissez un des motifs proposés.'},
+      );
+    }
+    final b = await _catalogue.boissonDuCatalogue(id);
+    if (b == null) return _introuvable();
+    if ((commentaire?.trim().length ?? 0) > 500) {
+      return const BarRefuse(
+        motif: 'Le commentaire est trop long.',
+        erreurs: {'commentaire': '500 caractères au plus.'},
+      );
+    }
+    final ecrit = await _retraits.retirer(
+      boissonId: id,
+      motif: m,
+      commentaire: commentaire,
+    );
+    if (ecrit == null) {
+      return BarRefuse(
+        motif: TextesCatalogueLocal.dejaRetiree(b.libelle),
+        erreurs: {'etat': TextesCatalogueLocal.dejaRetiree(b.libelle)},
+      );
+    }
+    return BarRecu(_versBoisson(b));
+  }
 
-  /// « Remettre » — refusé pour la même raison que [retirer] : il n'y a rien à
-  /// lever, puisqu'il n'y a rien où écrire un retrait.
-  Future<ResultatBar<Boisson>> remettre(String id) async =>
-      const BarRefuse(motif: TextesCatalogueLocal.retraitSansColonne);
+  /// « Remettre » — ferme le retrait en cours (instant du retour) et le met en
+  /// file. Refusé, en le DISANT, quand rien n'est retiré (déjà remise ici ou
+  /// sur un autre poste).
+  Future<ResultatBar<Boisson>> remettre(String id) async {
+    final b = await _catalogue.boissonDuCatalogue(id);
+    if (b == null) return _introuvable();
+    if (!await _retraits.remettre(boissonId: id)) {
+      return BarRefuse(
+        motif: TextesCatalogueLocal.nonRetiree(b.libelle),
+        erreurs: {'etat': TextesCatalogueLocal.nonRetiree(b.libelle)},
+      );
+    }
+    return BarRecu(_versBoisson(b));
+  }
 
   /// « Lier au stock » — **refusé deux fois plutôt qu'une**.
   ///
@@ -468,14 +509,13 @@ abstract final class TextesCatalogueLocal {
       'entrées au point de vente, et le barman ne peut plus savoir laquelle il '
       'vend. Deux contenances différentes sont deux articles : nommez-les.';
 
-  /// Le refus de « Rendre indispo. » et de « Remettre ».
-  static const String retraitSansColonne =
-      'Le retrait de la carte du jour n’est pas enregistrable sur ce poste : '
-      'la table du catalogue local ne porte ni motif, ni commentaire, ni date '
-      'de retrait. Le tenir en mémoire le ferait disparaître à la fermeture de '
-      'la fenêtre — l’article reviendrait seul à la carte, sans que personne '
-      'ne sache s’il faut le racheter. Retirez plutôt la boisson de la carte '
-      'en la renommant ou signalez-la au responsable.';
+  /// « Rendre indispo. » sur une boisson déjà retirée : rien n'est écrit.
+  static String dejaRetiree(String libelle) =>
+      '« $libelle » est déjà retirée de la carte du jour.';
+
+  /// « Remettre » sur une boisson qui n'est pas retirée : rien n'est écrit.
+  static String nonRetiree(String libelle) =>
+      '« $libelle » n’est pas retirée de la carte du jour.';
 
   /// Le refus de « Lier au stock ».
   static const String lienSansColonne =

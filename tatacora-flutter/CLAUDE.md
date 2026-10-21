@@ -496,7 +496,9 @@ créer »). Schéma **v29** (62 tables : `occupations_tables_local`).
   une retouche locale en attente est gardée (`ConserveLocalement`).
 - **Jamais** : comptes et mots de passe (PA-103), messages de notification
   tracés, pièces du serveur (Q1 = A). Non portés faute d'écran ou de table :
-  congés, plannings, entretiens de véhicules, indisponibilités de la carte.
+  congés, plannings, entretiens de véhicules (décision du PO du 21/10/2026,
+  option B : le poste les portera, un module après l'autre). Les
+  indisponibilités de la carte le sont depuis la v31 (section suivante).
 - **Bouton du serveur** : la PWA (menu de compte « Synchroniser les
   postes ») et l'écran du même nom ici (`/synchronisation-postes`, ouvert à
   tout compte) enregistrent une DEMANDE ; le poste la lit toutes les 30 s
@@ -567,6 +569,25 @@ conversion (`unites_vendables_par_unite_stock`) descend dans la colonne
 `cartes_boisson_local.unites_vendables` (v30, NULLABLE : jamais un 1 inventé ; la
 migration oublie le curseur pour que le catalogue redescende). Seules les
 boissons (M5) sont estimées ; les plats (M4) ne le sont pas.
+
+## Retraits de la carte du jour (21/10/2026, schéma v31)
+
+Décision du PO du 21/10/2026 (option B : « ce que le web fait, le poste le
+fait + synchronisation »). Table `indisponibilites_carte_local` (63 tables) :
+une ligne par retrait (boisson OU plat, motif du registre fermé, commentaire,
+instant, retour), sans clé étrangère. Seul écrivain de saisie :
+`IndisponibilitesCarteDao` (retrait = `creation`, remise = l'unique
+`modification`, tous deux enfilés dans la transaction) ; la descente
+(`AligneurCatalogue._indisponibilite`) n'enfile jamais. Un article déjà retiré
+ne double rien (le serveur fusionne, `fusionne_avec`) ; un retrait local encore
+en file est CONSERVÉ face à celui du serveur. Le droit est celui du rayon
+(boisson M5, plat M4). La carte du bar sait désormais l'état de chaque ligne
+(`disponibiliteConnue`), donc « Rendre indispo. » / « Remettre » sont offerts et
+la modale est un vrai formulaire. **Pas encore porté : le restaurant (plats)** —
+le DAO sait retirer un plat, l'écran de la carte du restaurant affiche encore
+« — » (ses indicateurs `disponibles`/`indisponibles` sont confrontés au serveur,
+à traiter avec lui). Piège : la sonde « un SEUL auteur de la file » compte aussi
+les LECTURES de `operationsSyncLocal` ; lire la file par `OperationsSyncDao`.
 
 ## Exploitation : cron et vérifications (19/10/2026)
 

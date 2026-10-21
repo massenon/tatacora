@@ -19,50 +19,22 @@ import '../providers_bar.dart';
 /// @see EF-M5-02 Carte des boissons
 /// @see RG-15 La décision est imputée — `utilisateur_id` NOT NULL
 ///
-/// ## ⚠ CE GESTE EST REFUSÉ SUR CE POSTE (14/09/2026), et le refus est le
-/// livrable
+/// ## Il écrit DANS LA BASE LOCALE depuis le 21/10/2026 (v31)
 ///
-/// Il écrivait une ligne `indisponibilites_carte` au serveur — motif,
-/// commentaire, auteur, sous verrou. Le poste est zéro réseau, et
-/// `cartes_boisson_local` n'a que **cinq colonnes** : `id`, `article_id`,
-/// `libelle`, `categorie`, `prix_vente`. Il n'existe donc **aucun endroit** où
-/// écrire un retrait, ni son motif, ni son commentaire.
+/// Motif du registre fermé, commentaire et instant sont écrits dans
+/// `indisponibilites_carte_local` et mis en file ; le serveur fusionne si
+/// l'article est déjà retiré, et les autres postes (comme la PWA) le voient
+/// retiré. Il était refusé jusqu'alors, faute de table : la décision de
+/// « ce que le web fait, le poste le fait » (PO, 21/10/2026) l'a créée.
 ///
-/// Trois issues étaient possibles, et deux mentent :
+/// ## Ce que la vue fait, et qui est tenu à l'identique
 ///
-///  1. **Le tenir en mémoire.** Le retrait disparaîtrait à la fermeture de la
-///     fenêtre : le barman aurait retiré la Béninoise le matin et la verrait
-///     revenir à midi, sans que personne ne sache s'il faut la racheter. C'est
-///     précisément le défaut que la PWA a fermé, et il est pire que l'absence.
-///  2. **L'encoder ailleurs** — un prix à zéro, un préfixe dans le libellé.
-///     Le catalogue cesserait de dire ce qu'il dit, et le point de vente
-///     afficherait un article renommé par un état.
-///  3. **Le refuser en DISANT quelle colonne manque**, et garder les mots de la
-///     vue à l'écran pour que la fonction reste identifiable le jour où elle
-///     reviendra. C'est ce qui est fait.
+/// Le titre, le sous-titre (le nom de l'article), « Motif » (obligatoire, une
+/// option par motif, avec sa nature), « Commentaire », l'aide au caractère
+/// près, « Annuler » puis « Retirer ». Un seul écart reste, celui de la vue
+/// elle-même : l'invite « Rechercher un motif… » n'est pas rendue — trois
+/// motifs d'un registre fermé ne se cherchent pas.
 ///
-/// Le formulaire n'est donc **pas** rendu : un motif et un commentaire saisis
-/// puis jetés seraient « un formulaire dont les champs sont collectés puis
-/// ignorés » (Article 6).
-///
-/// ⚠ **L'aide de la vue, elle, est rendue TELLE QUELLE** (l.95-97). Elle avait
-/// d'abord été remplacée par une reformulation, et la garde
-/// `conformite_blade_test` l'a refusée à juste titre : on ne reformule pas un
-/// libellé du maître. Elle dit exactement ce qui manque ici — pourquoi le motif
-/// d'un retrait doit être STOCKÉ.
-///
-/// ## En pratique, la carte n'ouvre déjà plus cette modale
-///
-/// `TableCarte` n'offre « Rendre indispo. » et « Remettre » que si le serveur a
-/// dit l'état de la ligne ([LigneCarte.disponibiliteConnue]). Plus aucune
-/// source ne le dit : les deux boutons ne s'affichent plus. La modale reste
-/// branchée pour que le chemin soit **complet et nommé** plutôt que muet.
-///
-/// ## Un écart hérité de la vue, et il est de la vue
-///
-/// L'invite « Rechercher un motif… » du maître n'est pas rendue — la vue le
-/// déclare elle-même (en-tête du composant, 31/08/2026) : trois motifs d'un
-/// registre fermé ne se cherchent pas.
 Future<bool?> ouvrirModaleRetraitCarte(
   BuildContext context,
   LigneCarte ligne,
@@ -92,50 +64,105 @@ abstract final class TextesRetraitCarte {
   static String remis(String article) =>
       '« $article » est de nouveau à la carte.';
 
-  /// Le bouton « Fermer » remplace « Annuler » : il n'y a rien à annuler.
-  static const String fermer = 'Fermer';
+  /// Issue inatteignable (l'écriture est locale), dite quand même.
+  static const String illisible =
+      'Le retrait n’a pas pu être enregistré sur ce poste.';
 }
 
 /// L'option d'un motif — `{{ libelle }} — {{ temporaire ? … : … }}` (l.69).
 ///
-/// Conservée bien que le sélecteur ne soit plus rendu : c'est la forme exacte
-/// que l'écran devra reprendre le jour où la colonne existera, et elle reste
-/// éprouvée par `motif_indisponibilite_test.dart`.
+/// Éprouvée par `motif_indisponibilite_test.dart`.
 String libelleOptionMotif(MotifIndisponibilite m) =>
     '${m.libelle} — ${m.temporaire ? TextesRetraitCarte.temporaire : TextesRetraitCarte.definitif}';
 
-class _ModaleRetrait extends ConsumerWidget {
+class _ModaleRetrait extends ConsumerStatefulWidget {
   const _ModaleRetrait({required this.ligne});
 
   final LigneCarte ligne;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_ModaleRetrait> createState() => _ModaleRetraitState();
+}
+
+class _ModaleRetraitState extends ConsumerState<_ModaleRetrait> {
+  final _commentaire = TextEditingController();
+
+  // Le premier motif du registre, comme la vue (`motifIndisponibilite`).
+  MotifIndisponibilite _motif = MotifIndisponibilite.values.first;
+
+  bool _envoi = false;
+  String? _refus;
+  Map<String, String> _parChamp = const {};
+
+  @override
+  void dispose() {
+    _commentaire.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return CoquilleModaleRestaurant(
       cle: const Key('modale-retrait-carte'),
       titre: TextesRetraitCarte.titre,
       // `:sousTitre="$nom"` (l.57).
-      sousTitre: ligne.libelle,
+      sousTitre: widget.ligne.libelle,
       largeur: AppLayout.modaleRetraitCarte,
+      refus: _refus,
+      cleRefus: const Key('retrait-carte-refus'),
       corps: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Le motif du refus vient de `BoissonsApi`, qui le rend aussi à
-          // « Remettre » : deux phrases voisines écrites à deux endroits
-          // finiraient par donner deux causes pour une seule situation.
-          const _Avertissement(
-            cle: Key('retrait-carte-sans-colonne'),
-            texte: TextesCatalogueLocal.retraitSansColonne,
+          // ----------------------------------------------- Motif (l.78-91)
+          const EtiquetteChampRestaurant(
+            texte: TextesRetraitCarte.champMotif,
+            obligatoire: true,
           ),
-          const SizedBox(height: AppSpacing.md),
+          DropdownButtonFormField<MotifIndisponibilite>(
+            key: const Key('retrait-carte-motif'),
+            initialValue: _motif,
+            isExpanded: true,
+            style: TextesModaleRestaurant.corps,
+            decoration: InputDecoration(
+              isDense: true,
+              border: const OutlineInputBorder(),
+              errorText: _parChamp['motif'],
+              errorMaxLines: 3,
+            ),
+            items: [
+              for (final m in MotifIndisponibilite.values)
+                DropdownMenuItem(value: m, child: Text(libelleOptionMotif(m))),
+            ],
+            onChanged: _envoi
+                ? null
+                : (m) {
+                    if (m != null) setState(() => _motif = m);
+                  },
+          ),
+          const SizedBox(height: AppSpacing.sm),
+
+          // ------------------------------------------- Commentaire (l.93-103)
+          const EtiquetteChampRestaurant(
+            texte: TextesRetraitCarte.champCommentaire,
+          ),
+          TextField(
+            key: const Key('retrait-carte-commentaire'),
+            controller: _commentaire,
+            style: TextesModaleRestaurant.corps,
+            decoration: InputDecoration(
+              isDense: true,
+              border: const OutlineInputBorder(),
+              hintText: TextesRetraitCarte.inviteCommentaire,
+              errorText: _parChamp['commentaire'],
+              errorMaxLines: 3,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
 
           // ------------------------------------------------ l.95-97 : aide
           // `text-[11px] text-slate-500 bg-slate-50 border border-slate-200
           // rounded-lg p-2.5` ; « rupture » et « retrait » en gras.
-          //
-          // Les mots de la vue, au caractère près : c'est elle qui dit pourquoi
-          // un motif se STOCKE, donc ce que la colonne absente portait.
           Container(
             key: const Key('retrait-carte-aide'),
             padding: const EdgeInsets.all(AppSpacing.xs),
@@ -173,26 +200,74 @@ class _ModaleRetrait extends ConsumerWidget {
         ],
       ),
       actions: [
-        // Un seul bouton : il n'y a rien à confirmer, donc rien à annuler.
-        // « Retirer », grisé, inviterait à cliquer pour ne produire qu'un refus.
-        FilledButton(
-          key: const Key('retrait-carte-fermer'),
-          onPressed: () => Navigator.of(context).pop(false),
+        TextButton(
+          key: const Key('retrait-carte-annuler'),
+          onPressed: _envoi ? null : () => Navigator.of(context).pop(false),
           child: const Text(
-            TextesRetraitCarte.fermer,
+            TextesRetraitCarte.annuler,
+            style: TextesModaleRestaurant.bouton,
+          ),
+        ),
+        FilledButton(
+          key: const Key('retrait-carte-confirmer'),
+          onPressed: _envoi ? null : _retirer,
+          child: const Text(
+            TextesRetraitCarte.confirmer,
             style: TextesModaleRestaurant.bouton,
           ),
         ),
       ],
     );
   }
+
+  Future<void> _retirer() async {
+    setState(() {
+      _envoi = true;
+      _refus = null;
+      _parChamp = const {};
+    });
+
+    final resultat = await ref.read(retirerDeLaCarteProvider)(
+      id: widget.ligne.id,
+      motif: _motif.code,
+      commentaire: _commentaire.text,
+    );
+    if (!mounted) return;
+
+    switch (resultat) {
+      case BarRecu<Boisson>(:final donnees):
+        final messager = ScaffoldMessenger.of(context);
+        Navigator.of(context).pop(true);
+        messager.showSnackBar(
+          SnackBar(
+            content: Text(
+              TextesRetraitCarte.retire(donnees.libelle),
+              key: const Key('retrait-carte-issue'),
+            ),
+          ),
+        );
+      case BarRefuse<Boisson>(:final motif, :final erreurs):
+        setState(() {
+          _envoi = false;
+          _refus = erreurs['etat'] ?? motif;
+          _parChamp = erreurs;
+        });
+      // Inatteignable : l'écriture est locale. Le cas reste écrit parce que le
+      // registre est FERMÉ.
+      case BarInjoignable<Boisson>():
+        setState(() {
+          _envoi = false;
+          _refus = TextesRetraitCarte.illisible;
+        });
+    }
+  }
 }
 
 /// « Remettre » — le geste direct de la vue (l.407), sans modale.
 ///
-/// Il est **refusé** pour la même raison que le retrait : il n'y a rien à
-/// lever, puisqu'il n'y a nulle part où écrire un retrait. Le refus se DIT —
-/// un silence laisserait croire que l'article vient de revenir à la carte.
+/// Il ferme le retrait en cours (v31). Quand rien n'est retiré — remis entre
+/// temps depuis un autre poste —, le refus se DIT : un silence laisserait
+/// croire que l'article vient de revenir à la carte.
 Future<void> remettreALaCarte(
   BuildContext context,
   WidgetRef ref,
@@ -209,35 +284,10 @@ Future<void> remettreALaCarte(
       erreurs['etat'] ?? motif,
     // Inatteignable : l'écriture est locale. Le cas reste écrit parce que le
     // registre est FERMÉ.
-    BarInjoignable<Boisson>() => TextesCatalogueLocal.retraitSansColonne,
+    BarInjoignable<Boisson>() => TextesRetraitCarte.illisible,
   };
 
   messager.showSnackBar(
     SnackBar(content: Text(texte, key: const Key('remise-carte-issue'))),
-  );
-}
-
-/// Ce que la modale dit du geste qu'elle ne peut pas porter.
-class _Avertissement extends StatelessWidget {
-  const _Avertissement({required this.cle, required this.texte});
-
-  final Key cle;
-  final String texte;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    key: cle,
-    padding: const EdgeInsets.all(AppSpacing.sm),
-    decoration: BoxDecoration(
-      color: PaletteMaitre.ambre50,
-      border: Border.all(color: PaletteMaitre.ambre200),
-      borderRadius: BorderRadius.circular(AppRadius.roundedLg),
-    ),
-    child: Text(
-      texte,
-      style: TextesModaleRestaurant.corps.copyWith(
-        color: PaletteMaitre.ambre900,
-      ),
-    ),
   );
 }

@@ -121,6 +121,7 @@ void main() {
         ...tablesAjouteesEnV27,
         ...tablesAjouteesEnV28,
         ...tablesAjouteesEnV29,
+        ...tablesAjouteesEnV31,
       });
 
       // La colonne est en DERNIER, et une base NEUVE a le même ordre.

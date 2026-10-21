@@ -38,6 +38,13 @@ enum TableDescendue {
   menus('menus', TableSynchronisee.menus),
   recettes('recettes', TableSynchronisee.recettes),
   plats('plats', TableSynchronisee.plats),
+
+  /// 21/10/2026 : les retraits de la carte du jour, après les boissons et les
+  /// plats qu'ils citent.
+  indisponibilitesCarte(
+    'indisponibilites_carte',
+    TableSynchronisee.indisponibilitesCarte,
+  ),
   categoriesHebergement(
     'categories_hebergement',
     TableSynchronisee.categoriesHebergement,
@@ -141,6 +148,7 @@ String libelleTableServeur(String nom) => switch (nom) {
   'menus' => 'Menus',
   'recettes' => 'Fiches techniques',
   'plats' => 'Plats',
+  'indisponibilites_carte' => 'Retraits de la carte du jour',
   'categories_hebergement' => 'Catégories d\'hébergement',
   'unites_hebergement' => 'Unités d\'hébergement',
   'commandes_achat' => 'Commandes d\'achat',

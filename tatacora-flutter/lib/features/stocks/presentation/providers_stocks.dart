@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:drift/drift.dart' show BooleanExpressionOperators;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/di/providers.dart';
@@ -10,6 +9,8 @@ import '../../../core/impression/export_etat_a4.dart';
 import '../../../core/rbac/garde_acces.dart';
 import '../data/stocks_api.dart';
 import '../data/stocks_dao.dart';
+import '../../synchronisation/data/operations_sync_dao.dart';
+import '../../synchronisation/domain/operation_sync.dart';
 import '../domain/entities/etat_stock.dart';
 import '../domain/stock_en_attente.dart';
 import '../domain/entities/fiche_stock.dart';
@@ -129,14 +130,20 @@ final stockEnAttenteProvider = FutureProvider.autoDispose<StockEnAttente>((
   ref,
 ) async {
   final db = ref.watch(baseLocaleProvider);
-  final operations =
-      await (db.select(db.operationsSyncLocal)..where(
-            (o) =>
-                o.tableServeur.equals('ventes') &
-                o.type.equals('creation') &
-                o.statut.isIn(const ['en_attente', 'en_cours', 'bloque']),
-          ))
-          .get();
+  // Par le SEUL auteur de la file : la lire en direct y ferait un second
+  // point d'accès (garde `ecrivains_file_envoi_test`).
+  final operations = [
+    for (final o in await OperationsSyncDao(
+      db,
+    ).operations(table: TableSynchronisee.ventes))
+      if (o.type == TypeOperationSync.creation &&
+          const [
+            StatutOperationSync.enAttente,
+            StatutOperationSync.enCours,
+            StatutOperationSync.bloque,
+          ].contains(o.statut))
+        o,
+  ];
   if (operations.isEmpty) return StockEnAttente.vide;
 
   final ventes = <({String boissonId, int quantite})>[];

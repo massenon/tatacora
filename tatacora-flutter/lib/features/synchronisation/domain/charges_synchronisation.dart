@@ -611,6 +611,34 @@ Map<String, Object?> chargeDeplacementReservation({
 Map<String, Object?> chargeStatutCommande(String statut) => {'statut': statut};
 
 /* ==================================================================== */
+/* Retraits de la carte du jour (21/10/2026)                              */
+/* ==================================================================== */
+
+/// `indisponibilites_carte` (création) — `GestionnaireIndisponibilitesCarte` :
+/// EXACTEMENT un de [boissonId] / [platId] (le serveur refuse les deux, ou
+/// aucun), le motif du registre fermé, l'instant du retrait au poste. Le
+/// serveur fusionne si l'article est déjà retiré.
+Map<String, Object?> chargeIndisponibiliteCarte({
+  String? boissonId,
+  String? platId,
+  required String motif,
+  String? commentaire,
+  required DateTime date,
+}) => {
+  'boisson_id': ?boissonId,
+  'plat_id': ?platId,
+  'motif': motif,
+  'commentaire': ?commentaire,
+  'date_indisponibilite': instantLocal(date),
+};
+
+/// `indisponibilites_carte` (modification) : la REMISE à la carte, seule
+/// modification admise.
+Map<String, Object?> chargeRemiseALaCarte(DateTime date) => {
+  'date_retour_disponibilite': instantLocal(date),
+};
+
+/* ==================================================================== */
 /* Tables de salle (lot F6, 18/10/2026)                                   */
 /* ==================================================================== */
 

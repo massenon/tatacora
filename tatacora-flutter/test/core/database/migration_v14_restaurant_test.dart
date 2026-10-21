@@ -444,6 +444,7 @@ void main() {
         ...tablesAjouteesEnV27,
         ...tablesAjouteesEnV28,
         ...tablesAjouteesEnV29,
+        ...tablesAjouteesEnV31,
       });
       expect(apres.difference(avant), isEmpty);
       await db.close();

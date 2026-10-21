@@ -2,12 +2,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 
+import '../../../core/di/providers.dart';
 import '../../../core/fichiers/enregistrement_export.dart';
 import '../../../core/impression/entete_parametree.dart';
 import '../impression/etat_carte.dart';
 import '../impression/etat_ventes_bar.dart';
 
 import '../../pos/data/dto/catalogue_dto.dart';
+import '../../pos/data/indisponibilites_carte_dao.dart';
 import '../../pos/domain/entities/reference_catalogue.dart';
 import '../../pos/presentation/providers_pos.dart';
 import '../data/boissons_api.dart';
@@ -31,6 +33,11 @@ final carteLocaleProvider = FutureProvider<List<LigneCarte>>((ref) async {
   // compté toute la carte « sans lien ». La réponse serveur, quand elle
   // arrive, le remplace ([composerCarte]).
   final liens = await catalogue.liensDeStockDesBoissons();
+  // Les retraits EN COURS, écrits ici ou descendus : le poste SAIT l'état de
+  // chaque ligne, donc « Rendre indispo. » / « Remettre » sont offerts.
+  final retraits = await IndisponibilitesCarteDao(
+    ref.watch(baseLocaleProvider),
+  ).boissonsRetirees();
 
   return bar
       .expand((r) => r.articles)
@@ -42,6 +49,8 @@ final carteLocaleProvider = FutureProvider<List<LigneCarte>>((ref) async {
           prix: a.prix ?? 0,
           articleId: liens[a.reference.code],
           stock: null,
+          indisponibilite: retraits[a.reference.code],
+          disponibiliteConnue: true,
         ),
       )
       .toList(growable: false);
@@ -250,25 +259,34 @@ final modifierPrixBoissonProvider =
 // chemin que rien n'emprunte. `BoissonsApi.lierAuStock` demeure — c'est là que
 // le geste se rebranchera le jour où la colonne existera, et il reste éprouvé.
 
-// ⚠ `retirerDeLaCarteProvider` a été RETIRÉ le 14/09/2026, pour la même raison
-// que `lierAuStockProvider` ci-dessus : la modale énonce le refus et ne soumet
-// rien. Le serveur écrivait une ligne `indisponibilites_carte` — motif,
-// commentaire, auteur, sous verrou ; `cartes_boisson_local` n'a que cinq
-// colonnes, et aucune ne porte un retrait.
-//
-// `BoissonsApi.retirer` demeure, et reste éprouvé : c'est là que le geste se
-// rebranchera le jour où la colonne existera.
+/// « Rendre indispo. » — écrit le retrait dans la base locale et le met en
+/// file (v31, 21/10/2026) ; recharge la carte pour que la ligne passe à
+/// « Retirés du jour ».
+final retirerDeLaCarteProvider =
+    Provider<
+      Future<ResultatBar<Boisson>> Function({
+        required String id,
+        required String motif,
+        String? commentaire,
+      })
+    >(
+      (ref) => ({required id, required motif, commentaire}) async {
+        final r = await ref
+            .read(boissonsApiProvider)
+            .retirer(id: id, motif: motif, commentaire: commentaire);
+        ref.invalidate(carteLocaleProvider);
+        return r;
+      },
+    );
 
-/// « Remettre » — refusé, parce qu'il n'y a rien à lever : il n'existe nulle
-/// part où écrire un retrait.
-///
-/// Celui-ci est CONSERVÉ, à la différence des deux précédents : l'écran de
-/// carte l'appelle encore (`onRemettre`), et le refus doit être DIT. Un geste
-/// silencieux laisserait croire que l'article vient de revenir à la carte.
+/// « Remettre » — ferme le retrait en cours et recharge la carte.
 final remettreALaCarteProvider =
     Provider<Future<ResultatBar<Boisson>> Function(String id)>(
-      (ref) =>
-          (id) => ref.read(boissonsApiProvider).remettre(id),
+      (ref) => (id) async {
+        final r = await ref.read(boissonsApiProvider).remettre(id);
+        ref.invalidate(carteLocaleProvider);
+        return r;
+      },
     );
 
 /// L'historique des prix d'une boisson, LU AU SERVEUR à chaque ouverture de

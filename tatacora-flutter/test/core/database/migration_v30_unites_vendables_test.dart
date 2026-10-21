@@ -73,7 +73,7 @@ void main() {
       expect(b.data['unites_vendables'], isNull);
       final curseur = await apres
           .customSelect(
-            "SELECT COUNT(*) AS n FROM etat_synchronisation_local "
+            'SELECT COUNT(*) AS n FROM etat_synchronisation_local '
             "WHERE cle = 'descente.curseur'",
           )
           .getSingle();
