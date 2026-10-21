@@ -153,6 +153,48 @@ final class Facturer {
     );
   }
 
+  /// Émet la facture des SEULES consommations d'un séjour — sans ligne
+  /// d'hébergement (`EmissionFactureService::emettrePourConsommations`).
+  ///
+  /// ⚠ AMENDEMENT DE RG-04 (« un seul document ») — directive du PO du
+  /// 02/09/2026, reprise ici le 21/10/2026 : à la clôture du panier, le geste
+  /// « Payer séparément » émet une facture qui ne porte QUE les consommations.
+  /// L'hébergement n'est pas abandonné : il reste dû sur la fiche du client et
+  /// sera facturé plus tard, par son propre chemin. Comme le serveur, la pièce
+  /// n'est liée à AUCUNE réservation (la liaison se fait par la ligne
+  /// d'hébergement, qui n'existe pas ici) : elle ne consomme donc pas l'acompte
+  /// de la réservation et n'empêche pas la facture de l'hébergement.
+  Future<PieceFacturation> emettreConsommationsDuSejour({
+    required Panier panier,
+    required Reservation reservation,
+  }) async {
+    if (panier.typeVente != TypeVente.surSejour) {
+      throw PanierIncompatible(
+        'Ce panier est une vente au comptant : il n’a pas de séjour à '
+        'facturer.',
+      );
+    }
+    if (panier.reservationId != reservation.id) {
+      throw PanierIncompatible(
+        'Ce panier n’appartient pas à la réservation ${reservation.reference}.',
+      );
+    }
+    _exigerPanierCloture(panier);
+    await _exigerPanierNonFacture(panier);
+
+    return _depot.emettre(
+      BrouillonFacture(
+        origine: OrigineFacture.posSejour,
+        clientNom: reservation.clientNom,
+        clientId: reservation.clientId,
+        panierId: panier.id,
+        modePaiement: panier.modePaiement,
+        pointVente: panier.pointVente,
+        lignes: _lignesDuPanier(panier),
+      ),
+    );
+  }
+
   /* ================================================================== */
   /* Origine 3 — facture directe                                         */
   /* ================================================================== */

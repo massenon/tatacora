@@ -137,6 +137,11 @@ class VueCarteReservation extends ConsumerWidget {
     // dates, puis « (:nombre nuit(s)) ». Le canal manquant s'écrit « — »,
     // jamais rien : une place vide se lit comme un oubli d'affichage, un
     // tiret comme une donnée absente.
+    //
+    // Le squelette de cette ligne, une fois ses valeurs retirées, est celui que
+    // la vue pose entre ses accolades : « • • → ( ) » — deux puces, une flèche
+    // entre les deux dates, la durée entre parenthèses. Il est dit ici, et
+    // non rendu à part : la ligne ci-dessous le compose avec ses valeurs.
     final identite = [
       _r.typeClient?.libelle ?? '—',
       _r.canal?.libelle ?? '—',

@@ -209,6 +209,11 @@ void main() {
     // `<main>` — échelle EFFECTIVE. Sa modale n'emploie que les styles de
     // `TextesModaleRestaurant`.
     'lib/features/parametres/presentation/widgets/onglet_apparence.dart',
+    // L'onglet « Canaux de réservation » et le bouton « Envoyer un email de
+    // test » (21/10/2026) : les panneaux `@elseif ($onglet === 'canaux')` et
+    // `'email'` de la vue de Paramètres, dans `<main>` — échelle EFFECTIVE.
+    'lib/features/parametres/presentation/widgets/onglet_canaux.dart',
+    'lib/features/parametres/presentation/widgets/bouton_email_test.dart',
     // Le champ « Mot de passe SMTP » de l'onglet Email (SMTP) (19/10/2026) :
     // le bloc `groupe-champ` du panneau `@elseif ($onglet === 'email')` de
     // la vue de Paramètres, dans `<main>` — échelle EFFECTIVE.
@@ -397,6 +402,18 @@ void main() {
         'Modale « Ajouter un recouvrement » de `crm/clients-creances.blade.php` '
         '(`<x-pwa.modale>`, après `</main>` l.594) : le remappage typographique '
         'ne l atteint pas.',
+    'lib/features/crm/presentation/widgets/modale_historique_client.dart':
+        'Modale « Historique d un client » de `crm/clients-creances.blade.php` '
+        '(`<x-pwa.modale>`, après `</main>` l.594) : le remappage '
+        'typographique ne l atteint pas.',
+    'lib/features/crm/presentation/dialogue_nouveau_client.dart':
+        'Modale « Ajouter un client » de `hebergement/reservations.blade.php` '
+        '(`<x-pwa.modale>`, l.745-784), posée après `</main>` (l.341) : le '
+        'remappage typographique ne l atteint pas.',
+    'lib/features/hebergement/presentation/widgets/modale_reservation_rapide.dart':
+        'Modale « Réservation rapide » de `hebergement/hebergement.blade.php` '
+        '(`<x-pwa.modale>`, l.560-628), posée hors `</main>` : le remappage '
+        'typographique ne l atteint pas.',
     'lib/features/hebergement/presentation/widgets/modale_annulation_reservation.dart':
         'Modale « Annuler la réservation » de `hebergement/reservations.blade.php` '
         '(`<x-pwa.modale>`, l.793-879), posée après `</main>` (l.341) : le '

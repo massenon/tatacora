@@ -81,10 +81,10 @@ import '../../domain/entities/unite_hebergement.dart';
 import '../../domain/messages_sejour.dart' show RefusSejour;
 import '../../domain/refus_parc.dart';
 import '../../impression/etat_parc.dart';
-import '../fiche_reservation.dart';
 import '../providers_hebergement.dart';
 import 'bouton_hebergement.dart';
 import 'modale_archivage_unite.dart';
+import 'modale_reservation_rapide.dart';
 import 'modale_unite.dart';
 
 /// Ce que dit l'onglet quand un geste n'a pas de source sur ce poste.
@@ -744,7 +744,7 @@ class _CarteUnite extends ConsumerWidget {
           libelle: 'Réserver cette unité',
           icone: Icons.add,
           fond: AppColors.navy,
-          onPressed: () => ouvrirFicheReservation(context, uniteId: unite.id),
+          onPressed: () => ouvrirReservationRapideParc(context, unite: unite),
         );
 
       case EtatDuJour.reservee:
@@ -1131,10 +1131,12 @@ class _BoutonPage extends StatelessWidget {
 /// L'état vide (l.326-329) : `flex flex-col items-center justify-center py-16
 /// text-center bg-white rounded-xl border border-slate-200 mt-4`.
 ///
-/// ⚠ ÉCART de deux mots avec la vue, et il est délibéré. Elle écrit « aucune
-/// unité d'hébergement n'existe **sur ce serveur** » ; ce poste n'a plus de
-/// serveur depuis le 14/09/2026, et la phrase désignerait une machine qu'il ne
-/// joint jamais. Elle dit donc « sur ce poste ».
+/// ⚠ ÉCART d'un mot avec la vue, et il est délibéré. Elle écrit, mot pour mot :
+/// « Le parc n'a pas encore été renseigné : aucune unité d'hébergement n'existe sur ce serveur. »
+/// Ce poste lit SA base locale : « sur ce serveur » y serait faux (le parc peut
+/// exister au serveur et ne pas être encore descendu ici). La phrase rendue dit
+/// donc « sur ce poste ». La mesure compte la phrase de la vue « nommée », pas
+/// « rendue ».
 ///
 /// Le bouton « Ajouter hébergement » que cet état portait en plus est RETIRÉ
 /// (09/10/2026) : la vue n'en pose pas, et la barre d'outils au-dessus offre le

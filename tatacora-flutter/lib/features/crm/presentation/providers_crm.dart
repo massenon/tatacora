@@ -2,7 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/fichiers/enregistrement_export.dart';
 import '../../../core/impression/entete_parametree.dart';
+import '../domain/historique_client.dart';
 import '../impression/etat_clients.dart';
+import '../impression/releve_client.dart';
 
 import '../../facturation/presentation/providers_paiements.dart';
 import '../../hebergement/presentation/providers_hebergement.dart'
@@ -105,5 +107,41 @@ final exporterRegistreClientsProvider =
                 base: 'registre_clients',
                 type: TypeFichierEnregistre.csv,
                 octets: EtatClients.csvOctets(lignes, filtre: filtre),
+              ),
+    );
+
+/// L'historique d'un client — ses encaissements, du plus récent au plus ancien
+/// (`ClientsCreances::historiqueClient()`). Les relances n'y sont pas : ce poste
+/// n'en détient aucune (voir [composerHistoriqueClient]).
+final historiqueClientProvider = FutureProvider.autoDispose
+    .family<List<MouvementClient>, String>((ref, clientId) async {
+      final paiements = await ref.watch(paiementsFactureProvider.future);
+      final creances = await ref.watch(creancesProvider.future);
+      return composerHistoriqueClient(
+        clientId: clientId,
+        paiements: paiements,
+        creances: creances,
+      );
+    });
+
+/// « Imprimer PDF » de l'historique d'un client : le relevé, enregistré par la
+/// fenêtre « Enregistrer sous » (la vue le télécharge, `streamDownload`), rend le
+/// CHEMIN écrit, `null` : annulé.
+///
+/// Une action injectable : un test de widget n'a pas de greffon natif, et il doit
+/// exister un seul endroit où le document est produit.
+final exporterReleveClientProvider =
+    Provider<Future<String?> Function(ReleveClient)>(
+      (ref) =>
+          (releve) async => ref
+              .read(enregistrementExportProvider)
+              .exporter(
+                base: 'releve_client',
+                type: TypeFichierEnregistre.pdf,
+                octets: await releve
+                    .avecEntete(
+                      await ref.read(lireEnteteEtablissementProvider)(),
+                    )
+                    .pdf(),
               ),
     );

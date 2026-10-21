@@ -377,30 +377,41 @@ void main() {
       expect(find.byKey(const Key('dispo-reserver-u-hs')), findsNothing);
     });
 
-    testWidgets('la période CHERCHÉE devient celle de la fiche (l.538)', (
-      tester,
-    ) async {
-      await semer();
-      await monter(tester);
+    testWidgets(
+      'la période CHERCHÉE devient celle de la réservation rapide (l.538)',
+      (tester) async {
+        await semer();
+        await monter(tester);
 
-      await chercher(tester, 12, 15);
-      expect(
-        conteneur.read(periodeConsulteeProvider).arrivee,
-        DateTime.utc(2026, 10, 12),
-      );
-      expect(
-        conteneur.read(periodeConsulteeProvider).depart,
-        DateTime.utc(2026, 10, 15),
-      );
+        await chercher(tester, 12, 15);
+        expect(
+          conteneur.read(periodeConsulteeProvider).arrivee,
+          DateTime.utc(2026, 10, 12),
+        );
+        expect(
+          conteneur.read(periodeConsulteeProvider).depart,
+          DateTime.utc(2026, 10, 15),
+        );
 
-      await tester.tap(find.byKey(const Key('dispo-reserver-u-bng-02')));
-      await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('dispo-reserver-u-bng-02')));
+        await tester.pumpAndSettle();
 
-      // La fiche s'ouvre EN MODALE, sur l'unité retenue, avec trois nuits.
-      expect(find.byKey(const Key('bloc-hebergement')), findsOneWidget);
-      expect(find.textContaining('3 nuit(s)'), findsWidgets);
-      expect(find.textContaining('84 000 FCFA'), findsWidgets);
-    });
+        // La modale « Réservation rapide » s'ouvre PAR-DESSUS, sur l'unité
+        // retenue, avec la période cherchée : trois nuits, 3 × 28 000.
+        expect(
+          find.byKey(const Key('modale-reservation-rapide')),
+          findsOneWidget,
+        );
+        expect(
+          tester.widget<Text>(find.byKey(const Key('rapide-nuits'))).data,
+          '3 nuit(s)',
+        );
+        expect(
+          tester.widget<Text>(find.byKey(const Key('rapide-montant'))).data,
+          '84 000 FCFA',
+        );
+      },
+    );
 
     testWidgets('sans droit d’écriture, le bouton est RETIRÉ, pas grisé', (
       tester,

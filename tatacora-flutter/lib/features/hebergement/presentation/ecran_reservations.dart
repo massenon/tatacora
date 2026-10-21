@@ -477,7 +477,7 @@ class _CarteVide extends StatelessWidget {
         // Le message de la vue, mot pour mot. Il vaut aussi quand la recherche
         // ne rend rien : une grille vide sans phrase se lit comme un écran
         // cassé.
-        message ?? 'Aucune réservation pour l’instant.',
+        message ?? "Aucune réservation pour l'instant.",
         key: cle,
         textAlign: TextAlign.center,
         style: _t(TaillesContenu.sm, couleur: AppColors.neutre400),

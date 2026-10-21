@@ -123,6 +123,9 @@ void main() {
     };
     // Remis au client (ou pièce fiscale) : ni visa, ni pied de rapport.
     const documentsClient = {
+      // Le relevé de compte client (`pdf/releve-client.blade.php`, PA-194) :
+      // pied NEUTRE, ni visa ni pied de rapport (21/10/2026).
+      'crm/impression/releve_client.dart',
       'facturation/impression/essai_qr_thermique.dart',
       'facturation/impression/facture_a4.dart',
       'facturation/impression/ticket_facture.dart',

@@ -18,11 +18,13 @@ import '../../facturation/domain/entities/paiement_facture.dart';
 import '../../facturation/domain/messages_encaissement.dart';
 import '../../facturation/domain/regles_encaissement.dart';
 import '../../facturation/presentation/providers_paiements.dart';
+import '../../hebergement/domain/entities/reservation.dart';
 import '../../hebergement/presentation/providers_hebergement.dart';
 import '../domain/entities/client.dart';
 import '../domain/entities/registre_clients.dart';
 import 'providers_crm.dart';
 import 'widgets/barre_exports_clients.dart';
+import 'widgets/modale_historique_client.dart';
 import 'widgets/modale_nouveau_client.dart';
 import 'widgets/modale_recouvrement.dart';
 import 'widgets/table_clients.dart';
@@ -50,28 +52,60 @@ import 'widgets/table_clients.dart';
 ///    personne n'a décidée ») n'était déjà plus celle du serveur, et la phrase
 ///    qui la refusait à l'écran serait devenue fausse.
 ///
-/// Les relances supposent un historique de relances, donc M12, module vide : elles
-/// restent sans source, et le disent (`donneeNonDisponible`) au lieu d'afficher
-/// « Aucun client à relancer », qui affirmerait que personne n'est en retard.
+/// ## Ce que ce poste ne fait PAS, et qu'il refuse en le disant (21/10/2026)
 ///
-/// Les avances et acomptes (réservations à acompte) ont leur source depuis
-/// toujours (`reservations_local.acompte`) et n'étaient refusées qu'à cause d'une
-/// prémisse fausse (« elles supposent des encaissements ») : le TABLEAU des
-/// avances n'est pas porté dans ce lot, nommé ici et au ticket (D236) plutôt que
-/// dissimulé.
+/// **Les relances** (`relances_clients`, EF-M3-03) : la PWA les ÉCRIT
+/// (`RelanceClientService::enregistrer`) et en tire la liste « Clients à
+/// relancer », la carte du même nom et l'historique. Ce poste n'a ni table
+/// locale, ni opération de synchronisation, ni flux descendant pour elles :
+/// « Jamais relancé » ou « Aucun client à relancer » y seraient des affirmations
+/// que personne ne peut vérifier. Les deux blocs qui en dépendent sont donc
+/// refusés, et les tableaux disent que la donnée n'a pas de source
+/// (`donneeNonDisponible`) plutôt que d'afficher un zéro plausible :
 ///
-/// ## Les cartes sans source rendent « — », jamais « 0 »
+///  - blade-refuse:crm/clients-creances#relances
+///  - blade-refuse:crm/clients-creances#modale:clients.modale_relance_titre
 ///
-/// « Créances totales », « Dont + de 90 jours », « 0 à 30 jours » et « Encaissé
-/// sur 30 j » ont une source ; seule « Clients à relancer » n'en a pas (M12 est
-/// vide). Les deux cartes de la balance âgée suivent `MontantFcfa::formatOuTiret`
-/// du serveur : un montant NUL est un tiret, jamais « 0 FCFA » — la vue le fait,
-/// et un zéro plausible se lirait comme « aucune dette douteuse » (PA-126).
+/// Le registre FERMÉ des canaux de la vue (`RelanceClient::CANAUX`, la même liste
+/// que la contrainte CHECK du schéma serveur), dit ici avec ses mots :
+/// « Appel téléphonique », « WhatsApp », « E-mail »,
+/// « Courrier remis en main propre » et « Visite ».
+/// Ils ne sont PAS rendus : sans table de relances, aucun écran ne les offre. La
+/// mesure les compte « nommés », pas « portés ».
 ///
-/// Deux modales du maître restent refusées (les relances et l'historique d'un
-/// client), pour la raison dite plus haut :
-///  - maitre-refuse:m3-clients-creances.html#modale-relance
-///  - maitre-refuse:m3-clients-creances.html#modale-hist
+/// Pour les rendre il faut, ensemble : une table `relances_clients_local`
+/// (schéma Drift, hors de ce lot), son écrivain unique enfilant une
+/// `creation` (`TableSynchronisee`), une entrée `TableDescendue`, et — côté
+/// serveur — un gestionnaire de synchronisation pour `relances_clients` (le
+/// registre n'en a pas).
+///
+/// **L'archivage d'un client** (« Supprimer », case de sélection, barre de
+/// sélection groupée, « Restaurer », badge « Archivé ») : `clients_local` n'a
+/// aucune colonne `actif`, et la descente garde un client archivé au serveur
+/// comme actif ici (`archivesNonPortees`). Offrir la case ou la modale
+/// d'archivage serait un contrôle qui n'archive rien :
+///
+///  - blade-refuse:crm/clients-creances#modale:modale-archivage
+///
+/// Les deux libellés que ce refus emporte, dits avec les mots de la vue : le
+/// libellé accessible de la case, « Sélectionner ce client », et le compteur de
+/// la barre de sélection groupée, « :nombre sélectionné(s) ». Ils ne sont PAS
+/// rendus : la mesure les compte « nommés », pas « portés ».
+///
+/// Pour les rendre il faut, ensemble : une colonne `actif` sur `clients_local`
+/// (schéma Drift, hors de ce lot), une modification `actif` enfilée à la
+/// synchronisation et descendue, et les quatre verrous du serveur rejoués au
+/// poste (séjour, location, circuit, facture non soldée — `crm.archivage.verrou_*`).
+///
+/// ## Ce que ce poste fait en plus de l'encaissement
+///
+///  - **Historique d'un client** : « Historique » (liste des clients) et
+///    « Détail » (suivi des dettes) ouvrent la modale du relevé, aux
+///    encaissements du client ; « Imprimer PDF » écrit le relevé de compte
+///    (document remis au client). Les relances n'y figurent pas, et la modale
+///    le dit.
+///  - **Avances et acomptes** : le tableau est rendu, depuis les réservations
+///    non annulées qui portent un acompte (`reservations_local.acompte`).
 const _onglets = <(String, String)>[
   ('clients', 'Liste des clients'),
   ('dettes', 'Suivi des dettes'),
@@ -209,6 +243,7 @@ class _EtatEcranClients extends ConsumerState<EcranClients> {
                   paiements: paiements,
                   clients: ref.watch(clientsProvider).value ?? const [],
                   creances: ref.watch(creancesProvider).value ?? const [],
+                  reservations: ref.watch(reservationsProvider).value,
                 ),
                 _ => registre.when(
                   loading: () => const Padding(
@@ -229,6 +264,11 @@ class _EtatEcranClients extends ConsumerState<EcranClients> {
                       maintenant: maintenant,
                       peutEncaisser: peutEncaisser,
                       onRecouvrement: _ouvrirRecouvrement,
+                      onHistorique: (l) => ouvrirHistoriqueClient(
+                        context,
+                        clientId: l.client.id,
+                        clientNom: l.client.nomComplet,
+                      ),
                     ),
                   ),
                 ),
@@ -885,10 +925,10 @@ class _OngletDettes extends StatelessWidget {
             TextSpan(
               text:
                   'Les tranches classent chaque pièce par ancienneté depuis sa '
-                  'date d’émission. Au-delà de 90 jours, le recouvrement '
+                  'date d\'émission. Au-delà de 90 jours, le recouvrement '
                   'devient incertain et une provision pour dépréciation doit '
-                  'être envisagée — son taux relève d’une décision du Comptable '
-                  'et du Gérant, il n’est pas calculé ici.',
+                  'être envisagée — son taux relève d\'une décision du Comptable '
+                  'et du Gérant, il n\'est pas calculé ici.',
             ),
           ],
         ),
@@ -937,6 +977,8 @@ class _TableauDettes extends StatelessWidget {
     '61 à 90 jours',
     'Plus de 90 jours',
     'Total dû',
+    // La colonne d'actions de la vue (entête vide) : « Détail ».
+    '',
   ];
 
   @override
@@ -1040,6 +1082,26 @@ class _TableauDettes extends StatelessWidget {
                         couleur: AppColors.navy,
                       ),
                     ),
+                    // « Détail » : l'historique du client (`action_detail`).
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.sm,
+                        ),
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: _BoutonLigneClient(
+                            cle: Key('clients-detail-${ligne.clientId}'),
+                            libelle: 'Détail',
+                            onTap: () => ouvrirHistoriqueClient(
+                              context,
+                              clientId: ligne.clientId,
+                              clientNom: ligne.nom,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -1079,6 +1141,7 @@ class _TableauDettes extends StatelessWidget {
                       couleur: AppColors.navy,
                     ),
                   ),
+                  const Expanded(child: SizedBox.shrink()),
                 ],
               ),
             ),
@@ -1104,6 +1167,45 @@ class _TableauDettes extends StatelessWidget {
   );
 }
 
+/// `text-[12px] px-2.5 py-1 rounded-lg border border-slate-300 hover:bg-white` :
+/// le bouton de lecture d'une ligne (« Détail »).
+class _BoutonLigneClient extends StatelessWidget {
+  const _BoutonLigneClient({
+    required Key cle,
+    required this.libelle,
+    required this.onTap,
+  }) : super(key: cle);
+
+  final String libelle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.neutre0,
+      borderRadius: BorderRadius.circular(AppRadius.roundedLg),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.roundedLg),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xsPlus,
+            vertical: AppSpacing.unit,
+          ),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.roundedLg),
+            border: Border.all(color: AppColors.neutre300),
+          ),
+          child: Text(
+            libelle,
+            style: _t(TaillesContenu.t12, couleur: AppColors.neutre700),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _OngletRelances extends StatelessWidget {
   const _OngletRelances();
 
@@ -1120,8 +1222,8 @@ class _OngletRelances extends StatelessWidget {
             TextSpan(
               text:
                   'La relance est tracée, pas envoyée. Aucun canal (WhatsApp, '
-                  'e-mail) n’est branché sur ce système : enregistrer un envoi '
-                  'qui n’a pas eu lieu ferait croire à un suivi inexistant.',
+                  'e-mail) n\'est branché sur ce système : enregistrer un envoi '
+                  'qui n\'a pas eu lieu ferait croire à un suivi inexistant.',
             ),
           ],
         ),
@@ -1165,6 +1267,7 @@ class _OngletAvances extends StatelessWidget {
     required this.paiements,
     required this.clients,
     required this.creances,
+    required this.reservations,
   });
 
   /// Les encaissements, ou `null` tant qu'ils ne sont pas lus.
@@ -1172,34 +1275,51 @@ class _OngletAvances extends StatelessWidget {
   final List<Client> clients;
   final List<CreanceFacture> creances;
 
+  /// Les réservations, ou `null` tant qu'elles ne sont pas lues : un « (0) »
+  /// avant la lecture affirmerait qu'il n'y a aucune avance.
+  final List<Reservation>? reservations;
+
   /// Le plafond des journaux de la vue (`ClientsCreances::PLAFOND`).
   static const int plafond = 200;
+
+  /// `ClientsCreances::avances()` : les réservations dont l'acompte est
+  /// strictement positif, hors annulées, de la plus récente arrivée à la plus
+  /// ancienne, au plus [plafond].
+  static List<Reservation>? avances(List<Reservation>? toutes) {
+    if (toutes == null) return null;
+    final retenues = [
+      for (final r in toutes)
+        if (r.acompte > 0 && r.estActive) r,
+    ]..sort((a, b) => b.periode.arrivee.compareTo(a.periode.arrivee));
+    return retenues.take(plafond).toList(growable: false);
+  }
 
   @override
   Widget build(BuildContext context) {
     final affiches = paiements?.take(plafond).toList(growable: false);
+    final lesAvances = avances(reservations);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _TitreSection('Avances et acomptes'),
-        const Padding(
-          padding: EdgeInsets.only(bottom: AppSpacing.lg),
-          child: _TableauSansSource(
-            cle: 'clients-avances-tableau',
-            colonnes: [
-              'Date',
-              'Client',
-              'Origine',
-              'Avance versée',
-              'Reste dû',
-            ],
-            aDroite: {'Avance versée', 'Reste dû'},
-            sujet: 'Les avances',
-          ),
+        // Le nombre de lignes est rendu SEULEMENT quand la source est lue :
+        // « (0) » avant la lecture affirmerait qu'il n'y en a aucune.
+        _TitreSection(
+          lesAvances == null
+              ? 'Avances et acomptes'
+              : 'Avances et acomptes (${lesAvances.length})',
         ),
-        // Le nombre de lignes est rendu SEULEMENT quand les encaissements sont
-        // lus : « (0) » avant la lecture affirmerait qu'il n'y en a aucun.
+        Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.lg), // mb-6
+          child: lesAvances == null
+              ? const _TableauAvances(avances: null)
+              : ListePaginee<Reservation>(
+                  elements: lesAvances,
+                  prefixeCle: 'clients-avances-pagination',
+                  masquerSiVide: true,
+                  constructeur: (_, page) => _TableauAvances(avances: page),
+                ),
+        ),
         _TitreSection(
           affiches == null
               ? 'Recouvrements encaissés'
@@ -1225,6 +1345,174 @@ class _OngletAvances extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Le tableau « Avances et acomptes » (`clients-creances.blade.php` l.478-497) :
+/// `Date · Client · Origine · Avance versée · Reste dû`.
+///
+/// La date est l'ARRIVÉE du séjour (`date_arrivee`), l'origine le canal de la
+/// réservation (« — » quand il est vide), l'avance l'acompte versé. Le reste dû
+/// est celui de la réservation : « — » quand son montant est inconnu, « Soldé »
+/// quand il est nul, le montant en rouge sinon.
+///
+/// ## Un montant inconnu se dit « — », jamais un négatif
+///
+/// Une réservation descendue d'un autre poste sans tarif ni ligne (`tarifNuit` à
+/// zéro, précédent `ReservationDto`) a un montant total de zéro : son « reste »
+/// vaudrait `−acompte`. La vue rend `null` dans ce cas (`resteAPayer()` sans
+/// `tarif_nuit` figé) ; le poste fait de même plutôt que d'afficher une dette
+/// négative qui n'existe pas.
+class _TableauAvances extends StatelessWidget {
+  const _TableauAvances({required this.avances});
+
+  final List<Reservation>? avances;
+
+  static const _colonnes = [
+    'Date',
+    'Client',
+    'Origine',
+    'Avance versée',
+    'Reste dû',
+  ];
+
+  /// Le reste dû affiché, ou `null` quand le montant de la réservation est
+  /// inconnu.
+  static int? resteDu(Reservation r) =>
+      r.lignes.isEmpty && r.tarifNuit == 0 ? null : r.resteAPayer;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = avances;
+
+    return Container(
+      key: const Key('clients-avances-tableau'),
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: AppColors.neutre0,
+        borderRadius: BorderRadius.circular(AppRadius.roundedXl),
+        border: Border.all(color: AppColors.neutre200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            color: AppColors.navy,
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xsPlus),
+            child: Row(
+              children: [
+                for (final c in _colonnes)
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.sm,
+                      ),
+                      child: Text(
+                        c.toUpperCase(),
+                        textAlign: c == 'Avance versée' || c == 'Reste dû'
+                            ? TextAlign.right
+                            : TextAlign.left,
+                        style: _t(
+                          TaillesContenu.t11,
+                          poids: FontWeight.w600,
+                          couleur: AppColors.neutre0.withValues(alpha: 0.90),
+                          espacement: 0.5,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          if (l == null)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: AppSpacing.xl),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (l.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
+              child: Text(
+                'Aucune avance enregistrée.',
+                key: const Key('clients-avances-vide'),
+                textAlign: TextAlign.center,
+                style: _t(TaillesContenu.t13, couleur: AppColors.neutre400),
+              ),
+            )
+          else
+            for (final r in l) _ligne(r),
+        ],
+      ),
+    );
+  }
+
+  Widget _ligne(Reservation r) {
+    final reste = resteDu(r);
+    final texteReste = reste == null
+        ? '—'
+        : (reste == 0 ? 'Soldé' : formaterFcfa(reste));
+    final enRouge = reste != null && reste != 0;
+
+    return Container(
+      key: Key('clients-avance-ligne-${r.id}'),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: AppColors.neutre100)),
+      ),
+      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xsPlus),
+      child: Row(
+        children: [
+          _cellule(
+            formaterDate(r.periode.arrivee),
+            style: _t(TaillesContenu.t13, couleur: Ardoise.c600),
+          ),
+          _cellule(
+            r.clientNom.isEmpty ? '—' : r.clientNom,
+            style: _t(
+              TaillesContenu.t13,
+              poids: FontWeight.w600,
+              couleur: Ardoise.c800,
+            ),
+          ),
+          _cellule(
+            r.canal?.libelle ?? '—',
+            style: _t(TaillesContenu.t13, couleur: Ardoise.c600),
+          ),
+          _cellule(
+            formaterFcfa(r.acompte),
+            droite: true,
+            style: _t(
+              TaillesContenu.t13,
+              poids: FontWeight.w600,
+              couleur: PaletteMaitre.emeraude600,
+            ),
+          ),
+          _cellule(
+            texteReste,
+            droite: true,
+            style: _t(
+              TaillesContenu.t13,
+              poids: enRouge ? FontWeight.w600 : null,
+              couleur: enRouge ? PaletteMaitre.rouge600 : Ardoise.c400,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static Widget _cellule(
+    String texte, {
+    required TextStyle style,
+    bool droite = false,
+  }) => Expanded(
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+      child: Text(
+        texte,
+        textAlign: droite ? TextAlign.right : TextAlign.left,
+        style: style,
+      ),
+    ),
+  );
 }
 
 /// Le tableau « Recouvrements encaissés » (`clients-creances.blade.php`

@@ -148,8 +148,14 @@ class _FicheReservationState extends ConsumerState<FicheReservation> {
   // Les listes du maître. Chacune a une valeur initiale, comme les `<select>`
   // du maître qui affichent tous leur première option.
   TypeClient _typeClient = TypeClient.parDefaut;
-  CanalReservation _canal = CanalReservation.parDefaut;
-  ModePaiementReservation _modePaiement = ModePaiementReservation.parDefaut;
+
+  /// Canal et mode de paiement partent VIDES, comme les `<select>` de la vue
+  /// dont la première option est « Choisissez un canal » / « Choisissez un
+  /// mode » : les deux sont `nullable` au serveur (`rCanalId`,
+  /// `rModePaiement`). Une origine ou un mode devinés fausseraient l'analyse
+  /// par canal et la pièce de l'acompte sans que rien ne le signale.
+  CanalReservation? _canal;
+  ModePaiementReservation? _modePaiement;
   TypeRemise _typeRemise = TypeRemise.aucune;
 
   DateTime? _arrivee;
@@ -461,9 +467,8 @@ class _FicheReservationState extends ConsumerState<FicheReservation> {
       _clientPrerempli = existante.clientId;
       _acompte.text = '${existante.acompte}';
       _typeClient = existante.typeClient ?? TypeClient.parDefaut;
-      _canal = existante.canal ?? CanalReservation.parDefaut;
-      _modePaiement =
-          existante.modePaiement ?? ModePaiementReservation.parDefaut;
+      _canal = existante.canal;
+      _modePaiement = existante.modePaiement;
       _typeRemise = existante.remiseType ?? TypeRemise.aucune;
       _remiseValeur.text = '${existante.remiseValeur ?? 0}';
       _arrivee = existante.periode.arrivee;
@@ -538,17 +543,35 @@ class _FicheReservationState extends ConsumerState<FicheReservation> {
           child: Row(
             children: [
               Flexible(
-                child: Text(
-                  // Le titre porte le NOM du client en modification
-                  // (« Modifier — KORA Jean ») : sur une fiche qui ressemble
-                  // trait pour trait à celle de la création, c'est la seule
-                  // chose qui dise qu'on réécrit une fiche existante.
-                  existante == null
-                      ? 'Nouvelle réservation'
-                      : 'Modifier — ${existante.clientNom}',
-                  key: const Key('titre-modale-reservation'),
-                  overflow: TextOverflow.ellipsis,
-                  style: textes.titleMedium?.copyWith(color: AppColors.navy),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      // Le titre de la vue, au mot : `modale_titre_creation` ou
+                      // `modale_titre_modification` (« Modifier la
+                      // réservation »). Le nom du client, qui figurait ici en
+                      // modification, est dans le champ « Client » juste
+                      // dessous.
+                      existante == null
+                          ? 'Nouvelle réservation'
+                          : 'Modifier la réservation',
+                      key: const Key('titre-modale-reservation'),
+                      overflow: TextOverflow.ellipsis,
+                      style: textes.titleMedium?.copyWith(
+                        color: AppColors.navy,
+                      ),
+                    ),
+                    // `:sousTitre="__('hebergement_pwa.reservations.modale_sous_titre')"`.
+                    Text(
+                      'Les cinq champs que le schéma serveur porte pour une réservation.',
+                      key: const Key('sous-titre-modale-reservation'),
+                      overflow: TextOverflow.ellipsis,
+                      style: textes.labelSmall?.copyWith(
+                        color: AppColors.neutre500,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(width: AppSpacing.xs),
@@ -598,7 +621,8 @@ class _FicheReservationState extends ConsumerState<FicheReservation> {
                       valeur: _typeClient,
                       options: TypeClient.values,
                       libelle: (t) => t.libelle,
-                      onChange: (t) => setState(() => _typeClient = t),
+                      onChange: (t) =>
+                          setState(() => _typeClient = t ?? _typeClient),
                     ),
                   ),
                   const SizedBox(height: AppSpacing.md),
@@ -606,6 +630,7 @@ class _FicheReservationState extends ConsumerState<FicheReservation> {
                     gauche: _Liste<CanalReservation>(
                       cle: const Key('champ-canal'),
                       etiquette: 'Canal de réservation',
+                      invite: 'Choisissez un canal',
                       valeur: _canal,
                       options: CanalReservation.values,
                       libelle: (c) => c.libelle,
@@ -702,6 +727,7 @@ class _FicheReservationState extends ConsumerState<FicheReservation> {
                   _Liste<ModePaiementReservation>(
                     cle: const Key('champ-mode-paiement'),
                     etiquette: 'Mode de paiement',
+                    invite: 'Choisissez un mode',
                     valeur: _modePaiement,
                     options: ModePaiementReservation.values,
                     libelle: (m) => m.libelle,
@@ -1312,13 +1338,20 @@ class _Liste<T> extends StatelessWidget {
     required this.options,
     required this.libelle,
     required this.onChange,
+    this.invite,
   }) : super(key: cle);
 
   final String etiquette;
-  final T valeur;
+
+  /// `null` : aucune option choisie — seulement quand [invite] existe.
+  final T? valeur;
   final List<T> options;
   final String Function(T) libelle;
-  final void Function(T) onChange;
+  final void Function(T?) onChange;
+
+  /// La PREMIÈRE option de la vue, à valeur vide (« Choisissez un canal »).
+  /// Absente : la liste n'a pas d'option vide (« Type de client »).
+  final String? invite;
 
   @override
   Widget build(BuildContext context) {
@@ -1327,7 +1360,7 @@ class _Liste<T> extends StatelessWidget {
       children: [
         Text(etiquette, style: Theme.of(context).textTheme.labelMedium),
         const SizedBox(height: AppSpacing.unit),
-        DropdownButtonFormField<T>(
+        DropdownButtonFormField<T?>(
           initialValue: valeur,
           // Le panneau peut être étroit : sans ces deux réglages, « Agence
           // partenaire » déborde au lieu d'être tronqué.
@@ -1337,15 +1370,19 @@ class _Liste<T> extends StatelessWidget {
             isDense: true,
           ),
           items: [
+            if (invite != null)
+              DropdownMenuItem<T?>(
+                child: Text(invite!, overflow: TextOverflow.ellipsis),
+              ),
             for (final o in options)
-              DropdownMenuItem(
+              DropdownMenuItem<T?>(
                 value: o,
                 child: Text(libelle(o), overflow: TextOverflow.ellipsis),
               ),
           ],
-          onChanged: (v) {
-            if (v != null) onChange(v);
-          },
+          // L'option vide (`null`) remet la saisie à « non choisi » ; une liste
+          // sans [invite] n'en propose pas, et ne reçoit donc jamais `null`.
+          onChanged: onChange,
         ),
       ],
     );

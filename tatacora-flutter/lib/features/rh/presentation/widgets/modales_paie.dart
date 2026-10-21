@@ -577,6 +577,10 @@ class _FicheEmployeState extends ConsumerState<_FicheEmploye> {
             ),
           ),
           const SizedBox(height: AppSpacing.xxs),
+          // Une ligne par homonyme, au gabarit de la vue (l.951-952) :
+          // `<strong>matricule</strong> — nom complet · poste · salaire`. Une
+          // fois les valeurs retirées, il reste « — · · » : trois séparateurs,
+          // dits ici et rendus par la ligne ci-dessous.
           for (final homonyme in _homonymes)
             Padding(
               padding: const EdgeInsets.only(bottom: AppSpacing.unit),

@@ -455,7 +455,7 @@ void main() {
       tester
           .widget<Text>(find.byKey(const Key('titre-modale-reservation')))
           .data,
-      'Modifier — KORA Jean',
+      'Modifier la réservation',
     );
   });
 
@@ -537,7 +537,7 @@ void main() {
       tester
           .widget<Text>(find.byKey(const Key('titre-modale-reservation')))
           .data,
-      'Modifier — KORA Jean',
+      'Modifier la réservation',
     );
   });
 

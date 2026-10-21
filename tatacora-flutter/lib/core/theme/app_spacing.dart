@@ -270,6 +270,10 @@ abstract final class AppLayout {
   /// déplace pas l'autre.
   static const double modaleRecouvrementCrm = 560;
 
+  /// La modale « Historique d'un client » de `clients-creances.blade.php`
+  /// (`<x-pwa.modale … largeur="720px">`, l.728).
+  static const double modaleHistoriqueClientCrm = 720;
+
   static const double maxContentWidth = 1440;
 
   /// La hauteur maximale des modales de l'écran Stocks, en **fraction** de la
@@ -593,6 +597,10 @@ abstract final class AppLayout {
   /// `largeur="420px"` (`pwa/carte/corps.blade.php` l.803). Valeur en dur de
   /// la vue : ni `max-w-md` (448) ni `max-w-sm` (384).
   static const double modalePrixBoisson = 420;
+
+  /// La modale « Modifier la boisson — » de la Carte du bar —
+  /// `largeur="480px"` (`pwa/carte/corps.blade.php` l.790).
+  static const double modaleModifierBoisson = 480;
 
   /// La modale « Lier au stock » — `largeur="560px"` (composant Blade
   /// `modal-lieraustock`, l.52), la mesure du maître que la vue a rétablie
@@ -1469,6 +1477,22 @@ abstract final class LargeursPos {
   /// `largeur="448px"` des modales d'ouverture et de clôture de caisse
   /// (`pos/comptant.blade.php` l.641 et l.663).
   static const double modaleCaisse = 448;
+
+  /// `largeur="448px"` des modales « Annuler cette vente » et « Stock
+  /// insuffisant » (`pos/comptant.blade.php` l.707 et l.728) : la même mesure
+  /// que celles de la caisse, nommée pour ce qu'elle porte ici.
+  static const double modaleAnnulationVente = 448;
+
+  /// `largeur="480px"` — la modale « Vente encaissée » (`pos/comptant.blade.php`
+  /// l.434).
+  static const double modaleVenteEncaissee = 480;
+
+  /// `largeur="620px"` — la modale « Journal du jour » (l.513).
+  static const double modaleJournalDuJour = 620;
+
+  /// `max-h-[300px]` — le tableau du journal du jour défile à cette hauteur
+  /// (l.553), en-tête collant.
+  static const double hauteurTableauJournal = 300;
 
   /// `w-2 h-2` — la pastille d'état de la barre de session de caisse
   /// (`pos/comptant.blade.php` l.79 et l.143).

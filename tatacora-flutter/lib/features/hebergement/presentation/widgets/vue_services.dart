@@ -228,11 +228,13 @@ class BlocLignesService extends StatelessWidget {
                           _service.nom,
                           style: textes.labelMedium?.copyWith(color: couleur),
                         ),
-                        TextButton.icon(
+                        TextButton(
                           key: Key('ajouter-${_service.cle}'),
                           onPressed: onAjouter,
-                          icon: const Icon(Icons.add, size: 14),
-                          label: Text('Ajouter ${_service.labelLigne}'),
+                          // `ligne_ajouter` puis `labelLigne` : « + Ajouter une
+                          // chambre ». Le « + » fait partie du libellé de la
+                          // vue, pas d'une icône.
+                          child: Text('+ Ajouter ${_service.labelLigne}'),
                         ),
                       ],
                     ),
@@ -260,15 +262,28 @@ class BlocLignesService extends StatelessWidget {
                           color: AppColors.neutre100,
                           borderRadius: BorderRadius.circular(AppRadius.md),
                         ),
-                        child: Text(
+                        child: Text.rich(
                           nuits == null
-                              ? 'Renseignez les dates d’arrivée et de départ : '
-                                    'le nombre de nuits et les montants s’en '
-                                    'déduiront.'
-                              : '$nuits nuit(s) — calculées depuis les dates du '
-                                    'séjour. Le champ n’est pas saisissable : '
-                                    'allongez ou raccourcissez le séjour et les '
-                                    'montants suivent.',
+                              ? const TextSpan(
+                                  text:
+                                      'Renseignez les dates d\'arrivée et de départ : le nombre de nuits et les montants s\'en déduiront.',
+                                )
+                              : TextSpan(
+                                  children: [
+                                    // `<strong>:nombre nuit(s)</strong>` puis le
+                                    // reste de `nuits_banner_connu`.
+                                    TextSpan(
+                                      text: '$nuits nuit(s)',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const TextSpan(
+                                      text:
+                                          ' — calculées depuis les dates du séjour. Le champ n\'est pas saisissable : allongez ou raccourcissez le séjour et les montants suivent.',
+                                    ),
+                                  ],
+                                ),
                           key: const Key('bandeau-nuits'),
                           style: textes.labelSmall,
                         ),
@@ -372,10 +387,15 @@ class _LigneSaisie extends StatelessWidget {
               key: Key('choix-${ligne.id}'),
               initialValue: choisies.isEmpty ? null : choisies.first,
               isExpanded: true,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                border: const OutlineInputBorder(),
                 isDense: true,
-                hintText: 'Choisir...',
+                // L'invite de la vue : l'hébergement a son sélecteur d'unité
+                // (`champ_unite_invite`), les quatre autres services la ligne de
+                // catalogue (`ligne_choisir`).
+                hintText: ligne.service == ServiceReservation.hebergement
+                    ? 'Choisir une unité…'
+                    : 'Choisissez un élément du catalogue',
               ),
               items: [
                 for (final o in proposees)
@@ -441,7 +461,7 @@ class _LigneSaisie extends StatelessWidget {
           ),
           IconButton(
             key: Key('retirer-${ligne.id}'),
-            tooltip: 'Retirer',
+            tooltip: 'Retirer cette ligne',
             onPressed: onRetirer,
             icon: const Icon(Icons.close, size: 16),
           ),

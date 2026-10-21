@@ -33,6 +33,20 @@ const String tiretPaie = '—';
 /// écart que pour la dépense courante (PA-111). Les montants partent en
 /// **nombres bruts** : un tableur ne sait pas additionner « 56 000 FCFA ».
 ///
+/// ## La forme DOCUMENT du livre de paie n'est pas exportée (écart nommé)
+///
+/// La vue cache, pour sa garde de colonnes, une table onze colonnes
+/// « Livre de paie / Bulletins de paie » (l.839-857) : Matricule, Employé,
+/// Brut, CNSS 3,6 %, ITS, Autres retenues, Net à payer, CNSS pension 6,4 %,
+/// « Prest. fam. 9 % », VPS 4 % et « Risques prof. (non confirmé) ». Ce n'est
+/// PAS le fichier que la PWA écrit (`PaieExport::entetesDe`, huit colonnes dont
+/// « Charges patronales »), et c'est celui de la PWA que ce poste suit. Les deux
+/// intitulés propres à cette forme — « Prest. fam. 9 % » et « Risques prof. (non
+/// confirmé) » — sont donc NOMMÉS ici et non rendus : la mesure les compte
+/// « nommés », pas « portés ». (Si la forme document était un jour exportée, la
+/// colonne des risques professionnels rendrait une FOURCHETTE, jamais un taux
+/// supposé — PA-53.)
+///
 /// ## Les en-têtes sont ceux de la vue
 ///
 /// `App\Exports\PaieExport::entetesDe()` : même casse que le maître

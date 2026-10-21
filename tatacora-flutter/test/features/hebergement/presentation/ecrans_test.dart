@@ -283,6 +283,114 @@ void main() {
       await tester.pumpAndSettle();
     }
 
+    testWidgets('les lignes parlent comme la vue : « + Ajouter une chambre », '
+        'l\'invite de l\'unité, « Retirer cette ligne »', (tester) async {
+      await monter(
+        tester,
+        const FicheReservation(),
+        periodeInitiale: periode(10, 12),
+      );
+
+      await tester.tap(find.byKey(const Key('service-hebergement')));
+      await tester.pumpAndSettle();
+      // `ligne_ajouter` + `labelLigne` : le « + » est dans le libellé.
+      expect(find.text('+ Ajouter une chambre'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('ajouter-hebergement')));
+      await tester.pumpAndSettle();
+      expect(find.text('Choisir une unité…'), findsOneWidget);
+      expect(find.byTooltip('Retirer cette ligne'), findsOneWidget);
+
+      // Un autre service : l'invite du catalogue, pas celle des unités.
+      await tester.tap(find.byKey(const Key('service-bar')));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(const Key('ajouter-bar')));
+      await tester.tap(find.byKey(const Key('ajouter-bar')));
+      await tester.pumpAndSettle();
+      expect(find.text('Choisissez un élément du catalogue'), findsOneWidget);
+    });
+
+    testWidgets(
+      'le bandeau des nuits dit les mots de la vue, le nombre en gras',
+      (tester) async {
+        await monter(
+          tester,
+          const FicheReservation(uniteId: uniteId),
+          periodeInitiale: periode(10, 12),
+        );
+
+        final bandeau = tester.widget<Text>(
+          find.byKey(const Key('bandeau-nuits')),
+        );
+        final texte = bandeau.textSpan!.toPlainText();
+        expect(
+          texte,
+          '2 nuit(s) — calculées depuis les dates du séjour. Le champ n\'est '
+          'pas saisissable : allongez ou raccourcissez le séjour et les montants '
+          'suivent.',
+        );
+        // `<strong>:nombre nuit(s)</strong>` : seul le nombre est en gras.
+        final premier =
+            (bandeau.textSpan! as TextSpan).children!.first as TextSpan;
+        expect(premier.text, '2 nuit(s)');
+        expect(premier.style?.fontWeight, FontWeight.bold);
+      },
+    );
+
+    testWidgets('« Ajouter client » ouvre la modale de la vue, droit M3 dit', (
+      tester,
+    ) async {
+      await monter(
+        tester,
+        const FicheReservation(uniteId: uniteId),
+        periodeInitiale: periode(10, 12),
+      );
+
+      await tester.ensureVisible(
+        find.byKey(const Key('bouton-nouveau-client')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('bouton-nouveau-client')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Ajouter un client'), findsOneWidget);
+      expect(
+        find.text('Fiche client unique du référentiel — RG-18.'),
+        findsOneWidget,
+      );
+      expect(find.text('Nom complet *'), findsOneWidget);
+      expect(find.text('01 97 35 59 74'), findsOneWidget);
+      expect(
+        tester
+            .widget<Text>(find.byKey(const Key('nouveau-client-droit-m3')))
+            .data,
+        'Créer une fiche client est une écriture M3 : le droit M3 est exigé en '
+        'plus du droit M1, comme à la synchronisation.',
+      );
+      expect(find.text('Ajouter le client'), findsOneWidget);
+    });
+
+    testWidgets('la modale « Réservation enregistrée » dit ce que le papier '
+        'EST : une confirmation, pas une facture', (tester) async {
+      await monter(
+        tester,
+        const FicheReservation(uniteId: uniteId),
+        periodeInitiale: periode(10, 12),
+      );
+      await choisirClient(tester, 'Comptoir');
+      await enregistrer(tester);
+
+      expect(find.text('Réservation enregistrée'), findsOneWidget);
+      expect(
+        tester
+            .widget<Text>(find.byKey(const Key('impression-avertissement')))
+            .data,
+        startsWith(
+          'Le document remis porte le titre « CONFIRMATION DE RÉSERVATION » '
+          'et ne vaut pas facture',
+        ),
+      );
+    });
+
     testWidgets('la page porte les champs du maître, dans son ordre', (
       tester,
     ) async {
@@ -811,6 +919,70 @@ void main() {
       expect(ConfirmationReservation.titre, isNot(contains('FACTURE')));
     });
 
+    /// Choisit [libelle] dans la liste déroulante de clé [cle] (la fiche défile :
+    /// la liste est d'abord amenée à l'écran).
+    Future<void> choisirListe(
+      WidgetTester tester,
+      Key cle,
+      String libelle,
+    ) async {
+      final liste = find.byKey(cle);
+      await tester.ensureVisible(liste);
+      await tester.pumpAndSettle();
+      await tester.tap(liste);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(libelle).last);
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets(
+      'canal et mode de paiement partent VIDES, avec l’invite de la vue, et '
+      's’enregistrent vides tant qu’on n’a rien choisi',
+      (tester) async {
+        await monter(
+          tester,
+          const FicheReservation(uniteId: uniteId),
+          periodeInitiale: periode(10, 12),
+        );
+
+        // Les premières options des `<select>` de la vue.
+        expect(find.text('Choisissez un canal'), findsOneWidget);
+        await tester.ensureVisible(
+          find.byKey(const Key('champ-mode-paiement')),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Choisissez un mode'), findsOneWidget);
+
+        await choisirClient(tester, 'Comptoir');
+        await enregistrer(tester);
+        await tester.tap(find.byKey(const Key('bouton-plus-tard')));
+        await tester.pumpAndSettle();
+
+        // Une origine ou un mode devinés fausseraient l'analyse par canal : la
+        // vue les laisse vides (`nullable` au serveur), le poste aussi.
+        final r = (await depot.reservations()).single;
+        expect(r.canal, isNull);
+        expect(r.modePaiement, isNull);
+      },
+    );
+
+    testWidgets('la fiche porte le sous-titre de la vue', (tester) async {
+      await monter(
+        tester,
+        const FicheReservation(uniteId: uniteId),
+        periodeInitiale: periode(10, 12),
+      );
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(const Key('sous-titre-modale-reservation')),
+            )
+            .data,
+        'Les cinq champs que le schéma serveur porte pour une réservation.',
+      );
+    });
+
     testWidgets('une saisie valide crée la réservation ET ses lignes', (
       tester,
     ) async {
@@ -821,6 +993,12 @@ void main() {
       );
 
       await choisirClient(tester, 'Comptoir');
+      await choisirListe(tester, const Key('champ-canal'), 'Physique');
+      await choisirListe(
+        tester,
+        const Key('champ-mode-paiement'),
+        'Mobile Money',
+      );
       await tester.enterText(find.byKey(const Key('champ-acompte')), '20000');
       await enregistrer(tester);
 
@@ -898,40 +1076,41 @@ void main() {
       ),
     );
 
-    testWidgets('le formulaire arrive REMPLI, et le titre nomme le client', (
-      tester,
-    ) async {
-      await aModifier(acompte: 10000);
-      await monter(
-        tester,
-        const FicheReservation(reservationId: 'res-mod'),
-        periodeInitiale: periode(1, 2),
-      );
+    testWidgets(
+      'le formulaire arrive REMPLI, sous le titre « Modifier la réservation »',
+      (tester) async {
+        await aModifier(acompte: 10000);
+        await monter(
+          tester,
+          const FicheReservation(reservationId: 'res-mod'),
+          periodeInitiale: periode(1, 2),
+        );
 
-      expect(
-        tester
-            .widget<Text>(find.byKey(const Key('titre-modale-reservation')))
-            .data,
-        'Modifier — Comptoir',
-      );
+        expect(
+          tester
+              .widget<Text>(find.byKey(const Key('titre-modale-reservation')))
+              .data,
+          'Modifier la réservation',
+        );
 
-      // La fiche entière est reprise : un champ oublié au pré-remplissage se
-      // viderait à l'enregistrement, et l'utilisateur ne verrait rien.
-      // La liste des clients affiche « nom — téléphone » : c'est ce qui
-      // distingue deux homonymes, et c'est le seul moyen de choisir juste au
-      // comptoir.
-      expect(find.textContaining('Comptoir'), findsWidgets);
-      // « Structure », le mot de la vue (PA-185) — le code stocké reste
-      // `entreprise`, et c'est lui qui a été relu pour remplir ce champ.
-      expect(find.text('Structure'), findsWidgets);
-      expect(find.text('WhatsApp'), findsWidgets);
-      expect(find.text('Chèque'), findsWidgets);
+        // La fiche entière est reprise : un champ oublié au pré-remplissage se
+        // viderait à l'enregistrement, et l'utilisateur ne verrait rien.
+        // La liste des clients affiche « nom — téléphone » : c'est ce qui
+        // distingue deux homonymes, et c'est le seul moyen de choisir juste au
+        // comptoir.
+        expect(find.textContaining('Comptoir'), findsWidgets);
+        // « Structure », le mot de la vue (PA-185) — le code stocké reste
+        // `entreprise`, et c'est lui qui a été relu pour remplir ce champ.
+        expect(find.text('Structure'), findsWidgets);
+        expect(find.text('WhatsApp'), findsWidgets);
+        expect(find.text('Chèque'), findsWidgets);
 
-      // Les dates viennent de la RÉSERVATION, pas de la période consultée :
-      // l'écran a été monté sur une tout autre période.
-      expect(find.byKey(const Key('bloc-hebergement')), findsOneWidget);
-      expect(find.textContaining('56 000 FCFA'), findsWidgets);
-    });
+        // Les dates viennent de la RÉSERVATION, pas de la période consultée :
+        // l'écran a été monté sur une tout autre période.
+        expect(find.byKey(const Key('bloc-hebergement')), findsOneWidget);
+        expect(find.textContaining('56 000 FCFA'), findsWidgets);
+      },
+    );
 
     testWidgets(
       'sa propre chambre reste retenue, sans conflit avec elle-même',

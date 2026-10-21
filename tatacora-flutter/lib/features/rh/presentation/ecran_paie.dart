@@ -56,13 +56,14 @@ import 'widgets/panneaux_paie.dart';
 /// ## Écarts à la vue, datés (09/10/2026)
 ///
 /// - **Texte du bandeau « taux non paramétrés »** (`rh_pwa.referentiel_texte`) :
-///   la vue dit « Ils sont posés par le référentiel de paie, et un
-///   Administrateur peut les renseigner depuis l'écran Paramètres. ». Vérifié
-///   contre le poste : l'écran Paramètres n'y écrit aucun taux de paie (aucune
-///   table locale, aucune clé `taux_*`) ; la phrase décrirait un geste que ce
-///   poste ne fait pas. Remplacée par ce qui est vrai ici — le référentiel
-///   confirmé est réinstallé à chaque ouverture de l'écran. Longueur voisine :
-///   le bandeau garde ses trois lignes et la page sa mise en page.
+///   rendu AU MOT depuis le 21/10/2026. Il portait jusque-là une phrase de
+///   remplacement (« le référentiel confirmé est réinstallé à chaque ouverture de
+///   l'écran »), écrite le 09/10/2026 parce que l'écran Paramètres de ce poste
+///   n'écrivait alors aucun taux de paie. Il les écrit : les cinq `taux_*` du
+///   registre local (`RegistreParametresLocal.clesDeLaPaie`) s'y saisissent, via
+///   `PaieDao`, son seul auteur. La phrase de la vue — « un Administrateur peut
+///   les renseigner depuis l'écran Paramètres » — décrit donc un geste que ce
+///   poste fait, et l'écart n'a plus de raison d'être.
 /// - **Les contrôles `<select>` n'ont pas de largeur** à la vue : voir les
 ///   jetons `AppLayout.filtre*Paie`.
 /// - **L'état replié de la bande d'indicateurs** n'est pas retenu d'une session
@@ -318,11 +319,11 @@ class _BandeauReferentiel extends StatelessWidget {
                 text:
                     ' Aucun calcul n’est possible tant que les taux confirmés '
                     'ne sont pas en base : ${clesAbsentes.join(', ')}. Ils '
-                    'sont posés par le référentiel de paie de ce poste, qui '
-                    'les réinstalle à chaque ouverture de cet écran. Aucune '
-                    'valeur n’est supposée à leur place — un taux plausible '
-                    'inscrit quelque part deviendrait la règle de production, '
-                    'et personne ne le rouvrirait.',
+                    'sont posés par le référentiel de paie, et un '
+                    'Administrateur peut les renseigner depuis l’écran '
+                    'Paramètres. Aucune valeur n’est supposée à leur place — '
+                    'un taux plausible inscrit quelque part deviendrait la '
+                    'règle de production, et personne ne le rouvrirait.',
               ),
             ],
           ),

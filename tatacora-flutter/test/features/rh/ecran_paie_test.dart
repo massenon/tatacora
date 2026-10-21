@@ -569,6 +569,19 @@ void main() {
             'taux_cnss_prestations_familiales, taux_vps',
           ),
         );
+        // La phrase de la vue, au mot : ce poste écrit bien ces taux depuis
+        // Paramètres (`RegistreParametresLocal.clesDeLaPaie`), donc « un
+        // Administrateur peut les renseigner depuis l’écran Paramètres » est
+        // vrai ici. Elle remplace la phrase du poste du 09/10/2026.
+        expect(
+          texte,
+          contains(
+            'Ils sont posés par le référentiel de paie, et un Administrateur '
+            'peut les renseigner depuis l’écran Paramètres. Aucune valeur '
+            'n’est supposée à leur place',
+          ),
+        );
+        expect(texte, isNot(contains('réinstalle')));
 
         // Valeur ET détail du coût employeur : deux tirets, aucun montant.
         expect(

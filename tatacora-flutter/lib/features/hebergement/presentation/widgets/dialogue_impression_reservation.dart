@@ -1,3 +1,4 @@
+// Vue Blade maîtresse (PA-183) : pwa/hebergement/reservations.blade.php
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_colors.dart';
@@ -12,7 +13,8 @@ enum ChoixImpression {
   imprimer,
 }
 
-/// La modale **« Réservation enregistrée »** — `reservations.html` l.192-210.
+/// La modale **« Réservation enregistrée »** (`reservations.blade.php`
+/// l.884-900, `modale_impression_titre`).
 ///
 /// ## Les mots sont ceux du maître, y compris « facture »
 ///
@@ -78,6 +80,16 @@ class _DialogueImpressionReservation extends StatelessWidget {
             Text(
               'Voulez-vous imprimer la facture de cette réservation ?',
               style: textes.bodySmall?.copyWith(color: AppColors.neutre500),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            // `modale_impression_avertissement` : ce que le papier remis EST.
+            // La phrase est celle de la vue, mot pour mot — y compris l'espace
+            // avant le point final, qu'elle porte.
+            Text(
+              'Le document remis porte le titre « CONFIRMATION DE RÉSERVATION » et ne vaut pas facture : une facture est normalisée MECeF (numéro, IFU, cachet fiscal), et imprimer « FACTURE » sur ce papier produirait un faux document fiscal .',
+              key: const Key('impression-avertissement'),
+              style: textes.labelSmall?.copyWith(color: AppColors.neutre500),
               textAlign: TextAlign.center,
             ),
           ],

@@ -1,3 +1,4 @@
+// Vue Blade maîtresse (PA-183) : pwa/crm/clients-creances.blade.php
 /// Les mots de l'encaissement de facture — ceux de `lang/fr/facturation.php`
 /// (`encaissement_*`, `paiement_*`), de `lang/fr/pwa.php` (`clients.*`) et de
 /// `lang/fr/validation.php`, RELUS par PHP dans

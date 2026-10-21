@@ -133,18 +133,19 @@ void main() {
       },
     );
 
-    testWidgets('les onglets relances et avances sont CLIQUABLES et DISENT ce '
-        'qui n’a pas de source', (tester) async {
-      await monter(tester);
+    testWidgets(
+      'l’onglet relances est CLIQUABLE et DIT que la donnée n’a pas de '
+      'source',
+      (tester) async {
+        await monter(tester);
 
-      for (final (cle, tableau) in const [
-        ('relances', 'clients-relances-tableau'),
-        ('avances', 'clients-avances-tableau'),
-      ]) {
-        await tester.tap(find.byKey(Key('clients-onglet-$cle')));
+        await tester.tap(find.byKey(const Key('clients-onglet-relances')));
         await tester.pumpAndSettle();
 
-        expect(find.byKey(Key(tableau)), findsOneWidget);
+        expect(
+          find.byKey(const Key('clients-relances-tableau')),
+          findsOneWidget,
+        );
         // Le corps dit que la donnée n'a pas de source ici : « Aucune créance »
         // affirmerait que personne ne doit rien.
         expect(
@@ -152,11 +153,27 @@ void main() {
           findsWidgets,
         );
         expect(find.textContaining('Aucune créance en cours'), findsNothing);
-      }
 
-      await tester.tap(find.byKey(const Key('clients-onglet-clients')));
+        await tester.tap(find.byKey(const Key('clients-onglet-clients')));
+        await tester.pumpAndSettle();
+        expect(find.byKey(const Key('clients-registre-vide')), findsOneWidget);
+      },
+    );
+
+    testWidgets('l’onglet « Historique & avances » rend ses DEUX tableaux, '
+        'chacun avec son état vide', (tester) async {
+      await monter(tester);
+
+      await tester.tap(find.byKey(const Key('clients-onglet-avances')));
       await tester.pumpAndSettle();
-      expect(find.byKey(const Key('clients-registre-vide')), findsOneWidget);
+
+      expect(find.byKey(const Key('clients-avances-tableau')), findsOneWidget);
+      expect(find.text('Avances et acomptes (0)'), findsOneWidget);
+      expect(find.byKey(const Key('clients-avances-vide')), findsOneWidget);
+      expect(
+        find.byKey(const Key('clients-recouvrements-tableau')),
+        findsOneWidget,
+      );
     });
 
     testWidgets('la carte sans source rend « — », jamais « 0 »', (
@@ -441,9 +458,12 @@ void main() {
       // Les plus gros débiteurs d'abord.
       expect(
         ligne(k.id),
-        'KORA | 30 000 FCFA | 10 000 FCFA | — | — | 40 000 FCFA',
+        'KORA | 30 000 FCFA | 10 000 FCFA | — | — | 40 000 FCFA | Détail',
       );
-      expect(ligne(y.id), 'YAYI | — | — | — | 7 000 FCFA | 7 000 FCFA');
+      expect(
+        ligne(y.id),
+        'YAYI | — | — | — | 7 000 FCFA | 7 000 FCFA | Détail',
+      );
       expect(
         tester
             .widgetList<Text>(

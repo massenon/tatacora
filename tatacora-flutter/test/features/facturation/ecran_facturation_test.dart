@@ -18,6 +18,8 @@ import 'package:tatacora_flutter/features/facturation/impression/etat_registre_f
 import 'package:tatacora_flutter/features/facturation/presentation/ecran_facturation.dart';
 import 'package:tatacora_flutter/features/facturation/presentation/providers_facturation.dart';
 import 'package:tatacora_flutter/features/facturation/presentation/widgets/vue_ticket.dart';
+import 'package:tatacora_flutter/shared_widgets/tableau_tatacora.dart'
+    show PastilleStatut;
 import 'package:tatacora_flutter/features/hebergement/data/reservation_dao.dart';
 import 'package:tatacora_flutter/features/hebergement/data/reservation_repository_local.dart';
 import 'package:tatacora_flutter/features/hebergement/presentation/providers_hebergement.dart';
@@ -328,6 +330,11 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('facturation-annuler-avoir')));
       await tester.pumpAndSettle();
+      // Le montant n'est PAS pré-rempli (la vue : `avoirMontant = ''`).
+      await tester.enterText(
+        find.byKey(const Key('facturation-montant-avoir')),
+        '2000',
+      );
       await tester.enterText(
         find.byKey(const Key('facturation-motif-avoir')),
         'Erreur de saisie',
@@ -618,7 +625,10 @@ void main() {
       expect(registresImprimes.single.pieces, hasLength(2));
       // Le filtre est DIT sur le document : sans cette mention, un extrait se
       // lirait comme un registre complet.
-      expect(registresImprimes.single.filtre, 'Toutes origines');
+      expect(
+        registresImprimes.single.filtre,
+        'Aucun filtre — tout le registre',
+      );
     });
 
     testWidgets('le FILTRE s’applique au document, pas seulement à l’écran', (
@@ -661,7 +671,10 @@ void main() {
 
       expect(registresExportes, isEmpty);
       expect(
-        find.text('Rien à exporter : la liste filtrée est vide.'),
+        find.text(
+          'Rien à exporter : aucune facture ne correspond aux filtres '
+          'affichés.',
+        ),
         findsOneWidget,
       );
     });
@@ -832,6 +845,331 @@ void main() {
       expect(registresImprimes, hasLength(1));
       expect(registresImprimes.single.pieces, hasLength(1));
       expect(registresImprimes.single.pieces.single.clientNom, 'KORA Jean');
+    });
+  });
+
+  /* ================================================================== */
+  group('La modale « Émettre un avoir » (vue : facturation.blade.php)', () {
+    Future<PieceFacturation> ouvrirAvoir(WidgetTester tester) async {
+      final f = await emettreComptant();
+      await monter(tester, const EcranFacturation());
+      await tester.tap(find.byKey(Key('facturation-ligne-avoir-${f.id}')));
+      await tester.pumpAndSettle();
+      return f;
+    }
+
+    Future<void> saisir(
+      WidgetTester tester, {
+      String? montant,
+      String? motif,
+    }) async {
+      if (montant != null) {
+        await tester.enterText(
+          find.byKey(const Key('facturation-montant-avoir')),
+          montant,
+        );
+      }
+      if (motif != null) {
+        await tester.enterText(
+          find.byKey(const Key('facturation-motif-avoir')),
+          motif,
+        );
+      }
+      await tester.tap(find.byKey(const Key('facturation-confirmer-avoir')));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets(
+      'le bouton « Avoir » de la LIGNE ouvre la modale, aux mots de la vue',
+      (tester) async {
+        await ouvrirAvoir(tester);
+
+        expect(find.text('Émettre un avoir'), findsOneWidget);
+        expect(
+          find.textContaining('La facture d\'origine reste inchangée'),
+          findsOneWidget,
+        );
+        expect(
+          find.textContaining('Montant de l\'avoir (FCFA)'),
+          findsOneWidget,
+        );
+        expect(find.textContaining('Motif de l\'avoir'), findsOneWidget);
+        expect(find.text('Émettre l\'avoir'), findsOneWidget);
+        // L'aide donne le plafond : le TTC de la facture (2 × 1 000).
+        expect(
+          tester
+              .widget<Text>(find.byKey(const Key('facturation-avoir-aide')))
+              .data,
+          startsWith('Au plus le montant TTC de la facture — '),
+        );
+        expect(
+          tester
+              .widget<Text>(find.byKey(const Key('facturation-avoir-aide')))
+              .data,
+          contains('2'),
+        );
+      },
+    );
+
+    testWidgets('le montant et le motif sont OBLIGATOIRES, la saisie reste', (
+      tester,
+    ) async {
+      final f = await ouvrirAvoir(tester);
+
+      await saisir(tester);
+
+      expect(
+        find.byKey(const Key('facturation-avoir-erreur-montant')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const Key('facturation-avoir-erreur-motif')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('facturation-modale-avoir')), findsOneWidget);
+      expect(await depotFacture.pieces(), hasLength(1));
+      expect((await depotFacture.parId(f.id))!.statut, StatutPiece.emise);
+    });
+
+    testWidgets('un montant au-delà du TTC est refusé aux mots du serveur', (
+      tester,
+    ) async {
+      await ouvrirAvoir(tester);
+
+      await saisir(tester, montant: '2001', motif: 'Erreur');
+
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(const Key('facturation-avoir-erreur-montant')),
+            )
+            .data,
+        'Le montant de l\'avoir ne peut pas dépasser celui de la facture.',
+      );
+      expect(await depotFacture.pieces(), hasLength(1));
+    });
+
+    testWidgets(
+      '⚠ un avoir PARTIEL est refusé et nommé — il ne partirait jamais',
+      (tester) async {
+        // La vue accepte un avoir partiel ; le serveur ne reçoit du poste que
+        // l'annulation du TTC entier. Écrire le partiel ici ferait diverger le
+        // reste dû du poste de celui du serveur, sans qu'on le voie.
+        await ouvrirAvoir(tester);
+
+        await saisir(tester, montant: '500', motif: 'Geste commercial');
+
+        expect(
+          tester
+              .widget<Text>(
+                find.byKey(const Key('facturation-avoir-erreur-montant')),
+              )
+              .data,
+          contains('l\'avoir partiel n\'est pas encore transmissible'),
+        );
+        expect(
+          await depotFacture.pieces(),
+          hasLength(1),
+          reason: 'rien n\'est écrit',
+        );
+      },
+    );
+
+    testWidgets('le TTC entier émet l\'avoir et le DIT', (tester) async {
+      final f = await ouvrirAvoir(tester);
+
+      await saisir(tester, montant: '2000', motif: 'Prestation non fournie');
+
+      final registre = await depotFacture.pieces();
+      expect(registre, hasLength(2));
+      expect((await depotFacture.parId(f.id))!.statut, StatutPiece.annulee);
+      expect(find.byKey(const Key('facturation-modale-avoir')), findsNothing);
+      expect(find.textContaining('Avoir de '), findsOneWidget);
+      expect(
+        find.textContaining('émis sur la facture ${f.numero}'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets(
+      'renoncer depuis le TICKET laisse le ticket ouvert et la facture '
+      'intacte',
+      (tester) async {
+        final f = await emettreComptant();
+        await monter(tester, const EcranFacturation());
+        await tester.tap(find.byKey(Key('facturation-piece-${f.id}')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('facturation-annuler-avoir')));
+        await tester.pumpAndSettle();
+        expect(
+          find.byKey(const Key('facturation-modale-avoir')),
+          findsOneWidget,
+        );
+
+        await tester.tap(find.byKey(const Key('caisse-annuler')));
+        await tester.pumpAndSettle();
+
+        expect(find.byKey(const Key('facturation-modale-avoir')), findsNothing);
+        expect(find.byKey(const Key('facturation-ticket')), findsOneWidget);
+        expect((await depotFacture.parId(f.id))!.statut, StatutPiece.emise);
+        expect(await depotFacture.pieces(), hasLength(1));
+      },
+    );
+
+    testWidgets(
+      'sans droit d\'écriture sur M2, la ligne n\'offre pas « Avoir »',
+      (tester) async {
+        final f = await emettreComptant();
+        await monter(
+          tester,
+          const EcranFacturation(),
+          droits: GardeAcces.depuisJson(const {'M2': 'L'}),
+        );
+
+        expect(
+          find.byKey(Key('facturation-ligne-avoir-${f.id}')),
+          findsNothing,
+        );
+        // « Facture A4 », elle, est une lecture.
+        expect(find.byKey(Key('facturation-ligne-a4-${f.id}')), findsOneWidget);
+      },
+    );
+  });
+
+  /* ================================================================== */
+  group('Sélection, « N avoir(s) » et périmètre de l\'export', () {
+    Future<void> exporterPdf(WidgetTester tester) async {
+      await tester.tap(find.byKey(const Key('facturation-exporter')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('export-format-pdf')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('export-generer')));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('l\'export est RESTREINT aux pièces cochées, et le dit', (
+      tester,
+    ) async {
+      final kora = await emettreComptant(clientNom: 'KORA Jean');
+      await emettreComptant(clientNom: 'DOSSOU Marie');
+      await monter(tester, const EcranFacturation());
+
+      await tester.tap(find.byKey(Key('facturation-coche-${kora.id}')));
+      await tester.pumpAndSettle();
+      await exporterPdf(tester);
+
+      expect(registresImprimes, hasLength(1));
+      expect(registresImprimes.single.pieces.single.id, kora.id);
+      expect(registresImprimes.single.filtre, '1 pièce(s) sélectionnée(s)');
+    });
+
+    testWidgets('la modale d\'export dit « Périmètre : … » sous son titre', (
+      tester,
+    ) async {
+      await emettreComptant(clientNom: 'KORA Jean');
+      await monter(tester, const EcranFacturation());
+
+      await tester.tap(find.byKey(const Key('facturation-exporter')));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Périmètre : Aucun filtre — tout le registre'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('« Tout sélectionner » coche la page, et une 2e fois la vide', (
+      tester,
+    ) async {
+      await emettreComptant(clientNom: 'KORA Jean');
+      await emettreComptant(clientNom: 'DOSSOU Marie');
+      await monter(tester, const EcranFacturation());
+
+      await tester.tap(find.byKey(const Key('facturation-tout-selectionner')));
+      await tester.pumpAndSettle();
+      await exporterPdf(tester);
+      expect(registresImprimes.single.pieces, hasLength(2));
+      expect(registresImprimes.single.filtre, '2 pièce(s) sélectionnée(s)');
+
+      await tester.tap(find.byKey(const Key('facturation-tout-selectionner')));
+      await tester.pumpAndSettle();
+      await exporterPdf(tester);
+      expect(registresImprimes.last.filtre, 'Aucun filtre — tout le registre');
+    });
+
+    testWidgets('un filtre qui change VIDE la sélection (PA-119)', (
+      tester,
+    ) async {
+      final kora = await emettreComptant(clientNom: 'KORA Jean');
+      await emettreComptant(clientNom: 'DOSSOU Marie');
+      await monter(tester, const EcranFacturation());
+
+      await tester.tap(find.byKey(Key('facturation-coche-${kora.id}')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('facturation-recherche')),
+        'dossou',
+      );
+      await tester.pumpAndSettle();
+
+      // La pièce cochée n'est plus affichée : elle ne doit plus compter.
+      await exporterPdf(tester);
+      expect(registresImprimes.single.pieces.single.clientNom, 'DOSSOU Marie');
+      expect(registresImprimes.single.filtre, 'recherche « dossou »');
+    });
+
+    testWidgets(
+      '« N avoir(s) » se lit à côté du statut de la facture annulée',
+      (tester) async {
+        final f = await emettreComptant();
+        await depotFacture.annuler(f.id, 'Erreur', auteurId: caissierEssai);
+        await monter(tester, const EcranFacturation());
+
+        final badge = tester.widget<PastilleStatut>(
+          find.byKey(Key('facturation-avoirs-${f.id}')),
+        );
+        expect(badge.libelle, '1 avoir(s)');
+      },
+    );
+
+    testWidgets(
+      '« Facture A4 » de la LIGNE édite le même papier que le ticket',
+      (tester) async {
+        final f = await emettreComptant();
+        await monter(tester, const EcranFacturation());
+
+        await tester.tap(find.byKey(Key('facturation-ligne-a4-${f.id}')));
+        await tester.pumpAndSettle();
+
+        // Le geste atteint l'édition (PA-63 : un bouton branché sur rien), sans
+        // ouvrir le ticket — c'est un bouton de la ligne, pas un clic de ligne.
+        expect(editees, hasLength(1));
+        expect(editees.single.piece.id, f.id);
+        expect(find.byKey(const Key('facturation-ticket')), findsNothing);
+      },
+    );
+
+    testWidgets('sans session, « Facture A4 » le DIT et n\'édite rien', (
+      tester,
+    ) async {
+      final f = await emettreComptant();
+      await monter(tester, const EcranFacturation(), auteur: null);
+
+      await tester.tap(find.byKey(Key('facturation-ligne-a4-${f.id}')));
+      await tester.pumpAndSettle();
+
+      expect(editees, isEmpty);
+      expect(
+        find.textContaining('une facture ne s\'édite pas sans auteur'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('une facture sans avoir ne porte aucun badge', (tester) async {
+      final f = await emettreComptant();
+      await monter(tester, const EcranFacturation());
+
+      expect(find.byKey(Key('facturation-avoirs-${f.id}')), findsNothing);
     });
   });
 }

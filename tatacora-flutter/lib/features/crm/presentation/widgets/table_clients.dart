@@ -18,15 +18,17 @@ import '../../domain/entities/registre_clients.dart';
 /// grandeur que le solde du serveur, et sont retirées avec elle (voir
 /// `LigneClient`).
 ///
-/// ## La colonne d'actions : un seul bouton rendu, et pourquoi
+/// ## La colonne d'actions : deux boutons rendus, et pourquoi pas le troisième
 ///
-/// La vue pose « Historique », « Recouvrement » et « Archiver ». Seul
-/// **« Recouvrement »** est rendu : il a un écran (la modale d'encaissement) et
-/// une source. « Historique » (modale du relevé) et l'archivage d'un client n'ont
-/// pas d'écran sur ce poste : un bouton qui n'ouvre rien empêche de savoir si la
-/// fonction manque ou si l'écran est cassé (PA-112). Le bouton n'existe que si
-/// le client doit quelque chose ET que le rôle écrit sur M3 et M2 — la condition
-/// de la vue (`$ligne->solde !== '0.00' && $peutEncaisser`).
+/// La vue pose « Historique », « Recouvrement » et « Supprimer » (l'archivage
+/// d'un client). « Historique » ouvre la modale du relevé du client
+/// (`ModaleHistoriqueClient`, toujours offerte : lire n'écrit rien) ;
+/// « Recouvrement » ouvre la modale d'encaissement et n'existe que si le client
+/// doit quelque chose ET que le rôle écrit sur M3 et M2 — la condition de la vue
+/// (`$ligne->solde !== '0.00' && $peutEncaisser`). L'archivage d'un client n'a
+/// pas de colonne `actif` locale : voir l'en-tête de `ecran_clients.dart`, où il
+/// est refusé et nommé — un bouton qui n'ouvre rien empêche de savoir si la
+/// fonction manque ou si l'écran est cassé (PA-112).
 ///
 /// - **Ligne « Aucune fiche CRM — à créer »** : le maître réunit les noms des
 ///   clients et ceux portés par les créances, parce que ses notes de chambre
@@ -39,6 +41,7 @@ class TableClients extends StatelessWidget {
     required this.maintenant,
     this.peutEncaisser = false,
     this.onRecouvrement,
+    this.onHistorique,
   });
 
   final List<LigneClient> lignes;
@@ -52,6 +55,9 @@ class TableClients extends StatelessWidget {
 
   /// Le geste « Recouvrement » d'une ligne.
   final void Function(LigneClient ligne)? onRecouvrement;
+
+  /// Le geste « Historique » d'une ligne (`ouvrirHistoriqueClient`).
+  final void Function(LigneClient ligne)? onHistorique;
 
   /// Les colonnes, dans l'ordre de la vue. La dernière, vide, porte les actions.
   /// Les parts sont les largeurs relevées dans le navigateur
@@ -151,15 +157,24 @@ class TableClients extends StatelessWidget {
                       style: _style(TaillesContenu.t13),
                     ),
                     _Anciennete(jours: l.ancienneteJours(maintenant), ligne: l),
-                    if (l.estDebiteur &&
-                        peutEncaisser &&
-                        onRecouvrement != null)
-                      _BoutonRecouvrement(
-                        cle: Key('clients-recouvrement-${l.client.id}'),
-                        onTap: () => onRecouvrement!(l),
-                      )
-                    else
-                      const SizedBox.shrink(),
+                    Wrap(
+                      alignment: WrapAlignment.end,
+                      spacing: AppSpacing.unit,
+                      children: [
+                        if (onHistorique != null)
+                          _BoutonHistorique(
+                            cle: Key('clients-historique-${l.client.id}'),
+                            onTap: () => onHistorique!(l),
+                          ),
+                        if (l.estDebiteur &&
+                            peutEncaisser &&
+                            onRecouvrement != null)
+                          _BoutonRecouvrement(
+                            cle: Key('clients-recouvrement-${l.client.id}'),
+                            onTap: () => onRecouvrement!(l),
+                          ),
+                      ],
+                    ),
                   ],
                   aDroite: droite,
                 ),
@@ -212,6 +227,44 @@ class _Anciennete extends StatelessWidget {
         TaillesContenu.t13,
         poids: j != null && j > 90 ? FontWeight.w600 : null,
         couleur: couleur,
+      ),
+    );
+  }
+}
+
+/// `text-[12px] px-2.5 py-1 rounded-lg border border-slate-300 hover:bg-white` :
+/// « Historique » — le bouton de lecture de la ligne.
+class _BoutonHistorique extends StatelessWidget {
+  const _BoutonHistorique({required Key cle, required this.onTap})
+    : super(key: cle);
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.neutre0,
+      borderRadius: BorderRadius.circular(AppRadius.roundedLg),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.roundedLg),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xsPlus,
+            vertical: AppSpacing.unit,
+          ),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppRadius.roundedLg),
+            border: Border.all(color: AppColors.neutre300),
+          ),
+          child: Text(
+            'Historique',
+            style: TableClients._style(
+              TaillesContenu.t12,
+              couleur: AppColors.neutre700,
+            ),
+          ),
+        ),
       ),
     );
   }

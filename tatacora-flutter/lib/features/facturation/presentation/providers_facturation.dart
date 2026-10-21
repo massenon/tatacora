@@ -89,6 +89,36 @@ final emettrePourPanierProvider =
       },
     );
 
+/// « Payer séparément » : l'émission de la facture des SEULES consommations d'un
+/// séjour (`Facturer.emettreConsommationsDuSejour`). Le même aiguillage que
+/// [emettrePourPanierProvider], pour un panier de séjour uniquement.
+final emettreConsommationsPourPanierProvider =
+    Provider<Future<PieceFacturation> Function(Panier)>(
+      (ref) => (panier) async {
+        final reservationId = panier.reservationId;
+        if (panier.typeVente != TypeVente.surSejour || reservationId == null) {
+          throw StateError(
+            'Seul un panier de séjour se facture sans son hébergement.',
+          );
+        }
+        final reservation = await ref
+            .read(depotReservationProvider)
+            .parId(reservationId);
+        if (reservation == null) {
+          throw StateError(
+            'La réservation $reservationId est introuvable localement : les '
+            'consommations ne peuvent pas être facturées à son client.',
+          );
+        }
+        return ref
+            .read(facturerProvider)
+            .emettreConsommationsDuSejour(
+              panier: panier,
+              reservation: reservation,
+            );
+      },
+    );
+
 /* ====================================================================== */
 /* Édition A4 — l'auteur et le logo                                        */
 /* ====================================================================== */
@@ -206,6 +236,72 @@ final class _ModuleFiltreNotifier extends Notifier<ModuleFacturable?> {
 
   void definir(ModuleFacturable? module) => state = module;
 }
+
+/// La SÉLECTION du registre — identifiants cochés (`Facturation::$selection`).
+///
+/// Elle n'écrit rien : c'est le périmètre que « Exporter » reprend, comme le
+/// conseil de la modale d'export de la vue (« utilisez la case à cocher du
+/// tableau pour n'exporter qu'une sélection »).
+///
+/// ## Un filtre qui change la remet à zéro
+///
+/// La vue la vide quand la recherche ou l'activité change (`updated()`) : sans
+/// cela, une sélection faite sous un filtre précédent survivrait, invisible, et
+/// l'export porterait sur des lignes que personne ne voit (PA-119). Le notifier
+/// LIT les trois filtres du poste (recherche, activité, origine) : en changer un
+/// reconstruit l'état, donc le vide.
+final selectionFacturesProvider =
+    NotifierProvider<SelectionFacturesNotifier, Set<String>>(
+      SelectionFacturesNotifier.new,
+    );
+
+final class SelectionFacturesNotifier extends Notifier<Set<String>> {
+  @override
+  Set<String> build() {
+    ref
+      ..watch(rechercheFactureProvider)
+      ..watch(moduleFiltreProvider)
+      ..watch(origineFiltreeProvider);
+    return const {};
+  }
+
+  void basculer(String id) {
+    final suivant = {...state};
+    if (!suivant.remove(id)) suivant.add(id);
+    state = suivant;
+  }
+
+  /// La case d'en-tête : coche (ou décoche) les pièces de la PAGE affichée.
+  void definirPage(Iterable<String> ids, {required bool coche}) {
+    final suivant = {...state};
+    if (coche) {
+      suivant.addAll(ids);
+    } else {
+      suivant.removeAll(ids);
+    }
+    state = suivant;
+  }
+
+  void vider() => state = const {};
+}
+
+/// Combien d'avoirs chaque facture porte, par NUMÉRO de la facture — le
+/// `facture->avoirs->count()` de la vue (« 2 avoir(s) » à côté du statut).
+///
+/// Lu sur le registre ENTIER, filtres exclus : l'avoir d'une facture peut ne
+/// pas passer la recherche tapée, et le décompte de la facture ne doit pas
+/// bouger avec elle.
+final avoirsParFactureProvider = FutureProvider<Map<String, int>>((ref) async {
+  // Relu après chaque écriture du registre.
+  ref.watch(registreProvider);
+  final pieces = await ref.watch(depotFactureProvider).pieces();
+  final decompte = <String, int>{};
+  for (final p in pieces) {
+    final de = p.avoirDe;
+    if (de != null) decompte[de] = (decompte[de] ?? 0) + 1;
+  }
+  return decompte;
+});
 
 /* ====================================================================== */
 /* Lectures                                                                */

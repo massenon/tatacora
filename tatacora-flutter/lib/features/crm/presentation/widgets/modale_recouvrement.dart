@@ -34,8 +34,10 @@ typedef FactureImpayee = ({String id, String libelle, int resteCentimes});
 ///
 /// ## Deux champs de la vue NE SONT PAS rendus, et c'est dit
 ///
-/// La vue pose aussi « Référence » (« N° de transaction Mobile Money, n° de
-/// chèque… ») et « Commentaire ». Le serveur les LIE à deux propriétés
+/// La vue pose aussi « Référence » et « Commentaire ». L'invite du champ
+/// « Référence », dite ici avec les mots de la vue :
+/// « N° de transaction Mobile Money, n° de chèque… »
+/// Le serveur les LIE à deux propriétés
 /// (`recouvrementReference`, `recouvrementCommentaire`) que
 /// `enregistrerRecouvrement` ne lit JAMAIS : `paiements` n'a aucune colonne pour
 /// elles, et la colonne « Référence » du tableau des recouvrements affiche les

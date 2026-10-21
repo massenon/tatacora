@@ -140,17 +140,20 @@ class VueTicket extends ConsumerWidget {
               // **On ne ferme PAS le ticket d'abord**, et c'est le point que
               // deux essais ont manque : `ref` meurt avec le widget qui l'a
               // fourni. Apres un `pop()`, `ref.read(...)` leve — et
-              // l'exception, avalee par le `catch` d'`annulerParAvoir`,
+              // l'exception, avalee par le `catch` d'`emettreUnAvoir`,
               // faisait croire a une annulation qui n'avait pas eu lieu.
               // Aucun avoir n'etait emis, et rien ne le disait.
               //
               // La confirmation s'ouvre donc PAR-DESSUS le ticket ; celui-ci
               // ne se ferme qu'une fois le travail fait.
-              await annulerParAvoir(context, ref, piece);
-              if (context.mounted) Navigator.of(context).pop();
+              final emis = await emettreUnAvoir(context, piece);
+              // Le ticket ne se ferme que si l'avoir est émis : renoncer dans
+              // la modale laisse le ticket où il était.
+              if (emis && context.mounted) Navigator.of(context).pop();
             },
             child: Text(
-              'Annuler par avoir',
+              // `facturation_pwa.avoir_action` : le mot du bouton de la vue.
+              'Avoir',
               style: TextStyle(color: AppColors.erreur),
             ),
           ),
@@ -238,4 +241,27 @@ class VueTicket extends ConsumerWidget {
       }
     }
   }
+}
+
+/// « Facture A4 » depuis la LIGNE du registre (`imprimerFacture` de la vue,
+/// bouton par ligne) : même document que celui du ticket, même garde — sans
+/// session, pas d'édition, et on le DIT plutôt que de rester muet.
+Future<void> imprimerLaFactureA4Depuis(
+  BuildContext context,
+  WidgetRef ref,
+  PieceFacturation piece,
+) async {
+  final auteur = ref.read(auteurEditionProvider);
+  if (auteur == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Aucune session ouverte : une facture ne s\'édite pas sans '
+          'auteur.',
+        ),
+      ),
+    );
+    return;
+  }
+  await VueTicket(piece: piece)._imprimerFactureA4(context, ref, auteur);
 }

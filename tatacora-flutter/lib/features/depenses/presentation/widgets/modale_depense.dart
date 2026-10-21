@@ -468,6 +468,13 @@ class _ModaleDepenseState extends ConsumerState<ModaleDepense> {
       ),
       // `mt-1` — 4 px.
       const SizedBox(height: AppSpacing.unit),
+      // ÉCART nommé avec la vue (`depenses_pwa.total_aide`). Elle dit, mot pour
+      // mot : « Total général des lignes, recalculé à chaque saisie. Il ne se saisit pas : le montant écrit en comptabilité est celui que le serveur recalcule à l'enregistrement. »
+      // Ici la pièce est écrite par CE poste (`DepenseDao` → `MoteurComptable`),
+      // à partir des lignes : « que le serveur recalcule » y serait faux au
+      // moment où l'écriture passe (le serveur passe la sienne plus tard, à la
+      // réception du document). La phrase rendue dit « que ce poste recalcule
+      // des lignes ». La mesure la compte « nommée », pas « rendue ».
       const Text(
         'Total général des lignes, recalculé à chaque saisie. Il ne se saisit '
         'pas : le montant écrit en comptabilité est celui que ce poste '
@@ -843,8 +850,12 @@ class _Etiquette extends StatelessWidget {
 ///
 /// ÉCART DÉLIBÉRÉ — vue l.487-493.
 /// La vue : un `<input type="file" accept="image/*">` qui téléverse la photo et
-/// la range dans `depenses.recu_path`, avec l'aide « L'image est réduite avant
-/// enregistrement… ».
+/// la range dans `depenses.recu_path`, avec l'aide (`champ_recu_aide`), dite ici
+/// mot pour mot :
+/// « L'image est réduite avant enregistrement. Le navigateur ne peut en conserver qu'une douzaine : au-delà, tout le registre cesserait d'être enregistré. »
+/// (Ce poste n'est pas un navigateur : la réduction d'image et la « douzaine »
+/// n'y ont aucun sens, et la phrase n'est donc PAS rendue — la mesure la compte
+/// « nommée », pas « portée ».)
 /// Ici : l'étiquette garde sa place, et le motif est affiché à celle du champ.
 /// Raison (relue le 09/10/2026 contre `depenses_tables.dart`) : aucun sélecteur
 /// de fichier n'est embarqué dans ce client — ni `file_picker`, ni
