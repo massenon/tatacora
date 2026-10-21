@@ -126,7 +126,12 @@ enum TableDescendue {
   /// Passage d'année (20/10/2026) : les exercices du serveur et leur statut
   /// — une clôture faite au serveur verrouille l'année ici aussi. Le poste ne
   /// les pousse pas.
-  exercicesComptables('exercices_comptables', null);
+  exercicesComptables('exercices_comptables', null),
+
+  /// Les écritures VALIDÉES du serveur (21/10/2026), après leurs exercices :
+  /// un miroir de LECTURE pour les états financiers, jamais mêlé aux pièces du
+  /// poste. Le poste ne les pousse pas.
+  ecrituresComptables('ecritures_comptables', null);
 
   const TableDescendue(this.nomServeur, this.tableSynchronisee);
 
@@ -189,6 +194,7 @@ String libelleTableServeur(String nom) => switch (nom) {
   'roles' => 'Rôles et permissions',
   'modeles_notification' => 'Modèles de notification',
   'exercices_comptables' => 'Exercices comptables',
+  'ecritures_comptables' => 'Écritures comptables validées',
   _ => nom,
 };
 

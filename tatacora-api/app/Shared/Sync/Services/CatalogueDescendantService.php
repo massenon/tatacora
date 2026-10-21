@@ -73,6 +73,18 @@ use InvalidArgumentException;
  * refusée n'avance pas : le jour où le droit est accordé, elle descend
  * depuis le début.
  *
+ * ## Les écritures VALIDÉES descendent (21/10/2026, « Compte de résultat et bilan sur le poste »)
+ *
+ * Le serveur reste le seul comptable (D246) : le poste n'en recopie pas la
+ * comptabilité pour la TENIR, seulement pour LIRE les états financiers
+ * (compte de résultat, bilan, N-1) sans réseau. Seules les écritures VALIDÉES
+ * descendent : une validée ne se modifie ni ne se supprime jamais (RG-11), donc
+ * rien n'y reste périmé — un brouillon, lui, peut disparaître, et « aucun
+ * alignement ne supprime ». Chaque ligne porte déjà son compte (numéro,
+ * libellé, classe), son journal (code) et l'année de son exercice : le poste
+ * n'a ni à résoudre une clé étrangère ni à posséder le plan du serveur. Lecture
+ * sous M10 (`L` ou `C`).
+ *
  * ## Les correspondances de CE poste
  *
  * Un poste qui a perdu la réponse `fusionne_avec` (coupure après traitement)
@@ -191,6 +203,10 @@ class CatalogueDescendantService
         // Passage d'année (20/10/2026) : les exercices et leur STATUT — une
         // clôture faite au serveur verrouille aussi l'année sur les postes.
         'exercices_comptables' => ['annee', 'date_debut', 'date_fin', 'statut', 'date_cloture'],
+        // 21/10/2026 : les écritures VALIDÉES, après leurs exercices. Les champs
+        // `annee`, `code_journal`, `numero_compte`, `libelle_compte` et `classe`
+        // sont ajoutés à la sérialisation (voir `ecrituresDeLaPage`).
+        'ecritures_comptables' => ['exercice_id', 'date_ecriture', 'libelle', 'debit', 'credit', 'numero_piece', 'ecriture_contrepassee_id', 'journal_id', 'compte_id'],
     ];
 
     /**
@@ -225,6 +241,18 @@ class CatalogueDescendantService
         // Passage d'année (20/10/2026) : reçus par tout compte (une vente
         // passe sa pièce dans l'exercice de sa date), écrits au seul serveur.
         'exercices_comptables' => 'M10',
+        // 21/10/2026 : les écritures validées se lisent sous M10.
+        'ecritures_comptables' => 'M10',
+    ];
+
+    /**
+     * Les lignes d'une table qui ne descendent que si une colonne vaut une
+     * valeur — les écritures VALIDÉES seules (voir l'entête).
+     *
+     * @var array<string, array{0: string, 1: string}>  table → [colonne, valeur]
+     */
+    public const SEULEMENT = [
+        'ecritures_comptables' => ['statut', 'validee'],
     ];
 
     /**
@@ -312,7 +340,8 @@ class CatalogueDescendantService
                 $this->sansMiroirsDuPoste(
                     DB::table($table)
                         ->select(['id', ...self::COLONNES[$table]])
-                        ->when(isset(self::NON_NULS[$table]), fn (Builder $q): Builder => $q->whereNotNull(self::NON_NULS[$table])),
+                        ->when(isset(self::NON_NULS[$table]), fn (Builder $q): Builder => $q->whereNotNull(self::NON_NULS[$table]))
+                        ->when(isset(self::SEULEMENT[$table]), fn (Builder $q): Builder => $q->where(self::SEULEMENT[$table][0], self::SEULEMENT[$table][1])),
                     $table,
                     $posteId,
                 ),
@@ -441,6 +470,7 @@ class CatalogueDescendantService
         $lignesBons = $table === 'bons_reception' ? $this->lignesDesBons($ids) : [];
         $droits = $table === 'roles' ? $this->droitsDesRoles($ids) : [];
         $canaux = $table === 'reservations' ? DB::table('canaux_reservation')->pluck('nom', 'id')->all() : [];
+        $ecritures = $table === 'ecritures_comptables' ? $this->ecrituresDeLaPage($lignes) : [];
         $origines = DB::table('origines_synchronisation')
             ->where('table_concernee', $table)
             ->whereIn('entite_id', $ids)
@@ -493,6 +523,10 @@ class CatalogueDescendantService
                 unset($donnees['canal_id']);
             }
 
+            if ($table === 'ecritures_comptables') {
+                $donnees = [...$donnees, ...($ecritures[(string) $ligne->id] ?? [])];
+            }
+
             $elements[] = [
                 'table' => $table,
                 'id' => (string) $ligne->id,
@@ -507,6 +541,43 @@ class CatalogueDescendantService
         }
 
         return $elements;
+    }
+
+    /**
+     * Pour chaque écriture de la page : l'année de son exercice, le code de son
+     * journal, le numéro, le libellé et la classe de son compte — trois
+     * requêtes pour toute la page, pas trois par ligne.
+     *
+     * @param  list<object>  $lignes
+     * @return array<string, array{annee: int, code_journal: string, numero_compte: string, libelle_compte: string, classe: string}>
+     */
+    private function ecrituresDeLaPage(array $lignes): array
+    {
+        $exercices = DB::table('exercices_comptables')
+            ->whereIn('id', array_values(array_unique(array_map(static fn (object $l): string => (string) $l->exercice_id, $lignes))))
+            ->pluck('annee', 'id');
+        $journaux = DB::table('journaux_comptables')
+            ->whereIn('id', array_values(array_unique(array_map(static fn (object $l): string => (string) $l->journal_id, $lignes))))
+            ->pluck('code', 'id');
+        $comptes = DB::table('plan_comptable')
+            ->whereIn('id', array_values(array_unique(array_map(static fn (object $l): string => (string) $l->compte_id, $lignes))))
+            ->get(['id', 'numero_compte', 'libelle', 'classe'])
+            ->keyBy('id');
+        $parEcriture = [];
+
+        foreach ($lignes as $ligne) {
+            $compte = $comptes->get((string) $ligne->compte_id);
+
+            $parEcriture[(string) $ligne->id] = [
+                'annee' => (int) $exercices->get((string) $ligne->exercice_id, 0),
+                'code_journal' => (string) $journaux->get((string) $ligne->journal_id, ''),
+                'numero_compte' => (string) ($compte?->numero_compte ?? ''),
+                'libelle_compte' => (string) ($compte?->libelle ?? ''),
+                'classe' => (string) ($compte?->classe ?? ''),
+            ];
+        }
+
+        return $parEcriture;
     }
 
     /**

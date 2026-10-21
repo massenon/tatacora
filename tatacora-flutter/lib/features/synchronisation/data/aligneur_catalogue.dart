@@ -6,6 +6,7 @@ import '../../../core/database/app_database.dart';
 import '../../achats/domain/entities/fournisseur.dart';
 import '../../achats/data/reglements_fournisseur_dao.dart';
 import '../../comptabilite/data/comptabilite_dao.dart';
+import '../../comptabilite/data/ecritures_serveur_dao.dart';
 import '../../comptabilite/data/moteur_comptable.dart';
 import '../../comptabilite/domain/entities/comptabilite.dart'
     show StatutExercice;
@@ -138,6 +139,7 @@ class AligneurCatalogue {
       TableDescendue.roles => _role(idLocal, e),
       TableDescendue.modelesNotification => _modeleNotification(idLocal, e),
       TableDescendue.exercicesComptables => _exercice(e),
+      TableDescendue.ecrituresComptables => _ecritureServeur(e),
     };
   }
 
@@ -1355,6 +1357,49 @@ class AligneurCatalogue {
       dateFin: fin.substring(0, 10),
       statut: statut,
       dateCloture: DateTime.tryParse(_texte(d['date_cloture']) ?? ''),
+    );
+    return const Aligne();
+  }
+
+  /// Une écriture VALIDÉE du serveur, en miroir de lecture (v34). Ajoutée si
+  /// elle manque, jamais réécrite (RG-11) ; aucune clé étrangère, donc rien à
+  /// attendre. Une fraction de centime ou un champ manquant la refuse.
+  Future<IssueAlignement> _ecritureServeur(ElementCatalogue e) async {
+    final d = e.donnees;
+    final annee = d['annee'] is int
+        ? d['annee']! as int
+        : int.tryParse('${d['annee']}');
+    final journal = _texte(d['code_journal']);
+    final compte = _texte(d['numero_compte']);
+    final classe = _texte(d['classe']);
+    final jour = _jour(d['date_ecriture']);
+    final libelle = d['libelle'] is String ? d['libelle'] as String : null;
+    final debit = entierDepuisDecimal(d['debit'], 2);
+    final credit = entierDepuisDecimal(d['credit'], 2);
+    if (annee == null ||
+        annee <= 0 ||
+        journal == null ||
+        compte == null ||
+        classe == null ||
+        jour == null ||
+        libelle == null ||
+        debit == null ||
+        credit == null) {
+      return const RefuseParLePoste('écriture illisible');
+    }
+    await EcrituresServeurDao(_db).ajouterSiAbsente(
+      id: e.id,
+      annee: annee,
+      codeJournal: journal,
+      numeroCompte: compte,
+      libelleCompte: _texte(d['libelle_compte']) ?? compte,
+      classe: classe,
+      dateEcriture: jour,
+      libelle: libelle,
+      debitCentimes: debit,
+      creditCentimes: credit,
+      numeroPiece: _texte(d['numero_piece']),
+      ecritureContrepasseeId: _texte(d['ecriture_contrepassee_id']),
     );
     return const Aligne();
   }

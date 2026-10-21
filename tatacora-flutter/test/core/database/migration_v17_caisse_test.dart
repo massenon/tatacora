@@ -147,6 +147,7 @@ void main() {
         ...tablesAjouteesEnV31,
         ...tablesAjouteesEnV32,
         ...tablesAjouteesEnV33,
+        ...tablesAjouteesEnV34,
       });
       expect(tablesAvant.difference(tablesApres), isEmpty);
 

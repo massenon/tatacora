@@ -21,6 +21,7 @@ import 'tables/depenses_tables.dart';
 import 'tables/descente_sync_tables.dart';
 import 'tables/indisponibilites_carte_tables.dart';
 import 'tables/conges_plannings_tables.dart';
+import 'tables/ecritures_serveur_tables.dart';
 import 'tables/entretiens_vehicule_tables.dart';
 import 'tables/occupations_tables_tables.dart';
 import 'tables/origines_documents_tables.dart';
@@ -212,6 +213,7 @@ part 'app_database.g.dart';
     EntretiensVehiculeLocal,
     PlanningsLocal,
     CongesLocal,
+    EcrituresServeurLocal,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -389,7 +391,7 @@ class AppDatabase extends _$AppDatabase {
   /// v32 (21/10/2026) — LES ENTRETIENS DE VÉHICULES : une table neuve
   /// (`entretiens_vehicule_local`, 63 -> 64 tables), aucune colonne ajoutée.
   @override
-  int get schemaVersion => 33;
+  int get schemaVersion => 34;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1065,6 +1067,16 @@ class AppDatabase extends _$AppDatabase {
         // ni clé étrangère ; aucune ligne fabriquée. Le curseur est oublié :
         // les entretiens déjà au serveur redescendent.
         await m.createTable(entretiensVehiculeLocal);
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
+      }
+      if (from < 34) {
+        // LES ÉCRITURES VALIDÉES DU SERVEUR (21/10/2026), en miroir de lecture
+        // seule pour les états financiers. Une table NEUVE, sans clé étrangère ;
+        // aucune ligne fabriquée. Le curseur est oublié : les écritures déjà au
+        // serveur descendent.
+        await m.createTable(ecrituresServeurLocal);
         await customStatement(
           "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
         );

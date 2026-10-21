@@ -665,6 +665,48 @@ Paramètres, masquée au gérant) en plus de l'entrée du menu de compte ; l'éc
 de la FILE locale du poste (`/synchronisation`) reste atteint par Paramètres →
 Synchronisation et par « Voir le détail » du bouton de la barre supérieure.
 
+## Compte de résultat et bilan sur le poste (21/10/2026, schéma v34)
+
+Décision du PO (« oui » au bilan et au compte de résultat sur le poste ; option B :
+le poste fait ce que le web fait). Le serveur reste le seul comptable (D246) :
+les **écritures VALIDÉES** lui descendent (`TableDescendue.ecrituresComptables`,
+après les exercices ; lecture sous M10 ; brouillons jamais) dans la table
+`ecritures_serveur_local` (67 tables), un **miroir de LECTURE**, immuable (RG-11),
+sans clé étrangère : chaque ligne porte l'année de son exercice, le code du
+journal, le numéro, le libellé et la classe du compte (résolus par le serveur,
+`CatalogueDescendantService::ecrituresDeLaPage`). Seul écrivain :
+`EcrituresServeurDao.ajouterSiAbsente` (insert-if-absent, jamais réécrit, rien
+n'est enfilé ; sonde `ecrivains_ecritures_serveur_test.dart`).
+
+- **Jamais mêlé aux pièces du poste** : `ecritures_local` (journal et balance du
+  poste) est inchangé ; le serveur passe sa propre pièce pour chaque document que
+  ce poste lui envoie, donc additionner les deux compterait chaque vente deux
+  fois. Les états se lisent ICI et disent (encadré « provenance ») combien
+  d'écritures le poste a reçues et combien d'opérations il n'a pas encore
+  envoyées.
+- **Calcul** : `domain/etats_financiers.dart` (centimes entiers) reprend
+  `BalanceGeneraleService` (journal `CL` exclu, à-nouveaux PROVISOIRES récursifs
+  quand l'exercice précédent n'est pas clôturé, 131/139 selon le signe),
+  `CompteResultatService` (cascade `SoldesIntermediairesGestion::CASCADE`, impôt
+  lu de la classe 89, jamais un taux) et `BilanService` (préfixes
+  `RubriquesSyscohada`, comptes hors rubrique). **Confronté au VRAI serveur** :
+  `etats_financiers_contre_serveur_test.dart` (script
+  `tool/etats/rejouer_etats_financiers.php`, quatre exercices dont un clôturé,
+  un en clôture, perte et bénéfice, report en chaîne, compte hors nomenclature)
+  et relit la cascade et les préfixes du serveur. Mutations éprouvées (retirer
+  l'exclusion de `CL`, inverser 131/139).
+- **Écran** : onglets « Compte de résultat » et « Bilan » du hub
+  (`widgets/onglets_etats_financiers.dart`) aux colonnes, totaux et bandeaux des
+  vues, avec la colonne « Exercice N-1 » quand l'exercice précédent existe. Le
+  filtre de statut ne s'y applique pas (seules les validées descendent) — dit à
+  l'écran. Grand livre, Analytique, Immobilisations, Plan comptable et Clôtures
+  restent « non calculés sur ce poste ».
+- **Pièges** : le comparateur compte par SOUS-CHAÎNE dans tout le code que
+  l'écran atteint, commentaires compris — un en-tête de commentaire « Seules les
+  … » dans le fichier de la table a fait baisser la dette du journal d'audit
+  sans qu'un pixel change ; reformulé plutôt que figé. Une classe `CompteDuPlan`
+  existait déjà (entité) : celle du report s'appelle `CompteDeReport`.
+
 ## Exploitation : cron et vérifications (19/10/2026)
 
 `docs/LISTE_DES_CRON_JOBS_CPANEL.md` (une ligne cron `schedule:run`, test

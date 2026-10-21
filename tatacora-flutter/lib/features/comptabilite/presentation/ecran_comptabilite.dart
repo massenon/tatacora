@@ -24,6 +24,7 @@ import '../impression/etat_journal_comptable.dart';
 import 'exercice_consulte.dart';
 import 'providers_consultation_comptable.dart';
 import 'widgets/modale_ecriture.dart';
+import 'widgets/onglets_etats_financiers.dart';
 
 /// Le hub **Comptabilité — SYSCOHADA révisé** — lot D du plan du Product
 /// Owner (14/10/2026), lecture du moteur M10 LOCAL (`MoteurComptable`,
@@ -48,9 +49,14 @@ import 'widgets/modale_ecriture.dart';
 ///   écriture » ouvre la modale « Passer une écriture » (PO, 14/10/2026,
 ///   `widgets/modale_ecriture.dart`), écrite par le moteur LOCAL — en
 ///   brouillon, ou passée et validée — sous le droit d'écriture M10.
-/// - **Grand livre, Compte de résultat, Bilan, Analytique, Immobilisations,
-///   Plan comptable, Clôtures** : l'onglet est cliquable et DIT qu'il n'est pas
-///   calculé sur ce poste — aucun chiffre plutôt qu'un chiffre faux.
+/// - **Compte de résultat et Bilan** (21/10/2026, `widgets/onglets_etats_financiers.dart`) :
+///   calculés sur le poste depuis les écritures VALIDÉES que le serveur lui
+///   descend (`ecritures_serveur_local`, miroir de lecture), avec la colonne
+///   N-1 de la vue et un encadré de provenance. Le poste n'y mêle JAMAIS ses
+///   propres pièces : le serveur passe sa pièce pour chaque document reçu.
+/// - **Grand livre, Analytique, Immobilisations, Plan comptable, Clôtures** :
+///   l'onglet est cliquable et DIT qu'il n'est pas calculé sur ce poste —
+///   aucun chiffre plutôt qu'un chiffre faux.
 /// - **Exporter** : la vue exporte le journal (PDF/Excel) ; ici aussi
 ///   (directive du PO du 14/10/2026). Le bouton n'existe que sur l'onglet
 ///   **Journal** — comme le registre CRM, un bouton n'est offert que là où il
@@ -133,7 +139,7 @@ abstract final class TextesComptabilite {
   /// AJOUTS déclarés (D417).
   static const String indicateursSurCePoste =
       'Sur ce poste : les six indicateurs ne sont pas calculés — seuls le '
-      'journal et la balance générale sont lus.';
+      'journal, la balance générale, le compte de résultat et le bilan sont lus.';
   static const String saisieSansDroit =
       "Votre profil n'a pas le droit de passer une écriture comptable.";
 
@@ -147,12 +153,12 @@ abstract final class TextesComptabilite {
     FiltreStatutEcritures.brouillon => statutBrouillon,
   };
   static String ongletNonCalcule(String libelle) =>
-      "« $libelle » n'est pas calculé sur ce poste : seuls le journal et la "
-      "balance générale y sont lus. Aucun chiffre n'est affiché plutôt qu'un "
-      'chiffre faux.';
+      "« $libelle » n'est pas calculé sur ce poste : seuls le journal, la "
+      'balance générale, le compte de résultat et le bilan y sont lus. Aucun '
+      "chiffre n'est affiché plutôt qu'un chiffre faux.";
   static String tuileNonPortee(String titre) =>
-      "« $titre » n'est pas porté sur ce poste : seuls le journal et la "
-      'balance générale y sont lus.';
+      "« $titre » n'est pas porté sur ce poste : seuls le journal, la "
+      'balance générale, le compte de résultat et le bilan y sont lus.';
 }
 
 /// `Hub::ONGLETS`, dans son ordre et à ses mots.
@@ -918,6 +924,10 @@ class _Panneau extends StatelessWidget {
             donnees.comptes,
           ),
         );
+      case 'resultat':
+        return OngletResultat(annee: ex.annee);
+      case 'bilan':
+        return OngletBilan(annee: ex.annee);
       default:
         final libelle = ongletsComptabilite
             .firstWhere((o) => o.cle == onglet)
