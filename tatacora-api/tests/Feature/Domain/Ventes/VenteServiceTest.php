@@ -297,10 +297,12 @@ final class VenteServiceTest extends TestCase
     public function un_module_sans_catalogue_encaissable_est_refuse_et_nomme(): void
     {
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessageMatches('/Tourisme/');
+        // M9 (tourisme) est encaissable depuis le 22/10/2026 : l'hébergement
+        // (M1) reste le module sans catalogue d'où figer un prix.
+        $this->expectExceptionMessageMatches('/Hébergement/');
 
         $this->ventes->enregistrer([
-            'lignes' => [['module' => 'M9', 'reference_id' => (string) Str::uuid(), 'quantite' => 1]],
+            'lignes' => [['module' => 'M1', 'reference_id' => (string) Str::uuid(), 'quantite' => 1]],
         ]);
     }
 

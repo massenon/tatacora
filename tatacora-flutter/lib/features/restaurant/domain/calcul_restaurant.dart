@@ -411,7 +411,12 @@ final class PlatCalcule {
     this.prixProvisoire = false,
     this.prixCorrigeMain = false,
     this.indisponibilite,
+    this.lien,
   });
+
+  /// Le lien direct au stock (v36), ou `null` : le plat se décrémente par sa
+  /// fiche. Quand il existe, il l'emporte (`DeductionStockCuisineService`).
+  final LienDirectCalcule? lien;
 
   final String id;
   final String libelle;
@@ -432,6 +437,66 @@ final class PlatCalcule {
 
   /// Triée par identifiant d'article, comme le serveur (`orderBy('article_id')`).
   final List<IngredientCalcule> composition;
+}
+
+/// Le lien direct d'un plat à un article de stock, valorisé au point cuisine.
+final class LienDirectCalcule {
+  const LienDirectCalcule({
+    required this.articleId,
+    required this.libelle,
+    required this.uniteMesure,
+    required this.suivi,
+    required this.unitesVendables,
+    required this.unitesDixMilliemes,
+    required this.stockCentiemes,
+    required this.seuilCentiemes,
+  });
+
+  final String articleId;
+  final String libelle;
+  final String uniteMesure;
+  final SuiviArticle suivi;
+
+  /// Le texte décimal enregistré (« 24.0000 »).
+  final String unitesVendables;
+
+  /// Le même nombre en dix-millièmes (240000), pour le calcul en entiers.
+  final int unitesDixMilliemes;
+
+  /// Le solde de l'article au point cuisine, en centièmes.
+  final int stockCentiemes;
+  final int seuilCentiemes;
+
+  /// `bcmul(solde, conversion, 0)` : « il reste 120 bouteilles », tronqué.
+  /// Jamais négatif (une rupture forcée se lit zéro).
+  int get portions => stockCentiemes <= 0
+      ? 0
+      : (stockCentiemes * unitesDixMilliemes) ~/ 1000000;
+}
+
+/// « 24 », « 0,5 » ou « 12.25 » -> des dix-millièmes (`DECIMAL(…,4)`), tronqués
+/// au quatrième décimal comme `bcmath` ; `null` si la forme n'est pas un nombre
+/// positif ou nul.
+int? lireDixMilliemes(String saisie) {
+  final m = RegExp(r'^(\d+)(?:[.,](\d*))?$').firstMatch(saisie.trim());
+  if (m == null) return null;
+  final entiere = m.group(1)!;
+  if (entiere.length > 9) return null;
+  var fraction = m.group(2) ?? '';
+  if (fraction.length > 4) fraction = fraction.substring(0, 4);
+  return int.parse(entiere) * 10000 + int.parse(fraction.padRight(4, '0'));
+}
+
+/// 240000 -> « 24.0000 » : la forme du serveur.
+String ecrireDixMilliemes(int v) =>
+    '${v ~/ 10000}.${(v % 10000).toString().padLeft(4, '0')}';
+
+/// 240000 -> « 24 », 4167 -> « 0.4167 » : sans zéros de fin, pour l'écran.
+String lisibleDixMilliemes(int v) {
+  final texte = ecrireDixMilliemes(v);
+  return texte
+      .replaceFirst(RegExp(r'0+$'), '')
+      .replaceFirst(RegExp(r'\.$'), '');
 }
 
 /// Ce que le calcul des portions conclut.
@@ -666,7 +731,29 @@ CarteRestaurant calculerCarte({
 }
 
 LigneCarteRestaurant _ligne(PlatCalcule p, {required bool pointCuisine}) {
-  final portions = calculerPortions(p.composition, pointCuisine: pointCuisine);
+  final lien = p.lien;
+  // Le lien direct l'emporte sur la fiche : un article unique n'a pas de
+  // nomenclature à traverser (`DeductionStockCuisineService`).
+  final portions = lien == null
+      ? calculerPortions(p.composition, pointCuisine: pointCuisine)
+      : !pointCuisine
+      ? const PortionsCalculees(motif: MotifSansStock.pointCuisineAbsent)
+      : lien.suivi != SuiviArticle.permanent
+      ? const PortionsCalculees(motif: MotifSansStock.compositionSansSuivi)
+      : PortionsCalculees(
+          portions: lien.portions,
+          sousSeuil: lien.stockCentiemes <= lien.seuilCentiemes,
+          limitant: IngredientCalcule(
+            articleId: lien.articleId,
+            libelle: lien.libelle,
+            uniteMesure: lien.uniteMesure,
+            quantiteMilliemes: 0,
+            suivi: lien.suivi,
+            seuilCentiemes: lien.seuilCentiemes,
+            stockCentiemes: lien.stockCentiemes,
+            cmpDixMilliemes: 0,
+          ),
+        );
   final cout = calculerCoutMatiere(p.composition);
 
   return LigneCarteRestaurant(
@@ -677,7 +764,13 @@ LigneCarteRestaurant _ligne(PlatCalcule p, {required bool pointCuisine}) {
     recetteId: p.recetteId,
     recetteLibelle: p.recetteLibelle,
     prixVente: ecrirePrix(p.prixFrancs),
-    lieAuStock: p.composition.isNotEmpty,
+    lieAuStock: lien != null || p.composition.isNotEmpty,
+    articleStockId: lien?.articleId,
+    articleStockLibelle: lien?.libelle,
+    articleStockUnite: lien?.uniteMesure,
+    unitesVendables: lien == null
+        ? null
+        : lisibleDixMilliemes(lien.unitesDixMilliemes),
     nbIngredients: p.composition.length,
     motifSansStock: portions.motif,
     portionsVendables: portions.portions,

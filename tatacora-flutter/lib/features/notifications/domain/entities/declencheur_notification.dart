@@ -182,56 +182,11 @@ enum DeclencheurNotification {
     DeclencheurNotification.echeanceVps => false,
   };
 
-  /// Pourquoi ce déclencheur ne compose rien sur ce poste — DATÉ, et vérifiable.
-  ///
-  /// Une raison de refus qui a cessé d'être vraie transforme une décision en
-  /// oubli (PA-144, trois occurrences dans ce dépôt). Chaque motif porte donc la
-  /// date à laquelle il a été vérifié, et se relit avant qu'on s'y fie.
-  String get motifNonDetecte => switch (this) {
-    DeclencheurNotification.sejourDemain ||
-    DeclencheurNotification.sejourDepart => '',
-
-    // Vérifié le 14/09/2026.
-    DeclencheurNotification.creanceEchue ||
-    DeclencheurNotification.creanceDouteuse =>
-      // Texte affiché : codes internes et noms de tables retirés le
-      // 14/10/2026 (directive du PO). Références : PA-20, PA-134, PA-129,
-      // PA-53, `reservations_tour_local`, `contrats_location_local`.
-      "La règle d'ancienneté 30 / 90 jours suppose une balance âgée, jamais "
-          "arbitrée. L'écran Clients bloque déjà trois onglets sur "
-          "quatre pour cette raison : l'inventer ici créerait deux vérités sur "
-          'la même question, et on classerait ensuite un client en créance '
-          "douteuse sur une date d'échéance que personne n'a décidée.",
-
-    // Vérifié le 14/09/2026.
-    DeclencheurNotification.stockSousSeuil =>
-      'Les trois tables de stock de ce poste restent délibérément VIDES '
-          ': le stock est calculé par le serveur, et ce poste est hors '
-          'ligne. Détecter sur une table vide ne rendrait jamais aucune alerte '
-          '— un silence qui se lirait comme « aucun article sous le seuil ».',
-
-    // Vérifié le 14/09/2026.
-    DeclencheurNotification.departCircuitDemain =>
-      'Le catalogue des circuits descend du serveur et ce poste est hors '
-          'ligne : les réservations de circuit ne sont écrites par aucun geste '
-          'local. Même silence trompeur que le stock.',
-
-    // Vérifié le 14/09/2026.
-    DeclencheurNotification.restitutionVehicule =>
-      'Les contrats de location ne sont lus par aucune détection de ce '
-          'poste. Le déclencheur est pourtant portable tel quel le '
-          'jour où les contrats seront répliqués — c\'est une absence de '
-          "données, pas un refus d'architecture.",
-
-    // Vérifié le 14/09/2026.
-    DeclencheurNotification.bulletinDisponible ||
-    DeclencheurNotification.echeanceVps =>
-      "M13 n'a aucune table sur ce poste : la paie n'est pas au périmètre "
-          'offline. Et le calcul de paie du serveur REFUSE déjà de rendre un '
-          'total, faute de taux CNSS risques professionnels confirmé — '
-          'un montant composé ici serait un chiffre que le serveur lui-même '
-          'refuse de produire.',
-  };
+  /// Ce que l'écran dit d'un déclencheur qui ne compose rien : une phrase
+  /// métier neutre, vide quand le déclencheur est détecté.
+  String get motifNonDetecte => estDetecteSurCePoste
+      ? ''
+      : 'Aucun message n’est composé pour ce déclencheur pour le moment.';
 
   /// Les codes, dans l'ordre du maître.
   static List<String> get codes =>

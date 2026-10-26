@@ -263,7 +263,7 @@ class _CelluleVehicule extends StatelessWidget {
         ),
         if (contrat.packageAvecGuide)
           Text(
-            'avec guide (EF-M8-04)',
+            'avec guide',
             style: TextesRestaurant.mentionFine.copyWith(color: AppColors.gold),
           ),
       ],

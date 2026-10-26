@@ -164,92 +164,23 @@ void main() {
     }
   });
 
-  test('trois clés voisines d’un secret portent la phrase de refus, et elles '
-      'seules', () {
-    final avecNote = [
-      for (final s in RegistreParametresLocal.definitions)
-        if (s.note != null) s.cle,
-    ];
-    // Dans l'ordre du registre.
-    expect(avecNote, [
-      'communication_whatsapp',
-      'entreprise_numero_mecef',
-      'email_smtp_utilisateur',
-    ]);
-    expect(
-      RegistreParametresLocal.parCle('entreprise_numero_mecef')!.note,
-      'Sur ce poste, aucune clé d’API MECeF n’est enregistrable : un secret '
-      'n’entre jamais dans cette base.',
-    );
-    expect(
-      RegistreParametresLocal.parCle('communication_whatsapp')!.note,
-      'Sur ce poste, aucune clé d’API WhatsApp n’est enregistrable : un secret '
-      'n’entre jamais dans cette base.',
-    );
-    // Lot J2 (14/10/2026) : l'envoi SMTP à l'éditeur est porté ; le mot de
-    // passe reste HORS base, et la note dit OÙ il se pose.
-    expect(
-      RegistreParametresLocal.parCle('email_smtp_utilisateur')!.note,
-      'Sur ce poste, aucun mot de passe SMTP n’est enregistrable : un secret '
-      'n’entre jamais dans cette base. Il se pose dans le fichier '
-      r'%APPDATA%\TATACORA\poste.json du poste.',
-    );
-  });
-
-  test('cinq clés dont l’aide du serveur affirme un fait FAUX sur ce poste '
-      'portent une correction visible, et elles seules', () {
-    // Lot J1 (3/4, 14/10/2026) : l'en-tête A4 des documents est LU des
-    // paramètres (`entete_etablissement.dart`) — la correction « aucun
-    // document n'imprime encore cette valeur » serait désormais FAUSSE sur
-    // ses cinq clés, et ne doit plus être dite.
+  test('aucune clé ne porte de note ni de correction de conception : seule '
+      'l’aide du serveur est affichée', () {
+    for (final cle in RegistreParametresLocal.cles) {
+      expect(RegistreParametresLocal.parCle(cle)!.aide, isA<String?>());
+    }
     for (final cle in const [
+      'tva_active',
+      'duree_retention_audit_jours',
+      'email_smtp_hote',
+      'activation_suppression',
+      'activation_alertes_ouverture',
       'entreprise_promoteur',
       'communication_whatsapp',
       'entreprise_ifu',
       'entreprise_rccm',
       'fiscalite_regime',
     ]) {
-      expect(
-        RegistreParametresLocal.parCle(cle)!.correction,
-        isNull,
-        reason: cle,
-      );
-      expect(
-        RegistreParametresLocal.parCle(cle)!.lecteur,
-        'lib/core/impression/entete_etablissement.dart',
-        reason: cle,
-      );
-    }
-    final attendu = {
-      'tva_active':
-          'Sur ce poste : HT/TVA ventilés dans la pièce des ventes ; sans taux, '
-          'la vente est refusée.',
-      'duree_retention_audit_jours':
-          'Sur ce poste, aucune purge n’a lieu : pas de journal d’audit.',
-      // Lot J2 (14/10/2026) : l'hôte SMTP est lu par « Contactez l'éditeur ».
-      'email_smtp_hote':
-          'Sur ce poste : lu par « Contactez l’éditeur » ; vide, aucun message '
-          'ne part (il reste en attente).',
-      // L'aide du serveur dit « tous les modules » : seuls les fournisseurs
-      // M7 honorent la bascule (la Paie garde sa règle, D272).
-      'activation_suppression':
-          'Sur ce poste : seuls les fournisseurs (M7), les unités '
-          'd’hébergement (M1) et les articles de stock (M6) honorent cette '
-          'bascule ; la Paie garde sa règle.',
-      // Lue par la cloche depuis le lot B (14/10/2026) ; les fenêtres
-      // d'alertes à la connexion de la vue ne sont pas portées.
-      'activation_alertes_ouverture':
-          'Sur ce poste : seule la cloche de la barre supérieure honore cette '
-          "bascule ; les fenêtres d'alertes à la connexion ne sont pas portées.",
-    };
-    final reel = {
-      for (final s in RegistreParametresLocal.definitions)
-        if (s.correction != null) s.cle: s.correction!,
-    };
-    expect(reel, attendu);
-    // Chaque correction répond à une aide qui existe : on ne corrige pas le
-    // silence.
-    for (final cle in attendu.keys) {
       expect(RegistreParametresLocal.parCle(cle)!.aide, isNotNull, reason: cle);
     }
   });

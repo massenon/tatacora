@@ -17,7 +17,6 @@ import '../../pos/data/dto/catalogue_dto.dart' show IndisponibiliteDistante;
 import '../data/restaurant_api.dart';
 import '../domain/entities/carte_restaurant.dart';
 import '../domain/entities/plat.dart';
-import '../domain/messages_restaurant.dart';
 import 'providers_restaurant.dart';
 import 'widgets/coquille_restaurant.dart';
 import 'widgets/modale_detail_plat.dart';
@@ -541,16 +540,6 @@ class _OngletFichesState extends ConsumerState<_OngletFiches> {
             ),
           ),
         ),
-        // Ce que la phrase de la vue promet n'est pas encore vrai sur ce poste :
-        // le dire plutôt que laisser croire à un refus qui n'a pas lieu.
-        Padding(
-          padding: const EdgeInsets.only(bottom: AppSpacing.md),
-          child: Text(
-            MessagesRestaurant.venteSansSortieDeStock,
-            key: const Key('restauration-fiches-vente-sans-stock'),
-            style: TextesRestaurant.mention,
-          ),
-        ),
         _GrilleCartes(
           cartes: [
             ('Fiches techniques', k?.total.toString(), null, null, null),
@@ -759,7 +748,7 @@ class _CoutFiche extends StatelessWidget {
       return Tooltip(
         // `fiches_cout_incomplet_infobulle`.
         message:
-            'Sans coût moyen pondéré (jamais réceptionnés en M6) : '
+            'Sans coût moyen pondéré (jamais réceptionnés) : '
             '${fiche.articlesSansCout.join(', ')}',
         child: Text(
           // `fiches_cout_incomplet`.
@@ -949,7 +938,7 @@ class _OngletMenus extends ConsumerWidget {
                 cle: Key('restauration-menus-vide'),
                 // `menus_aucun`, au mot.
                 detail:
-                    "Aucun menu n'existe encore. Le bouton « Nouveau menu » en crée un : sans lui, aucun plat ne peut être enregistré (`plats.menu_id` est obligatoire).",
+                    "Aucun menu n'existe encore. Le bouton « Nouveau menu » en crée un : sans lui, aucun plat ne peut être enregistré.",
               ),
               clesLignes: [
                 for (final m in donnees.elements)

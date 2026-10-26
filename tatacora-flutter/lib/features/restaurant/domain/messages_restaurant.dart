@@ -65,23 +65,11 @@ abstract final class MessagesRestaurant {
   /// AUCUNE colonne sur ce poste : le geste est refusé avec sa raison (D15).
   /// « — » veut dire « on ne sait pas », jamais « tout est disponible ».
   static const disponibiliteAbsente =
-      "La disponibilité du jour n'est portée par aucune table de ce poste : "
-      'ni un plat retiré de la carte, ni son motif ne peuvent y être '
-      "enregistrés. Aucun chiffre n'est produit d'ici là.";
+      "La disponibilité du jour n'est pas enregistrable : ni un plat retiré "
+      'de la carte, ni son motif ne peuvent être enregistrés.';
 
   static const platIntrouvable =
-      'Ce plat ne figure pas au catalogue de ce poste. Il a peut-être été '
-      'enregistré sur un autre poste : les catalogues ne se synchronisent '
-      'plus, chacun tient le sien.';
-
-  /// Ce que la phrase de la vue sur les fiches vides promet (« le point de vente
-  /// REFUSE la vente du plat ») n'est PAS vrai sur ce poste : le point de vente
-  /// ne retire encore rien du stock, et la vente d'un plat à fiche vide n'est
-  /// pas refusée. Le dire, plutôt que laisser croire à un refus qui n'a pas lieu.
-  static const venteSansSortieDeStock =
-      'Sur ce poste, le point de vente ne retire encore rien du stock : la vente '
-      "d'un plat à fiche vide n'y est pas refusée, et celle d'un plat à fiche "
-      'composée ne décrémente rien non plus.';
+      'Ce plat ne figure pas au catalogue. Il a peut-être été retiré.';
 
   static const droitLectureRefuse =
       "Vous n'avez pas le droit de consulter le restaurant.";
@@ -128,13 +116,6 @@ abstract final class MessagesRestaurant {
       'se compose d\'articles du référentiel du stock (jamais de texte libre). '
       "Créez d'abord les articles dans l'écran des stocks.";
 
-  /// Ce que la carte dit du stock vendable : le calcul lit des mouvements qui
-  /// ne tiennent pas compte des ventes de ce poste.
-  static const stockSansLesVentes =
-      'Le stock vendable est celui des mouvements enregistrés : les ventes de '
-      "ce poste n'en retirent encore rien. Il peut dépasser le stock réel "
-      "d'autant.";
-
   // ----------------------------------------------------------------------
   // Les phrases de la VUE (`carte_pwa.restauration.*`), reprises au mot.
   // Un test les relit en exécutant PHP.
@@ -147,7 +128,7 @@ abstract final class MessagesRestaurant {
   static const recetteSansIngredient =
       "Sans ingrédient, cette fiche ne décrémente aucun stock : le point de vente REFUSERA la vente du plat qui l'utilise. Ajoutez au moins un article de stock, ou revenez la composer depuis l'onglet « Fiches techniques ».";
   static const recetteAucunArticle =
-      "Aucun article de stock ne correspond. Élargissez la recherche, ou créez l'article depuis l'écran Stocks (M6).";
+      "Aucun article de stock ne correspond. Élargissez la recherche, ou créez l'article depuis l'écran Stocks.";
 
   /// `restauration.cree` / `restauration.modifie`.
   static String platEnregistre(String libelle, {required bool creation}) =>
@@ -184,13 +165,45 @@ abstract final class MessagesRestaurant {
       return creation
           ? 'La fiche « $libelle » est créée. Son coût matière reste INCONNU '
                 ": $articles n'ont pas de coût moyen pondéré (jamais "
-                'réceptionnés en M6).'
+                'réceptionnés).'
           : 'La fiche « $libelle » est à jour. Son coût matière reste '
                 "INCONNU : $articles n'ont pas de coût moyen pondéré (jamais "
-                'réceptionnés en M6).';
+                'réceptionnés).';
     }
     return creation
         ? 'La fiche « $libelle » est créée. Coût matière calculé : $cout.'
         : 'La fiche « $libelle » est à jour. Coût matière calculé : $cout.';
   }
+
+  // ----------------------------------------------------------------------
+  // « Lier au stock » (v36) — les phrases du SERVEUR (`lang/fr/carte.php`,
+  // `carte_pwa.commun`), reprises au mot ; les apostrophes sont droites.
+  // ----------------------------------------------------------------------
+
+  /// `carte.conversion_requise_avec_lien`.
+  static String conversionRequise(String plat) =>
+      '« $plat » est rattaché à un article de stock : le nombre d\'unités vendables par unité de stock devient obligatoire. Sans lui, la vente ne saurait pas quelle fraction d\'unité de stock sortir.';
+
+  /// `carte.conversion_invalide`.
+  static String conversionInvalide(String plat) =>
+      'La conversion vers le stock de « $plat » est invalide : le nombre d\'unités vendables par unité de stock doit être strictement positif. Corrigez la fiche article avant toute vente — un mouvement de stock calculé sur cette valeur serait faux sans que rien ne le signale.';
+
+  /// Le champ « Article de stock » laissé vide (`required` côté vue).
+  static const articleLienObligatoire =
+      'Choisissez l\'article de stock auquel rattacher ce plat.';
+
+  /// Le conditionnement n'est pas un nombre.
+  static const conversionIllisible =
+      'Le nombre d\'unités vendables par unité de stock doit être un nombre, par exemple 24 ou 0,5.';
+
+  /// L'article cité n'existe plus sur ce poste.
+  static const articleLienInconnu =
+      'Cet article de stock est introuvable sur ce poste : le lien est refusé ici plutôt que rejeté plus tard par une contrainte.';
+
+  /// `carte_pwa.commun.toast_lien_enregistre`.
+  static String lienEnregistre(String plat) =>
+      '« $plat » est rattaché au stock.';
+
+  /// `carte_pwa.commun.toast_lien_retire`.
+  static const lienRetire = 'Lien retiré.';
 }

@@ -146,7 +146,6 @@ abstract final class TextesProfil {
   static const String noteFonctionLien = 'Rôles & Permissions';
   static const String noteFonctionApres =
       '. Un utilisateur qui pourrait modifier sa propre fonction contournerait la matrice de droits en un clic.';
-  static const String sansColonne = 'Non porté par le schéma.';
   static const String mdpTitre = 'Modifier le mot de passe';
   static const String mdpSousTitre =
       'Le changement est immédiat et ne ferme pas votre session.';
@@ -170,7 +169,7 @@ abstract final class TextesProfil {
   /// poste n'est lié à un employé) suivie de ce que le poste affiche à la
   /// place d'un nom de fiche.
   static const String sansFicheRhPoste =
-      "Aucune fiche employé n'est rattachée à ce compte. Sur ce poste : nom saisi à la création du compte.";
+      "Aucune fiche employé n'est rattachée à ce compte.";
 
   /// La modale « Modifier le mot de passe » (`pwa.profil.mdp_*`).
   static const String mdpAncien = 'Ancien mot de passe';
@@ -184,20 +183,11 @@ abstract final class TextesProfil {
   static const String mdpMiseAJour = 'Mot de passe mis à jour.';
   static const String annuler = 'Annuler';
 
-  /// REMPLACEMENT déclaré (piège 13) — la vue dit « La vérification de
-  /// l'ancien mot de passe et le hachage du nouveau ont lieu côté serveur » ;
-  /// sur ce poste, ils ont lieu sur le poste.
-  static const String mdpNoteSurCePoste =
-      "La vérification de l'ancien mot de passe et le hachage du nouveau ont "
-      'lieu sur ce poste : seul un dérivé PBKDF2 est enregistré, jamais le '
-      'mot de passe.';
-
   /// `pwa.profil.journal_vide` (« Aucune action tracée pour ce compte. »),
   /// vraie ici au sens strict : la file d'envoi du poste ne conserve pas
   /// l'utilisateur, aucune action n'est donc tracée AU NOM de ce compte ; le
   /// journal complet du poste (Journal d'Audit) liste ce que le poste a écrit.
-  static const String journalSurCePoste =
-      "Aucune action tracée pour ce compte. Sur ce poste, l'utilisateur n'est pas conservé : le journal complet liste les écritures du poste.";
+  static const String journalSurCePoste = 'Aucune action tracée pour ce compte.';
 }
 
 TextStyle get _etiquette =>
@@ -443,13 +433,12 @@ class _Informations extends StatelessWidget {
           champ(
             TextesProfil.email,
             TextesProfil.tiret,
-            note: '${TextesProfil.sansColonne} ${TextesProfil.exempleEmail}',
+            note: TextesProfil.exempleEmail,
           ),
           champ(
             TextesProfil.telephone,
             TextesProfil.tiret,
-            note:
-                '${TextesProfil.sansColonne} ${TextesProfil.exempleTelephone}',
+            note: TextesProfil.exempleTelephone,
           ),
           champ(TextesProfil.fonction, TextesProfil.tiret),
           Container(
@@ -752,24 +741,6 @@ class _ModaleMotDePasseState extends ConsumerState<_ModaleMotDePasse> {
                 erreur: _erreurConfirmation,
                 autofill: const [AutofillHints.newPassword],
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm,
-                  vertical: AppSpacing.xsPlus,
-                ),
-                decoration: BoxDecoration(
-                  color: PaletteMaitre.ambre50,
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
-                child: Text(
-                  TextesProfil.mdpNoteSurCePoste,
-                  style: styleTransverse(
-                    TaillesContenu.t13,
-                    couleur: PaletteTransverse.texteOr,
-                  ),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.mdPlus),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [

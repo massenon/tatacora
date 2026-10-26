@@ -117,11 +117,10 @@ final class EtatStocks {
   List<String> get mentions => [
     "Ce fichier reprend les articles tels qu'ils sont affichés à l'écran, "
         'filtres compris, toutes pages confondues, et rien d\'autre.',
-    'Le stock ne compte que les mouvements saisis sur ce poste : les ventes '
+    'Le stock ne compte que les mouvements saisis ici : les ventes '
         "du bar et du restaurant n'y écrivent aucune sortie.",
     'Aucune écriture comptable n\'est produite : un mouvement de stock '
-        'n\'est pas un mouvement d\'argent, et sa valorisation comptable '
-        'n\'est pas portée sur ce poste (état du 12/10/2026).',
+        'n\'est pas un mouvement d\'argent.',
     if (sansValorisation > 0)
       '$sansValorisation article(s) ont du stock sans aucune entrée '
           'valorisée : leur valeur est « $_tiret », jamais zéro.',

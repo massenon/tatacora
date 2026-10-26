@@ -132,7 +132,7 @@ class SessionsCaisseDao extends DatabaseAccessor<AppDatabase>
         // toute façon — autant le dire en français (RG-15).
         throw const RefusCaisse(
           'L\'auteur est inconnu : aucune session n\'est ouverte, et une '
-          'ouverture de caisse sans auteur romprait RG-15.',
+          'ouverture de caisse doit nommer son auteur.',
         );
       }
       final id = _uuid.v4();

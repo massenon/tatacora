@@ -227,18 +227,7 @@ enum EtatLocal {
     // `enregistrerPieceBrouillon` / `enregistrerPieceValidee`), par laquelle
     // le serveur reçoit les opérations diverses — paie comprise —, et les
     // ventes et dépenses du poste antérieures au portage des pièces (D246).
-    raisonRefus:
-        'La balance générale se lit dans les écritures comptables. Ce poste '
-        'en passe, comme le serveur, pour les dépenses courantes saisies, les '
-        'ventes, les acomptes et remboursements de réservation, les '
-        'encaissements de factures et les règlements fournisseurs ; la '
-        'réception des achats et la paie n\'en passent aucune, ici comme au '
-        'serveur. Ce qui manque au poste : la saisie manuelle des pièces du '
-        'comptable (opérations diverses, dont la paie), qui n\'existe qu\'au '
-        'serveur, et les pièces des ventes et dépenses enregistrées avant leur '
-        'portage (constaté le 10/10/2026, revu le 12/10/2026). Une balance de '
-        'ces seules pièces serait un tableau de comptes plus petit que celui '
-        'du serveur, sans que rien ne le signale.',
+    raisonRefus: 'La balance générale n\'est pas disponible dans cet état.',
   );
 
   const EtatLocal({

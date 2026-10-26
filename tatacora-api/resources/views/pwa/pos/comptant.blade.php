@@ -233,6 +233,8 @@
                 <option value="tout">{{ __('pos_pwa.comptant.famille_tout') }}</option>
                 <option value="{{ __('pos_pwa.comptant.famille_bar') }}">{{ __('pos_pwa.comptant.famille_bar') }}</option>
                 <option value="{{ __('pos_pwa.comptant.famille_restaurant') }}">{{ __('pos_pwa.comptant.famille_restaurant') }}</option>
+                <option value="{{ __('pos_pwa.comptant.famille_tourisme') }}">{{ __('pos_pwa.comptant.famille_tourisme') }}</option>
+                <option value="{{ __('pos_pwa.comptant.famille_location') }}">{{ __('pos_pwa.comptant.famille_location') }}</option>
               </select>
             </div>
 
@@ -263,7 +265,7 @@
                     class="text-left p-3 rounded-xl border relative {{ $vendable ? 'bg-white border-slate-200 hover:border-[var(--gold)] hover:shadow-sm' : 'bg-slate-50 border-slate-200 opacity-60 cursor-not-allowed' }}">
                     <div class="flex items-start justify-between gap-1.5">
                       <span class="text-[13px] font-semibold leading-snug" style="color:var(--navy)">{{ $item['nom'] }}</span>
-                      @if ($vendable && ! $item['lien_stock'])
+                      @if ($vendable && ! $item['lien_stock'] && ! $item['prestation'])
                         <span title="{{ __('pos_pwa.comptant.point_orange_infobulle') }}"
                               class="shrink-0 w-1.5 h-1.5 rounded-full bg-amber-400 mt-1.5"></span>
                       @elseif ($vendable && $item['composition_provisoire'])
@@ -308,9 +310,6 @@
               <span class="text-[9px] leading-none font-bold px-1 py-0.5 rounded" style="background:#FDF3E0;color:#B8891E">{{ __('pos_pwa.comptant.composition_provisoire_marque') }}</span>
               {{ __('pos_pwa.comptant.composition_provisoire_legende') }}
             </p>
-
-            {{-- ECART DECLARE ET DATE — voir `pos_pwa.comptant.sans_prix_provisoire`. --}}
-            <p class="mt-1.5 text-[11px] text-slate-400">{{ __('pos_pwa.comptant.sans_prix_provisoire') }}</p>
           </div>
         </section>
 
@@ -345,8 +344,6 @@
               @endif
             </p>
             <p class="text-[11px] text-slate-400 mt-0.5">{{ __('pos_pwa.comptant.panier_choisir') }}</p>
-            {{-- PA-161 : ce que le panier tient VRAIMENT, ni plus ni moins. --}}
-            <p class="text-[11px] text-slate-400 mt-0.5">{{ __('pos_pwa.comptant.panier_sur_ce_poste') }}</p>
           </div>
 
           <div class="flex-1 overflow-y-auto">

@@ -273,13 +273,8 @@ class _ModaleFicheState extends ConsumerState<_ModaleFiche> {
                 _enTeteComposition(),
                 const SizedBox(height: AppSpacing.unit),
                 const Text(
-                  // `recette_composition_aide`, au mot. La seconde phrase
-                  // (« Le maître propose ici un texte libre… (PA-23) ») avait
-                  // été retirée le 14/10/2026 (directive du PO : aucune note de
-                  // conception à l'écran) ; l'ordre du 21/10/2026 — « tout doit
-                  // être au complet » — la rétablit parce que la vue l'imprime.
-                  // Contradiction à arbitrer par le Lead, signalée au rapport.
-                  'Chaque ingrédient est un article de stock réel, avec la quantité consommée pour UNE portion. Le maître propose ici un texte libre : il ne permettrait aucune sortie de stock, et la fiche ne servirait à rien (PA-23).',
+                  // `recette_composition_aide`, au mot.
+                  'Chaque ingrédient est un article de stock réel, avec la quantité consommée pour UNE portion.',
                   style: TextesModaleRestaurant.aide,
                 ),
                 const SizedBox(height: AppSpacing.xs),
@@ -432,7 +427,7 @@ class _CoutEnregistre extends StatelessWidget {
       texte = 'Incomplet';
       couleur = PaletteMaitre.ambre600;
       detail =
-          'Sans coût moyen pondéré (jamais réceptionnés en M6) : '
+          'Sans coût moyen pondéré (jamais réceptionnés) : '
           '${fiche.articlesSansCout.join(', ')}';
     } else {
       texte =
@@ -481,7 +476,7 @@ class _CoutEnregistre extends StatelessWidget {
             ),
           const Text(
             // `recette_cout_actuel_aide`.
-            "Calculé depuis la composition ci-dessous et le coût moyen pondéré de chaque article (M6). Jamais saisi — il se recalcule à l'enregistrement.",
+            "Calculé depuis la composition ci-dessous et le coût moyen pondéré de chaque article. Jamais saisi — il se recalcule à l'enregistrement.",
             style: TextesModaleRestaurant.aide,
           ),
         ],

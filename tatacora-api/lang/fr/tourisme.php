@@ -216,9 +216,8 @@ return [
         'note_guide_obligatoire' => 'Le guide est <strong>obligatoire dès la création</strong> : une '
             . 'prestation ne peut pas exister sans lui. La réaffectation se fait ensuite depuis la liste '
             . 'des départs.',
-        'client_aucun' => 'Aucun client au référentiel M3 — créez-le d\'abord depuis « Clients & Créances ».',
-        'guide_aucun' => 'Aucun guide au référentiel — une réservation ne peut pas être prise sans lui '
-            . '(`reservations_tour.guide_id` est NOT NULL).',
+        'client_aucun' => 'Aucun client au référentiel — créez-le d\'abord depuis « Clients & Créances ».',
+        'guide_aucun' => 'Aucun guide au référentiel — une réservation ne peut pas être prise sans lui.',
         'prestation_aucune' => 'Aucune prestation au catalogue.',
 
         // --- Modale « Réaffecter le guide » -------------------------------
@@ -235,7 +234,7 @@ return [
         // --- Modale « Prestation » (catalogue) ----------------------------
         'modale_circuit_titre_creation' => 'Nouvelle prestation au catalogue',
         'modale_circuit_titre_edition' => 'Éditer la prestation',
-        'modale_circuit_sous_titre' => 'Catalogue des circuits — EF-M9-01.',
+        'modale_circuit_sous_titre' => 'Catalogue des circuits.',
         'champ_nom' => 'Intitulé',
         'champ_theme' => 'Thème',
         'champ_zone' => 'Zone',

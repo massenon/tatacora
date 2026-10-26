@@ -44,7 +44,13 @@ final class BoissonDistante {
     this.prixCorrigeMain = false,
     this.lienLibelle,
     this.lienDetail,
+    this.unitesVendables,
   });
+
+  /// `unites_vendables_par_unite_stock` : combien d'unités VENDUES font une
+  /// unité de STOCK (un casier de 24 = `24`). Texte décimal, jamais un
+  /// `double` ; `null` : pas de conditionnement connu — jamais un 1 inventé.
+  final String? unitesVendables;
 
   /// La seconde marque de prix de la vue — posé à la main (PA-200).
   final bool prixCorrigeMain;
@@ -90,6 +96,23 @@ final class BoissonDistante {
   /// Le retrait de la carte du jour EN COURS, ou `null` : la boisson est à la
   /// carte.
   final IndisponibiliteDistante? indisponibilite;
+}
+
+/// Un article de stock auquel une boisson peut se lier — « Lier au stock » et
+/// « Nouvelle boisson » (`articlesDeStock()` de la vue : seuls les articles en
+/// **suivi permanent** y figurent).
+final class ArticleDeStock {
+  const ArticleDeStock({
+    required this.id,
+    required this.libelle,
+    required this.uniteMesure,
+  });
+
+  final String id;
+  final String libelle;
+
+  /// `art.unite_mesure || 'unité'` — l'unité de STOCK (casier, fût, kg).
+  final String uniteMesure;
 }
 
 /// Un retrait de la carte du jour.

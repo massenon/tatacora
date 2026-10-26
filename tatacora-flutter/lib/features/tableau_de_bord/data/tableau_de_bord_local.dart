@@ -66,13 +66,7 @@ abstract final class RaisonsTableauDeBord {
   /// la SAISIE MANUELLE du comptable, que ce poste n'offre pas. C'est elle, et
   /// les dépenses d'avant le portage des pièces, qui font le minorant.
   static const String depensesCumulees =
-      'Ce chiffre se lit dans la comptabilité (classe 6, écritures validées). '
-      'Ce poste n\'y passe que les pièces des dépenses courantes saisies ; la '
-      'saisie manuelle des pièces du comptable (dont la paie), qui n\'existe '
-      'qu\'au serveur, et les dépenses d\'avant n\'y entrent pas : la somme '
-      'serait un minorant présenté comme le total. Les dépenses courantes '
-      'saisies ont leur carte dans le pilotage consolidé (constaté le '
-      '10/10/2026, revu le 12/10/2026).';
+      'Ce chiffre ne couvre que les dépenses courantes saisies.';
 
   /// ⚠ Revue le 12/10/2026 (D282) : la version du 10/10 disait que les DEUX
   /// courbes lisaient « des paiements … que ce poste n'écrit pas ». La moitié
@@ -87,12 +81,7 @@ abstract final class RaisonsTableauDeBord {
   /// charges saisies à la main (dont la paie), (2) les dépenses d'avant le
   /// portage des pièces (10/10/2026), sans pièce rétroactive.
   static const String serieMensuelle =
-      'Les deux courbes (chiffre d’affaires encaissé, dépenses) se tracent '
-      'ensemble. Celle des dépenses lit la comptabilité (classe 6), où ce '
-      'poste ne passe que les pièces des dépenses courantes saisies : elle '
-      'serait un minorant tracé comme le total. Le chiffre d’affaires encaissé '
-      'de la période a sa carte dans la bande d’indicateurs (constaté le '
-      '10/10/2026, revu le 14/10/2026).';
+      'La série mensuelle n\'est pas disponible.';
 }
 
 /// Le tableau de bord, établi sur la base du poste.
@@ -202,7 +191,7 @@ final class TableauDeBordLocal {
           cle: 'taux_occupation',
           unite: UniteIndicateur.pourcentage,
           raison:
-              'Aucune unité louable au parc : le taux n’est pas calculable '
+              'Aucune unité louable au parc : le taux n’est pas évaluable '
               '(un parc vide ne dit pas « 0 % », il dit qu’il est vide).',
         )
       else

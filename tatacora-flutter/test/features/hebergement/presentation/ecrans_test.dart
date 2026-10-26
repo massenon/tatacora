@@ -355,7 +355,7 @@ void main() {
 
       expect(find.text('Ajouter un client'), findsOneWidget);
       expect(
-        find.text('Fiche client unique du référentiel — RG-18.'),
+        find.text('Fiche client unique du référentiel.'),
         findsOneWidget,
       );
       expect(find.text('Nom complet *'), findsOneWidget);
@@ -364,8 +364,8 @@ void main() {
         tester
             .widget<Text>(find.byKey(const Key('nouveau-client-droit-m3')))
             .data,
-        'Créer une fiche client est une écriture M3 : le droit M3 est exigé en '
-        'plus du droit M1, comme à la synchronisation.',
+        "Créer une fiche client demande le droit d'écriture sur les clients, en "
+        "plus de celui sur l'hébergement.",
       );
       expect(find.text('Ajouter le client'), findsOneWidget);
     });

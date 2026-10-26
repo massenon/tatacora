@@ -607,7 +607,6 @@
                   <div>
                     <p class="text-2xl font-bold" style="color:var(--gold)">{{ MontantFcfa::format($recapJour['encaisse']) }}</p>
                     <p class="text-[13px] text-white/60">{{ __('accueil_pwa.recap.encaisse') }}</p>
-                    <p class="text-[11px] text-white/40 mt-0.5">{{ __('accueil_pwa.recap.encaisse_note') }}</p>
                   </div>
                 </div>
               </div>

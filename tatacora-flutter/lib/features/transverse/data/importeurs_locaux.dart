@@ -497,8 +497,7 @@ final class ImporteurCarteRestaurant extends ImporteurLocal {
   @override
   String get description =>
       'Plats proposés au restaurant. Chaque plat se rattache à un menu et à '
-      'une fiche recette existants. Sur ce poste, la catégorie du plat est '
-      'celle de son menu.';
+      'une fiche recette existants. La catégorie du plat est celle de son menu.';
   @override
   String get identifiant => 'libelle';
   @override
@@ -667,8 +666,7 @@ final class ImporteurVehicules extends ImporteurLocal {
   @override
   String get description =>
       'Véhicules du parc proposés à la location. Un véhicule importé entre au '
-      'parc disponible. Sur ce poste, ni année, ni nombre de places, ni '
-      "transmission : la fiche locale n'a pas ces colonnes.";
+      'parc disponible.';
   @override
   String get identifiant => 'immatriculation';
   @override

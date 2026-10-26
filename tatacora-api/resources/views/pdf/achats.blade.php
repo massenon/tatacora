@@ -88,9 +88,7 @@
   </table>
 
   <p style="margin-top: 14px; font-size: 8pt; color: #64748b;">
-    Le montant est la somme des lignes de chaque commande. Les colonnes
-    « Réglé » et « Reste dû » du prototype ne figurent pas : aucun règlement
-    fournisseur n'est enregistré par ce système.
+    Le montant est la somme des lignes de chaque commande.
   </p>
 
   @include('pdf.partials.signatures', ['visas' => ['Visa Responsable Achats', 'Visa Direction Générale']])

@@ -36,9 +36,7 @@ return [
     'bandeau_titre' => 'Seul l’e-mail peut réellement partir, et sous conditions.',
     'bandeau_texte' => 'WhatsApp, Android et SMS restent à transmettre à la main : aucun des trois n’est '
         .'contracté, ni configuré. Pour l’e-mail, l’envoi n’a lieu que si l’adresse du destinataire est connue '
-        .'et qu’un relais SMTP réel est configuré ; sinon le message reste en file, avec la raison affichée. '
-        .'Un message marqué « envoyé » alors que rien n’est parti serait pire que pas de module du tout : '
-        .'le Gérant croirait son client prévenu.',
+        .'et qu’un relais SMTP réel est configuré ; sinon le message reste en file, avec la raison affichée.',
 
     // -------------------------------------------------------------- onglets
     'onglet_file' => 'File d’attente',
@@ -192,19 +190,12 @@ return [
     'canal.email.blocage_leve' => 'Envoi conditionné à une adresse connue pour chaque destinataire.',
     'canal.email.cible' => 'email',
     'canal.android.libelle' => 'Android (push)',
-    'canal.android.blocage' => 'L’application Flutter n’est pas démarrée : aucun appareil n’est enregistré.',
+    'canal.android.blocage' => 'L’application Android n’est pas démarrée : aucun appareil n’est enregistré.',
     'canal.android.cible' => 'appareil',
     'canal.sms.libelle' => 'SMS',
     'canal.sms.blocage' => 'Aucun agrégateur SMS retenu.',
     'canal.sms.cible' => 'telephone',
 
-    'canaux_ordre_titre' => 'Ce qu’il faut lever, dans l’ordre.',
-    'canaux_ordre_texte' => 'Le canal WhatsApp suppose un contrat '
-        .'WhatsApp Business et un numéro vérifié — c’est le plus long à obtenir, et c’est aussi celui '
-        .'que le Gîte utilise déjà à la main. L’e-mail ne demande qu’un relais SMTP. Le canal Android '
-        .'attend l’application Flutter, qui n’est pas démarrée. Le SMS suppose un agrégateur retenu.',
-    'canaux_ordre_suite' => 'Aucun de ces quatre points n’est un développement : ce sont des décisions et des contrats. '
-        .'Les modèles, eux, sont prêts et relisibles dès maintenant.',
 
     // ----------------------------------------------------------------- modale
     'modale_nouveau' => 'Nouveau modèle',

@@ -38,21 +38,36 @@ use RuntimeException;
  * VIDÉE par défaut, jamais conservée par accident. Sont gardés :
  *  - l'identité — comptes, rôles, droits, jetons, paramètres : sans eux
  *    plus personne ne se connecte ;
- *  - les journaux — audit, sécurité, imports, historique des prix, messages
+ *  - les journaux — audit, sécurité, imports, messages
  *    à l'éditeur, états planifiés (RG-15 : la trace survit à ce qu'elle
  *    trace ; la réinitialisation elle-même y est écrite) ;
  *  - les référentiels désignés par le Product Owner — parc d'hébergement
  *    (catégories et unités : on garde les chambres, on vide leurs
  *    réservations — interprétation de « reservations chambres » à confirmer),
- *    canaux de réservation, articles et points de stockage (SANS mouvements :
- *    le stock se dérive des mouvements, il retombe donc à zéro), fiche
- *    restaurant (menus, recettes, compositions, plats, tables de salle),
- *    cartes du bar, véhicules, circuits ;
+ *    canaux de réservation, points de stockage (les LIEUX ; les articles
+ *    sont vidés, voir ci-dessous), fiche restaurant (tables de salle seulement : le catalogue se vide, voir
+ *    ci-dessous), véhicules, circuits ;
  *  - le paramétrage comptable — plan, journaux, exercices (restent dans leur
  *    statut : vider les écritures n'en clôture ni n'en rouvre aucun), comptes
  *    bancaires, centres de coût — sans lesquels aucun encaissement ne peut
  *    produire sa pièce (règle « tout mouvement d'argent… ») ;
  *  - les services (départements RH) et les modèles de notification.
+ *
+ * ## Correction du Product Owner : le CATALOGUE se vide aussi
+ *
+ * « Quand je VIDE les seeders ou les données de test, les données des tables
+ * PLATS, INGRÉDIENTS, ARTICLES, CARTES BOISSON et leurs AUTRES TABLES LIÉES EN
+ * JOINTURE doivent être vidées AUSSI. » La liste ci-dessus gardait donc à tort
+ * `articles`, `plats`, `menus`, `recettes`, `ingredients_recette` et
+ * `cartes_boisson`. Ils sont désormais VIDÉS avec tout ce qui les référence :
+ * mouvements, lignes d'inventaire et de commande d'achat, lignes de vente et de
+ * commande, indisponibilités de la carte (clés étrangères, ordre calculé) et
+ * l'historique des prix de la carte (`historique_prix_carte`, joint SANS clé
+ * étrangère par `source_id` : il est vidé lui aussi, sinon il survivrait
+ * orphelin). Restent gardés les LIEUX (`points_stockage`, `tables_salle`) :
+ * ce sont des référentiels de l'établissement, non du catalogue. Une
+ * sonde (`ReinitialisationCatalogueTest`) énumère les clés étrangères réelles
+ * pour prouver qu'aucune table liée n'est oubliée.
  *
  * ## Un geste d'ADMINISTRATION, hors des Observers — délibérément
  *
@@ -123,15 +138,17 @@ class ReinitialisationDonneesTestService
         'generations_donnees',
         // Journaux et traces — RG-15.
         'journal_audit', 'journal_securite', 'journal_imports',
-        'historique_prix_carte', 'messages_editeur', 'etats_planifies',
+        'messages_editeur', 'etats_planifies',
         // M1 — le parc (les chambres), sans leurs réservations.
         'categories_hebergement', 'unites_hebergement', 'canaux_reservation',
-        // M6 — les articles et leurs lieux, sans leurs mouvements.
-        'articles', 'points_stockage',
-        // M4 — la fiche restaurant.
-        'menus', 'recettes', 'ingredients_recette', 'plats', 'tables_salle',
-        // M5 — la carte du bar.
-        'cartes_boisson',
+        // M6 — les LIEUX de stockage seulement (un référentiel, pas un
+        //      article) ; les articles sont vidés (voir « Correction du
+        //      PO »), donc le stock par point est à zéro, et aucun point ne
+        //      désigne plus d'article.
+        'points_stockage',
+        // M4 — la salle seulement (tables) ; plats, menus, recettes et
+        //      compositions sont vidés.
+        'tables_salle',
         // M8 / M9 — véhicules et catalogue tourisme.
         'vehicules', 'circuits',
         // M10 — le paramétrage comptable.

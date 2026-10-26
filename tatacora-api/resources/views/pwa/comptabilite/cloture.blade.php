@@ -62,15 +62,6 @@
             'sousTitre' => "Bascule d'exercice fiscal, report à nouveau",
         ])
 
-        {{-- Le bandeau du maître (l.32-34), conservé : PA-28 est TOUJOURS
-             ouvert au 27/08/2026 — « Clôture Périodique » (mensuelle, verrou
-             léger) et « Clôture d'Exercice » (annuelle, complète) restent deux
-             concepts distincts non tranchés. Vérifié avant de m'y fier. --}}
-        <div class="rounded-lg px-4 py-3 text-[13px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 mb-5 flex items-start gap-2">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="shrink-0 mt-0.5"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M12 8v4M12 16h.01"/></svg>
-          <span><strong>Note sur le nom de cet écran :</strong> "Clôture Périodique" (mensuelle, verrou léger) et "Clôture d'Exercice" (annuelle, complète) restent deux concepts distincts non encore tranchés — PA-28, <span class="font-mono-tatacora">PLAN_ACTION_SEQUENCE_POST_AUDIT.md</span>. Cet écran affiche la procédure de clôture <strong>annuelle</strong> complète (<span class="font-mono-tatacora">MODULE_COMPTABILITE_COMPLET_PART4.md</span> §2) — le seul mécanisme actuellement spécifié.</span>
-        </div>
-
         @include('pwa.comptabilite.partials.socle', [
             'identifiant' => 'f-exercice',
             'repartition' => $cloture?->statuts,

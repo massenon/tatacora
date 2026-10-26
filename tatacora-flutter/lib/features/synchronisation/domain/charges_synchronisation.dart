@@ -146,16 +146,25 @@ Map<String, Object?> chargeArticle({
 /// `cartes_boisson` — `EnregistrerBoissonRequest`. [articleId] nul : le
 /// serveur l'exige (`required`) et REJETTERA l'opération avec sa phrase — une
 /// boisson sans article ne peut rien décrémenter (point ouvert, F2).
+///
+/// [unitesVendables] : le conditionnement du lien (`24` pour un casier de 24),
+/// en TEXTE décimal. La clé n'est écrite que s'il est connu : un `null` serait
+/// refusé par la règle `numeric` du serveur, et l'absence laisse le serveur
+/// garder le sien. Le serveur le reçoit depuis le 26/10/2026
+/// (`GestionnaireCartesBoisson`) — sans lui, « Lier au stock » au poste ne
+/// changeait RIEN chez le serveur.
 Map<String, Object?> chargeBoisson({
   required String libelle,
   required String? articleId,
   required String categorie,
   required int prixVenteFrancs,
+  String? unitesVendables,
 }) => {
   'libelle': libelle,
   'article_id': articleId,
   'categorie': categorie,
   'prix_vente': prixVenteFrancs,
+  'unites_vendables_par_unite_stock': ?unitesVendables,
 };
 
 /// `menus` — `EnregistrerMenuRequest`.
@@ -196,6 +205,8 @@ Map<String, Object?> chargePlat({
   required int prixVenteFrancs,
   required bool prixProvisoire,
   required bool prixCorrigeMain,
+  String? articleId,
+  String? unitesVendables,
 }) => {
   'libelle': libelle,
   'menu_id': menuId,
@@ -203,6 +214,11 @@ Map<String, Object?> chargePlat({
   'prix_vente': prixVenteFrancs,
   'prix_provisoire': prixProvisoire,
   'prix_corrige_main': prixCorrigeMain,
+  // Le lien direct au stock (v36) : les DEUX champs vont ensemble, ou aucun
+  // (`CartePlatMenuService`). Absents d'un plat sans lien ; le retrait du lien
+  // part en `null` explicite (voir `RestaurantDao`).
+  'article_id': ?articleId,
+  if (articleId != null) 'unites_vendables_par_unite_stock': unitesVendables,
 };
 
 /// `categories_hebergement` — `EnregistrerCategorieHebergementRequest`.

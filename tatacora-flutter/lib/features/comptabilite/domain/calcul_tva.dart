@@ -146,7 +146,7 @@ abstract final class PhrasesTva {
   /// `comptabilite.convention_inconnue`.
   static String conventionInconnue(String convention, String cle) =>
       'Convention de prix inconnue : « $convention ». '
-      'Valeurs admises : `ht` ou `ttc` (paramètre `$cle`).';
+      'Valeurs admises : « ht » ou « ttc » (paramètre « $cle »).';
 
   /// `comptabilite.taux_absent`.
   static String tauxAbsent(String cle) =>

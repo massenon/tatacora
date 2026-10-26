@@ -349,14 +349,13 @@ class _Corps extends ConsumerWidget {
 /// serveur sait faire ce que ce poste ne sait pas encore.
 abstract final class TextesStocks {
   static const String ventesSansSortie =
-      'Ce stock ne compte que les mouvements saisis sur ce poste : les ventes '
+      'Ce stock ne compte que les mouvements saisis ici : les ventes '
       'du bar et du restaurant n’y écrivent aucune sortie, il peut donc '
       'dépasser le stock réel d’autant.';
 
   static const String sansComptabilite =
       'Ces mouvements ne produisent aucune écriture comptable : un mouvement '
-      'de stock n’est pas un mouvement d’argent, et leur valorisation '
-      'comptable n’est pas portée sur ce poste (état du 12/10/2026).';
+      'de stock n’est pas un mouvement d’argent.';
 
   static String sansValorisation(int n) =>
       '$n article(s) ont du stock mais aucune entrée valorisée : leur valeur '

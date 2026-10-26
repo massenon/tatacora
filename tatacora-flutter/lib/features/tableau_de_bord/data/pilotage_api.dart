@@ -64,8 +64,7 @@ final class PilotageApi {
   /// PA-144). ⚠ Les marges analytiques en sont SORTIES le 13/10/2026 : elles
   /// sont calculées sur le poste.
   static const String raisonAbsence =
-      'le compte de résultat, la balance et le bilan ne sont pas calculés sur '
-      'ce poste (constaté le 13/10/2026).';
+      'le compte de résultat, la balance et le bilan ne sont pas disponibles.';
 
   /// Sans exercice ouvert, rien n'est affirmé : la vue rend « Non consulté ».
   static const String raisonSansExercice =

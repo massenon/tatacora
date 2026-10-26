@@ -23,7 +23,8 @@ use RuntimeException;
 
 /**
  * Ventes au COMPTANT encaissées hors connexion (M5, et M4 quand le ticket
- * porte des plats — comme `PosComptant::encaissementReel`) — lot S3,
+ * porte des plats, M8 des véhicules, M9 des circuits — comme
+ * `PosComptant::encaissementReel`) — lot S3,
  * décisions du Product Owner du 15/10/2026.
  *
  * ## Le payload : le panier clôturé du poste
@@ -96,6 +97,17 @@ final class GestionnaireVentes extends GestionnaireDocumentAbstrait
 {
     private const TYPE_COMPTANT = 'comptant';
 
+    /**
+     * La table d'où vient l'article d'une ligne, selon son module : plats
+     * (M4), cartes boisson (M5), véhicules (M8) et circuits (M9, 22/10/2026).
+     */
+    private const TABLE_DU_MODULE = [
+        'M4' => 'plats',
+        'M5' => 'cartes_boisson',
+        'M8' => 'vehicules',
+        'M9' => 'circuits',
+    ];
+
     /** La vente portée sur la note de chambre (lot F5). */
     private const TYPE_SEJOUR = 'sur_sejour';
 
@@ -159,14 +171,21 @@ final class GestionnaireVentes extends GestionnaireDocumentAbstrait
     public function modulesRequis(array $payload): array
     {
         $lignes = is_array($payload['lignes'] ?? null) ? $payload['lignes'] : [];
+        $requis = [PosComptant::MODULE];
 
-        foreach ($lignes as $ligne) {
-            if (is_array($ligne) && ($ligne['module_source'] ?? null) === 'M4') {
-                return [PosComptant::MODULE, 'M4'];
+        // Plats (M4), location (M8) et tourisme (M9, 22/10/2026) : chacun EN
+        // PLUS de M5, comme l'écran du comptoir (`encaissementReel`).
+        foreach (['M4', 'M8', 'M9'] as $module) {
+            foreach ($lignes as $ligne) {
+                if (is_array($ligne) && ($ligne['module_source'] ?? null) === $module) {
+                    $requis[] = $module;
+
+                    break;
+                }
             }
         }
 
-        return [PosComptant::MODULE];
+        return $requis;
     }
 
     public function serviceDomaine(): string
@@ -235,7 +254,7 @@ final class GestionnaireVentes extends GestionnaireDocumentAbstrait
                 'module' => $module,
                 // Une carte ou un plat créé hors connexion et FUSIONNÉ côté
                 // serveur est retrouvé sous son identifiant serveur.
-                'reference_id' => $this->resoudre($module === 'M4' ? 'plats' : 'cartes_boisson', (string) $ligne['code_article']),
+                'reference_id' => $this->resoudre(self::TABLE_DU_MODULE[$module] ?? 'cartes_boisson', (string) $ligne['code_article']),
                 'quantite' => (int) $ligne['quantite'],
                 'prix_unitaire' => $this->francs((int) $ligne['prix_unitaire']),
             ];

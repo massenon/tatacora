@@ -181,16 +181,6 @@
             @endif
           </div>
 
-          {{--
-              PA-161 — l'ecran DIT ou vit ce panier, et il ne l'ecrit plus en
-              AMBRE : le bandeau d'avertissement disait une volatilite qui a
-              cesse d'exister. Ce qui reste à savoir est une information, pas
-              une alerte.
-          --}}
-          <p class="shrink-0 px-4 py-2.5 text-[11px] text-slate-500 bg-slate-50 border-b border-slate-200">
-            {{ __('pos_pwa.heberges.panier_sur_ce_poste') }}
-          </p>
-
           <div class="flex-1 overflow-y-auto">
             @if (! $selectedReservationId)
               <p class="px-4 py-16 text-center text-[13px] text-slate-400">{{ __('pos_pwa.heberges.panier_aucun_sejour') }}</p>

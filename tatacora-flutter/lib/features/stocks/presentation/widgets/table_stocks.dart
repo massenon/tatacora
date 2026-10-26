@@ -40,7 +40,7 @@ const String raisonSansPoint =
 /// La raison d'un « — » dans « Valeur stock » : du stock, mais aucun coût.
 const String raisonValeurInconnue =
     "Du stock existe mais aucune entrée n'a été valorisée : le coût est "
-    "inconnu, la valeur n'est pas calculée.";
+    "inconnu, la valeur n'est pas affichée.";
 
 /// Le tableau des articles — `stocks.blade.php`, la table des lignes. Ses
 /// colonnes portent les clés `stocks_pwa.liste.col_*` de la vue (`__('stocks_pwa.liste.'.$colonne['cle'])`,

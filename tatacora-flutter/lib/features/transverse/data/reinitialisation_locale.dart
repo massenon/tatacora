@@ -22,16 +22,28 @@
 /// Correspondance avec le serveur : `utilisateurs_local` (utilisateurs, rôles
 /// et droits — `droits_json`), `parametres_systeme_local` et `taux_paie_local`
 /// (paramètres), le parc (`categories_hebergement_local`,
-/// `unites_hebergement_local`), les articles et leurs lieux
-/// (`articles_local`, `points_stockage_local` — SANS mouvements : le stock se
-/// rejoue des mouvements, il retombe à zéro), la fiche restaurant
-/// (`menus_local`, `recettes_local`, `ingredients_recette_local`,
-/// `plats_local`, `tables_local`), la carte du bar (`cartes_boisson_local`),
-/// `vehicules_local`, `circuits_local`, le paramétrage comptable
+/// `unites_hebergement_local`), les LIEUX (`points_stockage_local`,
+/// `tables_local`), `vehicules_local`, `circuits_local`, le paramétrage comptable
 /// (`exercices_local`, `journaux_local`, `centres_cout_local`,
 /// `plan_comptable_local`), `services_rh_local`,
 /// `modeles_notification_local` et la boîte d'envoi à l'éditeur
 /// (`messages_editeur_local`, comme `messages_editeur` au serveur).
+///
+/// ## Correction du Product Owner : le CATALOGUE se vide aussi
+///
+/// « Quand je VIDE les seeders ou les données de test, les données des tables
+/// PLATS, INGRÉDIENTS, ARTICLES, CARTES BOISSON et leurs AUTRES TABLES LIÉES EN
+/// JOINTURE doivent être vidées AUSSI. » `articles_local`, `plats_local`,
+/// `menus_local`, `recettes_local`, `ingredients_recette_local` et
+/// `cartes_boisson_local` ne sont donc plus gardées : elles partent avec tout
+/// ce qui les référence (mouvements, inventaires et lignes, lignes d'achat,
+/// de vente et de commande, `indisponibilites_carte_local`), l'ordre venant de
+/// `PRAGMA foreign_key_list` (clés étrangères ACTIVES). Les LIEUX
+/// (`points_stockage_local`, `tables_local`) restent, comme au serveur. La file
+/// d'envoi et le curseur de descente (`etat_synchronisation_local`) sont déjà
+/// vidés : le poste redescend le catalogue, vide lui aussi, du serveur remis à
+/// neuf. Une sonde (`reinitialisation_locale_test.dart`) énumère les clés
+/// étrangères pour prouver qu'aucune table liée n'est oubliée.
 ///
 /// ## Un geste d'ADMINISTRATION, hors des gardes RG-11 — délibérément
 ///
@@ -85,17 +97,12 @@ const Set<String> tablesPreserveesLocales = {
   // M1 — le parc (les chambres), sans leurs réservations.
   'categories_hebergement_local',
   'unites_hebergement_local',
-  // M6 — les articles et leurs lieux, sans leurs mouvements.
-  'articles_local',
+  // M6 — les LIEUX de stockage seulement (un référentiel, comme au serveur) ;
+  // les articles sont VIDÉS (correction du PO, voir l'entête).
   'points_stockage_local',
-  // M4 — la fiche restaurant.
-  'menus_local',
-  'recettes_local',
-  'ingredients_recette_local',
-  'plats_local',
+  // M4 — la salle seulement (tables) ; plats, menus, recettes et
+  // compositions sont VIDÉS.
   'tables_local',
-  // M5 — la carte du bar.
-  'cartes_boisson_local',
   // M8 / M9 — véhicules et catalogue tourisme.
   'vehicules_local',
   'circuits_local',

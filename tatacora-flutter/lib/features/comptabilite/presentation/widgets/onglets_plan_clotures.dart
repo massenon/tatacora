@@ -71,11 +71,6 @@ abstract final class TextesOngletsPlanClotures {
   static const String statutEnCloture = 'En clôture';
   static const String statutCloture = 'Clôturé';
 
-  /// AJOUT déclaré : ce que l'onglet ne porte pas, DIT (jamais un chiffre faux).
-  static const String clotureNonPortee =
-      "La clôture annuelle de l'exercice (démarrer, clôturer définitivement, "
-      'rouvrir) et son archive légale ne sont pas portées sur ce poste. Aucun '
-      "chiffre n'est affiché plutôt qu'un chiffre faux.";
   static const String sansDroit =
       "Votre profil n'a pas le droit de modifier la comptabilité.";
   static const String illisible =
@@ -443,12 +438,6 @@ class OngletClotures extends ConsumerWidget {
               ),
             ],
           ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        Text(
-          TextesOngletsPlanClotures.clotureNonPortee,
-          key: const Key('compta-cloture-non-portee'),
-          style: styleTransverse(TaillesContenu.t12, couleur: Ardoise.c400),
         ),
       ],
     );

@@ -52,8 +52,8 @@ return [
         .'Datez la pièce sur un exercice ouvert, ou faites rouvrir celui-ci.',
 
     'centre_absent' => 'Le compte :numero ne porte aucun centre de coût par défaut, et aucun centre '
-        ."n'a été précisé. RG-12 rend le centre de coût obligatoire : sans lui, la comptabilité "
-        ."analytique serait fausse sans qu'aucun total ne bouge.",
+        ."n'a été précisé. Le centre de coût est obligatoire : sans lui, la comptabilité "
+        ."analytique serait faussée.",
 
     'ligne_tresorerie_absente' => "La pièce ne porte aucune contrepartie de trésorerie sur le compte "
         .':compte : la dépense ne peut pas être rattachée à son écriture.',

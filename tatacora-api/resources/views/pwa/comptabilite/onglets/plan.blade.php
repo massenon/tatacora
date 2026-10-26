@@ -63,17 +63,6 @@
     ];
     $parClasse = $plan->comptes->groupBy('classe');
 @endphp
-{{-- L'encadré ambre du maître (l.373), mot pour mot. --}}
-<div class="rounded-xl p-3.5 mb-4" style="background:#FFFBEB;border:1px solid #FDE68A">
-  <p class="text-[13px]" style="color:#78350F">
-    <strong>Socle d'exploitation, pas le plan officiel intégral.</strong>
-    Ce plan retient les comptes qu'une activité d'hôtellerie-restauration-tourisme mouvemente réellement.
-    Les numéros <strong>doivent être confrontés à l'AUDCIF officiel avant mise en production</strong> :
-    un numéro faux produit une liasse rejetée, et la balance s'équilibre quand même.
-    Les « charges immobilisées » (ex-classe 20) sont absentes : le SYSCOHADA révisé ne les active plus.
-  </p>
-</div>
-
 {{-- Recherche par table (décision du Product Owner, 01/09/2026) — numéro de
      compte ou libellé, filtrage SERVEUR réel. Sûre ici (voir le docblock de
      `App\Pwa\Livewire\Comptabilite\Hub::$planRecherche`), à la différence des

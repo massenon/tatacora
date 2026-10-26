@@ -38,7 +38,7 @@ final class EtatVentesBar {
 
   static const aideStock =
       "Le stock affiché est celui d'aujourd'hui, jamais celui du jour de la "
-      "vente : aucune table n'en garde la trace.";
+      'vente.';
 
   /// Les colonnes du tableau de l'écran — les mêmes, clés comprises : les
   /// recopier autrement ferait redevenir « Stock actuel » un simple « Stock ».

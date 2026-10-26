@@ -712,10 +712,9 @@ class AligneurCatalogue {
     final menuServeur = _texte(d['menu_id']);
     final recetteServeur = _texte(d['recette_id']);
     if (menuServeur == null || recetteServeur == null) {
-      // `plats_local` exige un menu ET une fiche (vraies clés étrangères) :
-      // le rattachement direct à un article n'est pas porté sur ce poste.
+      // `plats_local` exige un menu ET une fiche (vraies clés étrangères).
       return const RefuseParLePoste(
-        'plat sans menu ou sans fiche technique : non porté sur ce poste',
+        'plat sans menu ou sans fiche technique : refusé',
       );
     }
     final prix = entierDepuisDecimal(d['prix_vente'], 0);
@@ -737,6 +736,25 @@ class AligneurCatalogue {
     if (recette == null) {
       return const EnAttenteDeDependance('fiche technique pas encore reçue');
     }
+    // Le lien direct au stock (v36) : l'article ET son conditionnement vont
+    // ensemble. Un article pas encore reçu = attente (jamais un lien perdu).
+    String? lienArticle;
+    String? lienUnites;
+    final articleServeur = _texte(d['article_id']);
+    final unitesServeur = _decimalPositif(
+      d['unites_vendables_par_unite_stock'],
+    );
+    if (articleServeur != null && unitesServeur != null) {
+      lienArticle = await _cite(
+        TableDescendue.articles,
+        articleServeur,
+        _db.articlesLocal,
+      );
+      if (lienArticle == null) {
+        return const EnAttenteDeDependance('article de stock pas encore reçu');
+      }
+      lienUnites = unitesServeur;
+    }
     final t = _db.platsLocal;
     final existant = await (_db.select(
       t,
@@ -748,6 +766,8 @@ class AligneurCatalogue {
           recetteId: Value(recette),
           libelle: Value(libelle),
           prixVente: Value(prix),
+          articleId: Value(lienArticle),
+          unitesVendables: Value(lienUnites),
           prixProvisoire: Value(_booleen(d['prix_provisoire'])),
           prixCorrigeMain: Value(_booleen(d['prix_corrige_main'])),
         ),
@@ -774,6 +794,8 @@ class AligneurCatalogue {
             recetteId: recette,
             libelle: libelle,
             prixVente: prix,
+            articleId: Value(lienArticle),
+            unitesVendables: Value(lienUnites),
             prixProvisoire: Value(_booleen(d['prix_provisoire'])),
             prixCorrigeMain: Value(_booleen(d['prix_corrige_main'])),
             creeLe: _maintenant(),

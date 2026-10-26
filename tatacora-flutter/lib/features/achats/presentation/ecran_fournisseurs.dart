@@ -36,9 +36,8 @@ import 'widgets/vue_fournisseurs.dart';
 /// deux voies, commande et réception : la facture fournisseur n'a aucune table
 /// au schéma. Jusqu'au 09/10/2026 ce client CORRIGEAIT la phrase ; la vue gagne
 /// quand elle se contredit avec une spécification sur ce qui se voit
-/// (PA-182/183), et la correction est désormais DITE sous la page
-/// ([_NoteRapprochement]) plutôt que substituée au texte. Le défaut est celui de
-/// la vue elle-même : à remonter au Product Owner.
+/// (PA-182/183). Le défaut est celui de la vue elle-même : à remonter au
+/// Product Owner.
 class EcranFournisseurs extends StatefulWidget {
   const EcranFournisseurs({super.key});
 
@@ -83,7 +82,6 @@ class _EcranFournisseursState extends State<EcranFournisseurs> {
                 const VueCommandesAchats()
               else
                 const VueFournisseurs(),
-              const _NoteRapprochement(),
             ],
           ),
         ),
@@ -158,36 +156,3 @@ class _EnTete extends StatelessWidget {
   }
 }
 
-/// Ce que le sous-titre de la vue promet, et ce que le contrôle fait.
-///
-/// ÉCART DÉLIBÉRÉ — `pwa/achats/achats.blade.php` l.70 et
-/// `lang/fr/pwa.php` `achats.sous_titre`.
-/// La vue : « … et rapprochement à trois voies », sans réserve.
-/// Ici : la phrase est rendue au mot, et cette note dit ce qu'elle ne couvre
-/// pas.
-/// Raison (09/10/2026, relue contre `ControleTroisVoiesService`) : le service
-/// documente lui-même que la facture fournisseur « n'a aucune table » et qu'il
-/// « compare réellement deux voies sur trois ». Ce poste fait de même : son
-/// rapprochement (bouton de l'Approvisionnement) confronte commande et
-/// réception, et aucune table ne porte la facture. Lire « trois voies » sous
-/// un écran qui n'en contrôle que deux est la phrase qu'un acheteur lit juste
-/// avant d'autoriser un paiement (PA-59/60/61 sur la pièce qui décaisse).
-/// Le texte précédent (« ce poste ne lit aucune des deux listes ») est devenu
-/// FAUX le 09/10/2026 : M7 est local, les listes se lisent.
-class _NoteRapprochement extends StatelessWidget {
-  const _NoteRapprochement();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.md),
-      child: Text(
-        'Le rapprochement de ce poste ne confronte que deux voies, commande '
-        'et réception : la facture fournisseur n’a aucune table. Il ne vaut '
-        'donc pas autorisation de paiement.',
-        key: const Key('achats-note-rapprochement'),
-        style: _t(TaillesContenu.t11, couleur: Ardoise.c500),
-      ),
-    );
-  }
-}

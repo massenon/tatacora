@@ -78,11 +78,8 @@
       </tbody>
     </table>
     <p style="margin-top: 12px; font-size: 8pt; color: #64748b;">
-      La quantité à commander remonte au DOUBLE du seuil d'alerte, jamais au
-      seuil pile : recommander à l'exact ferait repasser l'article sous alerte
-      à la première sortie. Le stock est consolidé sur TOUS les points de
-      stockage — la colonne « Point » du prototype ne figure pas, la table des
-      articles n'en porte aucun.
+      La quantité à commander remonte au double du seuil d'alerte. Le stock
+      est consolidé sur tous les points de stockage.
     </p>
 
   @elseif ($onglet === 'receptions')
@@ -108,12 +105,6 @@
         @endforeach
       </tbody>
     </table>
-    <p style="margin-top: 12px; font-size: 8pt; color: #64748b;">
-      Les colonnes « Point » et « Articles » du prototype ne figurent pas : un
-      bon de réception n'a aucune ligne de détail au schéma (PA-39). La pièce
-      est désignée par son identifiant réel — ni les commandes ni les bons de
-      réception ne portent de numéro.
-    </p>
 
   @else
     <table class="data-table">
@@ -139,9 +130,7 @@
       </tbody>
     </table>
     <p style="margin-top: 12px; font-size: 8pt; color: #64748b;">
-      Montant COMMANDÉ, pas montant dû : aucun règlement fournisseur n'est
-      enregistré par ce système. Les colonnes « Réglé » et « Reste dû » du
-      prototype ne figurent donc pas.
+      Montant commandé, pas montant dû.
     </p>
   @endif
 

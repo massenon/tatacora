@@ -396,8 +396,12 @@ class AppDatabase extends _$AppDatabase {
   ///
   /// v32 (21/10/2026) — LES ENTRETIENS DE VÉHICULES : une table neuve
   /// (`entretiens_vehicule_local`, 63 -> 64 tables), aucune colonne ajoutée.
+  ///
+  /// v36 (21/10/2026) — LE LIEN DIRECT PLAT -> ARTICLE : deux colonnes
+  /// nullables sur `plats_local` (`article_id`, `unites_vendables`), aucune
+  /// table.
   @override
-  int get schemaVersion => 35;
+  int get schemaVersion => 36;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1123,6 +1127,30 @@ class AppDatabase extends _$AppDatabase {
         await m.createTable(inventairesLocal);
         await m.createTable(lignesInventaireLocal);
         await m.createTable(canauxReservationLocal);
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
+      }
+      if (from < 36) {
+        // LE LIEN DIRECT PLAT -> ARTICLE DE STOCK (21/10/2026, « Lier au
+        // stock » du restaurant). Deux colonnes NULLABLES AJOUTÉES à
+        // `plats_local`, jamais une table recréée : aucune valeur fabriquée
+        // (un plat d'avant n'a pas de lien). Le curseur est oublié : le
+        // catalogue redescend une fois et l'aligneur remplit les colonnes.
+        // ⚠ Ajouts CONDITIONNELS (piège 3).
+        final colonnes = {
+          for (final c
+              in await m.database
+                  .customSelect('PRAGMA table_info(plats_local)')
+                  .get())
+            c.data['name'] as String,
+        };
+        if (!colonnes.contains('article_id')) {
+          await m.addColumn(platsLocal, platsLocal.articleId);
+        }
+        if (!colonnes.contains('unites_vendables')) {
+          await m.addColumn(platsLocal, platsLocal.unitesVendables);
+        }
         await customStatement(
           "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
         );

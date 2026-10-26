@@ -56,7 +56,6 @@
               <p class="text-[15px] font-semibold mt-0.5" style="color:{{ $statut['couleur'] ?? 'var(--navy)' }}">{{ $statut['libelle'] ?? ($utilisateur?->statut ?? '—') }}</p>
             </div>
           </div>
-          <p class="text-[12px] text-slate-400 mt-2.5">{{ __('pwa.profil.note_ip') }}</p>
         </section>
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
@@ -75,12 +74,10 @@
               <div class="groupe-champ">
                 <label class="block text-[15px] font-semibold text-slate-700 mb-1.5">{{ __('pwa.profil.email') }}</label>
                 <p class="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-slate-100 text-slate-600">—</p>
-                <p class="text-[12px] text-slate-400 mt-1">{{ __('pwa.profil.sans_colonne') }} {{ __('pwa.profil.exemple_email') }}</p>
               </div>
               <div class="groupe-champ">
                 <label class="block text-[15px] font-semibold text-slate-700 mb-1.5">{{ __('pwa.profil.telephone') }}</label>
                 <p class="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-slate-100 text-slate-600">—</p>
-                <p class="text-[12px] text-slate-400 mt-1">{{ __('pwa.profil.sans_colonne') }} {{ __('pwa.profil.exemple_telephone') }}</p>
               </div>
               <div class="groupe-champ">
                 <label class="block text-[15px] font-semibold text-slate-700 mb-1.5">{{ __('pwa.profil.fonction') }}</label>
@@ -186,10 +183,6 @@
         <input type="password" wire:model="confirmationMotDePasse" autocomplete="new-password"
                class="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm">
         @error('confirmationMotDePasse')<p class="text-[12px] mt-1" style="color:var(--erreur)">{{ $message }}</p>@enderror
-      </div>
-      <div class="flex items-start gap-2 rounded-lg px-3 py-2.5" style="background:#FDF3E0">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gold)" stroke-width="2.2" class="shrink-0 mt-0.5"><rect x="3" y="11" width="18" height="11" rx="2"/><path stroke-linecap="round" d="M7 11V7a5 5 0 0110 0v4"/></svg>
-        <p class="text-[13px]" style="color:#7C5E12">{{ __('pwa.profil.mdp_note') }}</p>
       </div>
 
       <x-slot:pied>

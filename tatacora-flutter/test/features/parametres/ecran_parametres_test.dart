@@ -283,123 +283,34 @@ void main() {
   });
 
   testWidgets(
-    'une clé sans lecteur le dit : infobulle sur la ligne, texte VISIBLE dans '
-    'la fenêtre de modification ; un secret voisin nomme son refus',
+    'aucune note de conception à l’écran : ni infobulle, ni note dans la '
+    'fenêtre de modification, ni correction en ligne',
     (tester) async {
       await monter(tester);
 
-      String infobulle(String cle) =>
-          tester.widget<Tooltip>(find.byKey(Key('param-note-$cle'))).message!;
+      expect(find.byKey(const Key('param-ligne-entreprise_ifu')), findsOne);
+      for (final cle in const [
+        'entreprise_numero_mecef',
+        'duree_retention_audit_jours',
+        'tolerance_reception_pct',
+        'tva_active',
+      ]) {
+        expect(find.byKey(Key('param-note-$cle')), findsNothing, reason: cle);
+        expect(
+          find.byKey(Key('param-correction-$cle')),
+          findsNothing,
+          reason: cle,
+        );
+      }
+      expect(find.textContaining('Sur ce poste'), findsNothing);
+      expect(find.textContaining('Aucun module de ce poste'), findsNothing);
 
-      // Le régime fiscal a un lecteur depuis le lot J1 (3/4, 14/10/2026) :
-      // l'en-tête A4 des documents. Il ne porte plus l'infobulle — la dire
-      // « sans effet » serait faux.
-      expect(find.byKey(const Key('param-ligne-fiscalite_regime')), findsOne);
-      expect(
-        find.byKey(const Key('param-note-fiscalite_regime')),
-        findsNothing,
-      );
-      // Le taux de TVA a un lecteur depuis le 12/10/2026 (lot 6) : la pièce
-      // comptable d'une vente. Il ne porte plus l'infobulle.
-      expect(find.byKey(const Key('param-note-taux_tva')), findsNothing);
-      // Le numéro contribuable MECeF : le refus du secret, PUIS « aucun module ».
-      expect(
-        infobulle('entreprise_numero_mecef'),
-        'Sur ce poste, aucune clé d’API MECeF n’est enregistrable : un secret '
-        'n’entre jamais dans cette base.\n'
-        'Aucun module de ce poste ne lit encore cette valeur.',
-      );
-
-      // Dans la fenêtre de modification, les notes sont du texte visible.
       await modifier(tester, 'entreprise_numero_mecef');
       expect(
         find.byKey(const Key('param-champ-note-entreprise_numero_mecef-0')),
-        findsOneWidget,
-      );
-      expect(
-        tester
-            .widget<Text>(
-              find.byKey(
-                const Key('param-champ-note-entreprise_numero_mecef-0'),
-              ),
-            )
-            .data,
-        'Sur ce poste, aucune clé d’API MECeF n’est enregistrable : un secret '
-        'n’entre jamais dans cette base.',
-      );
-      expect(
-        tester
-            .widget<Text>(
-              find.byKey(
-                const Key('param-champ-note-entreprise_numero_mecef-1'),
-              ),
-            )
-            .data,
-        'Aucun module de ce poste ne lit encore cette valeur.',
-      );
-    },
-  );
-
-  testWidgets(
-    'la tolérance de réception A UN LECTEUR depuis M7 : la ligne ne dit plus '
-    '« aucun module ne la lit » ; la fenêtre non plus',
-    (tester) async {
-      await monter(tester);
-      await tester.tap(find.byKey(const Key('param-onglet-activation')));
-      await tester.pumpAndSettle();
-
-      // Une clé du même onglet qui n'a PAS de lecteur porte l'infobulle
-      // (témoin : sans lui, l'absence ci-dessous pourrait venir d'un onglet
-      // mal ouvert) ...
-      expect(
-        find.byKey(const Key('param-note-duree_retention_audit_jours')),
-        findsOneWidget,
-      );
-      // ... celle que `AchatsDao` lit pour juger une réception n'en porte plus :
-      // la dire « sans effet » serait faux, et l'exploitant ne la renseignerait
-      // pas — alors que sans elle aucune réception n'est possible.
-      expect(
-        find.byKey(const Key('param-note-tolerance_reception_pct')),
         findsNothing,
       );
-
-      await modifier(tester, 'tolerance_reception_pct');
-      expect(
-        find.byKey(const Key('param-champ-note-tolerance_reception_pct-0')),
-        findsNothing,
-      );
-    },
-  );
-
-  testWidgets(
-    'la correction d’une aide fausse sur ce poste est VISIBLE en ligne, et '
-    'une clé sans cette erreur n’en porte pas',
-    (tester) async {
-      await monter(tester);
-
-      // L'IFU est imprimé par l'en-tête A4 depuis le lot J1 (3/4,
-      // 14/10/2026) : la correction « aucun document n'imprime encore cette
-      // valeur » serait FAUSSE, elle n'est plus rendue.
-      expect(find.byKey(const Key('param-ligne-entreprise_ifu')), findsOne);
-      expect(
-        find.byKey(const Key('param-correction-entreprise_ifu')),
-        findsNothing,
-      );
-      expect(
-        find.text(
-          'Sur ce poste, aucun document n’imprime encore cette valeur.',
-        ),
-        findsNothing,
-      );
-      expect(
-        tester
-            .widget<Text>(find.byKey(const Key('param-correction-tva_active')))
-            .data,
-        'Sur ce poste : HT/TVA ventilés dans la pièce des ventes ; sans taux, '
-        'la vente est refusée.',
-      );
-      // Le taux de TVA n'a pas d'aide fausse : aucune correction.
-      expect(find.byKey(const Key('param-correction-taux_tva')), findsNothing);
+      expect(find.textContaining('Sur ce poste'), findsNothing);
     },
   );
 

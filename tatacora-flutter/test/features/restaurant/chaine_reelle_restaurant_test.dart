@@ -309,11 +309,9 @@ void main() {
         textesSous(tester, const Key('restauration-fiches-kpi-2')),
         isNot(contains('—')),
       );
-      // La phrase de la vue promet un refus que ce poste ne fait pas : elle est
-      // suivie de l'honnêteté.
       expect(
-        find.text(MessagesRestaurant.venteSansSortieDeStock),
-        findsOneWidget,
+        find.byKey(const Key('restauration-fiches-vente-sans-stock')),
+        findsNothing,
       );
 
       await toucher(tester, const Key('restauration-onglet-menus'));
@@ -794,8 +792,10 @@ void main() {
         'Recette Poulet DG',
       ]);
       expect(find.text('Fiche technique (1 ingrédient(s))'), findsOneWidget);
-      // Le chiffre ne tient pas compte des ventes de ce poste : DIT.
-      expect(find.text(MessagesRestaurant.stockSansLesVentes), findsOneWidget);
+      expect(
+        find.byKey(const Key('carte-restaurant-stock-sans-ventes')),
+        findsNothing,
+      );
       // Les compteurs.
       expect(
         textesSous(tester, const Key('carte-restaurant-kpi-lies')),

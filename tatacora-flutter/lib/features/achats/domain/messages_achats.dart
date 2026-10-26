@@ -29,8 +29,7 @@ abstract final class MessagesAchats {
       "complémentaire ou faites acter l'écart par un responsable.";
 
   static const String toleranceAbsente =
-      "La tolérance de réception n'est pas configurée (paramètre "
-      '`tolerance_reception_pct`, RG-10). Aucune conformité ne peut être '
+      "La tolérance de réception n'est pas configurée. Aucune conformité ne peut être "
       "évaluée tant qu'un Administrateur ne l'a pas renseignée.";
 
   static const String envoiImpossible =

@@ -137,7 +137,7 @@ abstract final class MessagesReglement {
   /// est authentifiée).
   static const String auteurInconnu =
       "L'auteur est inconnu : aucun règlement n'est enregistré, et un règlement "
-      'sans nom de qui l\'a décaissé romprait RG-15.';
+      'sans nom de qui l\'a décaissé n\'est pas permis.';
 
   /// Le service reçoit un MODÈLE chargé (`regler(CommandeAchat $commande, …)`) :
   /// une commande absente n'y est pas un cas. Sur le poste, le service reçoit

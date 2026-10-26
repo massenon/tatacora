@@ -74,7 +74,9 @@ trait ComposePanier
      * ENCAISSES — ce n'est pas la meme question, et les confondre a deja
      * produit un ecran qui proposait quatre rayons sur cinq sans rien pouvoir
      * en faire (PA-129). Un rayon non encaissable reste AFFICHE avec sa
-     * raison ; l'omettre le rendrait indiscernable d'un rayon vide.
+     * raison ; l'omettre le rendrait indiscernable d'un rayon vide. Depuis le
+     * 22/10/2026 le tourisme et la location sont encaissables au comptoir
+     * (`PosComptant`) ; le POS des clients heberges, lui, les refuse encore.
      */
     protected const MODULE_BAR = 'M5';
 
@@ -285,6 +287,7 @@ trait ComposePanier
             // que la vue n'ait pas a distinguer « pas provisoire » de « pas de
             // cle » (meme discipline que `lien_stock`).
             'composition_provisoire' => false,
+            'prestation' => false,
         ];
     }
 
@@ -354,6 +357,7 @@ trait ComposePanier
              */
             'composition_provisoire' => ! $plat->aUnLienDirectAuStock()
                 && ($plat->recette?->composition_provisoire === true),
+            'prestation' => false,
         ];
     }
 
@@ -369,12 +373,17 @@ trait ComposePanier
             'prix' => (string) $circuit->prix,
             'categorie' => 'prestations',
             'categorie_libelle' => __('pos_pwa.heberges.categorie_prestations'),
-            'famille' => VenteService::MODULES[self::MODULE_TOURISME],
+            'famille' => __('pos_pwa.comptant.famille_tourisme'),
             'lien_stock' => false,
             // Une prestation ne se cuisine pas : aucune fiche technique, donc
             // aucune quantite posee a signaler.
             'composition_provisoire' => false,
-            'encaissable' => false,
+            // Encaissable au comptoir depuis le 22/10/2026 (directive du PO) :
+            // `circuits.prix` est le prix fige. Le point orange du maitre ne la
+            // vise pas — une prestation ne decremente aucun stock, elle n'en a
+            // pas a decrementer.
+            'prestation' => true,
+            'encaissable' => true,
         ];
     }
 
@@ -390,12 +399,15 @@ trait ComposePanier
             'prix' => (string) $vehicule->tarif_jour,
             'categorie' => 'prestations',
             'categorie_libelle' => __('pos_pwa.heberges.categorie_prestations'),
-            'famille' => VenteService::MODULES[self::MODULE_VEHICULES],
+            'famille' => __('pos_pwa.comptant.famille_location'),
             'lien_stock' => false,
             // Une prestation ne se cuisine pas : aucune fiche technique, donc
             // aucune quantite posee a signaler.
             'composition_provisoire' => false,
-            'encaissable' => false,
+            // Encaissable au comptoir depuis le 22/10/2026 : `vehicules.tarif_jour`
+            // est le prix fige, la quantite est un nombre de jours.
+            'prestation' => true,
+            'encaissable' => true,
         ];
     }
 

@@ -571,6 +571,17 @@ class PosComptant extends PageMetier
         }
 
         /*
+         * Meme regle pour la location (M8) et le tourisme (M9), encaissables ici
+         * depuis le 22/10/2026 : un barman n'obtient pas par le comptoir la
+         * vente d'un vehicule ou d'un circuit que ces modules lui refusent.
+         */
+        foreach ([self::MODULE_VEHICULES, self::MODULE_TOURISME] as $moduleDePrestation) {
+            if (in_array($moduleDePrestation, $panier->modules(), true)) {
+                $this->exigerEcriture($moduleDePrestation);
+            }
+        }
+
+        /*
          * « Porté sur la note de chambre » n'existe pas au comptoir — aucune
          * chambre n'y porte de note (directive PO du 02/09/2026). Le mode a
          * disparu du sélecteur, mais une propriété Livewire se pose depuis le
@@ -978,7 +989,14 @@ class PosComptant extends PageMetier
         $session = $this->sessionOuverte();
         $pointBar = PointStockage::where('type', self::POINT_CAISSE)->first();
 
-        $catalogueComplet = $this->catalogue([self::MODULE_BAR, self::MODULE_RESTAURANT]);
+        // Bar, restaurant, et depuis le 22/10/2026 tourisme et location :
+        // un ticket peut les melanger, comme au maitre (« Tourisme & location »).
+        $catalogueComplet = $this->catalogue([
+            self::MODULE_BAR,
+            self::MODULE_RESTAURANT,
+            self::MODULE_TOURISME,
+            self::MODULE_VEHICULES,
+        ]);
 
         $catalogueAffiche = $this->filtrerCatalogue(
             $catalogueComplet,

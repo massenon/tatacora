@@ -191,8 +191,8 @@ return [
         'seuil_aide' => 'Un paramètre, pas un état : il déclenche l\'alerte de sous-stock.',
 
         'stock_ouverture' => 'Stock d\'ouverture',
-        'stock_ouverture_aide' => 'Enregistré comme un MOUVEMENT d\'entrée, pas comme une '
-            . 'colonne : c\'est ce qui le rend visible en fiche de stock.',
+        'stock_ouverture_aide' => 'Enregistré comme un mouvement d\'entrée : '
+            . 'c\'est ce qui le rend visible en fiche de stock.',
 
         /*
          * La valeur d'achat en MODIFICATION est en LECTURE SEULE, et c'est un
@@ -311,7 +311,7 @@ return [
     'import' => [
         'titre' => 'Importer des articles',
         'sous_titre' => 'Fichier CSV, une ligne par article. Le stock d\'ouverture entre comme '
-            . 'un mouvement, jamais comme une colonne.',
+            . 'un mouvement d\'entrée.',
         'fichier' => 'Fichier CSV',
         'colonnes' => 'Colonnes attendues, dans cet ordre : :colonnes',
         'valider' => 'Importer',

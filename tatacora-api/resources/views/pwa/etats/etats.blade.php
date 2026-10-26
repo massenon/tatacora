@@ -29,15 +29,6 @@
   @include('pwa.partials.barre-superieure')
   
 
-  {{-- Le bandeau du maître, porté tel quel (l.15-21). Son lien pointe vers la
-       version fonctionnelle, qui est servie par cette PWA. --}}
-  <div style="background:#FFFBEB;border-bottom:1px solid #FDE68A;padding:10px 20px">
-    <p style="font-size:13px;color:#78350F;margin:0">
-      <strong>{{ __('pwa.etats_legacy.remplace_titre') }}</strong> {{ __('pwa.etats_legacy.remplace_texte') }}
-      <a href="{{ route('pwa.etats.studio') }}" style="color:#78350F;font-weight:700;text-decoration:underline">{{ __('pwa.etats.titre') }}</a>.
-    </p>
-  </div>
-
   <div class="flex flex-1 overflow-hidden">
     @include('pwa.partials.menu-lateral')
     <main class="flex-1 overflow-y-auto">

@@ -32,15 +32,6 @@ String refusCleInconnue(String cle) =>
     'cet écran : une clé que rien ne lit donnerait l’illusion d’un réglage '
     'sans effet.';
 
-/// La phrase qui dit qu'une valeur n'est lue par PERSONNE sur ce poste.
-///
-/// Une clé sans lecteur reste saisissable — un module à venir la lira, et la
-/// saisir d'avance n'est pas fautif —, mais l'exploitant doit le savoir : ne
-/// pas le dire serait lui laisser croire à un réglage en vigueur (piège 9).
-/// Rendue À PART de l'aide du serveur, qui reste identique à la vue Blade.
-const String phraseSansLecteur =
-    'Aucun module de ce poste ne lit encore cette valeur.';
-
 const String messageEnregistre = 'Paramètres enregistrés.';
 const String messageAucunChangement = 'Aucune valeur modifiée.';
 
@@ -145,8 +136,6 @@ class EnregistrerParametres {
             choix: s.choix,
             aide: s.aide,
             valeur: valeurs[s.cle],
-            correction: s.correction,
-            notes: [?s.note, if (s.lecteur == null) phraseSansLecteur],
           ),
       ],
       etats: {'tva': etatTva(valeurs), 'mecef': etatMecef(valeurs)},

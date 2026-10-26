@@ -200,6 +200,38 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
     return resultat;
   }
 
+  /// Le lien direct d'un plat, valorisé au point cuisine, ou `null` : pas de
+  /// lien, ou un article que ce poste n'a pas (encore) reçu — on ne l'invente
+  /// pas, le plat retombe sur sa fiche.
+  LienDirectCalcule? _lien(
+    PlatsLocalData p,
+    ({
+      String? pointId,
+      Map<String, ArticleCalcul> articles,
+      Map<String, int> stockAuPoint,
+      Map<String, int> cmp,
+    })
+    stock,
+  ) {
+    final articleId = p.articleId;
+    final unites = p.unitesVendables == null
+        ? null
+        : lireDixMilliemes(p.unitesVendables!);
+    if (articleId == null || unites == null || unites <= 0) return null;
+    final a = stock.articles[articleId];
+    if (a == null) return null;
+    return LienDirectCalcule(
+      articleId: a.id,
+      libelle: a.libelle,
+      uniteMesure: a.uniteMesure,
+      suivi: a.suivi,
+      unitesVendables: ecrireDixMilliemes(unites),
+      unitesDixMilliemes: unites,
+      stockCentiemes: stock.stockAuPoint[a.id] ?? 0,
+      seuilCentiemes: a.seuilCentiemes,
+    );
+  }
+
   /// Les plats, leur composition valorisée et le point cuisine : tout ce que
   /// `calculerCarte` consomme.
   Future<DonneesCarte> donneesCarte() async {
@@ -235,6 +267,7 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
             prixProvisoire: l.readTable(p).prixProvisoire,
             prixCorrigeMain: l.readTable(p).prixCorrigeMain,
             indisponibilite: retraits[l.readTable(p).id],
+            lien: _lien(l.readTable(p), stock),
             composition: _ingredients(
               compositions[l.readTable(p).recetteId] ?? const [],
               stock,
@@ -721,6 +754,147 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
   }
 
   /* ================================================================== */
+  /* « Lier au stock » (v36) — le lien DIRECT d'un plat à un article      */
+  /* ================================================================== */
+
+  /// Les articles que « Lier au stock » propose : actifs ET en suivi
+  /// PERMANENT (la phrase de la vue : un article en achat journalier n'est pas
+  /// suivi, le rattacher ne décrémenterait rien).
+  Future<List<ArticleChoix>> articlesLiables() async =>
+      [
+        for (final a in await _stocks.articles())
+          if (a.actif && a.suivi == SuiviArticle.permanent)
+            ArticleChoix(
+              id: a.id,
+              libelle: a.libelle,
+              uniteMesure: a.uniteMesure,
+              suivi: a.suivi,
+            ),
+      ]..sort((a, b) {
+        final c = cleDeComparaison(
+          a.libelle,
+        ).compareTo(cleDeComparaison(b.libelle));
+        return c != 0 ? c : a.id.compareTo(b.id);
+      });
+
+  /// Le solde de [articleId] au point cuisine, en centièmes ; `null` quand
+  /// aucun point cuisine n'existe (on ne sait pas, ce n'est pas zéro).
+  Future<int?> stockCuisineDe(String articleId) async {
+    final stock = await _stockDesIngredients();
+    return stock.pointId == null ? null : (stock.stockAuPoint[articleId] ?? 0);
+  }
+
+  /// Le lien enregistré d'un plat : l'article et le conditionnement (texte
+  /// décimal), ou `null`.
+  Future<({String articleId, String unitesVendables})?> lienDe(
+    String platId,
+  ) async {
+    final p = await (select(
+      attachedDatabase.platsLocal,
+    )..where((x) => x.id.equals(platId))).getSingleOrNull();
+    if (p == null || p.articleId == null || p.unitesVendables == null) {
+      return null;
+    }
+    return (articleId: p.articleId!, unitesVendables: p.unitesVendables!);
+  }
+
+  /// `CartePlatMenuService::lierAuStock` : l'article ET son conditionnement
+  /// vont ENSEMBLE ; le lien se REMPLACE. Le conditionnement est strictement
+  /// positif, l'article existe. Enfilé (modification du plat) dans la même
+  /// transaction.
+  Future<Plat> lierAuStock({
+    required String platId,
+    required String articleId,
+    required String conditionnement,
+    required String? auteurId,
+  }) async {
+    _exigerAuteur(auteurId);
+
+    await transaction(() async {
+      final existant = await (select(
+        attachedDatabase.platsLocal,
+      )..where((p) => p.id.equals(platId))).getSingleOrNull();
+      if (existant == null) {
+        throw const RefusRestaurant(MessagesRestaurant.platIntrouvable);
+      }
+
+      final erreurs = <String, String>{};
+      if (articleId.trim().isEmpty) {
+        erreurs['article_stock_id'] = MessagesRestaurant.articleLienObligatoire;
+      } else if (await (select(
+            attachedDatabase.articlesLocal,
+          )..where((a) => a.id.equals(articleId))).getSingleOrNull() ==
+          null) {
+        erreurs['article_stock_id'] = MessagesRestaurant.articleLienInconnu;
+      }
+
+      final texte = conditionnement.trim();
+      final unites = lireDixMilliemes(texte);
+      if (texte.isEmpty) {
+        erreurs['unites_vendables'] = MessagesRestaurant.conversionRequise(
+          existant.libelle,
+        );
+      } else if (unites == null) {
+        erreurs['unites_vendables'] = MessagesRestaurant.conversionIllisible;
+      } else if (unites <= 0) {
+        erreurs['unites_vendables'] = MessagesRestaurant.conversionInvalide(
+          existant.libelle,
+        );
+      }
+      if (erreurs.isNotEmpty) {
+        throw RefusRestaurant(erreurs.values.first, erreurs: erreurs);
+      }
+
+      await (update(
+        attachedDatabase.platsLocal,
+      )..where((p) => p.id.equals(platId))).write(
+        PlatsLocalCompanion(
+          articleId: Value(articleId),
+          unitesVendables: Value(ecrireDixMilliemes(unites!)),
+          modifieLe: Value(_maintenant()),
+          modifiePar: Value(auteurId),
+        ),
+      );
+      await _enfilerPlat(platId, avant: existant);
+    });
+
+    return (await plat(platId))!;
+  }
+
+  /// `CartePlatMenuService::delierDuStock` : les DEUX colonnes partent
+  /// ensemble (un taux de conversion sur un plat qui ne décrémente plus rien
+  /// par ce chemin serait faux). Sans lien : rien n'est écrit.
+  Future<Plat> delierDuStock({
+    required String platId,
+    required String? auteurId,
+  }) async {
+    _exigerAuteur(auteurId);
+
+    await transaction(() async {
+      final existant = await (select(
+        attachedDatabase.platsLocal,
+      )..where((p) => p.id.equals(platId))).getSingleOrNull();
+      if (existant == null) {
+        throw const RefusRestaurant(MessagesRestaurant.platIntrouvable);
+      }
+      if (existant.articleId == null) return;
+      await (update(
+        attachedDatabase.platsLocal,
+      )..where((p) => p.id.equals(platId))).write(
+        PlatsLocalCompanion(
+          articleId: const Value(null),
+          unitesVendables: const Value(null),
+          modifieLe: Value(_maintenant()),
+          modifiePar: Value(auteurId),
+        ),
+      );
+      await _enfilerPlat(platId, avant: existant);
+    });
+
+    return (await plat(platId))!;
+  }
+
+  /* ================================================================== */
   /* La file d'envoi (lot F1, 15/10/2026)                                */
   /* ================================================================== */
 
@@ -781,7 +955,23 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
     prixVenteFrancs: p.prixVente,
     prixProvisoire: p.prixProvisoire,
     prixCorrigeMain: p.prixCorrigeMain,
+    articleId: p.articleId,
+    unitesVendables: p.unitesVendables,
   );
+
+  /// Les deux colonnes du lien, retirées : elles repartent en `null`
+  /// EXPLICITE (`champsModifies` ne voit que les clés présentes après).
+  static Map<String, Object?> _differences(
+    PlatsLocalData avant,
+    PlatsLocalData apres,
+  ) {
+    final d = champsModifies(_chargePlat(avant), _chargePlat(apres));
+    if (avant.articleId != null && apres.articleId == null) {
+      d['article_id'] = null;
+      d['unites_vendables_par_unite_stock'] = null;
+    }
+    return d;
+  }
 
   Future<void> _enfilerPlat(String id, {required PlatsLocalData? avant}) async {
     final apres = await (select(
@@ -793,9 +983,7 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
       type: avant == null
           ? TypeOperationSync.creation
           : TypeOperationSync.modification,
-      payload: avant == null
-          ? _chargePlat(apres)
-          : champsModifies(_chargePlat(avant), _chargePlat(apres)),
+      payload: avant == null ? _chargePlat(apres) : _differences(avant, apres),
     );
   }
 }

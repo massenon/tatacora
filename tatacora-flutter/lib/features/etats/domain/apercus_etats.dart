@@ -139,7 +139,7 @@ String _arreteAu(EtatLocal etat, DateTime maintenant) =>
 /// lit un solde de `0.00` et le range « sous seuil » (D146). Ici il se lit
 /// « non suivi » et « — », jamais « 0 ».
 const String phraseVentesSansSortie =
-    'Ce stock ne compte que les mouvements saisis sur ce poste : les ventes '
+    'Ce stock ne compte que les mouvements saisis ici : les ventes '
     'du bar et du restaurant n\'y écrivent aucune sortie, il peut donc '
     'dépasser le stock réel d\'autant.';
 
@@ -361,7 +361,7 @@ ApercuEtat apercuLocations(
     ],
     mentions: const [
       'Le montant d\'un contrat est recalculé au tarif courant du véhicule : '
-          'aucune colonne ne le fige à la signature (constaté le 10/10/2026). '
+          'aucune colonne ne le fige à la signature. '
           'Modifier la grille réécrit les contrats déjà signés.',
     ],
   );
@@ -434,8 +434,8 @@ ApercuEtat apercuReservations(
         : modele.indicateurs.sublist(0, 3),
     lignes: lignes,
     mentions: [
-      'Le statut est déduit des dates (À venir, En cours, Terminée) : ce poste '
-          'n\'enregistre ni confirmation ni arrivée. Les réservations '
+      'Le statut est déduit des dates (À venir, En cours, Terminée) : '
+          'ni confirmation ni arrivée n\'est enregistrée. Les réservations '
           'annulées sont exclues, comme au serveur.',
       if (sansTarif > 0)
         '$sansTarif réservation(s) sans tarif figé : hors des montants, '
@@ -488,8 +488,7 @@ ApercuEtat apercuVentes(List<Vente> ventes, {int paniersOuverts = 0}) {
     ],
     lignes: lignes,
     mentions: [
-      'N° : identifiant local abrégé de la vente — aucune séquence de numéros '
-          'de vente n\'existe sur ce poste.',
+      'N° : identifiant abrégé de la vente.',
       if (sansMode > 0)
         '$sansMode vente(s) sans mode de règlement : « Encaissée » se lit '
             '« — », elles ne sont pas comptées parmi les encaissées.',
@@ -537,15 +536,15 @@ ApercuEtat apercuDepenses(List<Depense> depenses) {
         ],
     ],
     mentions: [
-      'N° : aucune séquence de numéros de dépense n\'existe sur ce poste.',
+      'N° : identifiant abrégé de la dépense.',
       if (depenses.any((d) => !d.estComptabilisee && !d.pieceAuServeur))
         'Écriture : « Absente » pour ${depenses.where((d) => !d.estComptabilisee && !d.pieceAuServeur).length} '
-            'dépense(s) saisie(s) avant que ce poste passe une pièce '
+            'dépense(s) saisie(s) avant le passage d\'une pièce '
             'comptable ; elles manquent au grand livre tant que leur pièce '
-            'n\'est pas passée (constaté le 10/10/2026).'
+            'n\'est pas passée.'
       else
         'Écriture : « Passée » pour chaque dépense de cette liste, lue de la '
-            'pièce comptable qu\'elle porte (constaté le 10/10/2026).',
+            'pièce comptable qu\'elle porte.',
     ],
   );
 }
@@ -624,8 +623,7 @@ ApercuEtat apercuTourisme(
     ],
     mentions: [
       'Le montant est le prix actuel du circuit multiplié par les '
-          'participants : aucune colonne ne le fige à la réservation '
-          '(constaté le 10/10/2026).',
+          'participants : aucune colonne ne le fige à la réservation.',
       if (illisibles > 0)
         '$illisibles réservation(s) de statut inconnu écartée(s) : hors des '
             'comptes et des montants.',

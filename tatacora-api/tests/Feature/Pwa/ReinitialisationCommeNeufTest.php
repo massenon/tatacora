@@ -45,9 +45,8 @@ final class ReinitialisationCommeNeufTest extends TestCase
         'utilisateurs', 'roles', 'permissions', 'permission_role', 'parametres_systeme',
         'journal_audit',
         'categories_hebergement', 'unites_hebergement', 'canaux_reservation',
-        'articles', 'points_stockage',
-        'menus', 'recettes', 'ingredients_recette', 'plats', 'tables_salle',
-        'cartes_boisson', 'vehicules', 'circuits',
+        'points_stockage', 'tables_salle',
+        'vehicules', 'circuits',
         'plan_comptable', 'journaux_comptables', 'exercices_comptables', 'centres_cout',
         'services', 'modeles_notification',
     ];
@@ -62,6 +61,8 @@ final class ReinitialisationCommeNeufTest extends TestCase
         'ventes', 'lignes_vente', 'commandes_achat', 'depenses',
         'contrats_location', 'reservations_tour', 'sessions_caisse',
         'factures', 'commandes_restaurant', 'inventaires',
+        // Correction du PO : le catalogue (et ses jointures) se vide aussi.
+        'articles', 'menus', 'recettes', 'ingredients_recette', 'plats', 'cartes_boisson',
         'cache', 'cache_locks', 'failed_jobs',
     ];
 

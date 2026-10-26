@@ -83,14 +83,14 @@ abstract final class TextesVentesCarte {
   /// `ventes_stock_aide`.
   static const stockAide =
       "Le stock affiché est celui d'aujourd'hui, jamais celui du jour de la "
-      "vente : aucune table n'en garde la trace.";
+      'vente.';
 
   /// `ventes_total_page`.
   static const totalPage = 'TOTAL DE LA PAGE';
 
   /// `ventes_total_page_aide`.
   static const totalPageAide =
-      "Somme des lignes validées affichées ci-dessus. Une vente annulée reste au registre (RG-02) mais son montant n'est pas de l'argent.";
+      "Somme des lignes validées affichées ci-dessus. Une vente annulée reste au registre mais son montant n'est pas compté.";
 
   /// `ventes_compteur` quand ni le nombre de lignes ni le total ne sont
   /// connus : « — », pas « 0 ».

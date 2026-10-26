@@ -254,7 +254,7 @@ class _PageState extends ConsumerState<_Page> {
         // le message de bienvenue (porté par les modèles de Notifications).
         return _Grille(
           enfants: [
-            const _TitreSection('Canaux de notification (Module M12)'),
+            const _TitreSection('Canaux de notification'),
             for (final d in communication.where(
               (d) => d.cle != 'entreprise_site_web',
             ))
@@ -1044,8 +1044,6 @@ abstract final class _TextesActivation {
   static const String sectionSocial = 'Charges sociales';
   static const String sectionExploitation = 'Exploitation';
   static const String sectionSuppression = 'Rappel sur la suppression';
-  static const String horsOnglet =
-      'Servi par le registre serveur — le maître ne pose pas de champ dédié pour ce groupe sous cet onglet, et le masquer ailleurs rendrait ses réglages invisibles.';
 
   static const String introA =
       "Ces bascules commandent ce que l'application propose";
@@ -1223,16 +1221,6 @@ class _OngletActivation extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _TitreSection(titre),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.sm), // mb-3
-                  child: Text(
-                    _TextesActivation.horsOnglet,
-                    style: _styleActivation(
-                      TaillesContenu.t12,
-                      couleur: AppColors.neutre400,
-                    ),
-                  ),
-                ),
                 _Grille(enfants: cellules),
               ],
             ),

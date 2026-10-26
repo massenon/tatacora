@@ -18,6 +18,8 @@ use App\Domain\Restaurant\Services\CommandeRestaurantService;
 use App\Domain\Restaurant\Services\DeductionStockCuisineService;
 use App\Domain\Stocks\Models\PointStockage;
 use App\Domain\Stocks\Services\MouvementStockService;
+use App\Domain\Tourisme\Models\Circuit;
+use App\Domain\Vehicules\Models\Vehicule;
 use App\Domain\Ventes\Models\LigneVente;
 use App\Domain\Ventes\Models\Vente;
 use Carbon\CarbonInterface;
@@ -149,15 +151,22 @@ class VenteService
      * Modules réellement encaissables ici, parce qu'ils ont un catalogue
      * serveur d'où figer un prix et un libellé.
      *
-     * Les trois autres modules de `MODULES` restent nommés — le registre décrit
-     * ce qu'une ligne PEUT porter, y compris ce qui viendra — mais un
-     * encaissement les refuse. Les accepter obligerait l'écran à transmettre
-     * un prix au clavier, exactement l'anti-pattern PA-24. Le jour où M1, M8
-     * et M9 auront leur catalogue, il n'y aura qu'à les ajouter ici.
+     * M1 reste nommé — le registre décrit ce qu'une ligne PEUT porter, y
+     * compris ce qui viendra — mais un encaissement le refuse : l'accepter
+     * obligerait l'écran à transmettre un prix au clavier, exactement
+     * l'anti-pattern PA-24. Le jour où M1 aura son catalogue, il n'y aura
+     * qu'à l'ajouter ici.
+     *
+     * Le TOURISME (M9, `circuits.prix`) et la LOCATION de véhicules (M8,
+     * `vehicules.tarif_jour`) sont encaissables depuis le 22/10/2026 (directive
+     * du PO : « encaissables au comptoir, au poste comme au web ») : ils ont
+     * un catalogue d'où figer prix et libellé. Vente LIBRE de prestation : le
+     * comptoir n'a aucun lien avec un contrat de location ni avec une
+     * réservation de circuit saisis ailleurs (voir `resoudreCircuit`).
      *
      * @var list<string>
      */
-    public const MODULES_ENCAISSABLES = ['M4', 'M5'];
+    public const MODULES_ENCAISSABLES = ['M4', 'M5', 'M8', 'M9'];
 
     /**
      * Journal d'imputation des ventes.
@@ -205,10 +214,10 @@ class VenteService
      * Comptes de produits par module — `ATELIER_PLAN_COMPTABLE.md` §2.
      *
      * Ce registre couvre exactement {@see self::MODULES_ENCAISSABLES} : y
-     * inscrire M1, M8 et M9 aujourd'hui produirait trois entrées qu'aucun
-     * chemin n'atteint. Le plan documenté les porte déjà (hébergement sur 7061, location de véhicules sur 7073 ;
-     * le plan du PO n'a pas de compte dédié aux circuits touristiques) : le jour
-     * où ces modules deviennent encaissables, il n'y a qu'à les ajouter ici.
+     * inscrire M1 produirait une entrée qu'aucun chemin n'atteint. Location de
+     * véhicules (M8) sur 7073 « Locations » ; tourisme (M9) sur 7061 « services
+     * vendus » — le plan du PO n'a pas de compte dédié aux circuits, le centre
+     * de coût « Tourisme » porte la distinction (à valider par le comptable).
      *
      * @var array<string, string>
      */
@@ -230,6 +239,9 @@ class VenteService
     public const COMPTES_TVA = [
         'M4' => ComptesSyscohada::TVA_FACTUREE_PRESTATIONS,
         'M5' => ComptesSyscohada::TVA_FACTUREE_BIENS,
+        // Prestations de services (location, circuit) : 4432, comme le repas.
+        'M8' => ComptesSyscohada::TVA_FACTUREE_PRESTATIONS,
+        'M9' => ComptesSyscohada::TVA_FACTUREE_PRESTATIONS,
     ];
 
     /**
@@ -241,11 +253,15 @@ class VenteService
     public const CENTRES_PAR_MODULE = [
         'M4' => 'Restaurant',
         'M5' => 'Bar',
+        'M8' => 'Véhicules',
+        'M9' => 'Tourisme',
     ];
 
     public const COMPTES_PRODUIT = [
         'M4' => ComptesSyscohada::PRODUIT_PRESTATIONS,
         'M5' => ComptesSyscohada::PRODUIT_MARCHANDISES,
+        'M8' => ComptesSyscohada::PRODUIT_LOCATIONS,
+        'M9' => ComptesSyscohada::PRODUIT_PRESTATIONS,
     ];
 
     private const MODE_NOTE_CHAMBRE = 'note_chambre';
@@ -592,12 +608,17 @@ class VenteService
                 );
             }
 
-            $pointBar = $this->pointBar();
+            // Le point « bar » n'est exigé que s'il y a une boisson à rendre :
+            // une vente de tourisme ou de location (M8/M9) ne sort aucun stock
+            // et doit s'annuler même sans point de stockage « bar ».
+            $pointBar = null;
 
             foreach ($vente->lignes()->get() as $ligne) {
                 if ($ligne->module !== 'M5') {
                     continue;
                 }
+
+                $pointBar ??= $this->pointBar();
 
                 $boisson = CarteBoisson::find($ligne->code);
 
@@ -717,9 +738,12 @@ class VenteService
 
             $reference = (string) $ligne['reference_id'];
 
-            $resolue = $module === 'M5'
-                ? $this->resoudreBoisson($reference, $quantite)
-                : $this->resoudrePlat($reference, $quantite);
+            $resolue = match ($module) {
+                'M5' => $this->resoudreBoisson($reference, $quantite),
+                'M8' => $this->resoudreVehicule($reference, $quantite),
+                'M9' => $this->resoudreCircuit($reference, $quantite),
+                default => $this->resoudrePlat($reference, $quantite),
+            };
 
             if ($prixImposes) {
                 $resolue = $this->imposerPrix($resolue, $ligne['prix_unitaire'] ?? null);
@@ -781,6 +805,67 @@ class VenteService
             'stock' => $this->mouvements->arrondirQuantite(
                 $boisson->stockConsommePour((string) $quantite),
             ),
+        ];
+    }
+
+    /**
+     * Un circuit du catalogue (M9), au prix `circuits.prix` par unité.
+     *
+     * La quantité est le nombre de places vendues. Aucun lien avec une
+     * réservation de circuit : le comptoir vend la prestation LIBREMENT, il ne
+     * crée ni ne règle de `ReservationTour` (une réservation déjà saisie dans
+     * M9 reste réglée par sa facture — ne pas l'encaisser aussi ici).
+     *
+     * @return array<string, mixed>
+     */
+    private function resoudreCircuit(string $reference, int $quantite): array
+    {
+        $circuit = Circuit::find($reference);
+
+        if ($circuit === null) {
+            throw new RuntimeException(__('ventes.reference_inconnue', ['reference' => $reference]));
+        }
+
+        $prix = (string) $circuit->prix;
+
+        return [
+            'module' => 'M9',
+            'reference_id' => $circuit->id,
+            'nom' => $circuit->nom,
+            'categorie' => 'prestations',
+            'prix_unitaire' => $prix,
+            'quantite' => $quantite,
+            'montant' => bcmul($prix, (string) $quantite, self::PRECISION),
+        ];
+    }
+
+    /**
+     * Un véhicule du parc (M8), au tarif `vehicules.tarif_jour` par jour.
+     *
+     * La quantité est le nombre de jours. Vente LIBRE de prestation : aucun
+     * `ContratLocation` n'est créé ni réglé (un contrat déjà saisi dans M8
+     * reste réglé par sa facture), et le statut du véhicule n'est pas modifié.
+     *
+     * @return array<string, mixed>
+     */
+    private function resoudreVehicule(string $reference, int $quantite): array
+    {
+        $vehicule = Vehicule::find($reference);
+
+        if ($vehicule === null) {
+            throw new RuntimeException(__('ventes.reference_inconnue', ['reference' => $reference]));
+        }
+
+        $prix = (string) $vehicule->tarif_jour;
+
+        return [
+            'module' => 'M8',
+            'reference_id' => $vehicule->id,
+            'nom' => $vehicule->immatriculation.' ('.$vehicule->categorie.')',
+            'categorie' => 'prestations',
+            'prix_unitaire' => $prix,
+            'quantite' => $quantite,
+            'montant' => bcmul($prix, (string) $quantite, self::PRECISION),
         ];
     }
 

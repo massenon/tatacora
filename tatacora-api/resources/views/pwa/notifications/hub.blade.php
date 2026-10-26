@@ -537,13 +537,6 @@
               </table>
             </div>
           </div>
-
-          <div class="rounded-xl p-4" style="background:#F8FAFC;border:1px solid #E2E8F0">
-            <p class="text-[13px] text-slate-700">
-              <strong>{{ __('notifications_pwa.canaux_ordre_titre') }}</strong> {{ __('notifications_pwa.canaux_ordre_texte') }}
-            </p>
-            <p class="text-[13px] text-slate-700 mt-2">{{ __('notifications_pwa.canaux_ordre_suite') }}</p>
-          </div>
         </div>
 
       </div>

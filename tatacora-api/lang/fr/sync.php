@@ -19,7 +19,7 @@ return [
     'conflit_financier' => 'Modification concurrente sur une donnée financière : '
         // Article 8 (02/09/2026) : la reference RG-17 vit ici, jamais a l'ecran.
         . 'la résolution automatique est interdite. Un responsable doit trancher.',
-    'conflit_horodatage' => 'Une saisie plus récente existe déjà côté serveur : '
+    'conflit_horodatage' => 'Une saisie plus récente existe déjà sur le serveur : '
         . 'votre modification hors connexion a été écartée.',
     'rejet_metier' => 'Opération refusée par une règle de gestion : :raison',
     'poste_non_reconnu' => 'Le poste déclaré ne correspond pas à celui de la session. Reconnectez-vous depuis ce poste.',
@@ -145,7 +145,7 @@ return [
     ],
     'depenses' => [
         'centre_introuvable' => 'Le centre de coût « :centre » est introuvable sur le serveur. La dépense n\'est pas '
-            . 'enregistrée : l\'imputer à un autre centre fausserait l\'analytique (RG-12). Mettez à jour le référentiel du poste.',
+            . 'enregistrée : l\'imputer à un autre centre fausserait l\'analytique. Mettez à jour le référentiel du poste.',
     ],
     'receptions' => [
         'commande_inconnue' => 'La commande de ce bon de réception est inconnue du serveur : synchronisez la commande '

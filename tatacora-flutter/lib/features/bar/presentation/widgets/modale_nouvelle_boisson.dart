@@ -11,6 +11,8 @@ import '../../../restaurant/presentation/widgets/textes_modale_restaurant.dart';
 import '../../data/boissons_api.dart';
 import '../../domain/entities/boisson.dart';
 import '../providers_bar.dart';
+import 'modale_lien_stock.dart' show TextesLienStock;
+import 'selecteur_article_stock.dart';
 
 /// La modale **« Nouvelle boisson »** de la Carte du bar —
 /// `pwa/carte/corps.blade.php` l.717-774, ouverte par le bouton l.117-120.
@@ -34,26 +36,35 @@ import '../providers_bar.dart';
 /// Le titre, le sous-titre, les champs dans leur ordre (Libellé ; Catégorie et
 /// Prix côte à côte ; Article de stock), l'aide sous le bloc d'article,
 /// « Annuler » puis « Créer la boisson ». La catégorie est pré-remplie avec la
-/// PREMIÈRE du registre fermé, comme `ouvrirCreationBoisson()` le fait.
+/// PREMIÈRE du registre fermé, comme `ouvrirCreationBoisson()` le fait. L'article
+/// de stock est OBLIGATOIRE (`bar.validation.article_obligatoire`) et choisi
+/// parmi les articles en suivi permanent de CE poste (`articles_local`), que la
+/// recherche filtre.
 ///
-/// ## Trois écarts, tous nommés
+/// ## ⚠ La boisson naît AVEC son article et son conditionnement (26/10/2026)
 ///
-/// ÉCART DÉLIBÉRÉ — `pwa/carte/corps.blade.php` l.752-764.
-/// La vue : un sélecteur d'article de stock OBLIGATOIRE, alimenté par une
-/// recherche serveur, et une création refusée sans lui (`exists:articles,id`).
-/// Ici : **aucun sélecteur**. `articles_local` est délibérément vide (PA-134) —
-/// le stock était calculé par le serveur, et aucun référentiel d'articles n'est
-/// répliqué sur ce poste. La boisson naît donc **sans lien de stock**, et le
-/// bloc DIT lequel des deux cas s'applique.
-/// Raison : exiger un article rendrait la création impossible, c'est-à-dire
-/// laisserait le point de vente sans rien à vendre — le défaut même que ce lot
-/// referme. Un sélecteur vide, lui, aurait été un champ qui ne peut rien
-/// proposer et refuse tout (Article 6).
+/// Jusqu'au 26/10/2026 la modale n'offrait aucun sélecteur et créait la boisson
+/// SANS lien : le serveur, qui exige l'article (`exists:articles,id`), la
+/// rejetait à l'envoi, et le poste ne pouvait ni la lier ni la vendre « suivie ».
+/// Elle écrit désormais l'article ET son conditionnement dans la carte locale
+/// ([creerBoissonProvider] -> `BoissonsApi.enregistrer` -> `CatalogueDao`,
+/// création mise en file avec les deux).
+///
+/// ÉCART DÉLIBÉRÉ — `pwa/carte/corps.blade.php` l.752-764 et l.762.
+/// La vue : la création ne pose que l'article ; le conditionnement « se règle
+/// ensuite par Lier au stock » (`champ_boisson_article_aide`, rendue telle
+/// quelle ci-dessous).
+/// Ici : un champ « Combien de « … » dans une unité de stock ? » (celui de la
+/// modale « Lier au stock ») suit l'article, obligatoire.
+/// Raison (demande du Product Owner du 26/10/2026) : la boisson doit naître liée
+/// ET convertie. Sans conditionnement, le serveur garderait le défaut du schéma
+/// (1) et une vente sortirait un casier ENTIER par bouteille ; le stock estimé
+/// du poste, lui, ignorerait la ligne (« jamais un 1 inventé »).
 ///
 /// ÉCART DÉLIBÉRÉ — `pwa/carte/corps.blade.php` l.770.
 /// La vue : « Créer la boisson » est toujours offert, et c'est la validation
 /// serveur qui refuse.
-/// Ici : il est offert lui aussi — mais les trois champs sont vérifiés AVANT
+/// Ici : il est offert lui aussi — mais les champs sont vérifiés AVANT
 /// l'écriture, et le refus s'affiche sous le champ en cause.
 /// Raison : il n'y a plus d'aller-retour au bout duquel apprendre qu'un champ
 /// est vide, et le catalogue local refuse en plus un libellé déjà pris —
@@ -96,24 +107,9 @@ abstract final class TextesNouvelleBoisson {
   /// `carte_pwa.commun.toast_boisson_creee`.
   static String creee(String libelle) => '« $libelle » est à la carte du bar.';
 
-  // La phrase de la vue pour une recherche sans résultat — celle de la modale
-  // « Lier au stock », qui propose la même liste d'articles. Conservée : elle
-  // redeviendra la phrase de ce bloc le jour où un référentiel local existera.
-  static const String aucunResultat =
-      'Aucun article en suivi permanent ne correspond à cette recherche.';
-
-  /// Ce que le bloc « Article de stock » dit à la place du sélecteur.
-  ///
-  /// L'aide de la vue, juste au-dessus, annonce un article OBLIGATOIRE : sans
-  /// cette phrase, l'utilisateur chercherait un champ absent et croirait
-  /// l'écran cassé. Elle dit donc les deux choses qui comptent — pourquoi il
-  /// n'y a rien à choisir, et ce qui en découle à la vente.
-  static const String sansReferentielLocal =
-      'Aucun article de stock n’est tenu sur ce poste : il n’y a donc rien à '
-      'rattacher, et le champ ci-dessus n’a pas de liste. La boisson entre à '
-      'la carte SANS lien de stock — elle est vendable immédiatement, mais sa '
-      'vente ne décrémentera aucun casier, et la carte l’affichera « non '
-      'suivi ». Le rapprochement se fait sur le poste qui tient les stocks.';
+  /// Le nom de la boisson dans la question du conditionnement, tant que le
+  /// libellé n'est pas saisi.
+  static const String cetteBoisson = 'cette boisson';
 
   static const String libelleManquant = 'Le libellé est obligatoire.';
   static const String prixManquant = 'Le prix de vente est obligatoire.';
@@ -135,6 +131,9 @@ class _ModaleNouvelleBoissonState
   // `ouvrirCreationBoisson()` : la première catégorie du registre fermé.
   CategorieBoisson _categorie = CategorieBoisson.values.first;
 
+  final _conversion = TextEditingController();
+  String? _articleId;
+
   bool _envoi = false;
   String? _refus;
   Map<String, String> _parChamp = const {};
@@ -143,6 +142,7 @@ class _ModaleNouvelleBoissonState
   void dispose() {
     _libelle.dispose();
     _prix.dispose();
+    _conversion.dispose();
     super.dispose();
   }
 
@@ -167,6 +167,8 @@ class _ModaleNouvelleBoissonState
           TextField(
             key: const Key('nouvelle-boisson-libelle'),
             controller: _libelle,
+            // Le libellé nomme la boisson dans la question du conditionnement.
+            onChanged: (_) => setState(() {}),
             style: TextesModaleRestaurant.corps,
             decoration: InputDecoration(
               isDense: true,
@@ -240,11 +242,20 @@ class _ModaleNouvelleBoissonState
           const SizedBox(height: AppSpacing.sm),
 
           // ------------------------------------ Article de stock (l.752-764)
-          //
-          // La place du bloc est celle de la vue ; son contenu dit pourquoi il
-          // n'y a rien à choisir ici — voir l'écart en tête de fichier.
           const EtiquetteChampRestaurant(
             texte: TextesNouvelleBoisson.champArticle,
+            obligatoire: true,
+          ),
+          SelecteurArticleStock(
+            prefixeCle: 'nouvelle-boisson-article',
+            invite: TextesNouvelleBoisson.inviteArticle,
+            aucunArticle: TextesLienStock.aucunArticle,
+            articleId: _articleId,
+            erreur: _parChamp['article_id'],
+            onChoisi: (a) => setState(() {
+              _articleId = a?.id;
+              _parChamp = const {};
+            }),
           ),
           const SizedBox(height: AppSpacing.xxs),
           const Text(
@@ -252,10 +263,29 @@ class _ModaleNouvelleBoissonState
             key: Key('nouvelle-boisson-aide-article'),
             style: TextesModaleRestaurant.aide,
           ),
-          const SizedBox(height: AppSpacing.xs),
-          const _Avertissement(
-            cle: Key('nouvelle-boisson-sans-referentiel'),
-            texte: TextesNouvelleBoisson.sansReferentielLocal,
+          const SizedBox(height: AppSpacing.sm),
+
+          // Le conditionnement — AJOUT du poste (voir l'écart en tête de
+          // fichier), aux mots de la modale « Lier au stock ».
+          EtiquetteChampRestaurant(
+            texte: TextesLienStock.champConversion(
+              _libelle.text.trim().isEmpty
+                  ? TextesNouvelleBoisson.cetteBoisson
+                  : _libelle.text.trim(),
+            ),
+            obligatoire: true,
+          ),
+          TextField(
+            key: const Key('nouvelle-boisson-conversion'),
+            controller: _conversion,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            style: TextesModaleRestaurant.corps,
+            decoration: InputDecoration(
+              isDense: true,
+              border: const OutlineInputBorder(),
+              errorText: _parChamp['unites_vendables_par_unite_stock'],
+              errorMaxLines: 4,
+            ),
           ),
         ],
       ),
@@ -290,6 +320,10 @@ class _ModaleNouvelleBoissonState
     final manquants = <String, String>{
       if (libelle.isEmpty) 'libelle': TextesNouvelleBoisson.libelleManquant,
       if (prix.isEmpty) 'prix_vente': TextesNouvelleBoisson.prixManquant,
+      // `bar.validation.article_obligatoire` : la vue exige l'article, et le
+      // serveur rejetterait la boisson sans lui.
+      if (_articleId == null)
+        'article_id': TextesCatalogueLocal.articleObligatoire,
     };
     if (manquants.isNotEmpty) {
       setState(() => _parChamp = manquants);
@@ -303,7 +337,13 @@ class _ModaleNouvelleBoissonState
     });
 
     final resultat = await ref.read(creerBoissonProvider)(
-      SaisieBoisson(libelle: libelle, categorie: _categorie, prixVente: prix),
+      SaisieBoisson(
+        libelle: libelle,
+        categorie: _categorie,
+        prixVente: prix,
+        articleId: _articleId ?? '',
+        unitesVendablesParUniteStock: _conversion.text,
+      ),
     );
     if (!mounted) return;
 
@@ -331,32 +371,5 @@ class _ModaleNouvelleBoissonState
         // que le compilateur l'exigera.
         setState(() => _envoi = false);
     }
-  }
-}
-
-/// Ce que la modale dit du bloc d'article qu'elle ne peut pas offrir.
-class _Avertissement extends StatelessWidget {
-  const _Avertissement({required this.cle, required this.texte});
-
-  final Key cle;
-  final String texte;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      key: cle,
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      decoration: BoxDecoration(
-        color: PaletteMaitre.ambre50,
-        border: Border.all(color: PaletteMaitre.ambre200),
-        borderRadius: BorderRadius.circular(AppRadius.roundedLg),
-      ),
-      child: Text(
-        texte,
-        style: TextesModaleRestaurant.corps.copyWith(
-          color: PaletteMaitre.ambre900,
-        ),
-      ),
-    );
   }
 }

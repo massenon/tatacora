@@ -77,13 +77,13 @@ use RuntimeException;
  * `VenteService` — le meme chemin que le comptoir, la meme numerotation, la
  * meme deduction RG-05.
  *
- * ## Tourisme et location sont AFFICHES et REFUSES, jamais omis
+ * ## Tourisme et location sont AFFICHES et REFUSES sur la note de chambre
  *
- * `VenteService::MODULES_ENCAISSABLES` vaut `['M4','M5']` : M8 et M9 n'ont pas
- * de catalogue d'ou FIGER un prix, et les accepter obligerait l'ecran a
- * transmettre un montant au clavier (PA-24). Le maitre pose pourtant leur
- * rayon : il reste affiche, avec sa raison a l'ecran. Un rayon retire ne se
- * distingue pas d'un rayon vide.
+ * Depuis le 22/10/2026, `VenteService::MODULES_ENCAISSABLES` vaut
+ * `['M4','M5','M8','M9']` : tourisme et location s'encaissent au COMPTOIR
+ * (`PosComptant`). Le panier d'un sejour reste limite a {@see MODULES_DU_SEJOUR} :
+ * le rayon M8/M9 reste pose, AFFICHE, avec sa raison a l'ecran. Un rayon
+ * retire ne se distingue pas d'un rayon vide.
  *
  * @see EF-M2-01 Emission de facture
  * @see RG-04 Facture consolidee multi-modules — AMENDEE le 02/09/2026
@@ -103,6 +103,15 @@ class PosHeberges extends PageMetier
 
     /** Le module RBAC de l'ecran : ce qui s'y vend est du bar et du restaurant. */
     public const MODULE = 'M5';
+
+    /**
+     * Les rayons que le panier d'un SEJOUR porte : bar et restaurant. Le
+     * tourisme (M9) et la location (M8) sont encaissables au COMPTOIR depuis
+     * le 22/10/2026 (`PosComptant`), pas sur la note de chambre : la directive
+     * du PO vise le comptoir, et une prestation de circuit ou de location
+     * suit son propre contrat/reservation (facture consolidee, RG-04).
+     */
+    public const MODULES_DU_SEJOUR = ['M4', 'M5'];
 
     /** Emettre une facture est une ecriture sur M2, exigee EN PLUS. */
     public const MODULE_FACTURATION = 'M2';
@@ -227,7 +236,7 @@ class PosHeberges extends PageMetier
             return;
         }
 
-        if (! in_array($module, VenteService::MODULES_ENCAISSABLES, true)) {
+        if (! in_array($module, self::MODULES_DU_SEJOUR, true)) {
             // PA-24 — nomme a l'ecran, jamais un echec silencieux.
             $this->notifier(__('pos_pwa.heberges.prestation_refusee'), 'error');
 
@@ -643,7 +652,12 @@ class PosHeberges extends PageMetier
             self::MODULE_RESTAURANT,
             self::MODULE_TOURISME,
             self::MODULE_VEHICULES,
-        ]);
+        ])->map(function (array $article): array {
+            // Encaissables au comptoir, pas au sejour : voir MODULES_DU_SEJOUR.
+            $article['encaissable'] = in_array($article['module'], self::MODULES_DU_SEJOUR, true);
+
+            return $article;
+        });
 
         // UNE requete pour tous les sejours affiches : une par ligne rendrait
         // la liste inutilisable des la haute saison.

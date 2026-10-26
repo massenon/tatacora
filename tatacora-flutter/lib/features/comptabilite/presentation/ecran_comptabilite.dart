@@ -156,10 +156,7 @@ abstract final class TextesComptabilite {
       'Exercice $annee clôturé : consultation en lecture seule. Pour le '
       'corriger, le comptable le rouvre depuis l’onglet Clôtures.';
 
-  /// AJOUTS déclarés (D417).
-  static const String indicateursSurCePoste =
-      'Sur ce poste : les six indicateurs ne sont pas calculés — seuls le '
-      'journal, la balance générale, le compte de résultat et le bilan sont lus.';
+  /// Message métier d'un état indisponible.
   static const String saisieSansDroit =
       "Votre profil n'a pas le droit de passer une écriture comptable.";
 
@@ -173,12 +170,9 @@ abstract final class TextesComptabilite {
     FiltreStatutEcritures.brouillon => statutBrouillon,
   };
   static String ongletNonCalcule(String libelle) =>
-      "« $libelle » n'est pas calculé sur ce poste : seuls le journal, la "
-      'balance générale, le compte de résultat et le bilan y sont lus. Aucun '
-      "chiffre n'est affiché plutôt qu'un chiffre faux.";
+      "« $libelle » n'est pas disponible.";
   static String tuileNonPortee(String titre) =>
-      "« $titre » n'est pas porté sur ce poste : seuls le journal, la "
-      'balance générale, le compte de résultat et le bilan y sont lus.';
+      "« $titre » n'est pas disponible.";
 }
 
 /// `Hub::ONGLETS`, dans son ordre et à ses mots.
@@ -793,12 +787,6 @@ class _BandeIndicateurs extends StatelessWidget {
                 ),
               ),
           ],
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          TextesComptabilite.indicateursSurCePoste,
-          key: const Key('compta-indicateurs-sur-ce-poste'),
-          style: styleTransverse(TaillesContenu.t12, couleur: Ardoise.c400),
         ),
       ],
     );

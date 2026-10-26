@@ -75,7 +75,7 @@ String? avertissementDoublonServeur({
       )
       .join(' ; ');
   return 'Une fiche existante pourrait correspondre : $noms. '
-      'Vérifiez avant de créer un doublon (RG-18).';
+      'Vérifiez avant de créer un doublon.';
 }
 
 /// `nomsProches` : une faute de frappe courte sur des noms assez longs.

@@ -233,7 +233,20 @@ final class LigneCarteRestaurant {
     this.prixCorrigeMain = false,
     this.recetteLibelle,
     this.indisponibilite,
+    this.articleStockId,
+    this.articleStockLibelle,
+    this.articleStockUnite,
+    this.unitesVendables,
   });
+
+  /// Le lien DIRECT au stock (v36) : l'article de stock du plat, son unité et
+  /// le conditionnement (« 24 » pour un casier de 24), ou `null` sans lien.
+  final String? articleStockId;
+  final String? articleStockLibelle;
+  final String? articleStockUnite;
+  final String? unitesVendables;
+
+  bool get aLienDirect => articleStockId != null;
 
   final String id;
   final String libelle;

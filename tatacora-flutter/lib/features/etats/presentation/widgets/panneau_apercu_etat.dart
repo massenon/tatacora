@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../comptabilite/presentation/exercice_consulte.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../restaurant/presentation/widgets/coquille_restaurant.dart';
@@ -151,7 +150,7 @@ class _Accueil extends StatelessWidget {
                           ),
                           const TextSpan(
                             text:
-                                ' de chaque état, pas par M14 : un magasinier '
+                                ' de chaque état, pas par le module Rapports : un magasinier '
                                 'ne lit pas le livre de paie parce qu\'il a '
                                 'accès aux « États ».',
                           ),
@@ -371,30 +370,10 @@ class _Corps extends ConsumerWidget {
 
   final ApercuEtat apercu;
 
-  /// Sélecteur d'exercice global (PO, 20/10/2026) : sur ce poste, l'aperçu
-  /// est une photographie du JOUR. Le dater d'un exercice passé serait faux —
-  /// une ligne le dit, seulement quand un autre exercice est consulté (la
-  /// directive du 14/10/2026 interdit les longs encadrés ici).
-  static const String horsExercice =
-      'Sur ce poste : aperçu du jour, pas de l’exercice choisi.';
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final consulte = ref.watch(exerciceConsulteProvider);
-    final defaut = exerciceParDefaut(
-      ref.watch(exercicesDuPosteProvider).value ?? const [],
-    );
     return ListView(
       children: [
-        if (consulte != null && defaut != null && consulte.id != defaut.id)
-          const Padding(
-            padding: EdgeInsets.all(AppSpacing.sm),
-            child: Text(
-              horsExercice,
-              key: Key('etats-hors-exercice'),
-              style: TextesEtats.videApercu,
-            ),
-          ),
         // L'encadré ambre « Sur ce poste » (`_Mentions`, ajout à la vue) est
         // RETIRÉ de l'écran le 14/10/2026 (directive absolue du PO : aucune
         // explication longue en bloc). Les « — » restent ; les mentions

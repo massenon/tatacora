@@ -399,7 +399,7 @@ class _Corps extends StatelessWidget {
               'n’est pas « il n’y en a aucune » : on ne sait pas.',
           // `aide_fiche`.
           aide:
-              "Obligatoire : un plat se décrémente par sa fiche technique (EF-M4-02). Créez d'abord la recette si elle n'existe pas.",
+              "Obligatoire : un plat se décrémente par sa fiche technique. Créez d'abord la recette si elle n'existe pas.",
           cleCreer: const Key('modale-plat-creer-fiche'),
           libelleCreer: 'Créer une fiche technique',
           onCreer: onCreerFiche,

@@ -12,7 +12,9 @@ import '../../pos/data/dto/catalogue_dto.dart';
 import '../../pos/data/indisponibilites_carte_dao.dart';
 import '../../pos/domain/entities/reference_catalogue.dart';
 import '../../pos/presentation/providers_pos.dart';
+import '../../stocks/presentation/providers_stocks.dart' show stocksDaoProvider;
 import '../data/boissons_api.dart';
+import '../domain/apercu_lien.dart';
 import '../domain/entities/boisson.dart';
 import '../domain/entities/carte_bar.dart';
 import '../domain/entities/trace_prix.dart';
@@ -39,10 +41,26 @@ final carteLocaleProvider = FutureProvider<List<LigneCarte>>((ref) async {
     ref.watch(baseLocaleProvider),
   ).boissonsRetirees();
 
+  // La colonne « Article de stock » (vue l.373-380) : le libellé de l'article
+  // lié et son conditionnement en clair (« 24 par casier »), lus des tables
+  // LOCALES — `articles_local` et `cartes_boisson_local.unites_vendables`.
+  // Un lien dont l'article n'est pas (encore) sur ce poste reste lié, sans
+  // libellé : la cellule dit « non consulté », pas « aucun article ».
+  final dao = ref.watch(catalogueDaoProvider);
+  final facteurs = {
+    for (final b in await dao.boissonsDuCatalogue()) b.id: b.unitesVendables,
+  };
+  final articles = <String, ArticleDeStock?>{
+    for (final articleId in liens.values.toSet())
+      articleId: await dao.articleDeStock(articleId),
+  };
+
   return bar
       .expand((r) => r.articles)
-      .map(
-        (a) => LigneCarte(
+      .map((a) {
+        final article = articles[liens[a.reference.code]];
+        final facteur = facteurs[a.reference.code];
+        return LigneCarte(
           id: a.reference.code,
           libelle: a.libelle,
           categorie: a.categorie ?? '',
@@ -51,8 +69,12 @@ final carteLocaleProvider = FutureProvider<List<LigneCarte>>((ref) async {
           stock: null,
           indisponibilite: retraits[a.reference.code],
           disponibiliteConnue: true,
-        ),
-      )
+          lienLibelle: article?.libelle,
+          lienDetail: article == null || facteur == null
+              ? null
+              : conversionLisible(facteur, article.uniteMesure),
+        );
+      })
       .toList(growable: false);
 });
 
@@ -262,21 +284,61 @@ final modifierPrixBoissonProvider =
       },
     );
 
-// ⚠ `lierAuStockProvider` a été RETIRÉ le 14/09/2026, avec les deux
-// fournisseurs qui alimentaient sa modale — `boissonServeurProvider` (qui
-// relisait le conditionnement ENREGISTRÉ au serveur) et
-// `referentielLienProvider` (les articles en suivi permanent, avec leur solde
-// au point « bar »).
-//
-// Deux manques, et chacun suffirait : aucun article n'est répliqué ici
-// (`articles_local` est délibérément vide, PA-134), et la table du catalogue
-// local ne porte pas le conditionnement — qui est la raison d'être du geste,
-// un casier de 24 et une bouteille à l'unité ne décrémentant pas pareil.
-//
-// La modale énonce le refus (`TextesCatalogueLocal.lienSansColonne`) et
-// n'appelle plus rien : un fournisseur que seul un refus traverse serait un
-// chemin que rien n'emprunte. `BoissonsApi.lierAuStock` demeure — c'est là que
-// le geste se rebranchera le jour où la colonne existera, et il reste éprouvé.
+/// « Lier au stock » / « Modifier le lien » — écrit l'article ET son
+/// conditionnement dans la carte locale (et la file d'envoi), puis recharge ce
+/// qui lit le catalogue (26/10/2026).
+///
+/// ⚠ `lierAuStockProvider` avait été RETIRÉ le 14/09/2026 : ni article ni
+/// colonne de conditionnement n'existaient sur le poste. Les deux existent
+/// (`articles_local`, `cartes_boisson_local.unites_vendables` v30).
+final lierAuStockProvider =
+    Provider<
+      Future<ResultatBar<Boisson>> Function({
+        required String id,
+        required String articleId,
+        required String unitesVendablesParUniteStock,
+      })
+    >(
+      (ref) =>
+          ({
+            required id,
+            required articleId,
+            required unitesVendablesParUniteStock,
+          }) async {
+            final resultat = await ref
+                .read(boissonsApiProvider)
+                .lierAuStock(
+                  id: id,
+                  articleId: articleId,
+                  unitesVendablesParUniteStock: unitesVendablesParUniteStock,
+                );
+            if (resultat is BarRecu<Boisson>) _rafraichirCatalogue(ref);
+            return resultat;
+          },
+    );
+
+/// Les articles de stock proposés par la recherche des deux modales — suivi
+/// permanent seulement (`articlesDeStock()` de la vue). `autoDispose` : un
+/// article créé dans Stocks pendant que la modale était fermée doit y être.
+final articlesDeStockProvider = FutureProvider.autoDispose
+    .family<List<ArticleDeStock>, String>(
+      (ref, terme) =>
+          ref.watch(catalogueDaoProvider).articlesDeStockLiables(terme: terme),
+    );
+
+/// Le solde d'un article au point « bar », pour l'aperçu de « Lier au stock »
+/// (« Stock actuel »). `null` : non consultable — aucun point de type « bar »,
+/// ou article inconnu ; jamais un zéro, qui se lirait « rupture ».
+final soldeAuBarProvider = FutureProvider.autoDispose.family<String?, String>((
+  ref,
+  articleId,
+) async {
+  final stocks = ref.watch(stocksDaoProvider);
+  final bar = (await stocks.points()).where((p) => p.type == 'bar').firstOrNull;
+  if (bar == null) return null;
+  final fiche = await stocks.articlesFiche(pointId: bar.id);
+  return fiche.where((a) => a.id == articleId).firstOrNull?.stock;
+});
 
 /// « Rendre indispo. » — écrit le retrait dans la base locale et le met en
 /// file (v31, 21/10/2026) ; recharge la carte pour que la ligne passe à

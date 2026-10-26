@@ -136,8 +136,8 @@ abstract final class MessagesEncaissement {
   /// L'auteur est inconnu : `Auth::id()` n'est jamais nul au serveur (la route
   /// est authentifiée). Même phrase que l'ouverture de caisse.
   static const String auteurInconnu =
-      'L\'auteur est inconnu : aucun encaissement n\'est enregistré, et un '
-      'encaissement sans nom de qui l\'a reçu romprait RG-15.';
+      'L\'auteur est inconnu : aucun encaissement n\'est enregistré, car '
+      'chaque encaissement doit nommer qui l\'a reçu.';
 
   /// Le serveur ne contrôle pas qu'un encaissement annulé existe avant de
   /// l'annuler (le modèle est déjà chargé) ; ici l'identifiant peut être inconnu.

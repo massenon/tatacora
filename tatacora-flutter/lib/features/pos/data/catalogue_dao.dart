@@ -152,6 +152,54 @@ class CatalogueDao extends DatabaseAccessor<AppDatabase>
     };
   }
 
+  /// Les articles de stock auxquels une boisson peut se lier — ceux de
+  /// `articles_local` en **suivi permanent** et non archivés, triés par libellé
+  /// (`articlesDeStock()` de la PWA : un article en achat journalier n'est pas
+  /// suivi, le rattacher ne décrémenterait rien). [terme] filtre sur le libellé,
+  /// sans casse ni accents (la recherche du maître).
+  Future<List<ArticleDeStock>> articlesDeStockLiables({
+    String terme = '',
+  }) async {
+    final cherche = cleDeComparaison(terme);
+    final lignes = await select(attachedDatabase.articlesLocal).get();
+    final retenus =
+        [
+          for (final a in lignes)
+            if (a.suivi == 'permanent' &&
+                a.actif != false &&
+                (cherche.isEmpty ||
+                    cleDeComparaison(a.libelle).contains(cherche)))
+              a,
+        ]..sort(
+          (a, b) => cleDeComparaison(
+            a.libelle,
+          ).compareTo(cleDeComparaison(b.libelle)),
+        );
+    return [
+      for (final a in retenus)
+        ArticleDeStock(
+          id: a.id,
+          libelle: a.libelle,
+          uniteMesure: a.uniteMesure,
+        ),
+    ];
+  }
+
+  /// Un article de stock par identifiant, quel que soit son suivi — sert à
+  /// NOMMER un lien déjà posé (colonne « Article de stock » de la carte).
+  Future<ArticleDeStock?> articleDeStock(String id) async {
+    final a = await (select(
+      attachedDatabase.articlesLocal,
+    )..where((t) => t.id.equals(id))).getSingleOrNull();
+    return a == null
+        ? null
+        : ArticleDeStock(
+            id: a.id,
+            libelle: a.libelle,
+            uniteMesure: a.uniteMesure,
+          );
+  }
+
   /// Les références du catalogue dont la vente ne sortirait AUCUN stock — la
   /// lecture qui rend `stock_non_impacte` (« Articles sans lien au stock »,
   /// journal des ventes et ticket) : une boisson sans article de stock, un plat
@@ -231,6 +279,7 @@ class CatalogueDao extends DatabaseAccessor<AppDatabase>
         articleId: b.articleId.isEmpty ? null : b.articleId,
         categorie: b.categorie,
         prixVenteFrancs: b.prixVente.round(),
+        unitesVendables: b.unitesVendables,
       );
 
   /// Les boissons du catalogue local, triées par libellé.
@@ -293,6 +342,10 @@ class CatalogueDao extends DatabaseAccessor<AppDatabase>
           libelle: b.libelle,
           categorie: b.categorie,
           prixVente: b.prixVente,
+          // `absentIfNull` : une écriture qui ne connaît pas le
+          // conditionnement (l'amorçage, une descente sans lui) ne EFFACE
+          // jamais celui que le poste a saisi.
+          unitesVendables: Value.absentIfNull(b.unitesVendables),
         ),
       );
 
@@ -305,6 +358,7 @@ class CatalogueDao extends DatabaseAccessor<AppDatabase>
     prixVente: b.prixVente,
     // Jamais stocké, donc jamais relu — voir [boissonsDuCatalogue].
     stockDisponible: null,
+    unitesVendables: b.unitesVendables,
   );
 
   /// Le rayon du restaurant : les plats de `plats_local`, au prix du jour.

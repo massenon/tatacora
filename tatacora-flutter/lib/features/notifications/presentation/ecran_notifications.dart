@@ -1810,17 +1810,6 @@ class _PanneauJournal extends StatelessWidget {
                   couleur: PaletteMaitre.rouge700,
                 ),
               ),
-              // Ajouté : ce que la vue ne peut pas dire de ce poste. Elle
-              // laisse entendre que l'e-mail peut passer au « oui » ; ici
-              // aucun des quatre canaux n'a de transport.
-              Text(
-                'Sur ce poste, aucun des quatre ne l’est.',
-                key: const Key('notifications-journal-aucun-transport'),
-                style: styleContenuCarte(
-                  TaillesContenu.t11,
-                  couleur: PaletteMaitre.rouge700,
-                ),
-              ),
             ],
           ),
         ],

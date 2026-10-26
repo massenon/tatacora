@@ -192,30 +192,10 @@
                 @include('pwa.transverse._parametre_ligne', ['ligne' => $whatsapp, 'colspan' => false])
               @endif
 
-              {{-- « Clé API WhatsApp Business » (maquette l.73-74) — rendue en
-                   ligne, REFUSÉE comme valeur : un secret n'entre jamais dans
-                   `parametres_systeme` (voir l'entête, #communication). --}}
-              <div class="groupe-champ">
-                <p class="block text-[15px] font-semibold text-slate-700 mb-1.5">{{ __('pwa.parametres.communication_cle_api_libelle') }}</p>
-                <p class="text-[13px] font-mono-tatacora px-2.5 py-1 rounded bg-slate-100 text-slate-400 inline-block">—</p>
-                <p class="text-[12px] text-slate-400 mt-1.5">{{ __('pwa.parametres.communication_cle_api_mention') }}</p>
-              </div>
-
               @php($siteWeb = $ligneDe($groupesOnglet['entreprise'] ?? [], ReportHeaderService::CLE_SITE_WEB))
               @if ($siteWeb !== null)
                 @include('pwa.transverse._parametre_ligne', ['ligne' => $siteWeb, 'colspan' => true])
               @endif
-
-              {{-- « Message de bienvenue » (maquette l.77-78) — non porté : les
-                   messages automatiques vivent dans les MODÈLES du module
-                   Notifications (`modeles_notification`, un texte par
-                   déclencheur et par canal) ; une seconde source de texte ici
-                   divergerait de la première. Motif daté du 02/09/2026. --}}
-              <div class="groupe-champ sm:col-span-2">
-                <p class="block text-[15px] font-semibold text-slate-700 mb-1.5">{{ __('pwa.parametres.communication_message_libelle') }}</p>
-                <p class="text-[13px] font-mono-tatacora px-2.5 py-1 rounded bg-slate-100 text-slate-400 inline-block">—</p>
-                <p class="text-[12px] text-slate-400 mt-1.5">{{ __('pwa.parametres.communication_message_mention') }}</p>
-              </div>
             </div>
 
         @elseif ($onglet === 'email')
@@ -479,7 +459,6 @@
                  réel ne disparaît). --}}
             <div class="mt-5 pt-4 border-t border-slate-100">
               <h3 class="text-sm font-bold text-slate-700 mb-1">{{ __('pwa.parametres.section_social') }}</h3>
-              <p class="text-[12px] text-slate-400 mb-3">{{ __('pwa.parametres.section_hors_onglet') }}</p>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 @foreach (($groupesOnglet['social'] ?? []) as $ligne)
                   @include('pwa.transverse._parametre_ligne', ['ligne' => $ligne, 'colspan' => false])
@@ -488,7 +467,6 @@
             </div>
             <div class="mt-5 pt-4 border-t border-slate-100">
               <h3 class="text-sm font-bold text-slate-700 mb-1">{{ __('pwa.parametres.section_exploitation') }}</h3>
-              <p class="text-[12px] text-slate-400 mb-3">{{ __('pwa.parametres.section_hors_onglet') }}</p>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 @foreach (($groupesOnglet['exploitation'] ?? []) as $ligne)
                   @include('pwa.transverse._parametre_ligne', ['ligne' => $ligne, 'colspan' => false])

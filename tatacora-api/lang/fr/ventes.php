@@ -24,9 +24,8 @@ return [
         ."Le prix et le libellé d'une vente sont figés depuis le catalogue, jamais saisis : "
         .'sans référence, il n\'y a rien à figer.',
 
-    'module_non_encaissable' => ':module ne dispose pas encore de catalogue encaissable au comptoir. '
-        ."Accepter la ligne obligerait l'écran à transmettre un prix au clavier — c'est l'anti-patron "
-        .'que le prototype porte et que ce dépôt refuse.',
+    'module_non_encaissable' => ':module ne dispose pas encore de catalogue encaissable au comptoir : '
+        .'la ligne ne peut pas être acceptée.',
 
     // Synchronisation (décision PO du 15/10/2026) : le prix du POSTE fait
     // foi — encore faut-il qu'il en porte un.

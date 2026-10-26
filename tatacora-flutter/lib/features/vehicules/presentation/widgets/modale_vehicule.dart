@@ -86,7 +86,7 @@ class _ModaleVehiculeState extends ConsumerState<_ModaleVehicule> {
       cle: const Key('modale-vehicule'),
       // Les deux titres de la vue, au mot.
       titre: edition ? 'Éditer le véhicule' : 'Nouveau véhicule au parc',
-      sousTitre: 'Référentiel du parc — EF-M8-01.',
+      sousTitre: 'Référentiel du parc.',
       largeur: AppLayout.modaleVehicule,
       refus: _refus,
       cleRefus: const Key('modale-vehicule-refus'),

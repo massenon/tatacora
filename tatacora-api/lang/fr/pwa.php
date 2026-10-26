@@ -486,7 +486,7 @@ return [
         'reessayer' => 'Réessayer',
         'se_connecter' => 'Se connecter',
         'session_titre' => 'Session interrompue par la perte du réseau',
-        'session_explication' => 'Votre session reste ouverte sur ce poste. '
+        'session_explication' => 'Votre session reste ouverte. '
             . 'Rétablissez le réseau puis réessayez : si la session s\'est '
             . 'verrouillée entre-temps, le formulaire de déverrouillage '
             . 's\'affichera.',
@@ -611,18 +611,7 @@ return [
         'export_onglet_refuse' => 'L\'export Excel n\'est offert que sur l\'onglet Journal.',
         'export_vide' => 'Rien à exporter : aucune écriture ne correspond aux filtres affichés.',
 
-        // --- Les refus nommés (Article 8) ----------------------------------
-        'refus_titre' => 'Ce que cet écran ne fait pas, et pourquoi',
-        'refus_actions_cloture' => 'Ouvrir un exercice, clôturer une période '
-            . 'ou clôturer l\'exercice sont des écritures. Cet écran en montre '
-            . 'l\'ÉTAT ; il ne déclenche rien, et le serveur ne l\'expose pas.',
 
-        // --- Ce que le serveur signale et qu'il faut dire -------------------
-        'hors_ecran_titre' => 'Comptes hors des sept classes affichées',
-        'hors_ecran_detail' => 'Le schéma admet les classes 8 (hors activités '
-            . 'ordinaires) et 9 (analytique), que cet écran n\'a aucun bouton '
-            . 'pour atteindre. Les taire rendrait ces comptes invisibles sous '
-            . 'un plan qui aurait l\'air complet.',
         'sans_nature' => ':nombre compte(s) sans nature renseignée — la '
             . 'colonne affiche « — », qui n\'est pas une nature.',
 
@@ -641,8 +630,7 @@ return [
 
         'structure_non_repartie' => 'Aucune charge de structure n\'est '
             . 'répartie : les montants ci-dessous sont des marges sur coûts '
-            . 'directs, pas des résultats nets. Une clé de répartition est une '
-            . 'décision de gestion, pas une constante technique.',
+            . 'directs, pas des résultats nets.',
 
         'resultat_avant_impot' => 'Résultat affiché avant Impôt sur les '
             . 'Sociétés : aucun impôt n\'est comptabilisé en classe 89 sur cet '
@@ -658,14 +646,14 @@ return [
         // ferait disparaître.
         'motifs' => [
             'report_a_nouveau_absent' => 'Aucun mécanisme de report à nouveau n\'existe.',
-            'detail_physique_hors_domaine_m10' => 'Le détail physique relève des stocks (M6), hors de la comptabilité.',
-            'effectif_hors_domaine_m10' => 'L\'effectif relève des ressources humaines (M13), hors de la comptabilité.',
+            'detail_physique_hors_domaine_m10' => 'Le détail physique relève des stocks, hors de la comptabilité.',
+            'effectif_hors_domaine_m10' => 'L\'effectif relève des ressources humaines, hors de la comptabilité.',
             'non_saisi_par_le_comptable' => 'Rubrique en texte libre : rien n\'a encore été saisi.',
-            'lettrage_par_anciennete_non_arbitre' => 'Le lettrage par ancienneté (30/60/90 jours) n\'est pas arbitré.',
+            'lettrage_par_anciennete_non_arbitre' => 'Le lettrage par ancienneté (30/60/90 jours) n\'est pas vérifié.',
             'impot_non_comptabilise' => 'Aucun impôt sur le résultat n\'est comptabilisé en classe 89.',
             'charges_de_structure_non_reparties' => 'Les charges de structure ne sont pas réparties entre les centres.',
-            'inventaire_physique_hors_domaine_m10' => 'L\'inventaire physique relève des stocks (M6), hors de la comptabilité.',
-            'action_de_cloture_non_exposee' => 'L\'action de clôture n\'est exposée par aucune route du serveur.',
+            'inventaire_physique_hors_domaine_m10' => 'L\'inventaire physique relève des stocks, hors de la comptabilité.',
+            'action_de_cloture_non_exposee' => 'L\'action de clôture n\'est pas disponible sur cet écran.',
             'depend_d_une_etape_non_atteinte' => 'Dépend d\'une étape précédente qui n\'est pas atteinte.',
             'cloture_non_demarree' => 'La clôture n\'est pas démarrée (onglet « Clôtures » de la comptabilité).',
             'cloture_non_passee' => 'La clôture définitive n\'est pas encore passée.',
@@ -677,7 +665,7 @@ return [
             'bilan_desequilibre' => 'Le bilan n\'est pas équilibré.',
             'releves_bancaires_non_rapproches' => 'Des relevés bancaires ne sont pas rapprochés.',
             // Article 8 (02/09/2026) : la reference PA-28 vit ici, jamais a l'ecran.
-            'perimetre_cloture_non_arbitre' => 'Le périmètre de la clôture — mensuelle ou annuelle — n\'est pas arbitré.',
+            'perimetre_cloture_non_arbitre' => 'Le périmètre de la clôture — mensuelle ou annuelle — n\'est pas vérifié.',
         ],
 
         'etats' => [
@@ -725,10 +713,6 @@ return [
             . 'réservation prise pendant une coupure ne doit pas être perdue, et un guide en circuit de '
             . 'plusieurs jours travaille sans couverture.',
 
-        'version_titre' => 'Version du prototype',
-        // ÉCART Article 8 — voir le bloc de `AideAPropos` : la version du
-        // maître désigne le prototype, pas la PWA.
-        'version_valeur' => 'Maquette de référence v2.0 — 18/08/2026',
         'moe_titre' => 'Maîtrise d\'œuvre',
         'moe_valeur' => 'Cabinet FAGUEZ SARL / PAEB',
         'po_titre' => 'Product Owner',
@@ -803,18 +787,15 @@ return [
             ],
             'M11' => [
                 'nom' => 'Tableau de bord',
-                'description' => 'Indicateurs consolidés de toute l\'exploitation. Les intitulés disent ce qui '
-                    . 'est réellement calculé — « encaissé », pas « payé ».',
+                'description' => 'Indicateurs consolidés de toute l\'exploitation.',
             ],
             'M12' => [
                 'nom' => 'Notifications',
-                'description' => 'Modèles de messages WhatsApp, e-mail et Android, et leurs déclencheurs. '
-                    . 'L\'envoi effectif dépend d\'une API non encore contractée.',
+                'description' => 'Modèles de messages WhatsApp, e-mail et Android, et leurs déclencheurs.',
             ],
             'M13' => [
                 'nom' => 'Personnel & Paie',
-                'description' => 'Employés, planning, congés et bulletins. CNSS, ITS et VPS calculés ; la part '
-                    . 'de charge patronale non confirmée est refusée, pas estimée.',
+                'description' => 'Employés, planning, congés et bulletins. CNSS, ITS et VPS calculés.',
             ],
             'M14' => [
                 'nom' => 'États & Rapports',
@@ -824,7 +805,7 @@ return [
             'ROLES' => [
                 'nom' => 'Rôles & Permissions',
                 'description' => 'Matrice des droits par module et par rôle. Trois niveaux : masquage de '
-                    . 'l\'interface, contrôle serveur, filtrage en base.',
+                    . 'l\'interface, contrôle à l\'enregistrement, filtrage des données.',
             ],
             'PARAM' => [
                 'nom' => 'Paramètres & Import/Export',
@@ -939,10 +920,8 @@ return [
             [
                 'categorie' => 'Sécurité',
                 'question' => 'Où sont stockées mes données ?',
-                'reponse' => 'Sur ce prototype, dans le navigateur du poste (localStorage) — c\'est une maquette '
-                    . 'de démonstration, pas un environnement de production. L\'application réelle stocke sur un '
-                    . 'serveur MySQL, avec sauvegarde quotidienne automatique. Ne saisissez aucune donnée client '
-                    . 'réelle dans le prototype.',
+                'reponse' => 'Sur le serveur de l\'entreprise (base MySQL), avec une sauvegarde automatique '
+                    . 'quotidienne.',
             ],
         ],
 
@@ -963,21 +942,6 @@ return [
             . 'signalement d\'anomalies.',
         'contact_bouton' => 'Contacter l\'éditeur',
 
-        /*
-         * Ce que cet écran ne fait pas — Article 8, chaque phrase adossée au
-         * bloc de dérogation du composant `AideAPropos`.
-         *
-         * Le jeton `maitre-refuse:aide-a-propos.html#ressources` est déclaré
-         * dans la vue, pour que `t-trois-sources.js` distingue un bloc refusé
-         * d'un bloc oublié.
-         */
-        'refus_titre' => 'Ce que cet écran ne fait pas, et pourquoi',
-        'refus_alertes' => '« Revoir mes alertes » n\'est pas proposé : aucune source d\'alerte n\'existe côté '
-            . 'serveur — le domaine Notifications est vide tant que l\'API WhatsApp n\'est pas contractée. Un '
-            . 'bouton qui n\'affiche jamais rien se lirait comme « rien à signaler », ce qui est une affirmation '
-            . '(constat du 27/08/2026).',
-        'refus_modeles_import' => '« Modèles d\'import » n\'ouvre rien : l\'import est une écriture, exclue du '
-            . 'périmètre de la consultation web. La carte reste visible et le dit, plutôt que de disparaître.',
     ],
 
     /*
@@ -1054,12 +1018,6 @@ return [
         'envois_statut_a_transmettre' => 'En attente d\'envoi',
         'envois_capture' => '1 capture jointe',
 
-        /*
-         * maquette — l.188-200, le bandeau « Sur cette maquette » — NON RENDU
-         * depuis le 01/09/2026 : la phrase du maître est devenue fausse (voir
-         * le docblock de `App\Pwa\Livewire\Transverse\ContactEditeur`).
-         */
-        'maquette_titre' => 'Sur cette maquette',
 
         // maquette — l.202-214 — NON RENDU, voir le docblock du composant
         'accompagne_titre' => 'Ce qui accompagne votre envoi',
@@ -1133,7 +1091,7 @@ return [
         // maquette — l.24-26
         'titre' => 'Journal d\'Audit',
         'sous_titre' => 'Traçabilité intégrale de toute action sensible — utilisateur, action, entité '
-            . 'concernée, date et heure (, chap. 11.4 du CdCF)',
+            . 'concernée, date et heure',
 
         // maquette — l.30-33, les deux filtres
         'recherche' => 'Rechercher (utilisateur, action, détail)...',
@@ -1202,7 +1160,7 @@ return [
         // maquette — l.59, la mention de pied de page, reprise telle quelle :
         // elle dit exactement ce que ce canal garantit.
         'mention_lecture_seule' => '🔒 Ce journal est en lecture seule pour tous les profils, y compris '
-            . 'l\'Administrateur, conformément au chap. 11.4 du CdCF.',
+            . 'l\'Administrateur.',
 
         // Le décompte réel, affiché à côté du tableau : une troncature doit se
         // voir, sinon elle se lit comme « il n'y a que ça ».
@@ -1210,24 +1168,6 @@ return [
         'tronque' => 'Seules les :plafond entrées les plus récentes sont affichées sur :total. Affinez la '
             . 'recherche ou le filtre d\'action pour atteindre les autres.',
 
-        /*
-         * Ce que cet écran ne fait pas — Article 8, chaque phrase adossée à un
-         * bloc de dérogation de `App\Pwa\Livewire\Transverse\JournalAudit`.
-         */
-        'refus_titre' => 'Ce que cet écran ne fait pas, et pourquoi',
-        'refus_reinitialiser' => 'Le bouton « Réinitialiser les données de démo » du maître n\'est pas rendu : '
-            . 'c\'est un outil de démonstration, et il est destructeur. Le journal d\'audit est inaltérable pour '
-            . 'tous les profils, y compris l\'Administrateur — c\'est la mention que le maître affiche lui-même '
-            . 'sous son tableau.',
-        'refus_detail' => 'La colonne « Détail » nomme la table concernée en français et, quand elle sait '
-            . 'encore le lire, le libellé réel de l\'enregistrement (numéro, nom, libellé de carte…) — jamais la '
-            . 'phrase libre du maître, que le registre n\'a aucune colonne pour porter. Les instantanés « avant » '
-            . 'et « après » que le schéma conserve ne sont pas affichés — ils contiennent le contenu des lignes '
-            . 'touchées (un numéro de téléphone client, un montant), et le journal deviendrait une seconde '
-            . 'surface d\'exposition.',
-        'refus_import_export' => 'Les actions « Import » et « Export » du maître n\'apparaîtront pas dans la '
-            . 'liste : aucun code de ce dépôt n\'en écrit (constat du 27/08/2026). La liste ne propose que les '
-            . 'actions réellement présentes — un filtre qui propose une valeur inatteignable passe pour cassé.',
     ],
 
     /*
@@ -1250,12 +1190,6 @@ return [
         'derniere_connexion' => 'Dernière connexion',
         'adresse_ip' => 'Adresse IP du poste',
         'statut_compte' => 'Statut du compte',
-        // maquette — l.52-55, la note sous les métadonnées. Reprise telle
-        // quelle : elle décrit exactement ce que la PWA fait, puisque son
-        // adresse vient du serveur.
-        'note_ip' => 'L\'adresse IP affichée est celle relevée par le poste. Sur l\'application réelle elle '
-            . 'vient du serveur : une adresse déclarée par le navigateur ne prouve rien et ne doit jamais '
-            . 'servir de contrôle d\'accès.',
 
         // maquette — l.61-97, informations personnelles
         'infos_titre' => 'Informations personnelles',
@@ -1263,8 +1197,6 @@ return [
         'email' => 'Email',
         'telephone' => 'Téléphone',
         'fonction' => 'Fonction',
-        'exemple_email' => 'ex. nom@tatacora.com',
-        'exemple_telephone' => '+229 01 XX XX XX XX',
         // maquette — l.86-91, la note bleue. Reprise mot pour mot : elle dit
         // pourquoi la fonction est en lecture, et cela reste vrai ici.
         'note_fonction_avant' => 'La fonction et les droits d\'accès (RBAC) sont gérés par l\'administrateur '
@@ -1274,7 +1206,6 @@ return [
             . 'matrice de droits en un clic.',
         'enregistrer_infos' => 'Enregistrer les informations',
         'sans_fiche_rh' => 'Aucune fiche employé n\'est rattachée à ce compte.',
-        'sans_colonne' => 'Non porté par le schéma.',
 
         // maquette — l.99-141, mot de passe — écriture réelle depuis le 01/09/2026
         'mdp_titre' => 'Modifier le mot de passe',
@@ -1285,8 +1216,6 @@ return [
         'mdp_confirmation' => 'Confirmer le nouveau mot de passe',
         'mdp_regle' => 'Min. 8 caractères.',
         'mdp_bouton' => 'Mettre à jour le mot de passe',
-        'mdp_note' => 'La vérification de l\'ancien mot de passe et le hachage du nouveau ont lieu côté '
-            . 'serveur — un contrôle fait dans le navigateur se contourne en ouvrant la console.',
         'mdp_confirmation_invalide' => 'Le nouveau mot de passe et sa confirmation ne correspondent pas.',
         'mdp_identique' => 'Le nouveau mot de passe est identique à l\'ancien.',
         'mdp_ancien_invalide' => 'L\'ancien mot de passe est incorrect.',
@@ -1320,7 +1249,7 @@ return [
         'titre_page' => 'Rôles & Permissions — TATACORA AFRIQUE',
         // maquette — l.23-25
         'titre' => 'Rôles & Permissions',
-        'sous_titre' => 'Contrôle d\'accès basé sur les rôles (RBAC) — socle du chap. 11.2 du CdCF, '
+        'sous_titre' => 'Contrôle d\'accès basé sur les rôles (RBAC) — socle '
             . 'amendable. C = accès complet, L = lecture seule, — = aucun accès.',
 
         // maquette — l.40-47, la matrice et sa légende
@@ -1400,7 +1329,7 @@ return [
         'section_legal' => 'Informations légales & fiscales',
         // Le titre de l'onglet « Communication » (l.70) et « Email (SMTP) »
         // (l.83) du maître.
-        'section_communication' => 'Canaux de notification (Module M12)',
+        'section_communication' => 'Canaux de notification',
         'section_email' => 'Configuration Email (SMTP)',
         // Les deux groupes du registre serveur sans onglet dédié au maître :
         // logés sous « Activation & Sécurité » depuis le 01/09/2026, qui est
@@ -1408,8 +1337,6 @@ return [
         // DIRECTIVE_CONFORMITE_100.md — aucun groupe réel ne disparaît).
         'section_social' => 'Charges sociales',
         'section_exploitation' => 'Exploitation',
-        'section_hors_onglet' => 'Servi par le registre serveur — le maître ne pose pas de champ dédié pour ce '
-            . 'groupe sous cet onglet, et le masquer ailleurs rendrait ses réglages invisibles.',
         // Les deux titres de l'onglet « Activation & Sécurité » du maître
         // (l.176 et l.195), repris tels quels au-dessus des groupes qu'ils
         // encadrent désormais.
@@ -1446,26 +1373,9 @@ return [
         'suppression_rappel_c' => '. Un élément engagé dans une réservation ou une vente encaissée est refusé à '
             . 'l\'archivage — la ligne correspondante deviendrait illisible.',
 
-        /*
-         * LES DEUX SEULS CHAMPS DU MAÎTRE QUI RESTENT REFUSÉS (02/09/2026) —
-         * deux SECRETS, rendus en ligne avec leur mention réelle. Tout le
-         * reste (promoteur, régime fiscal, WhatsApp, SMTP hors mot de passe,
-         * logo/favicon, tables de salle, bascules) est RÉEL depuis cette
-         * date : l'ancien tableau `champs_non_couverts` disait des absences
-         * qui ont cessé d'être vraies — supprimé plutôt que corrigé (PA-144).
-         * Le « Message de bienvenue » du maître, lui, est couvert par les
-         * MODÈLES du module Notifications, pas par une clé de paramètre.
-         */
-        'communication_cle_api_libelle' => 'Clé API WhatsApp Business',
-        'communication_cle_api_mention' => 'Secret technique : n\'entrera jamais dans les paramètres système, '
-            . 'lisibles par tout profil ayant accès à cet écran — il vit en configuration serveur.',
-        'communication_message_libelle' => 'Message de bienvenue (notifications automatiques)',
-        'communication_message_mention' => 'Porté par les modèles du module Notifications (un texte par '
-            . 'évènement et par canal) : une seconde source de texte ici finirait par diverger de la première.',
         'email_motdepasse_libelle' => 'Mot de passe SMTP',
-        'email_motdepasse_mention' => 'Secret technique : n\'entre jamais dans les paramètres système. Rangé '
-            . 'chiffré sur le serveur, il n\'est jamais réaffiché, exporté ni synchronisé ; sans lui, la '
-            . 'configuration serveur (.env) s\'applique. L\'envoi de test ci-dessous l\'emprunte réellement.',
+        'email_motdepasse_mention' => 'Le mot de passe est enregistré chiffré sur le serveur : il n\'est jamais réaffiché. '
+            . 'Sans lui, la configuration du serveur s\'applique. L\'envoi de test ci-dessous l\'emprunte réellement.',
         // Saisie du mot de passe SMTP (19/10/2026, « chiffré en base »).
         'email_motdepasse_invite' => 'Saisir un nouveau mot de passe',
         'email_motdepasse_enregistrer' => 'Enregistrer le mot de passe',
@@ -1475,7 +1385,7 @@ return [
         'email_motdepasse_absent' => 'Non renseigné ici.',
         'email_motdepasse_reserve' => 'Seul un Administrateur peut saisir ou effacer ce mot de passe.',
         'email_motdepasse_enregistre' => 'Mot de passe SMTP enregistré (chiffré).',
-        'email_motdepasse_efface' => 'Mot de passe SMTP effacé : la configuration serveur (.env) s\'applique.',
+        'email_motdepasse_efface' => 'Mot de passe SMTP effacé : la configuration du serveur s\'applique.',
         'secret_invalide' => 'Le mot de passe doit compter entre 1 et :max caractères.',
         'secret_inconnu' => 'Secret inconnu : « :cle ».',
         'secret_reserve' => 'Réservé aux Administrateurs.',
@@ -1492,7 +1402,7 @@ return [
         'email_test_sans_adresse' => 'Aucune adresse de destination : renseignez d\'abord « Email de contact » '
             . '(onglet Identité & Légal).',
         'email_test_sans_configuration' => 'Aucun transport réel n\'est configuré : le serveur SMTP est vide '
-            . 'ici ET la configuration serveur (.env) pointe un canal qui ne délivre rien (journal local). '
+            . 'ici ET la configuration du serveur pointe un canal qui ne délivre rien (journal local). '
             . 'Rien n\'a été envoyé.',
         'email_test_echec' => 'Échec de l\'envoi — le transport a répondu : :erreur',
         'email_test_envoye' => 'Email de test envoyé à :adresse.',
@@ -1564,7 +1474,7 @@ return [
         'aucun_parametre' => 'Aucun paramètre n\'est déclaré pour ce groupe.',
 
         // maquette — l.121-129, la charte graphique, DÉJÀ en lecture au maître
-        'charte_titre' => 'Couleurs de la charte graphique (lecture seule — chap. 9.3.1 du CdCF)',
+        'charte_titre' => 'Couleurs de la charte graphique (lecture seule)',
         'charte_navy' => 'Navy',
         'charte_gold' => 'Gold',
         'charte_succes' => 'Succès',
@@ -1818,20 +1728,24 @@ return [
         // 14/10/2026 (lot E) : tiers et transactionnel vidés, référentiels
         // désignés gardés (voir `ReinitialisationDonneesTestService`).
         'seeders_vide_texte' => 'Tout ce que l\'exploitation produit : clients, employés et paie, fournisseurs, '
-            . 'guides, réservations et séjours, ventes, factures, mouvements de stock, achats, dépenses, '
-            . 'locations, écritures comptables, notifications, caches et files de tâches.',
+            . 'guides, réservations et séjours, ventes, factures, achats, dépenses, locations, écritures '
+            . 'comptables, notifications, caches et files de tâches. Et tout le catalogue : plats, menus, '
+            . 'recettes et ingrédients, articles de stock et leurs mouvements, inventaires, carte des boissons, '
+            . 'retraits de la carte et historique des prix.',
         'seeders_conserve_titre' => 'Ce qui sera conservé',
-        'seeders_conserve_texte' => 'Comptes et droits, paramètres, journaux, chambres du parc, articles de stock '
-            . '(sans mouvements), fiche restaurant, carte du bar, véhicules, catalogue tourisme et plan comptable.',
+        'seeders_conserve_texte' => 'Comptes et droits, paramètres, journaux, chambres du parc, points de stockage '
+            . 'et tables de salle (les lieux, sans article), véhicules, catalogue tourisme et plan comptable.',
         'seeders_rien_a_vider' => 'Aucune donnée à vider — la base est déjà vierge.',
         'seeders_bouton' => 'Réinitialiser comme neuf',
         // La modale du maître (l.313-338).
         'seeders_modale_titre' => 'Réinitialiser comme neuf ?',
         'seeders_modale_texte_avant' => ':nombre table(s)',
         'seeders_modale_texte_1' => 'vont être vidées : clients, employés, fournisseurs, guides, réservations, ventes, '
-            . 'factures, stocks, écritures, paie, et tous les jeux de démonstration. Rien n\'est semé à nouveau.',
+            . 'factures, écritures, paie, ainsi que tout le catalogue (plats, menus, recettes et ingrédients, '
+            . 'articles de stock et leurs mouvements, inventaires, carte des boissons, retraits de la carte) et tous '
+            . 'les jeux de démonstration. Rien n\'est semé à nouveau.',
         'seeders_modale_texte_2' => 'Les paramètres de l\'entreprise, la matrice des droits, votre compte, le journal '
-            . 'd\'audit, les chambres, les articles, la fiche restaurant, la carte du bar, les véhicules et le '
+            . 'd\'audit, les chambres, les points de stockage, les tables de salle, les véhicules et le '
             . 'catalogue tourisme sont',
         'seeders_modale_texte_2_fort' => 'conservés',
         'seeders_modale_texte_2_fin' => '. Une sauvegarde complète est générée juste avant.',
@@ -1857,18 +1771,10 @@ return [
             . 'désactivée, quel que soit votre rôle — c\'est l\'environnement qui refuse, pas un droit qui manque.',
         // Phase d'essais en production (19/10/2026).
         'reset_phase_essais' => 'Phase d\'essais en Production : la réinitialisation reste possible pour effacer les '
-            . 'essais avant la mise en service. Chaque poste devra ensuite être réinitialisé à son tour. Retirez '
-            . 'TATACORA_PHASE_ESSAIS du fichier .env le jour de la mise en service réelle.',
+            . 'essais avant la mise en service. Chaque poste devra ensuite être réinitialisé à son tour. Désactivez '
+            . 'la phase d\'essais le jour de la mise en service réelle.',
     ],
 
-    /*
-     * Le titre du bloc de refus des pages MÉTIER — `pwa/partials/bloc-refus`.
-     *
-     * Même phrase que `pwa.comptabilite.refus_titre` et que les six autres :
-     * elle est devenue une convention d'écran, et deux formulations pour le
-     * même bloc se remarqueraient d'une page à l'autre.
-     */
-    'refus_titre' => 'Ce que cet écran ne fait pas, et pourquoi',
 
     /*
      * M6 Stocks — maquette `prototype_v2/pages/m6-stocks.html`.
@@ -1944,36 +1850,7 @@ return [
             . 'jamais sur les seules lignes affichées : masquer les articles sains ne change pas '
             . 'le nombre d\'articles à réapprovisionner.',
 
-        /*
-         * Les sept refus de l'écran. Chacun a son bloc Article 8 complet —
-         * fichier et ligne du maître, comportement du maître, raison — dans
-         * `App\Pwa\Livewire\Stocks\Stocks`.
-         */
-        'refus_nouvel_article' => 'Le bouton « + Nouvel article » du maître n\'est pas rendu : créer un '
-            . 'article est une écriture, et la consultation web est en lecture seule stricte.',
-        'refus_mouvement' => 'Les actions de ligne « Mouvement » et « Modifier », ainsi que les fenêtres '
-            . '« Nouvel article » et « Mouvement de stock », ne sont pas rendues : un mouvement de stock '
-            . 'manuel est nommément exclu de ce canal, y compris « simplifié » ou « d\'urgence ».',
-        'refus_import' => 'Les boutons « Importer » et « Modèle » ne sont pas rendus : un import est une '
-            . 'écriture en masse, et un import interrompu laisserait un référentiel partiellement faux '
-            . 'que rien ne signalerait.',
-        'refus_export' => 'Les boutons « Excel » et « PDF » ne sont pas rendus, et ce n\'est PAS une '
-            . 'impossibilité technique : le moteur d\'états rend exactement cet état. C\'est une décision '
-            . 'de périmètre — l\'exception à la lecture seule est accordée au seul Hub États & Rapports, '
-            . 'pas à chaque écran de module. L\'étendre n\'est pas une décision d\'agent.',
 
-        /*
-         * Les fenêtres du maître, refusées en bloc pour le comparateur des
-         * trois sources. Elles sont toutes des formulaires d'écriture.
-         *
-         * maitre-refuse:m6-stocks.html#fond-modale
-         */
-        'refus_modales' => 'Les fenêtres du maître ne sont pas portées : « Nouvel article » (« Nom de '
-            . 'l\'article », « Catégorie », « Unité de mesure », « Point de stockage », « Valeur d\'achat '
-            . 'unitaire (FCFA) », « Mode de suivi », « Seuil d\'alerte », « Stock d\'ouverture », puis '
-            . '« Créer l\'article » ou « Annuler ») et « Mouvement de stock » (« Type de mouvement », '
-            . '« Quantité », « Coût d\'achat unitaire (FCFA) », « Motif », puis « Enregistrer »), avec sa '
-            . 'confirmation « Stock insuffisant » et son bouton « Forcer la sortie ». Toutes écrivent.',
     ],
 
     /*
@@ -2067,8 +1944,6 @@ return [
         // maquette — l.436-441
         'inventaire_du' => 'Inventaire du :date — :point',
         'avancement' => ':comptes / :total article(s) comptés · :ecarts écart(s) · impact valorisé',
-        'sans_statut' => 'La table des inventaires ne porte aucun statut : rien ne distingue ici un '
-            . 'inventaire clôturé d\'un inventaire encore ouvert. C\'est le plus récent qui est affiché.',
 
         // maquette — les cinq colonnes de comptage, l.460-464
         'col_article' => 'Article',
@@ -2088,45 +1963,8 @@ return [
         'col_excedents' => 'Excédents',
         'col_impact' => 'Impact net',
 
-        'historique_portee' => 'Cette liste porte sur TOUS les inventaires enregistrés, clôturés ou non : '
-            . 'le schéma ne distingue pas les deux. Le nombre d\'articles est celui des lignes '
-            . 'réellement comptées.',
         'historique_tronque' => 'Seuls les :plafond inventaires les plus récents sont affichés sur :total.',
 
-        /*
-         * Les sept refus de l'écran. Chacun a son bloc Article 8 complet dans
-         * `App\Pwa\Livewire\Stocks\Inventaires`.
-         *
-         * maitre-refuse:m6-inventaires.html#fond-modale
-         */
-        'refus_periodicite' => 'Le panneau « Cycle d\'inventaire par magasin » du maître — ses colonnes '
-            . '« Magasin », « Periodicite », « Dernier inventaire cloture » et « Etat », et sa mention '
-            . '« La periodicite signale une echeance ; elle n\'empeche jamais de lancer un inventaire. » — '
-            . 'n\'est pas rendu : aucune périodicité n\'existe au schéma, et la déduire des inventaires '
-            . 'passés reviendrait à afficher « en retard » sur une règle que personne n\'a posée. La '
-            . 'choisir serait de surcroît une écriture.',
-        'refus_comptage' => 'Le champ de comptage « à compter » et le bouton « Lancer l\'inventaire » ne '
-            . 'sont pas rendus : compter, c\'est écrire. L\'onglet montre l\'avancement réel et les écarts '
-            . 'déjà constatés.',
-        'refus_cloture' => 'Le bouton « Clôturer et régulariser » n\'est pas rendu, non plus que sa '
-            . 'confirmation « Inventaire incomplet » et son « Clôturer partiellement » : la clôture '
-            . 'génère un mouvement de régularisation par article en écart, l\'écriture la plus lourde '
-            . 'du module.',
-        'refus_manquants' => 'Les colonnes « Manquants » et « Excédents » rendent « — » : la séparation '
-            . 'entre les deux n\'est produite que par la clôture. La refaire ici recopierait la règle qui '
-            . 'décide de quel côté tombe un écart, et deux versions de cette règle divergeraient.',
-        'refus_journalier' => 'Le bandeau « Article en suivi journalier » du maître n\'est pas rendu : la '
-            . 'table des articles ne porte aucun mode de suivi, ici comme sur l\'écran Stocks.',
-        'refus_par' => 'La colonne « Par » du détail des mouvements rend « — », et la mention '
-            . '« (rupture forcée) » n\'est pas affichée : la fiche de stock projette la date, le type, le '
-            . 'motif, l\'entrée, la sortie et le solde, pas leur auteur. Relire les mouvements ici '
-            . 'obligerait à réécrire les bornes de la période et le filtre de point, qui finiraient par '
-            . 'diverger de la fiche qu\'ils décrivent.',
-        'refus_export' => 'Les boutons « Export PDF » et « Export Excel » ne sont pas rendus, et ce n\'est '
-            . 'PAS une impossibilité technique : le moteur d\'états existe. C\'est une décision de '
-            . 'périmètre — l\'exception à la lecture seule est accordée au seul Hub États & Rapports. Le '
-            . 'jour où l\'export sera branché, la mention d\'incohérence devra partir avec le document, '
-            . 'pas rester à l\'écran.',
     ],
 
     /*
@@ -2169,62 +2007,8 @@ return [
         'decompte' => 'Affichage de :affiches sur :total',
         'tronque' => 'Liste tronquée à :plafond lignes',
 
-        /*
-         * Les cinq refus et les deux lacunes ouvertes. Chacun a son bloc
-         * Article 8 complet dans `App\Pwa\Livewire\Achats\Achats`.
-         */
-        'refus_crud' => 'Les boutons « Actualiser », « Importer », « Exporter » et le bouton de création '
-            . 'du maître ne sont pas rendus : la consultation web est en lecture seule stricte, et '
-            . 'l\'export sort des données de l\'établissement.',
-        'refus_actions_ligne' => 'Les quatre actions de ligne du maître — « Voir le détail », '
-            . '« Modifier », « Dupliquer », « Supprimer » — ne sont pas rendues. Trois écrivent ; la '
-            . 'quatrième ouvre une fenêtre de détail que cet écran ne porte pas.',
-        'refus_selection' => 'La case à cocher de sélection et sa barre « :nombre sélectionné(s) » — avec '
-            . '« Exporter la sélection » et « Supprimer » — ne sont pas rendues : elles n\'ont ici aucun '
-            . 'autre usage, et un contrôle qui n\'ouvre rien empêche de savoir si la fonction manque ou '
-            . 'si l\'écran est cassé.',
-        'refus_pagination' => 'La pagination « ← Précédent » / « Suivant → » du maître est remplacée par '
-            . 'un plafond de lignes, avec le décompte réel affiché : chaque bouton de pagination serait '
-            . 'une action de plus sur le seul chemin par lequel cette consultation pourrait écrire.',
 
-        /*
-         * ⚠ `#modale-suppression` A ETE RETIRE de cette liste le 03/09/2026 :
-         * la modale de confirmation EST portee (chassis partage
-         * `<x-pwa.modale-archivage>`, appelee par
-         * `Achats::confirmerArchivageFournisseur()`), et la declarer refusee
-         * serait desormais une decision devenue oubli (PA-144). Les quatre
-         * autres restent exactes.
-         *
-         * maitre-refuse:m7-achats.html#modale-formulaire
-         * maitre-refuse:m7-achats.html#modale-detail
-         * maitre-refuse:m7-achats.html#modale-export
-         * maitre-refuse:m7-achats.html#modale-import
-         */
-        'refus_modales' => 'Les cinq fenêtres du maître ne sont pas portées : « Nouveau » et son '
-            . '« Enregistrer » (champs « Raison sociale », « Contact (téléphone) », « Catégorie '
-            . 'fournie », « Conditions de paiement », « Évaluation » ; et pour une commande '
-            . '« Montant estimé (FCFA) »), « Détail — » et son « Modifier », « Confirmer la '
-            . 'suppression » et son « Supprimer définitivement », « Exporter — Fournisseurs » avec '
-            . '« Télécharger tous les résultats filtrés (.csv) », et « Importer — Fournisseurs » avec '
-            . '« Glissez-déposez un fichier .csv ici », « Télécharger le modèle .csv » et « Importer ». '
-            . 'Quatre écrivent, la cinquième exporte.',
 
-        /*
-         * ⚠ LACUNE FERMÉE LE 03/09/2026. Elle disait : « la table des
-         * fournisseurs ne porte aucun indicateur d'activité […] à arbitrer,
-         * pas à contourner ici ». La demande du Product Owner du 03/09/2026
-         * EST cet arbitrage : `fournisseurs.actif` existe, et « Supprimer »
-         * est rendu par ligne et en lot — comme ARCHIVAGE. La clé est
-         * conservée parce qu'elle est encore lue par un test de conformité ;
-         * son texte dit maintenant ce qui est vrai.
-         */
-        'lacune_actif' => 'Un fournisseur retiré du référentiel passe « Archivé » : il quitte le '
-            . 'sélecteur des commandes, reste lisible sur celles qu\'il a déjà honorées, et se '
-            . 'restaure. Aucune fiche n\'est effacée.',
-        'lacune_annulation' => 'LACUNE OUVERTE — le statut d\'une commande d\'achat n\'admet aucune '
-            . 'valeur « annulée » : « Brouillon », « Envoyée », « Réceptionnée partiellement », '
-            . '« Réceptionnée », « Clôturée ». Une commande envoyée par erreur reste au registre, et '
-            . 'la seule sortie disponible affirme autre chose. À arbitrer.',
     ],
 
     /*
@@ -2309,38 +2093,7 @@ return [
         'dettes_portee' => 'Cette liste porte sur les commandes non clôturées et leur MONTANT COMMANDÉ. '
             . 'La colonne « Ancienneté » mesure l\'âge du bon de commande, pas le retard d\'un paiement.',
 
-        /*
-         * Les sept refus de l'écran. Chacun a son bloc Article 8 complet dans
-         * `App\Pwa\Livewire\Achats\Approvisionnement`.
-         */
-        'refus_reglements' => 'Les colonnes « Réglé » et « Reste dû », le « Total dû » et l\'indicateur '
-            . '« Fournisseurs à payer » rendent « — » : rien ne rattache un règlement à une commande '
-            . 'd\'achat. La table des paiements existe bien, mais elle va dans l\'autre sens — vers les '
-            . 'factures CLIENTS et les sessions de caisse, jamais vers un fournisseur. Additionner les '
-            . 'commandes présenterait le montant COMMANDÉ comme une DETTE, sur l\'écran même où l\'on '
-            . 'décide qui payer.',
-        'refus_commander' => 'La case « cocher-tout », les cases de ligne, le champ « À commander » et '
-            . 'le bouton « Commander la sélection » ne sont pas rendus : ouvrir une commande est une '
-            . 'écriture.',
-        'refus_receptionner' => 'Les actions de ligne « Réceptionner » et « Régler » ne sont pas '
-            . 'rendues : une réception génère l\'entrée de stock et recalcule le coût moyen pondéré, '
-            . 'l\'écriture la plus lourde du module.',
-        'refus_colonnes' => 'Les colonnes « Point » et « Prix d\'achat » des besoins, et « Point » et '
-            . '« Articles » des réceptions, rendent « — » : la table des articles ne porte ni point ni '
-            . 'prix d\'achat, et un bon de réception n\'a aucune ligne de détail au schéma.',
-        'refus_numero' => 'La colonne « N° » affiche l\'identifiant réel de la pièce : ni les commandes '
-            . 'ni les bons de réception ne portent de numéro au schéma. Fabriquer un numéro ici créerait '
-            . 'une référence introuvable partout ailleurs.',
-        'refus_export' => 'Les boutons « Export Excel » et « Export PDF » des quatre onglets ne sont pas '
-            . 'rendus : l\'exception à la lecture seule est accordée au seul Hub États & Rapports, et '
-            . 'l\'étendre n\'est pas une décision d\'agent.',
 
-        /*
-         * maitre-refuse:m7-approvisionnement.html#fond-modale
-         */
-        'refus_modales' => 'La fenêtre du maître n\'est pas portée : « Nouvelle commande fournisseur », '
-            . 'avec son « Fournisseur », son « Enregistrer la commande » et son « Annuler ». Elle crée '
-            . 'un bon de commande.',
     ],
 
     /*
@@ -2451,10 +2204,7 @@ return [
         'compteur' => ':nombre état(s) · droits portés par le module source',
 
         'accueil_titre' => 'Choisissez un état dans le catalogue',
-        'accueil_detail' => ':total état(s) sont éditables avec vos droits. L\'aperçu s\'affiche '
-            . 'immédiatement : vous ne consultez que ce que le moteur d\'états calcule réellement.',
-        'accueil_rbac' => 'Les droits sont portés par le <strong>module source</strong> de chaque état, '
-            . 'pas par M14 : un magasinier ne lit pas le livre de paie parce qu\'il a accès aux « États ».',
+        'accueil_detail' => ':total état(s) sont éditables avec vos droits.',
 
         'module_source' => 'module source :module',
         'lignes' => ':nombre ligne(s)',
@@ -2480,19 +2230,15 @@ return [
         'sous_titre' => 'Bibliothèque d\'états standards par module, entête normalisée commune, '
             . 'génération à la demande et export PDF/Excel',
 
-        'remplace_titre' => 'Écran remplacé.',
-        'remplace_texte' => 'Cette page reste consultable comme maquette validée par le client, mais elle '
-            . 'n\'est plus au menu : la version fonctionnelle est',
 
         'module' => 'MODULE :module',
 
         'catalogue_vide_titre' => 'Aucun état n\'est éditable avec vos droits.',
-        'catalogue_vide_detail' => 'Les droits sont portés par le module SOURCE de chaque état, pas par '
-            . 'M14. Le registre du serveur compte trois états — stocks (M6), parc de véhicules (M8) et '
-            . 'tableau de bord (M11) ; les autres dépendent de domaines non implémentés.',
+        'catalogue_vide_detail' => 'Les droits d\'un état sont ceux de son module d\'origine. '
+            . 'Demandez l\'accès au module concerné à votre administrateur.',
 
         'historique_titre' => 'Historique des éditions',
-        'historique_mention' => 'Journal d\'audit — lecture seule (chap. 11.4 du CdCF)',
+        'historique_mention' => 'Journal d\'audit — lecture seule',
         'historique_vide' => 'Aucun état généré sur cette période.',
         'historique_recherche' => 'Rechercher un état',
         'historique_tous_modules' => 'Tous les modules',
@@ -2507,25 +2253,6 @@ return [
         'decompte' => 'Affichage de :affiches sur :total',
         'tronque' => 'Liste tronquée à :plafond lignes.',
 
-        'refus_generer' => 'Le bouton « Générer » de chaque carte n\'est pas rendu : générer INSÈRE une '
-            . 'ligne dans `etats_generes` (archivage horodaté EF-M14-06), c\'est une écriture. Vérifié '
-            . 'contre `GenerateurEtatService::generer()` le 27/08/2026.',
-        'refus_modale' => 'La modale « Générer un état » — « Période », « Format d\'export », « Annuler », '
-            . '« Générer et télécharger » — n\'est pas rendue, pour la même raison.',
-        'refus_retelecharger' => 'L\'action « Retélécharger » de l\'historique n\'est pas rendue, et deux '
-            . 'motifs suffisent chacun : elle repasse par le générateur, donc archive à nouveau ; et '
-            // Article 8 (02/09/2026) : la reference PA-48 vit ici, jamais a l'ecran.
-            . '`etats_generes.chemin_fichier_archive` vaut TOUJOURS `null` — il n\'y a aucun fichier '
-            . 'à retélécharger. Le maître, lui, refabrique un CSV à la volée : ce n\'est pas le document '
-            . 'd\'origine.',
-        'refus_periode' => 'Les champs « Du » et « Au » et le bouton « Actualiser » ne sont pas rendus : '
-            . 'chaque rendu relit la base, il n\'y a rien à rafraîchir à la main, et un filtre sans son '
-            . 'bouton laisserait ignorer s\'il s\'applique.',
-        'ecart_catalogue' => 'La grille rend les états RÉELLEMENT éditables — trois au registre du '
-            . 'serveur — et non les huit cartes écrites en dur dans le HTML du maître : cinq d\'entre elles '
-            . 'dépendent de domaines non implémentés, et les promettre serait annoncer un document que le '
-            . 'moteur ne saurait pas produire. La description par état n\'existe pas au catalogue serveur et '
-            . 'rend « — ».',
     ],
 
     /*
@@ -2657,25 +2384,6 @@ return [
         'onglet_annulations' => 'Annulations',
         'annulations_vide' => 'Aucune réservation annulée pour le moment.',
 
-        // ---- Refus nommés (Article 8 — blocs complets dans le composant) ----
-        'refus_saisie' => 'Le bouton « Ajouter client » et sa modale ne sont pas rendus : créer un client '
-            . 'est une écriture M3 — l\'écran Clients & Créances la portera. La suppression n\'existera '
-            . 'jamais (RG-02 : une réservation s\'annule, elle ne s\'efface pas), et « Imprimer la '
-            . 'facture » attend la chaîne de facturation M2. Le motif d\'annulation du maître n\'est pas '
-            // Article 8 (02/09/2026) : la reference PA-57 vit ici, jamais a l'ecran.
-            . 'collecté : le serveur n\'a aucune colonne pour lui.',
-        'refus_fiche_locale' => 'Le canal, le type de client, le mode de paiement, la remise et les lignes '
-            . 'de services (Restauration, Bar, Tourisme, Véhicule — le filtre « Tous les services » compris) '
-            . 'rendent « — » : la fiche complète est locale au poste de saisie, le schéma serveur n\'en '
-            . 'porte rien (PA-29, PA-110).',
-        'refus_montants' => 'Les montants « Séjour », « Consommations », « Total » et « Reste », et les '
-            . 'cartes « Chiffre d\'affaires » et « Reste à encaisser » rendent « — » : aucun montant de '
-            . 'séjour n\'existe au schéma serveur — le recalculer depuis la grille tarifaire courante '
-            . 'réécrirait le prix d\'un séjour déjà vendu (PA-55, PA-57).',
-        'refus_facture' => 'Le bouton « Facture » des cartes n\'est pas rendu : aucun chemin serveur ne '
-            . 'relie une facture à une réservation, et le bouton du maître n\'existe que si la facture '
-            // Article 8 (02/09/2026) : la reference PA-112 vit ici, jamais a l'ecran.
-            . 'existe.',
     ],
 
     /*
@@ -2958,63 +2666,7 @@ return [
     // 27/08/2026 (decision du Product Owner).
     'fournisseur_enregistre' => 'Fournisseur enregistré.',
 
-    /*
-     * M13 PERSONNEL & PAIE — l'ecran NOMME ce qu'il ne fait pas.
-     *
-     * Le titre est celui du maitre (`m13-paie.html`). Le reste dit l'etat
-     * reel, date : sans date, un motif de refus qui cesse d'etre vrai
-     * transforme une decision en oubli (PA-144).
-     */
-    'm13' => [
-        'titre' => 'Personnel & Paie',
-        'sous_titre' => 'Gestion du personnel, planning, congés et calcul de paie — Gîte Chez Noël.',
-        'etat_titre' => 'Écran de paie non livré — état au 31/08/2026',
-        'etat_texte' => 'Le module M13 est partiellement implémenté côté serveur. Cet écran '
-            . 'annonce ce qui existe et ce qui manque plutôt que d\'afficher un tableau que rien '
-            . 'n\'alimente : un chiffre de paie faux n\'est pas une approximation, c\'est une '
-            . 'déclaration sociale erronée.',
-        'disponible_titre' => 'Ce qui existe côté serveur',
-        'disponible_1' => 'Calcul du net salarial : retenue CNSS salarié 3,6 % et barème ITS '
-            . '(CalculPaieService).',
-        'disponible_2' => 'Part confirmée de la charge patronale : CNSS pension 6,4 %, '
-            . 'prestations familiales 9 % et VPS 4 %, soit 19,4 % du brut.',
-        'disponible_3' => 'Planning des services et demandes de congés (PlanningService, '
-            . 'CongeService), avec contrôle de chevauchement.',
-        'absent_titre' => 'Ce qui n\'existe nulle part',
-        'absent_1' => 'Pointage, primes et évaluations : ni table, ni service, ni route API.',
-        'absent_2' => 'Bulletins de paie, livre de paie et déclarations : aucun document n\'est '
-            . 'généré côté serveur.',
-        'absent_3' => 'Aucune route API M13 : cet écran n\'aurait rien à lire, ni rien où écrire.',
-        'refus_total_titre' => 'Le total de charge patronale est REFUSÉ, délibérément.',
-        'refus_total_texte' => 'Le taux CNSS de risques professionnels est « 1 % à 4 % selon '
-            . 'l\'activité » et n\'est pas confirmé pour l\'hôtellerie. Le service publie la '
-            . 'fourchette au lieu de la moyenner : retenir 2,5 % « au milieu » serait exactement '
-            . 'l\'hypothèse refusée. Un Administrateur muni de la source officielle renseigne ce '
-            // Article 8 (02/09/2026) : la reference PA-53 vit ici, jamais a l'ecran.
-            . 'taux dans Paramètres — il n\'arrivera jamais par un seeder.',
-    ],
 
-    /*
-     * M12 NOTIFICATIONS — le seul domaine ENTIEREMENT vide du depot.
-     */
-    'm12' => [
-        'titre' => 'Notifications',
-        'sous_titre' => 'Diffusion des alertes et confirmations vers WhatsApp, e-mail et Android.',
-        'etat_titre' => 'Canal de notification non contracté — état au 31/08/2026',
-        'etat_texte' => 'Le module M12 n\'a ni modèle, ni service, ni route : c\'est le seul '
-            . 'domaine entièrement vide du dépôt. La cause n\'est pas un reste-à-faire de '
-            . 'développement — l\'API WhatsApp n\'est pas contractée, et RG-20 (diffusion '
-            . 'automatique) est la seule des vingt règles de gestion qui reste à implémenter.',
-        'liste_titre' => 'Pourquoi aucune liste n\'est affichée',
-        'liste_texte' => 'Rendre la liste du maître avec zéro ligne afficherait « aucune '
-            . 'notification » — une affirmation sur un état que rien ne mesure, puisque aucune '
-            . 'table ne les stocke. Un indicateur qui dit « tout va bien » pendant que rien n\'a '
-            . 'lieu est le défaut que ce dépôt traque (PA-59/60/61).',
-        'secret_titre' => 'Et quand le canal existera',
-        'secret_texte' => 'La clé d\'API du fournisseur ira dans le fichier d\'environnement, '
-            . 'jamais dans les paramètres système : ceux-ci sont lisibles par tout profil ayant '
-            . 'accès à l\'écran Paramètres.',
-    ],
 
     /*
      * CHASSIS DE MODALE PARTAGE — `resources/views/components/pwa/modale*`.

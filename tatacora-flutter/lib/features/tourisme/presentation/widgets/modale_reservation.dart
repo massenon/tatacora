@@ -299,7 +299,7 @@ class _ModaleReservationState extends ConsumerState<_ModaleReservation> {
         // comprise : c'est elle qui dit pourquoi le blocage est absolu.
         texte:
             'Aucun guide au référentiel — une réservation ne peut pas être '
-            'prise sans lui (`reservations_tour.guide_id` est NOT NULL).',
+            'prise sans lui.',
       );
     }
 
@@ -337,7 +337,7 @@ class _ModaleReservationState extends ConsumerState<_ModaleReservation> {
         cle: Key('tourisme-aucun-client'),
         // Le message de la vue (l.711), au mot.
         texte:
-            'Aucun client au référentiel M3 — créez-le d\'abord depuis '
+            'Aucun client au référentiel — créez-le d\'abord depuis '
             '« Clients & Créances ».',
       );
     }

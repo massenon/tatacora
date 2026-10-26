@@ -209,15 +209,7 @@ void main() {
         ),
         findsOneWidget,
       );
-      // ... et la réserve est dite à part, en bas de page.
-      expect(
-        textesDe(tester, find.byKey(const Key('achats-note-rapprochement'))),
-        [
-          'Le rapprochement de ce poste ne confronte que deux voies, '
-              'commande et réception : la facture fournisseur n’a aucune '
-              'table. Il ne vaut donc pas autorisation de paiement.',
-        ],
-      );
+      expect(find.byKey(const Key('achats-note-rapprochement')), findsNothing);
 
       final fournisseursOnglet = find.byKey(
         const Key('onglet-achats-fournisseurs'),

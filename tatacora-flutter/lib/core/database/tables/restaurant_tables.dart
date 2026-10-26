@@ -139,6 +139,19 @@ class PlatsLocal extends Table {
   /// Francs entiers (voir l'en-tête).
   IntColumn get prixVente => integer()();
 
+  /// v36 (21/10/2026) — LE LIEN DIRECT AU STOCK (`plats.article_id` du serveur).
+  /// Un plat se décrémente d'ordinaire par sa fiche ; le lien direct sert ce qui
+  /// se revend en l'état (une bouteille d'eau). `null` : pas de lien. Sans clé
+  /// étrangère (l'article peut descendre après le plat) ; le DAO vérifie
+  /// l'existence à l'écriture. Écrit par `RestaurantDao.lierAuStock` seul, et
+  /// par la descente du catalogue. Va TOUJOURS avec [unitesVendables].
+  TextColumn get articleId => text().nullable()();
+
+  /// v36 — `unites_vendables_par_unite_stock` : combien d'unités VENDUES dans
+  /// une unité de STOCK (un casier de 24 = `24.0000`). Texte décimal tel que le
+  /// serveur l'envoie, jamais un `double`. `null` avec [articleId] nul.
+  TextColumn get unitesVendables => text().nullable()();
+
   /// PA-161 (b) — le tarif a été POSÉ faute de relevé. C'est une DÉCISION, elle
   /// se coche à la saisie du plat.
   BoolColumn get prixProvisoire =>

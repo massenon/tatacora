@@ -61,9 +61,6 @@ abstract final class TextesAide {
   static const String presentation2Fort = "hors connexion d'abord";
   static const String presentation2Apres =
       " : la saisie fonctionne sans réseau et se synchronise au retour de la liaison. C'est une contrainte du terrain à Natitingou, pas une option de confort — une réservation prise pendant une coupure ne doit pas être perdue, et un guide en circuit de plusieurs jours travaille sans couverture.";
-  static const String surCePostePresentation =
-      'Sur ce poste : rien ne se synchronise — la base est locale et ne '
-      'communique avec aucun serveur.';
   static const String versionTitre = 'Version du prototype';
   static const String versionValeur = 'Maquette de référence v2.0 — 18/08/2026';
   static const String moeTitre = "Maîtrise d'œuvre";
@@ -244,13 +241,11 @@ final List<_ModuleAide> _modules = [
   ),
 ];
 
-/// Une entrée de la FAQ (`pwa.aide.faq`), et la ligne « Sur ce poste » qui
-/// la corrige quand elle décrit autre chose que ce poste.
+/// Une entrée de la FAQ (`pwa.aide.faq`).
 typedef _EntreeFaq = ({
   String categorie,
   String question,
   String reponse,
-  String? surCePoste,
 });
 
 const List<_EntreeFaq> _faq = [
@@ -259,65 +254,48 @@ const List<_EntreeFaq> _faq = [
     question: 'Je ne vois pas un module dans le menu — est-ce une erreur ?',
     reponse:
         "Non. Le menu est filtré par votre rôle : un module sur lequel vous n'avez aucun droit est retiré, pas grisé. Un élément grisé invite à cliquer et ne produit qu'un refus. Pour savoir ce que couvre chaque profil, ouvrez Rôles & Permissions ; pour obtenir un accès, la demande passe par l'administrateur système.",
-    surCePoste: null,
   ),
   (
     categorie: 'Prise en main',
     question: 'Pourquoi certains montants ne sont-ils pas modifiables ?',
     reponse:
         "Toute valeur calculable est affichée en lecture seule : stock disponible, total d'une réservation, net à payer, résultat de l'exercice. Un champ calculé que l'on peut saisir finit par contredire le calcul, et c'est la saisie qui gagne — on ne sait alors plus quel chiffre est le bon. Pour changer un total, changez ce qui le produit : les quantités, les dates, les tarifs.",
-    surCePoste: null,
   ),
   (
     categorie: 'Données',
     question: "J'ai supprimé une fiche par erreur. Est-elle perdue ?",
     reponse:
         "Non. Dans tous les modules, « supprimer » archive : l'enregistrement complet part aux archives et reste restaurable depuis Import & Export › Restaurer. Seul un administrateur peut purger définitivement une archive, et c'est le seul endroit de l'application où une donnée disparaît vraiment.",
-    surCePoste:
-        "Sur ce poste : un élément archivé se réintègre depuis l'écran de son "
-        'module ; Import & Export ne tient pas de registre des archives.',
   ),
   (
     categorie: 'Données',
     question: "Pourquoi le bouton Supprimer n'apparaît-il pas ?",
     reponse:
         "La suppression et la duplication sont désactivées par défaut, pour toute l'application. Un administrateur les ouvre dans Paramètres › Activation & Sécurité, et son choix est tracé au journal d'audit. Sur un outil d'exploitation, l'action destructrice ne doit pas être à portée de clic par défaut.",
-    surCePoste:
-        "Sur ce poste : aucun journal d'audit n'est tenu, le choix n'y est "
-        'donc pas tracé.',
   ),
   (
     categorie: 'Données',
     question: "Je n'arrive pas à archiver une boisson ou un plat.",
     reponse:
         "C'est un refus volontaire : l'élément est engagé dans une réservation ou une vente encaissée. L'archiver laisserait une ligne pointant vers le vide, et le montant facturé deviendrait inexplicable lors d'un contrôle. Le message précise les opérations concernées. Pour retirer l'article de la carte sans toucher à l'historique, passez-le en indisponible.",
-    surCePoste: null,
   ),
   (
     categorie: 'Import & export',
     question: "Mon fichier d'import est refusé. Que dois-je faire ?",
     reponse:
         "Téléchargez d'abord le modèle du module concerné dans Import & Export › Importer : il porte les colonnes et les libellés exacts attendus. Après dépôt, un contrôle de cohérence compare votre fichier au référentiel et liste les écarts ligne par ligne — colonne manquante, valeur hors liste, doublon, montant illisible. Corrigez le fichier et redéposez-le : rien n'est importé tant qu'une erreur bloquante subsiste.",
-    surCePoste:
-        'Sur ce poste : les modules importables sont ceux dont la table est '
-        'tenue ici ; une ligne déjà présente est ignorée, jamais dupliquée.',
   ),
   (
     categorie: 'Import & export',
     question: 'À quelle fréquence dois-je sauvegarder la base ?',
     reponse:
         "Une sauvegarde est générée automatiquement chaque semaine et vous êtes averti de la télécharger. Une sauvegarde qui reste sur la machine ne protège de rien : c'est le téléchargement qui la met à l'abri. Vous pouvez en générer une à tout moment depuis Import & Export › Sauvegardes, avant une opération sensible par exemple.",
-    surCePoste:
-        'Sur ce poste : aucune sauvegarde automatique — « Générer une '
-        'sauvegarde de la base » enregistre une copie complète, à '
-        "l'emplacement que vous choisissez.",
   ),
   (
     categorie: 'Comptabilité',
     question: 'Puis-je corriger une écriture comptable validée ?',
     reponse:
         "Non, et c'est une règle du référentiel SYSCOHADA, pas une limite de l'outil. Une écriture validée est immuable ; la correction passe exclusivement par une contre-passation, qui laisse les deux écritures visibles. Modifier ou supprimer effacerait la trace de l'erreur, ce qu'un contrôle fiscal considère comme une anomalie plus grave que l'erreur elle-même.",
-    surCePoste: null,
   ),
   (
     categorie: 'Comptabilité',
@@ -325,38 +303,28 @@ const List<_EntreeFaq> _faq = [
         "Pourquoi le total des charges patronales n'est-il pas affiché sur les bulletins ?",
     reponse:
         "Parce qu'un de ses taux n'est pas confirmé. La CNSS annonce un taux « risques professionnels » de 1 % à 4 % selon l'activité, sans valeur publiée pour l'hôtellerie-restauration. La part établie — 19,4 % du brut : pension 6,4 %, prestations familiales 9 %, VPS 4 % — est calculée et affichée. Pour le reste, l'application publie la fourchette au lieu de retenir un milieu : un taux plausible inscrit une fois devient la règle appliquée en production, et personne ne le rouvre.",
-    surCePoste: null,
   ),
   (
     categorie: 'Hors connexion',
     question: 'Que se passe-t-il si je saisis une réservation sans réseau ?',
-    // ÉCART — la réponse de la vue décrit un statut d'attente de
-    // synchronisation et un rejet par le serveur : ce poste ne communique avec
-    // aucun serveur, et aucun de ses écrans n'affiche ce statut. Phrase vraie,
-    // à la place (14/10/2026, D420).
+    // La réponse de la vue décrit un statut d'attente de synchronisation et
+    // un rejet par le serveur, que ce poste n'affiche pas : phrase vraie, à la
+    // place (14/10/2026).
     reponse:
-        'Sur ce poste, elle est enregistrée immédiatement dans la base locale '
-        'et y reste : il ne communique avec aucun serveur. Le contrôle de '
-        'chevauchement porte sur les réservations de ce poste.',
-    surCePoste: null,
+        'Elle est enregistrée immédiatement dans la base locale et y reste. '
+        'Le contrôle de chevauchement porte sur les réservations du poste.',
   ),
   (
     categorie: 'Hors connexion',
     question: 'Deux postes ont modifié la même fiche. Laquelle gagne ?',
     reponse:
         "Sur les données non financières, la plus récente. Sur les factures, paiements, mouvements de caisse et mouvements de stock, aucune résolution automatique n'a lieu : le conflit part dans une file d'arbitrage manuel, réservée aux profils gérant, comptable et administrateur. Choisir automatiquement entre deux montants revient à en effacer un sans que personne ne le sache.",
-    surCePoste:
-        'Sur ce poste : la question ne se pose pas — il ne reçoit les '
-        "modifications d'aucun autre poste.",
   ),
   (
     categorie: 'Sécurité',
     question: 'Où sont stockées mes données ?',
     reponse:
         "Sur ce prototype, dans le navigateur du poste (localStorage) — c'est une maquette de démonstration, pas un environnement de production. L'application réelle stocke sur un serveur MySQL, avec sauvegarde quotidienne automatique. Ne saisissez aucune donnée client réelle dans le prototype.",
-    surCePoste:
-        'Sur ce poste : dans sa base locale, et nulle part ailleurs ; aucune '
-        'sauvegarde automatique ne la copie.',
   ),
 ];
 
@@ -497,12 +465,6 @@ class _Presentation extends StatelessWidget {
             ],
           ),
           style: texte,
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          TextesAide.surCePostePresentation,
-          key: const Key('aide-sur-ce-poste-presentation'),
-          style: texte.copyWith(color: AppColors.gold),
         ),
       ],
     );
@@ -1004,17 +966,6 @@ class _QuestionState extends State<_Question> {
                         interligne: AppLayout.interligneDetendu,
                       ),
                     ),
-                    if (e.surCePoste != null) ...[
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        e.surCePoste!,
-                        style: styleTransverse(
-                          TaillesContenu.t13,
-                          poids: FontWeight.w600,
-                          couleur: PaletteTransverse.texteOr,
-                        ),
-                      ),
-                    ],
                   ],
                 ),
               ),

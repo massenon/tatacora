@@ -167,9 +167,7 @@ class EcranCarteRestaurant extends ConsumerWidget {
         // vérité unique de `donnees_absentes.dart`.
         RestaurantInjoignable<CarteRestaurant>() => _PageSansDonnees(
           cle: const Key('carte-restaurant-hors-ligne'),
-          texte: donneeNonDisponible(
-            'La carte et les fiches du restaurant (M4)',
-          ),
+          texte: donneeNonDisponible('La carte et les fiches du restaurant'),
           icone: Icons.help_outline,
         ),
       },
@@ -670,12 +668,9 @@ class _Bandeau extends StatelessWidget {
               TextSpan(text: 'fiche technique', style: fort),
               const TextSpan(
                 text:
-                    " (EF-M4-02) indiquant combien de grammes de poulet, d'huile et d'oignon partent à chaque assiette. ",
+                    " indiquant combien de grammes de poulet, d'huile et d'oignon partent à chaque assiette. ",
               ),
-              TextSpan(
-                text: 'Conséquence portée ici plutôt que masquée :',
-                style: fort,
-              ),
+              TextSpan(text: 'Attention :', style: fort),
               TextSpan(
                 text:
                     " ${indicateurs.sansLien} article(s) sur ${indicateurs.plats} ne décrémentent rien à la vente. La valeur du stock affichée est donc surévaluée, et l'écart apparaîtra à l'inventaire. Un plat peut néanmoins être rattaché à la main lorsqu'il correspond à un article unique — une bouteille d'eau servie à table, par exemple.",

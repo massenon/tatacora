@@ -4,6 +4,7 @@ import '../../../core/donnees_absentes.dart';
 import '../../pos/data/catalogue_dao.dart';
 import '../../pos/data/dto/catalogue_dto.dart';
 import '../../pos/data/indisponibilites_carte_dao.dart';
+import '../domain/apercu_lien.dart';
 import '../domain/motif_indisponibilite.dart';
 import '../domain/entities/boisson.dart';
 import '../domain/entities/trace_prix.dart';
@@ -75,24 +76,23 @@ final class PageBar<T> {
 
 /// La saisie d'une boisson.
 ///
-/// ## `articleId` n'est plus obligatoire, et c'est un CHANGEMENT de fond
+/// ## L'article de stock ET son conditionnement partent ensemble (26/10/2026)
 ///
-/// Il l'était tant que la boisson naissait au serveur : `cartes_boisson.
-/// article_id` y est NOT NULL et `exists:articles,id`. Sur ce poste,
-/// `articles_local` est **délibérément vide** (PA-134) — le stock était calculé
-/// par le serveur, et aucun référentiel d'articles n'y est répliqué. Exiger un
-/// article ici rendrait la création **impossible**, c'est-à-dire laisserait le
-/// point de vente sans rien à vendre : exactement le défaut que ce lot referme.
-///
-/// Une boisson saisie au comptoir naît donc **sans lien de stock**, la carte
-/// l'affiche « non suivi », et sa vente ne décrémente aucun casier — ce qui est
-/// la vérité de ce poste, pas une approximation.
+/// Le poste tient maintenant ses articles de stock (`articles_local`, module
+/// Stocks) : « Nouvelle boisson » choisit un article et dit combien d'unités
+/// VENDUES font une unité de STOCK (un casier de 24 : `24`). L'un sans l'autre
+/// est refusé — un article sans conditionnement ferait décrémenter un casier
+/// entier par bouteille vendue, un conditionnement sans article ne décrémenterait
+/// rien (`CarteBoissonService`). [articleId] vide reste admis AU NIVEAU DE
+/// L'API (import d'une carte, boissons d'avant) : la boisson est alors « non
+/// suivie » ; c'est la MODALE qui exige l'article, comme la vue.
 final class SaisieBoisson {
   const SaisieBoisson({
     required this.libelle,
     required this.categorie,
     required this.prixVente,
     this.articleId = '',
+    this.unitesVendablesParUniteStock = '',
     this.id,
   });
 
@@ -105,6 +105,10 @@ final class SaisieBoisson {
 
   /// Le lien vers l'article de stock (M6). Chaîne vide = aucun lien.
   final String articleId;
+
+  /// Combien d'unités vendables dans une unité de stock, tel que saisi
+  /// (« 24 », « 66,5 »). Exigé avec [articleId], refusé sans lui.
+  final String unitesVendablesParUniteStock;
 
   /// L'identifiant de la boisson à MODIFIER. `null` = création.
   final String? id;
@@ -137,23 +141,16 @@ final class SaisieBoisson {
 /// et l'amorçage de démonstration. Un second auteur est le défaut que
 /// `database/seeders/` a produit cinq fois.
 ///
-/// ## Ce que ce poste ne peut PAS porter, et pourquoi — sans rien inventer
+/// ## Le lien au stock s'écrit ICI (26/10/2026)
 ///
-/// Quatre gestes de l'écran restent **refusés avec leur raison**, parce que la
-/// colonne ou la table qui les porterait n'existe pas au schéma local. Les
-/// rendre « en session » les ferait disparaître au redémarrage, sur l'écran qui
-/// dit au barman ce qui est vendable — la famille PA-59/60/61 :
-///
-///  - **retrait et remise à la carte du jour** : aucune colonne
-///    d'indisponibilité (ni motif, ni commentaire) ;
-///  - **lien au stock** : aucune colonne `unites_vendables_par_unite_stock`, et
-///    aucun article auquel se lier (`articles_local` est vide, PA-134) ;
-///  - **historique des prix** : aucune table de trace ;
-///  - **prix provisoire / corrigé à la main** : aucune colonne.
-///
-/// Ces quatre manques sont **signalés**, jamais comblés par une colonne créée
-/// au passage : le schéma Drift est versionné, et une table modifiée ici
-/// exigerait sa migration, sa fixture de retour arrière et son arbitrage.
+/// `cartes_boisson_local.unites_vendables` (v30) porte le conditionnement et
+/// `articles_local` les articles du poste : « Nouvelle boisson » et « Lier au
+/// stock » / « Modifier le lien » écrivent l'article ET son conditionnement par
+/// [CatalogueDao], dans la file d'envoi (création ou modification). Reste
+/// refusé, parce que ni colonne ni table ne le porte : **l'historique des
+/// prix** et la marque **prix corrigé à la main**. Ces manques sont
+/// SIGNALÉS, jamais comblés par une colonne créée au passage : le schéma Drift
+/// est versionné.
 ///
 /// ## Aucune suppression, et ce n'est pas un oubli
 ///
@@ -274,6 +271,33 @@ final class BoissonsApi {
       return _introuvable();
     }
 
+    // Le lien : l'article ET son conditionnement, ou ni l'un ni l'autre.
+    String? unitesEcrites;
+    final article = saisie.articleId.trim();
+    if (article.isEmpty) {
+      if (saisie.unitesVendablesParUniteStock.trim().isNotEmpty) {
+        return BarRefuse(
+          motif: TextesCatalogueLocal.saisieRefusee,
+          erreurs: {
+            _champConversion: TextesCatalogueLocal.conversionSansLien(libelle),
+          },
+        );
+      }
+    } else {
+      final erreursLien = await _verifierLien(
+        libelle: libelle,
+        articleId: article,
+        conditionnement: saisie.unitesVendablesParUniteStock,
+      );
+      if (erreursLien.$2.isNotEmpty) {
+        return BarRefuse(
+          motif: TextesCatalogueLocal.saisieRefusee,
+          erreurs: erreursLien.$2,
+        );
+      }
+      unitesEcrites = erreursLien.$1;
+    }
+
     // Le doublon se refuse AVANT l'écriture : `insertOnConflictUpdate` porte
     // sur l'identifiant, pas sur le libellé — deux créations successives du
     // même nom produiraient deux lignes, et le point de vente en montrerait
@@ -287,13 +311,14 @@ final class BoissonsApi {
 
     final ecrite = BoissonDistante(
       id: id ?? _uuid.v4(),
-      articleId: saisie.articleId.isEmpty ? null : saisie.articleId,
+      articleId: article.isEmpty ? null : article,
       libelle: libelle,
       categorie: saisie.categorie.code,
       // Le franc CFA n'a pas de sous-unité en circulation : le catalogue ne
       // porte que des francs entiers, et la conversion se fait ICI, une fois.
       prixVente: prix!.roundToDouble(),
       stockDisponible: null,
+      unitesVendables: unitesEcrites,
     );
 
     await _catalogue.enregistrerBoisson(ecrite);
@@ -456,18 +481,89 @@ final class BoissonsApi {
     return BarRecu(_versBoisson(b));
   }
 
-  /// « Lier au stock » — **refusé deux fois plutôt qu'une**.
+  /// « Lier au stock » / « Modifier le lien » — l'article de stock ET son
+  /// conditionnement, écrits ENSEMBLE (26/10/2026).
   ///
-  /// Il n'y a aucun article auquel se lier (`articles_local` est délibérément
-  /// vide, PA-134), et aucune colonne où ranger le conditionnement — qui est la
-  /// raison d'être même de ce geste : un casier de 24 et une bouteille à
-  /// l'unité ne décrémentent pas pareil. Écrire le seul `article_id` en jetant
-  /// le conditionnement serait le champ collecté puis ignoré.
+  /// Écrire le seul `article_id` en jetant le conditionnement serait le champ
+  /// collecté puis ignoré : un casier de 24 et une bouteille à l'unité ne
+  /// décrémentent pas pareil. Les deux valeurs passent donc par
+  /// [CatalogueDao.enregistrerBoisson] — seul écrivain —, qui met en file une
+  /// modification portant `article_id` et `unites_vendables_par_unite_stock`
+  /// (les seuls champs changés ; le serveur les reçoit depuis le 26/10/2026).
+  ///
+  /// Refusé AVANT toute écriture, champ par champ : boisson inconnue, article
+  /// absent de ce poste, conditionnement vide, illisible ou non strictement
+  /// positif (`gt:0` : la décrémentation vaut `1 / conditionnement`). Le prix, le
+  /// libellé et la catégorie restent ceux du catalogue, relus à l'instant.
   Future<ResultatBar<Boisson>> lierAuStock({
     required String id,
     required String articleId,
     required String unitesVendablesParUniteStock,
-  }) async => const BarRefuse(motif: TextesCatalogueLocal.lienSansColonne);
+  }) async {
+    final actuelle = await _catalogue.boissonDuCatalogue(id);
+    if (actuelle == null) return _introuvable();
+
+    final verifie = await _verifierLien(
+      libelle: actuelle.libelle,
+      articleId: articleId.trim(),
+      conditionnement: unitesVendablesParUniteStock,
+    );
+    if (verifie.$2.isNotEmpty) {
+      return BarRefuse(
+        motif: TextesCatalogueLocal.saisieRefusee,
+        erreurs: verifie.$2,
+      );
+    }
+
+    final ecrite = BoissonDistante(
+      id: actuelle.id,
+      articleId: articleId.trim(),
+      libelle: actuelle.libelle,
+      categorie: actuelle.categorie,
+      prixVente: actuelle.prixVente,
+      stockDisponible: null,
+      unitesVendables: verifie.$1,
+    );
+    await _catalogue.enregistrerBoisson(ecrite);
+    return BarRecu(_versBoisson(ecrite));
+  }
+
+  static const String _champConversion = 'unites_vendables_par_unite_stock';
+
+  /// Le lien est-il écrivable ? Rend le conditionnement NORMALISÉ (« 24 »,
+  /// « 66.5 ») et les erreurs par champ — vides quand tout est bon.
+  ///
+  /// Les règles sont celles de `EcranDeCarte::enregistrerLienAuStock()` :
+  /// article requis et présent, conditionnement `numeric` et `gt:0`.
+  Future<(String?, Map<String, String>)> _verifierLien({
+    required String libelle,
+    required String articleId,
+    required String conditionnement,
+  }) async {
+    final erreurs = <String, String>{};
+    if (articleId.isEmpty) {
+      erreurs['article_id'] = TextesCatalogueLocal.articleObligatoire;
+    } else if (await _catalogue.articleDeStock(articleId) == null) {
+      erreurs['article_id'] = TextesCatalogueLocal.articleInexistant;
+    }
+
+    String? unites;
+    if (conditionnement.trim().isEmpty) {
+      erreurs[_champConversion] = TextesCatalogueLocal.conversionRequise(
+        libelle,
+      );
+    } else {
+      final lu = lireDecimal(conditionnement);
+      if (lu == null || lu <= BigInt.zero) {
+        erreurs[_champConversion] = TextesCatalogueLocal.conversionInvalide(
+          libelle,
+        );
+      } else {
+        unites = ecrireDecimal(lu);
+      }
+    }
+    return (unites, erreurs);
+  }
 
   /* ================================================================== */
   /* Les ventes du bar — hors de ce lot                                  */
@@ -486,7 +582,7 @@ final class BoissonsApi {
     int pagesMax = 500,
   }) async => BarRefuse(motif: donneeNonDisponible(_ventes));
 
-  static const String _ventes = 'Les ventes du bar (module M5)';
+  static const String _ventes = 'Les ventes du bar';
 
   /* ================================================================== */
 
@@ -525,8 +621,9 @@ final class BoissonsApi {
     // Le stock ne se saisit jamais (PA-24). Ici ce n'est plus une affirmation
     // du serveur relue, c'est un fait du poste : aucun champ ne l'accepte.
     stockLectureSeule: true,
-    // Aucune colonne ne porte le conditionnement — voir [lierAuStock].
-    unitesVendablesParUniteStock: null,
+    // `cartes_boisson_local.unites_vendables` (v30) — `null` : pas reçu, et la
+    // modale « Lier au stock » ne propose alors pas de valeur inventée.
+    unitesVendablesParUniteStock: b.unitesVendables,
   );
 }
 
@@ -564,11 +661,30 @@ abstract final class TextesCatalogueLocal {
   static String nonRetiree(String libelle) =>
       '« $libelle » n’est pas retirée de la carte du jour.';
 
-  /// Le refus de « Lier au stock ».
-  static const String lienSansColonne =
-      'Le lien au stock n’est pas enregistrable sur ce poste : aucun article '
-      'de stock n’y est répliqué, et la table du catalogue local ne porte pas '
-      'le conditionnement (combien de bouteilles dans un casier ?). Sans lui, '
-      'une vente ne saurait pas quoi décrémenter — et l’enregistrer à moitié '
-      'ferait croire à un rattachement qui ne compte rien.';
+  /// `bar.validation.article_obligatoire`.
+  static const String articleObligatoire =
+      'Une boisson doit être liée à un article du stock, sinon sa vente ne '
+      'décrémenterait rien.';
+
+  /// `bar.validation.article_inexistant`, précisé : sur ce poste, la liste des
+  /// articles est celle du module Stocks.
+  static const String articleInexistant =
+      'Cet article n’existe pas dans le référentiel Stocks de ce poste.';
+
+  /// `carte.conversion_requise_avec_lien`.
+  static String conversionRequise(String libelle) =>
+      '« $libelle » est rattaché à un article de stock : le nombre d’unités '
+      'vendables par unité de stock devient obligatoire. Sans lui, la vente ne '
+      'saurait pas quelle fraction d’unité de stock sortir.';
+
+  /// `carte.conversion_invalide`.
+  static String conversionInvalide(String libelle) =>
+      'La conversion vers le stock de « $libelle » est invalide : le nombre '
+      'd’unités vendables par unité de stock doit être strictement positif.';
+
+  /// `carte.conversion_sans_lien`.
+  static String conversionSansLien(String libelle) =>
+      '« $libelle » n’est rattaché à aucun article de stock : un '
+      'conditionnement y serait sans objet, et laisserait croire à une '
+      'décrémentation qui n’aura pas lieu.';
 }

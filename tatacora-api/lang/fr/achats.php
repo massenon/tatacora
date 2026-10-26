@@ -14,7 +14,7 @@ return [
         // Article 8 (02/09/2026) : la reference RG-10 vit ici, jamais a l'ecran.
         . 'à la tolérance configurée. Enregistrez la réception complémentaire '
         . 'ou faites acter l\'écart par un responsable.',
-    'tolerance_absente' => 'La tolérance de réception n\'est pas configurée (paramètre `tolerance_reception_pct`, RG-10). '
+    'tolerance_absente' => 'La tolérance de réception n\'est pas configurée. '
         . 'Aucune conformité ne peut être évaluée tant qu\'un Administrateur ne l\'a pas renseignée.',
     'motif_reception' => 'Réception commande :commande — bon :bon',
     'envoi_impossible' => 'Seule une commande en brouillon peut être émise : une commande déjà émise, '
@@ -25,8 +25,7 @@ return [
             // Article 8 (02/09/2026) : la reference PA-40 vit ici, jamais a l'ecran.
             . 'commande et réception. Le troisième volet reste à vérifier manuellement.',
         'reconstitution' => 'Quantités reçues reconstituées depuis les mouvements de stock, '
-            // Article 8 (02/09/2026) : la reference PA-39 vit ici, jamais a l'ecran.
-            . 'faute de lignes de bon de réception au schéma.',
+            . 'faute de lignes de bon de réception.',
     ],
 
     /*

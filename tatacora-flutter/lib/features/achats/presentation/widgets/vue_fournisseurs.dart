@@ -469,7 +469,7 @@ class _VueFournisseursState extends ConsumerState<VueFournisseurs> {
 /// `switch` doit rester exhaustif.
 const motifInjoignable =
     'La base du poste n’a pas répondu : le référentiel fournisseurs n’est pas '
-    'affiché. Rien ne part dans une file : ce poste ne parle à aucun serveur.';
+    'affiché.';
 
 /// Le cadre `bg-white rounded-xl border border-slate-200 overflow-hidden`
 /// (l.196) : le tableau, son état vide, son pied.

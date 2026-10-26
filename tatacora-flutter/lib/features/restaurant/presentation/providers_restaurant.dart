@@ -294,6 +294,12 @@ final articlesFichesProvider = FutureProvider.autoDispose<List<ArticleChoix>?>(
   (ref) => ref.watch(restaurantApiProvider).articlesPourFiches(),
 );
 
+/// Les articles que « Lier au stock » propose (suivi permanent). `null` = on ne
+/// sait pas (droit manquant).
+final articlesLiensProvider = FutureProvider.autoDispose<List<ArticleChoix>?>(
+  (ref) => ref.watch(restaurantApiProvider).articlesPourLien(),
+);
+
 /// La composition d'une fiche, prête à être rééditée.
 final compositionEditableProvider = FutureProvider.autoDispose
     .family<List<({String articleId, String quantite})>?, String>(
@@ -314,6 +320,7 @@ void invaliderRestaurant(WidgetRef ref) {
     ..invalidate(compteursCatalogueProvider)
     ..invalidate(compteursFichesProvider)
     ..invalidate(articlesFichesProvider)
+    ..invalidate(articlesLiensProvider)
     ..invalidate(platsRetiresProvider);
 }
 

@@ -50,6 +50,23 @@ void main() {
     prix: 2500,
   );
 
+  const circuit = ArticleVendable(
+    reference: ReferenceCatalogue(
+      module: ModuleVendable.m9Tourisme,
+      code: 'cir-1',
+    ),
+    libelle: 'Cascades',
+    prix: 4500,
+  );
+  const vehicule = ArticleVendable(
+    reference: ReferenceCatalogue(
+      module: ModuleVendable.m8Vehicules,
+      code: 'veh-1',
+    ),
+    libelle: '4x4 AB-123-CD',
+    prix: 65000,
+  );
+
   setUp(() async {
     db = AppDatabase.enMemoire();
     await avecComptabilite(db);
@@ -124,6 +141,31 @@ void main() {
     return p;
   }
 
+  Future<void> semerCircuit() => db
+      .into(db.circuitsLocal)
+      .insert(
+        CircuitsLocalCompanion.insert(
+          id: 'cir-1',
+          nom: 'Cascades',
+          theme: 'Nature',
+          zone: 'Atacora',
+          prix: 4500,
+          capaciteMax: 12,
+        ),
+      );
+
+  Future<void> semerVehicule() => db
+      .into(db.vehiculesLocal)
+      .insert(
+        VehiculesLocalCompanion.insert(
+          id: 'veh-1',
+          categorie: '4x4',
+          immatriculation: 'AB-123-CD',
+          tarifJour: 65000,
+          statut: 'disponible',
+        ),
+      );
+
   Future<List<String>> piece(String panierId) async {
     final lignes = await compta.lignesParLibelle(libelleDeLaPiece(panierId));
     final comptes = {
@@ -193,6 +235,52 @@ void main() {
         ]);
       },
     );
+
+    test('TOURISME et LOCATION s’encaissent au comptoir : Dr 5711 / Cr 7073 '
+        '(location) et Cr 7061 (tourisme), en centimes, comme le serveur', () async {
+      await semerCircuit();
+      await semerVehicule();
+      final p = await garni(
+        lignes: const [(circuit, 2), (vehicule, 1)],
+      );
+      final c = await cloturer(p);
+
+      expect(c.statut, StatutPanier.cloture);
+      // 2 x 4 500 + 1 x 65 000.
+      expect(c.montantCloture, 74000);
+      expect(await piece(p.id), [
+        '5711 D7400000',
+        '7073 C6500000',
+        '7061 C900000',
+      ]);
+      // Chaque produit porte le centre de SON module (RG-12).
+      final lignes = await compta.lignesParLibelle(libelleDeLaPiece(p.id));
+      final centres = <String?>{
+        for (final l in lignes.where((l) => l.creditCentimes > 0))
+          (await compta.centreParId(l.centreId))?.libelle,
+      };
+      expect(centres, {'Tourisme', 'Véhicules'});
+    });
+
+    test('la vente de tourisme et de location PART au serveur avec ses bons '
+        'modules, sans sortie de stock', () async {
+      await semerCircuit();
+      await semerVehicule();
+      final p = await garni(
+        lignes: const [(biere, 1), (circuit, 1), (vehicule, 2)],
+      );
+      await cloturer(p);
+
+      final o = (await OperationsSyncDao(db).operations()).singleWhere(
+        (x) => x.entiteId == p.id,
+      );
+      expect(o.payload, contains('"module_source":"M9"'));
+      expect(o.payload, contains('"module_source":"M8"'));
+      expect(o.payload, contains('"code_article":"cir-1"'));
+      expect(o.payload, contains('"code_article":"veh-1"'));
+      expect(o.payload, contains('"prix_unitaire":65000'));
+      expect(o.payload, contains('"quantite":2'));
+    });
 
     test('une vente refusée par le moteur n’écrit RIEN : ni la clôture, ni la '
         'pièce, ni le compteur de séquence', () async {
@@ -385,29 +473,15 @@ void main() {
       expect((await dao.parId(p.id))!.statut, StatutPanier.ouvert);
     });
 
-    test('un circuit ou une location au panier : le module n’est pas '
-        'encaissable, nommé comme le serveur', () async {
-      await db
-          .into(db.circuitsLocal)
-          .insert(
-            CircuitsLocalCompanion.insert(
-              id: 'cir-1',
-              nom: 'Cascades',
-              theme: 'Nature',
-              zone: 'Atacora',
-              prix: 4500,
-              capaciteMax: 12,
-            ),
-          );
-      const circuit = ArticleVendable(
-        reference: ReferenceCatalogue(
-          module: ModuleVendable.m9Tourisme,
-          code: 'cir-1',
-        ),
-        libelle: 'Cascades',
-        prix: 4500,
+    test('au SÉJOUR, un circuit reste refusé (note de chambre : bar et '
+        'restaurant seulement), nommé comme le serveur', () async {
+      await semerCircuit();
+      final c = await creerClient(db);
+      await semerReservation(db, id: 'res-1', clientId: c.id);
+      final p = await garni(
+        type: TypeVente.surSejour,
+        lignes: const [(biere, 1), (circuit, 1)],
       );
-      final p = await garni(lignes: const [(biere, 1), (circuit, 1)]);
       await expectLater(
         cloturer(p),
         throwsA(
@@ -481,6 +555,27 @@ void main() {
         ]);
       },
     );
+
+    test('active, TTC à 18 % : tourisme et location créditent leur produit '
+        'HT et la TVA des prestations (4432)', () async {
+      await poser({
+        'tva_active': 'true',
+        'taux_tva': '18',
+        'convention_prix': 'ttc',
+      });
+      await semerCircuit();
+      await semerVehicule();
+      final p = await garni(lignes: const [(circuit, 2), (vehicule, 1)]);
+      await cloturer(p);
+      // 9 000 F de circuit (HT 7 627,12 + TVA 1 372,88), 65 000 F de location
+      // (HT 55 084,75 + TVA 9 915,25) : la TVA est la DIFFÉRENCE, cumulée.
+      expect(await piece(p.id), [
+        '5711 D7400000',
+        '7073 C5508475',
+        '7061 C762712',
+        '4432 C1128813',
+      ]);
+    });
 
     test('un paramètre CHANGÉ après coup ne réécrit pas une pièce déjà '
         'passée', () async {

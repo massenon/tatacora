@@ -71,8 +71,6 @@ final class SpecParametre {
     required this.type,
     this.choix = const [],
     this.aide,
-    this.note,
-    this.correction,
     this.longueurMax,
     this.minimum,
     this.maximum,
@@ -89,21 +87,6 @@ final class SpecParametre {
   final TypeParametre type;
   final List<String> choix;
   final String? aide;
-
-  /// Une phrase PROPRE À CE POSTE, rendue à part de l'aide du serveur (qui doit
-  /// rester identique mot pour mot à la vue Blade). Elle porte aujourd'hui le
-  /// refus des secrets : sur les trois clés voisines d'un secret, elle dit que
-  /// ce secret n'est enregistrable nulle part ici.
-  final String? note;
-
-  /// Une CORRECTION visible en ligne, sous l'aide : l'aide du serveur affirme
-  /// un fait faux sur ce poste (« imprimé dans l'en-tête des états », « la
-  /// facture lèverait au comptoir » (ici c'est la clôture de la VENTE), « DÉMARRE la suppression de traces
-  /// d'audit », « tous les modules »). Décision du Lead (D114) : l'honnêteté
-  /// prime sur la mesure de géométrie pour ces huit clés (la huitième,
-  /// `activation_suppression`, depuis D278) ; les autres clés sans lecteur
-  /// gardent l'infobulle. Courte — une ligne — pour limiter l'écart à la vue.
-  final String? correction;
 
   /// Longueur maximale d'un texte (`max:N` d'un `string`).
   final int? longueurMax;
@@ -200,8 +183,6 @@ abstract final class RegistreParametresLocal {
       type: TypeParametre.texte,
       aide:
           'Le numéro, pas la clé d’API — celle-ci vit en configuration serveur. Imprimé dans l’en-tête des états quand il est renseigné.',
-      note:
-          'Sur ce poste, aucune clé d’API WhatsApp n’est enregistrable : un secret n’entre jamais dans cette base.',
       longueurMax: 40,
       format: FormatTexte.telephone,
       lecteur: 'lib/core/impression/entete_etablissement.dart',
@@ -240,8 +221,6 @@ abstract final class RegistreParametresLocal {
       type: TypeParametre.texte,
       aide:
           'Fourni par la DGI. Identifiant, donc paramétrable — la CLÉ D’API MECeF, elle, vit en configuration serveur et n’apparaîtra jamais ici.',
-      note:
-          'Sur ce poste, aucune clé d’API MECeF n’est enregistrable : un secret n’entre jamais dans cette base.',
       longueurMax: 30,
     ),
     SpecParametre(
@@ -255,9 +234,6 @@ abstract final class RegistreParametresLocal {
       // mot, confrontée à la vue : l'écart est NOMMÉ ici, dans la correction.
       // Sur ce poste ce n'est pas la facture qui est refusée sans taux, c'est la
       // CLÔTURE de la vente (`RefusTva` de `PanierDao.cloturer`).
-      correction:
-          'Sur ce poste : HT/TVA ventilés dans la pièce des ventes ; sans taux, '
-          'la vente est refusée.',
       groupe: 'fiscalite',
       libelle: 'Assujettissement à la TVA',
       type: TypeParametre.booleen,
@@ -400,8 +376,6 @@ abstract final class RegistreParametresLocal {
     ),
     SpecParametre(
       cle: 'duree_retention_audit_jours',
-      correction:
-          'Sur ce poste, aucune purge n’a lieu : pas de journal d’audit.',
       groupe: 'exploitation',
       libelle: 'Rétention du journal d’audit (jours)',
       type: TypeParametre.entier,
@@ -420,8 +394,6 @@ abstract final class RegistreParametresLocal {
       // LUE depuis le 14/10/2026 (Lot J2 partie 2) par l'envoi des messages à
       // l'éditeur (action réseau du poste). L'aide du serveur parle de
       // `.env`, qui n'existe pas ici : l'écart est NOMMÉ dans la correction.
-      correction:
-          'Sur ce poste : lu par « Contactez l’éditeur » ; vide, aucun message ne part (il reste en attente).',
       longueurMax: 150,
       lecteur: 'lib/features/transverse/data/envoi_messages_editeur.dart',
     ),
@@ -449,8 +421,6 @@ abstract final class RegistreParametresLocal {
       type: TypeParametre.texte,
       aide:
           'Le mot de passe SMTP, lui, reste en configuration serveur (.env) et n’apparaîtra jamais ici.',
-      note:
-          'Sur ce poste, aucun mot de passe SMTP n’est enregistrable : un secret n’entre jamais dans cette base. Il se pose dans le fichier %APPDATA%\\TATACORA\\poste.json du poste.',
       format: FormatTexte.courriel,
       longueurMax: 150,
       lecteur: 'lib/features/transverse/data/envoi_messages_editeur.dart',
@@ -470,10 +440,6 @@ abstract final class RegistreParametresLocal {
       // règle propre, D272 ; les autres écrans n'ont pas de bouton Supprimer
       // branché sur la bascule). L'aide n'est donc PAS touchée ; l'écart est
       // NOMMÉ dans la correction, comme pour `tva_active`.
-      correction:
-          'Sur ce poste : seuls les fournisseurs (M7), les unités '
-          'd’hébergement (M1) et les articles de stock (M6) honorent cette '
-          'bascule ; la Paie garde sa règle.',
       // Le lecteur est celui qui interroge la base : `suppressionActiveProvider`
       // (la règle d'archivage `peutArchiver` en est le consommateur).
       lecteur:
@@ -503,9 +469,6 @@ abstract final class RegistreParametresLocal {
       // de la vue ne sont pas portées sur ce poste : l'aide (celle de la vue,
       // non touchée) promet plus que ce que le poste fait, l'écart est NOMMÉ
       // dans la correction.
-      correction:
-          'Sur ce poste : seule la cloche de la barre supérieure honore cette '
-          "bascule ; les fenêtres d'alertes à la connexion ne sont pas portées.",
       lecteur: 'lib/features/alertes/presentation/providers_alertes.dart',
     ),
   ];

@@ -11,10 +11,13 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../shared_widgets/liste_paginee.dart';
+import '../../domain/calcul_restaurant.dart'
+    show lireDixMilliemes, lisibleDixMilliemes;
 import '../../domain/entities/carte_restaurant.dart';
 import '../../domain/messages_restaurant.dart';
 import '../../impression/etat_carte_restaurant.dart';
 import 'coquille_restaurant.dart';
+import 'modale_lien_stock_plat.dart';
 import 'tableau_restaurant.dart';
 
 /// Le suffixe monétaire de cet écran, exposé pour les vues d'onglet.
@@ -102,8 +105,6 @@ class VueCarteDuJour extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final avecChiffre = lignes.any((l) => l.portionsVendables != null);
-
     return Padding(
       // `mb-3` — 12 px (l.304).
       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
@@ -150,15 +151,6 @@ class VueCarteDuJour extends StatelessWidget {
               ),
             ),
           ),
-          if (avecChiffre)
-            Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.xs),
-              child: Text(
-                MessagesRestaurant.stockSansLesVentes,
-                key: const Key('carte-restaurant-stock-sans-ventes'),
-                style: TextesRestaurant.mention,
-              ),
-            ),
         ],
       ),
     );
@@ -347,12 +339,36 @@ class _ArticleDeStock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Le lien DIRECT d'abord (`lienDirectAffiche`, sans accent) : l'article de
+    // stock et son conditionnement lisible (« 24 par casier »).
+    if (ligne.aLienDirect) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            ligne.articleStockLibelle!,
+            key: Key('carte-restaurant-fiche-${ligne.id}'),
+            style: TextesRestaurant.secondaire,
+          ),
+          Text(
+            conversionLisible(
+              ligne.unitesVendables!,
+              ligne.articleStockUnite ?? 'unité',
+            ),
+            key: Key('carte-restaurant-conversion-${ligne.id}'),
+            style: TextesRestaurant.mentionFine,
+          ),
+        ],
+      );
+    }
+
     final fiche = ligne.recetteLibelle;
     if (fiche == null) {
       return Tooltip(
         // `sans_lien_restaurant`, la phrase de la vue (l.378).
         message:
-            'Fiche technique absente (EF-M4-02) : une recette ne se décrémente '
+            'Fiche technique absente : une recette ne se décrémente '
             'pas comme un article.',
         child: const Text(
           CarteIndicateurRestaurant.absent,
@@ -509,11 +525,39 @@ class _Actions extends ConsumerWidget {
           ),
         // `ml-1` — 4 px entre deux boutons.
         const SizedBox(width: AppSpacing.unit),
-        _BoutonLigne(
-          cle: Key('carte-restaurant-lier-$id'),
-          libelle: 'Lier au stock',
-          message: ecritureNonDisponible('Le lien au stock'),
-        ),
+        // `corps.blade.php` l.411-414 : « Modifier le lien » quand un article
+        // est lié, « Lier au stock » sinon ; « Délier » (l.416-419) seulement
+        // avec un lien. Le droit d'écriture M4 est exigé (une modale qu'on ne
+        // pourrait pas soumettre ferait perdre la saisie).
+        if (peutEcrire) ...[
+          _BoutonLigne(
+            cle: Key('carte-restaurant-lier-$id'),
+            libelle: ligne.aLienDirect
+                ? TextesLienPlat.boutonModifier
+                : TextesLienPlat.boutonLier,
+            onTap: () async {
+              final fait = await ouvrirModaleLienStockPlat(
+                context,
+                ligne: ligne,
+              );
+              if (fait ?? false) invaliderRestaurant(ref);
+            },
+          ),
+          if (ligne.aLienDirect) ...[
+            const SizedBox(width: AppSpacing.unit),
+            _BoutonLigne(
+              cle: Key('carte-restaurant-delier-$id'),
+              libelle: TextesLienPlat.boutonDelier,
+              onTap: () async {
+                final fait = await ouvrirDialogueDelierPlat(
+                  context,
+                  ligne: ligne,
+                );
+                if (fait ?? false) invaliderRestaurant(ref);
+              },
+            ),
+          ],
+        ],
         const SizedBox(width: AppSpacing.unit),
         _BoutonLigne(
           cle: Key('carte-restaurant-prix-$id'),
@@ -575,4 +619,14 @@ class _BoutonLigne extends StatelessWidget {
       ),
     );
   }
+}
+
+/// `StockDeCarteService::conversionLisible` : « 24 par casier » se lit bien ;
+/// moins d'une unité vendable par unité de stock, c'est « N unités par vente ».
+String conversionLisible(String conversion, String unite) {
+  final v = lireDixMilliemes(conversion);
+  if (v == null || v <= 0) return conversion;
+  if (v > 10000) return '${lisibleDixMilliemes(v)} par $unite';
+  if (v == 10000) return '1 $unite par vente';
+  return '${lisibleDixMilliemes(100000000 ~/ v)} $unite par vente';
 }

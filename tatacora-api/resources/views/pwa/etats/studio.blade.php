@@ -125,7 +125,6 @@
                   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#CBD5E1" stroke-width="1.5" class="mx-auto mb-4"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 2v6h6M9 13h6M9 17h6"/></svg>
                   <p class="text-[15px] font-semibold" style="color:var(--navy)">{{ __('pwa.etats.accueil_titre') }}</p>
                   <p class="text-[13px] text-slate-500 mt-2">{{ __('pwa.etats.accueil_detail', ['total' => $totalAccessibles]) }}</p>
-                  <p class="text-[12px] text-slate-400 mt-4">{!! __('pwa.etats.accueil_rbac') !!}</p>
                 </div>
               </div>
             </div>

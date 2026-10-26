@@ -8,7 +8,7 @@ declare(strict_types=1);
 
 return [
     'convention_inconnue' => 'Convention de prix inconnue : « :convention ». '
-        . 'Valeurs admises : `ht` ou `ttc` (paramètre `:cle`).',
+        . 'Valeurs admises : « ht » ou « ttc » (paramètre « :cle »).',
     'taux_absent' => 'Le taux de TVA n\'est pas paramétré (:cle). '
         . 'Aucun montant de taxe ne peut être calculé tant qu\'un Administrateur ne l\'a pas renseigné.',
     'compte_absent' => 'Le compte :compte est absent du plan comptable. '

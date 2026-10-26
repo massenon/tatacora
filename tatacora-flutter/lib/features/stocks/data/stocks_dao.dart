@@ -1089,11 +1089,9 @@ class StocksDao extends DatabaseAccessor<AppDatabase> {
   ///  3. il est vendu à la carte (les boissons du bar) ;
   ///  4. il entre dans une recette.
   ///
-  /// ⚠ Écart nommé : le serveur compte aussi `plats.article_id` (le plat « lié
-  /// au stock »). Ce lien n'existe pas sur ce poste — « Lier au stock » n'y est
-  /// pas porté, `plats_local` n'a pas de colonne d'article — : le verrou ne
-  /// peut donc pas être rejoué ici. S'il tombe au serveur, l'archivage y est
-  /// REFUSÉ avec sa phrase (écran « À traiter »), et l'article y reste actif.
+  /// Le serveur compte aussi `plats.article_id` (le plat « lié au stock ») : ce
+  /// lien existe ici depuis la v36 (`plats_local.article_id`), le verrou est
+  /// donc rejoué, avec les boissons, dans la phrase « vendu à la carte ».
   Future<List<String>> verrousArticle(String articleId) async {
     final motifs = <String>[];
 
@@ -1121,8 +1119,13 @@ class StocksDao extends DatabaseAccessor<AppDatabase> {
     final boissons = await (select(
       attachedDatabase.cartesBoissonLocal,
     )..where((b) => b.articleId.equals(articleId))).get();
-    if (boissons.isNotEmpty) {
-      motifs.add(MessagesStock.verrouCarte(boissons.length));
+    // Depuis la v36 le plat « lié au stock » (`plats_local.article_id`) est
+    // compté avec les boissons, comme le serveur (bar + restaurant).
+    final platsLies = await (select(
+      attachedDatabase.platsLocal,
+    )..where((p) => p.articleId.equals(articleId))).get();
+    if (boissons.isNotEmpty || platsLies.isNotEmpty) {
+      motifs.add(MessagesStock.verrouCarte(boissons.length + platsLies.length));
     }
 
     final recettes = await (select(

@@ -239,6 +239,55 @@ final class VentesSynchronisationTest extends TestCase
     }
 
     /**
+     * Tourisme (M9) et location (M8) au comptoir (22/10/2026) : la vente du
+     * poste monte avec ses bons modules, la pièce VTE crédite 7061 / 7073, et
+     * aucune sortie de stock n'est produite. Ils exigent EN PLUS l'écriture
+     * sur M9 / M8, comme le comptoir web.
+     */
+    #[Test]
+    public function une_vente_de_tourisme_et_de_location_monte_avec_ses_comptes_sans_sortie_de_stock(): void
+    {
+        $circuit = \App\Domain\Tourisme\Models\Circuit::create([
+            'nom' => 'Cascades de Kota', 'theme' => 'nature', 'zone' => 'Atacora',
+            'duree' => '1 jour', 'prix' => '15000.00', 'capacite_max' => 12,
+        ]);
+        $vehicule = \App\Domain\Vehicules\Models\Vehicule::create([
+            'categorie' => '4x4', 'immatriculation' => 'AB-123-CD', 'annee' => 2022,
+            'transmission' => 'automatique', 'capacite' => 5, 'tarif_jour' => '65000.00',
+            'statut' => 'disponible',
+        ]);
+        $lignes = [
+            ['module_source' => 'M9', 'code_article' => $circuit->id, 'libelle' => 'Cascades de Kota', 'prix_unitaire' => 15000, 'quantite' => 2],
+            ['module_source' => 'M8', 'code_article' => $vehicule->id, 'libelle' => 'AB-123-CD', 'prix_unitaire' => 65000, 'quantite' => 1],
+        ];
+
+        // Le barman (M5 seul) n'obtient pas par la synchronisation ce que M8/M9 lui refusent.
+        $this->pousser([$this->vente($this->uuid(), $lignes)], $this->barman)
+            ->assertJsonPath('resultats.0.statut', 'rejete')
+            ->assertJsonPath('resultats.0.motif', __('auth.module_refuse'));
+        $this->assertSame(0, Vente::count());
+
+        $id = $this->uuid();
+        $this->pousser([$this->vente($id, $lignes)], $this->gerant)
+            ->assertJsonPath('resultats.0.statut', 'synchronise')
+            ->assertJsonPath('resultats.0.montant_total', '95000.00');
+
+        $this->assertEqualsCanonicalizing(
+            ['M8', 'M9'],
+            LigneVente::where('vente_id', $id)->pluck('module')->all(),
+        );
+        $numero = Vente::findOrFail($id)->numero;
+        $piece = EcritureComptable::where('libelle', __('ventes.libelle_ecriture', ['numero' => $numero]))->get();
+        $credit = fn (string $compte): string => (string) $piece->firstWhere(
+            'compte_id',
+            CompteComptable::where('numero_compte', $compte)->value('id'),
+        )?->credit;
+        $this->assertSame('30000.00', $credit('7061'));
+        $this->assertSame('65000.00', $credit('7073'));
+        $this->assertSame(0, MouvementStock::where('type_mouvement', 'sortie')->count());
+    }
+
+    /**
      * Même `uuid_operation` → mémoire d'idempotence ; nouvelle tentative
      * APRÈS la purge → le document répond. Jamais un second numéro, une
      * seconde pièce ni une seconde sortie de stock.

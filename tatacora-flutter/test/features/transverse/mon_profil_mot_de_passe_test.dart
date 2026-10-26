@@ -278,7 +278,7 @@ void main() {
       expect(noteVue, contains('serveur'), reason: 'la vue n’a pas changé');
       expect(textes, isNot(contains(noteVue)));
       expect(textes.where((t) => t.contains('côté serveur')), isEmpty);
-      expect(textes, contains(TextesProfil.mdpNoteSurCePoste));
+      expect(textes.where((t) => t.contains('PBKDF2')), isEmpty);
     });
   });
 }

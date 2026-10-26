@@ -127,7 +127,7 @@ abstract final class PhrasesDuPoste {
 
   static const auteurAbsent =
       'Aucune écriture comptable sans auteur : chaque pièce nomme celui qui '
-      "l'a passée (RG-15).";
+      "l'a passée.";
 
   static String montantIllisible(String valeur) =>
       "Montant illisible : « $valeur ». Un montant s'écrit avec des chiffres "

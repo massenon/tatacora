@@ -118,17 +118,6 @@
           </div>
         </div>
 
-        @if ($plan->comptesParClasseHorsEcran !== [])
-          <div class="rounded-xl p-3.5 mt-4" style="background:#FFFBEB;border:1px solid #FDE68A">
-            <p class="text-[13px] font-bold" style="color:#78350F">{{ __('pwa.comptabilite.hors_ecran_titre') }}</p>
-            <p class="text-[13px] mt-1" style="color:#78350F">{{ __('pwa.comptabilite.hors_ecran_detail') }}</p>
-            <ul class="list-disc pl-5 mt-1.5">
-              @foreach ($plan->comptesParClasseHorsEcran as $classeHorsEcran => $nombre)
-                <li class="text-[13px]" style="color:#78350F">Classe {{ $classeHorsEcran }} — {{ $nombre }} compte(s)</li>
-              @endforeach
-            </ul>
-          </div>
-        @endif
 
         @if ($plan->sansNature > 0)
           <p class="text-[13px] text-slate-400 mt-4">{{ __('pwa.comptabilite.sans_nature', ['nombre' => $plan->sansNature]) }}</p>

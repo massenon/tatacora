@@ -608,7 +608,7 @@ class _LegendesCatalogue extends StatelessWidget {
               Expanded(
                 child: Text(
                   // `point_orange_legende`.
-                  'Point orange : article vendable qui ne décrémente aucun stock, faute de fiche technique (EF-M4-02).',
+                  'Point orange : article vendable qui ne décrémente aucun stock, faute de fiche technique.',
                   style: style,
                 ),
               ),

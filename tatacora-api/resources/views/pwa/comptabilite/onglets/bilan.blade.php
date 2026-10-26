@@ -91,16 +91,6 @@
   </div>
 @endif
 
-{{-- L'encadré gris du maître (l.148-152), mot pour mot. --}}
-<div class="rounded-xl p-3.5 mb-4" style="background:#F8FAFC;border:1px solid #E2E8F0">
-  <p class="text-[13px]" style="color:#334155">
-    <strong>Deux traitements que la lecture littérale du plan manquerait :</strong>
-    <strong>amortissements et dépréciations en soustraction de l'actif</strong> (présentation brut / amort. / net),
-    et <strong>reclassement des classes 4 et 5 selon le sens réel du solde</strong> — un compte 521 créditeur est un découvert,
-    donc une trésorerie-passif, pas un actif négatif.
-  </p>
-</div>
-
 <div class="grid grid-cols-1 xl:grid-cols-2 gap-3">
   <div>
     <div class="bg-white rounded-xl border border-slate-200 overflow-hidden mb-3">

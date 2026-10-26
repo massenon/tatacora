@@ -556,6 +556,18 @@ réinitialisation, sur le web et le poste » ; procédure :
   `etat_synchronisation_local`, donc le poste réadopte la génération nouvelle.
 - ⚠ Un poste d'une version antérieure ne connaît pas la génération : il doit
   être mis à jour AVANT la réinitialisation du serveur.
+- **Le catalogue se vide aussi** (correction du PO) : « Quand je VIDE les
+  seeders ou les données de test, PLATS, INGRÉDIENTS, ARTICLES, CARTES BOISSON
+  et leurs AUTRES TABLES LIÉES EN JOINTURE doivent être vidées AUSSI. » Serveur
+  (`ReinitialisationDonneesTestService`) et poste (`ReinitialisationLocale`) ne
+  gardent plus que les LIEUX (`points_stockage`, `tables_salle`) ; articles,
+  plats, menus, recettes, compositions, cartes de boisson, mouvements,
+  inventaires, retraits de la carte et (serveur) `historique_prix_carte` (joint
+  sans clé étrangère par `source_id`) sont vidés. Deux sondes énumèrent les
+  jointures au lieu de recopier une liste : `ReinitialisationCatalogueTest`
+  (PHP, `information_schema`) et `reinitialisation_catalogue_test.dart`
+  (`PRAGMA foreign_key_list` + noms de colonnes `article_id`, `plat_id`…, car
+  `lignes_inventaire_local` et `indisponibilites_carte_local` n'ont pas de FK).
 
 ## Stock estimé hors ligne, RG-05 (21/10/2026, schéma v30)
 

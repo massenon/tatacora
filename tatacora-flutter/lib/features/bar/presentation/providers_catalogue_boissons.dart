@@ -201,10 +201,9 @@ PageBoissons decouperCommeLeMaitre(
     totalServeur: serveur.total,
     avertissement: tronque
         ? 'Le serveur ne rend que ses ${serveur.elements.length} premières '
-              'boissons sur ${serveur.total} : `BoissonController@index` pose '
-              '`->paginate(50)` en dur et ne lit aucune taille de page. La '
-              'recherche et le décompte ci-dessous portent donc sur cette '
-              'tranche, pas sur le catalogue entier.'
+              'boissons sur ${serveur.total} : la recherche et le décompte '
+              'ci-dessous portent donc sur cette tranche, pas sur le '
+              'catalogue entier.'
         : null,
   );
 }

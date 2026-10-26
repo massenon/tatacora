@@ -29,6 +29,8 @@ namespace App\Domain\Comptabilite\Support;
  * | Banque | 521000 | 5211 | « Banque X » | 521 BANQUES LOCALES |
  * | Mobile Money | 522000 | 552 | « MONNAIE ELECTRONIQUE- TELEPHONE PORTABLE » | 55 (feuille à 3 chiffres) |
  * | Produit restaurant (M4), hébergement (M1) | 706200 / 706100 | 7061 | « dans la Région (1) » | 706 SERVICES VENDUS |
+ * | Produit tourisme (M9) | — | 7061 | « dans la Région (1) » | 706 SERVICES VENDUS (pas de compte dédié aux circuits au plan du PO ; le centre « Tourisme » porte la distinction) |
+ * | Produit location de véhicules (M8) | — | 7073 | « Locations (2) » | 707 PRODUITS ACCESSOIRES |
  * | Produit bar (M5) | 706300 | 7011 | « dans la Région (1) » | 701 VENTES DE MARCHANDISES |
  * | Achats de marchandises (dépenses) | 601100 | 6011 | « dans la Région » | 601 ACHATS DE MARCHANDISES (1) |
  * | Électricité | 604000 | 6052 | « Fournitures non stockables- Electricité » | 605 AUTRES ACHATS |
@@ -41,7 +43,7 @@ namespace App\Domain\Comptabilite\Support;
  * Correspondances décidées mais sans appelant dans le serveur aujourd'hui
  * (paie non comptabilisée) : salaires 661000 -> 6611, charges patronales CNSS
  * 645100 -> 6641, CNSS retenue 431000 -> 431, ITS 447000 -> 4472, personnel
- * 421000 -> 422, locations de véhicules -> 7073.
+ * 421000 -> 422.
  *
  * Le CENTRE DE COÛT porte la distinction que les anciens numéros portaient
  * (caisse Réception/Restaurant/Bar, produit hébergement/restaurant) : une
@@ -70,6 +72,9 @@ final class ComptesSyscohada
     public const PRODUIT_PRESTATIONS = '7061';
 
     public const PRODUIT_MARCHANDISES = '7011';
+
+    /** Locations de véhicules (M8) — « Locations (2) » du plan du PO ; décision du 22/10/2026 (comptoir). */
+    public const PRODUIT_LOCATIONS = '7073';
 
     public const ACHATS_MARCHANDISES = '6011';
 

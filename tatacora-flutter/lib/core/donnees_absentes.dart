@@ -36,10 +36,7 @@ library;
 ///
 /// Exemples : `donneeNonDisponible('Les mouvements de stock')`,
 /// `donneeNonDisponible('Le catalogue des boissons')`.
-String donneeNonDisponible(String quoi) =>
-    '$quoi ne figurent pas sur ce poste. Cette donnée était calculée par le '
-    'serveur, et le poste fonctionne désormais sans aucune liaison : il n’y a '
-    'rien à réessayer, et aucun chiffre ne peut être affiché à la place.';
+String donneeNonDisponible(String quoi) => '$quoi : information non disponible.';
 
 /// La même chose pour une ÉCRITURE que le poste ne peut pas porter.
 ///
@@ -48,6 +45,5 @@ String donneeNonDisponible(String quoi) =>
 /// Dire « rien n'a été enregistré » évite que l'exploitant croie son geste
 /// pris en compte et le rejoue.
 String ecritureNonDisponible(String quoi) =>
-    '$quoi ne peut pas être enregistré sur ce poste : ce module vit au '
-    'serveur, et le poste fonctionne sans aucune liaison. Rien n’a été '
-    'enregistré, et la saisie reste affichée.';
+    '$quoi ne peut pas être enregistré. Rien n’a été enregistré, et la saisie '
+    'reste affichée.';

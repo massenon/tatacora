@@ -112,7 +112,7 @@ class _ModaleContratState extends ConsumerState<_ModaleContrat> {
       // comparateur Blade l'a relevé. Un libellé repris d'une clé se recopie au
       // caractère près, y compris ce qu'on aurait formulé autrement.
       sousTitre:
-          'RG-08 : le véhicule est verrouillé sur la période avant écriture.',
+          'Le véhicule est verrouillé sur la période avant l\'écriture du contrat.',
       largeur: AppLayout.modaleContrat,
       refus: _refus,
       cleRefus: const Key('modale-contrat-refus'),
@@ -725,7 +725,7 @@ class _ReferentielAbsent extends StatelessWidget {
       // Le message de `vehicules.pwa.client_aucun`, AU MOT — apostrophe droite
       // comprise, comme le fichier de langue l'écrit.
       if (clientsVides)
-        'Aucun client au référentiel M3 — créez-le d\'abord depuis '
+        'Aucun client au référentiel — créez-le d\'abord depuis '
             '« Clients & Créances ».',
     ];
 

@@ -113,6 +113,13 @@ const tablesAjouteesEnV35 = <String>{
 };
 
 const _ajoutsParVersion = <int, List<String>>{
+  // La v36 (lien direct plat -> article, 21/10/2026) AJOUTE deux colonnes
+  // nullables a `plats_local`, ni indexees ni referencees : retour symetrique.
+  36: <String>[
+    'ALTER TABLE plats_local DROP COLUMN article_id',
+    'ALTER TABLE plats_local DROP COLUMN unites_vendables',
+  ],
+
   // La v35 ajoute CINQ tables neuves et CINQ colonnes (sans index ni cle
   // etrangere) : retour arriere symetrique.
   35: <String>[

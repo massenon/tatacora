@@ -670,7 +670,7 @@ const String noteExportPilotage =
 /// ([EtatPilotage]) porte des montants mis en forme ; le serveur exporte un
 /// « rapport » (`lignesRapport`, synthèse par défaut) qui n'est pas porté.
 const String tableurPilotageNonProduit =
-    "Sur ce poste, le pilotage consolidé ne s'exporte qu'en PDF : le tableur n'est pas porté (constaté le 12/10/2026).";
+    "Le pilotage consolidé ne s'exporte qu'en PDF.";
 
 /* ====================================================================== */
 /* KPI consolidés                                                          */

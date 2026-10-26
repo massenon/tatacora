@@ -114,7 +114,7 @@ abstract final class LibellesCoquille {
   /// que l'écran n'est pas encore porté sur CE poste — « consultation » est le
   /// mot du canal web, il ne suffit pas à dire ce qui manque ici.
   static String ecranNonPorte(String nom) =>
-      '« $nom » : écran non encore porté sur ce poste.';
+      '« $nom » n\'est pas disponible.';
 
   /// `pwa.recherche_globale.*` — la recherche globale de la barre supérieure.
   static const String rechercheInvite = 'Rechercher partout…';
@@ -143,7 +143,7 @@ abstract final class LibellesCoquille {
   /// aucun paramètre d'URL, ils s'ouvrent donc non filtrés. Le dire évite de
   /// laisser croire que la liste affichée est le résultat de la recherche.
   static String rechercheEcranNonFiltre(String terme, String famille) =>
-      '« $famille » ouvert sans filtre sur ce poste : saisissez « $terme » '
+      '« $famille » ouvert sans filtre : saisissez « $terme » '
       "dans la recherche de l'écran.";
 }
 

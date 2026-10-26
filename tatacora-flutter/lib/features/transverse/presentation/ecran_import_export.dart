@@ -235,8 +235,7 @@ abstract final class TextesImportExport {
   static const String importAucuneNouvelle =
       "Aucune ligne nouvelle : toutes existent déjà, rien n'a été importé.";
   static const String historiqueVideSurCePoste =
-      "Aucun import pendant cette session : ce poste ne garde pas l'historique "
-      "des imports d'une ouverture de l'application à l'autre.";
+      'Aucun import pendant cette session.';
 
   // L'onglet « Sauvegardes de la base » — « Générer une sauvegarde » et
   // « Exporter une table existante », RÉELS depuis le 14/10/2026.
@@ -252,12 +251,6 @@ abstract final class TextesImportExport {
   static const String exportTableInvite = '-- Sélectionner une table --';
   static const String exportTableChoisir = 'Sélectionnez une table.';
   static const String actionTelecharger = 'Télécharger';
-
-  /// REMPLACEMENT déclaré (piège 13) de `sauvegardes_rythme` (« La sauvegarde
-  /// automatique tourne chaque nuit à 02h00… ») : une application de bureau
-  /// n'est pas allumée à 02h00, aucune sauvegarde automatique n'a lieu ici.
-  static const String rythmeSurCePoste =
-      "Sur ce poste : aucune sauvegarde automatique n'a lieu. « Générer une sauvegarde de la base » en range une copie complète, à la demande, et une est rangée avant chaque réinitialisation.";
 
   /// `sauvegardes_vide` (au mot).
   static const String sauvegardesVide =
@@ -291,11 +284,7 @@ abstract final class TextesImportExport {
       "La retirer la perd définitivement : il n'en existe aucune copie ailleurs.";
   static const String retraitConfirmer = 'Retirer quand même';
   static const String sauvegardeRetiree = 'Sauvegarde retirée de la liste.';
-  static const String restaurerSurCePoste =
-      "Sur ce poste : aucun registre d'archives n'est tenu ici — un élément "
-      "archivé se réintègre depuis l'écran de son module.";
-  static const String archivesVideSurCePoste =
-      "Aucun registre d'archives sur ce poste.";
+  static const String archivesVideSurCePoste = 'Aucune archive.';
   // « Réinitialiser comme neuf » (lot E, 14/10/2026) — les mots de la vue.
   static const String seedersVerrouilleOuvrirAvant =
       "Un administrateur peut l'ouvrir dans";
@@ -310,19 +299,19 @@ abstract final class TextesImportExport {
       "Une sauvegarde complète est générée automatiquement avant chaque réinitialisation. C'est le seul filet si la bascule était restée ouverte par erreur.";
   static const String seedersVideTitre = 'Ce qui sera vidé';
   static const String seedersVideTexte =
-      "Tout ce que l'exploitation produit : clients, employés et paie, fournisseurs, guides, réservations et séjours, ventes, factures, mouvements de stock, achats, dépenses, locations, écritures comptables, notifications, caches et files de tâches.";
+      "Tout ce que l'exploitation produit : clients, employés et paie, fournisseurs, guides, réservations et séjours, ventes, factures, achats, dépenses, locations, écritures comptables, notifications, caches et files de tâches. Et tout le catalogue : plats, menus, recettes et ingrédients, articles de stock et leurs mouvements, inventaires, carte des boissons, retraits de la carte et historique des prix.";
   static const String seedersConserveTitre = 'Ce qui sera conservé';
   static const String seedersConserveTexte =
-      'Comptes et droits, paramètres, journaux, chambres du parc, articles de stock (sans mouvements), fiche restaurant, carte du bar, véhicules, catalogue tourisme et plan comptable.';
+      'Comptes et droits, paramètres, journaux, chambres du parc, points de stockage et tables de salle (les lieux, sans article), véhicules, catalogue tourisme et plan comptable.';
   static const String seedersRienAVider =
       'Aucune donnée à vider — la base est déjà vierge.';
   static const String seedersBouton = 'Réinitialiser comme neuf';
   static const String seedersModaleTitre = 'Réinitialiser comme neuf ?';
   static String seedersModaleTexteAvant(int nombre) => '$nombre table(s)';
   static const String seedersModaleTexte1 =
-      "vont être vidées : clients, employés, fournisseurs, guides, réservations, ventes, factures, stocks, écritures, paie, et tous les jeux de démonstration. Rien n'est semé à nouveau.";
+      "vont être vidées : clients, employés, fournisseurs, guides, réservations, ventes, factures, écritures, paie, ainsi que tout le catalogue (plats, menus, recettes et ingrédients, articles de stock et leurs mouvements, inventaires, carte des boissons, retraits de la carte) et tous les jeux de démonstration. Rien n'est semé à nouveau.";
   static const String seedersModaleTexte2 =
-      "Les paramètres de l'entreprise, la matrice des droits, votre compte, le journal d'audit, les chambres, les articles, la fiche restaurant, la carte du bar, les véhicules et le catalogue tourisme sont";
+      "Les paramètres de l'entreprise, la matrice des droits, votre compte, le journal d'audit, les chambres, les points de stockage, les tables de salle, les véhicules et le catalogue tourisme sont";
   static const String seedersModaleTexte2Fort = 'conservés';
   static const String seedersConfirmationAvant = 'Pour confirmer, saisissez';
   static const String seedersPhraseConfirmation = 'VIDER';
@@ -1837,13 +1826,6 @@ class _PanneauSauvegardesState extends ConsumerState<_PanneauSauvegardes> {
           ],
         ),
         const SizedBox(height: AppSpacing.md),
-        ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: MesuresTransverses.texteRythmeSauvegardes,
-          ),
-          child: Text(TextesImportExport.rythmeSurCePoste, style: _aide),
-        ),
-        const SizedBox(height: AppSpacing.md),
         CarteTransverse(
           padding: EdgeInsets.zero,
           child: TableauTransverse(
@@ -2161,11 +2143,6 @@ class _PanneauRestaurer extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.unit),
                     Text(TextesImportExport.restaurerTexte, style: bleu),
-                    const SizedBox(height: AppSpacing.xs),
-                    Text(
-                      TextesImportExport.restaurerSurCePoste,
-                      style: bleu.copyWith(fontWeight: FontWeight.w600),
-                    ),
                   ],
                 ),
               ),

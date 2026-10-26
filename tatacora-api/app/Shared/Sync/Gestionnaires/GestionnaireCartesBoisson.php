@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Shared\Sync\Gestionnaires;
 
 use App\Domain\Bar\Http\Requests\EnregistrerBoissonRequest;
+use App\Domain\Bar\Http\Requests\LierBoissonAuStockRequest;
 use App\Domain\Bar\Models\CarteBoisson;
 use App\Domain\Bar\Services\CarteBoissonService;
 use App\Shared\Sync\Services\ResolveurCorrespondances;
@@ -41,10 +42,21 @@ use Illuminate\Database\Eloquent\Model;
  * (« le serveur est maître, modification refusée » ne vaut plus).
  * Par `CarteBoissonService::modifier()` (marques de prix
  * PA-161 comprises), règles de `PUT /bar/boissons/{boisson}` sur les seuls
- * champs présents ; l'article cité est traduit par les correspondances. Le
- * conditionnement (`unites_vendables_par_unite_stock`) n'est PAS dans ces
- * règles — il relève de « Lier au stock », comme à l'API : ignoré ici.
+ * champs présents ; l'article cité est traduit par les correspondances.
  * Une boisson ne s'archive pas : demander `actif: false` est refusé.
+ *
+ * ## Le conditionnement part avec le lien (poste, 26/10/2026)
+ *
+ * À l'API, `unites_vendables_par_unite_stock` n'est pas dans
+ * `EnregistrerBoissonRequest` : il relève de « Lier au stock »
+ * (`LierBoissonAuStockRequest`). Le POSTE n'a pas deux routes : « Nouvelle
+ * boisson » (article ET conditionnement) et « Lier au stock » / « Modifier le
+ * lien » (l'un, l'autre ou les deux) arrivent par ce gestionnaire. Les ignorer
+ * laissait le défaut du schéma (1) : un casier de 24 liquidé comme une
+ * bouteille à l'unité, chaque vente sortant un casier ENTIER. La règle est
+ * celle de `LierBoissonAuStockRequest` à la lettre (`numeric`, `gt:0`), avec
+ * `sometimes` : une opération d'avant n'en porte pas, et le serveur garde
+ * alors son conditionnement.
  */
 final class GestionnaireCartesBoisson extends GestionnaireReferentielAbstrait
 {
@@ -80,9 +92,34 @@ final class GestionnaireCartesBoisson extends GestionnaireReferentielAbstrait
     {
         return $this->valider(
             $payload,
-            $this->reglesDeLApi(EnregistrerBoissonRequest::class),
+            [...$this->reglesDeLApi(EnregistrerBoissonRequest::class), ...$this->reglesDuConditionnement()],
             EnregistrerBoissonRequest::class,
         );
+    }
+
+    protected function validerModification(Model $element, array $payload): array
+    {
+        return $this->validerPartiel(
+            $element,
+            $payload,
+            [...$this->reglesDeLApi(EnregistrerBoissonRequest::class, static::PARAMETRE_ROUTE, $element), ...$this->reglesDuConditionnement()],
+            EnregistrerBoissonRequest::class,
+        );
+    }
+
+    /**
+     * @return array<string, list<mixed>>
+     */
+    private function reglesDuConditionnement(): array
+    {
+        $regles = (new LierBoissonAuStockRequest())->rules()['unites_vendables_par_unite_stock'];
+
+        return [
+            'unites_vendables_par_unite_stock' => ['sometimes', ...array_values(array_filter(
+                $regles,
+                static fn (mixed $regle): bool => $regle !== 'required',
+            ))],
+        ];
     }
 
     protected function equivalent(array $donnees): ?Model

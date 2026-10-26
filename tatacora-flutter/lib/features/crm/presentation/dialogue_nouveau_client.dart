@@ -88,7 +88,7 @@ class _DialogueNouveauClientState extends State<_DialogueNouveauClient> {
         children: [
           Text('Ajouter un client'),
           Text(
-            'Fiche client unique du référentiel — RG-18.',
+            'Fiche client unique du référentiel.',
             key: Key('nouveau-client-sous-titre'),
             style: TextStyle(
               fontFamily: AppTextStyles.police,
@@ -156,7 +156,7 @@ class _DialogueNouveauClientState extends State<_DialogueNouveauClient> {
               ),
               const SizedBox(height: AppSpacing.md),
               const Text(
-                'Créer une fiche client est une écriture M3 : le droit M3 est exigé en plus du droit M1, comme à la synchronisation.',
+                "Créer une fiche client demande le droit d'écriture sur les clients, en plus de celui sur l'hébergement.",
                 key: Key('nouveau-client-droit-m3'),
                 style: TextStyle(
                   fontFamily: AppTextStyles.police,

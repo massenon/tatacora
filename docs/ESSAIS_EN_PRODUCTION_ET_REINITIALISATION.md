@@ -19,7 +19,7 @@ réinitialisation.
 
 | Vidé (serveur ET postes) | Gardé |
 |---|---|
-| Clients, réservations, séjours, ventes, factures, avoirs, encaissements, caisses, dépenses, commandes et réceptions, mouvements de stock, écritures comptables, paie et employés, fournisseurs, guides, tourisme (réservations), contrats de location, files de synchronisation | Comptes et rôles, paramètres (y compris le mot de passe SMTP chiffré), appairage des postes, journal d'audit, chambres (catégories et unités), canaux, articles et points de stockage (stock remis à **zéro**), fiche restaurant, carte du bar, tables de salle, véhicules, circuits, plan comptable, journaux, exercices, centres de coût, services RH, modèles de notification |
+| Clients, réservations, séjours, ventes, factures, avoirs, encaissements, caisses, dépenses, commandes et réceptions, mouvements de stock, écritures comptables, paie et employés, fournisseurs, guides, tourisme (réservations), contrats de location, **tout le catalogue** (plats, menus, recettes et ingrédients, articles de stock, inventaires, carte des boissons, retraits de la carte, historique des prix), files de synchronisation | Comptes et rôles, paramètres (y compris le mot de passe SMTP chiffré), appairage des postes, journal d'audit, chambres (catégories et unités), canaux, points de stockage (les lieux), tables de salle, véhicules, circuits, plan comptable, journaux, exercices, centres de coût, services RH, modèles de notification |
 
 - Les numéros (factures `F-AAAA-NNNNN`, ventes, dépenses, pièces) se
   calculent sur les documents existants : ils **repartent à 00001**.

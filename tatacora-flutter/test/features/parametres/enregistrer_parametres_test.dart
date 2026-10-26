@@ -342,40 +342,18 @@ void main() {
       },
     );
 
-    test('une clé sans lecteur le DIT dans ses notes, une clé lue non ; '
+    test('aucune note de conception n’est portée par les définitions, et '
         'l’aide du serveur n’est jamais altérée', () async {
       final lu = await cas.lire();
       DefinitionParametre def(String cle) =>
           lu.definitions.firstWhere((d) => d.cle == cle);
 
-      // Le préavis de congé A UN LECTEUR depuis le 21/10/2026 (RG-14 : valider
-      // une demande le lit et REFUSE sans lui) : plus de note « sans effet ».
-      expect(def('delai_preavis_conge_jours').notes, isEmpty);
+      for (final d in lu.definitions) {
+        expect(d.notes, isEmpty, reason: d.cle);
+        expect(d.correction, isNull, reason: d.cle);
+      }
       expect(def('delai_preavis_conge_jours').aide, isNull);
-      // Une clé qui n'a toujours aucun lecteur, elle, le dit.
-      expect(def('duree_retention_audit_jours').notes, [
-        'Aucun module de ce poste ne lit encore cette valeur.',
-      ]);
-      // Le taux de TVA, lui, A UN LECTEUR depuis le 12/10/2026 (lot 6) : la
-      // pièce comptable d'une vente. Le dire « sans effet » serait faux, et
-      // l'exploitant ne le renseignerait pas — alors que sans lui une vente est
-      // refusée dès que la TVA est active.
-      expect(def('taux_tva').notes, isEmpty);
-      // La bascule de suppression est LUE (fournisseurs M7, lot 7) : elle ne
-      // porte plus « aucun module ne la lit », mais une correction qui borne sa
-      // portée — l'aide du serveur (« tous les modules ») reste intacte.
-      expect(def('activation_suppression').notes, isEmpty);
-      expect(
-        def('activation_suppression').correction,
-        contains('les unités d’hébergement (M1)'),
-      );
       expect(def('activation_suppression').aide, contains('tous les modules'));
-      // Un secret voisin : la phrase de refus PUIS « aucun module ».
-      expect(def('entreprise_numero_mecef').notes, [
-        'Sur ce poste, aucune clé d’API MECeF n’est enregistrable : un secret '
-            'n’entre jamais dans cette base.',
-        'Aucun module de ce poste ne lit encore cette valeur.',
-      ]);
       expect(
         def('entreprise_numero_mecef').aide,
         startsWith('Fourni par la DGI.'),
@@ -384,8 +362,6 @@ void main() {
         def('entreprise_numero_mecef').aide,
         isNot(contains('enregistrable')),
       );
-      // Une clé lue par la paie : aucune note.
-      expect(def('taux_vps').notes, isEmpty);
       expect(
         def('taux_vps').aide,
         'Assiette : total des bruts, sans plafond. Jamais une retenue '

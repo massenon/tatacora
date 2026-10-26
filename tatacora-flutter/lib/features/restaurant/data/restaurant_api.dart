@@ -144,9 +144,9 @@ final class CompteursFiches {
 ///    pas un mouvement d'argent. La VENTE d'un plat, elle, passe par le point
 ///    de vente et sa facture — une écriture d'argent sans pièce comptable sur
 ///    ce poste, qui n'en tient pas : décision du PO à prendre, remontée.
-///  * **Aucune disponibilité du jour, aucun lien direct à un article, aucun
-///    historique de prix, aucune vente du restaurant** : ni table ni colonne
-///    ne les porte ; chaque geste reste proposé et DIT son refus.
+///  * **Aucun historique de prix, aucune vente du restaurant** : ni table ni
+///    colonne ne les porte ; chaque geste reste proposé et DIT son refus. Le
+///    lien direct plat -> article existe depuis la v36 ([lierAuStock]).
 ///  * **Aucune suppression** : un plat est cité par les lignes de panier et de
 ///    facture déjà saisies ; le « D » de CRUD n'existe nulle part ici.
 final class RestaurantApi {
@@ -299,6 +299,45 @@ final class RestaurantApi {
       auteurId: _auteurId(),
     ),
   );
+
+  /* ================================================================== */
+  /* « Lier au stock » (v36)                                             */
+  /* ================================================================== */
+
+  /// Les articles que « Lier au stock » propose (suivi permanent). `null` sans
+  /// droit de lecture : « aucun article » se lirait « le stock est vide ».
+  Future<List<ArticleChoix>?> articlesPourLien() async {
+    if (!_peutLire()) return null;
+    return _dao.articlesLiables();
+  }
+
+  /// Le solde de l'article au point cuisine, en centièmes (`null` : aucun
+  /// point cuisine, ou pas de droit de lecture — on ne sait pas).
+  Future<int?> stockCuisineDe(String articleId) async =>
+      _peutLire() ? _dao.stockCuisineDe(articleId) : null;
+
+  /// Le lien enregistré du plat (article, conditionnement), ou `null`.
+  Future<({String articleId, String unitesVendables})?> lienDe(
+    String platId,
+  ) async => _peutLire() ? _dao.lienDe(platId) : null;
+
+  /// « Enregistrer le lien » : l'article ET son conditionnement.
+  Future<ResultatRestaurant<Plat>> lierAuStock({
+    required String platId,
+    required String articleId,
+    required String conditionnement,
+  }) => _ecrire(
+    () => _dao.lierAuStock(
+      platId: platId,
+      articleId: articleId,
+      conditionnement: conditionnement,
+      auteurId: _auteurId(),
+    ),
+  );
+
+  /// « Retirer le lien » : les deux colonnes repartent ensemble.
+  Future<ResultatRestaurant<Plat>> delierDuStock(String platId) =>
+      _ecrire(() => _dao.delierDuStock(platId: platId, auteurId: _auteurId()));
 
   /* ================================================================== */
   /* Les menus                                                           */

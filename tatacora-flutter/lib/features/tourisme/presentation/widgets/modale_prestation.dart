@@ -81,7 +81,7 @@ class _ModalePrestationState extends ConsumerState<_ModalePrestation> {
           ? 'Nouvelle prestation au catalogue'
           : 'Éditer la prestation',
       // Le sous-titre de la vue (l.792), au mot — référence EF comprise.
-      sousTitre: 'Catalogue des circuits — EF-M9-01.',
+      sousTitre: 'Catalogue des circuits.',
       largeur: AppLayout.modalePrestationTourisme,
       refus: _refus,
       cleRefus: const Key('tourisme-modale-prestation-refus'),

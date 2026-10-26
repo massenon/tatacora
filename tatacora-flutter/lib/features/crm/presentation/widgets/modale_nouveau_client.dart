@@ -244,10 +244,7 @@ class _ModaleNouveauClientState extends ConsumerState<_ModaleNouveauClient> {
                     borderRadius: BorderRadius.circular(AppRadius.md),
                   ),
                   child: Text(
-                    'Ville — non saisissable. Ni la base de ce poste ni la '
-                    'table « clients » du serveur ne portent cette colonne : '
-                    'la valeur serait ignorée à l’enregistrement, puis perdue '
-                    'au premier échange avec le serveur.',
+                    'Ville — non saisissable.',
                     style: textes.labelMedium?.copyWith(
                       color: AppColors.neutre500,
                     ),

@@ -259,8 +259,8 @@ void main() {
       expect(find.text('Ouvert'), findsOneWidget);
       expect(
         find.byKey(const Key('compta-cloture-non-portee')),
-        findsOneWidget,
-        reason: 'la clôture annuelle n’est pas portée, et l’onglet le DIT',
+        findsNothing,
+        reason: 'aucune note de conception à l’écran',
       );
 
       await tester.tap(find.byKey(const Key('compta-ouvrir-exercice')));

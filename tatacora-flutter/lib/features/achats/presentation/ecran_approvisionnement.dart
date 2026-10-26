@@ -326,7 +326,7 @@ class _BandeIndicateurs extends ConsumerWidget {
         // commander ».
         valeur: kpis?.articlesSousSeuil?.toString(),
         raisonAbsence: kpis?.articlesSousSeuil == null
-            ? 'Le droit de consulter les stocks manque (M6).'
+            ? 'Le droit de consulter les stocks manque.'
             : null,
         accent: AppColors.erreur,
       ),
@@ -335,7 +335,7 @@ class _BandeIndicateurs extends ConsumerWidget {
         libelle: 'Commandes en attente',
         valeur: kpis?.commandesEnAttente?.toString(),
         raisonAbsence: kpis?.commandesEnAttente == null
-            ? 'Le droit de consulter les achats manque (M7).'
+            ? 'Le droit de consulter les achats manque.'
             : null,
       ),
       CarteKpiAchats(
@@ -343,7 +343,7 @@ class _BandeIndicateurs extends ConsumerWidget {
         libelle: 'Réceptions partielles',
         valeur: kpis?.receptionsPartielles?.toString(),
         raisonAbsence: kpis?.receptionsPartielles == null
-            ? 'Le droit de consulter les achats manque (M7).'
+            ? 'Le droit de consulter les achats manque.'
             : null,
         accent: AppColors.gold,
       ),
@@ -354,7 +354,7 @@ class _BandeIndicateurs extends ConsumerWidget {
         libelle: MessagesReglement.kpiAPayer,
         valeur: kpis?.fournisseursAPayer?.toString(),
         raisonAbsence: kpis?.fournisseursAPayer == null
-            ? 'Le droit de consulter les achats manque (M7).'
+            ? 'Le droit de consulter les achats manque.'
             : null,
         accent: (kpis?.fournisseursAPayer ?? 0) > 0
             ? PaletteMaitre.ambre600
@@ -367,7 +367,7 @@ class _BandeIndicateurs extends ConsumerWidget {
             ? null
             : formaterCentimesEnFcfa(kpis!.totalDuCentimes!),
         raisonAbsence: kpis?.totalDuCentimes == null
-            ? 'Le droit de consulter les achats manque (M7).'
+            ? 'Le droit de consulter les achats manque.'
             : null,
         accent: (kpis?.totalDuCentimes ?? 0) > 0
             ? PaletteMaitre.rouge600

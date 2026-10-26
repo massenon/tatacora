@@ -572,7 +572,7 @@ CompteResultatEtat compteResultatDe(int annee, DonneesEtats d) {
             final v = valeurs[c];
             if (v == null) {
               throw StateError(
-                'Cascade SIG mal ordonnée : ${r.code} cite $c, non calculé.',
+                'Cascade SIG mal ordonnée : ${r.code} cite $c, pas encore évalué.',
               );
             }
             return t + v;

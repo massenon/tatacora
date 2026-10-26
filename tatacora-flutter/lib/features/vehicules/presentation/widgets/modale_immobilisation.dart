@@ -84,7 +84,7 @@ class _ModaleImmobilisationState extends ConsumerState<_ModaleImmobilisation> {
       cle: const Key('modale-immobilisation'),
       // Le titre de la vue, au mot.
       titre: 'Immobiliser un véhicule',
-      sousTitre: 'Entretien ou carburation — EF-M8-05.',
+      sousTitre: 'Entretien ou carburation.',
       largeur: AppLayout.modaleImmobilisation,
       refus: _refus,
       cleRefus: const Key('modale-immobilisation-refus'),

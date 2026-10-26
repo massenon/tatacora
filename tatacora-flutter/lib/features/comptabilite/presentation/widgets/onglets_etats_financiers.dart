@@ -49,20 +49,11 @@ abstract final class TextesEtatsFinanciers {
   static const String totalPassif = 'TOTAL PASSIF';
   static const String tiret = '—';
 
-  /// AJOUTS du poste (provenance), absents de la vue.
-  static const String provenanceVide =
-      "Aucune écriture du serveur n'a encore été reçue sur ce poste : cet état reste vide tant que la synchronisation n'a rien descendu.";
-  static String provenance(int nombre, String? derniere) =>
-      'Calculé sur ce poste depuis les écritures validées reçues du serveur : '
-      '$nombre écriture(s)${derniere == null ? '' : ", la plus récente du $derniere"}. '
-      'Ne descendent que les écritures validées : le filtre de statut ne '
-      "s'applique pas ici.";
-  static String enAttente(int n) =>
-      "$n opération(s) de ce poste attendent encore leur envoi : leurs écritures ne sont pas comptées tant que le serveur n'a pas passé ses pièces.";
+  static const String provenanceVide = 'Aucune écriture à afficher.';
   static String reportProvisoire(int annee) =>
       "À-nouveaux provisoires : l'exercice $annee n'est pas clôturé, ses soldes sont reportés sans l'être définitivement.";
   static const String illisible =
-      "Les écritures du serveur n'ont pas pu être lues sur ce poste.";
+      "Les écritures n'ont pas pu être lues.";
 }
 
 String _montant(int centimes) =>
@@ -107,46 +98,6 @@ class _Bandeau extends StatelessWidget {
       ),
     ),
   );
-}
-
-/// L'encadré de provenance, sous les deux onglets.
-class EncadreProvenance extends ConsumerWidget {
-  const EncadreProvenance({super.key});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final lu = ref.watch(provenanceEtatsFinanciersProvider).value;
-    if (lu == null) return const SizedBox.shrink();
-    final r = lu.reception;
-    final jour = r.derniereDate == null ? null : _jourFrancais(r.derniereDate!);
-    final lignes = [
-      if (r.nombre == 0)
-        TextesEtatsFinanciers.provenanceVide
-      else
-        TextesEtatsFinanciers.provenance(r.nombre, jour),
-      if (lu.enAttenteDEnvoi > 0)
-        TextesEtatsFinanciers.enAttente(lu.enAttenteDEnvoi),
-    ];
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.sm),
-      child: Column(
-        key: const Key('compta-etats-provenance'),
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          for (final l in lignes)
-            Text(
-              l,
-              style: styleTransverse(TaillesContenu.t12, couleur: Ardoise.c500),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-String _jourFrancais(String iso) {
-  final p = iso.split('-');
-  return p.length == 3 ? '${p[2]}/${p[1]}/${p[0]}' : iso;
 }
 
 /// Onglet « Compte de résultat ».
@@ -272,7 +223,6 @@ class OngletResultat extends ConsumerWidget {
             ],
           ),
         ),
-        const EncadreProvenance(),
       ],
     );
   }
@@ -642,7 +592,6 @@ class OngletBilan extends ConsumerWidget {
             ],
           ),
         ],
-        const EncadreProvenance(),
       ],
     );
   }
