@@ -354,10 +354,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Ajouter un client'), findsOneWidget);
-      expect(
-        find.text('Fiche client unique du référentiel.'),
-        findsOneWidget,
-      );
+      expect(find.text('Fiche client unique du référentiel.'), findsOneWidget);
       expect(find.text('Nom complet *'), findsOneWidget);
       expect(find.text('01 97 35 59 74'), findsOneWidget);
       expect(

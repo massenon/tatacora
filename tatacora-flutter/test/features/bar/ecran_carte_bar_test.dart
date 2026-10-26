@@ -191,7 +191,7 @@ void main() {
       // du tableau, avec la phrase UNIQUE des données absentes.
       expect(
         tester.widget<Text>(find.byKey(const Key('ventes-bar-refuse'))).data,
-        donneeNonDisponible('Les ventes du bar (module M5)'),
+        donneeNonDisponible('Les ventes du bar'),
       );
       // Mais le cadre de la vue est là : ses neuf colonnes, sa ligne de total.
       for (final c in colonnesVentesCarte) {

@@ -21,9 +21,8 @@ abstract final class MessagesVentes {
   /// `ventes.module_non_encaissable` — [module] est le libellé du serveur
   /// (`VenteService::MODULES`), « Véhicules » pour M8 et non « Location ».
   static String moduleNonEncaissable(String module) =>
-      // Fin de phrase « …anti-patron que le prototype porte et que ce dépôt
-      // refuse » retirée de l'écran le 14/10/2026 (directive du PO).
-      '$module ne dispose pas encore de catalogue encaissable au comptoir.';
+      '$module ne dispose pas encore de catalogue encaissable au comptoir : '
+      'la ligne ne peut pas être acceptée.';
 
   /// ⚠ ÉCART DU POSTE — le web répond 403 (`exigerEcriture`, module M8 ou M9)
   /// et la synchronisation REJETTERAIT la vente (`modulesRequis`) : le poste

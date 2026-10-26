@@ -839,8 +839,7 @@ return [
             . 'ingrédient : elle ne décrémente aucun stock, et toute vente du plat qui l\'utilise '
             . 'sera refusée au comptoir.',
         'recette_modifiee_cout_incomplet' => 'La fiche « :recette » est à jour. Son coût matière '
-            . 'reste INCONNU : :articles n\'ont pas de coût moyen pondéré (jamais réceptionnés en '
-            . 'M6).',
+            . 'reste INCONNU : :articles n\'ont pas de coût moyen pondéré (jamais réceptionnés).',
 
         // --- Onglet « Menus » (04/09/2026) ---
         'menus_col_menu' => 'Menu',

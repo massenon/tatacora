@@ -104,8 +104,7 @@ void main() {
     while (change) {
       change = false;
       liens.forEach((source, colonnes) {
-        if (!arbre.contains(source) &&
-            colonnes.values.any(arbre.contains)) {
+        if (!arbre.contains(source) && colonnes.values.any(arbre.contains)) {
           arbre.add(source);
           change = true;
         }
@@ -126,7 +125,8 @@ void main() {
     if (!pile.add(table)) return;
     final colonnes = <String>[];
     final valeurs = <Object?>[];
-    for (final c in await db.customSelect('PRAGMA table_info("$table")').get()) {
+    for (final c
+        in await db.customSelect('PRAGMA table_info("$table")').get()) {
       final nom = c.read<String>('name');
       final type = c.read<String>('type').toUpperCase();
       final cible = liens[table]![nom];
@@ -211,45 +211,57 @@ void main() {
     expect(await compter('etat_synchronisation_local'), 0);
     // Les lieux et les réglages restent.
     expect(await compter('points_stockage_local'), greaterThan(0));
-    expect(await compter('parametres_systeme_local'), greaterThanOrEqualTo(avant));
+    expect(
+      await compter('parametres_systeme_local'),
+      greaterThanOrEqualTo(avant),
+    );
     // Les clés étrangères sont restées ACTIVES.
     final fk = await db.customSelect('PRAGMA foreign_keys').getSingle();
     expect(fk.data.values.single, 1);
   });
 
-  test('aucune table liée au catalogue n\'est oubliée : l\'arbre énuméré par '
-      'PRAGMA foreign_key_list est entièrement dans les tables vidées', () async {
-    final moteur = ReinitialisationLocale(db);
-    final effacables = (await moteur.tablesEffacables()).toSet();
-    final gardees = (await moteur.tablesPreservees()).toSet();
-    final tree = await arbre();
+  test(
+    'aucune table liée au catalogue n\'est oubliée : l\'arbre énuméré par '
+    'PRAGMA foreign_key_list est entièrement dans les tables vidées',
+    () async {
+      final moteur = ReinitialisationLocale(db);
+      final effacables = (await moteur.tablesEffacables()).toSet();
+      final gardees = (await moteur.tablesPreservees()).toSet();
+      final tree = await arbre();
 
-    for (final t in tree) {
-      expect(effacables, contains(t), reason: '$t référence le catalogue');
-      expect(tablesPreserveesLocales, isNot(contains(t)));
-    }
-
-    // Aucune table GARDÉE ne désigne le catalogue, par clé étrangère ou par
-    // nom de colonne.
-    final liens = await jointures();
-    for (final t in gardees) {
-      final vers = liens[t]!.values.where(tree.contains);
-      expect(vers, isEmpty, reason: '$t (gardée) désigne le catalogue');
-    }
-
-    // Les lieux restent des référentiels, sans article.
-    expect(gardees, containsAll(['points_stockage_local', 'tables_local']));
-
-    // Et l'ordre de vidage place chaque enfant avant son parent (FK réelles).
-    final ordre = await moteur.ordreDeVidage();
-    final rang = {for (var i = 0; i < ordre.length; i++) ordre[i]: i};
-    final fkSeules = await jointures(parNom: false);
-    fkSeules.forEach((source, colonnes) {
-      for (final cible in colonnes.values) {
-        if (cible != source && rang.containsKey(source) && rang.containsKey(cible)) {
-          expect(rang[source]!, lessThan(rang[cible]!), reason: '$source -> $cible');
-        }
+      for (final t in tree) {
+        expect(effacables, contains(t), reason: '$t référence le catalogue');
+        expect(tablesPreserveesLocales, isNot(contains(t)));
       }
-    });
-  });
+
+      // Aucune table GARDÉE ne désigne le catalogue, par clé étrangère ou par
+      // nom de colonne.
+      final liens = await jointures();
+      for (final t in gardees) {
+        final vers = liens[t]!.values.where(tree.contains);
+        expect(vers, isEmpty, reason: '$t (gardée) désigne le catalogue');
+      }
+
+      // Les lieux restent des référentiels, sans article.
+      expect(gardees, containsAll(['points_stockage_local', 'tables_local']));
+
+      // Et l'ordre de vidage place chaque enfant avant son parent (FK réelles).
+      final ordre = await moteur.ordreDeVidage();
+      final rang = {for (var i = 0; i < ordre.length; i++) ordre[i]: i};
+      final fkSeules = await jointures(parNom: false);
+      fkSeules.forEach((source, colonnes) {
+        for (final cible in colonnes.values) {
+          if (cible != source &&
+              rang.containsKey(source) &&
+              rang.containsKey(cible)) {
+            expect(
+              rang[source]!,
+              lessThan(rang[cible]!),
+              reason: '$source -> $cible',
+            );
+          }
+        }
+      });
+    },
+  );
 }

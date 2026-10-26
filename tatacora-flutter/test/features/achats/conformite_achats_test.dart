@@ -447,34 +447,19 @@ void main() {
       expect(AchatsApi.cleTolerance, cle);
     });
 
-    test('le message de langue du serveur PORTE bien cette clé', () {
-      // La reconnaissance se fait sur le texte du message : si le fichier de
-      // langue cessait de l'interpoler, le client ne reconnaîtrait plus rien.
+    test('le message du serveur existe et ne nomme PAS la clé technique', () {
+      // Depuis le 26/10/2026 le message affiché n'interpole plus la clé
+      // (`tolerance_reception_pct`) : c'est un identifiant technique, pas un mot
+      // de l'utilisateur. Le client ne reconnaît plus ce refus par le texte ;
+      // il lit la clé de ses Paramètres (`AchatsDao.cleTolerance`), confrontée
+      // au serveur par le test précédent.
       final langue = fichier(
         '${VueBlade.racine}/lang/fr/achats.php',
-        'C’est le message que ce client reconnaît pour distinguer le refus de '
-            'RG-10 d’une erreur de saisie.',
+        'Le message de tolérance absente reste présent, sans clé technique.',
       );
 
-      final ligne = RegExp(
-        r"'tolerance_absente' => (.*?)\n\s*\.\s*(.*?),\n",
-        dotAll: true,
-      ).firstMatch(langue);
-
-      expect(
-        ligne,
-        isNotNull,
-        reason:
-            'le message `tolerance_absente` a disparu du fichier de langue : '
-            'ce test ne mesure plus rien',
-      );
-      expect(
-        ligne!.group(0),
-        contains(AchatsApi.cleTolerance),
-        reason:
-            'le message ne nomme plus la clé de tolérance : le client ne peut '
-            'plus distinguer ce refus d’une erreur de saisie',
-      );
+      expect(langue, contains("'tolerance_absente'"));
+      expect(langue, isNot(contains(AchatsApi.cleTolerance)));
     });
   });
 
