@@ -30,7 +30,7 @@ abstract final class TextesGrandLivreAnalytique {
   static const String soldeOuverture = "Solde d'ouverture";
   static const String soldeCloture = 'Solde de clôture';
   static const String soldeOuvertureInconnu =
-      "Solde d'ouverture inconnu, jamais zéro : l'exercice précédent a été clôturé sans pièce d'à-nouveaux.";
+      "Solde d'ouverture inconnu, jamais zéro : aucun report à nouveau n'existe encore. Le solde progressif part donc des seuls mouvements de l'exercice.";
   static String ouvertureProvisoire(int annee) =>
       "Ouverture PROVISOIRE : l'exercice $annee n'est pas clôturé, son report à nouveau est calculé à chaque lecture.";
   static const String centresVide = 'Aucune écriture ventilée sur la période.';
