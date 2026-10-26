@@ -145,8 +145,11 @@ void main() {
     //
     // 73 → 74 le 26/10/2026 : `historique_prix_carte_local` (v38 — l'historique
     // des prix de la carte ; auteur : `HistoriquePrixCarteDao`).
-    expect(base.allTables.length, 74);
-    expect(base.schemaVersion, 38);
+    //
+    // 74 → 75 le 26/10/2026 : `boite_envoi_emails_local` (v39 — la boîte
+    // d'envoi des e-mails de notification ; auteur : `BoiteEnvoiEmailsDao`).
+    expect(base.allTables.length, 75);
+    expect(base.schemaVersion, 39);
     expect(
       base.allTables.map((t) => t.actualTableName).toSet().containsAll({
         'origines_documents_local',

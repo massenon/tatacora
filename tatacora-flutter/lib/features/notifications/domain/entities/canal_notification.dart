@@ -81,8 +81,11 @@ enum CanalNotification {
 
 /// Les transports RÉELLEMENT montés sur ce poste.
 ///
-/// Vide, et c'est un fait vérifiable : l'application est hors ligne par
-/// construction, et aucun code de ce dépôt n'ajoute d'entrée à ce jeu. La
+/// Depuis le 26/10/2026 (l'envoi réel d'e-mails, décision du PO), l'e-mail est
+/// monté quand la configuration SMTP du poste est COMPLÈTE
+/// (`transportsLocauxProvider`, dérivé de la configuration relue) ; WhatsApp,
+/// Android et SMS n'ont aucun client dans ce dépôt. Sans configuration, le jeu
+/// est vide. La
 /// classe existe pour que l'état d'un canal reste une DÉRIVATION — si un
 /// transport était monté demain, [estBranche] le dirait sans qu'aucun écran ne
 /// change.
@@ -122,4 +125,21 @@ final class TransportsLocaux {
   /// adresse e-mail, donc « Aucune adresse e-mail connue » affirmerait un état
   /// que ce poste n'a pas lu. Le relais, lui, se dérive de [estBranche].
   static const String etiquetteSansRelais = 'Aucun relais SMTP réel configuré';
+}
+
+/// Les phrases de « Envoyer » / « Renvoyer » (e-mail) — celles de la vue
+/// (`lang/fr/notifications_pwa.php`), au mot.
+abstract final class TextesEnvoiNotification {
+  static const String envoyer = 'Envoyer';
+  static const String renvoyer = 'Renvoyer';
+  static const String envoiReussi = 'Message envoyé par e-mail.';
+  static const String sansAdresse =
+      'Aucune adresse e-mail connue pour ce destinataire — à transmettre à la main.';
+  static const String sansRelais =
+      'Aucun relais SMTP réel n’est configuré — à transmettre à la main.';
+  static const String dejaEnCours = 'Ce message est déjà en cours d’envoi.';
+  static const String relancesEpuisees = 'Relances automatiques épuisées';
+
+  static String tentatives(int n) => 'Tentatives d’envoi : $n';
+  static String derniereErreur(String erreur) => 'Dernière erreur : $erreur';
 }

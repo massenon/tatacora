@@ -112,8 +112,10 @@ void main() {
 
   /* ================================================================== */
   group('AUCUN envoi n’est annoncé', () {
-    testWidgets('le bandeau DIT que rien ne part de ce poste', (tester) async {
-      // C'est la seule phrase de la page qui dise au Gérant que rien ne part.
+    testWidgets('le bandeau DIT ce qui part (l’e-mail) et ce qui ne part pas', (
+      tester,
+    ) async {
+      // C'est la seule phrase de la page qui dise au Gérant ce qui part.
       await monter(tester);
 
       expect(find.byKey(const Key('notifications-bandeau')), findsOneWidget);
@@ -131,8 +133,21 @@ void main() {
       );
       // Et la phrase du POSTE, qui dit ce que ces conditions donnent ici.
       expect(
-        find.textContaining('Aucun message ne part de ce poste'),
+        find.textContaining(
+          'WhatsApp, Android et SMS ne partent pas de ce poste',
+        ),
         findsOneWidget,
+      );
+      expect(
+        find.textContaining(
+          'Un e-mail part par le relais SMTP de ce poste ; il reste en file',
+        ),
+        findsOneWidget,
+      );
+      // L'ancienne phrase, devenue FAUSSE pour l'e-mail, ne revient pas.
+      expect(
+        find.textContaining('Aucun message ne part de ce poste'),
+        findsNothing,
       );
       // La conséquence, dans les mots du maître — sans elle, la phrase se
       // lirait comme une limite technique, pas comme une consigne.
@@ -147,24 +162,29 @@ void main() {
       );
     });
 
-    testWidgets('AUCUN bouton « Envoyer » n’existe nulle part', (tester) async {
-      // ⚠ LE cas du module. La vue rend ce bouton pour le canal e-mail ; ici
-      // aucun transport n'existe, et un bouton qui échoue toujours est la
-      // version cliquable de l'entrée inerte que l'Article 3.3 refuse.
-      await semerUnMessage(canal: CanalNotification.email);
-      await monter(tester);
+    testWidgets(
+      'SANS relais SMTP configuré, AUCUN bouton « Envoyer » n’existe',
+      (tester) async {
+        // ⚠ LE cas du module. La vue rend ce bouton pour le canal e-mail
+        // configuré ; ici aucune configuration SMTP n'existe, et un bouton qui
+        // échoue toujours est la version cliquable de l'entrée inerte que
+        // l'Article 3.3 refuse. Avec un relais configuré, le bouton existe :
+        // voir `ecran_notifications_envoi_email_test.dart`.
+        await semerUnMessage(canal: CanalNotification.email);
+        await monter(tester);
 
-      expect(find.widgetWithText(OutlinedButton, 'Envoyer'), findsNothing);
-      expect(find.widgetWithText(FilledButton, 'Envoyer'), findsNothing);
-      expect(find.widgetWithText(TextButton, 'Envoyer'), findsNothing);
-      expect(find.widgetWithText(InkWell, 'Envoyer'), findsNothing);
+        expect(find.widgetWithText(OutlinedButton, 'Envoyer'), findsNothing);
+        expect(find.widgetWithText(FilledButton, 'Envoyer'), findsNothing);
+        expect(find.widgetWithText(TextButton, 'Envoyer'), findsNothing);
+        expect(find.widgetWithText(InkWell, 'Envoyer'), findsNothing);
 
-      // Le panneau « Ce que la maquette prévoit et qui n'est pas rendu » a été
-      // retiré le 09/10/2026 (la vue n'en porte pas) : le mot n'apparaît plus
-      // nulle part. La raison de l'absence vit dans le commentaire de l'écran
-      // et, sur la ligne e-mail, dans la pastille qui remplace le bouton.
-      expect(find.text('Envoyer'), findsNothing);
-    });
+        // Le panneau « Ce que la maquette prévoit et qui n'est pas rendu » a été
+        // retiré le 09/10/2026 (la vue n'en porte pas) : le mot n'apparaît plus
+        // nulle part. La raison de l'absence vit dans le commentaire de l'écran
+        // et, sur la ligne e-mail, dans la pastille qui remplace le bouton.
+        expect(find.text('Envoyer'), findsNothing);
+      },
+    );
 
     testWidgets(
       'un message e-mail porte « non envoyé » et la RAISON du relais',

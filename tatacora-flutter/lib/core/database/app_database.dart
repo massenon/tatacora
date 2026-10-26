@@ -12,6 +12,7 @@ import '../config/environnement.dart';
 import 'tables/achats_tables.dart';
 import 'tables/alertes_vues_tables.dart';
 import 'tables/bar_tables.dart';
+import 'tables/boite_envoi_emails_tables.dart';
 import 'tables/caisse_tables.dart';
 import 'auteur_ecriture.dart';
 import 'declencheurs_comptables.dart';
@@ -231,6 +232,10 @@ part 'app_database.g.dart';
     // Seul auteur : `HistoriquePrixCarteDao` (voir
     // `tables/historique_prix_carte_tables.dart`).
     HistoriquePrixCarteLocal,
+    // v39 (26/10/2026) : la boîte d'envoi des e-mails du poste (notifications
+    // M12). Seul auteur : `BoiteEnvoiEmailsDao` (voir
+    // `tables/boite_envoi_emails_tables.dart`).
+    BoiteEnvoiEmailsLocal,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -430,8 +435,14 @@ class AppDatabase extends _$AppDatabase {
   /// `paniers_local.numero_vente` et `.auteur_login` (le numéro `V-` du serveur
   /// et l'auteur d'une vente). Aucune valeur n'est fabriquée pour l'existant :
   /// une ligne d'avant la v38 garde « — ».
+  /// v39 (26/10/2026) — L'ENVOI RÉEL D'E-MAILS (décision du PO) : une table
+  /// neuve (`boite_envoi_emails_local`, la boîte d'envoi des e-mails de
+  /// notification : statuts, tentatives, repli, cause d'échec, clé
+  /// d'idempotence), aucune colonne ajoutée. Elle apparaît VIDE : aucune ligne
+  /// n'est fabriquée pour les messages d'avant (leur adresse n'a jamais été
+  /// lue ; « Envoyer » la résout à la demande).
   @override
-  int get schemaVersion => 38;
+  int get schemaVersion => 39;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1244,6 +1255,19 @@ class AppDatabase extends _$AppDatabase {
         await customStatement(
           "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
         );
+      }
+      if (from < 39) {
+        // LA BOÎTE D'ENVOI DES E-MAILS (26/10/2026). Une table NEUVE, sans clé
+        // étrangère ; aucune ligne fabriquée. Ajout CONDITIONNEL (piège 3) :
+        // une fixture ramenée en arrière depuis la définition courante peut la
+        // porter déjà.
+        final existe = await m.database
+            .customSelect(
+              "SELECT name FROM sqlite_master WHERE type = 'table' "
+              "AND name = 'boite_envoi_emails_local'",
+            )
+            .get();
+        if (existe.isEmpty) await m.createTable(boiteEnvoiEmailsLocal);
       }
       if (from < 33) {
         // LES PLANNINGS ET LES CONGÉS (21/10/2026). Deux tables NEUVES, sans

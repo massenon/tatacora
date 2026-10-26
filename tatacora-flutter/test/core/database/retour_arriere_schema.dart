@@ -118,7 +118,14 @@ const tablesAjouteesEnV37 = <String>{'journal_reception_local'};
 /// La table que la v38 AJOUTE (historique des prix de la carte, 26/10/2026).
 const tablesAjouteesEnV38 = <String>{'historique_prix_carte_local'};
 
+/// La table que la v39 AJOUTE (boîte d'envoi des e-mails, 26/10/2026).
+const tablesAjouteesEnV39 = <String>{'boite_envoi_emails_local'};
+
 const _ajoutsParVersion = <int, List<String>>{
+  // La v39 (26/10/2026, l'envoi reel d'e-mails) ajoute UNE table neuve, sans
+  // cle etrangere : retour arriere symetrique.
+  39: <String>['DROP TABLE boite_envoi_emails_local'],
+
   // La v38 (26/10/2026, « le poste fait ce que le web fait ») ajoute UNE table
   // neuve et SIX colonnes nullables, ni indexees ni referencees : retour
   // arriere symetrique (les colonnes d'une table avant la table elle-meme n'a

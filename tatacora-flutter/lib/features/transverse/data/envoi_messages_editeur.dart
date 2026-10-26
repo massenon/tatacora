@@ -170,6 +170,78 @@ Future<void> _transportMailer(
   ).timeout(delai + const Duration(seconds: 5));
 }
 
+/// La phrase d'un échec SMTP, en clair — partagée par tous les envois du poste
+/// (message à l'éditeur, e-mail de test, e-mails de notification).
+String raisonEchecSmtp(Object erreur) => switch (erreur) {
+  SmtpClientAuthenticationException() => TextesEnvoiEditeur.identifiantsRefuses,
+  TimeoutException() => TextesEnvoiEditeur.delaiDepasse,
+  SocketException(:final message) => TextesEnvoiEditeur.injoignable(message),
+  MailerException(:final message) => TextesEnvoiEditeur.refuse(message),
+  _ => TextesEnvoiEditeur.refuse(erreur.toString()),
+};
+
+/// Un texte d'erreur ne doit jamais emporter le mot de passe SMTP.
+String expurgerSecret(String texte, String secret) =>
+    secret.isEmpty ? texte : texte.replaceAll(secret, '***');
+
+/// Le transport par défaut : `mailer.send`, borné par [delai].
+Future<void> transportSmtpParDefaut(
+  Message message,
+  SmtpServer serveur,
+  Duration delai,
+) => _transportMailer(message, serveur, delai);
+
+/// Lit, À CHAQUE ENVOI, la configuration SMTP de ce poste : les quatre clés
+/// de l'onglet « Email (SMTP) » de Paramètres et le mot de passe de
+/// `poste.json` (jamais la base). Rend la [ConfigurationSmtp] complète, ou la
+/// RAISON de son absence (une chaîne).
+///
+/// L'envoi SMTP n'est PAS de la synchronisation : l'interrupteur
+/// « Synchronisation activée » ne le coupe pas (le courriel part directement
+/// du poste au relais SMTP, sans passer par le serveur TATACORA).
+class LecteurSmtp {
+  LecteurSmtp({
+    required this._parametres,
+    required this._configuration,
+    bool? envoiAutorise,
+  }) : _envoiAutorise =
+           envoiAutorise ?? !Environnement.actuel.estHorsLigneIntegral;
+
+  final ParametresDao _parametres;
+  final LecteurConfigurationPoste _configuration;
+  final bool _envoiAutorise;
+
+  Future<Object> lire() async {
+    if (!_envoiAutorise) return TextesEnvoiEditeur.demo;
+    final valeurs = await _parametres.lireTout();
+    final hote = valeurs[ClesSmtp.hote]?.trim() ?? '';
+    if (hote.isEmpty) return TextesEnvoiEditeur.hoteAbsent;
+    final utilisateur = valeurs[ClesSmtp.utilisateur]?.trim() ?? '';
+    if (utilisateur.isEmpty) return TextesEnvoiEditeur.utilisateurAbsent;
+
+    final lecture = await _configuration.motDePasseSmtp();
+    final String motDePasse;
+    switch (lecture) {
+      case MotDePasseAbsent(:final raison):
+        return raison;
+      case MotDePasseLu(:final valeur):
+        motDePasse = valeur;
+    }
+
+    final securite = valeurs[ClesSmtp.securite]?.trim().toLowerCase() ?? 'tls';
+    final ssl = securite == 'ssl';
+    final port = int.tryParse(valeurs[ClesSmtp.port]?.trim() ?? '');
+    return ConfigurationSmtp(
+      hote: hote,
+      port: port ?? (ssl ? 465 : 587),
+      ssl: ssl,
+      clairAutorise: securite == 'aucune',
+      utilisateur: utilisateur,
+      motDePasse: motDePasse,
+    );
+  }
+}
+
 /// L'unique expéditeur des messages à l'éditeur.
 class ServiceMessagesEditeur {
   ServiceMessagesEditeur({
@@ -187,7 +259,13 @@ class ServiceMessagesEditeur {
        _transport = transport ?? _transportMailer,
        _maintenant = maintenant ?? DateTime.now,
        _envoiAutorise =
-           envoiAutorise ?? !Environnement.actuel.estHorsLigneIntegral;
+           envoiAutorise ?? !Environnement.actuel.estHorsLigneIntegral {
+    _lecteurSmtp = LecteurSmtp(
+      parametres: _parametres,
+      configuration: _configuration,
+      envoiAutorise: _envoiAutorise,
+    );
+  }
 
   final MessagesEditeurDao _dao;
 
@@ -201,6 +279,13 @@ class ServiceMessagesEditeur {
   /// Faux en démonstration (`main_demo.dart`) : ce flavor n'émet aucun appel
   /// réseau, le message reste en file avec sa raison.
   final bool _envoiAutorise;
+
+  late final LecteurSmtp _lecteurSmtp;
+
+  /// Le lecteur de la configuration SMTP de CE poste — partagé avec la boîte
+  /// d'envoi des e-mails de notification (`ServiceBoiteEnvoiEmails`) : une
+  /// seule lecture, une seule formule.
+  LecteurSmtp get lecteurSmtp => _lecteurSmtp;
 
   final Set<String> _enVol = {};
   bool _relanceEnCours = false;
@@ -361,48 +446,13 @@ class ServiceMessagesEditeur {
   }
 
   /// La configuration complète, ou la RAISON de son absence (une chaîne).
-  Future<Object> _lireConfiguration() async {
-    if (!_envoiAutorise) return TextesEnvoiEditeur.demo;
-    final valeurs = await _parametres.lireTout();
-    final hote = valeurs[ClesSmtp.hote]?.trim() ?? '';
-    if (hote.isEmpty) return TextesEnvoiEditeur.hoteAbsent;
-    final utilisateur = valeurs[ClesSmtp.utilisateur]?.trim() ?? '';
-    if (utilisateur.isEmpty) return TextesEnvoiEditeur.utilisateurAbsent;
+  Future<Object> _lireConfiguration() => _lecteurSmtp.lire();
 
-    final lecture = await _configuration.motDePasseSmtp();
-    final String motDePasse;
-    switch (lecture) {
-      case MotDePasseAbsent(:final raison):
-        return raison;
-      case MotDePasseLu(:final valeur):
-        motDePasse = valeur;
-    }
-
-    final securite = valeurs[ClesSmtp.securite]?.trim().toLowerCase() ?? 'tls';
-    final ssl = securite == 'ssl';
-    final port = int.tryParse(valeurs[ClesSmtp.port]?.trim() ?? '');
-    return ConfigurationSmtp(
-      hote: hote,
-      port: port ?? (ssl ? 465 : 587),
-      ssl: ssl,
-      clairAutorise: securite == 'aucune',
-      utilisateur: utilisateur,
-      motDePasse: motDePasse,
-    );
-  }
-
-  static String _raison(Object erreur) => switch (erreur) {
-    SmtpClientAuthenticationException() =>
-      TextesEnvoiEditeur.identifiantsRefuses,
-    TimeoutException() => TextesEnvoiEditeur.delaiDepasse,
-    SocketException(:final message) => TextesEnvoiEditeur.injoignable(message),
-    MailerException(:final message) => TextesEnvoiEditeur.refuse(message),
-    _ => TextesEnvoiEditeur.refuse(erreur.toString()),
-  };
+  static String _raison(Object erreur) => raisonEchecSmtp(erreur);
 
   /// Un message d'erreur ne doit jamais emporter le secret en base.
   static String _expurger(String texte, String secret) =>
-      secret.isEmpty ? texte : texte.replaceAll(secret, '***');
+      expurgerSecret(texte, secret);
 
   static String? _nomDuPoste() {
     try {

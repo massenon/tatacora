@@ -561,6 +561,18 @@ class _LigneEnvoi extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (envoi.statut != StatutMessageEditeur.envoye &&
+                    envoi.derniereErreur != null) ...[
+                  const SizedBox(height: AppSpacing.unit),
+                  Text(
+                    TextesContact.derniereErreur(envoi.derniereErreur!),
+                    key: Key('contact-envoi-erreur-${envoi.id}'),
+                    style: styleTransverse(
+                      TaillesContenu.t12,
+                      couleur: AppColors.erreur,
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

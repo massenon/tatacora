@@ -1,4 +1,13 @@
-/// M12 Notifications — le logiciel TRACE un message, il ne l'ENVOIE pas.
+/// M12 Notifications — le logiciel TRACE un message ; l'ENVOI par e-mail est
+/// RÉEL depuis le 26/10/2026 (schéma v39).
+///
+/// ⚠ MISE À JOUR du 26/10/2026 (décision du PO : « l'envoi réel d'e-mails DOIT
+/// ÊTRE IMPLÉMENTÉ EN POSTE ET WEB »). Le canal e-mail part par SMTP, depuis la
+/// boîte d'envoi (`boite_envoi_emails_tables.dart`) ; `envoye` s'écrit
+/// UNIQUEMENT dans la transaction qui consigne l'accusé du relais SMTP
+/// (`NotificationsDao.marquerEnvoyeParLeSysteme`). WhatsApp, Android et SMS ne
+/// partent toujours pas (aucun canal contracté). Les paragraphes ci-dessous
+/// décrivent l'état d'AVANT et restent vrais pour ces trois canaux.
 ///
 /// ══════════════════════════════════════════════════════════════════════════
 /// ⚠ LIRE AVANT TOUTE REPRISE DE CE FICHIER
@@ -107,9 +116,10 @@ class ModelesNotificationLocal extends Table {
 ///
 /// Les trois premieres sont atteignables sur ce poste : `en_attente` a la
 /// composition, `traite_manuellement` et `abandonne` par un geste de l'ecran.
-/// La quatrieme, `envoye`, ne l'est PAS — aucun transport n'existe ici, et
-/// aucun chemin de ce depot ne l'ecrit (un test l'exige et le prouve par
-/// enumeration des gestes). Elle est conservee parce qu'elle existe au registre
+/// La quatrieme, `envoye`, n'est atteignable par AUCUN geste de l'ecran : seul
+/// l'accusé du relais SMTP l'ecrit (canal e-mail, depuis le 26/10/2026, par
+/// `NotificationsDao.marquerEnvoyeParLeSysteme`, appele par
+/// `ServiceBoiteEnvoiEmails` — un test enumere les gestes). Elle est conservee parce qu'elle existe au registre
 /// du serveur et parce que le compteur « Reellement envoyes » se derive d'elle :
 /// la retirer forcerait a poser un `0` en dur, soit exactement PA-61.
 class MessagesNotificationLocal extends Table {

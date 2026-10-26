@@ -7,6 +7,8 @@ import 'core/theme/app_theme.dart';
 import 'features/comptabilite/presentation/providers_comptabilite.dart';
 import 'features/synchronisation/presentation/providers_synchronisation.dart';
 import 'features/transverse/presentation/providers_contact_editeur.dart';
+import 'features/notifications/presentation/providers_notifications.dart'
+    show relanceBoiteEmailsProvider;
 
 /// Point d'entrée — flavors `dev`, `recette`, `production`.
 ///
@@ -52,6 +54,10 @@ class _EtatApplication extends ConsumerState<ApplicationTatacora> {
       // du poste (avec la synchronisation, ci-dessous) ; `main_demo.dart` ne
       // la démarre pas.
       ref.read(relanceMessagesEditeurProvider);
+      // La relance des e-mails de notification en boîte d'envoi (schéma v39,
+      // 26/10/2026) : même rythme, même tentative-fait-foi, SMTP direct (pas
+      // de la synchronisation : l'interrupteur ne la coupe pas).
+      ref.read(relanceBoiteEmailsProvider);
       // Lot F1 : la file d'envoi libère les baux d'un processus tué.
       ref.read(liberationBauxSyncProvider);
       // Lot F2a : la synchronisation en tâche de fond — une première fois

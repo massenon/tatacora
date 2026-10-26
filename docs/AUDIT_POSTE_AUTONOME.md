@@ -37,9 +37,16 @@ corrigé, et ce qui reste impossible hors ligne avec sa raison.
   aucun appel, la file pleine et intacte ; réactivée, tout part dans l'ordre et
   la descente a lieu. Mutation éprouvée (retirer la garde du moteur fait
   rougir). `onglet_synchronisation_test.dart` prouve la bascule par l'écran.
-- **Ce que l'interrupteur ne coupe pas** : l'envoi SMTP (Contact éditeur, e-mail
-  de test). Ce n'est pas la synchronisation ; le message est écrit d'abord, son
-  envoi échoue gracieusement (il reste en file avec sa raison) sans bloquer.
+- **Ce que l'interrupteur ne coupe pas : l'envoi SMTP** (e-mails de
+  notification M12, Contact éditeur, e-mail de test). Ce n'est pas de la
+  synchronisation : le poste parle DIRECTEMENT au relais SMTP configuré dans
+  Paramètres → Email (le courriel ne passe pas par le serveur TATACORA).
+  Synchronisation désactivée, un e-mail part donc quand même dès qu'un réseau
+  existe ; hors réseau il reste dans la boîte d'envoi locale avec sa raison
+  (§4 point 2). Comportement voulu, testé
+  (`boite_envoi_emails_test.dart`, groupe « L'interrupteur … ne coupe PAS
+  l'e-mail » : `poste.json` porte `synchronisation_activee: false`, l'e-mail
+  part).
 
 ## 2. La source des états comptables
 
@@ -93,7 +100,7 @@ Légende : **O** fonctionne sans serveur ; **N→O** ne fonctionnait pas, corrig
 | M11 | **Série mensuelle** (graphique) | CA encaissé et dépenses sur N mois | N→O (« non disponible ») | `serieMensuelleLocale`, confrontée à `serieMensuelle` |
 | M11 | **Pilotage consolidé** : Résultat net, alertes comptables | M10 | N→O (« Non consulté ») | alimentés par les mêmes états que le hub |
 | M12 Notifications | Modèles, déclencheurs, journal | tout | O | — |
-| M12 | Envoi réel d'un e-mail de notification | transport SMTP | **N** | aucun envoi n'est tenté ni bloquant (§4) |
+| M12 | **Envoi réel d'un e-mail de notification** | SMTP direct, boîte d'envoi locale (v39) | N→O (réseau requis pour PARTIR) | écrit d'abord, envoyé ensuite, statuts/tentatives/repli/cause, « Envoyer » / « Renvoyer », jamais « envoyé » avant l'accusé SMTP (§4 point 2) |
 | M13 RH | Employés, paie, congés et plannings | tout | O | — |
 | M14 États | 11 états sur 12 | aperçus | O | — |
 | M14 | **Balance générale** | aperçu | N→O (« listée, refusée ») | `apercuBalance` (écritures validées, à-nouveaux provisoires compris) |
@@ -102,7 +109,7 @@ Légende : **O** fonctionne sans serveur ; **N→O** ne fonctionnait pas, corrig
 | Transverse | Import & Export : « Restaurer » (registre des éléments archivés), purge | registre transverse | **N** | reste (§4) |
 | Transverse | Journal d'audit | lecture de la file d'envoi | N→O | colonnes « Utilisateur » et « Poste » conservées par la file (v38) ; « — » seulement pour les entrées d'avant la v38 (§4 point 7) |
 | Transverse | Mon profil, Rôles et permissions, Comptes utilisateurs, Aide, Paramètres | tout (mot de passe SMTP dans `poste.json`) | O | — |
-| Transverse | Contact éditeur, e-mail de test | SMTP | **N** (réseau) | message écrit d'abord, envoi qui échoue gracieusement, relance |
+| Transverse | Contact éditeur, e-mail de test | SMTP | O (réseau requis pour PARTIR) | boîte d'envoi v25 + relance ; la cause du dernier échec est désormais DITE en ligne sous l'envoi (comme la PWA) |
 | Transverse | Synchronisation, Postes & Appairage, contrôle de cohérence | exigent le serveur | **N** par nature | désactivée : les écrans le DISENT, aucune requête |
 
 ## 4. Ce qui reste impossible hors ligne, et pourquoi
@@ -110,9 +117,52 @@ Légende : **O** fonctionne sans serveur ; **N→O** ne fonctionnait pas, corrig
 1. **Certification MECeF et numéro officiel des factures** — un service fiscal
    externe et la séquence continue du serveur. Hors ligne le poste émet une
    facture provisoire, que le serveur régularise à la synchronisation.
-2. **Envoi réel d'e-mails** (notifications, contact éditeur) — un relais SMTP
-   exige un réseau. Le message est écrit, la raison est dite, il part à la
-   relance ; rien ne bloque.
+2. **Envoi réel d'e-mails** — IMPLÉMENTÉ (décision du PO du 26/10/2026 :
+   « l'envoi réel d'e-mails DOIT ÊTRE IMPLÉMENTÉ EN POSTE ET WEB »). Reste vrai :
+   un relais SMTP exige un réseau pour que le courriel PARTE ; le message,
+   lui, n'attend jamais le réseau pour être écrit.
+   - **Web** (`EnvoiEmailNotificationService`, `ConfigurationMailService`) :
+     le mot de passe SMTP est chiffré en base (`secrets_configuration`, 19/10).
+     Un e-mail de notification composé avec une adresse est mis en file
+     d'envoi (`EnvoyerNotificationEmailJob`, unique par message, 3 essais à
+     1 puis 5 min, `queue:work` planifié chaque minute) ; la détection tourne
+     chaque heure (`notifications:detecter`, idempotente) et
+     `notifications:relancer-emails` (15 min) reprend les échecs (15 min par
+     tentative, 5 tentatives automatiques). Colonnes ajoutées à
+     `notifications_composees` et `messages_editeur` : `tentatives`,
+     `derniere_erreur` (cause lisible, mot de passe expurgé),
+     `derniere_tentative_le`, `envoye_le`. « Envoyer » devient « Renvoyer » après
+     une tentative ; le hub dit « Tentatives d'envoi : n · Dernière erreur : … ·
+     Relances automatiques épuisées ». Jamais deux e-mails : verrou par message
+     + relecture du statut. « Contactez l'éditeur » passe aussi par un job
+     (`EnvoyerMessageEditeurJob`) et note tentatives et cause.
+   - **Poste** (schéma **v39**, table `boite_envoi_emails_local`,
+     `BoiteEnvoiEmailsDao` écrivain unique, `ServiceBoiteEnvoiEmails`
+     expéditeur unique, lib `mailer` déjà au `pubspec.lock`, transport
+     injectable) : à la détection, un message M12 de canal e-mail dont
+     l'adresse du client est lue est mis en boîte AVEC son message (même
+     transaction) ; la relance (au démarrage puis toutes les 5 min, repli ×2 jusqu'à 6 h, 30 tentatives) et « Envoyer »
+     / « Renvoyer » l'envoient par SMTP. Statuts `en_attente` / `envoye` /
+     `echec` / `annule` (message transmis à la main ou abandonné : il ne part
+     jamais). Clé d'idempotence unique `notification:<id du message>`. Le
+     message de notification ne passe « Envoyé par le système » (donc
+     « Réellement envoyés » ≥ 1) que dans la transaction qui écrit `envoye`,
+     après l'accusé SMTP. Le mot de passe reste dans `poste.json`, jamais en
+     base ni dans une cause d'échec. Le canal e-mail est « branché » quand la
+     configuration SMTP du poste est complète (dérivé, relu).
+   - **Preuves** : `boite_envoi_emails_test.dart` (dont un VRAI serveur SMTP sur
+     socket locale : succès, mauvais mot de passe, refus 554, réseau absent
+     puis retour du serveur), `notifications_envoi_email_test.dart`,
+     `ecran_notifications_envoi_email_test.dart`,
+     `migration_v39_boite_envoi_emails_test.dart` (fichier réel), côté web
+     `EnvoiEmailNotificationTest` et `EnvoiMessageEditeurTest`.
+   - **Limites assumées** : seul le canal e-mail part (WhatsApp, Android, SMS :
+     aucun contrat, « à transmettre à la main ») ; un message composé AVANT la
+     v39 n'a jamais eu son adresse lue : elle se lit au clic « Envoyer » ou à
+     la détection suivante (rattrapage), jamais affirmée ; seuls les
+     déclencheurs détectés sur le poste (séjour demain, départ du jour) ont une
+     adresse ; l'e-mail du poste est expédié sous le nom « LogiRestock -
+     TATACORA AFRIQUE » avec l'utilisateur SMTP comme expéditeur.
 3. **Clôture annuelle SYSCOHADA** (pièces de clôture et d'à-nouveaux, archive
    DGI, réouverture) — c'est un acte du comptable sur le registre UNIQUE : le
    serveur ne reçoit aucune écriture du poste (il passe sa propre pièce pour
@@ -171,3 +221,10 @@ colonnes NULLABLES (`contrats_location_local.statut`,
 conditionnelle (`PRAGMA table_info`), le curseur de descente est oublié pour que
 l'historique et les statuts redescendent ; prouvée sur fichier réel depuis
 plusieurs versions (`migration_v38_poste_comme_le_web_test.dart`).
+
+Version **39** (75 tables, mission « l'envoi réel d'e-mails », 26/10/2026) : UNE
+table neuve, `boite_envoi_emails_local`, aucune colonne ajoutée, migration
+additive CONDITIONNELLE (`from < 39`), fixture `_ajoutsParVersion[39]`, test sur
+fichier réel (`migration_v39_boite_envoi_emails_test.dart`, depuis les versions
+38, 26 et 10). La table apparaît vide : aucune ligne n'est fabriquée pour les
+messages d'avant.
