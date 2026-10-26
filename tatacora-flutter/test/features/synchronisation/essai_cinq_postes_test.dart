@@ -243,7 +243,26 @@ void main() {
         reason: p.nom,
       );
       expect(m.tables, containsAll(['ventes', 'depenses', 'mouvements_stock']));
-      expect(p.motifs, isEmpty, reason: '${p.nom} : refus de descente');
+      // Un REFUS de descente est une faute. Une ATTENTE de dépendance (une vente
+      // dont la session de caisse arrive dans une page que la coupure a retardée)
+      // est transitoire par construction : elle est reprise à la descente
+      // suivante — ce que prouve l'absence d'élément gardé ci-dessous.
+      expect(
+        p.motifs.where((m) => !m.startsWith('attente')),
+        isEmpty,
+        reason: '${p.nom} : refus de descente',
+      );
+      final gardes = await p.db
+          .customSelect(
+            "SELECT cle FROM etat_synchronisation_local "
+            "WHERE cle LIKE 'element_differe:%'",
+          )
+          .get();
+      expect(
+        gardes,
+        isEmpty,
+        reason: '${p.nom} : un élément est resté en attente de dépendance',
+      );
       bilans.add('${p.nom} : ${ops.length} op., ${refus.length} refus');
     }
 
