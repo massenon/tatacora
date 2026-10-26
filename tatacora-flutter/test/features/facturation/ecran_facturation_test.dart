@@ -432,9 +432,17 @@ void main() {
       expect(registre.single.montantTotal, 1000);
       expect(registre.single.panierId, (await depotPanier.paniers()).single.id);
 
-      // Le ticket est présenté dans la foulée : c'est ce que le client attend
-      // au comptoir, et c'est le seul livrable physique du logiciel.
-      expect(find.byKey(const Key('facturation-ticket')), findsOneWidget);
+      // « Vente encaissée » s'ouvre dans la foulée (21/10/2026, vue
+      // `comptant.ticket_titre`) et offre le ticket 80 mm ET la facture A4 de
+      // la pièce émise : c'est ce que le client attend au comptoir. (Le ticket
+      // de facture à l'écran n'est plus présenté d'office ; il reste celui du
+      // bouton « Émettre la facture » d'un panier clôturé sans pièce.)
+      expect(find.byKey(const Key('modale-vente-encaissee')), findsOneWidget);
+      expect(
+        find.byKey(const Key('vente-encaissee-ticket-80')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('vente-encaissee-facture')), findsOneWidget);
     });
 
     testWidgets(

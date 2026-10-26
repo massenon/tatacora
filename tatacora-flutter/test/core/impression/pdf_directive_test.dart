@@ -138,6 +138,8 @@ void main() {
       'facturation/impression/facture_a4.dart',
       'facturation/impression/ticket_facture.dart',
       'hebergement/impression/confirmation_reservation.dart',
+      // Le ticket de la vente encaissée (80 mm, remis au client), 26/10/2026.
+      'ventes/impression/ticket_vente.dart',
     };
     // Tableur seulement : aucun PDF composé. Vide depuis le Lot J1 ; le
     // registre reste, pour qu'un futur export CSV seul s'y classe.

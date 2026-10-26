@@ -271,6 +271,12 @@ void main() {
     // Départ ramené au jour de l'arrivée.
     await tester.tap(find.byKey(const Key('rapide-depart')));
     await tester.pumpAndSettle();
+    // Le sélecteur s'ouvre sur le mois du départ : quand l'arrivée tombe le mois
+    // d'avant (fin de mois), on y revient avant de choisir le jour.
+    if (jour(5).month != jour(6).month) {
+      await tester.tap(find.byIcon(Icons.chevron_left));
+      await tester.pumpAndSettle();
+    }
     await tester.tap(find.text('${jour(5).day}').last);
     await tester.tap(find.text('OK'));
     await tester.pumpAndSettle();

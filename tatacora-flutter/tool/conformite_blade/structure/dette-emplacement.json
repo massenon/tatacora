@@ -2,7 +2,7 @@
   "_lisez-moi": "PRODUIT par FIGER_EMPLACEMENT=1 flutter test test/core/qualite/emplacement_blade_test.dart. Éléments de la vue bien placés, par écran. Le test échoue sur un recul et sur un progrès non resserré.",
   "crm/clients-creances": {
     "blade": 79,
-    "ordonnes": 59,
+    "ordonnes": 67,
     "ongletsNonCliquables": 0
   },
   "hebergement/hebergement": {
@@ -42,7 +42,7 @@
   },
   "notifications/hub": {
     "blade": 136,
-    "ordonnes": 106,
+    "ordonnes": 108,
     "ongletsNonCliquables": 0
   },
   "rh/paie": {
@@ -87,12 +87,12 @@
   },
   "stocks/inventaires": {
     "blade": 51,
-    "ordonnes": 43,
+    "ordonnes": 49,
     "ongletsNonCliquables": 0
   },
   "restaurant/restauration": {
     "blade": 54,
-    "ordonnes": 37,
+    "ordonnes": 38,
     "ongletsNonCliquables": 0
   },
   "bar/carte": {
@@ -112,7 +112,7 @@
   },
   "transverse/parametres": {
     "blade": 150,
-    "ordonnes": 91,
+    "ordonnes": 111,
     "ongletsNonCliquables": 1
   },
   "livewire/accueil": {
@@ -137,7 +137,7 @@
   },
   "transverse/import-export": {
     "blade": 64,
-    "ordonnes": 37,
+    "ordonnes": 38,
     "ongletsNonCliquables": 0
   },
   "transverse/journal-audit": {
@@ -156,7 +156,7 @@
     "ongletsNonCliquables": 0
   },
   "transverse/synchronisation-postes": {
-    "blade": 13,
+    "blade": 16,
     "ordonnes": 13,
     "ongletsNonCliquables": 0
   },

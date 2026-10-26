@@ -102,7 +102,7 @@ class OngletCanaux extends ConsumerWidget {
       barrierColor: AppColors.voileModale,
       builder: (_) => _ModaleCanal(
         canal: canal,
-        enregistrer: (nom) async {
+        soumettre: (nom) async {
           try {
             if (canal == null) {
               await dao.ajouter(nom);
@@ -461,13 +461,13 @@ class OngletCanaux extends ConsumerWidget {
 /// champ, « Annuler », « Enregistrer ». Le refus du service (nom vide, déjà
 /// pris) s'affiche SOUS le champ et la fenêtre reste ouverte.
 class _ModaleCanal extends StatefulWidget {
-  const _ModaleCanal({required this.enregistrer, this.canal});
+  const _ModaleCanal({required this.soumettre, this.canal});
 
   /// `null` : création.
   final CanalReservation? canal;
 
   /// Rend le refus à afficher, ou `null` quand le geste a réussi.
-  final Future<String?> Function(String nom) enregistrer;
+  final Future<String?> Function(String nom) soumettre;
 
   @override
   State<_ModaleCanal> createState() => _ModaleCanalState();
@@ -487,7 +487,7 @@ class _ModaleCanalState extends State<_ModaleCanal> {
   Future<void> _valider() async {
     if (_enCours) return;
     setState(() => _enCours = true);
-    final refus = await widget.enregistrer(_nom.text);
+    final refus = await widget.soumettre(_nom.text);
     if (!mounted) return;
     if (refus == null) {
       Navigator.of(context).pop(true);

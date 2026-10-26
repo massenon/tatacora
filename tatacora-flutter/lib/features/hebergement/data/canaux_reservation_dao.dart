@@ -43,7 +43,7 @@ class CanauxReservationDao {
 
   OperationsSyncDao get _file => OperationsSyncDao(_db);
 
-  $CanauxReservationLocalTable get _t => _db.canauxReservationLocal;
+  $CanauxReservationLocalTable get _table => _db.canauxReservationLocal;
 
   /// L'identifiant d'un canal du jeu initial : stable d'un poste à l'autre.
   static String idInitial(CanalReservation canal) => const Uuid().v5(
@@ -126,7 +126,7 @@ class CanauxReservationDao {
   }
 
   Future<List<CanalReservationLigne>> _lignes() =>
-      (_db.select(_t)..orderBy([
+      (_db.select(_table)..orderBy([
             (c) => OrderingTerm.asc(c.ordre),
             (c) => OrderingTerm.asc(c.nom),
           ]))
@@ -148,7 +148,7 @@ class CanauxReservationDao {
       var rang = 0;
       for (final c in CanalReservation.jeuInitial) {
         await _db
-            .into(_t)
+            .into(_table)
             .insert(
               CanauxReservationLocalCompanion.insert(
                 id: idInitial(c),
@@ -218,7 +218,7 @@ class CanauxReservationDao {
       (m, c) => c.ordre > m ? c.ordre : m,
     );
     await _db
-        .into(_t)
+        .into(_table)
         .insert(
           CanauxReservationLocalCompanion.insert(
             id: id,
@@ -244,7 +244,7 @@ class CanauxReservationDao {
         final net = _normaliser(nom);
         await _refuserSiDoublon(net, sauf: id);
         if (net == canal.nom) return _versCanal(canal);
-        await (_db.update(_t)..where((c) => c.id.equals(id))).write(
+        await (_db.update(_table)..where((c) => c.id.equals(id))).write(
           CanauxReservationLocalCompanion(nom: Value(net)),
         );
         await _file.enfiler(
@@ -264,7 +264,7 @@ class CanauxReservationDao {
   Future<CanalReservation> basculer(String id) => _db.transaction(() async {
     final canal = await _parId(id);
     final actif = !canal.actif;
-    await (_db.update(_t)..where((c) => c.id.equals(id))).write(
+    await (_db.update(_table)..where((c) => c.id.equals(id))).write(
       CanauxReservationLocalCompanion(actif: Value(actif)),
     );
     await _file.enfiler(
@@ -278,7 +278,7 @@ class CanauxReservationDao {
 
   Future<CanalReservationLigne> _parId(String id) async {
     final c = await (_db.select(
-      _t,
+      _table,
     )..where((x) => x.id.equals(id))).getSingleOrNull();
     if (c == null) throw const RefusCanal(MessagesCanaux.introuvable);
     return c;
@@ -296,10 +296,10 @@ class CanauxReservationDao {
     required bool actif,
   }) async {
     final existant = await (_db.select(
-      _t,
+      _table,
     )..where((c) => c.id.equals(id))).getSingleOrNull();
     if (existant != null) {
-      await (_db.update(_t)..where((c) => c.id.equals(id))).write(
+      await (_db.update(_table)..where((c) => c.id.equals(id))).write(
         CanauxReservationLocalCompanion(nom: Value(nom), actif: Value(actif)),
       );
       return;
@@ -309,7 +309,7 @@ class CanauxReservationDao {
       (m, c) => c.ordre > m ? c.ordre : m,
     );
     await _db
-        .into(_t)
+        .into(_table)
         .insert(
           CanauxReservationLocalCompanion.insert(
             id: id,
