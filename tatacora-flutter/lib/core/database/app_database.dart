@@ -219,6 +219,7 @@ part 'app_database.g.dart';
     RelancesClientsLocal,
     InventairesLocal,
     LignesInventaireLocal,
+    CanauxReservationLocal,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -1121,6 +1122,7 @@ class AppDatabase extends _$AppDatabase {
         await m.createTable(relancesClientsLocal);
         await m.createTable(inventairesLocal);
         await m.createTable(lignesInventaireLocal);
+        await m.createTable(canauxReservationLocal);
         await customStatement(
           "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
         );

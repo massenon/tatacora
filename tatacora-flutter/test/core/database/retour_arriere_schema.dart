@@ -109,16 +109,18 @@ const tablesAjouteesEnV35 = <String>{
   'relances_clients_local',
   'inventaires_local',
   'lignes_inventaire_local',
+  'canaux_reservation_local',
 };
 
 const _ajoutsParVersion = <int, List<String>>{
-  // La v35 ajoute QUATRE tables neuves et CINQ colonnes (sans index ni cle
+  // La v35 ajoute CINQ tables neuves et CINQ colonnes (sans index ni cle
   // etrangere) : retour arriere symetrique.
   35: <String>[
     'DROP TABLE immobilisations_local',
     'DROP TABLE relances_clients_local',
     'DROP TABLE inventaires_local',
     'DROP TABLE lignes_inventaire_local',
+    'DROP TABLE canaux_reservation_local',
     'ALTER TABLE articles_local DROP COLUMN actif',
     'ALTER TABLE clients_local DROP COLUMN actif',
     'ALTER TABLE recettes_local DROP COLUMN composition_provisoire',
@@ -300,7 +302,7 @@ const _ajoutsParVersion = <int, List<String>>{
     'DROP TABLE centres_cout_local',
   ],
 
-  // La v14 (M4 Restaurant, source locale) ajoute QUATRE tables neuves et ne
+  // La v14 (M4 Restaurant, source locale) ajoute CINQ tables neuves et ne
   // touche rien d'existant : son retour arriere est symetrique. L'ordre est
   // celui de l'annulation, l'enfant avant le parent (cles etrangeres actives) :
   // la composition et les plats avant les fiches et les menus. Les lignes

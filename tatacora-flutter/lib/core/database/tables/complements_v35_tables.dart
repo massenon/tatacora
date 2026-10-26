@@ -104,3 +104,20 @@ class LignesInventaireLocal extends Table {
   @override
   Set<Column> get primaryKey => {id};
 }
+
+/// Un canal de réservation (Direct, Téléphone, Booking…) : le registre que la
+/// PWA gère (ajout, renommage, désactivation) et que la fiche de réservation
+/// propose.
+@DataClassName('CanalReservationLigne')
+class CanauxReservationLocal extends Table {
+  TextColumn get id => text()();
+
+  TextColumn get nom => text()();
+
+  BoolColumn get actif => boolean().withDefault(const Constant(true))();
+
+  IntColumn get ordre => integer().withDefault(const Constant(0))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
