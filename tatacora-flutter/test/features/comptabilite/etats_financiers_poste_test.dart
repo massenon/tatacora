@@ -101,7 +101,7 @@ void main() {
       findsOneWidget,
     );
     expect(find.text(TextesEtatsFinanciers.libelleAvantImpot), findsOneWidget);
-    expect(find.textContaining('Aucune écriture du serveur'), findsOneWidget);
+    expect(find.textContaining('Aucune écriture du serveur'), findsNothing);
   });
 
   testWidgets('les écritures reçues donnent le résultat, la colonne N-1 et '
@@ -132,9 +132,9 @@ void main() {
     );
     expect(find.text(fcfa(70000)), findsWidgets, reason: 'colonne N-1');
     expect(
-      find.textContaining('6 écriture(s)'),
-      findsOneWidget,
-      reason: 'la provenance dit combien le poste a reçu',
+      find.textContaining('écriture(s)'),
+      findsNothing,
+      reason: 'aucun encadré de provenance à l’écran',
     );
   });
 

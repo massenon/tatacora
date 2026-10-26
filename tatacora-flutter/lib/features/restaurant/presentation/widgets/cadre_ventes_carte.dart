@@ -82,8 +82,7 @@ abstract final class TextesVentesCarte {
 
   /// `ventes_stock_aide`.
   static const stockAide =
-      "Le stock affiché est celui d'aujourd'hui, jamais celui du jour de la "
-      'vente.';
+      "Le stock affiché est celui d'aujourd'hui, jamais celui du jour de la vente.";
 
   /// `ventes_total_page`.
   static const totalPage = 'TOTAL DE LA PAGE';

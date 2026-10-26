@@ -70,7 +70,7 @@ abstract final class MessagesComptables {
     'depenses.exercice_clos':
         "L'exercice :annee est :statut : aucune écriture ne peut plus y être ajoutée. Datez la pièce sur un exercice ouvert, ou faites rouvrir celui-ci.",
     'depenses.centre_absent':
-        "Le compte :numero ne porte aucun centre de coût par défaut, et aucun centre n'a été précisé. RG-12 rend le centre de coût obligatoire : sans lui, la comptabilité analytique serait fausse sans qu'aucun total ne bouge.",
+        "Le compte :numero ne porte aucun centre de coût par défaut, et aucun centre n'a été précisé. Le centre de coût est obligatoire : sans lui, la comptabilité analytique serait faussée.",
   };
 
   /// La phrase de la clé [cle], variables remplacées.

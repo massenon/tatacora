@@ -126,13 +126,6 @@ void main() {
           'Note « note_guide_du_depart » de la vue (lang/fr/tourisme.php), '
           'rendue au mot tant que la vue web porte encore le code.',
     ),
-    (
-      fichier: 'lib/features/comptabilite/domain/messages_comptables.dart',
-      fragment: 'RG-12 rend le centre de coût obligatoire',
-      motif:
-          'Phrase `depenses.centre_absent`, reprise au mot du fichier de '
-          'langue du serveur par les tests contre-serveur.',
-    ),
   ];
 
   // ----------------------------------------------------- L'analyseur lexical
@@ -375,24 +368,17 @@ EF-M4-02 ligne\'\'\';
       expect(File(e.fichier).existsSync(), isTrue, reason: e.fichier);
     }
     // Elle ne couvre que SON fragment, dans SON fichier.
+    const e =
+        'lib/features/tourisme/presentation/widgets/modale_reservation.dart';
     expect(
-      exempte(
-        'lib/features/comptabilite/domain/messages_comptables.dart',
-        'RG-12 rend le centre de coût obligatoire : …',
-      ),
+      exempte(e, 'le guide », qui porte sur le départ entier (UC-39).'),
       isTrue,
     );
     expect(
-      exempte('lib/features/autre.dart', 'RG-12 rend le centre de coût'),
+      exempte('lib/features/autre.dart', 'départ entier (UC-39)'),
       isFalse,
     );
-    expect(
-      exempte(
-        'lib/features/comptabilite/domain/messages_comptables.dart',
-        'RG-99 autre chose',
-      ),
-      isFalse,
-    );
+    expect(exempte(e, 'RG-99 autre chose'), isFalse);
   });
 
   test('aucune note de conception dans les littéraux affichés de lib/', () {

@@ -52,7 +52,6 @@ void main() {
       (k, v) => MapEntry('$k', '$v'),
     );
     for (final cle in [
-      'mdp_note',
       'mdp_ancien_invalide',
       'mdp_identique',
       'mdp_confirmation_invalide',
@@ -274,9 +273,6 @@ void main() {
         for (final w in tester.allWidgets)
           if (w is Text) w.data ?? w.textSpan?.toPlainText() ?? '',
       ];
-      final noteVue = vue['mdp_note']!;
-      expect(noteVue, contains('serveur'), reason: 'la vue n’a pas changé');
-      expect(textes, isNot(contains(noteVue)));
       expect(textes.where((t) => t.contains('côté serveur')), isEmpty);
       expect(textes.where((t) => t.contains('PBKDF2')), isEmpty);
     });
