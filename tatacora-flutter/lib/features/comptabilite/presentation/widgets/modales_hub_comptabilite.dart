@@ -12,6 +12,7 @@ import '../../../../shared_widgets/bouton_standard.dart';
 import '../../../transverse/presentation/widgets/briques_transverses.dart';
 import '../../data/moteur_comptable.dart';
 import '../../domain/refus_comptable.dart';
+import '../../domain/regle_numero_compte.dart';
 import '../providers_comptabilite.dart';
 import '../providers_consultation_comptable.dart';
 import '../providers_etats_financiers.dart';
@@ -36,9 +37,9 @@ abstract final class TextesModalesHubComptabilite {
   static const String annuler = 'Annuler';
 
   /// L'invite est un numéro VALIDE (deux à quatre chiffres) : la même règle
-  /// que le service de la vue ([MoteurComptable.formatNumeroCompte]), la même
+  /// que le service de la vue ([RegleNumeroCompte.format]), la même
   /// invite que la vue du hub.
-  static const String champNumeroInvite = MoteurComptable.numeroCompteExemple;
+  static const String champNumeroInvite = RegleNumeroCompte.exemple;
 
   // « Ouvrir un exercice ».
   static const String exerciceTitre = 'Ouvrir un exercice';
@@ -338,7 +339,7 @@ class _ModaleCompteState extends ConsumerState<_ModaleCompte> {
                   key: const Key('modale-compte-numero'),
                   controller: _numero,
                   enabled: !_envoi,
-                  maxLength: MoteurComptable.numeroCompteChiffresMax,
+                  maxLength: RegleNumeroCompte.chiffresMax,
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   style: valeur.copyWith(

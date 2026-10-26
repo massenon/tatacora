@@ -339,36 +339,47 @@ class _OngletSynchronisationState extends ConsumerState<OngletSynchronisation> {
   /// La bascule « Synchronisation activée » (Administrateurs).
   Widget _interrupteur() {
     final activee = ref.watch(synchronisationActiveeProvider).value ?? true;
-    return SwitchListTile(
-      key: const Key('sync-interrupteur'),
-      contentPadding: EdgeInsets.zero,
-      dense: true,
-      title: Text(
-        TextesOngletSynchronisation.interrupteur,
-        style: _style(TaillesContenu.t13, poids: FontWeight.w600),
-      ),
-      subtitle: Text(
-        activee
-            ? TextesOngletSynchronisation.aideActivee
-            : TextesOngletSynchronisation.aideDesactivee,
-        key: const Key('sync-interrupteur-aide'),
-        style: _style(TaillesContenu.t13, couleur: AppColors.neutre600),
-      ),
-      value: activee,
-      onChanged: _occupe
-          ? null
-          : (v) => _geste(() async {
-              await ref.read(basculerSynchronisationProvider)(
-                v,
-                par: ref.read(sessionProvider)?.login ?? '',
-              );
-              return (
-                v
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Switch(
+          key: const Key('sync-interrupteur'),
+          value: activee,
+          onChanged: _occupe
+              ? null
+              : (v) => _geste(() async {
+                  await ref.read(basculerSynchronisationProvider)(
+                    v,
+                    par: ref.read(sessionProvider)?.login ?? '',
+                  );
+                  return (
+                    v
+                        ? TextesOngletSynchronisation.aideActivee
+                        : TextesOngletSynchronisation.aideDesactivee,
+                    false,
+                  );
+                }),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                TextesOngletSynchronisation.interrupteur,
+                style: _style(TaillesContenu.t13, poids: FontWeight.w600),
+              ),
+              Text(
+                activee
                     ? TextesOngletSynchronisation.aideActivee
                     : TextesOngletSynchronisation.aideDesactivee,
-                false,
-              );
-            }),
+                key: const Key('sync-interrupteur-aide'),
+                style: _style(TaillesContenu.t13, couleur: AppColors.neutre600),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

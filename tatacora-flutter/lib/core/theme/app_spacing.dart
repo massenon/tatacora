@@ -901,6 +901,11 @@ abstract final class AppLayout {
   /// (`comptabilite/hub`, `etatFormulaire === 'compte'`).
   static const double modaleCompte = 520;
 
+  /// La modale des états comptables du hub (flux de trésorerie, notes
+  /// annexes, états financiers) : les pages séparées de la vue tiennent dans
+  /// `max-w-[900px]` (`comptabilite/etats-financiers`).
+  static const double modaleEtatsComptables = 900;
+
   /// La modale « Ouvrir un exercice » du hub comptable — `largeur="420px"`
   /// (`etatFormulaire === 'exercice'`).
   static const double modaleExercice = 420;

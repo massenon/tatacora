@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tatacora_flutter/features/comptabilite/data/moteur_comptable.dart';
+import 'package:tatacora_flutter/features/comptabilite/domain/regle_numero_compte.dart';
 import 'package:tatacora_flutter/features/comptabilite/presentation/widgets/modales_hub_comptabilite.dart';
 
 /// Créer un compte depuis le hub ABOUTIT, avec UNE règle : deux à quatre
@@ -16,7 +16,7 @@ void main() {
 
   test('l’invite du champ est un numéro que le moteur accepte', () {
     expect(
-      MoteurComptable.formatNumeroCompte.hasMatch(
+      RegleNumeroCompte.format.hasMatch(
         TextesModalesHubComptabilite.champNumeroInvite,
       ),
       isTrue,
@@ -24,7 +24,7 @@ void main() {
     expect(TextesModalesHubComptabilite.champNumeroInvite, '6056');
     expect(
       TextesModalesHubComptabilite.champNumeroInvite.length,
-      lessThanOrEqualTo(MoteurComptable.numeroCompteChiffresMax),
+      lessThanOrEqualTo(RegleNumeroCompte.chiffresMax),
     );
   });
 
@@ -40,17 +40,17 @@ void main() {
       expect(regexPhp, isNotNull, reason: 'la constante du service est lue');
       expect(
         regexPhp!.group(1),
-        MoteurComptable.formatNumeroCompte.pattern,
+        RegleNumeroCompte.format.pattern,
         reason: 'une seule règle, côté poste et côté serveur',
       );
       final max = RegExp(
         r'NUMERO_COMPTE_CHIFFRES_MAX\s*=\s*(\d+)',
       ).firstMatch(service)!;
-      expect(int.parse(max.group(1)!), MoteurComptable.numeroCompteChiffresMax);
+      expect(int.parse(max.group(1)!), RegleNumeroCompte.chiffresMax);
       final exemple = RegExp(
         r"NUMERO_COMPTE_EXEMPLE\s*=\s*'(\d+)'",
       ).firstMatch(service)!;
-      expect(exemple.group(1), MoteurComptable.numeroCompteExemple);
+      expect(exemple.group(1), RegleNumeroCompte.exemple);
 
       final hub = lire('app/Pwa/Livewire/Comptabilite/Hub.php');
       expect(

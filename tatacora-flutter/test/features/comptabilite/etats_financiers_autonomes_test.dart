@@ -228,4 +228,67 @@ void main() {
     );
     expect(find.text('Restaurant'), findsOneWidget);
   });
+
+  Future<void> ouvrirTuile(WidgetTester tester, int rang) async {
+    final tuile = find.byKey(Key('compta-tuile-$rang'));
+    await tester.ensureVisible(tuile);
+    await tester.pumpAndSettle();
+    await tester.tap(tuile);
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('la tuile « Flux de trésorerie » ouvre le TAFIRE CALCULÉ sur ce '
+      'poste, cohérent', (tester) async {
+    await passerLesPiecesDuPoste();
+    await monter(tester, synchroActivee: false);
+    await ouvrirTuile(tester, 4);
+
+    expect(find.byKey(const Key('modale-flux-tresorerie')), findsOneWidget);
+    String t(String cle) => tester.widget<Text>(find.byKey(Key(cle))).data!;
+    // CAFG = résultat (1 500 F) ; ressources = CAFG ; la variation de
+    // trésorerie réelle = la banque : 2 500 − 1 000.
+    expect(t('flux-cafg'), fcfa(150000));
+    expect(t('flux-total-ressources'), fcfa(150000));
+    expect(t('flux-reelle'), fcfa(150000));
+    expect(
+      find.textContaining('Contrôle de cohérence réussi', findRichText: true),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('la tuile « Notes annexes » ouvre les sept notes, dont les '
+      'deux qui disent pourquoi elles sont indisponibles', (tester) async {
+    await passerLesPiecesDuPoste();
+    await monter(tester, synchroActivee: false);
+    await ouvrirTuile(tester, 5);
+
+    expect(find.byKey(const Key('modale-notes-annexes')), findsOneWidget);
+    for (final n in [
+      '1. Règles et méthodes comptables',
+      '5. État des stocks',
+      '6. Effectif du personnel',
+      '7. Événements postérieurs à la clôture',
+    ]) {
+      expect(find.text(n), findsOneWidget, reason: n);
+    }
+    expect(
+      tester.widget<Text>(find.byKey(const Key('note-6-motif'))).data,
+      "L'effectif relève des ressources humaines, hors de la comptabilité.",
+    );
+  });
+
+  testWidgets('la tuile « États financiers » réunit Bilan, Résultat, Flux et '
+      'Notes', (tester) async {
+    await passerLesPiecesDuPoste();
+    await monter(tester, synchroActivee: false);
+    await ouvrirTuile(tester, 10);
+
+    expect(find.byKey(const Key('modale-etats-financiers')), findsOneWidget);
+    for (final o in ['bilan', 'resultat', 'flux', 'notes']) {
+      expect(find.byKey(Key('etats-onglet-$o')), findsOneWidget, reason: o);
+    }
+    await tester.tap(find.byKey(const Key('etats-onglet-flux')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('flux-cafg')), findsOneWidget);
+  });
 }

@@ -61,6 +61,8 @@ use App\Domain\Comptabilite\Models\JournalComptable;
 use App\Domain\Comptabilite\Services\BalanceGeneraleService;
 use App\Domain\Comptabilite\Services\BilanService;
 use App\Domain\Comptabilite\Services\CompteResultatService;
+use App\Domain\Comptabilite\Services\NotesAnnexesService;
+use App\Domain\Comptabilite\Services\TafireService;
 use App\Domain\Comptabilite\Support\RubriquesSyscohada;
 use App\Domain\Comptabilite\Support\SoldesIntermediairesGestion;
 use Database\Seeders\ComptabiliteReferentielSeeder;
@@ -117,9 +119,36 @@ try {
         ]);
     }
 
+    // Un exercice CLÔTURÉ dont l'année suivante porte des à-nouveaux a sa
+    // clôture ENREGISTRÉE : c'est ce qui rend l'ouverture « connue » aux
+    // yeux de `BalanceGeneraleService::soldesOuverture`.
+    foreach ($jeu['exercices'] as $e) {
+        if ($e['statut'] !== 'cloture') {
+            continue;
+        }
+
+        $suivante = (int) $e['annee'] + 1;
+        $aDesNouveaux = collect($jeu['ecritures'])->contains(
+            static fn (array $l): bool => (int) $l['annee'] === $suivante && $l['journal'] === 'AN',
+        );
+
+        if ($aDesNouveaux) {
+            DB::table('clotures_exercices')->insert([
+                'id' => (string) Str::uuid(),
+                'exercice_id' => $exerciceIds[(int) $e['annee']],
+                'resultat' => '0.00',
+                'cloturee_le' => $maintenant,
+                'created_at' => $maintenant,
+                'updated_at' => $maintenant,
+            ]);
+        }
+    }
+
     $balances = $app->make(BalanceGeneraleService::class);
     $resultats = $app->make(CompteResultatService::class);
     $bilans = $app->make(BilanService::class);
+    $tafires = $app->make(TafireService::class);
+    $notesAnnexes = $app->make(NotesAnnexesService::class);
 
     $etats = [];
 
@@ -128,8 +157,36 @@ try {
         $b = $balances->genererPourExercice($id, $statuts, 'validee');
         $r = $resultats->genererPourExercice($id, $statuts, 'validee');
         $bi = $bilans->genererPourExercice($id, $statuts, 'validee');
+        // Le TAFIRE et les notes annexes (26/10/2026, « sans serveur »).
+        $t = $tafires->genererPourExercice($id, $statuts, 'validee');
+        $na = $notesAnnexes->genererPourExercice(ExerciceComptable::query()->findOrFail($id), $statuts, 'validee');
 
         $etats[(string) $annee] = [
+            'tafire' => [
+                'resultat' => $t->resultatExercice,
+                'dotations' => $t->dotationsAmortissements,
+                'cafg' => $t->capaciteAutofinancementGlobale,
+                'capital' => $t->augmentationCapital,
+                'ressources' => $t->totalRessources,
+                'acquisitions' => $t->acquisitionsImmobilisations,
+                'emplois' => $t->totalEmplois,
+                'stocks' => $t->variationStocks,
+                'creances' => $t->variationCreances,
+                'dettes' => $t->variationDettes,
+                'bfr' => $t->variationBesoinFondsRoulement,
+                'calculee' => $t->variationTresorerieCalculee,
+                'reelle' => $t->variationTresorerieReelle,
+                'ecart' => $t->ecart,
+                'coherent' => $t->coherent,
+            ],
+            'notes' => array_map(static fn ($n): array => [
+                'numero' => $n->numero,
+                'titre' => $n->titre,
+                'etat' => $n->etat,
+                'texte' => $n->texte,
+                'motif' => $n->motif,
+                'postes' => $n->postes,
+            ], $na->notes),
             'balance' => [
                 'a_nouveaux_provisoires_de' => $b->aNouveauxProvisoiresDe,
                 'lignes' => array_map(static fn ($l): array => [
@@ -179,6 +236,7 @@ try {
             'tresorerie_actif' => RubriquesSyscohada::TRESORERIE_ACTIF,
             'capital' => RubriquesSyscohada::CAPITAL,
             'resultat_reporte' => RubriquesSyscohada::RESULTAT_REPORTE,
+            'dotations_amortissements' => RubriquesSyscohada::DOTATIONS_AMORTISSEMENTS,
             'dettes_circulantes' => RubriquesSyscohada::DETTES_CIRCULANTES,
             'tresorerie_passif' => RubriquesSyscohada::TRESORERIE_PASSIF,
         ],

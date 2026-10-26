@@ -2,6 +2,7 @@ import '../domain/entities/comptabilite.dart';
 import '../domain/messages_comptables.dart';
 import '../domain/montant_comptable.dart';
 import '../domain/refus_comptable.dart';
+import '../domain/regle_numero_compte.dart';
 import '../domain/regles_ecriture.dart';
 import 'comptabilite_dao.dart';
 
@@ -437,18 +438,6 @@ class MoteurComptable {
   /* Plan comptable                                                      */
   /* ================================================================== */
 
-  /// LA règle du numéro d'un compte créé (serveur :
-  /// `PlanComptableService::NUMERO_COMPTE_FORMAT`, confrontée par un test) :
-  /// deux à quatre chiffres, le premier de 1 à 9. Une seule constante pour le
-  /// moteur ET la modale du hub.
-  static final RegExp formatNumeroCompte = RegExp(r'^[1-9][0-9]{1,3}$');
-
-  /// Le plus long numéro du plan du PO (SYSCOHADA révisé, 1 332 comptes).
-  static const int numeroCompteChiffresMax = 4;
-
-  /// Un numéro valide, en invite du champ.
-  static const String numeroCompteExemple = '6056';
-
   /// Crée un compte au plan — DEUX à QUATRE chiffres, le premier de 1 à 9. La
   /// classe est DÉRIVÉE du numéro, jamais saisie. Le plan du PO compte des
   /// numéros de 1 à 4 chiffres ; un compte créé ici est un compte de mouvement.
@@ -457,7 +446,7 @@ class MoteurComptable {
     String libelle,
     String nature,
   ) async {
-    if (!formatNumeroCompte.hasMatch(numero)) {
+    if (!RegleNumeroCompte.format.hasMatch(numero)) {
       throw RefusComptable.dit(
         MotifRefus.compteNumeroInvalide,
         'comptabilite.compte_numero_invalide',

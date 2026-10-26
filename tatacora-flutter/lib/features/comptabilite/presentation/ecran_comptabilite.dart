@@ -27,6 +27,7 @@ import 'providers_etats_financiers.dart';
 import 'widgets/modale_ecriture.dart';
 import 'widgets/onglet_immobilisations.dart';
 import 'widgets/onglets_etats_financiers.dart';
+import 'widgets/modales_etats_comptables.dart';
 import 'widgets/onglets_grand_livre_analytique.dart';
 import 'widgets/onglets_plan_clotures.dart';
 
@@ -46,9 +47,12 @@ import 'widgets/onglets_plan_clotures.dart';
 ///   réplique de la portée du serveur (`consultation_comptable.dart`) :
 ///   exercice, statuts retenus, journal (le journal seulement : la balance du
 ///   serveur ne le filtre pas), ordre et soldes exclusifs du serveur.
-/// - **Les six indicateurs** (`IndicateursComptablesService`) : non calculés
-///   sur ce poste — « — », et une ligne qui le dit (jamais un zéro).
-///   L'alerte « Comptabilité déséquilibrée » de la vue en dépend : non rendue.
+/// - **Les six indicateurs** (`IndicateursComptablesService`) : CALCULÉS sur ce
+///   poste depuis le 26/10/2026 (`indicateursDe`, assembleur du compte de
+///   résultat, du bilan et de la balance), et l'alerte « Comptabilité
+///   déséquilibrée » avec eux. Source : les écritures du serveur quand la
+///   synchronisation est active et qu'elles sont arrivées, sinon les pièces de
+///   CE poste (`sourceEtatsFinanciersProvider`).
 /// - **Passer écriture** : l'encadré des contrôles est rendu ; « + Nouvelle
 ///   écriture » ouvre la modale « Passer une écriture » (PO, 14/10/2026,
 ///   `widgets/modale_ecriture.dart`), écrite par le moteur LOCAL — en
@@ -64,9 +68,12 @@ import 'widgets/onglets_plan_clotures.dart';
 ///   la liste des exercices et « Ouvrir un exercice » (`ouvrirExercice`). Ils
 ///   écrivent SUR CE POSTE seulement : ni le compte ni l'exercice n'ont de
 ///   table au registre de synchronisation. La clôture annuelle, elle, reste
-///   dite « non portée ».
-/// - **Grand livre, Analytique** : l'onglet est cliquable et DIT qu'il n'est
-///   pas calculé sur ce poste — aucun chiffre plutôt qu'un chiffre faux.
+///   au serveur (voir `docs/AUDIT_POSTE_AUTONOME.md`).
+/// - **Grand livre, Analytique** (26/10/2026,
+///   `widgets/onglets_grand_livre_analytique.dart`) : calculés sur les pièces
+///   de ce poste, comme le Journal et la Balance — soldes progressifs,
+///   ouverture et clôture (à-nouveaux provisoires compris), marges par centre.
+///   Confrontés au vrai `GrandLivreService` et `AnalytiqueService`.
 /// - **Immobilisations** (21/10/2026, `widgets/onglet_immobilisations.dart`) :
 ///   le tableau de l'exercice, « + Immobilisation », la modale de création et
 ///   la modale « Plan » (`widgets/modales_immobilisations.dart`). Le plan est
@@ -82,8 +89,9 @@ import 'widgets/onglets_plan_clotures.dart';
 ///   statut, journal), en CSV ou en PDF A4 paysage avec les totaux
 ///   ([EtatJournalComptable]).
 /// - **Tuiles** : celles qui correspondent à un onglet l'ouvrent ; Flux de
-///   trésorerie, Notes annexes et États financiers DISENT qu'ils ne sont pas
-///   portés (ce sont des pages séparées de la vue).
+///   trésorerie (TAFIRE), Notes annexes et États financiers — pages séparées de
+///   la vue — s'ouvrent dans une fenêtre (`widgets/modales_etats_comptables.dart`)
+///   calculée sur ce poste, sans serveur.
 ///
 /// Droit : la route de la vue exige M10 en lecture.
 class EcranComptabilite extends ConsumerStatefulWidget {
@@ -190,8 +198,10 @@ const List<({String cle, String libelle})> ongletsComptabilite = [
   (cle: 'clotures', libelle: 'Clôtures'),
 ];
 
-/// `Hub::TUILES` : titre, description et l'onglet de CE poste qui la porte
-/// (`null` : page séparée de la vue, non portée).
+/// `Hub::TUILES` : titre, description et l'onglet de CE poste qui la porte.
+/// Les trois pages séparées de la vue (flux de trésorerie, notes annexes,
+/// états financiers) s'ouvrent dans une FENÊTRE (`fenetre-…`,
+/// `modales_etats_comptables.dart`) ; `null` : sans équivalent.
 const List<({String titre, String description, String? onglet})> _tuiles = [
   (
     titre: 'Plan Comptable',
@@ -216,12 +226,12 @@ const List<({String titre, String description, String? onglet})> _tuiles = [
   (
     titre: 'Tableau des Flux de Trésorerie',
     description: 'TAFIRE — variation de trésorerie sur la période',
-    onglet: null,
+    onglet: 'fenetre-flux',
   ),
   (
     titre: 'Notes Annexes',
     description: "Compléments d'information au Bilan et au Compte de Résultat",
-    onglet: null,
+    onglet: 'fenetre-notes',
   ),
   (
     titre: 'Clôture Périodique',
@@ -248,7 +258,7 @@ const List<({String titre, String description, String? onglet})> _tuiles = [
     titre: 'États Financiers',
     description:
         'Vue consolidée — Bilan, Résultat, Flux, Notes Annexes en un export unique',
-    onglet: null,
+    onglet: 'fenetre-etats',
   ),
 ];
 
@@ -462,6 +472,7 @@ class _EcranComptabiliteState extends ConsumerState<EcranComptabilite> {
         ),
         const SizedBox(height: AppSpacing.sm), // mb-3
         _Tuiles(
+          annee: exercice?.annee,
           onOnglet: (cle) {
             _choisirOnglet(cle);
             if (_defilement.hasClients) _defilement.jumpTo(0);
@@ -1448,9 +1459,12 @@ class _Balance extends StatelessWidget {
 
 /// Les onze tuiles (`grid grid-cols-1 lg:grid-cols-2 gap-4`).
 class _Tuiles extends StatelessWidget {
-  const _Tuiles({required this.onOnglet});
+  const _Tuiles({required this.onOnglet, required this.annee});
 
   final ValueChanged<String> onOnglet;
+
+  /// L'exercice consulté, que les fenêtres d'états relisent.
+  final int? annee;
 
   static const String _chevron =
       r'<path stroke-linecap="round" stroke-linejoin="round" d="M9 18l6-6-6-6"/>';
@@ -1466,12 +1480,16 @@ class _Tuiles extends StatelessWidget {
           InkWell(
             key: Key('compta-tuile-$i'),
             borderRadius: BorderRadius.circular(AppRadius.lg),
-            onTap: () => t.onglet == null
-                ? direTransverse(
-                    context,
-                    TextesComptabilite.tuileNonPortee(t.titre),
-                  )
-                : onOnglet(t.onglet!),
+            onTap: () => switch (t.onglet) {
+              null => direTransverse(
+                context,
+                TextesComptabilite.tuileNonPortee(t.titre),
+              ),
+              'fenetre-flux' => ouvrirFluxTresorerie(context, annee),
+              'fenetre-notes' => ouvrirNotesAnnexes(context, annee),
+              'fenetre-etats' => ouvrirEtatsFinanciers(context, annee),
+              final onglet => onOnglet(onglet),
+            },
             child: CarteTransverse(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,

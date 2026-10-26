@@ -495,21 +495,13 @@ class _EnTete extends ConsumerWidget {
     // vue que ce poste n'avait pas à retirer. Aucun fichier n'est produit.
     final surVentes =
         ref.read(ongletCarteRestaurantProvider) == OngletCarte.ventes;
+    // L'onglet des ventes s'exporte lui-même (calculé sur ce poste).
+    if (surVentes) return exporterVentesRestaurant(context, ref);
     final format = await choisirFormatExport(
       context,
-      titre: surVentes
-          ? 'Exporter — Ventes du Restaurant'
-          : 'Exporter — Carte du restaurant',
+      titre: 'Exporter — Carte du restaurant',
     );
     if (format == null || !context.mounted) return;
-
-    if (surVentes) {
-      return _dire(
-        context,
-        donneeNonDisponible(ventesRestaurantAbsentes),
-        'carte-restaurant-export-ventes-absentes',
-      );
-    }
 
     if (donnees.lignes.isEmpty) {
       return _dire(context, TextesExport.vide, 'carte-restaurant-export-vide');

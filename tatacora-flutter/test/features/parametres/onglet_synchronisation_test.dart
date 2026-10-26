@@ -240,6 +240,66 @@ void main() {
     expect(File(cheminPoste).existsSync(), isFalse);
   });
 
+  testWidgets(
+    'l’interrupteur « Synchronisation activée » : éteint, plus AUCUNE '
+    'requête (tester, synchroniser) ; rallumé, tout reprend',
+    (tester) async {
+      final t = serveur();
+      await monter(tester, t);
+      await ouvrirOnglet(tester);
+      await saisirEtAppairer(tester);
+      await attendre(tester, find.byKey(const Key('sync-interrupteur')));
+
+      // Allumé par défaut, et la phrase le dit.
+      expect(
+        tester.widget<Switch>(find.byKey(const Key('sync-interrupteur'))).value,
+        isTrue,
+      );
+
+      final avant = t.requetes.length;
+      await tester.tap(find.byKey(const Key('sync-interrupteur')));
+      await laisserTourner(tester);
+      final contenu =
+          jsonDecode(
+                (await tester.runAsync(
+                  () => File(cheminPoste).readAsString(),
+                ))!,
+              )
+              as Map<String, Object?>;
+      expect(contenu['synchronisation_activee'], false);
+      expect(contenu['jeton_api'], isNotNull, reason: 'l’appairage est gardé');
+      expect(
+        tester
+            .widget<Text>(find.byKey(const Key('sync-interrupteur-aide')))
+            .data,
+        TextesOngletSynchronisation.aideDesactivee,
+      );
+
+      // Éteint : « Tester la connexion » et « Synchroniser maintenant » ne
+      // touchent pas le réseau.
+      await tester.tap(find.byKey(const Key('sync-tester')));
+      await laisserTourner(tester);
+      await tester.tap(find.byKey(const Key('sync-maintenant')));
+      await laisserTourner(tester);
+      expect(t.requetes.length, avant, reason: 'AUCUNE requête réseau');
+
+      // Rallumé : la clé disparaît, et le poste rattrape aussitôt.
+      await tester.tap(find.byKey(const Key('sync-interrupteur')));
+      await laisserTourner(tester);
+      final apres =
+          jsonDecode(
+                (await tester.runAsync(
+                  () => File(cheminPoste).readAsString(),
+                ))!,
+              )
+              as Map<String, Object?>;
+      expect(apres.containsKey('synchronisation_activee'), isFalse);
+      await tester.tap(find.byKey(const Key('sync-tester')));
+      await laisserTourner(tester);
+      expect(t.requetes.length, greaterThan(avant));
+    },
+  );
+
   testWidgets('tester, synchroniser, dissocier', (tester) async {
     final t = serveur();
     await monter(tester, t);

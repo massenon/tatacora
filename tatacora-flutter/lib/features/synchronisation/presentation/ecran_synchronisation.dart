@@ -29,6 +29,11 @@ import 'providers_synchronisation.dart';
 /// (piège 1) : « synchronisé » ne se dit que de ce que le serveur a
 /// confirmé.
 abstract final class TextesEcranSynchronisation {
+  static const desactivee =
+      'Synchronisation désactivée : ce poste travaille seul, sans aucune '
+      'connexion au serveur. Les opérations restent en attente et partiront, '
+      'dans l’ordre, à la réactivation (Paramètres, onglet Synchronisation).';
+
   /// Le contrôle de cohérence (P1-1, 18/10/2026).
   static const String sectionCoherence = 'Contrôle de cohérence';
   static const String coherenceExplication =
@@ -296,12 +301,23 @@ class _CarteEtat extends ConsumerWidget {
     final bilan = ref.watch(dernierBilanSynchronisationProvider);
     final enCours = ref.watch(synchronisationEnCoursProvider);
     final appaire = appairage.value != null;
+    // L'interrupteur « Synchronisation activée » (Paramètres) est éteint ?
+    final desactivee = ref.watch(synchronisationActiveeProvider).value == false;
 
     return CarteTransverse(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _titreSection(TextesEcranSynchronisation.sectionEtat),
+          if (desactivee) ...[
+            _ligneTexte(
+              TextesEcranSynchronisation.desactivee,
+              cle: const Key('sync-ecran-desactivee'),
+              couleur: AppColors.erreur,
+              poids: FontWeight.w600,
+            ),
+            const SizedBox(height: AppSpacing.xs),
+          ],
           if (interdite)
             _ligneTexte(
               TextesEcranSynchronisation.demonstration,
@@ -358,7 +374,7 @@ class _CarteEtat extends ConsumerWidget {
                 key: const Key('sync-ecran-maintenant'),
                 libelle: TextesEcranSynchronisation.synchroniser,
                 variante: VarianteBouton.primaire,
-                onPressed: interdite || !appaire || enCours
+                onPressed: interdite || !appaire || enCours || desactivee
                     ? null
                     : ref.read(synchroniserDepuisEcranProvider),
               ),

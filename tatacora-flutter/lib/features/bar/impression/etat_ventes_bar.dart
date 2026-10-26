@@ -89,11 +89,12 @@ final class EtatVentesBar {
     TotauxVentesBar totaux, {
     required String filtre,
     required List<LigneCarte> carte,
+    String titreDocument = titre,
   }) {
     final parId = {for (final l in carte) l.id: l};
     String sans(String v) => v.replaceAll(';', ',');
     final tampon = StringBuffer('\u{FEFF}')
-      ..writeln(sans(titre))
+      ..writeln(sans(titreDocument))
       ..writeln(sans('Filtre appliqué : $filtre'))
       ..writeln(sans(resume(totaux)))
       ..writeln()
@@ -125,7 +126,16 @@ final class EtatVentesBar {
     TotauxVentesBar totaux, {
     required String filtre,
     required List<LigneCarte> carte,
-  }) => utf8.encode(csv(lignes, totaux, filtre: filtre, carte: carte));
+    String titreDocument = titre,
+  }) => utf8.encode(
+    csv(
+      lignes,
+      totaux,
+      filtre: filtre,
+      carte: carte,
+      titreDocument: titreDocument,
+    ),
+  );
 
   static Future<Uint8List> pdf(
     List<LigneVenteBar> lignes,
@@ -134,6 +144,7 @@ final class EtatVentesBar {
     required List<LigneCarte> carte,
     EnteteEtablissement entete = const EnteteEtablissement(),
     DateTime? edition,
+    String titreDocument = titre,
   }) async {
     final parId = {for (final l in carte) l.id: l};
     final editeLe = edition ?? DateTime.now();
@@ -143,7 +154,7 @@ final class EtatVentesBar {
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4.landscape,
         header: (c) =>
-            enTeteA4(entete: entete, titre: titre, sousTitre: filtre),
+            enTeteA4(entete: entete, titre: titreDocument, sousTitre: filtre),
         footer: (c) => piedRapportA4(
           c.pageNumber,
           c.pagesCount,

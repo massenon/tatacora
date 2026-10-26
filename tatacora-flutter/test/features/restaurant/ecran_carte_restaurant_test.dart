@@ -2,13 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tatacora_flutter/core/database/app_database.dart';
+import 'package:tatacora_flutter/core/di/providers.dart';
 import 'package:tatacora_flutter/core/donnees_absentes.dart';
 import 'package:tatacora_flutter/core/theme/app_theme.dart';
+import 'package:tatacora_flutter/features/pos/domain/entities/panier.dart';
+import 'package:tatacora_flutter/features/pos/domain/entities/reference_catalogue.dart';
 import 'package:tatacora_flutter/features/restaurant/data/restaurant_api.dart';
 import 'package:tatacora_flutter/features/restaurant/domain/entities/carte_restaurant.dart';
 import 'package:tatacora_flutter/features/restaurant/presentation/ecran_carte_restaurant.dart';
 import 'package:tatacora_flutter/features/restaurant/presentation/providers_restaurant.dart';
 import 'package:tatacora_flutter/features/restaurant/presentation/widgets/cadre_ventes_carte.dart';
+import 'package:tatacora_flutter/features/restaurant/presentation/widgets/vue_ventes_restaurant.dart';
+import 'package:tatacora_flutter/features/ventes/domain/lignes_vente_du_rayon.dart';
 
 import '../../support/vue_blade.dart';
 
@@ -25,6 +31,8 @@ import '../../support/vue_blade.dart';
 ///
 /// Les clés relues ici sont celles de l'écran ; les registres (états de
 /// filtre, onglets) sont relus de la SOURCE, jamais recopiés.
+AppDatabase? _baseSansVente;
+
 void main() {
   LigneCarteRestaurant ligne(
     String id,
@@ -197,48 +205,112 @@ void main() {
   });
 
   group('l’onglet « Ventes du Restaurant »', () {
-    Future<void> ouvrirVentes(WidgetTester tester) async {
-      await monter(tester);
+    // Les paniers du poste : un ticket MIXTE (un plat et une bière), une vente
+    // annulée, et un panier encore ouvert (qui n'est pas une vente).
+    LignePanier lp(String id, ModuleVendable m, String nom, int prix, int q) =>
+        LignePanier(
+          id: id,
+          reference: ReferenceCatalogue(module: m, code: 'c-$id'),
+          libelle: nom,
+          prixUnitaire: prix,
+          quantite: q,
+          ajouteeLe: DateTime(2026, 10, 20),
+        );
+    final paniers = [
+      Panier(
+        id: 'p1',
+        typeVente: TypeVente.comptant,
+        statut: StatutPanier.cloture,
+        ouvertLe: DateTime(2026, 10, 20, 19, 40),
+        clotureLe: DateTime(2026, 10, 20, 19, 40),
+        lignes: [
+          lp('l1', ModuleVendable.m4Restaurant, 'Poulet DG', 4000, 2),
+          lp('l2', ModuleVendable.m5Bar, 'Bière', 1000, 3),
+        ],
+      ),
+      Panier(
+        id: 'p2',
+        typeVente: TypeVente.comptant,
+        statut: StatutPanier.annule,
+        ouvertLe: DateTime(2026, 10, 21, 9),
+        clotureLe: DateTime(2026, 10, 21, 9),
+        motifAnnulation: 'Erreur de saisie',
+        lignes: [lp('l3', ModuleVendable.m4Restaurant, 'Riz sauce', 1500, 1)],
+      ),
+      Panier(
+        id: 'p3',
+        typeVente: TypeVente.comptant,
+        statut: StatutPanier.ouvert,
+        ouvertLe: DateTime(2026, 10, 22, 9),
+        lignes: [lp('l4', ModuleVendable.m4Restaurant, 'Salade', 800, 1)],
+      ),
+    ];
+
+    Future<void> ouvrirVentes(
+      WidgetTester tester, {
+      List<Panier>? donnees,
+    }) async {
+      await monter(
+        tester,
+        surcharges: [
+          ventesRestaurantProvider.overrideWith((ref) async {
+            final f = ref.watch(filtreVentesRestaurantProvider);
+            return pageDuRayon(
+              lignesDuRayon(donnees ?? paniers, ModuleVendable.m4Restaurant, f),
+              f,
+            );
+          }),
+        ],
+      );
       await tester.tap(find.byKey(const Key('onglet-carte-restaurant-ventes')));
       await tester.pumpAndSettle();
     }
 
-    final phraseAbsence = donneeNonDisponible(
-      'Les lignes de vente du restaurant',
-    );
+    testWidgets('rend les lignes du RESTAURANT seules, le total des validées '
+        'seules, l’annulée au registre', (tester) async {
+      await ouvrirVentes(tester);
 
-    testWidgets(
-      'rend le CADRE de la vue — titre, neuf colonnes, total — sans un seul chiffre',
-      (tester) async {
-        await ouvrirVentes(tester);
+      // Le plat vendu : 2 × 4 000 ; la bière du même ticket n'y est PAS.
+      expect(find.text('Poulet DG'), findsOneWidget);
+      expect(find.text('Bière'), findsNothing);
+      expect(find.text('Salade'), findsNothing, reason: 'panier ouvert');
+      // L'annulée reste, son montant ne compte pas.
+      expect(find.text('Riz sauce'), findsOneWidget);
+      expect(
+        find.textContaining('2 ligne(s) · Total validé : 8 000 FCFA'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('dont 1 annulée(s), hors total'),
+        findsOneWidget,
+      );
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(const Key('carte-restaurant-ventes-total-page')),
+            )
+            .data,
+        '8 000 FCFA',
+      );
+      // Plus de « information non disponible ».
+      expect(
+        find.byKey(const Key('carte-restaurant-ventes-absentes')),
+        findsNothing,
+      );
+    });
 
-        // L'état vide dit pourquoi, avec la phrase UNIQUE de l'écran des
-        // données absentes, et ne prétend pas qu'un filtre n'a rien retenu.
-        final message = tester.widget<Text>(
-          find.byKey(const Key('carte-restaurant-ventes-absentes')),
-        );
-        expect(message.data, phraseAbsence);
-        expect(
-          find.text('Aucune ligne de vente ne correspond à ces critères.'),
-          findsNothing,
-          reason: 'cette phrase affirme qu’un filtre a été appliqué',
-        );
+    testWidgets('sans vente, le cadre de la vue DIT « aucune ligne »', (
+      tester,
+    ) async {
+      await ouvrirVentes(tester, donnees: const []);
 
-        // Le compteur de la vue (`ventes_compteur`), avec des tirets : un
-        // « 0 ligne(s) · Total validé : 0 FCFA » dirait « aucune vente ».
-        expect(find.text('— ligne(s) · Total validé : —'), findsOneWidget);
-        expect(find.textContaining('0 ligne(s)'), findsNothing);
-        expect(find.text('0 FCFA'), findsNothing);
-        // La note sur le stock (`ventes_stock_aide`), dans l'en-tête du cadre.
-        expect(find.text(TextesVentesCarte.stockAide), findsOneWidget);
-
-        // La ligne de total existe et vaut « — ».
-        expect(find.text('TOTAL DE LA PAGE'), findsOneWidget);
-        expect(find.text(TextesVentesCarte.totalPageAide), findsOneWidget);
-        // La pagination numérote des lignes qui n'existent pas : refusée.
-        expect(find.textContaining('Affichage de'), findsNothing);
-      },
-    );
+      expect(
+        find.byKey(const Key('carte-restaurant-ventes-vide')),
+        findsOneWidget,
+      );
+      expect(find.textContaining('0 ligne(s)'), findsOneWidget);
+      expect(find.text('TOTAL DE LA PAGE'), findsOneWidget);
+    });
 
     testWidgets('les neuf colonnes sont celles de la vue, dans son ordre', (
       tester,
@@ -267,7 +339,6 @@ void main() {
         attendues,
       );
 
-      // À l'écran : une seule rangée, de gauche à droite.
       final boites = [
         for (final titre in attendues) tester.getRect(find.text(titre)),
       ];
@@ -290,9 +361,9 @@ void main() {
         final ordre = [
           haut(find.byKey(const Key('carte-restaurant-ventes-recherche'))),
           haut(find.text(TextesVentesCarte.bornesAide)),
-          haut(find.text('— ligne(s) · Total validé : —')),
+          haut(find.textContaining('ligne(s) · Total validé')),
           haut(find.text('DATE')),
-          haut(find.byKey(const Key('carte-restaurant-ventes-absentes'))),
+          haut(find.text('Poulet DG')),
           haut(find.text('TOTAL DE LA PAGE')),
         ];
         for (var i = 1; i < ordre.length; i++) {
@@ -301,92 +372,35 @@ void main() {
       },
     );
 
-    for (final cle in const [
-      'carte-restaurant-ventes-du',
-      'carte-restaurant-ventes-au',
-    ]) {
-      testWidgets('le champ $cle dit pourquoi il ne choisit aucune date', (
-        tester,
-      ) async {
-        await ouvrirVentes(tester);
-
-        await tester.tap(find.byKey(Key(cle)));
-        await tester.pump();
-
-        expect(
-          tester
-              .widget<Text>(
-                find.byKey(
-                  const Key('carte-restaurant-ventes-filtre-indisponible'),
-                ),
-              )
-              .data,
-          phraseAbsence,
-        );
-      });
-    }
-
-    testWidgets('la recherche est en lecture seule et dit pourquoi', (
-      tester,
-    ) async {
+    testWidgets('la recherche filtre sur le nom de la ligne', (tester) async {
       await ouvrirVentes(tester);
 
-      final champ = tester.widget<TextField>(
+      await tester.enterText(
         find.byKey(const Key('carte-restaurant-ventes-recherche')),
+        'riz',
       );
-      expect(champ.readOnly, isTrue);
-      expect(champ.decoration?.hintText, TextesVentesCarte.recherche);
+      await tester.pumpAndSettle();
 
-      await tester.tap(
-        find.byKey(const Key('carte-restaurant-ventes-recherche')),
-      );
-      await tester.pump();
-      expect(
-        tester
-            .widget<Text>(
-              find.byKey(
-                const Key('carte-restaurant-ventes-filtre-indisponible'),
-              ),
-            )
-            .data,
-        phraseAbsence,
-      );
+      expect(find.text('Riz sauce'), findsOneWidget);
+      expect(find.text('Poulet DG'), findsNothing);
     });
 
-    testWidgets(
-      'choisir un statut le dit et NE change PAS la valeur affichée',
-      (tester) async {
-        await ouvrirVentes(tester);
+    testWidgets('le statut « Annulée » ne garde que l’annulée, et la valeur '
+        'affichée SUIT le choix', (tester) async {
+      await ouvrirVentes(tester);
 
-        await tester.tap(
-          find.byKey(const Key('carte-restaurant-ventes-statut')),
-        );
-        await tester.pumpAndSettle();
-        // Les trois options de la vue (`ventes_tous_statuts`, `…_validee`,
-        // `…_annulee`).
-        expect(find.text('Validée'), findsOneWidget);
-        await tester.tap(find.text('Annulée').last);
-        await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('carte-restaurant-ventes-statut')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Annulée').last);
+      await tester.pumpAndSettle();
 
-        expect(
-          tester
-              .widget<Text>(
-                find.byKey(
-                  const Key('carte-restaurant-ventes-filtre-indisponible'),
-                ),
-              )
-              .data,
-          phraseAbsence,
-        );
-        // Une liste qui afficherait « Annulée » sous un tableau qui ne filtre
-        // rien affirmerait un état qu'elle n'a pas vérifié.
-        final liste = tester.widget<DropdownButton<String>>(
-          find.byKey(const Key('carte-restaurant-ventes-statut')),
-        );
-        expect(liste.value, '');
-        expect(find.text('Tous les statuts'), findsOneWidget);
-      },
-    );
+      expect(find.text('Riz sauce'), findsOneWidget);
+      expect(find.text('Poulet DG'), findsNothing);
+      final liste = tester.widget<DropdownButton<String>>(
+        find.byKey(const Key('carte-restaurant-ventes-statut')),
+      );
+      expect(liste.value, 'annulee');
+    });
   });
 
   group('la conclusion de l’onglet « Couverture du stock »', () {
@@ -773,10 +787,17 @@ void main() {
       );
     });
 
-    testWidgets('sur l’onglet Ventes, il dit que la donnée est absente', (
-      tester,
-    ) async {
-      await monter(tester);
+    testWidgets('sur l’onglet Ventes, la modale NOMME l’onglet exporté, et un '
+        'jeu vide se refuse APRÈS le choix du format', (tester) async {
+      await monter(
+        tester,
+        surcharges: [
+          baseLocaleProvider.overrideWithValue(
+            _baseSansVente = AppDatabase.enMemoire(),
+          ),
+        ],
+      );
+      addTearDown(_baseSansVente!.close);
       await tester.tap(find.byKey(const Key('onglet-carte-restaurant-ventes')));
       await tester.pumpAndSettle();
 
@@ -790,16 +811,16 @@ void main() {
       await tester.tap(find.byKey(const Key('export-generer')));
       await tester.pumpAndSettle();
 
+      // Aucune vente sur ce poste : rien à exporter, dit avec la phrase de la
+      // vue — et plus « information non disponible ».
       expect(
-        tester
-            .widget<Text>(
-              find.byKey(const Key('carte-restaurant-export-ventes-absentes')),
-            )
-            .data,
-        donneeNonDisponible('Les lignes de vente du restaurant'),
+        find.byKey(const Key('carte-restaurant-export-ventes-vide')),
+        findsOneWidget,
       );
-      // Aucun fichier, aucun document : le refus tombe après le choix.
-      expect(find.byKey(const Key('export-generer')), findsNothing);
+      expect(
+        find.byKey(const Key('carte-restaurant-export-ventes-absentes')),
+        findsNothing,
+      );
     });
 
     testWidgets('sur l’onglet Carte, la modale porte le titre de la carte', (

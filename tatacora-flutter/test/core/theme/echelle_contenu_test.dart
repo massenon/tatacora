@@ -322,6 +322,9 @@ void main() {
     // dans le `<main>` de leur vue (`comptabilite/hub`, `transverse/*`).
     'lib/features/comptabilite/presentation/ecran_comptabilite.dart',
     'lib/features/comptabilite/presentation/widgets/onglets_etats_financiers.dart',
+    // Onglets « Grand livre » et « Analytique » (26/10/2026) : corps de page,
+    // dans le `<main>` de `comptabilite/hub`.
+    'lib/features/comptabilite/presentation/widgets/onglets_grand_livre_analytique.dart',
     // Onglets « Plan comptable » et « Clôtures » (21/10/2026) : corps de page,
     // dans le `<main>` de `comptabilite/hub` ; leurs modales sont dans
     // `modales_hub_comptabilite.dart`, classé dans l'autre camp.
@@ -505,6 +508,11 @@ void main() {
         '`comptabilite_pwa.modale_piece_titre` de `comptabilite/hub.blade.php` '
         '(l.292), posée après `</main>` (l.283). Rendue sur l échelle '
         'effective jusqu au 15/10/2026 : ramenée à la déclarée.',
+    'lib/features/comptabilite/presentation/widgets/modales_etats_comptables.dart':
+        'Fenêtres « Tableau des flux de trésorerie », « Notes annexes » et '
+        '« États financiers » (pages séparées de la vue, ouvertes depuis les '
+        'tuiles du hub par `showDialog`) : des fenêtres, hors du contenu de '
+        'page.',
     'lib/features/comptabilite/presentation/widgets/modales_immobilisations.dart':
         'Modales « Nouvelle immobilisation » et « Plan » de '
         '`comptabilite/hub.blade.php` (`<x-pwa.modale>`, `etatFormulaire` '

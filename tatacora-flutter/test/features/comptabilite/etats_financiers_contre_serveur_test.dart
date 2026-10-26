@@ -6,6 +6,7 @@ import 'package:tatacora_flutter/features/comptabilite/data/ecritures_serveur_da
 import 'package:tatacora_flutter/features/comptabilite/domain/entities/comptabilite.dart';
 import 'package:tatacora_flutter/features/comptabilite/domain/etats_financiers.dart';
 import 'package:tatacora_flutter/features/comptabilite/domain/montant_comptable.dart';
+import 'package:tatacora_flutter/features/comptabilite/domain/tafire_notes.dart';
 
 import 'support/outils_comptabilite.dart';
 
@@ -159,6 +160,7 @@ void main() {
     expect(RubriquesBilan.resultatReporte, rub['resultat_reporte']);
     expect(RubriquesBilan.dettesCirculantes, rub['dettes_circulantes']);
     expect(RubriquesBilan.tresoreriePassif, rub['tresorerie_passif']);
+    expect(rubriqueDotations, rub['dotations_amortissements']);
   });
 
   for (final annee in annees) {
@@ -179,6 +181,71 @@ void main() {
           expect(poste.lignes[i].creditCentimes, cts(lignes[i]['credit']));
         }
       });
+
+      test('TAFIRE : ressources, emplois, BFR, variation et cohérence', () {
+        final t = etat()['tafire'] as Map<String, dynamic>;
+        final poste = tafireDe(annee, donnees);
+        expect(poste.resultatExerciceCentimes, cts(t['resultat']));
+        expect(poste.dotationsCentimes, cts(t['dotations']));
+        expect(poste.cafgCentimes, cts(t['cafg']));
+        expect(poste.augmentationCapitalCentimes, cts(t['capital']));
+        expect(poste.totalRessourcesCentimes, cts(t['ressources']));
+        expect(poste.acquisitionsCentimes, cts(t['acquisitions']));
+        expect(poste.totalEmploisCentimes, cts(t['emplois']));
+        expect(poste.variationStocksCentimes, cts(t['stocks']));
+        expect(poste.variationCreancesCentimes, cts(t['creances']));
+        expect(poste.variationDettesCentimes, cts(t['dettes']));
+        expect(poste.variationBfrCentimes, cts(t['bfr']));
+        expect(poste.variationCalculeeCentimes, cts(t['calculee']));
+        expect(poste.variationReelleCentimes, cts(t['reelle']));
+        expect(poste.ecartCentimes, cts(t['ecart']));
+        expect(poste.coherent, t['coherent']);
+      });
+
+      test(
+        'notes annexes : sept notes, leurs postes, ouverture et variation',
+        () {
+          final attendues = (etat()['notes'] as List)
+              .cast<Map<String, dynamic>>();
+          final notes = notesDe(annee, donnees);
+          expect(notes, hasLength(attendues.length));
+          for (final (i, a) in attendues.indexed) {
+            final n = notes[i];
+            final raison = 'note ${a['numero']}';
+            expect(n.numero, a['numero'], reason: raison);
+            expect(n.titre, a['titre'], reason: raison);
+            expect(n.etat.name, switch (a['etat']) {
+              'non_saisie' => 'nonSaisie',
+              final String e => e,
+              _ => '',
+            }, reason: raison);
+            expect(n.motif, a['motif'], reason: raison);
+            expect(n.texte, a['texte'], reason: raison);
+            final postes = (a['postes'] as List).cast<Map<String, dynamic>>();
+            expect(n.postes, hasLength(postes.length), reason: raison);
+            for (final (j, p) in postes.indexed) {
+              final poste = n.postes[j];
+              // Le libellé du jeu est le numéro de compte : « 231 (231) ».
+              expect(
+                RegExp(r'\((\d+)\)$').firstMatch(poste.libelle)![1],
+                (p['prefixes'] as List).single,
+                reason: raison,
+              );
+              expect(poste.montantCentimes, cts(p['montant']), reason: raison);
+              expect(
+                poste.ouvertureCentimes,
+                p['ouverture'] == null ? null : cts(p['ouverture']),
+                reason: '$raison ouverture',
+              );
+              expect(
+                poste.variationCentimes,
+                p['variation'] == null ? null : cts(p['variation']),
+                reason: '$raison variation',
+              );
+            }
+          }
+        },
+      );
 
       test('compte de résultat : chaque ligne, avant impôt, impôt, net', () {
         final r = etat()['resultat'] as Map<String, dynamic>;
