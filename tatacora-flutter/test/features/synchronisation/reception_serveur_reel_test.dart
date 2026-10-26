@@ -99,6 +99,34 @@ void main() {
     cheminPoste = '${dossier.path}/poste.json';
     addTearDown(() => dossier.delete(recursive: true));
 
+    // La base d'essai est PRIVÉE à cet essai : créée, migrée, puis supprimée.
+    // (Un clone neuf n'en porte aucune.)
+    Future<void> sql(String requete) async {
+      final r = await Process.run('mysql', [
+        '-h127.0.0.1',
+        '-utatacora',
+        '-ptatacora',
+        '-e',
+        requete,
+      ]);
+      if (r.exitCode != 0) fail('mysql : ${r.stderr}');
+    }
+
+    await sql(
+      'DROP DATABASE IF EXISTS $baseEssai; '
+      'CREATE DATABASE $baseEssai CHARACTER SET utf8mb4',
+    );
+    addTearDown(() => sql('DROP DATABASE IF EXISTS $baseEssai'));
+    final migration = await Process.run(
+      'php',
+      ['artisan', 'migrate', '--force'],
+      workingDirectory: '../tatacora-api',
+      environment: {'DB_DATABASE': baseEssai},
+    );
+    if (migration.exitCode != 0) {
+      fail('migration de $baseEssai : ${migration.stderr}${migration.stdout}');
+    }
+
     final prep = await php({
       'action': 'preparer',
       'instantane': instantane,

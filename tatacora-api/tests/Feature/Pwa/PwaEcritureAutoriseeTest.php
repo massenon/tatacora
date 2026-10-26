@@ -182,6 +182,9 @@ final class PwaEcritureAutoriseeTest extends TestCase
         // n'est pas cette liste qu'il faut élargir : c'est le middleware de
         // la route qui doit le dire.
         'fermerModales',
+        // Tourisme / Départs (26/10/2026) : referme la modale « Ajouter Guide
+        // Touristisme » ; état d'interface, aucune table touchée.
+        'fermerAjoutGuide',
         'changerOnglet',
 
         // 6. UNE LECTURE SEULE explicitement nommée — PA-165 (02/09/2026).
