@@ -42,9 +42,13 @@ use RuntimeException;
 class DeclarationTvaService
 {
     /**
-     * Numéros de compte SYSCOHADA. Constantes et non paramètres : ce sont des
-     * numéros normalisés du plan comptable révisé, pas des réglages locaux.
-     * Le taux, lui, est bien un paramètre (il change par décision de l'État).
+     * Numéros de compte SYSCOHADA PAR DÉFAUT. Depuis le 26/10/2026 (décision du
+     * PO : les comptes se modifient sur poste et sur le web), la déclaration lit
+     * les rôles `TVA_FACTUREE_BIENS`, `TVA_FACTUREE_PRESTATIONS` et
+     * `TVA_RECUPERABLE_ACHATS` de {@see CorrespondanceComptesService} : le compte
+     * CHOISI et le compte par défaut, car les pièces passées avant un
+     * changement sont restées sur l'ancien (RG-11). Le taux, lui, est un
+     * paramètre (il change par décision de l'État).
      */
     public const COMPTE_TVA_COLLECTEE = ComptesSyscohada::TVA_FACTUREE_BIENS;
 
@@ -53,6 +57,11 @@ class DeclarationTvaService
     public const COMPTE_TVA_DEDUCTIBLE = ComptesSyscohada::TVA_RECUPERABLE_ACHATS;
 
     private const PRECISION = 2;
+
+    public function __construct(
+        private readonly CorrespondanceComptesService $comptes,
+    ) {
+    }
 
     /**
      * Déclaration sur une période.
@@ -69,13 +78,32 @@ class DeclarationTvaService
      */
     public function pourPeriode(string $dateDebut, string $dateFin, bool $ecrituresValideesUniquement = true): array
     {
-        // TVA collectée = 4431 (biens, boissons revendues) + 4432 (prestations).
-        $collectee = bcadd(
-            $this->soldeCrediteur(self::COMPTE_TVA_COLLECTEE, $dateDebut, $dateFin, $ecrituresValideesUniquement),
-            $this->soldeCrediteur(self::COMPTE_TVA_COLLECTEE_PRESTATIONS, $dateDebut, $dateFin, $ecrituresValideesUniquement),
-            self::PRECISION,
-        );
-        $deductible = $this->soldeDebiteur(self::COMPTE_TVA_DEDUCTIBLE, $dateDebut, $dateFin, $ecrituresValideesUniquement);
+        // TVA collectée = biens (boissons revendues) + prestations — 4431 et
+        // 4432 par défaut. Chaque compte n'est compté qu'UNE fois, même si deux
+        // rôles ont été rattachés au même.
+        $collectee = '0.00';
+        $comptesCollectee = array_unique([
+            ...$this->comptes->comptesLus('TVA_FACTUREE_BIENS'),
+            ...$this->comptes->comptesLus('TVA_FACTUREE_PRESTATIONS'),
+        ]);
+
+        foreach ($comptesCollectee as $compte) {
+            $collectee = bcadd(
+                $collectee,
+                $this->soldeCrediteur($compte, $dateDebut, $dateFin, $ecrituresValideesUniquement),
+                self::PRECISION,
+            );
+        }
+
+        $deductible = '0.00';
+
+        foreach ($this->comptes->comptesLus('TVA_RECUPERABLE_ACHATS') as $compte) {
+            $deductible = bcadd(
+                $deductible,
+                $this->soldeDebiteur($compte, $dateDebut, $dateFin, $ecrituresValideesUniquement),
+                self::PRECISION,
+            );
+        }
 
         $solde = bcsub($collectee, $deductible, self::PRECISION);
         $comparaison = bccomp($solde, '0.00', self::PRECISION);

@@ -12,6 +12,7 @@ use App\Pwa\Livewire\Comptabilite\Balance;
 use App\Pwa\Livewire\Comptabilite\Bilan;
 use App\Pwa\Livewire\Comptabilite\Cloture;
 use App\Pwa\Livewire\Comptabilite\CompteResultat;
+use App\Pwa\Livewire\Comptabilite\CorrespondanceComptes;
 use App\Pwa\Livewire\Comptabilite\EtatsFinanciers;
 use App\Pwa\Livewire\Comptabilite\FluxTresorerie;
 use App\Pwa\Livewire\Comptabilite\GrandLivre;
@@ -253,6 +254,8 @@ Route::prefix('pwa')
                 ->group(function () {
                     Route::get('/', Hub::class)->name('hub');
                     Route::get('/plan-comptable', PlanComptable::class)->name('plan-comptable');
+                    // Décision du PO du 26/10/2026 : les comptes se modifient sur le web.
+                    Route::get('/correspondance-comptes', CorrespondanceComptes::class)->name('correspondance-comptes');
                     Route::get('/journal', Journal::class)->name('journal');
                     Route::get('/grand-livre', GrandLivre::class)->name('grand-livre');
                     Route::get('/balance', Balance::class)->name('balance');

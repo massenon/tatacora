@@ -6,8 +6,8 @@ namespace App\Domain\Achats\Services;
 
 use App\Domain\Achats\Models\CommandeAchat;
 use App\Domain\Achats\Models\ReglementFournisseur;
+use App\Domain\Comptabilite\Services\CorrespondanceComptesService;
 use App\Domain\Comptabilite\Services\PasserEcritureService;
-use App\Domain\Comptabilite\Support\ComptesSyscohada;
 use App\Domain\Depenses\Services\DepenseService;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
@@ -46,6 +46,7 @@ class ReglementFournisseurService
 
     public function __construct(
         private readonly PasserEcritureService $ecritures,
+        private readonly CorrespondanceComptesService $comptes,
     ) {
     }
 
@@ -111,8 +112,8 @@ class ReglementFournisseurService
                 'date' => $jour,
                 'libelle' => $libelle,
                 'lignes' => [
-                    ['compte' => ComptesSyscohada::FOURNISSEURS, 'debit' => $montant, 'credit' => '0'],
-                    ['compte' => $tresorerie['compte'], 'debit' => '0', 'credit' => $montant],
+                    ['compte' => $this->comptes->compte('FOURNISSEURS'), 'role' => 'FOURNISSEURS', 'debit' => $montant, 'credit' => '0'],
+                    ['compte' => $this->comptes->compteDeTresorerie($tresorerieCode), 'role' => CorrespondanceComptesService::roleDeTresorerie($tresorerieCode), 'debit' => '0', 'credit' => $montant],
                 ],
             ]);
 

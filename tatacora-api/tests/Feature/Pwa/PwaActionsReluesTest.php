@@ -14,6 +14,7 @@ use App\Pwa\Livewire\Comptabilite\Balance;
 use App\Pwa\Livewire\Comptabilite\Bilan;
 use App\Pwa\Livewire\Comptabilite\Cloture;
 use App\Pwa\Livewire\Comptabilite\CompteResultat;
+use App\Pwa\Livewire\Comptabilite\CorrespondanceComptes;
 use App\Pwa\Livewire\Comptabilite\EtatsFinanciers;
 use App\Pwa\Livewire\Comptabilite\FluxTresorerie;
 use App\Pwa\Livewire\Comptabilite\GrandLivre;
@@ -203,6 +204,14 @@ final class PwaActionsReluesTest extends TestCase
             // Lot 4 : l'archive légale — générer (écriture M10), télécharger.
             'genererArchive', 'telechargerArchive',
             'fermerModales',
+        ],
+        // Correspondance des comptes (26/10/2026, decision du PO : les comptes se
+        // modifient sur le web). Quatre gestes, chacun garde par
+        // `exigerEcriture(self::MODULE)` (M10) : ouvrir l'edition d'un role,
+        // enregistrer le compte, retablir le defaut, fermer.
+        CorrespondanceComptes::class => [
+            'render',
+            'ouvrirEditionRole', 'enregistrerRole', 'retablirRole', 'fermerModales',
         ],
         PlanComptable::class => ['render'],
         Journal::class => ['render'],

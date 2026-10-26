@@ -11,7 +11,6 @@ use App\Domain\Comptabilite\Models\ExerciceComptable;
 use App\Domain\Comptabilite\Models\JournalComptable;
 use App\Domain\Comptabilite\ReadModels\BalanceGenerale;
 use App\Domain\Comptabilite\ReadModels\LigneBalance;
-use App\Domain\Comptabilite\Support\ComptesSyscohada;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -60,6 +59,7 @@ class BalanceGeneraleService
 
     public function __construct(
         private readonly PorteeEcrituresService $portee,
+        private readonly CorrespondanceComptesService $comptes,
     ) {
     }
 
@@ -261,7 +261,7 @@ class BalanceGeneraleService
         $signe = bccomp($resultat, '0.00', self::PRECISION);
 
         if ($signe !== 0) {
-            $numero = $signe > 0 ? ComptesSyscohada::RESULTAT_BENEFICE : ComptesSyscohada::RESULTAT_PERTE;
+            $numero = $this->comptes->compte($signe > 0 ? 'RESULTAT_BENEFICE' : 'RESULTAT_PERTE');
             $compte = CompteComptable::query()->where('numero_compte', $numero)->first();
 
             if ($compte !== null) {

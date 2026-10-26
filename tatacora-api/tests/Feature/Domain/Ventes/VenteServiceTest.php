@@ -433,7 +433,7 @@ final class VenteServiceTest extends TestCase
     /**
      * TVA par module, au centime : la TVA du bar (marchandises revendues) se
      * crédite sur 4431, celle du restaurant (prestation) sur 4432, et la pièce
-     * s'équilibre. MUTATION PROUVÉE : `COMPTES_TVA['M5'] = 4432` rougit ce cas.
+     * s'équilibre. MUTATION PROUVÉE : `ROLES_TVA['M5'] = 'TVA_FACTUREE_PRESTATIONS'` rougit ce cas.
      */
     #[Test]
     public function la_tva_se_credite_par_module_4431_bar_4432_restaurant_et_la_piece_s_equilibre(): void
@@ -474,7 +474,7 @@ final class VenteServiceTest extends TestCase
     }
 
     /**
-     * MUTATION PROUVÉE : remplacer le débit `COMPTE_CLIENTS` par la caisse
+     * MUTATION PROUVÉE : remplacer le rôle `ROLE_CLIENTS` du débit par la caisse
      * fait rougir ce cas — c'est exactement l'erreur qui gonflerait le fond
      * de caisse d'un argent que personne n'a remis.
      */
@@ -489,7 +489,7 @@ final class VenteServiceTest extends TestCase
 
         $debit = $this->piece($vente)->firstWhere(fn ($e): bool => bccomp((string) $e->debit, '0', 2) > 0);
 
-        $this->assertSame(VenteService::COMPTE_CLIENTS, $this->compteDe($debit));
+        $this->assertSame(\App\Domain\Comptabilite\Support\ComptesSyscohada::CLIENTS, $this->compteDe($debit));
         $this->assertNotSame(DepenseService::TRESORERIES['caisse']['compte'], $this->compteDe($debit));
     }
 

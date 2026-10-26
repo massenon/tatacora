@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Shared\Parametres\Services;
 
 use App\Domain\Comptabilite\Services\CalculTvaService;
+use App\Domain\Comptabilite\Services\CorrespondanceComptesService;
 use App\Shared\Parametres\Data\DefinitionParametre;
 use App\Shared\Parametres\Data\RegistreParametres;
 use App\Shared\Parametres\Models\ParametreSysteme;
@@ -47,6 +48,7 @@ class EnregistrerParametreService
 {
     public function __construct(
         private readonly ParametreSystemeService $lecture,
+        private readonly CorrespondanceComptesService $comptes,
     ) {
     }
 
@@ -72,6 +74,7 @@ class EnregistrerParametreService
             $normalisees[$definition->cle] = $this->normaliser($definition, $valeur);
         }
 
+        $this->verifierComptes($normalisees);
         $this->verifierCoherence($normalisees);
 
         $modifiees = [];
@@ -125,6 +128,28 @@ class EnregistrerParametreService
             'choix' => strtolower(trim((string) $valeur)),
             default => trim((string) $valeur),
         };
+    }
+
+    /**
+     * La correspondance rôle -> compte (26/10/2026) : chaque clé `compte_<rôle>`
+     * non vide est jugée par {@see CorrespondanceComptesService::verifier()}.
+     *
+     * Ici, et pas dans l'écran : la synchronisation d'un poste écrit par ce
+     * service (`GestionnaireParametres`), et une validation placée seulement
+     * dans le composant laisserait un poste imposer un compte absent du plan.
+     * Vide : le rôle revient à son défaut, rien à vérifier.
+     *
+     * @param  array<string, string>  $soumis
+     */
+    private function verifierComptes(array $soumis): void
+    {
+        foreach ($soumis as $cle => $valeur) {
+            $role = CorrespondanceComptesService::roleDeCle($cle);
+
+            if ($role !== null && $valeur !== '') {
+                $this->comptes->verifier($role, $valeur);
+            }
+        }
     }
 
     /**

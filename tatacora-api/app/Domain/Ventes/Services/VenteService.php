@@ -8,8 +8,8 @@ use App\Domain\Bar\Models\CarteBoisson;
 use App\Domain\Comptabilite\Models\CentreCout;
 use App\Domain\Comptabilite\Models\EcritureComptable;
 use App\Domain\Comptabilite\Services\CalculTvaService;
+use App\Domain\Comptabilite\Services\CorrespondanceComptesService;
 use App\Domain\Comptabilite\Services\PasserEcritureService;
-use App\Domain\Comptabilite\Support\ComptesSyscohada;
 use App\Domain\Depenses\Services\DepenseService;
 use App\Domain\Numerotation\Services\SequenceDocumentService;
 use App\Domain\Restaurant\Models\CommandeRestaurant;
@@ -192,7 +192,7 @@ class VenteService
      *
      * `note_chambre` est absent de ce registre **et ce n'est pas un oubli** :
      * aucune trésorerie ne bouge, la consommation devient une créance client
-     * ({@see self::COMPTE_CLIENTS}). Débiter la caisse pour une note de
+     * ((rôle {@see self::ROLE_CLIENTS})). Débiter la caisse pour une note de
      * chambre gonflerait le fond de caisse d'un argent que personne n'a remis.
      *
      * @var array<string, string>
@@ -205,43 +205,48 @@ class VenteService
     ];
 
     /**
-     * Compte de tiers d'une consommation portée sur la note de chambre —
-     * `ATELIER_PLAN_COMPTABLE.md` §4, « 4111 Clients ».
+     * Rôle comptable du tiers d'une consommation portée sur la note de chambre
+     * — `ATELIER_PLAN_COMPTABLE.md` §4, « 4111 Clients » par défaut. Le compte
+     * lui-même est celui de la correspondance au moment de passer la pièce.
      */
-    public const COMPTE_CLIENTS = ComptesSyscohada::CLIENTS;
+    public const ROLE_CLIENTS = 'CLIENTS';
 
     /**
-     * Comptes de produits par module — `ATELIER_PLAN_COMPTABLE.md` §2.
+     * Rôle du compte de produits de chaque module — `ATELIER_PLAN_COMPTABLE.md`
+     * §2. Le COMPTE qu'un rôle désigne est celui de la correspondance
+     * ({@see CorrespondanceComptesService}, modifiable depuis le 26/10/2026) ;
+     * ses défauts sont ceux de `ComptesSyscohada` : restaurant (M4) 7061, bar
+     * (M5) 7011, location de véhicules (M8) 7073 « Locations », tourisme (M9)
+     * 7061 « services vendus » — le plan du PO n'a pas de compte dédié aux
+     * circuits, le centre de coût « Tourisme » porte la distinction (comptes
+     * validés par le PO le 26/10/2026).
      *
      * Ce registre couvre exactement {@see self::MODULES_ENCAISSABLES} : y
-     * inscrire M1 produirait une entrée qu'aucun chemin n'atteint. Location de
-     * véhicules (M8) sur 7073 « Locations » ; tourisme (M9) sur 7061 « services
-     * vendus » — le plan du PO n'a pas de compte dédié aux circuits, le centre
-     * de coût « Tourisme » porte la distinction (à valider par le comptable).
+     * inscrire M1 produirait une entrée qu'aucun chemin n'atteint.
      *
      * @var array<string, string>
      */
-    /**
-     * SYSCOHADA `443` « État, TVA facturée » — au plan depuis le 01/09/2026
-     * (décision PO : prix TTC, TVA 18 % ; recommandation d'expertise
-     * comptable). La part TVA de chaque vente s'y crédite quand la TVA est
-     * active ; le compte fait foi ici et dans `ComptabiliteReferentielSeeder`.
-     */
-    public const COMPTE_TVA_FACTUREE = ComptesSyscohada::TVA_FACTUREE_BIENS;
+    public const ROLES_PRODUIT = [
+        'M4' => 'PRODUIT_PRESTATIONS',
+        'M5' => 'PRODUIT_MARCHANDISES',
+        'M8' => 'PRODUIT_LOCATIONS',
+        'M9' => 'PRODUIT_CIRCUITS',
+    ];
 
     /**
-     * TVA facturée par module : boissons revendues (M5) sur 4431, prestations
-     * servies (M4, repas) sur 4432 — table `ComptesSyscohada`, à valider par
-     * le comptable.
+     * Rôle de la TVA facturée par module : boissons revendues (M5) sur
+     * « T.V.A. facturée sur ventes » (4431 par défaut), prestations servies
+     * (M4 repas, M8 location, M9 circuit) sur « T.V.A. facturée sur prestations
+     * de services » (4432 par défaut, validé par le PO le 26/10/2026). Au plan
+     * depuis le 01/09/2026 (décision PO : prix TTC, TVA 18 %).
      *
      * @var array<string, string>
      */
-    public const COMPTES_TVA = [
-        'M4' => ComptesSyscohada::TVA_FACTUREE_PRESTATIONS,
-        'M5' => ComptesSyscohada::TVA_FACTUREE_BIENS,
-        // Prestations de services (location, circuit) : 4432, comme le repas.
-        'M8' => ComptesSyscohada::TVA_FACTUREE_PRESTATIONS,
-        'M9' => ComptesSyscohada::TVA_FACTUREE_PRESTATIONS,
+    public const ROLES_TVA = [
+        'M4' => 'TVA_FACTUREE_PRESTATIONS',
+        'M5' => 'TVA_FACTUREE_BIENS',
+        'M8' => 'TVA_FACTUREE_PRESTATIONS',
+        'M9' => 'TVA_FACTUREE_PRESTATIONS',
     ];
 
     /**
@@ -255,13 +260,6 @@ class VenteService
         'M5' => 'Bar',
         'M8' => 'Véhicules',
         'M9' => 'Tourisme',
-    ];
-
-    public const COMPTES_PRODUIT = [
-        'M4' => ComptesSyscohada::PRODUIT_PRESTATIONS,
-        'M5' => ComptesSyscohada::PRODUIT_MARCHANDISES,
-        'M8' => ComptesSyscohada::PRODUIT_LOCATIONS,
-        'M9' => ComptesSyscohada::PRODUIT_PRESTATIONS,
     ];
 
     private const MODE_NOTE_CHAMBRE = 'note_chambre';
@@ -293,6 +291,7 @@ class VenteService
         private readonly PasserEcritureService $ecritures,
         private readonly CalculTvaService $tva,
         private readonly DeductionStockCuisineService $deductionCuisine,
+        private readonly CorrespondanceComptesService $comptes,
     ) {
     }
 
@@ -391,7 +390,7 @@ class VenteService
         // La pièce porte le NET encaissé : la ventilation brute par module est
         // ramenée au net, dernier module ajusté pour un équilibre exact.
         $ventilation = self::ventilerAuNet($this->ventilerParModule($resolues), $total, $net);
-        $compteContrepartie = $this->compteDeContrepartie($modePaiement);
+        $roleContrepartie = $this->roleDeContrepartie($modePaiement);
 
         return DB::transaction(function () use (
             $donnees,
@@ -400,7 +399,7 @@ class VenteService
             $identifiant,
             $net,
             $ventilation,
-            $compteContrepartie,
+            $roleContrepartie,
             $dateVente,
             $sansBonDeCuisine
         ): Vente {
@@ -428,7 +427,7 @@ class VenteService
                 'journal' => self::JOURNAL,
                 'date' => ($dateVente ?? now())->toDateString(),
                 'libelle' => $this->libelleDeLaPiece($numero),
-                'lignes' => $this->lignesDeLaPiece($ventilation, $compteContrepartie, $net),
+                'lignes' => $this->lignesDeLaPiece($ventilation, $roleContrepartie, $net),
             ]);
 
             $vente = new Vente([
@@ -547,9 +546,9 @@ class VenteService
             )),
             (string) $vente->montant_total,
         );
-        $compteContrepartie = $this->compteDeContrepartie($vente->mode_paiement);
+        $roleContrepartie = $this->roleDeContrepartie($vente->mode_paiement);
 
-        return DB::transaction(function () use ($vente, $ventilation, $compteContrepartie): Vente {
+        return DB::transaction(function () use ($vente, $ventilation, $roleContrepartie): Vente {
             $piece = $this->ecritures->passerEtValider([
                 'journal' => self::JOURNAL,
                 // La date de la VENTE, jamais celle du rattrapage : une pièce
@@ -560,7 +559,7 @@ class VenteService
                 'libelle' => $this->libelleDeLaPiece($vente->numero),
                 'lignes' => $this->lignesDeLaPiece(
                     $ventilation,
-                    $compteContrepartie,
+                    $roleContrepartie,
                     (string) $vente->montant_total,
                 ),
             ]);
@@ -1043,7 +1042,7 @@ class VenteService
      * @throws RuntimeException TVA assujettie (aucun compte de collecte au plan),
      *                          ou module sans compte de produits
      */
-    private function lignesDeLaPiece(array $ventilation, string $compteContrepartie, string $total): array
+    private function lignesDeLaPiece(array $ventilation, string $roleContrepartie, string $total): array
     {
         /*
          * LA LACUNE DE TVA COLLECTÉE EST COMBLÉE (01/09/2026) — décision du
@@ -1071,7 +1070,11 @@ class VenteService
         $piece = [];
 
         $piece[] = [
-            'compte' => $compteContrepartie,
+            // Les comptes sont lus de la CORRESPONDANCE ici, au moment de
+            // passer la pièce (26/10/2026) ; le rôle suit la ligne pour le
+            // centre par défaut.
+            'compte' => $this->comptes->compte($roleContrepartie),
+            'role' => $roleContrepartie,
             'debit' => $total,
             'credit' => '0.00',
         ];
@@ -1080,21 +1083,24 @@ class VenteService
         $centres = [];
 
         foreach ($ventilation as $module => $montant) {
-            $compte = self::COMPTES_PRODUIT[$module] ?? null;
+            $roleProduit = self::ROLES_PRODUIT[$module] ?? null;
 
-            if ($compte === null) {
+            if ($roleProduit === null) {
                 throw new RuntimeException(__('ventes.compte_produit_absent', [
                     'module' => self::MODULES[$module] ?? $module,
                 ]));
             }
 
+            $compte = $this->comptes->compte($roleProduit);
             $credit = $montant;
 
             if ($tvaActive) {
                 $ht = $this->tva->ventiler($montant)['ht'];
-                $compteTva = self::COMPTES_TVA[$module];
-                $tvaParCompte[$compteTva] = bcadd(
-                    $tvaParCompte[$compteTva] ?? '0.00',
+                // Groupée par RÔLE : deux rôles de TVA désignant le même compte
+                // donnent deux lignes, ici comme sur le poste (même pièce).
+                $roleTva = self::ROLES_TVA[$module];
+                $tvaParCompte[$roleTva] = bcadd(
+                    $tvaParCompte[$roleTva] ?? '0.00',
                     bcsub($montant, $ht, self::PRECISION),
                     self::PRECISION,
                 );
@@ -1103,16 +1109,18 @@ class VenteService
 
             $piece[] = [
                 'compte' => $compte,
+                'role' => $roleProduit,
                 'debit' => '0.00',
                 'credit' => $credit,
                 'centre_id' => $this->centreDuModule($module),
             ];
         }
 
-        foreach ($tvaParCompte as $compteTva => $tva) {
+        foreach ($tvaParCompte as $roleTva => $tva) {
             if (bccomp($tva, '0.00', self::PRECISION) > 0) {
                 $piece[] = [
-                    'compte' => (string) $compteTva,
+                    'compte' => $this->comptes->compte((string) $roleTva),
+                    'role' => (string) $roleTva,
                     'debit' => '0.00',
                     'credit' => $tva,
                 ];
@@ -1134,14 +1142,15 @@ class VenteService
     }
 
     /**
-     * Compte de débit d'une vente, selon le mode de paiement.
+     * Rôle du compte de débit d'une vente, selon le mode de paiement (le compte
+     * lui-même est lu de la correspondance au moment de passer la pièce).
      *
      * @throws RuntimeException mode de paiement sans contrepartie déclarée
      */
-    private function compteDeContrepartie(string $modePaiement): string
+    private function roleDeContrepartie(string $modePaiement): string
     {
         if ($modePaiement === self::MODE_NOTE_CHAMBRE) {
-            return self::COMPTE_CLIENTS;
+            return self::ROLE_CLIENTS;
         }
 
         $tresorerie = self::CONTREPARTIES_TRESORERIE[$modePaiement] ?? null;
@@ -1156,7 +1165,7 @@ class VenteService
             ]));
         }
 
-        return DepenseService::TRESORERIES[$tresorerie]['compte'];
+        return CorrespondanceComptesService::roleDeTresorerie($tresorerie);
     }
 
     /**

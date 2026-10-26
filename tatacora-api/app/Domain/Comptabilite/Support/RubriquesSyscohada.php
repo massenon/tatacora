@@ -86,16 +86,20 @@ final class RubriquesSyscohada
     public const CAPITAL = ['101'];
 
     /**
-     * Comptes de resultat de CLOTURE — 131 (benefice) / 139 (perte).
+     * Comptes de resultat de CLOTURE — tout le groupe 13 : 131 (benefice) et
+     * 139 (perte) par defaut, mais l'administrateur peut rattacher les roles
+     * `RESULTAT_BENEFICE` et `RESULTAT_PERTE` a un autre compte de la classe 13
+     * (correspondance des comptes, 26/10/2026 ; la validation exige le prefixe
+     * 13). Le prefixe 13 — et non la liste 131/139 — garde le bilan equilibre :
+     * un resultat reporte sur un autre compte du groupe y reste compte.
      *
-     * Ils sont vides tant qu'aucune cloture n'a eu lieu, et c'est le cas ici :
-     * la cloture est bloquee (voir `EtatClotureService`). Les inclure quand
+     * Ils sont vides tant qu'aucune cloture n'a eu lieu. Les inclure quand
      * meme dans les capitaux propres evite qu'un exercice deja cloture affiche
-     * un bilan faux le jour ou la cloture existera.
+     * un bilan faux.
      *
      * @var list<string>
      */
-    public const RESULTAT_REPORTE = ['131', '139'];
+    public const RESULTAT_REPORTE = ['13'];
 
     /**
      * Dettes circulantes — PART2 §2.2.

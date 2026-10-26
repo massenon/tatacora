@@ -134,6 +134,23 @@ final class EcritureParametresTest extends TestCase
                 if (str_contains($contenu, "'" . $cle . "'")) {
                     $source[$cle] = true;
                 }
+
+                // La correspondance des comptes (26/10/2026) : la cle
+                // `compte_<role>` n'est jamais ecrite en litteral, elle se
+                // DERIVE du role (`CorrespondanceComptesService::cle()`). Son
+                // lecteur est le fichier qui nomme le ROLE en litteral —
+                // hors les trois fichiers qui le DEFINISSENT (une sonde qui
+                // compte ses propres definitions est verte a vide). Le
+                // comportement de chaque role est prouve par
+                // `CorrespondanceComptesTest` et par les tests de parite du poste.
+                $role = \App\Domain\Comptabilite\Services\CorrespondanceComptesService::roleDeCle($cle);
+
+                if ($role !== null
+                    && ! str_ends_with($fichier->getPathname(), 'RolesCorrespondance.php')
+                    && ! str_ends_with($fichier->getPathname(), 'ComptesSyscohada.php')
+                    && str_contains($contenu, "'" . $role . "'")) {
+                    $source[$cle] = true;
+                }
             }
         }
 

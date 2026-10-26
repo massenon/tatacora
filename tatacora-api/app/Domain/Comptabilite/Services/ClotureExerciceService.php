@@ -8,7 +8,6 @@ use App\Domain\Comptabilite\Models\CentreCout;
 use App\Domain\Comptabilite\Models\ClotureExercice;
 use App\Domain\Comptabilite\Models\EcritureComptable;
 use App\Domain\Comptabilite\Models\ExerciceComptable;
-use App\Domain\Comptabilite\Support\ComptesSyscohada;
 use App\Models\User;
 use App\Shared\Audit\Models\JournalAudit;
 use Illuminate\Support\Facades\DB;
@@ -93,6 +92,7 @@ class ClotureExerciceService
         private readonly EtatClotureService $etat,
         private readonly PasserEcritureService $passer,
         private readonly BalanceGeneraleService $balance,
+        private readonly CorrespondanceComptesService $comptes,
     ) {
     }
 
@@ -348,9 +348,9 @@ class ClotureExerciceService
         $signe = bccomp($resultat, '0.00', self::PRECISION);
 
         if ($signe > 0) {
-            $lignes[] = ['compte' => ComptesSyscohada::RESULTAT_BENEFICE, 'centre_id' => $structure, 'debit' => '0.00', 'credit' => $resultat];
+            $lignes[] = ['compte' => $this->comptes->compte('RESULTAT_BENEFICE'), 'centre_id' => $structure, 'debit' => '0.00', 'credit' => $resultat];
         } elseif ($signe < 0) {
-            $lignes[] = ['compte' => ComptesSyscohada::RESULTAT_PERTE, 'centre_id' => $structure, 'debit' => bcsub('0.00', $resultat, self::PRECISION), 'credit' => '0.00'];
+            $lignes[] = ['compte' => $this->comptes->compte('RESULTAT_PERTE'), 'centre_id' => $structure, 'debit' => bcsub('0.00', $resultat, self::PRECISION), 'credit' => '0.00'];
         }
 
         return [$lignes, $resultat];

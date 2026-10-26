@@ -13,9 +13,20 @@ namespace App\Domain\Comptabilite\Support;
  * Le client Flutter desktop réplique CETTE table. Un compte absent du fichier
  * n'est JAMAIS créé ici : le flux concerné se refuse en nommant le compte.
  *
- * ⚠ À VALIDER PAR LE COMPTABLE : correspondance établie par le lead à partir de
- * sources secondaires (plan-comptable-ohada.com, guides OHADA) ; le texte
- * officiel de l'AUDCIF n'a pas été consulté. Le fichier du PO fait foi.
+ * ## Ces numéros sont les VALEURS PAR DÉFAUT, plus des constantes figées
+ *
+ * Décision du PO du 26/10/2026 : « ON PEUT IMPÉRATIVEMENT MODIFIER LES COMPTES
+ * SUR POSTE ET LE WEB ». Chaque rôle de {@see RolesCorrespondance::ROLES} se
+ * change à l'écran « Correspondance des comptes » (un paramètre `compte_<rôle>`,
+ * dernier écrit gagnant, synchronisé comme les autres paramètres) ; la
+ * constante ci-dessous est ce que le rôle vaut tant qu'AUCUN compte n'est
+ * choisi. Les services qui passent une pièce lisent la correspondance par
+ * {@see \App\Domain\Comptabilite\Services\CorrespondanceComptesService}, jamais
+ * la constante. Une pièce déjà passée n'est JAMAIS réécrite (RG-11).
+ *
+ * Les comptes 7073 (Locations, M8), 7061 (services vendus, circuits M9) et
+ * 4432 (TVA sur prestations) sont VALIDÉS PAR LE PO le 26/10/2026 ; le
+ * comptable peut encore les changer à l'écran. Le fichier du PO fait foi.
  *
  * | Fonction | Ancien | Compte | Libellé EXACT du fichier | Division parente |
  * |---|---|---|---|---|
@@ -72,6 +83,14 @@ final class ComptesSyscohada
     public const PRODUIT_PRESTATIONS = '7061';
 
     public const PRODUIT_MARCHANDISES = '7011';
+
+    /**
+     * Circuits touristiques (M9) — son PROPRE rôle depuis le 26/10/2026, pour
+     * qu'un changement du compte du restaurant ne déplace pas les circuits.
+     * Même numéro par défaut que {@see self::PRODUIT_PRESTATIONS} : le plan du
+     * PO n'a pas de compte dédié aux circuits (validé par le PO le 26/10/2026).
+     */
+    public const PRODUIT_CIRCUITS = '7061';
 
     /** Locations de véhicules (M8) — « Locations (2) » du plan du PO ; décision du 22/10/2026 (comptoir). */
     public const PRODUIT_LOCATIONS = '7073';

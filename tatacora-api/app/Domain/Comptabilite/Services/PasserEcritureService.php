@@ -8,6 +8,7 @@ use App\Domain\Comptabilite\Models\CompteComptable;
 use App\Domain\Comptabilite\Models\EcritureComptable;
 use App\Domain\Comptabilite\Models\ExerciceComptable;
 use App\Domain\Comptabilite\Models\JournalComptable;
+use App\Domain\Comptabilite\Support\RolesCorrespondance;
 use App\Domain\Numerotation\Services\SequenceDocumentService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
@@ -283,6 +284,16 @@ class PasserEcritureService
     private function centre(array $ligne, CompteComptable $compte): string
     {
         $centre = $ligne['centre_id'] ?? $compte->centre_cout_defaut_id;
+
+        // Correspondance des comptes (26/10/2026) : un compte choisi pour un
+        // rôle n'a pas forcément de centre par défaut au plan. La ligne qui
+        // nomme son RÔLE retombe alors sur le centre du compte PAR DÉFAUT de ce
+        // rôle — jamais un centre inventé, et le poste fait de même.
+        if (($centre === null || $centre === '') && isset($ligne['role']) && RolesCorrespondance::existe((string) $ligne['role'])) {
+            $centre = CompteComptable::query()
+                ->where('numero_compte', RolesCorrespondance::defaut((string) $ligne['role']))
+                ->value('centre_cout_defaut_id');
+        }
 
         if ($centre === null || $centre === '') {
             throw new RuntimeException(__('depenses.centre_absent', [

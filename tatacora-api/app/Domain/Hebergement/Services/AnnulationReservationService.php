@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Hebergement\Services;
 
 use App\Domain\Comptabilite\Models\EcritureComptable;
+use App\Domain\Comptabilite\Services\CorrespondanceComptesService;
 use App\Domain\Comptabilite\Services\PasserEcritureService;
 use App\Domain\Comptabilite\Support\ComptesSyscohada;
 use App\Domain\Depenses\Services\DepenseService;
@@ -119,6 +120,9 @@ class AnnulationReservationService
      * EF-M1-06) » — ATELIER_PLAN_COMPTABLE.md, seul compte du plan documenté
      * qui porte les arrhes d'hébergement. Aucun autre n'est substitué : un
      * compte manquant se refuse, ne s'invente pas (règle du dépôt).
+     *
+     * VALEUR PAR DÉFAUT depuis le 26/10/2026 : la pièce lit le rôle
+     * `AVANCES_CLIENTS` de {@see CorrespondanceComptesService}, modifiable.
      */
     public const COMPTE_AVANCES_CLIENTS = ComptesSyscohada::AVANCES_CLIENTS;
 
@@ -128,6 +132,7 @@ class AnnulationReservationService
         private readonly ReservationService $reservations,
         private readonly PasserEcritureService $ecritures,
         private readonly ParametreSystemeService $parametres,
+        private readonly CorrespondanceComptesService $comptes,
     ) {
     }
 
@@ -298,12 +303,14 @@ class AnnulationReservationService
             ]),
             'lignes' => [
                 [
-                    'compte' => self::COMPTE_AVANCES_CLIENTS,
+                    'compte' => $this->comptes->compte('AVANCES_CLIENTS'),
+                    'role' => 'AVANCES_CLIENTS',
                     'debit' => $montant,
                     'credit' => '0.00',
                 ],
                 [
-                    'compte' => $tresorerie['compte'],
+                    'compte' => $this->comptes->compteDeTresorerie('caisse'),
+                    'role' => 'CAISSE',
                     'debit' => '0.00',
                     'credit' => $montant,
                 ],

@@ -75,11 +75,20 @@
            class="champ w-full border border-slate-200 rounded-lg pl-10 pr-4 py-2.5 text-sm bg-white">
   </div>
 
-  {{-- « + Créer un compte » (maître l.396) — porté le 01/09/2026. --}}
-  <button type="button" wire:click="ouvrirNouveauCompte"
-          class="text-[13px] px-4 py-2 rounded-lg bg-[var(--navy)] text-white font-semibold hover:opacity-90 shrink-0">
-    + {{ __('comptabilite_pwa.creer_compte') }}
-  </button>
+  <div class="flex items-center gap-2 shrink-0">
+    {{-- « Correspondance des comptes » — lien AJOUTÉ par le PO le 26/10/2026 (les
+         comptes de chaque rôle se modifient sur le web comme sur le poste). --}}
+    <a href="{{ route('pwa.comptabilite.correspondance-comptes') }}" wire:navigate
+       class="text-[13px] px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50 font-semibold">
+      {{ __('comptes_correspondance.lien_hub') }}
+    </a>
+
+    {{-- « + Créer un compte » (maître l.396) — porté le 01/09/2026. --}}
+    <button type="button" wire:click="ouvrirNouveauCompte"
+            class="text-[13px] px-4 py-2 rounded-lg bg-[var(--navy)] text-white font-semibold hover:opacity-90 shrink-0">
+      + {{ __('comptabilite_pwa.creer_compte') }}
+    </button>
+  </div>
 </div>
 
 @forelse ($parClasse as $classe => $comptes)

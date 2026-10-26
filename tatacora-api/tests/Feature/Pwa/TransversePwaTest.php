@@ -774,6 +774,13 @@ final class TransversePwaTest extends TestCase
         $groupesVus = [];
 
         foreach (RegistreParametres::definitions() as $definition) {
+            // La correspondance des comptes (26/10/2026) a son propre ecran ;
+            // `la_correspondance_des_comptes_ne_se_montre_pas_dans_parametres`
+            // prouve qu'elle n'est rendue sous aucun onglet.
+            if ($definition->groupe === RegistreParametres::GROUPE_COMPTES) {
+                continue;
+            }
+
             $onglet = Parametres::ongletDe($definition);
             $groupesVus[$definition->groupe] = true;
 
@@ -793,6 +800,28 @@ final class TransversePwaTest extends TestCase
             array_keys($groupesVus),
             'Un groupe du registre serveur n\'est rendu sous aucun onglet.',
         );
+    }
+
+    #[Test]
+    public function la_correspondance_des_comptes_ne_se_montre_pas_dans_parametres(): void
+    {
+        $this->actingAs($this->utilisateur('administrateur'));
+
+        $declarees = array_filter(
+            RegistreParametres::definitions(),
+            static fn ($d): bool => $d->groupe === RegistreParametres::GROUPE_COMPTES,
+        );
+        // Plancher : un registre sans ces cles rendrait le balayage vert a vide.
+        $this->assertGreaterThanOrEqual(15, count($declarees));
+
+        foreach (array_keys(Parametres::ONGLETS) as $onglet) {
+            $html = (string) $this->get('/pwa/parametres?onglet=' . $onglet)->assertOk()->getContent();
+
+            foreach ($declarees as $definition) {
+                $this->assertStringNotContainsString(e($definition->libelle), $html);
+                $this->assertStringNotContainsString($definition->cle, $html);
+            }
+        }
     }
 
     /**

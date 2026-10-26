@@ -174,22 +174,24 @@ class PlanComptableFichierTest extends TestCase
      */
     private function comptesEnDur(): array
     {
+        // Tous les DÉFAUTS de la correspondance (26/10/2026) : les constantes de
+        // `ComptesSyscohada` (charges comprises) et les défauts par trésorerie.
         $comptes = [
-            VenteService::COMPTE_CLIENTS,
-            VenteService::COMPTE_TVA_FACTUREE,
             AnnulationReservationService::COMPTE_AVANCES_CLIENTS,
             DeclarationTvaService::COMPTE_TVA_COLLECTEE,
             DeclarationTvaService::COMPTE_TVA_DEDUCTIBLE,
-            ...array_values(VenteService::COMPTES_PRODUIT),
-            ...array_values(VenteService::COMPTES_TVA),
-            ...array_values((new ReflectionClass(\App\Domain\Comptabilite\Support\ComptesSyscohada::class))->getConstants()),
             DeclarationTvaService::COMPTE_TVA_COLLECTEE_PRESTATIONS,
+            ...array_map(
+                static fn (string $role): string => \App\Domain\Comptabilite\Support\RolesCorrespondance::defaut($role),
+                array_values(VenteService::ROLES_PRODUIT),
+            ),
+            ...array_map(
+                static fn (string $role): string => \App\Domain\Comptabilite\Support\RolesCorrespondance::defaut($role),
+                array_values(VenteService::ROLES_TVA),
+            ),
+            ...array_values((new ReflectionClass(\App\Domain\Comptabilite\Support\ComptesSyscohada::class))->getConstants()),
             ...array_column(DepenseService::TRESORERIES, 'compte'),
         ];
-
-        $etat = new ReflectionClass(\App\Domain\Comptabilite\Services\EtatClotureService::class);
-        $comptes[] = (string) $etat->getReflectionConstant('COMPTE_BENEFICE')->getValue();
-        $comptes[] = (string) $etat->getReflectionConstant('COMPTE_PERTE')->getValue();
 
         // Balayage du code : tout littéral `'compte' => 'NNN…'` d'une ligne de pièce.
         $racines = [app_path(), database_path('seeders')];

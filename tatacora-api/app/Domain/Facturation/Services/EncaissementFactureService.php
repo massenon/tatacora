@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Domain\Facturation\Services;
 
 use App\Domain\Caisse\Models\SessionCaisse;
+use App\Domain\Comptabilite\Services\CorrespondanceComptesService;
 use App\Domain\Comptabilite\Services\PasserEcritureService;
-use App\Domain\Comptabilite\Support\ComptesSyscohada;
 use App\Domain\Depenses\Services\DepenseService;
 use App\Domain\Facturation\Models\Facture;
 use App\Domain\Facturation\Models\Paiement;
@@ -66,6 +66,7 @@ class EncaissementFactureService
 
     public function __construct(
         private readonly PasserEcritureService $ecritures,
+        private readonly CorrespondanceComptesService $comptes,
     ) {
     }
 
@@ -143,8 +144,8 @@ class EncaissementFactureService
                 'date' => ($quand ?? now())->toDateString(),
                 'libelle' => $libelle,
                 'lignes' => [
-                    ['compte' => $tresorerie['compte'], 'debit' => $montant, 'credit' => '0'],
-                    ['compte' => ComptesSyscohada::CLIENTS, 'debit' => '0', 'credit' => $montant],
+                    ['compte' => $this->comptes->compteDeTresorerie(self::TRESORERIE_PAR_MODE[$modePaiement]), 'role' => CorrespondanceComptesService::roleDeTresorerie(self::TRESORERIE_PAR_MODE[$modePaiement]), 'debit' => $montant, 'credit' => '0'],
+                    ['compte' => $this->comptes->compte('CLIENTS'), 'role' => 'CLIENTS', 'debit' => '0', 'credit' => $montant],
                 ],
             ]);
 

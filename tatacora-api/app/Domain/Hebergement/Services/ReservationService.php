@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Hebergement\Services;
 
+use App\Domain\Comptabilite\Services\CorrespondanceComptesService;
 use App\Domain\Comptabilite\Services\PasserEcritureService;
-use App\Domain\Comptabilite\Support\ComptesSyscohada;
 use App\Domain\Depenses\Services\DepenseService;
 use App\Domain\Hebergement\Events\ReservationAnnulee;
 use App\Domain\Hebergement\Models\Reservation;
@@ -28,6 +28,7 @@ class ReservationService
     public function __construct(
         private readonly VerificationChevauchementService $verification,
         private readonly PasserEcritureService $ecritures,
+        private readonly CorrespondanceComptesService $comptes,
     ) {
     }
 
@@ -138,8 +139,8 @@ class ReservationService
             'date' => $date,
             'libelle' => sprintf('Acompte réservation — %s', $reservation->id),
             'lignes' => [
-                ['compte' => $tresorerie['compte'], 'debit' => $acompte, 'credit' => '0'],
-                ['compte' => ComptesSyscohada::AVANCES_CLIENTS, 'debit' => '0', 'credit' => $acompte],
+                ['compte' => $this->comptes->compteDeTresorerie(self::TRESORERIE_ACOMPTE_PAR_MODE[$mode]), 'role' => CorrespondanceComptesService::roleDeTresorerie(self::TRESORERIE_ACOMPTE_PAR_MODE[$mode]), 'debit' => $acompte, 'credit' => '0'],
+                ['compte' => $this->comptes->compte('AVANCES_CLIENTS'), 'role' => 'AVANCES_CLIENTS', 'debit' => '0', 'credit' => $acompte],
             ],
         ]);
     }

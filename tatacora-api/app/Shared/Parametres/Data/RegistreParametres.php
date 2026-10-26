@@ -6,6 +6,9 @@ namespace App\Shared\Parametres\Data;
 
 use App\Domain\Achats\Services\ReceptionService;
 use App\Domain\Comptabilite\Services\CalculTvaService;
+use App\Domain\Comptabilite\Services\CorrespondanceComptesService;
+use App\Domain\Comptabilite\Services\PlanComptableService;
+use App\Domain\Comptabilite\Support\RolesCorrespondance;
 use App\Domain\Hebergement\Services\AnnulationReservationService;
 use App\Domain\Rh\Services\CalculPaieService;
 use App\Domain\Rh\Services\CongeService;
@@ -75,6 +78,15 @@ final class RegistreParametres
     public const GROUPE_ACTIVATION = 'activation';
 
     /**
+     * La correspondance rôle -> compte comptable (26/10/2026). Ses clés
+     * `compte_<rôle>` sont déclarées ICI pour que l'écriture, l'audit et la
+     * synchronisation des postes passent par le chemin des autres paramètres ;
+     * elles ne se montrent PAS dans l'écran Paramètres, qui a son propre écran
+     * (« Correspondance des comptes »).
+     */
+    public const GROUPE_COMPTES = 'comptes';
+
+    /**
      * Motifs interdits dans une clé — le filet du test structurel.
      *
      * @var list<string>
@@ -88,6 +100,43 @@ final class RegistreParametres
      * @return list<DefinitionParametre>
      */
     public static function definitions(): array
+    {
+        return array_merge(self::definitionsGenerales(), self::definitionsComptes());
+    }
+
+    /**
+     * Un paramètre par rôle de {@see RolesCorrespondance::ROLES}.
+     *
+     * Le texte est un NUMÉRO de compte (`PlanComptableService::NUMERO_COMPTE_FORMAT`,
+     * la règle unique) ; son existence au plan et la classe du rôle sont
+     * jugées par {@see CorrespondanceComptesService::verifier()}, appelée par
+     * `EnregistrerParametreService`. Vide : le rôle revient à son défaut.
+     *
+     * @return list<DefinitionParametre>
+     */
+    private static function definitionsComptes(): array
+    {
+        $definitions = [];
+
+        foreach (RolesCorrespondance::ROLES as $role => $description) {
+            $definitions[] = new DefinitionParametre(
+                cle: CorrespondanceComptesService::cle($role),
+                groupe: self::GROUPE_COMPTES,
+                libelle: 'Compte — ' . $description['libelle'],
+                type: 'texte',
+                regles: ['string', 'regex:' . PlanComptableService::NUMERO_COMPTE_FORMAT],
+                aide: $description['aide'] . ' Vide : le compte par défaut (' . RolesCorrespondance::defaut($role)
+                    . '). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+            );
+        }
+
+        return $definitions;
+    }
+
+    /**
+     * @return list<DefinitionParametre>
+     */
+    private static function definitionsGenerales(): array
     {
         return [
             // --- Identité de l'établissement : en-tête de tous les états.

@@ -734,6 +734,14 @@ class Parametres extends PageTransverse
         $groupesParOnglet = [];
 
         foreach (RegistreParametres::definitions() as $definition) {
+            // La correspondance rôle -> compte (26/10/2026) a son PROPRE écran
+            // (« Correspondance des comptes », hub de la comptabilité) : ses
+            // quinze clés ne se montrent pas ici, où elles noieraient l'onglet
+            // Identité & Légal.
+            if ($definition->groupe === RegistreParametres::GROUPE_COMPTES) {
+                continue;
+            }
+
             $ligne = [
                 'definition' => $definition,
                 // ⚠ ARTICLE 7 — « — » quand la clé n'est PAS renseignée, « 0 »
