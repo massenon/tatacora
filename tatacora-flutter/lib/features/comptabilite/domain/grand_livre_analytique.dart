@@ -117,7 +117,10 @@ GrandLivrePoste grandLivreDe({
 ///  * précédent NON clôturé : les à-nouveaux provisoires, calculés (la
 ///    balance de l'exercice moins ses propres mouvements) ;
 ///  * précédent clôturé : les lignes du journal d'à-nouveaux `AN` de
-///    l'exercice, quand il y en a — sinon l'ouverture est INCONNUE ;
+///    l'exercice, quand il y en a ; sans pièce d'à-nouveaux, l'ouverture est
+///    CONNUE (zéro) si la clôture du précédent est enregistrée sur ce poste,
+///    sinon INCONNUE (clôturé avant la clôture SYSCOHADA, ou par le serveur
+///    seul : ce poste n'en sait rien) ;
 ///  * aucun précédent : exercice inaugural, aucun report.
 ({Map<String, int> soldes, bool provisoire, int? annee, bool connu})
 reportOuverture(int annee, DonneesEtats d) {
@@ -151,7 +154,10 @@ reportOuverture(int annee, DonneesEtats d) {
     soldes: soldes,
     provisoire: false,
     annee: null,
-    connu: inaugural || aDesNouveaux,
+    connu:
+        inaugural ||
+        aDesNouveaux ||
+        d.anneesAvecClotureActive.contains(precedent),
   );
 }
 

@@ -482,7 +482,7 @@ void main() {
         expect(await version(rouvert), rouvert.schemaVersion);
         // Les lignes existantes n'ont pas été recréées.
         expect(await compte(rouvert, 'plan_comptable_local'), 1332);
-        expect(await compte(rouvert, 'journaux_local'), 5);
+        expect(await compte(rouvert, 'journaux_local'), 7);
         expect(await declencheurs(rouvert), hasLength(4));
         await rouvert.close();
       },
@@ -522,6 +522,7 @@ void main() {
           ...tablesAjouteesEnV37,
           ...tablesAjouteesEnV38,
           ...tablesAjouteesEnV39,
+          ...tablesAjouteesEnV40,
         });
         expect(apres.difference(avant), isEmpty);
         // Les triggers disparaissent avec leur table.

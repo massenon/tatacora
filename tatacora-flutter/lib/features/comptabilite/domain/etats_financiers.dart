@@ -469,7 +469,14 @@ final class DonneesEtats {
     required this.plan,
   });
 
+    this.anneesAvecClotureActive = const {},
   final Map<int, List<EcritureServeur>> ecrituresParAnnee;
+
+  /// Les années dont la clôture est ENREGISTRÉE sur ce poste et non rouverte
+  /// (`clotures_exercices_local`, v40) : c'est ce qui rend l'ouverture de
+  /// l'exercice suivant « connue » même quand la clôture n'a écrit aucune pièce
+  /// d'à-nouveaux (`BalanceGeneraleService::soldesOuverture`, `$connu`).
+  final Set<int> anneesAvecClotureActive;
 
   /// Un exercice absent de cette table n'existe pas : pas de N-1 pour lui, pas
   /// de report provisoire.

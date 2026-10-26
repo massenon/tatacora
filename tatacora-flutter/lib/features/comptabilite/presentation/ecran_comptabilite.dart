@@ -29,6 +29,7 @@ import 'widgets/onglet_immobilisations.dart';
 import 'widgets/onglets_etats_financiers.dart';
 import 'widgets/modales_etats_comptables.dart';
 import 'widgets/onglets_grand_livre_analytique.dart';
+import 'widgets/onglet_clotures.dart';
 import 'widgets/onglets_plan_clotures.dart';
 
 /// Le hub **Comptabilité — SYSCOHADA révisé** — lot D du plan du Product
@@ -62,13 +63,19 @@ import 'widgets/onglets_plan_clotures.dart';
 ///   descend (`ecritures_serveur_local`, miroir de lecture), avec la colonne
 ///   N-1 de la vue et un encadré de provenance. Le poste n'y mêle JAMAIS ses
 ///   propres pièces : le serveur passe sa pièce pour chaque document reçu.
-/// - **Plan comptable** et **Clôtures** (21/10/2026, `widgets/onglets_plan_clotures.dart`) :
+/// - **Plan comptable** (21/10/2026, `widgets/onglets_plan_clotures.dart`) :
 ///   le plan entier par classe avec sa recherche et « + Créer un compte »
-///   (`widgets/modales_hub_comptabilite.dart`, `MoteurComptable.creerCompte`) ;
-///   la liste des exercices et « Ouvrir un exercice » (`ouvrirExercice`). Ils
-///   écrivent SUR CE POSTE seulement : ni le compte ni l'exercice n'ont de
-///   table au registre de synchronisation. La clôture annuelle, elle, reste
-///   au serveur (voir `docs/AUDIT_POSTE_AUTONOME.md`).
+///   (`widgets/modales_hub_comptabilite.dart`, `MoteurComptable.creerCompte`),
+///   écrit SUR CE POSTE seulement : un compte n'a pas de table au registre de
+///   synchronisation.
+/// - **Clôtures** (26/10/2026, `widgets/onglet_clotures.dart`) : la CLÔTURE
+///   ANNUELLE SYSCOHADA de bout en bout — liste des exercices et « Ouvrir un
+///   exercice », liste de contrôle, démarrer la clôture, clôturer
+///   définitivement (pièces CL et AN par le moteur, résultat en 131/139),
+///   rouvrir (le comptable seul, motif), archive légale et son empreinte. Sur
+///   les pièces de CE poste ; chaque geste envoie une DEMANDE au serveur, qui
+///   rejoue ses règles (`ClotureExerciceLocale`, voir
+///   `docs/AUDIT_POSTE_AUTONOME.md`).
 /// - **Grand livre, Analytique** (26/10/2026,
 ///   `widgets/onglets_grand_livre_analytique.dart`) : calculés sur les pièces
 ///   de ce poste, comme le Journal et la Balance — soldes progressifs,
@@ -160,7 +167,8 @@ abstract final class TextesComptabilite {
   static String bandeauEnCloture(int annee) =>
       'Exercice $annee en clôture : les ventes, les dépenses et les autres '
       'modules n’y écrivent plus. Seul le comptable y passe encore ses '
-      'écritures d’inventaire, dans la PWA.';
+      'écritures d’inventaire, dans la PWA. Le comptable les '
+      'passe aussi depuis l’onglet Passer écriture.';
   static String bandeauCloture(int annee) =>
       'Exercice $annee clôturé : consultation en lecture seule. Pour le '
       'corriger, le comptable le rouvre depuis l’onglet Clôtures.';
@@ -1048,7 +1056,7 @@ class _Panneau extends StatelessWidget {
       case 'plan':
         return const OngletPlan();
       case 'clotures':
-        return OngletClotures(exercices: donnees.exercices);
+        return OngletClotures(exercices: donnees.exercices, exercice: ex);
       case 'resultat':
         return OngletResultat(annee: ex.annee);
       case 'bilan':
@@ -1136,7 +1144,11 @@ class _Saisie extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final ouvert = exercice?.statut == StatutExercice.ouvert;
+    // Le comptable passe aussi ses écritures d'inventaire dans un exercice EN
+    // CLÔTURE (`Hub::enregistrerPiece` : `statuts_exercice_admis`).
+    final ouvert =
+        exercice?.statut == StatutExercice.ouvert ||
+        exercice?.statut == StatutExercice.enCloture;
     final gris = styleTransverse(TaillesContenu.t13, couleur: Ardoise.c700);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,

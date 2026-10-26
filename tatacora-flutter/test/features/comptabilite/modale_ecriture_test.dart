@@ -181,6 +181,52 @@ void main() {
     expect(actif(tester, annuler), isTrue);
   });
 
+  testWidgets('les journaux CL et AN, que SEULE la clôture écrit, ne se '
+      'choisissent pas ; les cinq autres, si', (tester) async {
+    await monter(tester);
+    await ouvrir(tester);
+    // Les sept journaux sont au poste (le serveur porte CL et AN depuis la
+    // migration de la clôture) : la modale n'en propose que cinq.
+    expect(
+      (await dao.journaux()).map((j) => j.code),
+      containsAll(['CL', 'AN']),
+    );
+    await tester.tap(find.byKey(const Key('modale-ecriture-journal')));
+    await tester.pumpAndSettle();
+    for (final code in ['VTE', 'ACH', 'BQ', 'CAI', 'OD']) {
+      final j = (await dao.journalParCode(code))!;
+      expect(find.text('$code — ${j.libelle}'), findsWidgets, reason: code);
+    }
+    for (final code in ['CL', 'AN']) {
+      final j = (await dao.journalParCode(code))!;
+      expect(find.text('$code — ${j.libelle}'), findsNothing, reason: code);
+    }
+  });
+
+  testWidgets('un exercice EN CLÔTURE reçoit encore les écritures d’inventaire '
+      'du comptable, par la même modale', (tester) async {
+    await dao.changerStatutExercice(
+      (await dao.exerciceDeLAnnee(annee))!.id,
+      StatutExercice.enCloture,
+    );
+    await monter(tester);
+    // L'exercice en clôture n'est plus « ouvert », mais la saisie du comptable
+    // y entre (`statuts_exercice_admis` du serveur) : le bouton existe.
+    expect(find.byKey(const Key('compta-nouvelle-ecriture')), findsOneWidget);
+    await ouvrir(tester);
+    await remplirPieceValide(tester);
+    await cliquer(tester, valider);
+
+    expect(modale, findsNothing);
+    final ecrites = await dao.toutesLesEcritures();
+    expect(ecrites, hasLength(2));
+    expect(ecrites.every((e) => e.estValidee), isTrue);
+    expect(
+      (await dao.exerciceDeLAnnee(annee))!.statut,
+      StatutExercice.enCloture,
+    );
+  });
+
   testWidgets('enregistrement grisé : moins de deux lignes, pièce '
       'déséquilibrée, total nul — actif seulement équilibrée et non nulle', (
     tester,

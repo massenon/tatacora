@@ -13,6 +13,8 @@ library;
 
 import 'dart:convert';
 
+import '../../comptabilite/domain/messages_cloture.dart';
+
 import 'descente_catalogue.dart';
 import 'operation_sync.dart';
 
@@ -112,6 +114,29 @@ String? libelleDocument(OperationSync o) {
     TableSynchronisee.ventes => switch (t('cloture_le')) {
       final d? => 'Vente du $d',
       null => null,
+    },
+    // 26/10/2026 : la demande de clôture d'un exercice se dit par le geste de
+    // l'onglet « Clôtures » (les mots de la vue, `comptabilite_pwa.*`).
+    TableSynchronisee.demandesClotureExercice => switch ((
+      champs['annee'],
+      t('action'),
+    )) {
+      (final int a, 'demarrer') => MessagesCloture.dire(
+        'comptabilite_pwa.cloture_demarrer',
+        {'annee': '$a'},
+      ),
+      (final int a, 'reprendre_saisie') =>
+        '${MessagesCloture.dire('comptabilite_pwa.cloture_reprendre')} '
+            '($a)',
+      (final int a, 'cloturer') => MessagesCloture.dire(
+        'comptabilite_pwa.cloture_definitive',
+        {'annee': '$a'},
+      ),
+      (final int a, 'rouvrir') => MessagesCloture.dire(
+        'comptabilite_pwa.reouvrir',
+        {'annee': '$a'},
+      ),
+      _ => null,
     },
     _ => t('libelle'),
   };

@@ -113,6 +113,15 @@ abstract final class ComptesSyscohada {
     '5211': 'Structure',
     '552': 'Structure',
     '5711': 'Hébergement',
+  /// Les DEUX journaux que SEULE la clôture annuelle écrit (26/10/2026) : `CL`
+  /// (le solde des comptes de gestion) et `AN` (les à-nouveaux). Le serveur les
+  /// crée par la migration de la clôture, pas par son seeder — d'où cette liste
+  /// à part de [journaux] (relue du serveur par `cloture_contre_serveur_test.dart`).
+  static const journauxDeCloture = <String, String>{
+    'AN': 'Journal des à-nouveaux',
+    'CL': 'Journal de clôture',
+  };
+
   };
 
   /// Registre fermé des natures d'un compte (`PlanComptableService::NATURES`).

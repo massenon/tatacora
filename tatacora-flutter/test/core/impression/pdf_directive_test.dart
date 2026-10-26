@@ -101,6 +101,14 @@ void main() {
           gabarit: 'comptabilite-journal-rapport',
           date: '14/10/2026',
         ),
+        // L'archive légale d'une clôture d'exercice (26/10/2026) — ses visas
+        // sont ceux du gabarit `pdf/comptabilite-etats-cloture` (le visa du
+        // comptable, puis celui de la direction).
+        'comptabilite/impression/etat_cloture_archive.dart': (
+          visas: 'etatsCloture',
+          gabarit: 'comptabilite-etats-cloture',
+          date: '26/10/2026',
+        ),
       };
   // Les listes de [Visas], par NOM — celui qu'un fichier écrit.
   const visasParNom = <String, List<String>>{
@@ -108,6 +116,7 @@ void main() {
     'depenses': Visas.depenses,
     'etatStocks': Visas.etatStocks,
     'inventaire': Visas.inventaire,
+    'etatsCloture': Visas.etatsCloture,
   };
   /* ================================================================== */
   group('Le registre des documents — chaque fichier est classé', () {

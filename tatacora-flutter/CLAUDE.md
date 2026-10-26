@@ -821,7 +821,7 @@ n'est enfilé ; sonde `ecrivains_ecritures_serveur_test.dart`).
   vues, avec la colonne « Exercice N-1 » quand l'exercice précédent existe. Le
   filtre de statut ne s'y applique pas (seules les validées descendent) — dit à
   l'écran. Grand livre, Analytique, Immobilisations, Plan comptable et Clôtures
-  restent « non calculés sur ce poste ».
+  sont portés depuis (voir « Clôture annuelle SYSCOHADA »).
 - **Pièges** : le comparateur compte par SOUS-CHAÎNE dans tout le code que
   l'écran atteint, commentaires compris — un en-tête de commentaire « Seules les
   … » dans le fichier de la table a fait baisser la dette du journal d'audit
@@ -1494,3 +1494,14 @@ Décision du PO du 26/10/2026 : « l'envoi réel d'e-mails DOIT ÊTRE IMPLÉMENT
 - **Piège rencontré** : `insertOrIgnore` de Drift rend le dernier identifiant inséré MÊME quand la ligne est ignorée — il ne dit pas si la clé existait ; lire l'existence avant d'insérer. Piège de test : une lecture de `poste.json` dans un `testWidgets` n'avance que par `tester.runAsync` + `pump` répétés (`laisserLesEntreesSorties`).
 - **Serveur SMTP d'essai** : `test/features/transverse/support/serveur_smtp_essai.dart`, un vrai petit serveur sur socket locale (AUTH PLAIN/LOGIN, DATA, refus 535/554) — le moyen d'éprouver `mailer` de bout en bout sans réseau.
 - **Hors périmètre, dit** : WhatsApp, Android et SMS ne partent pas (aucun contrat) ; seuls les déclencheurs détectés sur le poste (séjour demain, départ) ont une adresse.
+
+## Clôture annuelle SYSCOHADA sur le poste (26/10/2026, schéma v40)
+
+Décision du PO : « la clôture annuelle DOIT ÊTRE IMPLÉMENTÉE EN POSTE ET WEB ». Détail : `docs/AUDIT_POSTE_AUTONOME.md` §4 point 3, `docs/CLOTURE_EXERCICE_SYSCOHADA.md`.
+
+- **Table `clotures_exercices_local`** (v40, 76 tables, migration conditionnelle, fixture `_ajoutsParVersion[40]`, `migration_v40_clotures_exercices_test.dart`). **Seul écrivain : `ClotureExerciceLocale`** (`comptabilite/data/`) : démarrer, reprendre la saisie, clôturer, rouvrir (comptable seul, motif >= 10 caractères). Les pièces `CL` et `AN` passent par `MoteurComptable` (jamais d'écriture directe, RG-11) ; comptes 131/139 via `compteDuRole`. Les journaux `AN`/`CL` sont masqués à la saisie manuelle.
+- **Contrat de synchronisation (D246)** : le poste n'envoie aucune pièce. Chaque geste enfile, dans sa transaction, une demande `demandes_cloture_exercice` (création seule) ; le serveur (`GestionnaireDemandesCloture`, M10) rejoue `ClotureExerciceService` et passe SES pièces. Demande déjà satisfaite = acceptée. `AligneurCatalogue` garde la clôture locale tant que la dernière demande de l'année n'est pas acceptée.
+- **Archive légale** (`ArchiveClotureLocale`) : `ecritures.csv`, `balance.csv`, `etats-cloture.pdf`, `manifeste.json` (empreinte SHA-256 du manifeste), ZIP « stored » en pur Dart (`core/fichiers/zip_stocke.dart`), CSV quoté comme `fputcsv` PHP. Dans `archives/` à côté de `poste.json`.
+- **Preuves** : `cloture_contre_serveur_test` (vrai service, `tool/comptabilite/rejouer_cloture.php`), `demandes_cloture_contre_serveur_test` (vrai `SynchronisationService`, `valider_demandes_cloture.php`) ; ces scripts acceptent `TATACORA_BASE_ESSAI=tatacora_<x>_test`. 25 mutations éprouvées.
+- **Écarts nommés** : résultat de clôture = pièces du poste seules (le serveur peut refuser, refus lu dans « À traiter ») ; pas de relevés bancaires ; PDF par le gabarit tabulaire commun ; archives hors sauvegarde de base ; lien « six étapes » non porté.
+- **Pièges** : après une clôture, l'exercice par défaut devient N+1 — l'onglet épingle l'exercice consulté (`exerciceChoisiProvider`) ; un exercice sans pièce est « connu » par `anneesAvecClotureActive` ; une note « Sur ce poste » dans un littéral affiché est refusée par la garde (« Ici », ou une phrase métier).

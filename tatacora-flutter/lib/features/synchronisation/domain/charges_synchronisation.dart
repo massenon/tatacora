@@ -1046,6 +1046,17 @@ Map<String, Object?> chargeInventaire({
   ],
 };
 
+/// `demandes_cloture_exercice` (création seule, 26/10/2026) —
+/// `GestionnaireDemandesCloture` : l'ANNÉE de l'exercice, l'ACTION
+/// (`demarrer`, `reprendre_saisie`, `cloturer`, `rouvrir`) et, pour une
+/// réouverture, le motif. Une demande, jamais une pièce (D246) : le serveur
+/// rejoue `ClotureExerciceService` et passe ses propres pièces CL et AN.
+Map<String, Object?> chargeDemandeCloture({
+  required int annee,
+  required String action,
+  String? motif,
+}) => {'annee': annee, 'action': action, 'motif': ?motif};
+
 /// `articles` (modification) — l'archivage (`false`) ou la restauration
 /// (`true`) : le serveur l'applique par `ReferentielArticleService`, sous ses
 /// verrous (stock, commande en cours, carte, recette) et la règle de droits

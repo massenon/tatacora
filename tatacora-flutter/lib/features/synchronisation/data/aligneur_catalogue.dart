@@ -1542,6 +1542,18 @@ class AligneurCatalogue {
     if (annee == null || debut == null || fin == null || statut == null) {
       return const RefuseParLePoste('exercice illisible');
     }
+    // 26/10/2026 : une clôture, une réouverture ou une reprise de saisie faite
+    // SUR CE POSTE (`ClotureExerciceLocale`) a ses pièces CL et AN ici ; tant
+    // que sa demande n'est pas ACCEPTÉE par le serveur (en file, bloquée, ou
+    // refusée et pas renvoyée), le statut du serveur ne la défait pas : un
+    // exercice « ouvert » redescendu rouvrirait l'écriture dans un exercice dont
+    // les pièces de clôture existent déjà. Dès que la dernière demande de
+    // l'année est acceptée, le serveur — seul comptable — reprend la main.
+    if (await _demandeDeClotureEnSuspens(annee)) {
+      return const ConserveLocalement(
+        'une demande de clôture de ce poste n’est pas encore acceptée par le serveur',
+      );
+    }
     await ComptabiliteDao(_db).alignerExerciceDescendu(
       annee: annee,
       dateDebut: debut.substring(0, 10),
@@ -1550,6 +1562,20 @@ class AligneurCatalogue {
       dateCloture: DateTime.tryParse(_texte(d['date_cloture']) ?? ''),
     );
     return const Aligne();
+  }
+
+  /// La DERNIÈRE demande de clôture de cette année (par ordre d'enfilement) n'a-
+  /// t-elle pas été acceptée ? `true` : en file, en cours, bloquée, en conflit ou
+  /// refusée. Une année sans demande, ou dont la dernière est acceptée : `false`.
+  Future<bool> _demandeDeClotureEnSuspens(int annee) async {
+    StatutOperationSync? dernier;
+    for (final o in await _file.operations(
+      table: TableSynchronisee.demandesClotureExercice,
+    )) {
+      final payload = jsonDecode(o.payload);
+      if (payload is Map && payload['annee'] == annee) dernier = o.statut;
+    }
+    return dernier != null && dernier != StatutOperationSync.synchronise;
   }
 
   /// Une écriture VALIDÉE du serveur, en miroir de lecture (v34). Ajoutée si

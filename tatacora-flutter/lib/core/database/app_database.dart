@@ -18,6 +18,7 @@ import 'auteur_ecriture.dart';
 import 'declencheurs_comptables.dart';
 import 'emplacement_base.dart';
 import 'tables/clients_table.dart';
+import 'tables/clotures_exercices_tables.dart';
 import 'tables/comptabilite_tables.dart';
 import 'tables/depenses_tables.dart';
 import 'tables/descente_sync_tables.dart';
@@ -236,6 +237,10 @@ part 'app_database.g.dart';
     // M12). Seul auteur : `BoiteEnvoiEmailsDao` (voir
     // `tables/boite_envoi_emails_tables.dart`).
     BoiteEnvoiEmailsLocal,
+    // v40 (26/10/2026) : les clôtures d'exercice du poste (pièces CL et AN,
+    // résultat, archive légale et son empreinte, réouverture). Seul auteur :
+    // `ClotureExerciceLocale` (voir `tables/clotures_exercices_tables.dart`).
+    CloturesExercicesLocal,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -435,14 +440,22 @@ class AppDatabase extends _$AppDatabase {
   /// `paniers_local.numero_vente` et `.auteur_login` (le numéro `V-` du serveur
   /// et l'auteur d'une vente). Aucune valeur n'est fabriquée pour l'existant :
   /// une ligne d'avant la v38 garde « — ».
+  ///
   /// v39 (26/10/2026) — L'ENVOI RÉEL D'E-MAILS (décision du PO) : une table
   /// neuve (`boite_envoi_emails_local`, la boîte d'envoi des e-mails de
   /// notification : statuts, tentatives, repli, cause d'échec, clé
   /// d'idempotence), aucune colonne ajoutée. Elle apparaît VIDE : aucune ligne
   /// n'est fabriquée pour les messages d'avant (leur adresse n'a jamais été
   /// lue ; « Envoyer » la résout à la demande).
+  ///
+  /// v40 (26/10/2026) — LA CLÔTURE ANNUELLE SYSCOHADA SUR LE POSTE (décision du
+  /// PO) : une table neuve (`clotures_exercices_local`, l'historique des
+  /// clôtures du poste : pièces CL et AN, résultat, empreinte de l'archive,
+  /// réouverture), aucune colonne ajoutée. Elle apparaît VIDE : un exercice
+  /// déjà « clôturé » d'avant (statut descendu du serveur) n'a pas de clôture
+  /// locale et son ouverture reste « inconnue » — aucune ligne n'est fabriquée.
   @override
-  int get schemaVersion => 39;
+  int get schemaVersion => 40;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1268,6 +1281,19 @@ class AppDatabase extends _$AppDatabase {
             )
             .get();
         if (existe.isEmpty) await m.createTable(boiteEnvoiEmailsLocal);
+      }
+      if (from < 40) {
+        // LES CLÔTURES D'EXERCICE DU POSTE (26/10/2026). Une table NEUVE ; aucune
+        // ligne fabriquée (un exercice déjà clôturé n'a pas de clôture locale).
+        // Ajout CONDITIONNEL (piège 3) : une fixture ramenée en arrière depuis
+        // la définition courante peut la porter déjà.
+        final existe = await m.database
+            .customSelect(
+              "SELECT name FROM sqlite_master WHERE type = 'table' "
+              "AND name = 'clotures_exercices_local'",
+            )
+            .get();
+        if (existe.isEmpty) await m.createTable(cloturesExercicesLocal);
       }
       if (from < 33) {
         // LES PLANNINGS ET LES CONGÉS (21/10/2026). Deux tables NEUVES, sans

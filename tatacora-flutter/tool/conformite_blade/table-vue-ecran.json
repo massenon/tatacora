@@ -69,6 +69,7 @@
       "features/comptabilite/presentation/widgets/onglet_immobilisations.dart",
       "shared_widgets/modale_export.dart"
     ],
+      "features/comptabilite/presentation/widgets/onglet_clotures.dart",
     "comptabilite/journal": [],
     "comptabilite/notes-annexes": [],
     "comptabilite/plan-comptable": [],

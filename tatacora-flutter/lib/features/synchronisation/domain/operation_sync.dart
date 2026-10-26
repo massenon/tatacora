@@ -125,7 +125,15 @@ enum TableSynchronisee {
   /// 21/10/2026 : un inventaire physique CLÔTURÉ — le document complet (point,
   /// jour, lignes comptées), création seule ; sa régularisation part en
   /// `mouvements_stock` (excédent `inventaire`, manquant `perte`).
-  inventaires('inventaires', accepteModification: false);
+  inventaires('inventaires', accepteModification: false),
+
+  /// 26/10/2026 : la DEMANDE de clôture ou de réouverture d'un exercice (M10),
+  /// document source — le serveur, seul comptable, rejoue ses règles de
+  /// clôture ; il ne reçoit aucune pièce du poste. Création seule.
+  demandesClotureExercice(
+    'demandes_cloture_exercice',
+    accepteModification: false,
+  );
 
   const TableSynchronisee(this.nomServeur, {required this.accepteModification});
 

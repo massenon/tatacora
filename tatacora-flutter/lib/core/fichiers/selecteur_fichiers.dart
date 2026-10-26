@@ -36,7 +36,11 @@ enum TypeFichierEnregistre {
   sauvegarde('Base SQLite', ['sqlite']),
 
   /// L'export d'une table (Import & Export, « Exporter une table existante »).
-  json('JSON', ['json']);
+  json('JSON', ['json']),
+
+  /// L'archive légale d'une clôture d'exercice (hub Comptabilité, onglet
+  /// Clôtures, « Télécharger l'archive (ZIP) »).
+  zip('ZIP', ['zip']);
 
   const TypeFichierEnregistre(this.libelle, this.extensions);
 

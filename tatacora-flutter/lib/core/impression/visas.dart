@@ -54,6 +54,15 @@ abstract final class Visas {
     'Visa Responsable Magasin / Direction',
   ];
 
+  /// `pdf/comptabilite-etats-cloture.blade.php` — l'archive légale d'une
+  /// clôture d'exercice (26/10/2026) : le visa du comptable, puis celui de la
+  /// direction (`comptabilite_pwa.archive_visa_comptable`,
+  /// `rapports.signatures.visa_direction`).
+  static const etatsCloture = [
+    'Visa du comptable',
+    'Visa Direction / Contrôle',
+  ];
+
   /// `pdf/ventes-rapport.blade.php` — `pos_pwa.document.visa_*`.
   static const journalVentes = [
     'Visa Caissier / Barman',

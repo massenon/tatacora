@@ -121,7 +121,15 @@ const tablesAjouteesEnV38 = <String>{'historique_prix_carte_local'};
 /// La table que la v39 AJOUTE (boîte d'envoi des e-mails, 26/10/2026).
 const tablesAjouteesEnV39 = <String>{'boite_envoi_emails_local'};
 
+/// La table que la v40 AJOUTE (clôtures d'exercice du poste, 26/10/2026).
+const tablesAjouteesEnV40 = <String>{'clotures_exercices_local'};
+
 const _ajoutsParVersion = <int, List<String>>{
+  // La v40 (26/10/2026, la cloture annuelle sur le poste) ajoute UNE table
+  // neuve : ses cles etrangeres (exercices, utilisateurs) pointent vers des
+  // tables qui existent deja, rien ne la reference — retour arriere symetrique.
+  40: <String>['DROP TABLE clotures_exercices_local'],
+
   // La v39 (26/10/2026, l'envoi reel d'e-mails) ajoute UNE table neuve, sans
   // cle etrangere : retour arriere symetrique.
   39: <String>['DROP TABLE boite_envoi_emails_local'],

@@ -148,8 +148,10 @@ void main() {
     //
     // 74 → 75 le 26/10/2026 : `boite_envoi_emails_local` (v39 — la boîte
     // d'envoi des e-mails de notification ; auteur : `BoiteEnvoiEmailsDao`).
-    expect(base.allTables.length, 75);
-    expect(base.schemaVersion, 39);
+    //
+    // 75 → 76 : `clotures_exercices_local` (v40, la clôture d'exercice).
+    expect(base.allTables.length, 76);
+    expect(base.schemaVersion, 40);
     expect(
       base.allTables.map((t) => t.actualTableName).toSet().containsAll({
         'origines_documents_local',

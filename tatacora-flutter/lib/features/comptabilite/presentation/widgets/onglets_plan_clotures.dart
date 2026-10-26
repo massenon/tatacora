@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/di/providers.dart';
-import '../../../../core/format/formats.dart';
 import '../../../../core/rbac/garde_acces.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -13,12 +13,11 @@ import '../../domain/entities/comptabilite.dart';
 import '../providers_consultation_comptable.dart';
 import 'modales_hub_comptabilite.dart';
 
-/// Onglets « Plan comptable » et « Clôtures » du hub Comptabilité, aux
-/// affordances de la vue : le bouton « + Créer un compte » (et sa recherche)
-/// et le bouton « Ouvrir un exercice » (et la liste des exercices).
+/// Onglet « Plan comptable » du hub Comptabilité, aux affordances de la vue :
+/// le bouton « + Créer un compte » et sa recherche. L'onglet « Clôtures » vit
+/// dans `onglet_clotures.dart` (clôture annuelle SYSCOHADA, 26/10/2026).
 ///
-/// Vue Blade maîtresse (PA-183) : pwa/comptabilite/onglets/plan.blade.php et
-/// pwa/comptabilite/onglets/clotures.blade.php.
+/// Vue Blade maîtresse (PA-183) : pwa/comptabilite/onglets/plan.blade.php.
 ///
 /// ## Écarts, nommés
 ///
@@ -26,18 +25,18 @@ import 'modales_hub_comptabilite.dart';
 ///   officiel intégral… ») dit du plan du SERVEUR ce que le plan de ce poste
 ///   n'est pas — il porte le fichier du PO, SYSCOHADA révisé en entier. Le
 ///   rendre dirait une chose fausse : il n'est pas posé.
-/// - **Clôtures** : la colonne « Résultat reporté » porte un tiret partout (la
-///   vue ne calcule que pour l'exercice consulté, par `EtatClotureService`,
-///   que ce poste ne tient pas) ; la clôture annuelle, l'archive légale et les
-///   trois cartes (résultat à reporter, blocages, avertissements) ne sont pas
-///   portées, et l'onglet le DIT.
-/// - Le compte créé et l'exercice ouvert ici restent sur ce poste : ni l'un
-///   ni l'autre n'est envoyé au serveur (aucune table du registre de
-///   synchronisation ne les porte), les messages de succès le disent.
+/// - Le compte créé reste sur ce poste : aucune table du registre de
+///   synchronisation ne le porte, le message de succès le dit.
 abstract final class TextesOngletsPlanClotures {
   static const String planRecherche =
       'Rechercher un compte (numéro ou libellé)';
   static const String creerCompte = 'Créer un compte';
+
+  /// Le lien « Correspondance des comptes » (`comptes_correspondance.lien_hub`),
+  /// ajout du PO du 26/10/2026 : les comptes de chaque rôle se modifient sur
+  /// le poste comme sur le web. Littéral : le comparateur Blade le cherche dans
+  /// le fichier qui porte la vue ; un test l'égale à la langue du serveur.
+  static const String correspondance = 'Correspondance des comptes';
   static const String planAucun = 'Aucun compte ne correspond.';
   static const String colCompte = 'Compte';
   static const String colIntitule = 'Intitulé';
@@ -59,28 +58,10 @@ abstract final class TextesOngletsPlanClotures {
   static String titreClasse(String classe) =>
       'Classe $classe — ${classes[classe] ?? ''}';
 
-  static const String exercicesTitre = 'Exercices comptables';
-  static const String ouvrirExercice = 'Ouvrir un exercice';
-  static const String colExercice = 'Exercice';
-  static const String colDebut = 'Début';
-  static const String colFin = 'Fin';
-  static const String colStatut = 'Statut';
-  static const String colResultatReporte = 'Résultat reporté';
-  static const String colClotureLe = 'Clôturé le';
-  static const String statutOuvert = 'Ouvert';
-  static const String statutEnCloture = 'En clôture';
-  static const String statutCloture = 'Clôturé';
-
   static const String sansDroit =
       "Votre profil n'a pas le droit de modifier la comptabilité.";
   static const String illisible =
       "Le plan comptable de ce poste n'a pas pu être lu.";
-}
-
-/// `AAAA-MM-JJ` -> `d/m/Y` (`->format('d/m/Y')` de la vue).
-String _dateCourte(String iso) {
-  final d = DateTime.tryParse(iso);
-  return d == null ? iso : formaterDate(d);
 }
 
 /// Onglet « Plan comptable » : un tableau PAR CLASSE, filtré par la recherche
@@ -162,24 +143,36 @@ class _OngletPlanState extends ConsumerState<OngletPlan> {
                 ),
               ),
             ),
-            BoutonTransverse(
-              cle: const Key('compta-creer-compte'),
-              libelle: '+ ${TextesOngletsPlanClotures.creerCompte}',
-              fond: AppColors.navy,
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.md,
-                vertical: AppSpacing.xsPlus,
-              ),
-              onTap: () =>
-                  ref
-                      .read(droitsProvider)
-                      .peutEcrire(ModuleTatacora.m10Comptabilite)
-                  ? ouvrirModaleCompte(context)
-                  : direTransverse(
-                      context,
-                      TextesOngletsPlanClotures.sansDroit,
-                      cle: const Key('compta-plan-sans-droit'),
-                    ),
+            Wrap(
+              spacing: AppSpacing.xs,
+              runSpacing: AppSpacing.xs,
+              children: [
+                BoutonTransverse(
+                  cle: const Key('compta-correspondance-comptes'),
+                  libelle: TextesOngletsPlanClotures.correspondance,
+                  onTap: () =>
+                      context.go('/comptabilite/correspondance-comptes'),
+                ),
+                BoutonTransverse(
+                  cle: const Key('compta-creer-compte'),
+                  libelle: '+ ${TextesOngletsPlanClotures.creerCompte}',
+                  fond: AppColors.navy,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.xsPlus,
+                  ),
+                  onTap: () =>
+                      ref
+                          .read(droitsProvider)
+                          .peutEcrire(ModuleTatacora.m10Comptabilite)
+                      ? ouvrirModaleCompte(context)
+                      : direTransverse(
+                          context,
+                          TextesOngletsPlanClotures.sansDroit,
+                          cle: const Key('compta-plan-sans-droit'),
+                        ),
+                ),
+              ],
             ),
           ],
         ),
@@ -265,180 +258,6 @@ class _OngletPlanState extends ConsumerState<OngletPlan> {
               ),
             ),
           ),
-      ],
-    );
-  }
-}
-
-/// Onglet « Clôtures » : « Exercices comptables » et « Ouvrir un exercice ».
-class OngletClotures extends ConsumerWidget {
-  const OngletClotures({required this.exercices, super.key});
-
-  /// Les exercices du poste (le plus récent d'abord, comme `$tousExercices`).
-  final List<ExerciceComptable> exercices;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final tries = [...exercices]..sort((a, b) => b.annee.compareTo(a.annee));
-    final proposee = tries.isEmpty
-        ? DateTime.now().year
-        : tries.first.annee + 1;
-
-    Widget pastille(StatutExercice s) {
-      final (fond, texte, libelle) = switch (s) {
-        StatutExercice.ouvert => (
-          PaletteMaitre.emeraude50,
-          PaletteMaitre.emeraude700,
-          TextesOngletsPlanClotures.statutOuvert,
-        ),
-        StatutExercice.enCloture => (
-          PaletteMaitre.ambre50,
-          PaletteMaitre.ambre700,
-          TextesOngletsPlanClotures.statutEnCloture,
-        ),
-        StatutExercice.cloture => (
-          Ardoise.c100,
-          Ardoise.c600,
-          TextesOngletsPlanClotures.statutCloture,
-        ),
-      };
-      return Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.xxs,
-          vertical: AppSpacing.demi,
-        ),
-        decoration: BoxDecoration(
-          color: fond,
-          borderRadius: BorderRadius.circular(AppRadius.sm),
-        ),
-        child: Text(
-          libelle,
-          style: styleTransverse(TaillesContenu.t11, couleur: texte),
-        ),
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        CarteTransverse(
-          key: const Key('compta-exercices'),
-          padding: EdgeInsets.zero,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.smPlus,
-                ),
-                decoration: const BoxDecoration(
-                  border: Border(bottom: BorderSide(color: Ardoise.c200)),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        TextesOngletsPlanClotures.exercicesTitre,
-                        style: styleTransverse(
-                          TaillesContenu.t14,
-                          poids: FontWeight.bold,
-                          couleur: AppColors.navy,
-                        ),
-                      ),
-                    ),
-                    BoutonTransverse(
-                      cle: const Key('compta-ouvrir-exercice'),
-                      libelle: TextesOngletsPlanClotures.ouvrirExercice,
-                      taille: TaillesContenu.t12,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.smPlus,
-                        vertical: AppSpacing.xxs,
-                      ),
-                      onTap: () =>
-                          ref
-                              .read(droitsProvider)
-                              .peutEcrire(ModuleTatacora.m10Comptabilite)
-                          ? ouvrirModaleExercice(
-                              context,
-                              anneeInitiale: proposee,
-                            )
-                          : direTransverse(
-                              context,
-                              TextesOngletsPlanClotures.sansDroit,
-                              cle: const Key('compta-exercice-sans-droit'),
-                            ),
-                    ),
-                  ],
-                ),
-              ),
-              TableauTransverse(
-                colonnes: const [
-                  (
-                    titre: TextesOngletsPlanClotures.colExercice,
-                    alignement: TextAlign.left,
-                  ),
-                  (
-                    titre: TextesOngletsPlanClotures.colDebut,
-                    alignement: TextAlign.right,
-                  ),
-                  (
-                    titre: TextesOngletsPlanClotures.colFin,
-                    alignement: TextAlign.right,
-                  ),
-                  (
-                    titre: TextesOngletsPlanClotures.colStatut,
-                    alignement: TextAlign.right,
-                  ),
-                  (
-                    titre: TextesOngletsPlanClotures.colResultatReporte,
-                    alignement: TextAlign.right,
-                  ),
-                  (
-                    titre: TextesOngletsPlanClotures.colClotureLe,
-                    alignement: TextAlign.right,
-                  ),
-                ],
-                vide: TextesOngletsPlanClotures.tiret,
-                lignes: [
-                  for (final e in tries)
-                    [
-                      celluleTexte(
-                        '${e.annee}',
-                        poids: FontWeight.bold,
-                        couleur: AppColors.navy,
-                      ),
-                      celluleTexte(
-                        _dateCourte(e.dateDebut),
-                        alignement: TextAlign.right,
-                      ),
-                      celluleTexte(
-                        _dateCourte(e.dateFin),
-                        alignement: TextAlign.right,
-                      ),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: pastille(e.statut),
-                      ),
-                      celluleTexte(
-                        TextesOngletsPlanClotures.tiret,
-                        alignement: TextAlign.right,
-                        poids: FontWeight.w600,
-                      ),
-                      celluleTexte(
-                        e.dateCloture == null
-                            ? TextesOngletsPlanClotures.tiret
-                            : formaterDate(e.dateCloture!),
-                        alignement: TextAlign.right,
-                        taille: TaillesContenu.t12,
-                        couleur: Ardoise.c500,
-                      ),
-                    ],
-                ],
-              ),
-            ],
-          ),
-        ),
       ],
     );
   }

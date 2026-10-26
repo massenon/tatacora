@@ -86,6 +86,12 @@ abstract final class MessagesComptables {
         'Clé de langue comptable inconnue.',
       );
     }
+    return remplacer(gabarit, variables);
+  }
+
+  /// Le remplacement des variables d'un gabarit, tel que Laravel le fait —
+  /// partagé avec `MessagesCloture` (une seule règle de remplacement).
+  static String remplacer(String gabarit, Map<String, String> variables) {
     final noms = variables.keys.toList()
       ..sort((a, b) => b.length.compareTo(a.length));
     var texte = gabarit;

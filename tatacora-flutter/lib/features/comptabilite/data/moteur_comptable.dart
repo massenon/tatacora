@@ -86,12 +86,19 @@ final class DemandePiece {
 ///
 /// ## Quatre refus, aucun repli
 ///
+    this.statutsExerciceAdmis = const {StatutExercice.ouvert},
 /// Journal inconnu, compte inconnu, exercice absent ou non ouvert, centre
 /// introuvable : chacun lève [RefusComptable] avec la phrase du serveur. Aucun
 /// n'est remplacé par une valeur plausible : un compte « 601 » (division)
 /// substitué au « 6011 » attendu imputerait une charge au mauvais poste sur une
 /// pièce validée, donc immuable.
 ///
+
+  /// Les statuts d'exercice où cette pièce peut passer
+  /// (`statuts_exercice_admis` du serveur) : `ouvert` seul pour les modules ;
+  /// la pièce de clôture admet `en_cloture`, la pièce d'à-nouveaux et la saisie
+  /// d'inventaire du comptable `ouvert` et `en_cloture`. Jamais `cloture`.
+  final Set<StatutExercice> statutsExerciceAdmis;
 /// ## Tout ou rien
 ///
 /// Chaque geste public tient dans UNE transaction. Un refus — y compris celui
@@ -161,7 +168,11 @@ class MoteurComptable {
         );
         exercices = await _dao.exercices();
       }
-      final exercice = exerciceOuvertPour(exercices, demande.date);
+      final exercice = exerciceAdmisPour(
+        exercices,
+        demande.date,
+        demande.statutsExerciceAdmis,
+      );
 
       final resolues = <_LigneResolue>[];
       for (final ligne in demande.lignes) {
@@ -381,6 +392,56 @@ class MoteurComptable {
           'comptabilite.exercice_deja_existant',
           {'annee': '$annee'},
         );
+  /// Contre-passe une PIÈCE (ses lignes d'origine, trouvées par son numéro dans
+  /// [exerciceId]) à SA PROPRE DATE et dans SON exercice — la contre-passation
+  /// de la RÉOUVERTURE d'un exercice (`ClotureExerciceService::contrePasser`).
+  ///
+  /// Différente de [contrepasserLigne], qui date du jour : la pièce de clôture
+  /// (31/12/N) et celle d'à-nouveaux (01/01/N+1) s'annulent à la date où elles
+  /// ont été passées, pour que chaque exercice retrouve exactement son état
+  /// d'avant. Chaque ligne est inversée, liée à son origine, validée, SANS
+  /// numéro de pièce ; une ligne déjà contre-passée est sautée (rejouable).
+  /// L'écriture d'origine n'est jamais touchée (RG-11).
+  ///
+  /// Un numéro `null` (une clôture qui n'avait pas de pièce) ne fait rien. Rend
+  /// le nombre de lignes inversées.
+  Future<int> contrepasserPieceADateDOrigine(
+    String exerciceId,
+    String? numeroPiece, {
+    required String libelle,
+    required String auteurId,
+  }) async {
+    _exigerAuteur(auteurId);
+    if (numeroPiece == null) return 0;
+    return _dao.enTransaction(() async {
+      var inversees = 0;
+      for (final origine in await _dao.lignesDeLaPieceDeLExercice(
+        exerciceId,
+        numeroPiece,
+      )) {
+        if (await _dao.dejaContrepassee(origine.id)) continue;
+        await _dao.insererEcriture(
+          exerciceId: origine.exerciceId,
+          journalId: origine.journalId,
+          compteId: origine.compteId,
+          centreId: origine.centreId,
+          dateEcriture: origine.dateEcriture,
+          libelle: libelle,
+          // Débit et crédit inversés : c'est toute la contre-passation.
+          debitCentimes: origine.creditCentimes,
+          creditCentimes: origine.debitCentimes,
+          statut: StatutEcriture.validee,
+          ecritureContrepasseeId: origine.id,
+          numeroPiece: null,
+          creeLe: _maintenant(),
+          creePar: auteurId,
+        );
+        inversees++;
+      }
+      return inversees;
+    });
+  }
+
       }
       return _dao.insererExercice(
         annee: annee,
@@ -395,8 +456,11 @@ class MoteurComptable {
   /// Le refus est délibéré et n'a pas de contournement automatique : une pièce
   /// en brouillon n'est pas opposable, et la clôturer verrouillerait l'exercice
   /// sur un état que personne n'a validé. Aucun solde des comptes de gestion,
-  /// aucune écriture de résultat : la clôture COMPLÈTE reste à faire, sous
-  /// l'arbitrage du Comptable (comme au serveur).
+  /// aucune écriture de résultat : c'est le verrou SIMPLE de
+  /// `ExerciceComptableService::cloturer` du serveur, qui n'a aucun appelant de
+  /// production ici. La clôture COMPLÈTE (pièces CL et AN, résultat en 131/139,
+  /// réouverture, archive) est `ClotureExerciceLocale` (26/10/2026), qui passe
+  /// par CE moteur pour chaque pièce.
   Future<ExerciceComptable> cloturerExercice(
     String exerciceId, {
     required String auteurId,

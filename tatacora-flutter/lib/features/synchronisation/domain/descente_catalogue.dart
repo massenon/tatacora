@@ -220,6 +220,7 @@ String libelleTableServeur(String nom) => switch (nom) {
   'immobilisations' => 'Immobilisations',
   'canaux_reservation' => 'Canaux de réservation',
   'inventaires' => 'Inventaires physiques',
+  'demandes_cloture_exercice' => 'Demandes de clôture d’exercice',
   _ => nom,
 };
 

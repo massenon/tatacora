@@ -12,6 +12,7 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../../../shared_widgets/bouton_standard.dart';
 import '../../../transverse/presentation/widgets/briques_transverses.dart';
 import '../../data/moteur_comptable.dart';
+import '../../domain/cloture_exercice.dart' show journauxReserves;
 import '../../domain/entities/comptabilite.dart';
 import '../../domain/montant_comptable.dart';
 import '../../domain/refus_comptable.dart';
@@ -270,6 +271,13 @@ class _ModaleEcritureState extends ConsumerState<ModaleEcriture> {
             centreId: l.centreId,
           ),
       ],
+      // La saisie du hub est celle du COMPTABLE : elle passe aussi dans un
+      // exercice EN CLÔTURE — ses écritures d'inventaire. Les modules, eux,
+      // restent à `ouvert` (`Hub::enregistrerPiece` du serveur).
+      statutsExerciceAdmis: const {
+        StatutExercice.ouvert,
+        StatutExercice.enCloture,
+      },
     );
     final auteurId = ref.read(sessionProvider)?.utilisateurId ?? '';
 
@@ -501,7 +509,12 @@ class _ModaleEcritureState extends ConsumerState<ModaleEcriture> {
               decoration: _decoration(),
               hint: Text(TextesModaleEcriture.choisir, style: valeur),
               items: [
-                for (final j in widget.journaux)
+                // Les journaux CL et AN, seule la clôture les écrit : une pièce
+                // passée à la main au journal CL disparaîtrait des états, qui
+                // l'excluent (`ClotureExerciceService::JOURNAUX_RESERVES`).
+                for (final j in widget.journaux.where(
+                  (j) => !journauxReserves.contains(j.code),
+                ))
                   DropdownMenuItem(
                     value: j.code,
                     child: Text(

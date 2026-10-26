@@ -131,6 +131,7 @@ Future<DonneesEtats> lireDonneesEtatsDuPoste(Ref ref) async {
     },
     statutParAnnee: {for (final e in poste.exercices) e.annee: e.statut},
     plan: await _planDeReport(dao),
+    anneesAvecClotureActive: await dao.anneesAvecClotureActive(),
   );
 }
 

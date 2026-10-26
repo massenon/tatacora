@@ -51,19 +51,19 @@ void main() {
   );
 
   test(
-    'première installation : 7 centres, 5 journaux, 1 332 comptes, l’exercice de l’année',
+    'première installation : 7 centres, 7 journaux, 1 332 comptes, l’exercice de l’année',
     () async {
       final bilan = await baseInstalleeSur(db, DateTime(2026, 10, 10));
 
       expect(bilan.centresCrees, 7);
-      expect(bilan.journauxCrees, 5);
+      expect(bilan.journauxCrees, 7);
       expect(bilan.comptesCrees, 1332);
       expect(bilan.comptesAlignes, 0);
       expect(bilan.exerciceSeme, 2026);
       expect(bilan.aRienChange, isFalse);
 
       expect(await compte('centres_cout_local'), 7);
-      expect(await compte('journaux_local'), 5);
+      expect(await compte('journaux_local'), 7);
       expect(await compte('plan_comptable_local'), 1332);
       expect(await compte('exercices_local'), 1);
 
@@ -91,7 +91,7 @@ void main() {
       expect(bilan.aRienChange, isTrue);
       expect(await compte('plan_comptable_local'), 1332);
       expect(await compte('centres_cout_local'), 7);
-      expect(await compte('journaux_local'), 5);
+      expect(await compte('journaux_local'), 7);
       expect(await compte('exercices_local'), 1);
 
       final apres = await db

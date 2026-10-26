@@ -49,6 +49,21 @@ enum MotifRefus {
   auteurAbsent(false),
   planFichierInvalide(false),
 
+  /// La clôture annuelle (26/10/2026) — les refus de `ClotureExerciceService`.
+  clotureDemarrageImpossible(false),
+  clotureRepriseImpossible(false),
+  clotureExigeEnCloture(false),
+  clotureOrdre(false),
+  clotureConditionsNonReunies(false),
+  clotureSuivantClos(false),
+  reouvertureReservee(false),
+  reouvertureNonCloture(false),
+  reouvertureMotif(false),
+  reouvertureSuivantClos(false),
+  archiveSansCloture(false),
+  archiveAlteree(false),
+  archiveClotureRouverte(false),
+
   /// RG-11 — les cinq refus que le serveur porte par `EcritureImmuableException`.
   ecritureImmuable(true),
   suppressionInterdite(true),

@@ -52,7 +52,7 @@ void main() {
         final bilan = await conteneur.read(referentielComptableProvider.future);
         expect(bilan.comptesCrees, 1332);
         expect(bilan.centresCrees, 7);
-        expect(bilan.journauxCrees, 5);
+        expect(bilan.journauxCrees, 7);
         expect(bilan.exerciceSeme, DateTime.now().year);
 
         final restaurant = (await dao.centreParLibelle('Restaurant'))!.id;
@@ -213,6 +213,12 @@ void main() {
         // moteur (cas ci-dessous).
         'descente_catalogue.dart',
         'aligneur_catalogue.dart',
+        // 26/10/2026 : la CLÔTURE ANNUELLE (`ClotureExerciceLocale`) demande
+        // ses deux pièces (CL, AN) et la contre-passation de la réouverture au
+        // moteur — ce n'est pas un mouvement d'argent : le résultat et les
+        // soldes de bilan sont déjà dans des pièces validées. Elle n'écrit
+        // aucune ligne elle-même (`ecrivains_cloture_test.dart`).
+        'cloture_exercice_locale.dart',
       });
       expect(qui('moteurComptableProvider'), {
         'providers_achats.dart',
@@ -234,6 +240,8 @@ void main() {
         // (`MoteurComptable.creerCompte` / `ouvrirExercice`) — des gestes de
         // référentiel, aucun mouvement d'argent, aucune écriture (`hub_plan_clotures_test.dart`).
         'modales_hub_comptabilite.dart',
+        // 26/10/2026 : les gestes de la clôture annuelle (onglet « Clôtures »).
+        'providers_cloture.dart',
       });
     });
 
