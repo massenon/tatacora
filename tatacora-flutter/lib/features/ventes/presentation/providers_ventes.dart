@@ -16,13 +16,12 @@
 /// affirme un état qu'il n'a pas vérifié — la famille PA-59/60/61. L'écran dit
 /// **« enregistré sur ce poste »**.
 ///
-/// ## Aucun `autoDispose`, contrairement à M6 et M7
+/// ## `autoDispose` ET dépendant des paniers (26/10/2026)
 ///
-/// Et c'est la raison inverse : là-bas, garder la réponse ferait réafficher au
-/// retour un registre qui date de la visite précédente, sans qu'aucune copie
-/// locale n'existe pour le corriger. Ici la source **est** la base du poste :
-/// une lecture conservée est exacte tant que personne n'écrit, et
-/// [rafraichirJournalVentes] la rejette dès qu'on écrit.
+/// Le journal a d'abord été gardé sans `autoDispose` ; une vente encaissée au
+/// comptoir restait alors ABSENTE de l'historique tant qu'aucun geste
+/// n'invalidait le journal à la main. Il se recompose maintenant dès que les
+/// paniers se rafraîchissent, et à chaque visite de l'écran.
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -54,7 +53,16 @@ import '../impression/ticket_vente.dart';
 /// `libelles()` et non `toutes()` sur le référentiel des tables : `toutes()`
 /// **sème** le jeu initial quand le référentiel est vide, et une lecture ne
 /// doit rien écrire (voir `TablesPosDao.libelles`).
-final journalVentesProvider = FutureProvider<JournalVentes>((ref) async {
+final journalVentesProvider = FutureProvider.autoDispose<JournalVentes>((
+  ref,
+) async {
+  // Le journal DÉPEND des paniers : tout geste qui rafraîchit les paniers (une
+  // clôture au comptoir, une consommation, une annulation) le recompose. Sans
+  // ce lien, une vente encaissée restait ABSENTE du journal tant que personne
+  // n'invalidait celui-ci à la main — et le gérant concluait qu'elle n'avait pas
+  // été enregistrée (correction du 26/10/2026). `autoDispose` : une vente
+  // descendue d'un autre poste apparaît aussi à la visite suivante.
+  ref.watch(paniersProvider);
   final depotPanier = ref.watch(depotPanierProvider);
   final tables = ref.watch(tablesPosDaoProvider);
   final factures = ref.watch(factureDaoProvider);
