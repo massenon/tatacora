@@ -953,6 +953,14 @@ class Hub extends PageComptabilite
             // Lot 2 : la clôture active (pièces passées) et le droit de rouvrir.
             'clotureActive' => $exercice === null ? null : app(ClotureExerciceService::class)->clotureActive($exercice->id),
             'peutRouvrir' => auth()->user()?->role?->libelle === ClotureExerciceService::ROLE_REOUVERTURE,
+            // « Résultat reporté » de chaque exercice DÉJÀ clôturé : celui que sa
+            // clôture a écrit (131/139), lu sur la clôture active — jamais
+            // recalculé. Un exercice non clôturé n'a pas encore de résultat reporté.
+            'resultatsReportes' => \App\Domain\Comptabilite\Models\ClotureExercice::query()
+                ->whereNull('rouverte_le')
+                ->pluck('resultat', 'exercice_id')
+                ->map(static fn (mixed $r): string => (string) $r)
+                ->all(),
             // Alerte AVANT de démarrer : postes qui n'ont peut-être pas tout
             // envoyé (une fois N en clôture, leurs pièces datées de N sont refusées).
             'postesNonAJour' => $exercice !== null && $exercice->statut === 'ouvert'

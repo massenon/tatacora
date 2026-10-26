@@ -145,4 +145,8 @@ return [
     'archive_cloture_rouverte' => 'Cette clôture a été rouverte : son archive n\'est plus celle de l\'exercice.',
     'archive_sans_cloture' => "Cet exercice n'a pas de clôture active : il n'y a pas d'archive.",
     'archive_alteree' => "L'archive de clôture ne correspond plus à son empreinte : un fichier a été modifié ou supprimé. Elle n'est pas délivrée.",
+
+    // --- Demandes de clôture envoyées par un poste (26/10/2026) ---------------
+    'demande_cloture_exercice_inconnu' => "L'exercice :annee n'existe pas sur le serveur : la demande de clôture ne peut pas être exécutée.",
+    'demande_cloture_action_inconnue' => 'Action de clôture inconnue : « :action ». Valeurs admises : :admises.',
 ];

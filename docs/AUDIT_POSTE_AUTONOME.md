@@ -94,7 +94,7 @@ Légende : **O** fonctionne sans serveur ; **N→O** ne fonctionnait pas, corrig
 | M10 | **Analytique** | marge par centre | N→O | `analytiqueDe`, confronté au vrai `AnalytiqueService` |
 | M10 | **Six indicateurs du bandeau** + alerte « Comptabilité déséquilibrée » | CA, VA, EBE, résultat net, trésorerie, total bilan | N→O | `indicateursDe` (assembleur du compte de résultat, du bilan, de la balance) |
 | M10 | **Tuiles Flux de trésorerie (TAFIRE), Notes annexes, États financiers** | trois pages séparées de la vue | N→O | fenêtres calculées sur le poste (`tafire_notes.dart`), confrontées au vrai `TafireService` et `NotesAnnexesService` sur quatre exercices |
-| M10 | Clôtures | **clôture annuelle** (pièces CL et AN, réouverture) | **N** | reste (§4) |
+| M10 | **Clôtures** | clôture annuelle : provisoire, pièces CL et AN, réouverture, archive SHA-256 | N→O (v40) | `ClotureExerciceLocale` (seul écrivain), pièces par `MoteurComptable`, confrontées au vrai `ClotureExerciceService` (`cloture_contre_serveur_test`, 9 scénarios), demandes rejouées par le vrai `SynchronisationService` |
 | M11 Tableau de bord | Bande d'indicateurs | 7 sur 8 | O | — |
 | M11 | **Dépenses cumulées** | écritures de classe 6 | N→O (« — ») | calculées (`depensesCumuleesCentimes`), confrontées au vrai `TableauDeBordService`, bornes du serveur comprises |
 | M11 | **Série mensuelle** (graphique) | CA encaissé et dépenses sur N mois | N→O (« non disponible ») | `serieMensuelleLocale`, confrontée à `serieMensuelle` |
@@ -163,13 +163,23 @@ Légende : **O** fonctionne sans serveur ; **N→O** ne fonctionnait pas, corrig
      déclencheurs détectés sur le poste (séjour demain, départ du jour) ont une
      adresse ; l'e-mail du poste est expédié sous le nom « LogiRestock -
      TATACORA AFRIQUE » avec l'utilisateur SMTP comme expéditeur.
-3. **Clôture annuelle SYSCOHADA** (pièces de clôture et d'à-nouveaux, archive
-   DGI, réouverture) — c'est un acte du comptable sur le registre UNIQUE : le
-   serveur ne reçoit aucune écriture du poste (il passe sa propre pièce pour
-   chaque document reçu). Une clôture locale diverge de celle du serveur dès la
-   réactivation. Elle demande une décision du Product Owner (qui clôture quand
-   le poste est seul ?) et un contrat de synchronisation d'exercice ; elle n'a
-   pas été portée.
+3. **Clôture annuelle SYSCOHADA** — IMPLÉMENTÉE EN POSTE ET WEB (décision du PO
+   du 26/10/2026, schéma v40). Le web était complet (provisoire, pièces CL et AN,
+   résultat 131/139, réouverture par le comptable, archive légale SHA-256).
+   Le poste porte la même chose : onglet « Clôtures » du hub, pièces CL et AN
+   équilibrées passées par `MoteurComptable` (RG-11), table
+   `clotures_exercices_local` à écrivain unique. **Contrat de synchronisation** :
+   le poste n'envoie JAMAIS une pièce de clôture (D246) ; chaque geste enfile une
+   DEMANDE (`demandes_cloture_exercice`, démarrer / reprendre la saisie /
+   clôturer / rouvrir), le serveur rejoue ses règles et passe les siennes. Une
+   demande déjà satisfaite est acceptée sans rien réécrire. Preuves : pièces du
+   serveur identiques à celles du poste, refus aux mots du serveur, 25 mutations
+   toutes tuées. **Écarts assumés** : le résultat du poste ne compte que ses
+   pièces (le serveur peut refuser, la clôture locale demeure et le refus se lit
+   dans « À traiter ») ; pas de relevés bancaires (avertissement absent) ; PDF
+   d'archive composé par le gabarit tabulaire commun (pas DomPDF) ; archives
+   écrites dans `archives/` à côté de `poste.json` (hors sauvegarde de base) ;
+   une demande non acceptée protège la clôture locale contre la descente.
 4. **Historique des prix** (bar et restaurant) et **« Prix »** du restaurant —
    FAIT en v38. Table `historique_prix_carte_local`, miroir de
    `historique_prix_carte` ; seuls `CatalogueDao.enregistrerBoisson` et
@@ -228,3 +238,10 @@ additive CONDITIONNELLE (`from < 39`), fixture `_ajoutsParVersion[39]`, test sur
 fichier réel (`migration_v39_boite_envoi_emails_test.dart`, depuis les versions
 38, 26 et 10). La table apparaît vide : aucune ligne n'est fabriquée pour les
 messages d'avant.
+
+Version **40** (76 tables, mission « clôture annuelle », 26/10/2026) : UNE table
+neuve, `clotures_exercices_local`, migration additive CONDITIONNELLE
+(`from < 40`), fixture `_ajoutsParVersion[40]`, test sur fichier réel
+(`migration_v40_clotures_exercices_test.dart`). Les journaux `AN` et `CL` sont
+installés avec le référentiel. Aucune clôture n'est déduite pour les exercices
+d'avant.

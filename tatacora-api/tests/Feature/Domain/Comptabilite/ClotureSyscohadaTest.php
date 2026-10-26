@@ -324,6 +324,31 @@ final class ClotureSyscohadaTest extends TestCase
     }
 
     #[Test]
+    public function le_resultat_reporte_d_un_exercice_cloture_se_lit_dans_la_liste_meme_consulte_ailleurs(): void
+    {
+        $this->exploiter();
+        $this->service()->demarrer($this->n, $this->comptable);
+        $this->service()->cloturer($this->n->refresh(), $this->comptable);
+        $suivant = ExerciceComptable::query()->where('annee', 2027)->firstOrFail();
+        $attendu = \App\Pwa\Support\MontantFcfa::format('70000.00');
+
+        // La LIGNE de 2026 dans la liste des exercices, l'exercice consulté étant
+        // 2027 (dont les à-nouveaux provisoires montrent aussi 70 000 ailleurs).
+        $ligne2026 = function () use ($suivant): string {
+            $html = Livewire::withQueryParams(['exercice' => $suivant->id])->test(Hub::class, ['onglet' => 'clotures'])->html();
+            $this->assertSame(1, preg_match('#<tr class="border-t[^"]*">\s*<td[^>]*>2026</td>(.*?)</tr>#s', $html, $m));
+
+            return (string) preg_replace('/\s+/', ' ', $m[1]);
+        };
+
+        $this->assertStringContainsString($attendu, $ligne2026());
+
+        // Rouverte, sa clôture n'est plus active : plus de résultat reporté.
+        $this->service()->rouvrir($this->n->refresh(), $this->comptable, 'Régularisation tardive');
+        $this->assertStringNotContainsString($attendu, $ligne2026());
+    }
+
+    #[Test]
     public function la_liste_de_controle_suit_la_cloture_reelle(): void
     {
         $this->exploiter();

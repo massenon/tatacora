@@ -132,10 +132,7 @@
     </tfoot>
   </table>
 
-  @include('pdf.partials.signatures', ['visas' => [
-      __('comptabilite_pwa.archive_visa_comptable'),
-      __('rapports.signatures.visa_direction'),
-  ]])
+  @include('pdf.partials.signatures', ['visas' => [__('comptabilite_pwa.archive_visa_comptable'), __('rapports.signatures.visa_direction')]])
   @include('pdf.partials.pied-rapport')
 </body>
 </html>

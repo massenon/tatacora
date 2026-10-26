@@ -52,9 +52,10 @@ Sur le poste (Windows) :
 
 - Les mêmes boutons de navigation et le même bandeau de statut, aux mêmes
   mots.
-- Un exercice qui n'est pas ouvert n'offre pas « Nouvelle écriture ».
-- Le poste ne connaît que ses propres écritures : le compte de résultat, le
-  bilan et le comparatif ne s'y calculent pas. Ils se consultent dans la PWA.
+- Un exercice ouvert OU en clôture offre « Nouvelle écriture » (le comptable y
+  passe ses écritures d'inventaire) ; un exercice clôturé ne l'offre pas.
+- Le compte de résultat, le bilan et le comparatif se calculent sur le poste
+  (depuis le 21/10/2026) ; la clôture annuelle elle-même s'y mène aussi (§ 5).
 
 ## 1 ter. Soldes d'ouverture et alerte avant clôture
 
@@ -132,8 +133,73 @@ Elle est générée à chaque clôture, dans
 > Les colonnes sont regroupées dans `ArchiveClotureService::COLONNES_ECRITURES`,
 > si bien qu'un ajustement ne touche qu'un seul endroit.
 
-## 4. Après `git pull` sur le serveur
+## 4 bis. Le résultat reporté de chaque exercice clôturé
+
+La colonne « Résultat reporté » de l'onglet Clôtures porte, pour chaque
+exercice **clôturé**, le résultat que sa clôture a écrit en 131/139 (lu sur
+`clotures_exercices.resultat`, jamais recalculé). L'exercice consulté non
+clôturé porte son résultat calculé ; les autres, un tiret. Une clôture rouverte
+n'est plus « active » : son exercice retrouve le tiret.
+
+## 5. Le poste clôture aussi — et le contrat de synchronisation d'exercice
+
+Décision du Product Owner du 26/10/2026 : « la clôture annuelle SYSCOHADA DOIT
+ÊTRE IMPLÉMENTÉE EN POSTE ET WEB ».
+
+**Sur le poste** (onglet « Clôtures » du hub comptable, schéma local v40) : les
+mêmes quatre gestes, la même liste de contrôle, les mêmes pièces CL et AN, la
+même réouverture contre-passée, la même archive légale et son empreinte
+SHA-256 — sur **les écritures passées par ce poste**, par le moteur comptable
+(écrivain unique, RG-11, RG-12). Les phrases sont celles du serveur, relues par
+des tests qui EXÉCUTENT `ClotureExerciceService`.
+
+**Le serveur reste le seul comptable (D246).** Le poste ne lui envoie jamais une
+pièce : chaque geste enfile une **demande** (document source), table
+`demandes_cloture_exercice` du registre de synchronisation, module M10, création
+seule :
+
+| Champ | Valeur |
+|---|---|
+| `annee` | l'année de l'exercice (2000 à 2100) |
+| `action` | `demarrer`, `reprendre_saisie`, `cloturer`, `rouvrir` |
+| `motif` | pour `rouvrir` : dix caractères au moins |
+
+`GestionnaireDemandesCloture` rejoue `ClotureExerciceService` **comme le fait
+l'onglet de la PWA**, avec les droits du compte appairé : mêmes refus, mêmes
+phrases (ordre des exercices, brouillons, balance, rôle du comptable pour la
+réouverture, motif). La demande acceptée est consignée (`demandes_cloture_exercice` :
+issue, pièces, résultat, empreinte de l'archive que le SERVEUR a produite) et
+l'archive légale suit la clôture, comme à l'écran. Un refus annule tout : le poste
+lit la phrase du serveur dans « À traiter » de son écran de synchronisation.
+
+- **Une demande déjà satisfaite est acceptée sans rien réécrire**
+  (`deja_dans_cet_etat`) : démarrer un exercice déjà en clôture, clôturer un
+  exercice déjà clôturé, reprendre la saisie d'un exercice ouvert, rouvrir un
+  exercice qui n'est pas clôturé. C'est la seule tolérance.
+- **Le statut redescend** (déjà le cas depuis le 20/10/2026) et les pièces CL/AN
+  du serveur descendent dans le miroir de lecture du poste.
+- **Tant que la dernière demande de l'année n'est pas acceptée** (en file,
+  refusée, bloquée), le statut du serveur ne défait pas la clôture locale :
+  sinon un exercice « ouvert » redescendu rouvrirait l'écriture dans un
+  exercice dont les pièces de clôture existent déjà ici.
+
+**Écarts nommés.** (1) Le résultat d'une clôture du poste est celui de SES
+pièces, pas de l'établissement : la clôture légale est celle du serveur. Si le
+serveur refuse (un brouillon d'un autre poste, un exercice précédent non clôturé
+chez lui…), la clôture locale demeure et le refus se lit à l'écran de
+synchronisation. (2) Pas de relevés bancaires sur le poste : l'avertissement
+« relevés non rapprochés » n'y existe pas. (3) Le PDF de l'archive du poste est
+composé avec le gabarit tabulaire commun du poste (mêmes sections, mêmes mots,
+mêmes montants), pas par DomPDF ; `ecritures.csv` et `balance.csv` sont, eux,
+**les mêmes octets** que ceux du serveur (hors date et login de saisie). (4) Les
+archives du poste vivent dans `archives/` à côté de `poste.json` : la sauvegarde
+de la base ne les contient pas, comme le dump SQL ne contient pas celles du
+serveur. (5) Les comptes qui reçoivent le résultat suivent la correspondance des
+comptes (`compte_resultat_benefice` / `compte_resultat_perte`, 131 et 139 par
+défaut) sur le poste comme au serveur.
+
+## 6. Après `git pull` sur le serveur
 
 ```bash
-php artisan migrate   # table clotures_exercices, journaux CL et AN
+php artisan migrate   # tables clotures_exercices et demandes_cloture_exercice, journaux CL et AN
 ```

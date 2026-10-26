@@ -70,14 +70,14 @@
   </div>
   <div class="overflow-x-auto">
     <table class="w-full text-[13px] compta" style="white-space: nowrap">
-      {{-- « Résultat reporté » (maître l.412) — RENDU depuis le 01/09/2026,
-           mais CALCULÉ, jamais stocké : aucune colonne de ce nom n'existe
-           sur `exercices_comptables`. Seule la ligne de l'exercice
-           CONSULTÉ (sélecteur en tête de hub) porte une valeur — c'est
-           `$cloture->resultatAReporter`, déjà calculé pour lui plus bas ;
-           le recalculer pour chaque exercice de la liste referait, pour
-           chacun, tout le travail d'`EtatClotureService`. Les autres
-           lignes portent un tiret : jamais un résultat inventé (Article 7). --}}
+      {{-- « Résultat reporté » (maître l.412) — RENDU depuis le 01/09/2026.
+           Un exercice CLÔTURÉ porte celui que sa clôture a écrit en 131/139
+           (`clotures_exercices.resultat`, lu sur la clôture active, 26/10/2026).
+           L'exercice CONSULTÉ, non clôturé, porte `$cloture->resultatAReporter`,
+           déjà calculé pour lui plus bas ; le recalculer pour chaque exercice
+           de la liste referait, pour chacun, tout le travail d'`EtatClotureService`.
+           Les autres lignes portent un tiret : jamais un résultat inventé
+           (Article 7). --}}
       @include('pwa.comptabilite.onglets._entetes', ['colonnes' => $colonnesEntete])
       <tbody>
         @foreach ($tousExercices as $unExercice)
@@ -94,8 +94,16 @@
                 <span class="text-[11px] px-2 py-0.5 rounded bg-slate-100 text-slate-600">Clôturé</span>
               @endif
             </td>
-            <td class="px-3 py-2 text-right font-semibold {{ ($cloture !== null && $unExercice->id === $exerciceIdConsulte && MontantFcfa::estNegatif($cloture->resultatAReporter)) ? 'text-red-600' : '' }}">
-              {{ ($cloture !== null && $unExercice->id === $exerciceIdConsulte) ? MontantFcfa::format($cloture->resultatAReporter) : MontantFcfa::TIRET }}
+            @php
+                // Le résultat reporté d'un exercice CLÔTURÉ est celui que sa clôture
+                // a écrit (`clotures_exercices.resultat`) ; celui de l'exercice
+                // consulté, non clôturé, est calculé plus bas ; les autres : tiret.
+                $resultatReporte = isset($resultatsReportes[$unExercice->id])
+                    ? $resultatsReportes[$unExercice->id]
+                    : (($cloture !== null && $unExercice->id === $exerciceIdConsulte) ? $cloture->resultatAReporter : null);
+            @endphp
+            <td class="px-3 py-2 text-right font-semibold {{ ($resultatReporte !== null && MontantFcfa::estNegatif($resultatReporte)) ? 'text-red-600' : '' }}">
+              {{ $resultatReporte !== null ? MontantFcfa::format($resultatReporte) : MontantFcfa::TIRET }}
             </td>
             <td class="px-3 py-2 text-right text-slate-500 text-[12px]">{{ $unExercice->date_cloture?->format('d/m/Y') ?? '—' }}</td>
           </tr>

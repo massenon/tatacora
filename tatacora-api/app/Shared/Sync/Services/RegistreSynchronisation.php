@@ -16,6 +16,7 @@ use App\Shared\Sync\Gestionnaires\GestionnaireClients;
 use App\Shared\Sync\Gestionnaires\GestionnaireCommandesAchat;
 use App\Shared\Sync\Gestionnaires\GestionnaireConges;
 use App\Shared\Sync\Gestionnaires\GestionnaireContratsLocation;
+use App\Shared\Sync\Gestionnaires\GestionnaireDemandesCloture;
 use App\Shared\Sync\Gestionnaires\GestionnaireDepenses;
 use App\Shared\Sync\Gestionnaires\GestionnaireEmployes;
 use App\Shared\Sync\Gestionnaires\GestionnaireEntretiensVehicule;
@@ -175,6 +176,9 @@ class RegistreSynchronisation
         // 21/10/2026 : l'inventaire physique CLÔTURÉ d'un poste, document
         // complet (en-tête + lignes) ; sa régularisation arrive en mouvements.
         'inventaires' => GestionnaireInventaires::class,
+        // 26/10/2026 : la DEMANDE de clôture ou de réouverture d'un exercice
+        // (M10), document source : le serveur rejoue ses règles de clôture.
+        'demandes_cloture_exercice' => GestionnaireDemandesCloture::class,
     ];
 
     /** @var array<string, GestionnaireSynchronisation> */

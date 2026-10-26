@@ -104,6 +104,8 @@ final class RegistreGestionnairesSynchronisationTest extends TestCase
             'canaux_reservation',
             // 21/10/2026 : l'inventaire physique clôturé (document complet).
             'inventaires',
+            // 26/10/2026 : la demande de clôture d'exercice d'un poste (M10).
+            'demandes_cloture_exercice',
         ], array_keys($gestionnaires));
 
         foreach ($gestionnaires as $table => $gestionnaire) {
