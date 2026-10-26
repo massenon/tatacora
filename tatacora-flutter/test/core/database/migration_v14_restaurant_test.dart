@@ -254,12 +254,15 @@ void main() {
         'cree_par',
         'modifie_le',
         'modifie_par',
+        // v36 : le lien direct au stock (ajouté en dernier).
+        'article_id',
+        'unites_vendables',
       ]);
 
       // Ni un coût, ni une marge, ni des portions, ni un taux n'est une colonne
       // (piège 9 : personne ne les écrirait, ou ils divergeraient de leurs
-      // sources) ; ni un lien direct à un article, ni une disponibilité du
-      // jour, dont aucun geste n'est porté ; aucun `statut_sync`.
+      // sources) ; ni une disponibilité du jour (`disponible`, portée par
+      // `indisponibilites_carte_local`) ; aucun `statut_sync`.
       for (final t in tablesRestaurant) {
         final cols = await colonnes(apres, t);
         for (final interdit in [

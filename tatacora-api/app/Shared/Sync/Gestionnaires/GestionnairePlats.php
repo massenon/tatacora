@@ -7,9 +7,12 @@ namespace App\Shared\Sync\Gestionnaires;
 use App\Domain\Restaurant\Http\Requests\EnregistrerPlatRequest;
 use App\Domain\Restaurant\Models\Plat;
 use App\Domain\Restaurant\Services\CartePlatMenuService;
+use App\Shared\Sync\Exceptions\DonneesSynchroniseesInvalidesException;
 use App\Shared\Sync\Services\ResolveurCorrespondances;
 use App\Shared\Sync\Support\ContexteSynchronisation;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Plats créés hors connexion (M4, EF-M4-01) — lot S2, décision du Product
@@ -34,6 +37,12 @@ use Illuminate\Database\Eloquent\Model;
  * Ingrédients en texte libre, catégorie, disponibilité, coût matière et marge
  * sont INTERDITS comme à l'API (PA-23, PA-24).
  *
+ * ## Le lien direct au stock (« Lier au stock », poste v36)
+ *
+ * `article_id` (traduit par les correspondances) et
+ * `unites_vendables_par_unite_stock` partent ensemble, à la création comme en
+ * modification (`null` des deux = délier). Écrits par `CartePlatMenuService`.
+ *
  * ## Module M4, niveau C — celui de `POST /restaurant/plats`.
  *
  * ## Modification : acceptée, dernier écrit gagnant
@@ -48,7 +57,17 @@ use Illuminate\Database\Eloquent\Model;
  */
 final class GestionnairePlats extends GestionnaireReferentielAbstrait
 {
-    protected const REFERENCES = ['menu_id' => 'menus', 'recette_id' => 'recettes'];
+    protected const REFERENCES = ['menu_id' => 'menus', 'recette_id' => 'recettes', 'article_id' => 'articles'];
+
+    /**
+     * Le lien DIRECT au stock (« Lier au stock », poste v36) : les DEUX champs
+     * vont ensemble. Ils ne sont pas dans `EnregistrerPlatRequest` (l'API les
+     * pose par `CartePlatMenuService::lierAuStock`), donc `validated()` les
+     * jetterait en silence — le poste croirait avoir lié un plat qui ne l'est
+     * pas. Ils sont validés ICI, puis écrits par le service (qui refuse un
+     * article sans conditionnement, et l'inverse).
+     */
+    private const CHAMPS_LIEN = ['article_id', 'unites_vendables_par_unite_stock'];
 
     protected const REQUETE = EnregistrerPlatRequest::class;
 
@@ -78,11 +97,63 @@ final class GestionnairePlats extends GestionnaireReferentielAbstrait
 
     protected function validerCreation(array $payload): array
     {
-        return $this->valider(
+        [$lien, $payload] = $this->separerLien($payload);
+
+        $donnees = $this->valider(
             $payload,
             $this->reglesDeLApi(EnregistrerPlatRequest::class),
             EnregistrerPlatRequest::class,
         );
+
+        return [...$donnees, ...$this->validerLien($lien)];
+    }
+
+    protected function validerModification(Model $element, array $payload): array
+    {
+        [$lien, $payload] = $this->separerLien($payload);
+
+        return [...parent::validerModification($element, $payload), ...$this->validerLien($lien)];
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array{0: array<string, mixed>, 1: array<string, mixed>}
+     */
+    private function separerLien(array $payload): array
+    {
+        $lien = array_intersect_key($payload, array_flip(self::CHAMPS_LIEN));
+
+        return [$lien, array_diff_key($payload, $lien)];
+    }
+
+    /**
+     * Seuls les champs PRÉSENTS sont validés ; `null` est accepté (retrait du
+     * lien : les deux colonnes partent ensemble). La cohérence article /
+     * conditionnement est celle du service, jugée sur l'état résultant.
+     *
+     * @param  array<string, mixed>  $lien
+     * @return array<string, mixed>
+     */
+    private function validerLien(array $lien): array
+    {
+        if ($lien === []) {
+            return [];
+        }
+
+        $regles = [
+            'article_id' => ['nullable', 'uuid', 'exists:articles,id'],
+            'unites_vendables_par_unite_stock' => ['nullable', 'numeric', 'gt:0', 'max:99999999999'],
+        ];
+
+        $messages = [
+            'article_id.exists' => __('carte.article_stock_inconnu', ['article' => (string) ($lien['article_id'] ?? '')]),
+        ];
+
+        try {
+            return Validator::make($lien, array_intersect_key($regles, $lien), $messages)->validate();
+        } catch (ValidationException $e) {
+            throw DonneesSynchroniseesInvalidesException::depuis($e);
+        }
     }
 
     protected function equivalent(array $donnees): ?Model

@@ -8,7 +8,7 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../restaurant/presentation/widgets/corps_carte_commun.dart'
     show styleContenuCarte;
-import '../../data/piece_de_la_vente.dart' show modulesEncaissables;
+import '../../data/piece_de_la_vente.dart' show modulesEncaissablesAuSejour;
 import '../../domain/entities/article_vendable.dart';
 import '../providers_pos.dart';
 
@@ -69,8 +69,11 @@ class CatalogueHeberges extends ConsumerStatefulWidget {
   static const String tarifManquant = 'tarif manquant';
 
   /// `pos_pwa.heberges.prestation_refusee`, au mot.
+  ///
+  /// Depuis le 22/10/2026 le tourisme et la location s'encaissent au
+  /// COMPTOIR ; la note de chambre d'un séjour ne les porte pas.
   static const String prestationRefusee =
-      'Tourisme et location ne sont pas encaissables au comptoir (31/08/2026) : leur prix devrait être saisi au clavier, ce que le registre des ventes refuse. Ces prestations passent par leur propre module.';
+      "Tourisme et location ne se portent pas sur la note de chambre : ils s'encaissent au point de vente du comptoir, ou passent par leur propre module.";
 
   @override
   ConsumerState<CatalogueHeberges> createState() => _CatalogueHebergesState();
@@ -358,9 +361,11 @@ class _Carte extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tarifConnu = article.estVendable;
-    // `$item['encaissable']` : tourisme et location se vendent par leur propre
-    // module (`MODULES_ENCAISSABLES`).
-    final encaissable = modulesEncaissables.contains(article.module.code);
+    // `$item['encaissable']` : tourisme et location se vendent au comptoir,
+    // pas sur la note de chambre (`PosHeberges::MODULES_DU_SEJOUR`).
+    final encaissable = modulesEncaissablesAuSejour.contains(
+      article.module.code,
+    );
     final ajoutable = actif && tarifConnu && encaissable;
 
     final carte = Material(

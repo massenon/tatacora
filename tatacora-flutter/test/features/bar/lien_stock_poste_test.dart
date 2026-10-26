@@ -124,7 +124,8 @@ void main() {
     });
 
     test(
-      'un article SANS conditionnement est refusé, rien n’est écrit',
+      'l’API admet un article SANS conditionnement (import), comme le '
+      'service du serveur : rien n’est inventé, la colonne reste vide',
       () async {
         final r = await api.enregistrer(
           const SaisieBoisson(
@@ -134,10 +135,13 @@ void main() {
             articleId: 'art-casier',
           ),
         );
-        final refus = r as BarRefuse<Boisson>;
-        expect(refus.erreurs.keys, ['unites_vendables_par_unite_stock']);
-        expect(await db.select(db.cartesBoissonLocal).get(), isEmpty);
-        expect(await operations(), isEmpty);
+        expect(r, isA<BarRecu<Boisson>>());
+        final l = await ligne('Béninoise 33 cl');
+        expect([l.articleId, l.unitesVendables], ['art-casier', null]);
+        final charge =
+            jsonDecode((await operations()).single.payload)
+                as Map<String, Object?>;
+        expect(charge.containsKey('unites_vendables_par_unite_stock'), isFalse);
       },
     );
 
@@ -259,6 +263,28 @@ void main() {
         expect(await operations(), hasLength(avant));
       },
     );
+
+    test('le CRUD du catalogue (libellé, catégorie, prix) garde le lien et son '
+        'facteur', () async {
+      final b = await creerSansLien();
+      await api.lierAuStock(
+        id: b.id,
+        articleId: 'art-casier',
+        unitesVendablesParUniteStock: '24',
+      );
+      final r = await api.enregistrer(
+        SaisieBoisson(
+          id: b.id,
+          libelle: 'Béninoise 33 cl bis',
+          categorie: CategorieBoisson.importee,
+          prixVente: '700',
+          articleId: 'art-casier',
+        ),
+      );
+      expect(r, isA<BarRecu<Boisson>>());
+      final l = await ligne('Béninoise 33 cl bis');
+      expect([l.articleId, l.unitesVendables], ['art-casier', '24']);
+    });
 
     test('changer le PRIX ou le libellé ne perd jamais le facteur', () async {
       final b = await creerSansLien();
@@ -427,7 +453,7 @@ void main() {
         '24',
       );
       await tester.pumpAndSettle();
-      // 1 / 24, au dix-millième : 0.0417 casier par bouteille vendue.
+      // 1 / 24 tronqué au dix-millième (bcdiv) : 0.0416 casier par bouteille vendue.
       expect(find.byKey(const Key('lien-stock-apercu')), findsOneWidget);
       expect(
         tester.widget<Text>(find.byKey(const Key('lien-stock-decrement'))).data,

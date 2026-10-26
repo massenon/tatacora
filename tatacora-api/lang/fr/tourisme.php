@@ -143,7 +143,7 @@ return [
         // référence technique vit ici, en commentaire (capacité :
         // circuits.capacite_max, EF-M9-04, PA-51 ; durée : circuits.duree).
         'bandeau_capacite_texte' => 'Elle est lue de la fiche du circuit et contrôlée '
-            . '<strong>cumulée sur le départ</strong> par le service de domaine : trois groupes de 5 sur un '
+            . '<strong>cumulée sur le départ</strong> par le système : trois groupes de 5 sur un '
             . 'circuit à 12 places sont refusés au troisième.',
         'bandeau_duree_titre' => ':nombre départ(s) à durée indéterminée.',
         'bandeau_duree_texte' => 'La durée de ce circuit est un <strong>texte libre</strong> au '

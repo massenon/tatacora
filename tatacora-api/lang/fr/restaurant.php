@@ -101,8 +101,7 @@ return [
         'montant_sans_schema' => 'Une commande restaurant ne transporte aucun montant : le total est '
             . 'recalculé au tarif du jour.',
         'identifiant_non_accepte' => 'Une commande restaurant ne reçoit pas d\'identifiant du client : '
-            . 'cette table n\'est pas synchronisable et aucun mécanisme de rejeu n\'existe. En accepter '
-            . 'un laisserait croire à une idempotence qui n\'a pas lieu.',
+            . 'il est attribué à l\'enregistrement.',
         'identifiant_non_modifiable' => 'L\'identifiant ne se modifie pas.',
     ],
 ];

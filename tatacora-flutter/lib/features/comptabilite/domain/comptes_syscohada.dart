@@ -42,6 +42,7 @@ abstract final class ComptesSyscohada {
   static const mobileMoney = '552';
   static const produitPrestations = '7061';
   static const produitMarchandises = '7011';
+  static const produitLocations = '7073';
   static const achatsMarchandises = '6011';
   static const electricite = '6052';
   static const eau = '6051';
@@ -65,6 +66,7 @@ abstract final class ComptesSyscohada {
     'MOBILE_MONEY': mobileMoney,
     'PRODUIT_PRESTATIONS': produitPrestations,
     'PRODUIT_MARCHANDISES': produitMarchandises,
+    'PRODUIT_LOCATIONS': produitLocations,
     'ACHATS_MARCHANDISES': achatsMarchandises,
     'ELECTRICITE': electricite,
     'EAU': eau,

@@ -447,19 +447,20 @@ final class EtatsPwaTest extends TestCase
     }
 
     /**
-     * `m14-etats.html` se declare elle-meme remplacee : son bandeau est porte,
-     * et son lien conduit a la page REELLEMENT servie (Article 3.3).
+     * L'ancienne bibliotheque d'etats ne porte aucun bandeau de conception :
+     * « Ecran remplace… maquette validee par le client » est une note d'equipe,
+     * pas un texte pour l'utilisateur final (decision du Product Owner).
      */
     #[Test]
-    public function le_bandeau_ecran_remplace_est_porte_et_son_lien_navigue(): void
+    public function la_bibliotheque_ne_porte_aucun_bandeau_ecran_remplace(): void
     {
         $this->jeuDeDonnees();
         $this->actingAs($this->utilisateur('administrateur'));
 
         $html = (string) $this->get('/pwa/etats/bibliotheque')->assertOk()->getContent();
 
-        $this->assertStringContainsString('Écran remplacé.', $html);
-        $this->assertStringContainsString('href="' . route('pwa.etats.studio') . '"', $html);
+        $this->assertStringNotContainsString('Écran remplacé.', $html);
+        $this->assertStringNotContainsString('maquette validée par le client', $html);
     }
 
     /* ------------------------------------------------------------ outils */

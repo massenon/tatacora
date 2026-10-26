@@ -60,6 +60,8 @@ const _cocktail = '00000000-0000-4000-8000-0000000000b2';
 const _ephemere = '00000000-0000-4000-8000-0000000000b3';
 const _riz = '00000000-0000-4000-8000-0000000000a1';
 const _brochette = '00000000-0000-4000-8000-0000000000a2';
+const _circuit = '00000000-0000-4000-8000-0000000000c1';
+const _vehicule = '00000000-0000-4000-8000-0000000000d1';
 
 const _catalogue = <Map<String, Object?>>[
   {
@@ -96,6 +98,23 @@ const _catalogue = <Map<String, Object?>>[
     'module': 'M4',
     'libelle': 'Brochettes de bœuf',
     'prix': '3333',
+  },
+  // Tourisme et location, encaissables au comptoir (22/10/2026) : le prix est
+  // `circuits.prix` / `vehicules.tarif_jour`, le libellé du véhicule son
+  // immatriculation.
+  {
+    'ref': 'circuit',
+    'id': _circuit,
+    'module': 'M9',
+    'libelle': 'Cascades de Tanougou',
+    'prix': '4500',
+  },
+  {
+    'ref': 'location',
+    'id': _vehicule,
+    'module': 'M8',
+    'libelle': 'AB-123-BJ',
+    'prix': '25000',
   },
 ];
 
@@ -219,33 +238,35 @@ final _scenario = <Map<String, Object?>>[
   ], remise: _remise('montant', '5000')),
   {'op': 'compter'},
 
-  // --- Le service : module non encaissable, article retiré, mode ------------
-  {
-    'op': 'vente',
-    'canal': 'service',
-    'mode': 'especes',
-    'session': true,
-    'lignes': [
-      {'module': 'M8', 'id': 'veh-1', 'quantite': 1},
-    ],
-  },
-  // Le module est jugé AVANT la référence, ligne par ligne, dans l'ordre.
-  {
-    'op': 'vente',
-    'canal': 'service',
-    'mode': 'especes',
-    'session': true,
-    'lignes': [
-      {'ref': 'biere', 'quantite': 1},
-      {'module': 'M9', 'id': 'cir-1', 'quantite': 1},
-    ],
-  },
+  // --- Le service : article retiré, mode ------------------------------------
   _vente(
     'service',
     'especes',
     [_ligne('ephemere', 2), _ligne('biere', 1)],
     retirer: ['ephemere'],
   ),
+  {'op': 'compter'},
+
+  // --- TOURISME et LOCATION au comptoir (22/10/2026) ------------------------
+  // Chaque module seul, sur chaque mode : 7061 / 7073, centres « Tourisme » et
+  // « Véhicules », aucune TVA tant qu'elle est inactive.
+  _vente('comptoir', 'especes', [_ligne('circuit', 3)]),
+  _vente('comptoir', 'mobile_money', [_ligne('location', 2)]),
+  _vente('comptoir', 'carte', [_ligne('circuit', 1), _ligne('location', 1)]),
+  _vente('comptoir', 'virement', [_ligne('location', 4)]),
+  // Mixte bar + restaurant + location + circuit : l'ordre du panier ne change
+  // pas la pièce (M4, M5, M8, M9).
+  _vente('comptoir', 'especes', [
+    _ligne('circuit', 2),
+    _ligne('biere', 2),
+    _ligne('location', 1),
+    _ligne('riz', 1),
+  ]),
+  // L'appel direct du service (le chemin de la synchronisation, sans prix
+  // imposé) donne la même pièce que le comptoir.
+  _vente('service', 'especes', [_ligne('circuit', 3), _ligne('biere', 1)]),
+  // Sans caisse ouverte, le comptoir refuse comme pour le bar.
+  _vente('comptoir', 'especes', [_ligne('circuit', 1)], session: false),
   {'op': 'compter'},
 
   // --- La TVA : l'intention (tva_active) et la capacité (le taux) -----------
@@ -258,6 +279,15 @@ final _scenario = <Map<String, Object?>>[
   _vente('comptoir', 'especes', [_ligne('biere', 3), _ligne('riz', 2)]),
   _parametre('convention_prix', 'ttc'),
   _vente('comptoir', 'especes', [_ligne('biere', 3), _ligne('riz', 2)]),
+  // TVA sur les PRESTATIONS (4432) : circuit et location, seuls puis mêlés au
+  // bar (4431) et au restaurant (4432, cumulé avec celui des prestations).
+  _vente('comptoir', 'especes', [_ligne('circuit', 3), _ligne('location', 1)]),
+  _vente('comptoir', 'carte', [
+    _ligne('biere', 3),
+    _ligne('riz', 2),
+    _ligne('circuit', 1),
+    _ligne('location', 2),
+  ]),
   // La remise ET la TVA : la TVA se lit sur le net de chaque module.
   _vente('comptoir', 'especes', [
     _ligne('biere', 3),
@@ -335,6 +365,13 @@ final _scenarioSansCentre = <Map<String, Object?>>[
   _vente('comptoir', 'especes', [_ligne('riz', 1)]),
   // Mixte : le Bar manque, donc TOUT est refusé (rien d'écrit).
   _vente('comptoir', 'especes', [_ligne('riz', 1), _ligne('biere', 1)]),
+  {'op': 'compter'},
+  // Le centre « Véhicules » a disparu aussi : la location est refusée, le
+  // tourisme (centre « Tourisme ») passe.
+  {'op': 'retirer_centre', 'libelle': 'Véhicules'},
+  _vente('comptoir', 'especes', [_ligne('circuit', 1)]),
+  _vente('comptoir', 'especes', [_ligne('location', 1)]),
+  _vente('comptoir', 'especes', [_ligne('circuit', 1), _ligne('location', 1)]),
   {'op': 'compter'},
 ];
 
@@ -426,6 +463,15 @@ void main() {
       'ventes': 1,
       'ecritures': 2,
     });
+    // Sans le centre « Véhicules » : le circuit (centre « Tourisme ») passe, la
+    // location est refusée en nommant SON compte 7073, la mixte en bloc.
+    expect((serveurSansCentre[6] as Map)['ok'], isTrue);
+    expect((serveurSansCentre[7] as Map)['refus'], contains('7073'));
+    expect((serveurSansCentre[8] as Map).containsKey('refus'), isTrue);
+    expect((serveurSansCentre[9] as Map)['compte'], {
+      'ventes': 2,
+      'ecritures': 4,
+    });
   });
 
   test('le scénario éprouve les chemins qui comptent (pas un vert à vide)', () {
@@ -436,7 +482,8 @@ void main() {
         for (final l in ((r as Map)['piece'] as List))
           (l as Map)['compte'] as String,
     };
-    // Les trois trésoreries, la créance client, les deux produits, les deux TVA.
+    // Les trois trésoreries, la créance client, les produits (dont la location,
+    // 7073), les deux TVA.
     expect(
       comptes,
       containsAll(<String>[
@@ -446,6 +493,7 @@ void main() {
         '4111',
         '7011',
         '7061',
+        '7073',
         '4431',
         '4432',
       ]),
@@ -778,6 +826,31 @@ Future<List<Map<String, Object?>>> _jouerLocalement(
               prixVente: prix.toDouble(),
             ),
           );
+    } else if (module == 'M9') {
+      await db
+          .into(db.circuitsLocal)
+          .insert(
+            CircuitsLocalCompanion.insert(
+              id: id,
+              nom: a['libelle'] as String,
+              theme: 'nature',
+              zone: 'Atacora',
+              prix: prix.toDouble(),
+              capaciteMax: 12,
+            ),
+          );
+    } else if (module == 'M8') {
+      await db
+          .into(db.vehiculesLocal)
+          .insert(
+            VehiculesLocalCompanion.insert(
+              id: id,
+              categorie: '4x4',
+              immatriculation: a['libelle'] as String,
+              tarifJour: prix.toDouble(),
+              statut: 'disponible',
+            ),
+          );
     } else {
       await db
           .into(db.platsLocal)
@@ -802,31 +875,6 @@ Future<List<Map<String, Object?>>> _jouerLocalement(
       prix: prix,
     );
   }
-  // Un véhicule et un circuit : le poste offre ces rayons au panier (le serveur
-  // les refuse dès l'ajout), et leur clôture doit être refusée.
-  await db
-      .into(db.vehiculesLocal)
-      .insert(
-        VehiculesLocalCompanion.insert(
-          id: 'veh-1',
-          categorie: 'Berline',
-          immatriculation: 'AB-123-BJ',
-          tarifJour: 25000,
-          statut: 'disponible',
-        ),
-      );
-  await db
-      .into(db.circuitsLocal)
-      .insert(
-        CircuitsLocalCompanion.insert(
-          id: 'cir-1',
-          nom: 'Cascades de Tanougou',
-          theme: 'Nature',
-          zone: 'Atacora',
-          prix: 4500,
-          capaciteMax: 12,
-        ),
-      );
   final client = await creerClient(db);
   await semerReservation(db, id: 'res-1', clientId: client.id);
 

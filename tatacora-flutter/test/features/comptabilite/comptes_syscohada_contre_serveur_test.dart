@@ -23,9 +23,9 @@ void main() {
     plan = lirePlanComptable(lirePlanEmbarque()).map((c) => c.numero).toSet();
   });
 
-  test('18 rôles relus de la classe du serveur — export non vide', () {
-    expect(serveur['comptes'], hasLength(18));
-    expect(ComptesSyscohada.tous, hasLength(18));
+  test('19 rôles relus de la classe du serveur — export non vide', () {
+    expect(serveur['comptes'], hasLength(19));
+    expect(ComptesSyscohada.tous, hasLength(19));
   });
 
   test(
@@ -41,7 +41,7 @@ void main() {
   );
 
   test('les constantes Dart nommées sont celles de la table `tous`', () {
-    // Les 18 constantes sont lues UNE à UNE : `tous` pourrait en omettre une
+    // Les 19 constantes sont lues UNE à UNE : `tous` pourrait en omettre une
     // sans qu'aucun test précédent ne le voie.
     expect(ComptesSyscohada.tous.values.toSet(), {
       ComptesSyscohada.clients,
@@ -55,6 +55,7 @@ void main() {
       ComptesSyscohada.mobileMoney,
       ComptesSyscohada.produitPrestations,
       ComptesSyscohada.produitMarchandises,
+      ComptesSyscohada.produitLocations,
       ComptesSyscohada.achatsMarchandises,
       ComptesSyscohada.electricite,
       ComptesSyscohada.eau,
@@ -156,7 +157,7 @@ void main() {
       }
 
       // Non vide : le balayage a réellement vu les comptes du module — au
-      // moins les 18 rôles et les 11 centres par défaut.
+      // moins les 19 rôles et les 11 centres par défaut.
       expect(trouves.length, greaterThanOrEqualTo(29));
       expect(fautifs, isEmpty, reason: 'compte absent du plan : $fautifs');
     });

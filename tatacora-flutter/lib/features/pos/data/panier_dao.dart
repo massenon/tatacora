@@ -572,7 +572,10 @@ class PanierDao extends DatabaseAccessor<AppDatabase> with _$PanierDaoMixin {
       final parModule = <String, int>{};
       for (final ligne in panier.lignes) {
         final code = ligne.reference.module.code;
-        if (!modulesEncaissables.contains(code)) {
+        // Le séjour (note de chambre) ne porte que le bar et le restaurant :
+        // tourisme et location s'encaissent au comptoir seulement.
+        if (!modulesEncaissables.contains(code) ||
+            (estSejour && !modulesEncaissablesAuSejour.contains(code))) {
           throw RefusVente(
             MessagesVentes.moduleNonEncaissable(
               MessagesVentes.modulesDuServeur[code] ?? code,

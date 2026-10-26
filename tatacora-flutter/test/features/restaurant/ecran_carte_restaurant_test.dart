@@ -575,12 +575,12 @@ void main() {
     },
   );
 
-  // Les quatre boutons de ligne, avec le message EXACT que chacun doit dire :
+  // Les boutons de ligne qui restent refusés (« Lier au stock » est porté depuis
+  // la v36, voir lier_au_stock_plat_test.dart), avec le message EXACT que chacun doit dire :
   // une écriture refusée (`ecritureNonDisponible`) ou une lecture absente
   // (`donneeNonDisponible`). Un message vide, ou remplacé par « Aucun
   // changement », se lirait comme un geste réussi ou une liste vide.
   final boutons = <(String, String)>[
-    ('carte-restaurant-lier-p-1', ecritureNonDisponible('Le lien au stock')),
     ('carte-restaurant-prix-p-1', ecritureNonDisponible('Le nouveau prix')),
     (
       'carte-restaurant-historique-prix-p-1',

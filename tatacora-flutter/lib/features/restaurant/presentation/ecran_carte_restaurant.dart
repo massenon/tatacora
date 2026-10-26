@@ -54,9 +54,21 @@ import 'widgets/vue_ventes_restaurant.dart';
 /// ([RestaurantRecu], [RestaurantRefuse], [RestaurantInjoignable]) ; seule la
 /// deuxième existe encore (un droit de lecture manquant).
 ///
+/// ## « Lier au stock » et « Délier » SONT portés (21/10/2026, schéma v36)
+///
+/// Le lien direct plat -> article de stock existe : `plats_local.article_id` +
+/// `unites_vendables` (le conditionnement, « 24 » pour un casier), écrits par
+/// `RestaurantDao.lierAuStock` / `delierDuStock` seuls, enfilés en modification du
+/// plat (`article_id` + `unites_vendables_par_unite_stock`, `null` des deux pour
+/// délier) et redescendus par `AligneurCatalogue`. Le lien l'emporte sur la fiche
+/// (comme `DeductionStockCuisineService`) : portions = solde du point cuisine ×
+/// conditionnement. Les jetons de refus des modales « Lier au stock » et
+/// « Délier » sont retirés : un bloc rendu ne se déclare pas refusé. Restent
+/// refusés, dits : « Prix » et « Historique des prix » (aucune table de trace).
+///
 /// ## Ce que cet écran REFUSE de rendre, et pourquoi (09/10/2026)
 ///
-/// Les cinq modales ouvertes par les boutons de ligne sont des blocs entiers de
+/// Les modales restantes, ouvertes par les boutons de ligne, sont des blocs entiers de
 /// la vue. Toutes écrivent une disponibilité, un lien direct à un article ou
 /// une trace de prix (`indisponibilites_carte`, un lien et son conditionnement,
 /// `historique_prix_carte`), ou lisent des tables que ce poste ne détient pas
@@ -87,9 +99,7 @@ import 'widgets/vue_ventes_restaurant.dart';
 /// chiffre, et chaque geste dit pourquoi il ne produit rien. Le refus de bloc
 /// est retiré : un bloc rendu ne se déclare pas refusé.
 ///
-///  - blade-refuse:restaurant/carte#modale:modal-lieraustock
 ///  - blade-refuse:restaurant/carte#modale:modal-retirerdelacartedujour
-///  - blade-refuse:restaurant/carte#modale:modal-delier
 ///  - blade-refuse:restaurant/carte#modale:commun.modale_prix_titre
 ///  - blade-refuse:restaurant/carte#modale:modale_historique_prix.titre
 ///
@@ -132,7 +142,7 @@ import 'widgets/vue_ventes_restaurant.dart';
 /// l'exception. Le motif avait cessé d'être vrai (PA-144) ; le texte de la vue
 /// est rétabli. La dernière phrase (« Un plat peut néanmoins être rattaché à la
 /// main… ») décrit un geste de la PWA que ce poste n'offre pas : le bouton
-/// « Lier au stock » le dit au clic, au lieu que l'écran le taise.
+/// « Lier au stock » existe depuis la v36 (voir plus haut).
 class EcranCarteRestaurant extends ConsumerWidget {
   const EcranCarteRestaurant({super.key});
 

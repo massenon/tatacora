@@ -131,12 +131,12 @@ void main() {
     test('un module sans compte de produits est REFUSÉ, nommé comme le '
         'serveur le nomme', () {
       expect(
-        () => piece(montants: {'M9': 450000}),
+        () => piece(montants: {'M1': 450000}),
         throwsA(
           isA<RefusVente>().having(
             (e) => e.message,
             'message',
-            MessagesVentes.compteProduitAbsent('Tourisme'),
+            MessagesVentes.compteProduitAbsent('Hébergement'),
           ),
         ),
       );

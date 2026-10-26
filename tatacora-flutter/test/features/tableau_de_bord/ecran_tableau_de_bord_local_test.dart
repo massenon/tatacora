@@ -876,12 +876,7 @@ void main() {
       final raison = tester
           .widget<Text>(find.byKey(const Key('tdb-ca-indisponible')))
           .data!;
-      expect(raison, contains('constaté le 10/10/2026'));
-      // La raison RENDUE est la raison revue (D282, puis D414 le 14/10/2026) :
-      // la courbe des dépenses serait un minorant tracé comme le total.
-      expect(raison, contains('revu le 14/10/2026'));
-      expect(raison, contains('Celle des dépenses lit la comptabilité'));
-      expect(raison, contains('minorant'));
+      expect(raison, 'La série mensuelle n\'est pas disponible.');
       expect(raison, isNot(contains('paiements')));
       expect(find.byKey(const Key('tdb-ca-vide')), findsNothing);
       for (final mois in [3, 6, 12]) {
@@ -1207,10 +1202,9 @@ void main() {
       final carte = texte(tester, const Key('pilotage-kpi-resultat'));
       expect(carte, startsWith('RÉSULTAT NET | Non consulté | '));
       expect(carte, contains('Comptabilité non consultée'));
-      expect(carte, contains('constaté le 13/10/2026'));
       expect(carte, isNot(contains('FCFA')));
       // La raison VRAIE : un calcul non porté, pas un serveur disparu.
-      expect(carte, contains('ne sont pas calculés sur ce poste'));
+      expect(carte, contains('ne sont pas disponibles'));
     });
 
     PeriodeTableauDeBord selecteur(WidgetTester tester) => tester
@@ -2164,7 +2158,7 @@ void main() {
           (l) =>
               l[0] == 'RÉSERVE' &&
               l[1].startsWith('Comptabilité non consultée à l’édition : ') &&
-              l[1].contains('constaté le 13/10/2026'),
+              !l[1].contains('constaté le'),
         ),
         hasLength(1),
       );

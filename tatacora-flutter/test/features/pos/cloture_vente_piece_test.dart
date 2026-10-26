@@ -236,31 +236,32 @@ void main() {
       },
     );
 
-    test('TOURISME et LOCATION s’encaissent au comptoir : Dr 5711 / Cr 7073 '
-        '(location) et Cr 7061 (tourisme), en centimes, comme le serveur', () async {
-      await semerCircuit();
-      await semerVehicule();
-      final p = await garni(
-        lignes: const [(circuit, 2), (vehicule, 1)],
-      );
-      final c = await cloturer(p);
+    test(
+      'TOURISME et LOCATION s’encaissent au comptoir : Dr 5711 / Cr 7073 '
+      '(location) et Cr 7061 (tourisme), en centimes, comme le serveur',
+      () async {
+        await semerCircuit();
+        await semerVehicule();
+        final p = await garni(lignes: const [(circuit, 2), (vehicule, 1)]);
+        final c = await cloturer(p);
 
-      expect(c.statut, StatutPanier.cloture);
-      // 2 x 4 500 + 1 x 65 000.
-      expect(c.montantCloture, 74000);
-      expect(await piece(p.id), [
-        '5711 D7400000',
-        '7073 C6500000',
-        '7061 C900000',
-      ]);
-      // Chaque produit porte le centre de SON module (RG-12).
-      final lignes = await compta.lignesParLibelle(libelleDeLaPiece(p.id));
-      final centres = <String?>{
-        for (final l in lignes.where((l) => l.creditCentimes > 0))
-          (await compta.centreParId(l.centreId))?.libelle,
-      };
-      expect(centres, {'Tourisme', 'Véhicules'});
-    });
+        expect(c.statut, StatutPanier.cloture);
+        // 2 x 4 500 + 1 x 65 000.
+        expect(c.montantCloture, 74000);
+        expect(await piece(p.id), [
+          '5711 D7400000',
+          '7073 C6500000',
+          '7061 C900000',
+        ]);
+        // Chaque produit porte le centre de SON module (RG-12).
+        final lignes = await compta.lignesParLibelle(libelleDeLaPiece(p.id));
+        final centres = <String?>{
+          for (final l in lignes.where((l) => l.creditCentimes > 0))
+            (await compta.centreParId(l.centreId))?.libelle,
+        };
+        expect(centres, {'Tourisme', 'Véhicules'});
+      },
+    );
 
     test('la vente de tourisme et de location PART au serveur avec ses bons '
         'modules, sans sortie de stock', () async {
@@ -271,9 +272,9 @@ void main() {
       );
       await cloturer(p);
 
-      final o = (await OperationsSyncDao(db).operations()).singleWhere(
-        (x) => x.entiteId == p.id,
-      );
+      final o = (await OperationsSyncDao(
+        db,
+      ).operations()).singleWhere((x) => x.entiteId == p.id);
       expect(o.payload, contains('"module_source":"M9"'));
       expect(o.payload, contains('"module_source":"M8"'));
       expect(o.payload, contains('"code_article":"cir-1"'));

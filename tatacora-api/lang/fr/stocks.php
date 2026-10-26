@@ -68,8 +68,7 @@ return [
         'rupture_sur_sortie' => 'La validation de rupture ne concerne que les sorties et les pertes : '
             . 'une entrée de stock ne peut pas être en rupture.',
         'identifiant_non_accepte' => 'Un mouvement de stock ne reçoit pas d\'identifiant du client : '
-            . 'aucun mécanisme de rejeu n\'existe pour cette table, et en accepter un laisserait '
-            . 'croire à une idempotence qui n\'a pas lieu.',
+            . 'il est attribué à l\'enregistrement.',
         'identifiant_non_modifiable' => 'L\'identifiant d\'un article ne se modifie pas.',
         'identifiant_deja_pris' => 'Cet identifiant est déjà utilisé par un autre article.',
         'valeur_calculee' => 'Cette valeur est calculée depuis les mouvements de stock : '

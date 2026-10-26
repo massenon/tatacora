@@ -12,6 +12,8 @@ import '../../restaurant/presentation/widgets/corps_carte_commun.dart'
     show styleContenuCarte;
 import '../../caisse/presentation/widgets/barre_session_caisse.dart';
 import '../domain/entities/panier.dart';
+import '../domain/entities/reference_catalogue.dart' show ModuleVendable;
+import '../domain/messages_ventes.dart' show MessagesVentes;
 import '../domain/entities/table_pos.dart';
 import '../domain/repositories/panier_repository.dart';
 import 'providers_pos.dart';
@@ -74,6 +76,28 @@ class EcranPosComptant extends ConsumerWidget {
       onAjouter: (article) async {
         final courant = panier;
         if (courant == null) return;
+        // Location (M8) et tourisme (M9) exigent EN PLUS l'écriture sur leur
+        // module — comme `PosComptant::encaissementReel` et la
+        // synchronisation (`modulesRequis`) : un barman ne vend pas un
+        // véhicule ou un circuit que ces modules lui refusent.
+        final module = switch (article.module) {
+          ModuleVendable.m8Vehicules => ModuleTatacora.m8Vehicules,
+          ModuleVendable.m9Tourisme => ModuleTatacora.m9Tourisme,
+          _ => null,
+        };
+        if (module != null && !ref.read(droitsProvider).peutEcrire(module)) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                MessagesVentes.moduleSansDroit(
+                  MessagesVentes.modulesDuServeur[article.module.code] ??
+                      article.module.code,
+                ),
+              ),
+            ),
+          );
+          return;
+        }
         try {
           await ref.read(gererPanierProvider).ajouter(courant.id, article);
           rafraichirPaniers(ref);

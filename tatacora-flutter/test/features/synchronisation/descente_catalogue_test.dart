@@ -369,6 +369,67 @@ void main() {
       expect(await ligne('cartes_boisson_local', 'b-1'), isNull);
       expect((await ligne('cartes_boisson_local', 'b-2'))!['article_id'], '');
     });
+
+    test('le LIEN DIRECT d’un plat (article + conditionnement) descend ; un '
+        'article pas encore reçu met le plat en attente, jamais un lien '
+        'perdu', () async {
+      await StocksDao(
+        b.db,
+      ).creerPoint(libelle: 'Cuisine', type: TypePoint.cuisine, id: 'ps-c');
+      await StocksDao(b.db).creerArticle(
+        id: 'art-eau',
+        libelle: 'Eau',
+        categorie: null,
+        uniteMesure: 'casier',
+        seuilCentiemes: 0,
+        suivi: SuiviArticle.permanent,
+        pointStockageId: 'ps-c',
+      );
+      final menu = chargeMenu(
+        libelle: 'Carte',
+        type: 'local',
+        dateDebut: null,
+        dateFin: null,
+      );
+      final plat = {
+        ...chargePlat(
+          libelle: 'Eau 50 cl',
+          menuId: 'menu-a',
+          recetteId: 'rec-a',
+          prixVenteFrancs: 500,
+          prixProvisoire: false,
+          prixCorrigeMain: false,
+        ),
+        'prix_vente': '500.00',
+        'article_id': 'art-eau',
+        'unites_vendables_par_unite_stock': '24.0000',
+      };
+      final catalogue = FauxCatalogue([
+        element('menus', 'menu-a', menu),
+        element('recettes', 'rec-a', {
+          ...chargeRecette(libelle: 'Eau', lignes: []),
+          'composition_provisoire': false,
+        }),
+        element('plats', 'plat-a', plat),
+        element('plats', 'plat-b', {
+          ...plat,
+          'libelle': 'Eau 1,5 l',
+          'article_id': 'art-inconnu',
+        }),
+      ]);
+      final enFile = await b.total();
+      final bilan = await b
+          .descente(transportDe(catalogue))
+          .descendre((await b.lecteur.appairage())!, surRefus: (_) async {});
+
+      final lie = await ligne('plats_local', 'plat-a');
+      expect(lie!['article_id'], 'art-eau');
+      expect(lie['unites_vendables'], '24.0000');
+      // L'article pas reçu : le plat attend (compté), il n'est pas écrit sans
+      // son lien.
+      expect(await ligne('plats_local', 'plat-b'), isNull, reason: '$bilan');
+      expect(await b.total(), enFile, reason: 'une descente n’enfile rien');
+    });
   });
 
   group('l’ordre des clés étrangères et les dépendances différées', () {

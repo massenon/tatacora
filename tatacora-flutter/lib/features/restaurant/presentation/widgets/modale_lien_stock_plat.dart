@@ -1,3 +1,4 @@
+// Vue Blade maîtresse (PA-183) : pwa/restaurant/carte.blade.php
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

@@ -85,6 +85,8 @@ use App\Domain\Restaurant\Models\Recette;
 use App\Domain\Stocks\Models\Article;
 use App\Domain\Stocks\Models\PointStockage;
 use App\Domain\Stocks\Services\MouvementStockService;
+use App\Domain\Tourisme\Models\Circuit;
+use App\Domain\Vehicules\Models\Vehicule;
 use App\Domain\Ventes\Models\Vente;
 use App\Domain\Ventes\Services\VenteService;
 use App\Models\User;
@@ -242,6 +244,29 @@ try {
             // Assez de stock pour qu'AUCUNE rupture ne parle a la place de la
             // piece : la sortie de stock n'est pas portee par le poste.
             $stocks->entree($article->id, $bar->id, '100000.00', 'Reception');
+        } elseif ($a['module'] === 'M9') {
+            // Tourisme (22/10/2026) : le prix est `circuits.prix`, aucun stock.
+            Circuit::create([
+                'id' => $a['id'],
+                'nom' => $a['libelle'],
+                'theme' => 'nature',
+                'zone' => 'Atacora',
+                'duree' => '1 jour',
+                'prix' => $a['prix'],
+                'capacite_max' => 12,
+            ]);
+        } elseif ($a['module'] === 'M8') {
+            // Location (22/10/2026) : le prix est `vehicules.tarif_jour`.
+            Vehicule::create([
+                'id' => $a['id'],
+                'categorie' => '4x4',
+                'immatriculation' => $a['libelle'],
+                'annee' => 2022,
+                'transmission' => 'automatique',
+                'capacite' => 5,
+                'tarif_jour' => $a['prix'],
+                'statut' => 'disponible',
+            ]);
         } else {
             $article = Article::create([
                 'libelle' => 'Denree ' . $a['libelle'],
@@ -313,6 +338,10 @@ try {
                     $entree = $catalogue[$op['ref']];
                     if ($entree['module'] === 'M5') {
                         CarteBoisson::where('id', $entree['id'])->delete();
+                    } elseif ($entree['module'] === 'M9') {
+                        Circuit::where('id', $entree['id'])->delete();
+                    } elseif ($entree['module'] === 'M8') {
+                        Vehicule::where('id', $entree['id'])->delete();
                     } else {
                         Plat::where('id', $entree['id'])->delete();
                     }

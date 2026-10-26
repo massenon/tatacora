@@ -354,47 +354,10 @@ void main() {
       // langue du serveur (`registre_contre_serveur_test.dart`).
       expect(
         _texte(tester, const Key('etats-accueil-decompte')),
-        "5 état(s) sont éditables avec vos droits. L'aperçu s'affiche "
-        "immédiatement : vous ne consultez que ce que le moteur d'états "
-        'calcule réellement.',
+        '5 état(s) sont éditables avec vos droits.',
       );
-      // `pwa.etats.accueil_rbac`, apostrophe droite, `<strong>` rendu en gras.
-      expect(
-        _texte(tester, const Key('etats-accueil-rbac')),
-        'Les droits sont portés par le module source de chaque état, pas par '
-        "M14 : un magasinier ne lit pas le livre de paie parce qu'il a accès "
-        'aux « États ».',
-      );
-    });
-
-    testWidgets('« module source » est en gras, le reste de la note non', (
-      tester,
-    ) async {
-      await _monter(tester);
-      final racine = tester
-          .widget<Text>(find.byKey(const Key('etats-accueil-rbac')))
-          .textSpan!;
-      final gras = <String>[];
-      racine.visitChildren((s) {
-        if (s is TextSpan &&
-            s.text != null &&
-            s.style?.fontWeight == FontWeight.bold) {
-          gras.add(s.text!);
-        }
-        return true;
-      });
-      expect(gras, ['module source']);
-    });
-
-    testWidgets('annonce l’aperçu immédiat, ce qui est VRAI depuis le 10/10', (
-      tester,
-    ) async {
-      await _monter(tester);
-      expect(find.textContaining('immédiatement'), findsOne);
-      expect(find.textContaining('vous ne consultez que'), findsOne);
-      // L'ancienne seconde phrase disait le contraire.
-      expect(find.textContaining('vit au serveur'), findsNothing);
-      expect(find.textContaining('ne s’affiche pas'), findsNothing);
+      expect(find.byKey(const Key('etats-accueil-rbac')), findsNothing);
+      expect(find.textContaining('immédiatement'), findsNothing);
     });
 
     testWidgets('le bloc est centré dans la hauteur du panneau', (
@@ -406,7 +369,7 @@ void main() {
           .getTopLeft(find.byIcon(Icons.description_outlined).last)
           .dy;
       final bas = tester
-          .getBottomLeft(find.byKey(const Key('etats-accueil-rbac')))
+          .getBottomLeft(find.byKey(const Key('etats-accueil-decompte')))
           .dy;
       // `h-full flex items-center justify-center p-8` : marges égales en haut
       // et en bas, au pixel près (le `p-8` est symétrique).
@@ -414,10 +377,7 @@ void main() {
     });
 
     test('le décompte est « — » tant que le catalogue n’est pas lu', () {
-      const fin =
-          " état(s) sont éditables avec vos droits. L'aperçu s'affiche "
-          "immédiatement : vous ne consultez que ce que le moteur d'états "
-          'calcule réellement.';
+      const fin = ' état(s) sont éditables avec vos droits.';
       expect(decompteAccueilEtats(null), '—$fin');
       expect(decompteAccueilEtats(0), '0$fin');
       expect(decompteAccueilEtats(12), '12$fin');

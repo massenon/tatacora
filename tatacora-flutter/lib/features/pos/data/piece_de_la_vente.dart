@@ -14,26 +14,50 @@ const String journalDesVentes = 'VTE';
 /// Les modules réellement encaissables — `VenteService::MODULES_ENCAISSABLES`,
 /// DANS CET ORDRE : c'est aussi l'ordre de la pièce (deux tickets portant les
 /// mêmes articles produisent la même pièce).
-const List<String> modulesEncaissables = ['M4', 'M5'];
+///
+/// Depuis le 22/10/2026 (directive du PO : « tourisme et location sont
+/// encaissables au comptoir, au poste comme au web »), M8 (location de
+/// véhicules, `tarif_jour`) et M9 (tourisme, `circuits.prix`) s'ajoutent à M4
+/// et M5 : ils ont un catalogue local d'où figer prix et libellé. Vente LIBRE
+/// de prestation — voir `CLAUDE.md`, « Tourisme et location au comptoir ».
+const List<String> modulesEncaissables = ['M4', 'M5', 'M8', 'M9'];
+
+/// Les modules que le panier d'un SÉJOUR (note de chambre) porte : bar et
+/// restaurant. Le tourisme et la location s'encaissent au COMPTOIR, pas sur la
+/// note de chambre (`PosHeberges::MODULES_DU_SEJOUR` au serveur) ; la clôture
+/// d'un séjour qui en porterait une ligne est refusée, comme sur le web.
+const List<String> modulesEncaissablesAuSejour = ['M4', 'M5'];
 
 /// Le compte de produits de chaque module — `VenteService::COMPTES_PRODUIT`.
+/// Location (M8) sur 7073 « Locations » ; tourisme (M9) sur 7061 « services
+/// vendus » (le plan du PO n'a pas de compte dédié aux circuits).
 const Map<String, String> comptesProduitParModule = {
   'M4': ComptesSyscohada.produitPrestations,
   'M5': ComptesSyscohada.produitMarchandises,
+  'M8': ComptesSyscohada.produitLocations,
+  'M9': ComptesSyscohada.produitPrestations,
 };
 
 /// Le compte de TVA facturée de chaque module — `VenteService::COMPTES_TVA` :
-/// boissons revendues (M5) sur 4431, prestations servies (M4) sur 4432. Table
-/// « à valider par le comptable », comme `ComptesSyscohada`.
+/// boissons revendues (M5) sur 4431, prestations servies (M4 repas, M8
+/// location, M9 circuit) sur 4432. Table « à valider par le comptable »,
+/// comme `ComptesSyscohada`.
 const Map<String, String> comptesTvaParModule = {
   'M4': ComptesSyscohada.tvaFactureePrestations,
   'M5': ComptesSyscohada.tvaFactureeBiens,
+  'M8': ComptesSyscohada.tvaFactureePrestations,
+  'M9': ComptesSyscohada.tvaFactureePrestations,
 };
 
 /// Le centre de coût de chaque module — `VenteService::CENTRES_PAR_MODULE` :
 /// les comptes 7061/7011 ne distinguent plus restaurant et bar, le centre le
-/// fait (RG-12).
-const Map<String, String> centresParModule = {'M4': 'Restaurant', 'M5': 'Bar'};
+/// fait (RG-12) ; de même « Tourisme » sur 7061 et « Véhicules » sur 7073.
+const Map<String, String> centresParModule = {
+  'M4': 'Restaurant',
+  'M5': 'Bar',
+  'M8': 'Véhicules',
+  'M9': 'Tourisme',
+};
 
 /// Un franc CFA vaut cent centimes de pièce (voir `piece_de_la_depense.dart`).
 const int _centimesParFranc = 100;

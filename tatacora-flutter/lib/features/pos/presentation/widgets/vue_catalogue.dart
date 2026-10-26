@@ -207,8 +207,9 @@ class _ChampRecherche extends ConsumerWidget {
 /// d'affichage, jamais la caisse (PA-79).
 ///
 /// ÉCART (14/10/2026) : la vue n'offre que « Bar » et « Restaurant » ; ce
-/// poste liste ses rayons tels que le catalogue local les porte (y compris
-/// Tourisme et Location, que la clôture au comptant refuse avec sa raison).
+/// poste liste ses rayons tels que le catalogue local les porte, y compris
+/// Tourisme et Location — encaissables au comptoir depuis le 22/10/2026
+/// (le serveur web les propose de même : `famille_tourisme`, `famille_location`).
 class _SelecteurFamille extends ConsumerWidget {
   const _SelecteurFamille();
 

@@ -14,7 +14,7 @@ import '../../hebergement/domain/entities/reservation.dart';
 import '../../hebergement/presentation/providers_hebergement.dart';
 import '../../restaurant/presentation/widgets/corps_carte_commun.dart'
     show styleContenuCarte;
-import '../data/piece_de_la_vente.dart' show modulesEncaissables;
+import '../data/piece_de_la_vente.dart' show modulesEncaissablesAuSejour;
 import '../domain/entities/article_vendable.dart';
 import '../domain/entities/panier.dart';
 import '../domain/repositories/panier_repository.dart';
@@ -189,7 +189,7 @@ class EcranPosHeberges extends ConsumerWidget {
     // `PosHeberges::ajouterAuPanier` : un module non encaissable est NOMMÉ à
     // l'écran (PA-24), jamais un échec silencieux — et le panier du séjour
     // n'est pas ouvert pour un clic qui ne peut rien y ajouter.
-    if (!modulesEncaissables.contains(article.module.code)) {
+    if (!modulesEncaissablesAuSejour.contains(article.module.code)) {
       _signaler(context, CatalogueHeberges.prestationRefusee);
       return;
     }

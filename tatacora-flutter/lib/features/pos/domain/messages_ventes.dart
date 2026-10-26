@@ -25,6 +25,15 @@ abstract final class MessagesVentes {
       // refuse » retirée de l'écran le 14/10/2026 (directive du PO).
       '$module ne dispose pas encore de catalogue encaissable au comptoir.';
 
+  /// ⚠ ÉCART DU POSTE — le web répond 403 (`exigerEcriture`, module M8 ou M9)
+  /// et la synchronisation REJETTERAIT la vente (`modulesRequis`) : le poste
+  /// refuse dès l'ajout au panier, avec une phrase, plutôt que d'encaisser une
+  /// vente que le serveur refusera. [module] est le libellé du registre du
+  /// serveur (« Véhicules », « Tourisme »).
+  static String moduleSansDroit(String module) =>
+      "Vous n'avez pas le droit d'écriture sur le module $module : cette "
+      'prestation ne peut pas être portée au panier.';
+
   /// `ventes.reference_inconnue`.
   static String referenceInconnue(String reference) =>
       'L\'article $reference est introuvable au catalogue. '

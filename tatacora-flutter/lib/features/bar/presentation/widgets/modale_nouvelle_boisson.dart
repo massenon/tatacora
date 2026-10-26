@@ -324,6 +324,13 @@ class _ModaleNouvelleBoissonState
       // serveur rejetterait la boisson sans lui.
       if (_articleId == null)
         'article_id': TextesCatalogueLocal.articleObligatoire,
+      // Le conditionnement est exigé PAR LA MODALE (l'API l'admet absent, comme
+      // le service du serveur) : sans lui une vente sortirait un casier ENTIER.
+      if (_articleId != null && _conversion.text.trim().isEmpty)
+        'unites_vendables_par_unite_stock':
+            TextesCatalogueLocal.conversionRequise(
+              libelle.isEmpty ? TextesNouvelleBoisson.cetteBoisson : libelle,
+            ),
     };
     if (manquants.isNotEmpty) {
       setState(() => _parChamp = manquants);

@@ -241,7 +241,7 @@ lib/features/<module>/{domain,data,presentation}
 
 ## Les mouvements d'argent du poste passent leur PIÈCE (lot 6, 12/10/2026, D238–D248)
 
-`PanierDao.cloturer` (seul écrivain de `cloture`) passe la pièce `VTE` — un débit (trésorerie du mode, ou `4111` pour la note de chambre), un crédit par module (M4 `7061` / Restaurant, M5 `7011` / Bar), la TVA par module (`4432` / `4431`) — dans la même transaction ; `ReservationDao.creer` passe la pièce de l'acompte (Dr trésorerie / Cr `4191`, rien à crédit ou sans mode) ; `annulerAvecConditions` fixe taux, commission (sur le montant GLOBAL) et remboursement (plafonné à l'acompte, Dr `4191` / Cr `5711`) et écrit 8 colonnes (v19). Refus du serveur dans son ordre, rejoués par `tool/ventes/rejouer_ventes.php` et `tool/hebergement/rejouer_annulations.php`. Calculs en entiers (`DecimalBc`, `calcul_tva.dart`). Un DAO sans moteur LÈVE. Écarts du poste : mode absent refusé, prix figé à l'ajout, pas de numéro `V-`, séjour toujours sur la note de chambre, M8/M9 refusés. **NON portés** : sorties de stock de la vente (RG-05, D240), pièces rétroactives des ventes d'avant (D246), mode démo (écrit sans pièce). La clôture de caisse DIT les ventes en espèces sans session (R2). Piège : un fichier de messages qui porte les mots d'une modale doit citer la vue (sinon le comparateur ne les voit pas), et le rendu se prouve par un test ; un commentaire d'un fichier importé peut aussi fournir un libellé par sous-chaîne (gain de mesure, jamais revendiqué).
+`PanierDao.cloturer` (seul écrivain de `cloture`) passe la pièce `VTE` — un débit (trésorerie du mode, ou `4111` pour la note de chambre), un crédit par module (M4 `7061` / Restaurant, M5 `7011` / Bar), la TVA par module (`4432` / `4431`) — dans la même transaction ; `ReservationDao.creer` passe la pièce de l'acompte (Dr trésorerie / Cr `4191`, rien à crédit ou sans mode) ; `annulerAvecConditions` fixe taux, commission (sur le montant GLOBAL) et remboursement (plafonné à l'acompte, Dr `4191` / Cr `5711`) et écrit 8 colonnes (v19). Refus du serveur dans son ordre, rejoués par `tool/ventes/rejouer_ventes.php` et `tool/hebergement/rejouer_annulations.php`. Calculs en entiers (`DecimalBc`, `calcul_tva.dart`). Un DAO sans moteur LÈVE. Écarts du poste : mode absent refusé, prix figé à l'ajout, pas de numéro `V-`, séjour toujours sur la note de chambre, M8/M9 refusés AU SÉJOUR seulement (encaissables au comptoir depuis le 22/10/2026 : M8 `7073`, M9 `7061`, TVA `4432` — voir la section « Tourisme et location au comptoir »). **NON portés** : sorties de stock de la vente (RG-05, D240), pièces rétroactives des ventes d'avant (D246), mode démo (écrit sans pièce). La clôture de caisse DIT les ventes en espèces sans session (R2). Piège : un fichier de messages qui porte les mots d'une modale doit citer la vue (sinon le comparateur ne les voit pas), et le rendu se prouve par un test ; un commentaire d'un fichier importé peut aussi fournir un libellé par sous-chaîne (gain de mesure, jamais revendiqué).
 
 ## Sessions de caisse LOCALES, réplique du serveur (12/10/2026, D219–D226)
 
@@ -598,11 +598,33 @@ la modale est un vrai formulaire. **Le restaurant (plats) l'est aussi** :
 `RetraitsPlats` (même DAO), colonne « Disponible » oui/non, motif ambre sous le
 nom, cartes « Articles à la carte » / « Retirés du jour » COMPTÉES (plus de
 « — »), boutons « Rendre indispo. » / « Remettre » (droit M4). Restent refusés,
-dits : « Lier au stock », « Prix », « Historique des prix ». Écart nommé : le
+dits : « Prix », « Historique des prix » (« Lier au stock » est porté depuis la v36, section suivante). Écart nommé : le
 filtre d'état « Retirés du jour » reste non servi, parce que l'API du serveur le
 refuse encore (`CarteRestaurantService::ETATS_SANS_SCHEMA`, relu par un test) ;
 le lever demande de changer le serveur ET ce test ensemble. Piège : la sonde « un SEUL auteur de la file » compte aussi
 les LECTURES de `operationsSyncLocal` ; lire la file par `OperationsSyncDao`.
+
+## « Lier au stock » du restaurant (21/10/2026, schéma v36)
+
+Le PO ne pouvait « ni créer un menu de restaurant ni le lier au stock » : menu,
+fiche (ingrédients = articles de stock) et plat se créaient déjà (prouvé par
+`chaine_reelle_restaurant_test`) ; ce qui manquait était le **lien direct
+plat -> article** (« Lier au stock », refusé faute de colonne). Deux colonnes
+NULLABLES ajoutées à `plats_local` : `article_id` (sans clé étrangère, l'article
+peut descendre après le plat) et `unites_vendables` (texte décimal du serveur,
+« 24.0000 »). Seul écrivain : `RestaurantDao.lierAuStock` / `delierDuStock`
+(les DEUX colonnes partent ensemble ; refus aux phrases du serveur) ; la
+modification du plat part avec `article_id` + `unites_vendables_par_unite_stock`
+(`null` des deux pour délier). Le lien l'emporte sur la fiche : portions =
+solde du point cuisine × conditionnement (`LienDirectCalcule`) ; la carte nomme
+l'article et « 24 par casier » ; « Modifier le lien » / « Délier » (droit M4).
+Serveur : `GestionnairePlats` valide et écrit le lien (sans lui `validated()` le
+jetait en silence). Descente : `AligneurCatalogue._plat` (article absent =
+attente). Reste refusé : « Prix » et « Historique des prix ». Les ventes ne
+décrémentent toujours rien (RG-05 non portée). Preuves :
+`lier_au_stock_plat_test.dart` (mutations éprouvées : retirer l'enfilement, ou
+ignorer le lien dans le calcul, fait rougir), `migration_v36_lien_plat_test.dart`,
+côté serveur `CatalogueRestaurantSynchronisationTest`.
 
 ## Entretiens de véhicules (21/10/2026, schéma v32)
 
@@ -839,10 +861,9 @@ articles. Écran `/stocks/inventaires` (cycle, feuille, historique) et `/stocks`
   carte, compositions de recette — aux phrases de `lang/fr/stocks_pwa.php`,
   recontrôlés à l'exécution, motifs joints par une espace. La règle est
   `core/rbac/regle_archivage.dart` (`peutArchiverProvider`, relue à chaque geste
-  par `StocksApi`) ; « Restaurer » n'est pas derrière elle. ⚠ **Écart nommé** :
-  le verrou « plat lié au stock » (`plats.article_id`) n'est pas rejouable ici —
-  `plats_local` n'a pas ce lien (« Lier au stock » n'est pas porté) ; le serveur
-  le tient et un refus revient dans « À traiter ». L'archivage part en
+  par `StocksApi`) ; « Restaurer » n'est pas derrière elle. Le verrou
+  « plat lié au stock » (`plats.article_id`) est rejoué depuis la v36
+  (`plats_local.article_id`), compté avec les boissons dans « vendu à la carte ». L'archivage part en
   `{'actif': false}`, la restauration en `{'actif': true}`.
 - **Preuves contre le serveur** : `archivage_inventaire_contre_serveur_test.dart`
   (phrases du `lang/` PHP + six scénarios de verrous rejoués par
@@ -1203,3 +1224,66 @@ tableur ne sait pas additionner « 56 000 FCFA ».
 - **Composition provisoire** : colonne lue/écrite ; descend avec la fiche ; levée en réenregistrant la composition (la modification part avec `lignes` même inchangées, sinon le serveur garderait la marque). Compteur, badge, bandeau, marque « P » du comptoir sont alimentés.
 - **Remise** : `paniers_local.remise_type/remise_valeur_centiemes`, formule répliquée en centimes (`pos/domain/remise_panier.dart`), jugée à la saisie ET à l'encaissement ; pièce VTE sur le net (`ventilerAuNet`, dernier module = écart), `montantCloture` = net arrondi au franc (écart nommé : les centimes ne vivent que dans la pièce), vente envoyée avec type + valeur seulement si une remise existe, facture avec lignes négatives par module. Confronté au serveur dans `ventes_contre_serveur_test.dart` et `charges_contre_serveur_test.dart`.
 - Piège : le comparateur de ventes lit le NET de la pièce (débit), pas `montantCloture`.
+
+## Tourisme et location au comptoir (22/10/2026)
+
+Directive du PO : « TOURISME et LOCATION sont encaissables au COMPTOIR (POS), au
+poste comme au web. » Le serveur les REFUSAIT aussi (`VenteService::MODULES_ENCAISSABLES
+= ['M4','M5']`) : il a été porté en même temps que le poste.
+
+- **Modules et comptes** (poste `piece_de_la_vente.dart`, serveur `VenteService`,
+  confrontés par `ventes_contre_serveur_test` / `rejouer_ventes.php`) : M8
+  (location de véhicules, `vehicules.tarif_jour`) crédite **7073** « Locations »
+  (nouveau rôle `PRODUIT_LOCATIONS` / `produitLocations`, présent au plan du PO),
+  centre « Véhicules » ; M9 (tourisme, `circuits.prix`) crédite **7061** « services
+  vendus » (le plan du PO n'a pas de compte dédié aux circuits), centre
+  « Tourisme » ; la TVA des deux va sur **4432** (prestations). Ordre de la pièce :
+  M4, M5, M8, M9. Comptes « à valider par le comptable », comme le reste.
+- **Quantité** : un nombre de places (circuit) ou de jours (véhicule), au prix
+  du catalogue local. Aucune sortie de stock (ni au poste ni au serveur) ;
+  `annuler()` du serveur n'exige plus le point « bar » s'il n'y a pas de boisson.
+- **Vente LIBRE de prestation** : ni `ventes` ni `lignes_vente` n'ont de colonne
+  pour un contrat de location ou une réservation de circuit. Le comptoir ne crée
+  donc, ne règle et ne lie rien : un contrat / une réservation déjà saisi ailleurs
+  se règle par SA facture (M2), jamais ici — l'opérateur ne doit pas encaisser
+  deux fois. Un lien exigerait une colonne `contrat_location_id` /
+  `reservation_tour_id` sur `ventes` (schéma serveur ET poste) : non fait.
+- **Séjour** : le panier d'une note de chambre ne porte toujours que M4 et M5
+  (`modulesEncaissablesAuSejour`, `PosHeberges::MODULES_DU_SEJOUR`) ; la phrase
+  `prestationRefusee` dit désormais « ne se portent pas sur la note de chambre ».
+- **Droits** : le web exige M8 / M9 en écriture EN PLUS de M5 (`encaissementReel`,
+  `GestionnaireVentes::modulesRequis`) ; le poste refuse dès l'ajout au panier
+  (`MessagesVentes.moduleSansDroit`, écart nommé) plutôt que d'encaisser une vente
+  que la synchronisation rejetterait.
+
+## Lien au stock des boissons, écrit sur le poste (26/10/2026)
+
+Le PO ne parvenait ni à ENREGISTRER une boisson ni à la LIER AU STOCK. Deux
+causes, une par couche : « Nouvelle boisson » n'offrait aucun sélecteur
+d'article (la boisson naissait sans lien, que le serveur rejetait à l'envoi :
+`article_id` requis) et `BoissonsApi.lierAuStock` refusait TOUJOURS
+(`lienSansColonne`) alors que `cartes_boisson_local.unites_vendables` existe
+depuis la v30.
+
+- **Écriture** : « Nouvelle boisson » (Carte du bar), le formulaire « Ajouter
+  boisson » du catalogue (création) et « Lier au stock » / « Modifier le lien »
+  écrivent l'article ET son conditionnement (`BoissonsApi` -> `CatalogueDao`,
+  seul écrivain, qui enfile `creation` ou `modification` avec `article_id` et
+  `unites_vendables_par_unite_stock`). Les articles proposés viennent de
+  `articles_local` (suivi permanent, non archivés) : `SelecteurArticleStock`.
+  Les modales EXIGENT article et conditionnement ; l'API admet un article sans
+  conditionnement (import, comme `CarteBoissonService::creer`), jamais un
+  conditionnement sans article. Le conditionnement est un TEXTE décimal
+  normalisé (`24`, `66.5`) ; `BoissonDistante.unitesVendables` n'est jamais
+  effacé par une écriture qui ne le connaît pas (`Value.absentIfNull`).
+- **Serveur** : `GestionnaireCartesBoisson` accepte désormais le
+  conditionnement (création ET modification, règle de `LierBoissonAuStockRequest`
+  : `numeric`, `gt:0`). Avant, il était ignoré et le serveur gardait le défaut
+  du schéma (1) : un casier de 24 sortait entier à chaque bouteille vendue.
+  La descente (`AligneurCatalogue._boisson`) le reprenait déjà.
+- **Historique des ventes** : le journal `autoDispose` dépendant de
+  `paniersProvider` est prouvé par `journal_apres_cloture_test.dart` (mutation :
+  retirer l'un ou l'autre rougit) et de bout en bout par
+  `parcours_boisson_vente_test.dart` (carte -> POS -> historique -> « −X en
+  attente d'envoi »). Les autres causes (filtre de date par défaut, poste,
+  session close, vente annulée, veille, fuseau) sont écartées par des cas.

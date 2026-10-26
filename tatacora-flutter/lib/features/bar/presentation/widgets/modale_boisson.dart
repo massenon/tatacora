@@ -10,6 +10,9 @@ import '../../../restaurant/presentation/widgets/textes_modale_restaurant.dart';
 import '../../data/boissons_api.dart';
 import '../../domain/entities/boisson.dart';
 import '../providers_catalogue_boissons.dart';
+import 'modale_lien_stock.dart' show TextesLienStock;
+import 'modale_nouvelle_boisson.dart' show TextesNouvelleBoisson;
+import 'selecteur_article_stock.dart';
 
 /// La modale de formulaire du moteur CRUD — `crud-ui.js` l.85-103, remplie par
 /// `champsFormulaire` de `prototype_v2/pages/m5-bar.html` l.121-160.
@@ -42,17 +45,17 @@ import '../providers_catalogue_boissons.dart';
 /// (PA-134). Afficher « 0 » se lirait « rupture » sur l'écran où l'on décide de
 /// commander ; offrir un champ ferait ressusciter le défaut PA-24.
 ///
-/// ÉCART DÉLIBÉRÉ — le sélecteur « Article de stock », AJOUTÉ ici jusqu'au
-/// 14/09/2026 puis retiré.
-/// Il remplaçait le champ de stock du maître par une vraie clé étrangère, parce
-/// que le serveur exigeait `article_id` (`required`, `exists:articles,id`).
-/// Ici : plus de sélecteur. `articles_local` est délibérément vide (PA-134) —
-/// il n'y a aucun article à proposer, et la liste n'aurait jamais rien rendu.
-/// Une boisson saisie sur ce poste naît **sans lien de stock**, et sa vente ne
-/// décrémente aucun casier : la carte l'affiche « non suivi ».
-/// ⚠ Le lien d'une boisson qui en porte déjà un est **conservé** à la
-/// modification : l'effacer romprait un rattachement que ce poste n'a pas les
-/// moyens de rétablir.
+/// ÉCART DÉLIBÉRÉ — le sélecteur « Article de stock », RÉTABLI à la CRÉATION
+/// (26/10/2026).
+/// Il remplace le champ de stock du maître par une vraie clé étrangère, parce
+/// que le serveur exige `article_id` (`required`, `exists:articles,id`) : une
+/// boisson saisie sans lui était rejetée à l'envoi, et ne décrémentait rien.
+/// Retiré le 14/09/2026 quand `articles_local` était vide, il revient avec le
+/// module Stocks du poste (`articles_local` est alimenté) — le même
+/// [SelecteurArticleStock] que la Carte du bar —, suivi du conditionnement
+/// (« Combien de … dans une unité de stock ? »).
+/// ⚠ À la MODIFICATION, le lien existant est **conservé** tel quel : il se
+/// change par « Modifier le lien » de la Carte du bar, qui porte l'aperçu.
 ///
 /// ## Le titre « Nouveau » du gabarit n'est JAMAIS affiché, chez le maître non plus
 ///
@@ -91,6 +94,10 @@ class _ModaleBoissonState extends ConsumerState<_ModaleBoisson> {
 
   late CategorieBoisson? _categorie = widget.boisson?.categorie;
 
+  // Le lien, à la CRÉATION seulement (voir l'écart en tête de fichier).
+  final _conversion = TextEditingController();
+  String? _articleId;
+
   bool _envoi = false;
   String? _refus;
   Map<String, String> _parChamp = const {};
@@ -101,6 +108,7 @@ class _ModaleBoissonState extends ConsumerState<_ModaleBoisson> {
   void dispose() {
     _libelle.dispose();
     _prix.dispose();
+    _conversion.dispose();
     super.dispose();
   }
 
@@ -128,6 +136,8 @@ class _ModaleBoissonState extends ConsumerState<_ModaleBoisson> {
           TextField(
             key: const Key('modale-boisson-libelle'),
             controller: _libelle,
+            // Le libellé nomme la boisson dans la question du conditionnement.
+            onChanged: (_) => setState(() {}),
             style: TextesModaleRestaurant.corps,
             decoration: InputDecoration(
               // Le `placeholder` du maître (l.128), au mot.
@@ -192,6 +202,49 @@ class _ModaleBoissonState extends ConsumerState<_ModaleBoisson> {
             key: const Key('modale-boisson-aide-article'),
             style: TextesModaleRestaurant.aide,
           ),
+
+          // ---- Le lien au stock, à la création (écart : voir l'en-tête) ----
+          if (!_modification) ...[
+            const SizedBox(height: AppSpacing.md),
+            const EtiquetteChampRestaurant(
+              texte: TextesNouvelleBoisson.champArticle,
+              obligatoire: true,
+            ),
+            SelecteurArticleStock(
+              prefixeCle: 'modale-boisson-article',
+              invite: TextesNouvelleBoisson.inviteArticle,
+              aucunArticle: TextesLienStock.aucunArticle,
+              articleId: _articleId,
+              erreur: _parChamp['article_id'],
+              onChoisi: (a) => setState(() {
+                _articleId = a?.id;
+                _parChamp = const {};
+              }),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            EtiquetteChampRestaurant(
+              texte: TextesLienStock.champConversion(
+                _libelle.text.trim().isEmpty
+                    ? TextesNouvelleBoisson.cetteBoisson
+                    : _libelle.text.trim(),
+              ),
+              obligatoire: true,
+            ),
+            TextField(
+              key: const Key('modale-boisson-conversion'),
+              controller: _conversion,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              style: TextesModaleRestaurant.corps,
+              decoration: InputDecoration(
+                isDense: true,
+                border: const OutlineInputBorder(),
+                errorText: _parChamp['unites_vendables_par_unite_stock'],
+                errorMaxLines: 4,
+              ),
+            ),
+          ],
         ],
       ),
       actions: [
@@ -224,6 +277,17 @@ class _ModaleBoissonState extends ConsumerState<_ModaleBoisson> {
       if (categorie == null) 'categorie': 'La catégorie est obligatoire.',
       if (_prix.text.trim().isEmpty)
         'prix_vente': 'Le prix de vente est obligatoire.',
+      if (!_modification && _articleId == null)
+        'article_id': TextesCatalogueLocal.articleObligatoire,
+      if (!_modification &&
+          _articleId != null &&
+          _conversion.text.trim().isEmpty)
+        'unites_vendables_par_unite_stock':
+            TextesCatalogueLocal.conversionRequise(
+              _libelle.text.trim().isEmpty
+                  ? TextesNouvelleBoisson.cetteBoisson
+                  : _libelle.text.trim(),
+            ),
     };
 
     if (manquants.isNotEmpty) {
@@ -246,7 +310,12 @@ class _ModaleBoissonState extends ConsumerState<_ModaleBoisson> {
             prixVente: _prix.text.trim(),
             // Le lien existant est CONSERVÉ : l'effacer romprait un
             // rattachement que ce poste ne peut pas rétablir.
-            articleId: widget.boisson?.articleId ?? '',
+            articleId: _modification
+                ? widget.boisson!.articleId
+                : (_articleId ?? ''),
+            // À la modification, le conditionnement existant est repris par
+            // l'API (`BoissonsApi.enregistrer`) ; à la création, il est saisi.
+            unitesVendablesParUniteStock: _modification ? '' : _conversion.text,
             // L'identifiant désigne la ligne à remplacer ; il est absent à la
             // création, où le catalogue en tire un neuf.
             id: widget.boisson?.id,

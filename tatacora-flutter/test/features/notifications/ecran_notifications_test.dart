@@ -592,8 +592,8 @@ void main() {
         findsOneWidget,
       );
       expect(
-        find.text('Sur ce poste, aucun des quatre ne l’est.'),
-        findsOneWidget,
+        find.byKey(const Key('notifications-journal-aucun-transport')),
+        findsNothing,
       );
       expect(find.text('Journal — 0 message(s)'), findsOneWidget);
     });

@@ -55,9 +55,7 @@ return [
             . 'entière s\'afficherait sous un intitulé qui promet le contraire.',
         'conformite_inconnue' => 'Filtre de conformité inconnu. Un filtre incompris serait ignoré, et la '
             . 'liste entière s\'afficherait sous un intitulé qui promet le contraire.',
-        'identifiant_non_accepte' => 'Une commande d\'achat ne reçoit pas d\'identifiant du client : cette '
-            . 'table n\'est pas synchronisable et aucun mécanisme de rejeu n\'existe. En accepter un '
-            . 'laisserait croire à une idempotence qui n\'a pas lieu.',
+        'identifiant_non_accepte' => 'Une commande d\'achat ne reçoit pas d\'identifiant du client : il est attribué à l\'enregistrement.',
         'valeur_calculee' => 'Cette valeur est calculée depuis les lignes de la commande : elle '
             . 's\'affiche, elle ne se saisit pas. La soumettre n\'aurait aucun effet et laisserait '
             . 'croire le contraire.',

@@ -365,8 +365,13 @@ void main() {
       // Le défaut : le sélecteur de catalogue désignait aussi la caisse, si
       // bien qu'un client prenant une bière puis un circuit perdait sa
       // première ligne — et l'addition unique qu'il demandait devenait
-      // impossible.
-      await monter(tester, const EcranPosComptant());
+      // impossible. (Depuis le 22/10/2026 le circuit exige aussi le droit
+      // d'écriture sur M9, comme au serveur.)
+      await monter(
+        tester,
+        const EcranPosComptant(),
+        droits: GardeAcces.depuisJson(const {'M5': 'C', 'M9': 'C'}),
+      );
 
       await tester.tap(find.byKey(const Key('pos-comptant-ouvrir')));
       await tester.pumpAndSettle();
@@ -408,6 +413,67 @@ void main() {
       );
       expect(message.data, contains('Aucun plat'));
       expect(message.data, isNot(contains('connexion')));
+    });
+
+    testWidgets('TOURISME et LOCATION (22/10/2026) : leurs cartes ne sont pas '
+        'grisées au comptoir, s’ajoutent au panier et s’encaissent', (
+      tester,
+    ) async {
+      await db
+          .into(db.vehiculesLocal)
+          .insert(
+            VehiculesLocalCompanion.insert(
+              id: 'veh-1',
+              categorie: '4x4',
+              immatriculation: 'AB-123-CD',
+              tarifJour: 65000,
+              statut: 'disponible',
+            ),
+          );
+      await ouvrirLaCaisseDuComptoir(db);
+      await monter(
+        tester,
+        const EcranPosComptant(),
+        droits: GardeAcces.depuisJson(const {'M5': 'C', 'M8': 'C', 'M9': 'C'}),
+      );
+      await tester.tap(find.byKey(const Key('pos-comptant-ouvrir')));
+      await tester.pumpAndSettle();
+
+      // Les deux cartes sont ACTIVES : aucune phrase de refus, un clic qui agit.
+      expect(
+        find.byKey(const Key('pos-prestation-refusee-cir-1')),
+        findsNothing,
+      );
+      await tester.tap(find.byKey(const Key('pos-article-M9:cir-1')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('pos-article-M8:veh-1')));
+      await tester.pumpAndSettle();
+
+      final panier = (await depotPanier.paniers()).single;
+      expect(panier.lignes, hasLength(2));
+      expect(panier.total, 4500 + 65000);
+
+      await tester.tap(find.byKey(const Key('pos-cloturer')));
+      await tester.pumpAndSettle();
+
+      final cloture = (await depotPanier.paniers()).single;
+      expect(cloture.estOuvert, isFalse);
+      expect(cloture.montantCloture, 69500);
+    });
+
+    testWidgets('sans droit d’écriture sur M9, le circuit est REFUSÉ à '
+        'l’ajout, avec une phrase', (tester) async {
+      await monter(tester, const EcranPosComptant());
+      await tester.tap(find.byKey(const Key('pos-comptant-ouvrir')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('pos-article-M9:cir-1')));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(MessagesVentes.moduleSansDroit('Tourisme')),
+        findsOneWidget,
+      );
+      expect((await depotPanier.paniers()).single.lignes, isEmpty);
     });
 
     testWidgets('sans droit d’écriture sur M5, aucune vente ne s’ouvre', (
@@ -626,14 +692,15 @@ void main() {
     });
 
     testWidgets('Q2 — un second article rejoint LE panier, jamais un second, '
-        'et une prestation M9 est REFUSÉE (carte grisée, phrase nommée)', (
-      tester,
-    ) async {
+        'et une prestation M9 est REFUSÉE AU SÉJOUR (carte grisée, phrase '
+        'nommée)', (tester) async {
       await monter(tester, const EcranPosHeberges());
       await selectionner(tester);
       await ajouterBiere(tester);
-      // Le poste refuse M8/M9 à la clôture (`modulesEncaissables`) : la carte
-      // le dit AVANT le clic, et le clic ne pose rien dans le panier.
+      // Le panier d'un SÉJOUR (note de chambre) ne porte que le bar et le
+      // restaurant (`modulesEncaissablesAuSejour`) : tourisme et location
+      // s'encaissent au COMPTOIR (22/10/2026). La carte le dit AVANT le clic,
+      // et le clic ne pose rien dans le panier.
       expect(
         find.byKey(const Key('pos-prestation-refusee-cir-1')),
         findsOneWidget,

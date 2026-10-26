@@ -316,4 +316,31 @@ void main() {
     await monter(tester, m4: 'L');
     expect(find.byKey(Key('carte-restaurant-lier-$plat')), findsNothing);
   });
+
+  test('un article LIÉ à un plat ne s’archive plus : le verrou « vendu à la '
+      'carte » du serveur est rejoué (écart v35 levé)', () async {
+    final plat = await platDuMenu();
+    // Le solde (5 casiers) est un AUTRE verrou : seul « vendu à la carte » nous
+    // concerne.
+    Future<List<String>> carte() async => [
+      for (final v in await stocks.verrousArticle('a-eau'))
+        if (v.contains('vendu à la carte')) v,
+    ];
+    expect(await carte(), isEmpty);
+
+    final container = ProviderContainer(overrides: surcharges());
+    addTearDown(container.dispose);
+    final r = await container
+        .read(restaurantApiProvider)
+        .lierAuStock(platId: plat, articleId: 'a-eau', conditionnement: '24');
+    expect(r, isA<RestaurantRecu<Plat>>());
+
+    final verrous = await carte();
+    expect(verrous, hasLength(1));
+    expect(verrous.single, contains('Il est vendu à la carte (1 entrée(s))'));
+
+    // Délié : l'article redevient archivable.
+    await container.read(restaurantApiProvider).delierDuStock(plat);
+    expect(await carte(), isEmpty);
+  });
 }

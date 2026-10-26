@@ -263,52 +263,49 @@ void main() {
       );
     });
 
-    test(
-      '⚠ le registre d’activités du client est PLUS LARGE que celui qu’encaisse '
-      'le serveur',
-      () {
-        // `VenteService::MODULES_ENCAISSABLES` ne connaît que M4 et M5 : le
-        // serveur n'encaisse au comptoir que du bar et du restaurant. Le panier
-        // de ce client accepte en plus M8 et M9 (règle 4 : bar, restaurant,
-        // tourisme et location tiennent dans la même addition). Le filtre suit
-        // le registre du CLIENT.
-        final modules = RegExp(r"'(M[0-9]+)'")
-            .allMatches(
-              venteService().substring(
+    test('⚠ le registre d’activités du client est CELUI qu’encaisse le serveur '
+        '(tourisme et location encaissables depuis le 22/10/2026)', () {
+      // `VenteService::MODULES_ENCAISSABLES` vaut M4, M5, M8, M9 depuis le
+      // 22/10/2026 (directive du PO : tourisme et location encaissables au
+      // comptoir) : le registre du client et celui du serveur COÏNCIDENT.
+      // Avant cette date le client était plus large (M8 et M9 offerts au
+      // panier, refusés à la clôture) ; l'écart est refermé.
+      final modules = RegExp(r"'(M[0-9]+)'")
+          .allMatches(
+            venteService().substring(
+              venteService().indexOf('const MODULES_ENCAISSABLES'),
+              venteService().indexOf(
+                ';',
                 venteService().indexOf('const MODULES_ENCAISSABLES'),
-                venteService().indexOf(
-                  ';',
-                  venteService().indexOf('const MODULES_ENCAISSABLES'),
-                ),
               ),
-            )
-            .map((m) => m.group(1)!)
-            .toSet();
+            ),
+          )
+          .map((m) => m.group(1)!)
+          .toSet();
 
-        expect(modules, isNotEmpty);
-        final duClient = ModuleVendable.values.map((m) => m.code).toSet();
+      expect(modules, isNotEmpty);
+      final duClient = ModuleVendable.values.map((m) => m.code).toSet();
 
-        expect(
-          modules.difference(duClient),
-          isEmpty,
-          reason:
-              'le serveur encaisse une activité que ce client ne sait pas '
-              'porter : une vente s’afficherait sans activité',
-        );
-        expect(
-          duClient.difference(modules),
-          isNotEmpty,
-          reason:
-              'l’élargissement est délibéré et documenté ; s’il disparaissait, '
-              'c’est que `ModuleVendable` aurait rétréci',
-        );
+      expect(
+        modules.difference(duClient),
+        isEmpty,
+        reason:
+            'le serveur encaisse une activité que ce client ne sait pas '
+            'porter : une vente s’afficherait sans activité',
+      );
+      expect(
+        duClient.difference(modules),
+        isEmpty,
+        reason:
+            'le client offre une activité que le serveur n’encaisse pas : '
+            'elle serait refusée à la synchronisation',
+      );
 
-        // ⚠ Et M1 n'est offert NULLE PART : la nuitée est engagée à la
-        // réservation, pas encaissée au comptoir.
-        expect(duClient, isNot(contains('M1')));
-        expect(modules, isNot(contains('M1')));
-      },
-    );
+      // ⚠ Et M1 n'est offert NULLE PART : la nuitée est engagée à la
+      // réservation, pas encaissée au comptoir.
+      expect(duClient, isNot(contains('M1')));
+      expect(modules, isNot(contains('M1')));
+    });
 
     test(
       '⚠ le libellé de M8 diverge de la PWA, et il n’y a QU’UN registre',

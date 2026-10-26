@@ -225,4 +225,86 @@ final class CatalogueRestaurantSynchronisationTest extends TestCase
         $this->assertSame(['Renommé'], Menu::pluck('libelle')->all());
         $this->assertSame('local', $menu->fresh()->type);
     }
+
+    /**
+     * « Lier au stock » du poste (v36) : la modification du plat porte l'article
+     * ET son conditionnement ; le retrait les remet à null ENSEMBLE. Sans ce
+     * gestionnaire, `validated()` jetait les deux champs en silence.
+     */
+    #[Test]
+    public function un_plat_se_lie_au_stock_puis_se_delie_par_la_modification(): void
+    {
+        $menu = app(CartePlatMenuService::class)->creerMenu(['libelle' => 'Carte', 'type' => 'local']);
+        $fiche = app(ReferentielRecetteService::class)->creer(['libelle' => 'Eau']);
+        $plat = app(CartePlatMenuService::class)->creerPlat([
+            'libelle' => 'Eau 50 cl', 'menu_id' => $menu->id, 'recette_id' => $fiche->id, 'prix_vente' => '500',
+        ]);
+
+        $this->pousser([
+            $this->operation('plats', 'modification', $plat->id, [
+                'article_id' => $this->poulet->id, 'unites_vendables_par_unite_stock' => '24.0000',
+            ]),
+        ], $this->cuisinier)->assertJsonPath('resultats.0.statut', 'synchronise');
+
+        $lie = $plat->fresh();
+        $this->assertSame($this->poulet->id, $lie->article_id);
+        $this->assertSame('24.0000', (string) $lie->unites_vendables_par_unite_stock);
+        $this->assertTrue($lie->aUnLienDirectAuStock());
+
+        $this->pousser([
+            $this->operation('plats', 'modification', $plat->id, [
+                'article_id' => null, 'unites_vendables_par_unite_stock' => null,
+            ]),
+        ], $this->cuisinier)->assertJsonPath('resultats.0.statut', 'synchronise');
+
+        $delie = $plat->fresh();
+        $this->assertNull($delie->article_id);
+        $this->assertNull($delie->unites_vendables_par_unite_stock);
+    }
+
+    #[Test]
+    public function un_lien_incomplet_ou_inconnu_est_refuse_et_rien_n_est_ecrit(): void
+    {
+        $menu = app(CartePlatMenuService::class)->creerMenu(['libelle' => 'Carte', 'type' => 'local']);
+        $fiche = app(ReferentielRecetteService::class)->creer(['libelle' => 'Eau']);
+        $plat = app(CartePlatMenuService::class)->creerPlat([
+            'libelle' => 'Eau 50 cl', 'menu_id' => $menu->id, 'recette_id' => $fiche->id, 'prix_vente' => '500',
+        ]);
+
+        $this->pousser([
+            // Un article sans conditionnement : la phrase du service.
+            $this->operation('plats', 'modification', $plat->id, ['article_id' => $this->poulet->id]),
+            // Un conditionnement nul.
+            $this->operation('plats', 'modification', $plat->id, [
+                'article_id' => $this->poulet->id, 'unites_vendables_par_unite_stock' => '0',
+            ]),
+            // Un article inconnu.
+            $this->operation('plats', 'modification', $plat->id, [
+                'article_id' => $this->uuid(), 'unites_vendables_par_unite_stock' => '24',
+            ]),
+        ], $this->cuisinier)
+            ->assertJsonPath('resultats.0.motif', __('carte.conversion_requise_avec_lien', ['article' => 'Eau 50 cl']))
+            ->assertJsonPath('resultats.1.statut', 'rejete')
+            ->assertJsonPath('resultats.2.statut', 'rejete');
+
+        $this->assertNull($plat->fresh()->article_id);
+    }
+
+    /** Un plat créé AVEC son lien (poste hors connexion) l'a au serveur. */
+    #[Test]
+    public function un_plat_cree_avec_son_lien_le_garde(): void
+    {
+        $menu = app(CartePlatMenuService::class)->creerMenu(['libelle' => 'Carte', 'type' => 'local']);
+        $fiche = app(ReferentielRecetteService::class)->creer(['libelle' => 'Eau']);
+        $id = $this->uuid();
+
+        $this->pousser([
+            $this->creation('plats', $id, [
+                'libelle' => 'Eau 1,5 l', 'menu_id' => $menu->id, 'recette_id' => $fiche->id, 'prix_vente' => '700',
+                'article_id' => $this->oignon->id, 'unites_vendables_par_unite_stock' => '6',
+            ]),
+        ], $this->cuisinier)->assertJsonPath('resultats.0.statut', 'synchronise');
+
+        $this->assertSame($this->oignon->id, Plat::findOrFail($id)->article_id);
+    }
 }

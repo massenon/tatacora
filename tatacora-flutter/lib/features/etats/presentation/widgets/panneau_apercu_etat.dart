@@ -58,20 +58,11 @@ class PanneauApercuEtat extends ConsumerWidget {
 
 /// Le décompte de l'accueil — `pwa.etats.accueil_detail`, AU MOT.
 ///
-/// La seconde phrase de la vue — « L'aperçu s'affiche immédiatement : vous ne
-/// consultez que ce que le moteur d'états calcule réellement. » — était fausse
-/// sur ce poste tant qu'il n'avait pas d'aperçu (09/10/2026, D50). Elle est
-/// vraie depuis le 10/10/2026 : l'aperçu s'affiche à la sélection, calculé par
-/// les modules sources du poste, et un état dont la source manque affiche sa
-/// raison, jamais un chiffre.
-///
 /// [nombre] est `null` tant que le catalogue n'est pas lu : le décompte est
 /// alors « — » et non « 0 ». Un « 0 état(s) sont éditables » affirmerait que
 /// le rôle n'a droit à rien, ce que personne n'a constaté (Article 7).
 String decompteAccueilEtats(int? nombre) =>
-    '${nombre ?? '—'} état(s) sont éditables avec vos droits. L\'aperçu '
-    's\'affiche immédiatement : vous ne consultez que ce que le moteur '
-    'd\'états calcule réellement.';
+    '${nombre ?? '—'} état(s) sont éditables avec vos droits.';
 
 /// La phrase d'une lecture qui échoue : FERMÉE. L'exception brute (`Bad state:
 /// …`) nomme des types internes qu'un exploitant ne peut pas lire, et dit
@@ -129,34 +120,6 @@ class _Accueil extends StatelessWidget {
                       style: TextesRestaurant.corps.copyWith(
                         color: Ardoise.c500,
                       ),
-                    ),
-                    // `mt-4` (l.128).
-                    const SizedBox(height: AppSpacing.md),
-                    // `pwa.etats.accueil_rbac` (l.128) : les mots « module
-                    // source » sont en gras (`<strong>`), apostrophe droite.
-                    Text.rich(
-                      key: const Key('etats-accueil-rbac'),
-                      TextSpan(
-                        style: TextesEtats.noteAccueil,
-                        children: [
-                          const TextSpan(
-                            text: 'Les droits sont portés par le ',
-                          ),
-                          TextSpan(
-                            text: 'module source',
-                            style: TextesEtats.noteAccueil.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const TextSpan(
-                            text:
-                                ' de chaque état, pas par le module Rapports : un magasinier '
-                                'ne lit pas le livre de paie parce qu\'il a '
-                                'accès aux « États ».',
-                          ),
-                        ],
-                      ),
-                      textAlign: TextAlign.center,
                     ),
                   ],
                 ),

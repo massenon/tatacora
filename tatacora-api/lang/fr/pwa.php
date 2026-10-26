@@ -72,7 +72,7 @@ return [
 
     // Message du 405 de `ForcerLectureSeule` : les routes /pwa sont GET-only,
     // les écritures passent par les actions des écrans, jamais par une route.
-    'ecriture_refusee' => 'Les routes de la consultation web ne reçoivent aucune écriture. '
+    'ecriture_refusee' => 'Cette action n\'est pas permise depuis cette adresse. '
         . 'Les saisies passent par les écrans de l\'interface.',
 
     'connexion' => [
@@ -612,8 +612,7 @@ return [
         'export_vide' => 'Rien à exporter : aucune écriture ne correspond aux filtres affichés.',
 
 
-        'sans_nature' => ':nombre compte(s) sans nature renseignée — la '
-            . 'colonne affiche « — », qui n\'est pas une nature.',
+        'sans_nature' => ':nombre compte(s) sans nature renseignée.',
 
         'note_ouverture_variation' => 'Ouverture · variation de l\'exercice',
         'solde_ouverture' => 'Solde d\'ouverture',
@@ -1563,8 +1562,8 @@ return [
         'importer_modele_titre' => '2. Télécharger le fichier modèle',
         'importer_modele_bouton' => 'Télécharger le modèle',
         // maquette l.77-81 — le <strong> est posé par la vue.
-        'importer_modele_aide_1' => 'Le modèle porte les colonnes exactes et une ligne d\'exemple. Il est généré '
-            . 'depuis la même déclaration que le contrôle : il ne peut pas s\'en écarter. Ouvrez-le dans Excel, '
+        'importer_modele_aide_1' => 'Le modèle porte les colonnes exactes et une ligne d\'exemple. Ouvrez-le'
+            . ' dans Excel, '
             . 'remplacez la ligne d\'exemple par vos données, conservez la ligne d\'en-tête, puis enregistrez en',
         'importer_modele_aide_format' => 'CSV UTF-8',
         'importer_depot_titre' => '3. Déposer le fichier rempli',

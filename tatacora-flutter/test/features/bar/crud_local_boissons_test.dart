@@ -31,10 +31,11 @@ import 'package:tatacora_flutter/features/pos/domain/entities/reference_catalogu
 ///  3. **Aucun stock n'est inventé.** Il se calcule des mouvements, et ce
 ///     poste n'en a aucun. « 0 » se lirait « rupture » sur l'écran qui sert à
 ///     commander — l'absence doit rester une absence (PA-129, PA-134).
-///  4. **Ce que le schéma ne porte pas est REFUSÉ, pas simulé.** Retrait de la
-///     carte, lien au stock et historique des prix n'ont ni colonne ni table
-///     ici. Les tenir en session les ferait revenir seuls au redémarrage —
-///     la famille PA-59/60/61, sur l'écran du barman.
+///  4. **Ce que le schéma ne porte pas est REFUSÉ, pas simulé.** L'historique
+///     des prix n'a ni colonne ni table ici (retrait de la carte : v31, lien au
+///     stock : v30 et `lien_stock_poste_test.dart`). Le tenir en session le
+///     ferait revenir seul au redémarrage — la famille PA-59/60/61, sur
+///     l'écran du barman.
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
 
@@ -362,24 +363,26 @@ void main() {
   });
 
   /* ================================================================== */
-  group('Lien au stock et historique — REFUSÉS avec leur raison', () {
-    test(
-      '« Lier au stock » est refusé, et la boisson reste sans lien',
-      () async {
-        final creee = await creer();
+  group('Lien au stock (refus d’un article absent) et historique — REFUSÉ '
+      'avec sa raison', () {
+    // Le lien lui-même s’écrit depuis le 26/10/2026 : voir
+    // `lien_stock_poste_test.dart`. Ici, l’article « art-1 » n’existe pas sur
+    // ce poste — le refus est celui de l’article, pas d’une colonne absente.
+    test('« Lier au stock » sur un article ABSENT du poste est refusé, et la '
+        'boisson reste sans lien', () async {
+      final creee = await creer();
 
-        final r = await source.lierAuStock(
-          id: creee.id,
-          articleId: 'art-1',
-          unitesVendablesParUniteStock: '24',
-        );
+      final r = await source.lierAuStock(
+        id: creee.id,
+        articleId: 'art-1',
+        unitesVendablesParUniteStock: '24',
+      );
 
-        expect(r, isA<BarRefuse<Boisson>>());
-        // Un lien écrit à moitié — l'article sans son conditionnement — ferait
-        // croire à un rattachement qui ne décrémente rien de juste.
-        expect((await catalogueRelu()).single.articleId, isEmpty);
-      },
-    );
+      expect(r, isA<BarRefuse<Boisson>>());
+      // Un lien écrit à moitié — l'article sans son conditionnement — ferait
+      // croire à un rattachement qui ne décrémente rien de juste.
+      expect((await catalogueRelu()).single.articleId, isEmpty);
+    });
 
     test(
       'l’historique dit que la TRACE n’existe pas, pas qu’elle est vide',

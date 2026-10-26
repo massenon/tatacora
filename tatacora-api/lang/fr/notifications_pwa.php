@@ -52,7 +52,7 @@ return [
     'kpi_en_attente' => 'En file d’attente',
     'kpi_en_attente_detail' => 'Composés, prêts, non partis',
     'kpi_envoyes' => 'Réellement envoyés',
-    'kpi_envoyes_detail' => 'E-mails partis, comptés en base',
+    'kpi_envoyes_detail' => 'E-mails partis',
     'kpi_traites' => 'Transmis à la main',
     'kpi_traites_detail' => 'Par un opérateur',
     'kpi_abandonnes' => 'Abandonnés',
@@ -162,7 +162,7 @@ return [
     'journal_reserve' => 'La colonne « Envoi système » dit « oui » uniquement pour un message que le '
         .'transport a réellement accepté — WhatsApp, Android et SMS restent « non » tant qu’aucun n’est branché.',
     'journal_vide' => 'Aucun message n’est encore parti. '
-        .'Ce journal lit la table réelle des envois — il se remplit dès qu’un e-mail est réellement délivré.',
+        .'Le journal se remplit dès qu’un e-mail est réellement délivré.',
     'col_date' => 'Date',
     'col_destinataire' => 'Destinataire',
     'col_canal' => 'Canal',

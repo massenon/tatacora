@@ -248,12 +248,10 @@ void main() {
       // reste qu'UNE (les dépenses cumulées). Les raisons du 10/10 et du 12/10
       // sur l'argent encaissé sont tombées avec leur prémisse (lot 5).
       final absents = a.mentions.where(
-        (m) =>
-            m.contains('constaté le 10/10/2026') ||
-            m.contains('constaté le 12/10/2026'),
+        (m) => m.startsWith('${l('depenses_cumulees')} : '),
       );
       expect(absents.length, 1);
-      expect(absents.single.split(' : ').first, l('depenses_cumulees'));
+      expect(a.mentions.any((m) => m.contains('constaté le')), isFalse);
       expect(a.mentions.any((m) => m.contains('aucun paiement')), isFalse);
     });
 
@@ -466,7 +464,7 @@ void main() {
         ]);
         expect(valeurs(a), ['3', '107000.00']);
         expect(a.mentions.length, 2);
-        expect(a.mentions.last, contains('constaté le 10/10/2026'));
+        expect(a.mentions.last, isNot(contains('constaté le')));
         expect(
           a.mentions.last,
           startsWith('Écriture : « Passée » pour chaque'),
@@ -739,28 +737,10 @@ void main() {
       final c = conteneur();
 
       final balance = await refuse(c, 'balance');
-      expect(balance.motif, contains('constaté le 10/10/2026'));
-      expect(balance.motif, contains('pour les dépenses courantes saisies'));
-      expect(balance.motif, isNot(contains('ne tient pas de comptabilité')));
-      // D282 : les ventes passent leur pièce depuis le lot 6. La raison ne
-      // doit plus les ranger parmi ce qui n'en produit aucune.
-      expect(balance.motif, contains('les ventes, les acomptes'));
-      expect(balance.motif, isNot(contains('reçus, les ventes, la paie')));
-      expect(balance.motif, contains('revu le 12/10/2026'));
-      // R7 (D289) : ni la réception ni la paie ne sont des manques DU POSTE —
-      // le serveur n'en passe aucune pièce non plus (vérifié dans son code).
-      // Le vrai manque, nommé : la saisie manuelle des pièces du comptable.
+      expect(balance.motif, isNot(contains('constaté le')));
       expect(
         balance.motif,
-        contains(
-          'la réception des achats et la paie n\'en passent aucune, '
-          'ici comme au serveur',
-        ),
-      );
-      expect(balance.motif, contains('la saisie manuelle des pièces'));
-      expect(
-        balance.motif,
-        isNot(contains('la réception des achats, la paie, et les ventes')),
+        'La balance générale n\'est pas disponible dans cet état.',
       );
       expect(balance.titre, 'Balance générale');
       expect(balance.moduleSource, 'M10');
@@ -1054,15 +1034,7 @@ void main() {
       expect(find.byKey(const Key('etats-apercu-refuse')), findsOne);
       expect(
         find.textContaining(
-          'La balance générale se lit dans les écritures comptables',
-          findRichText: true,
-        ),
-        findsOne,
-      );
-      // La raison RENDUE est la raison revue (D282), pas celle du 10/10.
-      expect(
-        find.textContaining(
-          'les ventes, les acomptes et remboursements de réservation',
+          'La balance générale n\'est pas disponible dans cet état.',
           findRichText: true,
         ),
         findsOne,

@@ -80,12 +80,13 @@ final class PageBar<T> {
 ///
 /// Le poste tient maintenant ses articles de stock (`articles_local`, module
 /// Stocks) : « Nouvelle boisson » choisit un article et dit combien d'unités
-/// VENDUES font une unité de STOCK (un casier de 24 : `24`). L'un sans l'autre
-/// est refusé — un article sans conditionnement ferait décrémenter un casier
-/// entier par bouteille vendue, un conditionnement sans article ne décrémenterait
-/// rien (`CarteBoissonService`). [articleId] vide reste admis AU NIVEAU DE
-/// L'API (import d'une carte, boissons d'avant) : la boisson est alors « non
-/// suivie » ; c'est la MODALE qui exige l'article, comme la vue.
+/// VENDUES font une unité de STOCK (un casier de 24 : `24`). Un conditionnement
+/// SANS article est refusé (il ne décrémenterait rien, `conversion_sans_lien`).
+/// Un article SANS conditionnement est admis au niveau de l'API, comme
+/// `CarteBoissonService::creer` (le serveur garde alors son défaut, 1) : c'est
+/// l'import d'une carte. [articleId] vide aussi (boissons d'avant : « non
+/// suivie »). Ce sont les MODALES qui exigent les deux, comme la vue exige
+/// l'article.
 final class SaisieBoisson {
   const SaisieBoisson({
     required this.libelle,
@@ -288,6 +289,10 @@ final class BoissonsApi {
         libelle: libelle,
         articleId: article,
         conditionnement: saisie.unitesVendablesParUniteStock,
+        // Comme `CarteBoissonService::creer` : une clé absente laisse le
+        // conditionnement au défaut du schéma serveur (1). C'est la MODALE
+        // qui l'exige (« Combien de … dans une unité de stock ? »).
+        conditionnementRequis: false,
       );
       if (erreursLien.$2.isNotEmpty) {
         return BarRefuse(
@@ -539,6 +544,7 @@ final class BoissonsApi {
     required String libelle,
     required String articleId,
     required String conditionnement,
+    bool conditionnementRequis = true,
   }) async {
     final erreurs = <String, String>{};
     if (articleId.isEmpty) {
@@ -549,9 +555,11 @@ final class BoissonsApi {
 
     String? unites;
     if (conditionnement.trim().isEmpty) {
-      erreurs[_champConversion] = TextesCatalogueLocal.conversionRequise(
-        libelle,
-      );
+      if (conditionnementRequis) {
+        erreurs[_champConversion] = TextesCatalogueLocal.conversionRequise(
+          libelle,
+        );
+      }
     } else {
       final lu = lireDecimal(conditionnement);
       if (lu == null || lu <= BigInt.zero) {
