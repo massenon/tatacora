@@ -288,7 +288,7 @@ abstract final class TextesJournalAudit {
   static const String colHeure = 'Heure';
   static const String colPoste = 'Poste';
   static const String mentionLectureSeule =
-      "🔒 Ce journal est en lecture seule pour tous les profils, y compris l'Administrateur, conformément au chap. 11.4 du CdCF.";
+      "🔒 Ce journal est en lecture seule pour tous les profils, y compris l'Administrateur.";
 
   /// `pwa.journal_audit.vide`.
   static const String vide = 'Aucune entrée ne correspond à votre recherche.';

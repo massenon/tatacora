@@ -242,11 +242,7 @@ final List<_ModuleAide> _modules = [
 ];
 
 /// Une entrée de la FAQ (`pwa.aide.faq`).
-typedef _EntreeFaq = ({
-  String categorie,
-  String question,
-  String reponse,
-});
+typedef _EntreeFaq = ({String categorie, String question, String reponse});
 
 const List<_EntreeFaq> _faq = [
   (

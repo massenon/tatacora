@@ -528,7 +528,7 @@ const String _aideValeurAchat =
 const String _aideSeuil =
     "Un paramètre, pas un état : il déclenche l'alerte de sous-stock.";
 const String _aideStockOuverture =
-    "Enregistré comme un MOUVEMENT d'entrée, pas comme une colonne : c'est ce qui le rend visible en fiche de stock.";
+    "Enregistré comme un mouvement d'entrée : c'est ce qui le rend visible en fiche de stock.";
 const String _aidePoint =
     "Point de rattachement principal de l'article, et point d'imputation de son stock d'ouverture. Il ne limite pas le stock : un article peut être détenu en plusieurs endroits, et le total se calcule point par point.";
 

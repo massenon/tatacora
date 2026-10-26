@@ -113,8 +113,7 @@ abstract final class LibellesCoquille {
   /// de `DIRECTIVE_CONFORMITE_100.md` interdit un contrôle muet : le clic DIT
   /// que l'écran n'est pas encore porté sur CE poste — « consultation » est le
   /// mot du canal web, il ne suffit pas à dire ce qui manque ici.
-  static String ecranNonPorte(String nom) =>
-      '« $nom » n\'est pas disponible.';
+  static String ecranNonPorte(String nom) => '« $nom » n\'est pas disponible.';
 
   /// `pwa.recherche_globale.*` — la recherche globale de la barre supérieure.
   static const String rechercheInvite = 'Rechercher partout…';

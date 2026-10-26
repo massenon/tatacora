@@ -149,7 +149,7 @@ class _Corps extends ConsumerWidget {
           titre: 'La capacité vient du circuit, pas d\'une saisie.',
           texte:
               'Elle est lue de la fiche du circuit et contrôlée cumulée sur le '
-              'départ par le service de domaine : trois groupes de 5 sur un '
+              'départ par le système : trois groupes de 5 sur un '
               'circuit à 12 places sont refusés au troisième.',
         ),
       ],

@@ -187,7 +187,8 @@ abstract final class TextesProfil {
   /// vraie ici au sens strict : la file d'envoi du poste ne conserve pas
   /// l'utilisateur, aucune action n'est donc tracée AU NOM de ce compte ; le
   /// journal complet du poste (Journal d'Audit) liste ce que le poste a écrit.
-  static const String journalSurCePoste = 'Aucune action tracée pour ce compte.';
+  static const String journalSurCePoste =
+      'Aucune action tracée pour ce compte.';
 }
 
 TextStyle get _etiquette =>

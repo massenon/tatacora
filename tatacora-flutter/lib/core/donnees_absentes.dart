@@ -36,7 +36,8 @@ library;
 ///
 /// Exemples : `donneeNonDisponible('Les mouvements de stock')`,
 /// `donneeNonDisponible('Le catalogue des boissons')`.
-String donneeNonDisponible(String quoi) => '$quoi : information non disponible.';
+String donneeNonDisponible(String quoi) =>
+    '$quoi : information non disponible.';
 
 /// La même chose pour une ÉCRITURE que le poste ne peut pas porter.
 ///

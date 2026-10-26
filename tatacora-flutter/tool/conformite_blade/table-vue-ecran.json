@@ -47,6 +47,7 @@
       "features/bar/presentation/widgets/modale_nouvelle_boisson.dart",
       "features/bar/presentation/widgets/modale_prix_boisson.dart",
       "features/bar/presentation/widgets/modale_retrait_carte.dart",
+      "features/bar/presentation/widgets/selecteur_article_stock.dart",
       "features/bar/presentation/widgets/vue_couverture_bar.dart",
       "features/bar/presentation/widgets/vue_ventes_bar.dart",
       "shared_widgets/modale_export.dart"
@@ -215,6 +216,7 @@
     ],
     "restaurant/carte": [
       "features/restaurant/presentation/ecran_carte_restaurant.dart",
+      "features/restaurant/presentation/widgets/modale_lien_stock_plat.dart",
       "features/restaurant/presentation/widgets/vue_ventes_restaurant.dart",
       "shared_widgets/modale_export.dart"
     ],

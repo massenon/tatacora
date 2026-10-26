@@ -52,8 +52,7 @@ abstract final class TextesEtatsFinanciers {
   static const String provenanceVide = 'Aucune écriture à afficher.';
   static String reportProvisoire(int annee) =>
       "À-nouveaux provisoires : l'exercice $annee n'est pas clôturé, ses soldes sont reportés sans l'être définitivement.";
-  static const String illisible =
-      "Les écritures n'ont pas pu être lues.";
+  static const String illisible = "Les écritures n'ont pas pu être lues.";
 }
 
 String _montant(int centimes) =>

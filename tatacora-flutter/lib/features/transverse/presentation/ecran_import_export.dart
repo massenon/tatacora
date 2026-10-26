@@ -111,7 +111,7 @@ abstract final class TextesImportExport {
   static const String importerModeleTitre = '2. Télécharger le fichier modèle';
   static const String importerModeleBouton = 'Télécharger le modèle';
   static const String importerModeleAide1 =
-      "Le modèle porte les colonnes exactes et une ligne d'exemple. Il est généré depuis la même déclaration que le contrôle : il ne peut pas s'en écarter. Ouvrez-le dans Excel, remplacez la ligne d'exemple par vos données, conservez la ligne d'en-tête, puis enregistrez en";
+      "Le modèle porte les colonnes exactes et une ligne d'exemple. Ouvrez-le dans Excel, remplacez la ligne d'exemple par vos données, conservez la ligne d'en-tête, puis enregistrez en";
   static const String importerModeleAideFormat = 'CSV UTF-8';
   static const String importerDepotTitre = '3. Déposer le fichier rempli';
   static const String importerDepotAide =
@@ -324,7 +324,7 @@ abstract final class TextesImportExport {
   // Phase d'essais en production (19/10/2026) — la phrase de la vue,
   // affichée quand le SERVEUR l'annonce (en-tête de synchronisation).
   static const String resetPhaseEssais =
-      "Phase d'essais en Production : la réinitialisation reste possible pour effacer les essais avant la mise en service. Chaque poste devra ensuite être réinitialisé à son tour. Retirez TATACORA_PHASE_ESSAIS du fichier .env le jour de la mise en service réelle.";
+      "Phase d'essais en Production : la réinitialisation reste possible pour effacer les essais avant la mise en service. Chaque poste devra ensuite être réinitialisé à son tour. Désactivez la phase d'essais le jour de la mise en service réelle.";
   static const String resetEnvironnementProduction =
       "Cet écran s'exécute en Production : la réinitialisation est désactivée, quel que soit votre rôle — c'est l'environnement qui refuse, pas un droit qui manque.";
 

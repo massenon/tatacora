@@ -39,8 +39,7 @@ abstract final class TextesOngletApparence {
 
   /// `apparence_televersement` : la phrase affichée pendant l'envoi.
   static const televersement = 'Téléversement en cours…';
-  static const charteTitre =
-      'Couleurs de la charte graphique (lecture seule — chap. 9.3.1 du CdCF)';
+  static const charteTitre = 'Couleurs de la charte graphique (lecture seule)';
   static const choisir = 'Choisir un fichier';
   static const aucunFichier = 'Aucun fichier choisi';
   static const annuler = 'Annuler';

@@ -97,22 +97,22 @@
   },
   "bar/carte": {
     "blade": 63,
-    "ordonnes": 46,
+    "ordonnes": 44,
     "ongletsNonCliquables": 0
   },
   "restaurant/carte": {
     "blade": 84,
-    "ordonnes": 40,
+    "ordonnes": 38,
     "ongletsNonCliquables": 0
   },
   "etats/studio": {
     "blade": 29,
-    "ordonnes": 27,
+    "ordonnes": 26,
     "ongletsNonCliquables": 0
   },
   "transverse/parametres": {
     "blade": 150,
-    "ordonnes": 111,
+    "ordonnes": 107,
     "ongletsNonCliquables": 1
   },
   "livewire/accueil": {
@@ -142,7 +142,7 @@
   },
   "transverse/journal-audit": {
     "blade": 35,
-    "ordonnes": 11,
+    "ordonnes": 10,
     "ongletsNonCliquables": 0
   },
   "transverse/mon-profil": {
@@ -152,7 +152,7 @@
   },
   "transverse/roles-permissions": {
     "blade": 110,
-    "ordonnes": 71,
+    "ordonnes": 70,
     "ongletsNonCliquables": 0
   },
   "transverse/synchronisation-postes": {

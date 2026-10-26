@@ -582,7 +582,7 @@ class _FicheReservationState extends ConsumerState<FicheReservation> {
                     ),
                     // `:sousTitre="__('hebergement_pwa.reservations.modale_sous_titre')"`.
                     Text(
-                      'Les cinq champs que le schéma serveur porte pour une réservation.',
+                      'Renseignez les informations de la réservation.',
                       key: const Key('sous-titre-modale-reservation'),
                       overflow: TextOverflow.ellipsis,
                       style: textes.labelSmall?.copyWith(

@@ -192,7 +192,7 @@ class EcranRolesPermissions extends ConsumerWidget {
 abstract final class TextesRoles {
   static const String titre = 'Rôles & Permissions';
   static const String sousTitre =
-      "Contrôle d'accès basé sur les rôles (RBAC) — socle du chap. 11.2 du CdCF, amendable. C = accès complet, L = lecture seule, — = aucun accès.";
+      "Contrôle d'accès basé sur les rôles (RBAC) — socle amendable. C = accès complet, L = lecture seule, — = aucun accès.";
   static const String matriceTitre = 'Matrice complète des permissions';
   static const String legendeComplet = 'Accès complet (C)';
   static const String legendeLecture = 'Lecture seule (L)';

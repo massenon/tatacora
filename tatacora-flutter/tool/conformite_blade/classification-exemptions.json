@@ -21,19 +21,9 @@
       "motif": "« Modifier la boisson » est propre au bar : le drapeau creation_boisson est faux pour le restaurant, qui modifie ses plats sur « Plats & menus ». Le comparateur ne evalue pas les conditions Blade. Voir ecran_carte_restaurant.dart.",
       "date": "2026-10-08"
     },
-    "restaurant/carte|modale:modal-lieraustock": {
-      "classe": "a",
-      "motif": "Modale « Lier au stock » : elle ECRIT le lien d'un plat a un article de stock. Aucune source locale de M4 n'existe (decision PO du 08/10/2026), le bouton de ligne affiche le message « ne peut pas etre enregistre sur ce poste ». A rouvrir avec la source de M4. Voir ecran_carte_restaurant.dart.",
-      "date": "2026-10-09"
-    },
     "restaurant/carte|modale:modal-retirerdelacartedujour": {
       "classe": "a",
       "motif": "Modale « Retirer de la carte du jour » : elle ECRIT une indisponibilite (indisponibilites_carte), table absente de ce poste zero reseau. Le bouton « Rendre indispo. » affiche le message d'ecriture impossible. A rouvrir avec la source de M4. Voir ecran_carte_restaurant.dart.",
-      "date": "2026-10-09"
-    },
-    "restaurant/carte|modale:modal-delier": {
-      "classe": "a",
-      "motif": "Modale « Retirer le lien au stock » : elle ECRIT un lien direct de plat (plats.article_id), que ce poste ne peut ni lire ni ecrire ; « Delier » n'est de toute facon rendu que pour un plat deja lie, etat que ce poste ne peut pas lire. A rouvrir avec la source de M4. Voir ecran_carte_restaurant.dart.",
       "date": "2026-10-09"
     },
     "restaurant/carte|modale:commun.modale_prix_titre": {

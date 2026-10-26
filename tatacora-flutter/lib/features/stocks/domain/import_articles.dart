@@ -58,7 +58,7 @@ abstract final class TextesImportArticles {
   // Un littéral sur UNE ligne : la mesure de conformité ne recolle pas un
   // double guillemet suivi d'un simple.
   static const String sousTitre =
-      "Fichier CSV, une ligne par article. Le stock d'ouverture entre comme un mouvement, jamais comme une colonne.";
+      "Fichier CSV, une ligne par article. Le stock d'ouverture entre comme un mouvement d'entrée.";
   static const String fichier = 'Fichier CSV';
   static const String valider = 'Importer';
   static const String modele = 'Modèle';
