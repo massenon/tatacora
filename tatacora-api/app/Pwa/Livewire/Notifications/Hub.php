@@ -258,6 +258,12 @@ class Hub extends PageMetier
         $message = MessageNotificationCompose::findOrFail($messageId);
 
         try {
+            // « Renvoyer » après épuisement des relances : le compteur repart.
+            if ($message->enEchec()) {
+                $service->remettreEnFile($message);
+                $message->refresh();
+            }
+
             $resultat = $service->envoyer($message);
         } catch (RuntimeException $refus) {
             session()->flash('pwa-erreur', $refus->getMessage());

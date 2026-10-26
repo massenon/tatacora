@@ -74,6 +74,9 @@
                           @endif
                           · <span style="color:{{ $envoi->estTransmis() ? 'var(--succes)' : 'var(--alerte)' }}">{{ $envoi->estTransmis() ? __('pwa.contact.envois_statut_transmis') : __('pwa.contact.envois_statut_a_transmettre') }}</span>
                         </p>
+                        @if (! $envoi->estTransmis() && $envoi->derniere_erreur)
+                          <p class="text-[12px] mt-1" style="color:var(--erreur)">{{ __('pwa.contact.envois_derniere_erreur', ['erreur' => $envoi->derniere_erreur]) }}</p>
+                        @endif
                       </div>
                     </div>
                   </div>

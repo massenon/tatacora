@@ -282,7 +282,7 @@
                             <span class="text-[11px] px-2 py-1 rounded bg-red-50 text-red-700">{{ __('notifications_pwa.file_sans_configuration') }}</span>
                           @else
                             <button type="button" wire:click="envoyerMessage('{{ $message->id }}')" wire:loading.attr="disabled"
-                                    class="text-[11px] px-2 py-1 rounded border border-blue-300 text-blue-700 hover:bg-blue-50">{{ __('notifications_pwa.file_envoyer') }}</button>
+                                    class="text-[11px] px-2 py-1 rounded border border-blue-300 text-blue-700 hover:bg-blue-50">{{ $message->tentatives > 0 ? __('notifications_pwa.file_renvoyer') : __('notifications_pwa.file_envoyer') }}</button>
                           @endif
                         @else
                           <span class="text-[11px] px-2 py-1 rounded bg-slate-100 text-slate-400">{{ __('notifications_pwa.file_a_parametrer') }}</span>
@@ -298,6 +298,19 @@
                     <p class="text-[12px] font-semibold text-slate-600 mb-1">{{ __('notifications_pwa.file_objet', ['objet' => $message->objet]) }}</p>
                   @endif
                   <div class="rounded-xl border px-3 py-2.5 text-[13px] leading-relaxed whitespace-pre-wrap max-w-[520px] {{ $classeBulle($message->canal) }}">{{ $message->contenu }}</div>
+                  @if ($message->tentatives > 0)
+                    {{-- L'etat VRAI de l'envoi : tentatives reelles, cause lisible
+                         du dernier echec, relances epuisees (26/10/2026). --}}
+                    <p class="text-[11px] mt-1.5 text-red-700">
+                      {{ __('notifications_pwa.file_tentatives', ['n' => $message->tentatives]) }}
+                      @if ($message->derniere_erreur)
+                        · {{ __('notifications_pwa.file_derniere_erreur', ['erreur' => $message->derniere_erreur]) }}
+                      @endif
+                      @if ($message->enEchec())
+                        · {{ __('notifications_pwa.file_en_echec') }}
+                      @endif
+                    </p>
+                  @endif
                   <p class="text-[10.5px] text-slate-400 mt-1.5">
                     @php($limite = RegistreCanaux::existe($message->canal) ? RegistreCanaux::canal($message->canal)['limite'] : null)
                     {{ __('notifications_pwa.file_meta', [

@@ -1016,6 +1016,7 @@ return [
         'envois_statut_transmis' => 'Transmis',
         'envois_statut_a_transmettre' => 'En attente d\'envoi',
         'envois_capture' => '1 capture jointe',
+        'envois_derniere_erreur' => 'Dernière erreur : :erreur',
 
 
         // maquette — l.202-214 — NON RENDU, voir le docblock du composant

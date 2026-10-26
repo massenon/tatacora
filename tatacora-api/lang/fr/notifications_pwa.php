@@ -69,6 +69,10 @@ return [
     'file_non_envoye' => 'non envoyé',
     'file_envoyer' => 'Envoyer',
     'file_a_parametrer' => 'à paramétrer au déploiement',
+    'file_renvoyer' => 'Renvoyer',
+    'file_tentatives' => 'Tentatives d’envoi : :n',
+    'file_derniere_erreur' => 'Dernière erreur : :erreur',
+    'file_en_echec' => 'Relances automatiques épuisées',
     'file_sans_adresse' => 'Aucune adresse e-mail connue',
     'file_sans_configuration' => 'Aucun relais SMTP réel configuré',
     'file_transmis_bouton' => 'Transmis à la main',
@@ -230,6 +234,7 @@ return [
     'envoi_canal_non_supporte' => 'Seul le canal e-mail peut être envoyé automatiquement pour le moment.',
     'envoi_sans_adresse' => 'Aucune adresse e-mail connue pour ce destinataire — à transmettre à la main.',
     'envoi_sans_configuration' => 'Aucun relais SMTP réel n’est configuré — à transmettre à la main.',
+    'envoi_deja_en_cours' => 'Ce message est déjà en cours d’envoi.',
     'envoi_echec' => 'L’envoi a échoué — le message reste en file, à transmettre à la main si besoin.',
     'envoi_reussi' => 'Message envoyé par e-mail.',
 

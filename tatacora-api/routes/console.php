@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 use App\Domain\Comptabilite\Services\ExerciceComptableService;
 use App\Domain\Facturation\Jobs\RejouerCertificationsMecefEnEchecJob;
+use App\Domain\Notifications\Services\EnvoiEmailNotificationService;
+use App\Domain\Notifications\Services\FileAttenteNotificationsService;
 use App\Domain\Stocks\Jobs\VerifierSeuilsStockJob;
 use App\Shared\Audit\Jobs\PurgerJournalAuditJob;
 use App\Shared\Backup\Jobs\SauvegardeBaseQuotidienneJob;
-use App\Domain\Notifications\Services\EnvoiEmailNotificationService;
-use App\Domain\Notifications\Services\FileAttenteNotificationsService;
 use App\Shared\ContactEditeur\Services\MessageEditeurService;
 use App\Shared\Exploitation\Services\BattementPlanificateur;
 use App\Shared\Sync\Jobs\NettoyerDeduplicationSyncJob;
