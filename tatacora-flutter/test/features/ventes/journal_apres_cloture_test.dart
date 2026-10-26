@@ -9,6 +9,7 @@ import 'package:tatacora_flutter/features/pos/domain/entities/article_vendable.d
 import 'package:tatacora_flutter/features/pos/domain/entities/panier.dart';
 import 'package:tatacora_flutter/features/pos/domain/entities/reference_catalogue.dart';
 import 'package:tatacora_flutter/features/pos/presentation/providers_pos.dart';
+import 'package:tatacora_flutter/features/ventes/domain/entities/vente.dart';
 import 'package:tatacora_flutter/features/ventes/domain/journal_ventes.dart';
 import 'package:tatacora_flutter/features/ventes/presentation/providers_ventes.dart';
 
@@ -244,13 +245,17 @@ void main() {
 
     final j = await journal();
     expect(j.ventes, hasLength(3));
-    final parLibelle = {for (final v in j.ventes) v.lignes.first.libelle: v};
-    expect(parLibelle['Flag 33 cl']!.aDesLignesSansImpactStock, isFalse);
-    expect(parLibelle['Jus maison']!.aDesLignesSansImpactStock, isTrue);
-    expect(parLibelle['Riz sauce']!.aDesLignesSansImpactStock, isTrue);
-    expect(parLibelle['Riz sauce']!.lignesSansImpactStock, ['Riz sauce']);
-    // La vente qui mêle une boisson liée et un plat composé ne l’est pas.
-    expect(parLibelle['Flag 33 cl']!.lignesSansImpactStock, isEmpty);
+    // L'ordre des lignes d'un panier suit leur identifiant (aléatoire) : la
+    // vente se retrouve par une de ses lignes, jamais par la première.
+    Vente avec(String libelle) =>
+        j.ventes.firstWhere((v) => v.lignes.any((l) => l.libelle == libelle));
+    // La vente qui mêle une boisson liée et un plat composé ne l'est pas.
+    expect(avec('Flag 33 cl').aDesLignesSansImpactStock, isFalse);
+    expect(avec('Flag 33 cl').lignesSansImpactStock, isEmpty);
+    expect(avec('Poulet braisé'), avec('Flag 33 cl'));
+    expect(avec('Jus maison').aDesLignesSansImpactStock, isTrue);
+    expect(avec('Riz sauce').aDesLignesSansImpactStock, isTrue);
+    expect(avec('Riz sauce').lignesSansImpactStock, ['Riz sauce']);
   });
 
   test('aucun filtre par défaut ne cache une vente : veille, 23 h 59, sans '
