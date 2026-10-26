@@ -78,15 +78,11 @@
             },
             {
                 "type": "p",
-                "texte": "Point orange : article vendable qui ne décrémente aucun stock, faute de fiche technique (EF-M4-02)."
+                "texte": "Point orange : article vendable qui ne décrémente aucun stock, faute de fiche technique."
             },
             {
                 "type": "p",
                 "texte": "Marque P : la fiche technique du plat est provisoire, le stock décrémenté est approximatif. Elle se lève depuis Restaurant & Cuisine, onglet « Fiches techniques »."
-            },
-            {
-                "type": "p",
-                "texte": "Aucun prix n’est signalé comme provisoire : le schéma ne porte pas cette information (31/08/2026)."
             },
             {
                 "type": "h2",
@@ -111,10 +107,6 @@
             {
                 "type": "p",
                 "texte": "Choisissez une table ou le comptoir dans la salle."
-            },
-            {
-                "type": "p",
-                "texte": "Enregistré sur ce poste : le panier reste ouvert après un changement d’équipe ou de navigateur. Il ne part vers aucun autre poste."
             },
             {
                 "type": "p",

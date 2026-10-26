@@ -114,11 +114,7 @@
             },
             {
                 "type": "p",
-                "texte": "12 état(s) sont éditables avec vos droits. L'aperçu s'affiche immédiatement : vous ne consultez que ce que le moteur d'états calcule réellement."
-            },
-            {
-                "type": "p",
-                "texte": "Les droits sont portés par le de chaque état, pas par M14 : un magasinier ne lit pas le livre de paie parce qu'il a accès aux « États »."
+                "texte": "12 état(s) sont éditables avec vos droits."
             }
         ]
     }

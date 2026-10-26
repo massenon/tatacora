@@ -10,7 +10,7 @@
             },
             {
                 "type": "p",
-                "texte": "Contrôle d'accès basé sur les rôles (RBAC) — socle du chap. 11.2 du CdCF, amendable. C = accès complet, L = lecture seule, — = aucun accès."
+                "texte": "Contrôle d'accès basé sur les rôles (RBAC) — socle amendable. C = accès complet, L = lecture seule, — = aucun accès."
             },
             {
                 "type": "button",

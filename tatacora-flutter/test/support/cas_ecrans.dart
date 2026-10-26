@@ -60,6 +60,7 @@ import 'package:tatacora_flutter/core/di/providers.dart';
 import 'package:tatacora_flutter/core/rbac/garde_acces.dart';
 import 'package:tatacora_flutter/features/auth/domain/session.dart';
 import 'package:tatacora_flutter/features/comptabilite/presentation/ecran_comptabilite.dart';
+import 'package:tatacora_flutter/features/comptabilite/presentation/ecran_correspondance_comptes.dart';
 import 'package:tatacora_flutter/features/transverse/presentation/ecran_aide_a_propos.dart';
 import 'package:tatacora_flutter/features/transverse/presentation/ecran_contact_editeur.dart';
 import 'package:tatacora_flutter/features/transverse/presentation/ecran_import_export.dart';
@@ -378,6 +379,13 @@ final casEcrans = <CasEcran>[
     jeu: JeuEcran.parc,
     droits: _droitsAdministrateur,
     ecran: () => const EcranComptabilite(),
+    surcharges: _sessionAdministrateur,
+  ),
+  CasEcran(
+    vue: 'comptabilite/correspondance-comptes',
+    jeu: JeuEcran.parc,
+    droits: _droitsAdministrateur,
+    ecran: () => const EcranCorrespondanceComptes(),
     surcharges: _sessionAdministrateur,
   ),
   CasEcran(

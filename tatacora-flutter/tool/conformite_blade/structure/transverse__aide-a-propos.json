@@ -30,14 +30,6 @@
             },
             {
                 "type": "p",
-                "texte": "Version du prototype"
-            },
-            {
-                "type": "p",
-                "texte": "Maquette de référence v2.0 — 18/08/2026"
-            },
-            {
-                "type": "p",
                 "texte": "Maîtrise d'œuvre"
             },
             {
@@ -166,7 +158,7 @@
             },
             {
                 "type": "p",
-                "texte": "Indicateurs consolidés de toute l'exploitation. Les intitulés disent ce qui est réellement calculé — « encaissé », pas « payé »."
+                "texte": "Indicateurs consolidés de toute l'exploitation."
             },
             {
                 "type": "p",
@@ -178,7 +170,7 @@
             },
             {
                 "type": "p",
-                "texte": "Modèles de messages WhatsApp, e-mail et Android, et leurs déclencheurs. L'envoi effectif dépend d'une API non encore contractée."
+                "texte": "Modèles de messages WhatsApp, e-mail et Android, et leurs déclencheurs."
             },
             {
                 "type": "p",
@@ -190,7 +182,7 @@
             },
             {
                 "type": "p",
-                "texte": "Employés, planning, congés et bulletins. CNSS, ITS et VPS calculés ; la part de charge patronale non confirmée est refusée, pas estimée."
+                "texte": "Employés, planning, congés et bulletins. CNSS, ITS et VPS calculés."
             },
             {
                 "type": "p",
@@ -214,7 +206,7 @@
             },
             {
                 "type": "p",
-                "texte": "Matrice des droits par module et par rôle. Trois niveaux : masquage de l'interface, contrôle serveur, filtrage en base."
+                "texte": "Matrice des droits par module et par rôle. Trois niveaux : masquage de l'interface, contrôle à l'enregistrement, filtrage des données."
             },
             {
                 "type": "p",
@@ -362,7 +354,7 @@
             },
             {
                 "type": "p",
-                "texte": "Sur ce prototype, dans le navigateur du poste (localStorage) — c'est une maquette de démonstration, pas un environnement de production. L'application réelle stocke sur un serveur MySQL, avec sauvegarde quotidienne automatique. Ne saisissez aucune donnée client réelle dans le prototype."
+                "texte": "Sur le serveur de l'entreprise (base MySQL), avec une sauvegarde automatique quotidienne."
             },
             {
                 "type": "h2",

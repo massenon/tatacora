@@ -331,6 +331,9 @@ void main() {
       // « Congés & Plannings » (21/10/2026) : mesurée en emplacement ; relevé
       // de géométrie à capturer dans le navigateur de la Phase 1D.
       'rh/conges-plannings',
+      // « Correspondance des comptes » (26/10/2026) : mesurée en emplacement ;
+      // relevé de géométrie à capturer dans le navigateur de la Phase 1D.
+      'comptabilite/correspondance-comptes',
     };
     final manquantes = [
       for (final cas in casEcrans)

@@ -266,7 +266,7 @@
             },
             {
                 "type": "h3",
-                "texte": "Canaux de notification (Module M12)"
+                "texte": "Canaux de notification"
             },
             {
                 "type": "p",
@@ -282,27 +282,11 @@
             },
             {
                 "type": "p",
-                "texte": "Clé API WhatsApp Business"
-            },
-            {
-                "type": "p",
-                "texte": "Secret technique : n'entrera jamais dans les paramètres système, lisibles par tout profil ayant accès à cet écran — il vit en configuration serveur."
-            },
-            {
-                "type": "p",
                 "texte": "Site web"
             },
             {
                 "type": "button",
                 "texte": "Modifier"
-            },
-            {
-                "type": "p",
-                "texte": "Message de bienvenue (notifications automatiques)"
-            },
-            {
-                "type": "p",
-                "texte": "Porté par les modèles du module Notifications (un texte par évènement et par canal) : une seconde source de texte ici finirait par diverger de la première."
             }
         ],
         "email": [
@@ -431,7 +415,7 @@
             },
             {
                 "type": "p",
-                "texte": "Secret technique : n'entre jamais dans les paramètres système. Rangé chiffré sur le serveur, il n'est jamais réaffiché, exporté ni synchronisé ; sans lui, la configuration serveur (.env) s'applique. L'envoi de test ci-dessous l'emprunte réellement."
+                "texte": "Le mot de passe est enregistré chiffré sur le serveur : il n'est jamais réaffiché. Sans lui, la configuration du serveur s'applique. L'envoi de test ci-dessous l'emprunte réellement."
             },
             {
                 "type": "button",
@@ -524,7 +508,7 @@
             },
             {
                 "type": "p",
-                "texte": "Couleurs de la charte graphique (lecture seule — chap. 9.3.1 du CdCF)"
+                "texte": "Couleurs de la charte graphique (lecture seule)"
             },
             {
                 "type": "span",
@@ -879,10 +863,6 @@
             },
             {
                 "type": "p",
-                "texte": "Servi par le registre serveur — le maître ne pose pas de champ dédié pour ce groupe sous cet onglet, et le masquer ailleurs rendrait ses réglages invisibles."
-            },
-            {
-                "type": "p",
                 "texte": "CNSS part salariale (%)"
             },
             {
@@ -932,10 +912,6 @@
             {
                 "type": "h3",
                 "texte": "Exploitation"
-            },
-            {
-                "type": "p",
-                "texte": "Servi par le registre serveur — le maître ne pose pas de champ dédié pour ce groupe sous cet onglet, et le masquer ailleurs rendrait ses réglages invisibles."
             },
             {
                 "type": "p",

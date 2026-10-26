@@ -278,6 +278,13 @@ final class ExtraireStructureBladeTest extends TestCase
             ],
             'jeu' => 'parc',
         ],
+        // Correspondance des comptes (26/10/2026) : la vue ouverte depuis l'onglet
+        // Plan du hub, rôle -> compte comptable modifiable.
+        'comptabilite/correspondance-comptes' => [
+            'url' => '/pwa/comptabilite/correspondance-comptes',
+            'variantes' => ['principal' => ''],
+            'jeu' => 'parc',
+        ],
         'transverse/aide-a-propos' => [
             'url' => '/pwa/aide-a-propos',
             'variantes' => ['principal' => ''],

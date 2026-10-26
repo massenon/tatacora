@@ -86,7 +86,7 @@
             },
             {
                 "type": "p",
-                "texte": "Le modèle porte les colonnes exactes et une ligne d'exemple. Il est généré depuis la même déclaration que le contrôle : il ne peut pas s'en écarter. Ouvrez-le dans Excel, remplacez la ligne d'exemple par vos données, conservez la ligne d'en-tête, puis enregistrez en ."
+                "texte": "Le modèle porte les colonnes exactes et une ligne d'exemple. Ouvrez-le dans Excel, remplacez la ligne d'exemple par vos données, conservez la ligne d'en-tête, puis enregistrez en ."
             },
             {
                 "type": "h2",
@@ -177,6 +177,10 @@
             {
                 "type": "p",
                 "texte": "Tables en base"
+            },
+            {
+                "type": "p",
+                "texte": "102"
             },
             {
                 "type": "p",

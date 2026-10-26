@@ -45,10 +45,6 @@
                 "texte": "Actif"
             },
             {
-                "type": "p",
-                "texte": "L'adresse IP affichée est celle relevée par le poste. Sur l'application réelle elle vient du serveur : une adresse déclarée par le navigateur ne prouve rien et ne doit jamais servir de contrôle d'accès."
-            },
-            {
                 "type": "h2",
                 "texte": "Informations personnelles"
             },
@@ -65,16 +61,8 @@
                 "texte": "Email"
             },
             {
-                "type": "p",
-                "texte": "Non porté par le schéma. ex. nom@tatacora.com"
-            },
-            {
                 "type": "label",
                 "texte": "Téléphone"
-            },
-            {
-                "type": "p",
-                "texte": "Non porté par le schéma. +229 01 XX XX XX XX"
             },
             {
                 "type": "label",

@@ -403,7 +403,7 @@
             },
             {
                 "type": "span",
-                "texte": "Le stock affiché est celui d'aujourd'hui, jamais celui du jour de la vente : aucune table n'en garde la trace."
+                "texte": "Le stock affiché est celui d'aujourd'hui, jamais celui du jour de la vente."
             },
             {
                 "type": "th",
@@ -451,7 +451,7 @@
             },
             {
                 "type": "span",
-                "texte": "Somme des lignes validées affichées ci-dessus. Une vente annulée reste au registre (RG-02) mais son montant n'est pas de l'argent."
+                "texte": "Somme des lignes validées affichées ci-dessus. Une vente annulée reste au registre mais son montant n'est pas compté."
             },
             {
                 "type": "td",

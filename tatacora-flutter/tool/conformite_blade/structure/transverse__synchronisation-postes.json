@@ -21,6 +21,18 @@
                 "texte": "Demander la synchronisation des postes"
             },
             {
+                "type": "button",
+                "texte": "Postes"
+            },
+            {
+                "type": "button",
+                "texte": "Réception"
+            },
+            {
+                "type": "button",
+                "texte": "Envoi"
+            },
+            {
                 "type": "p",
                 "texte": "Aucune demande de synchronisation n'a encore été faite depuis le serveur."
             },

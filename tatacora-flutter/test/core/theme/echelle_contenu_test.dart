@@ -329,6 +329,11 @@ void main() {
     // dans le `<main>` de `comptabilite/hub` ; leurs modales sont dans
     // `modales_hub_comptabilite.dart`, classé dans l'autre camp.
     'lib/features/comptabilite/presentation/widgets/onglets_plan_clotures.dart',
+    // Écran « Correspondance des comptes » et onglet « Clôtures » du poste
+    // (26/10/2026) : corps de page, dans le `<main>` de leur vue
+    // (`comptabilite/correspondance-comptes`, `comptabilite/hub`).
+    'lib/features/comptabilite/presentation/ecran_correspondance_comptes.dart',
+    'lib/features/comptabilite/presentation/widgets/onglet_clotures.dart',
     // Onglet « Immobilisations » (21/10/2026) : corps de page, dans le `<main>`
     // de `comptabilite/hub` ; ses modales sont dans `modales_immobilisations.dart`.
     'lib/features/comptabilite/presentation/widgets/onglet_immobilisations.dart',

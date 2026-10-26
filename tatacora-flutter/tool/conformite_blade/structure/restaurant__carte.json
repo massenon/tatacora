@@ -125,7 +125,7 @@
             },
             {
                 "type": "p",
-                "texte": "Décrémenter un « Poulet DG » suppose une (EF-M4-02) indiquant combien de grammes de poulet, d'huile et d'oignon partent à chaque assiette. 0 article(s) sur 0 ne décrémentent rien à la vente. La valeur du stock affichée est donc surévaluée, et l'écart apparaîtra à l'inventaire. Un plat peut néanmoins être rattaché à la main lorsqu'il correspond à un article unique — une bouteille d'eau servie à table, par exemple."
+                "texte": "Décrémenter un « Poulet DG » suppose une indiquant combien de grammes de poulet, d'huile et d'oignon partent à chaque assiette. 0 article(s) sur 0 ne décrémentent rien à la vente. La valeur du stock affichée est donc surévaluée, et l'écart apparaîtra à l'inventaire. Un plat peut néanmoins être rattaché à la main lorsqu'il correspond à un article unique — une bouteille d'eau servie à table, par exemple."
             },
             {
                 "type": "p",
@@ -258,7 +258,7 @@
             },
             {
                 "type": "p",
-                "texte": "Décrémenter un « Poulet DG » suppose une (EF-M4-02) indiquant combien de grammes de poulet, d'huile et d'oignon partent à chaque assiette. 0 article(s) sur 0 ne décrémentent rien à la vente. La valeur du stock affichée est donc surévaluée, et l'écart apparaîtra à l'inventaire. Un plat peut néanmoins être rattaché à la main lorsqu'il correspond à un article unique — une bouteille d'eau servie à table, par exemple."
+                "texte": "Décrémenter un « Poulet DG » suppose une indiquant combien de grammes de poulet, d'huile et d'oignon partent à chaque assiette. 0 article(s) sur 0 ne décrémentent rien à la vente. La valeur du stock affichée est donc surévaluée, et l'écart apparaîtra à l'inventaire. Un plat peut néanmoins être rattaché à la main lorsqu'il correspond à un article unique — une bouteille d'eau servie à table, par exemple."
             },
             {
                 "type": "p",
@@ -511,7 +511,7 @@
             },
             {
                 "type": "p",
-                "texte": "Décrémenter un « Poulet DG » suppose une (EF-M4-02) indiquant combien de grammes de poulet, d'huile et d'oignon partent à chaque assiette. 0 article(s) sur 0 ne décrémentent rien à la vente. La valeur du stock affichée est donc surévaluée, et l'écart apparaîtra à l'inventaire. Un plat peut néanmoins être rattaché à la main lorsqu'il correspond à un article unique — une bouteille d'eau servie à table, par exemple."
+                "texte": "Décrémenter un « Poulet DG » suppose une indiquant combien de grammes de poulet, d'huile et d'oignon partent à chaque assiette. 0 article(s) sur 0 ne décrémentent rien à la vente. La valeur du stock affichée est donc surévaluée, et l'écart apparaîtra à l'inventaire. Un plat peut néanmoins être rattaché à la main lorsqu'il correspond à un article unique — une bouteille d'eau servie à table, par exemple."
             },
             {
                 "type": "p",
@@ -543,7 +543,7 @@
             },
             {
                 "type": "span",
-                "texte": "Le stock affiché est celui d'aujourd'hui, jamais celui du jour de la vente : aucune table n'en garde la trace."
+                "texte": "Le stock affiché est celui d'aujourd'hui, jamais celui du jour de la vente."
             },
             {
                 "type": "th",
@@ -591,7 +591,7 @@
             },
             {
                 "type": "span",
-                "texte": "Somme des lignes validées affichées ci-dessus. Une vente annulée reste au registre (RG-02) mais son montant n'est pas de l'argent."
+                "texte": "Somme des lignes validées affichées ci-dessus. Une vente annulée reste au registre mais son montant n'est pas compté."
             },
             {
                 "type": "td",

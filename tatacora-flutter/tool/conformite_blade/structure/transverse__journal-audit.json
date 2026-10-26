@@ -10,7 +10,7 @@
             },
             {
                 "type": "p",
-                "texte": "Traçabilité intégrale de toute action sensible — utilisateur, action, entité concernée, date et heure (, chap. 11.4 du CdCF)"
+                "texte": "Traçabilité intégrale de toute action sensible — utilisateur, action, entité concernée, date et heure"
             },
             {
                 "type": "champ",
@@ -54,59 +54,15 @@
             },
             {
                 "type": "td",
-                "texte": "Client : KORA"
-            },
-            {
-                "type": "td",
-                "texte": "15/10/2026"
-            },
-            {
-                "type": "td",
-                "texte": "04:40:08"
-            },
-            {
-                "type": "td",
-                "texte": "127.0.0.1"
-            },
-            {
-                "type": "span",
-                "texte": "Création"
-            },
-            {
-                "type": "td",
                 "texte": "Client : KORA Jean"
             },
             {
                 "type": "td",
-                "texte": "15/10/2026"
+                "texte": "26/10/2026"
             },
             {
                 "type": "td",
-                "texte": "04:40:08"
-            },
-            {
-                "type": "td",
-                "texte": "127.0.0.1"
-            },
-            {
-                "type": "span",
-                "texte": "Création"
-            },
-            {
-                "type": "td",
-                "texte": "unites_hebergement :"
-            },
-            {
-                "type": "span",
-                "texte": "01a13ddc-475f-7130-951d-f96d3a954a82"
-            },
-            {
-                "type": "td",
-                "texte": "15/10/2026"
-            },
-            {
-                "type": "td",
-                "texte": "04:40:08"
+                "texte": "14:53:54"
             },
             {
                 "type": "td",
@@ -122,15 +78,59 @@
             },
             {
                 "type": "span",
-                "texte": "01a13ddc-4761-738f-bcbf-caf478e780cb"
+                "texte": "01a178b4-23d5-70e8-ab7b-0142aaacc92b"
             },
             {
                 "type": "td",
-                "texte": "15/10/2026"
+                "texte": "26/10/2026"
             },
             {
                 "type": "td",
-                "texte": "04:40:08"
+                "texte": "14:53:54"
+            },
+            {
+                "type": "td",
+                "texte": "127.0.0.1"
+            },
+            {
+                "type": "span",
+                "texte": "Création"
+            },
+            {
+                "type": "td",
+                "texte": "unites_hebergement :"
+            },
+            {
+                "type": "span",
+                "texte": "01a178b4-23d9-730a-aa2f-d7f762372ae6"
+            },
+            {
+                "type": "td",
+                "texte": "26/10/2026"
+            },
+            {
+                "type": "td",
+                "texte": "14:53:54"
+            },
+            {
+                "type": "td",
+                "texte": "127.0.0.1"
+            },
+            {
+                "type": "span",
+                "texte": "Création"
+            },
+            {
+                "type": "td",
+                "texte": "Client : KORA"
+            },
+            {
+                "type": "td",
+                "texte": "26/10/2026"
+            },
+            {
+                "type": "td",
+                "texte": "14:53:53"
             },
             {
                 "type": "td",
@@ -138,7 +138,7 @@
             },
             {
                 "type": "p",
-                "texte": "🔒 Ce journal est en lecture seule pour tous les profils, y compris l'Administrateur, conformément au chap. 11.4 du CdCF."
+                "texte": "🔒 Ce journal est en lecture seule pour tous les profils, y compris l'Administrateur."
             },
             {
                 "type": "p",

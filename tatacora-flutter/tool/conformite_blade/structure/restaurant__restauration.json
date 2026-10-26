@@ -291,7 +291,7 @@
             },
             {
                 "type": "td",
-                "texte": "Aucun menu n'existe encore. Le bouton « Nouveau menu » en crée un : sans lui, aucun plat ne peut être enregistré (`plats.menu_id` est obligatoire)."
+                "texte": "Aucun menu n'existe encore. Le bouton « Nouveau menu » en crée un : sans lui, aucun plat ne peut être enregistré."
             },
             {
                 "type": "span",

@@ -1,8 +1,8 @@
 {
   "_lisez-moi": "PRODUIT par FIGER_EMPLACEMENT=1 flutter test test/core/qualite/emplacement_blade_test.dart. Éléments de la vue bien placés, par écran. Le test échoue sur un recul et sur un progrès non resserré.",
   "crm/clients-creances": {
-    "blade": 79,
-    "ordonnes": 67,
+    "blade": 127,
+    "ordonnes": 103,
     "ongletsNonCliquables": 0
   },
   "hebergement/hebergement": {
@@ -16,18 +16,18 @@
     "ongletsNonCliquables": 0
   },
   "pos/comptant": {
-    "blade": 43,
+    "blade": 41,
     "ordonnes": 13,
     "ongletsNonCliquables": 0
   },
   "pos/heberges": {
-    "blade": 20,
+    "blade": 19,
     "ordonnes": 14,
     "ongletsNonCliquables": 0
   },
   "pos/historique-ventes": {
-    "blade": 32,
-    "ordonnes": 15,
+    "blade": 36,
+    "ordonnes": 18,
     "ongletsNonCliquables": 0
   },
   "facturation/facturation": {
@@ -41,13 +41,13 @@
     "ongletsNonCliquables": 0
   },
   "notifications/hub": {
-    "blade": 136,
-    "ordonnes": 108,
+    "blade": 134,
+    "ordonnes": 106,
     "ongletsNonCliquables": 0
   },
   "rh/paie": {
     "blade": 145,
-    "ordonnes": 126,
+    "ordonnes": 127,
     "ongletsNonCliquables": 0
   },
   "livewire/connexion": {
@@ -97,26 +97,26 @@
   },
   "bar/carte": {
     "blade": 63,
-    "ordonnes": 47,
+    "ordonnes": 48,
     "ongletsNonCliquables": 0
   },
   "restaurant/carte": {
     "blade": 84,
-    "ordonnes": 41,
+    "ordonnes": 42,
     "ongletsNonCliquables": 0
   },
   "etats/studio": {
-    "blade": 29,
-    "ordonnes": 26,
+    "blade": 28,
+    "ordonnes": 27,
     "ongletsNonCliquables": 0
   },
   "transverse/parametres": {
-    "blade": 150,
-    "ordonnes": 107,
+    "blade": 144,
+    "ordonnes": 106,
     "ongletsNonCliquables": 1
   },
   "livewire/accueil": {
-    "blade": 301,
+    "blade": 300,
     "ordonnes": 142,
     "ongletsNonCliquables": 0
   },
@@ -126,8 +126,8 @@
     "ongletsNonCliquables": 0
   },
   "transverse/aide-a-propos": {
-    "blade": 100,
-    "ordonnes": 66,
+    "blade": 98,
+    "ordonnes": 64,
     "ongletsNonCliquables": 0
   },
   "transverse/contact-editeur": {
@@ -136,7 +136,7 @@
     "ongletsNonCliquables": 0
   },
   "transverse/import-export": {
-    "blade": 64,
+    "blade": 65,
     "ordonnes": 37,
     "ongletsNonCliquables": 0
   },
@@ -146,23 +146,28 @@
     "ongletsNonCliquables": 0
   },
   "transverse/mon-profil": {
-    "blade": 31,
-    "ordonnes": 22,
+    "blade": 28,
+    "ordonnes": 21,
     "ongletsNonCliquables": 0
   },
   "transverse/roles-permissions": {
     "blade": 110,
-    "ordonnes": 70,
+    "ordonnes": 71,
     "ongletsNonCliquables": 0
   },
   "transverse/synchronisation-postes": {
-    "blade": 16,
+    "blade": 19,
     "ordonnes": 13,
     "ongletsNonCliquables": 0
   },
   "rh/conges-plannings": {
     "blade": 34,
     "ordonnes": 29,
+    "ongletsNonCliquables": 0
+  },
+  "comptabilite/correspondance-comptes": {
+    "blade": 134,
+    "ordonnes": 77,
     "ongletsNonCliquables": 0
   }
 }

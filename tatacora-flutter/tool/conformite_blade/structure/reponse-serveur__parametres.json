@@ -290,6 +290,141 @@
                 "choix": [],
                 "aide": "Affiche les stocks critiques et les créances échues dès la connexion.",
                 "valeur": null
+            },
+            {
+                "cle": "compte_produit_prestations",
+                "groupe": "comptes",
+                "libelle": "Compte — Produits du restaurant",
+                "type": "texte",
+                "choix": [],
+                "aide": "Crédité par une vente du restaurant au comptoir. Vide : le compte par défaut (7061). Vaut pour les pièces futures, jamais pour une pièce déjà passée.",
+                "valeur": null
+            },
+            {
+                "cle": "compte_produit_marchandises",
+                "groupe": "comptes",
+                "libelle": "Compte — Produits du bar",
+                "type": "texte",
+                "choix": [],
+                "aide": "Crédité par une vente de boissons au comptoir. Vide : le compte par défaut (7011). Vaut pour les pièces futures, jamais pour une pièce déjà passée.",
+                "valeur": null
+            },
+            {
+                "cle": "compte_produit_locations",
+                "groupe": "comptes",
+                "libelle": "Compte — Produits de la location de véhicules",
+                "type": "texte",
+                "choix": [],
+                "aide": "Crédité par une location encaissée au comptoir. Vide : le compte par défaut (7073). Vaut pour les pièces futures, jamais pour une pièce déjà passée.",
+                "valeur": null
+            },
+            {
+                "cle": "compte_produit_circuits",
+                "groupe": "comptes",
+                "libelle": "Compte — Produits du tourisme, circuits",
+                "type": "texte",
+                "choix": [],
+                "aide": "Crédité par un circuit encaissé au comptoir. Vide : le compte par défaut (7061). Vaut pour les pièces futures, jamais pour une pièce déjà passée.",
+                "valeur": null
+            },
+            {
+                "cle": "compte_tva_facturee_biens",
+                "groupe": "comptes",
+                "libelle": "Compte — TVA facturée sur les ventes de biens (bar)",
+                "type": "texte",
+                "choix": [],
+                "aide": "Crédité par la part de TVA d’une vente de boissons ; lu par la déclaration de TVA. Vide : le compte par défaut (4431). Vaut pour les pièces futures, jamais pour une pièce déjà passée.",
+                "valeur": null
+            },
+            {
+                "cle": "compte_tva_facturee_prestations",
+                "groupe": "comptes",
+                "libelle": "Compte — TVA facturée sur les prestations (restaurant, location, tourisme)",
+                "type": "texte",
+                "choix": [],
+                "aide": "Crédité par la part de TVA d’une prestation de services ; lu par la déclaration de TVA. Vide : le compte par défaut (4432). Vaut pour les pièces futures, jamais pour une pièce déjà passée.",
+                "valeur": null
+            },
+            {
+                "cle": "compte_tva_recuperable_achats",
+                "groupe": "comptes",
+                "libelle": "Compte — TVA récupérable sur les achats",
+                "type": "texte",
+                "choix": [],
+                "aide": "Lu par la déclaration de TVA, au titre de la TVA déductible. Vide : le compte par défaut (4452). Vaut pour les pièces futures, jamais pour une pièce déjà passée.",
+                "valeur": null
+            },
+            {
+                "cle": "compte_caisse",
+                "groupe": "comptes",
+                "libelle": "Compte — Caisse",
+                "type": "texte",
+                "choix": [],
+                "aide": "Trésorerie des règlements en espèces. Vide : le compte par défaut (5711). Vaut pour les pièces futures, jamais pour une pièce déjà passée.",
+                "valeur": null
+            },
+            {
+                "cle": "compte_banque",
+                "groupe": "comptes",
+                "libelle": "Compte — Banque",
+                "type": "texte",
+                "choix": [],
+                "aide": "Trésorerie des règlements par carte, virement ou chèque. Vide : le compte par défaut (5211). Vaut pour les pièces futures, jamais pour une pièce déjà passée.",
+                "valeur": null
+            },
+            {
+                "cle": "compte_mobile_money",
+                "groupe": "comptes",
+                "libelle": "Compte — Mobile Money",
+                "type": "texte",
+                "choix": [],
+                "aide": "Trésorerie des règlements par Mobile Money. Vide : le compte par défaut (552). Vaut pour les pièces futures, jamais pour une pièce déjà passée.",
+                "valeur": null
+            },
+            {
+                "cle": "compte_clients",
+                "groupe": "comptes",
+                "libelle": "Compte — Clients",
+                "type": "texte",
+                "choix": [],
+                "aide": "Débité par une vente portée sur la note de chambre, crédité par l’encaissement d’une facture. Vide : le compte par défaut (4111). Vaut pour les pièces futures, jamais pour une pièce déjà passée.",
+                "valeur": null
+            },
+            {
+                "cle": "compte_fournisseurs",
+                "groupe": "comptes",
+                "libelle": "Compte — Fournisseurs",
+                "type": "texte",
+                "choix": [],
+                "aide": "Débité par le règlement d’une commande fournisseur. Vide : le compte par défaut (4011). Vaut pour les pièces futures, jamais pour une pièce déjà passée.",
+                "valeur": null
+            },
+            {
+                "cle": "compte_avances_clients",
+                "groupe": "comptes",
+                "libelle": "Compte — Avances et acomptes clients",
+                "type": "texte",
+                "choix": [],
+                "aide": "Crédité par l’acompte d’une réservation, débité par son remboursement. Vide : le compte par défaut (4191). Vaut pour les pièces futures, jamais pour une pièce déjà passée.",
+                "valeur": null
+            },
+            {
+                "cle": "compte_resultat_benefice",
+                "groupe": "comptes",
+                "libelle": "Compte — Résultat net : bénéfice",
+                "type": "texte",
+                "choix": [],
+                "aide": "Crédité par la clôture d’un exercice qui dégage un bénéfice. Vide : le compte par défaut (131). Vaut pour les pièces futures, jamais pour une pièce déjà passée.",
+                "valeur": null
+            },
+            {
+                "cle": "compte_resultat_perte",
+                "groupe": "comptes",
+                "libelle": "Compte — Résultat net : perte",
+                "type": "texte",
+                "choix": [],
+                "aide": "Débité par la clôture d’un exercice qui dégage une perte. Vide : le compte par défaut (139). Vaut pour les pièces futures, jamais pour une pièce déjà passée.",
+                "valeur": null
             }
         ],
         "etats": {
