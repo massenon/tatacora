@@ -45,6 +45,16 @@
       "classe": "a",
       "motif": "Modale « Historique des prix » : elle LIT la trace des changements de prix, que ce poste ne detient pas. Le bouton « Historique des prix » affiche « ne figurent pas sur ce poste », jamais une liste vide qui se lirait « aucun changement ». A rouvrir avec la source de M4. Voir ecran_carte_restaurant.dart.",
       "date": "2026-10-09"
+    },
+    "transverse/import-export|restaurer": {
+      "classe": "a",
+      "motif": "Restauration depuis un REGISTRE d'archives central : le poste n'en tient pas ; l'archivage y est un drapeau `actif` de chaque module (articles, clients, fournisseurs) et se restaure depuis l'ecran de ce module (bouton « Restaurer »). Voir ecran_import_export.dart.",
+      "date": "2026-10-26"
+    },
+    "transverse/import-export|modale:import_export.purge_titre": {
+      "classe": "a",
+      "motif": "Purge definitive d'un registre d'archives que le poste ne tient pas (voir restaurer) : rien n'y est supprime, un element archive reste restaurable dans son module. Voir ecran_import_export.dart.",
+      "date": "2026-10-26"
     }
   },
   "oublis": {

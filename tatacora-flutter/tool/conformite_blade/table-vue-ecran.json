@@ -1,6 +1,6 @@
 {
   "_lisez-moi": "PRODUIT par --figer-dette. Vue Blade -> fichiers Flutter qui la CITENT (seul ancrage). Un tableau vide = vue sans ecran.",
-  "_regenere-le": "2026-10-21",
+  "_regenere-le": "2026-10-26",
   "vues": {
     "achats/achats": [
       "core/theme/app_spacing.dart",
@@ -28,6 +28,8 @@
       "features/achats/presentation/geste_reglement.dart",
       "features/achats/presentation/providers_achats.dart",
       "features/achats/presentation/widgets/bandeaux_appro.dart",
+      "features/achats/presentation/widgets/modale_commande.dart",
+      "features/achats/presentation/widgets/modale_reception.dart",
       "features/achats/presentation/widgets/modale_reglement.dart",
       "features/achats/presentation/widgets/vue_besoins.dart",
       "features/achats/presentation/widgets/vue_dettes.dart",
@@ -41,6 +43,7 @@
       "features/bar/presentation/widgets/barre_exports_carte.dart",
       "features/bar/presentation/widgets/modale_historique_prix.dart",
       "features/bar/presentation/widgets/modale_lien_stock.dart",
+      "features/bar/presentation/widgets/modale_modifier_boisson.dart",
       "features/bar/presentation/widgets/modale_nouvelle_boisson.dart",
       "features/bar/presentation/widgets/modale_prix_boisson.dart",
       "features/bar/presentation/widgets/modale_retrait_carte.dart",
@@ -57,19 +60,37 @@
     "comptabilite/flux-tresorerie": [],
     "comptabilite/grand-livre": [],
     "comptabilite/hub": [
-      "features/comptabilite/presentation/ecran_comptabilite.dart"
+      "features/comptabilite/data/immobilisations_dao.dart",
+      "features/comptabilite/presentation/ecran_comptabilite.dart",
+      "features/comptabilite/presentation/widgets/modale_ecriture.dart",
+      "features/comptabilite/presentation/widgets/modales_hub_comptabilite.dart",
+      "features/comptabilite/presentation/widgets/modales_immobilisations.dart",
+      "features/comptabilite/presentation/widgets/onglet_immobilisations.dart",
+      "shared_widgets/modale_export.dart"
     ],
     "comptabilite/journal": [],
     "comptabilite/notes-annexes": [],
     "comptabilite/plan-comptable": [],
     "crm/clients-creances": [
+      "features/achats/presentation/widgets/modale_archivage_achats.dart",
+      "features/crm/data/archivage_clients.dart",
+      "features/crm/data/relances_clients_dao.dart",
       "features/crm/domain/entities/client.dart",
       "features/crm/domain/entities/registre_clients.dart",
+      "features/crm/domain/entities/relance.dart",
+      "features/crm/domain/historique_client.dart",
+      "features/crm/domain/messages_archivage_client.dart",
+      "features/crm/domain/messages_relance.dart",
+      "features/crm/domain/regles_relance.dart",
+      "features/crm/impression/releve_client.dart",
       "features/crm/presentation/ecran_clients.dart",
       "features/crm/presentation/widgets/barre_exports_clients.dart",
+      "features/crm/presentation/widgets/modale_historique_client.dart",
       "features/crm/presentation/widgets/modale_nouveau_client.dart",
       "features/crm/presentation/widgets/modale_recouvrement.dart",
+      "features/crm/presentation/widgets/modale_relance.dart",
       "features/crm/presentation/widgets/table_clients.dart",
+      "features/facturation/domain/messages_encaissement.dart",
       "shared_widgets/modale_export.dart"
     ],
     "demarrage": [
@@ -94,6 +115,7 @@
     "facturation/facturation": [
       "features/facturation/impression/etat_registre_factures.dart",
       "features/facturation/presentation/ecran_facturation.dart",
+      "features/facturation/presentation/widgets/dialogue_avoir.dart",
       "shared_widgets/modale_export.dart",
       "shared_widgets/tableau_tatacora.dart"
     ],
@@ -104,6 +126,7 @@
       "features/hebergement/domain/refus_parc.dart",
       "features/hebergement/presentation/ecran_hebergement.dart",
       "features/hebergement/presentation/widgets/modale_archivage_unite.dart",
+      "features/hebergement/presentation/widgets/modale_reservation_rapide.dart",
       "features/hebergement/presentation/widgets/modale_unite.dart",
       "features/hebergement/presentation/widgets/vue_plan_hebergement.dart",
       "shared_widgets/modale_export.dart"
@@ -111,6 +134,7 @@
     "hebergement/reservations": [
       "core/database/app_database.dart",
       "core/database/tables/hebergement_tables.dart",
+      "features/crm/presentation/dialogue_nouveau_client.dart",
       "features/hebergement/domain/entities/fiche_reservation.dart",
       "features/hebergement/domain/entities/historique_reservations.dart",
       "features/hebergement/domain/entities/service_reservation.dart",
@@ -122,6 +146,7 @@
       "features/hebergement/presentation/panneau_historique.dart",
       "features/hebergement/presentation/widgets/carte_reservation.dart",
       "features/hebergement/presentation/widgets/dialogue_detail_reservation.dart",
+      "features/hebergement/presentation/widgets/dialogue_impression_reservation.dart",
       "features/hebergement/presentation/widgets/modale_annulation_reservation.dart",
       "features/hebergement/presentation/widgets/vue_services.dart",
       "shared_widgets/modale_export.dart"
@@ -142,7 +167,8 @@
       "features/tableau_de_bord/presentation/widgets/modales_rapides_accueil.dart",
       "features/tableau_de_bord/presentation/widgets/panneau_exploitation.dart",
       "features/tableau_de_bord/presentation/widgets/reservations_du_jour.dart",
-      "features/tableau_de_bord/presentation/widgets/traces_accueil.dart"
+      "features/tableau_de_bord/presentation/widgets/traces_accueil.dart",
+      "shared_widgets/modale_export.dart"
     ],
     "livewire/connexion": [
       "features/auth/presentation/ecran_connexion.dart"
@@ -162,9 +188,13 @@
       "features/caisse/presentation/widgets/barre_session_caisse.dart",
       "features/caisse/presentation/widgets/modale_cloture_caisse.dart",
       "features/caisse/presentation/widgets/modale_ouverture_caisse.dart",
+      "features/pos/domain/rupture_stock.dart",
       "features/pos/presentation/ecran_pos_comptant.dart",
+      "features/pos/presentation/rupture_comptoir.dart",
       "features/pos/presentation/vocabulaire_pos.dart",
-      "features/pos/presentation/widgets/vue_salle.dart"
+      "features/pos/presentation/widgets/modales_comptant.dart",
+      "features/pos/presentation/widgets/vue_salle.dart",
+      "features/ventes/impression/ticket_vente.dart"
     ],
     "pos/heberges": [
       "features/pos/presentation/ecran_pos_heberges.dart",
@@ -176,7 +206,9 @@
       "core/theme/app_text_styles.dart",
       "features/ventes/domain/entities/vente.dart",
       "features/ventes/impression/etat_journal_ventes.dart",
+      "features/ventes/impression/ticket_vente.dart",
       "features/ventes/presentation/ecran_historique_ventes.dart",
+      "features/ventes/presentation/widgets/barre_filtres_ventes.dart",
       "features/ventes/presentation/widgets/dialogue_detail_vente.dart",
       "shared_widgets/modale_export.dart",
       "shared_widgets/tableau_tatacora.dart"
@@ -187,6 +219,8 @@
       "shared_widgets/modale_export.dart"
     ],
     "restaurant/restauration": [
+      "features/achats/presentation/widgets/modale_archivage_achats.dart",
+      "features/restaurant/domain/messages_restaurant.dart",
       "features/restaurant/presentation/ecran_restauration.dart",
       "features/restaurant/presentation/widgets/modale_fiche.dart",
       "features/restaurant/presentation/widgets/modale_menu.dart",
@@ -221,10 +255,14 @@
     ],
     "stocks/inventaires": [
       "features/stocks/presentation/ecran_inventaires.dart",
+      "features/stocks/presentation/widgets/modales_inventaire.dart",
       "shared_widgets/modale_export.dart"
     ],
     "stocks/stocks": [
       "core/theme/app_spacing.dart",
+      "features/achats/presentation/widgets/modale_archivage_achats.dart",
+      "features/stocks/domain/entities/mouvement_stock.dart",
+      "features/stocks/domain/import_articles.dart",
       "features/stocks/presentation/ecran_stocks.dart",
       "features/stocks/presentation/widgets/coquille_modale_stock.dart",
       "features/stocks/presentation/widgets/modale_article.dart",
@@ -264,8 +302,15 @@
       "features/transverse/presentation/ecran_mon_profil.dart"
     ],
     "transverse/parametres": [
+      "features/hebergement/data/canaux_reservation_dao.dart",
       "features/parametres/domain/entities/parametre.dart",
-      "features/parametres/presentation/ecran_parametres.dart"
+      "features/parametres/presentation/ecran_parametres.dart",
+      "features/parametres/presentation/widgets/bouton_email_test.dart",
+      "features/parametres/presentation/widgets/champ_mot_de_passe_smtp.dart",
+      "features/parametres/presentation/widgets/champ_parametre.dart",
+      "features/parametres/presentation/widgets/onglet_apparence.dart",
+      "features/parametres/presentation/widgets/onglet_canaux.dart",
+      "features/parametres/presentation/widgets/onglet_espaces_tables.dart"
     ],
     "transverse/roles-permissions": [
       "features/transverse/presentation/ecran_roles_permissions.dart",
