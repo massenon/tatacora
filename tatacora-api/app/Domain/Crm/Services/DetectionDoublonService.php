@@ -109,7 +109,7 @@ class DetectionDoublonService
             ->implode(' ; ');
 
         return sprintf(
-            'Une fiche existante pourrait correspondre : %s. Vérifiez avant de créer un doublon (RG-18).',
+            'Une fiche existante pourrait correspondre : %s. Vérifiez avant de créer un doublon.',
             $noms,
         );
     }
