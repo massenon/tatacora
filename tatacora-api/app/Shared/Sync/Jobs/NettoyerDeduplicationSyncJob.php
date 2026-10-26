@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Shared\Sync\Jobs;
 
+use App\Shared\Sync\Services\JournalReceptionService;
 use App\Shared\Sync\Services\SynchronisationService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -23,8 +24,12 @@ class NettoyerDeduplicationSyncJob implements ShouldQueue
 {
     use Queueable;
 
-    public function handle(SynchronisationService $synchronisation): int
+    public function handle(SynchronisationService $synchronisation, ?JournalReceptionService $journal = null): int
     {
+        // Rétention bornée du journal de réception (26/10/2026) : purgé ici,
+        // à la suite de la mémoire d'idempotence — aucune tâche de plus.
+        ($journal ?? app(JournalReceptionService::class))->purger();
+
         return $synchronisation->purgerDeduplication();
     }
 }

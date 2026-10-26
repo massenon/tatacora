@@ -222,7 +222,7 @@ void main() {
       expect(valeurs(a), [
         '0.00', // CA encaissé : aucun encaissement dans la fenêtre — un zéro VRAI.
         '11.66 %', // 7 nuitées / (2 unités louables x 30 jours), tronqué.
-        '', // Dépenses cumulées : source partielle, « — » (voir le motif).
+        '8000.00', // Dépenses cumulées : les 8 000 F de la dépense du jeu, lus de ses pièces de classe 6.
         '2 / 4', // actifs / effectif retenu (le salarié parti n'en est pas).
       ]);
 
@@ -235,7 +235,7 @@ void main() {
         [l('taux_occupation'), '11.66', '3.33', '250.15 %'],
         // Le fond de la caisse ouverte par le jeu, identique aux deux périodes.
         [l('tresorerie_caisse'), '1000.00', '1000.00', '0.00 %'],
-        [l('depenses_cumulees'), '', '', ''],
+        [l('depenses_cumulees'), '8000.00', '0.00', '—'],
         // Une base précédente nulle ne produit pas « +100 % ».
         [l('reservations_en_attente'), '1', '0', '—'],
         [l('factures_impayees'), '0', '0', '—'],
@@ -244,13 +244,11 @@ void main() {
         [l('employes_actifs'), '2', '', '—'],
       ]);
 
-      // Une mention par indicateur sans source, avec sa raison DATÉE : il n'en
-      // reste qu'UNE (les dépenses cumulées). Les raisons du 10/10 et du 12/10
-      // sur l'argent encaissé sont tombées avec leur prémisse (lot 5).
+      // Toutes les sources du tableau sont détenues : aucune mention d'absence.
       final absents = a.mentions.where(
         (m) => m.startsWith('${l('depenses_cumulees')} : '),
       );
-      expect(absents.length, 1);
+      expect(absents, isEmpty);
       expect(a.mentions.any((m) => m.contains('constaté le')), isFalse);
       expect(a.mentions.any((m) => m.contains('aucun paiement')), isFalse);
     });
@@ -733,17 +731,21 @@ void main() {
       },
     );
 
-    test('balance : listée, jamais calculée, raison datée', () async {
-      final c = conteneur();
+    test('balance : CALCULÉE sur ce poste, aux mots du serveur', () async {
+      final a = await lire(conteneur(), 'balance');
 
-      final balance = await refuse(c, 'balance');
-      expect(balance.motif, isNot(contains('constaté le')));
-      expect(
-        balance.motif,
-        'La balance générale n\'est pas disponible dans cet état.',
-      );
-      expect(balance.titre, 'Balance générale');
-      expect(balance.moduleSource, 'M10');
+      expect(a.titre, startsWith('Balance générale — Exercice '));
+      expect(a.moduleSource, 'M10');
+      expect(a.periode, matches(RegExp(r'^Du 01/01/\d{4} au 31/12/\d{4}$')));
+      expect(libelles(a), serveur.etat('balance').indicateurs);
+      expect(a.entetes, serveur.etat('balance').entetes);
+      // Les deux égalités tiennent : une pièce équilibrée par construction.
+      expect(valeurs(a).last, 'Oui');
+      final debit = valeurs(a)[1];
+      final credit = valeurs(a)[2];
+      expect(debit, credit);
+      expect(a.lignes.length, int.parse(valeurs(a).first));
+      expect(a.mentions, contains('Écritures validées seulement.'));
     });
   });
 
@@ -885,7 +887,9 @@ void main() {
       test(
         'les dix états se calculent sur une base vide, sans ligne',
         () async {
-          for (final e in EtatLocal.values.where((e) => e.estCalculable)) {
+          for (final e in EtatLocal.values.where(
+            (e) => e.estCalculable && e != EtatLocal.balance,
+          )) {
             final a = await sur(e.code);
             // Le tableau de bord rend huit lignes d'indicateurs, pas des
             // enregistrements : il n'est pas une liste de la base.
@@ -1022,25 +1026,19 @@ void main() {
       );
     });
 
-    testWidgets('un état refusé dit sa raison, sans chiffre', (tester) async {
+    testWidgets('la balance générale est CALCULÉE : l’exercice, ses lignes', (
+      tester,
+    ) async {
       await monter(tester);
       await tester.tap(find.byKey(const Key('etats-entree-balance')));
       await tester.pumpAndSettle();
 
+      expect(find.byKey(const Key('etats-apercu-refuse')), findsNothing);
+      expect(find.byType(Table), findsWidgets);
       expect(
         texte(tester, const Key('etats-apercu-sous-ligne')),
-        '— · module source M10 · — ligne(s)',
+        startsWith('Du 01/01/'),
       );
-      expect(find.byKey(const Key('etats-apercu-refuse')), findsOne);
-      expect(
-        find.textContaining(
-          'La balance générale n\'est pas disponible dans cet état.',
-          findRichText: true,
-        ),
-        findsOne,
-      );
-      expect(find.byType(Table), findsNothing);
-      expect(find.byKey(const Key('etats-apercu-indicateurs')), findsNothing);
     });
   });
 }

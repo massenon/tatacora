@@ -431,15 +431,18 @@ final class _FiltreVentesNotifier extends Notifier<FiltreVentesBar> {
   );
 }
 
-/// La page de lignes, LUE AU SERVEUR à chaque changement de filtre — sans
-/// cache, comme l'historique des prix : une liste gardée d'une visite
-/// précédente ne dirait pas qu'elle date.
+/// La page de lignes, CALCULÉE sur les paniers du poste à chaque changement
+/// de filtre — sans cache : une liste gardée d'une visite précédente ne dirait
+/// pas qu'elle date.
 final ventesBarProvider =
-    FutureProvider.autoDispose<ResultatBar<PageVentesBar>>(
-      (ref) => ref
+    FutureProvider.autoDispose<ResultatBar<PageVentesBar>>((ref) {
+      // Les ventes se calculent sur les paniers du poste : une vente encaissée
+      // recompose l'onglet.
+      ref.watch(paniersProvider);
+      return ref
           .watch(boissonsApiProvider)
-          .ventes(ref.watch(filtreVentesBarProvider)),
-    );
+          .ventes(ref.watch(filtreVentesBarProvider));
+    });
 
 /// Recharge tout ce qui LIT le catalogue local, après une écriture.
 ///

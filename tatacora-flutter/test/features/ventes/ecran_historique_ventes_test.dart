@@ -8,6 +8,8 @@ import 'package:tatacora_flutter/core/database/app_database.dart';
 import 'package:tatacora_flutter/core/rbac/garde_acces.dart';
 import 'package:tatacora_flutter/core/di/providers.dart';
 import 'package:tatacora_flutter/core/format/formats.dart';
+import 'package:tatacora_flutter/core/navigation/trace_svg.dart';
+import 'package:tatacora_flutter/core/navigation/traces_titres.dart';
 import 'package:tatacora_flutter/core/theme/app_colors.dart';
 import 'package:tatacora_flutter/core/theme/app_theme.dart';
 import 'package:tatacora_flutter/features/caisse/data/sessions_caisse_dao.dart';
@@ -188,6 +190,26 @@ void main() {
 
   /* ================================================================== */
   group('Ce que l’écran dit de lui-même', () {
+    testWidgets('le titre est précédé de son icône (tracé de la vue)', (
+      tester,
+    ) async {
+      await monter(tester);
+
+      final icone = find.byKey(const Key('ventes-icone-titre'));
+      expect(icone, findsOneWidget);
+      expect(
+        tester.widget<IconeTrace>(icone).trace,
+        TraceIconesTitre.historiqueVentes,
+      );
+      expect(tester.getSize(icone), const Size(24, 24));
+      // L'icône est À GAUCHE du titre, sur la même ligne (`flex items-center`).
+      final titre = find.text('Historique des ventes');
+      expect(
+        tester.getTopLeft(icone).dx,
+        lessThan(tester.getTopLeft(titre).dx),
+      );
+    });
+
     testWidgets('il reprend le sous-titre du maître, au mot', (tester) async {
       await vente();
       await monter(tester);

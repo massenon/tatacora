@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/di/providers.dart';
 import '../../achats/presentation/providers_achats.dart';
+import '../../comptabilite/presentation/providers_etats_financiers.dart'
+    show lireDonneesEtats;
 import '../../depenses/presentation/providers_depenses.dart';
 import '../../facturation/presentation/providers_paiements.dart';
 import '../../hebergement/presentation/providers_hebergement.dart';
@@ -59,6 +61,7 @@ final sourcesEtatsProvider = Provider<SourcesEtats>(
         ref.read(livreDePaieServiceProvider).totaux(periode),
     clients: () => ref.read(clientDaoProvider).clients(),
     creances: () => lireCreances(ref.read),
+    donneesComptables: () => lireDonneesEtats(ref),
     maintenant: ref.watch(horlogeEtatsProvider),
   ),
 );

@@ -319,7 +319,7 @@ class CatalogueDescendantService
     /**
      * Une page du catalogue.
      *
-     * @return array{elements: list<array<string, mixed>>, correspondances: list<array<string, string>>, curseur: string, complet: bool}
+     * @return array{elements: list<array<string, mixed>>, correspondances: list<array<string, string>>, curseur: string, complet: bool, non_lisibles: list<string>}
      *
      * @throws InvalidArgumentException curseur illisible
      */
@@ -334,9 +334,12 @@ class CatalogueDescendantService
         $elements = [];
         $correspondances = [];
         $lisibles = [];
+        $nonLisibles = [];
 
         foreach (array_keys(self::COLONNES) as $table) {
             if (! $this->lisible($utilisateur, $table)) {
+                $nonLisibles[] = $table;
+
                 continue;
             }
 
@@ -412,7 +415,79 @@ class CatalogueDescendantService
             'correspondances' => $correspondances,
             'curseur' => $this->encoder($positions),
             'complet' => $complet,
+            // Journal d'envoi (26/10/2026) : les tables NON livrées faute de droit.
+            'non_lisibles' => $nonLisibles,
         ];
+    }
+
+    /**
+     * Combien d'éléments restent à livrer à ce poste APRÈS ce curseur, table
+     * par table — ce que l'onglet « Envoi » de la PWA montre comme « restent
+     * à livrer ». Lecture seule ; un curseur illisible compte depuis le début.
+     *
+     * @return array<string, int>
+     */
+    public function restants(User $utilisateur, string $posteId, ?string $curseur): array
+    {
+        try {
+            $positions = $this->decoder($curseur);
+        } catch (InvalidArgumentException) {
+            $positions = [];
+        }
+
+        $horizon = now()->subSeconds(self::HORIZON_SECONDES)->format('Y-m-d H:i:s');
+        $restants = [];
+
+        foreach (array_keys(self::COLONNES) as $table) {
+            if (! $this->lisible($utilisateur, $table)) {
+                continue;
+            }
+
+            $requete = $this->sansMiroirsDuPoste(
+                DB::table($table)
+                    ->when(isset(self::NON_NULS[$table]), fn (Builder $q): Builder => $q->whereNotNull(self::NON_NULS[$table]))
+                    ->when(isset(self::SEULEMENT[$table]), fn (Builder $q): Builder => $q->where(self::SEULEMENT[$table][0], self::SEULEMENT[$table][1])),
+                $table,
+                $posteId,
+            )->whereRaw(self::FILIGRANE . ' < ?', [$horizon]);
+
+            if (isset($positions[$table])) {
+                [$apres, $id] = $positions[$table];
+
+                $requete->where(static function (Builder $w) use ($apres, $id): void {
+                    $w->whereRaw(self::FILIGRANE . ' > ?', [$apres])
+                        ->orWhere(static function (Builder $egal) use ($apres, $id): void {
+                            $egal->whereRaw(self::FILIGRANE . ' = ?', [$apres])->where('id', '>', $id);
+                        });
+                });
+            }
+
+            $restants[$table] = $requete->count();
+        }
+
+        return $restants;
+    }
+
+    /**
+     * Les tables descendantes que ce compte ne lit pas (droit insuffisant),
+     * avec le nombre d'éléments qui existent et ne lui sont donc pas livrés.
+     *
+     * @return array<string, int>
+     */
+    public function nonLivrees(User $utilisateur): array
+    {
+        $manquantes = [];
+
+        foreach (array_keys(self::COLONNES) as $table) {
+            if (! $this->lisible($utilisateur, $table)) {
+                $manquantes[$table] = DB::table($table)
+                    ->when(isset(self::NON_NULS[$table]), fn (Builder $q): Builder => $q->whereNotNull(self::NON_NULS[$table]))
+                    ->when(isset(self::SEULEMENT[$table]), fn (Builder $q): Builder => $q->where(self::SEULEMENT[$table][0], self::SEULEMENT[$table][1]))
+                    ->count();
+            }
+        }
+
+        return $manquantes;
     }
 
     /**

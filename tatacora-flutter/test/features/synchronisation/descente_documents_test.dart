@@ -245,6 +245,32 @@ void main() {
     expect(reglement.data['poste_origine'], isNull, reason: 'saisi au serveur');
   });
 
+  test('un circuit de thème « autre » (registre du serveur) descend ; un '
+      'thème hors registre est refusé', () async {
+    final bilan = await descendre([
+      doc('circuits', 'circ-autre', {
+        'nom': 'Soirée contes',
+        'theme': 'autre',
+        'zone': 'Atacora',
+        'duree': 'Soirée',
+        'prix': '5000.00',
+        'capacite_max': 20,
+      }),
+      doc('circuits', 'circ-inconnu', {
+        'nom': 'Circuit gastronomique',
+        'theme': 'gastronomie',
+        'zone': 'Atacora',
+        'duree': 'Journée',
+        'prix': '5000.00',
+        'capacite_max': 20,
+      }),
+    ]);
+
+    expect(await ligne('circuits_local', 'circ-autre'), isNotNull);
+    expect(await ligne('circuits_local', 'circ-inconnu'), isNull);
+    expect(bilan.refuses, 1);
+  });
+
   test('la vente : un panier CLÔTURÉ de la session partagée — le théorique '
       'de la caisse la compte ; ses lignes et sa mention sont là', () async {
     await descendre(journee());

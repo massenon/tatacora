@@ -82,7 +82,7 @@
     @include('pwa.partials.menu-lateral')
 
     <main class="flex-1 overflow-y-auto">
-      <div class="max-w-[1600px] mx-auto p-5 lg:p-8">
+      <div class="max-w-[1440px] mx-auto p-5 lg:p-8">
 
         {{-- EN-TETE — maitre l.27-43 --}}
         <div class="mb-5 flex flex-wrap items-start justify-between gap-3">
@@ -684,7 +684,7 @@
         <div>
           <label class="block text-[13px] font-semibold text-slate-700 mb-1.5">{{ __('tourisme.pwa.champ_guide') }} <span class="text-red-500">*</span></label>
           @if ($guides->isEmpty())
-            <p class="text-[12px] text-amber-700">{{ __('tourisme.pwa.guide_aucun') }}</p>
+            <p class="text-[12px] text-amber-700 mb-1.5">{{ __('tourisme.pwa.guide_aucun') }}</p>
           @elseif ($guideImpose !== null)
             {{-- Le depart existe deja : son guide est IMPOSE. La liaison
                  `wire:model` est conservee — le champ n'est pas libre, il
@@ -698,6 +698,10 @@
                 <option value="{{ $g->id }}">{{ $g->nom }}</option>
               @endforeach
             </select>
+          @endif
+          @if ($guideImpose === null)
+            <button type="button" wire:click="ouvrirAjoutGuide"
+                    class="mt-1.5 text-[12px] font-semibold text-[var(--navy)] hover:underline">+ {{ __('tourisme.pwa.bouton_ajouter_guide') }}</button>
           @endif
           @error('guideIdResa') <p class="text-[12px] text-red-600 mt-1">{{ $message }}</p> @enderror
         </div>
@@ -740,6 +744,47 @@
                 class="text-[13px] px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50">{{ __('pwa.modale.annuler') }}</button>
         <button type="button" wire:click="enregistrerReservation" wire:loading.attr="disabled"
                 class="text-[13px] px-4 py-2 rounded-lg bg-[var(--navy)] text-white font-semibold hover:opacity-90">{{ __('tourisme.pwa.bouton_reserver') }}</button>
+      </x-slot:pied>
+    </x-pwa.modale>
+  @endif
+
+  {{-- ==================== MODALE « Ajouter un guide touristique » ======== --}}
+  @if ($etatFormulaire === 'reservation' && $ajoutGuideOuvert)
+    <x-pwa.modale :titre="__('tourisme.pwa.modale_guide_creation_titre')"
+                  :sousTitre="__('tourisme.pwa.modale_guide_creation_sous_titre')"
+                  largeur="460px"
+                  fermer="fermerAjoutGuide">
+      <div>
+        <label class="block text-[13px] font-semibold text-slate-700 mb-1.5">{{ __('tourisme.pwa.champ_guide_nom') }} <span class="text-red-500">*</span></label>
+        <input type="text" wire:model="guideNomSaisi" class="w-full text-[13px] border border-slate-300 rounded-lg px-3 py-2.5">
+        @error('guideNomSaisi') <p class="text-[12px] text-red-600 mt-1">{{ $message }}</p> @enderror
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-[13px] font-semibold text-slate-700 mb-1.5">{{ __('tourisme.pwa.champ_guide_certification') }}</label>
+          <input type="text" wire:model="guideCertificationSaisie" class="w-full text-[13px] border border-slate-300 rounded-lg px-3 py-2.5">
+          @error('guideCertificationSaisie') <p class="text-[12px] text-red-600 mt-1">{{ $message }}</p> @enderror
+        </div>
+        <div>
+          <label class="block text-[13px] font-semibold text-slate-700 mb-1.5">{{ __('tourisme.pwa.champ_guide_zone') }}</label>
+          <input type="text" wire:model="guideZoneSaisie" placeholder="{{ __('tourisme.pwa.invite_guide_zone') }}"
+                 class="w-full text-[13px] border border-slate-300 rounded-lg px-3 py-2.5">
+          @error('guideZoneSaisie') <p class="text-[12px] text-red-600 mt-1">{{ $message }}</p> @enderror
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-[13px] font-semibold text-slate-700 mb-1.5">{{ __('tourisme.pwa.champ_guide_tarif') }} <span class="text-red-500">*</span></label>
+        <input type="number" min="0" step="500" wire:model="guideTarifSaisi" class="w-full text-[13px] border border-slate-300 rounded-lg px-3 py-2.5">
+        @error('guideTarifSaisi') <p class="text-[12px] text-red-600 mt-1">{{ $message }}</p> @enderror
+      </div>
+
+      <x-slot:pied>
+        <button type="button" wire:click="fermerAjoutGuide"
+                class="text-[13px] px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50">{{ __('pwa.modale.annuler') }}</button>
+        <button type="button" wire:click="enregistrerGuide" wire:loading.attr="disabled"
+                class="text-[13px] px-4 py-2 rounded-lg bg-[var(--navy)] text-white font-semibold hover:opacity-90">{{ __('tourisme.pwa.bouton_ajouter_le_guide') }}</button>
       </x-slot:pied>
     </x-pwa.modale>
   @endif
@@ -802,7 +847,7 @@
           <label class="block text-[13px] font-semibold text-slate-700 mb-1.5">{{ __('tourisme.pwa.champ_theme') }} <span class="text-red-500">*</span></label>
           <select wire:model="circuitThemeSaisi" class="w-full text-[13px] border border-slate-300 rounded-lg px-3 py-2.5">
             @foreach ($themes as $theme)
-              <option value="{{ $theme }}">{{ $theme }}</option>
+              <option value="{{ $theme }}">{{ $theme === 'autre' ? __('tourisme.pwa.theme_autre') : $theme }}</option>
             @endforeach
           </select>
           @error('circuitThemeSaisi') <p class="text-[12px] text-red-600 mt-1">{{ $message }}</p> @enderror

@@ -8,7 +8,6 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../restaurant/presentation/widgets/corps_carte_commun.dart'
     show styleContenuCarte;
-import '../../data/piece_de_la_vente.dart' show modulesEncaissablesAuSejour;
 import '../../domain/entities/article_vendable.dart';
 import '../providers_pos.dart';
 
@@ -33,16 +32,10 @@ import '../providers_pos.dart';
 ///
 /// ## Ce que la vue rend et que cette colonne ne rend pas
 ///
-/// - La mention « Tourisme et location ne sont pas encaissables au comptoir »
-///   (l.161-163, `prestation_refusee`) EST rendue depuis le 21/10/2026, et la
-///   carte d'une prestation n'est plus ajoutable (`@disabled(! $ajoutable)`,
-///   `$item['encaissable']`). Relu contre `PanierDao.cloturer` : le poste refuse
-///   M8 et M9 à la clôture (`MessagesVentes.moduleNonEncaissable`), exactement
-///   comme `VenteService::MODULES_ENCAISSABLES` — la ligne ajoutée n'aurait
-///   donc jamais pu être encaissée. Le décrire en conditions (« leur prix
-///   devrait être saisi au clavier ») est la phrase de la vue ; la règle, elle,
-///   est la même ici. La relecture du 09/10/2026 qui jugeait le motif faux
-///   confondait « le poste fige le prix » et « le poste encaisse la ligne ».
+/// - La mention `prestation_refusee` et la carte grisée d'une prestation
+///   n'existent plus : depuis le 26/10/2026 (directive du PO), « Tourisme » et
+///   « Location » ne sont plus PROPOSÉS à la sélection — le catalogue ne porte
+///   que le bar et le restaurant ([modulesProposesAuPos]).
 class CatalogueHeberges extends ConsumerStatefulWidget {
   const CatalogueHeberges({
     required this.actif,
@@ -67,13 +60,6 @@ class CatalogueHeberges extends ConsumerStatefulWidget {
 
   /// `pos_pwa.heberges.tarif_manquant`.
   static const String tarifManquant = 'tarif manquant';
-
-  /// `pos_pwa.heberges.prestation_refusee`, au mot.
-  ///
-  /// Depuis le 22/10/2026 le tourisme et la location s'encaissent au
-  /// COMPTOIR ; la note de chambre d'un séjour ne les porte pas.
-  static const String prestationRefusee =
-      "Tourisme et location ne se portent pas sur la note de chambre : ils s'encaissent au point de vente du comptoir, ou passent par leur propre module.";
 
   @override
   ConsumerState<CatalogueHeberges> createState() => _CatalogueHebergesState();
@@ -361,12 +347,7 @@ class _Carte extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tarifConnu = article.estVendable;
-    // `$item['encaissable']` : tourisme et location se vendent au comptoir,
-    // pas sur la note de chambre (`PosHeberges::MODULES_DU_SEJOUR`).
-    final encaissable = modulesEncaissablesAuSejour.contains(
-      article.module.code,
-    );
-    final ajoutable = actif && tarifConnu && encaissable;
+    final ajoutable = actif && tarifConnu;
 
     final carte = Material(
       color: ajoutable ? AppColors.neutre0 : Ardoise.c50,
@@ -418,19 +399,6 @@ class _Carte extends StatelessWidget {
                   couleur: Ardoise.c400,
                 ),
               ),
-              // `@unless ($item['encaissable'])` : `text-[10px] text-amber-700
-              // mt-1 block`.
-              if (!encaissable) ...[
-                const SizedBox(height: AppSpacing.unit),
-                Text(
-                  CatalogueHeberges.prestationRefusee,
-                  key: Key('pos-prestation-refusee-${article.reference.code}'),
-                  style: styleContenuCarte(
-                    TaillesContenu.t10,
-                    couleur: PaletteMaitre.ambre700,
-                  ),
-                ),
-              ],
             ],
           ),
         ),

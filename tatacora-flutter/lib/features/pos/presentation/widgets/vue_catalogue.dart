@@ -206,10 +206,9 @@ class _ChampRecherche extends ConsumerWidget {
 /// infobulle de la vue comprise. Il pilote [rayonAfficheProvider] : un filtre
 /// d'affichage, jamais la caisse (PA-79).
 ///
-/// ÉCART (14/10/2026) : la vue n'offre que « Bar » et « Restaurant » ; ce
-/// poste liste ses rayons tels que le catalogue local les porte, y compris
-/// Tourisme et Location — encaissables au comptoir depuis le 22/10/2026
-/// (le serveur web les propose de même : `famille_tourisme`, `famille_location`).
+/// Comme la vue : « Tout », « Bar » et « Restaurant » seulement. « Tourisme »
+/// et « Location » sont retirés de la sélection (directive du PO du
+/// 26/10/2026) : [rayonsProvider] ne rend que [modulesProposesAuPos].
 class _SelecteurFamille extends ConsumerWidget {
   const _SelecteurFamille();
 

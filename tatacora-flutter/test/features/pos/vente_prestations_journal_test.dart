@@ -16,10 +16,13 @@ import '../facturation/support/outils_encaissement.dart'
     show ouvrirLaCaisseDuComptoir;
 import 'support/outils_ventes.dart';
 
-/// Tourisme et location s'encaissent au comptoir (22/10/2026) : la vente
-/// CLÔTURÉE arrive à l'historique des ventes et au journal du jour, avec ses
-/// bons modules, et ne se dit jamais « sans impact sur le stock » (une
-/// prestation n'a aucun stock à sortir : ce n'est pas une fiche vide).
+/// Tourisme et location : depuis le 26/10/2026 aucun POS ne les PROPOSE (le
+/// sélecteur de famille, les pastilles et les cartes les ont perdus), mais le
+/// domaine accepte toujours une vente M8/M9 déjà faite — c'est ce que ce
+/// fichier garde. La vente CLÔTURÉE arrive à l'historique des ventes et au
+/// journal du jour, avec ses bons modules, et ne se dit jamais « sans impact
+/// sur le stock » (une prestation n'a aucun stock à sortir : ce n'est pas une
+/// fiche vide).
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
 

@@ -1200,7 +1200,31 @@ final class PosPwaTest extends TestCase
     }
 
     #[Test]
-    public function le_tourisme_et_la_location_sont_refuses_a_l_encaissement_et_le_disent(): void
+    public function le_pos_des_clients_heberges_ne_propose_ni_circuit_ni_vehicule_ni_rayon_prestations(): void
+    {
+        \App\Domain\Tourisme\Models\Circuit::create([
+            'nom' => 'Cascades de Kota', 'theme' => 'nature', 'zone' => 'Atacora',
+            'duree' => '1 jour', 'prix' => '15000.00', 'capacite_max' => 12,
+        ]);
+        \App\Domain\Vehicules\Models\Vehicule::create([
+            'categorie' => '4x4', 'immatriculation' => 'AB-123-CD', 'annee' => 2022,
+            'transmission' => 'automatique', 'capacite' => 5, 'tarif_jour' => '65000.00',
+            'statut' => 'disponible',
+        ]);
+        $reservation = $this->reservationEnCours();
+
+        $this->actingAs($this->gerant);
+
+        Livewire::test(PosHeberges::class)
+            ->set('selectedReservationId', $reservation->id)
+            ->assertDontSee('Cascades de Kota')
+            ->assertDontSee('AB-123-CD')
+            ->assertDontSee('Tourisme')
+            ->assertDontSee('Location');
+    }
+
+    #[Test]
+    public function une_action_forgee_sur_le_tourisme_ou_la_location_n_ouvre_aucun_panier_de_sejour(): void
     {
         $reservation = $this->reservationEnCours();
 
@@ -1210,12 +1234,10 @@ final class PosPwaTest extends TestCase
             ->set('selectedReservationId', $reservation->id)
             ->call('ajouterAuPanier', 'M9', (string) Str::uuid());
 
-        // Nomme a l'ecran, jamais un echec silencieux (PA-24).
+        // Plus aucune carte ne les propose (PO, 26/10/2026) : une action
+        // forgee est refusee, jamais un echec silencieux.
         $composant->assertSet('toastType', 'error');
-        $this->assertStringContainsString(
-            'Tourisme et location',
-            (string) $composant->get('toastMessage'),
-        );
+        $composant->assertSet('toastMessage', __('pos_pwa.commun.reference_inconnue'));
         /*
          * Et AUCUN panier n'a ete ouvert : un refus qui laisserait derriere lui
          * un panier vide ferait passer le sejour a « PANIER OUVERT » sur la

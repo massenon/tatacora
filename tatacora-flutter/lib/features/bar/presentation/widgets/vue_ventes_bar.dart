@@ -47,12 +47,11 @@ abstract final class TextesVentesBar {
   static const exportVide =
       "Aucune ligne de vente ne correspond à ces critères : il n'y a rien à exporter. Élargissez la période ou le statut plutôt que de produire un document que l'on croirait complet.";
 
-  /// Hors connexion — l'onglet lit le SERVEUR, sans cache : il le dit, et
-  /// n'affiche aucune ligne. Garder la dernière réponse montrerait les ventes
-  /// d'hier sous un tableau qui ne dit pas qu'il date.
+  /// Issue réservée : les ventes se calculent sur ce poste, aucun serveur
+  /// n'est interrogé.
   static const injoignable =
-      'Serveur injoignable : les ventes du bar se lisent au serveur, et ce '
-      'poste ne les garde pas. Rien n’est affiché plutôt qu’une liste périmée.';
+      'Les ventes du bar ne peuvent pas être lues sur ce poste pour le '
+      'moment. Rien n’est affiché plutôt qu’une liste périmée.';
 }
 
 /// L'onglet « Ventes du Bar » — `pwa/carte/corps.blade.php` l.555-700.

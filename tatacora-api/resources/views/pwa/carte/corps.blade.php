@@ -70,7 +70,7 @@
     @include('pwa.partials.menu-lateral')
 
     <main class="flex-1 overflow-y-auto">
-      <div class="max-w-[1500px] mx-auto p-5 lg:p-8">
+      <div class="max-w-[1440px] mx-auto p-5 lg:p-8">
 
         {{-- EN-TÊTE — maître l.26-49 --}}
         <div class="mb-5 flex flex-wrap items-start justify-between gap-3">

@@ -1,5 +1,7 @@
 import '../../../core/database/app_database.dart';
 import '../../comptabilite/data/comptabilite_dao.dart';
+import '../../comptabilite/domain/etats_financiers.dart';
+import '../../comptabilite/domain/montant_comptable.dart';
 import '../domain/analytique_locale.dart';
 import '../domain/entities/pilotage.dart';
 
@@ -53,10 +55,19 @@ import '../domain/entities/pilotage.dart';
 /// balance et le bilan (`indicateurs`) restent absents : rien ne les calcule
 /// encore sur le poste.
 final class PilotageApi {
-  const PilotageApi({this.base});
+  const PilotageApi({this.base, this.etats, this.decompteStatuts});
 
   /// La base locale ; `null` (tests anciens) : tout est absent, comme avant.
   final AppDatabase? base;
+
+  /// Les écritures validées d'où se calculent les états financiers (pièces de
+  /// ce poste ou écritures reçues du serveur, selon la synchronisation).
+  /// `null` : les six indicateurs comptables restent dits absents.
+  final Future<DonneesEtats> Function()? etats;
+
+  /// Le décompte brouillons / validées d'un exercice (« pièces saisies »).
+  final Future<({int brouillons, int validees})> Function(String exerciceId)?
+  decompteStatuts;
 
   /// La raison unique, DATÉE — rendue sous « Résultat net », dans « À traiter »
   /// (alertes comptables non évaluées) et dans la carte « Comptabilité ». Une
@@ -82,8 +93,39 @@ final class PilotageApi {
     return SourceRecue(ExercicePilotage(id: e.id, annee: e.annee));
   }
 
-  Future<SourcePilotage<ComptaPilotage>> indicateurs(String exerciceId) async =>
-      const SourceAbsente<ComptaPilotage>(raisonAbsence);
+  /// Les six indicateurs comptables de l'exercice —
+  /// `IndicateursComptablesService` : le compte de résultat, le bilan et la
+  /// balance, calculés SUR CE POSTE (`etats_financiers.dart`, confronté au
+  /// serveur). Sans lecteur d'écritures ou sans exercice : absents.
+  Future<SourcePilotage<ComptaPilotage>> indicateurs(String exerciceId) async {
+    final lecteur = etats;
+    final b = base;
+    if (lecteur == null || b == null) {
+      return const SourceAbsente<ComptaPilotage>(raisonAbsence);
+    }
+    final exercice = await ComptabiliteDao(b).exercice(exerciceId);
+    if (exercice == null) {
+      return const SourceAbsente<ComptaPilotage>(raisonSansExercice);
+    }
+    final dd = await lecteur();
+    final i = indicateursDe(exercice.annee, dd);
+    final statuts = await decompteStatuts?.call(exerciceId);
+    return SourceRecue(
+      ComptaPilotage(
+        annee: exercice.annee,
+        chiffreAffaires: chaineDepuisCentimes(i.chiffreAffairesCentimes),
+        valeurAjoutee: chaineDepuisCentimes(i.valeurAjouteeCentimes),
+        excedentBrut: chaineDepuisCentimes(i.excedentBrutCentimes),
+        resultatNet: chaineDepuisCentimes(i.resultatNetCentimes),
+        tresorerie: chaineDepuisCentimes(i.tresorerieCentimes),
+        totalBilan: chaineDepuisCentimes(i.totalBilanCentimes),
+        equilibre: i.equilibre,
+        impotNonComptabilise: i.impotNonComptabilise,
+        brouillons: statuts?.brouillons ?? 0,
+        validees: statuts?.validees ?? 0,
+      ),
+    );
+  }
 
   /// Les marges par centre de l'exercice — `AnalytiqueService::
   /// genererPourExercice($id, ['brouillon', 'validee'])`.

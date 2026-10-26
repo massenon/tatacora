@@ -49,6 +49,7 @@ void main() {
       ProviderScope(
         overrides: [
           baseLocaleProvider.overrideWithValue(db),
+          sansFichierDePoste(),
           moteurComptableProvider.overrideWith(
             (ref) async => moteurSur(db, maintenant: DateTime.now),
           ),
@@ -190,6 +191,66 @@ void main() {
       expect(await nombreDeComptes(), avant + 1);
       expect(find.byKey(const Key('modale-compte')), findsNothing);
       expect(find.text('Compte 6999 créé sur ce poste.'), findsOneWidget);
+    });
+
+    Future<void> saisirCompte(
+      WidgetTester tester,
+      String numero,
+      String nature,
+    ) async {
+      await tester.tap(find.byKey(const Key('compta-creer-compte')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('modale-compte-numero')),
+        numero,
+      );
+      await tester.enterText(
+        find.byKey(const Key('modale-compte-intitule')),
+        'Produits d’entretien',
+      );
+      await tester.tap(find.byKey(const Key('modale-compte-nature')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(nature).last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('modale-compte-creer')));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('un numéro de QUATRE chiffres libre ABOUTIT (le plus long)', (
+      tester,
+    ) async {
+      expect(await dao.compteParNumero('6099'), isNull);
+      await monter(tester, 'plan');
+      await saisirCompte(tester, '6099', 'Charge');
+      final cree = await dao.compteParNumero('6099');
+      expect(cree, isNotNull, reason: 'le compte existe vraiment en base');
+      expect(cree!.classe, '6');
+      expect(find.text('Compte 6099 créé sur ce poste.'), findsOneWidget);
+    });
+
+    testWidgets('un numéro de DEUX chiffres libre ABOUTIT (le plus court)', (
+      tester,
+    ) async {
+      expect(await dao.compteParNumero('74'), isNull);
+      await monter(tester, 'plan');
+      await saisirCompte(tester, '74', 'Produit');
+      expect(await dao.compteParNumero('74'), isNotNull);
+    });
+
+    testWidgets('un numéro d’un chiffre est refusé à la phrase du service', (
+      tester,
+    ) async {
+      final avant = await nombreDeComptes();
+      await monter(tester, 'plan');
+      await saisirCompte(tester, '6', 'Charge');
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('modale-compte-refus')),
+          matching: find.textContaining('de deux à quatre chiffres'),
+        ),
+        findsOneWidget,
+      );
+      expect(await nombreDeComptes(), avant);
     });
 
     testWidgets('un refus du moteur est DIT dans la modale, rien n’est écrit', (

@@ -59,7 +59,7 @@
     @include('pwa.partials.menu-lateral')
 
     <main class="flex-1 overflow-y-auto">
-      <div class="max-w-[1600px] mx-auto p-5 lg:p-8 zone-impression">
+      <div class="max-w-[1440px] mx-auto p-5 lg:p-8 zone-impression">
 
         {{-- EN-TETE D'IMPRESSION — <h2>, jamais un second <h1>. --}}
         <div class="hidden print:block mb-6 border-b-2 border-[var(--navy)] pb-4">
@@ -77,7 +77,10 @@
 
         {{-- HERO — maitre, historique-ventes.html l.22-31 --}}
         <div class="mb-5 no-print">
-          <h1 class="text-lg lg:text-xl font-bold" style="color:var(--navy)">{{ __('pos_pwa.journal.titre') }}</h1>
+          <div class="flex items-center gap-2.5">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--navy)" stroke-width="2"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2"/></svg>
+            <h1 class="text-lg lg:text-xl font-bold" style="color:var(--navy)">{{ __('pos_pwa.journal.titre') }}</h1>
+          </div>
           <p class="text-[12px] text-slate-500 mt-1 max-w-3xl">
             {{ __('pos_pwa.journal.sous_titre_avant') }}
             <strong>{{ __('pos_pwa.journal.sous_titre_gras') }}</strong>{{ __('pos_pwa.journal.sous_titre_apres') }}

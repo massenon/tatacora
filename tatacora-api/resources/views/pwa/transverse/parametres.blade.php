@@ -89,7 +89,7 @@
 
     <main class="flex-1 overflow-y-auto">
       {{-- maquette l.18 — 1100 px, la largeur du maître. --}}
-      <div class="max-w-[1100px] mx-auto p-5 lg:p-8">
+      <div class="max-w-[1440px] mx-auto p-5 lg:p-8">
 
         {{-- maquette l.20-26 — l'engrenage et le titre sur une même ligne. --}}
         <div class="mb-6">

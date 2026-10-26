@@ -295,6 +295,9 @@ void main() {
     final bilan = texteDe(tester, const Key('sync-ecran-bilan'));
     expect(bilan, contains('acceptées 1'));
     expect(texteDe(tester, const Key('sync-compteur-synchronise')), '1');
+    // Le catalogue reçu est rangé dans la partie « Réception » (26/10/2026).
+    await tester.tap(find.byKey(const Key('sync-onglet-reception')));
+    await laisserTourner(tester);
     expect(
       texteDe(tester, const Key('sync-ecran-descente')),
       contains('serveur injoignable ou indisponible'),

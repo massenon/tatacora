@@ -45,6 +45,38 @@ class ReservationTourService
     }
 
     /**
+     * Ajoute un guide au référentiel — EF-M9-02.
+     *
+     * Le guide est un prérequis de toute réservation : sans lui l'écran
+     * Tourisme ne pourrait rien enregistrer. Un homonyme est refusé (la
+     * synchronisation fusionne déjà les guides sur le nom, deux fiches de même
+     * nom y seraient confondues).
+     *
+     * @param  array{nom: string, certification?: ?string, zone_competence?: ?string, tarif_jour: numeric-string|int|float}  $donnees
+     *
+     * @throws RuntimeException un guide de ce nom existe déjà
+     */
+    public function creerGuide(array $donnees): Guide
+    {
+        $nom = trim($donnees['nom']);
+
+        $existe = Guide::query()
+            ->whereRaw('LOWER(nom) = ?', [mb_strtolower($nom)])
+            ->exists();
+
+        if ($existe) {
+            throw new RuntimeException(__('tourisme.guide_deja_existant', ['nom' => $nom]));
+        }
+
+        return Guide::create([
+            'nom' => $nom,
+            'certification' => $donnees['certification'] ?? null,
+            'zone_competence' => $donnees['zone_competence'] ?? null,
+            'tarif_jour' => $donnees['tarif_jour'],
+        ]);
+    }
+
+    /**
      * Réservation d'un départ — EF-M9-03.
      *
      * **`guide_id` est obligatoire** : la colonne est NOT NULL au schéma

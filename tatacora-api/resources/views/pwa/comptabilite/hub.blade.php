@@ -44,7 +44,7 @@
   <div class="flex flex-1 overflow-hidden">
     @include('pwa.partials.menu-lateral')
     <main class="flex-1 overflow-y-auto">
-      <div class="max-w-[1600px] mx-auto p-5 lg:p-8">
+      <div class="max-w-[1440px] mx-auto p-5 lg:p-8">
 
         <div class="mb-5 flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -470,7 +470,7 @@
         <div class="grid grid-cols-3 gap-3">
           <div>
             <label class="block text-[13px] font-semibold text-slate-700 mb-1.5">{{ __('comptabilite_pwa.champ_numero') }} <span class="text-red-500">*</span></label>
-            <input type="text" wire:model="numeroCompte" placeholder="605600" inputmode="numeric" maxlength="6"
+            <input type="text" wire:model="numeroCompte" placeholder="{{ \App\Domain\Comptabilite\Services\PlanComptableService::NUMERO_COMPTE_EXEMPLE }}" inputmode="numeric" maxlength="{{ \App\Domain\Comptabilite\Services\PlanComptableService::NUMERO_COMPTE_CHIFFRES_MAX }}"
                    class="w-full text-[13px] border border-slate-300 rounded-lg px-3 py-2.5 font-mono">
             @error('numeroCompte') <p class="text-[11px] text-red-600 mt-1">{{ $message }}</p> @enderror
           </div>

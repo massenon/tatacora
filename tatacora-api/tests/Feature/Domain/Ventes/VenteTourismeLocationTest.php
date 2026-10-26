@@ -34,6 +34,12 @@ use Tests\TestCase;
  * Comptes : M9 sur 7061 « services vendus » (le plan du PO n'a pas de compte
  * dédié aux circuits), M8 sur 7073 « Locations » ; TVA des deux sur 4432
  * (prestations de services) ; centres « Tourisme » et « Véhicules ».
+ *
+ * Depuis le 26/10/2026 (directive du PO), aucun POS (web ni poste) ne PROPOSE
+ * ces rayons : ce fichier prouve que le DOMAINE reste défensif — une vente
+ * M8/M9 déjà faite (API, synchronisation) est acceptée et comptabilisée.
+ * L'absence des rayons à la sélection est prouvée par
+ * `PosComptantPrestationsTest` et `PosPwaTest`.
  */
 final class VenteTourismeLocationTest extends TestCase
 {

@@ -143,6 +143,9 @@ class SyncManager {
     try {
       final url = _url;
       if (_demonstration || url == null) return false;
+      // L'interrupteur éteint : aucune requête, pas même la lecture de la
+      // demande du serveur.
+      if (!await _lecteur.synchronisationActivee()) return false;
       final appairage = await _lecteur.appairage();
       if (appairage == null ||
           appairage.refus != null ||
@@ -206,6 +209,12 @@ class SyncManager {
       return const BilanSynchronisation(
         etat: EtatSynchronisation.demonstration,
       );
+    }
+    // L'INTERRUPTEUR « Synchronisation activée » (Paramètres du poste), relu
+    // à chaque passage : éteint, ni l'envoi, ni la descente du catalogue ne
+    // touchent le réseau. La file, elle, continue de se remplir.
+    if (!await _lecteur.synchronisationActivee()) {
+      return const BilanSynchronisation(etat: EtatSynchronisation.desactivee);
     }
     final appairage = await _lecteur.appairage();
     if (appairage == null) {

@@ -82,11 +82,6 @@ return [
         'famille_tout' => 'Tout',
         'famille_bar' => 'Bar',
         'famille_restaurant' => 'Restaurant',
-        // 22/10/2026 : le tourisme (circuits) et la location (véhicules) sont
-        // encaissables au comptoir. « Location » et non « Véhicules » : le mot
-        // du rayon à l'écran, pas celui du registre `VenteService::MODULES`.
-        'famille_tourisme' => 'Tourisme',
-        'famille_location' => 'Location',
 
         // maitre — pos.html l.488-503
         'point_orange_infobulle' => 'Vendable, mais ne décrémente aucun stock — fiche technique absente',
@@ -263,8 +258,8 @@ return [
 
         // maitre — pos-heberges.html l.24-28
         'titre' => 'Point de vente — clients hébergés',
-        'sous_titre' => 'Le panier reste ouvert de l’arrivée au départ. Bar, restaurant, '
-            .'tourisme et location y entrent ensemble — un seul panier, une seule facture à la clôture.',
+        'sous_titre' => 'Le panier reste ouvert de l’arrivée au départ. Bar et '
+            .'restaurant y entrent ensemble — un seul panier, une seule facture à la clôture.',
 
         // maitre — pos-heberges.html l.38-39
         'sejours' => 'Séjours en cours',
@@ -275,8 +270,6 @@ return [
 
         // maitre — pos-heberges.html l.49
         'rechercher' => 'Rechercher une consommation ou une prestation…',
-        // maitre — pos-heberges.html l.150
-        'categorie_prestations' => 'Tourisme & location',
         'categorie_bar' => 'Bar',
         'categorie_restauration' => 'Restauration',
         // maitre — pos-heberges.html l.253
@@ -319,17 +312,6 @@ return [
         'facture_emise_consommations' => 'Consommations facturées pour :client. L\'hébergement reste dû '
             .'sur la fiche du client.',
 
-
-        /*
-         * PROPRE a la PWA. Depuis le 22/10/2026 (directive du PO), le tourisme
-         * et la location s'ENCAISSENT AU COMPTOIR (`PosComptant`) : leur prix
-         * est fige depuis `circuits.prix` et `vehicules.tarif_jour`. Le panier
-         * d'un SEJOUR (note de chambre) ne les porte pas : ils restent AFFICHES
-         * avec leur raison plutot qu'omis, un rayon absent ne se distinguant
-         * pas d'un rayon vide.
-         */
-        'prestation_refusee' => 'Tourisme et location ne se portent pas sur la note de chambre : '
-            .'ils s\'encaissent au point de vente du comptoir, ou passent par leur propre module.',
 
         // Messages d'issue.
         'facture_emise' => 'Séjour facturé. Panier clôturé et facture émise pour :client.',

@@ -217,7 +217,7 @@
     @include('pwa.partials.menu-lateral')
 
     <main class="flex-1 overflow-y-auto">
-      <div class="max-w-[1500px] mx-auto p-4 sm:p-5 lg:p-8">
+      <div class="max-w-[1440px] mx-auto p-5 lg:p-8">
 
         {{-- En-tête d'impression : `<h2>`, jamais un second `<h1>`. --}}
         <div class="hidden print:block mb-6 border-b-2 border-[var(--navy)] pb-4">
@@ -243,7 +243,10 @@
                  pourtant le tableau de bord M11 — titre, onglets, période,
                  exports et quatorze indicateurs consolidés — à qui la matrice
                  RBAC refuse M11. --}}
-            <h1 class="text-lg lg:text-xl font-bold" style="color:var(--navy)">{{ $tableauDeBordAutorise ? __('accueil_pwa.titre') : __('pwa.accueil.titre') }}</h1>
+            <div class="flex items-center gap-2.5">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--navy)" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M18 17V9M13 17V5M8 17v-3"/></svg>
+              <h1 class="text-lg lg:text-xl font-bold" style="color:var(--navy)">{{ $tableauDeBordAutorise ? __('accueil_pwa.titre') : __('pwa.accueil.titre') }}</h1>
+            </div>
             <p class="text-[15px] text-slate-500 mt-1">{{ $tableauDeBordAutorise ? __('accueil_pwa.sous_titre') : __('pwa.accueil.sous_titre') }}</p>
 
             @if ($tableauDeBordAutorise)

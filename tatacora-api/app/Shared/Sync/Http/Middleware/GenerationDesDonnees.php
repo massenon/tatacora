@@ -6,6 +6,7 @@ namespace App\Shared\Sync\Http\Middleware;
 
 use App\Shared\Backup\Services\ReinitialisationDonneesTestService;
 use App\Shared\Sync\Services\GenerationDonneesService;
+use App\Shared\Sync\Services\JournalEnvoiService;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -38,7 +39,22 @@ final class GenerationDesDonnees
     public function __construct(
         private readonly GenerationDonneesService $generations,
         private readonly ReinitialisationDonneesTestService $reinitialisation,
+        private readonly JournalEnvoiService $envoi,
     ) {
+    }
+
+    /** Le poste du refus : celui que la requête déclare, à défaut le nom de son jeton. */
+    private function posteDe(Request $request): ?string
+    {
+        $declare = $request->input('poste_id');
+
+        if (is_string($declare) && $declare !== '') {
+            return $declare;
+        }
+
+        $jeton = $request->user()?->currentAccessToken();
+
+        return $jeton instanceof \Laravel\Sanctum\PersonalAccessToken ? $jeton->name : null;
     }
 
     public function handle(Request $request, Closure $next): Response
@@ -47,6 +63,8 @@ final class GenerationDesDonnees
         $rappelee = $request->input('generation');
 
         if (is_string($rappelee) && ! $this->generations->concorde($rappelee)) {
+            // Journal d'envoi (26/10/2026) : le refus est compté pour ce poste.
+            $this->envoi->noterGenerationPerimee($this->posteDe($request));
             $reponse = response()->json([
                 'code' => self::CODE_PERIMEE,
                 'message' => __('sync.generation_perimee', ['date' => $courante->created_at->format('d/m/Y H:i')]),

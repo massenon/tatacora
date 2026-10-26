@@ -348,6 +348,10 @@ void main() {
     // vue) : une page sous la coquille, bâtie des briques transverses, sans
     // modale — échelle EFFECTIVE.
     'lib/features/synchronisation/presentation/ecran_synchronisation.dart',
+    // La partie « Réception » de ce même écran (26/10/2026, AJOUT du PO, aucune
+    // vue) : ses cartes, compteurs, filtres et liste sont des corps de page —
+    // échelle EFFECTIVE. Ses modales sont dans `modales_reception.dart`.
+    'lib/features/synchronisation/presentation/partie_reception.dart',
     // Le bouton standard (D432, 14/10/2026) : barres d'action des pages, dans
     // `<main>` — `text-[13px]` y rend 12,5. Une modale lui passe `Tailles.t13`.
     'lib/shared_widgets/bouton_standard.dart',
@@ -356,6 +360,9 @@ void main() {
   /// Rendu **hors** du contenu de page. Échelle déclarée. Chaque entrée porte
   /// sa raison : sans elle, la liste redeviendrait un décret.
   const horsContenuDePage = <String, String>{
+    'lib/core/navigation/actualisation_ecran.dart':
+        'Menu contextuel « Actualiser » (demande du PO du 26/10/2026) : une '
+        'surcouche du châssis, posée au-dessus de la page, hors `<main>`.',
     'lib/core/router/coquille_application.dart':
         'Châssis. `#shell-topbar`, `#shell-banniere` et `#shell-sidebar` sont '
         'des frères de `<main>` dans chaque page sous coquille.',
@@ -510,6 +517,10 @@ void main() {
     'lib/features/parametres/presentation/widgets/cadre_modale_parametre.dart':
         'Fenêtre « Modifier » de Paramètres (compacte, PO du 14/10/2026), '
         'ouverte par `showDialog` : une modale, hors du contenu de page.',
+    'lib/features/synchronisation/presentation/modales_reception.dart':
+        'Détail, « Corriger » et formulaire de correction de la charge de '
+        'l\'écran de synchronisation (ajout du PO du 26/10/2026, sans vue) : '
+        'des fenêtres ouvertes par `showDialog`, hors du contenu de page.',
     'lib/features/transverse/presentation/widgets/modales_comptes.dart':
         'Modales de « Comptes utilisateurs » (ajout du PO du 14/10/2026, sans '
         'vue) : des fenêtres ouvertes par `showDialog`, hors du contenu de '

@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/di/providers.dart';
 import '../../../core/format/formats.dart';
+import '../../../core/navigation/trace_svg.dart';
+import '../../../core/navigation/traces_titres.dart';
 import '../../../core/rbac/garde_acces.dart';
 import '../../../core/theme/app_breakpoints.dart';
 import '../../../core/theme/app_colors.dart';
@@ -236,7 +238,31 @@ class _EnTeteState extends ConsumerState<_EnTete> {
               // 1 383 px, pas 18,5 — `lg:text-xl` ne s'applique pas dans
               // `<main>`, où `main .text-lg` l'emporte en spécificité
               // (`app.css`).
-              const Text('Dépense courante', style: TextesRestaurant.titrePage),
+              //
+              // L'icône qui le précède (vue, `depenses.blade.php`, bloc
+              // `flex items-center gap-2.5` : `<svg width="24" height="24"
+              // stroke="var(--navy)">`) manquait au poste — directive du PO du
+              // 26/10/2026. Le tracé est celui de la vue, dessiné par
+              // `IconeTrace` ; `TraceIconesTitre` le porte, la garde le
+              // confronte à la vue.
+              const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconeTrace(
+                    key: Key('depenses-icone-titre'),
+                    trace: TraceIconesTitre.depenses,
+                    taille: AppLayout.iconeTitrePage,
+                    couleur: AppColors.navy,
+                  ),
+                  SizedBox(width: AppSpacing.xsPlus), // gap-2.5
+                  Flexible(
+                    child: Text(
+                      'Dépense courante',
+                      style: TextesRestaurant.titrePage,
+                    ),
+                  ),
+                ],
+              ),
               // `mt-1` — 4 px.
               const SizedBox(height: AppSpacing.unit),
               // Le sous-titre de la vue (l.89-93), en morceaux : son fragment

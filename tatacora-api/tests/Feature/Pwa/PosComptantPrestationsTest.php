@@ -26,11 +26,11 @@ use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 /**
- * Le tourisme (circuits, M9) et la location (véhicules, M8) s'encaissent au
- * POS du COMPTOIR (directive du PO du 22/10/2026) : rayons du catalogue,
- * panier mixte avec le bar, encaissement par `VenteService`, aucune sortie de
- * stock. Le POS des clients hébergés, lui, ne les porte pas sur une note de
- * chambre.
+ * Directive du PO du 26/10/2026 : « Tourisme » et « Location » (M9/M8) sont
+ * ENLEVES de la selection du POS du comptoir et du POS des clients heberges.
+ * Le domaine (`VenteService`, `PanierService`) reste defensif — une vente M8/M9
+ * deja faite est acceptee, voir `VenteTourismeLocationTest` — mais aucun ecran
+ * ne propose plus ces rayons : ni carte, ni famille, ni pastille.
  */
 final class PosComptantPrestationsTest extends TestCase
 {
@@ -91,50 +91,52 @@ final class PosComptantPrestationsTest extends TestCase
     }
 
     #[Test]
-    public function le_catalogue_du_comptoir_propose_les_circuits_et_les_vehicules(): void
+    public function le_catalogue_du_comptoir_ne_propose_ni_circuit_ni_vehicule_ni_leurs_rayons(): void
     {
         Livewire::test(PosComptant::class)
-            ->assertSee('Cascades de Kota')
-            ->assertSee('AB-123-CD')
-            ->assertSee(__('pos_pwa.comptant.famille_tourisme'))
-            ->assertSee(__('pos_pwa.comptant.famille_location'));
+            ->assertSee('Béninoise 65cl')
+            ->assertDontSee('Cascades de Kota')
+            ->assertDontSee('AB-123-CD')
+            ->assertDontSee('Tourisme')
+            ->assertDontSee('Location')
+            ->assertDontSee('Tourisme & location');
     }
 
     #[Test]
-    public function un_panier_mixte_bar_tourisme_location_s_encaisse_sans_toucher_au_stock_des_prestations(): void
+    public function le_selecteur_de_famille_du_comptoir_ne_garde_que_tout_bar_et_restaurant(): void
+    {
+        $html = Livewire::test(PosComptant::class)->html();
+
+        $this->assertStringContainsString('value="'.__('pos_pwa.comptant.famille_bar').'"', $html);
+        $this->assertStringContainsString('value="'.__('pos_pwa.comptant.famille_restaurant').'"', $html);
+        $this->assertStringNotContainsString('value="Tourisme"', $html);
+        $this->assertStringNotContainsString('value="Location"', $html);
+        $this->assertFalse(\Illuminate\Support\Facades\Lang::has('pos_pwa.comptant.famille_tourisme'));
+        $this->assertFalse(\Illuminate\Support\Facades\Lang::has('pos_pwa.comptant.famille_location'));
+    }
+
+    #[Test]
+    public function une_action_forgee_sur_un_circuit_ou_un_vehicule_n_ajoute_rien_au_panier(): void
     {
         Livewire::test(PosComptant::class)
             ->set('comptoirChoisi', true)
-            ->call('ajouterAuPanier', 'M5', $this->biere->id)
-            ->set('comptoirChoisi', true)
             ->call('ajouterAuPanier', 'M9', $this->circuit->id)
-            ->set('comptoirChoisi', true)
-            ->call('ajouterAuPanier', 'M9', $this->circuit->id)
-            ->set('comptoirChoisi', true)
+            ->assertSet('toastType', 'error')
             ->call('ajouterAuPanier', 'M8', $this->vehicule->id)
-            ->call('encaisser')
-            ->assertSet('toastType', 'success');
+            ->assertSet('toastType', 'error');
 
-        $vente = Vente::with('lignes')->firstOrFail();
-
-        $this->assertEqualsCanonicalizing(['M5', 'M8', 'M9'], $vente->lignes->pluck('module')->all());
-        // 1 000 + 2 x 15 000 + 65 000.
-        $this->assertSame('96000.00', (string) $vente->montant_total);
-        // Seule la boisson sort du stock.
-        $this->assertSame(1, \App\Domain\Stocks\Models\MouvementStock::where('type_mouvement', 'sortie')->count());
+        $this->assertSame(0, \App\Domain\Ventes\Models\LigneVente::count());
+        $this->assertSame(0, \App\Domain\Ventes\Models\Panier::count());
     }
 
     #[Test]
-    public function un_barman_ne_vend_ni_circuit_ni_vehicule_que_ces_modules_lui_refusent(): void
+    public function un_barman_ne_vend_pas_non_plus_de_circuit_par_une_action_forgee(): void
     {
-        $barman = $this->utilisateur('barman');   // M5 = 'C', M8 = M9 = '-'
-        $this->actingAs($barman);
+        $this->actingAs($this->utilisateur('barman'));
 
         Livewire::test(PosComptant::class)
             ->set('comptoirChoisi', true)
-            ->call('ajouterAuPanier', 'M9', $this->circuit->id)
-            ->call('encaisser')
-            ->assertForbidden();
+            ->call('ajouterAuPanier', 'M9', $this->circuit->id);
 
         $this->assertSame(0, Vente::count());
     }

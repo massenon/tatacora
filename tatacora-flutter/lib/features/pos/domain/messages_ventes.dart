@@ -24,14 +24,25 @@ abstract final class MessagesVentes {
       '$module ne dispose pas encore de catalogue encaissable au comptoir : '
       'la ligne ne peut pas être acceptée.';
 
-  /// ⚠ ÉCART DU POSTE — le web répond 403 (`exigerEcriture`, module M8 ou M9)
-  /// et la synchronisation REJETTERAIT la vente (`modulesRequis`) : le poste
-  /// refuse dès l'ajout au panier, avec une phrase, plutôt que d'encaisser une
-  /// vente que le serveur refusera. [module] est le libellé du registre du
-  /// serveur (« Véhicules », « Tourisme »).
-  static String moduleSansDroit(String module) =>
-      "Vous n'avez pas le droit d'écriture sur le module $module : cette "
-      'prestation ne peut pas être portée au panier.';
+  /// `ventes.panier_cloture_immuable` — la phrase du serveur quand « Vider »
+  /// ou « Abandonner » vise un panier qui n'est plus ouvert
+  /// (`PanierService::exigerOuvert`).
+  static const String panierClotureImmuable =
+      'Ce panier est clôturé : plus aucune consommation ne peut y entrer ni en '
+      'sortir. La correction passe par l\'annulation de la vente, jamais par le '
+      'panier — sans quoi le panier deviendrait le chemin par lequel on modifie '
+      'une facture émise.';
+
+  /// `pos_pwa.comptant.panier_abandonne` — le message de « Abandonner »
+  /// (`PosComptant::abandonnerPanier`), au mot.
+  static const String panierAbandonne = 'Panier abandonné.';
+
+  /// Le motif porté par un panier abandonné. Le serveur n'en demande aucun
+  /// (`PanierService::abandonner` clôt sans vente) ; le poste, dont le registre
+  /// distingue un panier « annulé » d'un panier « clôturé sur une vente », y
+  /// écrit ce mot fixe plutôt que d'inventer une raison ou d'interroger le
+  /// caissier — la vue ne lui demande rien.
+  static const String motifAbandon = 'Panier abandonné';
 
   /// `ventes.reference_inconnue`.
   static String referenceInconnue(String reference) =>

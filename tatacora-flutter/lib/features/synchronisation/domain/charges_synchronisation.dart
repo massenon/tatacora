@@ -541,12 +541,21 @@ Map<String, Object?> chargeCircuit({
   'duree': duree,
 };
 
-/// `guides` — `EnregistrerGuideRequest`. Pas de tarif : le poste ne le
-/// saisit pas (le serveur range 0 et le signale).
+/// `guides` — `EnregistrerGuideRequest`. La certification et le tarif
+/// journalier n'existent pas dans `guides_local` : quand l'exploitant les
+/// saisit (modale « Ajouter un guide touristique »), ils partent au serveur
+/// SANS être rangés ici. Absents, le serveur range un tarif de 0 et le signale.
 Map<String, Object?> chargeGuide({
   required String nom,
   required String? zoneCompetence,
-}) => {'nom': nom, 'zone_competence': zoneCompetence};
+  String? certification,
+  int? tarifJourFrancs,
+}) => {
+  'nom': nom,
+  'zone_competence': zoneCompetence,
+  'certification': ?certification,
+  'tarif_jour': ?tarifJourFrancs,
+};
 
 /// `reservations_tour` (création) — `ReserverCircuitRequest`.
 Map<String, Object?> chargeReservationTour({

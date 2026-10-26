@@ -108,6 +108,7 @@ final class TableauDeBordLocal {
     required this.sessions,
     required this.peutLire,
     required this.maintenant,
+    this.charges,
   });
 
   final Future<List<UniteHebergement>> Function() unites;
@@ -132,6 +133,12 @@ final class TableauDeBordLocal {
 
   final bool Function() peutLire;
   final DateTime Function() maintenant;
+
+  /// Les écritures validées de classe 6 (les charges), avec leur date : la
+  /// source de « Dépenses cumulées » et de la courbe des dépenses. Pièces de
+  /// ce poste ou écritures reçues du serveur, selon la synchronisation.
+  /// `null` : aucune source câblée, les deux restent dites absentes.
+  final Future<List<ChargeDatee>> Function()? charges;
 
   /// Le tableau de bord de l'ÉCRAN, sur la période CALENDAIRE du sélecteur —
   /// `Accueil::render()` : `$service->indicateurs($this->periode())`.
@@ -163,6 +170,10 @@ final class TableauDeBordLocal {
     final encaissements = await paiements();
     final caisses = await sessions();
     final creancesDuPoste = await creances();
+    final lectureCharges = charges;
+    final chargesDuPoste = lectureCharges == null
+        ? null
+        : await lectureCharges();
 
     // Taux : courant ET précédent, sur le même parc — comparer deux photos du
     // parc n'aurait pas de sens.
@@ -220,11 +231,18 @@ final class TableauDeBordLocal {
           fenetre: avant,
         ),
       ),
-      const IndicateurTableauDeBord.indisponible(
-        cle: 'depenses_cumulees',
-        unite: UniteIndicateur.montant,
-        raison: RaisonsTableauDeBord.depensesCumulees,
-      ),
+      if (chargesDuPoste == null)
+        const IndicateurTableauDeBord.indisponible(
+          cle: 'depenses_cumulees',
+          unite: UniteIndicateur.montant,
+          raison: RaisonsTableauDeBord.depensesCumulees,
+        )
+      else
+        _montant(
+          'depenses_cumulees',
+          depensesCumuleesCentimes(chargesDuPoste, fenetre),
+          depensesCumuleesCentimes(chargesDuPoste, avant),
+        ),
       IndicateurTableauDeBord(
         cle: 'reservations_en_attente',
         valeur: '$attenteCourant',
@@ -318,11 +336,23 @@ final class TableauDeBordLocal {
 
     final fenetre = FenetreTableauDeBord.resoudre(selection, maintenant());
     final registre = await pieces();
+    final lectureCharges = charges;
+    List<PointMensuel>? mensuelle;
+    if (lectureCharges != null) {
+      mensuelle = serieMensuelleLocale(
+        encaissements: await paiements(),
+        charges: await lectureCharges(),
+        mois: mois,
+        reference: maintenant(),
+      );
+    }
 
     return SeriesRecues(
       SeriesTableauDeBord(
-        mensuelle: const [],
-        raisonMensuelle: RaisonsTableauDeBord.serieMensuelle,
+        mensuelle: mensuelle ?? const [],
+        raisonMensuelle: mensuelle == null
+            ? RaisonsTableauDeBord.serieMensuelle
+            : null,
         ventilation: ventilationParActivite(registre, fenetre),
       ),
     );

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/fichiers/enregistrement_export.dart';
 import '../../../core/impression/export_etat_a4.dart';
+import '../data/comptabilite_dao.dart' show ComptabiliteDao;
 import '../domain/entities/comptabilite.dart';
 import '../impression/etat_journal_comptable.dart';
 import 'providers_comptabilite.dart';
@@ -32,24 +33,30 @@ final class DonneesComptabilite {
   final ExerciceComptable? exerciceOuvert;
 }
 
+/// La lecture elle-même, hors de tout fournisseur : un lecteur qui n'est pas
+/// lui-même un fournisseur `autoDispose` (le tableau de bord, le pilotage) la
+/// rappelle sans que son `Ref` ne soit libéré en cours de route.
+Future<DonneesComptabilite> lireDonneesComptabilite(ComptabiliteDao dao) async {
+  final ecritures = await dao.toutesLesEcritures();
+  final comptes = <String, CompteDuPlan>{};
+  for (final id in {for (final e in ecritures) e.compteId}) {
+    final c = await dao.compteParId(id);
+    if (c != null) comptes[id] = c;
+  }
+  return DonneesComptabilite(
+    exercices: await dao.exercices(),
+    journaux: await dao.journaux(),
+    centres: await dao.centres(),
+    ecritures: ecritures,
+    comptes: comptes,
+    exerciceOuvert: await dao.exerciceOuvertLePlusRecent(),
+  );
+}
+
 final donneesComptabiliteProvider =
-    FutureProvider.autoDispose<DonneesComptabilite>((ref) async {
-      final dao = ref.watch(comptabiliteDaoProvider);
-      final ecritures = await dao.toutesLesEcritures();
-      final comptes = <String, CompteDuPlan>{};
-      for (final id in {for (final e in ecritures) e.compteId}) {
-        final c = await dao.compteParId(id);
-        if (c != null) comptes[id] = c;
-      }
-      return DonneesComptabilite(
-        exercices: await dao.exercices(),
-        journaux: await dao.journaux(),
-        centres: await dao.centres(),
-        ecritures: ecritures,
-        comptes: comptes,
-        exerciceOuvert: await dao.exerciceOuvertLePlusRecent(),
-      );
-    });
+    FutureProvider.autoDispose<DonneesComptabilite>(
+      (ref) => lireDonneesComptabilite(ref.watch(comptabiliteDaoProvider)),
+    );
 
 /// Les comptes IMPUTABLES du plan local, triés par numéro — la liste du champ
 /// « Compte » de la modale « Passer une écriture » (PO, 14/10/2026).

@@ -142,8 +142,8 @@ void main() {
     // 61 → 62 le 18/10/2026 : `occupations_tables_local` (v29, lot F6 —
     // l'occupation des tables par les autres postes ; auteur :
     // `AligneurCatalogue`).
-    expect(base.allTables.length, 72);
-    expect(base.schemaVersion, 36);
+    expect(base.allTables.length, 73);
+    expect(base.schemaVersion, 37);
     expect(
       base.allTables.map((t) => t.actualTableName).toSet().containsAll({
         'origines_documents_local',

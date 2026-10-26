@@ -50,6 +50,8 @@ use App\Pwa\Livewire\Transverse\MonProfil;
 use App\Pwa\Livewire\Transverse\PageTransverse;
 use App\Pwa\Livewire\Transverse\Parametres;
 use App\Pwa\Livewire\Transverse\RolesPermissions;
+use App\Pwa\Livewire\Transverse\EnvoiSynchronisation;
+use App\Pwa\Livewire\Transverse\ReceptionSynchronisation;
 use App\Pwa\Livewire\Transverse\SynchronisationPostes;
 use App\Pwa\Livewire\Transverse\VerrouSession;
 use App\Pwa\Livewire\Vehicules\Locations;
@@ -273,7 +275,22 @@ final class PwaActionsReluesTest extends TestCase
         // Révocation d'appairage (19/10/2026) : réservée aux Administrateurs,
         // confirmée par la modale ; `demanderRevocation`/`annulerRevocation`
         // n'écrivent rien.
-        SynchronisationPostes::class => ['render', 'actualiser', 'synchroniser', 'demanderRevocation', 'annulerRevocation', 'revoquer'],
+        SynchronisationPostes::class => ['render', 'actualiser', 'synchroniser', 'demanderRevocation', 'annulerRevocation', 'revoquer', 'changerOnglet'],
+
+        // Onglets « Réception » et « Envoi » de « Postes & Appairage »
+        // (26/10/2026, composants imbriqués). Lecture réservée aux
+        // Administrateurs et au Comptable. Les ouvertures/fermetures de
+        // fenêtres n'écrivent rien ; `enregistrerCorrection`, `relancer` et
+        // `ignorer` écrivent par `CorrectionReceptionService` (droit
+        // d'écriture sur le module DE LA DONNÉE, 403 sinon, auteur tracé) ;
+        // `redescendre` pose une demande de redescente (Administrateurs).
+        ReceptionSynchronisation::class => [
+            'render', 'actualiser', 'ouvrirOperation', 'fermerOperation', 'ouvrirCorrection', 'fermerCorrection',
+            'enregistrerCorrection', 'relancer', 'ouvrirIgnorer', 'fermerIgnorer', 'ignorer',
+        ],
+        EnvoiSynchronisation::class => [
+            'render', 'actualiser', 'voirPoste', 'fermerPoste', 'demanderRedescente', 'annulerRedescente', 'redescendre',
+        ],
 
         // Mon profil — le changement de mot de passe (01/09/2026, directive
         // du Product Owner). `changerMotDePasse()` n'exige AUCUN module RBAC
@@ -571,6 +588,7 @@ final class PwaActionsReluesTest extends TestCase
             'render', 'mount',
             'ouvrirFormulaireReservation', 'enregistrerReservation',
             'updatedCircuitIdResa', 'updatedDateDepartResa',
+            'ouvrirAjoutGuide', 'fermerAjoutGuide', 'enregistrerGuide',
             'ouvrirFormulaireGuide', 'enregistrerReaffectationGuide',
             'ouvrirFormulairePrestation', 'enregistrerPrestation',
             'confirmerArchivage', 'executerSuppression',

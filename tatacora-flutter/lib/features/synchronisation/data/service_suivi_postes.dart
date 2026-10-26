@@ -105,10 +105,16 @@ class ServiceSuiviPostes {
   static const String horsReseau =
       'Le serveur ne répond pas : l’état des postes et la demande de '
       'synchronisation exigent une connexion au serveur.';
+  static const String desactivee =
+      'La synchronisation est désactivée sur ce poste : aucune connexion au '
+      'serveur n’est tentée. Activez-la pour lire l’état des postes.';
   static const String nonAppaire =
       'Ce poste n’est pas appairé à un serveur : rien à lire ni à demander.';
 
   Future<IssueSuiviPostes> lire() async {
+    if (!await _lecteur.synchronisationActivee()) {
+      return const SuiviPostesIndisponible(desactivee);
+    }
     final appairage = await _appairage();
     if (appairage == null) return const SuiviPostesIndisponible(nonAppaire);
     final issue = await _transport.get(
@@ -145,6 +151,7 @@ class ServiceSuiviPostes {
   /// Enregistre la demande au serveur ; rend son heure, ou `null` hors
   /// réseau.
   Future<DateTime?> demander() async {
+    if (!await _lecteur.synchronisationActivee()) return null;
     final appairage = await _appairage();
     if (appairage == null) return null;
     final issue = await _transport.post(
@@ -159,6 +166,7 @@ class ServiceSuiviPostes {
   /// ses jetons sont supprimés au serveur, le poste révoqué reçoit 401 et
   /// garde sa file intacte. Rend la phrase à dire.
   Future<String> revoquer(String posteId) async {
+    if (!await _lecteur.synchronisationActivee()) return desactivee;
     final appairage = await _appairage();
     if (appairage == null) return nonAppaire;
     final issue = await _transport.post(

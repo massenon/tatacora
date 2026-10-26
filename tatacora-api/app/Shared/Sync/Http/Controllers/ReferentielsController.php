@@ -7,6 +7,7 @@ namespace App\Shared\Sync\Http\Controllers;
 use App\Models\User;
 use App\Shared\Sync\Http\Requests\TelechargerReferentielsRequest;
 use App\Shared\Sync\Services\CatalogueDescendantService;
+use App\Shared\Sync\Services\JournalEnvoiService;
 use App\Shared\Sync\Services\SuiviPostesService;
 use App\Shared\Sync\Support\PosteDuJeton;
 use Illuminate\Http\JsonResponse;
@@ -80,6 +81,7 @@ class ReferentielsController
     public function __construct(
         private readonly CatalogueDescendantService $catalogue,
         private readonly SuiviPostesService $suivi,
+        private readonly JournalEnvoiService $envoi,
     ) {
     }
 
@@ -100,8 +102,14 @@ class ReferentielsController
 
         $limite = (int) ($valide['limite'] ?? CatalogueDescendantService::TAILLE_PAGE_DEFAUT);
 
+        // « Redescendre depuis le début » (PWA, 26/10/2026) : une demande posée
+        // pour ce poste est consommée ICI — le curseur qu'il présente est
+        // ignoré, il repart du début et reçoit un curseur neuf. Aucun
+        // changement de contrat pour le poste.
+        $depuis = $this->envoi->consommerRedescente($valide['poste_id']) ? null : ($valide['depuis'] ?? null);
+
         try {
-            $page = $this->catalogue->page($utilisateur, $valide['poste_id'], $valide['depuis'] ?? null, $limite);
+            $page = $this->catalogue->page($utilisateur, $valide['poste_id'], $depuis, $limite);
         } catch (InvalidArgumentException $e) {
             return response()->json([
                 'message' => $e->getMessage(),
@@ -115,6 +123,23 @@ class ReferentielsController
             $valide['poste_id'],
             $utilisateur,
             isset($valide['en_attente']) ? (int) $valide['en_attente'] : null,
+        );
+
+        $livres = [];
+
+        foreach ($page['elements'] as $element) {
+            $table = (string) ($element['table'] ?? '');
+            $livres[$table] = ($livres[$table] ?? 0) + 1;
+        }
+
+        $this->envoi->noterPage(
+            $valide['poste_id'],
+            $utilisateur,
+            $livres,
+            $page['non_lisibles'],
+            $page['curseur'],
+            $page['complet'],
+            $this->catalogue,
         );
 
         return response()->json([

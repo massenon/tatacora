@@ -4,6 +4,9 @@ import '../../../core/donnees_absentes.dart';
 import '../../pos/data/catalogue_dao.dart';
 import '../../pos/data/dto/catalogue_dto.dart';
 import '../../pos/data/indisponibilites_carte_dao.dart';
+import '../../pos/domain/entities/panier.dart';
+import '../../pos/domain/entities/reference_catalogue.dart';
+import '../../ventes/domain/lignes_vente_du_rayon.dart';
 import '../domain/apercu_lien.dart';
 import '../domain/motif_indisponibilite.dart';
 import '../domain/entities/boisson.dart';
@@ -160,12 +163,20 @@ final class SaisieBoisson {
 /// `Policy::delete()` rend `false` partout dans ce projet, et le geste métier
 /// existe à la place : on retire de la carte, on ne détruit pas la ligne.
 final class BoissonsApi {
-  BoissonsApi(this._catalogue, {Uuid? uuid, IndisponibilitesCarteDao? retraits})
-    : _uuid = uuid ?? const Uuid(),
-      _retraits =
-          retraits ?? IndisponibilitesCarteDao(_catalogue.attachedDatabase);
+  BoissonsApi(
+    this._catalogue, {
+    Uuid? uuid,
+    IndisponibilitesCarteDao? retraits,
+    this._sourceVentes,
+  }) : _uuid = uuid ?? const Uuid(),
+       _retraits =
+           retraits ?? IndisponibilitesCarteDao(_catalogue.attachedDatabase);
 
   final CatalogueDao _catalogue;
+
+  /// Les paniers du poste et le numéro de facture de chacun — la source des
+  /// ventes du rayon. `null` : la donnée est dite absente.
+  final Future<(List<Panier>, Map<String, String>)> Function()? _sourceVentes;
 
   /// Seul écrivain des retraits de la carte du jour (v31, 21/10/2026).
   final IndisponibilitesCarteDao _retraits;
@@ -574,21 +585,46 @@ final class BoissonsApi {
   }
 
   /* ================================================================== */
-  /* Les ventes du bar — hors de ce lot                                  */
+  /* Les ventes du bar — calculées sur les paniers du poste              */
   /* ================================================================== */
 
-  /// ⚠ `ventes_bar_local` existe au schéma et **n'a aucun auteur** : aucune
-  /// vente n'y est écrite, ni par le point de vente (qui tient ses paniers)
-  /// ni par personne d'autre. Rendre une liste vide annoncerait « aucune vente
-  /// aujourd'hui », un fait — et faux. Ce lot ne referme pas ce point ; il le
-  /// nomme.
-  Future<ResultatBar<PageVentesBar>> ventes(FiltreVentesBar filtre) async =>
-      BarRefuse(motif: donneeNonDisponible(_ventes));
+  /// Les lignes de vente du rayon M5, filtrées et paginées, SANS serveur
+  /// (`lignesDuRayon`, réplique de `LignesVenteDuRayonService`) : les paniers
+  /// clôturés ou annulés de ce poste et ceux des autres postes qu'il a reçus.
+  /// Sans source de ventes injectée, la donnée est dite absente — jamais une
+  /// liste vide qui annoncerait « aucune vente ».
+  Future<ResultatBar<PageVentesBar>> ventes(FiltreVentesBar filtre) async {
+    final source = _sourceVentes;
+    if (source == null) return BarRefuse(motif: donneeNonDisponible(_ventes));
+    final (paniers, numeros) = await source();
+    return BarRecu(
+      pageDuRayon(
+        lignesDuRayon(
+          paniers,
+          ModuleVendable.m5Bar,
+          filtre,
+          numeroFactureParPanier: numeros,
+        ),
+        filtre,
+      ),
+    );
+  }
 
   Future<ResultatBar<(List<LigneVenteBar>, TotauxVentesBar)>> toutesLesVentes(
     FiltreVentesBar filtre, {
     int pagesMax = 500,
-  }) async => BarRefuse(motif: donneeNonDisponible(_ventes));
+  }) async {
+    final source = _sourceVentes;
+    if (source == null) return BarRefuse(motif: donneeNonDisponible(_ventes));
+    final (paniers, numeros) = await source();
+    final lignes = lignesDuRayon(
+      paniers,
+      ModuleVendable.m5Bar,
+      filtre,
+      numeroFactureParPanier: numeros,
+    );
+    return BarRecu((lignes, totauxDuRayon(lignes)));
+  }
 
   static const String _ventes = 'Les ventes du bar';
 

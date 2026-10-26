@@ -152,6 +152,22 @@ class Departs extends PageMetier
     /** Départ verrouillé quand la réservation est ouverte depuis une ligne. */
     public bool $departImpose = false;
 
+    // ---------------------------------------- modale « Ajouter un guide »
+    //
+    // Posée PAR-DESSUS « Réserver des places » : ce n'est pas un formulaire du
+    // registre (`etatFormulaire` n'en porte qu'un à la fois, et ouvrir celui-ci
+    // effacerait la réservation en cours de saisie).
+
+    public bool $ajoutGuideOuvert = false;
+
+    public string $guideNomSaisi = '';
+
+    public string $guideCertificationSaisie = '';
+
+    public string $guideZoneSaisie = '';
+
+    public string $guideTarifSaisi = '';
+
     // ------------------------------------------------ formulaire « réaffecter »
 
     public ?string $circuitIdGuide = null;
@@ -218,7 +234,7 @@ class Departs extends PageMetier
         return [
             'reservation' => [
                 'circuitIdResa', 'dateDepartResa', 'guideIdResa',
-                'clientIdResa', 'nbPersonnesSaisi', 'departImpose',
+                'clientIdResa', 'nbPersonnesSaisi', 'departImpose', 'ajoutGuideOuvert',
             ],
             'guide' => ['circuitIdGuide', 'dateDepartGuide', 'nouveauGuideId'],
             'prestation' => [
@@ -331,6 +347,62 @@ class Departs extends PageMetier
             'personnes' => (int) $donnees['nbPersonnesSaisi'],
             'client' => $client->nom,
         ]));
+    }
+
+    /**
+     * Ouvre « Ajouter un guide touristique » au-dessus de la réservation.
+     */
+    public function ouvrirAjoutGuide(): void
+    {
+        $this->exigerEcriture(self::MODULE);
+
+        if ($this->etatFormulaire !== 'reservation') {
+            abort(404);
+        }
+
+        $this->reset(['guideNomSaisi', 'guideCertificationSaisie', 'guideZoneSaisie', 'guideTarifSaisi']);
+        $this->resetValidation();
+        $this->ajoutGuideOuvert = true;
+    }
+
+    public function fermerAjoutGuide(): void
+    {
+        $this->ajoutGuideOuvert = false;
+        $this->resetValidation();
+    }
+
+    /**
+     * Écrit le guide par le service, puis le SÉLECTIONNE dans la réservation.
+     */
+    public function enregistrerGuide(): void
+    {
+        $donnees = $this->validerEcriture([
+            'guideNomSaisi' => ['required', 'string', 'max:255'],
+            'guideCertificationSaisie' => ['nullable', 'string', 'max:255'],
+            'guideZoneSaisie' => ['nullable', 'string', 'max:255'],
+            'guideTarifSaisi' => ['required', 'numeric', 'min:0'],
+        ]);
+
+        try {
+            $guide = app(ReservationTourService::class)->creerGuide([
+                'nom' => $donnees['guideNomSaisi'],
+                'certification' => ($donnees['guideCertificationSaisie'] ?? '') === '' ? null : $donnees['guideCertificationSaisie'],
+                'zone_competence' => ($donnees['guideZoneSaisie'] ?? '') === '' ? null : $donnees['guideZoneSaisie'],
+                'tarif_jour' => $donnees['guideTarifSaisi'],
+            ]);
+        } catch (\RuntimeException $e) {
+            $this->addError('guideNomSaisi', $e->getMessage());
+
+            return;
+        }
+
+        // Le guide d'un départ existant est IMPOSÉ : on ne le remplace pas.
+        if ($this->guideDuDepart($this->circuitIdResa, $this->dateDepartResa) === null) {
+            $this->guideIdResa = $guide->id;
+        }
+
+        $this->ajoutGuideOuvert = false;
+        session()->flash('pwa-succes', __('tourisme.pwa.guide_cree', ['nom' => $guide->nom]));
     }
 
     // =====================================================================
@@ -594,6 +666,7 @@ class Departs extends PageMetier
     public function fermerModales(): void
     {
         $this->etatFormulaire = null;
+        $this->ajoutGuideOuvert = false;
         $this->resetValidation();
     }
 

@@ -723,3 +723,58 @@ bool comptabiliteEquilibree(int annee, DonneesEtats d) {
       soldesDebiteurs == soldesCrediteurs &&
       bilanDe(annee, d).equilibre;
 }
+
+/// Les six indicateurs du bandeau du hub — `IndicateursComptablesService`,
+/// qui n'est qu'un ASSEMBLEUR : tous sont lus du compte de résultat, du bilan
+/// et de la balance, jamais recalculés à part (PA-121).
+final class IndicateursEtat {
+  const IndicateursEtat({
+    required this.chiffreAffairesCentimes,
+    required this.valeurAjouteeCentimes,
+    required this.excedentBrutCentimes,
+    required this.resultatNetCentimes,
+    required this.tresorerieCentimes,
+    required this.totalBilanCentimes,
+    required this.equilibre,
+    required this.impotNonComptabilise,
+  });
+
+  final int chiffreAffairesCentimes;
+  final int valeurAjouteeCentimes;
+  final int excedentBrutCentimes;
+  final int resultatNetCentimes;
+
+  /// La trésorerie NETTE : un découvert ouvert un jour la diminue.
+  final int tresorerieCentimes;
+  final int totalBilanCentimes;
+  final bool equilibre;
+  final bool impotNonComptabilise;
+}
+
+IndicateursEtat indicateursDe(int annee, DonneesEtats d) {
+  final resultat = compteResultatDe(annee, d);
+  final bilan = bilanDe(annee, d);
+  var tresorerie = 0;
+  for (final l in balanceDe(annee, d).lignes) {
+    final net = l.debitCentimes - l.creditCentimes;
+    // Actif : débit - crédit ; passif (découvert) : moins (crédit - débit) —
+    // le même solde signé dans les deux cas.
+    if (_releveDe(l.numeroCompte, RubriquesBilan.tresorerieActif) ||
+        _releveDe(l.numeroCompte, RubriquesBilan.tresoreriePassif)) {
+      tresorerie += net;
+    }
+  }
+  int montant(String code) =>
+      resultat.montant(code) ??
+      (throw StateError('Code de solde inconnu dans la cascade SIG : $code.'));
+  return IndicateursEtat(
+    chiffreAffairesCentimes: montant('XB'),
+    valeurAjouteeCentimes: montant('XC'),
+    excedentBrutCentimes: montant('XD'),
+    resultatNetCentimes: resultat.resultatNetCentimes,
+    tresorerieCentimes: tresorerie,
+    totalBilanCentimes: bilan.totalActifCentimes,
+    equilibre: comptabiliteEquilibree(annee, d),
+    impotNonComptabilise: resultat.impotNonComptabilise,
+  );
+}

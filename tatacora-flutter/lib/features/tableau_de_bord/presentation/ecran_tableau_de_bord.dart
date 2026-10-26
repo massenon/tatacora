@@ -13,6 +13,8 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../caisse/presentation/providers_caisse.dart'
     show depotSessionsCaisseProvider;
+import '../../comptabilite/presentation/providers_etats_financiers.dart'
+    show lireChargesDatees;
 import '../../facturation/presentation/providers_facturation.dart';
 import '../../facturation/presentation/providers_paiements.dart';
 import '../../hebergement/presentation/providers_hebergement.dart';
@@ -46,6 +48,7 @@ final tableauDeBordLocalProvider = Provider<TableauDeBordLocal>(
     creances: () => lireCreances(ref.read),
     paiements: () => ref.read(depotPaiementsFactureProvider).paiements(),
     sessions: () => ref.read(depotSessionsCaisseProvider).sessions(),
+    charges: () => lireChargesDatees(ref),
     peutLire: () =>
         ref.read(droitsProvider).peutLire(ModuleTatacora.m11TableauxDeBord),
     maintenant: ref.watch(horlogeTableauDeBordProvider),
@@ -144,7 +147,7 @@ final seriesTableauDeBordProvider = FutureProvider.autoDispose<ResultatSeries>(
 /// ## La « Vue d'exploitation » suit la vue, bloc par bloc (12/10/2026)
 ///
 /// Lot 2 de `INSTRUCTION.txt` du Product Owner. L'en-tête est celui de la vue
-/// (titre SANS icône, sous-titre, trois onglets, libellé de période à leur
+/// (icône et titre, sous-titre, trois onglets, libellé de période à leur
 /// droite, sélecteur, « Actualiser », « Exporter ») ; le corps porte, dans son
 /// ordre, la grille des raccourcis, la bande des huit indicateurs, le bandeau
 /// d'alertes de stock, le récapitulatif de la journée, la ligne des
@@ -345,17 +348,33 @@ class _EnTete extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          autorise ? 'Tableau de bord' : 'Consultation de secours',
-          key: const Key('tdb-titre'),
-          style: styleExploitation(
-            large ? TaillesContenu.xl : TaillesContenu.lg,
-            poids: FontWeight.w700,
-            interligne: large
-                ? TaillesContenu.interligneXl
-                : TaillesContenu.interligneLg,
-            couleur: AppColors.navy,
-          ),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // `flex items-center gap-2.5` : l'icône « dashboard » de la barre
+            // latérale (directive du PO du 26/10/2026), puis le `<h1>`.
+            const IconeTrace(
+              key: Key('tdb-icone-titre'),
+              trace: TracesAccueil.titre,
+              taille: AppLayout.iconeTitrePage,
+              couleur: AppColors.navy,
+            ),
+            const SizedBox(width: AppSpacing.xsPlus), // gap-2.5
+            Flexible(
+              child: Text(
+                autorise ? 'Tableau de bord' : 'Consultation de secours',
+                key: const Key('tdb-titre'),
+                style: styleExploitation(
+                  large ? TaillesContenu.xl : TaillesContenu.lg,
+                  poids: FontWeight.w700,
+                  interligne: large
+                      ? TaillesContenu.interligneXl
+                      : TaillesContenu.interligneLg,
+                  couleur: AppColors.navy,
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: AppSpacing.unit), // mt-1
         Text(

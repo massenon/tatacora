@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Pwa\Livewire\Transverse;
 
+use App\Shared\Sync\Services\CorrectionReceptionService;
 use App\Shared\Sync\Services\SuiviPostesService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 use Livewire\Attributes\Title;
+use Livewire\Attributes\Url;
 use RuntimeException;
 
 /**
@@ -33,12 +35,35 @@ use RuntimeException;
 #[Title('Postes & Appairage — TATACORA AFRIQUE')]
 class SynchronisationPostes extends PageTransverse
 {
+    /** Les onglets de l'écran : `postes`, `reception`, `envoi` (26/10/2026). */
+    #[Url(as: 'onglet')]
+    public string $onglet = 'postes';
+
     public ?string $confirmation = null;
 
     /** Le poste dont la révocation attend confirmation — modale. */
     public ?string $posteARevoquer = null;
 
     public ?string $refusRevocation = null;
+
+    /**
+     * Change d'onglet. « Réception » et « Envoi » sont réservés aux
+     * Administrateurs et au Comptable : un autre onglet demandé retombe sur
+     * « Postes ». N'écrit rien.
+     */
+    public function changerOnglet(string $onglet): void
+    {
+        $this->onglet = $this->ongletPermis($onglet);
+    }
+
+    private function ongletPermis(string $onglet): string
+    {
+        if ($onglet === 'postes' || ! in_array($onglet, ['reception', 'envoi'], true)) {
+            return 'postes';
+        }
+
+        return app(CorrectionReceptionService::class)->estAutorise(Auth::user()) ? $onglet : 'postes';
+    }
 
     /**
      * « Actualiser » : relit l'état des postes. Rien n'est écrit — le rendu
@@ -103,6 +128,8 @@ class SynchronisationPostes extends PageTransverse
             'demande' => $suivi->derniereDemande(),
             'postes' => $suivi->etats(),
             'peutRevoquer' => Auth::user()?->estAdministrateur() ?? false,
+            'peutVoirJournaux' => app(CorrectionReceptionService::class)->estAutorise(Auth::user()),
+            'ongletActif' => $this->ongletPermis($this->onglet),
         ]))->layout('layouts.pwa', ['title' => __('pwa.synchronisation_postes.titre_page')]);
     }
 }

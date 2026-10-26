@@ -2,7 +2,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../comptabilite/domain/consultation_comptable.dart'
+    show repartitionStatuts;
 import '../../comptabilite/presentation/exercice_consulte.dart';
+import '../../comptabilite/presentation/providers_comptabilite.dart'
+    show comptabiliteDaoProvider;
+import '../../comptabilite/presentation/providers_consultation_comptable.dart'
+    show lireDonneesComptabilite;
+import '../../comptabilite/presentation/providers_etats_financiers.dart'
+    show lireDonneesEtats;
 import '../../../core/fichiers/enregistrement_export.dart';
 import '../../../core/format/formats.dart';
 import '../../../core/impression/entete_parametree.dart';
@@ -255,7 +263,18 @@ final depensesPilotageProvider = FutureProvider.autoDispose
     });
 
 final pilotageApiProvider = Provider<PilotageApi>(
-  (ref) => PilotageApi(base: ref.watch(baseLocaleProvider)),
+  (ref) => PilotageApi(
+    base: ref.watch(baseLocaleProvider),
+    // Les six indicateurs comptables se calculent sur ce poste.
+    etats: () => lireDonneesEtats(ref),
+    decompteStatuts: (exerciceId) async {
+      final d = await lireDonneesComptabilite(
+        ref.read(comptabiliteDaoProvider),
+      );
+      final r = repartitionStatuts(d.ecritures, exerciceId: exerciceId);
+      return (brouillons: r.brouillon, validees: r.validee);
+    },
+  ),
 );
 
 /// L'exercice comptable courant. `autoDispose` : quitter l'écran oublie la

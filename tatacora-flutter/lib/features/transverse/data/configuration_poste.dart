@@ -171,7 +171,36 @@ class LecteurConfigurationPoste {
     final contenu = await _lireObjet(await _chemin());
     return contenu == null ? null : AppairagePoste.depuisJson(contenu);
   }
+
+  /// L'INTERRUPTEUR « Synchronisation activée » du poste, relu à CHAQUE appel
+  /// (aucun cache : une bascule vaut pour la requête qui suit). Absent ou
+  /// illisible : ACTIVÉE — un poste qui n'a jamais été touché garde le
+  /// comportement d'avant. Seul `false` écrit la désactive.
+  Future<bool> synchronisationActivee() async {
+    final contenu = await _lireObjet(await _chemin());
+    return contenu?[cleSynchronisationActivee] != false;
+  }
+
+  /// Qui a désactivé la synchronisation, et quand (`null` : activée, ou
+  /// désactivée avant que l'on consigne qui).
+  Future<({String? par, DateTime? le})> desactivation() async {
+    final contenu = await _lireObjet(await _chemin());
+    final par = contenu?[cleSynchronisationDesactiveePar];
+    return (
+      par: par is String && par.isNotEmpty ? par : null,
+      le: DateTime.tryParse('${contenu?[cleSynchronisationDesactiveeLe]}'),
+    );
+  }
 }
+
+/// Les clés de l'interrupteur de synchronisation dans `poste.json`. Le choix
+/// est PAR POSTE (comme l'appairage) : il ne voyage pas par la synchronisation
+/// (il n'aurait aucun sens qu'un autre poste éteigne celui-ci), il survit à
+/// la réinitialisation de la base (`etat_synchronisation_local` est vidé),
+/// et il se lit sans ouvrir la base — le moteur le relit avant chaque requête.
+const String cleSynchronisationActivee = 'synchronisation_activee';
+const String cleSynchronisationDesactiveeLe = 'synchronisation_desactivee_le';
+const String cleSynchronisationDesactiveePar = 'synchronisation_desactivee_par';
 
 /// Le contenu de `poste.json`, ou `null` s'il est absent ou n'est pas un objet
 /// JSON.
@@ -189,7 +218,10 @@ Future<Map<String, Object?>?> _lireObjet(String chemin) async {
   final fichier = File(chemin);
   if (!fichier.existsSync()) return null;
   try {
-    final contenu = jsonDecode(await fichier.readAsString());
+    // Lecture SYNCHRONE : le fichier fait quelques centaines d'octets, et
+    // une lecture asynchrone ne se termine pas sous l'horloge simulée d'un
+    // banc de widget (l'interrupteur de synchronisation est lu partout).
+    final contenu = jsonDecode(fichier.readAsStringSync());
     return contenu is Map<String, Object?> ? contenu : null;
   } on Object {
     return null;
@@ -371,6 +403,28 @@ class EcrivainConfigurationPoste {
       ..remove(cleMotDePasseSmtpPar);
   });
 
+  /// Bascule l'interrupteur « Synchronisation activée ». Désactivée : la
+  /// file continue de se remplir, rien ne part ni ne descend. Le reste du
+  /// fichier (appairage compris) demeure : réactiver ne demande aucun
+  /// nouvel appairage.
+  Future<void> enregistrerSynchronisationActivee(
+    bool activee, {
+    required String par,
+    required DateTime le,
+  }) => _modifier((contenu) {
+    if (activee) {
+      contenu
+        ..remove(cleSynchronisationActivee)
+        ..remove(cleSynchronisationDesactiveeLe)
+        ..remove(cleSynchronisationDesactiveePar);
+    } else {
+      contenu
+        ..[cleSynchronisationActivee] = false
+        ..[cleSynchronisationDesactiveeLe] = le.toUtc().toIso8601String()
+        ..[cleSynchronisationDesactiveePar] = par;
+    }
+  });
+
   /// Efface le refus consigné (le serveur a de nouveau accepté le jeton).
   Future<void> effacerRefus() =>
       _modifier((contenu) => contenu.remove(ClesAppairage.refus));
@@ -402,6 +456,14 @@ class EcrivainConfigurationPoste {
 
 /// Le chemin de `poste.json` sur CE poste — voir l'en-tête.
 Future<String> cheminConfigurationPoste() async {
+  // Sous `flutter test` il n'y a pas de dossier d'application (le greffon
+  // `path_provider` n'existe pas) : la demande ne se termine JAMAIS sous
+  // l'horloge simulée d'un banc de widget, et tout écran qui lit
+  // l'interrupteur de synchronisation resterait en « chargement ». Un fichier
+  // qui n'existe pas lit « synchronisation activée, poste non appairé ».
+  if (Platform.environment['FLUTTER_TEST'] == 'true') {
+    return p.join(Directory.systemTemp.path, 'tatacora-banc-sans-poste.json');
+  }
   final appData = Platform.environment['APPDATA'];
   if (Platform.isWindows && appData != null && appData.isNotEmpty) {
     return p.join(appData, 'TATACORA', 'poste.json');

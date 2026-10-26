@@ -41,8 +41,8 @@ class CatalogueDao extends DatabaseAccessor<AppDatabase>
   static const String motifRestaurantVide =
       "Aucun plat n'est encore au catalogue du restaurant de ce poste. Créez-en "
       'dans Restaurant et Cuisine : un plat appartient à un menu et porte une '
-      'fiche technique. Les consommations du bar, du tourisme et de la '
-      'location restent disponibles.';
+      'fiche technique. Les consommations du bar restent '
+      'disponibles.';
 
   /// Ce que le rayon dit d'un plat dont la fiche technique est vide.
   static const String detailFicheVide = 'Fiche vide : ne décrémente rien';

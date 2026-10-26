@@ -46,6 +46,9 @@ class ServiceAppairage {
     if (url == null) {
       return const AppairageRefuse(TextesAppairage.demonstration);
     }
+    if (!await _lecteur.synchronisationActivee()) {
+      return const AppairageRefuse(TextesAppairage.desactivee);
+    }
     final login = identifiant.trim();
     if (login.isEmpty || motDePasse.isEmpty || nomPoste.trim().isEmpty) {
       return const AppairageRefuse(TextesAppairage.champsObligatoires);
@@ -96,6 +99,9 @@ class ServiceAppairage {
   /// `GET /utilisateur` avec le jeton du poste. Rend la phrase à afficher. Un
   /// succès efface un refus consigné : le moteur d'envoi reprend.
   Future<String> testerConnexion() async {
+    if (!await _lecteur.synchronisationActivee()) {
+      return TextesAppairage.desactivee;
+    }
     final appairage = await _lecteur.appairage();
     if (appairage == null) return TextesAppairage.nonAppaire;
     final issue = await _transport.get(
@@ -130,7 +136,10 @@ class ServiceAppairage {
   /// fichier. La file d'envoi n'est pas touchée.
   Future<String> dissocier() async {
     final appairage = await _lecteur.appairage();
-    if (appairage != null) {
+    // Synchronisation désactivée : aucune requête, le jeton est retiré du
+    // poste (le serveur le gardera valide jusqu'à son expiration ou sa
+    // révocation depuis « Postes & Appairage »).
+    if (appairage != null && await _lecteur.synchronisationActivee()) {
       try {
         await _transport.post(
           urlServeur(appairage.serveur, '/logout'),

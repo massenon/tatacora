@@ -50,6 +50,8 @@ abstract final class TextesEtatsFinanciers {
   static const String tiret = '—';
 
   static const String provenanceVide = 'Aucune écriture à afficher.';
+  static const String piecesDuPoste =
+      'Chiffres calculés sur les écritures validées passées par ce poste.';
   static String reportProvisoire(int annee) =>
       "À-nouveaux provisoires : l'exercice $annee n'est pas clôturé, ses soldes sont reportés sans l'être définitivement.";
   static const String illisible = "Les écritures n'ont pas pu être lues.";
@@ -99,6 +101,28 @@ class _Bandeau extends StatelessWidget {
   );
 }
 
+/// La ligne qui dit d'où viennent les chiffres quand ce sont les pièces de CE
+/// poste (synchronisation désactivée, ou rien reçu du serveur).
+class _SourceDuPoste extends ConsumerWidget {
+  const _SourceDuPoste();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final source = ref.watch(sourceEtatsFinanciersProvider).value;
+    if (source != SourceEtatsFinanciers.piecesDuPoste) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+      child: Text(
+        TextesEtatsFinanciers.piecesDuPoste,
+        key: const Key('compta-etats-source-poste'),
+        style: styleTransverse(TaillesContenu.t12, couleur: Ardoise.c500),
+      ),
+    );
+  }
+}
+
 /// Onglet « Compte de résultat ».
 class OngletResultat extends ConsumerWidget {
   const OngletResultat({required this.annee, super.key});
@@ -133,6 +157,7 @@ class OngletResultat extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const _SourceDuPoste(),
         if (resultat.impotNonComptabilise)
           _Bandeau(
             cle: const Key('compta-resultat-avant-impot'),
@@ -468,6 +493,7 @@ class OngletBilan extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        const _SourceDuPoste(),
         if (!bilan.equilibre)
           _Bandeau(
             cle: const Key('compta-bilan-desequilibre'),

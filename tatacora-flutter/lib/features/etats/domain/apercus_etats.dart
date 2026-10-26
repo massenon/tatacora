@@ -1,4 +1,6 @@
 import '../../achats/domain/decimal_texte.dart';
+import '../../comptabilite/domain/etats_financiers.dart'
+    show DonneesEtats, balanceDe;
 import '../../comptabilite/domain/montant_comptable.dart'
     show chaineDepuisCentimes;
 import '../../crm/domain/entities/registre_clients.dart';
@@ -729,6 +731,75 @@ ApercuEtat apercuCreancesClients(
           '${l.nbPieces}',
           chaineDepuisCentimes(l.soldeCentimes),
         ],
+    ],
+  );
+}
+
+/// L'exercice le plus récent des [donnees], ou `null` : l'état n'en a pas.
+int? exerciceDeLaBalance(DonneesEtats donnees) => donnees.statutParAnnee.isEmpty
+    ? null
+    : donnees.statutParAnnee.keys.reduce((a, b) => a > b ? a : b);
+
+/// La phrase du serveur quand aucun exercice n'a jamais été ouvert
+/// (`etats_m14.balance.aucun_exercice`).
+const String balanceSansExercice =
+    "Aucun exercice comptable n'a encore été ouvert.";
+
+/// `EtatBalance` : la balance générale de l'exercice le plus récent, par
+/// compte, en montants `decimal:2`. Réutilise `balanceDe` — LA MÊME
+/// agrégation que l'onglet « Balance générale » du hub et que l'état
+/// financier (à-nouveaux provisoires compris), jamais une seconde requête.
+///
+/// Écart nommé : le serveur lit par défaut tous les statuts ; ce poste ne
+/// calcule ses états que sur les écritures VALIDÉES (les seules qui font foi),
+/// et le dit en mention.
+ApercuEtat apercuBalance(DonneesEtats donnees) {
+  const modele = EtatLocal.balance;
+  final annee = exerciceDeLaBalance(donnees)!;
+  final balance = balanceDe(annee, donnees);
+  final lignes = [...balance.lignes]
+    ..sort((a, b) => a.numeroCompte.compareTo(b.numeroCompte));
+  var debit = 0;
+  var credit = 0;
+  var soldesDebiteurs = 0;
+  var soldesCrediteurs = 0;
+  final cellules = <List<String>>[];
+  for (final l in lignes) {
+    debit += l.debitCentimes;
+    credit += l.creditCentimes;
+    final net = l.debitCentimes - l.creditCentimes;
+    final sd = net > 0 ? net : 0;
+    final sc = net < 0 ? -net : 0;
+    soldesDebiteurs += sd;
+    soldesCrediteurs += sc;
+    cellules.add([
+      l.numeroCompte,
+      l.libelle,
+      chaineDepuisCentimes(l.debitCentimes),
+      chaineDepuisCentimes(l.creditCentimes),
+      chaineDepuisCentimes(sd),
+      chaineDepuisCentimes(sc),
+    ]);
+  }
+  final equilibree = debit == credit && soldesDebiteurs == soldesCrediteurs;
+  return ApercuEtat(
+    code: modele.code,
+    titre: 'Balance générale — Exercice $annee',
+    periode: 'Du 01/01/$annee au 31/12/$annee',
+    moduleSource: modele.module.code,
+    indicateurs: [
+      IndicateurApercu(modele.indicateurs[0], '${lignes.length}'),
+      IndicateurApercu(modele.indicateurs[1], chaineDepuisCentimes(debit)),
+      IndicateurApercu(modele.indicateurs[2], chaineDepuisCentimes(credit)),
+      IndicateurApercu(modele.indicateurs[3], equilibree ? 'Oui' : 'Non'),
+    ],
+    entetes: modele.entetes,
+    lignes: cellules,
+    mentions: [
+      if (balance.aNouveauxProvisoiresDe != null)
+        "À-nouveaux provisoires : l'exercice ${balance.aNouveauxProvisoiresDe} "
+            "n'est pas clôturé, ses soldes sont reportés sans l'être définitivement.",
+      'Écritures validées seulement.',
     ],
   );
 }

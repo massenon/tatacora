@@ -2,11 +2,13 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tatacora_flutter/core/database/app_database.dart';
 import 'package:tatacora_flutter/features/comptabilite/data/comptabilite_dao.dart';
 import 'package:tatacora_flutter/features/comptabilite/data/installateur_referentiel.dart';
 import 'package:tatacora_flutter/features/comptabilite/data/moteur_comptable.dart';
+import 'package:tatacora_flutter/features/synchronisation/presentation/providers_synchronisation.dart';
 
 /// Le plan du PO tel que l'application l'EMBARQUE (le même fichier que lit
 /// `rootBundle` en production).
@@ -257,3 +259,11 @@ Future<void> exerciceClos(AppDatabase db, int annee) async {
     auteurId: auteurEssai,
   );
 }
+
+/// Un `poste.json` qui n'existe pas : l'interrupteur de synchronisation est
+/// alors ACTIVÉ (défaut). Sans cet override, un banc de widget qui lit
+/// l'interrupteur attend le dossier de l'application, que le banc n'a pas.
+Override sansFichierDePoste() =>
+    cheminConfigurationPosteProvider.overrideWithValue(
+      () async => '${Directory.systemTemp.path}/aucun-poste.json',
+    );

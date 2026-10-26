@@ -97,5 +97,14 @@ class AppServiceProvider extends ServiceProvider
             'pwa.selecteur-exercice',
             \App\Pwa\Livewire\Transverse\SelecteurExercice::class,
         );
+        // « Postes & Appairage » (26/10/2026) : les onglets Réception et Envoi.
+        \Livewire\Livewire::component(
+            'pwa.reception-synchronisation',
+            \App\Pwa\Livewire\Transverse\ReceptionSynchronisation::class,
+        );
+        \Livewire\Livewire::component(
+            'pwa.envoi-synchronisation',
+            \App\Pwa\Livewire\Transverse\EnvoiSynchronisation::class,
+        );
     }
 }

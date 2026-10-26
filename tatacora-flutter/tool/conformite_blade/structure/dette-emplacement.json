@@ -67,7 +67,7 @@
   },
   "tourisme/departs": {
     "blade": 36,
-    "ordonnes": 24,
+    "ordonnes": 23,
     "ongletsNonCliquables": 0
   },
   "achats/approvisionnement": {
@@ -117,7 +117,7 @@
   },
   "livewire/accueil": {
     "blade": 301,
-    "ordonnes": 138,
+    "ordonnes": 139,
     "ongletsNonCliquables": 0
   },
   "comptabilite/hub": {
@@ -127,17 +127,17 @@
   },
   "transverse/aide-a-propos": {
     "blade": 100,
-    "ordonnes": 67,
+    "ordonnes": 66,
     "ongletsNonCliquables": 0
   },
   "transverse/contact-editeur": {
     "blade": 18,
-    "ordonnes": 11,
+    "ordonnes": 10,
     "ongletsNonCliquables": 0
   },
   "transverse/import-export": {
     "blade": 64,
-    "ordonnes": 38,
+    "ordonnes": 37,
     "ongletsNonCliquables": 0
   },
   "transverse/journal-audit": {
@@ -147,7 +147,7 @@
   },
   "transverse/mon-profil": {
     "blade": 31,
-    "ordonnes": 23,
+    "ordonnes": 22,
     "ongletsNonCliquables": 0
   },
   "transverse/roles-permissions": {

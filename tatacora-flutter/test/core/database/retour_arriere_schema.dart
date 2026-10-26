@@ -112,7 +112,14 @@ const tablesAjouteesEnV35 = <String>{
   'canaux_reservation_local',
 };
 
+/// La table que la v37 AJOUTE (journal de réception du poste, 26/10/2026).
+const tablesAjouteesEnV37 = <String>{'journal_reception_local'};
+
 const _ajoutsParVersion = <int, List<String>>{
+  // La v37 (journal de reception, 26/10/2026) ajoute UNE table neuve, sans
+  // index ni cle etrangere : retour arriere symetrique.
+  37: <String>['DROP TABLE journal_reception_local'],
+
   // La v36 (lien direct plat -> article, 21/10/2026) AJOUTE deux colonnes
   // nullables a `plats_local`, ni indexees ni referencees : retour symetrique.
   36: <String>[

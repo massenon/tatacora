@@ -26,7 +26,7 @@
   <div class="flex flex-1 overflow-hidden">
     @include('pwa.partials.menu-lateral')
     <main class="flex-1 overflow-y-auto">
-      <div class="max-w-[900px] mx-auto p-5 lg:p-8">
+      <div class="max-w-[1440px] mx-auto p-5 lg:p-8">
 
         <div class="mb-5">
           <a href="{{ route('pwa.comptabilite.hub') }}" wire:navigate

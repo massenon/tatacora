@@ -32,6 +32,18 @@ declare(strict_types=1);
 
 const BASE_AUTORISEE = 'tatacora_test';
 
+// Une base d'ESSAI privee (`TATACORA_BASE_ESSAI=tatacora_<nom>_test`) peut
+// remplacer `tatacora_test` quand plusieurs essais tournent en meme temps (meme
+// convention que `valider_charge.php`). Le nom doit finir par `test` : la base
+// de developpement reste refusee.
+$baseEssai = (static function (): string {
+    $voulue = getenv('TATACORA_BASE_ESSAI');
+
+    return is_string($voulue) && preg_match('/^tatacora_[a-z0-9_]*test$/', $voulue) === 1
+        ? $voulue
+        : BASE_AUTORISEE;
+})();
+
 $api = realpath(__DIR__ . '/../../../tatacora-api');
 
 if ($api === false || ! is_file($api . '/vendor/autoload.php')) {
@@ -46,9 +58,9 @@ if (! is_array($entree) || ! isset($entree['action'])) {
     exit(3);
 }
 
-putenv('DB_DATABASE=' . BASE_AUTORISEE);
-$_ENV['DB_DATABASE'] = BASE_AUTORISEE;
-$_SERVER['DB_DATABASE'] = BASE_AUTORISEE;
+putenv('DB_DATABASE=' . $baseEssai);
+$_ENV['DB_DATABASE'] = $baseEssai;
+$_SERVER['DB_DATABASE'] = $baseEssai;
 
 chdir($api);
 require $api . '/vendor/autoload.php';
@@ -67,8 +79,8 @@ use Illuminate\Support\Facades\Hash;
 
 $base = (string) config('database.connections.' . config('database.default') . '.database');
 
-if ($base !== BASE_AUTORISEE) {
-    fwrite(STDERR, "Refus : la base active est \u{ab} {$base} \u{bb}, pas \u{ab} " . BASE_AUTORISEE . " \u{bb}.\n");
+if ($base !== $baseEssai) {
+    fwrite(STDERR, "Refus : la base active est \u{ab} {$base} \u{bb}, pas \u{ab} " . $baseEssai . " \u{bb}.\n");
     exit(1);
 }
 
@@ -246,6 +258,18 @@ switch ($action) {
         $ecrire('unites_hebergement', ['categorie_id' => $categorie, 'numero' => "S-{$suffixe}", 'statut' => 'libre']);
 
         echo json_encode(['ids' => $ids], JSON_UNESCAPED_UNICODE);
+
+        break;
+
+    // Journal de reception (26/10/2026) : ECRIT des colonnes d'une ligne
+    // (`valeurs` : colonne => valeur) et avance `updated_at` — le serveur
+    // « corrige » (ou abime) une donnee a la source, que le poste doit
+    // recevoir de nouveau.
+    case 'modifier':
+        DB::table((string) $entree['table'])
+            ->where('id', (string) $entree['id'])
+            ->update([...(array) $entree['valeurs'], 'updated_at' => now()->format('Y-m-d H:i:s')]);
+        echo json_encode(['ligne' => (array) DB::table((string) $entree['table'])->where('id', (string) $entree['id'])->first()], JSON_UNESCAPED_UNICODE);
 
         break;
 

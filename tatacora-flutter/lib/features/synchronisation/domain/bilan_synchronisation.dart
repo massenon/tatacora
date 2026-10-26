@@ -15,6 +15,12 @@ enum EtatSynchronisation {
   /// Démonstration : jamais de synchronisation.
   demonstration,
 
+  /// L'interrupteur « Synchronisation activée » du poste est éteint : AUCUNE
+  /// requête réseau (envoi, descente, suivi de la demande du serveur,
+  /// contrôle de cohérence). La file se remplit toujours ; elle partira à la
+  /// réactivation, dans l'ordre.
+  desactivee,
+
   /// L'appairage a été fait vers un autre serveur que celui de ce build.
   autreServeur,
 
@@ -43,6 +49,9 @@ enum EtatSynchronisation {
     termine => 'Synchronisation à jour.',
     nonAppaire => 'Poste non appairé : aucune synchronisation.',
     demonstration => 'Démonstration : aucune synchronisation.',
+    desactivee =>
+      'Synchronisation désactivée : ce poste travaille seul, les opérations '
+          'restent en attente.',
     autreServeur =>
       'Poste appairé à un autre serveur que celui de ce logiciel — '
           'réappairer le poste.',

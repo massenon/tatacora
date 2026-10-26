@@ -276,6 +276,24 @@ final class PwaEcritureAutoriseeTest extends TestCase
         'demanderRevocation',
         'annulerRevocation',
         'revoquer',
+        // Onglets « Réception » et « Envoi » (26/10/2026) : ouvrir ou fermer
+        // une fenêtre n'écrit rien ; les quatre écritures sont inscrites ici
+        // ET dans `ECRITURES_HORS_MODULE` (même schéma que `revoquer`).
+        'changerOnglet',
+        'ouvrirOperation',
+        'fermerOperation',
+        'ouvrirCorrection',
+        'fermerCorrection',
+        'enregistrerCorrection',
+        'relancer',
+        'ouvrirIgnorer',
+        'fermerIgnorer',
+        'ignorer',
+        'voirPoste',
+        'fermerPoste',
+        'demanderRedescente',
+        'annulerRedescente',
+        'redescendre',
 
         // 11. M10 — `Hub::ouvrirPlanAmortissement()` (Vague E, 01/09/2026).
         //
@@ -366,6 +384,18 @@ final class PwaEcritureAutoriseeTest extends TestCase
         // deux rôles d'administration (`estAdministrateur`, au composant ET
         // au service), tracée au journal d'audit.
         'SynchronisationPostes::revoquer',
+        // Corriger, relancer, ignorer (26/10/2026) : le module est celui de la
+        // DONNÉE, connu à l'exécution (une vente exige M5, une dépense M10…),
+        // jamais celui de l'écran. Le composant exige le rôle (Administrateurs
+        // et Comptable, 403 sinon) ; `CorrectionReceptionService` exige le
+        // niveau d'écriture sur chaque module de la donnée, trace le refus au
+        // journal de sécurité, et l'auteur de chaque geste au journal d'audit.
+        'ReceptionSynchronisation::enregistrerCorrection',
+        'ReceptionSynchronisation::relancer',
+        'ReceptionSynchronisation::ignorer',
+        // La redescente pose une demande consommée au prochain passage du
+        // poste : réservée aux Administrateurs, tracée au journal d'audit.
+        'EnvoiSynchronisation::redescendre',
     ];
 
     /**

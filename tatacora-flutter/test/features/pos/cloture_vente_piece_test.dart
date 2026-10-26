@@ -29,6 +29,11 @@ import 'support/outils_ventes.dart';
 /// les lignes et les phrases ; ce fichier tient ce que la comparaison ne dit
 /// pas : l'ATOMICITÉ (une pièce refusée n'écrit RIEN), l'absence de moteur, et
 /// ce que devient une vente d'AVANT.
+///
+/// Les ventes M8/M9 (circuit, véhicule) de ce fichier restent VRAIES depuis le
+/// 26/10/2026 : plus aucun écran du POS ne les propose, mais le DAO — comme
+/// `VenteService` — accepte et comptabilise une vente de ce genre déjà faite ou
+/// synchronisée. Elles prouvent le domaine défensif, pas une interface.
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
 

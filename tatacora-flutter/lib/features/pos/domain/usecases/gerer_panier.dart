@@ -148,6 +148,12 @@ final class GererPanier {
   Future<Panier> annuler(String panierId, String motif) =>
       _depot.annuler(panierId, motif);
 
+  /// « Abandonner » du comptoir — voir `PanierRepository.abandonner`.
+  Future<Panier> abandonner(String panierId) => _depot.abandonner(panierId);
+
+  /// « Vider » — retire toutes les lignes, le panier reste ouvert.
+  Future<Panier> vider(String panierId) => _depot.vider(panierId);
+
   /// Annule une vente ENCAISSÉE — le geste du journal du jour et du détail
   /// d'une vente (`VenteService::annuler`). Voir `PanierRepository.annulerVente`.
   Future<Panier> annulerVente(

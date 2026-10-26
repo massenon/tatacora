@@ -461,6 +461,15 @@ class TourismeDao extends DatabaseAccessor<AppDatabase> {
         'L\'intitulé de la prestation est obligatoire.',
       );
     }
+    // Le registre du serveur est en minuscules : « Nature » saisi ici serait
+    // rejeté à la synchronisation. La casse est donc ramenée à la sienne.
+    final themeNet = theme.trim().toLowerCase();
+    if (!themesCircuit.contains(themeNet)) {
+      throw RefusTourisme(
+        'Le thème « $theme » n\'est pas un thème du catalogue : '
+        '${themesCircuit.map(libelleTheme).join(', ')}.',
+      );
+    }
     if (capaciteMax < 1) {
       throw const RefusTourisme(
         'La capacité maximale doit valoir au moins une place : c\'est elle '
@@ -489,7 +498,7 @@ class TourismeDao extends DatabaseAccessor<AppDatabase> {
         CircuitsLocalCompanion.insert(
           id: identifiant,
           nom: nom.trim(),
-          theme: theme,
+          theme: themeNet,
           zone: zone.trim(),
           // La colonne est un `REAL` au schéma ; le domaine ne manipule que
           // des entiers. La conversion a lieu ici, une fois, dans les deux
@@ -509,7 +518,7 @@ class TourismeDao extends DatabaseAccessor<AppDatabase> {
             : TypeOperationSync.creation,
         payload: chargeCircuit(
           nom: nom.trim(),
-          theme: theme,
+          theme: themeNet,
           zone: zone.trim(),
           prixFrancs: prix,
           capaciteMax: capaciteMax,
@@ -521,7 +530,7 @@ class TourismeDao extends DatabaseAccessor<AppDatabase> {
     return Circuit(
       id: identifiant,
       nom: nom.trim(),
-      theme: theme,
+      theme: themeNet,
       zone: zone.trim(),
       prix: prix,
       capaciteMax: capaciteMax,
@@ -538,20 +547,43 @@ class TourismeDao extends DatabaseAccessor<AppDatabase> {
     String? id,
     required String nom,
     String? zoneCompetence,
+    String? certification,
+    int? tarifJourFrancs,
   }) async {
     if (nom.trim().isEmpty) {
       throw const RefusTourisme('Le nom du guide est obligatoire.');
     }
+    if (tarifJourFrancs != null && tarifJourFrancs < 0) {
+      throw const RefusTourisme(
+        'Le tarif journalier ne peut pas être négatif.',
+      );
+    }
 
     final identifiant = id ?? _uuid.v4();
+    final zone = _texteOuNull(zoneCompetence);
+    final certif = _texteOuNull(certification);
 
     await transaction(() async {
       final existant = await _guideExiste(identifiant);
+
+      // Un homonyme est refusé comme au serveur : la synchronisation fusionne
+      // les guides sur le nom, deux fiches de même nom y seraient confondues.
+      if (!existant) {
+        final homonymes = await (select(
+          attachedDatabase.guidesLocal,
+        )..where((g) => g.nom.lower().equals(nom.trim().toLowerCase()))).get();
+        if (homonymes.isNotEmpty) {
+          throw RefusTourisme(
+            'Un guide nommé « ${nom.trim()} » existe déjà au référentiel.',
+          );
+        }
+      }
+
       await into(attachedDatabase.guidesLocal).insertOnConflictUpdate(
         GuidesLocalCompanion.insert(
           id: identifiant,
           nom: nom.trim(),
-          zoneCompetence: Value(zoneCompetence),
+          zoneCompetence: Value(zone),
         ),
       );
       await _file.enfiler(
@@ -560,15 +592,23 @@ class TourismeDao extends DatabaseAccessor<AppDatabase> {
         type: existant
             ? TypeOperationSync.modification
             : TypeOperationSync.creation,
-        payload: chargeGuide(nom: nom.trim(), zoneCompetence: zoneCompetence),
+        payload: chargeGuide(
+          nom: nom.trim(),
+          zoneCompetence: zone,
+          certification: certif,
+          tarifJourFrancs: tarifJourFrancs,
+        ),
       );
     });
 
-    return Guide(
-      id: identifiant,
-      nom: nom.trim(),
-      zoneCompetence: zoneCompetence,
-    );
+    return Guide(id: identifiant, nom: nom.trim(), zoneCompetence: zone);
+  }
+
+  /// Une saisie vide devient `null` : deux façons d'écrire « rien » finissent
+  /// par diverger.
+  String? _texteOuNull(String? valeur) {
+    final net = valeur?.trim();
+    return (net == null || net.isEmpty) ? null : net;
   }
 
   /* --------------------------------------------------------------- privé */

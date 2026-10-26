@@ -19,6 +19,7 @@
 /// | `descente.derniere` (bilan JSON de la dernière descente) | `DescenteCatalogueDao.consignerBilan` | l'écran de synchronisation (`derniereDescenteProvider`) |
 /// | `descente.echecs`, `descente.prochaine_tentative` (repli PROPRE à la descente) | `DescenteCatalogueDao` | `DescenteCatalogue` |
 /// | `element_differe:<table>:<id>` (élément reçu, à rejouer : dépendance absente ou modification locale en attente) | `DescenteCatalogueDao` | `DescenteCatalogue` (reprise en fin de descente) |
+/// | `coherence.dernier` (le dernier contrôle de cohérence mesuré, JSON, avec ses écarts) | `DescenteCatalogueDao.consignerCoherence` | la partie « Réception » de l'écran de synchronisation |
 /// | `operation_remplacee:<uuid>` (« Renvoyer » : l'opération rejetée et celle qui la remplace) | `OperationsSyncDao.renvoyer`, dans la transaction de l'enfilement | `OperationsSyncDao` (réclamation, déblocage, liste « À traiter ») |
 ///
 /// ## `correspondances_sync_local` — identifiant serveur → identifiant local

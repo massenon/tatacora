@@ -17,7 +17,12 @@ import '../domain/bilan_synchronisation.dart';
 import '../domain/descente_catalogue.dart';
 import '../domain/operation_sync.dart';
 import '../domain/suivi_synchronisation.dart';
+import '../data/coherence_persistee.dart';
 import '../data/controle_coherence.dart';
+import '../domain/cause_envoi.dart';
+import 'modales_reception.dart';
+import 'partie_reception.dart';
+import 'providers_reception.dart';
 import 'providers_synchronisation.dart';
 
 /// Les mots de l'écran de synchronisation (lot F2b, 15/10/2026). Honnêtes
@@ -61,6 +66,22 @@ abstract final class TextesEcranSynchronisation {
 
   static String _centiemes(int c) =>
       c % 100 == 0 ? '${c ~/ 100}' : (c / 100).toStringAsFixed(2);
+
+  /// Les deux parties de l'écran (26/10/2026).
+  static const ongletEnvoi = 'Envoi';
+  static const ongletReception = TextesReception.onglet;
+  static const dernierControle = 'Dernier contrôle';
+  static String dernierControleLe(DateTime le) =>
+      'Dernier contrôle de cohérence : le ${date(le)}.';
+  static const aucunControle = 'Aucun contrôle de cohérence encore lancé.';
+  static const corriger = 'Corriger';
+  static const detail = 'Détail';
+  static const renvoyeeCorrigee =
+      'Charge corrigée : l’opération repart sous un nouvel identifiant à la '
+      'prochaine synchronisation. L’opération rejetée reste dans '
+      'l’historique.';
+  static String tentatives(int n, int? codeHttp) =>
+      '$n tentative(s)${codeHttp == null ? '' : ' — dernier code $codeHttp'}';
 
   static const titre = 'Synchronisation';
   static const sousTitre =
@@ -151,13 +172,24 @@ abstract final class TextesEcranSynchronisation {
 /// Administrateurs, comme l'appairage. « Synchroniser maintenant » est
 /// ouvert à qui voit l'écran : il ne fait que hâter ce que le réveil
 /// automatique fera dans cinq minutes.
-class EcranSynchronisation extends ConsumerWidget {
+class EcranSynchronisation extends ConsumerStatefulWidget {
   const EcranSynchronisation({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<EcranSynchronisation> createState() =>
+      _EtatEcranSynchronisation();
+}
+
+class _EtatEcranSynchronisation extends ConsumerState<EcranSynchronisation> {
+  /// La partie affichée : l'envoi (par défaut) ou la réception.
+  bool _reception = false;
+
+  @override
+  Widget build(BuildContext context) {
     final admin = peutAdministrerComptes(ref.watch(sessionProvider)?.role);
     final lus = ref.watch(etatFileSynchronisationProvider);
+    final aTraiterReception =
+        ref.watch(compteursReceptionProvider).value?.aTraiter ?? 0;
 
     return PageTransverse(
       largeurMax: MesuresTransverses.pageLarge,
@@ -169,15 +201,41 @@ class EcranSynchronisation extends ConsumerWidget {
         ),
         const _CarteEtat(),
         const SizedBox(height: AppSpacing.md),
+        Wrap(
+          spacing: AppSpacing.xs,
+          runSpacing: AppSpacing.xs,
+          children: [
+            OngletTransverse(
+              cle: const Key('sync-onglet-envoi'),
+              libelle: TextesEcranSynchronisation.ongletEnvoi,
+              actif: !_reception,
+              onChoix: () => setState(() => _reception = false),
+            ),
+            OngletTransverse(
+              cle: const Key('sync-onglet-reception'),
+              libelle: aTraiterReception > 0
+                  ? '${TextesEcranSynchronisation.ongletReception} '
+                        '($aTraiterReception)'
+                  : TextesEcranSynchronisation.ongletReception,
+              actif: _reception,
+              onChoix: () => setState(() => _reception = true),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.md),
         switch (lus) {
+          AsyncData(:final value) when _reception => PartieReception(
+            admin: admin,
+            surVoirEnvoi: () => setState(() => _reception = false),
+            apres: [
+              _CarteDescente(bilan: value.derniereDescente),
+              const _CarteCoherence(),
+            ],
+          ),
           AsyncData(:final value) => Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _Compteurs(etat: value),
-              const SizedBox(height: AppSpacing.md),
-              _CarteDescente(bilan: value.derniereDescente),
-              const SizedBox(height: AppSpacing.md),
-              const _CarteCoherence(),
               const SizedBox(height: AppSpacing.md),
               _ATraiter(lignes: value.aTraiter, admin: admin),
               const SizedBox(height: AppSpacing.md),
@@ -438,6 +496,14 @@ class _EtatCarteCoherence extends ConsumerState<_CarteCoherence> {
     final issue = await ref
         .read(controleCoherenceProvider)
         .controler(aujourdHui: DateTime.now());
+    // Le dernier contrôle MESURÉ est rangé : la partie Réception le relit
+    // après un redémarrage, avec ses écarts.
+    if (issue is CoherenceMesuree) {
+      await ref
+          .read(descenteCatalogueDaoProvider)
+          .consignerCoherence(coherenceVersJson(issue, DateTime.now()));
+      ref.invalidate(derniereCoherenceProvider);
+    }
     if (mounted) {
       setState(() {
         _issue = issue;
@@ -448,7 +514,9 @@ class _EtatCarteCoherence extends ConsumerState<_CarteCoherence> {
 
   @override
   Widget build(BuildContext context) {
-    final issue = _issue;
+    // Le contrôle lancé dans cette session, à défaut le dernier rangé.
+    final rangee = ref.watch(derniereCoherenceProvider).value;
+    final IssueCoherence? issue = _issue ?? rangee?.mesure;
     return CarteTransverse(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -464,6 +532,14 @@ class _EtatCarteCoherence extends ConsumerState<_CarteCoherence> {
               variante: VarianteBouton.secondaire,
               onPressed: _enCours ? null : _controler,
             ),
+          ),
+          const SizedBox(height: AppSpacing.xxs),
+          _ligneTexte(
+            rangee == null
+                ? TextesEcranSynchronisation.aucunControle
+                : TextesEcranSynchronisation.dernierControleLe(rangee.le),
+            cle: const Key('sync-ecran-coherence-dernier'),
+            couleur: AppColors.neutre500,
           ),
           if (issue != null) ...[
             const SizedBox(height: AppSpacing.xs),
@@ -577,6 +653,7 @@ class _ATraiter extends ConsumerWidget {
                   alignement: TextAlign.right,
                 ),
               ],
+              largeurs: MesuresTransverses.colonnesATraiter,
               vide: TextesEcranSynchronisation.aTraiterVide,
               cleVide: const Key('sync-a-traiter-vide'),
               lignes: [
@@ -597,6 +674,8 @@ class _ATraiter extends ConsumerWidget {
                       () => dao.debloquer(l.operation.uuidOperation),
                       TextesEcranSynchronisation.debloquee,
                     ),
+                    detail: () => _detail(context, ref, l.operation),
+                    corriger: () => _corriger(context, ref, l.operation),
                   ),
               ],
             ),
@@ -606,30 +685,97 @@ class _ATraiter extends ConsumerWidget {
     );
   }
 
+  /// Le détail d'une opération : sa cause et l'historique de son élément.
+  Future<void> _detail(
+    BuildContext context,
+    WidgetRef ref,
+    OperationSync o,
+  ) async {
+    final historique = await ref
+        .read(operationsSyncDaoProvider)
+        .operations(table: o.table, entiteId: o.entiteId);
+    if (!context.mounted) return;
+    await ouvrirDetailOperation(
+      context,
+      operation: o,
+      cause: causeDe(o, motif: motifOperation(o)),
+      historique: historique,
+    );
+  }
+
+  /// « Corriger » une opération rejetée : le formulaire de sa charge ; une
+  /// fois validé, l'opération repart sous un NOUVEL uuid (l'ancienne reste
+  /// l'historique, marquée remplacée).
+  Future<void> _corriger(
+    BuildContext context,
+    WidgetRef ref,
+    OperationSync o,
+  ) async {
+    final dao = ref.read(operationsSyncDaoProvider);
+    final fait = await ouvrirCorrectionOperation(
+      context,
+      operation: o,
+      cause: causeDe(o, motif: motifOperation(o)),
+      enregistrer: (charge) async {
+        await dao.renvoyer(o.uuidOperation, chargeCorrigee: charge);
+      },
+    );
+    if (!context.mounted || fait != true) return;
+    ref.invalidate(etatFileSynchronisationProvider);
+    direTransverse(context, TextesEcranSynchronisation.renvoyeeCorrigee);
+  }
+
   List<Widget> _ligne(
     BuildContext context,
     WidgetRef ref,
     OperationATraiter l, {
     required VoidCallback renvoyer,
     required VoidCallback debloquer,
+    required VoidCallback detail,
+    required VoidCallback corriger,
   }) {
     final o = l.operation;
     final uuid = o.uuidOperation;
-    final Widget action = switch (o.statut) {
-      StatutOperationSync.rejete when admin => BoutonStandard(
-        key: Key('sync-renvoyer-$uuid'),
-        libelle: TextesEcranSynchronisation.renvoyer,
-        compact: true,
-        onPressed: renvoyer,
-      ),
-      StatutOperationSync.bloque when admin && l.debloquable => BoutonStandard(
-        key: Key('sync-debloquer-$uuid'),
-        libelle: TextesEcranSynchronisation.debloquer,
-        compact: true,
-        onPressed: debloquer,
-      ),
-      _ => const SizedBox.shrink(),
-    };
+    final cause = causeDe(o, motif: motifOperation(o));
+    final Widget action = Wrap(
+      alignment: WrapAlignment.end,
+      spacing: AppSpacing.xs,
+      runSpacing: AppSpacing.xs,
+      children: [
+        BoutonStandard(
+          key: Key('sync-detail-$uuid'),
+          libelle: TextesEcranSynchronisation.detail,
+          compact: true,
+          onPressed: detail,
+        ),
+        switch (o.statut) {
+          StatutOperationSync.rejete when admin => BoutonStandard(
+            key: Key('sync-corriger-$uuid'),
+            libelle: TextesEcranSynchronisation.corriger,
+            compact: true,
+            variante: VarianteBouton.primaire,
+            onPressed: corriger,
+          ),
+          _ => const SizedBox.shrink(),
+        },
+        switch (o.statut) {
+          StatutOperationSync.rejete when admin => BoutonStandard(
+            key: Key('sync-renvoyer-$uuid'),
+            libelle: TextesEcranSynchronisation.renvoyer,
+            compact: true,
+            onPressed: renvoyer,
+          ),
+          StatutOperationSync.bloque when admin && l.debloquable =>
+            BoutonStandard(
+              key: Key('sync-debloquer-$uuid'),
+              libelle: TextesEcranSynchronisation.debloquer,
+              compact: true,
+              onPressed: debloquer,
+            ),
+          _ => const SizedBox.shrink(),
+        },
+      ],
+    );
     return [
       _ligneTexte(libelleTableOperation(o), cle: Key('sync-table-$uuid')),
       _ligneTexte(libelleDocument(o) ?? '—', cle: Key('sync-document-$uuid')),
@@ -638,7 +784,29 @@ class _ATraiter extends ConsumerWidget {
         libelleStatutOperation(o.statut),
         cle: Key('sync-statut-$uuid'),
       ),
-      _ligneTexte(motifOperation(o), cle: Key('sync-motif-$uuid')),
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _ligneTexte(
+            cause.titre,
+            cle: Key('sync-cause-$uuid'),
+            poids: FontWeight.w600,
+            couleur: AppColors.erreur,
+          ),
+          _ligneTexte(motifOperation(o), cle: Key('sync-motif-$uuid')),
+          for (final (i, e) in cause.erreurs.indexed)
+            _ligneTexte(
+              '${e.libelle} : ${e.messages.join(' ')}',
+              cle: Key('sync-erreur-champ-$uuid-$i'),
+            ),
+          _ligneTexte(
+            TextesEcranSynchronisation.tentatives(o.tentatives, o.codeHttp),
+            cle: Key('sync-tentatives-$uuid'),
+            couleur: AppColors.neutre500,
+          ),
+        ],
+      ),
       Align(alignment: Alignment.centerRight, child: action),
     ];
   }

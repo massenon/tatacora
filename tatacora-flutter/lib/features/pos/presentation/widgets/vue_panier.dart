@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/di/providers.dart' show sessionProvider;
+import '../../../../core/di/providers.dart'
+    show droitsProvider, sessionProvider;
+import '../../../../core/rbac/garde_acces.dart' show ModuleTatacora;
 import '../../../../core/format/formats.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -22,7 +24,7 @@ import '../../../comptabilite/domain/refus_comptable.dart' show RefusComptable;
 import '../../domain/entities/mode_reglement.dart';
 import '../../domain/entities/panier.dart';
 import '../../domain/entities/table_pos.dart' show RayonSalle;
-import '../../domain/messages_ventes.dart' show RefusVente;
+import '../../domain/messages_ventes.dart' show MessagesVentes, RefusVente;
 import '../../../hebergement/domain/entities/fiche_reservation.dart'
     show TypeRemise;
 import '../../domain/remise_panier.dart' show centiemesDepuisSaisie;
@@ -97,33 +99,15 @@ class VuePanier extends ConsumerWidget {
         children: [
           EnTetePanierComptant(
             nombreArticles: panier.lignes.length,
-            // Deux gestes distincts, et le maitre les pose cote a cote dans
-            // cet ordre (`pos.html:84-85`) : « Vider » retire les lignes et
+            // Deux gestes distincts, que la vue pose côte à côte dans cet ordre
+            // (`comptant.blade.php` l.322-325) : « Vider » retire les lignes et
             // laisse le panier OUVERT ; « Abandonner » ferme le panier et
-            // LIBERE la table. Les confondre en un seul bouton perdrait le
+            // LIBÈRE la table. Les confondre en un seul bouton perdrait le
             // premier — et sans le second, une table ouverte par erreur
-            // restait bloquee pour toujours, le moteur refusant de cloturer
+            // restait bloquée pour toujours, le moteur refusant de clôturer
             // un panier vide.
             actions: [
-              if (panier.estOuvert) ...[
-                if (vocabulaire.retirerLignes != null)
-                  _BoutonEnTete(
-                    cle: const Key('pos-vider-panier'),
-                    libelle: vocabulaire.retirerLignes!,
-                    // Inerte sur un panier deja vide : le geste n'aurait aucun
-                    // effet, et un bouton actif qui ne fait rien se presse
-                    // deux fois.
-                    onPressed: panier.lignes.isEmpty
-                        ? null
-                        : () => _vider(context, ref),
-                  ),
-                _BoutonEnTete(
-                  cle: const Key('pos-annuler-panier'),
-                  libelle: vocabulaire.fermerPanier,
-                  danger: true,
-                  onPressed: () => _annuler(context, ref),
-                ),
-              ],
+              BoutonsPanierComptant(panier: panier, vocabulaire: vocabulaire),
             ],
           ),
           ContextePanierComptant(
@@ -145,76 +129,6 @@ class VuePanier extends ConsumerWidget {
         ],
       ),
     );
-  }
-
-  /// « Vider » — retire les lignes, garde le panier ouvert.
-  ///
-  /// **Sans confirmation, comme le maître** (`pos.html:1012`). Ce n'est pas un
-  /// oubli : le geste est réversible en rescannant les articles, et une
-  /// question posée à chaque correction de commande au comptoir se ferait
-  /// valider machinalement — la confirmation perdrait alors tout son sens là
-  /// où elle compte, sur l'annulation du panier, qui elle est irréversible.
-  Future<void> _vider(BuildContext context, WidgetRef ref) async {
-    try {
-      await ref.read(depotPanierProvider).vider(panier.id);
-      rafraichirPaniers(ref);
-    } on Object catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('$e')));
-      }
-    }
-  }
-
-  Future<void> _annuler(BuildContext context, WidgetRef ref) async {
-    final controleur = TextEditingController();
-    final motif = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Annuler ce panier'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Les consommations déjà saisies sont conservées : la question '
-              '« qu’a-t-il consommé ? » doit rester répondable après coup.',
-            ),
-            const SizedBox(height: AppSpacing.md),
-            TextField(
-              key: const Key('pos-motif-annulation'),
-              controller: controleur,
-              autofocus: true,
-              decoration: const InputDecoration(
-                labelText: 'Motif de l’annulation',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Renoncer'),
-          ),
-          FilledButton(
-            key: const Key('pos-confirmer-annulation'),
-            onPressed: () => Navigator.of(context).pop(controleur.text),
-            child: const Text('Annuler le panier'),
-          ),
-        ],
-      ),
-    );
-
-    if (motif == null) return;
-    try {
-      await ref.read(gererPanierProvider).annuler(panier.id, motif);
-      ref.read(panierActifProvider.notifier).definir(null);
-      rafraichirPaniers(ref);
-    } on ArgumentError catch (e) {
-      if (context.mounted) _signaler(context, '${e.message}');
-    }
   }
 }
 
@@ -892,6 +806,98 @@ class EnTetePanierComptant extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// Les deux boutons de l'en-tête du panneau Panier — « Vider » et
+/// « Abandonner » (`comptant.blade.php` l.321-326).
+///
+/// ## Toujours là, comme dans la vue
+///
+/// La vue les pose dans l'en-tête sans aucune condition : ni panier ouvert, ni
+/// lignes à vider. Ce poste les masquait quand aucun panier n'était ouvert, puis
+/// grisait « Vider » sur un panier vide — le caissier cherchait deux boutons qui
+/// n'étaient plus là. Ils sont désormais toujours rendus.
+///
+/// ## Les gestes sont ceux de `PosComptant`
+///
+/// - « Vider » (`viderPanier`) : le panier OUVERT perd toutes ses lignes et
+///   reste ouvert ; sans panier ouvert, le geste ne fait rien (la vue rend
+///   la main sans message). **Aucune confirmation** : la vue n'en pose pas.
+/// - « Abandonner » (`abandonnerPanier`) : le panier ouvert est fermé sans
+///   vente, sans motif demandé, ses lignes gardées ; l'écran revient au
+///   comptoir et dit « Panier abandonné. » — même sans panier ouvert, comme la
+///   vue.
+///
+/// Un refus (panier déjà fermé ailleurs) est dit à la phrase du serveur. Le droit
+/// est celui de la vue (`exigerEcriture`, module M5) : sans lui, les deux
+/// boutons restent affichés mais INERTES — la vue répond 403.
+class BoutonsPanierComptant extends ConsumerWidget {
+  const BoutonsPanierComptant({
+    required this.panier,
+    required this.vocabulaire,
+    super.key,
+  });
+
+  /// Le panier OUVERT affiché, ou `null` quand aucun n'est ouvert.
+  final Panier? panier;
+
+  final VocabulairePos vocabulaire;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final peutVendre = ref
+        .watch(droitsProvider)
+        .peutEcrire(ModuleTatacora.m5Bar);
+    final libelleVider = vocabulaire.retirerLignes;
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (libelleVider != null) ...[
+          _BoutonEnTete(
+            cle: const Key('pos-vider-panier'),
+            libelle: libelleVider,
+            onPressed: peutVendre ? () => _vider(context, ref) : null,
+          ),
+          const SizedBox(width: AppSpacing.xxs),
+        ],
+        _BoutonEnTete(
+          cle: const Key('pos-abandonner-panier'),
+          libelle: vocabulaire.fermerPanier,
+          danger: true,
+          onPressed: peutVendre ? () => _abandonner(context, ref) : null,
+        ),
+      ],
+    );
+  }
+
+  /// `PosComptant::viderPanier`.
+  Future<void> _vider(BuildContext context, WidgetRef ref) async {
+    final courant = panier;
+    if (courant == null) return;
+    try {
+      await ref.read(gererPanierProvider).vider(courant.id);
+      rafraichirPaniers(ref);
+    } on PanierNonModifiable catch (e) {
+      if (context.mounted) _signaler(context, '$e');
+    }
+  }
+
+  /// `PosComptant::abandonnerPanier`.
+  Future<void> _abandonner(BuildContext context, WidgetRef ref) async {
+    final courant = panier;
+    if (courant != null) {
+      try {
+        await ref.read(gererPanierProvider).abandonner(courant.id);
+      } on PanierNonModifiable catch (e) {
+        if (context.mounted) _signaler(context, '$e');
+        return;
+      }
+    }
+    ref.read(panierActifProvider.notifier).definir(null);
+    rafraichirPaniers(ref);
+    if (context.mounted) _signaler(context, MessagesVentes.panierAbandonne);
   }
 }
 

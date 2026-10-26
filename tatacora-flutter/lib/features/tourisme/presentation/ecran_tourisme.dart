@@ -59,9 +59,9 @@ import 'widgets/vue_reservations.dart';
 ///    véhicule, ni acompte ; `circuits_local` ni indicatif). Elles gardent leur
 ///    place et portent « — » avec leur raison en infobulle : les retirer
 ///    masquerait que la vue les pose, les remplir inventerait des montants.
-///  - **Liste fermée du champ « Thème »** : la vue lit l'énumération MySQL de
-///    `circuits.theme` dans `information_schema`. Ce poste ne détient pas ce
-///    schéma, et `circuits_local.theme` est un texte libre.
+///  - **Liste fermée du champ « Thème »** : PORTÉE le 26/10/2026. Les options
+///    sont le registre du serveur (`themesCircuit`, « Autre » comprise), tenu
+///    ensemble avec le serveur et l'aligneur de descente.
 ///  - **Motif d'une réaffectation de guide** : aucune colonne ne le porte. Un
 ///    motif saisi puis jeté laisserait croire que la décision est tracée.
 ///  - **Le DOCUMENT imprimable de la vue** (`hidden print:block`, l.363-404,

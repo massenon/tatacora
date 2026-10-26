@@ -7,7 +7,6 @@ import '../../../../core/theme/app_colors.dart';
 // `app_spacing.dart` réexporte `app_radius.dart`.
 import '../../../../core/theme/app_spacing.dart';
 import '../../../restaurant/presentation/widgets/coquille_modale_restaurant.dart';
-import '../../../restaurant/presentation/widgets/coquille_restaurant.dart';
 import '../../../restaurant/presentation/widgets/textes_modale_restaurant.dart';
 import '../../domain/departs.dart';
 import '../../domain/entities/circuit.dart';
@@ -38,7 +37,7 @@ class _ModalePrestation extends ConsumerStatefulWidget {
 
 class _ModalePrestationState extends ConsumerState<_ModalePrestation> {
   late final TextEditingController _nom;
-  late final TextEditingController _theme;
+  String? _theme;
   late final TextEditingController _zone;
   late final TextEditingController _duree;
   late final TextEditingController _prix;
@@ -52,7 +51,8 @@ class _ModalePrestationState extends ConsumerState<_ModalePrestation> {
     super.initState();
     final c = widget.circuit;
     _nom = TextEditingController(text: c?.nom ?? '');
-    _theme = TextEditingController(text: c?.theme ?? '');
+    // Premier thème du registre à la création, comme la vue (l.407 du composant).
+    _theme = c?.theme ?? themesCircuit.first;
     _zone = TextEditingController(text: c?.zone ?? '');
     _duree = TextEditingController(text: c?.duree ?? '');
     _prix = TextEditingController(text: c == null ? '' : c.prix.toString());
@@ -64,7 +64,6 @@ class _ModalePrestationState extends ConsumerState<_ModalePrestation> {
   @override
   void dispose() {
     _nom.dispose();
-    _theme.dispose();
     _zone.dispose();
     _duree.dispose();
     _prix.dispose();
@@ -135,7 +134,7 @@ class _ModalePrestationState extends ConsumerState<_ModalePrestation> {
                 child: _champ(
                   cle: const Key('tourisme-prestation-prix'),
                   // Le libellé de la vue (l.825), au mot.
-                  etiquette: 'Prix par personne (FCFA)',
+                  etiquette: 'Prix par personne',
                   controleur: _prix,
                   chiffresSeulement: true,
                 ),
@@ -150,26 +149,6 @@ class _ModalePrestationState extends ConsumerState<_ModalePrestation> {
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-
-          // La capacité saisie ici est celle que RG-13 opposera aux
-          // réservations : le dire à l'endroit où on la saisit évite de
-          // chercher plus tard d'où vient un refus.
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.xsPlus),
-            decoration: BoxDecoration(
-              color: Ardoise.c50,
-              border: Border.all(color: Ardoise.c200),
-              borderRadius: BorderRadius.circular(AppRadius.roundedLg),
-            ),
-            child: const Text(
-              'La capacité maximale est celle qui sera opposée aux '
-              'réservations, cumulée sur chaque départ. La prestation est '
-              'enregistrée sur ce poste et n\'est proposée sur aucun autre.',
-              key: Key('tourisme-note-prestation-locale'),
-              style: TextesRestaurant.mention,
-            ),
           ),
         ],
       ),
@@ -230,35 +209,36 @@ class _ModalePrestationState extends ConsumerState<_ModalePrestation> {
     );
   }
 
-  /// Le champ « Thème ».
+  /// Le champ « Thème » — vue l.802-808 : une liste FERMÉE.
   ///
-  /// ÉCART DÉLIBÉRÉ — vue l.803-807.
-  /// La vue : une **liste fermée**, dont les options sont lues dans
-  /// l'énumération MySQL de `circuits.theme` (`themesDuCatalogue()` interroge
-  /// `information_schema`).
-  /// Ici : un champ texte.
-  /// Raison : `circuits_local.theme` est une colonne TEXTE libre, et
-  /// l'énumération vit dans un schéma MySQL que ce poste ne détient pas.
-  /// Fabriquer une liste à partir des thèmes déjà présents au catalogue
-  /// interdirait d'en créer le premier ; en recopier une en dur ici figerait
-  /// une énumération serveur que personne ne relirait le jour où elle
-  /// changerait. Le champ dit ce qu'il est.
+  /// Les options sont celles du registre du serveur (`themesCircuit`), « Autre »
+  /// comprise. Un thème hérité d'une saisie libre d'avant ce registre reste
+  /// offert tant que la fiche le porte, pour ne pas être changé sans que
+  /// l'exploitant l'ait choisi.
   Widget _champTheme() {
+    final options = [
+      ...themesCircuit,
+      if (_theme != null && !themesCircuit.contains(_theme)) _theme!,
+    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
         const EtiquetteChampRestaurant(texte: 'Thème', obligatoire: true),
-        TextField(
+        DropdownButtonFormField<String>(
           key: const Key('tourisme-prestation-theme'),
-          controller: _theme,
+          initialValue: _theme,
+          isExpanded: true,
           style: TextesModaleRestaurant.corps,
           decoration: const InputDecoration(
             isDense: true,
             border: OutlineInputBorder(),
-            helperText: 'Texte libre sur ce poste',
-            helperStyle: TextesModaleRestaurant.aide,
           ),
+          items: [
+            for (final t in options)
+              DropdownMenuItem(value: t, child: Text(libelleTheme(t))),
+          ],
+          onChanged: (v) => setState(() => _theme = v),
         ),
       ],
     );
@@ -269,7 +249,7 @@ class _ModalePrestationState extends ConsumerState<_ModalePrestation> {
     final capacite = int.tryParse(_capacite.text.trim());
 
     if (_nom.text.trim().isEmpty ||
-        _theme.text.trim().isEmpty ||
+        _theme == null ||
         _zone.text.trim().isEmpty ||
         prix == null ||
         capacite == null) {
@@ -292,7 +272,7 @@ class _ModalePrestationState extends ConsumerState<_ModalePrestation> {
           .enregistrerCircuit(
             id: widget.circuit?.id,
             nom: _nom.text,
-            theme: _theme.text.trim(),
+            theme: _theme!,
             zone: _zone.text,
             prix: prix,
             capaciteMax: capacite,

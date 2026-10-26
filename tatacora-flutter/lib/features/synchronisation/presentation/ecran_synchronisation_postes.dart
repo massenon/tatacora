@@ -10,6 +10,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/mesures_transverses.dart';
 import '../../transverse/domain/comptes_utilisateurs.dart';
 import '../../transverse/presentation/widgets/briques_transverses.dart';
+import '../../transverse/data/configuration_poste.dart';
 import '../data/service_suivi_postes.dart';
 import 'providers_synchronisation.dart';
 
@@ -18,6 +19,9 @@ final serviceSuiviPostesProvider = Provider<ServiceSuiviPostes>(
   (ref) => ServiceSuiviPostes(
     transport: ref.watch(transportSynchronisationProvider),
     urlServeur: ref.watch(urlServeurSynchronisationProvider),
+    lecteur: LecteurConfigurationPoste(
+      chemin: ref.watch(cheminConfigurationPosteProvider),
+    ),
   ),
 );
 

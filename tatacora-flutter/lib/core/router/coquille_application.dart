@@ -12,6 +12,7 @@ import '../../features/caisse/domain/indicateur_caisse.dart';
 import '../../features/caisse/presentation/providers_caisse.dart';
 import '../../features/comptabilite/presentation/widgets/selecteur_exercice_barre.dart';
 import '../../features/recherche_globale/presentation/recherche_globale_barre.dart';
+import '../navigation/actualisation_ecran.dart';
 import '../navigation/coquille_vue.dart';
 import '../navigation/navigation_tatacora.dart';
 import '../navigation/trace_svg.dart';
@@ -145,7 +146,8 @@ class CoquilleApplication extends ConsumerWidget {
                         padding: const EdgeInsets.only(
                           bottom: AppLayout.margeBasseEcran,
                         ),
-                        child: child,
+                        // Clic droit / F5 / Ctrl+R : « Actualiser » l'écran.
+                        child: ZoneActualisation(child: child),
                       ),
                     ),
                   ],

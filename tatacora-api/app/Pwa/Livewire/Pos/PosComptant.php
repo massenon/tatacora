@@ -571,11 +571,11 @@ class PosComptant extends PageMetier
         }
 
         /*
-         * Meme regle pour la location (M8) et le tourisme (M9), encaissables ici
-         * depuis le 22/10/2026 : un barman n'obtient pas par le comptoir la
-         * vente d'un vehicule ou d'un circuit que ces modules lui refusent.
+         * Un panier ouvert AVANT le 26/10/2026 peut encore porter une ligne de
+         * location (M8) ou de tourisme (M9) : plus aucune carte ne les propose,
+         * mais la cloture ne les laisse pas passer sans le droit d'ecriture.
          */
-        foreach ([self::MODULE_VEHICULES, self::MODULE_TOURISME] as $moduleDePrestation) {
+        foreach (['M8', 'M9'] as $moduleDePrestation) {
             if (in_array($moduleDePrestation, $panier->modules(), true)) {
                 $this->exigerEcriture($moduleDePrestation);
             }
@@ -989,13 +989,11 @@ class PosComptant extends PageMetier
         $session = $this->sessionOuverte();
         $pointBar = PointStockage::where('type', self::POINT_CAISSE)->first();
 
-        // Bar, restaurant, et depuis le 22/10/2026 tourisme et location :
-        // un ticket peut les melanger, comme au maitre (« Tourisme & location »).
+        // Bar et restaurant seulement (directive PO du 26/10/2026 : plus de
+        // « Tourisme » ni de « Location » a la selection).
         $catalogueComplet = $this->catalogue([
             self::MODULE_BAR,
             self::MODULE_RESTAURANT,
-            self::MODULE_TOURISME,
-            self::MODULE_VEHICULES,
         ]);
 
         $catalogueAffiche = $this->filtrerCatalogue(

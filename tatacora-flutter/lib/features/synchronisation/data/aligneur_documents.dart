@@ -2021,7 +2021,7 @@ extension _AlignementDocuments on AligneurCatalogue {
   /* Tourisme                                                            */
   /* ================================================================== */
 
-  static const _themes = {'aventure', 'culture', 'faune', 'nature'};
+  static const _themes = {'aventure', 'culture', 'faune', 'nature', 'autre'};
 
   /// Un circuit : une DÉFINITION, comme le catalogue — la version du serveur
   /// est prise (la saisie locale d'un circuit ne monte pas encore).

@@ -765,6 +765,33 @@ class PanierDao extends DatabaseAccessor<AppDatabase> with _$PanierDaoMixin {
     return (await parId(panierId))!;
   }
 
+  /// « Abandonner » du comptoir — `PanierService::abandonner`, appelé par
+  /// `PosComptant::abandonnerPanier` (`wire:click="abandonnerPanier"`).
+  ///
+  /// Le serveur clôt le panier SANS vente et SANS rien demander : le registre
+  /// garde la trace qu'il a été ouvert puis quitté, lignes comprises. Ici le
+  /// panier passe à `annule` avec le motif fixe [MessagesVentes.motifAbandon]
+  /// (le poste n'a pas d'état « clôturé sans vente » : `cloture` veut dire
+  /// vendu, et le journal le lirait comme tel) et sa table est libérée, la
+  /// fermeture partant en file si le serveur détient le panier
+  /// ([_libererLaTable]). Un panier déjà fermé est refusé
+  /// ([PanierNonModifiable], phrase du serveur) sans rien écrire.
+  Future<Panier> abandonner(String panierId) async {
+    await transaction(() async {
+      final entete = await _enteteModifiable(panierId);
+      await (update(paniersLocal)..where((p) => p.id.equals(entete.id))).write(
+        PaniersLocalCompanion(
+          statut: Value(StatutPanier.annule.code),
+          clotureLe: Value(_maintenant()),
+          motifAnnulation: const Value(MessagesVentes.motifAbandon),
+        ),
+      );
+      await _libererLaTable(entete.id, entete.tableId);
+    });
+
+    return (await parId(panierId))!;
+  }
+
   /// Annule une VENTE encaissée — `VenteService::annuler`, RG-02 : la vente
   /// reste au journal, marquée annulée, rien n'est effacé.
   ///

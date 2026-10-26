@@ -278,6 +278,12 @@ abstract final class AppLayout {
   /// (`<x-pwa.modale … largeur="520px">`, l.692).
   static const double modaleRelanceCrm = 520;
 
+  /// LE jeton de largeur de page, UN SEUL (directive du PO du 26/10/2026) :
+  /// le premier `<div>` après `<main>` de toute vue de la PWA porte
+  /// `max-w-[1440px] mx-auto p-5 lg:p-8`. Les jetons `page*` ci-dessous et dans
+  /// [MesuresTransverses] ne sont plus que des NOMS d'écran qui renvoient ici :
+  /// il n'existe plus de 1100, 1200, 1500 ou 1600 px. La garde
+  /// `test/core/qualite/largeur_page_unique_test.dart` le vérifie.
   static const double maxContentWidth = 1440;
 
   /// La hauteur maximale des modales de l'écran Stocks, en **fraction** de la
@@ -397,7 +403,7 @@ abstract final class AppLayout {
   /// Valeur **entre crochets**, mesuree : elle ne vient d'aucune echelle, et
   /// elle differe des 1440 px employes ailleurs dans le maitre
   /// ([maxContentWidth]). Les aligner serait choisir a la place du maitre.
-  static const double pageHistoriqueVentes = 1500;
+  static const double pageHistoriqueVentes = maxContentWidth;
 
   /// Une carte de la bande d'indicateurs du journal — `grid-cols-2
   /// sm:grid-cols-3 xl:grid-cols-5 gap-3` (l.32) sur les 1500 px de contenu
@@ -447,14 +453,14 @@ abstract final class AppLayout {
   /// distinct : deux ecrans qui portent aujourd'hui la meme largeur ne sont
   /// pas le meme reglage, et le jour ou le maitre en bougerait un, un jeton
   /// partage deplacerait l'autre sans que personne ne l'ait demande.
-  static const double pageCarteRestaurant = 1500;
+  static const double pageCarteRestaurant = maxContentWidth;
 
   /// La colonne de contenu de la carte du bar — `max-w-[1500px]`
   /// (`pwa/carte/corps.blade.php` l.73, corps partage des deux cartes). Valeur
   /// entre crochets, mesuree. Jeton distinct de [pageCarteRestaurant] pour la
   /// meme raison que celui-ci l'est de [pageHistoriqueVentes] : le corps est
   /// commun aujourd'hui, rien ne dit qu'il le restera.
-  static const double pageCarteBar = 1500;
+  static const double pageCarteBar = maxContentWidth;
 
   /// La liste « categorie » de la barre de filtres de la carte du bar. La vue
   /// laisse ses `<select>` a leur largeur naturelle (`corps.blade.php`
@@ -680,12 +686,12 @@ abstract final class AppLayout {
   /// Valeur ENTRE CROCHETS, propre a cette page : son planning porte 62
   /// colonnes, et le maitre lui donne 160 px de plus qu'au [maxContentWidth]
   /// des autres ecrans.
-  static const double pageVehicules = 1600;
+  static const double pageVehicules = maxContentWidth;
 
   /// La page « Congés & Plannings » — `max-w-[1600px] mx-auto p-5 lg:p-8`
   /// (`rh/conges-plannings.blade.php`). Valeur ENTRE CROCHETS, la même que
   /// [pageVehicules] : les deux vues posent la même classe.
-  static const double pageCongesPlannings = 1600;
+  static const double pageCongesPlannings = maxContentWidth;
 
   /// Paramètres → Logo & Apparence : l'aperçu du logo (`w-20 h-20`), celui du
   /// favicon (`w-10 h-10`) et une pastille de la charte (`w-12 h-12`).
@@ -979,7 +985,7 @@ abstract final class AppLayout {
   /// Valeur ENTRE CROCHETS. Elle vaut le meme nombre que
   /// [pageHistoriqueVentes] et reste un jeton DISTINCT : deux ecrans qui
   /// portent aujourd'hui la meme largeur ne sont pas le meme reglage.
-  static const double pageNotifications = 1500;
+  static const double pageNotifications = maxContentWidth;
 
   /// L'icone d'avertissement du bandeau — `<svg width="20" height="20">`
   /// (`hub.blade.php` l.129). Valeur en dur du SVG, pas une classe Tailwind.
@@ -1052,7 +1058,7 @@ abstract final class AppLayout {
   /// Valeur ENTRE CROCHETS. Elle vaut le meme nombre que [pageVehicules] et
   /// reste un jeton DISTINCT : le jour ou l'une des deux pages changera de
   /// gabarit, l'autre ne doit pas suivre par effet de bord.
-  static const double pageTourisme = 1600;
+  static const double pageTourisme = maxContentWidth;
 
   /// Le champ de recherche de la barre de filtres — `min-w-[200px]` sur un
   /// conteneur `flex-1` (l.178).
@@ -1137,6 +1143,10 @@ abstract final class AppLayout {
   /// l.817). L'aligner sur 520 serrerait cette rangee.
   static const double modalePrestationTourisme = 560;
 
+  /// La modale « Ajouter un guide touristique » — `largeur="460px"`, posée par
+  /// la vue au-dessus de « Réserver des places ».
+  static const double modaleAjoutGuideTourisme = 460;
+
   /// La jauge de remplissage d'un depart — `w-20` (l.308), soit 80 px de
   /// l'echelle NOMMEE de Tailwind, pas une valeur entre crochets.
   static const double jaugeRemplissage = 80;
@@ -1167,7 +1177,7 @@ abstract final class AppLayout {
   /// [pageHistoriqueVentes] et reste un jeton DISTINCT : deux ecrans qui
   /// portent aujourd'hui la meme largeur ne sont pas le meme reglage, et le
   /// jour ou la vue en bougerait un, un jeton partage deplacerait l'autre.
-  static const double pageDepenses = 1500;
+  static const double pageDepenses = maxContentWidth;
 
   /// La modale « Nouvelle Depense » — `largeur="760px"` (l.326).
   ///
@@ -1296,7 +1306,7 @@ abstract final class AppLayout {
   /// La colonne de contenu d'Hebergement — `max-w-[1440px]` (l.56). Valeur
   /// ENTRE CROCHETS, distincte des 1500 px des cartes et des 1600 px de la
   /// paie : un reglage par ecran, jamais partage.
-  static const double pageHebergement = 1440;
+  static const double pageHebergement = maxContentWidth;
 
   /// Le `<select>` de categorie de la barre d'outils du plan (l.168). La vue le
   /// laisse a sa largeur NATURELLE, que le releve ne mesure pas (il ne releve
@@ -1339,7 +1349,7 @@ abstract final class AppLayout {
   /// La colonne de contenu de la paie — `max-w-[1600px]` (l.102). Valeur
   /// ENTRE CROCHETS, distincte des 1500 px des autres ecrans : un reglage par
   /// ecran, jamais partage.
-  static const double pagePaie = 1600;
+  static const double pagePaie = maxContentWidth;
 
   /// Le `<input type="month">` de l'en-tete (l.116). La vue ne lui pose
   /// aucune largeur : le navigateur le dimensionne a son contenu (texte
@@ -1566,7 +1576,7 @@ abstract final class MesuresAccueil {
   /// `max-w-[1500px]` du conteneur de page (l.220). Même nombre que
   /// [AppLayout.pageHistoriqueVentes], jeton DISTINCT : deux écrans qui
   /// partagent une largeur par hasard ne doivent pas changer ensemble.
-  static const double page = 1500;
+  static const double page = AppLayout.maxContentWidth;
 
   /// Largeur du `<select wire:model.live="filtrePeriode">` de l'en-tête. La
   /// vue n'en pose aucune : c'est la largeur naturelle du contrôle natif, celle

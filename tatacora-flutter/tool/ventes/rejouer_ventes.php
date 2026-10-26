@@ -370,6 +370,28 @@ try {
 
                         foreach ($lignes as $l) {
                             for ($i = 0; $i < $l['quantite']; $i++) {
+                                if (in_array($l['module'], ['M8', 'M9'], true)) {
+                                    // Depuis le 26/10/2026 (directive du PO) le
+                                    // comptoir ne PROPOSE plus la location ni le
+                                    // tourisme : `ajouterAuPanier` les refuse.
+                                    // Le domaine, lui, les accepte toujours (vente
+                                    // deja faite, API, synchronisation) : on les
+                                    // pose par `PanierService`, sur le MEME panier
+                                    // du comptoir que le composant, dans l'ordre.
+                                    $paniersSvc = app(\App\Domain\Ventes\Services\PanierService::class);
+                                    $paniersSvc->ajouterLigne(
+                                        $paniersSvc->ouvrirPourPoste(
+                                            PosComptant::POSTE_COMPTOIR,
+                                            null,
+                                            DB::table('sessions_caisse')->where('point_vente', 'bar')->whereNull('date_cloture')->value('id'),
+                                        ),
+                                        $l['module'],
+                                        $l['reference_id'],
+                                    );
+
+                                    continue;
+                                }
+
                                 $c->call('ajouterAuPanier', $l['module'], $l['reference_id']);
                             }
                         }

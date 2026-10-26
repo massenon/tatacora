@@ -14,7 +14,6 @@ import '../../hebergement/domain/entities/reservation.dart';
 import '../../hebergement/presentation/providers_hebergement.dart';
 import '../../restaurant/presentation/widgets/corps_carte_commun.dart'
     show styleContenuCarte;
-import '../data/piece_de_la_vente.dart' show modulesEncaissablesAuSejour;
 import '../domain/entities/article_vendable.dart';
 import '../domain/entities/panier.dart';
 import '../domain/repositories/panier_repository.dart';
@@ -40,7 +39,7 @@ import 'widgets/panier_heberges.dart';
 ///
 /// ## Ce que cet écran montre, et qui n'existait nulle part
 ///
-/// Les consommations du bar, du tourisme et de la location s'ajoutent au fil
+/// Les consommations du bar et du restaurant s'ajoutent au fil
 /// des jours au **même** panier, et une seule facture est produite au départ.
 /// C'est l'exigence explicite du client : « pas de panier différent ».
 ///
@@ -67,9 +66,9 @@ import 'widgets/panier_heberges.dart';
 ///
 /// - **La ligne « Hébergement … FCFA, hors panier »** de l'ancienne liste des
 ///   séjours : la vue n'en a pas, le montant est dans la modale de clôture.
-/// - Les motifs de refus propres à la PWA : `prestation_refusee` est rendu
-///   (carte grisée et refus nommé, voir [CatalogueHeberges]) ; les `refus_*`
-///   de la clôture sont ceux du dépôt (`ModaleClotureSejour`).
+/// - Les motifs de refus propres à la PWA : les `refus_*` de la clôture sont
+///   ceux du dépôt (`ModaleClotureSejour`). Tourisme et location ne sont plus
+///   proposés (26/10/2026) : plus de `prestation_refusee`.
 class EcranPosHeberges extends ConsumerWidget {
   const EcranPosHeberges({super.key});
 
@@ -186,13 +185,6 @@ class EcranPosHeberges extends ConsumerWidget {
     ArticleVendable article,
   ) async {
     if (reservation == null) return;
-    // `PosHeberges::ajouterAuPanier` : un module non encaissable est NOMMÉ à
-    // l'écran (PA-24), jamais un échec silencieux — et le panier du séjour
-    // n'est pas ouvert pour un clic qui ne peut rien y ajouter.
-    if (!modulesEncaissablesAuSejour.contains(article.module.code)) {
-      _signaler(context, CatalogueHeberges.prestationRefusee);
-      return;
-    }
     final gerer = ref.read(gererPanierProvider);
     try {
       final cible =
@@ -232,9 +224,9 @@ class _EnTete extends ConsumerWidget {
 
   /// `pos_pwa.heberges.sous_titre`.
   static const String sousTitre =
-      'Le panier reste ouvert de l’arrivée au départ. Bar, restaurant, '
-      'tourisme et location y entrent ensemble — un seul panier, une seule '
-      'facture à la clôture.';
+      'Le panier reste ouvert de l’arrivée au départ. Bar et '
+      'restaurant y entrent ensemble — un seul panier, une seule facture à la '
+      'clôture.';
 
   /// `pos_pwa.heberges.kpi_paniers`.
   static const String kpiPaniers = 'Paniers ouverts';

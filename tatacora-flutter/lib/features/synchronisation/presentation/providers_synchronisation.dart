@@ -78,6 +78,35 @@ final serviceAppairageProvider = Provider<ServiceAppairage>((ref) {
   );
 });
 
+/// L'interrupteur « Synchronisation activée » du poste, relu du fichier
+/// `poste.json` (absent : activée). Invalidé par la bascule de Paramètres.
+final synchronisationActiveeProvider = FutureProvider.autoDispose<bool>(
+  (ref) => LecteurConfigurationPoste(
+    chemin: ref.watch(cheminConfigurationPosteProvider),
+  ).synchronisationActivee(),
+);
+
+/// La BASCULE de l'interrupteur (Paramètres → Synchronisation). Écrit
+/// `poste.json`, relit l'état partout (voyant, onglet), et — à la
+/// réactivation — lance aussitôt un passage pour rattraper (envoi de la file
+/// dans l'ordre, puis descente), sans l'attendre.
+final basculerSynchronisationProvider =
+    Provider<Future<void> Function(bool activee, {required String par})>(
+      (ref) => (activee, {required par}) async {
+        await EcrivainConfigurationPoste(
+          chemin: ref.read(cheminConfigurationPosteProvider),
+        ).enregistrerSynchronisationActivee(
+          activee,
+          par: par,
+          le: DateTime.now(),
+        );
+        ref
+          ..invalidate(synchronisationActiveeProvider)
+          ..invalidate(appairageActuelProvider);
+        if (activee) ref.read(declencheurSynchronisationProvider)();
+      },
+    );
+
 /// L'appairage actuel, relu du fichier à chaque lecture.
 final appairageActuelProvider = FutureProvider.autoDispose<AppairagePoste?>(
   (ref) => ref.watch(serviceAppairageProvider).appairageActuel(),
@@ -225,6 +254,9 @@ final controleCoherenceProvider = Provider<ControleCoherence>(
     db: ref.watch(baseLocaleProvider),
     transport: ref.watch(transportSynchronisationProvider),
     urlServeur: ref.watch(urlServeurSynchronisationProvider),
+    lecteur: LecteurConfigurationPoste(
+      chemin: ref.watch(cheminConfigurationPosteProvider),
+    ),
   ),
 );
 
@@ -325,12 +357,15 @@ final voyantSynchronisationProvider =
           ref.watch(urlServeurSynchronisationProvider) == null;
       final comptes = ref.watch(comptesFileSynchronisationProvider);
       final appairage = ref.watch(appairageActuelProvider);
-      if (!interdite && (!comptes.hasValue || !appairage.hasValue)) {
+      final activee = ref.watch(synchronisationActiveeProvider);
+      if (!interdite &&
+          (!comptes.hasValue || !appairage.hasValue || !activee.hasValue)) {
         return null;
       }
       return voyantDe(
         interdite: interdite,
         appaire: appairage.value != null,
+        desactivee: activee.value == false,
         refusJeton: appairage.value?.refus != null,
         serveurReinitialise:
             ref.watch(reinitialisationServeurProvider).value != null,

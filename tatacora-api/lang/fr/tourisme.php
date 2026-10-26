@@ -10,6 +10,7 @@ return [
     'capacite_depassee' => 'Départ complet : :demandes participants demandés pour :restantes place(s) '
         . 'encore disponible(s) (capacité du circuit : :capacite).',
     'participants_minimum' => 'Une réservation doit compter au moins un participant.',
+    'guide_deja_existant' => 'Un guide nommé « :nom » existe déjà au référentiel.',
     'guide_deja_affecte' => 'Ce guide assure déjà un autre circuit le :date.',
     'guide_du_depart_impose' => 'Ce départ est déjà conduit par un autre guide. Reprenez le guide en place, ou réaffectez le départ entier.',
     'affectation_impossible' => 'Une prestation annulée ou clôturée ne peut plus changer de guide.',
@@ -218,6 +219,8 @@ return [
             . 'des départs.',
         'client_aucun' => 'Aucun client au référentiel — créez-le d\'abord depuis « Clients & Créances ».',
         'guide_aucun' => 'Aucun guide au référentiel — une réservation ne peut pas être prise sans lui.',
+        'bouton_ajouter_guide' => 'Ajouter',
+        'theme_autre' => 'Autre',
         'prestation_aucune' => 'Aucune prestation au catalogue.',
 
         // --- Modale « Réaffecter le guide » -------------------------------
@@ -240,7 +243,7 @@ return [
         'champ_zone' => 'Zone',
         'champ_duree' => 'Durée',
         'invite_duree' => 'Ex. 3 jours / 2 nuits',
-        'champ_prix' => 'Prix par personne (FCFA)',
+        'champ_prix' => 'Prix par personne',
         'champ_capacite' => 'Capacité maximale',
         'bouton_enregistrer' => 'Enregistrer',
 
@@ -256,6 +259,16 @@ return [
         'reservation_annulee_faite' => 'Réservation annulée, places libérées.',
         'depart_annule_faite' => 'Départ annulé — :nombre réservation(s) passée(s) en annulation.',
         'guide_reaffecte' => 'Guide réaffecté à :nombre réservation(s) du départ.',
+        // --- Modale « Ajouter un guide touristique » ----------------------
+        'modale_guide_creation_titre' => 'Ajouter un guide touristique',
+        'modale_guide_creation_sous_titre' => 'Le guide rejoint le référentiel et se sélectionne dans la réservation.',
+        'champ_guide_nom' => 'Nom du guide',
+        'champ_guide_certification' => 'Certification',
+        'champ_guide_zone' => 'Zone de compétence',
+        'champ_guide_tarif' => 'Tarif journalier',
+        'invite_guide_zone' => 'Ex. Nord Bénin',
+        'bouton_ajouter_le_guide' => 'Ajouter le guide',
+        'guide_cree' => 'Guide « :nom » ajouté au référentiel.',
         'circuit_enregistre' => 'Prestation « :nom » enregistrée au catalogue.',
     ],
 ];

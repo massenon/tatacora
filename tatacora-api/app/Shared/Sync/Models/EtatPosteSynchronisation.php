@@ -18,7 +18,11 @@ class EtatPosteSynchronisation extends Model
 
     protected $table = 'etats_postes_synchronisation';
 
-    protected $fillable = ['poste_id', 'utilisateur_id', 'derniere_descente_le', 'en_attente', 'demande_lue_le', 'dernier_controle_le'];
+    protected $fillable = ['poste_id', 'utilisateur_id', 'derniere_descente_le', 'en_attente', 'demande_lue_le', 'dernier_controle_le',
+        // Journal d'envoi (26/10/2026) : curseur rendu, redescente demandée, 409 « génération périmée ».
+        'curseur_descente', 'descente_complete', 'descente_complete_le', 'redescente_demandee_le',
+        'redescente_demandee_par', 'redescente_faite_le', 'generation_perimee_le', 'generation_perimee_nb',
+    ];
 
     protected function casts(): array
     {
@@ -27,6 +31,12 @@ class EtatPosteSynchronisation extends Model
             'demande_lue_le' => 'datetime',
             'dernier_controle_le' => 'datetime',
             'en_attente' => 'integer',
+            'descente_complete' => 'boolean',
+            'descente_complete_le' => 'datetime',
+            'redescente_demandee_le' => 'datetime',
+            'redescente_faite_le' => 'datetime',
+            'generation_perimee_le' => 'datetime',
+            'generation_perimee_nb' => 'integer',
         ];
     }
 }

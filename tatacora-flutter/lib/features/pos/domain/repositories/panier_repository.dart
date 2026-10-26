@@ -2,6 +2,7 @@ import '../../../hebergement/domain/entities/fiche_reservation.dart'
     show TypeRemise;
 import '../entities/article_vendable.dart';
 import '../entities/panier.dart';
+import '../messages_ventes.dart' show MessagesVentes;
 
 /// Contrat d'accès aux paniers.
 ///
@@ -85,6 +86,11 @@ abstract interface class PanierRepository {
 
   Future<Panier> annuler(String panierId, String motif);
 
+  /// « Abandonner » du comptoir (`PanierService::abandonner`) : ferme le panier
+  /// OUVERT sans vente et sans motif saisi, garde ses lignes, libère sa table.
+  /// Lève [PanierNonModifiable] sur un panier déjà fermé.
+  Future<Panier> abandonner(String panierId);
+
   /// Annule une VENTE encaissée (`VenteService::annuler`, RG-02) : le panier
   /// clôturé devient annulé, sa pièce comptable est contre-passée EN ENTIER, et
   /// la vente reste au journal. À distinguer d'[annuler], qui n'accepte qu'un
@@ -130,9 +136,13 @@ final class PanierNonModifiable implements Exception {
   const PanierNonModifiable(this.statut);
   final StatutPanier statut;
 
+  /// Un panier clôturé répond la phrase du SERVEUR
+  /// (`ventes.panier_cloture_immuable`) ; un panier annulé, que le serveur ne
+  /// connaît pas, garde la phrase du poste.
   @override
-  String toString() =>
-      'Ce panier est ${statut.code} : il ne peut plus être modifié.';
+  String toString() => statut == StatutPanier.cloture
+      ? MessagesVentes.panierClotureImmuable
+      : 'Ce panier est ${statut.code} : il ne peut plus être modifié.';
 }
 
 /// La ligne demandée n'appartient pas à ce panier.

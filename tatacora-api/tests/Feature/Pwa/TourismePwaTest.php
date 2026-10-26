@@ -847,4 +847,119 @@ final class TourismePwaTest extends TestCase
             ->assertViewHas('guideImpose', static fn ($guide): bool => $guide !== null && $guide->id === $paul->id);
     }
 
+    // =====================================================================
+    // 8. « Autre » au thème, « Ajouter un guide touristique » (26/10/2026)
+    // =====================================================================
+
+    #[Test]
+    public function le_theme_autre_est_offert_valide_et_ecrit_en_base(): void
+    {
+        $this->actingAs($this->compte('guide'));
+
+        Livewire::test(Departs::class)
+            ->call('ouvrirFormulairePrestation')
+            ->assertSeeHtml('<option value="autre">Autre</option>')
+            ->set('circuitNomSaisi', 'Soirée contes')
+            ->set('circuitThemeSaisi', 'autre')
+            ->set('circuitZoneSaisie', 'Atacora')
+            ->set('circuitDureeSaisie', 'Soirée')
+            ->set('circuitPrixSaisi', '5000')
+            ->set('circuitCapaciteSaisie', 20)
+            ->call('enregistrerPrestation')
+            ->assertHasNoErrors();
+
+        $this->assertSame('autre', Circuit::firstOrFail()->theme);
+    }
+
+    #[Test]
+    public function le_libelle_du_prix_ne_porte_plus_l_unite(): void
+    {
+        $this->actingAs($this->compte('guide'));
+
+        Livewire::test(Departs::class)
+            ->call('ouvrirFormulairePrestation')
+            ->assertSee('Prix par personne')
+            ->assertDontSee('Prix par personne (FCFA)');
+    }
+
+    #[Test]
+    public function la_modale_de_reservation_ne_dit_plus_la_colonne_technique(): void
+    {
+        $this->circuit();
+        $this->client();
+        $this->actingAs($this->compte('guide'));
+
+        Livewire::test(Departs::class)
+            ->call('ouvrirFormulaireReservation')
+            ->assertSee('Aucun guide au référentiel')
+            ->assertSee('Ajouter')
+            ->assertDontSee('guide_id')
+            ->assertDontSee('NOT NULL');
+    }
+
+    #[Test]
+    public function un_guide_ajoute_depuis_la_reservation_est_ecrit_puis_selectionne(): void
+    {
+        $circuit = $this->circuit();
+        $this->client();
+        $this->actingAs($this->compte('guide'));
+
+        $composant = Livewire::test(Departs::class)
+            ->call('ouvrirFormulaireReservation', $circuit->id)
+            ->call('ouvrirAjoutGuide')
+            ->assertSet('ajoutGuideOuvert', true)
+            ->assertSee('Ajouter un guide touristique')
+            // La réservation reste ouverte derrière : sa saisie n'est pas perdue.
+            ->assertSet('etatFormulaire', 'reservation')
+            ->set('guideNomSaisi', 'KOTO Jean')
+            ->set('guideCertificationSaisie', 'Guide national')
+            ->set('guideZoneSaisie', 'Nord Bénin')
+            ->set('guideTarifSaisi', '20000')
+            ->call('enregistrerGuide')
+            ->assertHasNoErrors()
+            ->assertSet('ajoutGuideOuvert', false)
+            ->assertSet('etatFormulaire', 'reservation');
+
+        $guide = Guide::firstOrFail();
+        $this->assertSame('KOTO Jean', $guide->nom);
+        $this->assertSame('Guide national', $guide->certification);
+        $this->assertSame('Nord Bénin', $guide->zone_competence);
+        $this->assertSame('20000.00', (string) $guide->tarif_jour);
+        $composant->assertSet('guideIdResa', $guide->id);
+    }
+
+    #[Test]
+    public function l_ajout_d_un_guide_exige_un_nom_et_un_tarif_et_refuse_un_homonyme(): void
+    {
+        $circuit = $this->circuit();
+        $this->client();
+        $this->guide('ADJOVI Paul');
+        $this->actingAs($this->compte('guide'));
+
+        Livewire::test(Departs::class)
+            ->call('ouvrirFormulaireReservation', $circuit->id)
+            ->call('ouvrirAjoutGuide')
+            ->call('enregistrerGuide')
+            ->assertHasErrors(['guideNomSaisi', 'guideTarifSaisi'])
+            ->set('guideNomSaisi', 'adjovi paul')
+            ->set('guideTarifSaisi', '1000')
+            ->call('enregistrerGuide')
+            ->assertHasErrors('guideNomSaisi');
+
+        $this->assertSame(1, Guide::count());
+    }
+
+    #[Test]
+    public function le_role_lecture_seule_ne_peut_pas_ajouter_de_guide(): void
+    {
+        $this->circuit();
+        $this->actingAs($this->compte('receptionniste'));   // M9 = 'L'
+
+        foreach (['ouvrirAjoutGuide', 'enregistrerGuide'] as $geste) {
+            Livewire::test(Departs::class)->call($geste)->assertForbidden();
+        }
+
+        $this->assertSame(0, Guide::count());
+    }
+
 }

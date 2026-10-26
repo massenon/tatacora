@@ -20,9 +20,9 @@
     2. Le maitre ne pose AUCUN filtre « Bar / Restaurant » ici, et c'est ecrit
        dans son code (l.132-138) : le client a demande « Bar, Restaurant sur le
        meme panier ; pas de panier different ». Ne pas en ajouter un.
-    3. Tourisme et location sont AFFICHES et REFUSES avec leur raison
-       (PA-24) : ils n'ont pas de catalogue d'ou figer un prix cote serveur.
-       Les retirer les rendrait indiscernables d'un rayon vide.
+    3. Tourisme et location ne sont PLUS proposes (directive PO du
+       26/10/2026) : ni carte, ni pastille, ni mention. Le catalogue ne porte
+       que le bar et le restaurant.
 --}}
 @php
     use App\Pwa\Support\MontantFcfa;
@@ -146,7 +146,7 @@
                 @foreach ($catalogue as $item)
                   @php
                     $tarifConnu = bccomp((string) $item['prix'], '0.00', 2) > 0;
-                    $ajoutable = $item['encaissable'] && $tarifConnu && $selectedReservationId !== null;
+                    $ajoutable = $tarifConnu && $selectedReservationId !== null;
                   @endphp
                   <button type="button"
                     wire:click="ajouterAuPanier('{{ $item['module'] }}', '{{ $item['reference_id'] }}')"
@@ -158,9 +158,6 @@
                       {{ $tarifConnu ? MontantFcfa::format((string) $item['prix']) : __('pos_pwa.heberges.tarif_manquant') }}
                     </p>
                     <span class="text-[10px] text-slate-400 mt-0.5 block">{{ $item['famille'] }}</span>
-                    @unless ($item['encaissable'])
-                      <span class="text-[10px] text-amber-700 mt-1 block">{{ __('pos_pwa.heberges.prestation_refusee') }}</span>
-                    @endunless
                   </button>
                 @endforeach
               </div>

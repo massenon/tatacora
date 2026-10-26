@@ -187,8 +187,10 @@ class _PageState extends ConsumerState<_Page> {
       child: Align(
         alignment: Alignment.topLeft,
         child: ConstrainedBox(
-          // `max-w-[1100px]`
-          constraints: const BoxConstraints(maxWidth: 1100),
+          // `max-w-[1440px]` (uniforme, directive du PO du 26/10/2026)
+          constraints: const BoxConstraints(
+            maxWidth: AppLayout.maxContentWidth,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [

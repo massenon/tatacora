@@ -35,12 +35,10 @@ abstract final class TextesModalesHubComptabilite {
       'invisible au bilan : il ne se devine pas.';
   static const String annuler = 'Annuler';
 
-  /// ÉCART : la vue invite à saisir « 605600 » (six chiffres, `maxlength="6"`)
-  /// alors que le service qu'elle appelle (`PlanComptableService::creerCompte`)
-  /// n'admet que DEUX À QUATRE chiffres — la saisie de la vue serait refusée
-  /// par son propre service. Le poste suit la règle du service (et de son plan,
-  /// quatre chiffres au plus) : l'invite est un numéro valide.
-  static const String champNumeroInvite = '6056';
+  /// L'invite est un numéro VALIDE (deux à quatre chiffres) : la même règle
+  /// que le service de la vue ([MoteurComptable.formatNumeroCompte]), la même
+  /// invite que la vue du hub.
+  static const String champNumeroInvite = MoteurComptable.numeroCompteExemple;
 
   // « Ouvrir un exercice ».
   static const String exerciceTitre = 'Ouvrir un exercice';
@@ -340,7 +338,7 @@ class _ModaleCompteState extends ConsumerState<_ModaleCompte> {
                   key: const Key('modale-compte-numero'),
                   controller: _numero,
                   enabled: !_envoi,
-                  maxLength: 4,
+                  maxLength: MoteurComptable.numeroCompteChiffresMax,
                   keyboardType: TextInputType.number,
                   inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                   style: valeur.copyWith(

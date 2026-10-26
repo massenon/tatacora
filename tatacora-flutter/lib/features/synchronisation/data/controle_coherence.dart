@@ -94,6 +94,9 @@ class ControleCoherence {
   static const String horsReseau =
       'Le serveur ne répond pas : le contrôle de cohérence compare ce poste '
       'au serveur, il exige une connexion.';
+  static const String desactivee =
+      'La synchronisation est désactivée sur ce poste : le contrôle de '
+      'cohérence compare ce poste au serveur, il reprend à la réactivation.';
   static const String nonAppaire =
       'Ce poste n’est pas appairé à un serveur : rien à comparer.';
 
@@ -159,6 +162,9 @@ class ControleCoherence {
     int jours = 7,
   }) async {
     if (_url == null) return const CoherenceIndisponible(nonAppaire);
+    if (!await _lecteur.synchronisationActivee()) {
+      return const CoherenceIndisponible(desactivee);
+    }
     final appairage = await _lecteur.appairage();
     if (appairage == null || appairage.refus != null) {
       return const CoherenceIndisponible(nonAppaire);

@@ -19,6 +19,7 @@ import 'tables/clients_table.dart';
 import 'tables/comptabilite_tables.dart';
 import 'tables/depenses_tables.dart';
 import 'tables/descente_sync_tables.dart';
+import 'tables/journal_reception_tables.dart';
 import 'tables/indisponibilites_carte_tables.dart';
 import 'tables/conges_plannings_tables.dart';
 import 'tables/complements_v35_tables.dart';
@@ -220,6 +221,10 @@ part 'app_database.g.dart';
     InventairesLocal,
     LignesInventaireLocal,
     CanauxReservationLocal,
+    // v37 (26/10/2026) : le journal de réception du poste (chaque élément
+    // reçu du serveur, son issue et sa cause). Seul auteur :
+    // `JournalReceptionDao` (voir `tables/journal_reception_tables.dart`).
+    JournalReceptionLocal,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -400,8 +405,12 @@ class AppDatabase extends _$AppDatabase {
   /// v36 (21/10/2026) — LE LIEN DIRECT PLAT -> ARTICLE : deux colonnes
   /// nullables sur `plats_local` (`article_id`, `unites_vendables`), aucune
   /// table.
+  ///
+  /// v37 (26/10/2026) — LE JOURNAL DE RÉCEPTION : une table neuve
+  /// (`journal_reception_local`, 72 -> 73 tables), aucune colonne ajoutée. Elle
+  /// se remplit à la prochaine descente ; aucune ligne n'est fabriquée.
   @override
-  int get schemaVersion => 36;
+  int get schemaVersion => 37;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1154,6 +1163,19 @@ class AppDatabase extends _$AppDatabase {
         await customStatement(
           "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
         );
+      }
+      if (from < 37) {
+        // LE JOURNAL DE RÉCEPTION (26/10/2026). Une table NEUVE, sans index ni
+        // clé étrangère ; aucune ligne fabriquée (la descente la remplit).
+        // Ajout CONDITIONNEL (piège 3) : une fixture ramenée en arrière
+        // depuis la définition courante peut la porter déjà.
+        final existe = await m.database
+            .customSelect(
+              "SELECT name FROM sqlite_master WHERE type = 'table' "
+              "AND name = 'journal_reception_local'",
+            )
+            .get();
+        if (existe.isEmpty) await m.createTable(journalReceptionLocal);
       }
       if (from < 33) {
         // LES PLANNINGS ET LES CONGÉS (21/10/2026). Deux tables NEUVES, sans

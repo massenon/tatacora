@@ -578,7 +578,9 @@ class Hub extends PageComptabilite
     public function enregistrerCompte(PlanComptableService $service): void
     {
         $valide = $this->validerEcriture([
-            'numeroCompte' => ['required', 'string', 'regex:/^[1-9][0-9]{5}$/'],
+            // Le FORMAT du numéro n'est PAS jugé ici : c'est `PlanComptableService::creerCompte`
+            // qui le juge (une seule règle, une seule phrase, voir NUMERO_COMPTE_FORMAT).
+            'numeroCompte' => ['required', 'string'],
             'libelleCompte' => ['required', 'string', 'max:255'],
             'natureCompte' => ['required', 'string', 'in:'.implode(',', PlanComptableService::NATURES)],
         ]);

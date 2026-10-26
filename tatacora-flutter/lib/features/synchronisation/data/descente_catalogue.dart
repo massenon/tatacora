@@ -5,9 +5,11 @@ import '../../comptabilite/data/moteur_comptable.dart';
 import '../../transverse/data/configuration_poste.dart';
 import '../domain/bilan_synchronisation.dart';
 import '../domain/descente_catalogue.dart';
+import '../domain/journal_reception.dart';
 import '../domain/operation_sync.dart';
 import 'aligneur_catalogue.dart';
 import 'descente_catalogue_dao.dart';
+import 'journal_reception_dao.dart';
 import 'operations_sync_dao.dart';
 import 'transport_synchronisation.dart';
 
@@ -83,6 +85,15 @@ class DescenteCatalogue {
     _db,
     maintenant: _maintenant,
   );
+
+  /// Le journal de réception (v37) : cette classe en est le SEUL appelant.
+  late final JournalReceptionDao _journal = JournalReceptionDao(
+    _db,
+    maintenant: _maintenant,
+  );
+
+  /// Les éléments déjà consignés dans le passage en cours.
+  final Set<String> _vuCetPassage = {};
   late final AligneurCatalogue _aligneur = AligneurCatalogue(
     _db,
     _dao,
@@ -97,8 +108,11 @@ class DescenteCatalogue {
     required Future<void> Function(int code) surRefus,
   }) async {
     final c = _Compteurs();
+    _vuCetPassage.clear();
     try {
-      return await _descendre(appairage, surRefus, c);
+      final bilan = await _descendre(appairage, surRefus, c);
+      await _purgerJournal();
+      return bilan;
     } on Object catch (e) {
       // Une base fermée pendant l'arrêt : rien ne remonte à un geste.
       return c.bilan(
@@ -261,11 +275,12 @@ class DescenteCatalogue {
           origine: 'flux',
         );
       }
-      for (final brut in page.elements) {
+      for (final (rang, brut) in page.elements.indexed) {
         local.recus++;
         final e = ElementCatalogue.depuisJson(brut);
         if (e == null) {
           local.refuser('élément illisible du serveur');
+          await _journal.consignerIllisible(brut, rang);
           continue;
         }
         final issue = await _isoler(e);
@@ -297,8 +312,17 @@ class DescenteCatalogue {
   Future<void> _consigner(
     ElementCatalogue e,
     IssueAlignement issue,
-    _Compteurs c,
-  ) async {
+    _Compteurs c, {
+    bool automatique = false,
+  }) async {
+    // Une seule tentative par élément et par passage : la reprise de fin de
+    // descente ne recompte pas un élément que la page vient de consigner.
+    await _journal.consigner(
+      e,
+      issue,
+      tentative: _vuCetPassage.add('${e.table.nomServeur}:${e.id}'),
+      seulementSiChange: automatique,
+    );
     switch (issue) {
       case Aligne(:final archiveNonPortee):
         c.appliques++;
@@ -327,10 +351,15 @@ class DescenteCatalogue {
             // gagnant) : la version gardée est périmée, la nouvelle
             // redescendra (son `updated_at` a bougé).
             await _dao.oublier(g.element.table, g.element.id);
+            await _journal.consigner(
+              g.element,
+              const Aligne(),
+              note: _noteVersionPerimee,
+            );
             return null;
           }
           final i = await _isoler(g.element);
-          await _consigner(g.element, i, c);
+          await _consigner(g.element, i, c, automatique: true);
           return i;
         });
         if (issue == null || issue is Aligne || issue is RefuseParLePoste) {
@@ -345,6 +374,92 @@ class DescenteCatalogue {
       } else {
         c.enAttenteDeDependance++;
       }
+    }
+  }
+
+  static const _noteVersionPerimee =
+      'La modification faite sur ce poste a été appliquée par le serveur : la '
+      'version reçue était périmée, la nouvelle redescendra.';
+
+  /// La rétention du journal (30 jours, 5 000 lignes) — sans jamais gêner la
+  /// descente.
+  Future<void> _purgerJournal() async {
+    try {
+      await _journal.purger();
+    } on Object {
+      // Une base fermée pendant l'arrêt : la purge viendra à la suivante.
+    }
+  }
+
+  /* ================================================================== */
+  /* Relances demandées depuis l'écran (partie « Réception »)            */
+  /* ================================================================== */
+
+  /// « Relancer » UN élément du journal : rejoue l'aligneur sur l'élément
+  /// gardé (`element_differe:*` ou, pour un refus, l'élément du journal),
+  /// MAINTENANT et sans réseau. Ne lève jamais.
+  Future<ResultatRelance> relancerElement(String table, String id) async {
+    _vuCetPassage.clear();
+    try {
+      final entree = await _journal.lire(table, id);
+      if (entree == null) return ResultatRelance.introuvable;
+      var element = entree.element();
+      var conserve = entree.issue == IssueReception.conserve;
+      for (final g in await _dao.elementsGardes()) {
+        if (g.element.table.nomServeur == table && g.element.id == id) {
+          element = g.element;
+          conserve = g.nature == 'conserve';
+        }
+      }
+      if (element == null) return ResultatRelance.introuvable;
+      final cible = element;
+      final issue = await _db.transaction(() async {
+        if (conserve && await _modificationDuPosteAppliquee(cible)) {
+          await _dao.oublier(cible.table, cible.id);
+          await _journal.consigner(
+            cible,
+            const Aligne(),
+            note: _noteVersionPerimee,
+          );
+          return const Aligne();
+        }
+        final i = await _isoler(cible);
+        await _consigner(cible, i, _Compteurs());
+        return i;
+      });
+      if (issue is Aligne) {
+        // Cet élément débloque peut-être ceux qui le citaient.
+        await _reprendre(_Compteurs());
+      }
+      await _purgerJournal();
+      return ResultatRelance(IssueReception.depuis(issue));
+    } on Object {
+      return ResultatRelance.impossible;
+    }
+  }
+
+  /// « Relancer tout » : rejoue les éléments refusés du journal, puis la
+  /// reprise de tous les éléments gardés — sans réseau. Rend ce qui reste à
+  /// traiter. Ne lève jamais. La descente réseau, elle, repart de son curseur
+  /// à l'appel suivant de `SyncManager.synchroniserMaintenant` (l'appelant
+  /// lève d'abord le repli par [leverRepli]).
+  Future<int> relancerTout() async {
+    _vuCetPassage.clear();
+    try {
+      for (final e in await _journal.aRelancer()) {
+        if (e.issue != IssueReception.refuse) continue;
+        final element = e.element();
+        if (element == null) continue;
+        await _db.transaction(() async {
+          final i = await _isoler(element);
+          await _consigner(element, i, _Compteurs());
+        });
+      }
+      await _reprendre(_Compteurs());
+      await _purgerJournal();
+      return (await _journal.compter()).aTraiter;
+    } on Object {
+      return -1;
     }
   }
 

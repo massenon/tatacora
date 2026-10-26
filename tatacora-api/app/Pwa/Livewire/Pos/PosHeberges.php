@@ -77,13 +77,11 @@ use RuntimeException;
  * `VenteService` — le meme chemin que le comptoir, la meme numerotation, la
  * meme deduction RG-05.
  *
- * ## Tourisme et location sont AFFICHES et REFUSES sur la note de chambre
+ * ## Tourisme et location ne sont plus proposes (26/10/2026)
  *
- * Depuis le 22/10/2026, `VenteService::MODULES_ENCAISSABLES` vaut
- * `['M4','M5','M8','M9']` : tourisme et location s'encaissent au COMPTOIR
- * (`PosComptant`). Le panier d'un sejour reste limite a {@see MODULES_DU_SEJOUR} :
- * le rayon M8/M9 reste pose, AFFICHE, avec sa raison a l'ecran. Un rayon
- * retire ne se distingue pas d'un rayon vide.
+ * Directive du PO : ni carte, ni pastille, ni mention. Le catalogue ne porte
+ * que le bar et le restaurant ; {@see MODULES_DU_SEJOUR} reste la garde
+ * defensive d'une action Livewire forgee.
  *
  * @see EF-M2-01 Emission de facture
  * @see RG-04 Facture consolidee multi-modules — AMENDEE le 02/09/2026
@@ -105,11 +103,7 @@ class PosHeberges extends PageMetier
     public const MODULE = 'M5';
 
     /**
-     * Les rayons que le panier d'un SEJOUR porte : bar et restaurant. Le
-     * tourisme (M9) et la location (M8) sont encaissables au COMPTOIR depuis
-     * le 22/10/2026 (`PosComptant`), pas sur la note de chambre : la directive
-     * du PO vise le comptoir, et une prestation de circuit ou de location
-     * suit son propre contrat/reservation (facture consolidee, RG-04).
+     * Les rayons que le panier d'un SEJOUR porte : bar et restaurant.
      */
     public const MODULES_DU_SEJOUR = ['M4', 'M5'];
 
@@ -237,8 +231,9 @@ class PosHeberges extends PageMetier
         }
 
         if (! in_array($module, self::MODULES_DU_SEJOUR, true)) {
-            // PA-24 — nomme a l'ecran, jamais un echec silencieux.
-            $this->notifier(__('pos_pwa.heberges.prestation_refusee'), 'error');
+            // Defense du serveur : aucune carte ne propose ces rayons, mais une
+            // action Livewire se pose depuis le navigateur.
+            $this->notifier(__('pos_pwa.commun.reference_inconnue'), 'error');
 
             return;
         }
@@ -644,20 +639,11 @@ class PosHeberges extends PageMetier
     {
         $sejours = $this->sejoursEnCours();
 
-        // PA-24 rendu a l'ecran : `catalogue()` pose lui-meme `encaissable`,
-        // et l'article reste visible en disant pourquoi il ne peut pas etre
-        // porte au panier.
+        // Bar et restaurant seulement (directive PO du 26/10/2026).
         $catalogueComplet = $this->catalogue([
             self::MODULE_BAR,
             self::MODULE_RESTAURANT,
-            self::MODULE_TOURISME,
-            self::MODULE_VEHICULES,
-        ])->map(function (array $article): array {
-            // Encaissables au comptoir, pas au sejour : voir MODULES_DU_SEJOUR.
-            $article['encaissable'] = in_array($article['module'], self::MODULES_DU_SEJOUR, true);
-
-            return $article;
-        });
+        ]);
 
         // UNE requete pour tous les sejours affiches : une par ligne rendrait
         // la liste inutilisable des la haute saison.

@@ -187,13 +187,10 @@ void main() {
       await tester.tap(find.byKey(const Key('onglet-carte-bar-ventes')));
       await tester.pumpAndSettle();
 
-      // Aucune vente n'existe sur ce poste : le refus est dit dans l'état vide
-      // du tableau, avec la phrase UNIQUE des données absentes.
-      expect(
-        tester.widget<Text>(find.byKey(const Key('ventes-bar-refuse'))).data,
-        donneeNonDisponible('Les ventes du bar'),
-      );
-      // Mais le cadre de la vue est là : ses neuf colonnes, sa ligne de total.
+      // Les ventes se calculent sur ce poste : sans vente, la vue dit « aucune
+      // ligne », avec son cadre — jamais « information non disponible ».
+      expect(find.byKey(const Key('ventes-bar-refuse')), findsNothing);
+      expect(find.byKey(const Key('ventes-bar-vide')), findsOneWidget);
       for (final c in colonnesVentesCarte) {
         expect(
           find.text(c.titre.toUpperCase()),
@@ -202,10 +199,7 @@ void main() {
         );
       }
       expect(find.text('TOTAL DE LA PAGE'), findsOneWidget);
-      // Et il n'affirme rien : ni « 0 ligne(s) », ni « 0 FCFA ».
-      expect(find.text('— ligne(s) · Total validé : —'), findsOneWidget);
-      expect(find.textContaining('0 ligne(s)'), findsNothing);
-      expect(find.text('0 FCFA'), findsNothing);
+      expect(find.textContaining('0 ligne(s)'), findsOneWidget);
     },
   );
 

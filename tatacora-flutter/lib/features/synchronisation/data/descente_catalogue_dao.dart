@@ -149,6 +149,14 @@ class DescenteCatalogueDao extends DatabaseAccessor<AppDatabase> {
     }
   }
 
+  /// Le DERNIER contrôle de cohérence (JSON de `coherence_persistee.dart`),
+  /// rangé pour la partie « Réception » de l'écran de synchronisation.
+  static const cleCoherence = 'coherence.dernier';
+
+  Future<void> consignerCoherence(String json) => _ecrire(cleCoherence, json);
+
+  Future<String?> derniereCoherence() => _lire(cleCoherence);
+
   /* ================================================================== */
   /* Éléments gardés pour une reprise                                    */
   /* ================================================================== */

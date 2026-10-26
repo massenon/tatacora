@@ -698,6 +698,95 @@ Paramètres, masquée au gérant) en plus de l'entrée du menu de compte ; l'éc
 de la FILE locale du poste (`/synchronisation`) reste atteint par Paramètres →
 Synchronisation et par « Voir le détail » du bouton de la barre supérieure.
 
+## Réception : journal, causes, corrections, relances (26/10/2026, schéma v37)
+
+Demande du PO : « une partie de RÉCEPTION dans la page de synchronisation, avec
+toutes les informations reçues, les ÉCHECS, les RELANCES, les CORRECTIONS :
+identifier la CAUSE des échecs, CORRIGER et RELANCER ». `/synchronisation` a
+désormais DEUX parties (onglets **Envoi** — par défaut — et **Réception**, avec
+le nombre d'éléments à traiter) sous la carte d'état.
+
+- **Schéma v37** (73 tables) : `journal_reception_local`, UNE table neuve, clé
+  (`table_serveur`, `element_id`), migration conditionnelle (fixture
+  `_ajoutsParVersion[37]`, `tablesAjouteesEnV37`, test sur fichier réel
+  `migration_v37_journal_reception_test.dart`). Une ligne par élément reçu : issue
+  (`aligne` / `conserve` / `attente` / `refuse`), cause, motif de l'aligneur,
+  champ fautif, élément lié manquant, nom lisible, poste d'origine, tentatives,
+  dates ; `element_json` garde l'élément TANT QU'IL RESTE À TRAITER (c'est ce
+  que « Relancer » rejoue). Une nouvelle version (autre `modifie_le`) repart à
+  une tentative ; la reprise de fin de descente ne recompte pas un élément que la
+  page vient de consigner (`_vuCetPassage`).
+- **Seul écrivain** : `JournalReceptionDao` (`data/journal_reception_dao.dart`),
+  appelé par `DescenteCatalogue` SEULE (`_consigner`, les éléments illisibles,
+  la version périmée oubliée, les relances) — jamais l'aligneur, jamais la file ;
+  il n'enfile rien. Sonde dans `journal_reception_test.dart`. Rétention bornée :
+  `purger()` en fin de descente — les alignés de plus de 30 jours, puis au-delà
+  de 5 000 lignes les alignés les plus anciens ; un élément à traiter n'est jamais
+  purgé par l'âge. « Réinitialiser comme neuf » le vide (non gardé).
+- **La cause** (`domain/journal_reception.dart`, pur) : l'aligneur ne rend
+  qu'une phrase ; `analyserMotif` en déduit une `CauseReception` (registre
+  fermé : élément lié manquant — avec sa TABLE —, compte local absent, conflit
+  avec une saisie locale, homonyme local, donnée illisible — avec son CHAMP —,
+  valeur inconnue — champ et valeur —, précision non tenue, écriture impossible,
+  règle du poste) et `expliquer` en fait la phrase, la correction et le geste
+  (`ActionCorrection` : ouvrir l'écran de création — `ecranDeCreation` —, voir
+  les éléments liés, voir la file d'envoi). `cause_reception_domaine_test.dart`
+  BALAIE tous les motifs de `aligneur_catalogue.dart` et `aligneur_documents.dart` :
+  un motif nouveau non classé fait rougir l'essai (les règles propres du poste
+  sont nommées une à une). Toute table se dit par `libelleTableServeur`.
+- **« Relancer »** (`DescenteCatalogue.relancerElement`, sans réseau) rejoue
+  l'aligneur sur l'élément gardé (`element_differe:*` ou, pour un refus, l'élément
+  du journal) ; réussi, il reprend aussi les éléments qui le citaient.
+  **« Relancer tout »** (`relancerToutProvider`) : les refusés, puis la reprise
+  de tous les gardés, puis la levée du repli et un PASSAGE COMPLET (envoi, puis
+  descente depuis le curseur). ⚠ Un élément REFUSÉ pour une donnée fausse AU
+  SERVEUR ne change pas en le relançant : la même version est rejugée ; on corrige
+  à la source, puis « Relancer tout » reçoit la version corrigée (le texte de la
+  cause le dit). Les deux gestes, « Corriger » et « Relancer », sont réservés aux
+  Administrateurs.
+- **« Corriger »** (réception) : la cause exacte, comment la corriger, et ce que
+  le poste sait faire pour elle (ouvrir « Comptes utilisateurs » quand aucun compte
+  n'existe pour porter l'écriture, ouvrir l'écran qui crée l'élément lié, filtrer
+  le journal sur sa table, voir la file d'envoi), puis « Relancer ».
+- **Liste** : compteurs (reçus, alignés, conservés, en attente, refusés — un clic
+  filtre), filtres par table, par issue et par date de dernière tentative,
+  pagination commune, détail d'un élément (fiche, cause, correction, tentatives).
+  Providers dans `providers_reception.dart` (relecture au signal de tables de
+  Drift, jamais un `.watch()`) ; modales dans `modales_reception.dart`.
+- **Envoi** (`domain/cause_envoi.dart`, pur) : pour une opération rejetée ou
+  bloquée, la CAUSE lisible vient du `code_motif` du serveur (registre FERMÉ, relu
+  du PHP par `cause_envoi_test.dart`), de sa phrase et de ses `erreurs` par champ
+  (ajoutés au serveur dans `SynchronisationService::rejet`, avec le journal
+  d'envoi du web — aucune autre modification serveur ici). Chaque ligne dit sa
+  cause, les phrases du serveur par champ, le nombre de tentatives et le dernier
+  code HTTP ; « Détail » ajoute l'historique des opérations du même élément.
+  **« Corriger »** = un formulaire GÉNÉRÉ de la charge FIGÉE : seuls les champs du
+  registre (libellés, noms, montants, dates, quantités — jamais un identifiant,
+  un statut ou une ligne) sont proposés, typés comme la charge (entier, décimal
+  à la précision d'origine, `AAAA-MM-JJ`, instant), validés (`corrigerCharge`) ;
+  valide, `OperationsSyncDao.renvoyer(uuid, chargeCorrigee:)` crée la remplaçante
+  sous un NOUVEL uuid avec la charge corrigée, l'ancienne reste rejetée, intacte,
+  marquée remplacée. Le serveur rejuge à l'envoi.
+- **Annonces et cohérence** : la partie Réception range le catalogue reçu
+  (dernier bilan de descente), le contrôle de cohérence — le DERNIER contrôle
+  mesuré est rangé (`coherence.dernier`, `DescenteCatalogueDao`) et relu après un
+  redémarrage, avec ses écarts —, les annonces du serveur (phase d'essais,
+  génération des données, réinitialisation constatée) et le nombre de
+  signalements d'envoi.
+- **Pièges rencontrés** : un `Provider<void>` « signal » ne notifie jamais
+  (sa valeur ne change pas) — chaque provider s'abonne et se relit lui-même
+  (`invalidateSelf`) ; la largeur intrinsèque d'une rangée `Expanded` fait de la
+  plus longue phrase la largeur de TOUTES les colonnes (boutons hors écran) —
+  largeurs fixes par colonne (`MesuresTransverses.colonnesReception`,
+  `colonnesATraiter`) ; un faux serveur qui repart de zéro exige `effacerCurseur()`.
+- **Essai réel** : `reception_serveur_reel_test.dart` — vrai `artisan serve` sur
+  la base d'essai PRIVÉE `tatacora_syncposte_test` (`TATACORA_BASE_ESSAI`, accepté
+  maintenant par `tool/sync/serveur_reel.php`, qui gagne l'action `modifier`) :
+  un client à l'e-mail invalide est refusé, corrigé par le formulaire, renvoyé et
+  ACCEPTÉ ; un point de stockage au type inconnu est refusé (la cascade article →
+  fiche → plat attend), un poste sans compte ne peut pas écrire un menu — compte
+  créé, donnée corrigée à la source, « Relancer tout » : tout est aligné.
+
 ## Compte de résultat et bilan sur le poste (21/10/2026, schéma v34)
 
 Décision du PO (« oui » au bilan et au compte de résultat sur le poste ; option B :
@@ -1227,6 +1316,22 @@ tableur ne sait pas additionner « 56 000 FCFA ».
 
 ## Tourisme et location au comptoir (22/10/2026)
 
+> **RETIRÉS DE LA SÉLECTION (26/10/2026, directive du PO)** : « il faut enlever
+> cette catégorie de la sélection dans le poste de vente et dans le POS clients
+> (hébergés) ». Ni le POS au comptant ni celui des hébergés (web ET poste) ne
+> proposent plus « Tourisme » / « Location » : ni famille, ni pastille, ni carte,
+> ni carte grisée (`prestationRefusee`, `CategorieHeberges.prestations` et les
+> clés de langue `famille_tourisme` / `famille_location` n'existent plus). Poste :
+> `rayonsProvider` ne rend que `modulesProposesAuPos` (M4, M5) ; le dépôt de
+> catalogue (`CatalogueDao.rayons`) garde M8/M9, la fiche de réservation en
+> a besoin. Le DOMAINE reste défensif et INCHANGÉ : `PanierDao`, `VenteService`,
+> la pièce (7073 / 7061 / 4432) et la synchronisation acceptent une vente M8/M9
+> déjà faite — ce que prouvent encore `VenteTourismeLocationTest` (PHP),
+> `cloture_vente_piece_test` et `vente_prestations_journal_test`. L'ABSENCE à la
+> sélection se prouve dans `PosComptantPrestationsTest`, `PosPwaTest` et
+> `ecrans_pos_test.dart` (mutation : ne plus filtrer `rayonsProvider` les fait
+> rougir). Le reste de cette section décrit le domaine, pas l'interface.
+
 Directive du PO : « TOURISME et LOCATION sont encaissables au COMPTOIR (POS), au
 poste comme au web. » Le serveur les REFUSAIT aussi (`VenteService::MODULES_ENCAISSABLES
 = ['M4','M5']`) : il a été porté en même temps que le poste.
@@ -1253,8 +1358,9 @@ poste comme au web. » Le serveur les REFUSAIT aussi (`VenteService::MODULES_ENC
   `prestationRefusee` dit désormais « ne se portent pas sur la note de chambre ».
 - **Droits** : le web exige M8 / M9 en écriture EN PLUS de M5 (`encaissementReel`,
   `GestionnaireVentes::modulesRequis`) ; le poste refuse dès l'ajout au panier
-  (`MessagesVentes.moduleSansDroit`, écart nommé) plutôt que d'encaisser une vente
-  que la synchronisation rejetterait.
+  plutôt que d'encaisser une vente que la synchronisation rejetterait
+  (`MessagesVentes.moduleSansDroit`, RETIRÉ le 26/10/2026 avec les cartes : plus
+  aucun écran n'ajoute M8/M9).
 
 ## Lien au stock des boissons, écrit sur le poste (26/10/2026)
 
@@ -1287,3 +1393,48 @@ depuis la v30.
   `parcours_boisson_vente_test.dart` (carte -> POS -> historique -> « −X en
   attente d'envoi »). Les autres causes (filtre de date par défaut, poste,
   session close, vente annulée, veille, fuseau) sont écartées par des cas.
+
+## « Actualiser » : clic droit, F5, Ctrl+R (26/10/2026)
+
+Demande du PO : sur les écrans du poste, le clic droit ouvre un menu à un item,
+« Actualiser », qui relit l'écran courant depuis la base locale. Un seul endroit :
+`core/navigation/actualisation_ecran.dart`, branché dans `CoquilleApplication`
+(`ZoneActualisation` autour de la page ; l'écran de connexion/démarrage n'a pas le menu).
+
+- **Action** : `actualisationEcranProvider.notifier.actualiser()` invalide les
+  lectures (`invaliderLesLectures`) puis incrémente un compteur qui sert de
+  `ValueKey` à la page (`KeyedSubtree`) : l'écran est reconstruit.
+- **Critère des providers invalidés** : tout `FutureProvider` / `StreamProvider`
+  VIVANT du conteneur (famille et `autoDispose` compris), hors `lecturesConservees`
+  (`aucunCompteProvider`, `liberationBauxSyncProvider`). Aucune liste à tenir : un
+  provider de lecture ajouté demain est couvert. Session, base, droit, thème,
+  filtres (`Notifier`) ne sont jamais touchés ; l'utilisateur reste connecté.
+  Le parcours des providers vivants passe par `getAllProviderElements`, interne
+  à Riverpod (import `src/internals.dart`, avertissements levés en ligne) : le test
+  rougit si une montée de version le retire.
+- **Ce qui est perdu** : seule la saisie non enregistrée tenue en mémoire par la
+  page. Une modale ouverte n'est jamais fermée et le menu comme F5 n'agissent
+  pas tant qu'elle est ouverte (`ModalRoute.isCurrent`). Sur un champ de saisie,
+  le clic droit reste celui du champ (détecté par `RenderEditable` sous le curseur).
+- **Preuves** : `test/core/navigation/actualisation_ecran_test.dart` ; une ligne
+  est écrite en base SANS invalider, puis « Actualiser » la fait apparaître.
+  Mutation éprouvée : retirer `invaliderLesLectures` fait rougir 3 cas.
+
+## Journaux de synchronisation du serveur : Réception et Envoi (26/10/2026)
+
+L'écran web « Postes & Appairage » a trois onglets : Postes, **Réception** (ce que
+le serveur a reçu de chaque poste par `POST /sync`) et **Envoi** (ce qu'il a mis à
+disposition par `GET /referentiels`). Tables serveur : `journal_reception_synchronisation`
+(une ligne par `uuid_operation` : issue acceptée / fusionnée / déjà reçue / signalée /
+conservée / conflit / rejetée / erreur, motif structuré, cause en français, tentatives,
+charge reçue, prise en charge ; purge à 90 jours, 365 s'il attend une correction, par
+`NettoyerDeduplicationSyncJob`) et `journal_envoi_synchronisation` (livré par poste et
+par table, tables non livrées faute de droit) ; `etats_postes_synchronisation` gagne le
+dernier curseur rendu, la redescente demandée et le compte des 409 « génération périmée ».
+Contrat pour le poste, rétro-compatible : un résultat `rejete` de `/sync` porte en plus
+`code_motif` (`droit_manquant`, `compte_inactif`, `donnees_invalides`, `chevauchement`,
+`entite_inconnue`, `entite_existante`, `regle_metier`, `stock_insuffisant`…) ; le poste peut
+l'ignorer. « Redescendre depuis le début » pose une demande que `/referentiels` consomme
+au prochain passage du poste : le curseur présenté est ignoré, le poste repart du début.
+Corriger / Relancer rejouent l'opération par `SynchronisationService` sous un nouvel
+`uuid_operation`, avec l'horodatage de saisie d'origine ; la version du poste n'est pas modifiée.

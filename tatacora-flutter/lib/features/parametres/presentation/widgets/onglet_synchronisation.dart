@@ -24,6 +24,17 @@ abstract final class TextesOngletSynchronisation {
       'en tâche de fond, sans jamais bloquer un écran. Pour cela, un '
       'Administrateur l’appaire UNE fois avec un compte du serveur : le mot '
       'de passe sert à obtenir un jeton, il n’est enregistré nulle part.';
+  static const interrupteur = 'Synchronisation activée';
+  static const aideActivee =
+      'Le poste envoie ses opérations au serveur et reçoit le catalogue en '
+      'tâche de fond.';
+  static const aideDesactivee =
+      'Désactivée : ce poste travaille seul, sans aucune connexion au '
+      'serveur. Tout reste enregistré ici ; les opérations en attente '
+      'partiront à la réactivation, dans l’ordre.';
+  static const interrupteurEchec =
+      'L’interrupteur n’a pas pu être enregistré : le fichier de '
+      'configuration du poste est inaccessible.';
   static const champIdentifiant = 'Identifiant (compte serveur)';
   static const champMotDePasse = 'Mot de passe (compte serveur)';
   static const champNomPoste = 'Nom du poste';
@@ -205,6 +216,8 @@ class _OngletSynchronisationState extends ConsumerState<OngletSynchronisation> {
           style: _style(TaillesContenu.t13, couleur: AppColors.neutre600),
         ),
         const SizedBox(height: AppSpacing.md),
+        _interrupteur(),
+        const SizedBox(height: AppSpacing.md),
         appairage.when(
           loading: () => const LinearProgressIndicator(),
           error: (e, _) => _ligne('$e', const Key('sync-etat')),
@@ -320,6 +333,42 @@ class _OngletSynchronisationState extends ConsumerState<OngletSynchronisation> {
           ),
         ],
       ],
+    );
+  }
+
+  /// La bascule « Synchronisation activée » (Administrateurs).
+  Widget _interrupteur() {
+    final activee = ref.watch(synchronisationActiveeProvider).value ?? true;
+    return SwitchListTile(
+      key: const Key('sync-interrupteur'),
+      contentPadding: EdgeInsets.zero,
+      dense: true,
+      title: Text(
+        TextesOngletSynchronisation.interrupteur,
+        style: _style(TaillesContenu.t13, poids: FontWeight.w600),
+      ),
+      subtitle: Text(
+        activee
+            ? TextesOngletSynchronisation.aideActivee
+            : TextesOngletSynchronisation.aideDesactivee,
+        key: const Key('sync-interrupteur-aide'),
+        style: _style(TaillesContenu.t13, couleur: AppColors.neutre600),
+      ),
+      value: activee,
+      onChanged: _occupe
+          ? null
+          : (v) => _geste(() async {
+              await ref.read(basculerSynchronisationProvider)(
+                v,
+                par: ref.read(sessionProvider)?.login ?? '',
+              );
+              return (
+                v
+                    ? TextesOngletSynchronisation.aideActivee
+                    : TextesOngletSynchronisation.aideDesactivee,
+                false,
+              );
+            }),
     );
   }
 

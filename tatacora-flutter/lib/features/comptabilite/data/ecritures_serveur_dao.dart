@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../tableau_de_bord/domain/indicateurs_locaux.dart' show ChargeDatee;
 
 /// Une ligne d'écriture VALIDÉE du serveur, telle que les états financiers la
 /// lisent : centimes entiers, compte et journal déjà résolus.
@@ -98,6 +99,22 @@ class EcrituresServeurDao {
           numeroCompte: l.numeroCompte,
           libelleCompte: l.libelleCompte,
           classe: l.classe,
+          debitCentimes: l.debitCentimes,
+          creditCentimes: l.creditCentimes,
+        ),
+    ];
+  }
+
+  /// Les lignes validées de classe 6 (charges) avec leur date — pour
+  /// « Dépenses cumulées » du tableau de bord.
+  Future<List<ChargeDatee>> chargesDatees() async {
+    final lignes = await (_db.select(
+      _db.ecrituresServeurLocal,
+    )..where((e) => e.classe.equals('6'))).get();
+    return [
+      for (final l in lignes)
+        ChargeDatee(
+          date: l.dateEcriture,
           debitCentimes: l.debitCentimes,
           creditCentimes: l.creditCentimes,
         ),

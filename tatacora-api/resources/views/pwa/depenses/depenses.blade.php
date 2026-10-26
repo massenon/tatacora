@@ -74,7 +74,7 @@
     @include('pwa.partials.menu-lateral')
 
     <main class="flex-1 overflow-y-auto">
-      <div class="max-w-[1500px] mx-auto p-4 sm:p-5 lg:p-8">
+      <div class="max-w-[1440px] mx-auto p-5 lg:p-8">
 
         {{-- En-tête d'impression : un `<h2>`, jamais un second `<h1>`. --}}
         <div class="hidden print:block mb-6 border-b-2 border-[var(--navy)] pb-4">
@@ -85,7 +85,10 @@
         {{-- ================================================== HERO (l.24-40) --}}
         <div class="mb-5 flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 class="text-lg lg:text-xl font-bold" style="color:var(--navy)">{{ __('depenses_pwa.titre') }}</h1>
+            <div class="flex items-center gap-2.5">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--navy)" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M1 10h22"/></svg>
+              <h1 class="text-lg lg:text-xl font-bold" style="color:var(--navy)">{{ __('depenses_pwa.titre') }}</h1>
+            </div>
             <p class="text-[12px] text-slate-500 mt-1 max-w-3xl">
               {{ __('depenses_pwa.sous_titre_avant') }}<strong>{{ __('depenses_pwa.sous_titre_fort') }}</strong>{{ __('depenses_pwa.sous_titre_apres') }}<a
                 href="{{ route('pwa.achats.approvisionnement') }}" wire:navigate

@@ -193,10 +193,9 @@ enum EtatLocal {
     code: 'balance',
     module: ModuleTatacora.m10Comptabilite,
     libelle: 'Balance générale',
-    // Sans exercice ouvert, le serveur écrit « Aucun exercice comptable… ».
-    // Ce poste ouvre l'exercice de l'année à chaque démarrage (D210) mais ne
-    // calcule pas la balance : il ne produit donc jamais cette phrase d'état.
-    // (« ce poste n'en a aucun », écrit ici le 10/10, est périmé — D282.)
+    // La période est celle de l'exercice le plus récent (« Du 01/01/2031 au
+    // 31/12/2031 »), calculée : il n'y a pas de modèle de langue. Sans
+    // exercice, l'état se refuse avec la phrase du serveur.
     periode: null,
     indicateurs: [
       'Comptes mouvementés',
@@ -212,22 +211,8 @@ enum EtatLocal {
       'Solde débiteur',
       'Solde créditeur',
     ],
-    // ⚠ Revue le 12/10/2026 (D282) : la version du 10/10 disait que « les
-    // ventes » ne produisent aucune pièce. Faux depuis le lot 6 (ventes,
-    // acomptes, remboursements) et le lot 7 (règlements fournisseurs).
-    // ⚠ Revue une seconde fois le 12/10/2026 (R7 du contrôle du pilotage,
-    // D289) : la version D282 rangeait « la réception des achats » et « la
-    // paie » parmi les MANQUES DU POSTE. Faux pour les deux, vérifié dans le
-    // code serveur : aucun service de réception n'appelle
-    // `PasserEcritureService` (`app/Domain/Achats` : seul le règlement le
-    // fait), et `LivreDePaieService` n'en passe aucune — son docblock
-    // l.48-56 le dit, le listener « GenererEcritureDepuisPaie » annoncé par la
-    // migration n'existe nulle part. Le vrai manque du poste est la SAISIE
-    // MANUELLE de pièces du comptable (`Pwa\Livewire\Comptabilite\Hub` :
-    // `enregistrerPieceBrouillon` / `enregistrerPieceValidee`), par laquelle
-    // le serveur reçoit les opérations diverses — paie comprise —, et les
-    // ventes et dépenses du poste antérieures au portage des pièces (D246).
-    raisonRefus: 'La balance générale n\'est pas disponible dans cet état.',
+    // Calculée sur ce poste depuis le 26/10/2026 (les pièces du poste, ou les
+    // écritures reçues du serveur : voir `apercuBalance`).
   );
 
   const EtatLocal({
@@ -237,7 +222,6 @@ enum EtatLocal {
     required this.periode,
     required this.indicateurs,
     required this.entetes,
-    this.raisonRefus,
   });
 
   /// Le code stable du registre — partie du contrat avec le serveur.
@@ -259,8 +243,11 @@ enum EtatLocal {
   /// Les en-têtes de colonnes, dans l'ordre du serveur.
   final List<String> entetes;
 
-  /// Si non nul, l'état est listé mais jamais calculé sur ce poste.
-  final String? raisonRefus;
+  /// Si non nul, l'état est listé mais jamais calculé sur ce poste. Depuis le
+  /// 26/10/2026 les douze états se calculent ici : le mécanisme demeure (un
+  /// état futur dont une source manquerait serait listé et refusé, jamais
+  /// composé vide), mais aucun n'en a besoin.
+  String? get raisonRefus => null;
 
   bool get estCalculable => raisonRefus == null;
 

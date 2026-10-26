@@ -63,6 +63,7 @@ void main() {
       ProviderScope(
         overrides: [
           baseLocaleProvider.overrideWithValue(db),
+          sansFichierDePoste(),
           moteurComptableProvider.overrideWith(
             (ref) async => moteurSur(db, maintenant: DateTime.now),
           ),

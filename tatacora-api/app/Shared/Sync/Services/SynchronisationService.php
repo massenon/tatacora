@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace App\Shared\Sync\Services;
 
+use App\Domain\Caisse\Exceptions\RefusCaisseException;
+use App\Domain\Comptabilite\Exceptions\EcritureImmuableException;
+use App\Domain\Facturation\Exceptions\FactureImmuableException;
+use App\Domain\Restaurant\Exceptions\RecetteManquanteException;
+use App\Domain\Stocks\Exceptions\RuptureStockException;
 use App\Models\User;
 use App\Shared\Integrite\Exceptions\ChevauchementDetecteException;
 use App\Shared\Rbac\Models\JournalSecurite;
@@ -19,6 +24,7 @@ use Carbon\Exceptions\InvalidFormatException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
+use Throwable;
 
 /**
  * Traitement d'un lot d'opérations de synchronisation — LARAVEL_SYNC_FLUTTER.md.
@@ -82,8 +88,18 @@ class SynchronisationService
         private readonly RegistreSynchronisation $registre,
         private readonly ResolveurCorrespondances $correspondances,
         private readonly OrigineDocuments $origines,
+        private readonly JournalReceptionService $journal,
     ) {
     }
+
+    /**
+     * Ce que le traitement de l'opération courante a appris et que le résultat
+     * rendu au poste ne porte pas : l'exception métier, le module refusé. Lu
+     * par le journal de réception (26/10/2026), jamais envoyé au poste.
+     *
+     * @var array<string, mixed>
+     */
+    private array $extras = [];
 
     /**
      * Utilisateurs deja resolus, pour ne pas interroger la base a chaque
@@ -97,7 +113,7 @@ class SynchronisationService
      * @param  list<array<string, mixed>>  $operations
      * @return array{session_id: string, resultats: list<array<string, mixed>>}
      */
-    public function traiterLot(string $posteId, array $operations, string $utilisateurId): array
+    public function traiterLot(string $posteId, array $operations, string $utilisateurId, bool $journaliser = true): array
     {
         $session = SessionSynchronisation::create([
             'poste_id' => $posteId,
@@ -112,7 +128,7 @@ class SynchronisationService
         $echecs = 0;
 
         foreach ($operations as $operation) {
-            $resultat = $this->traiterOperation($operation, $posteId, $utilisateurId, $session->id);
+            $resultat = $this->traiterOperation($operation, $posteId, $utilisateurId, $session->id, $journaliser);
 
             $resultats[] = $resultat;
             $conflits += $resultat['statut'] === 'conflit' ? 1 : 0;
@@ -132,10 +148,55 @@ class SynchronisationService
     }
 
     /**
+     * Ce que la DERNIÈRE opération traitée a appris en plus de son résultat
+     * (exception métier, module refusé, compte inactif) : lu par la
+     * correction depuis la PWA pour traduire la cause d'un nouvel échec.
+     *
+     * @return array<string, mixed>
+     */
+    public function extrasDeLaDerniereOperation(): array
+    {
+        return $this->extras;
+    }
+
+    /**
+     * Traite UNE opération et la consigne au journal de réception.
+     *
+     * `$journaliser = false` : la CORRECTION depuis la PWA rejoue une
+     * opération déjà consignée (`CorrectionReceptionService`), qui met sa
+     * propre ligne à jour.
+     *
      * @param  array<string, mixed>  $operation
      * @return array<string, mixed>
      */
-    public function traiterOperation(array $operation, string $posteId, string $utilisateurId, string $sessionId): array
+    public function traiterOperation(array $operation, string $posteId, string $utilisateurId, string $sessionId, bool $journaliser = true): array
+    {
+        $this->extras = [];
+
+        try {
+            $resultat = $this->traiterOperationInterne($operation, $posteId, $utilisateurId, $sessionId);
+        } catch (Throwable $e) {
+            // Toute autre exception se propage (voir plus bas) : le journal
+            // en garde la trace, le poste réessaiera.
+            if ($journaliser) {
+                $this->journal->enregistrer($operation, $posteId, $utilisateurId, $sessionId, [], $this->extras, $e);
+            }
+
+            throw $e;
+        }
+
+        if ($journaliser) {
+            $this->journal->enregistrer($operation, $posteId, $utilisateurId, $sessionId, $resultat, $this->extras);
+        }
+
+        return $resultat;
+    }
+
+    /**
+     * @param  array<string, mixed>  $operation
+     * @return array<string, mixed>
+     */
+    private function traiterOperationInterne(array $operation, string $posteId, string $utilisateurId, string $sessionId): array
     {
         $uuidOperation = (string) $operation['uuid_operation'];
 
@@ -150,6 +211,7 @@ class SynchronisationService
             return $this->memoriser($operation, $posteId, $utilisateurId, $this->rejet(
                 $operation,
                 __('sync.table_non_synchronisable', ['table' => $table]),
+                'table_non_synchronisable',
             ));
         }
 
@@ -178,6 +240,7 @@ class SynchronisationService
             return $this->memoriser($operation, $posteId, $utilisateurId, $this->rejet(
                 $operation,
                 __('auth.module_refuse'),
+                ($this->extras['compte_inactif'] ?? false) === true ? 'compte_inactif' : 'droit_manquant',
             ));
         }
 
@@ -187,6 +250,7 @@ class SynchronisationService
             return $this->memoriser($operation, $posteId, $utilisateurId, $this->rejet(
                 $operation,
                 __('sync.modification_non_synchronisable'),
+                'modification_non_synchronisable',
             ));
         }
 
@@ -198,6 +262,7 @@ class SynchronisationService
             return $this->memoriser($operation, $posteId, $utilisateurId, $this->rejet(
                 $operation,
                 __('sync.date_metier_invalide'),
+                'date_metier_invalide',
             ));
         }
 
@@ -214,18 +279,19 @@ class SynchronisationService
             // mais un rejet — deux enregistrements distincts qui ne peuvent pas
             // coexister (RG-01/RG-08/RG-13).
             $resultat = [
-                ...$this->rejet($operation, $e->getMessage()),
+                ...$this->rejet($operation, $e->getMessage(), 'chevauchement'),
                 'entites_en_conflit' => $e->identifiantsEnConflit,
             ];
         } catch (DonneesSynchroniseesInvalidesException $e) {
             // Les phrases de l'API, champ par champ : le poste les affiche à
             // côté de la saisie, comme l'écran en ligne.
-            $resultat = [...$this->rejet($operation, $e->getMessage()), 'erreurs' => $e->erreurs];
+            $resultat = [...$this->rejet($operation, $e->getMessage(), 'donnees_invalides'), 'erreurs' => $e->erreurs];
         } catch (RuntimeException $e) {
             // UNIQUEMENT les refus métier. Le message est transmis au client :
             // §2.2 exige que l'application informe l'utilisateur clairement,
             // pas par une erreur technique brute.
-            $resultat = $this->rejet($operation, $e->getMessage());
+            $this->extras['exception'] = $e::class;
+            $resultat = $this->rejet($operation, $e->getMessage(), $this->codeDeLException($e));
         }
 
         // Toute autre exception — bogue de programmation, panne de base — se
@@ -272,6 +338,8 @@ class SynchronisationService
         $utilisateur = $this->utilisateurs[$utilisateurId] ??= User::find($utilisateurId);
 
         if (! $utilisateur instanceof User || ! $utilisateur->estActif()) {
+            $this->extras['compte_inactif'] = true;
+
             return null;
         }
 
@@ -299,6 +367,8 @@ class SynchronisationService
             'adresse_ip' => request()->ip(),
             'module_concerne' => $module,
         ]);
+
+        $this->extras['module'] = $module;
 
         return null;
     }
@@ -437,7 +507,7 @@ class SynchronisationService
                 return [...$this->succes($operation, $reprise), 'document_deja_enregistre' => true];
             }
 
-            return $this->rejet($operation, __('sync.creation_entite_existante'));
+            return $this->rejet($operation, __('sync.creation_entite_existante'), 'entite_existante');
         }
 
         // Lot F4 : tout ce que le service écrit dans cette portée (le
@@ -485,7 +555,7 @@ class SynchronisationService
         $ecriture = $gestionnaire->modificationSurInconnu($idPoste, $payload, $contexte);
 
         if ($ecriture === null) {
-            return $this->rejet($operation, __('sync.modification_entite_inconnue'));
+            return $this->rejet($operation, __('sync.modification_entite_inconnue'), 'entite_inconnue');
         }
 
         if ($ecriture->fusionneAvec !== null) {
@@ -525,14 +595,33 @@ class SynchronisationService
      * @param  array<string, mixed>  $operation
      * @return array<string, mixed>
      */
-    private function rejet(array $operation, string $motif): array
+    private function rejet(array $operation, string $motif, string $code = 'regle_metier'): array
     {
         return [
             'uuid_operation' => (string) $operation['uuid_operation'],
             'statut' => 'rejete',
             'entite_id' => (string) $operation['entite_id'],
             'motif' => $motif,
+            // Le motif STRUCTURÉ (26/10/2026) : un code stable que le poste et
+            // le journal de réception traduisent. Ajout rétro-compatible.
+            'code_motif' => $code,
         ];
+    }
+
+    /**
+     * Le code de motif d'un refus métier, d'après le type de l'exception.
+     * Un type inconnu reste une règle de gestion générique : la phrase du
+     * serveur, elle, est toujours transmise.
+     */
+    private function codeDeLException(RuntimeException $e): string
+    {
+        return match (true) {
+            $e instanceof RuptureStockException => 'stock_insuffisant',
+            $e instanceof RecetteManquanteException => 'recette_manquante',
+            $e instanceof RefusCaisseException => 'refus_caisse',
+            $e instanceof EcritureImmuableException, $e instanceof FactureImmuableException => 'piece_immuable',
+            default => 'regle_metier',
+        };
     }
 
     /**

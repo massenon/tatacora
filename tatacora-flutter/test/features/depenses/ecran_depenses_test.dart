@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:tatacora_flutter/core/navigation/trace_svg.dart';
+import 'package:tatacora_flutter/core/navigation/traces_titres.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
@@ -174,6 +176,14 @@ void main() {
       await monter(tester);
 
       expect(find.text('Dépense courante'), findsOneWidget);
+      // L'icône du titre (tracé de la vue, directive du PO du 26/10/2026).
+      final icone = find.byKey(const Key('depenses-icone-titre'));
+      expect(icone, findsOneWidget);
+      expect(tester.widget<IconeTrace>(icone).trace, TraceIconesTitre.depenses);
+      expect(
+        tester.getTopLeft(icone).dx,
+        lessThan(tester.getTopLeft(find.text('Dépense courante')).dx),
+      );
       expect(find.byKey(const Key('depenses-nouvelle')), findsOneWidget);
       expect(find.text('Nouvelle Dépense'), findsOneWidget);
 

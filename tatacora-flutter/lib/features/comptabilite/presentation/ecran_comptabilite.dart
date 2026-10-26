@@ -27,6 +27,7 @@ import 'providers_etats_financiers.dart';
 import 'widgets/modale_ecriture.dart';
 import 'widgets/onglet_immobilisations.dart';
 import 'widgets/onglets_etats_financiers.dart';
+import 'widgets/onglets_grand_livre_analytique.dart';
 import 'widgets/onglets_plan_clotures.dart';
 
 /// Le hub **Comptabilité — SYSCOHADA révisé** — lot D du plan du Product
@@ -395,7 +396,7 @@ class _EcranComptabiliteState extends ConsumerState<EcranComptabilite> {
             onExercice: choisirExercice,
           ),
         if (exercice != null) _AlerteDesequilibre(annee: exercice.annee),
-        const _BandeIndicateurs(),
+        _BandeIndicateurs(annee: exercice?.annee),
         const SizedBox(height: AppSpacing.mdPlus), // mb-5
         Wrap(
           spacing: AppSpacing.xxs, // gap-1.5
@@ -734,22 +735,75 @@ abstract final class IconeComptabiliteHub {
 
 /// La bande des six indicateurs (`grid grid-cols-2 lg:grid-cols-6 gap-3`),
 /// libellés et mentions de liasse de la vue, valeurs « — » (voir l'en-tête).
-class _BandeIndicateurs extends StatelessWidget {
-  const _BandeIndicateurs();
+class _BandeIndicateurs extends ConsumerWidget {
+  const _BandeIndicateurs({required this.annee});
 
-  static const _cartes = [
-    ("Chiffre d'affaires", 'XB — hors TVA'),
-    ('Valeur ajoutée', 'XC'),
-    ('Excédent brut', 'XD — EBE'),
-    ('Résultat net', 'XI'),
-    ('Trésorerie', 'Classe 5'),
-    ('Total bilan', ''),
-  ];
+  /// L'année de l'exercice consulté ; `null` : aucun exercice, aucun chiffre.
+  final int? annee;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final large = MediaQuery.sizeOf(context).width >= AppBreakpoints.lg;
     final petit = styleTransverse(TaillesContenu.t11, couleur: Ardoise.c400);
+    final i = annee == null
+        ? null
+        : ref.watch(indicateursComptablesProvider(annee!)).value;
+    // `MontantFcfa::format` : un zéro est un zéro ici (ce sont des totaux), le
+    // tiret ne dit que l'absence de calcul.
+    String valeur(int? centimes) =>
+        centimes == null ? TextesComptabilite.tiret : _montant(centimes);
+    Color accent(int? centimes) => centimes != null && centimes < 0
+        ? PaletteMaitre.rouge600
+        : AppColors.navy;
+    final cartes =
+        <({String libelle, String valeur, Color couleur, String detail})>[
+          (
+            libelle: "Chiffre d'affaires",
+            valeur: valeur(i?.chiffreAffairesCentimes),
+            couleur: AppColors.navy,
+            detail: 'XB — hors TVA',
+          ),
+          (
+            libelle: 'Valeur ajoutée',
+            valeur: valeur(i?.valeurAjouteeCentimes),
+            couleur: AppColors.navy,
+            detail: 'XC',
+          ),
+          (
+            libelle: 'Excédent brut',
+            valeur: valeur(i?.excedentBrutCentimes),
+            couleur: accent(i?.excedentBrutCentimes),
+            detail: 'XD — EBE',
+          ),
+          (
+            libelle: 'Résultat net',
+            valeur: valeur(i?.resultatNetCentimes),
+            couleur: i == null
+                ? AppColors.navy
+                : (i.resultatNetCentimes < 0
+                      ? PaletteMaitre.rouge600
+                      : PaletteMaitre.emeraude600),
+            detail: i != null && i.impotNonComptabilise
+                ? 'XI — avant impôt'
+                : 'XI',
+          ),
+          (
+            libelle: 'Trésorerie',
+            valeur: valeur(i?.tresorerieCentimes),
+            couleur: accent(i?.tresorerieCentimes),
+            detail: 'Classe 5',
+          ),
+          (
+            libelle: 'Total bilan',
+            valeur: valeur(i?.totalBilanCentimes),
+            couleur: i != null && !i.equilibre
+                ? PaletteMaitre.rouge600
+                : AppColors.navy,
+            detail: i == null
+                ? ''
+                : (i.equilibre ? 'Équilibré' : 'DÉSÉQUILIBRÉ'),
+          ),
+        ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -759,14 +813,14 @@ class _BandeIndicateurs extends StatelessWidget {
               : MesuresTransverses.colonnesKpiCompta,
           ecart: AppSpacing.sm,
           enfants: [
-            for (final (libelle, detail) in _cartes)
+            for (final c in cartes)
               CarteTransverse(
                 padding: const EdgeInsets.all(AppSpacing.smPlus),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      libelle.toUpperCase(),
+                      c.libelle.toUpperCase(),
                       style: petit.copyWith(
                         fontWeight: FontWeight.w600,
                         letterSpacing:
@@ -775,14 +829,15 @@ class _BandeIndicateurs extends StatelessWidget {
                     ),
                     const SizedBox(height: AppSpacing.unit),
                     Text(
-                      TextesComptabilite.tiret,
+                      c.valeur,
+                      key: Key('compta-indicateur-${c.libelle}'),
                       style: styleTransverse(
                         TaillesContenu.t17,
                         poids: FontWeight.bold,
-                        couleur: AppColors.navy,
+                        couleur: c.couleur,
                       ),
                     ),
-                    if (detail.isNotEmpty) Text(detail, style: petit),
+                    if (c.detail.isNotEmpty) Text(c.detail, style: petit),
                   ],
                 ),
               ),
@@ -989,6 +1044,10 @@ class _Panneau extends StatelessWidget {
         return OngletBilan(annee: ex.annee);
       case 'immo':
         return OngletImmobilisations(annee: ex.annee);
+      case 'grandlivre':
+        return OngletGrandLivre(exercice: ex, donnees: donnees, statut: statut);
+      case 'analytique':
+        return OngletAnalytique(exercice: ex, donnees: donnees, statut: statut);
       default:
         final libelle = ongletsComptabilite
             .firstWhere((o) => o.cle == onglet)

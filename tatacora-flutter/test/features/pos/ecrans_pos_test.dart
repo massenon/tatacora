@@ -22,7 +22,6 @@ import 'package:tatacora_flutter/features/pos/domain/repositories/panier_reposit
 import 'package:tatacora_flutter/features/pos/presentation/ecran_pos_comptant.dart';
 import 'package:tatacora_flutter/features/pos/presentation/ecran_pos_heberges.dart';
 import 'package:tatacora_flutter/features/pos/presentation/providers_pos.dart';
-import 'package:tatacora_flutter/features/pos/presentation/widgets/catalogue_heberges.dart';
 import 'package:tatacora_flutter/features/pos/presentation/widgets/modale_cloture_sejour.dart';
 import 'package:tatacora_flutter/features/pos/presentation/widgets/panier_heberges.dart';
 
@@ -363,14 +362,46 @@ void main() {
       tester,
     ) async {
       // Le défaut : le sélecteur de catalogue désignait aussi la caisse, si
-      // bien qu'un client prenant une bière puis un circuit perdait sa
-      // première ligne — et l'addition unique qu'il demandait devenait
-      // impossible. (Depuis le 22/10/2026 le circuit exige aussi le droit
-      // d'écriture sur M9, comme au serveur.)
+      // bien qu'un client prenant une bière puis un plat perdait sa première
+      // ligne — et l'addition unique qu'il demandait devenait impossible.
+      await db
+          .into(db.menusLocal)
+          .insert(
+            MenusLocalCompanion.insert(
+              id: 'm-1',
+              libelle: 'Carte',
+              type: 'local',
+              creeLe: DateTime(2026, 10, 1),
+              creePar: caissierDeVente,
+            ),
+          );
+      await db
+          .into(db.recettesLocal)
+          .insert(
+            RecettesLocalCompanion.insert(
+              id: 'r-1',
+              libelle: 'Fiche',
+              creeLe: DateTime(2026, 10, 1),
+              creePar: caissierDeVente,
+            ),
+          );
+      await db
+          .into(db.platsLocal)
+          .insert(
+            PlatsLocalCompanion.insert(
+              id: 'p-1',
+              menuId: 'm-1',
+              recetteId: 'r-1',
+              libelle: 'Riz sauce',
+              prixVente: 2500,
+              creeLe: DateTime(2026, 10, 1),
+              creePar: caissierDeVente,
+            ),
+          );
       await monter(
         tester,
         const EcranPosComptant(),
-        droits: GardeAcces.depuisJson(const {'M5': 'C', 'M9': 'C'}),
+        droits: GardeAcces.depuisJson(const {'M5': 'C', 'M4': 'C'}),
       );
 
       await tester.tap(find.byKey(const Key('pos-comptant-ouvrir')));
@@ -380,7 +411,7 @@ void main() {
 
       // On change de rayon — le geste qui vidait le panier. Le rayon est un
       // SÉLECTEUR depuis le POS en trois colonnes (14/10/2026).
-      await choisirRayon(tester, 'M9');
+      await choisirRayon(tester, 'M4');
 
       final panier = (await depotPanier.paniers()).single;
       expect(
@@ -390,12 +421,12 @@ void main() {
       );
 
       // Et l'article de l'autre rayon rejoint le MÊME panier (règle 4).
-      await tester.tap(find.byKey(const Key('pos-article-M9:cir-1')));
+      await tester.tap(find.byKey(const Key('pos-article-M4:p-1')));
       await tester.pumpAndSettle();
 
       final apres = (await depotPanier.paniers()).single;
       expect(apres.lignes, hasLength(2));
-      expect(apres.total, 5500);
+      expect(apres.total, 3500);
       expect(apres.ventilation.keys, hasLength(2));
     });
 
@@ -415,10 +446,14 @@ void main() {
       expect(message.data, isNot(contains('connexion')));
     });
 
-    testWidgets('TOURISME et LOCATION (22/10/2026) : leurs cartes ne sont pas '
-        'grisées au comptoir, s’ajoutent au panier et s’encaissent', (
+    testWidgets('TOURISME et LOCATION (26/10/2026) : AUCUN rayon, AUCUNE carte '
+        'au comptoir — même avec un circuit et un véhicule en base', (
       tester,
     ) async {
+      // Directive du PO : « il faut enlever cette catégorie de la sélection ».
+      // Le circuit `cir-1` (semé par `setUp`) et ce véhicule EXISTENT au
+      // catalogue local ; le comptoir ne les propose pas. Aucune carte
+      // grisée non plus : elles n'existent plus.
       await db
           .into(db.vehiculesLocal)
           .insert(
@@ -439,41 +474,179 @@ void main() {
       await tester.tap(find.byKey(const Key('pos-comptant-ouvrir')));
       await tester.pumpAndSettle();
 
-      // Les deux cartes sont ACTIVES : aucune phrase de refus, un clic qui agit.
-      expect(
-        find.byKey(const Key('pos-prestation-refusee-cir-1')),
-        findsNothing,
+      // La bière, elle, est bien là : le catalogue n'est pas vide pour autant.
+      expect(find.byKey(const Key('pos-article-M5:bsn-33')), findsOneWidget);
+      expect(find.byKey(const Key('pos-article-M9:cir-1')), findsNothing);
+      expect(find.byKey(const Key('pos-article-M8:veh-1')), findsNothing);
+      expect(find.textContaining('Cascades de Tanougou'), findsNothing);
+      expect(find.textContaining('AB-123-CD'), findsNothing);
+
+      // Le sélecteur de famille ne propose que « Tout », Bar et Restaurant.
+      await tester.tap(find.byKey(const Key('pos-famille')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('pos-rayon-M5')), findsWidgets);
+      expect(find.byKey(const Key('pos-rayon-M4')), findsWidgets);
+      expect(find.byKey(const Key('pos-rayon-M9')), findsNothing);
+      expect(find.byKey(const Key('pos-rayon-M8')), findsNothing);
+      expect(find.text('Tourisme'), findsNothing);
+      expect(find.text('Location'), findsNothing);
+
+      // Une recherche ne les ressort pas non plus (elle ignore le rayon actif).
+      await tester.tap(find.byKey(const Key('pos-rayon-tout')).last);
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('pos-recherche')),
+        'Cascades',
       );
-      await tester.tap(find.byKey(const Key('pos-article-M9:cir-1')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('pos-article-M8:veh-1')));
-      await tester.pumpAndSettle();
-
-      final panier = (await depotPanier.paniers()).single;
-      expect(panier.lignes, hasLength(2));
-      expect(panier.total, 4500 + 65000);
-
-      await tester.tap(find.byKey(const Key('pos-cloturer')));
-      await tester.pumpAndSettle();
-
-      final cloture = (await depotPanier.paniers()).single;
-      expect(cloture.estOuvert, isFalse);
-      expect(cloture.montantCloture, 69500);
+      expect(find.byKey(const Key('pos-article-M9:cir-1')), findsNothing);
+      expect((await depotPanier.paniers()).single.lignes, isEmpty);
     });
 
-    testWidgets('sans droit d’écriture sur M9, le circuit est REFUSÉ à '
-        'l’ajout, avec une phrase', (tester) async {
-      await monter(tester, const EcranPosComptant());
-      await tester.tap(find.byKey(const Key('pos-comptant-ouvrir')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('pos-article-M9:cir-1')));
-      await tester.pumpAndSettle();
+    group('panneau Panier : « Vider » et « Abandonner » (26/10/2026)', () {
+      // La vue (`comptant.blade.php` l.322-325) pose les deux boutons dans
+      // l'en-tête du panneau, TOUJOURS, sans condition ni confirmation :
+      // `wire:click="viderPanier"` / `"abandonnerPanier"`.
+      Finder vider() => find.byKey(const Key('pos-vider-panier'));
+      Finder abandonner() => find.byKey(const Key('pos-abandonner-panier'));
 
-      expect(
-        find.text(MessagesVentes.moduleSansDroit('Tourisme')),
-        findsOneWidget,
+      bool actif(WidgetTester tester, Finder f) =>
+          tester.widget<InkWell>(f).onTap != null;
+
+      testWidgets('présents dès l’ouverture de l’écran, AVANT tout panier, '
+          'aux mots de la vue', (tester) async {
+        await monter(tester, const EcranPosComptant());
+
+        expect(vider(), findsOneWidget);
+        expect(abandonner(), findsOneWidget);
+        expect(
+          find.descendant(of: vider(), matching: find.text('Vider')),
+          findsOneWidget,
+        );
+        expect(
+          find.descendant(of: abandonner(), matching: find.text('Abandonner')),
+          findsOneWidget,
+        );
+        expect(actif(tester, vider()), isTrue);
+        expect(actif(tester, abandonner()), isTrue);
+        expect(await depotPanier.paniers(), isEmpty);
+      });
+
+      testWidgets('sans panier ouvert : « Vider » ne fait rien, aucun panier '
+          'n’est créé', (tester) async {
+        await monter(tester, const EcranPosComptant());
+
+        await tester.tap(vider());
+        await tester.pumpAndSettle();
+
+        expect(await depotPanier.paniers(), isEmpty);
+        expect(find.byType(SnackBar), findsNothing);
+      });
+
+      testWidgets('sans panier ouvert : « Abandonner » dit « Panier '
+          'abandonné. » et n’écrit rien', (tester) async {
+        await monter(tester, const EcranPosComptant());
+
+        await tester.tap(abandonner());
+        await tester.pumpAndSettle();
+
+        expect(find.text('Panier abandonné.'), findsOneWidget);
+        expect(await depotPanier.paniers(), isEmpty);
+      });
+
+      testWidgets(
+        '« Vider » retire TOUTES les lignes, SANS confirmation, et le '
+        'panier reste ouvert',
+        (tester) async {
+          await monter(tester, const EcranPosComptant());
+          await tester.tap(find.byKey(const Key('pos-comptant-ouvrir')));
+          await tester.pumpAndSettle();
+          await tester.tap(find.byKey(const Key('pos-article-M5:bsn-33')));
+          await tester.pumpAndSettle();
+          await tester.tap(find.byKey(const Key('pos-article-M5:bsn-33')));
+          await tester.pumpAndSettle();
+          expect(actif(tester, vider()), isTrue);
+
+          await tester.tap(vider());
+          await tester.pumpAndSettle();
+
+          expect(find.byType(AlertDialog), findsNothing);
+          final panier = (await depotPanier.paniers()).single;
+          expect(panier.lignes, isEmpty);
+          expect(panier.estOuvert, isTrue);
+          // Le panneau reste celui d'un panier OUVERT, boutons compris.
+          expect(vider(), findsOneWidget);
+          expect(abandonner(), findsOneWidget);
+        },
       );
-      expect((await depotPanier.paniers()).single.lignes, isEmpty);
+
+      testWidgets('« Vider » reste actif sur un panier ouvert encore vide '
+          '(la vue ne le grise jamais)', (tester) async {
+        await monter(tester, const EcranPosComptant());
+        await tester.tap(find.byKey(const Key('pos-comptant-ouvrir')));
+        await tester.pumpAndSettle();
+
+        expect(actif(tester, vider()), isTrue);
+        await tester.tap(vider());
+        await tester.pumpAndSettle();
+        expect((await depotPanier.paniers()).single.estOuvert, isTrue);
+      });
+
+      testWidgets('« Abandonner » ferme le panier ouvert SANS motif demandé, '
+          'garde ses lignes et rend le comptoir', (tester) async {
+        await monter(tester, const EcranPosComptant());
+        await tester.tap(find.byKey(const Key('pos-comptant-ouvrir')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('pos-article-M5:bsn-33')));
+        await tester.pumpAndSettle();
+
+        await tester.tap(abandonner());
+        await tester.pumpAndSettle();
+
+        // Pas de dialogue de motif : la vue n'en pose aucun.
+        expect(find.byType(AlertDialog), findsNothing);
+        expect(find.byKey(const Key('pos-motif-annulation')), findsNothing);
+        expect(find.text('Panier abandonné.'), findsOneWidget);
+
+        final panier = (await depotPanier.paniers()).single;
+        expect(panier.estOuvert, isFalse);
+        expect(panier.statut, StatutPanier.annule);
+        expect(panier.motifAnnulation, MessagesVentes.motifAbandon);
+        expect(panier.lignes, hasLength(1));
+        // Le panneau est revenu à « aucun panier ouvert », boutons compris.
+        expect(find.byKey(const Key('pos-comptant-ouvrir')), findsOneWidget);
+        expect(vider(), findsOneWidget);
+        expect(abandonner(), findsOneWidget);
+      });
+
+      testWidgets('droits identiques à la vue (écriture sur M5) : sans eux, '
+          'les deux boutons sont inertes', (tester) async {
+        await monter(
+          tester,
+          const EcranPosComptant(),
+          droits: GardeAcces.depuisJson(const {'M5': 'L'}),
+        );
+
+        expect(vider(), findsOneWidget);
+        expect(abandonner(), findsOneWidget);
+        expect(actif(tester, vider()), isFalse);
+        expect(actif(tester, abandonner()), isFalse);
+      });
+
+      testWidgets('un panier déjà fermé ailleurs : le refus est dit à la '
+          'phrase du serveur', (tester) async {
+        await monter(tester, const EcranPosComptant());
+        await tester.tap(find.byKey(const Key('pos-comptant-ouvrir')));
+        await tester.pumpAndSettle();
+        final p = (await depotPanier.paniers()).single;
+        // Une autre fenêtre encaisse le panier sous les pieds de l'écran.
+        await cloturerSansPiece(db, p.id, mode: 'especes');
+
+        await tester.tap(vider());
+        await tester.pumpAndSettle();
+
+        expect(find.text(MessagesVentes.panierClotureImmuable), findsOneWidget);
+      });
     });
 
     testWidgets('sans droit d’écriture sur M5, aucune vente ne s’ouvre', (
@@ -539,9 +712,9 @@ void main() {
       expect(find.text('Point de vente — clients hébergés'), findsOneWidget);
       expect(
         find.text(
-          'Le panier reste ouvert de l’arrivée au départ. Bar, restaurant, '
-          'tourisme et location y entrent ensemble — un seul panier, une '
-          'seule facture à la clôture.',
+          'Le panier reste ouvert de l’arrivée au départ. Bar et restaurant '
+          'y entrent ensemble — un seul panier, une seule facture à la '
+          'clôture.',
         ),
         findsOneWidget,
       );
@@ -691,33 +864,28 @@ void main() {
       );
     });
 
-    testWidgets('Q2 — un second article rejoint LE panier, jamais un second, '
-        'et une prestation M9 est REFUSÉE AU SÉJOUR (carte grisée, phrase '
-        'nommée)', (tester) async {
+    testWidgets('Q2 — un second article rejoint LE panier, jamais un second '
+        '(et le circuit en base n’est PAS proposé)', (tester) async {
       await monter(tester, const EcranPosHeberges());
       await selectionner(tester);
       await ajouterBiere(tester);
-      // Le panier d'un SÉJOUR (note de chambre) ne porte que le bar et le
-      // restaurant (`modulesEncaissablesAuSejour`) : tourisme et location
-      // s'encaissent au COMPTOIR (22/10/2026). La carte le dit AVANT le clic,
-      // et le clic ne pose rien dans le panier.
+      // Tourisme et location ne sont plus proposés (26/10/2026) : ni carte
+      // grisée, ni phrase de refus, ni pastille — le circuit `cir-1` existe
+      // pourtant au catalogue local.
+      expect(find.byKey(const Key('pos-article-M9:cir-1')), findsNothing);
       expect(
         find.byKey(const Key('pos-prestation-refusee-cir-1')),
-        findsOneWidget,
+        findsNothing,
       );
-      await tester.tap(find.byKey(const Key('pos-article-M9:cir-1')));
-      await tester.pumpAndSettle();
-      expect(
-        find.text(CatalogueHeberges.prestationRefusee),
-        findsWidgets,
-        reason: 'la phrase du refus est lue, jamais un clic muet',
-      );
+      expect(find.byKey(const Key('pos-categorie-prestations')), findsNothing);
+      expect(find.textContaining('Tourisme'), findsNothing);
+      expect(find.textContaining('Location'), findsNothing);
 
       var paniers = await depotPanier.paniers();
       expect(paniers, hasLength(1));
       expect(paniers.single.lignes, hasLength(1));
 
-      // Un second article encaissable rejoint le MÊME panier.
+      // Un second article rejoint le MÊME panier.
       await ajouterBiere(tester);
       paniers = await depotPanier.paniers();
       expect(paniers, hasLength(1));
@@ -733,33 +901,44 @@ void main() {
       await selectionner(tester);
       await ajouterBiere(tester);
 
-      await tester.tap(find.byKey(const Key('pos-categorie-prestations')));
+      await tester.tap(find.byKey(const Key('pos-categorie-restauration')));
       await tester.pumpAndSettle();
 
-      // Le filtre filtre : seule la prestation reste visible.
-      expect(find.byKey(const Key('pos-article-M9:cir-1')), findsOneWidget);
+      // Le filtre filtre : la bière n'est plus affichée, mais elle reste au
+      // panier.
       expect(find.byKey(const Key('pos-article-M5:bsn-33')), findsNothing);
       final panier = (await depotPanier.paniers()).single;
       expect(panier.lignes, hasLength(1));
       expect(panier.total, 1000);
     });
 
+    testWidgets('les pastilles sont Tout, Bar et Restauration — plus de '
+        '« Tourisme & location » (26/10/2026)', (tester) async {
+      await monter(tester, const EcranPosHeberges());
+
+      expect(find.byKey(const Key('pos-categorie-tout')), findsOneWidget);
+      expect(find.byKey(const Key('pos-categorie-bar')), findsOneWidget);
+      expect(
+        find.byKey(const Key('pos-categorie-restauration')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('pos-categorie-prestations')), findsNothing);
+      expect(find.text('Tourisme & location'), findsNothing);
+    });
+
     testWidgets('la recherche et la pastille s’appliquent ENSEMBLE', (
       tester,
     ) async {
       await monter(tester, const EcranPosHeberges());
-      await tester.enterText(
-        find.byKey(const Key('pos-recherche')),
-        'Cascades',
-      );
+      await tester.enterText(find.byKey(const Key('pos-recherche')), 'Bénin');
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('pos-article-M9:cir-1')), findsOneWidget);
-      expect(find.byKey(const Key('pos-article-M5:bsn-33')), findsNothing);
+      expect(find.byKey(const Key('pos-article-M5:bsn-33')), findsOneWidget);
 
-      // Pastille « Bar » + terme « Cascades » : l'intersection est vide, et la
-      // phrase de la vue le dit.
+      // Pastille « Bar » + un terme qui n'est pas au bar : l'intersection est
+      // vide, et la phrase de la vue le dit.
       await tester.tap(find.byKey(const Key('pos-categorie-bar')));
+      await tester.enterText(find.byKey(const Key('pos-recherche')), 'Riz');
       await tester.pumpAndSettle();
       expect(
         texteDe(tester, 'pos-catalogue-vide'),

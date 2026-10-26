@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/format/formats.dart';
+import '../../../core/navigation/trace_svg.dart';
+import '../../../core/navigation/traces_titres.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_breakpoints.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -140,7 +142,7 @@ TextStyle _t(
   letterSpacing: espacement,
 );
 
-/// L'en-tête de la vue : titre (sans icône), puis le sous-titre en 12 px dont
+/// L'en-tête de la vue : icône et titre, puis le sous-titre en 12 px dont
 /// « ventes » est en gras et les deux exemples de numéros en police à chasse
 /// fixe (`max-w-3xl`).
 ///
@@ -190,13 +192,29 @@ class _EnTetePage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Historique des ventes',
-            style: _t(
-              TaillesContenu.lg,
-              poids: FontWeight.bold,
-              couleur: AppColors.navy,
-            ).copyWith(height: TaillesContenu.interligneLg),
+          // `flex items-center gap-2.5` : l'icône du titre (tracé de la vue,
+          // directive du PO du 26/10/2026) puis le `<h1>`.
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const IconeTrace(
+                key: Key('ventes-icone-titre'),
+                trace: TraceIconesTitre.historiqueVentes,
+                taille: AppLayout.iconeTitrePage,
+                couleur: AppColors.navy,
+              ),
+              const SizedBox(width: AppSpacing.xsPlus), // gap-2.5
+              Flexible(
+                child: Text(
+                  'Historique des ventes',
+                  style: _t(
+                    TaillesContenu.lg,
+                    poids: FontWeight.bold,
+                    couleur: AppColors.navy,
+                  ).copyWith(height: TaillesContenu.interligneLg),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: AppSpacing.unit), // mt-1
           ConstrainedBox(

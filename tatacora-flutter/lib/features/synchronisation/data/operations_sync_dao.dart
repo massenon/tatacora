@@ -365,8 +365,26 @@ class OperationsSyncDao extends DatabaseAccessor<AppDatabase> {
   /// `operation_remplacee:<ancien>` → nouvel uuid), dans la MÊME transaction
   /// que l'enfilement, et ne retient plus son élément. Rend le nouvel uuid.
   ///
+  /// [chargeCorrigee] (26/10/2026, « Corriger » de l'écran) : la charge
+  /// CORRIGÉE par l'utilisateur remplace celle de l'ancienne opération — elle
+  /// doit être un document non vide (une `creation` sans document est refusée,
+  /// comme à l'enfilement) ; tout le reste (horodatage de saisie, élément,
+  /// type) est inchangé. L'ancienne charge reste, intacte, dans la ligne
+  /// rejetée : c'est l'historique de la correction.
+  ///
   /// @throws StateError opération inconnue, non rejetée, ou déjà renvoyée
-  Future<String> renvoyer(String uuidOperation) {
+  /// @throws ArgumentError charge corrigée vide
+  Future<String> renvoyer(
+    String uuidOperation, {
+    Map<String, Object?>? chargeCorrigee,
+  }) {
+    if (chargeCorrigee != null && chargeCorrigee.isEmpty) {
+      throw ArgumentError.value(
+        chargeCorrigee,
+        'chargeCorrigee',
+        'charge corrigée vide',
+      );
+    }
     return transaction(() async {
       final ancienne = await _parUuid(uuidOperation);
       if (ancienne.statut != StatutOperationSync.rejete.code) {
@@ -385,7 +403,9 @@ class OperationsSyncDao extends DatabaseAccessor<AppDatabase> {
           tableServeur: ancienne.tableServeur,
           entiteId: ancienne.entiteId,
           type: ancienne.type,
-          payload: ancienne.payload,
+          payload: chargeCorrigee == null
+              ? ancienne.payload
+              : jsonEncode(chargeCorrigee),
           horodatageClient: ancienne.horodatageClient,
           dateMetier: Value(ancienne.dateMetier),
           creeLe: maintenant,

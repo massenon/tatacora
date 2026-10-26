@@ -70,6 +70,9 @@ final class PanierRepositoryLocal implements PanierRepository {
   Future<Panier> vider(String panierId) => _dao.vider(panierId);
 
   @override
+  Future<Panier> abandonner(String panierId) => _dao.abandonner(panierId);
+
+  @override
   Future<Panier> annulerVente(
     String panierId,
     String motif, {
