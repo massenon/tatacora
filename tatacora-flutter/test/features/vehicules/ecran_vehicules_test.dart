@@ -832,7 +832,9 @@ void main() {
       final bouton = tester.getTopRight(
         find.byKey(const Key('vehicules-nouveau-contrat')),
       );
-      const droiteCarte = 1600 - AppSpacing.xl;
+      // La page est plafonnée à `max-w-[1440px]` et centrée.
+      final droiteCarte =
+          1600 - (1600 - AppLayout.maxContentWidth) / 2 - AppSpacing.xl;
       expect(
         bouton.dx,
         closeTo(
@@ -886,7 +888,10 @@ void main() {
         tester.getTopLeft(find.text('Véhicules & Locations')).dx,
         // 32 de marge + 24 d'icône + 10 d'écart.
         closeTo(
-          AppSpacing.xl + AppLayout.iconeTitrePage + AppSpacing.xsPlus,
+          (1600 - AppLayout.maxContentWidth) / 2 +
+              AppSpacing.xl +
+              AppLayout.iconeTitrePage +
+              AppSpacing.xsPlus,
           0.5,
         ),
       );
