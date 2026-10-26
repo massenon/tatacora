@@ -236,10 +236,7 @@ void main() {
       expect(find.text("Favicon (icône d'onglet navigateur)"), findsOneWidget);
       expect(find.text('Changer le favicon'), findsOneWidget);
       expect(
-        find.text(
-          'Couleurs de la charte graphique (lecture seule — chap. 9.3.1 du '
-          'CdCF)',
-        ),
+        find.text('Couleurs de la charte graphique (lecture seule)'),
         findsOneWidget,
       );
       for (final nom in ['Navy', 'Gold', 'Succès', 'Alerte', 'Erreur']) {

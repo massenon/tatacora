@@ -1015,7 +1015,7 @@ void main() {
               find.byKey(const Key('sous-titre-modale-reservation')),
             )
             .data,
-        'Les cinq champs que le schéma serveur porte pour une réservation.',
+        'Renseignez les informations de la réservation.',
       );
     });
 

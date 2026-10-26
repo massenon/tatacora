@@ -911,7 +911,7 @@ void main() {
       "Le petit stock n'est ni décrémenté à la vente, ni inventorié, ni alerté : seule la dépense d'achat est constatée.",
       "Elle valorise le stock d'ouverture et fixe le premier coût moyen pondéré. Sans elle, l'article entre au bilan pour zéro et la variation de stock — donc le résultat — est fausse.",
       "Un paramètre, pas un état : il déclenche l'alerte de sous-stock.",
-      "Enregistré comme un MOUVEMENT d'entrée, pas comme une colonne : c'est ce qui le rend visible en fiche de stock.",
+      "Enregistré comme un mouvement d'entrée : c'est ce qui le rend visible en fiche de stock.",
       "Point de rattachement principal de l'article, et point d'imputation de son stock d'ouverture. Il ne limite pas le stock : un article peut être détenu en plusieurs endroits, et le total se calcule point par point.",
     ];
 
