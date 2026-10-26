@@ -12,6 +12,7 @@ use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Lang;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -152,6 +153,21 @@ final class MessagesUtilisateurTest extends TestCase
             // vérifiées exhaustivement par le test suivant.
             if (str_ends_with($cle, '.')) {
                 continue;
+            }
+
+            // Variante à suffixe dynamique (`'rh_conges_pwa.type_' . $type`,
+            // `'pwa.synchronisation_postes.etat_' . $code`) : le préfixe seul
+            // n'existe pas, mais au moins UNE clé du fichier doit le porter —
+            // sinon le suffixe n'a rien à résoudre.
+            if (str_ends_with($cle, '_')) {
+                [$groupe, $prefixe] = [Str::before($cle, '.'), Str::after($cle, '.')];
+                $porteuses = collect(Arr::dot((array) trans($groupe)))
+                    ->keys()
+                    ->filter(fn (string $k): bool => str_starts_with($k, $prefixe));
+
+                if ($porteuses->isNotEmpty()) {
+                    continue;
+                }
             }
 
             if (! Lang::has($cle)) {
