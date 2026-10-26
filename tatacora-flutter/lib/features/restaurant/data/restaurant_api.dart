@@ -3,6 +3,7 @@ import '../domain/calcul_restaurant.dart';
 import '../domain/entities/carte_restaurant.dart';
 import '../domain/entities/plat.dart';
 import '../domain/messages_restaurant.dart';
+import '../../bar/domain/entities/trace_prix.dart';
 import 'restaurant_dao.dart';
 
 export 'restaurant_dao.dart' show ArticleChoix, RefusRestaurant;
@@ -144,9 +145,9 @@ final class CompteursFiches {
 ///    pas un mouvement d'argent. La VENTE d'un plat, elle, passe par le point
 ///    de vente et sa facture — une écriture d'argent sans pièce comptable sur
 ///    ce poste, qui n'en tient pas : décision du PO à prendre, remontée.
-///  * **Aucun historique de prix, aucune vente du restaurant** : ni table ni
-///    colonne ne les porte ; chaque geste reste proposé et DIT son refus. Le
-///    lien direct plat -> article existe depuis la v36 ([lierAuStock]).
+///  * **L'historique des prix et « Prix » existent depuis la v38**
+///    ([historiquePrix], [modifierPrix]). Le lien direct plat -> article existe
+///    depuis la v36 ([lierAuStock]).
 ///  * **Aucune suppression** : un plat est cité par les lignes de panier et de
 ///    facture déjà saisies ; le « D » de CRUD n'existe nulle part ici.
 final class RestaurantApi {
@@ -338,6 +339,29 @@ final class RestaurantApi {
   /// « Retirer le lien » : les deux colonnes repartent ensemble.
   Future<ResultatRestaurant<Plat>> delierDuStock(String platId) =>
       _ecrire(() => _dao.delierDuStock(platId: platId, auteurId: _auteurId()));
+
+  /* ================================================================== */
+  /* « Prix » et « Historique des prix » (v38)                           */
+  /* ================================================================== */
+
+  /// « Enregistrer le prix » — le prix SEUL, tracé dans l'historique et enfilé
+  /// en modification du plat (`RestaurantDao.modifierPrix`).
+  Future<ResultatRestaurant<Plat>> modifierPrix({
+    required String platId,
+    required String prix,
+  }) => _ecrire(
+    () => _dao.modifierPrix(platId: platId, prix: prix, auteurId: _auteurId()),
+  );
+
+  /// L'historique des prix d'UN plat, du plus récent au plus ancien. Une
+  /// LECTURE : le droit d'écriture n'est pas exigé (un cuisinier en lecture
+  /// vérifie depuis quand un tarif a changé), le droit de lecture si.
+  Future<ResultatRestaurant<List<TracePrix>>> historiquePrix(
+    String platId,
+  ) async {
+    if (!_peutLire()) return _refusLecture();
+    return RestaurantRecu(await _dao.historiquePrix(platId));
+  }
 
   /* ================================================================== */
   /* Les menus                                                           */

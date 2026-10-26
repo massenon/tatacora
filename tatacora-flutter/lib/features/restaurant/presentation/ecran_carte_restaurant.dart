@@ -63,20 +63,28 @@ import 'widgets/vue_ventes_restaurant.dart';
 /// délier) et redescendus par `AligneurCatalogue`. Le lien l'emporte sur la fiche
 /// (comme `DeductionStockCuisineService`) : portions = solde du point cuisine ×
 /// conditionnement. Les jetons de refus des modales « Lier au stock » et
-/// « Délier » sont retirés : un bloc rendu ne se déclare pas refusé. Restent
-/// refusés, dits : « Prix » et « Historique des prix » (aucune table de trace).
+/// « Délier » sont retirés : un bloc rendu ne se déclare pas refusé. « Prix » et
+/// « Historique des prix » sont portés depuis la v38 (section suivante).
+///
+/// ## « Prix » et « Historique des prix » SONT portés (26/10/2026, schéma v38)
+///
+/// Le serveur trace chaque changement de prix (`historique_prix_carte`, par les
+/// observateurs des deux cartes) ; ce poste en tient la table miroir
+/// (`historique_prix_carte_local`, `HistoriquePrixCarteDao` seul écrivain). Le
+/// bouton « Prix » ([ouvrirModalePrixPlat], droit d'écriture M4) change le prix
+/// SEUL par `RestaurantDao.modifierPrix` : le changement est tracé dans la même
+/// transaction (`_enfilerPlat`) puis enfilé en modification du plat. Le bouton
+/// « Historique des prix » (lecture) ouvre la modale partagée du bar, nourrie par
+/// `historiquePrixPlatProvider`. Les traces des autres postes et de la PWA
+/// redescendent (`AligneurCatalogue._historiquePrix`) ; la trace d'un changement
+/// fait ici est ADOPTÉE à celle du serveur plutôt que doublée. Les jetons de
+/// refus des deux modales sont retirés : un bloc rendu ne se déclare pas refusé.
 ///
 /// ## Ce que cet écran REFUSE de rendre, et pourquoi (09/10/2026)
 ///
-/// Les modales restantes, ouvertes par les boutons de ligne, sont des blocs entiers de
-/// la vue. Toutes écrivent une disponibilité, un lien direct à un article ou
-/// une trace de prix (`indisponibilites_carte`, un lien et son conditionnement,
-/// `historique_prix_carte`), ou lisent des tables que ce poste ne détient pas
-/// (`ventes`). Raison datée du 09/10/2026, REVUE à la livraison de la source
-/// locale de M4 (v14) : cette source porte les menus, les fiches, la
-/// composition et les plats — aucune de ces trois tables-là. Les boutons de
-/// ligne affichent le message de `core/donnees_absentes.dart` (voir
-/// [VueCarteDuJour]).
+/// Les modales restantes sont des blocs entiers de la vue que le corps partagé
+/// des cartes ne pose pas sur cette page, ou que ce poste ne rend pas (le retrait
+/// de la carte a sa modale propre, voir [VueCarteDuJour]).
 ///
 /// ## L'onglet « Ventes du Restaurant » : rendu, SANS donnée (09/10/2026)
 ///
@@ -100,8 +108,6 @@ import 'widgets/vue_ventes_restaurant.dart';
 /// est retiré : un bloc rendu ne se déclare pas refusé.
 ///
 ///  - blade-refuse:restaurant/carte#modale:modal-retirerdelacartedujour
-///  - blade-refuse:restaurant/carte#modale:commun.modale_prix_titre
-///  - blade-refuse:restaurant/carte#modale:modale_historique_prix.titre
 ///
 /// ## « Nouvelle boisson » n'est PAS un refus : la vue ne la rend jamais ici
 ///

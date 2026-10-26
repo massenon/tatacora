@@ -120,6 +120,7 @@ void main() {
       ...tablesAjouteesEnV34,
       ...tablesAjouteesEnV35,
       ...tablesAjouteesEnV37,
+      ...tablesAjouteesEnV38,
     });
     expect(
       await compte(apres, 'operations_sync_local'),
@@ -166,6 +167,9 @@ void main() {
       'id_serveur',
       'cree_le',
       'synchronise_le',
+      // v38 (26/10/2026) : l'auteur et le poste de l'écriture, nullables.
+      'auteur_login',
+      'poste_nom',
     ]);
     expect(colonnes['seq']!.pk, 1);
     for (final obligatoire in [

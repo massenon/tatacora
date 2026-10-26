@@ -45,6 +45,11 @@ enum TableDescendue {
     'indisponibilites_carte',
     TableSynchronisee.indisponibilitesCarte,
   ),
+
+  /// 26/10/2026 : l'historique des prix de la carte, après les boissons et les
+  /// plats dont il trace le prix. Le poste ne le POUSSE pas : le serveur en est
+  /// l'unique auteur (ses observateurs de prix).
+  historiquePrixCarte('historique_prix_carte', null),
   categoriesHebergement(
     'categories_hebergement',
     TableSynchronisee.categoriesHebergement,
@@ -179,6 +184,7 @@ String libelleTableServeur(String nom) => switch (nom) {
   'recettes' => 'Fiches techniques',
   'plats' => 'Plats',
   'indisponibilites_carte' => 'Retraits de la carte du jour',
+  'historique_prix_carte' => 'Historique des prix de la carte',
   'categories_hebergement' => 'Catégories d\'hébergement',
   'unites_hebergement' => 'Unités d\'hébergement',
   'commandes_achat' => 'Commandes d\'achat',

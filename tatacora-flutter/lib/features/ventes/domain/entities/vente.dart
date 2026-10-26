@@ -137,6 +137,7 @@ final class Vente {
     this.reservationId,
     this.motifAnnulation,
     this.numeroFacture,
+    this.numero,
   });
 
   /// Compose une vente depuis un panier. Rend `null` pour un panier **ouvert**.
@@ -192,6 +193,7 @@ final class Vente {
       reservationId: panier.reservationId,
       motifAnnulation: panier.motifAnnulation,
       numeroFacture: numeroFacture,
+      numero: panier.numeroVente,
     );
   }
 
@@ -268,6 +270,10 @@ final class Vente {
   /// deux points de vente n'oblige à facturer. Un `null` ne doit donc jamais
   /// s'afficher comme un manquement.
   final String? numeroFacture;
+
+  /// Le numéro `V-AAAA-NNNNN` du SERVEUR (v38), `null` tant qu'il ne l'a pas
+  /// rendu : le poste n'en invente aucun.
+  final String? numero;
 
   bool get estValidee => statut == StatutVente.validee;
 

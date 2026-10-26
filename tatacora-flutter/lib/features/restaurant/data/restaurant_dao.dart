@@ -3,13 +3,16 @@ import 'package:uuid/uuid.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/format/cle_comparaison.dart';
+import '../../pos/data/historique_prix_carte_dao.dart';
 import '../../pos/data/indisponibilites_carte_dao.dart';
+import '../../pos/domain/changement_prix_carte.dart';
 import '../../stocks/data/stocks_dao.dart';
 import '../../synchronisation/data/operations_sync_dao.dart';
 import '../../synchronisation/domain/charges_synchronisation.dart';
 import '../../synchronisation/domain/operation_sync.dart';
 import '../../stocks/domain/calcul_stock.dart';
 import '../../stocks/domain/entities/etat_stock.dart' show SuiviArticle;
+import '../../bar/domain/entities/trace_prix.dart';
 import '../domain/calcul_restaurant.dart';
 import '../domain/entities/plat.dart';
 import '../domain/messages_restaurant.dart';
@@ -753,6 +756,72 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
     return (await plat(id))!;
   }
 
+  /// « Prix » de la carte — `CarteRestaurant::enregistrerModificationPrix` :
+  /// `CartePlatMenuService::modifierPlat($plat, ['prix_vente' => $prix])`, le prix
+  /// SEUL (le libellé, le menu, la fiche et le lien restent ceux du plat).
+  ///
+  /// Mêmes règles que la modale de la vue (`required|numeric|gt:0`) : un prix à
+  /// ZÉRO est refusé — suspendre la vente est le geste « Retirer de la carte »,
+  /// qui porte son motif. Le franc CFA n'a pas de sous-unité : une fraction de
+  /// franc est refusée plutôt qu'arrondie. « Corrigé à la main » se DÉDUIT
+  /// (`MarquesDePrix::completer`), et le changement est TRACÉ dans la même
+  /// transaction (`_enfilerPlat`), puis enfilé en modification du plat.
+  Future<Plat> modifierPrix({
+    required String platId,
+    required String prix,
+    required String? auteurId,
+  }) async {
+    _exigerAuteur(auteurId);
+
+    final lu = lirePrix(prix);
+    if (lu.erreur != null) {
+      throw RefusRestaurant(lu.erreur!, erreurs: {'prix_vente': lu.erreur!});
+    }
+    if (lu.francs! <= 0) {
+      throw const RefusRestaurant(
+        MessagesRestaurant.prixNul,
+        erreurs: {'prix_vente': MessagesRestaurant.prixNul},
+      );
+    }
+
+    await transaction(() async {
+      final existant = await (select(
+        attachedDatabase.platsLocal,
+      )..where((p) => p.id.equals(platId))).getSingleOrNull();
+      if (existant == null) {
+        throw const RefusRestaurant(MessagesRestaurant.platIntrouvable);
+      }
+      await (update(
+        attachedDatabase.platsLocal,
+      )..where((p) => p.id.equals(platId))).write(
+        PlatsLocalCompanion(
+          prixVente: Value(lu.francs!),
+          prixCorrigeMain: Value(
+            prixCorrigeMainApres(
+              corrigeActuel: existant.prixCorrigeMain,
+              provisoireActuel: existant.prixProvisoire,
+              prixActuelFrancs: existant.prixVente,
+              prixSoumisFrancs: lu.francs!,
+            ),
+          ),
+          modifieLe: Value(_maintenant()),
+          modifiePar: Value(auteurId),
+        ),
+      );
+      await _enfilerPlat(platId, avant: existant);
+    });
+
+    return (await plat(platId))!;
+  }
+
+  /// L'historique des prix d'UN plat, du plus récent au plus ancien — la table
+  /// locale (`HistoriquePrixCarteDao`), alimentée par les changements faits ici
+  /// et par la descente.
+  Future<List<TracePrix>> historiquePrix(String platId) =>
+      HistoriquePrixCarteDao(
+        attachedDatabase,
+      ).deLArticle(SourceCarte.plat, platId);
+
   /* ================================================================== */
   /* « Lier au stock » (v36) — le lien DIRECT d'un plat à un article      */
   /* ================================================================== */
@@ -977,6 +1046,23 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
     final apres = await (select(
       attachedDatabase.platsLocal,
     )..where((p) => p.id.equals(id))).getSingle();
+    // La TRACE du changement de prix (v38) : TOUT chemin qui réécrit un plat
+    // passe ici, donc aucun ne peut changer le prix sans la laisser — comme
+    // l'observateur du serveur (`PlatObserver`), elle ne naît qu'à la
+    // MODIFICATION d'un plat existant. La comparaison est celle de
+    // `TraceurHistoriquePrix` : le prix, puis la marque « corrigé à la main ».
+    if (avant != null) {
+      await HistoriquePrixCarteDao(attachedDatabase).tracer(
+        source: SourceCarte.plat,
+        sourceId: id,
+        changements: changementsDePrix(
+          prixAvant: avant.prixVente,
+          prixApres: apres.prixVente,
+          corrigeAvant: avant.prixCorrigeMain,
+          corrigeApres: apres.prixCorrigeMain,
+        ),
+      );
+    }
     await _file.enfiler(
       table: TableSynchronisee.plats,
       entiteId: id,

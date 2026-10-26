@@ -5,10 +5,12 @@ import '../../../core/format/cle_comparaison.dart';
 import '../../synchronisation/data/operations_sync_dao.dart';
 import '../../synchronisation/domain/charges_synchronisation.dart';
 import '../../synchronisation/domain/operation_sync.dart';
+import '../domain/changement_prix_carte.dart';
 import '../domain/entities/article_vendable.dart';
 import '../domain/entities/reference_catalogue.dart';
 import '../domain/repositories/panier_repository.dart';
 import 'dto/catalogue_dto.dart';
+import 'historique_prix_carte_dao.dart';
 
 /// Le catalogue vendable, lu **dans la base locale**.
 ///
@@ -258,6 +260,21 @@ class CatalogueDao extends DatabaseAccessor<AppDatabase>
       final apres = await (select(
         attachedDatabase.cartesBoissonLocal,
       )..where((c) => c.id.equals(boisson.id))).getSingle();
+      // La TRACE du changement de prix (v38) : dans la même transaction que le
+      // prix, par son seul écrivain — comme l'observateur du serveur, elle ne
+      // naît qu'à la MODIFICATION d'une boisson existante, jamais à sa création.
+      // Les boissons du poste n'ont pas de marque « corrigé à la main » : seul
+      // `prix_vente` peut être tracé ici.
+      if (avant != null) {
+        await HistoriquePrixCarteDao(attachedDatabase).tracer(
+          source: SourceCarte.boisson,
+          sourceId: boisson.id,
+          changements: changementsDePrix(
+            prixAvant: avant.prixVente.round(),
+            prixApres: apres.prixVente.round(),
+          ),
+        );
+      }
       await OperationsSyncDao(attachedDatabase).enfiler(
         table: TableSynchronisee.cartesBoisson,
         entiteId: boisson.id,

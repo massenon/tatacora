@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Notifications\Services;
 
+use App\Domain\Notifications\Jobs\EnvoyerNotificationEmailJob;
 use App\Domain\Notifications\Models\MessageNotificationCompose;
 use App\Domain\Notifications\Models\ModeleNotification;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -17,10 +18,11 @@ use RuntimeException;
  * ## Ce que ce Service fait — et ne fait PAS
  *
  * `detecter()` COMPOSE des messages réels à partir de vraies données
- * (`Domain/Notifications/Detecteurs/`) et les met en file. `marquerTraite()`
- * et `abandonner()` en sortent le message. AUCUN des trois n'envoie quoi que
- * ce soit — « Envoyer » (`notifications-engine.js` l.463-476) n'a
- * délibérément aucun équivalent ici : RG-20 n'est pas implémentée (voir
+ * (`Domain/Notifications/Detecteurs/`) et les met en file ; un message
+ * e-mail ayant une adresse est AUSSI mis en file d'envoi (jobs) — l'envoi
+ * est RÉEL depuis le 26/10/2026, par `EnvoiEmailNotificationService`.
+ * `marquerTraite()` et `abandonner()` en sortent le message. Les canaux autres
+ * que l'e-mail ne partent pas : RG-20 n'y est pas implémentée (voir
  * `RegistreDeclencheurs`).
  *
  * ## Idempotence — `unique(modele_id, reference)` au SCHÉMA
@@ -84,8 +86,8 @@ class FileAttenteNotificationsService
                 }
 
                 try {
-                    DB::transaction(function () use ($modele, $occurrence, $compose): void {
-                        MessageNotificationCompose::create([
+                    $cree = DB::transaction(function () use ($modele, $occurrence, $compose): MessageNotificationCompose {
+                        return MessageNotificationCompose::create([
                             'modele_id' => $modele->id,
                             'canal' => $modele->canal,
                             'reference' => $occurrence['reference'],
@@ -103,6 +105,7 @@ class FileAttenteNotificationsService
                         ]);
                     });
                     $composes++;
+                    $this->mettreEnFileSiEmail($cree);
                 } catch (\Illuminate\Database\QueryException $e) {
                     // Violation de `unique(modele_id, reference)` : l'occurrence
                     // est déjà composée (en file ou déjà traitée). C'est
@@ -115,6 +118,27 @@ class FileAttenteNotificationsService
         }
 
         return ['composes' => $composes, 'echecs' => $echecs];
+    }
+
+    /**
+     * L'e-mail composé PART : mis en file d'envoi (`EnvoyerNotificationEmailJob`)
+     * dès qu'il a une adresse RÉELLE. Une file en panne ne casse jamais la
+     * détection : le message est composé, la relance planifiée le reprendra.
+     */
+    private function mettreEnFileSiEmail(MessageNotificationCompose $message): void
+    {
+        if ($message->canal !== RegistreCanaux::EMAIL || blank($message->email_destinataire)) {
+            return;
+        }
+
+        try {
+            EnvoyerNotificationEmailJob::dispatch($message->id);
+        } catch (\Throwable $erreur) {
+            \Illuminate\Support\Facades\Log::warning('Mise en file d\'une notification e-mail impossible', [
+                'message_id' => $message->id,
+                'erreur' => $erreur->getMessage(),
+            ]);
+        }
     }
 
     /**

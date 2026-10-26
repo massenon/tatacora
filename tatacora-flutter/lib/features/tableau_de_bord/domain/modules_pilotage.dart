@@ -131,9 +131,9 @@ const int joursFenetreVehicules = 14;
 /// `Accueil::moduleVehicules` : les contrats de la fenêtre [aujourd'hui,
 /// aujourd'hui + 14 jours] au sens de `ParcVehiculeService::contratsSurFenetre`
 /// — `date_fin >= début` ET `date_debut <= fin`, les DEUX bornes INCLUSES —,
-/// agrégés par `agregerContratsActifs` (contrats non annulés ; le poste n'en
-/// annule aucun, PA-50 : tous sont actifs), plus le parc et les véhicules
-/// immobilisés (`entretien`, `hors_service`).
+/// agrégés par `agregerContratsActifs` (contrats non annulés : depuis la v38 le
+/// poste annule comme la PWA, un contrat annulé ne compte plus), plus le parc
+/// et les véhicules immobilisés (`entretien`, `hors_service`).
 ///
 /// ⚠ L'écran Véhicules du poste retient les contrats par un chevauchement
 /// STRICT ([ContratLocation.chevauche]) : un contrat qui finit le jour où la
@@ -157,9 +157,15 @@ ModuleVehicules moduleVehicules({
     ),
   );
 
+  // `agregerContratsActifs` : « actif » = `statut !== 'annule'` (v38) — un
+  // contrat annulé ne compte ni dans le nombre, ni dans le chiffre, ni dans
+  // les jours.
   final retenus = [
     for (final c in contrats)
-      if (c.fin.compareTo(debut) >= 0 && c.debut.compareTo(fin) <= 0) c,
+      if (!c.annule &&
+          c.fin.compareTo(debut) >= 0 &&
+          c.debut.compareTo(fin) <= 0)
+        c,
   ];
 
   return ModuleVehicules(

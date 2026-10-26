@@ -173,6 +173,20 @@ class PaniersLocal extends Table {
   /// La valeur saisie en CENTIÈMES (12,5 % = 1250 ; 500 F = 50000).
   IntColumn get remiseValeurCentiemes =>
       integer().withDefault(const Constant(0))();
+
+  /// v38 (26/10/2026) — le numéro `V-AAAA-NNNNN` de la VENTE, attribué par le
+  /// SERVEUR (`ventes.numero`, séquence continue). NULLABLE : le poste n'invente
+  /// aucun numéro. Il est posé quand le serveur l'a rendu — à l'accusé de
+  /// l'envoi (`SyncManager`) ou à la descente de la vente (`AligneurDocuments`) —
+  /// par `PanierDao.regulariserNumeroVente` SEUL. Un panier jamais envoyé, ou
+  /// d'avant la v38, reste sans numéro : « — ».
+  TextColumn get numeroVente => text().nullable()();
+
+  /// v38 — le login de qui a ENCAISSÉ (`ventes.utilisateur_id` du serveur, résolu
+  /// en login). Écrit par `PanierDao.cloturer` (le compte connecté) ou par la
+  /// descente d'une vente d'un autre poste (le `par` que le serveur rend).
+  /// NULLABLE : « — », jamais un « système » inventé.
+  TextColumn get auteurLogin => text().nullable()();
 }
 
 /// Une consommation portée au panier.

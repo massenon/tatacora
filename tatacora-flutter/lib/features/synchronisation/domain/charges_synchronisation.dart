@@ -868,6 +868,10 @@ Map<String, Object?> chargeContratLocation({
   'permis_conduire': permisConduire,
 };
 
+/// `contrats_location` (modification) — l'ANNULATION, la seule admise
+/// (`GestionnaireContratsLocation::modifier`, par `ContratLocationService::annuler`).
+Map<String, Object?> chargeAnnulationContratLocation() => {'statut': 'annule'};
+
 /* ==================================================================== */
 /* RH et paie (audit de couverture, 18/10/2026)                           */
 /* ==================================================================== */

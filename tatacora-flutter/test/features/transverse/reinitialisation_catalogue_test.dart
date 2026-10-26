@@ -41,7 +41,11 @@ void main() {
   };
 
   /// Les seules valeurs qu'une contrainte CHECK impose (registres fermés).
-  const surcharges = {'operations_sync_local.type': 'creation'};
+  const surcharges = {
+    'operations_sync_local.type': 'creation',
+    'historique_prix_carte_local.source': 'plat',
+    'historique_prix_carte_local.champ': 'prix_vente',
+  };
 
   late Directory dossier;
   late AppDatabase db;
@@ -186,6 +190,9 @@ void main() {
     await semer('points_stockage_local', liens);
     await semer('operations_sync_local', liens);
     await semer('etat_synchronisation_local', liens);
+    // L'historique des prix (v38) se joint par `source_id`, sans clé étrangère ni
+    // nom que la sonde sache rattacher : il est semé et exigé vide à part.
+    await semer('historique_prix_carte_local', liens);
     for (final t in [...tree, 'operations_sync_local']) {
       expect(await compter(t), greaterThan(0), reason: 'non semée : $t');
     }
@@ -209,6 +216,11 @@ void main() {
     }
     expect(await compter('operations_sync_local'), 0);
     expect(await compter('etat_synchronisation_local'), 0);
+    expect(
+      await compter('historique_prix_carte_local'),
+      0,
+      reason: 'la trace des prix d\'une carte vidée est vidée avec elle',
+    );
     // Les lieux et les réglages restent.
     expect(await compter('points_stockage_local'), greaterThan(0));
     expect(

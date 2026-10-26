@@ -37,6 +37,13 @@ abstract final class MessagesRestaurant {
       'ne décrémenterait aucun stock.';
   static const recetteInexistante = 'Fiche technique inconnue du référentiel.';
   static const prixObligatoire = 'Le prix de vente est obligatoire.';
+
+  /// `gt:0` de la modale « Prix » de la vue : la règle du GESTE, pas celle de la
+  /// colonne. Suspendre la vente est le rôle de « Retirer de la carte », qui
+  /// porte son motif (`carte_pwa.commun.prix_trace`).
+  static const prixNul =
+      'Un prix à zéro est refusé : pour suspendre la vente, retirez l’article '
+      'de la carte.';
   static const prixNegatif = 'Le prix de vente ne peut pas être négatif.';
   static const saisonInversee =
       'La fin de validité précède son début : ce menu ne rendrait jamais aucun '

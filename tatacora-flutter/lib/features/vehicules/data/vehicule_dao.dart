@@ -30,19 +30,16 @@ import '../domain/regles_vehicules.dart';
 /// lit : **qui l'écrit, qui la descend ?** Ici, ce fichier l'écrit, et personne
 /// ne la descend — il n'y a plus de descente.
 ///
-/// ## Rien ne part, et aucun écran ne doit annoncer le contraire
+/// ## Ce qui part (depuis la file d'envoi, lot F1) et ce qui ne s'affiche jamais
 ///
-/// Ni `vehicules` ni `contrats_location` n'ont jamais été au registre
-/// `TABLES_SYNCHRONISABLES`, et il n'existe plus de file du tout. Deux
-/// conséquences tenues ici :
-///
-/// 1. **aucune entrée de file** n'est écrite ;
-/// 2. `statutSync` est écrit à [statutSyncLocal] et **jamais affiché**. Le
-///    schéma lui donne pour défaut `synchronise` sur `contrats_location_local`,
-///    ce qui serait faux — rien n'a jamais été synchronisé —, et le piège
-///    inverse de `MouvementsStockLocal` (PA-134), dont le défaut annonce une
-///    attente sans fin. On l'écrase à l'insertion plutôt que de le laisser
-///    mentir en base.
+/// Le véhicule (création, retouches, statut), le contrat (création, puis son
+/// ANNULATION depuis la v38) et l'entretien partent dans la file, dans la
+/// transaction du geste. `statutSync` est écrit à [statutSyncLocal] et **jamais
+/// affiché** : le schéma lui donne pour défaut `synchronise` sur
+/// `contrats_location_local`, ce qui serait faux, et le piège inverse de
+/// `MouvementsStockLocal` (PA-134) annonce une attente sans fin. On l'écrase à
+/// l'insertion plutôt que de le laisser mentir en base ; l'état d'envoi se lit
+/// dans la file.
 ///
 /// ## RG-08 : le verrou pessimiste n'existe plus, et ce qui le remplace
 ///
@@ -179,6 +176,7 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
                     client.nom,
                     client.prenom,
                   ].whereType<String>().join(' ').trim(),
+            statut: l.statut,
           );
         })
         .toList(growable: false);
@@ -412,9 +410,13 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
       )..where((c) => c.vehiculeId.equals(vehiculeId))).get();
 
       // Un contrat dont la restitution est passée n'engage plus rien : bornes
-      // demi-ouvertes, le jour de restitution est déjà libre.
+      // demi-ouvertes, le jour de restitution est déjà libre. Un contrat
+      // ANNULÉ n'engage plus rien non plus (`ParcVehiculeService::contratsEngages`
+      // : `statut != annule`).
       final encours = engagements
-          .where((c) => c.dateFin.isAfter(jour))
+          .where(
+            (c) => c.statut != statutContratAnnule && c.dateFin.isAfter(jour),
+          )
           .toList(growable: false);
 
       if (encours.isNotEmpty) {
@@ -512,6 +514,8 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
           // table ne porte que des chemins de fichier. Les y ranger serait
           // écrire un numéro de CNI dans une colonne nommée « chemin ».
           statutSync: const Value(statutSyncLocal),
+          // Comme le serveur à la création (`GestionnaireContratsLocation`).
+          statut: const Value(statutContratActif),
         ),
       );
 
@@ -554,7 +558,55 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
           client.nom,
           client.prenom,
         ].whereType<String>().join(' ').trim(),
+        statut: statutContratActif,
       );
+    });
+  }
+
+  /// Annule un contrat — « Annuler » de la vue (`Locations::executerSuppression`,
+  /// `ContratLocationService::annuler` au serveur), le SEUL écrivain de saisie du
+  /// statut d'un contrat.
+  ///
+  /// Le contrat passe `annule`, il n'est jamais supprimé : la pièce reste lisible
+  /// et le véhicule redevient libre sur sa plage (RG-08). Un contrat déjà annulé
+  /// est refusé avec la phrase de la vue. La modification `{statut: annule}` part
+  /// dans la file, dans la MÊME transaction — seulement si le serveur détient le
+  /// contrat (descendu, ou création en file non rejetée) : sinon il répondrait
+  /// « inconnu » à chaque essai.
+  ///
+  /// Comme la PWA, aucune restriction « document d'un autre poste » : la vue
+  /// laisse tout compte qui écrit sur M8 annuler tout contrat.
+  Future<ContratLocation> annulerContrat(String contratId) {
+    return transaction(() async {
+      final ligne = await (select(
+        attachedDatabase.contratsLocationLocal,
+      )..where((c) => c.id.equals(contratId))).getSingleOrNull();
+      if (ligne == null) {
+        throw const RefusVehicule(MessagesVehicules.contratInexistant);
+      }
+      if (ligne.statut == statutContratAnnule) {
+        throw const RefusVehicule(MessagesVehicules.contratDejaAnnule);
+      }
+
+      await (update(
+        attachedDatabase.contratsLocationLocal,
+      )..where((c) => c.id.equals(contratId))).write(
+        const ContratsLocationLocalCompanion(
+          statut: Value(statutContratAnnule),
+        ),
+      );
+      if (await DocumentsAutresPostes(
+        attachedDatabase,
+      ).connuDuServeur(TableSynchronisee.contratsLocation, contratId)) {
+        await OperationsSyncDao(attachedDatabase).enfiler(
+          table: TableSynchronisee.contratsLocation,
+          entiteId: contratId,
+          type: TypeOperationSync.modification,
+          payload: chargeAnnulationContratLocation(),
+        );
+      }
+
+      return (await contrats()).firstWhere((c) => c.id == contratId);
     });
   }
 
@@ -610,12 +662,13 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
 
   /// Les contrats qui chevauchent [debut]..[fin] sur ce véhicule.
   ///
-  /// ## Le filtre est fait en Dart, et c'est délibéré
+  /// ## Un contrat ANNULÉ ne bloque plus (v38, 26/10/2026)
   ///
-  /// `contrats_location` n'a **aucune colonne de statut** (PA-50) : il n'existe
-  /// pas de contrat inactif à exclure, et la clause `statutsInactifs` du
-  /// service serveur est vide pour la même raison. Tous les contrats du
-  /// véhicule comptent, sans exception.
+  /// `ContratLocationService` écarte `statut = annule` de RG-08 depuis la même
+  /// date (sa liste de statuts inactifs était vide : un contrat annulé bloquait
+  /// encore son véhicule, pendant que l'écran disait « le véhicule redevient
+  /// disponible »). Le filtre est fait en Dart : un contrat sans statut (d'avant
+  /// la v38) est actif.
   Future<List<ContratsLocationLocalData>> _contratsEnConflit({
     required String vehiculeId,
     required DateTime debut,
@@ -627,12 +680,14 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
 
     return lignes
         .where(
-          (c) => plagesSeChevauchent(
-            debutA: c.dateDebut,
-            finA: c.dateFin,
-            debutB: debut,
-            finB: fin,
-          ),
+          (c) =>
+              c.statut != statutContratAnnule &&
+              plagesSeChevauchent(
+                debutA: c.dateDebut,
+                finA: c.dateFin,
+                debutB: debut,
+                finB: fin,
+              ),
         )
         .toList(growable: false);
   }

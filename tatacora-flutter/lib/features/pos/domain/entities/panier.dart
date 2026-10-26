@@ -179,6 +179,8 @@ final class Panier {
     this.statutTransmission = StatutTransmissionPanier.nonTransmissible,
     this.remiseType = TypeRemise.aucune,
     this.remiseValeurCentiemes = 0,
+    this.numeroVente,
+    this.auteurLogin,
   });
 
   final String id;
@@ -219,6 +221,14 @@ final class Panier {
   /// chambre, jamais encaissée en caisse), ou clôturé avant la v18.
   final String? sessionEncaissementId;
   final StatutTransmissionPanier statutTransmission;
+
+  /// Le numéro `V-AAAA-NNNNN` attribué par le SERVEUR à la vente (v38) ; `null`
+  /// tant qu'il ne l'a pas rendu (panier jamais envoyé, ou d'avant la v38). Le
+  /// poste n'en invente aucun : la séquence est continue, au serveur.
+  final String? numeroVente;
+
+  /// Le login de qui a encaissé (v38) ; `null` : « — ».
+  final String? auteurLogin;
 
   /// La remise saisie : le TYPE et la VALEUR (en centièmes : 12,5 % = 1250 ;
   /// 500 F = 50000), jamais un montant — voir `remise_panier.dart`. Se fige à la

@@ -25,6 +25,9 @@ import '../../../core/di/providers.dart';
 import '../../../core/fichiers/enregistrement_export.dart';
 import '../../../core/impression/entete_parametree.dart';
 import '../../../core/rbac/garde_acces.dart';
+import '../../bar/data/boissons_api.dart'
+    show BarInjoignable, BarRecu, BarRefuse, ResultatBar;
+import '../../bar/domain/entities/trace_prix.dart';
 import '../../pos/data/dto/catalogue_dto.dart' show IndisponibiliteDistante;
 import '../../stocks/presentation/providers_stocks.dart';
 import '../data/restaurant_api.dart';
@@ -48,6 +51,22 @@ final restaurantDaoProvider = Provider<RestaurantDao>(
     stocks: ref.watch(stocksDaoProvider),
   ),
 );
+
+/// L'historique des prix d'UN plat, relu à CHAQUE ouverture de la modale
+/// (`autoDispose`, aucun cache : une liste gardée d'une visite précédente ne
+/// dirait pas qu'elle date, sur la question même « depuis quand ce prix ? »).
+/// Rendu dans la famille de résultats du bar, parce que la modale « Historique
+/// des prix » est CELLE du corps partagé des deux cartes.
+final historiquePrixPlatProvider = FutureProvider.autoDispose
+    .family<ResultatBar<List<TracePrix>>, String>((ref, platId) async {
+      final r = await ref.watch(restaurantApiProvider).historiquePrix(platId);
+      return switch (r) {
+        RestaurantRecu<List<TracePrix>>(:final donnees) => BarRecu(donnees),
+        RestaurantRefuse<List<TracePrix>>(:final motif, :final code) =>
+          BarRefuse(motif: motif, code: code),
+        RestaurantInjoignable<List<TracePrix>>() => const BarInjoignable(),
+      };
+    });
 
 final restaurantApiProvider = Provider<RestaurantApi>(
   (ref) => RestaurantApi(

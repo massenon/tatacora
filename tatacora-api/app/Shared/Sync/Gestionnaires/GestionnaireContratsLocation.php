@@ -28,6 +28,15 @@ use RuntimeException;
  * du jour × jours (le poste ne saisit ni remise ni acompte : 0), reste dû =
  * montant. Les numéros de pièce et de permis viennent de la saisie du poste
  * (la charge de la file), jamais d'un fichier.
+ *
+ * ## L'annulation (26/10/2026) — la seule modification admise
+ *
+ * Un poste annule un contrat comme la PWA (« Voulez-vous annuler le contrat »)
+ * : `statut = annule`, par `ContratLocationService::annuler`, le chemin que
+ * l'écran partage. Rien d'autre ne se modifie (ni dates, ni véhicule : un
+ * contrat qui change de plage est un autre contrat, soumis à RG-08). Un contrat
+ * déjà annulé — par un autre poste, par la PWA — est un REJEU : accepté, rien
+ * n'est réécrit (l'intention du poste est déjà celle du serveur).
  */
 final class GestionnaireContratsLocation extends GestionnaireDocumentAbstrait
 {
@@ -52,6 +61,11 @@ final class GestionnaireContratsLocation extends GestionnaireDocumentAbstrait
     public function serviceDomaine(): string
     {
         return ContratLocationService::class;
+    }
+
+    public function accepteModification(): bool
+    {
+        return true;
     }
 
     protected function resultat(string $entiteId): EcritureSynchronisee
@@ -110,6 +124,32 @@ final class GestionnaireContratsLocation extends GestionnaireDocumentAbstrait
                 'reste_a_payer' => $montant,
             ])->save();
         });
+
+        return $this->resultat($entiteId);
+    }
+
+    public function modifier(string $entiteId, array $payload, ContexteSynchronisation $contexte): EcritureSynchronisee
+    {
+        $refuses = array_diff(array_keys($payload), ['statut']);
+
+        if ($refuses !== []) {
+            throw new RuntimeException(__('sync.vehicules.contrat_champ_non_modifiable', ['champs' => implode(', ', $refuses)]));
+        }
+
+        if (! array_key_exists('statut', $payload) || $payload['statut'] !== ContratLocationService::STATUT_ANNULE) {
+            throw new RuntimeException(__('sync.vehicules.contrat_statut_refuse', [
+                'statut' => is_scalar($payload['statut'] ?? null) ? (string) $payload['statut'] : '—',
+            ]));
+        }
+
+        $contrat = ContratLocation::query()->findOrFail($entiteId);
+
+        // Rejeu : déjà annulé, au même sens.
+        if ($contrat->getAttribute('statut') === ContratLocationService::STATUT_ANNULE) {
+            return $this->resultat($entiteId);
+        }
+
+        $this->contrats->annuler($contrat);
 
         return $this->resultat($entiteId);
     }

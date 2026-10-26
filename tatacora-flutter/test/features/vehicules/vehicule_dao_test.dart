@@ -1,7 +1,9 @@
-import 'dart:io';
+import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tatacora_flutter/core/database/app_database.dart';
+import 'package:tatacora_flutter/features/synchronisation/data/operations_sync_dao.dart';
+import 'package:tatacora_flutter/features/synchronisation/domain/operation_sync.dart';
 import 'package:tatacora_flutter/features/vehicules/data/vehicule_dao.dart';
 import 'package:tatacora_flutter/features/vehicules/domain/entities/contrat_location.dart';
 import 'package:tatacora_flutter/features/vehicules/domain/entities/vehicule.dart';
@@ -391,98 +393,159 @@ void main() {
   });
 
   /* ================================================================== */
-  group('PA-50 — l’annulation d’un contrat N’EXISTE PAS', () {
-    test('aucune méthode d’annulation n’est exposée par le DAO', () {
-      // ⚠ Ce cas relit le CODE SOURCE, et c'est délibéré : on ne peut pas
-      // prouver l'absence d'une méthode en l'appelant. L'ancrage est extérieur
-      // au fichier testé (piège 12) — c'est le texte du DAO lui-même.
-      //
-      // « Une méthode qui ne libère rien laisserait croire que le cas est
-      // traité » : tant qu'aucune colonne de statut n'existe, un `annuler()`
-      // ne pourrait qu'effacer la ligne, et la suppression est interdite sur
-      // une table transactionnelle.
-      final source = File('lib/features/vehicules/data/vehicule_dao.dart');
-      expect(
-        source.existsSync(),
-        isTrue,
-        reason: 'le DAO est introuvable : ce cas ne vérifierait rien',
+  group('Annuler un contrat — PA-50 levé (v38, 26/10/2026)', () {
+    test('le contrat passe « annulé », reste LISIBLE, et libère son véhicule '
+        '(RG-08)', () async {
+      final v = await creerVehicule();
+      final c = await louer(v.id, debut: '2026-09-10', fin: '2026-09-15');
+      expect(c.statut, statutContratActif);
+
+      // Pris : un second contrat sur la même plage est refusé.
+      await expectLater(
+        louer(v.id, debut: '2026-09-12', fin: '2026-09-14'),
+        throwsA(isA<RefusVehicule>()),
       );
 
-      final texte = source.readAsStringSync();
+      final annule = await dao.annulerContrat(c.id);
 
-      // Prouvé non vide : sans ce contrôle, un fichier renommé rendrait le
-      // balayage vert à vide.
-      expect(texte, contains('creerContrat'));
-      expect(
-        RegExp(r'Future<[^>]*>\s+annuler').hasMatch(texte),
-        isFalse,
-        reason:
-            'Une méthode d’annulation est apparue sans colonne de statut pour '
-            'la porter : elle ne libérerait aucun véhicule (PA-50).',
+      expect(annule.annule, isTrue);
+      expect(annule.id, c.id);
+      // Rien n'est supprimé : la pièce reste au registre, avec son statut.
+      final lignes = await db.select(db.contratsLocationLocal).get();
+      expect(lignes.single.statut, 'annule');
+      expect((await dao.contrats()).single.annule, isTrue);
+      // La plage est libre : disponibilité ET création.
+      final d = await dao.disponibilite(
+        vehiculeId: v.id,
+        debut: DateTime(2026, 9, 12),
+        fin: DateTime(2026, 9, 14),
       );
+      expect(d.calendrierLibre, isTrue);
+      await louer(v.id, debut: '2026-09-12', fin: '2026-09-14');
+      expect(await dao.contrats(), hasLength(2));
     });
 
-    test('`contrats_location_local` n’a aucune colonne de statut', () {
-      // La raison du refus, relue à sa source. Le jour où cette colonne
-      // apparaîtra, ce cas échouera — et c'est ce qu'on veut : il faudra
-      // rouvrir la décision plutôt que la laisser périmée (PA-144).
-      final source = File('lib/core/database/tables/vehicules_tables.dart');
-      expect(source.existsSync(), isTrue);
+    test('un contrat déjà annulé, ou inconnu, est refusé avec la phrase de la '
+        'vue', () async {
+      final v = await creerVehicule();
+      final c = await louer(v.id, debut: '2026-09-10', fin: '2026-09-15');
+      await dao.annulerContrat(c.id);
 
-      final texte = source.readAsStringSync();
-      final bloc = texte.substring(
-        texte.indexOf('class ContratsLocationLocal'),
+      await expectLater(
+        dao.annulerContrat(c.id),
+        throwsA(
+          isA<RefusVehicule>().having(
+            (e) => e.message,
+            'message',
+            MessagesVehicules.contratDejaAnnule,
+          ),
+        ),
       );
-
-      expect(bloc, contains('dateDebut'));
-      // `statutSync` et `statutUploadPieces` existent ; une colonne `statut`
-      // métier, non.
-      expect(
-        RegExp(r'get\s+statut\s*=>').hasMatch(bloc),
-        isFalse,
-        reason:
-            'Une colonne `statut` est apparue : l’annulation devient possible, '
-            'et le refus affiché à l’écran est désormais faux (PA-50).',
+      await expectLater(
+        dao.annulerContrat('inconnu'),
+        throwsA(
+          isA<RefusVehicule>().having(
+            (e) => e.message,
+            'message',
+            MessagesVehicules.contratInexistant,
+          ),
+        ),
       );
-    });
-
-    test('le refus est une phrase, et elle dit pourquoi', () {
-      // Dit en clair, sans référence interne (consigne du PO, 14/10/2026) :
-      // le contrat ne s'annule pas, et le véhicule reste engagé.
-      expect(refusAnnulationContrat, isNot(contains('PA-50')));
-      expect(refusAnnulationContrat, contains('ne peut pas être annulé'));
-      expect(refusAnnulationContrat, contains('reste engagé'));
     });
 
     test(
-      'un contrat erroné bloque son véhicule — la limite est réelle',
+      'un contrat ANNULÉ n’engage plus le véhicule : il s’archive',
       () async {
-        // Le cas qui donne sa mesure à la lacune : une fois le contrat saisi, il
-        // n'existe AUCUN geste pour libérer le véhicule sur la période.
         final v = await creerVehicule();
-        await louer(v.id, debut: '2026-09-10', fin: '2026-09-15');
-
-        // Même l'archivage est refusé : le véhicule est engagé.
+        final c = await louer(v.id, debut: '2026-09-10', fin: '2026-09-15');
         await expectLater(
           dao.archiverVehicule(v.id, aujourdHui: DateTime(2026, 9, 1)),
-          throwsA(
-            isA<RefusVehicule>().having(
-              (e) => e.message,
-              'message',
-              contains('engagé'),
-            ),
-          ),
+          throwsA(isA<RefusVehicule>()),
         );
 
-        // Et la période reste prise.
-        final d = await dao.disponibilite(
-          vehiculeId: v.id,
-          debut: DateTime(2026, 9, 12),
-          fin: DateTime(2026, 9, 14),
+        await dao.annulerContrat(c.id);
+
+        final archive = await dao.archiverVehicule(
+          v.id,
+          aujourdHui: DateTime(2026, 9, 1),
         );
-        expect(d.calendrierLibre, isFalse);
+        expect(archive.statut, StatutVehicule.horsService);
       },
     );
+
+    test(
+      'l’annulation part dans la file, en modification, DANS la même '
+      'transaction — et seulement si le serveur détient le contrat',
+      () async {
+        final v = await creerVehicule();
+        final c = await louer(v.id, debut: '2026-09-10', fin: '2026-09-15');
+        final file = OperationsSyncDao(db);
+
+        await dao.annulerContrat(c.id);
+
+        final operations = (await file.operations())
+            .where((o) => o.table == TableSynchronisee.contratsLocation)
+            .toList();
+        expect(operations.map((o) => o.type), [
+          TypeOperationSync.creation,
+          TypeOperationSync.modification,
+        ]);
+        expect(jsonDecode(operations.last.payload), {'statut': 'annule'});
+        expect(operations.last.entiteId, c.id);
+      },
+    );
+
+    test('une création REJETÉE par le serveur : l’annulation reste locale, '
+        'rien ne part qu’il rejetterait', () async {
+      final v = await creerVehicule();
+      final c = await louer(v.id, debut: '2026-09-10', fin: '2026-09-15');
+      await db.customStatement(
+        "UPDATE operations_sync_local SET statut = 'rejete' "
+        "WHERE table_serveur = 'contrats_location' AND entite_id = '${c.id}'",
+      );
+
+      await dao.annulerContrat(c.id);
+
+      expect(
+        (await OperationsSyncDao(db).operations())
+            .where((o) => o.table == TableSynchronisee.contratsLocation)
+            .map((o) => o.type),
+        [TypeOperationSync.creation],
+      );
+      expect((await dao.contrats()).single.annule, isTrue);
+    });
+
+    test('une annulation qui échoue n’écrit rien (transaction)', () async {
+      final v = await creerVehicule();
+      final c = await louer(v.id, debut: '2026-09-10', fin: '2026-09-15');
+      // Une file sans défaut : la table d'opérations disparaît, l'enfilement
+      // lève, et le statut ne doit pas avoir bougé.
+      await db.customStatement('ALTER TABLE operations_sync_local RENAME TO x');
+      await expectLater(dao.annulerContrat(c.id), throwsA(anything));
+      await db.customStatement('ALTER TABLE x RENAME TO operations_sync_local');
+
+      expect(
+        (await db.select(db.contratsLocationLocal).get()).single.statut,
+        statutContratActif,
+      );
+    });
+
+    test('un contrat d’avant la v38 (sans statut) est actif', () async {
+      final v = await creerVehicule();
+      final c = await louer(v.id, debut: '2026-09-10', fin: '2026-09-15');
+      await db.customStatement(
+        "UPDATE contrats_location_local SET statut = NULL WHERE id = '${c.id}'",
+      );
+
+      final relu = (await dao.contrats()).single;
+      expect(relu.statut, isNull);
+      expect(relu.annule, isFalse);
+      // Il bloque encore le véhicule, comme avant.
+      await expectLater(
+        louer(v.id, debut: '2026-09-12', fin: '2026-09-14'),
+        throwsA(isA<RefusVehicule>()),
+      );
+    });
   });
 
   /* ================================================================== */

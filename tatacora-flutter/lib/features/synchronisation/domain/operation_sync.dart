@@ -79,7 +79,10 @@ enum TableSynchronisee {
   /// Audit de couverture (18/10/2026) : le parc M8 (retouches et statut par
   /// ses gestes), puis les contrats (création seule, RG-08 au serveur).
   vehicules('vehicules', accepteModification: true),
-  contratsLocation('contrats_location', accepteModification: false),
+
+  /// 26/10/2026 : l'annulation d'un contrat (`statut = annule`) est la SEULE
+  /// modification admise ; le contrat se crée, ne se corrige pas.
+  contratsLocation('contrats_location', accepteModification: true),
 
   /// 21/10/2026 : un entretien ou une carburation est un fait daté, jamais modifié.
   entretiensVehicule('entretiens_vehicule', accepteModification: false),
@@ -213,6 +216,8 @@ final class OperationSync {
     required this.idServeur,
     required this.creeLe,
     required this.synchroniseLe,
+    this.auteurLogin,
+    this.posteNom,
   });
 
   final int seq;
@@ -236,6 +241,12 @@ final class OperationSync {
   final String? idServeur;
   final DateTime creeLe;
   final DateTime? synchroniseLe;
+
+  /// Le login du compte qui a écrit, et le nom du poste (v38) — pour le Journal
+  /// d'Audit seulement, jamais envoyés. `null` : inconnus (avant la v38, ou
+  /// aucun compte connecté à l'enfilement).
+  final String? auteurLogin;
+  final String? posteNom;
 }
 
 /// Une ligne de la liste « À traiter » de l'écran de synchronisation (lot

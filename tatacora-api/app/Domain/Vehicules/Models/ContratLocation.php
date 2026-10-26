@@ -19,21 +19,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @see RG-09 Pièces justificatives conditionnelles
  * @see RG-15 Journalisation (trait Auditable)
  *
- * ## Cette table n'a PAS de colonne `statut` — PA-50
+ * ## Le statut (`actif` | `annule`) — PA-50 levé le 26/10/2026
  *
- * Contrairement à `reservations`, le schéma documenté
- * (`FULL_MIGRATIONS_DATABASE_PART2.md` §13) ne prévoit aucun statut. Ce n'est
- * pas un écart d'implémentation : la colonne est absente de la spécification
- * elle-même.
- *
- * **Conséquence concrète, non contournée ici** : un contrat saisi par erreur
- * bloque son véhicule sur toute sa plage, définitivement. Aucune annulation
- * n'est possible, et aucune suppression n'est autorisée sur une table
- * transactionnelle (`03_DATABASE_ENGINEERING.md` §15). M1 dispose de RG-02
- * pour ce cas ; M8 n'a aucun équivalent.
- *
- * Aucune méthode `annuler()` n'est donc exposée : une méthode qui ne libère
- * rien laisserait croire que le cas est traité.
+ * Le schéma documenté ne prévoyait aucun statut ; la colonne a été ajoutée
+ * ensuite (`add_missing_pwa_columns`) et l'annulation existe : elle passe par
+ * `ContratLocationService::annuler()`, le seul chemin (PWA et synchronisation
+ * d'un poste), et un contrat annulé ne bloque plus son véhicule (RG-08). Rien
+ * n'est jamais supprimé : le contrat annulé reste lisible.
  *
  * @property string $id
  * @property string $vehicule_id
@@ -43,6 +35,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property \Illuminate\Support\Carbon $date_fin
  * @property string|null $piece_identite
  * @property string|null $permis_conduire
+ * @property string|null $statut
  * @property-read Vehicule $vehicule
  */
 class ContratLocation extends Model

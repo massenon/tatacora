@@ -27,6 +27,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $statut
  * @property string|null $commentaire
  * @property string|null $motif_abandon
+ * @property int $tentatives
+ * @property string|null $derniere_erreur
+ * @property \Illuminate\Support\Carbon|null $derniere_tentative_le
+ * @property \Illuminate\Support\Carbon|null $envoye_le
  * @property string|null $utilisateur_modification_id
  * @property \Illuminate\Support\Carbon|null $date_modification
  * @property-read ModeleNotification $modele
@@ -52,6 +56,12 @@ class MessageNotificationCompose extends Model
      */
     public const STATUT_ENVOYE = 'envoye';
 
+    /**
+     * Au-delà, les relances AUTOMATIQUES s'arrêtent : le message reste en file
+     * (jamais supprimé), « en échec », et « Renvoyer » le reprend à la main.
+     */
+    public const TENTATIVES_MAX = 5;
+
     protected $fillable = [
         'id',
         'modele_id',
@@ -71,6 +81,9 @@ class MessageNotificationCompose extends Model
     {
         return [
             'longueur' => 'integer',
+            'tentatives' => 'integer',
+            'derniere_tentative_le' => 'datetime',
+            'envoye_le' => 'datetime',
             'date_creation' => 'datetime',
             'date_modification' => 'datetime',
         ];
@@ -98,5 +111,23 @@ class MessageNotificationCompose extends Model
     public function enAttente(): bool
     {
         return $this->statut === self::STATUT_EN_ATTENTE;
+    }
+
+    /**
+     * Relances automatiques épuisées — le message reste en file, honnêtement
+     * « en échec », jusqu'au geste « Renvoyer ».
+     */
+    public function enEchec(): bool
+    {
+        return $this->enAttente() && $this->tentatives >= self::TENTATIVES_MAX;
+    }
+
+    /**
+     * Le délai avant la relance suivante : 15 minutes par tentative déjà
+     * faite (15, 30, 45, 60 min) — un serveur SMTP en panne n'est pas assailli.
+     */
+    public function relanceDueLe(): ?\Illuminate\Support\Carbon
+    {
+        return $this->derniere_tentative_le?->copy()->addMinutes(15 * max(1, $this->tentatives));
     }
 }

@@ -70,6 +70,14 @@ final rechercheVehiculesProvider = NotifierProvider<_TexteNotifier, String>(
   _TexteNotifier.new,
 );
 
+/// Le filtre de statut des contrats — `actif` (par défaut, « Contrats
+/// actifs »), vide (« Tous ») ou `annule` (« Annulés »), les trois valeurs de la
+/// vue (`$statut`, `contratsFiltres`).
+final statutContratsProvider =
+    NotifierProvider<_StatutContratsNotifier, String>(
+      _StatutContratsNotifier.new,
+    );
+
 /// Le filtre de catégorie.
 final categorieVehiculesProvider =
     NotifierProvider<_CategorieNotifier, CategorieVehicule?>(
@@ -122,6 +130,13 @@ final class _TexteNotifier extends Notifier<String> {
   void definir(String valeur) => state = valeur;
 }
 
+final class _StatutContratsNotifier extends Notifier<String> {
+  @override
+  String build() => statutContratActif;
+
+  void definir(String valeur) => state = valeur;
+}
+
 final class _CategorieNotifier extends Notifier<CategorieVehicule?> {
   @override
   CategorieVehicule? build() => null;
@@ -169,6 +184,8 @@ final indicateursVehiculesProvider = FutureProvider<IndicateursVehicules>((
   final parc = await ref.watch(parcProvider.future);
   final contrats = await ref.watch(contratsProvider.future);
   final periode = ref.watch(periodeVehiculesProvider);
+  // La vue calcule ses chiffres sur les contrats DÉJÀ filtrés par le statut.
+  final statut = ref.watch(statutContratsProvider);
 
   return calculerIndicateurs(
     parc: parc,
@@ -176,6 +193,7 @@ final indicateursVehiculesProvider = FutureProvider<IndicateursVehicules>((
     debut: periode.debut,
     fin: periode.fin,
     joursPeriode: periode.jours,
+    statut: statut,
   );
 });
 

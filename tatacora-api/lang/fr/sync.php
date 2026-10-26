@@ -99,6 +99,8 @@ return [
             . 'et son statut (champ(s) refusé(s) : :champs).',
         'statut_non_synchronisable' => 'Statut « :statut » refusé : « loué » se déduit des contrats.',
         'inconnu' => 'Contrat refusé : le véhicule n\'est pas connu du serveur (pas encore reçu, ou refusé).',
+        'contrat_champ_non_modifiable' => 'Un contrat de location ne se modifie que par son annulation (champ(s) refusé(s) : :champs).',
+        'contrat_statut_refuse' => 'Statut « :statut » refusé : un contrat de location ne peut qu\'être annulé.',
         'client_inconnu' => 'Contrat refusé : le client n\'est pas connu du serveur (pas encore reçu, ou refusé).',
         'inconnu_entretien' => 'Entretien refusé : le véhicule n\'est pas connu du serveur (pas encore reçu, ou refusé).',
         'chauffeur_inconnu' => 'Entretien refusé : le chauffeur n\'est pas connu du serveur (pas encore reçu, ou refusé).',

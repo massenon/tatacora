@@ -20,6 +20,8 @@ Panier panier(
   DateTime le,
   List<LignePanier> lignes, {
   String? motif,
+  String? numeroVente,
+  String? auteur,
 }) => Panier(
   id: id,
   typeVente: TypeVente.comptant,
@@ -28,6 +30,8 @@ Panier panier(
   clotureLe: statut == StatutPanier.ouvert ? null : le,
   lignes: lignes,
   motifAnnulation: motif,
+  numeroVente: numeroVente,
+  auteurLogin: auteur,
 );
 
 /// Les ventes du rayon se calculent SUR LE POSTE, comme le service du serveur.
@@ -85,6 +89,36 @@ void main() {
     expect(soda.motifAnnulation, 'Erreur de saisie');
     expect(soda.montant, '1000.00');
     expect(soda.utilisateur, isNull, reason: '« — », jamais un système');
+    expect(soda.numero, isNull, reason: 'aucun numéro n’est inventé');
+  });
+
+  test('le NUMÉRO est le V- du serveur et l’UTILISATEUR le login de l’auteur '
+      '(v38) — pas le numéro d’une facture', () {
+    final ventes = [
+      panier(
+        'v1',
+        StatutPanier.cloture,
+        DateTime(2026, 10, 20, 10),
+        [ligne('a1', ModuleVendable.m5Bar, 'Bière', 1000, 1)],
+        numeroVente: 'V-2026-00016',
+        auteur: 'caissier1',
+      ),
+      panier('v2', StatutPanier.cloture, DateTime(2026, 10, 20, 11), [
+        ligne('a2', ModuleVendable.m5Bar, 'Soda', 500, 1),
+      ]),
+    ];
+    final lignes = lignesDuRayon(
+      ventes,
+      ModuleVendable.m5Bar,
+      const FiltreVentesBar(),
+    );
+    final biere = lignes.firstWhere((l) => l.nom == 'Bière');
+    final soda = lignes.firstWhere((l) => l.nom == 'Soda');
+    expect(biere.numero, 'V-2026-00016');
+    expect(biere.utilisateur, 'caissier1');
+    // Pas encore envoyée : « — », ni numéro ni compte inventés.
+    expect(soda.numero, isNull);
+    expect(soda.utilisateur, isNull);
   });
 
   test('bornes de date INCLUSES, les deux, sur le jour de la vente', () {
@@ -102,7 +136,7 @@ void main() {
     expect(apres.map((l) => l.nom), ['Soda']);
   });
 
-  test('statut et recherche (nom, numéro de facture)', () {
+  test('statut et recherche (nom, numéro de vente, auteur)', () {
     expect(
       lignesDuRayon(
         paniers,
@@ -111,15 +145,30 @@ void main() {
       ).map((l) => l.nom),
       ['Soda'],
     );
-    expect(
-      lignesDuRayon(
-        paniers,
-        ModuleVendable.m5Bar,
-        const FiltreVentesBar(recherche: 'F-2026-7'),
-        numeroFactureParPanier: {'p1': 'F-2026-7'},
-      ).map((l) => l.nom),
-      ['Bière'],
-    );
+    final numerotees = [
+      panier(
+        'p1',
+        StatutPanier.cloture,
+        DateTime(2026, 10, 20, 19, 40),
+        [ligne('l1', ModuleVendable.m5Bar, 'Bière', 1000, 3)],
+        numeroVente: 'V-2026-7',
+        auteur: 'awa',
+      ),
+      panier('p2', StatutPanier.cloture, DateTime(2026, 10, 21, 9), [
+        ligne('l3', ModuleVendable.m5Bar, 'Soda', 500, 2),
+      ]),
+    ];
+    for (final terme in ['V-2026-7', 'awa']) {
+      expect(
+        lignesDuRayon(
+          numerotees,
+          ModuleVendable.m5Bar,
+          FiltreVentesBar(recherche: terme),
+        ).map((l) => l.nom),
+        ['Bière'],
+        reason: terme,
+      );
+    }
     expect(
       lignesDuRayon(
         paniers,

@@ -2,16 +2,25 @@
 ///
 /// La vue lit `journal_audit` du serveur, écrit par les observateurs d'audit
 /// (création, modification, connexion…). Ce poste n'a AUCUNE table d'audit, et
-/// n'en reçoit pas (changement de schéma refusé, décrit au rapport du
-/// 21/10/2026). La plus proche vérité honnête : la file d'envoi
+/// n'en reçoit pas. La plus proche vérité honnête : la file d'envoi
 /// (`operations_sync_local`) est, elle, un registre INALTÉRABLE et horodaté de
 /// chaque création et de chaque modification que ce poste a écrites pour le
 /// serveur. On la lit telle quelle.
 ///
-/// Ce qu'elle ne sait pas, et que l'écran dit : QUI a écrit (aucun login n'y
-/// est conservé : « — », comme la vue pour une entrée sans utilisateur) et
-/// depuis quel poste (« — »). Les connexions, déconnexions et suppressions
-/// n'y figurent pas : le poste n'en écrit aucune trace.
+/// ## L'utilisateur et le poste (schéma v38, 26/10/2026)
+///
+/// Chaque opération porte, depuis la v38, le login du compte CONNECTÉ à
+/// l'instant de l'écriture et le nom du poste (`operations_sync_local.auteur_login`,
+/// `.poste_nom`, posés par `OperationsSyncDao.enfiler` d'après
+/// `AppDatabase.auteurEcriture`). La colonne « Poste » de la vue montre l'adresse
+/// réseau de l'appelant (`adresse_poste`) ; un poste de comptoir n'en a pas de
+/// stable, son NOM de machine tient lieu — écart dit au pied de l'écran.
+///
+/// Ce que le registre ne sait pas, et que l'écran dit : « — » pour une opération
+/// d'avant la v38 ou écrite sans compte connecté (jamais un compte inventé), et
+/// l'absence des connexions, déconnexions et suppressions (le poste n'en écrit
+/// aucune trace). Les entrées des AUTRES postes et de la PWA ne descendent pas :
+/// le journal du serveur reste le registre de tous les postes.
 library;
 
 import '../../synchronisation/domain/operation_sync.dart';
@@ -71,6 +80,8 @@ final class EntreeJournalPoste {
     required this.table,
     required this.entiteId,
     required this.dateHeure,
+    this.utilisateur,
+    this.poste,
   });
 
   factory EntreeJournalPoste.depuisOperation(OperationSync o) =>
@@ -82,6 +93,8 @@ final class EntreeJournalPoste {
         table: o.table.nomServeur,
         entiteId: o.entiteId,
         dateHeure: o.creeLe,
+        utilisateur: o.auteurLogin,
+        poste: o.posteNom,
       );
 
   final ActionJournalPoste action;
@@ -90,6 +103,12 @@ final class EntreeJournalPoste {
   final String table;
   final String entiteId;
   final DateTime dateHeure;
+
+  /// Le login de qui a écrit ; `null` : « — ».
+  final String? utilisateur;
+
+  /// Le nom du poste ; `null` : « — ».
+  final String? poste;
 
   /// Le libellé français de la table, ou son nom technique.
   String get libelleTable => libellesTablesJournal[table] ?? table;
@@ -100,8 +119,8 @@ final class EntreeJournalPoste {
 typedef VueJournalPoste = ({List<EntreeJournalPoste> entrees, int total});
 
 /// Filtre le journal comme la vue : une action, puis une recherche libre sur
-/// l'action, la table (nom technique et libellé) et l'identifiant — le
-/// « détail » de la vue. Les plus récentes d'abord, plafonnées.
+/// l'utilisateur, l'action, la table (nom technique et libellé) et
+/// l'identifiant — le « détail » de la vue. Les plus récentes d'abord, plafonnées.
 VueJournalPoste filtrerJournalPoste(
   Iterable<EntreeJournalPoste> toutes, {
   String recherche = '',
@@ -112,6 +131,7 @@ VueJournalPoste filtrerJournalPoste(
     for (final e in toutes)
       if ((action == null || e.action == action) &&
           (terme.isEmpty ||
+              (e.utilisateur ?? '').toLowerCase().contains(terme) ||
               e.action.code.contains(terme) ||
               e.action.libelle.toLowerCase().contains(terme) ||
               e.table.toLowerCase().contains(terme) ||

@@ -14,11 +14,15 @@ import '../../comptabilite/domain/entities/comptabilite.dart'
     show StatutExercice;
 import '../../facturation/data/facture_dao.dart';
 import '../../hebergement/data/canaux_reservation_dao.dart';
+import '../../pos/data/historique_prix_carte_dao.dart';
+import '../../pos/domain/changement_prix_carte.dart';
 import '../../hebergement/domain/entities/fiche_reservation.dart'
     show CanalReservation;
 import '../../notifications/data/notifications_dao.dart';
 import '../../parametres/data/parametres_depot_local.dart';
 import '../../transverse/data/roles_dao.dart';
+import '../../vehicules/domain/entities/contrat_location.dart'
+    show statutContratActif, statutContratAnnule;
 import '../../pos/data/panier_dao.dart';
 import '../../facturation/data/paiements_facture_dao.dart';
 import '../../facturation/domain/entities/paiement_facture.dart';
@@ -107,6 +111,7 @@ class AligneurCatalogue {
       TableDescendue.recettes => _recette(idLocal, d),
       TableDescendue.plats => _plat(idLocal, d),
       TableDescendue.indisponibilitesCarte => _indisponibilite(idLocal, d),
+      TableDescendue.historiquePrixCarte => _historiquePrix(idLocal, e),
       TableDescendue.categoriesHebergement => _categorie(idLocal, d),
       TableDescendue.unitesHebergement => _unite(idLocal, e),
       TableDescendue.fournisseurs => _fournisseur(idLocal, e),
@@ -335,6 +340,85 @@ class AligneurCatalogue {
             dateRetourDisponibilite: Value(retour),
           ),
         );
+    return const Aligne();
+  }
+
+  /* ================================================================== */
+  /* Historique des prix de la carte (26/10/2026)                        */
+  /* ================================================================== */
+
+  /// Une trace de prix du serveur — d'un autre poste, de la PWA, ou celle du
+  /// changement que CE poste lui a poussé. Rien ne la suspend : `source_id`
+  /// n'est pas une clé étrangère, la trace se lit sans l'article. Écrite par
+  /// `HistoriquePrixCarteDao.inscrireDescendue`, qui l'ADOPTE à la trace locale
+  /// équivalente plutôt que d'en ajouter une seconde ; la correspondance
+  /// `id serveur -> id local` est alors retenue, et le rejeu retombe sur la même
+  /// ligne. Jamais enfilée : la trace n'est pas poussée.
+  Future<IssueAlignement> _historiquePrix(String id, ElementCatalogue e) async {
+    final d = e.donnees;
+    final source = SourceCarte.depuisCode(_texte(d['source']) ?? '');
+    if (source == null) {
+      return RefuseParLePoste(
+        'rayon de prix inconnu « ${_texte(d['source']) ?? ''} »',
+      );
+    }
+    final champ = _texte(d['champ']);
+    if (champ == null || !champsDePrixTraces.contains(champ)) {
+      return RefuseParLePoste('champ de prix inconnu « ${champ ?? ''} »');
+    }
+    final sourceServeur = _texte(d['source_id']);
+    if (sourceServeur == null) {
+      return const RefuseParLePoste('article de la trace absent');
+    }
+    final decimal = RegExp(r'^-?\d+(\.\d+)?$');
+    String? valeur(Object? v) {
+      final t = _texte(v);
+      return t == null
+          ? null
+          : (decimal.hasMatch(t)
+                ? t
+                : throw const FormatException('prix illisible'));
+    }
+
+    final String? ancien;
+    final String? nouveau;
+    final DateTime quand;
+    try {
+      ancien = valeur(d['ancien_prix']);
+      nouveau = valeur(d['nouveau_prix']);
+      final lu = DateTime.tryParse(
+        (_texte(d['created_at']) ?? '').replaceFirst(' ', 'T'),
+      );
+      if (lu == null) {
+        return const RefuseParLePoste('date de la trace illisible');
+      }
+      quand = lu;
+    } on FormatException {
+      return const RefuseParLePoste('prix de la trace illisible');
+    }
+
+    final article = await _dao.idLocal(
+      source == SourceCarte.boisson ? 'cartes_boisson' : 'plats',
+      sourceServeur,
+    );
+    final adoptee = await HistoriquePrixCarteDao(_db).inscrireDescendue(
+      id: id,
+      source: source,
+      sourceId: article,
+      champ: champ,
+      ancien: ancien,
+      nouveau: nouveau,
+      par: _texte(d['par']),
+      creeLe: quand,
+    );
+    if (adoptee != null) {
+      await _dao.retenirCorrespondance(
+        table: e.table.nomServeur,
+        idServeur: e.id,
+        idLocal: adoptee,
+        origine: 'libelle',
+      );
+    }
     return const Aligne();
   }
 

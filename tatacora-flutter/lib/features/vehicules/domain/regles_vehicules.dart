@@ -128,6 +128,25 @@ abstract final class MessagesVehicules {
   static String nonLouable(String statut) =>
       'Ce véhicule est indisponible ($statut) : il ne peut pas être loué.';
 
+  /// `vehicules.pwa.verrou_contrat_annule` — la phrase de la vue quand le
+  /// contrat est DÉJÀ annulé (le service du serveur la lève aussi :
+  /// `ContratLocationService::annuler`).
+  static const String contratDejaAnnule =
+      "Ce contrat est déjà annulé — il n'y a plus rien à archiver.";
+
+  /// Le contrat à annuler ne figure pas au registre de ce poste (la vue
+  /// répond 404 : `findOrFail`).
+  static const String contratInexistant =
+      "Ce contrat n'existe pas dans le registre.";
+
+  /// `vehicules.pwa.archiver_contrat` — la question de la modale d'archivage.
+  static String questionAnnulerContrat(String element) =>
+      'Voulez-vous annuler le contrat $element ?';
+
+  /// `vehicules.pwa.archivage_contrat_fait` — le message de succès.
+  static String contratAnnule(String element) =>
+      'Contrat $element annulé — le véhicule redevient disponible.';
+
   /// `vehicules.validation.vehicule_inexistant`.
   static const String vehiculeInexistant =
       "Ce véhicule n'existe pas dans le parc.";
@@ -172,28 +191,16 @@ abstract final class MessagesVehicules {
       'deviendrait illisible, et le client a un véhicule réservé.';
 }
 
-/// ⚠ **L'ANNULATION D'UN CONTRAT N'EXISTE PAS — PA-50, lacune assumée.**
+/// L'ANNULATION D'UN CONTRAT existe depuis la v38 (26/10/2026) — PA-50 levé.
 ///
-/// Ce n'est pas un oubli de ce lot, et ce n'est pas rattrapable ici :
-/// `contrats_location_local` **n'a aucune colonne de statut**, pas plus que la
-/// table `contrats_location` du serveur. Il n'y a donc rien à écrire pour
-/// marquer un contrat annulé, et rien à lire pour le distinguer d'un contrat
-/// actif.
-///
-/// Aucune méthode `annuler()` n'est exposée, **délibérément** : « une méthode
-/// qui ne libère rien laisserait croire que le cas est traité ». Un contrat
-/// saisi par erreur bloque son véhicule **définitivement** — c'est la limite
-/// connue, et l'écran la dit à la place du bouton que le maître propose.
-///
-/// La conséquence à ne pas perdre de vue : supprimer la ligne serait la seule
-/// façon de libérer le véhicule, et la suppression est interdite sur une table
-/// transactionnelle. Le jour de l'arbitrage (Architecte + Product Owner), c'est
-/// une **colonne** qu'il faudra ajouter aux deux schémas, pas une méthode ici.
-const String refusAnnulationContrat =
-    // Texte visible : le code PA-50 est retiré (directive du PO, 14/10/2026).
-    'Un contrat de location ne peut pas être annulé sur ce poste. Le véhicule '
-    'reste engagé jusqu\'à la fin de la période saisie. Corriger une erreur '
-    'de saisie suppose une décision qui n\'est pas encore prise.';
+/// `contrats_location_local.statut` (nullable : `null` se lit « actif ») est
+/// écrit par `VehiculeDao.annulerContrat`, seul écrivain de saisie, qui enfile
+/// la modification `{statut: annule}` dans sa transaction. Le serveur la rejoue
+/// par `ContratLocationService::annuler` (le même chemin que la PWA) et
+/// l'annulation d'un autre poste ou de la PWA redescend. Un contrat annulé reste
+/// lisible, ne compte plus dans les chiffres et ne bloque plus son véhicule
+/// (RG-08) : `_contratsEnConflit` l'écarte, comme `ContratLocationService`
+/// depuis la même date.
 
 /// Le nombre de jours d'une location — bornes demi-ouvertes, `null` si la
 /// plage est vide ou inversée.

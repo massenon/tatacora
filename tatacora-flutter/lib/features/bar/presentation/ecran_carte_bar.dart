@@ -567,7 +567,11 @@ class _PanneauCarte extends StatelessWidget {
                 : null,
             // Une LECTURE : offerte à tout rôle qui voit l'écran, comme
             // `ouvrirHistoriquePrix()`.
-            onHistorique: (l) => ouvrirModaleHistoriquePrix(context, l),
+            onHistorique: (l) => ouvrirModaleHistoriquePrix(
+              context,
+              libelle: l.libelle,
+              lecture: (ref) => ref.watch(historiquePrixProvider(l.id)),
+            ),
           ),
         ),
       ),

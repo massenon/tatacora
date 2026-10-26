@@ -133,6 +133,7 @@ void main() {
       ...tablesAjouteesEnV34,
       ...tablesAjouteesEnV35,
       ...tablesAjouteesEnV37,
+      ...tablesAjouteesEnV38,
     });
     expect(
       await compte(apres, 'messages_editeur_local'),

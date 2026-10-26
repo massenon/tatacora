@@ -13,12 +13,14 @@ import 'tables/achats_tables.dart';
 import 'tables/alertes_vues_tables.dart';
 import 'tables/bar_tables.dart';
 import 'tables/caisse_tables.dart';
+import 'auteur_ecriture.dart';
 import 'declencheurs_comptables.dart';
 import 'emplacement_base.dart';
 import 'tables/clients_table.dart';
 import 'tables/comptabilite_tables.dart';
 import 'tables/depenses_tables.dart';
 import 'tables/descente_sync_tables.dart';
+import 'tables/historique_prix_carte_tables.dart';
 import 'tables/journal_reception_tables.dart';
 import 'tables/indisponibilites_carte_tables.dart';
 import 'tables/conges_plannings_tables.dart';
@@ -225,6 +227,10 @@ part 'app_database.g.dart';
     // reçu du serveur, son issue et sa cause). Seul auteur :
     // `JournalReceptionDao` (voir `tables/journal_reception_tables.dart`).
     JournalReceptionLocal,
+    // v38 (26/10/2026) : l'historique des prix de la carte (bar et restaurant).
+    // Seul auteur : `HistoriquePrixCarteDao` (voir
+    // `tables/historique_prix_carte_tables.dart`).
+    HistoriquePrixCarteLocal,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -265,6 +271,12 @@ class AppDatabase extends _$AppDatabase {
   /// rendant `null`. `main_demo.dart` le pose EXPLICITEMENT, en plus du défaut
   /// lié au flavor.
   final bool fileSynchronisationActive;
+
+  /// QUI écrit et depuis quel poste, relu À CHAQUE écriture qui le consigne
+  /// (l'enfilement dans la file d'envoi, la trace d'un changement de prix) —
+  /// voir `auteur_ecriture.dart`. Posé par `baseLocaleProvider` ; sans lui,
+  /// l'auteur est inconnu et l'écran dit « — ».
+  AuteurEcriture Function() auteurEcriture = () => aucunAuteurEcriture;
 
   /// v2 (18/08/2026) — M1 Hébergement : `reference`, `tarifNuit`, `motifRejet`
   /// et `motifAnnulation` ajoutés à `ReservationsLocal`, et `statutSync`
@@ -409,8 +421,17 @@ class AppDatabase extends _$AppDatabase {
   /// v37 (26/10/2026) — LE JOURNAL DE RÉCEPTION : une table neuve
   /// (`journal_reception_local`, 72 -> 73 tables), aucune colonne ajoutée. Elle
   /// se remplit à la prochaine descente ; aucune ligne n'est fabriquée.
+  ///
+  /// v38 (26/10/2026) — « LE POSTE FAIT CE QUE LE WEB FAIT » (décision du PO) :
+  /// une table neuve (`historique_prix_carte_local`, 73 -> 74 tables) et six
+  /// colonnes NULLABLES AJOUTÉES, jamais une table recréée : `contrats_location_local.statut`
+  /// (l'annulation d'un contrat), `operations_sync_local.auteur_login` et
+  /// `.poste_nom` (l'utilisateur et le poste du journal d'audit),
+  /// `paniers_local.numero_vente` et `.auteur_login` (le numéro `V-` du serveur
+  /// et l'auteur d'une vente). Aucune valeur n'est fabriquée pour l'existant :
+  /// une ligne d'avant la v38 garde « — ».
   @override
-  int get schemaVersion => 37;
+  int get schemaVersion => 38;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1176,6 +1197,53 @@ class AppDatabase extends _$AppDatabase {
             )
             .get();
         if (existe.isEmpty) await m.createTable(journalReceptionLocal);
+      }
+      if (from < 38) {
+        // « LE POSTE FAIT CE QUE LE WEB FAIT » (26/10/2026) : l'historique des
+        // prix de la carte (table NEUVE) et six colonnes NULLABLES. Jamais une
+        // table recréée ; aucune valeur fabriquée (l'auteur, le statut, le
+        // numéro d'une ligne d'avant restent inconnus : « — »). Le curseur est
+        // oublié : l'historique et les statuts déjà au serveur redescendent.
+        // ⚠ Ajouts CONDITIONNELS (piège 3) : une fixture ramenée en arrière
+        // depuis la définition courante porte déjà tout cela.
+        Future<Set<String>> colonnesDe(String t) async => {
+          for (final c
+              in await m.database.customSelect('PRAGMA table_info($t)').get())
+            c.data['name'] as String,
+        };
+        final existe = await m.database
+            .customSelect(
+              "SELECT name FROM sqlite_master WHERE type = 'table' "
+              "AND name = 'historique_prix_carte_local'",
+            )
+            .get();
+        if (existe.isEmpty) await m.createTable(historiquePrixCarteLocal);
+        if (!(await colonnesDe('contrats_location_local')).contains('statut')) {
+          await m.addColumn(
+            contratsLocationLocal,
+            contratsLocationLocal.statut,
+          );
+        }
+        final operations = await colonnesDe('operations_sync_local');
+        if (!operations.contains('auteur_login')) {
+          await m.addColumn(
+            operationsSyncLocal,
+            operationsSyncLocal.auteurLogin,
+          );
+        }
+        if (!operations.contains('poste_nom')) {
+          await m.addColumn(operationsSyncLocal, operationsSyncLocal.posteNom);
+        }
+        final paniers = await colonnesDe('paniers_local');
+        if (!paniers.contains('numero_vente')) {
+          await m.addColumn(paniersLocal, paniersLocal.numeroVente);
+        }
+        if (!paniers.contains('auteur_login')) {
+          await m.addColumn(paniersLocal, paniersLocal.auteurLogin);
+        }
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
       }
       if (from < 33) {
         // LES PLANNINGS ET LES CONGÉS (21/10/2026). Deux tables NEUVES, sans

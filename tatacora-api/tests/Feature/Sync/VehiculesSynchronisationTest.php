@@ -88,4 +88,63 @@ final class VehiculesSynchronisationTest extends TestCase
             ->assertJsonPath('resultats.0.statut', 'rejete')
             ->assertJsonPath('resultats.0.motif', __('vehicules.chevauchement'));
     }
+
+    #[Test]
+    public function l_annulation_d_un_contrat_du_poste_libere_le_vehicule_et_se_rejoue_sans_effet(): void
+    {
+        $v = Vehicule::create(['immatriculation' => 'BJ-7', 'categorie' => 'voiture', 'annee' => 2020, 'tarif_jour' => '25000', 'statut' => 'disponible']);
+        $a = $this->uuid();
+        $this->pousser([$this->contrat($a, $v->id, '2026-10-20', '2026-10-23')], $this->gerant, 'poste-a')
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+
+        // Le contrat annulé libère la plage : un autre poste peut louer.
+        $this->pousser([$this->operation('contrats_location', 'modification', $a, ['statut' => 'annule'])], $this->gerant, 'poste-a')
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertSame('annule', ContratLocation::findOrFail($a)->statut);
+        $this->pousser([$this->contrat($this->uuid(), $v->id, '2026-10-21', '2026-10-22')], $this->gerant, 'poste-b')
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+
+        // Rejeu (un autre poste, ou la PWA, l'avait déjà annulé) : accepté.
+        $this->pousser([$this->operation('contrats_location', 'modification', $a, ['statut' => 'annule'])], $this->gerant, 'poste-a')
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertSame(2, ContratLocation::query()->count());
+    }
+
+    #[Test]
+    public function un_contrat_ne_se_modifie_que_par_son_annulation(): void
+    {
+        $v = Vehicule::create(['immatriculation' => 'BJ-8', 'categorie' => 'voiture', 'annee' => 2020, 'tarif_jour' => '25000', 'statut' => 'disponible']);
+        $a = $this->uuid();
+        $this->pousser([$this->contrat($a, $v->id, '2026-10-20', '2026-10-23')], $this->gerant, 'poste-a');
+
+        foreach ([
+            ['statut' => 'actif'],
+            ['statut' => 'loue'],
+            ['date_fin' => '2026-10-30'],
+            ['statut' => 'annule', 'montant' => '1.00'],
+        ] as $payload) {
+            $this->pousser([$this->operation('contrats_location', 'modification', $a, $payload)], $this->gerant, 'poste-a')
+                ->assertJsonPath('resultats.0.statut', 'rejete');
+        }
+
+        $contrat = ContratLocation::findOrFail($a);
+        $this->assertSame(['actif', '2026-10-23', '75000.00'], [$contrat->statut, $contrat->date_fin->toDateString(), (string) $contrat->montant]);
+
+        $this->pousser([$this->operation('contrats_location', 'modification', $a, ['statut' => 'actif'])], $this->gerant, 'poste-a')
+            ->assertJsonPath('resultats.0.motif', __('sync.vehicules.contrat_statut_refuse', ['statut' => 'actif']));
+        $this->pousser([$this->operation('contrats_location', 'modification', $a, ['date_fin' => '2026-10-30'])], $this->gerant, 'poste-a')
+            ->assertJsonPath('resultats.0.motif', __('sync.vehicules.contrat_champ_non_modifiable', ['champs' => 'date_fin']));
+    }
+
+    #[Test]
+    public function l_annulation_exige_le_droit_ecriture_de_la_location(): void
+    {
+        $v = Vehicule::create(['immatriculation' => 'BJ-9X', 'categorie' => 'voiture', 'annee' => 2020, 'tarif_jour' => '25000', 'statut' => 'disponible']);
+        $a = $this->uuid();
+        $this->pousser([$this->contrat($a, $v->id, '2026-10-20', '2026-10-23')], $this->gerant, 'poste-a');
+
+        $this->pousser([$this->operation('contrats_location', 'modification', $a, ['statut' => 'annule'])], $this->creerUtilisateur('cuisine'), 'poste-a')
+            ->assertJsonPath('resultats.0.statut', 'rejete');
+        $this->assertSame('actif', ContratLocation::findOrFail($a)->statut);
+    }
 }

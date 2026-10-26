@@ -102,6 +102,17 @@ class OperationsSyncLocal extends Table {
 
   DateTimeColumn get synchroniseLe => dateTime().nullable()();
 
+  /// v38 (26/10/2026) — QUI a écrit : le login du compte connecté à
+  /// l'enfilement (`AppDatabase.auteurEcriture`). NULLABLE : une opération d'avant
+  /// la v38, le mode démonstration et un banc sans session n'ont pas d'auteur —
+  /// le Journal d'Audit dit « — ». Écrit par `enfiler` (et copié par
+  /// `renvoyer`), lu par le Journal d'Audit : jamais envoyé au serveur.
+  TextColumn get auteurLogin => text().nullable()();
+
+  /// v38 — le nom du POSTE (la machine) qui a écrit. Même règle que
+  /// [auteurLogin].
+  TextColumn get posteNom => text().nullable()();
+
   @override
   List<String> get customConstraints => [
     "CHECK (type IN ('creation', 'modification'))",

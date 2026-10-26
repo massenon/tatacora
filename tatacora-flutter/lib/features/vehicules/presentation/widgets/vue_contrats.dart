@@ -8,6 +8,9 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared_widgets/liste_paginee.dart';
 import '../../../restaurant/presentation/widgets/coquille_restaurant.dart';
 import '../../../restaurant/presentation/widgets/tableau_restaurant.dart';
+import '../../../../core/di/providers.dart';
+import '../../../../core/rbac/garde_acces.dart';
+import '../../../achats/presentation/widgets/modale_archivage_achats.dart';
 import '../../domain/entities/contrat_location.dart';
 import '../../domain/indicateurs_vehicules.dart';
 import '../../domain/regles_vehicules.dart';
@@ -18,17 +21,25 @@ import 'vue_parc.dart' show CarteVideVehicules, dateFrVehicules;
 ///
 /// @see EF-M8-03 Contrat de location
 ///
-/// ## Quatre des dix colonnes de la vue n'ont aucune source LOCALE
+/// ## Trois des dix colonnes de la vue n'ont aucune source LOCALE
 ///
-/// « N° », « Acompte », « Reste dû » et « État » n'ont pas de colonne dans
+/// « N° », « Acompte » et « Reste dû » n'ont pas de colonne dans
 /// `contrats_location_local`. Elles gardent leur place et portent « — » : les
 /// retirer supprimerait des éléments visibles de la vue, et les remplir
 /// inventerait des montants sur un écran où l'on décide de relancer un client.
 ///
-/// ⚠ Le schéma **serveur** a gagné `numero`, `acompte`, `reste_a_payer` et
-/// `statut` — la vue les rend. La table **locale** ne les a pas. C'est un écart
-/// de schéma, consigné tel quel : le combler ici fabriquerait des valeurs que
-/// personne n'a saisies.
+/// ⚠ Le schéma **serveur** a gagné `numero`, `acompte` et `reste_a_payer` — la
+/// vue les rend. La table **locale** ne les a pas. C'est un écart de schéma,
+/// consigné tel quel : le combler ici fabriquerait des valeurs que personne n'a
+/// saisies.
+///
+/// ## « État » et « Annuler » SONT portés (v38, 26/10/2026)
+///
+/// `contrats_location_local.statut` existe : la pastille « Actif » / « Annulé »,
+/// le bouton « Annuler » (derrière la modale de confirmation de la vue), le
+/// filtre « Contrats actifs / Tous / Annulés » et la ligne TOTAL (contrats
+/// actifs seuls) rendent ce que la vue rend. L'annulation passe par
+/// `VehiculeDao.annulerContrat`, seul écrivain.
 class VueContrats extends ConsumerWidget {
   const VueContrats({super.key});
 
@@ -52,6 +63,10 @@ class VueContrats extends ConsumerWidget {
     final contrats = ref.watch(contratsProvider);
     final periode = ref.watch(periodeVehiculesProvider);
     final terme = ref.watch(rechercheVehiculesProvider).trim().toLowerCase();
+    final statut = ref.watch(statutContratsProvider);
+    final peutEcrire = ref
+        .watch(droitsProvider)
+        .peutEcrire(ModuleTatacora.m8Vehicules);
 
     return contrats.when(
       loading: () => const Padding(
@@ -64,9 +79,19 @@ class VueContrats extends ConsumerWidget {
         icone: Icons.error_outline,
       ),
       data: (lignes) => _Corps(
-        cleFiltre: (terme, periode),
+        cleFiltre: (terme, periode, statut),
+        peutEcrire: peutEcrire,
         contrats: lignes
             .where((c) => c.chevauche(periode.debut, periode.fin))
+            // `contratsFiltres()` : `actif` = tout sauf `annule`, vide = tous,
+            // `annule` = les annulés.
+            .where(
+              (c) => switch (statut) {
+                statutContratActif => !c.annule,
+                statutContratAnnule => c.annule,
+                _ => true,
+              },
+            )
             .where(
               (c) =>
                   terme.isEmpty ||
@@ -80,16 +105,29 @@ class VueContrats extends ConsumerWidget {
 }
 
 class _Corps extends StatelessWidget {
-  const _Corps({required this.contrats, required this.cleFiltre});
+  const _Corps({
+    required this.contrats,
+    required this.cleFiltre,
+    required this.peutEcrire,
+  });
 
   final List<ContratLocation> contrats;
+
+  /// Le droit d'écriture sur M8 : « Annuler » n'est offert qu'avec lui
+  /// (`@if ($peutEcrire && ! $estAnnule)`).
+  final bool peutEcrire;
 
   /// La recherche et la période : les changer ramène à la page 1.
   final Object cleFiltre;
 
   @override
   Widget build(BuildContext context) {
-    final total = sommeDecimales(contrats.map((c) => c.montant));
+    // La vue n'additionne que les contrats NON annulés (`@if (! $estAnnule)`) et
+    // compte « contrat(s) actif(s) » de même.
+    final actifs = contrats.where((c) => !c.annule).toList(growable: false);
+    final total = actifs.isEmpty
+        ? '0.00'
+        : sommeDecimales(actifs.map((c) => c.montant));
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -169,8 +207,8 @@ class _Corps extends StatelessWidget {
                             '« Soldé » serait une bonne nouvelle que personne n’a '
                             'vérifiée.',
                       ),
-                      const _EtatContrat(),
-                      const _ActionAnnuler(),
+                      _EtatContrat(contrat: c),
+                      _ActionAnnuler(contrat: c, peutEcrire: peutEcrire),
                     ],
                 ],
               ),
@@ -179,11 +217,9 @@ class _Corps extends StatelessWidget {
           // La ligne TOTAL de la vue — fond navy, texte blanc, gras. Rendue sous
           // le tableau plutôt que dans son gabarit, parce que trois de ses
           // quatre montants n'existent pas.
-          _LigneTotal(nombre: contrats.length, montant: total),
+          _LigneTotal(nombre: actifs.length, montant: total),
         ],
-        // L'encadré ambre « Un contrat ne s'annule pas » qui suivait est
-        // RETIRÉ (directive du PO, 14/10/2026) : la page se termine après le
-        // tableau. Le refus reste dit au clic sur « Annuler » (_ActionAnnuler).
+        // La page se termine après le tableau (directive du PO, 14/10/2026).
       ],
     );
   }
@@ -218,9 +254,7 @@ class _LigneTotal extends StatelessWidget {
         runSpacing: AppSpacing.xs,
         children: [
           Text(
-            // La formulation de la vue. ⚠ Elle écrit « contrat(s) actif(s) » :
-            // faute de colonne de statut, TOUT contrat est actif, et le mot
-            // reste donc exact — pour une raison qui n'est pas la sienne.
+            // La formulation de la vue : seuls les contrats NON annulés comptent.
             'TOTAL — $nombre contrat(s) actif(s)',
             key: const Key('vehicules-contrats-total'),
             style: style,
@@ -302,58 +336,103 @@ class _CelluleClient extends StatelessWidget {
   }
 }
 
-/// La pastille « État » — la vue pose « Actif » / « Annulé ».
-///
-/// Faute de colonne de statut, tout contrat est actif. La pastille le dit, et
-/// son infobulle dit **pourquoi** : sans elle, « Actif » se lirait comme un
-/// état parmi deux, alors qu'il n'y en a qu'un.
+/// La pastille « État » — « Actif » / « Annulé » (`contrat_actif`,
+/// `contrat_annule`). Un contrat sans statut (d'avant la v38) est actif.
 class _EtatContrat extends StatelessWidget {
-  const _EtatContrat();
+  const _EtatContrat({required this.contrat});
+
+  final ContratLocation contrat;
 
   @override
   Widget build(BuildContext context) {
-    return const Tooltip(
-      message:
-          'Un contrat ne peut pas être annulé sur ce poste : tout contrat est '
-          'actif, et il le reste.',
-      child: PastilleRestaurant(
-        cle: Key('vehicules-etat-actif'),
-        compacte: true,
-        texte: 'Actif',
-        fond: AppColors.badgeVertFond,
-        couleur: AppColors.succes,
-      ),
-    );
+    return contrat.annule
+        ? PastilleRestaurant(
+            cle: Key('vehicules-etat-annule-${contrat.id}'),
+            compacte: true,
+            texte: 'Annulé',
+            fond: Ardoise.c100,
+            couleur: Ardoise.c500,
+          )
+        : PastilleRestaurant(
+            cle: Key('vehicules-etat-actif-${contrat.id}'),
+            compacte: true,
+            texte: 'Actif',
+            fond: AppColors.badgeVertFond,
+            couleur: AppColors.succes,
+          );
   }
 }
 
-/// Le bouton « Annuler » de la vue — **refusé**, et c'est PA-50.
+/// Le bouton « Annuler » de la vue (`annuler_contrat`), derrière la modale de
+/// confirmation du composant partagé (« Voulez-vous annuler le contrat :element ? »).
+/// Offert avec le droit d'écriture M8 et sur un contrat NON annulé seulement.
 ///
-/// Sa modale de confirmation (« Voulez-vous annuler le contrat ») et le filtre
-/// « Annulés » sont refusés avec lui ; ils étaient nommés dans le bloc « Ce que
-/// cet écran ne rend pas », retiré par directive du PO le 14/10/2026 — le refus
-/// reste nommé ici, avec les mots de la vue.
+/// Le succès dit la phrase de la vue (« Contrat :numero annulé — le véhicule
+/// redevient disponible. »), le refus du DAO s'affiche tel quel.
 ///
-/// ÉCART DÉLIBÉRÉ. La vue propose « Annuler » sur chaque ligne active.
-/// Ici : la place du bouton est tenue par une mention inerte qui dit pourquoi.
-/// Raison : il n'existe **aucune colonne de statut** à écrire, ni sur ce poste
-/// ni au schéma de référence. Aucune méthode `annuler()` n'est exposée,
-/// délibérément — « une méthode qui ne libère rien laisserait croire que le cas
-/// est traité ». La seule façon de libérer le véhicule serait de supprimer la
-/// ligne, et la suppression est interdite sur une table transactionnelle.
-class _ActionAnnuler extends StatelessWidget {
-  const _ActionAnnuler();
+/// ÉCART DÉLIBÉRÉ — `locations.blade.php` l.836-843. La vue nomme le contrat par
+/// son NUMÉRO (`numero ?? id`) ; ce poste n'en a pas (colonne absente) : la
+/// question et le message nomment son véhicule, lisible, plutôt qu'un
+/// identifiant. La vue calcule AVANT la modale ses verrous (`$verrousArchivage`) ;
+/// le seul ici est « déjà annulé », et le bouton n'est pas offert dans ce cas.
+class _ActionAnnuler extends ConsumerWidget {
+  const _ActionAnnuler({required this.contrat, required this.peutEcrire});
+
+  final ContratLocation contrat;
+  final bool peutEcrire;
 
   @override
-  Widget build(BuildContext context) {
-    return const Tooltip(
-      message: refusAnnulationContrat,
-      child: Text(
-        'Annuler : —',
-        key: Key('vehicules-annuler-absent'),
-        style: TextesRestaurant.mentionFine,
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (!peutEcrire || contrat.annule) return const SizedBox.shrink();
+
+    return InkWell(
+      key: Key('vehicules-annuler-${contrat.id}'),
+      borderRadius: BorderRadius.circular(AppRadius.rounded),
+      onTap: () => _annuler(context, ref),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xs,
+          vertical: AppSpacing.demi,
+        ),
+        decoration: BoxDecoration(
+          border: Border.all(color: Ardoise.c300),
+          borderRadius: BorderRadius.circular(AppRadius.rounded),
+        ),
+        child: Text(
+          'Annuler',
+          style: TextesRestaurant.mention.copyWith(color: Ardoise.c700),
+        ),
       ),
     );
+  }
+
+  Future<void> _annuler(BuildContext context, WidgetRef ref) async {
+    final element = contrat.immatriculation;
+    final confirme = await ouvrirArchivageAchats(
+      context,
+      message: MessagesVehicules.questionAnnulerContrat(element),
+    );
+    if (confirme != true || !context.mounted) return;
+
+    try {
+      await ref.read(vehiculeDaoProvider).annulerContrat(contrat.id);
+      if (!context.mounted) return;
+      rechargerVehicules(ref);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          key: const Key('vehicules-contrat-annule'),
+          content: Text(MessagesVehicules.contratAnnule(element)),
+        ),
+      );
+    } on RefusVehicule catch (refus) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          key: const Key('vehicules-annulation-refusee'),
+          content: Text(refus.message),
+        ),
+      );
+    }
   }
 }
 

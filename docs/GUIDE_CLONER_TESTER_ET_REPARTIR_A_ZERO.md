@@ -368,6 +368,8 @@ Heures en UTC : ajoutez 1 h pour l'heure du Bénin.
 | Purge de la déduplication | chaque jour à 03:00 | Nettoie la synchronisation (7 jours). |
 | Purge du journal d'audit | le 1er du mois à 04:00 | Inerte tant que la durée n'est pas fixée. |
 | `contact-editeur:rejouer` | chaque heure | Renvoie les messages « Contactez l'éditeur » en échec. |
+| `notifications:relancer-emails` | toutes les 15 min | Relance les e-mails de notification dont l'envoi a échoué. |
+| `notifications:detecter` | chaque heure | Compose les notifications et met les e-mails en file d'envoi. |
 
 **Vérifier** que le cron tourne :
 

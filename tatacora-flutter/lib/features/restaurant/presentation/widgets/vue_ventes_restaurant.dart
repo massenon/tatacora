@@ -13,8 +13,6 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../shared_widgets/pied_pagination.dart';
 import '../../../bar/domain/entities/ventes_bar.dart';
-import '../../../facturation/presentation/providers_facturation.dart'
-    show factureDaoProvider;
 import '../../../pos/domain/entities/reference_catalogue.dart';
 import '../../../pos/presentation/providers_pos.dart';
 import '../../../ventes/domain/lignes_vente_du_rayon.dart';
@@ -83,14 +81,8 @@ final ventesRestaurantProvider = FutureProvider.autoDispose<PageVentesBar>((
   ref.watch(paniersProvider);
   final filtre = ref.watch(filtreVentesRestaurantProvider);
   final paniers = await ref.watch(panierDaoProvider).paniers();
-  final numeros = await ref.watch(factureDaoProvider).numerosFactureParPanier();
   return pageDuRayon(
-    lignesDuRayon(
-      paniers,
-      ModuleVendable.m4Restaurant,
-      filtre,
-      numeroFactureParPanier: numeros,
-    ),
+    lignesDuRayon(paniers, ModuleVendable.m4Restaurant, filtre),
     filtre,
   );
 });
@@ -563,13 +555,7 @@ Future<void> exporterVentesRestaurant(
 
   final filtre = ref.read(filtreVentesRestaurantProvider);
   final paniers = await ref.read(panierDaoProvider).paniers();
-  final numeros = await ref.read(factureDaoProvider).numerosFactureParPanier();
-  final lignes = lignesDuRayon(
-    paniers,
-    ModuleVendable.m4Restaurant,
-    filtre,
-    numeroFactureParPanier: numeros,
-  );
+  final lignes = lignesDuRayon(paniers, ModuleVendable.m4Restaurant, filtre);
   if (!context.mounted) return;
   if (lignes.isEmpty) {
     ScaffoldMessenger.of(context).showSnackBar(

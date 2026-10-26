@@ -106,4 +106,57 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('l’UTILISATEUR et le POSTE s’affichent quand ils sont connus, '
+      '« — » sinon (jamais un compte inventé)', (tester) async {
+    await monter(tester, [
+      EntreeJournalPoste(
+        action: ActionJournalPoste.creation,
+        table: 'clients',
+        entiteId: 'id-1',
+        dateHeure: base,
+        utilisateur: 'awa.caisse',
+        poste: 'CAISSE-1',
+      ),
+      EntreeJournalPoste(
+        action: ActionJournalPoste.modification,
+        table: 'clients',
+        entiteId: 'id-2',
+        dateHeure: base.add(const Duration(minutes: 1)),
+      ),
+    ]);
+
+    expect(find.text('awa.caisse'), findsOneWidget);
+    expect(find.text('CAISSE-1'), findsOneWidget);
+    // L'entrée sans auteur : « — » dans les deux colonnes (et nulle part ailleurs
+    // un nom fabriqué). Les colonnes « Détail » n'emploient pas ce tiret.
+    expect(find.text('—'), findsNWidgets(2));
+  });
+
+  test('la recherche porte aussi sur l’utilisateur, comme la vue', () {
+    final liste = [
+      EntreeJournalPoste(
+        action: ActionJournalPoste.creation,
+        table: 'clients',
+        entiteId: 'a',
+        dateHeure: base,
+        utilisateur: 'awa.caisse',
+      ),
+      EntreeJournalPoste(
+        action: ActionJournalPoste.creation,
+        table: 'clients',
+        entiteId: 'b',
+        dateHeure: base,
+        utilisateur: 'koffi',
+      ),
+      EntreeJournalPoste(
+        action: ActionJournalPoste.creation,
+        table: 'clients',
+        entiteId: 'c',
+        dateHeure: base,
+      ),
+    ];
+    final vue = filtrerJournalPoste(liste, recherche: 'AWA');
+    expect(vue.entrees.map((e) => e.entiteId), ['a']);
+  });
 }

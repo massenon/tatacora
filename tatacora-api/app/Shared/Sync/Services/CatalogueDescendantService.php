@@ -125,6 +125,12 @@ class CatalogueDescendantService
         // et les plats qu'elles citent. Le retour (remise à la carte) descend
         // avec la ligne : une retouche fait avancer le curseur.
         'indisponibilites_carte' => ['boisson_id', 'plat_id', 'motif', 'commentaire', 'date_indisponibilite', 'date_retour_disponibilite'],
+        // 26/10/2026 : l'HISTORIQUE DES PRIX de la carte, après les boissons et les
+        // plats qu'il cite (`source_id` n'est pas une clé étrangère). Écrit au
+        // seul serveur, par `TraceurHistoriquePrix` (les observateurs des deux
+        // cartes) : le poste ne le POUSSE pas, il le reçoit et l'affiche. Le
+        // login de qui a changé le prix descend en plus (`par`, voir `AUTEURS`).
+        'historique_prix_carte' => ['source', 'source_id', 'champ', 'ancien_prix', 'nouveau_prix', 'created_at'],
         'categories_hebergement' => ['libelle', 'capacite_max', 'tarif_base'],
         'unites_hebergement' => ['categorie_id', 'numero', 'statut'],
         // Lot F6 (18/10/2026) : le plan de salle, pour l'arbitrage des tables.
@@ -279,6 +285,31 @@ class CatalogueDescendantService
     ];
 
     /**
+     * Les tables dont le module dépend d'une COLONNE de la ligne : table →
+     * colonne de partage et module de chaque valeur. L'historique des prix est
+     * UNE table pour deux cartes — un compte qui ne lit que le bar (M5) ne
+     * reçoit pas les prix des plats (M4), et inversement.
+     *
+     * @var array<string, array{colonne: string, modules: array<string, string>}>
+     */
+    public const MODULES_PAR_VALEUR = [
+        'historique_prix_carte' => ['colonne' => 'source', 'modules' => ['carte_boisson' => 'M5', 'plat' => 'M4']],
+    ];
+
+    /**
+     * L'AUTEUR d'une ligne, résolu en LOGIN et rendu sous `par` : table →
+     * colonne qui porte l'identifiant du compte. Le poste n'a pas les comptes
+     * du serveur ; il reçoit le login, jamais l'identifiant. Colonnes lues en
+     * plus de `COLONNES`, jamais descendues telles quelles.
+     *
+     * @var array<string, string>
+     */
+    public const AUTEURS = [
+        'historique_prix_carte' => 'utilisateur_creation_id',
+        'ventes' => 'utilisateur_id',
+    ];
+
+    /**
      * Les LIGNES qui descendent avec leur document : table, clé vers le
      * document, colonnes, ordre.
      *
@@ -357,10 +388,14 @@ class CatalogueDescendantService
 
             [$lignes, $reste] = $this->lire(
                 $this->sansMiroirsDuPoste(
-                    DB::table($table)
-                        ->select(['id', ...self::COLONNES[$table]])
-                        ->when(isset(self::NON_NULS[$table]), fn (Builder $q): Builder => $q->whereNotNull(self::NON_NULS[$table]))
-                        ->when(isset(self::SEULEMENT[$table]), fn (Builder $q): Builder => $q->where(self::SEULEMENT[$table][0], self::SEULEMENT[$table][1])),
+                    $this->restreintAuxValeursLisibles(
+                        DB::table($table)
+                            ->select(['id', ...self::COLONNES[$table], ...(isset(self::AUTEURS[$table]) ? [self::AUTEURS[$table]] : [])])
+                            ->when(isset(self::NON_NULS[$table]), fn (Builder $q): Builder => $q->whereNotNull(self::NON_NULS[$table]))
+                            ->when(isset(self::SEULEMENT[$table]), fn (Builder $q): Builder => $q->where(self::SEULEMENT[$table][0], self::SEULEMENT[$table][1])),
+                        $utilisateur,
+                        $table,
+                    ),
                     $table,
                     $posteId,
                 ),
@@ -444,9 +479,13 @@ class CatalogueDescendantService
             }
 
             $requete = $this->sansMiroirsDuPoste(
-                DB::table($table)
-                    ->when(isset(self::NON_NULS[$table]), fn (Builder $q): Builder => $q->whereNotNull(self::NON_NULS[$table]))
-                    ->when(isset(self::SEULEMENT[$table]), fn (Builder $q): Builder => $q->where(self::SEULEMENT[$table][0], self::SEULEMENT[$table][1])),
+                $this->restreintAuxValeursLisibles(
+                    DB::table($table)
+                        ->when(isset(self::NON_NULS[$table]), fn (Builder $q): Builder => $q->whereNotNull(self::NON_NULS[$table]))
+                        ->when(isset(self::SEULEMENT[$table]), fn (Builder $q): Builder => $q->where(self::SEULEMENT[$table][0], self::SEULEMENT[$table][1])),
+                    $utilisateur,
+                    $table,
+                ),
                 $table,
                 $posteId,
             )->whereRaw(self::FILIGRANE . ' < ?', [$horizon]);
@@ -479,11 +518,28 @@ class CatalogueDescendantService
         $manquantes = [];
 
         foreach (array_keys(self::COLONNES) as $table) {
+            $requete = DB::table($table)
+                ->when(isset(self::NON_NULS[$table]), fn (Builder $q): Builder => $q->whereNotNull(self::NON_NULS[$table]))
+                ->when(isset(self::SEULEMENT[$table]), fn (Builder $q): Builder => $q->where(self::SEULEMENT[$table][0], self::SEULEMENT[$table][1]));
+
             if (! $this->lisible($utilisateur, $table)) {
-                $manquantes[$table] = DB::table($table)
-                    ->when(isset(self::NON_NULS[$table]), fn (Builder $q): Builder => $q->whereNotNull(self::NON_NULS[$table]))
-                    ->when(isset(self::SEULEMENT[$table]), fn (Builder $q): Builder => $q->where(self::SEULEMENT[$table][0], self::SEULEMENT[$table][1]))
-                    ->count();
+                $manquantes[$table] = $requete->count();
+
+                continue;
+            }
+
+            // Une table lue en PARTIE (l'historique des prix d'une seule carte) :
+            // ce qui n'est pas livré, ce sont les valeurs d'un module non lu.
+            if (isset(self::MODULES_PAR_VALEUR[$table])) {
+                $illisibles = $this->valeursIllisibles($utilisateur, $table);
+
+                if ($illisibles !== []) {
+                    $nombre = $requete->whereIn(self::MODULES_PAR_VALEUR[$table]['colonne'], $illisibles)->count();
+
+                    if ($nombre > 0) {
+                        $manquantes[$table] = $nombre;
+                    }
+                }
             }
         }
 
@@ -544,9 +600,68 @@ class CatalogueDescendantService
             return true;
         }
 
+        // Une table partagée entre deux modules se lit dès qu'UN des deux est lu ;
+        // les valeurs de l'autre sont écartées de la requête.
+        if (isset(self::MODULES_PAR_VALEUR[$table])) {
+            return $this->valeursLisibles($utilisateur, $table) !== [];
+        }
+
         $module = self::MODULES_HORS_REGISTRE[$table] ?? $this->registre->pour($table)->module();
 
         return in_array($utilisateur->niveauSurModule($module), ['L', 'C'], true);
+    }
+
+    /**
+     * Les valeurs de la colonne de partage dont le module est LU par ce compte.
+     *
+     * @return list<string>
+     */
+    private function valeursLisibles(User $utilisateur, string $table): array
+    {
+        return array_keys(array_filter(
+            self::MODULES_PAR_VALEUR[$table]['modules'],
+            static fn (string $module): bool => in_array($utilisateur->niveauSurModule($module), ['L', 'C'], true),
+        ));
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function valeursIllisibles(User $utilisateur, string $table): array
+    {
+        return array_values(array_diff(
+            array_keys(self::MODULES_PAR_VALEUR[$table]['modules']),
+            $this->valeursLisibles($utilisateur, $table),
+        ));
+    }
+
+    private function restreintAuxValeursLisibles(Builder $requete, User $utilisateur, string $table): Builder
+    {
+        if (! isset(self::MODULES_PAR_VALEUR[$table])) {
+            return $requete;
+        }
+
+        return $requete->whereIn(self::MODULES_PAR_VALEUR[$table]['colonne'], $this->valeursLisibles($utilisateur, $table));
+    }
+
+    /**
+     * Le login de l'auteur de chaque ligne de la page — UNE requête.
+     *
+     * @param  list<object>  $lignes
+     * @return array<string, string>  identifiant de compte → login
+     */
+    private function loginsDesAuteurs(string $table, array $lignes): array
+    {
+        if (! isset(self::AUTEURS[$table])) {
+            return [];
+        }
+
+        $colonne = self::AUTEURS[$table];
+        $ids = array_values(array_unique(array_filter(
+            array_map(static fn (object $l): ?string => isset($l->{$colonne}) ? (string) $l->{$colonne} : null, $lignes),
+        )));
+
+        return $ids === [] ? [] : DB::table('utilisateurs')->whereIn('id', $ids)->pluck('login', 'id')->all();
     }
 
     /**
@@ -562,6 +677,7 @@ class CatalogueDescendantService
         $droits = $table === 'roles' ? $this->droitsDesRoles($ids) : [];
         $canaux = $table === 'reservations' ? DB::table('canaux_reservation')->pluck('nom', 'id')->all() : [];
         $ecritures = $table === 'ecritures_comptables' ? $this->ecrituresDeLaPage($lignes) : [];
+        $logins = $this->loginsDesAuteurs($table, $lignes);
         $origines = DB::table('origines_synchronisation')
             ->where('table_concernee', $table)
             ->whereIn('entite_id', $ids)
@@ -616,6 +732,13 @@ class CatalogueDescendantService
 
             if ($table === 'ecritures_comptables') {
                 $donnees = [...$donnees, ...($ecritures[(string) $ligne->id] ?? [])];
+            }
+
+            // L'auteur, en LOGIN (`null` : saisi sans compte — une tâche
+            // planifiée, une écriture d'avant l'audit).
+            if (isset(self::AUTEURS[$table])) {
+                $auteur = $ligne->{self::AUTEURS[$table]} ?? null;
+                $donnees['par'] = $auteur === null ? null : ($logins[(string) $auteur] ?? null);
             }
 
             $elements[] = [

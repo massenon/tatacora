@@ -28,10 +28,10 @@ import 'widgets/briques_transverses.dart';
 /// Le registre de la vue est `journal_audit` du serveur, écrit par ses
 /// observateurs. Ce poste n'a aucune table d'audit ; son registre inaltérable
 /// est la file d'envoi (voir `journal_poste.dart`) : chaque création et chaque
-/// modification qu'il a écrites, avec l'instant d'écriture. La colonne
-/// Utilisateur et la colonne Poste y valent « — » (donnée absente, Article 7
-/// de la vue) : la file ne conserve ni l'un ni l'autre. Une phrase au pied
-/// de l'écran le dit.
+/// modification qu'il a écrites, avec l'instant d'écriture, le compte connecté
+/// et le nom du poste (v38, 26/10/2026). Seule une entrée d'avant la v38, ou
+/// écrite sans compte, garde « — » (donnée absente, Article 7 de la vue). Une
+/// phrase au pied de l'écran dit d'où vient le registre.
 ///
 /// Droit : la route de la vue exige M14 en lecture (`module:M14,L`) ; sans
 /// lui, l'écran le DIT.
@@ -168,7 +168,7 @@ class _EtatEcranJournalAudit extends ConsumerState<EcranJournalAudit> {
                 [
                   // Article 7 de la vue : « — » quand la donnée n'existe pas.
                   celluleTexte(
-                    TextesJournalAudit.absent,
+                    e.utilisateur ?? TextesJournalAudit.absent,
                     couleur: Ardoise.c700,
                     poids: FontWeight.w500,
                   ),
@@ -191,7 +191,7 @@ class _EtatEcranJournalAudit extends ConsumerState<EcranJournalAudit> {
                     taille: TaillesContenu.t15,
                   ),
                   celluleTexte(
-                    TextesJournalAudit.absent,
+                    e.poste ?? TextesJournalAudit.absent,
                     couleur: Ardoise.c400,
                     taille: TaillesContenu.t15,
                   ),
@@ -309,5 +309,5 @@ abstract final class TextesJournalAudit {
 
   /// AJOUT déclaré (D423, révisé le 21/10/2026) : la source de ce registre.
   static const String sourceDuPoste =
-      "Registre de ce poste : chaque création et chaque modification qu'il a écrites, avec l'heure d'écriture. L'utilisateur et le poste n'y sont pas conservés, les connexions et les suppressions non plus.";
+      "Registre de ce poste : chaque création et chaque modification qu'il a écrites, avec l'heure d'écriture, le compte connecté et le nom du poste (la vue du serveur montre l'adresse réseau). Une entrée d'avant cette version, ou écrite sans compte connecté, garde « — » ; les connexions et les suppressions ne sont pas tracées ici.";
 }

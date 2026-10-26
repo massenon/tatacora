@@ -112,6 +112,43 @@ final class Rg08Rg09LocationTest extends TestCase
     }
 
     /**
+     * Le contrat ANNULÉ libère le véhicule (26/10/2026). Avant, la liste des
+     * statuts inactifs était vide : l'écran disait « le véhicule redevient
+     * disponible » et RG-08 refusait quand même la même plage.
+     */
+    #[Test]
+    public function rg08_un_contrat_annule_libere_le_vehicule(): void
+    {
+        $premier = $this->louer($this->prado, '2026-09-01', '2026-09-10');
+
+        $this->assertThrows(
+            fn () => $this->louer($this->prado, '2026-09-03', '2026-09-07'),
+            ChevauchementDetecteException::class,
+        );
+
+        $this->service()->annuler($premier);
+
+        $this->assertSame('annule', $premier->fresh()->statut);
+        $this->assertTrue($this->service()->estDisponible($this->prado->id, '2026-09-01', '2026-09-10'));
+        $this->louer($this->prado, '2026-09-03', '2026-09-07');
+        $this->assertSame(2, ContratLocation::count(), 'rien n\'est supprimé');
+    }
+
+    #[Test]
+    public function un_contrat_deja_annule_ne_s_annule_pas_deux_fois_et_la_phrase_est_celle_de_l_ecran(): void
+    {
+        $contrat = $this->louer($this->prado, '2026-09-01', '2026-09-10');
+        $this->service()->annuler($contrat);
+
+        try {
+            $this->service()->annuler($contrat->fresh());
+            $this->fail('Une seconde annulation doit être refusée.');
+        } catch (RuntimeException $refus) {
+            $this->assertSame(__('vehicules.pwa.verrou_contrat_annule'), $refus->getMessage());
+        }
+    }
+
+    /**
      * Le faux positif que la convention de bornes semi-ouvertes existe pour
      * éviter : un retour le 10 et un départ le 10 ne se chevauchent pas. Une
      * erreur de bornes (`>=` / `<=`) refuserait des locations parfaitement

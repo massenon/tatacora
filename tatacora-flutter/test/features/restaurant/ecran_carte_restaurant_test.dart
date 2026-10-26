@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tatacora_flutter/core/database/app_database.dart';
 import 'package:tatacora_flutter/core/di/providers.dart';
-import 'package:tatacora_flutter/core/donnees_absentes.dart';
 import 'package:tatacora_flutter/core/theme/app_theme.dart';
 import 'package:tatacora_flutter/features/pos/domain/entities/panier.dart';
 import 'package:tatacora_flutter/features/pos/domain/entities/reference_catalogue.dart';
@@ -589,35 +588,24 @@ void main() {
     },
   );
 
-  // Les boutons de ligne qui restent refusés (« Lier au stock » est porté depuis
-  // la v36, voir lier_au_stock_plat_test.dart), avec le message EXACT que chacun doit dire :
-  // une écriture refusée (`ecritureNonDisponible`) ou une lecture absente
-  // (`donneeNonDisponible`). Un message vide, ou remplacé par « Aucun
-  // changement », se lirait comme un geste réussi ou une liste vide.
-  final boutons = <(String, String)>[
-    ('carte-restaurant-prix-p-1', ecritureNonDisponible('Le nouveau prix')),
-    (
-      'carte-restaurant-historique-prix-p-1',
-      donneeNonDisponible('Les changements de prix'),
-    ),
-  ];
+  // « Prix » et « Historique des prix » sont PORTÉS depuis la v38 (26/10/2026) :
+  // leurs gestes sont éprouvés par la chaîne réelle (`prix_historique_plat_test`).
+  // Ici, seule la PLACE des boutons dans la colonne d'actions : l'historique est
+  // une lecture offerte à tous ; « Prix » exige le droit d'écriture M4 (ce banc
+  // monte l'écran sans droit d'écriture).
+  testWidgets('la colonne d’actions pose « Historique des prix », et « Prix » '
+      'seulement avec le droit d’écriture', (tester) async {
+    await monter(tester);
 
-  for (final (cle, message) in boutons) {
-    testWidgets('le bouton $cle dit exactement pourquoi il ne peut pas', (
-      tester,
-    ) async {
-      await monter(tester);
-
-      // La colonne d'actions est la dernière du tableau, qui défile en
-      // horizontal comme celui de la vue (`overflow-x-auto`, l.310).
-      await tester.ensureVisible(find.byKey(Key(cle)));
-      await tester.tap(find.byKey(Key(cle)));
-      await tester.pump();
-
-      expect(find.text(message), findsOneWidget);
-      expect(find.textContaining('Aucun changement'), findsNothing);
-    });
-  }
+    expect(
+      find.byKey(const Key('carte-restaurant-historique-prix-p-1')),
+      findsOneWidget,
+    );
+    expect(find.text('Historique des prix'), findsWidgets);
+    expect(find.byKey(const Key('carte-restaurant-prix-p-1')), findsNothing);
+    // Plus aucun bouton ne se contente de DIRE qu'il est refusé.
+    expect(find.textContaining('n’est pas disponible'), findsNothing);
+  });
 
   testWidgets(
     'une carte vide rend l’état vide de la vue, pas un tableau blanc',

@@ -5,6 +5,9 @@ import '../../../../core/donnees_absentes.dart';
 import '../../../../core/format/formats.dart';
 import '../../../../core/rbac/garde_acces.dart';
 import '../../../../core/di/providers.dart';
+import '../../../bar/presentation/widgets/modale_historique_prix.dart';
+import '../../../bar/presentation/widgets/modale_prix_boisson.dart'
+    show TextesPrixBoisson;
 import '../../../bar/presentation/widgets/modale_retrait_carte.dart';
 import '../providers_restaurant.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -18,6 +21,7 @@ import '../../domain/messages_restaurant.dart';
 import '../../impression/etat_carte_restaurant.dart';
 import 'coquille_restaurant.dart';
 import 'modale_lien_stock_plat.dart';
+import 'modale_prix_plat.dart';
 import 'tableau_restaurant.dart';
 
 /// Le suffixe monétaire de cet écran, exposé pour les vues d'onglet.
@@ -558,17 +562,31 @@ class _Actions extends ConsumerWidget {
             ),
           ],
         ],
-        const SizedBox(width: AppSpacing.unit),
-        _BoutonLigne(
-          cle: Key('carte-restaurant-prix-$id'),
-          libelle: 'Prix',
-          message: ecritureNonDisponible('Le nouveau prix'),
-        ),
+        // `ouvrirModificationPrix` (l.434-435) : le prix SEUL, tracé. Le droit
+        // d'écriture M4 est exigé (une modale qu'on ne pourrait pas soumettre
+        // ferait perdre la saisie).
+        if (peutEcrire) ...[
+          const SizedBox(width: AppSpacing.unit),
+          _BoutonLigne(
+            cle: Key('carte-restaurant-prix-$id'),
+            libelle: TextesPrixBoisson.bouton,
+            onTap: () async {
+              final fait = await ouvrirModalePrixPlat(context, ligne: ligne);
+              if (fait ?? false) invaliderRestaurant(ref);
+            },
+          ),
+        ],
+        // `ouvrirHistoriquePrix` (l.436-437) : une LECTURE, sans droit
+        // d'écriture.
         const SizedBox(width: AppSpacing.unit),
         _BoutonLigne(
           cle: Key('carte-restaurant-historique-prix-$id'),
-          libelle: 'Historique des prix',
-          message: donneeNonDisponible('Les changements de prix'),
+          libelle: TextesHistoriquePrix.bouton,
+          onTap: () => ouvrirModaleHistoriquePrix(
+            context,
+            libelle: ligne.libelle,
+            lecture: (ref) => ref.watch(historiquePrixPlatProvider(ligne.id)),
+          ),
         ),
       ],
     );
@@ -580,29 +598,22 @@ class _BoutonLigne extends StatelessWidget {
   const _BoutonLigne({
     required this.cle,
     required this.libelle,
-    this.message,
-    this.onTap,
+    required this.onTap,
   });
 
   final Key cle;
   final String libelle;
 
-  /// Le geste que ce poste ne porte pas : le bouton DIT pourquoi.
-  final String? message;
-
-  /// Le geste porté : il écrit.
-  final VoidCallback? onTap;
+  /// Le geste porté (tous le sont depuis la v38 : plus aucun bouton de ligne
+  /// ne se contente de DIRE qu'il est refusé).
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       key: cle,
       borderRadius: BorderRadius.circular(AppRadius.rounded),
-      onTap:
-          onTap ??
-          () => ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(message ?? ''))),
+      onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.xs,

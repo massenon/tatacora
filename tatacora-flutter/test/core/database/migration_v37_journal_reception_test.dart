@@ -10,9 +10,9 @@ import 'retour_arriere_schema.dart';
 /// de réception du poste, 26/10/2026), éprouvée sur un FICHIER RÉEL portant des
 /// données (piège 2), y compris par un poste qui a sauté des livraisons.
 ///
-/// Additive : la file d'envoi et le curseur de descente traversent intacts, la
-/// table apparaît VIDE (la descente la remplit), sa clé est (table, élément) et
-/// ses contraintes tiennent.
+/// Additive : la file d'envoi traverse intacte, la table apparaît VIDE (la
+/// descente la remplit), sa clé est (table, élément) et ses contraintes tiennent.
+/// (Le curseur de descente, lui, est oublié par la v38 qui suit : voir plus bas.)
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
 
@@ -92,20 +92,17 @@ void main() {
       expect(await compte(apres, 'journal_reception_local'), 0);
       expect(await compte(apres, 'vehicules_local'), 1);
       if (depart >= 27) {
-        expect(
-          await compte(apres, 'etat_synchronisation_local'),
-          greaterThanOrEqualTo(1),
-        );
-      }
-      if (depart == 36) {
-        // Une migration additive de la v36 ne touche pas au curseur.
+        // Depuis la v38 (26/10/2026), la migration OUBLIE le curseur de descente
+        // (l'historique des prix et les statuts de contrat déjà au serveur
+        // doivent redescendre) : la ligne `descente.curseur` n'est plus là. Le
+        // reste de l'état (aucune autre clé n'est semée ici) n'est pas touché.
         final curseur = await apres
             .customSelect(
               'SELECT valeur FROM etat_synchronisation_local '
               "WHERE cle = 'descente.curseur'",
             )
-            .getSingle();
-        expect(curseur.data['valeur'], 'abc');
+            .get();
+        expect(curseur, isEmpty);
       }
 
       const colonnes =

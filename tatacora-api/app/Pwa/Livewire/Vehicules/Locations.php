@@ -623,7 +623,9 @@ class Locations extends PageMetier
             ]);
         } elseif ($this->typeElementSupprime === 'contrat') {
             $contrat = ContratLocation::findOrFail($this->idElementSupprime);
-            $contrat->forceFill(['statut' => 'annule'])->save();
+            // Le SERVICE annule (26/10/2026) : le même chemin que la
+            // synchronisation d'un poste, la même phrase de refus.
+            app(ContratLocationService::class)->annuler($contrat);
             $message = __('vehicules.pwa.archivage_contrat_fait', [
                 'numero' => (string) ($contrat->numero ?? $contrat->id),
             ]);

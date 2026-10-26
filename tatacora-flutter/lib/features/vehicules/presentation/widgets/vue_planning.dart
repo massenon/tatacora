@@ -428,8 +428,11 @@ class _LigneVehicule extends StatelessWidget {
   /// Bornes demi-ouvertes, comme le maître : le jour de restitution est libre.
   bool _occupe(DateTime jour) {
     final iso = _iso(jour);
+    // `$c->statut !== 'annule'` (l.510) : un contrat ANNULÉ ne colore plus la
+    // case, quel que soit le filtre de statut choisi.
     return contrats.any(
       (c) =>
+          !c.annule &&
           c.immatriculation == vehicule.immatriculation &&
           c.debut.compareTo(iso) <= 0 &&
           c.fin.compareTo(iso) > 0,

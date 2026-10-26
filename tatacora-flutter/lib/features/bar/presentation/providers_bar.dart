@@ -370,9 +370,9 @@ final remettreALaCarteProvider =
       },
     );
 
-/// L'historique des prix d'une boisson, LU AU SERVEUR à chaque ouverture de
-/// la modale — `autoDispose`, sans cache : une liste gardée d'une visite
-/// précédente ne dirait pas qu'elle date, sur la question même « depuis
+/// L'historique des prix d'une boisson, relu dans la table locale à chaque
+/// ouverture de la modale — `autoDispose`, sans cache : une liste gardée d'une
+/// visite précédente ne dirait pas qu'elle date, sur la question même « depuis
 /// quand ce prix ? ».
 final historiquePrixProvider = FutureProvider.autoDispose
     .family<ResultatBar<List<TracePrix>>, String>(

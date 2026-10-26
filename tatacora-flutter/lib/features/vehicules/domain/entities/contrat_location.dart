@@ -2,6 +2,12 @@
 /// Les contrats de location — onglet « Contrats ».
 library;
 
+/// Le statut d'un contrat ANNULÉ — `ContratLocationService::STATUT_ANNULE`.
+const String statutContratAnnule = 'annule';
+
+/// Le statut d'un contrat en cours — celui que le serveur pose à la création.
+const String statutContratActif = 'actif';
+
 /// Un contrat, tel que `contrats_location_local` le porte.
 ///
 /// ## Ce que la table LOCALE ne porte pas, et qui reste affiché « — »
@@ -20,13 +26,14 @@ library;
 /// | Montant | **calculé** au tarif COURANT — voir [montant] |
 /// | Acompte | **aucune colonne** |
 /// | Reste dû | **aucune colonne** — il se déduirait de l'acompte |
-/// | État | **aucune colonne de statut** (PA-50) |
+/// | État | `statut` (v38, 26/10/2026) : `actif` ou `annule` ; `null` = actif |
 ///
-/// ⚠ La vue Blade, elle, rend `$c->numero`, `$c->acompte`, `$c->reste_a_payer`
-/// et `$c->statut === 'annule'` : le schéma **serveur** a gagné ces colonnes,
-/// la table **locale** ne les a pas. C'est un écart de schéma, pas un choix de
-/// portage, et il est consigné tel quel — l'inventer localement produirait des
-/// montants qu'aucune saisie n'a posés.
+/// ⚠ La vue Blade, elle, rend `$c->numero`, `$c->acompte` et
+/// `$c->reste_a_payer` : le schéma **serveur** a gagné ces colonnes, la table
+/// **locale** ne les a pas. C'est un écart de schéma, pas un choix de portage,
+/// et il est consigné tel quel — l'inventer localement produirait des montants
+/// qu'aucune saisie n'a posés. Le STATUT, lui, est porté depuis la v38 : le
+/// poste annule un contrat comme la PWA, et reçoit l'annulation du serveur.
 final class ContratLocation {
   const ContratLocation({
     required this.id,
@@ -38,6 +45,7 @@ final class ContratLocation {
     required this.montant,
     required this.packageAvecGuide,
     this.clientNom,
+    this.statut,
   });
 
   final String id;
@@ -73,6 +81,15 @@ final class ContratLocation {
   /// l'écran rend « — », il n'affiche pas l'UUID, qui ne dit rien au comptoir.
   final String? clientNom;
 
+  /// `actif` ou `annule` (`contrats_location.statut`). `null` : un contrat
+  /// d'avant la v38, qui n'a jamais pu être annulé — donc actif.
+  final String? statut;
+
+  /// Annulé : `$c->statut === 'annule'` de la vue. Un contrat annulé reste
+  /// LISIBLE (rien n'est supprimé), ne compte plus dans les chiffres et ne
+  /// bloque plus son véhicule (RG-08).
+  bool get annule => statut == statutContratAnnule;
+
   ContratLocation avecClient(String? nom) => ContratLocation(
     id: id,
     immatriculation: immatriculation,
@@ -83,6 +100,7 @@ final class ContratLocation {
     montant: montant,
     packageAvecGuide: packageAvecGuide,
     clientNom: nom,
+    statut: statut,
   );
 
   /// Le contrat est-il RETENU sur la fenêtre [d]..[f] ? **Bornes incluses**,

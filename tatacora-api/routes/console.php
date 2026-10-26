@@ -7,6 +7,8 @@ use App\Domain\Facturation\Jobs\RejouerCertificationsMecefEnEchecJob;
 use App\Domain\Stocks\Jobs\VerifierSeuilsStockJob;
 use App\Shared\Audit\Jobs\PurgerJournalAuditJob;
 use App\Shared\Backup\Jobs\SauvegardeBaseQuotidienneJob;
+use App\Domain\Notifications\Services\EnvoiEmailNotificationService;
+use App\Domain\Notifications\Services\FileAttenteNotificationsService;
 use App\Shared\ContactEditeur\Services\MessageEditeurService;
 use App\Shared\Exploitation\Services\BattementPlanificateur;
 use App\Shared\Sync\Jobs\NettoyerDeduplicationSyncJob;
@@ -110,6 +112,43 @@ Artisan::command('contact-editeur:rejouer', function (MessageEditeurService $ser
 })->purpose('Rejoue les messages a l\'editeur restes en attente d\'envoi');
 
 Schedule::command('contact-editeur:rejouer')
+    ->hourly()
+    ->withoutOverlapping();
+
+// M12 — l'e-mail de notification PART (decision PO du 26/10/2026) : la
+// detection compose et met en file d'envoi (jobs) ; cette commande reprend les
+// messages dont un envoi a echoue, au rythme des delais de relance. Sans
+// messagerie reelle, elle le DIT et ne tente rien.
+Artisan::command('notifications:relancer-emails', function (EnvoiEmailNotificationService $service): int {
+    $relances = $service->relancer();
+
+    if ($relances === null) {
+        $this->warn('Messagerie non configuree (MAIL_MAILER/MAIL_HOST) : aucun envoi tente.');
+
+        return 1;
+    }
+
+    $this->info("Messages remis en file d'envoi : {$relances}.");
+
+    return 0;
+})->purpose('Remet en file d\'envoi les e-mails de notification dont la relance est due');
+
+Schedule::command('notifications:relancer-emails')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping();
+
+// La detection M12 composait seulement au clic « Detecter maintenant » : un
+// e-mail « sejour demain » n'aurait donc jamais ete envoye sans personne pour
+// cliquer. Idempotente (unique modele x reference au schema).
+Artisan::command('notifications:detecter', function (FileAttenteNotificationsService $service): int {
+    $bilan = $service->detecter();
+
+    $this->info("Messages composes : {$bilan['composes']} ; echecs de composition : ".count($bilan['echecs']).'.');
+
+    return 0;
+})->purpose('Detecte les occurrences des declencheurs actifs et compose les messages (e-mail mis en file d\'envoi)');
+
+Schedule::command('notifications:detecter')
     ->hourly()
     ->withoutOverlapping();
 

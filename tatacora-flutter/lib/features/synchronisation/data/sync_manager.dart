@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../../comptabilite/data/immobilisations_dao.dart';
 import '../../facturation/data/facture_dao.dart';
+import '../../pos/data/panier_dao.dart';
 import '../../rh/data/employe_dao.dart';
 import '../../rh/data/paie_dao.dart';
 import '../../transverse/data/configuration_poste.dart';
@@ -527,6 +528,17 @@ class SyncManager {
       await ImmobilisationsDao(
         _dao.attachedDatabase,
       ).regulariserCode(o.entiteId, codeImmobilisation);
+    }
+    // 26/10/2026 : le numéro `V-` de la vente est celui du serveur (séquence
+    // continue) — il ne se pose qu'à l'accusé, le poste n'en invente aucun.
+    final numeroVente = resultat['numero'];
+    if (statut == 'synchronise' &&
+        o.table == TableSynchronisee.ventes &&
+        o.type == TypeOperationSync.creation &&
+        numeroVente is String) {
+      await PanierDao(
+        _dao.attachedDatabase,
+      ).regulariserNumeroVente(o.entiteId, numeroVente);
     }
     final numeroBulletin = resultat['numero'];
     if (statut == 'synchronise' &&

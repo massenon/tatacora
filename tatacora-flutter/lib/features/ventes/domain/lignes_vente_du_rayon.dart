@@ -12,9 +12,14 @@
 ///  * le total est celui du jeu filtré ENTIER, jamais de la page ;
 ///  * du plus récent au plus ancien, départagé par l'identifiant de la ligne.
 ///
-/// Écarts nommés : le panier n'a ni numéro `V-` ni auteur de vente. Le numéro
-/// est celui de la facture quand il y en a une, « — » sinon ; l'auteur est
-/// « — » (jamais un « système » inventé).
+/// Le NUMÉRO est le `V-AAAA-NNNNN` du serveur (`ventes.numero`) et l'UTILISATEUR
+/// le login de qui a encaissé (`ventes.utilisateur_id`) — depuis la v38
+/// (26/10/2026). Le poste n'invente ni l'un ni l'autre : le numéro est posé à
+/// l'accusé de l'envoi ou à la descente de la vente, l'auteur à la clôture (le
+/// compte connecté) ou par le `par` que le serveur rend. Une vente pas encore
+/// envoyée, ou d'avant la v38, garde « — » (jamais un « système » inventé).
+/// Jusqu'au 26/10/2026 le numéro d'une facture tenait lieu de numéro de vente
+/// quand il existait : c'était un autre document, il ne s'affiche plus ici.
 library;
 
 import '../../bar/domain/entities/ventes_bar.dart';
@@ -30,9 +35,8 @@ String _decimal2(int francs) => '$francs.00';
 List<LigneVenteBar> lignesDuRayon(
   List<Panier> paniers,
   ModuleVendable rayon,
-  FiltreVentesBar filtre, {
-  Map<String, String> numeroFactureParPanier = const {},
-}) {
+  FiltreVentesBar filtre,
+) {
   final terme = filtre.recherche.trim().toLowerCase();
   final du = filtre.du == null ? null : _jour(filtre.du!);
   final au = filtre.au == null ? null : _jour(filtre.au!);
@@ -54,13 +58,17 @@ List<LigneVenteBar> lignesDuRayon(
     final jour = _jour(date);
     if (du != null && jour.isBefore(du)) continue;
     if (au != null && jour.isAfter(au)) continue;
-    final numero = numeroFactureParPanier[panier.id];
+    final numero = panier.numeroVente;
+    final auteur = panier.auteurLogin;
 
     for (final l in panier.lignes) {
       if (l.reference.module != rayon) continue;
+      // La recherche de la vue : le nom figé de la ligne, le numéro du ticket,
+      // le login de l'auteur.
       if (terme.isNotEmpty &&
           !l.libelle.toLowerCase().contains(terme) &&
-          !(numero ?? '').toLowerCase().contains(terme)) {
+          !(numero ?? '').toLowerCase().contains(terme) &&
+          !(auteur ?? '').toLowerCase().contains(terme)) {
         continue;
       }
       parLigne[l.id] = date;
@@ -76,7 +84,7 @@ List<LigneVenteBar> lignesDuRayon(
           montant: _decimal2(l.montant),
           annulee: annulee,
           motifAnnulation: annulee ? panier.motifAnnulation : null,
-          utilisateur: null,
+          utilisateur: auteur,
         ),
       );
     }

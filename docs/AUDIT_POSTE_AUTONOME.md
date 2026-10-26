@@ -72,14 +72,14 @@ Légende : **O** fonctionne sans serveur ; **N→O** ne fonctionnait pas, corrig
 | M3 CRM | Clients, créances, relances, archivage | tout | O | — |
 | M4 Restaurant | Carte du jour, Couverture, Plats/fiches/menus, lien au stock | tout | O | — |
 | M4 | **Ventes du Restaurant** (onglet) + son export | lignes de vente | N→O | calculées sur les paniers du poste (`lignes_vente_du_rayon.dart`, réplique de `LignesVenteDuRayonService`), filtres, pagination, total des validées, export PDF/tableur du jeu filtré |
-| M4 | « Prix », « Historique des prix » | changement rapide de prix et sa trace | **N** | reste (§4) |
+| M4 | « Prix », « Historique des prix » | changement rapide de prix et sa trace | N→O | `RestaurantDao.modifierPrix` trace chaque changement dans `historique_prix_carte_local` (v38) ; l'historique se lit localement (§4 point 4) |
 | M5 Bar | Carte, Catalogue des boissons, lien au stock, retraits | tout | O | — |
 | M5 | **Ventes du Bar** (onglet) + export | lignes de vente | N→O | même calcul local (`BoissonsApi.ventes` branché sur les paniers) |
-| M5 | « Historique des prix » | trace des changements | **N** | reste (§4) |
+| M5 | « Historique des prix » | trace des changements | N→O | même table locale, écrite par `CatalogueDao` à chaque changement de prix, descente seule du serveur (§4 point 4) |
 | M6 Stocks | Articles, mouvements, inventaire, archivage | tout | O | — |
 | M7 Achats | Commandes, réception, règlements, fournisseurs | tout | O | — |
 | M8 Véhicules | Parc, contrats, planning, immobilisations | tout | O | — |
-| M8 | Annulation d'un contrat de location | la PWA l'offre | **N** | reste (§4) |
+| M8 | Annulation d'un contrat de location | la PWA l'offre | N→O | colonne `contrats_location_local.statut` (v38), `VehiculeDao.annulerContrat`, envoyée au serveur et descendue (§4 point 5) |
 | M9 Tourisme | Circuits, départs, réservations | tout | O | — |
 | M10 Comptabilité | Passer écriture, Journal (et son export), Balance, Plan (création de compte), Ouvrir un exercice, Immobilisations | tout | O | **création de compte : une seule règle, 2 à 4 chiffres** (mission A) |
 | M10 | **Compte de résultat, Bilan** | états financiers | N→O (vides hors ligne) | calculés sur les pièces du poste quand la synchronisation est désactivée (§2) |
@@ -100,7 +100,7 @@ Légende : **O** fonctionne sans serveur ; **N→O** ne fonctionnait pas, corrig
 | M14 | Exports PDF/archive des états | la vue n'en offre pas (décision PO) | sans objet | — |
 | Transverse | Import & Export : importer (CSV), sauvegarde de la base (« Enregistrer sous »), exporter une table, réinitialiser | tout | O | — |
 | Transverse | Import & Export : « Restaurer » (registre des éléments archivés), purge | registre transverse | **N** | reste (§4) |
-| Transverse | Journal d'audit | lecture de la file d'envoi | P | colonnes « Utilisateur » et « Poste » : « — » (la file ne les conserve pas) |
+| Transverse | Journal d'audit | lecture de la file d'envoi | N→O | colonnes « Utilisateur » et « Poste » conservées par la file (v38) ; « — » seulement pour les entrées d'avant la v38 (§4 point 7) |
 | Transverse | Mon profil, Rôles et permissions, Comptes utilisateurs, Aide, Paramètres | tout (mot de passe SMTP dans `poste.json`) | O | — |
 | Transverse | Contact éditeur, e-mail de test | SMTP | **N** (réseau) | message écrit d'abord, envoi qui échoue gracieusement, relance |
 | Transverse | Synchronisation, Postes & Appairage, contrôle de cohérence | exigent le serveur | **N** par nature | désactivée : les écrans le DISENT, aucune requête |
@@ -121,21 +121,42 @@ Légende : **O** fonctionne sans serveur ; **N→O** ne fonctionnait pas, corrig
    le poste est seul ?) et un contrat de synchronisation d'exercice ; elle n'a
    pas été portée.
 4. **Historique des prix** (bar et restaurant) et **« Prix »** du restaurant —
-   le serveur trace les changements (observateurs) ; le poste n'a aucune table
-   de trace. Demande un schéma (table additive) et un lecteur ; non fait pour ne
-   pas entrer en collision avec la version 37 prise par l'agent des écrans de
-   synchronisation. Le prix en cours reste modifiable depuis « Modifier » du
-   plat ou de la boisson.
-5. **Annulation d'un contrat de location** — la PWA porte une colonne `statut`
-   que le poste n'a pas (PA-50) ; elle demande une colonne (schéma), une
-   opération de modification côté serveur et sa descente.
+   FAIT en v38. Table `historique_prix_carte_local`, miroir de
+   `historique_prix_carte` ; seuls `CatalogueDao.enregistrerBoisson` et
+   `RestaurantDao` l'écrivent, dans la transaction du changement de prix
+   (`HistoriquePrixCarteDao.tracer` exige une transaction), avec la fonction
+   pure `changementsDePrix` confrontée au vrai serveur
+   (`tool/carte/rejouer_historique_prix.php`). Le serveur reste l'unique auteur
+   de la trace (observateurs) : le poste ne la pousse PAS ; la trace locale est
+   ADOPTÉE à celle du serveur équivalente quand elle descend (correspondance
+   retenue), jamais doublée. Côté serveur, `historique_prix_carte` descend dans
+   `CatalogueDescendantService` (`par` = login de l'auteur, restreint aux
+   modules lisibles : M5 boisson, M4 plat). Écart : la colonne « Poste » de la
+   vue serveur est une adresse IP, le poste n'a que le nom de machine.
+5. **Annulation d'un contrat de location** — FAIT en v38. Colonne
+   `contrats_location_local.statut` (nullable : `null` = actif), écrivain
+   unique `VehiculeDao.annulerContrat`, refus aux phrases du serveur (relues par
+   PHP), opération `modification {statut: annule}` (serveur :
+   `GestionnaireContratsLocation::modifier`, rejeu accepté) et descente vers
+   l'avant seulement. Un contrat annulé libère le véhicule (RG-08) et ne bloque
+   plus l'archivage d'un client ni d'un véhicule : la règle d'archivage des
+   clients « location non annulée » est reportée. Défaut serveur corrigé en
+   chemin : un contrat annulé bloquait encore RG-08. Pas de restriction « document
+   d'un autre poste » (la PWA n'en a pas). À signaler : l'état M14
+   « Locations » du serveur liste encore tous les contrats, annulés compris.
 6. **Restaurer / purge** de l'onglet Import & Export — registre transverse des
    éléments archivés de tous les modules ; chaque module restaure déjà ses
    propres éléments depuis son écran.
-7. **Journal d'audit : utilisateur et poste** — la file d'envoi ne les conserve
-   pas.
-8. **Numéros de vente `V-`, auteur de la vente** — absents du panier du poste
-   (« — » dans les ventes du bar et du restaurant).
+7. **Journal d'audit : utilisateur et poste** — FAIT en v38 : la file
+   (`operations_sync_local.auteur_login`, `poste_nom`) conserve le login connecté
+   et le nom de la machine (`AppDatabase.auteurEcriture`, câblé sur la session) ;
+   `renvoyer` les recopie. Les entrées antérieures à la v38 gardent « — » (on ne
+   déduit pas de donnée), et le journal ne montre que les écritures de CE poste.
+8. **Numéros de vente `V-`, auteur de la vente** — FAIT en v38
+   (`paniers_local.numero_vente`, `auteur_login`). Le numéro est une séquence du
+   serveur : le poste ne l'invente jamais, il le reçoit à l'accusé du `POST /sync`
+   ou à la descente de la vente ; avant, « — ». L'auteur est le compte connecté à
+   la clôture, ou le `par` rendu par le serveur pour la vente d'un autre poste.
 9. **Particularités de calcul** : les états comptables du poste ne portent que
    les écritures VALIDÉES (le filtre de statut du hub ne s'y applique pas) ; la
    balance de M14 ne compte pas les brouillons ; la note annexe n° 7 (événements
@@ -143,6 +164,10 @@ Légende : **O** fonctionne sans serveur ; **N→O** ne fonctionnait pas, corrig
 
 ## 5. Schéma
 
-Non modifié par cette mission : la version courante est 37 (prise par l'agent
-des écrans de synchronisation) et aucune correction ci-dessus n'a exigé de
-colonne ni de table. Les points 4, 5 et 7 en demanderaient une (version 38).
+Version **38** (74 tables) : une table neuve, `historique_prix_carte_local`, et six
+colonnes NULLABLES (`contrats_location_local.statut`,
+`operations_sync_local.auteur_login` / `poste_nom`,
+`paniers_local.numero_vente` / `auteur_login`). Migration additive et
+conditionnelle (`PRAGMA table_info`), le curseur de descente est oublié pour que
+l'historique et les statuts redescendent ; prouvée sur fichier réel depuis
+plusieurs versions (`migration_v38_poste_comme_le_web_test.dart`).

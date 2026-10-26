@@ -1,4 +1,7 @@
 // Vue Blade maîtresse (PA-183) : pwa/bar/carte.blade.php
+// Le corps de modale est PARTAGÉ par les deux cartes (bar ET restaurant) : ce
+// fichier sert aussi la vue ci-dessous, et c'est ici que se rendent ses mots.
+// Vue Blade maîtresse (PA-183) : pwa/restaurant/carte.blade.php
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -8,38 +11,48 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../restaurant/presentation/widgets/coquille_modale_restaurant.dart';
 import '../../../restaurant/presentation/widgets/textes_modale_restaurant.dart';
 import '../../data/boissons_api.dart';
-import '../../domain/entities/carte_bar.dart';
 import '../../domain/entities/trace_prix.dart';
-import '../providers_bar.dart';
 
-/// La modale **« Historique des prix »** de la Carte du bar — corps partagé
-/// des cartes, l.821-875, ouverte par le bouton de chaque ligne (l.436-437).
+/// L'abonnement d'une modale à l'historique d'UN article.
+typedef LectureHistoriquePrix =
+    AsyncValue<ResultatBar<List<TracePrix>>> Function(WidgetRef ref);
+
+/// La modale **« Historique des prix »** des cartes du bar ET du restaurant —
+/// corps partagé des cartes, l.821-875, ouverte par le bouton de chaque ligne
+/// (l.436-437).
 ///
 /// @see EF-M5-02 Carte des boissons
+/// @see EF-M4-01 Gestion des menus et cartes
 ///
 /// Demande du Product Owner du 01/09/2026 côté PWA (« on doit retracer les
-/// changements de prix »). La trace est écrite par `CarteBoissonObserver`
-/// seul ; le client la LIT par `GET /bar/boissons/{id}/historique-prix`,
-/// route ajoutée le 11/09/2026 — jusque-là, seule la PWA pouvait la lire.
+/// changements de prix »). La trace est écrite par `CarteBoissonObserver` et
+/// `PlatObserver` au serveur ; ici, par `HistoriquePrixCarteDao` (schéma v38),
+/// dans la transaction qui change le prix, et complétée par la descente des
+/// traces des autres postes et de la PWA. La modale LIT cette table locale.
 ///
 /// ## Une LECTURE, ouverte au droit `L`
 ///
 /// Comme `ouvrirHistoriquePrix()`, qui n'exige aucun droit d'écriture : un
 /// barman en lecture doit pouvoir vérifier depuis quand un tarif a changé.
 ///
-/// ## En ligne, et elle le dit
+/// ## Un seul corps pour les deux rayons
 ///
-/// Relue à chaque ouverture, sans cache. Hors connexion, la modale dit
-/// qu'elle n'a pas pu lire l'historique — elle n'affiche jamais « aucun
-/// changement », qui se lirait comme un fait.
+/// [lecture] est le fournisseur de l'historique de l'article : celui du bar
+/// (`historiquePrixProvider`) ou celui du restaurant
+/// (`historiquePrixPlatProvider`). La modale ne sait pas d'où il vient ; elle
+/// n'affiche jamais « aucun changement » sur une lecture en échec.
+///
+/// [lecture] s'abonne à la liste de l'article (`ref.watch(fournisseur(id))`) et
+/// rend son état : la modale reste ainsi indifférente au rayon.
 Future<void> ouvrirModaleHistoriquePrix(
-  BuildContext context,
-  LigneCarte ligne,
-) => showDialog<void>(
+  BuildContext context, {
+  required String libelle,
+  required LectureHistoriquePrix lecture,
+}) => showDialog<void>(
   context: context,
   barrierDismissible: true,
   barrierColor: AppColors.voileModale,
-  builder: (_) => _ModaleHistorique(ligne: ligne),
+  builder: (_) => _ModaleHistorique(libelle: libelle, lecture: lecture),
 );
 
 /// Les mots de la vue — `lang/fr/carte_pwa.php`, `modale_historique_prix`.
@@ -66,13 +79,11 @@ abstract final class TextesHistoriquePrix {
   ///
   /// ⚠ Cette phrase disait « Serveur injoignable […] rétablissez la liaison »
   /// jusqu'au 14/09/2026. Elle est devenue fausse le jour où le poste est passé
-  /// zéro réseau : il n'y a plus de liaison à rétablir, et elle aurait envoyé
-  /// l'exploitant vérifier un routeur indéfiniment. Le motif réel — aucune
-  /// table ne trace les prix ici — vient désormais de `BoissonsApi`, et ce
-  /// texte ne sert plus que de repli si la lecture échoue autrement.
+  /// zéro réseau : il n'y a plus de liaison à rétablir. Elle ne sert plus que
+  /// de repli si la lecture de la table locale échoue.
   static const String lectureImpossible =
       'L’historique des prix n’a pas pu être lu. Ce n’est pas « aucun '
-      'changement » : l’absence de trace et une lecture en échec ne se '
+      'changement » : une lecture en échec et une liste vide ne se '
       'corrigent pas de la même façon.';
 }
 
@@ -110,13 +121,14 @@ String dateTracee(DateTime? date) {
 }
 
 class _ModaleHistorique extends ConsumerWidget {
-  const _ModaleHistorique({required this.ligne});
+  const _ModaleHistorique({required this.libelle, required this.lecture});
 
-  final LigneCarte ligne;
+  final String libelle;
+  final LectureHistoriquePrix lecture;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final historique = ref.watch(historiquePrixProvider(ligne.id));
+    final historique = lecture(ref);
 
     final Widget corps = switch (historique) {
       AsyncData(value: BarRecu(:final donnees)) when donnees.isEmpty =>
@@ -150,7 +162,7 @@ class _ModaleHistorique extends ConsumerWidget {
       cle: const Key('modale-historique-prix'),
       titre: TextesHistoriquePrix.titre,
       // `sous_titre` = `:article` (l.843).
-      sousTitre: ligne.libelle,
+      sousTitre: libelle,
       largeur: AppLayout.modaleHistoriquePrix,
       corps: corps,
       actions: [

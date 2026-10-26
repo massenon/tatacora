@@ -8,6 +8,8 @@ import 'package:tatacora_flutter/features/bar/domain/entities/trace_prix.dart';
 import 'package:tatacora_flutter/features/bar/domain/motif_indisponibilite.dart';
 import 'package:tatacora_flutter/features/pos/data/indisponibilites_carte_dao.dart';
 import 'package:tatacora_flutter/features/pos/data/catalogue_dao.dart';
+import 'package:tatacora_flutter/features/pos/data/dto/catalogue_dto.dart'
+    show BoissonDistante;
 import 'package:tatacora_flutter/features/pos/data/panier_dao.dart';
 import 'package:tatacora_flutter/features/pos/domain/entities/article_vendable.dart';
 import 'package:tatacora_flutter/features/pos/domain/entities/panier.dart';
@@ -31,11 +33,10 @@ import 'package:tatacora_flutter/features/pos/domain/entities/reference_catalogu
 ///  3. **Aucun stock n'est inventé.** Il se calcule des mouvements, et ce
 ///     poste n'en a aucun. « 0 » se lirait « rupture » sur l'écran qui sert à
 ///     commander — l'absence doit rester une absence (PA-129, PA-134).
-///  4. **Ce que le schéma ne porte pas est REFUSÉ, pas simulé.** L'historique
-///     des prix n'a ni colonne ni table ici (retrait de la carte : v31, lien au
-///     stock : v30 et `lien_stock_poste_test.dart`). Le tenir en session le
-///     ferait revenir seul au redémarrage — la famille PA-59/60/61, sur
-///     l'écran du barman.
+///  4. **L'historique des prix est TENU** (v38, 26/10/2026) : une table locale
+///     (`historique_prix_carte_local`), écrite dans la transaction du prix.
+///     (Retrait de la carte : v31, lien au stock : v30 et
+///     `lien_stock_poste_test.dart`.)
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
 
@@ -384,21 +385,81 @@ void main() {
       expect((await catalogueRelu()).single.articleId, isEmpty);
     });
 
-    test(
-      'l’historique dit que la TRACE n’existe pas, pas qu’elle est vide',
-      () async {
-        final creee = await creer(prix: '500');
-        await source.modifierPrix(creee.id, '1000');
+    test('l’historique des prix est TENU depuis la v38 : chaque changement de '
+        'prix laisse sa trace, la création et un enregistrement sans '
+        'changement n’en laissent aucune', () async {
+      base.auteurEcriture = () => (login: 'barman1', poste: 'CAISSE-1');
+      final creee = await creer(prix: '500');
 
-        final r = await source.historiquePrix(creee.id);
+      // Aucune trace à la CRÉATION (l'observateur du serveur ne naît qu'à la
+      // modification) : une liste VIDE est alors la vérité, pas un manque.
+      final vide = await source.historiquePrix(creee.id);
+      expect((vide as BarRecu<List<TracePrix>>).donnees, isEmpty);
 
-        final refus = r as BarRefuse<List<TracePrix>>;
-        // « Aucun changement de prix » serait un FAIT, et il serait faux : le
-        // prix vient précisément d'être modifié ci-dessus.
-        expect(refus.motif, isNot(contains('Aucun changement')));
-        expect(refus.motif, contains('n’existe pas'));
-      },
-    );
+      await source.modifierPrix(creee.id, '1000');
+      // Même prix : rien n'est tracé.
+      await source.modifierPrix(creee.id, '1000');
+      // Renommer ne change pas le prix.
+      await source.modifier(
+        creee.id,
+        libelle: 'Béninoise 33 cl (verre)',
+        categorie: CategorieBoisson.locale,
+      );
+
+      final r = await source.historiquePrix(creee.id);
+      final traces = (r as BarRecu<List<TracePrix>>).donnees;
+      expect(traces, hasLength(1));
+      expect(traces.single.champ, 'prix_vente');
+      expect(
+        (traces.single.ancien, traces.single.nouveau),
+        ('500.00', '1000.00'),
+      );
+      expect(traces.single.par, 'barman1');
+      expect(traces.single.date, isNotNull);
+
+      await source.modifierPrix(creee.id, '1200');
+      final deux =
+          (await source.historiquePrix(creee.id) as BarRecu<List<TracePrix>>)
+              .donnees;
+      // Du plus récent au plus ancien.
+      expect(deux.map((t) => t.nouveau), ['1200.00', '1000.00']);
+
+      // L'historique est PROPRE à l'article.
+      final autre = await creer(libelle: 'Soda', prix: '300');
+      expect(
+        (await source.historiquePrix(autre.id) as BarRecu<List<TracePrix>>)
+            .donnees,
+        isEmpty,
+      );
+    });
+
+    test('la trace est écrite dans la transaction du prix : un enfilement qui '
+        'échoue annule le prix ET la trace', () async {
+      final creee = await creer(prix: '500');
+      // Sans la file, l'enfilement lève : rien ne doit rester du changement.
+      await base.customStatement(
+        'ALTER TABLE operations_sync_local RENAME TO x',
+      );
+      await expectLater(
+        catalogue.enregistrerBoisson(
+          BoissonDistante(
+            id: creee.id,
+            articleId: null,
+            libelle: creee.libelle,
+            categorie: 'locale',
+            prixVente: 900,
+            stockDisponible: null,
+          ),
+        ),
+        throwsA(anything),
+      );
+      await base.customStatement(
+        'ALTER TABLE x RENAME TO operations_sync_local',
+      );
+
+      expect((await catalogue.boissonDuCatalogue(creee.id))!.prixVente, 500);
+      expect(await base.select(base.historiquePrixCarteLocal).get(), isEmpty);
+    });
   });
 
   /* ================================================================== */

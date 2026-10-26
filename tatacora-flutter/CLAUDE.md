@@ -241,13 +241,13 @@ lib/features/<module>/{domain,data,presentation}
 
 ## Les mouvements d'argent du poste passent leur PIÈCE (lot 6, 12/10/2026, D238–D248)
 
-`PanierDao.cloturer` (seul écrivain de `cloture`) passe la pièce `VTE` — un débit (trésorerie du mode, ou `4111` pour la note de chambre), un crédit par module (M4 `7061` / Restaurant, M5 `7011` / Bar), la TVA par module (`4432` / `4431`) — dans la même transaction ; `ReservationDao.creer` passe la pièce de l'acompte (Dr trésorerie / Cr `4191`, rien à crédit ou sans mode) ; `annulerAvecConditions` fixe taux, commission (sur le montant GLOBAL) et remboursement (plafonné à l'acompte, Dr `4191` / Cr `5711`) et écrit 8 colonnes (v19). Refus du serveur dans son ordre, rejoués par `tool/ventes/rejouer_ventes.php` et `tool/hebergement/rejouer_annulations.php`. Calculs en entiers (`DecimalBc`, `calcul_tva.dart`). Un DAO sans moteur LÈVE. Écarts du poste : mode absent refusé, prix figé à l'ajout, pas de numéro `V-`, séjour toujours sur la note de chambre, M8/M9 refusés AU SÉJOUR seulement (encaissables au comptoir depuis le 22/10/2026 : M8 `7073`, M9 `7061`, TVA `4432` — voir la section « Tourisme et location au comptoir »). **NON portés** : sorties de stock de la vente (RG-05, D240), pièces rétroactives des ventes d'avant (D246), mode démo (écrit sans pièce). La clôture de caisse DIT les ventes en espèces sans session (R2). Piège : un fichier de messages qui porte les mots d'une modale doit citer la vue (sinon le comparateur ne les voit pas), et le rendu se prouve par un test ; un commentaire d'un fichier importé peut aussi fournir un libellé par sous-chaîne (gain de mesure, jamais revendiqué).
+`PanierDao.cloturer` (seul écrivain de `cloture`) passe la pièce `VTE` — un débit (trésorerie du mode, ou `4111` pour la note de chambre), un crédit par module (M4 `7061` / Restaurant, M5 `7011` / Bar), la TVA par module (`4432` / `4431`) — dans la même transaction ; `ReservationDao.creer` passe la pièce de l'acompte (Dr trésorerie / Cr `4191`, rien à crédit ou sans mode) ; `annulerAvecConditions` fixe taux, commission (sur le montant GLOBAL) et remboursement (plafonné à l'acompte, Dr `4191` / Cr `5711`) et écrit 8 colonnes (v19). Refus du serveur dans son ordre, rejoués par `tool/ventes/rejouer_ventes.php` et `tool/hebergement/rejouer_annulations.php`. Calculs en entiers (`DecimalBc`, `calcul_tva.dart`). Un DAO sans moteur LÈVE. Écarts du poste : mode absent refusé, prix figé à l'ajout, numéro `V-` reçu du serveur seulement (v38), séjour toujours sur la note de chambre, M8/M9 refusés AU SÉJOUR seulement (encaissables au comptoir depuis le 22/10/2026 : M8 `7073`, M9 `7061`, TVA `4432` — voir la section « Tourisme et location au comptoir »). **NON portés** : sorties de stock de la vente (RG-05, D240), pièces rétroactives des ventes d'avant (D246), mode démo (écrit sans pièce). La clôture de caisse DIT les ventes en espèces sans session (R2). Piège : un fichier de messages qui porte les mots d'une modale doit citer la vue (sinon le comparateur ne les voit pas), et le rendu se prouve par un test ; un commentaire d'un fichier importé peut aussi fournir un libellé par sous-chaîne (gain de mesure, jamais revendiqué).
 
 ## Sessions de caisse LOCALES, réplique du serveur (12/10/2026, D219–D226)
 
 Seul `SessionsCaisseDao` écrit `sessions_caisse_local` ; montants en centimes. Ouverture et clôture répliquent `PosComptant` (le serveur n'a pas de service), refus dans l'ordre du serveur, messages relus par PHP (`tool/caisse/rejouer_caisse.php` rejoue le vrai composant). **Aucune pièce comptable** : le serveur n'en passe aucune. Depuis le lot 5 (D231), le panier au comptant porte `session_encaissement_id` et `especesDeLaSessionProvider` rend les espèces de la session : la clôture calcule théorique et écart comme le serveur (D221–D223 dépassés), et DIT les ventes en espèces sans session (lot 6, R2). `sessionOuverteLaPlusRecente` est appelée en production depuis le lot 5 (encaissement de facture et tableau de bord : la caisse « la plus récente tous points confondus », comme le serveur). La trésorerie de caisse de M11 est calculée depuis le lot 5 (D234). Piège : un `abort(403)` rendu par le harnais Livewire est une exception, pas un statut.
 
-## Base locale Drift — schéma **v21**, 53 tables ⚠ (titre historique : v29, 62 tables depuis le 18/10/2026) (v21 : colonne `fournisseurs_local.actif`, aucune table ; v20 : `reglements_fournisseur_local` ; v19 : huit colonnes d'annulation sur `reservations_local`, aucune table ; v18 : `paiements_facture_local` + colonne `paniers_local.session_encaissement_id` ; v17 : `sessions_caisse_local` ; v16 : deux colonnes `ecriture_id`/`ecriture_refus` sur `depenses_local`, aucune table ; v15 : six tables du moteur comptable M10 ; v14 : quatre tables du restaurant ; v11 : `parametres_systeme_local` ; v12 : sept colonnes de stock, aucune table neuve ; v13 : cinq tables d'achats)
+## Base locale Drift — schéma **v21**, 53 tables ⚠ (titre historique : **v38, 74 tables depuis le 26/10/2026**, voir « Le poste fait comme le web ») (v21 : colonne `fournisseurs_local.actif`, aucune table ; v20 : `reglements_fournisseur_local` ; v19 : huit colonnes d'annulation sur `reservations_local`, aucune table ; v18 : `paiements_facture_local` + colonne `paniers_local.session_encaissement_id` ; v17 : `sessions_caisse_local` ; v16 : deux colonnes `ecriture_id`/`ecriture_refus` sur `depenses_local`, aucune table ; v15 : six tables du moteur comptable M10 ; v14 : quatre tables du restaurant ; v11 : `parametres_systeme_local` ; v12 : sept colonnes de stock, aucune table neuve ; v13 : cinq tables d'achats)
 
 Historique des versions dans `lib/core/database/app_database.dart`, chacune avec
 sa raison : v2 fiche de réservation (`tarifNuit`, `reference`…), v3 panier,
@@ -597,8 +597,7 @@ en file est CONSERVÉ face à celui du serveur. Le droit est celui du rayon
 la modale est un vrai formulaire. **Le restaurant (plats) l'est aussi** :
 `RetraitsPlats` (même DAO), colonne « Disponible » oui/non, motif ambre sous le
 nom, cartes « Articles à la carte » / « Retirés du jour » COMPTÉES (plus de
-« — »), boutons « Rendre indispo. » / « Remettre » (droit M4). Restent refusés,
-dits : « Prix », « Historique des prix » (« Lier au stock » est porté depuis la v36, section suivante). Écart nommé : le
+« — »), boutons « Rendre indispo. » / « Remettre » (droit M4). « Prix » et « Historique des prix » sont portés depuis la v38 (« Le poste fait comme le web »), « Lier au stock » depuis la v36. Écart nommé : le
 filtre d'état « Retirés du jour » reste non servi, parce que l'API du serveur le
 refuse encore (`CarteRestaurantService::ETATS_SANS_SCHEMA`, relu par un test) ;
 le lever demande de changer le serveur ET ce test ensemble. Piège : la sonde « un SEUL auteur de la file » compte aussi
@@ -620,7 +619,7 @@ solde du point cuisine × conditionnement (`LienDirectCalcule`) ; la carte nomme
 l'article et « 24 par casier » ; « Modifier le lien » / « Délier » (droit M4).
 Serveur : `GestionnairePlats` valide et écrit le lien (sans lui `validated()` le
 jetait en silence). Descente : `AligneurCatalogue._plat` (article absent =
-attente). Reste refusé : « Prix » et « Historique des prix ». Les ventes ne
+attente). « Prix » et « Historique des prix » sont portés depuis la v38. Les ventes ne
 décrémentent toujours rien (RG-05 non portée). Preuves :
 `lier_au_stock_plat_test.dart` (mutations éprouvées : retirer l'enfilement, ou
 ignorer le lien dans le calcul, fait rougir), `migration_v36_lien_plat_test.dart`,
@@ -879,8 +878,7 @@ LEVÉS.
 - **Archivage d'un client** (`clients_local.actif`, nullable : `null`/`true` =
   actif). Seul écrivain : `ArchivageClients` (`crm/data/`), qui rejoue les
   QUATRE verrous du serveur sur les données locales (séjour : départ ≥
-  aujourd'hui, non annulé ; location : fin ≥ aujourd'hui — ÉCART : aucune colonne
-  de statut local, un contrat annulé au serveur compte encore ; circuit non
+  aujourd'hui, non annulé ; location : fin ≥ aujourd'hui, contrat NON annulé (statut local, v38) ; circuit non
   annulé à venir ; facture non soldée par `CreanceFacture.estImpayee`, jamais une
   seconde formule). Le verrou est recontrôlé DANS la transaction qui écrit. La
   règle « qui peut archiver » est `core/rbac/regle_archivage.dart`, exigée à
@@ -1448,3 +1446,40 @@ Décision du PO : tous les modules fonctionnent sur le poste, synchronisation ac
 - **Piège Riverpod** : `ref.read(fournisseurAutoDispose.future)` depuis un lecteur qui n'est pas lui-même `autoDispose` libère le `Ref` pendant l'attente (« Cannot use the Ref … after it has been disposed »). Les lecteurs (`lireDonneesEtats`, `lireSourceEtats`, `lireDonneesComptabilite`, `lireChargesDatees`) sont donc des FONCTIONS appelables hors fournisseur.
 - **Piège de banc** : sous `flutter test`, `getApplicationSupportDirectory` ne se termine jamais (horloge simulée) ; `cheminConfigurationPoste()` rend un chemin temporaire quand `FLUTTER_TEST=true`, et `poste.json` se lit en E/S synchrones.
 - **Numéro de compte** : UNE règle, `RegleNumeroCompte` (2 à 4 chiffres, `6056`), relue du serveur (`PlanComptableService::NUMERO_COMPTE_FORMAT`) par `creation_compte_hub_test`. Attention : 6056 existe déjà au plan du PO (invite, pas exemple libre).
+
+## Le poste fait comme le web : prix, annulation de contrat, auteur, N° V- (26/10/2026, schéma v38)
+
+Décision du PO : quatre manques de l'audit (`../docs/AUDIT_POSTE_AUTONOME.md`) sont portés. Schéma **v38**, 74 tables :
+une table neuve (`historique_prix_carte_local`) et six colonnes NULLABLES, migration conditionnelle
+(`PRAGMA table_info`, piège 3), curseur de descente oublié, fixture `_ajoutsParVersion[38]`,
+`tablesAjouteesEnV38`, `migration_v38_poste_comme_le_web_test.dart` sur fichier réel.
+
+- **Historique des prix** (bar ET restaurant) : la trace est un miroir de `historique_prix_carte`. Écrivains :
+  `CatalogueDao.enregistrerBoisson` et `RestaurantDao` (`_enfilerPlat`, `modifierPrix`) via
+  `HistoriquePrixCarteDao.tracer` (exige une transaction). Ce qui se trace (champs `prix_vente`,
+  `prix_corrige_main`, ordre) est la fonction pure `changementsDePrix`, CONFRONTÉE au vrai serveur
+  (`tool/carte/rejouer_historique_prix.php`, observateurs `CarteBoissonObserver`/`PlatObserver`). Le serveur
+  est l'unique auteur de la trace : le poste ne la pousse PAS ; la trace locale (`recu_du_serveur = false`)
+  est ADOPTÉE par la trace serveur équivalente à la descente (jamais doublée). Serveur : `historique_prix_carte`
+  dans `CatalogueDescendantService::COLONNES`, `par` en login, restreint aux modules lisibles.
+  Écran restaurant « Prix » (`modale_prix_plat.dart`) et « Historique des prix » : jetons `blade-refuse` levés.
+  La réinitialisation « comme neuve » vide la table (testé, mutation éprouvée).
+- **Annulation d'un contrat** : `contrats_location_local.statut` (null = actif). Écrivain unique
+  `VehiculeDao.annulerContrat` (refus aux phrases du serveur, relues par PHP) ; part en
+  `modification {statut: annule}` si le serveur détient le contrat (`GestionnaireContratsLocation::modifier`,
+  rejeu accepté, tout autre champ refusé) ; la descente ne va que vers l'avant, et une annulation locale en
+  file n'est jamais écrasée. Un contrat annulé libère RG-08 (défaut SERVEUR corrigé en chemin :
+  `STATUTS_INACTIFS`), l'archivage d'un client et celui d'un véhicule. Pas de restriction Q3 (la PWA n'en a
+  pas). KPI de la vue : calculés sur l'ensemble FILTRÉ par statut, répliqué tel quel (« 0 annulé(s) » avec le
+  filtre par défaut). Signalé, non touché : l'état M14 « Locations » du serveur liste tous les contrats.
+- **Utilisateur et poste du journal d'audit** : `operations_sync_local.auteur_login` / `poste_nom`, posés à
+  l'enfilement par `AppDatabase.auteurEcriture` (câblé sur la session dans `baseLocaleProvider`) et recopiés par
+  `renvoyer`. Poste = nom de la machine (la vue serveur montre une adresse IP : écart nommé). Avant la v38 : « — ».
+- **N° `V-` et auteur d'une vente** : `paniers_local.numero_vente` / `auteur_login`. Le poste n'invente jamais
+  un numéro (séquence du serveur) : il le pose à l'accusé du `POST /sync` (`SyncManager`,
+  `PanierDao.regulariserNumeroVente`) ou à la descente de la vente ; avant, « — ». L'auteur est le login connecté
+  à la clôture, ou le `par` du serveur. Le repli « numéro de facture » des ventes du rayon est supprimé.
+- **Pièges** : l'aligneur CONSERVE un panier dont une opération attend (un test de descente doit marquer
+  l'opération `synchronise`) ; une trace locale adoptée se prouve avec une date serveur ANTÉRIEURE, sinon le
+  filtre `recuDuServeur` ne mord pas ; les libellés d'une modale se mesurent dans les fichiers qui CITENT la vue
+  (les deux modales du bar citent aussi la vue du restaurant).

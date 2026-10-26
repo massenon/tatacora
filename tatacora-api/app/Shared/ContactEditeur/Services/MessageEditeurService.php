@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Shared\ContactEditeur\Services;
 
+use App\Shared\ContactEditeur\Jobs\EnvoyerMessageEditeurJob;
 use App\Shared\ContactEditeur\Mail\MessageEditeurMail;
 use App\Shared\ContactEditeur\Models\MessageEditeur;
 use App\Shared\Mail\Services\ConfigurationMailService;
+use App\Shared\Mail\Support\CauseEchecEmail;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -65,7 +67,18 @@ class MessageEditeurService
         });
 
         if ($this->configurationMailReelle()) {
-            $this->tenterEnvoi($message);
+            // Mis en file d'envoi (jobs) : le geste de l'utilisateur ne
+            // dépend jamais de la disponibilité du serveur SMTP. Le statut
+            // lu ci-dessous est celui du moment : `transmis` seulement si
+            // l'accusé SMTP est déjà là.
+            try {
+                EnvoyerMessageEditeurJob::dispatch($message->id);
+            } catch (Throwable $erreur) {
+                Log::warning('Mise en file d\'un message à l\'éditeur impossible', [
+                    'message_id' => $message->id,
+                    'erreur' => $erreur->getMessage(),
+                ]);
+            }
         }
 
         return $message->fresh() ?? $message;
@@ -105,6 +118,7 @@ class MessageEditeurService
 
         MessageEditeur::query()
             ->where('statut', MessageEditeur::STATUT_A_TRANSMETTRE)
+            ->where('tentatives', '<', MessageEditeur::TENTATIVES_MAX)
             ->orderBy('date_creation')
             ->limit(100)
             ->get()
@@ -119,8 +133,12 @@ class MessageEditeurService
      * Envoi par le Mailable au support (`contact_editeur.destinataires`).
      * `true` seulement si l'envoi a réellement réussi.
      */
-    private function tenterEnvoi(MessageEditeur $message): bool
+    public function tenterEnvoi(MessageEditeur $message): bool
     {
+        if ($message->estTransmis()) {
+            return true;
+        }
+
         /** @var list<string> $destinataires */
         $destinataires = config('contact_editeur.destinataires', []);
 
@@ -131,16 +149,31 @@ class MessageEditeurService
         try {
             Mail::to($destinataires)->send(new MessageEditeurMail($message));
 
-            $message->forceFill(['statut' => MessageEditeur::STATUT_TRANSMIS])->save();
+            $message->forceFill([
+                'statut' => MessageEditeur::STATUT_TRANSMIS,
+                'tentatives' => $message->tentatives + 1,
+                'derniere_erreur' => null,
+                'derniere_tentative_le' => now(),
+                'envoye_le' => now(),
+            ])->save();
 
             return true;
         } catch (Throwable $erreur) {
             // Avalé délibérément (voir l'en-tête) : l'enregistrement reste,
             // honnêtement `a_transmettre`, et la commande de rejeu le reprendra.
+            $cause = CauseEchecEmail::depuis($erreur);
+
             Log::warning('Échec de transmission d\'un message à l\'éditeur', [
                 'message_id' => $message->id,
-                'erreur' => $erreur->getMessage(),
+                'erreur' => $cause,
             ]);
+
+            // Une tentative RÉELLE : comptée, datée, expliquée.
+            $message->forceFill([
+                'tentatives' => $message->tentatives + 1,
+                'derniere_erreur' => $cause,
+                'derniere_tentative_le' => now(),
+            ])->save();
 
             return false;
         }

@@ -25,9 +25,20 @@ Future<EtatVehicules?> construireEtatCourant(WidgetRef ref) async {
       ? 'Du ${periode.debut} au ${periode.fin}'
       : 'Toutes périodes';
 
+  final statutContrats = ref.read(statutContratsProvider);
   final filtres = <String>[
     if (terme.isNotEmpty) 'recherche : $terme',
     if (categorie != null) 'catégorie : ${categorie.libelle}',
+    // Le document porte sur ce qui est AFFICHÉ, et il le DIT (PA-119) : la liste
+    // des contrats est filtrée par le statut, ce que la description de la vue
+    // (`descriptionDuFiltre`) ne mentionne pas.
+    if (onglet == OngletVehicules.contrats ||
+        onglet == OngletVehicules.planning)
+      switch (statutContrats) {
+        statutContratActif => 'statut : contrats actifs',
+        statutContratAnnule => 'statut : annulés',
+        _ => 'statut : tous',
+      },
   ];
   final mentionFiltre = filtres.isEmpty
       ? 'Aucun filtre appliqué.'
@@ -94,6 +105,15 @@ Future<EtatVehicules?> construireEtatCourant(WidgetRef ref) async {
 
       final lignes = contrats
           .where((c) => c.chevauche(periode.debut, periode.fin))
+          // Le filtre de statut de la vue, comme l'écran : le document porte sur
+          // ce qui est AFFICHÉ.
+          .where(
+            (c) => switch (statutContrats) {
+              statutContratActif => !c.annule,
+              statutContratAnnule => c.annule,
+              _ => true,
+            },
+          )
           .where((c) => _correspondContrat(c, terme))
           .toList(growable: false);
 
@@ -132,13 +152,13 @@ Future<EtatVehicules?> construireEtatCourant(WidgetRef ref) async {
               // Aucune colonne d'acompte, donc aucun reste dû.
               null,
               null,
-              // Aucune colonne de statut (PA-50).
-              null,
+              // `contrat_annule` / `contrat_actif`.
+              c.annule ? 'Annulé' : 'Actif',
             ],
         ],
         mentions: [
           mentionFiltre,
-          'Colonnes « N° », « Acompte », « Reste dû » et « État » vides : '
+          'Colonnes « N° », « Acompte » et « Reste dû » vides : '
               'ce poste ne les enregistre pas. Une case vide dit '
               '« la donnée n\'existe pas » ; un « 0 » dirait « soldé ».',
           'Colonnes « Pièce » et « Permis » vides : les deux numéros sont '

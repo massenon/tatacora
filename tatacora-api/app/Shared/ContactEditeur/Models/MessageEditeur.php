@@ -24,6 +24,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $capture_nom
  * @property string|null $capture_chemin
  * @property string $statut
+ * @property int $tentatives
+ * @property string|null $derniere_erreur
+ * @property \Illuminate\Support\Carbon|null $derniere_tentative_le
+ * @property \Illuminate\Support\Carbon|null $envoye_le
  * @property string|null $utilisateur_creation_id
  * @property \Illuminate\Support\Carbon|null $date_creation
  * @property-read User|null $auteur
@@ -44,6 +48,9 @@ class MessageEditeur extends Model
 
     public const STATUT_TRANSMIS = 'transmis';
 
+    /** Au-delà, la relance horaire s'arrête ; « Renvoyer » (poste) ou la commande reprend. */
+    public const TENTATIVES_MAX = 5;
+
     protected $fillable = [
         'id',
         'type',
@@ -59,6 +66,9 @@ class MessageEditeur extends Model
     protected function casts(): array
     {
         return [
+            'tentatives' => 'integer',
+            'derniere_tentative_le' => 'datetime',
+            'envoye_le' => 'datetime',
             'date_creation' => 'datetime',
             'date_modification' => 'datetime',
         ];

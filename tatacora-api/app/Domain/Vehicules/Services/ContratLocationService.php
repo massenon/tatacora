@@ -37,8 +37,20 @@ use RuntimeException;
  */
 class ContratLocationService
 {
-    /** `contrats_location` n'a aucune colonne `statut` — voir PA-50. */
-    private const STATUTS_INACTIFS = [];
+    /** Le seul statut qui libère le véhicule : un contrat annulé reste lisible mais ne bloque plus RG-08. */
+    public const STATUT_ANNULE = 'annule';
+
+    /**
+     * Les statuts qui ne bloquent PAS le véhicule (RG-08).
+     *
+     * ⚠ Jusqu'au 26/10/2026 cette liste était vide (« aucune colonne `statut`,
+     * PA-50 ») alors que la colonne existe depuis `add_missing_pwa_columns` et
+     * que la PWA annule des contrats : un contrat ANNULÉ bloquait encore son
+     * véhicule sur toute sa plage, pendant que l'écran disait « le véhicule
+     * redevient disponible » (`vehicules.pwa.archivage_contrat_fait`). Le poste
+     * et le serveur lisent désormais la même règle.
+     */
+    private const STATUTS_INACTIFS = [self::STATUT_ANNULE];
 
     public function __construct(
         private readonly VerificationChevauchementService $chevauchement,
@@ -71,6 +83,27 @@ class ContratLocationService
             statutsInactifs: self::STATUTS_INACTIFS,
             messageConflit: __('vehicules.chevauchement'),
         );
+    }
+
+    /**
+     * Annule le contrat — `statut = annule`, jamais un `delete()` : la pièce
+     * reste lisible, le véhicule redevient libre sur la plage (RG-08).
+     *
+     * Le SEUL chemin d'annulation : l'écran « Locations » de la PWA et la
+     * synchronisation d'un poste (`GestionnaireContratsLocation::modifier`) le
+     * partagent, de sorte que la phrase de refus est la même partout.
+     *
+     * @throws RuntimeException le contrat est déjà annulé
+     */
+    public function annuler(ContratLocation $contrat): void
+    {
+        if ($contrat->statut === self::STATUT_ANNULE) {
+            throw new RuntimeException(__('vehicules.pwa.verrou_contrat_annule'));
+        }
+
+        // `forceFill` : `statut` est hors de `$fillable` — ce service est le
+        // seul chemin qui le pose, comme `ReferentielClientService::archiver`.
+        $contrat->forceFill(['statut' => self::STATUT_ANNULE])->save();
     }
 
     /**

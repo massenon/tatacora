@@ -103,6 +103,10 @@ class OperationsSyncDao extends DatabaseAccessor<AppDatabase> {
 
     final maintenant = _maintenant();
     final uuidOperation = _uuid.v4();
+    // QUI écrit et depuis quel poste (v38) : relu à l'instant de l'écriture,
+    // pour le Journal d'Audit. `null` si personne n'est connu (démonstration,
+    // banc sans session) : l'écran dit « — », il n'invente aucun compte.
+    final auteur = attachedDatabase.auteurEcriture();
     await into(_operations).insert(
       OperationsSyncLocalCompanion.insert(
         uuidOperation: uuidOperation,
@@ -113,6 +117,8 @@ class OperationsSyncDao extends DatabaseAccessor<AppDatabase> {
         horodatageClient: (horodatage ?? maintenant).toUtc().toIso8601String(),
         dateMetier: Value(dateMetier),
         creeLe: maintenant,
+        auteurLogin: Value(auteur.login),
+        posteNom: Value(auteur.poste),
       ),
     );
     return uuidOperation;
@@ -409,6 +415,10 @@ class OperationsSyncDao extends DatabaseAccessor<AppDatabase> {
           horodatageClient: ancienne.horodatageClient,
           dateMetier: Value(ancienne.dateMetier),
           creeLe: maintenant,
+          // La remplaçante est la MÊME écriture, renvoyée : elle garde son
+          // auteur et son poste (celui qui « Renvoie » n'a pas saisi le document).
+          auteurLogin: Value(ancienne.auteurLogin),
+          posteNom: Value(ancienne.posteNom),
         ),
       );
       await into(attachedDatabase.etatSynchronisationLocal).insert(
@@ -672,5 +682,7 @@ class OperationsSyncDao extends DatabaseAccessor<AppDatabase> {
     idServeur: l.idServeur,
     creeLe: l.creeLe,
     synchroniseLe: l.synchroniseLe,
+    auteurLogin: l.auteurLogin,
+    posteNom: l.posteNom,
   );
 }

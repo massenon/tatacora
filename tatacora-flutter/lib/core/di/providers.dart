@@ -27,10 +27,17 @@ import '../../features/auth/data/session_repository_local.dart';
 import '../../features/auth/domain/session.dart';
 import '../../features/auth/domain/session_repository.dart';
 import '../database/app_database.dart';
+import '../database/auteur_ecriture.dart';
 import '../rbac/garde_acces.dart';
 
 final baseLocaleProvider = Provider<AppDatabase>((ref) {
   final base = AppDatabase();
+  // QUI écrit, depuis quel poste (v38) : le compte CONNECTÉ à l'instant de
+  // l'écriture — relu à chaque fois, jamais capturé ici (une session qui change
+  // entre deux gestes ne doit pas écrire sous l'identité de la précédente,
+  // RG-15) — et le nom de la machine. Voir `auteur_ecriture.dart`.
+  base.auteurEcriture = () =>
+      (login: ref.read(sessionProvider)?.login, poste: nomDuPosteLocal());
   ref.onDispose(base.close);
   return base;
 });

@@ -437,6 +437,20 @@ class PanierDao extends DatabaseAccessor<AppDatabase> with _$PanierDaoMixin {
     return (await parId(panierId))!;
   }
 
+  /// Le NUMÉRO `V-AAAA-NNNNN` attribué par le serveur à la vente de ce panier
+  /// (v38, 26/10/2026) — pose `paniers_local.numero_vente`. Le SEUL écrivain de
+  /// cette colonne (avec l'insertion d'une vente descendue d'un autre poste,
+  /// `AligneurDocuments._vente`). Appelé à l'accusé de l'envoi (`SyncManager`) et
+  /// à la descente de la vente (réponse perdue) : idempotent. Le poste n'invente
+  /// jamais ce numéro — c'est une séquence continue du serveur.
+  Future<void> regulariserNumeroVente(String panierId, String numero) async {
+    final propre = numero.trim();
+    if (propre.isEmpty) return;
+    await (update(paniersLocal)..where((p) => p.id.equals(panierId))).write(
+      PaniersLocalCompanion(numeroVente: Value(propre)),
+    );
+  }
+
   /// Clôture le panier, **fige** son montant et **passe la pièce comptable de
   /// la vente** — dans la MÊME transaction (règle du PO du 31/08/2026 : tout
   /// mouvement d'argent produit son écriture, et une pièce refusée n'écrit
@@ -643,6 +657,9 @@ class PanierDao extends DatabaseAccessor<AppDatabase> with _$PanierDaoMixin {
           // NET encaissé (remise déduite), arrondi au franc.
           montantCloture: Value(netFrancs),
           sessionEncaissementId: Value(sessionId),
+          // QUI a encaissé (v38) : le compte connecté, comme `ventes.utilisateur_id`
+          // du serveur. `null` sans session (banc, démonstration) : « — ».
+          auteurLogin: Value(attachedDatabase.auteurEcriture().login),
         ),
       );
 
@@ -1038,6 +1055,8 @@ class PanierDao extends DatabaseAccessor<AppDatabase> with _$PanierDaoMixin {
       montantCloture: entete.montantCloture,
       motifAnnulation: entete.motifAnnulation,
       sessionEncaissementId: entete.sessionEncaissementId,
+      numeroVente: entete.numeroVente,
+      auteurLogin: entete.auteurLogin,
       statutTransmission: StatutTransmissionPanier.depuisCode(
         entete.statutTransmission,
       ),

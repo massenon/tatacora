@@ -19,8 +19,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/fichiers/enregistrement_export.dart';
 import '../../../core/impression/export_etat_a4.dart';
-import '../../facturation/presentation/providers_facturation.dart'
-    show factureDaoProvider;
 import '../../pos/presentation/providers_pos.dart';
 import '../data/boissons_api.dart';
 import '../domain/entities/boisson.dart';
@@ -32,12 +30,10 @@ import '../impression/etat_catalogue_boissons.dart';
 /// `cartes_boisson_local` — jamais sur un second écrivain.
 final boissonsApiProvider = Provider<BoissonsApi>((ref) {
   final paniers = ref.watch(panierDaoProvider);
-  final factures = ref.watch(factureDaoProvider);
   return BoissonsApi(
     ref.watch(catalogueDaoProvider),
     // L'onglet « Ventes du Bar » : les paniers du poste, calculés ici.
-    sourceVentes: () async =>
-        (await paniers.paniers(), await factures.numerosFactureParPanier()),
+    sourceVentes: paniers.paniers,
   );
 });
 

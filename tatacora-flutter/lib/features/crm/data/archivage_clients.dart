@@ -7,6 +7,8 @@ import '../../facturation/domain/creances.dart';
 import '../../synchronisation/data/operations_sync_dao.dart';
 import '../../synchronisation/domain/charges_synchronisation.dart';
 import '../../synchronisation/domain/operation_sync.dart';
+import '../../vehicules/domain/entities/contrat_location.dart'
+    show statutContratAnnule;
 import '../domain/messages_archivage_client.dart';
 import 'client_dao.dart';
 
@@ -18,10 +20,11 @@ import 'client_dao.dart';
 /// verrous sur les données de CE poste, aux phrases du serveur :
 ///
 ///  1. un séjour non annulé dont le départ est aujourd'hui ou plus tard ;
-///  2. une location de véhicule dont la fin est aujourd'hui ou plus tard
-///     (ÉCART nommé : `contrats_location_local` n'a aucune colonne de statut,
-///     donc un contrat annulé au serveur compte encore ici — le poste est plus
-///     strict, jamais plus permissif) ;
+///  2. une location de véhicule NON ANNULÉE dont la fin est aujourd'hui ou plus
+///     tard (`statut != annule` ; l'écart nommé d'avant la v38 — « aucune colonne
+///     de statut, un contrat annulé au serveur compte encore » — est LEVÉ :
+///     le poste lit `contrats_location_local.statut`, qui descend avec le
+///     contrat, et un contrat sans statut est actif) ;
 ///  3. une réservation de circuit non annulée, aujourd'hui ou plus tard ;
 ///  4. une facture non soldée — par le prédicat UNIQUE de `creances.dart`
 ///     (`CreanceFacture.estImpayee`), jamais une seconde formule de créance.
@@ -74,7 +77,7 @@ class ArchivageClients {
         (await (_db.select(
               _db.contratsLocationLocal,
             )..where((c) => c.clientId.equals(clientId))).get())
-            .where((c) => aVenir(c.dateFin))
+            .where((c) => c.statut != statutContratAnnule && aVenir(c.dateFin))
             .length;
     if (locations > 0) {
       motifs.add(MessagesArchivageClient.verrouLocation(locations));

@@ -587,7 +587,13 @@ extension _AlignementDocuments on AligneurCatalogue {
   /// déjà présente n'est pas réécrite (cycle de vie : lot F6).
   Future<IssueAlignement> _vente(String id, ElementCatalogue e) async {
     final d = e.donnees;
+    final numero = AligneurCatalogue._texte(d['numero']);
     if (await _existe(_db.paniersLocal, id)) {
+      // Le numéro `V-` du serveur (v38) : celui de CETTE vente, rapporté même
+      // si la réponse de l'envoi s'est perdue.
+      if (numero != null) {
+        await PanierDao(_db).regulariserNumeroVente(id, numero);
+      }
       // Lot F6 : une vente ANNULÉE au serveur (à la PWA) — celle de CE poste
       // contre-passe sa pièce ici (le DAO du comptoir s'en charge) ; celle
       // d'un autre poste, sans pièce locale, suit en statut.
@@ -730,6 +736,11 @@ extension _AlignementDocuments on AligneurCatalogue {
               AligneurCatalogue._texte(d['motif_annulation']),
             ),
             sessionEncaissementId: Value(session),
+            // Le numéro `V-` et l'auteur de la vente, tels que le serveur les
+            // rend (v38) : `null` si le serveur n'en dit rien — « — », jamais
+            // un numéro ou un compte inventé.
+            numeroVente: Value(numero),
+            auteurLogin: Value(AligneurCatalogue._texte(d['par'])),
           ),
         );
     for (var i = 0; i < converties.length; i++) {
@@ -918,12 +929,29 @@ extension _AlignementDocuments on AligneurCatalogue {
 
   /// Un contrat de location d'un autre poste (ou de la PWA) : il occupe le
   /// véhicule ici aussi (RG-08 du poste lit ces plages). Détenu : rien n'est
-  /// réécrit. Les numéros de pièce ne descendent pas.
+  /// réécrit, SAUF son annulation (v38, 26/10/2026) : un contrat annulé au
+  /// serveur — par un autre poste, par la PWA, ou par ce poste dont
+  /// l'annulation est revenue — l'est ici aussi. Vers l'avant seulement :
+  /// `annule` ne redevient jamais `actif`, comme au serveur (aucun geste ne
+  /// rouvre un contrat). Les numéros de pièce et de permis ne descendent pas.
   Future<IssueAlignement> _contratLocation(
     String id,
     ElementCatalogue e,
   ) async {
-    if (await _existe(_db.contratsLocationLocal, id)) return const Aligne();
+    final annuleAuServeur =
+        AligneurCatalogue._texte(e.donnees['statut']) == statutContratAnnule;
+    if (await _existe(_db.contratsLocationLocal, id)) {
+      if (annuleAuServeur) {
+        await (_db.update(
+          _db.contratsLocationLocal,
+        )..where((c) => c.id.equals(id))).write(
+          const ContratsLocationLocalCompanion(
+            statut: Value(statutContratAnnule),
+          ),
+        );
+      }
+      return const Aligne();
+    }
     final d = e.donnees;
     final vehiculeServeur = AligneurCatalogue._texte(d['vehicule_id']);
     final clientServeur = AligneurCatalogue._texte(d['client_id']);
@@ -970,6 +998,9 @@ extension _AlignementDocuments on AligneurCatalogue {
             dateDebut: debut,
             dateFin: fin,
             statutSync: const Value('synchronise'),
+            statut: Value(
+              annuleAuServeur ? statutContratAnnule : statutContratActif,
+            ),
           ),
         );
     await _retenirOrigine(e, id);

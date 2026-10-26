@@ -142,8 +142,11 @@ void main() {
     // 61 → 62 le 18/10/2026 : `occupations_tables_local` (v29, lot F6 —
     // l'occupation des tables par les autres postes ; auteur :
     // `AligneurCatalogue`).
-    expect(base.allTables.length, 73);
-    expect(base.schemaVersion, 37);
+    //
+    // 73 → 74 le 26/10/2026 : `historique_prix_carte_local` (v38 — l'historique
+    // des prix de la carte ; auteur : `HistoriquePrixCarteDao`).
+    expect(base.allTables.length, 74);
+    expect(base.schemaVersion, 38);
     expect(
       base.allTables.map((t) => t.actualTableName).toSet().containsAll({
         'origines_documents_local',

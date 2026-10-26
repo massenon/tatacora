@@ -78,6 +78,7 @@ return [
         'immobilisations' => 'Immobilisation',
         'canaux_reservation' => 'Canal de réservation',
         'inventaires' => 'Inventaire',
+        'historique_prix_carte' => 'Changement de prix de la carte',
         'avoirs' => 'Avoir',
         'services' => 'Service',
         'centres_cout' => 'Centre de coût',

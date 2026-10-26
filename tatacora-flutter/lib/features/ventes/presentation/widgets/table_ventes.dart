@@ -16,10 +16,11 @@ import 'dialogue_detail_vente.dart';
 /// Ils étaient dans un panneau affiché sous le tableau ; il est retiré de
 /// l'affichage (Phase 2, 08/10/2026) et les refus restent écrits ici.
 ///
-///  - **Le numéro « V-2026-00016 »** : aucune séquence de numéros de vente
-///    n'existe sur ce poste. La colonne N° porte la référence réelle de la
-///    vente, abrégée ; en fabriquer un serait pire que de ne pas en avoir
-///    (deux postes hors ligne attribueraient les mêmes numéros).
+///  - **Le numéro « V-2026-00016 »** est celui du SERVEUR (séquence continue) :
+///    le poste ne l'invente pas (deux postes hors ligne attribueraient les mêmes
+///    numéros). Depuis la v38 (26/10/2026) il est posé à l'accusé de l'envoi ou à
+///    la descente de la vente, et la colonne N° le montre ; tant qu'il manque,
+///    elle porte la référence réelle de la vente, abrégée.
 ///  - Le badge « stock ✕ » EST rendu depuis le 21/10/2026 : il lit le
 ///    catalogue d'AUJOURD'HUI (`CatalogueDao.referencesSansLienDeStock`), là où
 ///    le serveur l'écrit à la vente (`stock_non_impacte`) — écart nommé.
@@ -146,7 +147,7 @@ List<Widget> _cellules(BuildContext context, Vente v) {
   final activites = v.activites.map((m) => m.libelle).join(', ');
 
   return [
-    CelluleTableau(v.referenceLocale, monospace: true),
+    CelluleTableau(v.numero ?? v.referenceLocale, monospace: true),
     CelluleTableau(formaterDate(v.date), secondaire: true),
     _Poste(vente: v),
     // Un tiret quand il n'y a rien, jamais une case vide : « — » dit que la

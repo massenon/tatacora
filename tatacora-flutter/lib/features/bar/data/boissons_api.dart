@@ -3,7 +3,9 @@ import 'package:uuid/uuid.dart';
 import '../../../core/donnees_absentes.dart';
 import '../../pos/data/catalogue_dao.dart';
 import '../../pos/data/dto/catalogue_dto.dart';
+import '../../pos/data/historique_prix_carte_dao.dart';
 import '../../pos/data/indisponibilites_carte_dao.dart';
+import '../../pos/domain/changement_prix_carte.dart';
 import '../../pos/domain/entities/panier.dart';
 import '../../pos/domain/entities/reference_catalogue.dart';
 import '../../ventes/domain/lignes_vente_du_rayon.dart';
@@ -151,10 +153,9 @@ final class SaisieBoisson {
 /// `articles_local` les articles du poste : « Nouvelle boisson » et « Lier au
 /// stock » / « Modifier le lien » écrivent l'article ET son conditionnement par
 /// [CatalogueDao], dans la file d'envoi (création ou modification). Reste
-/// refusé, parce que ni colonne ni table ne le porte : **l'historique des
-/// prix** et la marque **prix corrigé à la main**. Ces manques sont
-/// SIGNALÉS, jamais comblés par une colonne créée au passage : le schéma Drift
-/// est versionné.
+/// refusé, parce que ni colonne ni table ne le porte : la marque **prix
+/// corrigé à la main** d'une boisson. L'**historique des prix** est tenu depuis
+/// la v38 (`historique_prix_carte_local`) : [historiquePrix] le lit.
 ///
 /// ## Aucune suppression, et ce n'est pas un oubli
 ///
@@ -174,9 +175,10 @@ final class BoissonsApi {
 
   final CatalogueDao _catalogue;
 
-  /// Les paniers du poste et le numéro de facture de chacun — la source des
-  /// ventes du rayon. `null` : la donnée est dite absente.
-  final Future<(List<Panier>, Map<String, String>)> Function()? _sourceVentes;
+  /// Les paniers du poste — la source des ventes du rayon (leur numéro `V-` et
+  /// leur auteur sont des colonnes du panier, v38). `null` : la donnée est dite
+  /// absente.
+  final Future<List<Panier>> Function()? _sourceVentes;
 
   /// Seul écrivain des retraits de la carte du jour (v31, 21/10/2026).
   final IndisponibilitesCarteDao _retraits;
@@ -226,21 +228,22 @@ final class BoissonsApi {
     return b == null ? _introuvable() : BarRecu(_versBoisson(b));
   }
 
-  /// L'historique des prix — **aucune trace n'existe sur ce poste**.
+  /// L'historique des prix d'UNE boisson, du plus récent au plus ancien — la
+  /// table locale `historique_prix_carte_local` (v38), alimentée par les
+  /// changements de prix faits ici ([CatalogueDao.enregistrerBoisson], dans la
+  /// transaction du prix) et par la descente (les traces des autres postes et
+  /// de la PWA).
   ///
-  /// Elle était écrite au serveur par `CarteBoissonObserver`, dans une table
-  /// `historiques_prix_carte` qui n'a jamais été répliquée. Rendre une liste
-  /// vide dirait « aucun changement de prix », ce qui est un FAIT — et un fait
-  /// faux dès la première modification faite ici.
-  Future<ResultatBar<List<TracePrix>>> historiquePrix(
-    String id,
-  ) async => const BarRefuse(
-    motif:
-        'L’historique des prix n’est pas tenu sur ce poste : aucune table '
-        'ne trace les changements du catalogue local. Ce n’est pas « aucun '
-        'changement » — la trace n’existe pas, elle n’est pas vide. Le prix '
-        'affiché sur la carte est le prix en cours, et lui seul.',
-  );
+  /// Une liste VIDE dit désormais la vérité : le poste a tracé chaque changement
+  /// qu'il a fait et reçu ceux du serveur — « aucun changement de prix » est un
+  /// fait vérifié, plus l'absence d'une table. (Un changement fait au serveur
+  /// et pas encore descendu n'y figure pas : le prochain passage le rapporte.)
+  Future<ResultatBar<List<TracePrix>>> historiquePrix(String id) async =>
+      BarRecu(
+        await HistoriquePrixCarteDao(
+          _catalogue.attachedDatabase,
+        ).deLArticle(SourceCarte.boisson, id),
+      );
 
   /* ================================================================== */
   /* Écritures                                                           */
@@ -596,17 +599,9 @@ final class BoissonsApi {
   Future<ResultatBar<PageVentesBar>> ventes(FiltreVentesBar filtre) async {
     final source = _sourceVentes;
     if (source == null) return BarRefuse(motif: donneeNonDisponible(_ventes));
-    final (paniers, numeros) = await source();
+    final paniers = await source();
     return BarRecu(
-      pageDuRayon(
-        lignesDuRayon(
-          paniers,
-          ModuleVendable.m5Bar,
-          filtre,
-          numeroFactureParPanier: numeros,
-        ),
-        filtre,
-      ),
+      pageDuRayon(lignesDuRayon(paniers, ModuleVendable.m5Bar, filtre), filtre),
     );
   }
 
@@ -616,13 +611,8 @@ final class BoissonsApi {
   }) async {
     final source = _sourceVentes;
     if (source == null) return BarRefuse(motif: donneeNonDisponible(_ventes));
-    final (paniers, numeros) = await source();
-    final lignes = lignesDuRayon(
-      paniers,
-      ModuleVendable.m5Bar,
-      filtre,
-      numeroFactureParPanier: numeros,
-    );
+    final paniers = await source();
+    final lignes = lignesDuRayon(paniers, ModuleVendable.m5Bar, filtre);
     return BarRecu((lignes, totauxDuRayon(lignes)));
   }
 

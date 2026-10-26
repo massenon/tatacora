@@ -115,7 +115,23 @@ const tablesAjouteesEnV35 = <String>{
 /// La table que la v37 AJOUTE (journal de réception du poste, 26/10/2026).
 const tablesAjouteesEnV37 = <String>{'journal_reception_local'};
 
+/// La table que la v38 AJOUTE (historique des prix de la carte, 26/10/2026).
+const tablesAjouteesEnV38 = <String>{'historique_prix_carte_local'};
+
 const _ajoutsParVersion = <int, List<String>>{
+  // La v38 (26/10/2026, « le poste fait ce que le web fait ») ajoute UNE table
+  // neuve et SIX colonnes nullables, ni indexees ni referencees : retour
+  // arriere symetrique (les colonnes d'une table avant la table elle-meme n'a
+  // pas lieu d'etre ici, aucune de ces tables n'est retiree par la v38).
+  38: <String>[
+    'DROP TABLE historique_prix_carte_local',
+    'ALTER TABLE contrats_location_local DROP COLUMN statut',
+    'ALTER TABLE operations_sync_local DROP COLUMN auteur_login',
+    'ALTER TABLE operations_sync_local DROP COLUMN poste_nom',
+    'ALTER TABLE paniers_local DROP COLUMN numero_vente',
+    'ALTER TABLE paniers_local DROP COLUMN auteur_login',
+  ],
+
   // La v37 (journal de reception, 26/10/2026) ajoute UNE table neuve, sans
   // index ni cle etrangere : retour arriere symetrique.
   37: <String>['DROP TABLE journal_reception_local'],
