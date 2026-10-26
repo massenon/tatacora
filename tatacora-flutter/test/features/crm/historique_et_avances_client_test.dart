@@ -16,9 +16,9 @@ import '../facturation/support/outils_encaissement.dart';
 /// l'encaissement : la modale « Historique d'un client », son « Imprimer PDF »,
 /// le bouton « Détail » du suivi des dettes, et le tableau des avances.
 ///
-/// Les relances, elles, restent refusées : ces cas protègent aussi que la modale
-/// DIT qu'elle ne les porte pas — « Aucun mouvement » sans cette mention se
-/// lirait comme « jamais relancé ».
+/// Les relances y figurent depuis le 21/10/2026 (leurs cas : `relances_clients_test.dart`) :
+/// la mention « les relances ne sont pas enregistrées sur ce poste » n'existe plus,
+/// et les cas ci-dessous protègent qu'elle ne revient pas.
 void main() {
   late AppDatabase db;
   late List<ReleveClient> releves;
@@ -95,8 +95,8 @@ void main() {
       expect(find.text('Imprimer PDF'), findsOneWidget);
     });
 
-    testWidgets('un client sans mouvement le DIT, et dit que les relances ne '
-        'sont pas portées', (tester) async {
+    testWidgets('un client sans mouvement le DIT, sans mention de relances '
+        'non portées', (tester) async {
       final c = await creerClient(db);
       await monter(tester);
 
@@ -109,12 +109,9 @@ void main() {
             .data,
         'Aucun mouvement pour ce client.',
       );
-      expect(
-        tester
-            .widget<Text>(find.byKey(const Key('historique-client-mention')))
-            .data,
-        ReleveClient.mentionRelances,
-      );
+      // Le poste détient les relances : plus aucune mention d'omission.
+      expect(find.byKey(const Key('historique-client-mention')), findsNothing);
+      expect(find.textContaining('ne sont pas enregistrées'), findsNothing);
     });
 
     testWidgets('l’historique d’un client ne montre PAS les encaissements d’un '
@@ -208,8 +205,7 @@ void main() {
 
   /* ================================================================== */
   group('Le relevé de compte client (document remis au client)', () {
-    test('trois colonnes, des montants en FCFA, une mention sur les '
-        'relances', () {
+    test('trois colonnes, des montants en FCFA, les relances en lignes', () {
       final releve = ReleveClient(
         clientNom: 'KORA Jean',
         editeLe: DateTime(2026, 10, 21),
@@ -229,10 +225,6 @@ void main() {
         '56 000 FCFA',
       ]);
       expect(releve.estVide, isFalse);
-      expect(
-        ReleveClient.mentionRelances,
-        contains('Les relances ne sont pas'),
-      );
     });
 
     test('le PDF se compose, vide comme plein', () async {

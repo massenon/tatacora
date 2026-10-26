@@ -133,32 +133,32 @@ void main() {
       },
     );
 
-    testWidgets(
-      'l’onglet relances est CLIQUABLE et DIT que la donnée n’a pas de '
-      'source',
-      (tester) async {
-        await monter(tester);
+    testWidgets('l’onglet relances est CLIQUABLE et rend ses DEUX tableaux, '
+        'chacun avec son état vide', (tester) async {
+      await monter(tester);
 
-        await tester.tap(find.byKey(const Key('clients-onglet-relances')));
-        await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('clients-onglet-relances')));
+      await tester.pumpAndSettle();
 
-        expect(
-          find.byKey(const Key('clients-relances-tableau')),
-          findsOneWidget,
-        );
-        // Le corps dit que la donnée n'a pas de source ici : « Aucune créance »
-        // affirmerait que personne ne doit rien.
-        expect(
-          find.textContaining('ne figurent pas sur ce poste'),
-          findsWidgets,
-        );
-        expect(find.textContaining('Aucune créance en cours'), findsNothing);
+      expect(find.byKey(const Key('clients-relances-tableau')), findsOneWidget);
+      expect(
+        find.byKey(const Key('clients-historique-relances-tableau')),
+        findsOneWidget,
+      );
+      // Un registre sans débiteur : « Aucun client à relancer » est VRAI ici,
+      // parce que la source (les créances et les relances) est lue.
+      expect(find.byKey(const Key('clients-relances-vide')), findsOneWidget);
+      expect(
+        find.byKey(const Key('clients-historique-relances-vide')),
+        findsOneWidget,
+      );
+      expect(find.text('Clients à relancer (0)'), findsOneWidget);
+      expect(find.text('Historique des relances (0)'), findsOneWidget);
 
-        await tester.tap(find.byKey(const Key('clients-onglet-clients')));
-        await tester.pumpAndSettle();
-        expect(find.byKey(const Key('clients-registre-vide')), findsOneWidget);
-      },
-    );
+      await tester.tap(find.byKey(const Key('clients-onglet-clients')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('clients-registre-vide')), findsOneWidget);
+    });
 
     testWidgets('l’onglet « Historique & avances » rend ses DEUX tableaux, '
         'chacun avec son état vide', (tester) async {
@@ -176,16 +176,14 @@ void main() {
       );
     });
 
-    testWidgets('la carte sans source rend « — », jamais « 0 »', (
-      tester,
-    ) async {
+    testWidgets('la carte « Clients à relancer » COMPTE les débiteurs à '
+        'relancer (« 0 » est vrai : la source est lue)', (tester) async {
       await monter(tester);
 
-      // « Clients à relancer » : aucun historique de relances (M12 est vide).
       expect(
         find.descendant(
           of: find.byKey(const Key('clients-kpi-4')),
-          matching: find.text('—'),
+          matching: find.text('0'),
         ),
         findsOneWidget,
       );

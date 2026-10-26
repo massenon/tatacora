@@ -17,6 +17,8 @@ import 'package:tatacora_flutter/features/comptabilite/domain/montant_comptable.
 import 'package:tatacora_flutter/features/comptabilite/domain/refus_comptable.dart';
 import 'package:tatacora_flutter/features/depenses/domain/categories_depense.dart';
 import 'package:tatacora_flutter/features/parametres/data/parametres_dao.dart';
+import 'package:tatacora_flutter/features/hebergement/domain/entities/fiche_reservation.dart'
+    show TypeRemise;
 import 'package:tatacora_flutter/features/pos/data/piece_de_la_vente.dart';
 import 'package:tatacora_flutter/features/pos/domain/entities/article_vendable.dart';
 import 'package:tatacora_flutter/features/pos/domain/entities/mode_reglement.dart';
@@ -108,6 +110,7 @@ Map<String, Object?> _vente(
   List<Map<String, Object?>> lignes, {
   bool session = true,
   List<String> retirer = const [],
+  Map<String, Object?>? remise,
 }) => {
   'op': 'vente',
   'canal': canal,
@@ -115,6 +118,13 @@ Map<String, Object?> _vente(
   'session': session,
   'lignes': lignes,
   if (retirer.isNotEmpty) 'retirer': retirer,
+  if (remise != null) 'remise': remise,
+};
+
+/// La remise du panier (21/10/2026) : le TYPE et la valeur SAISIE.
+Map<String, Object?> _remise(String type, String valeur) => {
+  'type': type,
+  'valeur': valeur,
 };
 
 Map<String, Object?> _parametre(String cle, String? valeur) => {
@@ -146,6 +156,67 @@ final _scenario = <Map<String, Object?>>[
   // Un mode inconnu n'est vu qu'APRÈS la caisse.
   _vente('comptoir', 'cheque', [_ligne('biere', 1)], session: false),
   _vente('comptoir', 'cheque', [_ligne('biere', 1)]),
+  {'op': 'compter'},
+
+  // --- La REMISE du panier (21/10/2026) : le net, la pièce, les refus -------
+  // Un pourcentage entier : 800 F sur 8 000 F, répartis au prorata (M4 puis M5).
+  _vente('comptoir', 'especes', [
+    _ligne('biere', 3),
+    _ligne('riz', 2),
+  ], remise: _remise('pourcentage', '10')),
+  // Un montant en francs.
+  _vente('comptoir', 'mobile_money', [
+    _ligne('cocktail', 2),
+  ], remise: _remise('montant', '500')),
+  // Une remise qui laisse des CENTIMES (12,5 % de 4 333 F = 541,62 F, tronqué
+  // comme bcmath) : seule la pièce les garde.
+  _vente('comptoir', 'carte', [
+    _ligne('brochette', 1),
+    _ligne('biere', 1),
+  ], remise: _remise('pourcentage', '12.5')),
+  // L'arrondi de proration : le DERNIER module prend l'écart.
+  _vente('comptoir', 'especes', [
+    _ligne('brochette', 3),
+    _ligne('riz', 1),
+    _ligne('biere', 2),
+    _ligne('cocktail', 1),
+  ], remise: _remise('pourcentage', '33.33')),
+  // 100 % : le net est nul, la pièce aussi.
+  _vente('comptoir', 'especes', [
+    _ligne('biere', 1),
+  ], remise: _remise('pourcentage', '100')),
+  // Une note de chambre remisée : 4111 au débit, du net.
+  _vente('sejour', 'note_chambre', [
+    _ligne('biere', 5),
+    _ligne('brochette', 3),
+  ], remise: _remise('montant', '1000')),
+  _vente('service', 'virement', [
+    _ligne('riz', 4),
+  ], remise: _remise('pourcentage', '7.5')),
+  // « Aucune » avec une valeur : la valeur retombe à zéro.
+  _vente('comptoir', 'especes', [
+    _ligne('riz', 1),
+  ], remise: _remise('aucune', '999')),
+  // Les refus : valeur illisible, négative, pourcentage hors bornes, montant
+  // au-delà du total (à la saisie, puis à l'encaissement du service).
+  _vente('comptoir', 'especes', [
+    _ligne('biere', 1),
+  ], remise: _remise('pourcentage', 'abc')),
+  _vente('comptoir', 'especes', [
+    _ligne('biere', 1),
+  ], remise: _remise('montant', '-5')),
+  _vente('comptoir', 'especes', [
+    _ligne('biere', 1),
+  ], remise: _remise('pourcentage', '100.01')),
+  _vente('comptoir', 'especes', [
+    _ligne('biere', 1),
+  ], remise: _remise('montant', '1000.01')),
+  _vente('comptoir', 'especes', [
+    _ligne('biere', 1),
+  ], remise: _remise('pourcentage', '')),
+  _vente('service', 'especes', [
+    _ligne('biere', 1),
+  ], remise: _remise('montant', '5000')),
   {'op': 'compter'},
 
   // --- Le service : module non encaissable, article retiré, mode ------------
@@ -187,6 +258,15 @@ final _scenario = <Map<String, Object?>>[
   _vente('comptoir', 'especes', [_ligne('biere', 3), _ligne('riz', 2)]),
   _parametre('convention_prix', 'ttc'),
   _vente('comptoir', 'especes', [_ligne('biere', 3), _ligne('riz', 2)]),
+  // La remise ET la TVA : la TVA se lit sur le net de chaque module.
+  _vente('comptoir', 'especes', [
+    _ligne('biere', 3),
+    _ligne('riz', 2),
+  ], remise: _remise('pourcentage', '10')),
+  _vente('sejour', 'note_chambre', [
+    _ligne('brochette', 3),
+    _ligne('cocktail', 1),
+  ], remise: _remise('montant', '777')),
   // TVA sur UN SEUL module : la ligne de l'autre compte n'existe pas.
   _vente('comptoir', 'mobile_money', [_ligne('cocktail', 3)]),
   _vente('comptoir', 'carte', [_ligne('riz', 4)]),
@@ -485,6 +565,77 @@ void main() {
     }
     // Non vide : sinon l'égalité ci-dessus comparerait des vides.
     expect(l['comptes_produit'], isNotEmpty);
+  });
+
+  test('LA REMISE (21/10/2026) : le net, ses centimes, ses refus — chaque '
+      'valeur lue du serveur, jamais recopiée', () {
+    final l = (serveur.first as Map)['libelles'] as Map<dynamic, dynamic>;
+    // Les phrases du serveur, relues par PHP, sont celles du poste.
+    expect(
+      l['remise_valeur_invalide'],
+      MessagesVentes.remiseValeurInvalide,
+      reason: 'phrase du serveur',
+    );
+    expect(
+      l['remise_pourcentage_hors_bornes'],
+      MessagesVentes.remisePourcentageHorsBornes,
+    );
+    expect(
+      l['remise_superieure_au_total'],
+      MessagesVentes.remiseSuperieureAuTotal,
+    );
+    expect(l['remise_ligne_facture'], MessagesVentes.remiseLigneFacture);
+    expect(l['remise_appliquee'], 'Sur un total de :brut');
+
+    // Les opérations à remise, serveur et poste, résultat par résultat.
+    final indices = [
+      for (var i = 0; i < _scenario.length; i++)
+        if (_scenario[i]['remise'] != null) i,
+    ];
+    expect(indices.length, greaterThanOrEqualTo(15));
+    String montant(int i) => (serveur[i] as Map)['montant'] as String;
+    String refus(int i) => (serveur[i] as Map)['refus'] as String;
+
+    // 10 % de 3 000 + 5 000 = 800 : le serveur encaisse 7 200.
+    expect(montant(indices[0]), '7200.00');
+    expect(montant(indices[1]), '4500.00'); // 5 000 − 500
+    // 12,5 % de 4 333 F : 541,62 F tronqués par bcmath, net 3 791,38 F.
+    expect(montant(indices[2]), '3791.38');
+    // 100 % : le net est nul, et « une pièce à zéro n'enregistre rien » — le
+    // moteur comptable refuse, des deux côtés, avec la même phrase.
+    expect(refus(indices[4]), contains('Une pièce à zéro'));
+    // « Aucune » : la valeur retombe à zéro, le total est celui des lignes.
+    expect(montant(indices[7]), '2500.00');
+    // Les refus, à la saisie : dans l'ordre du scénario.
+    expect(refus(indices[8]), MessagesVentes.remiseValeurInvalide);
+    expect(refus(indices[9]), MessagesVentes.remiseValeurInvalide);
+    expect(refus(indices[10]), MessagesVentes.remisePourcentageHorsBornes);
+    expect(refus(indices[11]), MessagesVentes.remiseSuperieureAuTotal);
+    expect(refus(indices[12]), MessagesVentes.remiseValeurInvalide);
+    expect(refus(indices[13]), MessagesVentes.remiseSuperieureAuTotal);
+
+    // Le net est l'argent encaissé : la pièce porte le net, au centime.
+    for (final i in indices.take(8)) {
+      if ((serveur[i] as Map).containsKey('refus')) continue;
+      final piece = ((serveur[i] as Map)['piece'] as List)
+          .cast<Map<String, dynamic>>();
+      var debit = 0;
+      var credit = 0;
+      for (final ligne in piece) {
+        debit += centimesDepuisChaine(ligne['debit'] as String);
+        credit += centimesDepuisChaine(ligne['credit'] as String);
+      }
+      expect(debit, credit, reason: 'pièce équilibrée : ${_scenario[i]}');
+      expect(
+        debit,
+        centimesDepuisChaine(montant(i)),
+        reason: 'la pièce passe sur le NET : ${_scenario[i]}',
+      );
+    }
+    // Et le poste a joué les MÊMES opérations (déjà comparées champ à champ).
+    for (final i in indices) {
+      expect(local[i], equals(_sansFinRetiree(serveur[i])), reason: '$i');
+    }
   });
 
   test('la TVA du poste est celle de bcmath, centime pour centime', () async {
@@ -813,6 +964,24 @@ Future<List<Map<String, Object?>>> _jouerLocalement(
           );
         }
 
+        // La remise, posée comme l'opérateur la pose (`appliquerRemise`) : un
+        // refus de la formule est le résultat de l'opération, le panier est
+        // abandonné.
+        final remise = op['remise'] as Map<String, Object?>?;
+        if (remise != null) {
+          try {
+            await dao.appliquerRemise(
+              panier.id,
+              TypeRemise.values.firstWhere((t) => t.name == remise['type']),
+              remise['valeur'] as String,
+            );
+          } on RefusVente catch (e) {
+            resultats.add({'refus': e.message});
+            await dao.annuler(panier.id, 'essai');
+            continue;
+          }
+        }
+
         try {
           final cloture = await dao.cloturer(
             panier.id,
@@ -827,9 +996,20 @@ Future<List<Map<String, Object?>>> _jouerLocalement(
               await decrireLigne(e),
           ]..sort((a, b) => cle(a).compareTo(cle(b)));
           final mode = ModeReglement.parCode(cloture.modePaiement!);
+          // Le NET exact est celui de la PIÈCE (le débit) ; `montantCloture`
+          // en est l'arrondi au franc (le poste compte en francs entiers).
+          final debits = piece.fold<int>(
+            0,
+            (t, l) => t + centimesDepuisChaine(l['debit']! as String),
+          );
+          expect(
+            cloture.montantCloture,
+            (debits + 50) ~/ 100,
+            reason: 'montantCloture = net arrondi au franc : ${op['lignes']}',
+          );
           resultats.add({
             'ok': true,
-            'montant': chaineDepuisCentimes(cloture.montantCloture! * 100),
+            'montant': chaineDepuisCentimes(debits),
             'mode': mode.code,
             'encaisse': mode.encaisse,
             'session': cloture.sessionEncaissementId != null,

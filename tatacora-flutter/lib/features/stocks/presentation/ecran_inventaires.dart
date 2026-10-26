@@ -1373,7 +1373,8 @@ class _LigneCycle extends ConsumerWidget {
     switch (r) {
       case StocksOk(:final valeur):
         ref.read(inventaireEnCoursProvider.notifier).ouvrir(valeur.inventaire);
-        ScaffoldMessenger.of(context).showSnackBar(
+        _annoncer(
+          context,
           SnackBar(
             content: Text(
               MessagesStock.inventaireOuvert(valeur.aCompter),
@@ -1382,7 +1383,8 @@ class _LigneCycle extends ConsumerWidget {
           ),
         );
       case StocksRefuse(:final motif):
-        ScaffoldMessenger.of(context).showSnackBar(
+        _annoncer(
+          context,
           SnackBar(
             backgroundColor: AppColors.erreur,
             content: Text(motif, key: const Key('inventaire-refus')),
@@ -1447,6 +1449,15 @@ class _LigneCycle extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Annonce un résultat : le DERNIER message remplace celui d'avant. Une file de
+/// `SnackBar` montrerait « Inventaire ouvert » quatre secondes de plus après la
+/// clôture — un message périmé qui se lit comme le résultat du geste.
+void _annoncer(BuildContext context, SnackBar message) {
+  ScaffoldMessenger.of(context)
+    ..clearSnackBars()
+    ..showSnackBar(message);
 }
 
 /// `AAAA-MM-JJ` -> `JJ/MM/AAAA` (`format('d/m/Y')`) ; une chaîne qui n'a pas
@@ -1595,7 +1606,8 @@ Future<void> _exporterFeuille(
   if (format == null || !context.mounted) return;
 
   if (etat.vide) {
-    ScaffoldMessenger.of(context).showSnackBar(
+    _annoncer(
+      context,
       const SnackBar(
         content: Text(
           EtatInventaire.refusVide,
@@ -1648,7 +1660,8 @@ class _EnteteInventaire extends ConsumerWidget {
           ..invalidate(etatStockProvider)
           ..invalidate(inventairesClosProvider)
           ..invalidate(dernierInventaireParPointProvider);
-        ScaffoldMessenger.of(context).showSnackBar(
+        _annoncer(
+          context,
           SnackBar(
             content: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1671,7 +1684,8 @@ class _EnteteInventaire extends ConsumerWidget {
           ),
         );
       case StocksRefuse(:final motif):
-        ScaffoldMessenger.of(context).showSnackBar(
+        _annoncer(
+          context,
           SnackBar(
             backgroundColor: AppColors.erreur,
             content: Text(motif, key: const Key('inventaire-refus')),
@@ -1803,7 +1817,8 @@ class _LigneFeuilleVue extends ConsumerWidget {
     );
     if (fige == null || !context.mounted) return;
     ref.read(inventaireEnCoursProvider.notifier).compter(ligne.articleId, fige);
-    ScaffoldMessenger.of(context).showSnackBar(
+    _annoncer(
+      context,
       SnackBar(
         content: Text(
           MessagesStock.comptageEnregistre(ligne.libelle),

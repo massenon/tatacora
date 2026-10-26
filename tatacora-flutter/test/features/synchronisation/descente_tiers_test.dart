@@ -98,6 +98,25 @@ void main() {
   );
 
   group('ce que le poste A a enregistré, le poste B le voit', () {
+    test('21/10/2026 : le canal arrive AVANT la réservation, qui le cite par '
+        'son NOM — l’identifiant LOCAL du canal est écrit', () async {
+      final elements = [
+        element('canaux_reservation', 'srv-wa', {'nom': 'WhatsApp'}),
+        ...parcEtSejour(),
+      ];
+      final bilan = await descendre(elements);
+      expect((bilan.appliques, bilan.refuses), (5, 0));
+      final canal = (await ligne('canaux_reservation_local', 'srv-wa'))!;
+      expect(canal['nom'], 'WhatsApp');
+      final r = (await ligne('reservations_local', idReservation))!;
+      expect(r['canal'], 'srv-wa');
+      // La fiche relit le libellé de la TABLE.
+      expect(
+        (await ReservationDao(b.db).parId(idReservation))!.canal!.libelle,
+        'WhatsApp',
+      );
+    });
+
     test('le client et la réservation sont écrits, et la chambre n’est plus '
         'libre pour RG-01 ; rien ne part dans la file', () async {
       final bilan = await descendre(parcEtSejour());
@@ -291,7 +310,8 @@ void main() {
 
   group('clients', () {
     test(
-      'un client archivé au serveur reste proposé, et le bilan le compte',
+      'un client archivé au serveur est ARCHIVÉ ici (21/10/2026) : plus '
+      '« proposé faute d’archive locale »',
       () async {
         final bilan = await descendre([
           element('clients', 'cl-2', {
@@ -300,8 +320,19 @@ void main() {
             'type_client': 'agence',
           }, actif: false),
         ]);
-        expect((bilan.appliques, bilan.archivesNonPortees), (1, 1));
-        expect(await ligne('clients_local', 'cl-2'), isNotNull);
+        expect((bilan.appliques, bilan.archivesNonPortees), (1, 0));
+        final l = (await ligne('clients_local', 'cl-2'))!;
+        expect(l['actif'], 0, reason: 'archivé, pas effacé');
+
+        // Restauré au serveur : restauré ici.
+        await descendre([
+          element('clients', 'cl-2', {
+            'nom': 'Ancien',
+            'telephone': '97000002',
+            'type_client': 'agence',
+          }),
+        ]);
+        expect((await ligne('clients_local', 'cl-2'))!['actif'], 1);
       },
     );
 

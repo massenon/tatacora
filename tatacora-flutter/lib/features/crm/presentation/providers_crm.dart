@@ -166,8 +166,13 @@ final exporterReleveClientProvider =
 /* Les relances (EF-M3-03)                                                */
 /* ====================================================================== */
 
+/// L'horloge est celle des créances (`horlogeCreancesProvider`) : la date d'une
+/// relance et l'ancienneté d'une dette se lisent sur la MÊME horloge.
 final relancesClientsDaoProvider = Provider<RelancesClientsDao>(
-  (ref) => RelancesClientsDao(ref.watch(baseLocaleProvider)),
+  (ref) => RelancesClientsDao(
+    ref.watch(baseLocaleProvider),
+    maintenant: ref.watch(horlogeCreancesProvider),
+  ),
 );
 
 /// Toutes les relances, SANS plafond : la dernière relance de chaque client en
@@ -251,6 +256,7 @@ final archivageClientsProvider = Provider<ArchivageClients>(
   (ref) => ArchivageClients(
     ref.watch(baseLocaleProvider),
     creances: () => lireCreances(ref.read),
+    maintenant: ref.watch(horlogeCreancesProvider),
   ),
 );
 

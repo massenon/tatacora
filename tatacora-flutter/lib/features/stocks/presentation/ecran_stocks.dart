@@ -910,12 +910,14 @@ class _CarteTableauState extends ConsumerState<_CarteTableau> {
   }
 
   void _dire(String texte, {required Key cle, bool erreur = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor: erreur ? AppColors.erreur : null,
-        content: Text(texte, key: cle),
-      ),
-    );
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        SnackBar(
+          backgroundColor: erreur ? AppColors.erreur : null,
+          content: Text(texte, key: cle),
+        ),
+      );
   }
 
   /// `Stocks::confirmerArchivageArticle` puis `archiverArticles` : une ligne
@@ -968,21 +970,23 @@ class _CarteTableauState extends ConsumerState<_CarteTableau> {
             ? MessagesStock.archivesSucces(valeur.archives)
             : null;
         if (valeur.refus != null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              key: const Key('stocks-archivage-refus'),
-              backgroundColor: AppColors.erreur,
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (succes != null)
-                    Text(succes, key: const Key('stocks-archivage-succes')),
-                  Text(valeur.refus!),
-                ],
+          ScaffoldMessenger.of(context)
+            ..clearSnackBars()
+            ..showSnackBar(
+              SnackBar(
+                key: const Key('stocks-archivage-refus'),
+                backgroundColor: AppColors.erreur,
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (succes != null)
+                      Text(succes, key: const Key('stocks-archivage-succes')),
+                    Text(valeur.refus!),
+                  ],
+                ),
               ),
-            ),
-          );
+            );
         } else if (succes != null) {
           _dire(succes, cle: const Key('stocks-archivage-succes'));
         }

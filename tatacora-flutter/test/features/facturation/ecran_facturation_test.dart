@@ -950,27 +950,33 @@ void main() {
     });
 
     testWidgets(
-      '⚠ un avoir PARTIEL est refusé et nommé — il ne partirait jamais',
+      'un avoir PARTIEL est ÉMIS : la facture reste émise, l\'avoir est une '
+      'pièce à lui',
       (tester) async {
-        // La vue accepte un avoir partiel ; le serveur ne reçoit du poste que
-        // l'annulation du TTC entier. Écrire le partiel ici ferait diverger le
-        // reste dû du poste de celui du serveur, sans qu'on le voie.
-        await ouvrirAvoir(tester);
+        // `emettreAvoir($facture, $montant, $motif)` accepte tout montant jusqu'au
+        // TTC ; depuis le 21/10/2026 le poste l'écrit (et l'envoie au serveur).
+        final f = await ouvrirAvoir(tester);
 
         await saisir(tester, montant: '500', motif: 'Geste commercial');
 
         expect(
-          tester
-              .widget<Text>(
-                find.byKey(const Key('facturation-avoir-erreur-montant')),
-              )
-              .data,
-          contains('l\'avoir partiel n\'est pas encore transmissible'),
+          find.byKey(const Key('facturation-avoir-erreur-montant')),
+          findsNothing,
         );
+        expect(find.byKey(const Key('facturation-modale-avoir')), findsNothing);
+        final registre = await depotFacture.pieces();
+        expect(registre, hasLength(2));
+        // La facture d'origine est INCHANGÉE (RG-03) : ni annulée, ni modifiée.
+        final origine = (await depotFacture.parId(f.id))!;
+        expect(origine.statut, StatutPiece.emise);
+        expect(origine.montantTotal, 2000);
+        final avoir = registre.singleWhere((p) => p.estAvoir);
+        expect(avoir.avoirDe, f.numero);
+        expect(avoir.montantTotal, -500);
+        expect(find.textContaining('Avoir de 500 FCFA'), findsOneWidget);
         expect(
-          await depotFacture.pieces(),
-          hasLength(1),
-          reason: 'rien n\'est écrit',
+          find.textContaining('émis sur la facture ${f.numero}'),
+          findsOneWidget,
         );
       },
     );

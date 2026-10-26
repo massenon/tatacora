@@ -14,6 +14,8 @@ import '../../comptabilite/domain/entities/comptabilite.dart'
     show StatutExercice;
 import '../../facturation/data/facture_dao.dart';
 import '../../hebergement/data/canaux_reservation_dao.dart';
+import '../../hebergement/domain/entities/fiche_reservation.dart'
+    show CanalReservation;
 import '../../notifications/data/notifications_dao.dart';
 import '../../parametres/data/parametres_depot_local.dart';
 import '../../transverse/data/roles_dao.dart';
@@ -1220,6 +1222,19 @@ class AligneurCatalogue {
     final canalLocal = nomCanal == null
         ? null
         : await CanauxReservationDao(_db).parNom(nomCanal);
+    // Le canal pas encore descendu (ou hors flux pour ce compte) : un canal du
+    // jeu initial se lit encore par son code `can-…`, qu'une lecture des canaux
+    // remplacera par l'identifiant de la table (`CanauxReservationDao.tous`).
+    final canalEcrit =
+        canalLocal?.id ??
+        (nomCanal == null
+            ? null
+            : CanalReservation.jeuInitial
+                  .where(
+                    (c) => c.libelle.toLowerCase() == nomCanal.toLowerCase(),
+                  )
+                  .firstOrNull
+                  ?.code);
     await _db
         .into(t)
         .insert(
@@ -1239,7 +1254,7 @@ class AligneurCatalogue {
             // un nom que ce poste ne connaît pas reste sans canal.
             // 21/10/2026 : par le NOM, relu de la table des canaux (descendue
             // AVANT les réservations) — insensible à la casse.
-            canal: Value(canalLocal?.id),
+            canal: Value(canalEcrit),
             remiseType: Value(remiseType),
             remiseValeur: Value(
               remiseType == 'aucune' ? null : remiseCentiemes / 100,

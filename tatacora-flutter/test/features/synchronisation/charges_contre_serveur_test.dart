@@ -134,6 +134,10 @@ void main() {
       'creation roles',
       'modification roles',
       'creation immobilisations',
+      'creation canaux_reservation',
+      'modification canaux_reservation',
+      'modification canaux_reservation',
+      'creation ventes',
     ]);
     expect(resultats, hasLength(operations.length));
   });
@@ -256,6 +260,37 @@ void main() {
       ('Toyota Land Cruiser Prado', '12000000.00', 5, '231'),
     );
     expect('${ecrit['date_mise_service']}', startsWith('2026-03-20'));
+  });
+
+  test('canaux de réservation (21/10/2026) : le canal naît sous l’UUID du '
+      'poste par CanalReservationService, se renomme par son ancien nom, se '
+      'désactive', () {
+    for (final type in ['creation', 'modification']) {
+      final r = resultatDe('canaux_reservation', type, s.canal);
+      expect(r['statut'], 'synchronise', reason: '$r');
+    }
+    final ecrit = serveur('canaux_reservation', s.canal);
+    expect((ecrit['nom'], '${ecrit['actif']}'), ('Agence Sahel', '0'));
+    expect(ecrit['id'], s.canal);
+  });
+
+  test('remise du panier (21/10/2026) : le serveur dérive le MÊME net, '
+      'encaisse 2 970 F et passe sa pièce dessus', () {
+    final charge =
+        operations.singleWhere(
+              (o) => o['entite_id'] == s.venteRemise,
+            )['payload']
+            as Map;
+    expect(
+      (charge['remise_type'], charge['remise_valeur']),
+      ('pourcentage', '10.00'),
+    );
+    // Le total annoncé est le NET (3 300 − 330) : le serveur le confronte.
+    expect(charge['montant_cloture'], 2970);
+    final r = resultatDe('ventes', 'creation', s.venteRemise);
+    expect(r['statut'], 'synchronise', reason: '$r');
+    expect(r['montant_total'], '2970.00');
+    expect(serveur('ventes', s.venteRemise)['montant_total'], '2970.00');
   });
 
   test('règlement fournisseur (audit) : écrit par le service, à la date du '

@@ -17,6 +17,7 @@ import 'package:tatacora_flutter/features/facturation/data/paiements_facture_dao
 import 'package:tatacora_flutter/features/facturation/domain/entities/piece_facturation.dart';
 import 'package:tatacora_flutter/features/facturation/domain/repositories/facture_repository.dart';
 import 'package:tatacora_flutter/features/depenses/domain/entities/depense.dart';
+import 'package:tatacora_flutter/features/hebergement/data/canaux_reservation_dao.dart';
 import 'package:tatacora_flutter/features/hebergement/data/parc_dao.dart';
 import 'package:tatacora_flutter/features/hebergement/data/reservation_dao.dart';
 import 'package:tatacora_flutter/features/hebergement/data/reservation_repository_local.dart';
@@ -101,6 +102,8 @@ final class ScenarioFile {
   late String perte;
   late String modele;
   late String immobilisation;
+  late String canal;
+  late String venteRemise;
 }
 
 /// Une journée complète du poste, PAR SES VRAIS ÉCRIVAINS — chacun dépose son
@@ -646,6 +649,43 @@ Future<ScenarioFile> jouerJourneeComplete(AppDatabase db) async {
     dureeAnnees: 5,
     dateMiseService: '2026-03-20',
     compteImmobilisation: '231',
+  )).id;
+
+  // 21/10/2026 : un canal de réservation AJOUTÉ, RENOMMÉ puis DÉSACTIVÉ
+  // (Paramètres › Canaux de réservation) — trois gestes, trois opérations.
+  final canaux = CanauxReservationDao(db);
+  s.canal = (await canaux.ajouter('Agence du Sahel')).code;
+  await canaux.renommer(s.canal, 'Agence Sahel');
+  await canaux.basculer(s.canal);
+
+  // 21/10/2026 : une vente au comptoir AVEC remise (10 % de 3 300 F) dans la
+  // caisse rouverte le matin du départ — le net (2 970 F) est ce qui s'encaisse,
+  // la pièce passe sur lui, et la vente part avec le type et la valeur.
+  final paniersRemise = panierDaoSur(
+    db,
+    horloge: matin.add(const Duration(minutes: 30)),
+  );
+  var remise = await paniersRemise.ouvrir(
+    typeVente: TypeVente.comptant,
+    pointVente: 'Bar',
+  );
+  remise = await paniersRemise.ajouterLigne(
+    remise.id,
+    ArticleVendable(
+      reference: ReferenceCatalogue(
+        module: ModuleVendable.m5Bar,
+        code: s.boisson,
+      ),
+      libelle: 'Bière F1 65cl',
+      prix: 1100,
+    ),
+    quantite: 3,
+  );
+  await paniersRemise.appliquerRemise(remise.id, TypeRemise.pourcentage, '10');
+  s.venteRemise = (await paniersRemise.cloturer(
+    remise.id,
+    modePaiement: 'especes',
+    auteurId: auteurEssai,
   )).id;
 
   return s;
