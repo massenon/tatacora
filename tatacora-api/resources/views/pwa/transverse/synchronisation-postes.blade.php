@@ -27,9 +27,9 @@
         {{-- Onglets : même style partout (`Onglets`). --}}
         @if ($peutVoirJournaux)
           <div id="onglets-synchronisation" class="mb-4 flex flex-wrap gap-2">
-            @foreach (['postes' => 'onglet_postes', 'reception' => 'onglet_reception', 'envoi' => 'onglet_envoi'] as $cleOnglet => $libelleOnglet)
+            @foreach (['postes' => 'synchronisation_journal.ecran.onglet_postes', 'reception' => 'synchronisation_journal.ecran.onglet_reception', 'envoi' => 'synchronisation_journal.ecran.onglet_envoi'] as $cleOnglet => $libelleOnglet)
               <button type="button" id="onglet-{{ $cleOnglet }}" wire:click="changerOnglet('{{ $cleOnglet }}')"
-                      class="{{ \App\Pwa\Support\Onglets::classes($ongletActif === $cleOnglet) }}">{{ __('synchronisation_journal.ecran.'.$libelleOnglet) }}</button>
+                      class="{{ \App\Pwa\Support\Onglets::classes($ongletActif === $cleOnglet) }}">{{ __($libelleOnglet) }}</button>
             @endforeach
           </div>
         @endif

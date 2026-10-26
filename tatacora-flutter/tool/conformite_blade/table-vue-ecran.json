@@ -98,6 +98,7 @@
       "features/auth/presentation/ecran_demarrage.dart"
     ],
     "depenses/depenses": [
+      "core/navigation/traces_titres.dart",
       "features/depenses/presentation/ecran_depenses.dart",
       "features/depenses/presentation/widgets/barre_filtres_depenses.dart",
       "features/depenses/presentation/widgets/modale_depense.dart",
@@ -203,6 +204,7 @@
       "features/pos/presentation/widgets/modale_cloture_sejour.dart"
     ],
     "pos/historique-ventes": [
+      "core/navigation/traces_titres.dart",
       "core/theme/app_spacing.dart",
       "core/theme/app_text_styles.dart",
       "features/ventes/domain/entities/vente.dart",
@@ -278,6 +280,7 @@
       "features/tourisme/domain/entities/circuit.dart",
       "features/tourisme/presentation/ecran_tourisme.dart",
       "features/tourisme/presentation/widgets/barre_filtres_tourisme.dart",
+      "features/tourisme/presentation/widgets/modale_ajout_guide.dart",
       "features/tourisme/presentation/widgets/modale_annulation.dart",
       "features/tourisme/presentation/widgets/modale_guide.dart",
       "features/tourisme/presentation/widgets/modale_prestation.dart",

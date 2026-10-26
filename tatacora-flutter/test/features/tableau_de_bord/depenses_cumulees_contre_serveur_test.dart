@@ -139,12 +139,12 @@ void main() {
     for (final (i, f) in demandes.indexed) {
       expect(
         depensesCumuleesCentimes(charges, f),
-        c(resultats[i]['courant']['depenses_cumulees'] as String),
+        c((resultats[i]['courant'] as Map)['depenses_cumulees'] as String),
         reason: 'courant, demande $i',
       );
       expect(
         depensesCumuleesCentimes(charges, f.precedente),
-        c(resultats[i]['avant']['depenses_cumulees'] as String),
+        c((resultats[i]['avant'] as Map)['depenses_cumulees'] as String),
         reason: 'précédent, demande $i',
       );
     }

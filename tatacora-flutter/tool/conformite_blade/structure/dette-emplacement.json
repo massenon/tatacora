@@ -17,7 +17,7 @@
   },
   "pos/comptant": {
     "blade": 43,
-    "ordonnes": 11,
+    "ordonnes": 13,
     "ongletsNonCliquables": 0
   },
   "pos/heberges": {
@@ -97,12 +97,12 @@
   },
   "bar/carte": {
     "blade": 63,
-    "ordonnes": 44,
+    "ordonnes": 47,
     "ongletsNonCliquables": 0
   },
   "restaurant/carte": {
     "blade": 84,
-    "ordonnes": 38,
+    "ordonnes": 41,
     "ongletsNonCliquables": 0
   },
   "etats/studio": {
@@ -117,7 +117,7 @@
   },
   "livewire/accueil": {
     "blade": 301,
-    "ordonnes": 139,
+    "ordonnes": 142,
     "ongletsNonCliquables": 0
   },
   "comptabilite/hub": {

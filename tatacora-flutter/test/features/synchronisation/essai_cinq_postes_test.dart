@@ -254,7 +254,7 @@ void main() {
       );
       final gardes = await p.db
           .customSelect(
-            "SELECT cle FROM etat_synchronisation_local "
+            'SELECT cle FROM etat_synchronisation_local '
             "WHERE cle LIKE 'element_differe:%'",
           )
           .get();
