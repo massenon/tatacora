@@ -87,13 +87,14 @@ Future<void> ouvrirModaleExercice(
 }
 
 /// Le cadre commun : titre + filet, corps défilant, pied « justify-end gap-2 ».
-class _CadreModale extends StatelessWidget {
-  const _CadreModale({
+class CadreModaleComptabilite extends StatelessWidget {
+  const CadreModaleComptabilite({
     required this.cle,
     required this.largeur,
     required this.titre,
     required this.corps,
     required this.pied,
+    super.key,
   });
 
   final Key cle;
@@ -163,7 +164,7 @@ class _CadreModale extends StatelessWidget {
 }
 
 /// Le refus, en rouge, au-dessus du formulaire (`@error('compte')`).
-Widget _refus(Key cle, String message) => Padding(
+Widget refusModaleComptabilite(Key cle, String message) => Padding(
   padding: const EdgeInsets.only(bottom: AppSpacing.md),
   child: EncadreTransverse(
     key: cle,
@@ -185,8 +186,13 @@ Widget _refus(Key cle, String message) => Padding(
 );
 
 /// `block text-[13px] font-semibold text-slate-700 mb-1.5` + l'astérisque.
-class _Champ extends StatelessWidget {
-  const _Champ({required this.libelle, required this.child, this.aide});
+class ChampModaleComptabilite extends StatelessWidget {
+  const ChampModaleComptabilite({
+    required this.libelle,
+    required this.child,
+    this.aide,
+    super.key,
+  });
 
   final String libelle;
   final Widget child;
@@ -223,7 +229,7 @@ class _Champ extends StatelessWidget {
   );
 }
 
-InputDecoration _decoration({String? invite}) {
+InputDecoration decorationModaleComptabilite({String? invite}) {
   OutlineInputBorder bord(Color couleur) => OutlineInputBorder(
     borderRadius: BorderRadius.circular(AppRadius.roundedMd),
     borderSide: BorderSide(color: couleur),
@@ -317,17 +323,18 @@ class _ModaleCompteState extends ConsumerState<_ModaleCompte> {
       ('charge', TextesModalesHubComptabilite.natureCharge),
       ('produit', TextesModalesHubComptabilite.natureProduit),
     ];
-    return _CadreModale(
+    return CadreModaleComptabilite(
       cle: const Key('modale-compte'),
       largeur: AppLayout.modaleCompte,
       titre: TextesModalesHubComptabilite.compteTitre,
       corps: [
-        if (_erreur != null) _refus(const Key('modale-compte-refus'), _erreur!),
+        if (_erreur != null)
+          refusModaleComptabilite(const Key('modale-compte-refus'), _erreur!),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: _Champ(
+              child: ChampModaleComptabilite(
                 libelle: TextesModalesHubComptabilite.champNumero,
                 child: TextField(
                   key: const Key('modale-compte-numero'),
@@ -339,7 +346,7 @@ class _ModaleCompteState extends ConsumerState<_ModaleCompte> {
                   style: valeur.copyWith(
                     fontFamily: AppTextStyles.policeMonospace,
                   ),
-                  decoration: _decoration(
+                  decoration: decorationModaleComptabilite(
                     invite: TextesModalesHubComptabilite.champNumeroInvite,
                   ),
                 ),
@@ -348,14 +355,14 @@ class _ModaleCompteState extends ConsumerState<_ModaleCompte> {
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               flex: 2,
-              child: _Champ(
+              child: ChampModaleComptabilite(
                 libelle: TextesModalesHubComptabilite.champIntitule,
                 child: TextField(
                   key: const Key('modale-compte-intitule'),
                   controller: _intitule,
                   enabled: !_envoi,
                   style: valeur,
-                  decoration: _decoration(
+                  decoration: decorationModaleComptabilite(
                     invite: TextesModalesHubComptabilite.champIntituleInvite,
                   ),
                 ),
@@ -364,7 +371,7 @@ class _ModaleCompteState extends ConsumerState<_ModaleCompte> {
           ],
         ),
         const SizedBox(height: AppSpacing.md),
-        _Champ(
+        ChampModaleComptabilite(
           libelle: TextesModalesHubComptabilite.champNature,
           aide: TextesModalesHubComptabilite.champNatureAide,
           child: DropdownButtonFormField<String>(
@@ -373,7 +380,7 @@ class _ModaleCompteState extends ConsumerState<_ModaleCompte> {
             isExpanded: true,
             isDense: true,
             style: valeur,
-            decoration: _decoration(),
+            decoration: decorationModaleComptabilite(),
             hint: Text(TextesModalesHubComptabilite.choisir, style: valeur),
             items: [
               for (final (cle, libelle) in natures)
@@ -471,13 +478,14 @@ class _ModaleExerciceState extends ConsumerState<_ModaleExercice> {
   }
 
   @override
-  Widget build(BuildContext context) => _CadreModale(
+  Widget build(BuildContext context) => CadreModaleComptabilite(
     cle: const Key('modale-exercice'),
     largeur: AppLayout.modaleExercice,
     titre: TextesModalesHubComptabilite.exerciceTitre,
     corps: [
-      if (_erreur != null) _refus(const Key('modale-exercice-refus'), _erreur!),
-      _Champ(
+      if (_erreur != null)
+        refusModaleComptabilite(const Key('modale-exercice-refus'), _erreur!),
+      ChampModaleComptabilite(
         libelle: TextesModalesHubComptabilite.exerciceAnnee,
         child: TextField(
           key: const Key('modale-exercice-annee'),
@@ -487,7 +495,7 @@ class _ModaleExerciceState extends ConsumerState<_ModaleExercice> {
           keyboardType: TextInputType.number,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           style: styleTransverse(Tailles.t13),
-          decoration: _decoration(),
+          decoration: decorationModaleComptabilite(),
         ),
       ),
     ],

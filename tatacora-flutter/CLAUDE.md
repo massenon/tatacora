@@ -707,6 +707,29 @@ n'est enfilé ; sonde `ecrivains_ecritures_serveur_test.dart`).
   sans qu'un pixel change ; reformulé plutôt que figé. Une classe `CompteDuPlan`
   existait déjà (entité) : celle du report s'appelle `CompteDeReport`.
 
+## Immobilisations sur le poste (21/10/2026, schéma v35)
+
+Onglet « Immobilisations » du hub comptable porté de bout en bout (refus
+`immo_modale_titre` et `modale-titre-calcule` levés). Table
+`immobilisations_local`, seul écrivain de saisie `ImmobilisationsDao`
+(`comptabilite/data/`) : `creer` rejoue `ImmobilisationService::creer` (libellé,
+valeur > 0, durée obligatoire sans défaut, date, compte connu du plan) **aux
+phrases du serveur** et enfile une `creation` dans la même transaction (le
+serveur : `GestionnaireImmobilisations`, M10, création seule, jamais
+« financière »). Le **code** `IMMO-AAAA-NNNNN` est provisoire sur le poste ; celui
+du serveur revient à l'accusé (`SyncManager` → `regulariserCode`) ou à la
+descente. Le **plan est CALCULÉ, jamais stocké** (`domain/immobilisations.dart`,
+centimes, `BigInt` pour les dix décimales de `bcdiv`) et **confronté au vrai
+service** (`plan_amortissement_contre_serveur_test.dart`,
+`tool/comptabilite/rejouer_immobilisations.php` : prorata en mois entamés, dernière
+annuité = solde, annuité nulle sautée, valeurs > 64 bits). Descente
+(`AligneurDocuments._immobilisation`) : insère si absent, ne réécrit qu'un code,
+n'enfile jamais ; fraction de centime, durée absente ou date illisible refusées.
+Écarts nommés : date saisie `JJ/MM/AAAA` (calendrier réel exigé, le serveur ne
+vérifie que la forme) ; aucune écriture de dotation, ici comme au serveur ;
+la phrase « … · N ans · linéaire · mise en service … » de la modale « Plan »
+reste comptée absente par le comparateur (l'interpolation sépare « · » de « ans »).
+
 ## Exploitation : cron et vérifications (19/10/2026)
 
 `docs/LISTE_DES_CRON_JOBS_CPANEL.md` (une ligne cron `schedule:run`, test

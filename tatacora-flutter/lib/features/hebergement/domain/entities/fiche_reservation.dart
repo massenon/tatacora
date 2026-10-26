@@ -67,34 +67,103 @@ enum ModePaiementReservation {
 
 /// « Canal de réservation ».
 ///
-/// ⚠ **Le maître le lit d'un référentiel ADMINISTRABLE** (Paramètres >
-/// Canaux), pas d'une liste écrite en dur : *« deux listes écrites à la main
-/// auraient fini par diverger, et l'analyse par canal serait devenue fausse
-/// sans que rien ne le signale »*.
+/// Le maître le lit d'un référentiel ADMINISTRABLE (Paramètres › Canaux de
+/// réservation), pas d'une liste écrite en dur : *« deux listes écrites à la
+/// main auraient fini par diverger, et l'analyse par canal serait devenue
+/// fausse sans que rien ne le signale »*. Depuis le 21/10/2026 (« tout au
+/// complet ») ce poste fait de même : `canaux_reservation_local`, écrite par
+/// `CanauxReservationDao`, synchronisée (création, renommage, activation), lue
+/// par la fiche de réservation, la réservation rapide et le filtre de
+/// l'écran Réservations.
 ///
-/// Ce client n'a **aucun écran Paramètres**, donc aucun endroit où administrer
-/// la liste. Ce qui est porté ici est donc le **jeu initial** du maître
-/// (`CANAUX_INITIAUX`), et la limite est nommée plutôt que dissimulée : le
-/// jour où l'écran Paramètres existera, cette énumération devra céder la place
-/// à une table, exactement comme les tables de salle l'ont fait (PA-108).
-enum CanalReservation {
-  physique('can-physique', 'Physique'),
-  telephone('can-telephone', 'Téléphone'),
-  whatsapp('can-whatsapp', 'WhatsApp'),
-  booking('can-booking', 'Booking.com'),
-  siteWeb('can-site', 'Site web'),
-  facebook('can-facebook', 'Facebook'),
-  agencePartenaire('can-agence', 'Agence partenaire');
+/// [code] est l'IDENTIFIANT du canal — la valeur que `reservations_local.canal`
+/// porte, jamais le libellé (un libellé est du texte d'interface : un canal
+/// RENOMMÉ ne doit pas rendre illisibles les réservations déjà écrites).
+///
+/// ## Le jeu initial
+///
+/// Les sept constantes ci-dessous sont le jeu initial du maître
+/// (`CANAUX_INITIAUX`). Elles servent à DEUX choses seulement : poser la table
+/// d'un poste vierge (`CanauxReservationDao.tous`), et lire les réservations
+/// d'AVANT la v35, dont la colonne porte encore ces codes `can-…`.
+final class CanalReservation {
+  const CanalReservation(this.code, this.libelle, {this.actif = true});
 
-  const CanalReservation(this.code, this.libelle);
+  static const CanalReservation physique = CanalReservation(
+    'can-physique',
+    'Physique',
+  );
+  static const CanalReservation telephone = CanalReservation(
+    'can-telephone',
+    'Téléphone',
+  );
+  static const CanalReservation whatsapp = CanalReservation(
+    'can-whatsapp',
+    'WhatsApp',
+  );
+  static const CanalReservation booking = CanalReservation(
+    'can-booking',
+    'Booking.com',
+  );
+  static const CanalReservation siteWeb = CanalReservation(
+    'can-site',
+    'Site web',
+  );
+  static const CanalReservation facebook = CanalReservation(
+    'can-facebook',
+    'Facebook',
+  );
+  static const CanalReservation agencePartenaire = CanalReservation(
+    'can-agence',
+    'Agence partenaire',
+  );
 
-  /// Le code du maître — conservé pour que l'analyse par canal reste
-  /// comparable entre les deux implémentations.
+  /// Le jeu initial du maître, dans son ordre.
+  static const List<CanalReservation> jeuInitial = [
+    physique,
+    telephone,
+    whatsapp,
+    booking,
+    siteWeb,
+    facebook,
+    agencePartenaire,
+  ];
+
+  /// Le canal proposé d'emblée à une nouvelle réservation.
+  static const CanalReservation parDefaut = physique;
+
+  /// L'identifiant du canal (l'`id` de sa ligne), ou — pour une réservation
+  /// d'avant la v35 — le code `can-…` du jeu initial.
   final String code;
 
   final String libelle;
 
-  static const CanalReservation parDefaut = CanalReservation.physique;
+  /// `false` : désactivé. Il n'est plus proposé aux nouvelles saisies, mais les
+  /// réservations qui le portent le gardent (jamais de suppression).
+  final bool actif;
+
+  /// Ce canal est-il le même qu'[autre] ? Même identifiant, ou — le temps que
+  /// la table prenne le relais d'un code d'avant la v35 — même libellé du jeu
+  /// initial.
+  bool memeQue(CanalReservation? autre) {
+    if (autre == null) return false;
+    if (autre.code == code) return true;
+    final ancien = jeuInitial.any(
+      (c) => c.code == autre.code || c.code == code,
+    );
+    return ancien &&
+        autre.libelle.trim().toLowerCase() == libelle.trim().toLowerCase();
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is CanalReservation && other.code == code;
+
+  @override
+  int get hashCode => code.hashCode;
+
+  @override
+  String toString() => 'CanalReservation($code, $libelle)';
 }
 
 /// Le type de remise appliqué.

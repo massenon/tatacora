@@ -124,12 +124,10 @@ final class Recette {
   /// La marque « composition provisoire » (`recettes.composition_provisoire`) :
   /// les quantités ont été POSÉES pour débloquer le service, jamais pesées.
   ///
-  /// ⚠ **Sur ce poste, la valeur ne vient d'AUCUNE colonne** : `recettes_local`
-  /// n'en porte pas (le schéma v14 ne la crée pas, et la descente du catalogue
-  /// ne la reçoit pas), si bien que le DAO ne la renseigne jamais et qu'elle
-  /// vaut `false` partout. L'écran sait RENDRE la marque (pastille, bandeau de
-  /// la modale, infobulle) ; elle ne s'allumera que le jour où la colonne
-  /// existera — changement de schéma décrit au rapport de lot du 21/10/2026.
+  /// Lue de `recettes_local.composition_provisoire` (v35, 21/10/2026) ; posée
+  /// par le serveur (ses fiches semées, qui descendent avec la fiche), et levée
+  /// quand la composition est réenregistrée — ici (`RestaurantDao.
+  /// enregistrerRecette`) comme au serveur (`CompositionRecetteService`).
   final bool compositionProvisoire;
 
   /// Le nombre d'ingrédients de la composition. `null` = non compté.

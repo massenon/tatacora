@@ -23,7 +23,9 @@ use RuntimeException;
  * ici : le serveur les écrit lui-même en appliquant le document.
  *
  * Par `MouvementStockService`, et lui seul (CMP, prix d'achat, RG-07), sous
- * l'UUID du poste. Le mouvement est PHYSIQUE : une sortie que le stock du
+ * l'UUID du poste. La RÉGULARISATION d'un inventaire clôturé sur un poste
+ * (21/10/2026) y passe aussi : l'excédent en `inventaire`, le manquant en
+ * `perte`. Le mouvement est PHYSIQUE : une sortie que le stock du
  * serveur ne couvre pas est enregistrée quand même (rupture tracée au
  * journal d'audit, RG-06), et signalée si le poste ne l'avait pas forcée.
  * Création seule. Quantité en centièmes, coût en dix-millièmes (le poste).
@@ -66,7 +68,10 @@ final class GestionnaireMouvementsStock extends GestionnaireDocumentAbstrait
         $d = $this->validerForme($payload, [
             'article_id' => ['required', 'string'],
             'point_id' => ['required', 'string'],
-            'type_mouvement' => ['required', 'in:entree,sortie,perte'],
+            // `inventaire` (21/10/2026) : l'EXCÉDENT constaté par la clôture d'un
+            // inventaire sur le poste — jamais un manquant, qui part en `perte`
+            // (comme `InventaireService::cloturer`).
+            'type_mouvement' => ['required', 'in:entree,sortie,perte,inventaire'],
             'quantite' => ['required', 'integer', 'min:1'],
             'motif' => ['required', 'string', 'max:255'],
             'cout_unitaire' => ['nullable', 'integer', 'min:0', 'prohibited_unless:type_mouvement,entree'],
@@ -91,6 +96,21 @@ final class GestionnaireMouvementsStock extends GestionnaireDocumentAbstrait
                 $quantite,
                 (string) $d['motif'],
                 isset($d['cout_unitaire']) ? bcdiv((string) $d['cout_unitaire'], '10000', 4) : null,
+                $le,
+                $entiteId,
+            );
+
+            return $this->resultat($entiteId);
+        }
+
+        if ($d['type_mouvement'] === 'inventaire') {
+            // Excédent : entrée NON valorisée, sans contrôle de disponibilité —
+            // un inventaire constate le réel (`ecartInventaire`).
+            $this->mouvements->ecartInventaire(
+                (string) $article->id,
+                (string) $point->id,
+                $quantite,
+                (string) $d['motif'],
                 $le,
                 $entiteId,
             );

@@ -25,6 +25,10 @@ enum TableSynchronisee {
   /// réels, par `SejourService`.
   sejours('sejours', accepteModification: true),
   clients('clients', accepteModification: true),
+
+  /// 21/10/2026 : une relance de client est un FAIT daté (création seule), après
+  /// le client qu'elle cite.
+  relancesClients('relances_clients', accepteModification: false),
   fournisseurs('fournisseurs', accepteModification: true),
   pointsStockage('points_stockage', accepteModification: true),
   articles('articles', accepteModification: true),
@@ -105,7 +109,20 @@ enum TableSynchronisee {
 
   /// Lot 10f : la configuration M12 (couple événement × canal) ; les
   /// messages tracés restent sur leur poste.
-  modelesNotification('modeles_notification', accepteModification: true);
+  modelesNotification('modeles_notification', accepteModification: true),
+
+  /// 21/10/2026 : une immobilisation (M10) se crée, elle ne se modifie pas ; son
+  /// plan d'amortissement est CALCULÉ, jamais envoyé.
+  immobilisations('immobilisations', accepteModification: false),
+
+  /// 21/10/2026 : les canaux de réservation (Paramètres) — création (nom), puis
+  /// l'état entier en modification (renommage, désactivation, réactivation).
+  canauxReservation('canaux_reservation', accepteModification: true),
+
+  /// 21/10/2026 : un inventaire physique CLÔTURÉ — le document complet (point,
+  /// jour, lignes comptées), création seule ; sa régularisation part en
+  /// `mouvements_stock` (excédent `inventaire`, manquant `perte`).
+  inventaires('inventaires', accepteModification: false);
 
   const TableSynchronisee(this.nomServeur, {required this.accepteModification});
 

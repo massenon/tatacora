@@ -47,6 +47,13 @@ abstract final class Visas {
     'Signature Direction / Validation',
   ];
 
+  /// `pdf/inventaire-rapport.blade.php` — le rapport d'inventaire physique
+  /// (21/10/2026), dont le gabarit nomme ses propres visas.
+  static const inventaire = [
+    'Visa Agent Recenseur',
+    'Visa Responsable Magasin / Direction',
+  ];
+
   /// `pdf/ventes-rapport.blade.php` — `pos_pwa.document.visa_*`.
   static const journalVentes = [
     'Visa Caissier / Barman',

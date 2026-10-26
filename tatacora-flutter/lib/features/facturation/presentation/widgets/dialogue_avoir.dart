@@ -45,19 +45,6 @@ abstract final class TextesAvoir {
   static const String motifObligatoire = "Le motif de l'avoir est obligatoire.";
   static const String motifTropLong =
       "Le motif de l'avoir ne peut pas dépasser 255 caractères.";
-
-  /// ÉCART DU POSTE, dit à l'écran et au refus : la vue accepte un avoir
-  /// PARTIEL (`emettreAvoir($facture, $montant, $motif)`), mais le poste ne sait
-  /// l'envoyer au serveur que sous la forme de l'annulation de la facture —
-  /// `GestionnaireFactures` (modification `statut: annulee` + `motif`) émet
-  /// « l'avoir du TTC entier » et refuse tout autre champ. Un avoir partiel
-  /// écrit ici ne partirait jamais : le reste dû du poste ne rejoindrait plus
-  /// celui du serveur, sans qu'aucun écran ne le dise (PA-59/60/61).
-  static const String partielRefuse =
-      'Sur ce poste, un avoir porte le montant TTC entier de la facture : '
-      "l'avoir partiel n'est pas encore transmissible au serveur. Saisissez le "
-      'montant TTC pour annuler la facture, ou émettez cet avoir partiel depuis '
-      'la PWA.';
 }
 
 /// La modale **« Émettre un avoir »** (RG-03) — la seule façon de corriger une
@@ -81,10 +68,13 @@ abstract final class TextesAvoir {
 /// facture reste au registre, et l'avoir porte son propre numéro (propriété
 /// n°4 du moteur, PA-99).
 ///
-/// ## Un seul écart : le montant partiel (voir [TextesAvoir.partielRefuse])
+/// ## Le montant partiel est ÉMIS (21/10/2026)
 ///
-/// Il est REFUSÉ et nommé, jamais écrit à part. Le montant TTC entier émet
-/// l'avoir qui neutralise la facture, comme `annuler`.
+/// `emettreAvoir($facture, $montant, $motif)` accepte tout montant jusqu'au TTC
+/// de la facture. Un montant INFÉRIEUR émet un avoir partiel : la facture reste
+/// émise, l'avoir (une pièce à lui, de son propre numéro) diminue son reste dû
+/// et part au serveur sous son identifiant. Le montant TTC ENTIER annule la
+/// facture, comme `annuler` (l'avoir reprend toutes ses lignes en sens inverse).
 ///
 /// ## Le motif est obligatoire
 ///
@@ -126,7 +116,7 @@ class _EtatModaleAvoir extends ConsumerState<ModaleAvoir> {
   }
 
   /// Les validations de la vue, dans son ordre (`required|numeric|gt:0|max:TTC`
-  /// puis `required|string|max:255`), puis l'écart du poste.
+  /// puis `required|string|max:255`).
   bool _valider() {
     final ttc = widget.piece.montantTotal;
     String? refusMontant;
@@ -141,8 +131,6 @@ class _EtatModaleAvoir extends ConsumerState<ModaleAvoir> {
         refusMontant = TextesAvoir.montantNul;
       } else if (saisi > ttc) {
         refusMontant = TextesAvoir.montantExcessif;
-      } else if (saisi < ttc) {
-        refusMontant = TextesAvoir.partielRefuse;
       }
     }
 
@@ -168,22 +156,28 @@ class _EtatModaleAvoir extends ConsumerState<ModaleAvoir> {
     final navigateur = Navigator.of(context);
     final messages = ScaffoldMessenger.of(context);
     try {
-      await ref
-          .read(facturerProvider)
-          .annuler(
-            widget.piece.id,
-            _motif.text.trim(),
-            auteurId: ref.read(sessionProvider)?.utilisateurId,
-          );
+      final facturer = ref.read(facturerProvider);
+      final montant = int.parse(_montant.text.trim());
+      if (montant == widget.piece.montantTotal) {
+        // Le TTC entier ANNULE la facture (RG-03).
+        await facturer.annuler(
+          widget.piece.id,
+          _motif.text.trim(),
+          auteurId: ref.read(sessionProvider)?.utilisateurId,
+        );
+      } else {
+        await facturer.emettreAvoirPartiel(
+          widget.piece.id,
+          montant,
+          _motif.text.trim(),
+        );
+      }
       rafraichirFacturation(ref);
       navigateur.pop(true);
       messages.showSnackBar(
         SnackBar(
           content: Text(
-            TextesAvoir.emis(
-              formaterFcfa(widget.piece.montantTotal),
-              widget.piece.numero,
-            ),
+            TextesAvoir.emis(formaterFcfa(montant), widget.piece.numero),
           ),
         ),
       );

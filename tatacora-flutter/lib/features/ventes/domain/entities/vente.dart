@@ -209,6 +209,16 @@ final class Vente {
   /// Montant de la vente, en francs CFA.
   final int montant;
 
+  /// La remise, DÉRIVÉE — lignes brutes − net encaissé
+  /// (`Vente::remiseDeduite()`), jamais une colonne recopiée. Zéro quand
+  /// aucune remise ne s'applique, ou quand le montant n'est pas figé (vente
+  /// annulée, panier d'avant la clôture).
+  int get remiseDeduite {
+    if (!montantFige) return 0;
+    final brut = lignes.fold<int>(0, (t, l) => t + l.montant);
+    return brut > montant ? brut - montant : 0;
+  }
+
   /// [montant] vient-il du montant **figé à la clôture** ?
   ///
   /// Faux sur une vente annulée : `PanierDao.annuler` n'écrit aucun

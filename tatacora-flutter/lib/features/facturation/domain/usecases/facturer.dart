@@ -1,5 +1,7 @@
 import '../../../hebergement/domain/entities/reservation.dart';
 import '../../../pos/domain/entities/panier.dart';
+import '../../../pos/domain/messages_ventes.dart';
+import '../../../pos/domain/remise_panier.dart';
 import '../../../pos/domain/place_hebergement.dart';
 import '../entities/piece_facturation.dart';
 import '../repositories/facture_repository.dart';
@@ -231,6 +233,14 @@ final class Facturer {
     String? auteurId,
   }) => _depot.annuler(pieceId, motif, auteurId: auteurId);
 
+  /// Émet un avoir PARTIEL : la facture reste émise, l'avoir diminue son reste
+  /// dû (`emettreAvoir($facture, $montant, $motif)` de la PWA).
+  Future<PieceFacturation> emettreAvoirPartiel(
+    String pieceId,
+    int montant,
+    String motif,
+  ) => _depot.emettreAvoirPartiel(pieceId, montant, motif);
+
   /// La facture émise d'une réservation, **avoirs exclus**.
   ///
   /// C'est ce que l'écran doit appeler avant de proposer un téléchargement :
@@ -282,7 +292,45 @@ final class Facturer {
         quantite: l.quantite,
         codeArticle: l.reference.code,
       ),
+    ..._lignesDeRemise(panier),
   ];
+
+  /// La remise entre à la facture en LIGNES DÉDIÉES NÉGATIVES, une par module
+  /// (`PosHeberges::ajouterLignesRemise`, directive du PO du 02/09/2026) : le
+  /// total de la facture égale le net de la vente. La proration est celle de la
+  /// pièce comptable ([ventilerAuNet]) ; le poste facture en francs entiers,
+  /// chaque part est donc arrondie au franc et la DERNIÈRE prend l'écart, pour
+  /// que la somme des lignes égale exactement la remise du panier
+  /// ([Panier.net] : total − remise arrondie).
+  List<LigneBrouillon> _lignesDeRemise(Panier panier) {
+    if (!panier.aUneRemise) return const [];
+    final brut = <String, int>{};
+    for (final l in panier.lignes) {
+      final code = l.reference.module.code;
+      brut[code] = (brut[code] ?? 0) + l.montant * 100;
+    }
+    final net = ventilerAuNet(brut, panier.netCentimes);
+    final modules = brut.keys.toList();
+    var restant = panier.total - panier.net;
+    final lignes = <LigneBrouillon>[];
+    for (final module in modules) {
+      var part = ((brut[module]! - net[module]!) + 50) ~/ 100;
+      if (module == modules.last) part = restant;
+      restant -= part;
+      if (part <= 0) continue;
+      lignes.add(
+        LigneBrouillon(
+          module: ModuleFacturable.depuisModuleVendableCode(module),
+          libelle:
+              '${MessagesVentes.remiseLigneFacture} — '
+              '${MessagesVentes.modulesDuServeur[module] ?? module}',
+          prixUnitaire: -part,
+          quantite: 1,
+        ),
+      );
+    }
+    return lignes;
+  }
 }
 
 /* ====================================================================== */

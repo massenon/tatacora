@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/fichiers/selecteur_fichiers.dart';
 import '../../../core/format/formats.dart';
+import '../../../core/rbac/garde_acces.dart' show ModuleTatacora;
 import '../../../core/responsive/rangee_flex_wrap.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -12,6 +13,10 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../shared_widgets/bouton_standard.dart';
 import '../../../shared_widgets/modale_export.dart';
 import '../../../shared_widgets/toast_export.dart';
+import '../../achats/domain/entities/archivage_fournisseur.dart';
+import '../../achats/presentation/widgets/modale_archivage_achats.dart';
+import '../../parametres/presentation/providers_options_systeme.dart'
+    show peutArchiverProvider;
 import '../data/stocks_api.dart';
 import '../domain/entities/etat_stock.dart';
 import '../domain/import_articles.dart';
@@ -64,22 +69,22 @@ import 'widgets/table_stocks.dart';
 ///    vue (« Précédent », « Suivant »), 25 articles par page comme
 ///    `Stocks::PAR_PAGE` — l'ancienne règle de 10 lignes du 14/10/2026 cède au
 ///    maître ; le pied n'existe que s'il y a plusieurs pages (`hasPages()`).
-///  * **L'ARCHIVAGE est REFUSÉ, et c'est le seul refus de cet écran** : la case
-///    de sélection de chaque ligne et celle de l'en-tête, la barre de sélection
-///    groupée, le bouton « Supprimer » (qui ARCHIVE, `actif = false`), le badge
-///    « Archivé », la restauration et la modale « Confirmer la suppression »
-///    (vue l.261-283, 304-314, 331-336, 343-346, 417-425, 777-798) posent TOUS
-///    un état « archivé » que l'article n'a pas ici : `articles_local` n'a
-///    aucune colonne `actif` (schéma v34, décision du 21/10/2026 : aucune
-///    migration dans ce lot). Offrir ces gestes n'écrirait RIEN, et un
-///    « Article archivé — il reste restaurable » affirmerait ce qui n'a pas
-///    eu lieu (PA-59/60/61). Ce qu'il faudrait : voir le rapport du lot (colonne
-///    `articles_local.actif`, auteur unique dans `StocksDao`, quatre verrous
-///    `stocks_pwa.archivage.verrou_*` rejoués sur les données locales,
-///    modification `actif` envoyée au serveur et descente de l'état). Les mots
-///    de la vue sont NOMMÉS à l'écran (`TextesStocks.archivageNonPorte`).
-///
-///  - blade-refuse:stocks/stocks#modale:modale-archivage
+///  * **L'ARCHIVAGE est PORTÉ** (21/10/2026) : la case de sélection de chaque
+///    ligne et celle de l'en-tête (« Tout sélectionner »), la barre de sélection
+///    groupée (« sélectionné(s) », « Supprimer »), le bouton « Supprimer » de
+///    la ligne (qui ARCHIVE, `actif = false`), le badge « Archivé », « Restaurer »
+///    et la modale « Confirmer la suppression » (vue l.261-283, 304-314,
+///    331-336, 343-346, 417-425, 777-798). Les cases et « Supprimer » sont
+///    RETIRÉS (pas grisés) pour qui ne peut pas archiver — la règle unique
+///    `peutArchiver` (droit C sur M6 ET rôle d'administration OU bascule
+///    « Suppression d'un enregistrement »), reçue de [peutArchiverProvider],
+///    jamais rejouée ici. Un article archivé RESTE dans la liste, marqué ;
+///    « Restaurer » n'est pas derrière la bascule. Les quatre verrous du
+///    serveur (stock, commande en cours, carte, recette) sont rejoués sur les
+///    données locales par `StocksDao.verrousArticle`, à l'ouverture de la
+///    modale ET de nouveau à l'exécution. L'archivage part au serveur
+///    (`actif: false`), qui l'applique sous SES verrous : un refus revient
+///    dans « À traiter ».
 ///
 ///  * **L'en-tête d'impression de la vue** (`hidden print:block`, l.112-115) :
 ///    la vue l'écrit EN DUR pour l'impression du navigateur — « TATACORA AFRIQUE — GÎTE CHEZ NOËL », puis le titre et l'horodatage. Ce poste n'imprime pas l'écran ; il exporte
@@ -352,18 +357,6 @@ abstract final class TextesStocks {
       'Ces mouvements ne produisent aucune écriture comptable : un mouvement '
       'de stock n’est pas un mouvement d’argent, et leur valorisation '
       'comptable n’est pas portée sur ce poste (état du 12/10/2026).';
-
-  /// Ce que la vue offre pour ARCHIVER et que ce poste ne peut pas tenir (voir
-  /// l'en-tête de l'écran) — dit avec les mots de la vue : le bouton
-  /// « Supprimer », les cases « Tout sélectionner » et « Sélectionner cette
-  /// ligne », le décompte « sélectionné(s) ».
-  static const String archivageNonPorte =
-      'Archivage non porté sur ce poste (21/10/2026) : la vue y ajoute un '
-      'bouton « Supprimer » (qui archive), une case « Tout sélectionner », une '
-      'case « Sélectionner cette ligne » par article et un décompte '
-      '« sélectionné(s) ». Un article n’a ici aucun état « archivé » — la table '
-      'locale n’a pas de colonne « actif » — : ces gestes n’écriraient rien, et '
-      'dire « archivé » affirmerait ce qui n’a pas eu lieu.';
 
   static String sansValorisation(int n) =>
       '$n article(s) ont du stock mais aucune entrée valorisée : leur valeur '
@@ -874,7 +867,7 @@ const int articlesParPage = 25;
 /// La carte du tableau : le décompte et la mention « Stock calculé — non
 /// modifiable ici », puis soit l'état vide de la vue, soit le tableau et son
 /// pied de pagination.
-class _CarteTableau extends StatefulWidget {
+class _CarteTableau extends ConsumerStatefulWidget {
   const _CarteTableau({
     required this.lignes,
     required this.cleFiltre,
@@ -892,18 +885,126 @@ class _CarteTableau extends StatefulWidget {
   final void Function(LigneStock) onModifier;
 
   @override
-  State<_CarteTableau> createState() => _CarteTableauState();
+  ConsumerState<_CarteTableau> createState() => _CarteTableauState();
 }
 
-class _CarteTableauState extends State<_CarteTableau> {
+class _CarteTableauState extends ConsumerState<_CarteTableau> {
   int _page = 1;
+
+  /// Les articles cochés. Comme `Stocks::$selection`, elle ne vaut que pour CE
+  /// QUI EST AFFICHÉ : un filtre, une page ou une recherche qui change la remet
+  /// à zéro, sinon « Supprimer » porterait sur des lignes que l'écran ne montre
+  /// plus (le défaut que PA-119 nomme pour l'export, transposé à un geste
+  /// destructeur).
+  final Set<String> _selection = {};
 
   @override
   void didUpdateWidget(covariant _CarteTableau ancien) {
     super.didUpdateWidget(ancien);
     // Rester en page 3 d'un résultat qui n'en a plus qu'une montrerait un
     // tableau vide sous un filtre qui trouve pourtant des lignes.
-    if (ancien.cleFiltre != widget.cleFiltre) _page = 1;
+    if (ancien.cleFiltre != widget.cleFiltre) {
+      _page = 1;
+      _selection.clear();
+    }
+  }
+
+  void _dire(String texte, {required Key cle, bool erreur = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: erreur ? AppColors.erreur : null,
+        content: Text(texte, key: cle),
+      ),
+    );
+  }
+
+  /// `Stocks::confirmerArchivageArticle` puis `archiverArticles` : une ligne
+  /// (son identifiant) ou la sélection AFFICHÉE.
+  ///
+  /// Le droit d'archiver est exigé DÈS l'ouverture, puis le lot est composé par
+  /// le DAO (verrous rejoués sur les données locales) : BLOQUÉ (le bouton
+  /// disparaît), PARTIEL (le décompte de ce qui restera) ou NOMINAL. Une
+  /// sélection qui ne porte que des articles déjà archivés ouvre la modale
+  /// BLOQUÉE, sans motif — la vue ne retourne que si la sélection est vide.
+  Future<void> _confirmerArchivage(List<String> ids) async {
+    if (ids.isEmpty) return;
+
+    final ouverture = await ref.read(preparerArchivageArticlesProvider)(ids);
+    if (!mounted) return;
+
+    final LotArchivage lot;
+    switch (ouverture) {
+      case StocksOk(:final valeur):
+        lot = valeur;
+      case StocksRefuse(:final motif):
+        _dire(motif, cle: const Key('stocks-archivage-refus'), erreur: true);
+        return;
+    }
+
+    final confirme = await ouvrirArchivageAchats(
+      context,
+      // Une ligne : son nom, en gras. Plusieurs : le nombre qui PART.
+      element: lot.element,
+      nombre: lot.nombre,
+      messagesVerrou: lot.motifs,
+      bloque: lot.bloque,
+      conserves: lot.conserves,
+    );
+    if (confirme != true || !mounted) return;
+
+    final resultat = await ref.read(archiverArticlesProvider)(lot.ids);
+    if (!mounted) return;
+
+    switch (resultat) {
+      case StocksOk(:final valeur):
+        setState(_selection.clear);
+        ref.invalidate(etatStockProvider);
+        // Le succès ET le refus coexistent : un article devenu engagé entre
+        // l'ouverture et le clic n'empêche pas les autres archivages du lot.
+        // La vue les pose ensemble (bandeau vert, toast rouge) ; deux SnackBar se
+        // mettraient en file et le refus resterait caché — ils partent donc dans
+        // UNE seule, qui garde les deux messages.
+        final succes = valeur.archives > 0
+            ? MessagesStock.archivesSucces(valeur.archives)
+            : null;
+        if (valeur.refus != null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              key: const Key('stocks-archivage-refus'),
+              backgroundColor: AppColors.erreur,
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (succes != null)
+                    Text(succes, key: const Key('stocks-archivage-succes')),
+                  Text(valeur.refus!),
+                ],
+              ),
+            ),
+          );
+        } else if (succes != null) {
+          _dire(succes, cle: const Key('stocks-archivage-succes'));
+        }
+      case StocksRefuse(:final motif):
+        _dire(motif, cle: const Key('stocks-archivage-refus'), erreur: true);
+    }
+  }
+
+  /// « Restaurer » : remet `actif = true`. Seul le droit d'écriture est exigé.
+  Future<void> _restaurer(LigneStock ligne) async {
+    final resultat = await ref.read(restaurerArticleProvider)(ligne.id);
+    if (!mounted) return;
+    switch (resultat) {
+      case StocksOk(:final valeur):
+        ref.invalidate(etatStockProvider);
+        _dire(
+          MessagesStock.restaure(valeur),
+          cle: const Key('stocks-restaure'),
+        );
+      case StocksRefuse(:final motif):
+        _dire(motif, cle: const Key('stocks-archivage-refus'), erreur: true);
+    }
   }
 
   @override
@@ -918,7 +1019,13 @@ class _CarteTableauState extends State<_CarteTableau> {
         ? lignes.length
         : premier + articlesParPage;
 
-    return Container(
+    final peutArchiver = ref.watch(
+      peutArchiverProvider(ModuleTatacora.m6Stocks),
+    );
+    final affiches = [for (final l in lignes.sublist(premier, dernier)) l.id];
+    final selection = _selection.intersection(affiches.toSet());
+
+    final carte = Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: AppColors.neutre0,
@@ -994,6 +1101,18 @@ class _CarteTableauState extends State<_CarteTableau> {
                 onFiche: widget.onFiche,
                 onMouvement: widget.onMouvement,
                 onModifier: widget.onModifier,
+                peutArchiver: peutArchiver,
+                selection: selection,
+                onBasculerTout: (coche) => setState(() {
+                  _selection
+                    ..clear()
+                    ..addAll(coche ? affiches : const <String>[]);
+                }),
+                onBasculer: (id, coche) => setState(() {
+                  coche ? _selection.add(id) : _selection.remove(id);
+                }),
+                onSupprimer: (l) => _confirmerArchivage([l.id]),
+                onRestaurer: _restaurer,
               ),
             ),
             // `@if ($lignes->hasPages())` : le pied n'existe que s'il y a
@@ -1011,6 +1130,103 @@ class _CarteTableauState extends State<_CarteTableau> {
                     : () => setState(() => _page = page + 1),
               ),
           ],
+        ],
+      ),
+    );
+
+    // La barre de sélection groupée précède le cadre (vue l.274-283) : elle
+    // n'existe que pour qui peut archiver ET quand une ligne est cochée.
+    if (!peutArchiver || selection.isEmpty) return carte;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _BarreSelection(
+          nombre: selection.length,
+          onSupprimer: () => _confirmerArchivage([
+            for (final id in affiches)
+              if (selection.contains(id)) id,
+          ]),
+          onEffacer: () => setState(_selection.clear),
+        ),
+        carte,
+      ],
+    );
+  }
+}
+
+/// La barre de sélection groupée (vue l.274-283) : `flex items-center gap-3
+/// bg-[var(--navy)] text-white rounded-lg px-4 py-2.5 mb-3 text-xs` — le décompte
+/// (« sélectionné(s) », son nombre en gras), un espace élastique, « Supprimer »
+/// souligné et la croix qui efface la sélection.
+class _BarreSelection extends StatelessWidget {
+  const _BarreSelection({
+    required this.nombre,
+    required this.onSupprimer,
+    required this.onEffacer,
+  });
+
+  final int nombre;
+  final VoidCallback onSupprimer;
+  final VoidCallback onEffacer;
+
+  @override
+  Widget build(BuildContext context) {
+    final base = _t(
+      TaillesContenu.xs,
+      couleur: AppColors.neutre0,
+      interligne: TaillesContenu.interligneXs,
+    );
+
+    return Container(
+      key: const Key('stocks-selection'),
+      margin: const EdgeInsets.only(bottom: AppSpacing.sm), // mb-3
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md, // px-4
+        vertical: AppSpacing.xsPlus, // py-2.5
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.navy,
+        borderRadius: BorderRadius.circular(AppRadius.roundedLg),
+      ),
+      child: Row(
+        children: [
+          Text.rich(
+            TextSpan(
+              style: base,
+              children: [
+                TextSpan(
+                  text: '$nombre',
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const TextSpan(text: ' sélectionné(s)'),
+              ],
+            ),
+            key: const Key('stocks-selection-compte'),
+          ),
+          const Spacer(),
+          InkWell(
+            key: const Key('stocks-selection-supprimer'),
+            onTap: onSupprimer,
+            child: Text(
+              'Supprimer',
+              style: base.copyWith(
+                decoration: TextDecoration.underline,
+                decorationColor: AppColors.neutre0.withValues(alpha: 0.4),
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          InkWell(
+            key: const Key('stocks-selection-effacer'),
+            onTap: onEffacer,
+            child: Text(
+              '✕',
+              semanticsLabel: 'Annuler',
+              style: base.copyWith(
+                color: AppColors.neutre0.withValues(alpha: 0.6),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -1120,12 +1336,6 @@ class _Limites extends StatelessWidget {
               style: style,
             ),
           ],
-          const SizedBox(height: AppSpacing.unit),
-          Text(
-            TextesStocks.archivageNonPorte,
-            key: const Key('stocks-limite-archivage'),
-            style: style,
-          ),
         ],
       ),
     );

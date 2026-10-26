@@ -8,6 +8,7 @@ use App\Shared\Sync\Contracts\GestionnaireSynchronisation;
 use App\Shared\Sync\Gestionnaires\GestionnaireArticles;
 use App\Shared\Sync\Gestionnaires\GestionnaireBonsReception;
 use App\Shared\Sync\Gestionnaires\GestionnaireBulletinsPaie;
+use App\Shared\Sync\Gestionnaires\GestionnaireCanauxReservation;
 use App\Shared\Sync\Gestionnaires\GestionnaireCartesBoisson;
 use App\Shared\Sync\Gestionnaires\GestionnaireCategoriesHebergement;
 use App\Shared\Sync\Gestionnaires\GestionnaireCircuits;
@@ -21,7 +22,9 @@ use App\Shared\Sync\Gestionnaires\GestionnaireEntretiensVehicule;
 use App\Shared\Sync\Gestionnaires\GestionnaireFactures;
 use App\Shared\Sync\Gestionnaires\GestionnaireFournisseurs;
 use App\Shared\Sync\Gestionnaires\GestionnaireGuides;
+use App\Shared\Sync\Gestionnaires\GestionnaireImmobilisations;
 use App\Shared\Sync\Gestionnaires\GestionnaireIndisponibilitesCarte;
+use App\Shared\Sync\Gestionnaires\GestionnaireInventaires;
 use App\Shared\Sync\Gestionnaires\GestionnaireMenus;
 use App\Shared\Sync\Gestionnaires\GestionnaireModelesNotification;
 use App\Shared\Sync\Gestionnaires\GestionnaireMouvementsStock;
@@ -32,6 +35,7 @@ use App\Shared\Sync\Gestionnaires\GestionnairePlannings;
 use App\Shared\Sync\Gestionnaires\GestionnairePlats;
 use App\Shared\Sync\Gestionnaires\GestionnairePointsStockage;
 use App\Shared\Sync\Gestionnaires\GestionnaireRecettes;
+use App\Shared\Sync\Gestionnaires\GestionnaireRelancesClients;
 use App\Shared\Sync\Gestionnaires\GestionnaireReglementsFournisseur;
 use App\Shared\Sync\Gestionnaires\GestionnaireReservations;
 use App\Shared\Sync\Gestionnaires\GestionnaireReservationsTour;
@@ -103,6 +107,8 @@ class RegistreSynchronisation
         // réservation qu'ils réalisent.
         'sejours' => GestionnaireSejours::class,
         'clients' => GestionnaireClients::class,
+        // 21/10/2026 : les relances d'un client (création seule), APRÈS le client.
+        'relances_clients' => GestionnaireRelancesClients::class,
         'fournisseurs' => GestionnaireFournisseurs::class,
         // Catalogue (S2) — dans l'ordre où un poste doit les pousser : un
         // élément cité passe avant celui qui le cite.
@@ -160,6 +166,15 @@ class RegistreSynchronisation
         'mouvements_stock' => GestionnaireMouvementsStock::class,
         // Lot 10f : la configuration M12 (jamais les messages tracés).
         'modeles_notification' => GestionnaireModelesNotification::class,
+        // 21/10/2026 : les immobilisations (M10), création seule — le plan
+        // d'amortissement est calculé, jamais stocké.
+        'immobilisations' => GestionnaireImmobilisations::class,
+        // 21/10/2026 : les canaux de réservation (Paramètres), par le nom —
+        // la descente les sert AVANT les réservations qui les citent.
+        'canaux_reservation' => GestionnaireCanauxReservation::class,
+        // 21/10/2026 : l'inventaire physique CLÔTURÉ d'un poste, document
+        // complet (en-tête + lignes) ; sa régularisation arrive en mouvements.
+        'inventaires' => GestionnaireInventaires::class,
     ];
 
     /** @var array<string, GestionnaireSynchronisation> */

@@ -4,6 +4,8 @@ import '../../../../core/format/formats.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../achats/presentation/widgets/composants_crud_achats.dart'
+    show CaseSelectionAchats;
 import '../../../restaurant/presentation/widgets/coquille_restaurant.dart';
 import '../../../restaurant/presentation/widgets/tableau_restaurant.dart';
 import '../../domain/entities/etat_stock.dart';
@@ -65,9 +67,31 @@ class TableStocks extends StatelessWidget {
     required this.onFiche,
     required this.onMouvement,
     required this.onModifier,
+    this.peutArchiver = false,
+    this.selection = const {},
+    this.onBasculerTout,
+    this.onBasculer,
+    this.onSupprimer,
+    this.onRestaurer,
   });
 
   final List<LigneStock> lignes;
+
+  /// La règle d'archivage (`AutoriseArchivage::peutArchiver()`), REÇUE de
+  /// l'écran : la vue ne la rejoue jamais (`$peutArchiver`). Elle commande la
+  /// colonne des cases à cocher (en-tête et lignes) et le bouton « Supprimer »
+  /// de chaque ligne — retirés, pas grisés, pour qui ne peut pas archiver.
+  final bool peutArchiver;
+
+  /// Les articles cochés (affichés seulement : l'écran les recoupe).
+  final Set<String> selection;
+  final ValueChanged<bool>? onBasculerTout;
+  final void Function(String id, bool coche)? onBasculer;
+  final void Function(LigneStock)? onSupprimer;
+
+  /// « Restaurer » d'un article archivé : offert à tout qui écrit sur M6, hors
+  /// de la règle d'archivage (restaurer n'est pas supprimer).
+  final void Function(LigneStock)? onRestaurer;
 
   /// Ce que les ventes du bar encore en file sortiront (RG-05) : une mention
   /// sous le stock, jamais une soustraction.
@@ -101,8 +125,26 @@ class TableStocks extends StatelessWidget {
       repartitionProportionnelle: true,
       // Les colonnes de la vue, dans son ordre et sa casse (l.61-77) ;
       // l'écran les met en capitales comme le fait `uppercase`.
-      colonnes: const [
-        ColonneRestaurant('Article'),
+      largeursFixes: peutArchiver
+          ? const {0: AppLayout.colonneSelection}
+          : const {},
+      colonnes: [
+        // La case « tout sélectionner » (`stocks_pwa.archivage.selection_tout`) :
+        // un `<th>` sans texte, rendu pour qui peut archiver SEULEMENT.
+        if (peutArchiver)
+          ColonneRestaurant(
+            '',
+            enteteSpecial: CaseSelectionAchats(
+              cle: const Key('stocks-tout'),
+              valeur:
+                  lignes.isNotEmpty &&
+                  lignes.every((l) => selection.contains(l.id)),
+              etiquette: 'Tout sélectionner',
+              surMarine: true,
+              onChanged: (c) => onBasculerTout?.call(c),
+            ),
+          ),
+        const ColonneRestaurant('Article'),
         ColonneRestaurant('Catégorie'),
         ColonneRestaurant('Unité'),
         ColonneRestaurant('Point'),
@@ -116,17 +158,39 @@ class TableStocks extends StatelessWidget {
       ],
       // La clé est posée sur la première cellule de la ligne (piège 10).
       clesLignes: [for (final l in lignes) Key('stocks-ligne-${l.id}')],
-      lignes: [for (final l in lignes) _cellules(l)],
+      lignes: [
+        for (final l in lignes) [if (peutArchiver) _case(l), ..._cellules(l)],
+      ],
     );
   }
+
+  Widget _case(LigneStock l) => CaseSelectionAchats(
+    cle: Key('stocks-case-${l.id}'),
+    valeur: selection.contains(l.id),
+    etiquette: 'Sélectionner cette ligne',
+    onChanged: (c) => onBasculer?.call(l.id, c),
+  );
 
   List<Widget> _cellules(LigneStock l) {
     final journalier = l.estJournalier;
     final prix = l.prixAchat;
 
     return [
-      // `font-medium`.
-      Text(l.libelle, style: _t(poids: FontWeight.w500)),
+      // `font-medium`, puis la pastille « Archivé » : un article archivé RESTE
+      // dans la liste, marqué — le masquer le rendrait indiscernable d'un
+      // article inexistant, et « reste restaurable » ne serait tenu nulle part.
+      Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(l.libelle, style: _t(poids: FontWeight.w500)),
+          ),
+          if (!l.actif) ...[
+            const SizedBox(width: AppSpacing.unit), // ml-1
+            _BadgeArchive(cle: Key('stocks-archive-${l.id}')),
+          ],
+        ],
+      ),
       // `text-slate-600`.
       Text(l.categorie ?? '—', style: _t(couleur: Ardoise.c600)),
       Text(l.uniteMesure, style: _t(couleur: Ardoise.c600)),
@@ -217,6 +281,25 @@ class TableStocks extends StatelessWidget {
             libelle: 'Modifier',
             onTap: () => onModifier(l),
           ),
+          // « Supprimer » du maître, rendu comme ARCHIVAGE (le mot est celui que
+          // le client a validé, le geste pose `actif = false`) ; un article déjà
+          // archivé offre « Restaurer » à la place.
+          if (!l.actif) ...[
+            const SizedBox(width: AppSpacing.unit),
+            _Action(
+              cle: Key('stocks-restaurer-${l.id}'),
+              libelle: 'Restaurer',
+              onTap: () => onRestaurer?.call(l),
+            ),
+          ] else if (peutArchiver) ...[
+            const SizedBox(width: AppSpacing.unit),
+            _Action(
+              cle: Key('stocks-supprimer-${l.id}'),
+              libelle: 'Supprimer',
+              danger: true,
+              onTap: () => onSupprimer?.call(l),
+            ),
+          ],
         ],
       ),
     ];
@@ -299,13 +382,46 @@ class _BadgeSuivi extends StatelessWidget {
   }
 }
 
-/// `text-[12px] px-2 py-1 rounded-lg border border-slate-300`.
+/// `ml-1 text-[10px] px-1.5 py-0.5 rounded` sur fond gris (`#F3F4F6`, texte
+/// `#6B7280`) : « Archivé ».
+class _BadgeArchive extends StatelessWidget {
+  const _BadgeArchive({required Key cle}) : super(key: cle);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.xxs, // px-1.5
+        vertical: AppSpacing.demi, // py-0.5
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.badgeGrisFond,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+      ),
+      child: Text(
+        'Archivé',
+        style: TableStocks._t(
+          taille: TaillesContenu.t10,
+          couleur: AppColors.badgeGrisTexte,
+        ),
+      ),
+    );
+  }
+}
+
+/// `text-[12px] px-2 py-1 rounded-lg border border-slate-300` ; « Supprimer »
+/// porte `border-red-200 text-[var(--erreur)]`.
 class _Action extends StatelessWidget {
-  const _Action({required Key cle, required this.libelle, required this.onTap})
-    : super(key: cle);
+  const _Action({
+    required Key cle,
+    required this.libelle,
+    required this.onTap,
+    this.danger = false,
+  }) : super(key: cle);
 
   final String libelle;
   final VoidCallback onTap;
+  final bool danger;
 
   @override
   Widget build(BuildContext context) {
@@ -319,9 +435,17 @@ class _Action extends StatelessWidget {
         ),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(AppRadius.roundedLg),
-          border: Border.all(color: Ardoise.c300),
+          border: Border.all(
+            color: danger ? PaletteMaitre.rouge200 : Ardoise.c300,
+          ),
         ),
-        child: Text(libelle, style: TableStocks._t(taille: TaillesContenu.t12)),
+        child: Text(
+          libelle,
+          style: TableStocks._t(
+            taille: TaillesContenu.t12,
+            couleur: danger ? AppColors.erreur : null,
+          ),
+        ),
       ),
     );
   }

@@ -175,6 +175,14 @@ final class TicketVente {
           style: StyleLigneTicket.article,
         ),
       const LigneTicket.separateur(),
+      // La REMISE (`pos_pwa.document.remise`) : dérivée, lignes brutes − net
+      // encaissé, seulement si elle est positive.
+      if (vente.remiseDeduite > 0)
+        LigneTicket(
+          'Remise',
+          droite: '- ${TicketFacture.montant(vente.remiseDeduite)}',
+          style: StyleLigneTicket.corps,
+        ),
       LigneTicket(
         // Le libellé DIT ce qui s'est passé : une note de chambre n'est pas un
         // encaissement, c'est une créance réglée au départ du client.

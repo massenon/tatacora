@@ -267,6 +267,7 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
           libelle: r.libelle,
           composition: _ingredients(compositions[r.id] ?? const [], stock),
           platsServis: platsParFiche[r.id] ?? const [],
+          compositionProvisoire: r.compositionProvisoire == true,
         ),
     ];
   }
@@ -539,6 +540,17 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
       // Lot F1 : le document AVANT l'écriture, pour n'envoyer que ce qui
       // change (`null` = création).
       final avant = cible == null ? null : await _chargeRecette(cible);
+      // La marque « composition provisoire » (v35) : posée par le serveur (ses
+      // fiches semées), elle TOMBE d'elle-même quand la composition est
+      // réenregistrée (`CompositionRecetteService::remplacerComposition`, seul
+      // auteur) — c'est le geste de la lever depuis « Fiches techniques ».
+      final etaitProvisoire =
+          cible != null &&
+          (await (select(
+                    attachedDatabase.recettesLocal,
+                  )..where((r) => r.id.equals(cible))).getSingleOrNull())
+                  ?.compositionProvisoire ==
+              true;
       if (cible == null) {
         recetteId = _uuid.v4();
         await into(attachedDatabase.recettesLocal).insert(
@@ -564,6 +576,12 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
             libelle: Value(lue.libelle),
             modifieLe: Value(_maintenant()),
             modifiePar: Value(auteurId),
+            // Une composition réenregistrée n'est plus « posée, jamais pesée ».
+            // Une fiche laissée sans ingrédient n'a rien relevé : sa marque
+            // reste ce qu'elle était.
+            compositionProvisoire: lue.lignes.isEmpty
+                ? const Value.absent()
+                : const Value(false),
           ),
         );
       }
@@ -581,13 +599,20 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
         );
       }
       final apres = (await _chargeRecette(recetteId))!;
+      // Lever la marque d'une fiche provisoire demande au serveur de REMPLACER
+      // la composition, même inchangée : la modification porte donc `lignes`
+      // (sinon le serveur garderait la marque que ce poste vient de lever).
+      final leve = etaitProvisoire && lue.lignes.isNotEmpty;
+      final differences = avant == null ? apres : champsModifies(avant, apres);
       await _file.enfiler(
         table: TableSynchronisee.recettes,
         entiteId: recetteId,
         type: avant == null
             ? TypeOperationSync.creation
             : TypeOperationSync.modification,
-        payload: avant == null ? apres : champsModifies(avant, apres),
+        payload: leve && avant != null
+            ? {...differences, 'lignes': apres['lignes']}
+            : differences,
       );
       return recetteId;
     });

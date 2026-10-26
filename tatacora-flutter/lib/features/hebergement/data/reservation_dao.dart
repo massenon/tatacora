@@ -22,6 +22,7 @@ import '../domain/repositories/reservation_repository.dart'
 import '../domain/entities/reservation.dart';
 import '../domain/entities/service_reservation.dart';
 import '../domain/entities/unite_hebergement.dart';
+import 'canaux_reservation_dao.dart';
 import 'dto/parc_dto.dart';
 import 'pieces_reservation.dart';
 
@@ -153,12 +154,14 @@ class ReservationDao extends DatabaseAccessor<AppDatabase>
         .toList();
     final lignesParReservation = await _lignesDe(reservations.map((r) => r.id));
     final logins = await _loginsDe(reservations);
+    final canaux = await CanauxReservationDao(attachedDatabase).lus();
 
     return resultats
         .map(
           (l) => _versEntite(
             l.readTable(reservationsLocal),
             l.readTable(clientsLocal),
+            canaux,
             lignes:
                 lignesParReservation[l.readTable(reservationsLocal).id] ??
                 const [],
@@ -229,6 +232,7 @@ class ReservationDao extends DatabaseAccessor<AppDatabase>
     return _versEntite(
       ligne.readTable(reservationsLocal),
       ligne.readTable(clientsLocal),
+      await CanauxReservationDao(attachedDatabase).lus(),
       lignes: (await _lignesDe([id]))[id] ?? const [],
       logins: await _loginsDe([ligne.readTable(reservationsLocal)]),
     );
@@ -288,11 +292,13 @@ class ReservationDao extends DatabaseAccessor<AppDatabase>
     // de chevauchement, qui ne regarde que les dates et l'unité. Les charger
     // ici ferait une requête de plus à chaque saisie de date, pour une donnée
     // que personne ne lit.
+    final canaux = await CanauxReservationDao(attachedDatabase).lus();
     return lignes
         .map(
           (l) => _versEntite(
             l.readTable(reservationsLocal),
             l.readTable(clientsLocal),
+            canaux,
           ),
         )
         .toList();
@@ -708,7 +714,8 @@ class ReservationDao extends DatabaseAccessor<AppDatabase>
 
   Reservation _versEntite(
     ReservationsLocalData d,
-    ClientsLocalData client, {
+    ClientsLocalData client,
+    List<CanalReservation> canaux, {
     List<LigneService> lignes = const [],
     Map<String, String> logins = const {},
   }) {
@@ -737,7 +744,9 @@ class ReservationDao extends DatabaseAccessor<AppDatabase>
       // de client disparait, sans erreur ni trace. `name` et le `code` du
       // maitre sont, eux, des identifiants.
       typeClient: _parCode(TypeClient.values, d.typeClient, (t) => t.name),
-      canal: _parCode(CanalReservation.values, d.canal, (c) => c.code),
+      // Le canal se lit de la TABLE (`canaux_reservation_local`) : renommé, il
+      // se lit sous son nom d'aujourd'hui ; désactivé, il reste lisible.
+      canal: CanauxReservationDao.designe(d.canal, canaux),
       modePaiement: _parCode(
         ModePaiementReservation.values,
         d.modePaiement,

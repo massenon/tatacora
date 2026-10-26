@@ -11,6 +11,7 @@ import '../../../restaurant/presentation/widgets/corps_carte_commun.dart'
 import '../../domain/entities/panier.dart';
 import '../providers_pos.dart';
 import 'modale_cloture_sejour.dart';
+import 'vue_panier.dart' show LigneRemiseComptant;
 
 /// La colonne PANIER DU SÉJOUR du point de vente clients hébergés —
 /// `heberges.blade.php` l.171-275.
@@ -27,11 +28,10 @@ import 'modale_cloture_sejour.dart';
 ///
 /// ## Ce que cette colonne ne rend pas
 ///
-/// - **Le montant de la remise et le net** (l.261-268). La vue les dérive de
-///   `Panier::remiseSur()`. Ce poste n'a AUCUNE colonne de remise sur
-///   `paniers` (`panier_tables.dart`, relu le 09/10/2026) : le total facturé est
-///   le total brut des lignes. La ligne « Remise » est rendue, et la toucher dit
-///   ce qui manque — jamais un champ qui accepterait une valeur sans effet.
+/// - (Levé le 21/10/2026) **La remise** : le séjour la porte comme le comptoir
+///   (`paniers_local.remise_type` / `remise_valeur_centiemes`, v35). Le net est
+///   DÉRIVÉ (`Panier.net`), la facture de départ reçoit une ligne négative par
+///   module (`Facturer`), « Sur un total de … » s'affiche quand elle est positive.
 /// - **Le bandeau « Vider » / « Annuler »** de l'ancien panneau. La vue n'a pas
 ///   de bouton d'annulation de panier : l'annulation avec motif et la
 ///   conservation des lignes (règle de `PanierRepository.annuler`) restent dans
@@ -95,16 +95,10 @@ class PanierHeberges extends ConsumerWidget {
   /// `pos_pwa.heberges.cloturer`.
   static const String cloturer = 'Clôturer et facturer';
 
-  /// Ce que dit la ligne « Remise » quand on la touche.
-  ///
-  /// Une remise sans colonne pour la porter n'aurait aucun effet sur le total
-  /// facturé : la laisser se saisir ferait croire à un rabais accordé qui ne
-  /// serait pas facturé (PA-59/60/61). Daté et relu le 09/10/2026 contre
-  /// `panier_tables.dart`.
-  static const String remiseNonDisponible =
-      'La remise ne s’applique pas sur ce poste : le panier de séjour ne porte '
-      'aucune remise, donc le total facturé reste le total des lignes. Rien '
-      'n’a été enregistré.';
+  /// `pos_pwa.commun.remise_sans_panier` — ce que dit la ligne « Remise »
+  /// quand on la touche sans panier ouvert : une remise se pose SUR un panier.
+  static const String remiseSansPanier =
+      "Aucun panier ouvert : ouvrez une vente avant d'appliquer une remise.";
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -372,12 +366,12 @@ class _Pied extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final total = panier?.total ?? 0;
+    final total = panier?.net ?? 0;
     final ventilation = panier?.ventilation ?? const {};
     final peutCloturer = panier != null && panier!.lignes.isNotEmpty;
 
     void direRemise() => ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text(PanierHeberges.remiseNonDisponible)),
+      const SnackBar(content: Text(PanierHeberges.remiseSansPanier)),
     );
 
     return Container(
@@ -456,34 +450,45 @@ class _Pied extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.unit),
-          // La ligne « Remise » (l.246-257) : étiquette, type, valeur.
-          Row(
-            children: [
-              Text(
-                PanierHeberges.remise,
-                style: styleContenuCarte(
-                  TaillesContenu.t11,
-                  poids: FontWeight.w600,
-                  couleur: Ardoise.c500,
+          // La ligne « Remise » (l.246-257) : étiquette, type, valeur — posée sur
+          // le panier ; sans panier, elle dit pourquoi elle n'agit pas.
+          if (panier != null)
+            LigneRemiseComptant(
+              panier: panier!,
+              etiquette: styleContenuCarte(
+                TaillesContenu.t11,
+                poids: FontWeight.w600,
+                couleur: Ardoise.c500,
+              ),
+            )
+          else
+            Row(
+              children: [
+                Text(
+                  PanierHeberges.remise,
+                  style: styleContenuCarte(
+                    TaillesContenu.t11,
+                    poids: FontWeight.w600,
+                    couleur: Ardoise.c500,
+                  ),
                 ),
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              _ChampRemise(
-                cle: const Key('pos-remise-type'),
-                texte: PanierHeberges.remiseAucune,
-                onTap: direRemise,
-              ),
-              const SizedBox(width: AppSpacing.xs),
-              Expanded(
-                child: _ChampRemise(
-                  cle: const Key('pos-remise-valeur'),
-                  texte: '',
-                  libelleAcces: PanierHeberges.remiseValeur,
+                const SizedBox(width: AppSpacing.xs),
+                _ChampRemise(
+                  cle: const Key('pos-remise-type'),
+                  texte: PanierHeberges.remiseAucune,
                   onTap: direRemise,
                 ),
-              ),
-            ],
-          ),
+                const SizedBox(width: AppSpacing.xs),
+                Expanded(
+                  child: _ChampRemise(
+                    cle: const Key('pos-remise-valeur'),
+                    texte: '',
+                    libelleAcces: PanierHeberges.remiseValeur,
+                    onTap: direRemise,
+                  ),
+                ),
+              ],
+            ),
           // `mb-2` (l.267).
           const SizedBox(height: AppSpacing.xs),
           _BoutonCloturer(

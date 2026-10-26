@@ -11,25 +11,24 @@ import '../../../shared_widgets/bouton_standard.dart';
 import '../../../shared_widgets/modale_export.dart';
 import '../../../shared_widgets/toast_export.dart';
 import '../data/stocks_api.dart';
+import '../domain/calcul_inventaire.dart';
+import '../domain/calcul_stock.dart' show ecrireCentiemes;
 import '../domain/entities/fiche_stock.dart';
 import '../domain/entities/mouvement_stock.dart' show TypeMouvement;
 import '../domain/messages_stock.dart';
+import '../impression/etat_inventaire.dart';
 import 'providers_stocks.dart';
+import 'widgets/modales_inventaire.dart';
 import 'widgets/vue_fiche_stock.dart';
 
-// Les refus et les écarts de la vue, NOMMÉS ici (21/10/2026) :
+// Les écarts de la vue, NOMMÉS ici (21/10/2026) :
 //  - la colonne « Par » de la fiche est RENDUE : chaque mouvement porte son
 //    auteur (`mouvements_stock_local.utilisateur_id`) — la vue, elle, rend un
 //    tiret (le serveur ne remonte pas l'auteur) ;
 //  - le cycle d'inventaire n'affiche ni « à jour » ni « en retard » : aucune
 //    table ne porte de périodicité (PA-150) ;
-//  - l'INVENTAIRE PHYSIQUE est REFUSÉ : ouvrir, compter, clôturer et
-//    régulariser écrivent des tables (`inventaires`, `lignes_inventaire`) que
-//    ce poste n'a pas (schéma v34, aucune migration dans ce lot) — voir
-//    `TextesInventaires.inventaireNonPorte` et le doc de l'écran. Les deux
-//    modales du comptage et de la clôture partielle sont refusées avec lui :
-//  - blade-refuse:stocks/inventaires#modale:inventaires.enregistrer_comptage
-//  - blade-refuse:stocks/inventaires#modale:inventaires.incomplet_titre
+//  - l'INVENTAIRE PHYSIQUE est PORTÉ (ouvrir, compter, clôturer, historique) :
+//    voir le doc de l'écran ;
 //  - l'en-tête d'impression de la vue (`hidden print:block`, l.119-123) est
 //    écrit EN DUR « TATACORA AFRIQUE — GÎTE CHEZ NOËL » pour l'impression du navigateur. Ce
 //    poste n'imprime pas l'écran : ses états A4 lisent l'en-tête des Paramètres
@@ -55,21 +54,27 @@ const _onglets = <(String, String)>[
 /// de quantités. La période par défaut couvre trente jours, comme la vue. Rien
 /// n'est mis en cache.
 ///
-/// ## L'inventaire physique est REFUSÉ, et l'écran le DIT (21/10/2026)
+/// ## L'inventaire physique est PORTÉ (21/10/2026)
 ///
-/// « Lancer l'inventaire », la feuille de comptage, « Enregistrer le comptage »
-/// et « Clôturer et régulariser » ÉCRIVENT : un inventaire (point, date,
-/// auteur), une ligne par article compté (théorique figé, constaté, écart) et,
-/// à la clôture, un mouvement de régularisation par écart. Ce poste n'a ni
-/// table d'inventaire ni table de lignes, et personne ne les écrirait : un
-/// comptage « enregistré » nulle part se perdrait à la fermeture de la fenêtre,
-/// et une clôture ne régulariserait rien que le serveur connaisse. Le bouton
-/// « Lancer l'inventaire » est donc rendu GRISÉ à sa place (ligne de chaque
-/// point du cycle), et la note de l'onglet dit pourquoi — jamais un bouton
-/// inerte en silence. Les inventaires clôturés ne se listent pas non plus.
-/// Ce qu'il faudrait : voir le rapport du lot (deux tables avec leur auteur
-/// unique, l'envoi de l'inventaire et de ses lignes au serveur — qui ne connaît
-/// pas encore ces documents dans son flux —, la descente de l'historique).
+/// « Lancer l'inventaire » ouvre une feuille de comptage (un article par ligne,
+/// compté ou non), « Enregistrer le comptage » fige le théorique de l'article à
+/// cet instant, « Clôturer et régulariser » écrit l'inventaire, ses lignes et un
+/// mouvement de régularisation par écart — l'excédent en entrée `inventaire`
+/// non valorisée, le manquant en `perte` — dans UNE transaction
+/// (`StocksDao.cloturerInventaire`), enfilés pour le serveur. Les inventaires
+/// clôturés (ici ou sur un autre poste) se listent dans le troisième onglet.
+///
+/// Trois écarts avec la vue, NOMMÉS :
+///  * **le comptage en cours vit en mémoire** jusqu'à la clôture : le serveur
+///    écrit l'inventaire à son ouverture, mais son schéma ne porte aucun statut
+///    (PA-150) et ce poste ne peut pas distinguer, en base, un comptage commencé
+///    d'un inventaire clos. Fermer la fenêtre avant de clôturer abandonne le
+///    comptage — la feuille le dit ;
+///  * la modale « Inventaire incomplet » devient « Clôturer et régulariser »
+///    quand tout est compté (la vue y dit « 0 article(s) n'ont pas été
+///    comptés », ce qui est faux) ;
+///  * un écart dont l'article n'a aucune entrée valorisée n'est pas valorisé
+///    (« — »), et l'écran le dit : zéro franc se lirait « sans conséquence ».
 class EcranInventaires extends ConsumerStatefulWidget {
   const EcranInventaires({super.key});
 
@@ -396,22 +401,6 @@ abstract final class TextesInventaires {
   static const String aucunArticleDetail =
       "Créez d'abord un article dans l'écran Stocks.";
 
-  /// Le refus de l'inventaire physique, DIT avec les mots de la vue (voir
-  /// l'en-tête de l'écran) : ce que la vue ouvre, et ce que ce poste ne tient
-  /// pas. Affiché sous le tableau du cycle ET sous celui de l'historique.
-  static const String inventaireNonPorte =
-      'Inventaire physique non porté sur ce poste (21/10/2026) : « Lancer '
-      'l’inventaire » ouvrirait une feuille de comptage (« Inventaire du … », '
-      '« … article(s) comptés », « … écart(s) », « impact valorisé », colonnes '
-      '« à compter » et « Écart valorisé », boutons « Enregistrer le comptage », '
-      '« Exporter » — « Exporter — Articles en stock » — et « Clôturer et '
-      'régulariser »), mais ce poste n’a ni table d’inventaire ni lignes de '
-      'comptage : un comptage n’y serait écrit nulle part, et une clôture ne '
-      'régulariserait rien que le serveur connaisse. Pour la même raison, la '
-      'liste des inventaires clôturés (« Aucun inventaire clôturé » — « Les '
-      'inventaires clôturés et leurs régularisations apparaîtront ici. ») ne '
-      'peut pas se tenir ici : rien ne s’y inscrirait.';
-
   /// `export.fiche_tous_articles` : le refus d'exporter la fiche sous « Tous les
   /// articles » (accents absents, comme dans la vue).
   static const String ficheTousArticles =
@@ -421,11 +410,28 @@ abstract final class TextesInventaires {
   static const String nonDefinie = 'non définie';
 
   /// `aucun_point_defini` : rendu quand le poste n'a aucun point de stockage.
-  static const String aucunPointDefini =
-      "Aucun point de stockage n'est défini : un inventaire porte sur un point, il ne peut pas être ouvert sans lui.";
+  static const String aucunPointDefini = MessagesStock.aucunPointDefini;
 
-  /// `lancer` : le bouton de chaque ligne du cycle — grisé ici.
+  /// `lancer` : le bouton de chaque ligne du cycle.
   static const String lancer = "Lancer l'inventaire";
+
+  /// `cycle_dernier_aucun` : aucun inventaire n'a encore été enregistré pour ce
+  /// point.
+  static const String dernierAucun = 'aucun';
+
+  /// Ce poste ne tient un comptage que jusqu'à la clôture (voir le doc de
+  /// l'écran) : dit sous la feuille, jamais découvert à la fermeture.
+  static const String comptageEnMemoire =
+      'Le comptage n’est écrit qu’à la clôture : fermer la fenêtre avant '
+      'l’abandonne.';
+
+  /// Un écart sans coût connu n'est pas valorisé.
+  static const String coutInconnu =
+      'Aucune entrée valorisée : le coût de cet article est inconnu, son '
+      'écart n’est pas valorisé.';
+
+  static String ecartsSansCout(int n) =>
+      '$n écart(s) sans coût connu : non valorisé(s) dans l’impact.';
 }
 
 /// La carte des filtres — `bg-white rounded-xl border p-4 mb-4`.
@@ -1218,8 +1224,25 @@ class _LigneVide extends StatelessWidget {
 /* Onglet « Inventaire physique »                                          */
 /* ====================================================================== */
 
+/// L'onglet : tant qu'aucun inventaire ne court, l'ÉTAPE 1 (le « Cycle
+/// d'inventaire par magasin », un bouton « Lancer l'inventaire » par ligne) ;
+/// dès qu'un est ouvert, l'ÉTAPE 2 (la feuille de comptage). La vue rend les
+/// deux et masque l'inactive ; ce poste n'en monte qu'une.
 class _OngletInventaire extends ConsumerWidget {
   const _OngletInventaire();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final enCours = ref.watch(inventaireEnCoursProvider);
+    return enCours == null
+        ? const _EtapeCycle()
+        : _EtapeFeuille(enCours: enCours);
+  }
+}
+
+/// ÉTAPE 1 — le tableau « Cycle d'inventaire par magasin ».
+class _EtapeCycle extends ConsumerWidget {
+  const _EtapeCycle();
 
   /// Les parts de largeur des cinq colonnes du cycle (`px-3 py-2`).
   static const _parts = [180, 150, 220, 150, 190];
@@ -1227,6 +1250,9 @@ class _OngletInventaire extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final points = ref.watch(pointsStockProvider).value ?? const [];
+    final derniers =
+        ref.watch(dernierInventaireParPointProvider).value ??
+        const <String, String>{};
 
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md), // p-4
@@ -1293,10 +1319,11 @@ class _OngletInventaire extends ConsumerWidget {
             for (final p in points)
               _LigneCycle(
                 cle: Key('inventaire-cycle-${p.id}'),
+                pointId: p.id,
                 libelle: p.libelle,
+                dernier: derniers[p.id],
                 parts: _parts,
               ),
-          const _NoteNonPortee(cle: Key('inventaire-non-porte')),
         ],
       ),
     );
@@ -1305,20 +1332,22 @@ class _OngletInventaire extends ConsumerWidget {
 
 /// Une ligne du « Cycle d'inventaire par magasin » (vue l.460-477) : le point,
 /// sa périodicité et son état — « non définie » : aucune périodicité n'est
-/// enregistrée nulle part —, son dernier inventaire, et le bouton « Lancer
-/// l'inventaire », GRISÉ (voir [TextesInventaires.inventaireNonPorte]).
-///
-/// « Dernier inventaire clôturé » rend « — » : la vue y met une date ou
-/// « aucun » ; ce poste ne tient aucun inventaire, il ne peut donc affirmer
-/// ni l'un ni l'autre (un « aucun » dirait qu'il n'en existe pas ailleurs).
-class _LigneCycle extends StatelessWidget {
+/// enregistrée nulle part —, la date de son dernier inventaire (ou « aucun »),
+/// et le bouton « Lancer l'inventaire » : le clic EST le choix du magasin.
+class _LigneCycle extends ConsumerWidget {
   const _LigneCycle({
     required Key cle,
+    required this.pointId,
     required this.libelle,
+    required this.dernier,
     required this.parts,
   }) : super(key: cle);
 
+  final String pointId;
   final String libelle;
+
+  /// `AAAA-MM-JJ` du dernier inventaire enregistré, `null` : aucun.
+  final String? dernier;
   final List<int> parts;
 
   Widget _cellule(
@@ -1336,8 +1365,34 @@ class _LigneCycle extends StatelessWidget {
     ),
   );
 
+  /// `Inventaires::ouvrirInventaire($pointId)` : ouvre le comptage, et DIT
+  /// combien d'articles sont à compter.
+  Future<void> _lancer(BuildContext context, WidgetRef ref) async {
+    final r = await ref.read(stocksApiProvider).lancerInventaire(pointId);
+    if (!context.mounted) return;
+    switch (r) {
+      case StocksOk(:final valeur):
+        ref.read(inventaireEnCoursProvider.notifier).ouvrir(valeur.inventaire);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              MessagesStock.inventaireOuvert(valeur.aCompter),
+              key: const Key('inventaire-ouvert'),
+            ),
+          ),
+        );
+      case StocksRefuse(:final motif):
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: AppColors.erreur,
+            content: Text(motif, key: const Key('inventaire-refus')),
+          ),
+        );
+    }
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final nonDefinie = Text(
       TextesInventaires.nonDefinie,
       style: _t(TaillesContenu.t12, couleur: AppColors.neutre400),
@@ -1363,30 +1418,28 @@ class _LigneCycle extends StatelessWidget {
           _cellule(1, nonDefinie),
           _cellule(
             2,
-            Tooltip(
-              message: 'Aucun inventaire n’est tenu sur ce poste.',
-              child: Text(
-                '—',
-                style: _t(TaillesContenu.t13, couleur: AppColors.neutre400),
-              ),
-            ),
+            dernier == null
+                ? Text(
+                    TextesInventaires.dernierAucun,
+                    key: Key('${(key as ValueKey<String>).value}-dernier'),
+                    style: _t(TaillesContenu.t13, couleur: AppColors.neutre400),
+                  )
+                : Text(
+                    _jourDeLaVue(dernier!),
+                    key: Key('${(key as ValueKey<String>).value}-dernier'),
+                    style: _t(TaillesContenu.t13, couleur: Ardoise.c600),
+                  ),
           ),
           _cellule(3, nonDefinie),
           _cellule(
             4,
-            Tooltip(
-              message:
-                  'Inventaire physique non porté sur ce poste : voir la note '
-                  'sous le tableau.',
-              child: BoutonStandard(
-                key: Key('${(key as ValueKey<String>).value}-lancer'),
-                libelle: TextesInventaires.lancer,
-                compact: true,
-                margeVerticale: AppSpacing.xxs, // py-1.5
-                variante: VarianteBouton.primaire,
-                // Grisé, jamais inerte en silence : la note dit pourquoi.
-                onPressed: null,
-              ),
+            BoutonStandard(
+              key: Key('${(key as ValueKey<String>).value}-lancer'),
+              libelle: TextesInventaires.lancer,
+              compact: true,
+              margeVerticale: AppSpacing.xxs, // py-1.5
+              variante: VarianteBouton.primaire,
+              onPressed: () => _lancer(context, ref),
             ),
             alignement: Alignment.centerRight,
           ),
@@ -1396,22 +1449,476 @@ class _LigneCycle extends StatelessWidget {
   }
 }
 
-/// La note de l'inventaire physique refusé — sous le tableau du cycle, et dans
-/// le corps de l'onglet des inventaires clôturés.
-class _NoteNonPortee extends StatelessWidget {
-  const _NoteNonPortee({required this.cle});
+/// `AAAA-MM-JJ` -> `JJ/MM/AAAA` (`format('d/m/Y')`) ; une chaîne qui n'a pas
+/// cette forme est rendue telle quelle — jamais une date inventée.
+String _jourDeLaVue(String iso) {
+  final m = RegExp(r'^(\d{4})-(\d{2})-(\d{2})').firstMatch(iso);
+  return m == null ? iso : '${m[3]}/${m[2]}/${m[1]}';
+}
 
-  /// La clé est posée sur le TEXTE (les tests lisent le texte par sa clé).
-  final Key cle;
+/// ÉTAPE 2 — la feuille de comptage : l'entête de l'inventaire, ses deux
+/// boutons, puis un article par ligne.
+class _EtapeFeuille extends ConsumerWidget {
+  const _EtapeFeuille({required this.enCours});
+
+  final InventaireEnCours enCours;
+
+  static const _colonnes = [
+    'Article',
+    'Unité',
+    'Théorique',
+    'Compté',
+    'Écart',
+    'Écart valorisé',
+  ];
+  static const _droite = {'Théorique', 'Compté', 'Écart', 'Écart valorisé'};
+  static const _parts = [260, 90, 130, 140, 130, 170];
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final points = ref.watch(pointsStockProvider).value ?? const [];
+    final point = points
+        .where((p) => p.id == enCours.pointId)
+        .map((p) => p.libelle)
+        .firstOrNull;
+    final feuille = ref.watch(feuilleComptageProvider);
+
+    return feuille.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.all(AppSpacing.lg),
+        child: Center(child: CircularProgressIndicator()),
+      ),
+      error: (e, _) => _Note(cle: const Key('inventaire-erreur'), texte: '$e'),
+      data: (f) => f == null
+          ? _Note(
+              cle: const Key('inventaire-refus-lecture'),
+              texte: refusLectureStocks,
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _EnteteInventaire(
+                  enCours: enCours,
+                  point: point ?? 'tous points',
+                  feuille: f,
+                ),
+                Container(
+                  decoration: _carte(),
+                  clipBehavior: Clip.antiAlias,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const _EnTeteTableau(
+                        _colonnes,
+                        droite: _droite,
+                        parts: _parts,
+                      ),
+                      if (f.lignes.isEmpty)
+                        const _VideFeuille()
+                      else
+                        for (final l in f.lignes)
+                          _LigneFeuilleVue(
+                            cle: Key('inventaire-ligne-${l.articleId}'),
+                            ligne: l,
+                            pointId: enCours.pointId,
+                            parts: _parts,
+                          ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.xs),
+                  child: Text(
+                    TextesInventaires.comptageEnMemoire,
+                    key: const Key('inventaire-en-memoire'),
+                    style: _t(TaillesContenu.t12, couleur: AppColors.neutre500),
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+}
+
+/// L'état vide de la feuille (vue l.580-584) : le couple générique du maître.
+class _VideFeuille extends StatelessWidget {
+  const _VideFeuille();
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.sm),
-      child: Text(
-        TextesInventaires.inventaireNonPorte,
-        key: cle,
-        style: _t(TaillesContenu.t12, couleur: AppColors.neutre500),
+      key: const Key('inventaire-feuille-vide'),
+      padding: const EdgeInsets.all(AppSpacing.xl), // p-8
+      child: Column(
+        children: [
+          Text(
+            'Aucun résultat',
+            style: _t(
+              TaillesContenu.t13,
+              poids: FontWeight.w600,
+              couleur: AppColors.neutre500,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.unit),
+          Text(
+            'Essayez de modifier votre recherche ou vos filtres.',
+            style: _t(TaillesContenu.t12, couleur: AppColors.neutre400),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// « Exporter » de la feuille — la modale partagée (`stocks_pwa.export.
+/// titre_stocks`, sous-titre `sous_titre_filtre` : l'onglet « Inventaire
+/// physique »), puis le PDF A4 ou le tableur (CSV) du comptage AFFICHÉ. Rien
+/// de compté : refusé avec la phrase de la vue (`liste_vide`).
+Future<void> _exporterFeuille(
+  BuildContext context,
+  WidgetRef ref,
+  InventaireEnCours enCours,
+  String point,
+  FeuilleComptage feuille,
+) async {
+  final etat = EtatInventaire(
+    point: point,
+    date: enCours.date,
+    feuille: feuille,
+  );
+
+  final format = await choisirFormatExport(
+    context,
+    titre: 'Exporter — Articles en stock',
+    sousTitre: 'Le document porte les filtres affichés : Inventaire physique',
+  );
+  if (format == null || !context.mounted) return;
+
+  if (etat.vide) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          EtatInventaire.refusVide,
+          key: Key('inventaire-export-vide'),
+        ),
+      ),
+    );
+    return;
+  }
+
+  await executerExport(
+    context,
+    () => switch (format) {
+      FormatExport.pdf => ref.read(exporterInventairePdfProvider)(etat),
+      FormatExport.excel => ref.read(exporterInventaireProvider)(etat),
+    },
+    cleSucces: const Key('inventaire-export-fait'),
+  );
+}
+
+/// La carte d'entête (vue l.540-566) : « Inventaire du … — … », le décompte,
+/// les écarts et l'impact valorisé ; « Exporter » et « Clôturer et régulariser ».
+class _EnteteInventaire extends ConsumerWidget {
+  const _EnteteInventaire({
+    required this.enCours,
+    required this.point,
+    required this.feuille,
+  });
+
+  final InventaireEnCours enCours;
+  final String point;
+  final FeuilleComptage feuille;
+
+  Future<void> _cloturer(BuildContext context, WidgetRef ref) async {
+    final confirme = await confirmerClotureInventaire(
+      context,
+      feuille: feuille,
+    );
+    if (confirme != true || !context.mounted) return;
+
+    final r = await ref.read(stocksApiProvider).cloturerInventaire(enCours);
+    if (!context.mounted) return;
+
+    switch (r) {
+      case StocksOk(:final valeur):
+        ref.read(inventaireEnCoursProvider.notifier).clore();
+        // Le stock a bougé (les régularisations), et l'historique a une ligne
+        // de plus : tout ce qui les montre est relu.
+        ref
+          ..invalidate(etatStockProvider)
+          ..invalidate(inventairesClosProvider)
+          ..invalidate(dernierInventaireParPointProvider);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  MessagesStock.inventaireCloture(
+                    nombre: valeur.regularisations,
+                    impact: formaterFcfa(valeur.ecartValoriseFrancs),
+                  ),
+                  key: const Key('inventaire-cloture-fait'),
+                ),
+                if (valeur.ecartsSansCout > 0)
+                  Text(
+                    TextesInventaires.ecartsSansCout(valeur.ecartsSansCout),
+                    key: const Key('inventaire-cloture-sans-cout'),
+                  ),
+              ],
+            ),
+          ),
+        );
+      case StocksRefuse(:final motif):
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: AppColors.erreur,
+            content: Text(motif, key: const Key('inventaire-refus')),
+          ),
+        );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final negatif = feuille.impactFrancs < 0;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.md), // mb-4
+      padding: const EdgeInsets.all(AppSpacing.md), // p-4
+      decoration: _carte(),
+      child: Wrap(
+        // `flex flex-wrap items-center justify-between gap-3`
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: AppSpacing.sm,
+        runSpacing: AppSpacing.sm,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Inventaire du ${formaterDate(enCours.date)} — $point',
+                key: const Key('inventaire-titre'),
+                style: _t(
+                  TaillesContenu.t13,
+                  poids: FontWeight.bold,
+                  couleur: AppColors.navy,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.demi), // mt-0.5
+              Text.rich(
+                key: const Key('inventaire-resume'),
+                TextSpan(
+                  style: _t(TaillesContenu.t12, couleur: AppColors.neutre500),
+                  children: [
+                    TextSpan(
+                      text:
+                          '${feuille.comptes} / ${feuille.total} article(s) '
+                          'comptés · ${feuille.ecarts} écart(s) · impact '
+                          'valorisé ',
+                    ),
+                    TextSpan(
+                      text: formaterFcfa(feuille.impactFrancs),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: negatif
+                            ? PaletteMaitre.rouge600
+                            : PaletteMaitre.emeraude600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (feuille.ecartsSansCout > 0)
+                Text(
+                  TextesInventaires.ecartsSansCout(feuille.ecartsSansCout),
+                  key: const Key('inventaire-sans-cout'),
+                  style: _t(TaillesContenu.t12, couleur: AppColors.neutre400),
+                ),
+            ],
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              BoutonStandard(
+                key: const Key('inventaire-exporter'),
+                libelle: TextesExport.bouton,
+                compact: true,
+                margeVerticale: AppSpacing.xxs,
+                onPressed: () =>
+                    _exporterFeuille(context, ref, enCours, point, feuille),
+              ),
+              const SizedBox(width: AppSpacing.xs), // gap-2
+              BoutonStandard(
+                key: const Key('inventaire-cloturer'),
+                libelle: 'Clôturer et régulariser',
+                variante: VarianteBouton.primaire,
+                onPressed: () => _cloturer(context, ref),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Une ligne de la feuille (vue l.585-615) : l'article, son unité, le théorique,
+/// le bouton « à compter » (ou le compté), l'écart et l'écart valorisé. Les
+/// lignes non comptées portent le fond ambre léger (`bg-amber-50/40`).
+class _LigneFeuilleVue extends ConsumerWidget {
+  const _LigneFeuilleVue({
+    required Key cle,
+    required this.ligne,
+    required this.pointId,
+    required this.parts,
+  }) : super(key: cle);
+
+  final LigneFeuille ligne;
+  final String pointId;
+  final List<int> parts;
+
+  Widget _cellule(
+    int i,
+    Widget enfant, {
+    Alignment alignement = Alignment.centerLeft,
+  }) => Expanded(
+    flex: parts[i],
+    child: Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md, // px-4
+        vertical: AppSpacing.xs, // py-2
+      ),
+      child: Align(alignment: alignement, child: enfant),
+    ),
+  );
+
+  Future<void> _compter(BuildContext context, WidgetRef ref) async {
+    final fige = await ouvrirModaleComptage(
+      context,
+      pointId: pointId,
+      ligne: ligne,
+    );
+    if (fige == null || !context.mounted) return;
+    ref.read(inventaireEnCoursProvider.notifier).compter(ligne.articleId, fige);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          MessagesStock.comptageEnregistre(ligne.libelle),
+          key: const Key('inventaire-comptage-fait'),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final ecart = ligne.ecartCentiemes;
+    final (poidsEcart, couleurEcart) = switch (ecart) {
+      null => (null, Ardoise.c300),
+      0 => (null, Ardoise.c400),
+      > 0 => (FontWeight.bold, PaletteMaitre.emeraude600),
+      _ => (FontWeight.bold, PaletteMaitre.rouge600),
+    };
+    final valorise = ligne.valoriseFrancs;
+
+    Widget bouton(String libelle, {FontWeight? poids}) => InkWell(
+      key: Key('inventaire-compter-${ligne.articleId}'),
+      onTap: () => _compter(context, ref),
+      borderRadius: BorderRadius.circular(AppRadius.roundedLg),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xsPlus, // px-2.5
+          vertical: AppSpacing.unit, // py-1
+        ),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(AppRadius.roundedLg),
+          border: Border.all(color: Ardoise.c300),
+        ),
+        child: Text(libelle, style: _t(TaillesContenu.t12, poids: poids)),
+      ),
+    );
+
+    return Container(
+      decoration: BoxDecoration(
+        color: ligne.compte
+            ? null
+            : PaletteMaitre.ambre50.withValues(alpha: 0.4),
+        border: const Border(top: BorderSide(color: Ardoise.c100)),
+      ),
+      child: Row(
+        children: [
+          _cellule(0, Text(ligne.libelle, style: _t(TaillesContenu.t13))),
+          _cellule(
+            1,
+            Text(
+              ligne.unite,
+              style: _t(TaillesContenu.t13, couleur: Ardoise.c600),
+            ),
+          ),
+          _cellule(
+            2,
+            Text(
+              ecrireCentiemes(ligne.theoriqueCentiemes),
+              key: Key('inventaire-theorique-${ligne.articleId}'),
+              style: _t(TaillesContenu.t13, poids: FontWeight.w600),
+            ),
+            alignement: Alignment.centerRight,
+          ),
+          _cellule(
+            3,
+            ligne.compte
+                ? bouton(
+                    ecrireCentiemes(ligne.constateCentiemes!),
+                    poids: FontWeight.w600,
+                  )
+                : bouton('à compter'),
+            alignement: Alignment.centerRight,
+          ),
+          _cellule(
+            4,
+            Text(
+              ecart == null
+                  ? '—'
+                  : (ecart > 0
+                        ? '+${ecrireCentiemes(ecart)}'
+                        : ecrireCentiemes(ecart)),
+              key: Key('inventaire-ecart-${ligne.articleId}'),
+              style: _t(
+                TaillesContenu.t13,
+                poids: poidsEcart,
+                couleur: couleurEcart,
+              ),
+            ),
+            alignement: Alignment.centerRight,
+          ),
+          _cellule(
+            5,
+            valorise == null
+                ? Tooltip(
+                    message: ligne.sansCout
+                        ? TextesInventaires.coutInconnu
+                        : '',
+                    child: Text(
+                      '—',
+                      key: Key('inventaire-valorise-${ligne.articleId}'),
+                      style: _t(TaillesContenu.t13, couleur: Ardoise.c300),
+                    ),
+                  )
+                : Text(
+                    formaterFcfa(valorise),
+                    key: Key('inventaire-valorise-${ligne.articleId}'),
+                    style: _t(
+                      TaillesContenu.t13,
+                      poids: poidsEcart,
+                      couleur: couleurEcart,
+                    ),
+                  ),
+            alignement: Alignment.centerRight,
+          ),
+        ],
       ),
     );
   }
@@ -1421,42 +1928,177 @@ class _NoteNonPortee extends StatelessWidget {
 /* Onglet « Inventaires clôturés »                                         */
 /* ====================================================================== */
 
-class _OngletHistorique extends StatelessWidget {
+/// L'historique (vue l.650-695) : les inventaires enregistrés sur ce poste —
+/// clôturés ici, ou descendus d'un autre poste —, du plus récent au plus
+/// ancien, 50 au plus.
+///
+/// « Manquants », « Excédents » et « Impact net » rendent « — », comme la vue :
+/// seule la clôture les produit, et la base ne les garde pas (la valeur d'un
+/// écart dépend du coût moyen DU MOMENT de la clôture).
+class _OngletHistorique extends ConsumerWidget {
   const _OngletHistorique();
 
+  static const _colonnes = [
+    'Date',
+    'Point',
+    'Articles',
+    'Régularisés',
+    'Manquants',
+    'Excédents',
+    'Impact net',
+    'Par',
+  ];
+  static const _droite = {
+    'Articles',
+    'Régularisés',
+    'Manquants',
+    'Excédents',
+    'Impact net',
+  };
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final inventaires = ref.watch(inventairesClosProvider);
+
     return Container(
       decoration: _carte(),
       clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const _EnTeteTableau(
-            [
-              'Date',
-              'Point',
-              'Articles',
-              'Régularisés',
-              'Manquants',
-              'Excédents',
-              'Impact net',
-              'Par',
-            ],
-            droite: {
-              'Articles',
-              'Régularisés',
-              'Manquants',
-              'Excédents',
-              'Impact net',
+          const _EnTeteTableau(_colonnes, droite: _droite),
+          inventaires.when(
+            loading: () => const Padding(
+              padding: EdgeInsets.all(AppSpacing.lg),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+            error: (e, _) =>
+                _Note(cle: const Key('historique-erreur'), texte: '$e'),
+            data: (liste) {
+              if (liste == null) {
+                return _Note(
+                  cle: const Key('historique-refus-lecture'),
+                  texte: refusLectureStocks,
+                );
+              }
+              if (liste.isEmpty) return const _HistoriqueVide();
+              return Column(
+                children: [
+                  for (final i in liste)
+                    _LigneHistorique(
+                      cle: Key('historique-${i.id}'),
+                      inventaire: i,
+                    ),
+                ],
+              );
             },
           ),
-          // Pas de « Aucun inventaire clôturé » : ce poste n'en tient aucun, il
-          // ne peut donc dire ni qu'il y en a ni qu'il n'y en a pas. La note le
-          // dit, avec les mots de la vue.
-          const Padding(
-            padding: EdgeInsets.all(AppSpacing.md),
-            child: _NoteNonPortee(cle: Key('historique-non-porte')),
+        ],
+      ),
+    );
+  }
+}
+
+/// L'état vide (vue l.670-675) : « Aucun inventaire clôturé » et sa phrase.
+class _HistoriqueVide extends StatelessWidget {
+  const _HistoriqueVide();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      key: const Key('historique-vide'),
+      padding: const EdgeInsets.all(AppSpacingLarge.p10),
+      child: Column(
+        children: [
+          Text(
+            'Aucun inventaire clôturé',
+            style: _t(
+              TaillesContenu.t15,
+              poids: FontWeight.w600,
+              couleur: AppColors.navy,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.unit),
+          Text(
+            'Les inventaires clôturés et leurs régularisations apparaîtront '
+            'ici.',
+            style: _t(TaillesContenu.t13, couleur: AppColors.neutre500),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LigneHistorique extends StatelessWidget {
+  const _LigneHistorique({required Key cle, required this.inventaire})
+    : super(key: cle);
+
+  final InventaireClos inventaire;
+
+  static const _parts = [1, 1, 1, 1, 1, 1, 1, 1];
+
+  Widget _cellule(
+    int i,
+    Widget enfant, {
+    Alignment alignement = Alignment.centerLeft,
+  }) => Expanded(
+    flex: _parts[i],
+    child: Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md, // px-4
+        vertical: AppSpacing.xsPlus, // py-2.5
+      ),
+      child: Align(alignment: alignement, child: enfant),
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final tiret = Text(
+      '—',
+      style: _t(TaillesContenu.t13, couleur: Ardoise.c300),
+    );
+
+    return Container(
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: Ardoise.c100)),
+      ),
+      child: Row(
+        children: [
+          _cellule(
+            0,
+            Text(_jourDeLaVue(inventaire.date), style: _t(TaillesContenu.t13)),
+          ),
+          _cellule(
+            1,
+            Text(
+              inventaire.pointLibelle ?? 'tous points',
+              style: _t(TaillesContenu.t13),
+            ),
+          ),
+          _cellule(
+            2,
+            Text('${inventaire.articles}', style: _t(TaillesContenu.t13)),
+            alignement: Alignment.centerRight,
+          ),
+          _cellule(
+            3,
+            Text('${inventaire.regularises}', style: _t(TaillesContenu.t13)),
+            alignement: Alignment.centerRight,
+          ),
+          _cellule(4, tiret, alignement: Alignment.centerRight),
+          _cellule(5, tiret, alignement: Alignment.centerRight),
+          _cellule(6, tiret, alignement: Alignment.centerRight),
+          _cellule(
+            7,
+            Text(
+              inventaire.par ?? '—',
+              style: _t(
+                TaillesContenu.t12,
+                couleur: inventaire.par == null ? Ardoise.c300 : Ardoise.c400,
+              ),
+            ),
           ),
         ],
       ),

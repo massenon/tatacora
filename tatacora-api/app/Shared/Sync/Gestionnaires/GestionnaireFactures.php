@@ -46,10 +46,20 @@ use RuntimeException;
  * sinon le client « Client de passage » (une seule fiche au serveur) : une
  * facture du serveur exige un client, un client de passage n'en a pas.
  *
- * ## Modification : l'ANNULATION seulement, par avoir (RG-03)
+ * ## Modification : l'ANNULATION ou l'AVOIR PARTIEL, par avoir (RG-03)
  *
  * `statut: annulee` + `motif` → `emettreAvoir` du TTC entier ; le numéro
  * `AV-` de l'avoir est rendu (`numero_avoir`). Tout autre champ : refusé.
+ *
+ * `montant` + `motif` (sans `statut`, 21/10/2026) → `emettreAvoir` du montant
+ * saisi, en francs entiers, comme « Émettre un avoir » de la PWA : la règle est
+ * celle du SERVICE — un avoir n'excède jamais le TTC de sa facture, il peut
+ * s'ajouter à d'autres (le service ne les cumule pas). `avoir_id` (facultatif)
+ * est l'identifiant de l'avoir sur le poste : l'avoir naît sous cet UUID, un
+ * rejeu ne le double pas, et le numéro rendu (`numero_avoir`, `avoir_id`) est
+ * celui de CET avoir. La garde Q3 (facture d'un autre poste) ne vaut que pour
+ * l'ANNULATION : un avoir partiel n'annule rien, et la PWA l'ouvre à tout compte
+ * en écriture sur M2.
  */
 final class GestionnaireFactures extends GestionnaireDocumentAbstrait
 {
@@ -162,23 +172,89 @@ final class GestionnaireFactures extends GestionnaireDocumentAbstrait
     {
         $statut = $payload['statut'] ?? null;
         $motif = trim((string) ($payload['motif'] ?? ''));
-        unset($payload['statut'], $payload['motif']);
+        $montant = $payload['montant'] ?? null;
+        $avoirId = $payload['avoir_id'] ?? null;
+        unset($payload['statut'], $payload['motif'], $payload['montant'], $payload['avoir_id']);
 
-        if ($statut !== 'annulee' || $payload !== []) {
+        if ($payload !== []) {
             throw new RuntimeException(__('sync.modification_non_synchronisable'));
         }
 
+        if ($statut === 'annulee' && $montant === null && $avoirId === null) {
+            return $this->annuler($entiteId, $motif, $contexte);
+        }
+
+        if ($statut === null && $montant !== null) {
+            return $this->avoirPartiel($entiteId, $montant, $motif, $avoirId, $contexte);
+        }
+
+        throw new RuntimeException(__('sync.modification_non_synchronisable'));
+    }
+
+    private function annuler(string $entiteId, string $motif, ContexteSynchronisation $contexte): EcritureSynchronisee
+    {
         $facture = Facture::query()->findOrFail($entiteId);
 
-        // Rejeu : un avoir existe déjà — il est rendu, jamais doublé.
-        if (! Avoir::query()->where('facture_id', $entiteId)->exists()) {
+        // Rejeu : un avoir du TTC entier existe déjà — il est rendu, jamais
+        // doublé. (Un avoir PARTIEL antérieur n'annule pas la facture.)
+        $entier = Avoir::query()->where('facture_id', $entiteId)->where('montant', '>=', (string) $facture->montant_ttc)->exists();
+
+        if (! $entier) {
             // Q3 (lot F6) : la facture d'un autre poste, par l'administration
             // ou le comptable seulement.
             $this->autresPostes->verifierAnnulation('factures', $entiteId, $contexte);
-            $this->emission->emettreAvoir($facture, (string) $facture->montant_ttc, $motif === '' ? __('sync.factures.motif_absent') : $motif);
+            $avoir = $this->emission->emettreAvoir($facture, (string) $facture->montant_ttc, $motif === '' ? __('sync.factures.motif_absent') : $motif);
+
+            return $this->resultatAvoir($entiteId, $avoir);
         }
 
         return $this->resultat($entiteId);
+    }
+
+    private function avoirPartiel(string $entiteId, mixed $montant, string $motif, mixed $avoirId, ContexteSynchronisation $contexte): EcritureSynchronisee
+    {
+        $donnees = $this->validerForme(
+            ['montant' => $montant, 'avoir_id' => $avoirId],
+            ['montant' => ['required', 'integer', 'gt:0'], 'avoir_id' => ['nullable', 'uuid']],
+            ['montant.integer' => __('sync.factures.avoir_montant_invalide'), 'montant.gt' => __('sync.factures.avoir_montant_invalide')],
+        );
+
+        $facture = Facture::query()->findOrFail($entiteId);
+
+        // Rejeu : l'avoir de ce poste existe déjà sous son identifiant.
+        if ($donnees['avoir_id'] !== null) {
+            $existant = Avoir::query()->find($donnees['avoir_id']);
+
+            if ($existant !== null) {
+                return $this->resultatAvoir($entiteId, $existant);
+            }
+        }
+
+        try {
+            $avoir = $this->emission->emettreAvoir(
+                $facture,
+                $this->francs((int) $donnees['montant']),
+                $motif === '' ? __('sync.factures.avoir_motif_absent') : $motif,
+                $donnees['avoir_id'],
+            );
+        } catch (\InvalidArgumentException $refus) {
+            // Le plafond du service (TTC) : un refus du serveur, avec SA phrase.
+            throw new RuntimeException($refus->getMessage(), 0, $refus);
+        }
+
+        return $this->resultatAvoir($entiteId, $avoir);
+    }
+
+    private function resultatAvoir(string $entiteId, Avoir $avoir): EcritureSynchronisee
+    {
+        $facture = Facture::query()->findOrFail($entiteId);
+
+        return new EcritureSynchronisee($entiteId, complements: [
+            'numero' => $facture->numero,
+            'montant_ttc' => (string) $facture->montant_ttc,
+            'numero_avoir' => $avoir->numero,
+            'avoir_id' => (string) $avoir->id,
+        ]);
     }
 
     /**

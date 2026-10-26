@@ -96,9 +96,17 @@ final class CompteursCatalogue {
 /// Les compteurs de l'onglet des fiches (trois cartes de la vue) — comptés sur
 /// le référentiel ENTIER.
 final class CompteursFiches {
-  const CompteursFiches({required this.total, required this.vides});
+  const CompteursFiches({
+    required this.total,
+    required this.vides,
+    this.provisoires = 0,
+  });
 
   final int total;
+
+  /// Les fiches dont la composition est PROVISOIRE (`recettes.
+  /// composition_provisoire`) : quantités posées, jamais pesées.
+  final int provisoires;
 
   /// Les fiches sans aucun ingrédient : celles dont la vente ne décrémenterait
   /// rien.
@@ -364,6 +372,7 @@ final class RestaurantApi {
       CompteursFiches(
         total: fiches.length,
         vides: fiches.where((f) => f.composition.isEmpty).length,
+        provisoires: fiches.where((f) => f.compositionProvisoire).length,
       ),
     );
   }

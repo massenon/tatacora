@@ -303,6 +303,7 @@ final class ArticleCalcul {
     required this.seuilCentiemes,
     required this.suivi,
     this.pointStockageId,
+    this.actif = true,
   });
 
   final String id;
@@ -314,6 +315,10 @@ final class ArticleCalcul {
   final int seuilCentiemes;
   final SuiviArticle suivi;
   final String? pointStockageId;
+
+  /// `false` : l'article est ARCHIVÉ (v35). Il reste dans le référentiel, marqué
+  /// « Archivé » — le masquer le rendrait indiscernable d'un article inexistant.
+  final bool actif;
 
   bool get estSuiviEnStock => suivi == SuiviArticle.permanent;
 }
@@ -406,6 +411,7 @@ EtatStock calculerEtat({
             : (libellesPoints[rattache] ?? rattache),
         prixAchat: prix == null ? null : ecrireCout(prix),
         deriveCmp: deriveCoutMoyenPondere(cmp: cmp, prixAchat: prix),
+        actif: a.actif,
       ),
     );
     valeurTotale += valeur;

@@ -81,6 +81,22 @@ abstract final class MessagesVentes {
   static String venteAnnulee(String numero) =>
       'Vente $numero annulée. Elle reste au journal.';
 
+  /// `ventes.remise_ligne_facture` — le libellé des lignes négatives de remise
+  /// de la facture (« … — Restaurant »).
+  static const String remiseLigneFacture = 'Remise sur consommations';
+
+  /// `ventes.remise_valeur_invalide`.
+  static const String remiseValeurInvalide =
+      'La valeur de la remise doit être un nombre positif ou nul.';
+
+  /// `ventes.remise_pourcentage_hors_bornes`.
+  static const String remisePourcentageHorsBornes =
+      "Une remise en pourcentage vit entre 0 et 100. Au-delà, le total deviendrait négatif : ce n'est plus une remise, c'est un montant que personne n'a décidé.";
+
+  /// `ventes.remise_superieure_au_total`.
+  static const String remiseSuperieureAuTotal =
+      "La remise dépasse le total du panier : le net serait négatif. Réduisez-la, ou retirez-la avant d'encaisser.";
+
   /// `ventes.libelle_ecriture` — seul le gabarit est celui du serveur ; voir
   /// [libelleDeLaPiece] pour ce que le poste y met.
   static String libelleDeLaPiece(String reference) => 'Vente $reference';

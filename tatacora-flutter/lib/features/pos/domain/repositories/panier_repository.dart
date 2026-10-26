@@ -1,3 +1,5 @@
+import '../../../hebergement/domain/entities/fiche_reservation.dart'
+    show TypeRemise;
 import '../entities/article_vendable.dart';
 import '../entities/panier.dart';
 
@@ -71,6 +73,15 @@ abstract interface class PanierRepository {
     String? modePaiement,
     required String auteurId,
   });
+
+  /// Pose la REMISE du panier ouvert : le [type] et la valeur saisie
+  /// ([valeurSaisie], le texte du champ), jamais un montant. Lève `RefusVente`
+  /// hors bornes (phrases du serveur) et n'écrit alors rien.
+  Future<Panier> appliquerRemise(
+    String panierId,
+    TypeRemise type,
+    String valeurSaisie,
+  );
 
   Future<Panier> annuler(String panierId, String motif);
 

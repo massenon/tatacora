@@ -774,12 +774,17 @@ final class FicheCalculee {
     required this.libelle,
     required this.composition,
     required this.platsServis,
+    this.compositionProvisoire = false,
   });
 
   final String id;
   final String libelle;
   final List<IngredientCalcule> composition;
   final List<String> platsServis;
+
+  /// La marque « composition provisoire » (`recettes.composition_provisoire`) :
+  /// les quantités ont été posées, jamais pesées.
+  final bool compositionProvisoire;
 }
 
 /// La fiche technique et son coût, dans ses trois états.
@@ -796,6 +801,7 @@ Recette versRecette(FicheCalculee f) {
     platsServis: f.platsServis,
     // `Recette::decrementeUnStockSuivi` : au moins un ingrédient suivi.
     decrementeUnStockSuivi: f.composition.any((i) => i.estSuivi),
+    compositionProvisoire: f.compositionProvisoire,
   );
 }
 

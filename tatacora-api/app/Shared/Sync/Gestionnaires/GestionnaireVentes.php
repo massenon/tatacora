@@ -8,6 +8,7 @@ use App\Domain\Caisse\Models\SessionCaisse;
 use App\Domain\Hebergement\Models\Reservation;
 use App\Domain\Stocks\Exceptions\RuptureStockException;
 use App\Domain\Ventes\Models\LigneVente;
+use App\Domain\Ventes\Models\Panier;
 use App\Domain\Ventes\Models\Vente;
 use App\Domain\Ventes\Services\VenteService;
 use App\Pwa\Livewire\Pos\PosComptant;
@@ -211,6 +212,10 @@ final class GestionnaireVentes extends GestionnaireDocumentAbstrait
             'table_id' => ['nullable', 'string', 'max:255'],
             'client_nom' => ['nullable', 'string', 'max:255'],
             'montant_cloture' => ['nullable', 'integer', 'min:0'],
+            // 21/10/2026 : la remise du panier, telle que le caissier l'a
+            // saisie (type + valeur, jamais un montant pré-calculé).
+            'remise_type' => ['nullable', 'in:' . implode(',', Panier::TYPES_REMISE)],
+            'remise_valeur' => ['nullable', 'numeric', 'min:0'],
             'lignes' => ['required', 'array', 'min:1'],
             'lignes.*.module_source' => ['required', 'string'],
             'lignes.*.code_article' => ['required', 'string'],
@@ -237,13 +242,25 @@ final class GestionnaireVentes extends GestionnaireDocumentAbstrait
             $total += (int) $ligne['prix_unitaire'] * (int) $ligne['quantite'];
         }
 
-        // Le total figé au poste doit être celui de ses lignes : un document
-        // incohérent avec lui-même ne s'enregistre pas — on ne saurait pas
-        // lequel des deux chiffres a été encaissé.
-        if (isset($donnees['montant_cloture']) && (int) $donnees['montant_cloture'] !== $total) {
+        // La remise : l'UNIQUE formule du serveur (`Panier::remiseSur`), sur le
+        // total des lignes — hors bornes, elle REFUSE avec sa phrase. Le NET
+        // en est la différence.
+        $remiseType = (string) ($donnees['remise_type'] ?? Panier::REMISE_AUCUNE);
+        $remiseValeur = $remiseType === Panier::REMISE_AUCUNE ? '0.00' : bcadd((string) ($donnees['remise_valeur'] ?? '0'), '0', 2);
+        $remise = Panier::remiseSur($this->francs($total), $remiseType, $remiseValeur);
+        $net = bcsub($this->francs($total), $remise, 2);
+
+        // Le total figé au poste est le NET de ses lignes (sans remise : leur
+        // total) : un document incohérent avec lui-même ne s'enregistre pas — on
+        // ne saurait pas lequel des deux chiffres a été encaissé. Le poste
+        // compte en francs entiers : un net à centimes (10 % de 1 005 F) lui
+        // arrive arrondi au franc, le serveur garde les centimes.
+        $attendu = (int) bcadd($net, '0.5', 0);
+
+        if (isset($donnees['montant_cloture']) && (int) $donnees['montant_cloture'] !== $attendu) {
             throw new RuntimeException(__('sync.ventes.total_incoherent', [
                 'annonce' => (string) $donnees['montant_cloture'],
-                'lignes' => (string) $total,
+                'lignes' => (string) $attendu,
             ]));
         }
 
@@ -263,6 +280,8 @@ final class GestionnaireVentes extends GestionnaireDocumentAbstrait
             'table' => $reservation !== null ? $reservation->unite?->numero : ($donnees['table'] ?? null),
             'table_id' => $donnees['table_id'] ?? null,
             'mode_paiement' => (string) $donnees['mode_paiement'],
+            'remise_type' => $remiseType,
+            'remise_valeur' => $remiseValeur,
             'utilisateur_id' => $contexte->utilisateur->id,
             'validation_rupture' => false,
             'lignes' => $lignes,

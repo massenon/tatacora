@@ -1,3 +1,5 @@
+import '../../../hebergement/domain/entities/fiche_reservation.dart'
+    show TypeRemise;
 import '../entities/article_vendable.dart';
 import '../entities/panier.dart';
 import '../repositories/panier_repository.dart';
@@ -103,6 +105,14 @@ final class GererPanier {
     String ligneId,
     int quantite,
   ) => _depot.modifierQuantite(panierId, ligneId, quantite);
+
+  /// Pose la remise du panier (type + valeur saisie) — voir
+  /// [PanierRepository.appliquerRemise].
+  Future<Panier> appliquerRemise(
+    String panierId,
+    TypeRemise type,
+    String valeurSaisie,
+  ) => _depot.appliquerRemise(panierId, type, valeurSaisie);
 
   /// Diminue d'une unité, ou retire la ligne si elle tombe à zéro.
   ///

@@ -44,19 +44,10 @@ import 'widgets/onglet_synchronisation.dart';
 //    écraserait en silence le changement d'un autre Administrateur.
 //  - Refus, onglet « identite » — les invites d'exemple
 //    (« Ex. 3202612345678 ») : l'écran affiche des valeurs, pas des champs.
-////  - REFUS du 21/10/2026, onglet « canaux » (ajout, renommage, désactivation et
-//    réactivation d'un canal de réservation) : le serveur tient ce
-//    référentiel dans `canaux_reservation` et le synchronise nulle part ; ce
-//    poste n'en a ni table ni contrat de synchronisation, et sa fiche de
-//    réservation lit l'énumération `CanalReservation` (le jeu initial). Une
-//    écriture locale ne serait ni lue par la fiche ni envoyée au serveur : elle
-//    divergerait. L'onglet rend ce que le poste sait (les canaux, leur emploi)
-//    et le dit. Changement requis : une table locale, un contrat de
-//    synchronisation (création, renommage, activation) et une fiche qui lit la
-//    table. Jetons, un par bloc refusé :
-//      blade-refuse:transverse/parametres#canaux
-//      blade-refuse:transverse/parametres#modale:parametres.canaux_modale_titre_ajout
-//      blade-refuse:transverse/parametres#modale:parametres.canaux_bouton_desactiver
+//  - (Levé le 21/10/2026, onglet « canaux » : ajout, renommage, désactivation et
+//    réactivation d'un canal de réservation sont PORTÉS — table locale,
+//    écrivain unique `CanauxReservationDao`, synchronisation, fiche de
+//    réservation qui lit la table. Plus aucun jeton de refus pour cet onglet.)
 //
 
 // Les libellés des champs viennent du serveur (registre `RegistreParametres`) :
@@ -344,9 +335,9 @@ class _PageState extends ConsumerState<_Page> {
         // L'onglet refait lui-même la vérification du rôle.
         return const OngletSynchronisation();
       case 'canaux':
-        // Le jeu initial des canaux du poste, leur emploi relu des
-        // réservations ; l'administration du référentiel est au serveur.
-        return const OngletCanaux();
+        // Le référentiel `canaux_reservation_local` : ajout, renommage,
+        // désactivation et réactivation, synchronisés (21/10/2026).
+        return OngletCanaux(peutEcrire: peutEcrire);
       default:
         return const SizedBox.shrink();
     }

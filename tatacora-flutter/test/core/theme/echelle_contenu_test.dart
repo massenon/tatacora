@@ -326,6 +326,9 @@ void main() {
     // dans le `<main>` de `comptabilite/hub` ; leurs modales sont dans
     // `modales_hub_comptabilite.dart`, classé dans l'autre camp.
     'lib/features/comptabilite/presentation/widgets/onglets_plan_clotures.dart',
+    // Onglet « Immobilisations » (21/10/2026) : corps de page, dans le `<main>`
+    // de `comptabilite/hub` ; ses modales sont dans `modales_immobilisations.dart`.
+    'lib/features/comptabilite/presentation/widgets/onglet_immobilisations.dart',
     'lib/features/transverse/presentation/ecran_aide_a_propos.dart',
     'lib/features/transverse/presentation/ecran_contact_editeur.dart',
     'lib/features/transverse/presentation/ecran_import_export.dart',
@@ -487,6 +490,10 @@ void main() {
         '`comptabilite_pwa.modale_piece_titre` de `comptabilite/hub.blade.php` '
         '(l.292), posée après `</main>` (l.283). Rendue sur l échelle '
         'effective jusqu au 15/10/2026 : ramenée à la déclarée.',
+    'lib/features/comptabilite/presentation/widgets/modales_immobilisations.dart':
+        'Modales « Nouvelle immobilisation » et « Plan » de '
+        '`comptabilite/hub.blade.php` (`<x-pwa.modale>`, `etatFormulaire` '
+        '`immo` et `planAmortissement`), posées après `</main>`.',
     'lib/features/comptabilite/presentation/widgets/modales_hub_comptabilite.dart':
         'Modales « Créer un compte » et « Ouvrir un exercice » de '
         '`comptabilite/hub.blade.php` (`<x-pwa.modale>`, `etatFormulaire` '

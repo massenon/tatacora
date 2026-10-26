@@ -45,6 +45,7 @@ import 'package:tatacora_flutter/features/stocks/domain/entities/etat_stock.dart
 import 'package:tatacora_flutter/features/stocks/domain/entities/mouvement_stock.dart';
 import 'package:tatacora_flutter/features/synchronisation/data/operations_sync_dao.dart';
 import 'package:tatacora_flutter/features/tourisme/data/tourisme_dao.dart';
+import 'package:tatacora_flutter/features/comptabilite/data/immobilisations_dao.dart';
 import 'package:tatacora_flutter/features/transverse/data/roles_dao.dart';
 import 'package:tatacora_flutter/features/vehicules/data/vehicule_dao.dart';
 import 'package:tatacora_flutter/features/vehicules/domain/entities/contrat_location.dart';
@@ -99,6 +100,7 @@ final class ScenarioFile {
   late String role;
   late String perte;
   late String modele;
+  late String immobilisation;
 }
 
 /// Une journée complète du poste, PAR SES VRAIS ÉCRIVAINS — chacun dépose son
@@ -635,6 +637,16 @@ Future<ScenarioFile> jouerJourneeComplete(AppDatabase db) async {
     roleId: s.role,
     niveaux: {ModuleTatacora.m6Stocks: NiveauAcces.complet},
   );
+
+  // 21/10/2026 : une immobilisation du hub comptable (231, 5 ans, mise en
+  // service en cours de mois).
+  s.immobilisation = (await ImmobilisationsDao(db, auteur: auteurEssai).creer(
+    libelle: 'Toyota Land Cruiser Prado',
+    valeurOrigineCentimes: 1200000000,
+    dureeAnnees: 5,
+    dateMiseService: '2026-03-20',
+    compteImmobilisation: '231',
+  )).id;
 
   return s;
 }

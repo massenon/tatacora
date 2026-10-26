@@ -130,6 +130,10 @@ class CatalogueDescendantService
         // Lot F6 (18/10/2026) : le plan de salle, pour l'arbitrage des tables.
         'tables_salle' => ['espace', 'numero', 'libelle', 'places', 'actif'],
         'fournisseurs' => ['raison_sociale', 'nom', 'contact', 'telephone', 'email', 'ville', 'ifu', 'categorie', 'conditions_paiement', 'evaluation', 'actif'],
+        // 21/10/2026 : les canaux de réservation, AVANT les réservations qui les
+        // citent (la réservation porte le NOM de son canal). Un canal désactivé
+        // descend, marqué `actif: false` : rien n'est jamais retiré du flux.
+        'canaux_reservation' => ['nom', 'actif'],
         // Lot F3 (décision PO du 16/10/2026) : les TIERS et les SÉJOURS
         // descendent aussi, pour qu'un poste voie les chambres prises par un
         // autre (RG-01) et ses clients. `solde` n'y est pas (calcul) ; le
@@ -137,6 +141,8 @@ class CatalogueDescendantService
         // connaît que des codes) ; ni les colonnes d'audit, ni l'écriture du
         // remboursement (le poste ne tient pas les pièces du serveur).
         'clients' => ['nom', 'prenom', 'telephone', 'email', 'type_client', 'actif'],
+        // 21/10/2026 : les relances de TOUS les postes, après le client qu'elles citent.
+        'relances_clients' => ['client_id', 'date_relance', 'canal', 'montant_reclame', 'promesse', 'commentaire'],
         'reservations' => [
             'client_id', 'unite_id', 'date_arrivee', 'date_depart', 'statut', 'acompte', 'tarif_nuit',
             'remise_type', 'remise_valeur', 'mode_paiement', 'taux_annulation', 'montant_total_annulation',
@@ -207,6 +213,13 @@ class CatalogueDescendantService
         // `annee`, `code_journal`, `numero_compte`, `libelle_compte` et `classe`
         // sont ajoutés à la sérialisation (voir `ecrituresDeLaPage`).
         'ecritures_comptables' => ['exercice_id', 'date_ecriture', 'libelle', 'debit', 'credit', 'numero_piece', 'ecriture_contrepassee_id', 'journal_id', 'compte_id'],
+        // 21/10/2026 : les immobilisations (M10), de tous les postes. Le plan
+        // d'amortissement ne descend pas : il se CALCULE depuis ces colonnes.
+        'immobilisations' => ['code', 'libelle', 'compte_immobilisation', 'valeur_origine', 'date_mise_service', 'duree_annees'],
+        // 21/10/2026 : les inventaires physiques CLÔTURÉS de tous les postes ; leurs
+        // lignes descendent AVEC eux (`ENFANTS`). L'auteur (`utilisateur_id`) ne
+        // descend pas : le poste n'a pas les comptes du serveur.
+        'inventaires' => ['point_id', 'date_inventaire'],
     ];
 
     /**
@@ -221,7 +234,7 @@ class CatalogueDescendantService
      *
      * @var list<string>
      */
-    public const LECTURE_LIBRE = ['parametres_systeme', 'roles', 'exercices_comptables'];
+    public const LECTURE_LIBRE = ['parametres_systeme', 'roles', 'exercices_comptables', 'canaux_reservation'];
 
     /**
      * Tables descendues sans être synchronisables — leur module est déclaré
@@ -279,6 +292,9 @@ class CatalogueDescendantService
         'depenses' => ['table' => 'lignes_depense', 'cle' => 'depense_id', 'colonnes' => ['libelle', 'compte_charge', 'nature', 'famille', 'montant'], 'ordre' => 'created_at'],
         'factures' => ['table' => 'lignes_facture', 'cle' => 'facture_id', 'colonnes' => ['source_module', 'source_id', 'libelle', 'quantite', 'prix_unitaire', 'prix_catalogue', 'montant'], 'ordre' => 'created_at'],
         'commandes_achat' => ['table' => 'lignes_commande_achat', 'cle' => 'commande_id', 'colonnes' => ['article_id', 'quantite_commandee', 'prix_unitaire'], 'ordre' => 'created_at'],
+        // 21/10/2026 : les lignes comptées d'un inventaire (théorique figé au
+        // comptage, constaté, écart) descendent avec leur inventaire.
+        'inventaires' => ['table' => 'lignes_inventaire', 'cle' => 'inventaire_id', 'colonnes' => ['article_id', 'quantite_theorique', 'quantite_constatee', 'ecart'], 'ordre' => 'created_at'],
     ];
 
     /** @var list<string> */
@@ -496,7 +512,7 @@ class CatalogueDescendantService
             }
 
             $actif = match ($table) {
-                'articles', 'fournisseurs', 'clients', 'tables_salle', 'modeles_notification' => (bool) $donnees['actif'],
+                'articles', 'fournisseurs', 'clients', 'tables_salle', 'modeles_notification', 'canaux_reservation' => (bool) $donnees['actif'],
                 'unites_hebergement', 'vehicules' => $donnees['statut'] !== 'hors_service',
                 default => true,
             };

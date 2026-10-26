@@ -414,6 +414,15 @@ class _FicheReservationState extends ConsumerState<FicheReservation> {
 
     _preremplirDepuisReservation(reservation);
 
+    // Les canaux viennent de la TABLE (Paramètres › Canaux de réservation), pas
+    // d'une liste écrite en dur — et, comme le client ci-dessous, ils doivent
+    // être LUS avant que la liste ne se monte : une liste déroulante ne retient
+    // pas une valeur qui arrive après ses options (piège 6).
+    final canauxLus = ref.watch(canauxReservationProvider);
+    if (canauxLus.isLoading && !canauxLus.hasValue) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
     // Le client pré-rempli est résolu contre le RÉFÉRENTIEL, dès qu'il est
     // lisible. C'est encore une question d'ordre : la liste déroulante ne peut
     // retenir une valeur qui n'est pas dans ses options, et les options
@@ -446,6 +455,15 @@ class _FicheReservationState extends ConsumerState<FicheReservation> {
     _preselectionnerUnite(rayons.requireValue);
     return _formulaire_(rayons.requireValue, reservation);
   }
+
+  /// Les canaux PROPOSABLES : les actifs, plus celui déjà retenu par la fiche
+  /// rouverte — un canal désactivé après coup ne disparaît pas d'une réservation
+  /// qui le porte (`CanalReservation::proposables`). Sans table lisible, le jeu
+  /// initial du maître.
+  List<CanalReservation> _canauxProposables(List<CanalReservation>? lus) => [
+    for (final c in lus ?? CanalReservation.jeuInitial)
+      if (c.actif || c.memeQue(_canal)) c,
+  ];
 
   /// Remplit le formulaire depuis la réservation à modifier — une seule fois.
   ///
@@ -631,8 +649,12 @@ class _FicheReservationState extends ConsumerState<FicheReservation> {
                       cle: const Key('champ-canal'),
                       etiquette: 'Canal de réservation',
                       invite: 'Choisissez un canal',
-                      valeur: _canal,
-                      options: CanalReservation.values,
+                      valeur: _canauxProposables(
+                        ref.watch(canauxReservationProvider).value,
+                      ).where((c) => c.memeQue(_canal)).firstOrNull,
+                      options: _canauxProposables(
+                        ref.watch(canauxReservationProvider).value,
+                      ),
                       libelle: (c) => c.libelle,
                       onChange: (c) => setState(() => _canal = c),
                     ),

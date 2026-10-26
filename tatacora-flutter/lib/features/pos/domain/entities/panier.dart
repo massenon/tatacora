@@ -37,6 +37,10 @@
 ///    → [clotureEstAnticipee].
 library;
 
+import '../../../hebergement/domain/entities/fiche_reservation.dart'
+    show TypeRemise;
+import '../messages_ventes.dart' show RefusVente;
+import '../remise_panier.dart';
 import 'reference_catalogue.dart';
 
 /// Ce que le panier dit du **rattachement de la vente**, jamais du lieu.
@@ -173,6 +177,8 @@ final class Panier {
     this.motifAnnulation,
     this.sessionEncaissementId,
     this.statutTransmission = StatutTransmissionPanier.nonTransmissible,
+    this.remiseType = TypeRemise.aucune,
+    this.remiseValeurCentiemes = 0,
   });
 
   final String id;
@@ -213,6 +219,43 @@ final class Panier {
   /// chambre, jamais encaissée en caisse), ou clôturé avant la v18.
   final String? sessionEncaissementId;
   final StatutTransmissionPanier statutTransmission;
+
+  /// La remise saisie : le TYPE et la VALEUR (en centièmes : 12,5 % = 1250 ;
+  /// 500 F = 50000), jamais un montant — voir `remise_panier.dart`. Se fige à la
+  /// clôture comme les prix.
+  final TypeRemise remiseType;
+  final int remiseValeurCentiemes;
+
+  /// Le montant de la remise en CENTIMES, DÉRIVÉ du type, de la valeur et du
+  /// total des lignes — pour l'AFFICHAGE : une remise devenue invalide (un
+  /// montant supérieur au total après qu'une ligne a été retirée) vaut zéro
+  /// ici, tolérance du serveur (`Panier::remisePourAffichage`). L'encaissement,
+  /// lui, la REFUSE (`PanierDao.cloturer`).
+  int get remiseCentimes {
+    try {
+      return montantRemiseCentimes(
+        totalFrancs: total,
+        type: remiseType,
+        valeurCentiemes: remiseValeurCentiemes,
+      );
+    } on RefusVente {
+      return 0;
+    }
+  }
+
+  /// Le NET à encaisser en centimes : total des lignes − remise.
+  int get netCentimes => total * 100 - remiseCentimes;
+
+  /// Le NET en francs entiers, arrondi au franc (le poste compte en francs ;
+  /// un pourcentage peut donner des centimes que seule la pièce garde).
+  int get net => (netCentimes + 50) ~/ 100;
+
+  /// La remise en francs entiers pour l'affichage (« - 300 FCFA »), arrondie au
+  /// franc comme `MontantFcfa::format`.
+  int get remiseFrancs => (remiseCentimes + 50) ~/ 100;
+
+  /// Une remise est-elle en vigueur (montant positif) ?
+  bool get aUneRemise => remiseCentimes > 0;
 
   /// Total du panier, en francs CFA — **calculé depuis les lignes**.
   ///
@@ -276,6 +319,8 @@ final class Panier {
     montantCloture: montantCloture,
     motifAnnulation: motifAnnulation,
     statutTransmission: statutTransmission,
+    remiseType: remiseType,
+    remiseValeurCentiemes: remiseValeurCentiemes,
   );
 
   @override

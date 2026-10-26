@@ -335,6 +335,13 @@ class CatalogueDao extends DatabaseAccessor<AppDatabase>
         i.recetteId,
     };
 
+    // La marque « P » de la vue : la fiche du plat est PROVISOIRE (quantités
+    // posées, jamais pesées) — lue de `recettes_local.composition_provisoire`.
+    final provisoires = {
+      for (final r in await select(attachedDatabase.recettesLocal).get())
+        if (r.compositionProvisoire == true) r.id,
+    };
+
     final articles = [
       for (final l in lignes)
         ArticleVendable(
@@ -353,6 +360,7 @@ class CatalogueDao extends DatabaseAccessor<AppDatabase>
           // Le point orange de la vue : un plat sans ingrédient ne décrémente
           // rien (`lien_stock` faux).
           sansLienStock: !composees.contains(l.readTable(p).recetteId),
+          compositionProvisoire: provisoires.contains(l.readTable(p).recetteId),
         ),
     ];
     // Le même ordre que la carte : libellé sans accent, puis identifiant.

@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import '../../comptabilite/data/immobilisations_dao.dart';
 import '../../facturation/data/facture_dao.dart';
 import '../../rh/data/employe_dao.dart';
 import '../../rh/data/paie_dao.dart';
@@ -508,6 +509,16 @@ class SyncManager {
         _dao.attachedDatabase,
       ).regulariserMatricule(o.entiteId, matricule);
     }
+    // 21/10/2026 : le code `IMMO-AAAA-NNNNN` du serveur remplace celui du poste.
+    final codeImmobilisation = resultat['code'];
+    if (statut == 'synchronise' &&
+        o.table == TableSynchronisee.immobilisations &&
+        resultat['fusionne_avec'] == null &&
+        codeImmobilisation is String) {
+      await ImmobilisationsDao(
+        _dao.attachedDatabase,
+      ).regulariserCode(o.entiteId, codeImmobilisation);
+    }
     final numeroBulletin = resultat['numero'];
     if (statut == 'synchronise' &&
         o.table == TableSynchronisee.bulletinsPaie &&
@@ -540,8 +551,20 @@ class SyncManager {
   ) async {
     final numero = resultat['numero'];
     final numeroAvoir = resultat['numero_avoir'];
+    // Un avoir PARTIEL est né sous l'identifiant du poste : son numéro se pose
+    // sur CET avoir (pas sur « le premier avoir » de la facture).
+    final avoirId = resultat['avoir_id'];
+    final factures = FactureDao(_dao.attachedDatabase);
     try {
-      await FactureDao(_dao.attachedDatabase).regulariserNumeros(
+      if (avoirId is String && numeroAvoir is String) {
+        await factures.regulariserNumeros(
+          o.entiteId,
+          numero: numero is String ? numero : null,
+        );
+        await factures.regulariserAvoir(avoirId, numeroAvoir);
+        return;
+      }
+      await factures.regulariserNumeros(
         o.entiteId,
         numero: numero is String ? numero : null,
         numeroAvoir: numeroAvoir is String ? numeroAvoir : null,

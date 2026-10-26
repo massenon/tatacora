@@ -171,8 +171,13 @@ class MouvementStockService
         string $pointId,
         string $ecart,
         string $motif = 'Écart d\'inventaire',
+        ?CarbonInterface $dateMouvement = null,
+        ?string $id = null,
     ): MouvementStock {
-        return $this->enregistrer($articleId, $pointId, 'inventaire', $ecart, $motif);
+        // `$dateMouvement` et `$id` (21/10/2026) : la régularisation d'un
+        // inventaire clôturé sur un POSTE naît avec son UUID et à la date du
+        // geste (synchronisation) ; les appels en ligne ne les passent pas.
+        return $this->enregistrer($articleId, $pointId, 'inventaire', $ecart, $motif, $dateMouvement, $id);
     }
 
     /**

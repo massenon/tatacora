@@ -23,6 +23,9 @@ import '../../domain/entities/mode_reglement.dart';
 import '../../domain/entities/panier.dart';
 import '../../domain/entities/table_pos.dart' show RayonSalle;
 import '../../domain/messages_ventes.dart' show RefusVente;
+import '../../../hebergement/domain/entities/fiche_reservation.dart'
+    show TypeRemise;
+import '../../domain/remise_panier.dart' show centiemesDepuisSaisie;
 import '../../domain/repositories/panier_repository.dart';
 import '../providers_pos.dart';
 import '../rupture_comptoir.dart';
@@ -436,7 +439,7 @@ class _Pied extends ConsumerWidget {
               Flexible(
                 child: Text(
                   key: const Key('pos-total'),
-                  formaterFcfa(panier.total),
+                  formaterFcfa(panier.net),
                   textAlign: TextAlign.right,
                   style: styleContenuCarte(
                     TaillesContenu.xxl,
@@ -449,8 +452,8 @@ class _Pied extends ConsumerWidget {
           ),
           const SizedBox(height: AppSpacing.unit),
           if (panier.estOuvert) ...[
-            // La ligne « Remise » (l.397-408) : ce poste n'en porte aucune.
-            LigneRemiseComptant(etiquette: etiquette),
+            // La ligne « Remise » (l.398-417), posée sur le panier.
+            LigneRemiseComptant(panier: panier, etiquette: etiquette),
             const SizedBox(height: AppSpacing.xs),
           ],
           // Le maitre pose le reglement ENTRE le total et le bouton
@@ -811,12 +814,10 @@ abstract final class TextesPanierComptant {
   /// `pos_pwa.commun.remise_aucune`.
   static const String remiseAucune = 'Aucune';
 
-  // `pos_pwa.commun.remise_appliquee` — la ligne que la vue pose sous la remise
-  // quand elle est POSITIVE (l.397-408) : « Sur un total de :brut » à gauche,
-  // « - :remise » à droite. Elle n'est PAS rendue ici : le panier de ce poste ne
-  // porte aucune remise (`paniers_local` n'a ni type ni valeur de remise — schéma
-  // à étendre, voir le rapport du 21/10/2026), donc il n'y a jamais de total
-  // brut à opposer au net. Cette mention est un gain de MESURE, pas un rendu.
+  /// `pos_pwa.commun.remise_appliquee` — la ligne que la vue pose sous la
+  /// remise quand elle est POSITIVE (l.412-416) : « Sur un total de :brut » à
+  /// gauche, « - :remise » à droite. [brut] est le total des lignes, formaté.
+  static String remiseAppliquee(String brut) => 'Sur un total de $brut';
 
   /// `pos_pwa.commun.remise_valeur` (l'`aria-label` du champ).
   static const String remiseValeur = 'Valeur de la remise';
@@ -827,15 +828,6 @@ abstract final class TextesPanierComptant {
   /// `pos_pwa.comptant.client_mention_aide` (le `placeholder`).
   static const String clientAide =
       'Nom à imprimer sur le ticket — aucun compte client n\'est créé.';
-
-  /// Ce que dit la ligne « Remise » quand on la touche : le panier du poste
-  /// ne porte AUCUNE remise (`PanierDao`, « Aucune remise »), une valeur
-  /// saisie n'aurait aucun effet sur le total encaissé. Jamais un champ qui
-  /// accepterait une valeur sans effet (Article 3.3).
-  static const String remiseNonDisponible =
-      'La remise ne s’applique pas sur ce poste : le panier ne porte aucune '
-      'remise, donc le montant encaissé reste le total des lignes. Rien n’a '
-      'été enregistré.';
 
   /// Ce que dit le champ « Client » quand on le touche : la mention n'est
   /// conservée nulle part sur ce poste et ne s'imprime pas sur le ticket.
@@ -1043,41 +1035,191 @@ class PanierVideComptant extends StatelessWidget {
   }
 }
 
-/// La ligne « Remise » (l.397-408) : étiquette, `<select>` « Aucune »,
-/// valeur. Touchés, les deux champs DISENT que la remise n'existe pas sur ce
-/// poste — jamais un champ qui accepterait une valeur sans effet.
-class LigneRemiseComptant extends StatelessWidget {
-  const LigneRemiseComptant({required this.etiquette, super.key});
+/// La ligne « Remise » (l.398-417) : étiquette, `<select>` « Aucune » / « % » /
+/// « FCFA », valeur — et, quand la remise est POSITIVE, « Sur un total de
+/// :brut » à gauche et « - :remise » à droite.
+///
+/// Le TYPE et la VALEUR sont posés sur le panier (`PanierDao.appliquerRemise`),
+/// jamais un montant : celui-ci se DÉRIVE du panier (`Panier.remiseCentimes`,
+/// réplique de `Panier::remiseSur`). Un changement de type s'applique aussitôt
+/// (`wire:change`) ; la valeur, quand le champ perd le focus ou à « Entrée »
+/// (l'événement `change`, pas chaque frappe). Un refus du serveur s'affiche SOUS
+/// la ligne, avec sa phrase (`text-[11px] text-red-600`).
+class LigneRemiseComptant extends ConsumerStatefulWidget {
+  const LigneRemiseComptant({
+    required this.panier,
+    required this.etiquette,
+    super.key,
+  });
 
+  final Panier panier;
   final TextStyle etiquette;
 
   @override
+  ConsumerState<LigneRemiseComptant> createState() =>
+      _EtatLigneRemiseComptant();
+}
+
+class _EtatLigneRemiseComptant extends ConsumerState<LigneRemiseComptant> {
+  late TypeRemise _type = widget.panier.remiseType;
+  late final TextEditingController _valeur = TextEditingController(
+    text: _texteDe(widget.panier),
+  );
+  final FocusNode _focus = FocusNode();
+  String? _erreur;
+
+  /// La valeur du panier telle qu'on la retape : « 10 », « 12.5 », « 500 ».
+  static String _texteDe(Panier p) {
+    if (p.remiseType == TypeRemise.aucune) return '';
+    final c = p.remiseValeurCentiemes;
+    final entier = c ~/ 100;
+    final decimales = c % 100;
+    if (decimales == 0) return '$entier';
+    final d = decimales.toString().padLeft(2, '0');
+    return '$entier.${d.endsWith('0') ? d.substring(0, 1) : d}';
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _focus.addListener(() {
+      if (!_focus.hasFocus) _appliquer();
+    });
+  }
+
+  @override
+  void didUpdateWidget(LigneRemiseComptant ancien) {
+    super.didUpdateWidget(ancien);
+    // Un autre panier (ou une valeur refusée relue) : le champ suit la base.
+    if (ancien.panier.id != widget.panier.id) {
+      _type = widget.panier.remiseType;
+      _valeur.text = _texteDe(widget.panier);
+      _erreur = null;
+    }
+  }
+
+  @override
+  void dispose() {
+    _valeur.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  Future<void> _appliquer() async {
+    // Rien à dire tant que rien n'a changé (type « Aucune » inclus).
+    final p = widget.panier;
+    final saisie = _valeur.text;
+    final lue = centiemesDepuisSaisie(saisie) ?? -1;
+    if (_type == p.remiseType &&
+        (_type == TypeRemise.aucune ||
+            (lue == p.remiseValeurCentiemes && _erreur == null))) {
+      return;
+    }
+    try {
+      await ref.read(gererPanierProvider).appliquerRemise(p.id, _type, saisie);
+      if (!mounted) return;
+      setState(() => _erreur = null);
+    } on RefusVente catch (e) {
+      if (!mounted) return;
+      setState(() => _erreur = e.message);
+    }
+    if (mounted) rafraichirPaniers(ref);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    void dire() => ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text(TextesPanierComptant.remiseNonDisponible)),
-    );
-    return Row(
+    final p = widget.panier;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(TextesPanierComptant.remise, style: etiquette),
-        const SizedBox(width: AppSpacing.xs),
-        _ChampDisant(
-          cle: const Key('pos-remise-type'),
-          texte: TextesPanierComptant.remiseAucune,
-          taille: TaillesContenu.t12,
-          onTap: dire,
+        Row(
+          children: [
+            Text(TextesPanierComptant.remise, style: widget.etiquette),
+            const SizedBox(width: AppSpacing.xs),
+            DropdownButton<TypeRemise>(
+              key: const Key('pos-remise-type'),
+              value: _type,
+              isDense: true,
+              underline: const SizedBox.shrink(),
+              style: styleContenuCarte(
+                TaillesContenu.t12,
+                couleur: AppColors.anthracite,
+              ),
+              items: [
+                for (final t in TypeRemise.values)
+                  DropdownMenuItem(
+                    value: t,
+                    child: Text(
+                      t == TypeRemise.aucune
+                          ? TextesPanierComptant.remiseAucune
+                          : t.libelle,
+                    ),
+                  ),
+              ],
+              onChanged: (t) {
+                if (t == null) return;
+                setState(() => _type = t);
+                _appliquer();
+              },
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Expanded(
+              child: Semantics(
+                label: TextesPanierComptant.remiseValeur,
+                child: TextField(
+                  key: const Key('pos-remise-valeur'),
+                  controller: _valeur,
+                  focusNode: _focus,
+                  keyboardType: TextInputType.number,
+                  style: styleContenuCarte(
+                    TaillesContenu.t12,
+                    couleur: AppColors.anthracite,
+                  ),
+                  decoration: _decorationChamp(),
+                  onSubmitted: (_) => _appliquer(),
+                ),
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: AppSpacing.xs),
-        Expanded(
-          child: Semantics(
-            label: TextesPanierComptant.remiseValeur,
-            child: _ChampDisant(
-              cle: const Key('pos-remise-valeur'),
-              texte: '',
-              taille: TaillesContenu.t12,
-              onTap: dire,
+        if (_erreur != null)
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.unit),
+            child: Text(
+              _erreur!,
+              key: const Key('pos-remise-erreur'),
+              style: styleContenuCarte(
+                TaillesContenu.t11,
+                couleur: PaletteMaitre.rouge600,
+              ),
             ),
           ),
-        ),
+        // « Sur un total de :brut » / « - :remise » : seulement si la remise est
+        // positive (`bccomp($remisePanier, '0.00', 2) > 0`).
+        if (p.aUneRemise)
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.unit),
+            child: Row(
+              key: const Key('pos-remise-appliquee'),
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  TextesPanierComptant.remiseAppliquee(formaterFcfa(p.total)),
+                  style: styleContenuCarte(
+                    TaillesContenu.t11_5,
+                    couleur: Ardoise.c500,
+                  ),
+                ),
+                Text(
+                  '- ${formaterFcfa(p.remiseFrancs)}',
+                  style: styleContenuCarte(
+                    TaillesContenu.t11_5,
+                    couleur: Ardoise.c500,
+                  ),
+                ),
+              ],
+            ),
+          ),
       ],
     );
   }

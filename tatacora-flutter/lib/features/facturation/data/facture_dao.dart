@@ -410,6 +410,112 @@ class FactureDao extends DatabaseAccessor<AppDatabase> with _$FactureDaoMixin {
     );
   }
 
+  /// Émet un avoir PARTIEL sur la facture [pieceId] — l'« Émettre un avoir » de
+  /// la PWA (`emettreAvoir($facture, $montant, $motif)`).
+  ///
+  /// ## La règle est celle du SERVICE, pas une règle du poste
+  ///
+  /// Un avoir ne dépasse jamais le TTC de sa facture ([AvoirExcessif]) ; il peut
+  /// s'ajouter à d'autres, le service ne les cumule pas — le reste dû
+  /// (`creances.dart`, UNE formule : TTC − avoirs − paiements − acomptes) le
+  /// montrera négatif si on le pousse trop loin, et c'est visible. Le montant
+  /// entier du TTC est une ANNULATION : [annuler] (la facture devient
+  /// `annulee`) ; ce geste-ci ne l'est pas.
+  ///
+  /// ## Ce qu'il écrit
+  ///
+  /// Une pièce-avoir à elle, de son propre numéro, d'UNE ligne « Avoir partiel
+  /// — motif » (quantité −1, prix = montant) : la forme que prend un avoir
+  /// partiel descendu du serveur ([inscrireAvoirDescendu]). La facture d'origine
+  /// n'est PAS touchée (RG-03). L'avoir part au serveur sous SON identifiant
+  /// (`avoir_id`) : il y naît sous le même UUID, son rejeu ne le double pas, et
+  /// la descente le reconnaît.
+  Future<PieceFacturation> emettreAvoirPartiel(
+    String pieceId,
+    int montant,
+    String motif,
+  ) async {
+    final motifNet = motif.trim();
+    if (motifNet.isEmpty) throw const MotifAnnulationRequis();
+    final idAvoir = _uuid.v4();
+
+    await transaction(() async {
+      final entete = await (select(
+        piecesFacturationLocal,
+      )..where((p) => p.id.equals(pieceId))).getSingleOrNull();
+      if (entete == null) throw PieceIntrouvable(pieceId);
+      if (entete.avoirDe != null) throw AvoirNonAnnulable(entete.numero);
+      if (StatutPiece.depuisCode(entete.statut) == StatutPiece.annulee) {
+        throw FactureDejaAnnulee(entete.numero);
+      }
+
+      final lignes = await _lignesDe(pieceId);
+      final ttc = lignes.fold<int>(
+        0,
+        (t, l) => t + l.prixUnitaire * l.quantite,
+      );
+      if (montant <= 0) throw const AvoirMontantNul();
+      if (montant > ttc) throw const AvoirExcessif();
+
+      final numeroAvoir = await _numeroSuivantDansTransaction();
+      await into(piecesFacturationLocal).insert(
+        PiecesFacturationLocalCompanion.insert(
+          id: idAvoir,
+          numero: numeroAvoir,
+          origine: entete.origine,
+          dateEmission: _maintenant(),
+          clientNom: entete.clientNom,
+          clientId: Value(entete.clientId),
+          reservationId: Value(entete.reservationId),
+          panierId: Value(entete.panierId),
+          modePaiement: Value(entete.modePaiement),
+          pointVente: Value(entete.pointVente),
+          statut: Value(StatutPiece.emise.code),
+          numeroMecef: const Value(null),
+          avoirDe: Value(entete.numero),
+          motifAvoir: Value(motifNet),
+          statutTransmission: Value(
+            entete.statutTransmission ==
+                    StatutTransmissionPiece.nonTransmissible.code
+                ? StatutTransmissionPiece.nonTransmissible.code
+                : StatutTransmissionPiece.enAttente.code,
+          ),
+        ),
+      );
+      await _copierLignes([
+        LignesPieceFacturationLocalCompanion.insert(
+          id: _uuid.v4(),
+          pieceId: idAvoir,
+          moduleSource: lignes.isEmpty
+              ? ModuleFacturable.m1Hebergement.code
+              : lignes.first.moduleSource,
+          libelle: 'Avoir partiel — $motifNet',
+          prixUnitaire: montant,
+          quantite: -1,
+          ordre: 0,
+        ),
+      ]);
+
+      // Une pièce d'avant la synchronisation (non transmissible) ne part pas :
+      // le serveur répondrait « facture inconnue » à chaque tentative.
+      if (entete.statutTransmission !=
+          StatutTransmissionPiece.nonTransmissible.code) {
+        await OperationsSyncDao(attachedDatabase).enfiler(
+          table: TableSynchronisee.factures,
+          entiteId: pieceId,
+          type: TypeOperationSync.modification,
+          payload: chargeAvoirPartielFacture(
+            montantFrancs: montant,
+            motif: motifNet,
+            avoirId: idAvoir,
+          ),
+        );
+      }
+    });
+
+    return (await parId(idAvoir))!;
+  }
+
   /* ================================================================== */
   /* Régularisation du numéro — lot F5c                                  */
   /* ================================================================== */
@@ -458,6 +564,23 @@ class FactureDao extends DatabaseAccessor<AppDatabase> with _$FactureDaoMixin {
 
     await _marquerTransmise(entete.id);
   });
+
+  /// Pose le numéro `AV-…` attribué par le serveur à l'avoir PARTIEL [avoirId]
+  /// émis par ce poste (l'avoir y est né sous le même identifiant). Idempotent ;
+  /// même règle que [regulariserNumeros] pour un numéro déjà porté (LÈVE
+  /// `StateError`, rien n'est écrit).
+  Future<void> regulariserAvoir(String avoirId, String numero) =>
+      transaction(() async {
+        await customStatement('PRAGMA defer_foreign_keys = ON');
+        final avoir = await (select(
+          piecesFacturationLocal,
+        )..where((p) => p.id.equals(avoirId))).getSingleOrNull();
+        if (avoir == null) return;
+        if (numero.isNotEmpty && avoir.numero != numero) {
+          await _renumeroter(avoir.id, avoir.numero, numero);
+        }
+        await _marquerTransmise(avoir.id);
+      });
 
   /* ================================================================== */
   /* Pièces DESCENDUES du serveur — lot F5c                              */
@@ -580,12 +703,18 @@ class FactureDao extends DatabaseAccessor<AppDatabase> with _$FactureDaoMixin {
   });
 
   /// L'avoir LOCAL encore provisoire de la facture [factureId] — celui que
-  /// ce poste a émis en l'annulant, et dont le serveur rend le numéro.
+  /// ce poste a émis en l'ANNULANT, et dont le serveur rend le numéro.
   Future<String?> avoirProvisoireDe(String factureId) async {
     final facture = await (select(
       piecesFacturationLocal,
     )..where((p) => p.id.equals(factureId))).getSingleOrNull();
-    if (facture == null) return null;
+    // Seule une facture ANNULÉE par ce poste a un avoir « d'annulation » à
+    // régulariser par la descente : un avoir PARTIEL provisoire, lui, se
+    // reconnaît par son identifiant (`regulariserAvoir`).
+    if (facture == null ||
+        StatutPiece.depuisCode(facture.statut) != StatutPiece.annulee) {
+      return null;
+    }
     final avoirs =
         await (select(piecesFacturationLocal)..where(
               (p) =>

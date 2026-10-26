@@ -33,6 +33,7 @@ final class LigneStock {
     required this.pointLibelle,
     required this.prixAchat,
     required this.deriveCmp,
+    this.actif = true,
   });
 
   final String id;
@@ -81,6 +82,9 @@ final class LigneStock {
   /// La dérive du coût moyen pondéré contre [prixAchat], en pourcentage
   /// entier. `null` quand elle n'est pas mesurable — jamais zéro.
   final int? deriveCmp;
+
+  /// `false` : l'article est archivé (badge « Archivé », bouton « Restaurer »).
+  final bool actif;
 
   bool get estJournalier => suivi == SuiviArticle.journalier;
 

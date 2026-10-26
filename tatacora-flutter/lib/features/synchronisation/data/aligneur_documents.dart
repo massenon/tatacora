@@ -54,6 +54,9 @@ extension _AlignementDocuments on AligneurCatalogue {
         TableDescendue.bulletinsPaie => _bulletin(id, e),
         TableDescendue.plannings => _planning(id, e),
         TableDescendue.conges => _conge(id, e),
+        TableDescendue.relancesClients => _relanceClient(id, e),
+        TableDescendue.immobilisations => _immobilisation(id, e),
+        TableDescendue.inventaires => _inventaire(id, e),
         _ => throw StateError('${e.table} n’est pas un document'),
       };
 
@@ -180,6 +183,148 @@ extension _AlignementDocuments on AligneurCatalogue {
             dateDebut: debut,
             dateFin: fin,
             statutValidation: Value(statut.code),
+          ),
+        );
+    await _retenirOrigine(e, id);
+    return const Aligne();
+  }
+
+  /// Un inventaire physique CLÔTURÉ par un autre poste (ou par la PWA), avec
+  /// ses lignes comptées. Il se descend EN ENTIER ou pas du tout : un point ou
+  /// un article pas encore reçu le met en attente (jamais une ligne écrite sans
+  /// son article). Détenu, rien n'est réécrit — un inventaire clos ne se
+  /// retouche pas, et celui de ce poste revient par le flux sans effet.
+  ///
+  /// Les mouvements de sa régularisation descendent à part (`mouvements_stock`),
+  /// et ne sont JAMAIS réécrits ici : l'inventaire est un constat, pas une
+  /// source de mouvements. L'auteur ne descend pas (le serveur ne livre pas ses
+  /// comptes) : l'écran rend « — ».
+  Future<IssueAlignement> _inventaire(String id, ElementCatalogue e) async {
+    if (await _existe(_db.inventairesLocal, id)) return const Aligne();
+    final d = e.donnees;
+    final pointServeur = AligneurCatalogue._texte(d['point_id']);
+    final String? jour;
+    try {
+      jour = AligneurCatalogue._jour(d['date_inventaire']);
+    } on FormatException {
+      return const RefuseParLePoste('date d’inventaire illisible');
+    }
+    final lignes = _lignes(d);
+    if (pointServeur == null || jour == null || lignes == null) {
+      return const RefuseParLePoste('inventaire incomplet');
+    }
+    final point = await _cite(
+      TableDescendue.pointsStockage,
+      pointServeur,
+      _db.pointsStockageLocal,
+    );
+    if (point == null) {
+      return const EnAttenteDeDependance('point de stockage pas encore reçu');
+    }
+
+    final retenues =
+        <({String article, int theorique, int constate, int ecart})>[];
+    for (final l in lignes) {
+      final articleServeur = AligneurCatalogue._texte(l['article_id']);
+      final theorique = entierDepuisDecimal(l['quantite_theorique'], 2);
+      final constate = entierDepuisDecimal(l['quantite_constatee'], 2);
+      final ecart = entierDepuisDecimal(l['ecart'], 2);
+      if (articleServeur == null ||
+          theorique == null ||
+          constate == null ||
+          ecart == null) {
+        return const RefuseParLePoste(
+          'ligne d’inventaire illisible (quantité à deux décimales au plus)',
+        );
+      }
+      final article = await _cite(
+        TableDescendue.articles,
+        articleServeur,
+        _db.articlesLocal,
+      );
+      if (article == null) {
+        return const EnAttenteDeDependance('article pas encore reçu');
+      }
+      retenues.add((
+        article: article,
+        theorique: theorique,
+        constate: constate,
+        ecart: ecart,
+      ));
+    }
+
+    await _db
+        .into(_db.inventairesLocal)
+        .insert(
+          InventairesLocalCompanion.insert(
+            id: id,
+            pointId: point,
+            dateInventaire: jour,
+          ),
+        );
+    const uuid = Uuid();
+    for (final l in retenues) {
+      await _db
+          .into(_db.lignesInventaireLocal)
+          .insert(
+            LignesInventaireLocalCompanion.insert(
+              id: uuid.v4(),
+              inventaireId: id,
+              articleId: l.article,
+              quantiteTheoriqueCentiemes: l.theorique,
+              quantiteConstateeCentiemes: l.constate,
+              ecartCentiemes: l.ecart,
+            ),
+          );
+    }
+    await _retenirOrigine(e, id);
+    return const Aligne();
+  }
+
+  /// Une relance d'un autre poste (ou de la PWA) : un FAIT daté, qui ne se
+  /// modifie jamais — détenue, rien n'est réécrit. Le montant réclamé est lu
+  /// en centimes (le serveur : `DECIMAL(15,2)`, jamais un `double`). Le client
+  /// absent met la relance en ATTENTE (il descend avant elle dans le flux ;
+  /// une relance orpheline n'est pas écrite, `client_id` étant une référence
+  /// que le poste vérifie). Le login de l'auteur ne descend pas (« — »).
+  Future<IssueAlignement> _relanceClient(String id, ElementCatalogue e) async {
+    if (await _existe(_db.relancesClientsLocal, id)) return const Aligne();
+    final d = e.donnees;
+    final clientServeur = AligneurCatalogue._texte(d['client_id']);
+    final canal = CanalRelance.depuisCode(AligneurCatalogue._texte(d['canal']));
+    final montant = entierDepuisDecimal(d['montant_reclame'], 2);
+    if (clientServeur == null || canal == null || montant == null) {
+      return const RefuseParLePoste('relance incomplète (ou canal inconnu)');
+    }
+    if (montant < 0) return const RefuseParLePoste('montant réclamé négatif');
+    final String? jour;
+    final String? promesse;
+    try {
+      jour = AligneurCatalogue._jour(d['date_relance']);
+      promesse = AligneurCatalogue._jour(d['promesse']);
+    } on FormatException {
+      return const RefuseParLePoste('date de relance illisible');
+    }
+    if (jour == null) return const RefuseParLePoste('date de relance absente');
+    final client = await _cite(
+      TableDescendue.clients,
+      clientServeur,
+      _db.clientsLocal,
+    );
+    if (client == null) {
+      return const EnAttenteDeDependance('client pas encore reçu');
+    }
+    await _db
+        .into(_db.relancesClientsLocal)
+        .insert(
+          RelancesClientsLocalCompanion.insert(
+            id: id,
+            clientId: client,
+            dateRelance: jour,
+            canal: canal.code,
+            montantReclameCentimes: montant,
+            promesse: Value(promesse),
+            commentaire: Value(AligneurCatalogue._texte(d['commentaire'])),
           ),
         );
     await _retenirOrigine(e, id);
@@ -888,6 +1033,68 @@ extension _AlignementDocuments on AligneurCatalogue {
     return const Aligne();
   }
 
+  /// Une immobilisation d'un autre poste (ou de la PWA). Création seule : si
+  /// la ligne est détenue, rien n'est réécrit sauf le CODE, que le serveur
+  /// attribue (celui d'une saisie de CE poste, quand l'accusé s'est perdu).
+  /// Le plan d'amortissement ne descend pas : il se calcule. Une valeur à
+  /// fraction de centime, une durée absente ou une date illisible sont refusées.
+  Future<IssueAlignement> _immobilisation(String id, ElementCatalogue e) async {
+    final d = e.donnees;
+    final code = AligneurCatalogue._texte(d['code']);
+    final libelle = AligneurCatalogue._texte(d['libelle']);
+    final valeur = entierDepuisDecimal(d['valeur_origine'], 2);
+    final duree = switch (d['duree_annees']) {
+      final int n => n,
+      final String t => int.tryParse(t.trim()),
+      _ => null,
+    };
+    if (code == null ||
+        libelle == null ||
+        valeur == null ||
+        valeur <= 0 ||
+        duree == null ||
+        duree <= 0) {
+      return const RefuseParLePoste('immobilisation incomplète');
+    }
+    final String? jour;
+    try {
+      jour = AligneurCatalogue._jour(d['date_mise_service']);
+    } on FormatException {
+      return const RefuseParLePoste('date de mise en service illisible');
+    }
+    if (jour == null) {
+      return const RefuseParLePoste('date de mise en service absente');
+    }
+    final t = _db.immobilisationsLocal;
+    final existant = await (_db.select(
+      t,
+    )..where((i) => i.id.equals(id))).getSingleOrNull();
+    if (existant != null) {
+      if (existant.code != code) {
+        await (_db.update(t)..where((i) => i.id.equals(id))).write(
+          ImmobilisationsLocalCompanion(code: Value(code)),
+        );
+      }
+      return const Aligne();
+    }
+    await _db
+        .into(t)
+        .insert(
+          ImmobilisationsLocalCompanion.insert(
+            id: id,
+            code: code,
+            libelle: libelle,
+            compteImmobilisation: Value(
+              AligneurCatalogue._texte(d['compte_immobilisation']),
+            ),
+            valeurOrigineCentimes: valeur,
+            dateMiseService: jour,
+            dureeAnnees: Value(duree),
+          ),
+        );
+    return const Aligne();
+  }
+
   /* ================================================================== */
   /* RH et paie — audit de couverture (18/10/2026)                       */
   /* ================================================================== */
@@ -1298,9 +1505,20 @@ extension _AlignementDocuments on AligneurCatalogue {
   /// inscrit sur sa facture, sans pièce.
   Future<IssueAlignement> _avoir(String id, ElementCatalogue e) async {
     final d = e.donnees;
-    if (await _existe(_db.piecesFacturationLocal, id)) return const Aligne();
     final factureServeur = AligneurCatalogue._texte(d['facture_id']);
     final numero = AligneurCatalogue._texte(d['numero']);
+    if (await _existe(_db.piecesFacturationLocal, id)) {
+      // L'avoir PARTIEL de ce poste est né au serveur sous le même identifiant :
+      // il reçoit son numéro (réponse d'envoi perdue, ou descente la première).
+      if (numero != null) {
+        try {
+          await FactureDao(_db).regulariserAvoir(id, numero);
+        } on StateError catch (err) {
+          return RefuseParLePoste(err.message);
+        }
+      }
+      return const Aligne();
+    }
     final montant = entierDepuisDecimal(d['montant'], 0);
     if (factureServeur == null || montant == null) {
       return const RefuseParLePoste('avoir incomplet (ou fraction de franc)');

@@ -1,18 +1,19 @@
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../achats/domain/entities/fournisseur.dart';
 import '../../achats/data/reglements_fournisseur_dao.dart';
 import '../../comptabilite/data/comptabilite_dao.dart';
+import '../../crm/domain/entities/relance.dart' show CanalRelance;
 import '../../comptabilite/data/ecritures_serveur_dao.dart';
 import '../../comptabilite/data/moteur_comptable.dart';
 import '../../comptabilite/domain/entities/comptabilite.dart'
     show StatutExercice;
 import '../../facturation/data/facture_dao.dart';
-import '../../hebergement/domain/entities/fiche_reservation.dart'
-    show CanalReservation;
+import '../../hebergement/data/canaux_reservation_dao.dart';
 import '../../notifications/data/notifications_dao.dart';
 import '../../parametres/data/parametres_depot_local.dart';
 import '../../transverse/data/roles_dao.dart';
@@ -107,6 +108,7 @@ class AligneurCatalogue {
       TableDescendue.categoriesHebergement => _categorie(idLocal, d),
       TableDescendue.unitesHebergement => _unite(idLocal, e),
       TableDescendue.fournisseurs => _fournisseur(idLocal, e),
+      TableDescendue.canauxReservation => _canalReservation(idLocal, e),
       TableDescendue.clients => _client(idLocal, e),
       TableDescendue.reservations => _reservation(idLocal, e),
       // Lot F4 : les documents des autres postes (`aligneur_documents.dart`).
@@ -133,6 +135,7 @@ class AligneurCatalogue {
       TableDescendue.employes ||
       TableDescendue.bulletinsPaie ||
       TableDescendue.plannings ||
+      TableDescendue.relancesClients ||
       TableDescendue.conges => alignerDocument(idLocal, e),
       TableDescendue.centresCout => _centre(e),
       TableDescendue.parametresSysteme => _parametre(e),
@@ -140,6 +143,8 @@ class AligneurCatalogue {
       TableDescendue.modelesNotification => _modeleNotification(idLocal, e),
       TableDescendue.exercicesComptables => _exercice(e),
       TableDescendue.ecrituresComptables => _ecritureServeur(e),
+      TableDescendue.immobilisations => alignerDocument(idLocal, e),
+      TableDescendue.inventaires => alignerDocument(idLocal, e),
     };
   }
 
@@ -198,6 +203,50 @@ class AligneurCatalogue {
       if (await _file.enSuspens(synchronisee.nomServeur, l.id)) return true;
     }
     return false;
+  }
+
+  /* ================================================================== */
+  /* Canaux de réservation (21/10/2026)                                  */
+  /* ================================================================== */
+
+  /// Un canal du serveur. Apparié par son NOM (insensible à la casse) à un
+  /// canal né ici sous un autre identifiant — le jeu initial du poste, ou un
+  /// canal saisi hors ligne : la correspondance est retenue et l'identifiant
+  /// LOCAL reste (les réservations le citent). Un canal local dont l'ajout ou
+  /// le renommage attend encore de partir est CONSERVÉ : il partira, et le
+  /// dernier écrit gagnant du serveur tranchera. L'état (`actif`) est celui du
+  /// serveur : un canal désactivé là-bas l'est ici, jamais supprimé.
+  Future<IssueAlignement> _canalReservation(
+    String id,
+    ElementCatalogue e,
+  ) async {
+    final nom = _texte(e.donnees['nom']);
+    if (nom == null) return const RefuseParLePoste('nom de canal absent');
+    final dao = CanauxReservationDao(_db);
+    var cible = id;
+    final connu = await (_db.select(
+      _db.canauxReservationLocal,
+    )..where((c) => c.id.equals(id))).getSingleOrNull();
+    if (connu == null) {
+      final homonyme = await dao.parNom(nom);
+      if (homonyme != null) {
+        if (await _file.enSuspens(
+          TableSynchronisee.canauxReservation.nomServeur,
+          homonyme.id,
+        )) {
+          return _homonyme;
+        }
+        await _dao.retenirCorrespondance(
+          table: e.table.nomServeur,
+          idServeur: e.id,
+          idLocal: homonyme.id,
+          origine: 'libelle',
+        );
+        cible = homonyme.id;
+      }
+    }
+    await dao.inscrireDescendu(id: cible, nom: nom, actif: e.actif);
+    return const Aligne();
   }
 
   /* ================================================================== */
@@ -420,9 +469,14 @@ class AligneurCatalogue {
                 : seuil / echelleQuantite,
             suivi: Value(suivi.code),
             pointStockageId: Value(point),
+            // v35 : l'archive du serveur est APPLIQUÉE (`false` archive, `true`
+            // restaure). Une modification locale encore en file a déjà été
+            // gardée en amont (`aligner` : `ConserveLocalement`), donc ceci
+            // n'écrase jamais un archivage non poussé.
+            actif: Value(e.actif),
           ),
         );
-    return Aligne(archiveNonPortee: !e.actif);
+    return const Aligne();
   }
 
   /* ================================================================== */
@@ -597,7 +651,13 @@ class AligneurCatalogue {
     )..where((r) => r.id.equals(id))).getSingleOrNull();
     if (existante != null) {
       await (_db.update(t)..where((r) => r.id.equals(id))).write(
-        RecettesLocalCompanion(libelle: Value(libelle)),
+        RecettesLocalCompanion(
+          libelle: Value(libelle),
+          // La marque « composition provisoire » suit le serveur : posée par
+          // son référentiel de démonstration, levée quand une composition est
+          // réenregistrée (`CompositionRecetteService`).
+          compositionProvisoire: Value(_booleen(d['composition_provisoire'])),
+        ),
       );
     } else {
       final tous = await _db.select(t).get();
@@ -619,6 +679,9 @@ class AligneurCatalogue {
               libelle: libelle,
               creeLe: _maintenant(),
               creePar: auteur,
+              compositionProvisoire: Value(
+                _booleen(d['composition_provisoire']),
+              ),
             ),
           );
     }
@@ -911,9 +974,11 @@ class AligneurCatalogue {
   /// aucun contrôle d'homonyme ici non plus. La modification d'une fiche
   /// part au serveur (dernière saisie gagnante) : la version descendue est
   /// celle qui a gagné, et elle remplace la fiche locale quand plus rien
-  /// n'attend (garde d'[aligner]). `solde` ne descend pas (calcul) ; un
-  /// client archivé reste proposé (aucune archive locale), et le bilan le
-  /// compte.
+  /// n'attend (garde d'[aligner]). `solde` ne descend pas (calcul). Depuis le
+  /// 21/10/2026 `actif` descend aussi (`clients_local.actif`, v35) : un client
+  /// archivé au serveur est archivé ici, un client restauré l'est aussi — le
+  /// poste archive lui-même (`ClientDao.archiver`), donc plus aucun archivé
+  /// n'est « proposé faute d'archive locale ».
   Future<IssueAlignement> _client(String id, ElementCatalogue e) async {
     final d = e.donnees;
     final nom = _texte(d['nom']);
@@ -936,9 +1001,13 @@ class AligneurCatalogue {
             email: Value(_texte(d['email'])),
             typeClient: type!,
             statutSync: const Value('synchronise'),
+            actif: Value(e.actif),
           ),
         );
-    return Aligne(archiveNonPortee: !e.actif);
+    // Le serveur détient ce client (un geste qui le cite ou le modifie peut
+    // partir sans lui renvoyer sa création — `ClientDao.assurerConnuDuServeur`).
+    await _retenirOrigine(e, id);
+    return const Aligne();
   }
 
   /* ================================================================== */
@@ -1147,6 +1216,10 @@ class AligneurCatalogue {
         quantite: quantite,
       ));
     }
+    final nomCanal = _texte(d['canal']);
+    final canalLocal = nomCanal == null
+        ? null
+        : await CanauxReservationDao(_db).parNom(nomCanal);
     await _db
         .into(t)
         .insert(
@@ -1164,12 +1237,9 @@ class AligneurCatalogue {
             modePaiement: Value(mode),
             // Lot 10f : le canal descend par son NOM (celui du serveur) ;
             // un nom que ce poste ne connaît pas reste sans canal.
-            canal: Value(
-              CanalReservation.values
-                  .where((c) => c.libelle == _texte(d['canal']))
-                  .firstOrNull
-                  ?.code,
-            ),
+            // 21/10/2026 : par le NOM, relu de la table des canaux (descendue
+            // AVANT les réservations) — insensible à la casse.
+            canal: Value(canalLocal?.id),
             remiseType: Value(remiseType),
             remiseValeur: Value(
               remiseType == 'aucune' ? null : remiseCentiemes / 100,

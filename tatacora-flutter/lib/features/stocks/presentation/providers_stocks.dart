@@ -7,14 +7,20 @@ import '../../../core/fichiers/enregistrement_export.dart';
 import '../../../core/impression/entete_parametree.dart';
 import '../../../core/impression/export_etat_a4.dart';
 import '../../../core/rbac/garde_acces.dart';
+import '../../../core/rbac/regle_archivage.dart';
+import '../../achats/domain/entities/archivage_fournisseur.dart';
+import '../../parametres/presentation/providers_options_systeme.dart'
+    show lireSuppressionActive;
 import '../data/stocks_api.dart';
 import '../data/stocks_dao.dart';
 import '../../synchronisation/data/operations_sync_dao.dart';
 import '../../synchronisation/domain/operation_sync.dart';
+import '../domain/calcul_inventaire.dart';
 import '../domain/entities/etat_stock.dart';
 import '../domain/stock_en_attente.dart';
 import '../domain/entities/fiche_stock.dart';
 import '../impression/etat_fiche_stock.dart';
+import '../impression/etat_inventaire.dart';
 import '../impression/etat_stocks.dart';
 
 /// M6 sur la base LOCALE du poste. Les droits et l'auteur sont lus À CHAQUE
@@ -32,6 +38,17 @@ final stocksApiProvider = Provider<StocksApi>(
         ref.read(droitsProvider).peutEcrire(ModuleTatacora.m6Stocks),
     auteurId: () => ref.read(sessionProvider)?.utilisateurId,
     roleUtilisateur: () => ref.read(sessionProvider)?.role,
+    // La règle d'archivage, relue À CHAQUE geste depuis la base : la bascule
+    // peut se refermer entre l'ouverture de la confirmation et le clic. Elle
+    // passe par son lecteur DÉCLARÉ (`lireSuppressionActive`).
+    peutArchiver: () async => peutArchiver(
+      droits: ref.read(droitsProvider),
+      module: ModuleTatacora.m6Stocks,
+      role: ref.read(sessionProvider)?.role,
+      suppressionActive: await lireSuppressionActive(
+        ref.read(baseLocaleProvider),
+      ),
+    ),
   ),
 );
 
@@ -438,5 +455,115 @@ final exporterStocksPdfProvider =
             ref,
             etat.etatA4(),
             base: EtatStocks.prefixeFichier,
+          ),
+    );
+
+/* ====================================================================== */
+/* L'INVENTAIRE physique — le comptage en cours, la feuille, l'historique   */
+/* ====================================================================== */
+
+/// L'inventaire OUVERT sur ce poste, `null` tant qu'aucun ne court.
+///
+/// ## Pourquoi en mémoire, et ce que cela coûte
+///
+/// Le comptage n'est écrit qu'à la clôture (inventaire, lignes et mouvements en
+/// UNE transaction) : le schéma ne porte aucun statut d'inventaire (PA-150), une
+/// ligne écrite avant la clôture ne se distinguerait pas d'un inventaire clos.
+/// Le prix : FERMER la fenêtre avant de clôturer abandonne le comptage — l'écran
+/// le dit. Ce provider n'est PAS `autoDispose` : quitter l'écran Inventaires
+/// (pour une fiche, un mouvement) ne perd rien.
+final inventaireEnCoursProvider =
+    NotifierProvider<_InventaireEnCoursNotifier, InventaireEnCours?>(
+      _InventaireEnCoursNotifier.new,
+    );
+
+final class _InventaireEnCoursNotifier extends Notifier<InventaireEnCours?> {
+  @override
+  InventaireEnCours? build() => null;
+
+  void ouvrir(InventaireEnCours inventaire) => state = inventaire;
+
+  /// Un second comptage du même article ÉCRASE le premier (correction d'une
+  /// erreur de saisie) et refige son théorique.
+  void compter(String articleId, ComptageBrouillon comptage) =>
+      state = state?.avecComptage(articleId, comptage);
+
+  void clore() => state = null;
+}
+
+/// La feuille de comptage, `null` sans inventaire ouvert.
+///
+/// `autoDispose` : la rouvrir doit relire les mouvements — un théorique non
+/// compté qui date de la visite précédente fausserait l'écart au comptage.
+final feuilleComptageProvider = FutureProvider.autoDispose<FeuilleComptage?>((
+  ref,
+) async {
+  final enCours = ref.watch(inventaireEnCoursProvider);
+  if (enCours == null) return null;
+  return ref.watch(stocksApiProvider).feuilleDeComptage(enCours);
+});
+
+/// L'onglet « Inventaires clôturés » — `null` quand le droit de lecture manque.
+final inventairesClosProvider =
+    FutureProvider.autoDispose<List<InventaireClos>?>(
+      (ref) => ref.watch(stocksApiProvider).inventairesClos(),
+    );
+
+/// Le « Dernier inventaire » de chaque point (`AAAA-MM-JJ`) pour le cycle.
+final dernierInventaireParPointProvider =
+    FutureProvider.autoDispose<Map<String, String>>(
+      (ref) => ref.watch(stocksApiProvider).dernierInventaireParPoint(),
+    );
+
+/* ====================================================================== */
+/* L'archivage des articles — actions INJECTABLES                          */
+/* ====================================================================== */
+
+/// L'OUVERTURE de la confirmation (`confirmerArchivageArticle`) : le droit
+/// d'archiver exigé dès ici, puis le lot composé (verrous, états bloqué /
+/// partiel / nominal). Action injectable, comme les exports.
+final preparerArchivageArticlesProvider =
+    Provider<Future<ResultatStocks<LotArchivage>> Function(List<String>)>(
+      (ref) => ref.watch(stocksApiProvider).preparerArchivage,
+    );
+
+/// « Supprimer » de la modale (`archiverArticles`) : il ARCHIVE
+/// (`articles.actif = false`), il n'efface rien.
+final archiverArticlesProvider =
+    Provider<Future<ResultatStocks<ResultatArchivage>> Function(List<String>)>(
+      (ref) => ref.watch(stocksApiProvider).archiverArticles,
+    );
+
+/// « Restaurer » (`restaurerArticle`) : remet `actif = true`. Seul le droit
+/// d'écriture est exigé.
+final restaurerArticleProvider =
+    Provider<Future<ResultatStocks<String>> Function(String)>(
+      (ref) => ref.watch(stocksApiProvider).restaurerArticle,
+    );
+
+/// L'export tableur du rapport d'inventaire — rend le **chemin** écrit, `null` :
+/// annulé dans la fenêtre « Enregistrer sous ». Action injectable, comme les
+/// autres exports.
+final exporterInventaireProvider =
+    Provider<Future<String?> Function(EtatInventaire)>(
+      (ref) =>
+          (etat) => ref
+              .read(enregistrementExportProvider)
+              .exporter(
+                base: EtatInventaire.prefixeFichier,
+                type: TypeFichierEnregistre.csv,
+                octets: etat.csvOctets(),
+              ),
+    );
+
+/// L'export « PDF Officiel A4 Imprimable » du rapport d'inventaire — ses visas
+/// sont ceux du gabarit serveur (`pdf/inventaire-rapport.blade.php`).
+final exporterInventairePdfProvider =
+    Provider<Future<String?> Function(EtatInventaire)>(
+      (ref) =>
+          (etat) => enregistrerEtatA4(
+            ref,
+            etat.etatA4(),
+            base: EtatInventaire.prefixeFichier,
           ),
     );

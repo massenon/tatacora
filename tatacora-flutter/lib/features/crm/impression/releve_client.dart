@@ -10,8 +10,7 @@ import '../../../core/impression/entete_etablissement.dart';
 import '../../../core/impression/texte_ticket.dart';
 import '../../caisse/domain/montant_caisse.dart' show formaterCentimesEnFcfa;
 
-/// Un mouvement du relevé : un encaissement, ou — quand le poste les détiendra —
-/// une relance.
+/// Un mouvement du relevé : un encaissement, ou une relance.
 typedef MouvementReleve = ({DateTime date, String type, int montantCentimes});
 
 /// Le **relevé de compte client** — `pdf/releve-client.blade.php`, le papier du
@@ -33,12 +32,12 @@ typedef MouvementReleve = ({DateTime date, String type, int montantCentimes});
 /// sans mouvement le DIT (« Aucun mouvement pour ce client. ») plutôt que
 /// d'imprimer un tableau sans ligne, qu'on prendrait pour une panne d'édition.
 ///
-/// ## Ce que ce poste ne sait pas encore dire
+/// ## Les relances y figurent (21/10/2026)
 ///
-/// Les relances ne sont pas écrites sur ce poste (aucune table locale, rien à
-/// envoyer au serveur) : le relevé les OMET, et la mention [mentionRelances] le
-/// dit sous le tableau — un relevé muet sur ce point se lirait comme « aucune
-/// relance ».
+/// Le gabarit boucle les encaissements PUIS les relances du client
+/// (`Relance`, montant RÉCLAMÉ ce jour-là). Le poste les détient désormais
+/// (`relances_clients_local`) : elles sont des lignes du relevé, au même titre
+/// que les encaissements — le papier remis au client ne tait plus rien.
 final class ReleveClient {
   const ReleveClient({
     required this.clientNom,
@@ -53,11 +52,6 @@ final class ReleveClient {
   static const List<String> entetes = ['Date', 'Type', 'Montant'];
 
   static const String aucunMouvement = 'Aucun mouvement pour ce client.';
-
-  /// La mention de portée du poste — dite au papier comme à l'écran.
-  static const String mentionRelances =
-      'Les relances ne sont pas enregistrées sur ce poste : ce relevé ne '
-      'reprend que les encaissements.';
 
   final String clientNom;
 
@@ -101,7 +95,7 @@ final class ReleveClient {
         ),
         // Pied NEUTRE d'un document remis au client : jamais le pied de rapport.
         footer: (context) => piedA4(context.pageNumber, context.pagesCount),
-        build: (context) => [_tableau(), pw.SizedBox(height: 10), _mention()],
+        build: (context) => [_tableau()],
       ),
     );
     return doc.save();
@@ -124,7 +118,4 @@ final class ReleveClient {
       cellAlignments: {2: pw.Alignment.centerRight},
     );
   }
-
-  pw.Widget _mention() =>
-      pw.Text(_t(mentionRelances), style: const pw.TextStyle(fontSize: 8));
 }

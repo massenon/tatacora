@@ -1194,39 +1194,50 @@ void main() {
   });
 
   group(
-    'Ce que la vue offre pour ARCHIVER, et que ce poste dit ne pas tenir',
+    'L’archivage est PORTÉ : la sentinelle « aucune colonne actif » est levée',
     () {
-      testWidgets('aucune case, aucun « Supprimer » : la note NOMME les gestes '
-          'avec les mots de la vue', (tester) async {
-        final magasin = await semerPoint('Magasin');
-        await semerArticle('riz', 'Riz local', pointId: magasin);
-        await monter(tester, role: 'administrateur');
-
-        // Rien n'est offert qui n'écrirait rien.
-        expect(find.byType(Checkbox), findsNothing);
-        expect(find.text('Supprimer'), findsNothing);
-
-        final note = texteDe(tester, const Key('stocks-limite-archivage'));
-        for (final mot in const [
-          'Supprimer',
-          'Tout sélectionner',
-          'Sélectionner cette ligne',
-          'sélectionné(s)',
-        ]) {
-          expect(note, contains(mot));
-        }
-        // Et elle dit POURQUOI : aucune colonne « actif » locale.
-        expect(note, contains('colonne « actif »'));
+      testWidgets('le schéma local PORTE la colonne `actif` des articles — '
+          'nullable, défaut vrai (v35) : l’ancienne sentinelle « isNot(contains) » '
+          'disait le contraire et rougissait le jour où elle est née', (
+        tester,
+      ) async {
+        final colonnes = await db
+            .customSelect('PRAGMA table_info(articles_local)')
+            .get();
+        final actif = colonnes.where((r) => r.read<String>('name') == 'actif');
+        expect(actif, hasLength(1));
+        // Nullable à dessein (un fichier ramené d'avant la colonne ne lève pas) ;
+        // `DEFAULT 1` : un article créé sans le dire est actif.
+        expect(actif.single.read<int>('notnull'), 0);
+        expect(actif.single.read<String>('dflt_value'), '1');
       });
 
-      testWidgets('le schéma local n’a toujours aucune colonne `actif` sur les '
-          'articles : le jour où elle naît, ce test rougit et l’archivage se '
-          'porte', (tester) async {
-        final colonnes =
-            (await db.customSelect('PRAGMA table_info(articles_local)').get())
-                .map((r) => r.read<String>('name'))
-                .toSet();
-        expect(colonnes, isNot(contains('actif')));
+      testWidgets('sans le droit d’archiver (magasinier, bascule fermée) : ni '
+          'case, ni « Supprimer » — retirés, pas grisés — et plus aucune note '
+          '« archivage non porté »', (tester) async {
+        final magasin = await semerPoint('Magasin');
+        await semerArticle('riz', 'Riz local', pointId: magasin);
+        await monter(tester);
+
+        expect(find.byType(Checkbox), findsNothing);
+        expect(find.byKey(const Key('stocks-supprimer-riz')), findsNothing);
+        expect(find.text('Supprimer'), findsNothing);
+        expect(find.byKey(const Key('stocks-limite-archivage')), findsNothing);
+      });
+
+      testWidgets('un administrateur a la case de chaque ligne, « Tout '
+          'sélectionner » et « Supprimer » (la règle unique `peutArchiver`)', (
+        tester,
+      ) async {
+        final magasin = await semerPoint('Magasin');
+        await semerArticle('riz', 'Riz local', pointId: magasin);
+        await semerArticle('huile', 'Huile', pointId: magasin);
+        await monter(tester, role: 'administrateur');
+
+        expect(find.byKey(const Key('stocks-tout')), findsOneWidget);
+        expect(find.byKey(const Key('stocks-case-riz')), findsOneWidget);
+        expect(find.byKey(const Key('stocks-supprimer-riz')), findsOneWidget);
+        expect(find.byKey(const Key('stocks-selection')), findsNothing);
       });
     },
   );
@@ -1541,46 +1552,36 @@ void main() {
     });
   });
 
-  group('Inventaires : l’inventaire physique est REFUSÉ, et l’écran le dit', () {
-    testWidgets('le cycle liste les points, « Lancer l’inventaire » est GRISÉ '
-        'à sa place, la note nomme les gestes de la vue', (tester) async {
-      await semerPoint('Bar');
-      await semerPoint('Magasin');
+  group('Inventaires : l’inventaire physique est PORTÉ', () {
+    testWidgets('le cycle liste les points : « Lancer l’inventaire » est '
+        'ACTIF sur chaque ligne, le dernier inventaire dit « aucun »', (
+      tester,
+    ) async {
+      final bar = await semerPoint('Bar');
+      final magasin = await semerPoint('Magasin');
       await monter(tester, ecran: const EcranInventaires());
       await toucher(tester, const Key('inventaires-onglet-inventaire'));
 
       // Une ligne par point, avec « non définie » (aucune périodicité n'est
-      // enregistrée nulle part) deux fois : périodicité et état.
+      // enregistrée nulle part) deux fois par ligne : périodicité et état.
       expect(find.text('Bar'), findsOneWidget);
       expect(find.text('Magasin'), findsOneWidget);
       expect(find.text('non définie'), findsNWidgets(4));
 
-      // Le bouton existe, au libellé de la vue, et n'a AUCUN geste.
       final boutons = tester
           .widgetList<BoutonStandard>(find.byType(BoutonStandard))
           .where((b) => b.libelle == "Lancer l'inventaire")
           .toList();
       expect(boutons, hasLength(2));
-      expect(boutons.every((b) => b.onPressed == null), isTrue);
+      expect(boutons.every((b) => b.onPressed != null), isTrue);
 
-      final note = texteDe(tester, const Key('inventaire-non-porte'));
-      for (final mot in const [
-        'Lancer l’inventaire',
-        'Inventaire du',
-        'article(s) comptés',
-        'écart(s)',
-        'impact valorisé',
-        'à compter',
-        'Écart valorisé',
-        'Enregistrer le comptage',
-        'Exporter — Articles en stock',
-        'Clôturer et régulariser',
-        'Les inventaires clôturés et leurs régularisations apparaîtront ici.',
-      ]) {
-        expect(note, contains(mot), reason: mot);
-      }
-      // Et la RAISON : ni table d'inventaire ni lignes de comptage.
-      expect(note, contains('ni table d’inventaire'));
+      expect(texteDe(tester, Key('inventaire-cycle-$bar-dernier')), 'aucun');
+      expect(
+        texteDe(tester, Key('inventaire-cycle-$magasin-dernier')),
+        'aucun',
+      );
+      // La note du refus d'avant n'existe plus.
+      expect(find.byKey(const Key('inventaire-non-porte')), findsNothing);
     });
 
     testWidgets('sans point : la phrase de la vue, et aucun bouton', (
@@ -1598,22 +1599,23 @@ void main() {
       expect(find.text("Lancer l'inventaire"), findsNothing);
     });
 
-    testWidgets('l’historique ne dit NI « aucun » NI « apparaîtront ici » '
-        'comme une promesse : il dit que ce poste n’en tient pas', (
-      tester,
-    ) async {
+    testWidgets('l’historique vide dit la phrase de la vue — plus la note du '
+        'refus', (tester) async {
       await monter(tester, ecran: const EcranInventaires());
       await toucher(tester, const Key('inventaires-onglet-historique'));
 
-      final note = texteDe(tester, const Key('historique-non-porte'));
-      expect(note, contains('ne peut pas se tenir ici'));
-      // Aucune ligne n'est inventée, aucun « 0 » non plus.
-      expect(find.text('0'), findsNothing);
+      expect(find.text('Aucun inventaire clôturé'), findsOneWidget);
+      expect(
+        find.text(
+          'Les inventaires clôturés et leurs régularisations apparaîtront ici.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('historique-non-porte')), findsNothing);
     });
 
-    test('le schéma local n’a toujours ni table d’inventaire ni lignes de '
-        'comptage : le jour où elles naissent, ce test rougit et l’inventaire '
-        'se porte', () async {
+    test('le schéma local PORTE les deux tables d’inventaire (v35) : la '
+        'sentinelle « aucune table *inventaire* » est levée', () async {
       final tables =
           (await db
                   .customSelect(
@@ -1622,11 +1624,10 @@ void main() {
                   .get())
               .map((r) => r.read<String>('name'))
               .toSet();
-      expect(
-        tables.where((t) => t.contains('inventaire')),
-        isEmpty,
-        reason: 'une table d’inventaire est née : portez l’inventaire physique',
-      );
+      expect(tables.where((t) => t.contains('inventaire')).toSet(), {
+        'inventaires_local',
+        'lignes_inventaire_local',
+      });
     });
   });
 }

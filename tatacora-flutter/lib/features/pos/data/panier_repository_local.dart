@@ -1,3 +1,5 @@
+import '../../hebergement/domain/entities/fiche_reservation.dart'
+    show TypeRemise;
 import '../domain/entities/article_vendable.dart';
 import '../domain/entities/panier.dart';
 import '../domain/repositories/panier_repository.dart';
@@ -93,6 +95,13 @@ final class PanierRepositoryLocal implements PanierRepository {
     modePaiement: modePaiement,
     auteurId: auteurId,
   );
+
+  @override
+  Future<Panier> appliquerRemise(
+    String panierId,
+    TypeRemise type,
+    String valeurSaisie,
+  ) => _dao.appliquerRemise(panierId, type, valeurSaisie);
 
   @override
   Future<Panier> annuler(String panierId, String motif) =>

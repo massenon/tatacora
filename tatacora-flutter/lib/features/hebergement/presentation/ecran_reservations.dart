@@ -617,7 +617,11 @@ class _EtatOngletAnnulations extends ConsumerState<_OngletAnnulations> {
                         style: _t(TaillesContenu.sm),
                       ),
                     ),
-                    for (final c in CanalReservation.values)
+                    // Les canaux de la TABLE (Paramètres › Canaux de réservation),
+                    // désactivés compris : une annulation garde son canal.
+                    for (final c
+                        in ref.watch(canauxReservationProvider).value ??
+                            CanalReservation.jeuInitial)
                       DropdownMenuItem<CanalReservation?>(
                         value: c,
                         child: Text(c.libelle, style: _t(TaillesContenu.sm)),
@@ -636,7 +640,7 @@ class _EtatOngletAnnulations extends ConsumerState<_OngletAnnulations> {
             final lignes = [
               for (final c in toutes)
                 if (!c.reservation.estActive &&
-                    (_canal == null || c.reservation.canal == _canal) &&
+                    (_canal == null || _canal!.memeQue(c.reservation.canal)) &&
                     (terme.isEmpty ||
                         c.reservation.clientNom.toLowerCase().contains(terme)))
                   c.reservation,

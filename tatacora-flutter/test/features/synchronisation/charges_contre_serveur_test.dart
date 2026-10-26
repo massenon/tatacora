@@ -133,6 +133,7 @@ void main() {
       'creation parametres_systeme',
       'creation roles',
       'modification roles',
+      'creation immobilisations',
     ]);
     expect(resultats, hasLength(operations.length));
   });
@@ -236,6 +237,25 @@ void main() {
     final conge = serveur('conges', s.conge);
     expect(conge['statut_validation'], 'refuse');
     expect(conge['validateur_id'], isNotNull);
+  });
+
+  test('immobilisation (21/10/2026) : écrite par ImmobilisationService sous '
+      'l’UUID du poste, le code du serveur revient, la valeur en centimes '
+      'devient des francs décimaux', () {
+    final r = resultatDe('immobilisations', 'creation', s.immobilisation);
+    expect(r['statut'], 'synchronise', reason: '$r');
+    expect(r['code'], 'IMMO-2026-00001');
+    final ecrit = serveur('immobilisations', s.immobilisation);
+    expect(
+      (
+        ecrit['libelle'],
+        ecrit['valeur_origine'],
+        ecrit['duree_annees'],
+        ecrit['compte_immobilisation'],
+      ),
+      ('Toyota Land Cruiser Prado', '12000000.00', 5, '231'),
+    );
+    expect('${ecrit['date_mise_service']}', startsWith('2026-03-20'));
   });
 
   test('règlement fournisseur (audit) : écrit par le service, à la date du '

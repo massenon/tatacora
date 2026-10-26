@@ -72,6 +72,45 @@ class InventaireService
     }
 
     /**
+     * Enregistre un inventaire CLÔTURÉ sur un poste (synchronisation,
+     * 21/10/2026) : l'en-tête et ses lignes, tels que le poste les a figés —
+     * théorique du MOMENT de son comptage, constaté, écart. Rien n'est
+     * recalculé : le théorique du serveur, à l'instant de l'envoi, n'est pas
+     * celui que le poste avait sous les yeux, et l'écart régularisé (les
+     * mouvements `inventaire` et `perte` que le poste envoie à part) est
+     * celui-ci.
+     *
+     * Aucun mouvement n'est écrit ici : la régularisation arrive comme les
+     * autres mouvements saisis (`GestionnaireMouvementsStock`), sous leur UUID.
+     *
+     * @param  list<array{id?: string|null, article_id: string, quantite_theorique: string, quantite_constatee: string, ecart: string}>  $lignes
+     */
+    public function enregistrerCloture(string $id, PointStockage $point, string $date, string $utilisateurId, array $lignes): Inventaire
+    {
+        return DB::transaction(function () use ($id, $point, $date, $utilisateurId, $lignes): Inventaire {
+            $inventaire = Inventaire::create([
+                'id' => $id,
+                'point_id' => $point->id,
+                'date_inventaire' => $date,
+                'utilisateur_id' => $utilisateurId,
+            ]);
+
+            foreach ($lignes as $ligne) {
+                LigneInventaire::create([
+                    ...(isset($ligne['id']) && $ligne['id'] !== '' ? ['id' => $ligne['id']] : []),
+                    'inventaire_id' => $inventaire->id,
+                    'article_id' => $ligne['article_id'],
+                    'quantite_theorique' => $ligne['quantite_theorique'],
+                    'quantite_constatee' => $ligne['quantite_constatee'],
+                    'ecart' => $ligne['ecart'],
+                ]);
+            }
+
+            return $inventaire->refresh();
+        });
+    }
+
+    /**
      * Enregistre le comptage d'un article — fige son théorique et calcule
      * l'écart.
      *

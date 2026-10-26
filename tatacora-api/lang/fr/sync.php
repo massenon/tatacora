@@ -58,6 +58,11 @@ return [
     'factures' => [
         'reservation_inconnue' => 'Facture refusée : la réservation n\'est pas connue du serveur (pas encore reçue, ou refusée).',
         'motif_absent' => 'Annulation saisie sur un poste',
+        'avoir_motif_absent' => 'Avoir saisi sur un poste',
+        'avoir_montant_invalide' => 'Avoir refusé : le montant doit être un nombre entier de francs supérieur à zéro.',
+    ],
+    'crm' => [
+        'client_inconnu_relance' => 'Relance refusée : le client n\'est pas connu du serveur (pas encore reçu, ou refusé).',
     ],
     'annulation_autre_poste' => 'Annulation refusée : ce document a été saisi sur un autre poste (ou au serveur). '
         . 'Seuls l\'administration et le comptable peuvent l\'annuler.',
@@ -112,6 +117,10 @@ return [
     ],
     'stocks' => [
         'reference_inconnue' => 'Mouvement refusé : l\'article ou le point de stockage n\'est pas connu du serveur (pas encore reçu, ou refusé).',
+        'inventaire_point_inconnu' => 'Inventaire refusé : le point de stockage n\'est pas connu du serveur (pas encore reçu, ou refusé).',
+        'inventaire_article_inconnu' => 'Inventaire refusé : l\'article « :article » n\'est pas connu du serveur (pas encore reçu, ou refusé).',
+        'inventaire_ecart_incoherent' => 'Inventaire refusé : l\'écart de l\'article « :article » n\'est pas la différence entre le compté et le théorique.',
+        'inventaire_article_double' => 'Inventaire refusé : l\'article « :article » est compté deux fois.',
     ],
     'parametres' => [
         'valeur_non_scalaire' => 'Paramètres refusés : valeur illisible pour :cles.',

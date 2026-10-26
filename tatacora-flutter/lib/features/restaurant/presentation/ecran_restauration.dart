@@ -563,13 +563,15 @@ class _OngletFichesState extends ConsumerState<_OngletFiches> {
               null,
               null,
             ),
-            // Aucune marque « composition provisoire » n'existe sur ce poste :
-            // aucun référentiel de démonstration ne pose de grammage.
+            // `fiches_kpi_provisoires` : les fiches dont la composition a été
+            // posée, jamais pesée — comptées de `recettes.composition_provisoire`.
             (
               'Compositions provisoires',
+              k?.provisoires.toString(),
+              (k?.provisoires ?? 0) > 0
+                  ? PaletteMaitre.ambre600
+                  : PaletteMaitre.emeraude600,
               null,
-              null,
-              MessagesRestaurant.compositionProvisoireAbsente,
               'Quantités posées, jamais pesées',
             ),
           ],

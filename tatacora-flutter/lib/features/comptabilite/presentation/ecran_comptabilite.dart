@@ -25,6 +25,7 @@ import 'exercice_consulte.dart';
 import 'providers_consultation_comptable.dart';
 import 'providers_etats_financiers.dart';
 import 'widgets/modale_ecriture.dart';
+import 'widgets/onglet_immobilisations.dart';
 import 'widgets/onglets_etats_financiers.dart';
 import 'widgets/onglets_plan_clotures.dart';
 
@@ -65,17 +66,14 @@ import 'widgets/onglets_plan_clotures.dart';
 ///   dite « non portée ».
 /// - **Grand livre, Analytique** : l'onglet est cliquable et DIT qu'il n'est
 ///   pas calculé sur ce poste — aucun chiffre plutôt qu'un chiffre faux.
-/// - **Immobilisations** (refusée) : la vue crée une immobilisation, calcule
-///   son plan d'amortissement linéaire (prorata temporis) et les somme au
-///   tableau ; le poste n'a AUCUNE table d'immobilisations (schéma v34) et le
-///   registre de synchronisation n'en connaît pas : saisir ici une
-///   immobilisation qui ne serait stockée nulle part, ou la garder hors de la
-///   file d'envoi, serait écrire dans le vide. Refus, 21/10/2026 — il se lèvera
-///   avec une table `immobilisations_local` et son entrée au registre :
-///  - blade-refuse:comptabilite/hub#modale:immo_modale_titre
-///  - blade-refuse:comptabilite/hub#modale:modale-titre-calcule
-///   (la seconde est la modale « Plan » d'une immobilisation existante :
-///   aucune n'existe sur le poste).
+/// - **Immobilisations** (21/10/2026, `widgets/onglet_immobilisations.dart`) :
+///   le tableau de l'exercice, « + Immobilisation », la modale de création et
+///   la modale « Plan » (`widgets/modales_immobilisations.dart`). Le plan est
+///   CALCULÉ sur le poste (`domain/immobilisations.dart`, centimes, confronté
+///   au vrai `ImmobilisationService`) ; la création s'écrit par
+///   `ImmobilisationsDao` et part au serveur par la file d'envoi. Le refus du
+///   21/10/2026 (aucune table) est levé par la table `immobilisations_local`
+///   (schéma v35) et son entrée au registre de synchronisation.
 /// - **Exporter** : la vue exporte le journal (PDF/Excel) ; ici aussi
 ///   (directive du PO du 14/10/2026). Le bouton n'existe que sur l'onglet
 ///   **Journal** — comme le registre CRM, un bouton n'est offert que là où il
@@ -1001,6 +999,8 @@ class _Panneau extends StatelessWidget {
         return OngletResultat(annee: ex.annee);
       case 'bilan':
         return OngletBilan(annee: ex.annee);
+      case 'immo':
+        return OngletImmobilisations(annee: ex.annee);
       default:
         final libelle = ongletsComptabilite
             .firstWhere((o) => o.cle == onglet)

@@ -55,10 +55,17 @@ enum TableDescendue {
   tablesSalle('tables_salle', TableSynchronisee.tablesSalle),
   fournisseurs('fournisseurs', TableSynchronisee.fournisseurs),
 
+  /// 21/10/2026 : les canaux de réservation, AVANT les réservations qui les
+  /// citent (la réservation arrive avec le NOM de son canal).
+  canauxReservation('canaux_reservation', TableSynchronisee.canauxReservation),
+
   /// Lot F3 (décision du PO du 16/10/2026) : les clients et les séjours de
   /// TOUS les postes descendent — le client AVANT la réservation qui le cite
   /// (PA-127), l'unité bien avant.
   clients('clients', TableSynchronisee.clients),
+
+  /// 21/10/2026 : les relances de TOUS les postes, après le client qu'elles citent.
+  relancesClients('relances_clients', TableSynchronisee.relancesClients),
   reservations('reservations', TableSynchronisee.reservations),
 
   /// Lot F5 : l'arrivée et le départ réels, après la réservation.
@@ -131,7 +138,15 @@ enum TableDescendue {
   /// Les écritures VALIDÉES du serveur (21/10/2026), après leurs exercices :
   /// un miroir de LECTURE pour les états financiers, jamais mêlé aux pièces du
   /// poste. Le poste ne les pousse pas.
-  ecrituresComptables('ecritures_comptables', null);
+  ecrituresComptables('ecritures_comptables', null),
+
+  /// 21/10/2026 : les immobilisations de tous les postes (M10) ; le plan
+  /// d'amortissement ne descend pas, il se calcule.
+  immobilisations('immobilisations', TableSynchronisee.immobilisations),
+
+  /// 21/10/2026 : les inventaires physiques clôturés de tous les postes, avec
+  /// leurs lignes comptées (elles descendent AVEC l'inventaire).
+  inventaires('inventaires', TableSynchronisee.inventaires);
 
   const TableDescendue(this.nomServeur, this.tableSynchronisee);
 
@@ -155,6 +170,7 @@ enum TableDescendue {
 String libelleTableServeur(String nom) => switch (nom) {
   'reservations' => 'Réservations',
   'clients' => 'Clients',
+  'relances_clients' => 'Relances de clients',
   'fournisseurs' => 'Fournisseurs',
   'points_stockage' => 'Points de stockage',
   'articles' => 'Articles de stock',
@@ -195,6 +211,9 @@ String libelleTableServeur(String nom) => switch (nom) {
   'modeles_notification' => 'Modèles de notification',
   'exercices_comptables' => 'Exercices comptables',
   'ecritures_comptables' => 'Écritures comptables validées',
+  'immobilisations' => 'Immobilisations',
+  'canaux_reservation' => 'Canaux de réservation',
+  'inventaires' => 'Inventaires physiques',
   _ => nom,
 };
 

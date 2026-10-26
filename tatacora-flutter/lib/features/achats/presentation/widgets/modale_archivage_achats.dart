@@ -10,6 +10,13 @@
 // pour « Retirer de la carte » un plat, avec ses propres `titre`, `message` et
 // `libelleConfirmer` (21/10/2026) ; les modales se mesurent dans les fichiers
 // qui CITENT la vue, d'où cette mention.
+// Et une QUATRIÈME : pwa/stocks/stocks.blade.php (l.782-787) l'invoque pour
+// archiver un ou plusieurs articles de stock (`archiverArticles`, 21/10/2026) ;
+// c'est ici que se rendent « Confirmer la suppression », « Archivage impossible »
+// et « Supprimer définitivement » de cette vue.
+// Et une CINQUIÈME : pwa/crm/clients-creances.blade.php (l.792-798) l'invoque pour
+// archiver un ou plusieurs clients (`archiverClients`, 21/10/2026) ; c'est ici
+// que se rendent les mots du composant pour cette vue.
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 

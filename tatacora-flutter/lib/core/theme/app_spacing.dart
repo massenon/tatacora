@@ -274,6 +274,10 @@ abstract final class AppLayout {
   /// (`<x-pwa.modale … largeur="720px">`, l.728).
   static const double modaleHistoriqueClientCrm = 720;
 
+  /// La modale « Tracer une relance » de `clients-creances.blade.php`
+  /// (`<x-pwa.modale … largeur="520px">`, l.692).
+  static const double modaleRelanceCrm = 520;
+
   static const double maxContentWidth = 1440;
 
   /// La hauteur maximale des modales de l'écran Stocks, en **fraction** de la
@@ -894,6 +898,12 @@ abstract final class AppLayout {
   /// La modale « Ouvrir un exercice » du hub comptable — `largeur="420px"`
   /// (`etatFormulaire === 'exercice'`).
   static const double modaleExercice = 420;
+
+  /// La modale « Nouvelle immobilisation » du hub comptable — `largeur="560px"`.
+  static const double modaleImmobilisationComptable = 560;
+
+  /// La modale « Plan » d'amortissement — `largeur="640px"`.
+  static const double modalePlanAmortissement = 640;
 
   /// La largeur du champ de recherche des onglets « Plan comptable » — `flex-1
   /// max-w-md` de la vue (28 rem).

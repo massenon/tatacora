@@ -26,7 +26,11 @@ declare(strict_types=1);
 |   {"op":"parametre","cle":"tva_active","valeur":"true"|null}
 |   {"op":"vente","canal":"comptoir"|"sejour"|"service","mode":"especes",
 |    "session":true|false,                       (comptoir et service)
+|    "remise":{"type":"pourcentage"|"montant","valeur":"10"},   (facultative)
 |    "lignes":[{"ref":"biere","quantite":3}]}    (ou {"module":"M8","id":"..."})
+|    La remise (21/10/2026) : au comptoir, par `appliquerRemise` du composant
+|    (un refus y est une erreur de champ, rendue comme refus) ; au sejour et au
+|    service, passee a `VenteService::enregistrer` (refus a l'encaissement).
 |   {"op":"retirer_du_catalogue","ref":"biere"}
 |   {"op":"retirer_centre","libelle":"Bar"}        (avant toute vente)
 |   {"op":"horloge","date":"2040-01-02"}           (change le jour courant)
@@ -341,6 +345,21 @@ try {
                             }
                         }
 
+                        // La remise : posee sur le PANIER avant l'encaissement,
+                        // comme l'operateur le fait ; un refus de la formule est
+                        // une erreur du champ « Valeur de la remise ».
+                        if (isset($op['remise'])) {
+                            $c->set('remiseType', (string) $op['remise']['type'])
+                                ->set('remiseValeur', (string) $op['remise']['valeur'])
+                                ->call('appliquerRemise');
+
+                            if ($c->errors()->has('remiseValeur')) {
+                                $resultats[] = ['refus' => (string) $c->errors()->first('remiseValeur')];
+                                $c->call('abandonnerPanier');
+                                break;
+                            }
+                        }
+
                         $c->set('modePaiement', $mode)->call('encaisser');
 
                         $venteId = $c->get('derniereVenteId');
@@ -365,6 +384,8 @@ try {
                             'point_vente' => 'Hébergement',
                             'client_id' => $client->id,
                             'mode_paiement' => 'note_chambre',
+                            'remise_type' => (string) ($op['remise']['type'] ?? 'aucune'),
+                            'remise_valeur' => (string) ($op['remise']['valeur'] ?? '0.00'),
                             'utilisateur_id' => $gerant->id,
                             'lignes' => $lignes,
                         ]);
@@ -381,6 +402,8 @@ try {
                             ? DB::table('sessions_caisse')->where('point_vente', 'bar')->whereNull('date_cloture')->value('id')
                             : null,
                         'mode_paiement' => $mode,
+                        'remise_type' => (string) ($op['remise']['type'] ?? 'aucune'),
+                        'remise_valeur' => (string) ($op['remise']['valeur'] ?? '0.00'),
                         'utilisateur_id' => $gerant->id,
                         'lignes' => $lignes,
                     ]);
@@ -457,6 +480,11 @@ try {
                         'centres_par_module' => VenteService::CENTRES_PAR_MODULE,
                         'contreparties' => VenteService::CONTREPARTIES_TRESORERIE,
                         'compte_clients' => VenteService::COMPTE_CLIENTS,
+                        'remise_valeur_invalide' => __('ventes.remise_valeur_invalide'),
+                        'remise_pourcentage_hors_bornes' => __('ventes.remise_pourcentage_hors_bornes'),
+                        'remise_superieure_au_total' => __('ventes.remise_superieure_au_total'),
+                        'remise_ligne_facture' => __('ventes.remise_ligne_facture'),
+                        'remise_appliquee' => __('pos_pwa.commun.remise_appliquee', ['brut' => ':brut']),
                     ]];
                     break;
 

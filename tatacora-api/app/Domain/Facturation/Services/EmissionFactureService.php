@@ -229,14 +229,18 @@ class EmissionFactureService
      * La facture d'origine reste rigoureusement inchangée : c'est le point de
      * la règle. Un test le vérifie explicitement.
      */
-    public function emettreAvoir(Facture $facture, string $montant, string $motif): Avoir
+    public function emettreAvoir(Facture $facture, string $montant, string $motif, ?string $id = null): Avoir
     {
         if (bccomp($montant, (string) $facture->montant_ttc, self::PRECISION) > 0) {
             throw new \InvalidArgumentException(__('facturation.avoir_montant_excessif'));
         }
 
         // Dans une transaction : le numéro `AV-` y est alloué sous verrou.
+        // `$id` : l'identifiant né sur un poste hors connexion (avoir partiel
+        // synchronisé) — il rend le rejeu idempotent et permet au poste de
+        // reconnaître son avoir à la descente.
         return DB::transaction(fn (): Avoir => Avoir::create([
+            ...($id !== null ? ['id' => $id] : []),
             'facture_id' => $facture->id,
             'motif' => $motif,
             'montant' => $montant,

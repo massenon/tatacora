@@ -87,4 +87,75 @@ abstract final class MessagesStock {
     required String unite,
     required String libelle,
   }) => 'Entrée enregistrée : $quantite $unite sur « $libelle ».';
+
+  /* ================================================================ */
+  /* L'ARCHIVAGE d'un article — `lang/fr/stocks_pwa.php`, `archivage.*`  */
+  /* ================================================================ */
+
+  /// `archivage.verrou_stock` : du stock reste (tous points confondus).
+  /// [quantite] est le solde à deux décimales (« 12.50 »), comme le serveur.
+  static String verrouStock(String quantite) =>
+      "Il reste $quantite en stock : archiver l'article rendrait ces unités "
+      'invisibles à l\'inventaire.';
+
+  /// `archivage.verrou_commande` : [nombre] lignes de commande d'achat en cours.
+  static String verrouCommande(int nombre) =>
+      "Il figure sur $nombre commande(s) d'achat en cours : la réception à "
+      'venir a besoin de cet article au sélecteur.';
+
+  /// `archivage.verrou_carte` : [nombre] entrées de carte (bar + restaurant).
+  static String verrouCarte(int nombre) =>
+      'Il est vendu à la carte ($nombre entrée(s)) : le comptoir continuerait '
+      'de le vendre et de décrémenter son stock. Retirez-le d\'abord de la '
+      'carte.';
+
+  /// `archivage.verrou_recette` : [nombre] compositions de recette.
+  static String verrouRecette(int nombre) =>
+      'Il entre dans $nombre recette(s) : la déduction de stock cuisine le '
+      'cherche par cette composition.';
+
+  /// `archivage.succes` (`trans_choice`) : un article, ou [nombre].
+  static String archivesSucces(int nombre) => nombre == 1
+      ? 'Article archivé — il reste restaurable.'
+      : '$nombre articles archivés — ils restent restaurables.';
+
+  /// `archivage.restaure`, `:libelle` remplacé.
+  static String restaure(String libelle) => 'Article « $libelle » restauré.';
+
+  /* ================================================================ */
+  /* L'INVENTAIRE physique — `lang/fr/stocks.php` et `stocks_pwa.php`    */
+  /* ================================================================ */
+
+  /// `stocks.quantite_negative` : un comptage négatif n'existe pas.
+  static const quantiteNegative = 'Une quantité ne peut pas être négative.';
+
+  /// `stocks.inventaire_incomplet`, `:nombre` remplacé.
+  static String inventaireIncomplet(int nombre) =>
+      "$nombre article(s) n'ont pas été comptés. Clôturer maintenant régulariserait une partie du stock en laissant le reste inchangé, sans que rien ne le signale.";
+
+  /// `stocks.motif_regularisation` : le motif de chaque mouvement de
+  /// régularisation. [inventaire] est l'identifiant de l'inventaire, [ecart]
+  /// l'écart SIGNÉ à deux décimales (« 2.00 », « -1.00 »), comme le serveur.
+  static String motifRegularisation({
+    required String inventaire,
+    required String ecart,
+  }) => 'Régularisation inventaire $inventaire — écart de $ecart';
+
+  /// `inventaires.lance`, `:nombre` remplacé.
+  static String inventaireOuvert(int nombre) =>
+      'Inventaire ouvert — $nombre article(s) à compter.';
+
+  /// `inventaires.comptage_enregistre`, `:article` remplacé.
+  static String comptageEnregistre(String article) =>
+      'Comptage de « $article » enregistré.';
+
+  /// `inventaires.cloture`, `:nombre` et `:impact` remplacés.
+  static String inventaireCloture({
+    required int nombre,
+    required String impact,
+  }) => 'Inventaire clôturé — $nombre régularisation(s), impact $impact.';
+
+  /// `inventaires.aucun_point_defini`.
+  static const aucunPointDefini =
+      "Aucun point de stockage n'est défini : un inventaire porte sur un point, il ne peut pas être ouvert sans lui.";
 }

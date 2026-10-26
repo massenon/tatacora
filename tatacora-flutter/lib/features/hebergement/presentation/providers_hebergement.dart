@@ -15,6 +15,7 @@ import '../../crm/domain/entities/client.dart';
 import '../../facturation/data/facture_dao.dart';
 import '../../parametres/data/parametres_dao.dart';
 import '../../pos/data/panier_dao.dart';
+import '../data/canaux_reservation_dao.dart';
 import '../data/catalogue_services_dao.dart';
 import '../data/parc_dao.dart';
 import '../data/reservation_dao.dart';
@@ -24,6 +25,7 @@ import '../domain/annulation_reservation.dart';
 import '../domain/entities/carte_reservation.dart';
 import '../domain/entities/categorie_hebergement.dart';
 import '../domain/entities/disponibilite.dart';
+import '../domain/entities/fiche_reservation.dart' show CanalReservation;
 import '../domain/entities/etat_du_jour.dart';
 import '../domain/entities/periode_sejour.dart';
 import '../domain/entities/reservation.dart';
@@ -63,6 +65,29 @@ import '../domain/usecases/modifier_reservation.dart';
 /// ouvert, l'alignement descendant de PA-127 — n'ont plus d'objet. ⚠ Mais si
 /// un second poste apparaissait, **plus rien ne les départagerait** : c'est la
 /// contrepartie exacte de la décision, et elle est structurelle.
+
+/// Le seul écrivain des canaux de réservation (Paramètres › « Canaux de
+/// réservation »), qui pose aussi le jeu initial d'un poste vierge.
+final canauxReservationDaoProvider = Provider<CanauxReservationDao>(
+  (ref) => CanauxReservationDao(ref.watch(baseLocaleProvider)),
+);
+
+/// TOUS les canaux de réservation — désactivés compris, dans leur ordre : le
+/// tableau de Paramètres et le filtre de l'écran Réservations les lisent.
+/// `autoDispose` : revenir sur l'écran relit la table, il ne réaffiche pas ce
+/// qu'on avait vu ; l'onglet l'invalide après chaque geste.
+final canauxReservationProvider =
+    FutureProvider.autoDispose<List<CanalReservation>>(
+      (ref) => ref.watch(canauxReservationDaoProvider).tous(),
+    );
+
+/// Le nombre de réservations de chaque canal (identifiant → nombre) — la colonne
+/// « Réservations » du tableau, et le compte de la confirmation de
+/// désactivation.
+final reservationsParCanalProvider =
+    FutureProvider.autoDispose<Map<String, int>>(
+      (ref) => ref.watch(canauxReservationDaoProvider).reservationsParCanal(),
+    );
 
 /// Le DAO des réservations, BRANCHÉ sur le moteur comptable : un acompte encaissé
 /// et un remboursement d'annulation passent leur pièce dans la même transaction

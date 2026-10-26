@@ -103,6 +103,25 @@ Map<String, Object?> chargePointStockage({
   required String? type,
 }) => {'libelle': libelle, 'type': type};
 
+/// `canaux_reservation` (création) — `GestionnaireCanauxReservation` : le NOM
+/// (clé naturelle, insensible à la casse) et l'état. Le même nom saisi sur deux
+/// postes fusionne au serveur.
+Map<String, Object?> chargeCanalReservation({
+  required String nom,
+  required bool actif,
+}) => {'nom': nom, 'actif': actif};
+
+/// `canaux_reservation` (modification) — l'ÉTAT ENTIER (nom, actif), plus
+/// l'ANCIEN nom quand le geste est un renommage : un canal aligné par son nom
+/// à la descente garde ici un identifiant que le serveur ne connaît pas, et
+/// l'ancien nom le lui fait retrouver (sinon « Physique » → « Comptoir » créerait
+/// un second canal au lieu de renommer le premier).
+Map<String, Object?> chargeCanalReservationModifie({
+  required String nom,
+  required bool actif,
+  String? ancienNom,
+}) => {'nom': nom, 'ancien_nom': ?ancienNom, 'actif': actif};
+
 /// `articles` — `EnregistrerArticleRequest` (sans les champs calculés,
 /// interdits). Le stock d'ouverture n'en fait PAS partie : c'est un mouvement,
 /// et le serveur interdit `stock_initial`.
@@ -236,6 +255,34 @@ Map<String, Object?> chargeClient({
   'type_client': typeClient,
 };
 
+/// `clients`, ARCHIVAGE ou RESTAURATION (modification) —
+/// `GestionnaireClients` : `actif` seul. Le serveur archive par
+/// `ReferentielClientService` (quatre verrous) sous la règle d'archivage de la
+/// directive du 03/09/2026 ; restaurer ne se refuse jamais.
+Map<String, Object?> chargeArchivageClient({required bool actif}) => {
+  'actif': actif,
+};
+
+/// `relances_clients` (création) — `GestionnaireRelancesClients` : un FAIT daté,
+/// jamais modifié. Le montant réclamé voyage en CENTIMES -> chaîne décimale
+/// exacte (`"15000.00"`, jamais un `double`) : c'est ce qui a été DIT au client
+/// ce jour-là. Promesse et commentaire absents partent `null`.
+Map<String, Object?> chargeRelanceClient({
+  required String clientId,
+  required DateTime dateRelance,
+  required String canal,
+  required int montantReclameCentimes,
+  required DateTime? promesse,
+  required String? commentaire,
+}) => {
+  'client_id': clientId,
+  'date_relance': jourIso(dateRelance),
+  'canal': canal,
+  'montant_reclame': decimalExact(montantReclameCentimes, 2),
+  'promesse': promesse == null ? null : jourIso(promesse),
+  'commentaire': commentaire,
+};
+
 /* ==================================================================== */
 /* Documents                                                             */
 /* ==================================================================== */
@@ -362,7 +409,9 @@ Map<String, Object?> chargeClotureCaisse({
 
 /// `ventes` (création seule, AU COMPTANT) — `GestionnaireVentes`. Prix et
 /// total en francs entiers ; le prix du poste fait foi (le serveur signale
-/// l'écart avec son catalogue, il ne corrige pas).
+/// l'écart avec son catalogue, il ne corrige pas). Avec une remise,
+/// [montantCloture] est le NET (arrondi au franc : le poste compte en francs
+/// entiers, le serveur garde les centimes de sa formule).
 Map<String, Object?> chargeVente({
   String typeVente = 'comptant',
   String? reservationId,
@@ -373,6 +422,8 @@ Map<String, Object?> chargeVente({
   required String? tableId,
   required String? clientNom,
   required int montantCloture,
+  String remiseType = 'aucune',
+  int remiseValeurCentiemes = 0,
   required List<
     ({
       String moduleSource,
@@ -395,6 +446,13 @@ Map<String, Object?> chargeVente({
   'table_id': tableId,
   'client_nom': clientNom,
   'montant_cloture': montantCloture,
+  // 21/10/2026 : la remise du panier, telle que saisie (type + valeur, jamais
+  // un montant pré-calculé) ; `montant_cloture` est alors le NET. Absente
+  // quand il n'y en a pas : le document d'avant reste le même.
+  if (remiseType != 'aucune') ...{
+    'remise_type': remiseType,
+    'remise_valeur': decimalExact(remiseValeurCentiemes, 2),
+  },
   'lignes': [
     for (final l in lignes)
       {
@@ -551,6 +609,19 @@ Map<String, Object?> chargeAnnulationFacture({required String motif}) => {
   'statut': StatutPiece.annulee.code,
   'motif': motif,
 };
+
+/// `factures`, AVOIR PARTIEL (modification, sans `statut`) —
+/// `GestionnaireFactures` : `emettreAvoir($facture, $montant, $motif)` de la
+/// PWA. Le montant en FRANCS entiers (le serveur le range à deux décimales) ;
+/// [avoirId] est l'identifiant de l'avoir sur CE poste : l'avoir naît sous cet
+/// UUID au serveur (rejeu sans doublon, reconnu à la descente), et le numéro
+/// rendu est celui de CET avoir. Le plafond (TTC) est celui du service : un
+/// montant plus grand est rejeté avec sa phrase.
+Map<String, Object?> chargeAvoirPartielFacture({
+  required int montantFrancs,
+  required String motif,
+  required String avoirId,
+}) => {'montant': montantFrancs, 'motif': motif, 'avoir_id': avoirId};
 
 /// `paiements` (création) — `GestionnairePaiements`. Montant en CENTIMES
 /// (le serveur divise par 100), la caisse du poste qui a reçu l'argent,
@@ -888,5 +959,68 @@ Map<String, Object?> chargeModeleNotification({
   'canal': canal,
   'objet': objet,
   'contenu_template': contenuTemplate,
+  'actif': actif,
+};
+
+/// `immobilisations` (création seule, 21/10/2026) —
+/// `GestionnaireImmobilisations` : le bien, sa valeur d'origine en CENTIMES
+/// entiers (le serveur : `DECIMAL(15,2)`), sa mise en service en `AAAA-MM-JJ`
+/// et sa durée d'utilité en années. Le code ne part pas : c'est celui de la
+/// séquence du serveur qui revient. Le plan d'amortissement ne part pas non plus
+/// (il se calcule).
+Map<String, Object?> chargeImmobilisation({
+  required String libelle,
+  required String? compteImmobilisation,
+  required int valeurOrigineCentimes,
+  required String dateMiseService,
+  required int dureeAnnees,
+}) => {
+  'libelle': libelle,
+  'compte_immobilisation': compteImmobilisation,
+  'valeur_origine': valeurOrigineCentimes,
+  'date_mise_service': dateMiseService,
+  'duree_annees': dureeAnnees,
+};
+
+/// `inventaires` (création seule, 21/10/2026) — `GestionnaireInventaires` : un
+/// inventaire physique CLÔTURÉ, en UN document : le point, le jour
+/// (`AAAA-MM-JJ`) et ses lignes comptées. Chaque ligne porte son théorique
+/// FIGÉ au comptage, le constaté et l'écart, en CENTIÈMES entiers ; le serveur
+/// les écrit tels quels (il ne les recalcule pas) et vérifie seulement
+/// `écart = constaté − théorique`. La régularisation, elle, part à part en
+/// mouvements de stock.
+Map<String, Object?> chargeInventaire({
+  required String pointId,
+  required DateTime date,
+  required List<
+    ({
+      String id,
+      String articleId,
+      int theoriqueCentiemes,
+      int constateCentiemes,
+      int ecartCentiemes,
+    })
+  >
+  lignes,
+}) => {
+  'point_id': pointId,
+  'date_inventaire': jourIso(date),
+  'lignes': [
+    for (final l in lignes)
+      {
+        'id': l.id,
+        'article_id': l.articleId,
+        'quantite_theorique': l.theoriqueCentiemes,
+        'quantite_constatee': l.constateCentiemes,
+        'ecart': l.ecartCentiemes,
+      },
+  ],
+};
+
+/// `articles` (modification) — l'archivage (`false`) ou la restauration
+/// (`true`) : le serveur l'applique par `ReferentielArticleService`, sous ses
+/// verrous (stock, commande en cours, carte, recette) et la règle de droits
+/// d'archivage (`DroitArchivageService`, module M6).
+Map<String, Object?> chargeArchivageArticle({required bool actif}) => {
   'actif': actif,
 };

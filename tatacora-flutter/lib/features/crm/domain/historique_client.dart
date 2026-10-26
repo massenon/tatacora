@@ -1,6 +1,7 @@
 // Vue Blade maîtresse (PA-183) : pwa/crm/clients-creances.blade.php
 import '../../facturation/domain/creances.dart';
 import '../../facturation/domain/entities/paiement_facture.dart';
+import 'entities/relance.dart';
 
 /// Un mouvement de la modale « Historique d'un client » — une ligne de ses
 /// cinq colonnes (`Date · Type · Libellé · Détail · Montant`).
@@ -32,24 +33,27 @@ final class MouvementClient {
 /// Le type d'un encaissement (`pwa.clients.historique_type_encaissement`).
 const String typeEncaissement = 'Encaissement';
 
+/// Le type d'une relance (`pwa.clients.historique_type_relance`) — aussi son
+/// libellé dans la colonne « Libellé » (maître, l.360).
+const String typeRelance = 'Relance';
+
 /// `ClientsCreances::historiqueClient()` — les encaissements des factures du
 /// client, du plus récent au plus ancien, ANNULÉS COMPRIS (aucun filtre de
-/// statut au serveur : incohérence répliquée, D233).
+/// statut au serveur : incohérence répliquée, D233), PUIS ses relances, du plus
+/// récent au plus ancien (la vue boucle les paiements, puis les relances —
+/// aucun tri commun).
 ///
-/// ## Les relances n'y sont PAS
-///
-/// La vue y ajoute les relances du client (`relances_clients`). Ce poste n'en
-/// écrit ni n'en descend aucune : les omettre est un fait, et la modale le dit
-/// (voir `modale_historique_client.dart`) plutôt que de rendre un historique
-/// qui se lirait comme complet.
+/// Une relance se lit : date, type « Relance », libellé « Relance », le canal en
+/// détail, le montant RÉCLAMÉ ce jour-là (figé).
 List<MouvementClient> composerHistoriqueClient({
   required String clientId,
   required List<PaiementFacture> paiements,
   required List<CreanceFacture> creances,
+  List<Relance> relances = const [],
 }) {
   final pieces = {for (final c in creances) c.piece.id: c.piece};
 
-  final mouvements = <MouvementClient>[
+  final encaissements = <MouvementClient>[
     for (final p in paiements)
       if (pieces[p.pieceId]?.clientId == clientId)
         MouvementClient(
@@ -60,5 +64,18 @@ List<MouvementClient> composerHistoriqueClient({
           montantCentimes: p.montantCentimes,
         ),
   ]..sort((a, b) => b.date.compareTo(a.date));
-  return mouvements;
+
+  final lesRelances = <MouvementClient>[
+    for (final r in relances)
+      if (r.clientId == clientId)
+        MouvementClient(
+          date: r.dateRelance,
+          type: typeRelance,
+          libelle: typeRelance,
+          detail: CanalRelance.libelleDe(r.canal),
+          montantCentimes: r.montantReclameCentimes,
+        ),
+  ]..sort((a, b) => b.date.compareTo(a.date));
+
+  return [...encaissements, ...lesRelances];
 }

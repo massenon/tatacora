@@ -444,6 +444,88 @@ final class VentesSynchronisationTest extends TestCase
     // ------------------------------------------------------------- Helpers
 
     /**
+     * La remise du panier (21/10/2026) : le poste pousse le TYPE et la VALEUR
+     * saisis, le serveur dérive le montant par `Panier::remiseSur` et encaisse
+     * le NET — `montant_total`, pièce `VTE` (débit caisse) et théorique de
+     * caisse.
+     */
+    #[Test]
+    public function la_remise_en_pourcentage_est_appliquee_et_la_piece_passe_sur_le_net(): void
+    {
+        $id = $this->uuid();
+
+        // 3 bières à 1 000 F = 3 000 F, 10 % de remise : 300 F, net 2 700 F.
+        $this->pousser([$this->vente($id, [$this->ligneBiere(3)], extra: [
+            'remise_type' => 'pourcentage', 'remise_valeur' => 10, 'montant_cloture' => 2700,
+        ])], $this->barman)
+            ->assertJsonPath('resultats.0.statut', 'synchronise')
+            ->assertJsonPath('resultats.0.montant_total', '2700.00');
+
+        $vente = Vente::findOrFail($id);
+        $this->assertSame('2700.00', (string) $vente->montant_total);
+        // Les lignes restent au prix brut figé.
+        $this->assertSame('3000.00', (string) LigneVente::where('vente_id', $id)->sole()->montant);
+
+        $piece = EcritureComptable::where('libelle', __('ventes.libelle_ecriture', ['numero' => $vente->numero]))->get();
+        $caisse = CompteComptable::where('numero_compte', '5711')->value('id');
+        $this->assertSame('2700.00', (string) $piece->firstWhere('compte_id', $caisse)?->debit);
+    }
+
+    #[Test]
+    public function la_remise_en_montant_et_le_total_annonce_se_confrontent_au_net(): void
+    {
+        $id = $this->uuid();
+
+        $this->pousser([$this->vente($id, [$this->ligneBiere(2)], extra: [
+            'remise_type' => 'montant', 'remise_valeur' => 500, 'montant_cloture' => 1500,
+        ])], $this->barman)
+            ->assertJsonPath('resultats.0.statut', 'synchronise')
+            ->assertJsonPath('resultats.0.montant_total', '1500.00');
+
+        // Le total annonce le BRUT alors qu'une remise existe : incohérent, rejeté.
+        $this->pousser([$this->vente($this->uuid(), [$this->ligneBiere(2)], extra: [
+            'remise_type' => 'montant', 'remise_valeur' => 500, 'montant_cloture' => 2000,
+        ])], $this->barman)
+            ->assertJsonPath('resultats.0.statut', 'rejete');
+        $this->assertSame(1, Vente::count());
+    }
+
+    #[Test]
+    public function une_remise_hors_bornes_est_rejetee_avec_la_phrase_du_serveur(): void
+    {
+        $this->pousser([$this->vente($this->uuid(), [$this->ligneBiere(1)], extra: [
+            'remise_type' => 'montant', 'remise_valeur' => 5000,
+        ])], $this->barman)
+            ->assertJsonPath('resultats.0.statut', 'rejete')
+            ->assertJsonPath('resultats.0.motif', __('ventes.remise_superieure_au_total'));
+
+        $this->pousser([$this->vente($this->uuid(), [$this->ligneBiere(1)], extra: [
+            'remise_type' => 'pourcentage', 'remise_valeur' => 120,
+        ])], $this->barman)
+            ->assertJsonPath('resultats.0.statut', 'rejete')
+            ->assertJsonPath('resultats.0.motif', __('ventes.remise_pourcentage_hors_bornes'));
+
+        $this->assertSame(0, Vente::count());
+    }
+
+    /**
+     * Un pourcentage qui donne des centimes (10 % de 1 005 F = 100,50 F) : le
+     * poste compte en francs entiers et annonce le net ARRONDI au franc ; le
+     * serveur garde les centimes de SA formule.
+     */
+    #[Test]
+    public function un_net_a_centimes_est_annonce_arrondi_au_franc_et_garde_ses_centimes(): void
+    {
+        $id = $this->uuid();
+
+        $this->pousser([$this->vente($id, [$this->ligneBiere(1, prix: 1005)], extra: [
+            'remise_type' => 'pourcentage', 'remise_valeur' => 10, 'montant_cloture' => 905,
+        ])], $this->barman)
+            ->assertJsonPath('resultats.0.statut', 'synchronise')
+            ->assertJsonPath('resultats.0.montant_total', '904.50');
+    }
+
+    /**
      * @param  list<array<string, mixed>>  $lignes
      * @param  array<string, mixed>  $extra
      * @return array<string, mixed>

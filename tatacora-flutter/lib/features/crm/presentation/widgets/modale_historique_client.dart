@@ -37,11 +37,11 @@ Future<void> ouvrirHistoriqueClient(
 /// pièce réglée, le détail le mode de règlement. Un client sans mouvement le
 /// DIT : « Aucun mouvement pour ce client. »
 ///
-/// ## Les relances n'y sont pas, et la modale le dit
+/// ## Les relances y figurent
 ///
-/// La vue mêle aux encaissements les relances du client. Ce poste n'en détient
-/// aucune : sans la mention [ReleveClient.mentionRelances], « Aucun mouvement »
-/// se lirait comme « jamais relancé », ce que personne ne sait ici.
+/// La vue mêle aux encaissements les relances du client : ici aussi (type
+/// « Relance », canal en détail, montant réclamé ce jour-là). Un client sans
+/// mouvement le DIT.
 ///
 /// ## « Imprimer PDF »
 ///
@@ -131,16 +131,6 @@ class ModaleHistoriqueClient extends ConsumerWidget {
                 ],
               ),
             ),
-            const SizedBox(height: AppSpacing.xs),
-            const Text(
-              ReleveClient.mentionRelances,
-              key: Key('historique-client-mention'),
-              style: TextStyle(
-                fontFamily: AppTextStyles.police,
-                fontSize: Tailles.t11,
-                color: Ardoise.c500,
-              ),
-            ),
           ],
         ),
       ),
@@ -210,50 +200,58 @@ class ModaleHistoriqueClient extends ConsumerWidget {
     ),
   );
 
-  Widget _ligne(MouvementClient m) => DecoratedBox(
-    key: Key(
-      'historique-client-ligne-${m.date.microsecondsSinceEpoch}-${m.libelle}',
-    ),
-    decoration: const BoxDecoration(
-      border: Border(top: BorderSide(color: Ardoise.c100)),
-    ),
-    child: _rangee(
-      cellules: [
-        Text(
-          formaterDate(m.date),
-          style: _celluleBase.copyWith(color: Ardoise.c600),
-        ),
-        // La pastille du type (`text-[10px] px-1.5 py-0.5 rounded bg-emerald-50`).
-        Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.xxs,
-            vertical: AppSpacing.demi,
+  Widget _ligne(MouvementClient m) {
+    // `bg-emerald-50 text-emerald-700` pour un encaissement, `bg-amber-50
+    // text-amber-700` pour une relance ; le montant d'une relance est en
+    // `text-slate-700` (c'est une somme RÉCLAMÉE, pas reçue).
+    final relance = m.type == typeRelance;
+    return DecoratedBox(
+      key: Key(
+        'historique-client-ligne-${m.date.microsecondsSinceEpoch}-${m.libelle}',
+      ),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: Ardoise.c100)),
+      ),
+      child: _rangee(
+        cellules: [
+          Text(
+            formaterDate(m.date),
+            style: _celluleBase.copyWith(color: Ardoise.c600),
           ),
-          decoration: BoxDecoration(
-            color: PaletteMaitre.emeraude50,
-            borderRadius: BorderRadius.circular(AppRadius.rounded),
-          ),
-          child: Text(
-            m.type,
-            style: const TextStyle(
-              fontFamily: AppTextStyles.police,
-              fontSize: Tailles.t10,
-              color: PaletteMaitre.emeraude700,
+          // La pastille du type (`text-[10px] px-1.5 py-0.5 rounded`).
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.xxs,
+              vertical: AppSpacing.demi,
+            ),
+            decoration: BoxDecoration(
+              color: relance ? PaletteMaitre.ambre50 : PaletteMaitre.emeraude50,
+              borderRadius: BorderRadius.circular(AppRadius.rounded),
+            ),
+            child: Text(
+              m.type,
+              style: TextStyle(
+                fontFamily: AppTextStyles.police,
+                fontSize: Tailles.t10,
+                color: relance
+                    ? PaletteMaitre.ambre700
+                    : PaletteMaitre.emeraude700,
+              ),
             ),
           ),
-        ),
-        Text(m.libelle, style: _celluleBase),
-        Text(m.detail, style: _celluleBase.copyWith(color: Ardoise.c600)),
-        Text(
-          formaterCentimesEnFcfa(m.montantCentimes),
-          style: _celluleBase.copyWith(
-            fontWeight: FontWeight.w600,
-            color: PaletteMaitre.emeraude600,
+          Text(m.libelle, style: _celluleBase),
+          Text(m.detail, style: _celluleBase.copyWith(color: Ardoise.c600)),
+          Text(
+            formaterCentimesEnFcfa(m.montantCentimes),
+            style: _celluleBase.copyWith(
+              fontWeight: FontWeight.w600,
+              color: relance ? Ardoise.c700 : PaletteMaitre.emeraude600,
+            ),
           ),
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
+  }
 
   Future<void> _imprimer(
     BuildContext context,

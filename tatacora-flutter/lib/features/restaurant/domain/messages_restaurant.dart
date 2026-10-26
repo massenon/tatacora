@@ -83,13 +83,6 @@ abstract final class MessagesRestaurant {
       "d'un plat à fiche vide n'y est pas refusée, et celle d'un plat à fiche "
       'composée ne décrémente rien non plus.';
 
-  /// Aucune marque « composition provisoire » n'existe sur ce poste : aucun
-  /// référentiel de démonstration n'y pose de grammage. « — » veut dire « on ne
-  /// le tient pas », jamais « toutes les compositions ont été pesées ».
-  static const compositionProvisoireAbsente =
-      'Ce poste ne marque aucune composition comme provisoire : aucun référentiel '
-      "de démonstration n'y pose de grammage. Aucun chiffre n'est produit.";
-
   static const droitLectureRefuse =
       "Vous n'avez pas le droit de consulter le restaurant.";
 

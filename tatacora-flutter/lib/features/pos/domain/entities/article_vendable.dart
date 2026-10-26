@@ -30,13 +30,10 @@ final class ArticleVendable {
   final bool sansLienStock;
 
   /// La marque « P » de la vue (`composition_provisoire`) : la fiche du plat est
-  /// provisoire, le stock décrémenté est approximatif.
-  ///
-  /// ⚠ Toujours `false` sur ce poste : `recettes_local` ne porte aucune colonne
-  /// `composition_provisoire` (voir `Recette.compositionProvisoire`), donc le
-  /// catalogue ne peut pas la lire. La carte sait RENDRE la marque ; elle ne
-  /// s'allumera que le jour où la colonne existera (changement de schéma décrit
-  /// au rapport du 21/10/2026).
+  /// provisoire, le stock décrémenté est approximatif. Lue de
+  /// `recettes_local.composition_provisoire` (v35, 21/10/2026) par le
+  /// catalogue ; elle se lève depuis Restaurant & Cuisine, onglet « Fiches
+  /// techniques » (réenregistrer la composition).
   final bool compositionProvisoire;
 
   /// ⚠ Q1 — voir `reference_catalogue.dart`.

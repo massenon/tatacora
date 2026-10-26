@@ -2,9 +2,12 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../achats/domain/entities/archivage_fournisseur.dart';
+import '../../achats/domain/entities/commande_achat.dart' show StatutCommande;
 import '../../synchronisation/data/operations_sync_dao.dart';
 import '../../synchronisation/domain/charges_synchronisation.dart';
 import '../../synchronisation/domain/operation_sync.dart';
+import '../domain/calcul_inventaire.dart';
 import '../domain/calcul_stock.dart';
 import '../domain/entities/etat_stock.dart';
 import '../domain/entities/fiche_stock.dart';
@@ -125,6 +128,9 @@ class StocksDao extends DatabaseAccessor<AppDatabase> {
     // registre fermé — un inconnu ne peut venir que d'un fichier corrompu.
     suivi: SuiviArticle.depuisCode(a.suivi) ?? SuiviArticle.permanent,
     pointStockageId: a.pointStockageId,
+    // v35 : `null` (fichier ramené d'avant la colonne) ou `true` = actif ; seul
+    // `false` archive. Jamais l'inverse : un `null` archiverait tout le parc.
+    actif: a.actif != false,
   );
 
   /// Les mouvements, avec leur auteur lisible, dans l'ordre d'écriture.
@@ -683,54 +689,19 @@ class StocksDao extends DatabaseAccessor<AppDatabase> {
         }
       }
 
-      final dernier =
-          await (selectOnly(attachedDatabase.mouvementsStockLocal)..addColumns([
-                attachedDatabase.mouvementsStockLocal.ordre.max(),
-              ]))
-              .map(
-                (r) =>
-                    r.read(attachedDatabase.mouvementsStockLocal.ordre.max()),
-              )
-              .getSingle();
-
-      final id = _uuid.v4();
-      final instant = _maintenant();
-      await into(attachedDatabase.mouvementsStockLocal).insert(
-        MouvementsStockLocalCompanion.insert(
-          id: id,
-          articleId: articleId,
-          pointId: pointId,
-          typeMouvement: type.code,
-          quantite: centiemes / echelleQuantite,
-          motif: motif.trim(),
-          dateMouvement: instant,
-          // ⚠ Jamais le défaut du schéma (`en_attente_synchronisation`) : il
-          // décrirait une attente sans fin (PA-134).
-          statutSync: const Value('local'),
-          coutUnitaireDixMilliemes: Value(coutDixMilliemes),
-          utilisateurId: Value(auteurId),
-          ruptureForcee: Value(ruptureForcee),
-          ordre: Value((dernier ?? 0) + 1),
-        ),
+      final ecrit = await _inserer(
+        articleId: articleId,
+        pointId: pointId,
+        typeCode: type.code,
+        centiemes: centiemes,
+        motif: motif.trim(),
+        auteurId: auteurId,
+        coutDixMilliemes: coutDixMilliemes,
+        ruptureForcee: ruptureForcee,
+        envoyer: envoyer,
       );
-      if (envoyer) {
-        await _file.enfiler(
-          table: TableSynchronisee.mouvementsStock,
-          entiteId: id,
-          type: TypeOperationSync.creation,
-          payload: chargeMouvementStock(
-            articleId: articleId,
-            pointId: pointId,
-            type: type.code,
-            centiemes: centiemes,
-            motif: motif.trim(),
-            coutDixMilliemes: coutDixMilliemes,
-            ruptureForcee: ruptureForcee,
-            le: instant,
-          ),
-          horodatage: instant,
-        );
-      }
+      final id = ecrit.id;
+      final instant = ecrit.instant;
 
       final point = await (select(
         attachedDatabase.pointsStockageLocal,
@@ -759,6 +730,531 @@ class StocksDao extends DatabaseAccessor<AppDatabase> {
               : ecrireCout(coutDixMilliemes),
         ),
       );
+    });
+  }
+
+  /* ================================================================== */
+  /* L'unique INSERT de mouvement                                        */
+  /* ================================================================== */
+
+  /// Écrit la ligne d'UN mouvement et l'enfile (si [envoyer]) — le SEUL
+  /// `INSERT` de `mouvements_stock_local` : [ajouterMouvement] (geste saisi) et
+  /// [cloturerInventaire] (régularisation) y passent, aucun ne recopie l'autre.
+  /// À appeler DANS une transaction (la file l'exige).
+  ///
+  /// [ruptureForcee] n'est vrai que pour une sortie ou une perte qui dépasse le
+  /// disponible et que quelqu'un a assumée — ou, pour une régularisation, que
+  /// le constaté impose : un inventaire constate le réel, il ne le discute pas.
+  Future<({String id, DateTime instant})> _inserer({
+    required String articleId,
+    required String pointId,
+    required String typeCode,
+    required int centiemes,
+    required String motif,
+    required String auteurId,
+    required int? coutDixMilliemes,
+    required bool ruptureForcee,
+    required bool envoyer,
+  }) async {
+    final dernier =
+        await (selectOnly(attachedDatabase.mouvementsStockLocal)
+              ..addColumns([attachedDatabase.mouvementsStockLocal.ordre.max()]))
+            .map(
+              (r) => r.read(attachedDatabase.mouvementsStockLocal.ordre.max()),
+            )
+            .getSingle();
+
+    final id = _uuid.v4();
+    final instant = _maintenant();
+    await into(attachedDatabase.mouvementsStockLocal).insert(
+      MouvementsStockLocalCompanion.insert(
+        id: id,
+        articleId: articleId,
+        pointId: pointId,
+        typeMouvement: typeCode,
+        quantite: centiemes / echelleQuantite,
+        motif: motif,
+        dateMouvement: instant,
+        // ⚠ Jamais le défaut du schéma (`en_attente_synchronisation`) : il
+        // décrirait une attente sans fin (PA-134).
+        statutSync: const Value('local'),
+        coutUnitaireDixMilliemes: Value(coutDixMilliemes),
+        utilisateurId: Value(auteurId),
+        ruptureForcee: Value(ruptureForcee),
+        ordre: Value((dernier ?? 0) + 1),
+      ),
+    );
+    if (envoyer) {
+      await _file.enfiler(
+        table: TableSynchronisee.mouvementsStock,
+        entiteId: id,
+        type: TypeOperationSync.creation,
+        payload: chargeMouvementStock(
+          articleId: articleId,
+          pointId: pointId,
+          type: typeCode,
+          centiemes: centiemes,
+          motif: motif,
+          coutDixMilliemes: coutDixMilliemes,
+          ruptureForcee: ruptureForcee,
+          le: instant,
+        ),
+        horodatage: instant,
+      );
+    }
+    return (id: id, instant: instant);
+  }
+
+  /* ================================================================== */
+  /* L'INVENTAIRE physique (EF-M6-05)                                    */
+  /* ================================================================== */
+
+  /// La feuille de comptage d'un inventaire sur [pointId] : tous les articles,
+  /// comptés (théorique figé) ou non.
+  Future<FeuilleComptage> feuilleDeComptage({
+    required String pointId,
+    required Map<String, ComptageBrouillon> comptages,
+  }) async => composerFeuille(
+    articles: await articles(),
+    mouvements: await mouvementsCalcul(),
+    pointId: pointId,
+    comptages: comptages,
+  );
+
+  /// Le nombre d'articles à compter pour un inventaire sur [pointId] : tout le
+  /// référentiel (`articlesNonComptes` du serveur, qui ne filtre rien).
+  Future<int> nombreArticlesACompter() async => (await articles()).length;
+
+  /// Fige le comptage d'UN article : son théorique AU POINT à cet instant, et
+  /// ce qui a été trouvé en rayon (`InventaireService::compter`). Une quantité
+  /// négative est refusée, avec la phrase du serveur.
+  Future<ComptageBrouillon> figerComptage({
+    required String articleId,
+    required String pointId,
+    required int constateCentiemes,
+  }) async {
+    if (constateCentiemes < 0) {
+      throw const RefusStock(MessagesStock.quantiteNegative, champ: 'quantite');
+    }
+    final article = await (select(
+      attachedDatabase.articlesLocal,
+    )..where((a) => a.id.equals(articleId))).getSingleOrNull();
+    if (article == null) {
+      throw const RefusStock(
+        MessagesStock.articleInexistant,
+        champ: 'article_id',
+      );
+    }
+    await _exigerPoint(pointId, champ: 'point_id');
+    final siens = await mouvementsCalcul(articleId: articleId);
+    return ComptageBrouillon(
+      theoriqueCentiemes: stockDe(siens, pointId: pointId),
+      constateCentiemes: constateCentiemes,
+    );
+  }
+
+  /// CLÔTURE l'inventaire : l'en-tête, ses lignes comptées et les mouvements
+  /// de régularisation s'écrivent ENSEMBLE, dans UNE transaction, et sont
+  /// enfilés dans cet ordre (l'inventaire d'abord, puis ses mouvements). Un
+  /// refus n'écrit RIEN.
+  ///
+  /// Comme `InventaireService::cloturer` : l'excédent est une entrée
+  /// `inventaire` NON valorisée, le manquant une `perte` ; une ligne sans écart
+  /// ne produit rien. Un inventaire qui laisse des articles non comptés est
+  /// refusé SAUF [partielAutorise] — la clôture partielle se demande
+  /// explicitement (la modale « Inventaire incomplet »).
+  Future<BilanCloture> cloturerInventaire({
+    required String pointId,
+    required DateTime date,
+    required Map<String, ComptageBrouillon> comptages,
+    required String? auteurId,
+    bool partielAutorise = false,
+  }) async {
+    if (auteurId == null) {
+      // RG-15 : un inventaire sans auteur ne peut pas être opposé.
+      throw const RefusStock(
+        'L’auteur de l’inventaire est inconnu : aucune session n’est '
+        'ouverte, et un inventaire sans « qui » ne peut pas être opposé.',
+      );
+    }
+
+    return transaction(() async {
+      await _exigerPoint(pointId, champ: 'point_id');
+
+      final tous = await articles();
+      final connus = {for (final a in tous) a.id: a};
+      for (final id in comptages.keys) {
+        if (!connus.containsKey(id)) {
+          throw const RefusStock(
+            MessagesStock.articleInexistant,
+            champ: 'article_id',
+          );
+        }
+      }
+      if (comptages.values.any((c) => c.constateCentiemes < 0)) {
+        throw const RefusStock(MessagesStock.quantiteNegative);
+      }
+      final nonComptes = tous.length - comptages.length;
+      if (!partielAutorise && nonComptes > 0) {
+        throw RefusStock(MessagesStock.inventaireIncomplet(nonComptes));
+      }
+
+      // L'ordre de la feuille : par libellé (le serveur lit `lignes()` par
+      // article du point) — stable, donc les mouvements partent toujours dans
+      // le même ordre.
+      final lignes = comptages.entries.toList()
+        ..sort((a, b) {
+          final x = connus[a.key]!;
+          final y = connus[b.key]!;
+          final c = x.libelle.toLowerCase().compareTo(y.libelle.toLowerCase());
+          return c != 0 ? c : x.id.compareTo(y.id);
+        });
+
+      final inventaireId = _uuid.v4();
+      final jour = DateTime(date.year, date.month, date.day);
+      final instant = _maintenant();
+      final enregistrees = [
+        for (final e in lignes) (id: _uuid.v4(), articleId: e.key, c: e.value),
+      ];
+
+      await into(attachedDatabase.inventairesLocal).insert(
+        InventairesLocalCompanion.insert(
+          id: inventaireId,
+          pointId: pointId,
+          dateInventaire: jourIso(jour),
+          utilisateurId: Value(auteurId),
+        ),
+      );
+      for (final l in enregistrees) {
+        await into(attachedDatabase.lignesInventaireLocal).insert(
+          LignesInventaireLocalCompanion.insert(
+            id: l.id,
+            inventaireId: inventaireId,
+            articleId: l.articleId,
+            quantiteTheoriqueCentiemes: l.c.theoriqueCentiemes,
+            quantiteConstateeCentiemes: l.c.constateCentiemes,
+            ecartCentiemes: l.c.ecartCentiemes,
+          ),
+        );
+      }
+      // L'inventaire PUIS ses mouvements : le serveur reçoit le document avant
+      // la régularisation qui le cite.
+      await _file.enfiler(
+        table: TableSynchronisee.inventaires,
+        entiteId: inventaireId,
+        type: TypeOperationSync.creation,
+        payload: chargeInventaire(
+          pointId: pointId,
+          date: jour,
+          lignes: [
+            for (final l in enregistrees)
+              (
+                id: l.id,
+                articleId: l.articleId,
+                theoriqueCentiemes: l.c.theoriqueCentiemes,
+                constateCentiemes: l.c.constateCentiemes,
+                ecartCentiemes: l.c.ecartCentiemes,
+              ),
+          ],
+        ),
+        horodatage: instant,
+      );
+
+      final parArticle = <String, List<MouvementCalcul>>{};
+      for (final m in await mouvementsCalcul()) {
+        parArticle.putIfAbsent(m.articleId, () => []).add(m);
+      }
+
+      var regularisations = 0;
+      var manquants = 0;
+      var excedents = 0;
+      var sansCout = 0;
+      for (final r in regularisationsDe([
+        for (final l in enregistrees)
+          (articleId: l.articleId, ecartCentiemes: l.c.ecartCentiemes),
+      ])) {
+        final siens = parArticle[r.articleId] ?? const <MouvementCalcul>[];
+        final excedent = r.type == TypeMouvementRegularisation.excedent;
+        await _inserer(
+          articleId: r.articleId,
+          pointId: pointId,
+          typeCode: excedent
+              ? TypeMouvement.inventaire.code
+              : TypeMouvement.perte.code,
+          centiemes: r.centiemes,
+          motif: MessagesStock.motifRegularisation(
+            inventaire: inventaireId,
+            ecart: ecrireCentiemes(r.ecartCentiemes),
+          ),
+          auteurId: auteurId,
+          coutDixMilliemes: null,
+          // Un inventaire constate le réel : un manquant qui dépasse le
+          // disponible d'aujourd'hui (une vente est passée depuis le
+          // comptage) est écrit quand même, et tracé comme forcé.
+          ruptureForcee:
+              !excedent && stockDe(siens, pointId: pointId) < r.centiemes,
+          envoyer: true,
+        );
+        regularisations++;
+        final valeur = valoriserEcart(siens, r.ecartCentiemes);
+        if (valeur == null) {
+          sansCout++;
+        } else if (excedent) {
+          excedents += valeur;
+        } else {
+          manquants += valeur;
+        }
+      }
+
+      return BilanCloture(
+        inventaireId: inventaireId,
+        regularisations: regularisations,
+        manquantsFrancs: manquants,
+        excedentsFrancs: excedents,
+        ecartsSansCout: sansCout,
+      );
+    });
+  }
+
+  /// L'historique : les inventaires enregistrés sur ce poste (clôturés ici, ou
+  /// descendus d'un autre poste), du plus récent au plus ancien — la limite est
+  /// celle de la vue (`PLAFOND_HISTORIQUE`, 50).
+  Future<List<InventaireClos>> inventairesClos({int limite = 50}) async {
+    final i = attachedDatabase.inventairesLocal;
+    final p = attachedDatabase.pointsStockageLocal;
+    final u = attachedDatabase.utilisateursLocal;
+
+    final requete = select(i).join([
+      leftOuterJoin(p, p.id.equalsExp(i.pointId)),
+      leftOuterJoin(u, u.id.equalsExp(i.utilisateurId)),
+    ]);
+    requete.orderBy([
+      OrderingTerm.desc(i.dateInventaire),
+      OrderingTerm.desc(i.id),
+    ]);
+    requete.limit(limite);
+    final lignes = await requete.get();
+
+    final resultat = <InventaireClos>[];
+    for (final l in lignes) {
+      final inv = l.readTable(i);
+      final siennes = await (select(
+        attachedDatabase.lignesInventaireLocal,
+      )..where((x) => x.inventaireId.equals(inv.id))).get();
+      resultat.add(
+        InventaireClos(
+          id: inv.id,
+          date: inv.dateInventaire,
+          pointId: inv.pointId,
+          pointLibelle: l.readTableOrNull(p)?.libelle,
+          articles: siennes.length,
+          regularises: siennes.where((x) => x.ecartCentiemes != 0).length,
+          par: l.readTableOrNull(u)?.login,
+        ),
+      );
+    }
+    return resultat;
+  }
+
+  /// La date du DERNIER inventaire enregistré de chaque point (`AAAA-MM-JJ`).
+  /// Le serveur dit « dernier inventaire », tous statuts confondus (PA-150) :
+  /// ici, ce sont les inventaires CLÔTURÉS — un comptage en cours n'est pas en
+  /// base.
+  Future<Map<String, String>> dernierInventaireParPoint() async {
+    final i = attachedDatabase.inventairesLocal;
+    final lignes =
+        await (select(i)..orderBy([
+              (x) => OrderingTerm.desc(x.dateInventaire),
+              (x) => OrderingTerm.desc(x.id),
+            ]))
+            .get();
+    final parPoint = <String, String>{};
+    for (final l in lignes) {
+      parPoint.putIfAbsent(l.pointId, () => l.dateInventaire);
+    }
+    return parPoint;
+  }
+
+  /* ================================================================== */
+  /* L'ARCHIVAGE d'un article — « supprimer = archiver » (03/09/2026)     */
+  /* ================================================================== */
+
+  /// Les VERROUS de l'article — `ReferentielArticleService::verrous` : les
+  /// raisons, lisibles, de refuser l'archivage. Vide : archivable.
+  ///
+  ///  1. du stock reste au magasin (tous points confondus, strictement positif) ;
+  ///  2. une commande d'achat EN COURS le porte (les lignes de commande dont la
+  ///     commande n'est ni réceptionnée ni clôturée — un statut inconnu
+  ///     engage) ;
+  ///  3. il est vendu à la carte (les boissons du bar) ;
+  ///  4. il entre dans une recette.
+  ///
+  /// ⚠ Écart nommé : le serveur compte aussi `plats.article_id` (le plat « lié
+  /// au stock »). Ce lien n'existe pas sur ce poste — « Lier au stock » n'y est
+  /// pas porté, `plats_local` n'a pas de colonne d'article — : le verrou ne
+  /// peut donc pas être rejoué ici. S'il tombe au serveur, l'archivage y est
+  /// REFUSÉ avec sa phrase (écran « À traiter »), et l'article y reste actif.
+  Future<List<String>> verrousArticle(String articleId) async {
+    final motifs = <String>[];
+
+    final stock = stockDe(await mouvementsCalcul(articleId: articleId));
+    if (stock > 0) {
+      motifs.add(MessagesStock.verrouStock(ecrireCentiemes(stock)));
+    }
+
+    final l = attachedDatabase.lignesCommandeAchatLocal;
+    final c = attachedDatabase.commandesAchatLocal;
+    final lignesEnCours =
+        await (select(l).join([innerJoin(c, c.id.equalsExp(l.commandeId))])
+              ..where(
+                l.articleId.equals(articleId) &
+                    c.statut.isNotIn([
+                      StatutCommande.receptionnee.code,
+                      StatutCommande.cloturee.code,
+                    ]),
+              ))
+            .get();
+    if (lignesEnCours.isNotEmpty) {
+      motifs.add(MessagesStock.verrouCommande(lignesEnCours.length));
+    }
+
+    final boissons = await (select(
+      attachedDatabase.cartesBoissonLocal,
+    )..where((b) => b.articleId.equals(articleId))).get();
+    if (boissons.isNotEmpty) {
+      motifs.add(MessagesStock.verrouCarte(boissons.length));
+    }
+
+    final recettes = await (select(
+      attachedDatabase.ingredientsRecetteLocal,
+    )..where((r) => r.articleId.equals(articleId))).get();
+    if (recettes.isNotEmpty) {
+      motifs.add(MessagesStock.verrouRecette(recettes.length));
+    }
+
+    return motifs;
+  }
+
+  /// `Stocks::confirmerArchivageArticle` : compose le lot que la modale
+  /// présente, pour les [ids] visés. Seuls les articles ACTIFS entrent dans le
+  /// lot, triés par libellé ; chacun engagé porte son motif « [libellé] —
+  /// [verrous] ». Un lot vide est BLOQUÉ (sans motif si la sélection ne portait
+  /// que des articles déjà archivés).
+  Future<LotArchivage> composerLotArchivage(List<String> ids) async {
+    final actifs =
+        [
+          for (final a in await (select(
+            attachedDatabase.articlesLocal,
+          )..where((x) => x.id.isIn(ids))).get())
+            if (a.actif != false) a,
+        ]..sort(
+          (a, b) => a.libelle.toLowerCase().compareTo(b.libelle.toLowerCase()),
+        );
+
+    final retenus = <String>[];
+    final motifs = <String>[];
+    final noms = <String>[];
+    var conserves = 0;
+    for (final a in actifs) {
+      noms.add(a.libelle);
+      final verrous = await verrousArticle(a.id);
+      if (verrous.isEmpty) {
+        retenus.add(a.id);
+        continue;
+      }
+      conserves++;
+      motifs.add('${a.libelle} — ${verrous.join(' ')}');
+    }
+
+    return LotArchivage(
+      ids: retenus,
+      motifs: motifs,
+      conserves: conserves,
+      bloque: retenus.isEmpty,
+      libelle: noms.length == 1 ? noms.first : '',
+    );
+  }
+
+  /// `ReferentielArticleService::archiver` : `actif = false`, jamais un
+  /// `delete()` (chaque mouvement cite l'article). Les verrous sont RECONTRÔLÉS
+  /// au moment d'agir — entre l'ouverture de la modale et le clic, une entrée
+  /// de stock ou une commande a pu naître —, dans la MÊME transaction que
+  /// l'écriture. Le refus porte les motifs, joints par une espace, comme le
+  /// serveur. Déjà archivé : rien ne change.
+  Future<void> archiverArticle(String id) async {
+    await transaction(() async {
+      final a = await (select(
+        attachedDatabase.articlesLocal,
+      )..where((x) => x.id.equals(id))).getSingleOrNull();
+      if (a == null) {
+        throw const RefusStock(MessagesStock.articleInexistant);
+      }
+      if (a.actif == false) return;
+      final verrous = await verrousArticle(id);
+      if (verrous.isNotEmpty) throw RefusStock(verrous.join(' '));
+
+      await (update(attachedDatabase.articlesLocal)
+            ..where((x) => x.id.equals(id)))
+          .write(const ArticlesLocalCompanion(actif: Value(false)));
+      // Le serveur l'applique sous SES verrous et la règle de droits
+      // d'archivage (`DroitArchivageService`, M6).
+      await _file.enfiler(
+        table: TableSynchronisee.articles,
+        entiteId: id,
+        type: TypeOperationSync.modification,
+        payload: chargeArchivageArticle(actif: false),
+        horodatage: _maintenant(),
+      );
+    });
+  }
+
+  /// `Stocks::archiverArticles` : archive chaque article du lot par
+  /// [archiverArticle], et rend le nombre archivé ET le DERNIER refus. Un refus
+  /// d'un article devenu engagé n'empêche PAS les autres archivages du lot.
+  Future<ResultatArchivage> archiverLot(List<String> ids) async {
+    final fiches = await (select(
+      attachedDatabase.articlesLocal,
+    )..where((a) => a.id.isIn(ids))).get();
+
+    var archives = 0;
+    String? refus;
+    for (final a in fiches) {
+      try {
+        await archiverArticle(a.id);
+        archives++;
+      } on RefusStock catch (e) {
+        refus = e.motif;
+      }
+    }
+    return ResultatArchivage(archives: archives, refus: refus);
+  }
+
+  /// `ReferentielArticleService::restaurer` : `actif = true`. Déjà actif : rien
+  /// ne change et rien ne part. Restaurer n'est PAS derrière la bascule :
+  /// fermer la bascule pendant qu'un article est aux archives ne doit jamais
+  /// l'y enfermer (« reste restaurable » serait une promesse que rien ne
+  /// tient). Rend le libellé de l'article restauré.
+  Future<String> restaurerArticle(String id) async {
+    return transaction(() async {
+      final a = await (select(
+        attachedDatabase.articlesLocal,
+      )..where((x) => x.id.equals(id))).getSingleOrNull();
+      if (a == null) {
+        throw const RefusStock(MessagesStock.articleInexistant);
+      }
+      if (a.actif == false) {
+        await (update(attachedDatabase.articlesLocal)
+              ..where((x) => x.id.equals(id)))
+            .write(const ArticlesLocalCompanion(actif: Value(true)));
+        await _file.enfiler(
+          table: TableSynchronisee.articles,
+          entiteId: id,
+          type: TypeOperationSync.modification,
+          payload: chargeArchivageArticle(actif: true),
+          horodatage: _maintenant(),
+        );
+      }
+      return a.libelle;
     });
   }
 }

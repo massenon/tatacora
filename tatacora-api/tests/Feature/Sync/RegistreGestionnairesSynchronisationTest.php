@@ -80,7 +80,10 @@ final class RegistreGestionnairesSynchronisationTest extends TestCase
         $gestionnaires = app(RegistreSynchronisation::class)->tous();
 
         $this->assertSame([
-            'reservations', 'sejours', 'clients', 'fournisseurs',
+            'reservations', 'sejours', 'clients',
+            // 21/10/2026 : les relances, APRÈS le client qu'elles citent.
+            'relances_clients',
+            'fournisseurs',
             // Catalogue (S2, 15/10/2026) — création seule, fusion sur clé naturelle.
             'points_stockage', 'articles', 'cartes_boisson', 'menus', 'recettes', 'plats',
             // Lot « indisponibilités de la carte » (21/10/2026) : après les boissons et les plats.
@@ -95,6 +98,10 @@ final class RegistreGestionnairesSynchronisationTest extends TestCase
             'parametres_systeme', 'roles',
             // Lot 10f : les mouvements de stock saisis sur un poste.
             'mouvements_stock', 'modeles_notification',
+            // 21/10/2026 : les immobilisations (M10), création seule.
+            'immobilisations',
+            // 21/10/2026 : les canaux de réservation (Paramètres).
+            'canaux_reservation',
         ], array_keys($gestionnaires));
 
         foreach ($gestionnaires as $table => $gestionnaire) {
@@ -167,21 +174,31 @@ final class RegistreGestionnairesSynchronisationTest extends TestCase
     }
 
     /**
-     * `clients` ACCEPTE la modification, par `EnregistrementClientService` :
-     * l'audit RG-15 est tenu, et `actif` — que seul le service d'archivage
-     * bascule, sous son verrou d'engagement — n'est plus jamais écrit par ce
-     * chemin (l'UPDATE brut l'écrivait).
+     * `clients` ACCEPTE la modification, par `EnregistrementClientService`:
+     * l'audit RG-15 est tenu. `actif` n'est plus écrit EN BRUT : depuis le
+     * 21/10/2026 il archive par `ReferentielClientService` et sous la règle
+     * d'archivage — un rôle sans ce droit voit TOUTE l'opération rejetée
+     * (rien n'est écrit), et la fiche garde son nom.
      */
     #[Test]
-    public function une_modification_client_passe_par_le_service_et_n_archive_rien(): void
+    public function une_modification_client_passe_par_le_service_et_n_archive_pas_sans_le_droit(): void
     {
         $this->synchroniser([$this->operation('clients', 'modification', $this->client->id, [
             'nom' => 'HOUNKPATIN-AGBO', 'actif' => false,
+        ])])->assertJsonPath('resultats.0.statut', 'rejete')
+            ->assertJsonPath('resultats.0.motif', __('pwa.archivage.refus_bascule'));
+
+        $fiche = $this->client->fresh();
+        $this->assertSame('HOUNKPATIN', $fiche->nom, 'Un archivage refusé n\'écrit rien, le nom compris.');
+        $this->assertTrue($fiche->actif, 'Le payload ne doit pas pouvoir archiver une fiche client sans le droit.');
+
+        $this->synchroniser([$this->operation('clients', 'modification', $this->client->id, [
+            'nom' => 'HOUNKPATIN-AGBO',
         ])])->assertJsonPath('resultats.0.statut', 'synchronise');
 
         $fiche = $this->client->fresh();
         $this->assertSame('HOUNKPATIN-AGBO', $fiche->nom);
-        $this->assertTrue($fiche->actif, 'Le payload ne doit pas pouvoir archiver une fiche client.');
+        $this->assertTrue($fiche->actif);
         $this->assertSame($this->utilisateur->id, $fiche->utilisateur_modification_id);
         $this->assertDatabaseHas('journal_audit', [
             'entite_concernee' => 'clients', 'entite_id' => $this->client->id, 'action' => 'modification',

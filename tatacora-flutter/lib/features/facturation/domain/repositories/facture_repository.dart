@@ -70,6 +70,19 @@ abstract interface class FactureRepository {
     String motif, {
     String? auteurId,
   });
+
+  /// Émet un avoir PARTIEL — `EmissionFactureService::emettreAvoir($facture,
+  /// $montant, $motif)` de la PWA. La facture d'origine reste INCHANGÉE (elle
+  /// n'est pas annulée) ; l'avoir est une pièce à part, d'une ligne du
+  /// [montant] (en francs entiers), qui diminue son reste dû.
+  ///
+  /// Rend l'avoir émis. Lève [AvoirMontantNul] ou [AvoirExcessif] (la règle du
+  /// service : jamais plus que le TTC de la facture).
+  Future<PieceFacturation> emettreAvoirPartiel(
+    String pieceId,
+    int montant,
+    String motif,
+  );
 }
 
 /// Ce qu'il faut pour émettre une pièce — les lignes y sont déjà **décidées**.
@@ -184,6 +197,25 @@ final class AvoirNonAnnulable implements Exception {
   String toString() =>
       'La pièce $numero est un avoir : il neutralise déjà une facture. '
       'L’annuler reviendrait à ré-émettre le montant sans le dire.';
+}
+
+/// Un avoir ne dépasse jamais le TTC de sa facture — la règle d'
+/// `EmissionFactureService::emettreAvoir`, dite avec SA phrase
+/// (`facturation.avoir_montant_excessif`).
+final class AvoirExcessif implements Exception {
+  const AvoirExcessif();
+
+  @override
+  String toString() =>
+      "Le montant de l'avoir ne peut pas dépasser celui de la facture.";
+}
+
+/// Un avoir porte un montant strictement positif (`gt:0` de la vue).
+final class AvoirMontantNul implements Exception {
+  const AvoirMontantNul();
+
+  @override
+  String toString() => "Le montant de l'avoir doit être supérieur à zéro.";
 }
 
 /// Une annulation sans motif est indistinguable d'une erreur de manipulation.

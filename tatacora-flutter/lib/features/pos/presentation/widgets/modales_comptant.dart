@@ -235,6 +235,29 @@ class ModaleVenteEncaissee extends ConsumerWidget {
                 ],
               ),
             ),
+          // La REMISE (l.499-505) : dérivée — lignes brutes − net encaissé
+          // (`Vente::remiseDeduite()`) —, `flex justify-between text-[12px]
+          // text-slate-500 border-t border-slate-200 pt-2`, seulement si elle
+          // est positive.
+          if (vente.remiseDeduite > 0)
+            Container(
+              key: const Key('vente-encaissee-remise'),
+              margin: const EdgeInsets.only(top: AppSpacing.xxs),
+              padding: const EdgeInsets.only(top: AppSpacing.xs),
+              decoration: const BoxDecoration(
+                border: Border(top: BorderSide(color: Ardoise.c200)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Remise', style: _t(Tailles.t12, couleur: Ardoise.c500)),
+                  Text(
+                    '- ${formaterFcfa(vente.remiseDeduite)}',
+                    style: _t(Tailles.t12, couleur: Ardoise.c500),
+                  ),
+                ],
+              ),
+            ),
           const SizedBox(height: AppSpacing.xs),
           // `flex justify-between font-bold text-base border-t border-slate-300
           // pt-2` : « Total », le net encaissé.
