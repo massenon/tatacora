@@ -19,6 +19,7 @@ import 'package:tatacora_flutter/features/stocks/domain/messages_stock.dart';
 import 'package:tatacora_flutter/features/stocks/impression/etat_inventaire.dart';
 import 'package:tatacora_flutter/features/stocks/presentation/ecran_inventaires.dart';
 import 'package:tatacora_flutter/features/stocks/presentation/ecran_stocks.dart';
+import 'package:tatacora_flutter/features/stocks/presentation/providers_stocks.dart';
 import 'package:tatacora_flutter/features/synchronisation/data/operations_sync_dao.dart';
 import 'package:tatacora_flutter/features/synchronisation/domain/operation_sync.dart';
 
@@ -757,4 +758,54 @@ void main() {
       },
     );
   });
+
+  group('Le comptage appartient à la session qui l’a ouvert', () {
+    test('un autre compte qui se connecte repart d’un brouillon VIDE : il ne '
+        'clôture jamais, sous son nom, l’inventaire d’un collègue', () {
+      final conteneur = ProviderContainer(
+        overrides: [
+          sessionProvider.overrideWithBuild(
+            (ref, notifier) => ref.watch(_sessionCourante),
+          ),
+        ],
+      );
+      addTearDown(conteneur.dispose);
+
+      Session session(String id) => Session(
+        utilisateurId: id,
+        login: id,
+        nom: id,
+        role: 'magasinier',
+        droits: GardeAcces({'M6': 'C'}),
+      );
+      final compte = conteneur.read(_sessionCourante.notifier)
+        ..changer(session('aicha'));
+
+      conteneur
+          .read(inventaireEnCoursProvider.notifier)
+          .ouvrir(
+            InventaireEnCours(pointId: 'ps-1', date: DateTime(2026, 10, 21)),
+          );
+      expect(conteneur.read(inventaireEnCoursProvider), isNotNull);
+
+      // La même personne : rien ne change.
+      compte.changer(session('aicha'));
+      expect(conteneur.read(inventaireEnCoursProvider), isNotNull);
+
+      compte.changer(session('moussa'));
+      expect(conteneur.read(inventaireEnCoursProvider), isNull);
+    });
+  });
+}
+
+/// La session que le test change à la main.
+final _sessionCourante = NotifierProvider<_SessionMuable, Session?>(
+  _SessionMuable.new,
+);
+
+final class _SessionMuable extends Notifier<Session?> {
+  @override
+  Session? build() => null;
+
+  void changer(Session? s) => state = s;
 }

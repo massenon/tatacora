@@ -118,7 +118,7 @@ Map<String, Object?> _vente(
   'session': session,
   'lignes': lignes,
   if (retirer.isNotEmpty) 'retirer': retirer,
-  if (remise != null) 'remise': remise,
+  'remise': ?remise,
 };
 
 /// La remise du panier (21/10/2026) : le TYPE et la valeur SAISIE.

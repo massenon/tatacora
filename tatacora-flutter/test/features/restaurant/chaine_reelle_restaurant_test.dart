@@ -299,10 +299,15 @@ void main() {
         textesSous(tester, const Key('restauration-fiches-kpi-0')),
         contains('0'),
       );
-      // « Compositions provisoires » : aucune source, « — ».
+      // « Compositions provisoires » : COMPTÉES (v35) — un poste neuf en a
+      // zéro, mesuré, jamais « — ».
       expect(
         textesSous(tester, const Key('restauration-fiches-kpi-2')),
-        contains('—'),
+        containsAll(['COMPOSITIONS PROVISOIRES', '0']),
+      );
+      expect(
+        textesSous(tester, const Key('restauration-fiches-kpi-2')),
+        isNot(contains('—')),
       );
       // La phrase de la vue promet un refus que ce poste ne fait pas : elle est
       // suivie de l'honnêteté.

@@ -61,15 +61,18 @@ void main() {
     test('un poste vierge reçoit les sept canaux du maître, dans l’ordre, '
         'sous des UUID stables — et rien n’est enfilé', () async {
       final tous = await dao.tous();
-      expect([for (final c in tous) c.libelle], [
-        'Physique',
-        'Téléphone',
-        'WhatsApp',
-        'Booking.com',
-        'Site web',
-        'Facebook',
-        'Agence partenaire',
-      ]);
+      expect(
+        [for (final c in tous) c.libelle],
+        [
+          'Physique',
+          'Téléphone',
+          'WhatsApp',
+          'Booking.com',
+          'Site web',
+          'Facebook',
+          'Agence partenaire',
+        ],
+      );
       expect(tous.every((c) => c.actif), isTrue);
       // Le serveur exige un UUID pour pousser : jamais les codes `can-…`.
       for (final c in tous) {
@@ -88,33 +91,38 @@ void main() {
       expect(await dao.tous(), hasLength(7));
     });
 
-    test('une réservation d’AVANT la v35 (code can-booking) se lit, puis '
-        'reçoit l’identifiant du canal de même nom — sans rien envoyer', () async {
-      final client = await creerClient(db);
-      await semerReservation(db, id: 'res-1', clientId: client.id);
-      await db.customStatement(
-        "UPDATE reservations_local SET canal = 'can-booking' WHERE id = 'res-1'",
-      );
-      // Avant toute lecture des canaux : le code se lit encore.
-      var r = (await ReservationDao(db).parId('res-1'))!;
-      expect(r.canal, CanalReservation.booking);
-      expect(r.canal!.libelle, 'Booking.com');
+    test(
+      'une réservation d’AVANT la v35 (code can-booking) se lit, puis '
+      'reçoit l’identifiant du canal de même nom — sans rien envoyer',
+      () async {
+        final client = await creerClient(db);
+        await semerReservation(db, id: 'res-1', clientId: client.id);
+        await db.customStatement(
+          "UPDATE reservations_local SET canal = 'can-booking' WHERE id = 'res-1'",
+        );
+        // Avant toute lecture des canaux : le code se lit encore.
+        var r = (await ReservationDao(db).parId('res-1'))!;
+        expect(r.canal, CanalReservation.booking);
+        expect(r.canal!.libelle, 'Booking.com');
 
-      final avantFile = (await OperationsSyncDao(db).operations()).length;
-      final tous = await dao.tous();
-      final booking = tous.firstWhere((c) => c.libelle == 'Booking.com');
-      final colonne = await db
-          .customSelect("SELECT canal FROM reservations_local WHERE id='res-1'")
-          .getSingle();
-      expect(colonne.data['canal'], booking.code);
-      r = (await ReservationDao(db).parId('res-1'))!;
-      expect(r.canal, booking);
-      expect(
-        (await OperationsSyncDao(db).operations()).length,
-        avantFile,
-        reason: 'le nom ne change pas : rien à pousser',
-      );
-    });
+        final avantFile = (await OperationsSyncDao(db).operations()).length;
+        final tous = await dao.tous();
+        final booking = tous.firstWhere((c) => c.libelle == 'Booking.com');
+        final colonne = await db
+            .customSelect(
+              "SELECT canal FROM reservations_local WHERE id='res-1'",
+            )
+            .getSingle();
+        expect(colonne.data['canal'], booking.code);
+        r = (await ReservationDao(db).parId('res-1'))!;
+        expect(r.canal, booking);
+        expect(
+          (await OperationsSyncDao(db).operations()).length,
+          avantFile,
+          reason: 'le nom ne change pas : rien à pousser',
+        );
+      },
+    );
   });
 
   group('les trois gestes', () {
@@ -134,78 +142,87 @@ void main() {
       });
     });
 
-    test('renommer : l’ANCIEN nom part avec l’état, un nom inchangé non', () async {
-      final tous = await dao.tous();
-      final physique = tous.first;
-      await dao.renommer(physique.code, 'Comptoir');
-      final ops = await file();
-      expect(ops, hasLength(1));
-      expect(ops.single.type, TypeOperationSync.modification);
-      expect(ops.single.entiteId, physique.code);
-      expect(jsonDecode(ops.single.payload), {
-        'nom': 'Comptoir',
-        'ancien_nom': 'Physique',
-        'actif': true,
-      });
-      expect((await dao.tous()).first.libelle, 'Comptoir');
+    test(
+      'renommer : l’ANCIEN nom part avec l’état, un nom inchangé non',
+      () async {
+        final tous = await dao.tous();
+        final physique = tous.first;
+        await dao.renommer(physique.code, 'Comptoir');
+        final ops = await file();
+        expect(ops, hasLength(1));
+        expect(ops.single.type, TypeOperationSync.modification);
+        expect(ops.single.entiteId, physique.code);
+        expect(jsonDecode(ops.single.payload), {
+          'nom': 'Comptoir',
+          'ancien_nom': 'Physique',
+          'actif': true,
+        });
+        expect((await dao.tous()).first.libelle, 'Comptoir');
 
-      await dao.renommer(physique.code, 'Comptoir');
-      expect(await file(), hasLength(1));
-    });
+        await dao.renommer(physique.code, 'Comptoir');
+        expect(await file(), hasLength(1));
+      },
+    );
 
-    test('désactiver puis réactiver : l’état entier, sans ancien nom', () async {
-      final c = await dao.ajouter('Salon');
-      await dao.basculer(c.code);
-      await dao.basculer(c.code);
-      final ops = await file();
-      expect(ops.map((o) => jsonDecode(o.payload)), [
-        {'nom': 'Salon', 'actif': true},
-        {'nom': 'Salon', 'actif': false},
-        {'nom': 'Salon', 'actif': true},
-      ]);
-    });
+    test(
+      'désactiver puis réactiver : l’état entier, sans ancien nom',
+      () async {
+        final c = await dao.ajouter('Salon');
+        await dao.basculer(c.code);
+        await dao.basculer(c.code);
+        final ops = await file();
+        expect(ops.map((o) => jsonDecode(o.payload)), [
+          {'nom': 'Salon', 'actif': true},
+          {'nom': 'Salon', 'actif': false},
+          {'nom': 'Salon', 'actif': true},
+        ]);
+      },
+    );
 
-    test('les refus portent les phrases du serveur et n’écrivent rien', () async {
-      await dao.tous();
-      await expectLater(
-        dao.ajouter('   '),
-        throwsA(
-          isA<RefusCanal>().having(
-            (e) => e.message,
-            'message',
-            MessagesCanaux.nomRequis,
+    test(
+      'les refus portent les phrases du serveur et n’écrivent rien',
+      () async {
+        await dao.tous();
+        await expectLater(
+          dao.ajouter('   '),
+          throwsA(
+            isA<RefusCanal>().having(
+              (e) => e.message,
+              'message',
+              MessagesCanaux.nomRequis,
+            ),
           ),
-        ),
-      );
-      await expectLater(
-        dao.ajouter('physique'),
-        throwsA(
-          isA<RefusCanal>().having(
-            (e) => e.message,
-            'message',
-            MessagesCanaux.nomDejaUtilise('physique'),
+        );
+        await expectLater(
+          dao.ajouter('physique'),
+          throwsA(
+            isA<RefusCanal>().having(
+              (e) => e.message,
+              'message',
+              MessagesCanaux.nomDejaUtilise('physique'),
+            ),
           ),
-        ),
-      );
-      final tous = await dao.tous();
-      await expectLater(
-        dao.renommer(tous[1].code, 'WHATSAPP'),
-        throwsA(isA<RefusCanal>()),
-      );
-      await expectLater(
-        dao.basculer('inconnu'),
-        throwsA(
-          isA<RefusCanal>().having(
-            (e) => e.message,
-            'message',
-            MessagesCanaux.introuvable,
+        );
+        final tous = await dao.tous();
+        await expectLater(
+          dao.renommer(tous[1].code, 'WHATSAPP'),
+          throwsA(isA<RefusCanal>()),
+        );
+        await expectLater(
+          dao.basculer('inconnu'),
+          throwsA(
+            isA<RefusCanal>().having(
+              (e) => e.message,
+              'message',
+              MessagesCanaux.introuvable,
+            ),
           ),
-        ),
-      );
-      await expectLater(dao.ajouter('x' * 101), throwsA(isA<RefusCanal>()));
-      expect(await file(), isEmpty);
-      expect(await dao.tous(), hasLength(7));
-    });
+        );
+        await expectLater(dao.ajouter('x' * 101), throwsA(isA<RefusCanal>()));
+        expect(await file(), isEmpty);
+        expect(await dao.tous(), hasLength(7));
+      },
+    );
 
     test('proposables : les actifs, plus le canal déjà retenu même désactivé ; '
         'le décompte des réservations suit le canal', () async {
@@ -225,22 +242,25 @@ void main() {
       expect(await dao.reservationsParCanal(), {tous[0].code: 1});
     });
 
-    test('une réservation relit le libellé D’AUJOURD’HUI de son canal renommé', () async {
-      final tous = await dao.tous();
-      final client = await creerClient(db);
-      await semerReservation(db, id: 'res-1', clientId: client.id);
-      await db.customStatement(
-        "UPDATE reservations_local SET canal = '${tous[3].code}'",
-      );
-      await dao.renommer(tous[3].code, 'Booking');
-      final r = (await ReservationDao(db).parId('res-1'))!;
-      expect(r.canal!.libelle, 'Booking');
-      // Une valeur inconnue reste ABSENTE, jamais un repli sur « Physique ».
-      await db.customStatement(
-        "UPDATE reservations_local SET canal = 'n-importe-quoi'",
-      );
-      expect((await ReservationDao(db).parId('res-1'))!.canal, isNull);
-    });
+    test(
+      'une réservation relit le libellé D’AUJOURD’HUI de son canal renommé',
+      () async {
+        final tous = await dao.tous();
+        final client = await creerClient(db);
+        await semerReservation(db, id: 'res-1', clientId: client.id);
+        await db.customStatement(
+          "UPDATE reservations_local SET canal = '${tous[3].code}'",
+        );
+        await dao.renommer(tous[3].code, 'Booking');
+        final r = (await ReservationDao(db).parId('res-1'))!;
+        expect(r.canal!.libelle, 'Booking');
+        // Une valeur inconnue reste ABSENTE, jamais un repli sur « Physique ».
+        await db.customStatement(
+          "UPDATE reservations_local SET canal = 'n-importe-quoi'",
+        );
+        expect((await ReservationDao(db).parId('res-1'))!.canal, isNull);
+      },
+    );
   });
 
   group('la descente', () {
@@ -299,11 +319,14 @@ void main() {
       expect((await dao.tous())[1].libelle, 'Appel');
     });
 
-    test('le nom du serveur retrouve le canal local, insensible à la casse', () async {
-      final tous = await dao.tous();
-      final canal = await dao.parNom('booking.COM');
-      expect(canal!.id, tous[3].code);
-    });
+    test(
+      'le nom du serveur retrouve le canal local, insensible à la casse',
+      () async {
+        final tous = await dao.tous();
+        final canal = await dao.parNom('booking.COM');
+        expect(canal!.id, tous[3].code);
+      },
+    );
 
     test('le libellé français de la table est dit, et les canaux descendent '
         'AVANT les réservations', () {

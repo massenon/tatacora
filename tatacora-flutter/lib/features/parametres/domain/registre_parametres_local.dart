@@ -464,14 +464,16 @@ abstract final class RegistreParametresLocal {
           "Affiche le bouton Supprimer dans tous les modules. La suppression reste un archivage : l'élément part aux archives et peut être restauré.",
       // LUE depuis le 12/10/2026 (lot 7, D269) par les fournisseurs de M7, et
       // depuis le 13/10/2026 par le bouton d'archivage des unités d'hébergement
-      // (décision du PO : « comme dans la vue »). L'aide du serveur, identique mot pour mot à la vue,
+      // (décision du PO : « comme dans la vue »), et depuis le 21/10/2026 par
+      // l'archivage des articles de stock (M6). L'aide du serveur, identique mot pour mot à la vue,
       // dit « tous les modules » : c'est faux sur ce poste (la Paie garde sa
       // règle propre, D272 ; les autres écrans n'ont pas de bouton Supprimer
       // branché sur la bascule). L'aide n'est donc PAS touchée ; l'écart est
       // NOMMÉ dans la correction, comme pour `tva_active`.
       correction:
-          'Sur ce poste : seuls les fournisseurs (M7) et les unités '
-          'd’hébergement (M1) honorent cette bascule ; la Paie garde sa règle.',
+          'Sur ce poste : seuls les fournisseurs (M7), les unités '
+          'd’hébergement (M1) et les articles de stock (M6) honorent cette '
+          'bascule ; la Paie garde sa règle.',
       // Le lecteur est celui qui interroge la base : `suppressionActiveProvider`
       // (la règle d'archivage `peutArchiver` en est le consommateur).
       lecteur:

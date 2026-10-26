@@ -478,8 +478,15 @@ final inventaireEnCoursProvider =
     );
 
 final class _InventaireEnCoursNotifier extends Notifier<InventaireEnCours?> {
+  /// Le comptage appartient à la SESSION qui l'a ouvert : un autre compte qui se
+  /// connecte ne clôture jamais (sous son nom, RG-15) l'inventaire d'un
+  /// collègue — `build` est relancé quand l'utilisateur change, et le brouillon
+  /// repart de zéro.
   @override
-  InventaireEnCours? build() => null;
+  InventaireEnCours? build() {
+    ref.watch(sessionProvider.select((s) => s?.utilisateurId));
+    return null;
+  }
 
   void ouvrir(InventaireEnCours inventaire) => state = inventaire;
 

@@ -1,5 +1,5 @@
 // Vue Blade maîtresse (PA-183) : pwa/stocks/inventaires.blade.php
-// (les deux modales de l'onglet « Inventaire physique », l.600-644).
+// (les deux modales de l'onglet « Inventaire physique », l.674-714).
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

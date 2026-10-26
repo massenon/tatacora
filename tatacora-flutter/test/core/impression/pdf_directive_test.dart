@@ -74,6 +74,13 @@ void main() {
           gabarit: 'stocks-etat',
           date: '14/10/2026',
         ),
+        // Le rapport d'inventaire physique (21/10/2026) : son gabarit serveur
+        // nomme ses propres visas (« Agent Recenseur », « Responsable Magasin »).
+        'stocks/impression/etat_inventaire.dart': (
+          visas: 'inventaire',
+          gabarit: 'inventaire-rapport',
+          date: '21/10/2026',
+        ),
         'vehicules/impression/etat_vehicules.dart': (
           visas: 'directive',
           gabarit: 'locations',
@@ -100,6 +107,7 @@ void main() {
     'directive': Visas.directive,
     'depenses': Visas.depenses,
     'etatStocks': Visas.etatStocks,
+    'inventaire': Visas.inventaire,
   };
   /* ================================================================== */
   group('Le registre des documents — chaque fichier est classé', () {

@@ -442,6 +442,10 @@ void main() {
     'lib/features/achats/presentation/widgets/modale_archivage_achats.dart':
         'Modale de confirmation d archivage (`<x-pwa.modale-archivage>`, '
         'l.504-511), posée après `</main>`.',
+    'lib/features/stocks/presentation/widgets/modales_inventaire.dart':
+        'Modales « Enregistrer le comptage » et « Inventaire incomplet » de '
+        '`stocks/inventaires.blade.php` (`<x-pwa.modale>`, l.674-714), posées '
+        'après `</main>` : le remappage typographique ne les atteint pas.',
     'lib/features/tableau_de_bord/presentation/widgets/modale_stocks_critiques.dart':
         'Modale « Articles sous le seuil d alerte » de la vue d accueil '
         '(`<x-pwa.modale>`, l.1689-1719), posée après `</main>` (l.1392) : le '

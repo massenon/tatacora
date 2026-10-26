@@ -1203,11 +1203,13 @@ class _EtatLigneRemiseComptant extends ConsumerState<LigneRemiseComptant> {
               key: const Key('pos-remise-appliquee'),
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  TextesPanierComptant.remiseAppliquee(formaterFcfa(p.total)),
-                  style: styleContenuCarte(
-                    TaillesContenu.t11_5,
-                    couleur: Ardoise.c500,
+                Expanded(
+                  child: Text(
+                    TextesPanierComptant.remiseAppliquee(formaterFcfa(p.total)),
+                    style: styleContenuCarte(
+                      TaillesContenu.t11_5,
+                      couleur: Ardoise.c500,
+                    ),
                   ),
                 ),
                 Text(

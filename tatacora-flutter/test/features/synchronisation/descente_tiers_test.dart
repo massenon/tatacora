@@ -309,32 +309,29 @@ void main() {
   });
 
   group('clients', () {
-    test(
-      'un client archivé au serveur est ARCHIVÉ ici (21/10/2026) : plus '
-      '« proposé faute d’archive locale »',
-      () async {
-        final bilan = await descendre([
-          element('clients', 'cl-2', {
-            'nom': 'Ancien',
-            'telephone': '97000002',
-            'type_client': 'agence',
-          }, actif: false),
-        ]);
-        expect((bilan.appliques, bilan.archivesNonPortees), (1, 0));
-        final l = (await ligne('clients_local', 'cl-2'))!;
-        expect(l['actif'], 0, reason: 'archivé, pas effacé');
+    test('un client archivé au serveur est ARCHIVÉ ici (21/10/2026) : plus '
+        '« proposé faute d’archive locale »', () async {
+      final bilan = await descendre([
+        element('clients', 'cl-2', {
+          'nom': 'Ancien',
+          'telephone': '97000002',
+          'type_client': 'agence',
+        }, actif: false),
+      ]);
+      expect((bilan.appliques, bilan.archivesNonPortees), (1, 0));
+      final l = (await ligne('clients_local', 'cl-2'))!;
+      expect(l['actif'], 0, reason: 'archivé, pas effacé');
 
-        // Restauré au serveur : restauré ici.
-        await descendre([
-          element('clients', 'cl-2', {
-            'nom': 'Ancien',
-            'telephone': '97000002',
-            'type_client': 'agence',
-          }),
-        ]);
-        expect((await ligne('clients_local', 'cl-2'))!['actif'], 1);
-      },
-    );
+      // Restauré au serveur : restauré ici.
+      await descendre([
+        element('clients', 'cl-2', {
+          'nom': 'Ancien',
+          'telephone': '97000002',
+          'type_client': 'agence',
+        }),
+      ]);
+      expect((await ligne('clients_local', 'cl-2'))!['actif'], 1);
+    });
 
     test('une fiche modifiée ici et pas encore partie est CONSERVÉE ; '
         'sinon la version du serveur la remplace', () async {

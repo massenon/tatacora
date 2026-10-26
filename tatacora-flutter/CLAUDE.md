@@ -376,8 +376,7 @@ documents SOURCES, jamais une écriture (D246) ; il crée ET modifie son catalog
   à la suivante. Conversions inverses de F1 par `entierDepuisDecimal` (chaîne,
   jamais `double`) ; une fraction de franc est REFUSÉE. Archives : fournisseur
   `actif`, unité `hors_service` (une unité existante ne reçoit que
-  l'archivage, son statut reste celui du cycle local) ; un ARTICLE archivé
-  reste (aucune archive locale), et le bilan le compte. Centres de coût :
+  l'archivage, son statut reste celui du cycle local) ; un ARTICLE archivé est archivé ici aussi (`articles_local.actif`, v35 : `false` archive, `null` ou `true` actif ; la restauration descend de même) — la descente n'écrase jamais un archivage encore en file. Centres de coût :
   reconnus par id puis libellé normalisé, jamais renommés, créés seulement
   s'ils manquent. `cree_par` d'une création descendue = compte connecté, à
   défaut le plus ancien administrateur actif (écart nommé ; sans compte, la
@@ -789,6 +788,66 @@ LEVÉS.
   `ProviderScope` différents réutilise le premier état — un test par rôle ; le
   message de succès d'un `SnackBar` bloque le suivant 4 s (`pump(5 s)`).
 
+## Inventaire physique et archivage des articles (21/10/2026, schéma v35)
+
+Option B du PO (« tout au complet ») : le poste ouvre un inventaire par point,
+saisit les comptages, le clôture et le régularise ; il archive et restaure les
+articles. Écran `/stocks/inventaires` (cycle, feuille, historique) et `/stocks`
+(cases, « Supprimer », badge « Archivé », « Restaurer »).
+
+- **Inventaire** : le comptage en cours vit EN MÉMOIRE (`inventaireEnCoursProvider`,
+  remis à zéro au changement de compte) jusqu'à la clôture — le schéma serveur ne
+  porte aucun statut (PA-150), une ligne écrite avant ne se distinguerait pas d'un
+  inventaire clos. Fermer la fenêtre avant de clôturer abandonne le comptage ;
+  la feuille le dit. Un comptage FIGE le théorique du point à cet instant
+  (`InventaireService::compter`), un second écrase le premier. `StocksDao.
+  cloturerInventaire` écrit l'inventaire, ses lignes (centièmes) et un mouvement
+  de régularisation par écart dans UNE transaction, enfilés dans cet ordre :
+  l'excédent en `inventaire` NON valorisée, le manquant en `perte` (forcée si le
+  disponible d'aujourd'hui ne le couvre plus), motif `Régularisation inventaire
+  <id> — écart de ±x.xx`. Un seul `INSERT` de mouvement (`_inserer`) pour la
+  saisie et la régularisation. Un écart dont l'article n'a aucune entrée
+  valorisée n'est pas valorisé (« — » + une ligne qui le dit), jamais zéro.
+  Modale « Inventaire incomplet » : quand tout est compté elle devient
+  « Clôturer et régulariser » (la vue y dirait « 0 article(s) n'ont pas été
+  comptés », faux). L'historique liste `inventaires_local` (clôturés ici OU
+  descendus), « — » aux trois montants comme la vue.
+- **Synchronisation** : UN document `inventaires` (point, jour, lignes :
+  théorique figé, constaté, écart en centièmes) — gestionnaire serveur
+  `GestionnaireInventaires`, une transaction, valeurs du poste écrites TELLES
+  QUELLES (écart vérifié contre lui-même seulement) — puis ses mouvements
+  (`mouvements_stock` accepte désormais `inventaire`, l'excédent). Descente : les
+  lignes descendent AVEC l'inventaire (`CatalogueDescendantService::ENFANTS`),
+  `AligneurDocuments._inventaire` l'écrit en entier ou le met en attente
+  (point/article pas reçu), un inventaire détenu n'est jamais réécrit, aucun
+  mouvement n'est réécrit.
+- **Archivage** : `StocksDao.verrousArticle` rejoue les quatre verrous du serveur
+  (`ReferentielArticleService::verrous`) sur les données locales — solde > 0 tous
+  points, LIGNES de commande en cours (un statut inconnu engage), boissons de la
+  carte, compositions de recette — aux phrases de `lang/fr/stocks_pwa.php`,
+  recontrôlés à l'exécution, motifs joints par une espace. La règle est
+  `core/rbac/regle_archivage.dart` (`peutArchiverProvider`, relue à chaque geste
+  par `StocksApi`) ; « Restaurer » n'est pas derrière elle. ⚠ **Écart nommé** :
+  le verrou « plat lié au stock » (`plats.article_id`) n'est pas rejouable ici —
+  `plats_local` n'a pas ce lien (« Lier au stock » n'est pas porté) ; le serveur
+  le tient et un refus revient dans « À traiter ». L'archivage part en
+  `{'actif': false}`, la restauration en `{'actif': true}`.
+- **Preuves contre le serveur** : `archivage_inventaire_contre_serveur_test.dart`
+  (phrases du `lang/` PHP + six scénarios de verrous rejoués par
+  `tool/stocks/rejouer_archivage.php` sur `ReferentielArticleService`),
+  `inventaire_archivage_contre_serveur_test.dart` (la file poussée à
+  `SynchronisationService`, lignes relues). `TATACORA_BASE_ESSAI=tatacora_<nom>_test`
+  remplace `tatacora_test` dans ces deux scripts quand plusieurs essais tournent
+  ensemble (la base partagée est migrée sous les pieds de l'un ou de l'autre).
+- **Pièges rencontrés** : un `SnackBar` s'EMPILE (le message d'ouverture restait
+  quatre secondes après la clôture) — `clearSnackBars()` avant d'annoncer ; la
+  mesure de conformité cherche les libellés d'une MODALE dans les seuls fichiers
+  qui citent la vue (pas leurs imports) : la phrase du serveur de la modale
+  « Inventaire incomplet » est écrite dans `modales_inventaire.dart` ET dans
+  `MessagesStock`, et un test confronte les deux au fichier de langue PHP ;
+  `ORDER BY type_mouvement` trie un `enum` MySQL par INDEX, pas par ordre
+  alphabétique.
+
 ## Exploitation : cron et vérifications (19/10/2026)
 
 `docs/LISTE_DES_CRON_JOBS_CPANEL.md` (une ligne cron `schedule:run`, test
@@ -1125,3 +1184,10 @@ tableur ne sait pas additionner « 56 000 FCFA ».
 - Tout cas d'usage implémentant une RG porte un `///` avec `@see EF-M#-##` /
   `RG-##`.
 - Ce qui est **calculable** s'affiche en lecture seule, jamais dans un champ.
+
+## Canaux de réservation, composition provisoire, remise du panier (21/10/2026, « tout au complet »)
+
+- **Canaux** : `canaux_reservation_local` (schéma v35), écrivain unique `CanauxReservationDao` (ajout, renommage, désactivation/réactivation, jamais de suppression ; refus aux phrases du serveur, relues par PHP). Un poste vierge reçoit le jeu initial sous des UUID v5 stables (le serveur exige un UUID pour pousser) ; les réservations d'avant la v35 (`can-…`) sont réécrites vers l'id du canal de même NOM, sans rien envoyer. La fiche, la réservation rapide et le filtre des annulations lisent la TABLE (`CanalReservation` n'est plus une énumération). Sync : `canaux_reservation` (création par le nom ; modification = état entier + `ancien_nom` pour retrouver un canal aligné par son nom) ; descente AVANT les réservations, lecture libre. Plus aucun jeton `blade-refuse` pour l'onglet.
+- **Composition provisoire** : colonne lue/écrite ; descend avec la fiche ; levée en réenregistrant la composition (la modification part avec `lignes` même inchangées, sinon le serveur garderait la marque). Compteur, badge, bandeau, marque « P » du comptoir sont alimentés.
+- **Remise** : `paniers_local.remise_type/remise_valeur_centiemes`, formule répliquée en centimes (`pos/domain/remise_panier.dart`), jugée à la saisie ET à l'encaissement ; pièce VTE sur le net (`ventilerAuNet`, dernier module = écart), `montantCloture` = net arrondi au franc (écart nommé : les centimes ne vivent que dans la pièce), vente envoyée avec type + valeur seulement si une remise existe, facture avec lignes négatives par module. Confronté au serveur dans `ventes_contre_serveur_test.dart` et `charges_contre_serveur_test.dart`.
+- Piège : le comparateur de ventes lit le NET de la pièce (débit), pas `montantCloture`.

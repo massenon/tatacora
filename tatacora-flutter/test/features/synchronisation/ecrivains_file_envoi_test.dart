@@ -1307,6 +1307,8 @@ void main() {
         'circuitsLocal',
         'guidesLocal',
         'reservationsTourLocal',
+        // 21/10/2026 : les canaux de réservation (Paramètres).
+        'canauxReservationLocal',
       ];
       // Les écrivains qui n'enfilent pas, et pourquoi — tous nommés.
       const exceptions = {

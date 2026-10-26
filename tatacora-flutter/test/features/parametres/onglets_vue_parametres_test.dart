@@ -271,7 +271,7 @@ void main() {
   });
 
   testWidgets('Canaux de réservation : le jeu du poste, l\'intro de la vue, '
-      'aucun geste inerte', (tester) async {
+      'les gestes de la vue', (tester) async {
     await monter(tester);
     await ouvrirOnglet(tester, 'canaux');
     expect(find.byKey(const Key('param-canaux-tableau')), findsOneWidget);
@@ -293,11 +293,11 @@ void main() {
       ),
       findsOneWidget,
     );
-    // Les gestes de la vue (ajout, renommage, désactivation) sont REFUSÉS : le
-    // poste n'en offre aucun, et le dit.
-    expect(find.text('Ajouter un canal'), findsNothing);
-    expect(find.text('Renommer'), findsNothing);
-    expect(find.byKey(const Key('param-canaux-sur-ce-poste')), findsOneWidget);
+    // Les gestes de la vue (ajout, renommage, désactivation) sont PORTÉS
+    // (21/10/2026) : voir `onglet_canaux_test.dart` pour leur effet.
+    expect(find.text('Ajouter un canal'), findsOneWidget);
+    expect(find.text('Renommer'), findsNWidgets(7));
+    expect(find.byKey(const Key('param-canaux-sur-ce-poste')), findsNothing);
   });
 
   testWidgets('Communication : la clé API et le message de bienvenue, '

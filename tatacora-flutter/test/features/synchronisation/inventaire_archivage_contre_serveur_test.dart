@@ -284,7 +284,7 @@ void main() {
 
   test('une fois archivée au serveur, la farine garde son stock : rien n’a '
       'été écrit pour elle', () {
-    expect(etats['articles:$plein']!['actif'], 1);
+    expect((etats['articles:$plein'] as Map<String, dynamic>)['actif'], 1);
   });
 }
 

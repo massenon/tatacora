@@ -9,6 +9,7 @@ import 'package:tatacora_flutter/core/theme/app_theme.dart';
 import 'package:tatacora_flutter/features/auth/domain/session.dart';
 import 'package:tatacora_flutter/features/comptabilite/data/comptabilite_dao.dart';
 import 'package:tatacora_flutter/features/crm/data/client_dao.dart';
+import 'package:tatacora_flutter/features/hebergement/data/canaux_reservation_dao.dart';
 import 'package:tatacora_flutter/features/hebergement/data/reservation_dao.dart';
 import 'package:tatacora_flutter/features/hebergement/data/reservation_repository_local.dart';
 import 'package:tatacora_flutter/features/hebergement/domain/entities/periode_sejour.dart';
@@ -966,6 +967,44 @@ void main() {
       },
     );
 
+    testWidgets(
+      'les canaux viennent de la TABLE (Paramètres) : un canal ajouté '
+      'est proposé, un canal désactivé non — et enregistré',
+      (tester) async {
+        final canaux = CanauxReservationDao(db);
+        await canaux.ajouter('Agence du Sahel');
+        final tous = await canaux.tous();
+        await canaux.basculer(
+          tous.firstWhere((c) => c.libelle == 'Facebook').code,
+        );
+        await monter(
+          tester,
+          const FicheReservation(uniteId: uniteId),
+          periodeInitiale: periode(10, 12),
+        );
+
+        await tester.tap(find.byKey(const Key('champ-canal')));
+        await tester.pumpAndSettle();
+        expect(find.text('Agence du Sahel'), findsWidgets);
+        expect(find.text('Facebook'), findsNothing);
+        await tester.tap(find.text('Agence du Sahel').last);
+        await tester.pumpAndSettle();
+
+        await choisirClient(tester, 'Comptoir');
+        await enregistrer(tester);
+        await tester.tap(find.byKey(const Key('bouton-plus-tard')));
+        await tester.pumpAndSettle();
+
+        final r = (await depot.reservations()).single;
+        expect(r.canal!.libelle, 'Agence du Sahel');
+        expect(
+          r.canal!.code,
+          (await canaux.tous()).last.code,
+          reason: 'la colonne porte l’identifiant du canal de la table',
+        );
+      },
+    );
+
     testWidgets('la fiche porte le sous-titre de la vue', (tester) async {
       await monter(
         tester,
@@ -1031,7 +1070,9 @@ void main() {
 
       // La fiche du maître est enregistrée, pas seulement recueillie.
       expect(r.typeClient, TypeClient.particulier);
-      expect(r.canal, CanalReservation.physique);
+      // Le canal vient de la TABLE (Paramètres › Canaux) : son identifiant,
+      // son libellé.
+      expect(r.canal!.libelle, CanalReservation.physique.libelle);
       expect(r.modePaiement, ModePaiementReservation.mobileMoney);
     });
   });

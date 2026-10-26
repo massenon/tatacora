@@ -15,6 +15,8 @@ import 'package:tatacora_flutter/features/hebergement/presentation/providers_heb
 import 'package:tatacora_flutter/features/pos/data/catalogue_dao.dart';
 import 'package:tatacora_flutter/features/pos/data/panier_repository_local.dart';
 import 'package:tatacora_flutter/features/pos/domain/entities/panier.dart';
+import 'package:tatacora_flutter/features/hebergement/domain/entities/fiche_reservation.dart'
+    show TypeRemise;
 import 'package:tatacora_flutter/features/pos/domain/messages_ventes.dart';
 import 'package:tatacora_flutter/features/pos/domain/repositories/panier_repository.dart';
 import 'package:tatacora_flutter/features/pos/presentation/ecran_pos_comptant.dart';
@@ -207,6 +209,46 @@ void main() {
         formaterFcfa(1000),
       );
       expect((await depotPanier.paniers()).single.total, 1000);
+    });
+
+    testWidgets('REMISE au comptoir (21/10/2026) : « FCFA » puis une valeur — '
+        'le total devient le net, « Sur un total de » dit le brut, « Aucune » '
+        'la retire', (tester) async {
+      await monter(tester, const EcranPosComptant());
+      await tester.tap(find.byKey(const Key('pos-comptant-ouvrir')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('pos-article-M5:bsn-33')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('pos-remise-appliquee')), findsNothing);
+
+      await tester.tap(find.byKey(const Key('pos-remise-type')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('FCFA').last);
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('pos-remise-valeur')), '250');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.widget<Text>(find.byKey(const Key('pos-total'))).data,
+        '750 FCFA',
+      );
+      expect(find.text('Sur un total de 1 000 FCFA'), findsOneWidget);
+      expect(find.text('- 250 FCFA'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('pos-remise-type')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Aucune').last);
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<Text>(find.byKey(const Key('pos-total'))).data,
+        '1 000 FCFA',
+      );
+      expect(find.byKey(const Key('pos-remise-appliquee')), findsNothing);
+      expect(
+        (await depotPanier.paniers()).single.remiseType,
+        TypeRemise.aucune,
+      );
     });
 
     testWidgets('sans caisse ouverte, le bouton d’encaissement est GRISÉ et '
@@ -718,24 +760,52 @@ void main() {
       expect(find.textContaining('84 000'), findsNothing);
     });
 
-    testWidgets('la remise dit qu’elle n’agit pas, et ne change rien', (
-      tester,
-    ) async {
+    testWidgets('la remise du séjour s’applique : le net remplace le total, '
+        'la ligne dit le brut et la remise', (tester) async {
       await monter(tester, const EcranPosHeberges());
       await selectionner(tester);
       await ajouterBiere(tester);
 
       await tester.tap(find.byKey(const Key('pos-remise-type')));
-      await tester.pump();
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('%').last);
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('pos-remise-valeur')), '10');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
 
-      const message =
-          'La remise ne s’applique pas sur ce poste : le panier de séjour ne '
-          'porte aucune remise, donc le total facturé reste le total des '
-          'lignes. Rien n’a été enregistré.';
-      expect(PanierHeberges.remiseNonDisponible, message);
-      expect(find.text(message), findsOneWidget);
+      expect(texteDe(tester, 'pos-total'), '900 FCFA');
+      expect(find.text('Sur un total de 1 000 FCFA'), findsOneWidget);
+      expect(find.text('- 100 FCFA'), findsOneWidget);
+      final p = (await depotPanier.paniers()).single;
+      expect(p.remiseType, TypeRemise.pourcentage);
+      expect(p.remiseValeurCentiemes, 1000);
+      expect(p.total, 1000, reason: 'les lignes restent au prix brut');
+    });
+
+    testWidgets('une remise hors bornes est refusée SOUS la ligne, avec la '
+        'phrase du serveur, et rien n’est posé', (tester) async {
+      await monter(tester, const EcranPosHeberges());
+      await selectionner(tester);
+      await ajouterBiere(tester);
+
+      await tester.tap(find.byKey(const Key('pos-remise-type')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('%').last);
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('pos-remise-valeur')), '120');
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+
+      expect(
+        texteDe(tester, 'pos-remise-erreur'),
+        MessagesVentes.remisePourcentageHorsBornes,
+      );
       expect(texteDe(tester, 'pos-total'), '1 000 FCFA');
-      expect((await depotPanier.paniers()).single.total, 1000);
+      expect(
+        (await depotPanier.paniers()).single.remiseType,
+        TypeRemise.aucune,
+      );
     });
 
     testWidgets('« Clôturer et facturer » est grisé tant que le panier est '

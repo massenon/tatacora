@@ -661,53 +661,50 @@ void main() {
   });
 
   group('archives et centres de coût', () {
-    test(
-      'fournisseur archivé → `actif` faux ; unité hors service → '
-      '`hors_service` ; article archivé → `actif` faux (21/10/2026 : appliqué, '
-      'plus « il reste »)',
-      () async {
-        final bilan = await b
-            .descente(
-              transportDe(
-                FauxCatalogue([
-                  element('articles', 'art-1', {
-                    'libelle': 'Vieux',
-                    'unite_mesure': 'kg',
-                    'seuil_alerte': '0.00',
-                  }, actif: false),
-                  element('categories_hebergement', 'cat-1', {
-                    'libelle': 'Simple',
-                    'capacite_max': 1,
-                    'tarif_base': '15000.00',
-                  }),
-                  element('unites_hebergement', 'u-1', {
-                    'categorie_id': 'cat-1',
-                    'numero': '7',
-                    'statut': 'hors_service',
-                  }, actif: false),
-                  element('fournisseurs', 'f-1', {
-                    'raison_sociale': 'SOBEBRA',
-                    'evaluation': 'bon',
-                  }, actif: false),
-                ]),
-              ),
-            )
-            .descendre((await b.lecteur.appairage())!, surRefus: (_) async {});
-        // Plus aucune archive n'est « non portée » : l'article l'est aussi.
-        expect((bilan.appliques, bilan.archivesNonPortees), (4, 0));
-        expect(await ligne('articles_local', 'art-1'), isNotNull);
-        expect((await ligne('articles_local', 'art-1'))!['actif'], 0);
-        expect(
-          (await ligne('unites_hebergement_local', 'u-1'))!['statut'],
-          'hors_service',
-        );
-        expect((await ligne('fournisseurs_local', 'f-1'))!['actif'], 0);
-        expect(
-          (await ligne('fournisseurs_local', 'f-1'))!['cree_par'],
-          'u-admin',
-        );
-      },
-    );
+    test('fournisseur archivé → `actif` faux ; unité hors service → '
+        '`hors_service` ; article archivé → `actif` faux (21/10/2026 : appliqué, '
+        'plus « il reste »)', () async {
+      final bilan = await b
+          .descente(
+            transportDe(
+              FauxCatalogue([
+                element('articles', 'art-1', {
+                  'libelle': 'Vieux',
+                  'unite_mesure': 'kg',
+                  'seuil_alerte': '0.00',
+                }, actif: false),
+                element('categories_hebergement', 'cat-1', {
+                  'libelle': 'Simple',
+                  'capacite_max': 1,
+                  'tarif_base': '15000.00',
+                }),
+                element('unites_hebergement', 'u-1', {
+                  'categorie_id': 'cat-1',
+                  'numero': '7',
+                  'statut': 'hors_service',
+                }, actif: false),
+                element('fournisseurs', 'f-1', {
+                  'raison_sociale': 'SOBEBRA',
+                  'evaluation': 'bon',
+                }, actif: false),
+              ]),
+            ),
+          )
+          .descendre((await b.lecteur.appairage())!, surRefus: (_) async {});
+      // Plus aucune archive n'est « non portée » : l'article l'est aussi.
+      expect((bilan.appliques, bilan.archivesNonPortees), (4, 0));
+      expect(await ligne('articles_local', 'art-1'), isNotNull);
+      expect((await ligne('articles_local', 'art-1'))!['actif'], 0);
+      expect(
+        (await ligne('unites_hebergement_local', 'u-1'))!['statut'],
+        'hors_service',
+      );
+      expect((await ligne('fournisseurs_local', 'f-1'))!['actif'], 0);
+      expect(
+        (await ligne('fournisseurs_local', 'f-1'))!['cree_par'],
+        'u-admin',
+      );
+    });
 
     test('une unité EXISTANTE garde le statut de son cycle ; réintégrée au '
         'serveur, elle redevient libre', () async {

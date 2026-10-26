@@ -221,20 +221,22 @@ class OngletCanaux extends ConsumerWidget {
           ),
         );
 
-    Widget entete(String texte, {Alignment? alignement}) => cellule(
-      Text(
-        texte.toUpperCase(),
-        style:
-            _t(
-              TaillesContenu.t11,
-              poids: FontWeight.w600,
-              couleur: AppColors.neutre0.withValues(alpha: 0.9),
-            ).copyWith(
-              letterSpacing: AppTextStyles.suiviLarge * TaillesContenu.t11,
-            ),
-      ),
-      alignement: alignement,
-    );
+    Widget entete(String texte, {Alignment? alignement, int flex = 1}) =>
+        cellule(
+          Text(
+            texte.toUpperCase(),
+            style:
+                _t(
+                  TaillesContenu.t11,
+                  poids: FontWeight.w600,
+                  couleur: AppColors.neutre0.withValues(alpha: 0.9),
+                ).copyWith(
+                  letterSpacing: AppTextStyles.suiviLarge * TaillesContenu.t11,
+                ),
+          ),
+          alignement: alignement,
+          flex: flex,
+        );
 
     Widget lien(Key cle, String texte, Color couleur, VoidCallback geste) =>
         InkWell(
@@ -331,6 +333,7 @@ class OngletCanaux extends ConsumerWidget {
                     entete(
                       TextesCanaux.colonneActions,
                       alignement: Alignment.centerRight,
+                      flex: 2,
                     ),
                   ],
                 ),
@@ -399,8 +402,9 @@ class OngletCanaux extends ConsumerWidget {
                       ),
                       cellule(
                         peutEcrire
-                            ? Row(
-                                mainAxisSize: MainAxisSize.min,
+                            ? Wrap(
+                                alignment: WrapAlignment.end,
+                                spacing: AppSpacing.xs,
                                 children: [
                                   lien(
                                     Key('param-canal-renommer-${canal.code}'),
@@ -408,7 +412,6 @@ class OngletCanaux extends ConsumerWidget {
                                     AppColors.navy,
                                     () => _saisir(context, ref, canal: canal),
                                   ),
-                                  const SizedBox(width: AppSpacing.xs),
                                   lien(
                                     Key('param-canal-basculer-${canal.code}'),
                                     canal.actif
@@ -441,6 +444,7 @@ class OngletCanaux extends ConsumerWidget {
                                 ),
                               ),
                         alignement: Alignment.centerRight,
+                        flex: 2,
                       ),
                     ],
                   ),

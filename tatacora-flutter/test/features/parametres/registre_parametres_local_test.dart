@@ -233,8 +233,9 @@ void main() {
       // L'aide du serveur dit « tous les modules » : seuls les fournisseurs
       // M7 honorent la bascule (la Paie garde sa règle, D272).
       'activation_suppression':
-          'Sur ce poste : seuls les fournisseurs (M7) et les unités '
-          'd’hébergement (M1) honorent cette bascule ; la Paie garde sa règle.',
+          'Sur ce poste : seuls les fournisseurs (M7), les unités '
+          'd’hébergement (M1) et les articles de stock (M6) honorent cette '
+          'bascule ; la Paie garde sa règle.',
       // Lue par la cloche depuis le lot B (14/10/2026) ; les fenêtres
       // d'alertes à la connexion de la vue ne sont pas portées.
       'activation_alertes_ouverture':
