@@ -413,6 +413,10 @@ void main() {
         'Modale « Historique d un client » de `crm/clients-creances.blade.php` '
         '(`<x-pwa.modale>`, après `</main>` l.594) : le remappage '
         'typographique ne l atteint pas.',
+    'lib/features/crm/presentation/widgets/modale_relance.dart':
+        'Modale « Tracer une relance » de `crm/clients-creances.blade.php` '
+        '(`<x-pwa.modale>`, après `</main>` l.594) : le remappage '
+        'typographique ne l atteint pas.',
     'lib/features/crm/presentation/dialogue_nouveau_client.dart':
         'Modale « Ajouter un client » de `hebergement/reservations.blade.php` '
         '(`<x-pwa.modale>`, l.745-784), posée après `</main>` (l.341) : le '

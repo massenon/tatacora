@@ -730,6 +730,65 @@ vérifie que la forme) ; aucune écriture de dotation, ici comme au serveur ;
 la phrase « … · N ans · linéaire · mise en service … » de la modale « Plan »
 reste comptée absente par le comparateur (l'interpolation sépare « · » de « ans »).
 
+## Relances, archivage des clients, avoir partiel (21/10/2026, schéma v35)
+
+Option B du PO (« tout au complet ») : le poste fait ce que la PWA fait pour
+`crm/clients-creances` et `facturation`, avec sa synchronisation. Les trois
+refus `blade-refuse:` de l'écran Clients et le refus de l'avoir partiel sont
+LEVÉS.
+
+- **Relances** (`relances_clients_local`, v35, aucune clé étrangère) : un FAIT
+  daté, création seule. Seul écrivain de saisie : `RelancesClientsDao`
+  (`crm/data/`, classe simple) — réplique de `RelanceClientService` aux phrases
+  du serveur (`messages_relance.dart`, confrontées par PHP exécuté, validation
+  Laravel du montant comprise : « Le champ relance montant est obligatoire. »).
+  Montant en CENTIMES, envoyé en chaîne décimale exacte (`"10000.50"`). Un
+  client d'avant la synchronisation (`statut_sync = local`, aucune création en
+  file) est ENVOYÉ avant sa relance (`ClientDao.assurerConnuDuServeur`), sans
+  quoi le serveur répondrait « client inconnu » à chaque essai. « Clients à
+  relancer » = `clientsARelancer` (pur) : débiteurs du registre sans relance
+  depuis 30 jours (`joursAvantRelance`, relu du serveur par un test) ; la borne
+  est incluse (une relance faite il y a 30 jours est récente). Serveur :
+  `GestionnaireRelancesClients` (M3, création seule), après `clients` au
+  registre et dans `COLONNES` ; `RelanceClientService::enregistrer` accepte un
+  `id` (rejeu idempotent). Descente : `AligneurDocuments._relanceClient`
+  (n'enfile jamais ; client absent = attente ; canal inconnu / fraction de centime
+  / date illisible = refusé et compté).
+- **Archivage d'un client** (`clients_local.actif`, nullable : `null`/`true` =
+  actif). Seul écrivain : `ArchivageClients` (`crm/data/`), qui rejoue les
+  QUATRE verrous du serveur sur les données locales (séjour : départ ≥
+  aujourd'hui, non annulé ; location : fin ≥ aujourd'hui — ÉCART : aucune colonne
+  de statut local, un contrat annulé au serveur compte encore ; circuit non
+  annulé à venir ; facture non soldée par `CreanceFacture.estImpayee`, jamais une
+  seconde formule). Le verrou est recontrôlé DANS la transaction qui écrit. La
+  règle « qui peut archiver » est `core/rbac/regle_archivage.dart`, exigée à
+  l'ouverture ET à l'exécution ; restaurer n'exige que l'écriture sur M3. La
+  modale est `ModaleArchivageAchats` (le composant est partagé, son fichier cite
+  la vue des clients). Serveur : `GestionnaireClients` accepte `actif` (via
+  `ReferentielClientService` + `DroitArchivageService`, comme les fournisseurs) ;
+  un archivage refusé rejette TOUTE l'opération. L'`AligneurCatalogue._client`
+  applique `actif` (plus d'« archive non portée » pour les clients) et retient
+  l'origine du client (`connuDuServeur`). Comme à la PWA, les sélecteurs de
+  clients proposent encore les archivés.
+- **Avoir partiel** : `FactureDao.emettreAvoirPartiel` — la règle est celle du
+  SERVICE (`emettreAvoir` : jamais plus que le TTC, avoirs non cumulés), le TTC
+  entier reste l'annulation (`annuler`). L'avoir est une pièce à lui, d'UNE ligne
+  « Avoir partiel — motif » (quantité −1), la facture reste émise ; reste dû =
+  `creances.dart`, formule inchangée. Il part en `{montant (francs), motif,
+  avoir_id}` : l'avoir naît au serveur sous l'UUID du poste (`avoir_id`), rend
+  SON numéro (`numero_avoir`, `avoir_id`) que `FactureDao.regulariserAvoir` pose
+  — depuis la réponse d'envoi OU depuis la descente (`_avoir` reconnaît son id).
+  `avoirProvisoireDe` ne sert plus que l'avoir d'une facture ANNULÉE ici. Pas de
+  garde Q3 sur l'avoir partiel (il n'annule rien ; la PWA l'ouvre à tout compte
+  M2) ; l'annulation, elle, la garde.
+- **Ancrages extérieurs** : `charges_relances_archivage_avoir_contre_serveur_test`
+  (le vrai `SynchronisationService`, ce que le serveur a ÉCRIT est relu),
+  `messages_relance_test` (PHP exécuté), et côté serveur
+  `RelancesEtArchivageClientsSynchronisationTest`, `AvoirPartielSynchronisationTest`.
+- **Pièges** : `TestWidgetsFlutterBinding` + deux `monter()` dans un test avec des
+  `ProviderScope` différents réutilise le premier état — un test par rôle ; le
+  message de succès d'un `SnackBar` bloque le suivant 4 s (`pump(5 s)`).
+
 ## Exploitation : cron et vérifications (19/10/2026)
 
 `docs/LISTE_DES_CRON_JOBS_CPANEL.md` (une ligne cron `schedule:run`, test

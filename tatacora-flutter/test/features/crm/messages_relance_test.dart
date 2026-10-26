@@ -39,7 +39,7 @@ void main() {
         php(r'echo json_encode(__("pwa.clients"), JSON_UNESCAPED_UNICODE);')
             as Map<String, dynamic>;
     // Prouvé non vide : une extraction ratée rendrait tout vrai à vide.
-    expect(crm['archivage'], isA<Map>());
+    expect(crm['archivage'], isA<Map<String, dynamic>>());
     expect(pwa['modale_relance_titre'], isNotNull);
   });
 

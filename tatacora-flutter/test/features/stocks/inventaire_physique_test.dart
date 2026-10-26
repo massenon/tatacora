@@ -255,7 +255,7 @@ void main() {
 
         final types = [
           for (final o in nouvelles.skip(1))
-            jsonDecode(o.payload)['type_mouvement'],
+            (jsonDecode(o.payload) as Map<String, dynamic>)['type_mouvement'],
         ];
         expect(types..sort(), ['inventaire', 'perte']);
         final entree = nouvelles

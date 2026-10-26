@@ -67,4 +67,10 @@ echo json_encode([
     'cout_negatif' => $langue['cout_negatif'],
     'refus_journalier' => $languePwa['mouvement']['refus_journalier'],
     'motif_ouverture' => $languePwa['article']['stock_ouverture_motif'],
+    // 21/10/2026 : l'archivage d'un article et l'inventaire physique.
+    'archivage' => $languePwa['archivage'],
+    'inventaires' => $languePwa['inventaires'],
+    'quantite_negative' => $langue['quantite_negative'],
+    'inventaire_incomplet' => $langue['inventaire_incomplet'],
+    'motif_regularisation' => $langue['motif_regularisation'],
 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

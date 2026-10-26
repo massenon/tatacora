@@ -36,6 +36,18 @@ declare(strict_types=1);
 
 const BASE_AUTORISEE = 'tatacora_test';
 
+// Une base d'ESSAI privee (`TATACORA_BASE_ESSAI=tatacora_<nom>_test`) peut
+// remplacer `tatacora_test` quand plusieurs essais tournent en meme temps : la
+// base partagee est alors migree sous les pieds de l'un ou de l'autre. Le nom
+// doit finir par `test` — la base de developpement reste refusee.
+$baseEssai = (static function (): string {
+    $voulue = getenv('TATACORA_BASE_ESSAI');
+
+    return is_string($voulue) && preg_match('/^tatacora_[a-z0-9_]*test$/', $voulue) === 1
+        ? $voulue
+        : BASE_AUTORISEE;
+})();
+
 $api = realpath(__DIR__ . '/../../../tatacora-api');
 
 if ($api === false || ! is_file($api . '/vendor/autoload.php')) {
@@ -52,9 +64,9 @@ if (! is_array($lot) || ! isset($lot['operations'], $lot['aujourdhui'], $lot['po
 
 // La base est choisie AVANT l'amorcage : le fichier `.env` ne l'emporte pas sur
 // une variable deja posee.
-putenv('DB_DATABASE=' . BASE_AUTORISEE);
-$_ENV['DB_DATABASE'] = BASE_AUTORISEE;
-$_SERVER['DB_DATABASE'] = BASE_AUTORISEE;
+putenv('DB_DATABASE=' . $baseEssai);
+$_ENV['DB_DATABASE'] = $baseEssai;
+$_SERVER['DB_DATABASE'] = $baseEssai;
 
 chdir($api);
 require $api . '/vendor/autoload.php';
@@ -79,8 +91,8 @@ use Illuminate\Support\Str;
 
 $base = (string) config('database.connections.' . config('database.default') . '.database');
 
-if ($base !== BASE_AUTORISEE) {
-    fwrite(STDERR, "Refus : la base active est \u{ab} {$base} \u{bb}, pas \u{ab} " . BASE_AUTORISEE . " \u{bb}.\n");
+if ($base !== $baseEssai) {
+    fwrite(STDERR, "Refus : la base active est \u{ab} {$base} \u{bb}, pas \u{ab} {$baseEssai} \u{bb}.\n");
     exit(1);
 }
 
@@ -152,7 +164,20 @@ try {
             $ligne = DB::table($table)->where('id', $id)->first();
 
             if ($ligne !== null) {
-                $etats[$table . ':' . (string) $lot['operations'][$rang]['entite_id']] = (array) $ligne;
+                $etat = (array) $ligne;
+
+                // Un inventaire se lit AVEC ses lignes comptees (21/10/2026) :
+                // le document est atomique, et ses valeurs doivent se verifier.
+                if ($table === 'inventaires') {
+                    $etat['lignes'] = DB::table('lignes_inventaire')
+                        ->where('inventaire_id', $id)
+                        ->orderBy('article_id')
+                        ->get(['article_id', 'quantite_theorique', 'quantite_constatee', 'ecart'])
+                        ->map(static fn (object $l): array => (array) $l)
+                        ->all();
+                }
+
+                $etats[$table . ':' . (string) $lot['operations'][$rang]['entite_id']] = $etat;
             }
         }
 

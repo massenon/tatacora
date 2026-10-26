@@ -6,7 +6,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tatacora_flutter/core/database/app_database.dart';
 import 'package:tatacora_flutter/core/di/providers.dart';
-import 'package:tatacora_flutter/core/fichiers/selecteur_fichiers.dart';
 import 'package:tatacora_flutter/core/format/formats.dart';
 import 'package:tatacora_flutter/core/rbac/garde_acces.dart';
 import 'package:tatacora_flutter/core/theme/app_theme.dart';
@@ -237,7 +236,11 @@ void main() {
       await toucher(tester, const Key('stocks-supprimer-riz'));
 
       expect(find.text('Archivage impossible'), findsOneWidget);
-      expect(find.text(MessagesStock.verrouStock('10.00')), findsOneWidget);
+      // Le motif porte le NOM de l'article (« Riz local — … »), comme le serveur.
+      expect(
+        find.text('Riz local — ${MessagesStock.verrouStock('10.00')}'),
+        findsOneWidget,
+      );
       // Le bouton DISPARAÎT (il n'est pas grisé) : le laisser visible et inerte
       // laisserait croire à une panne.
       expect(find.byKey(const Key('achats-archivage-confirmer')), findsNothing);
@@ -524,8 +527,11 @@ void main() {
       await saisir(tester, const Key('comptage-quantite'), '-3');
       await toucher(tester, const Key('comptage-enregistrer'));
       expect(
-        texteDe(tester, const Key('comptage-refus')),
-        MessagesStock.quantiteNegative,
+        find.descendant(
+          of: find.byKey(const Key('comptage-refus')),
+          matching: find.text(MessagesStock.quantiteNegative),
+        ),
+        findsOneWidget,
       );
       expect(find.byKey(const Key('modale-comptage')), findsOneWidget);
 

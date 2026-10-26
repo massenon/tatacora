@@ -663,7 +663,8 @@ void main() {
   group('archives et centres de coût', () {
     test(
       'fournisseur archivé → `actif` faux ; unité hors service → '
-      '`hors_service` ; article archivé → reste, et le bilan le dit',
+      '`hors_service` ; article archivé → `actif` faux (21/10/2026 : appliqué, '
+      'plus « il reste »)',
       () async {
         final bilan = await b
             .descente(
@@ -692,8 +693,10 @@ void main() {
               ),
             )
             .descendre((await b.lecteur.appairage())!, surRefus: (_) async {});
-        expect((bilan.appliques, bilan.archivesNonPortees), (4, 1));
+        // Plus aucune archive n'est « non portée » : l'article l'est aussi.
+        expect((bilan.appliques, bilan.archivesNonPortees), (4, 0));
         expect(await ligne('articles_local', 'art-1'), isNotNull);
+        expect((await ligne('articles_local', 'art-1'))!['actif'], 0);
         expect(
           (await ligne('unites_hebergement_local', 'u-1'))!['statut'],
           'hors_service',
