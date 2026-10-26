@@ -1,3 +1,4 @@
+import '../../comptabilite/domain/correspondance_comptes.dart';
 import 'entities/parametre.dart';
 import 'regles_parametres.dart';
 import 'registre_parametres_local.dart';
@@ -32,6 +33,20 @@ String refusCleInconnue(String cle) =>
     'cet écran : une clé que rien ne lit donnerait l’illusion d’un réglage '
     'sans effet.';
 
+/// Juge le compte choisi pour un rôle de la correspondance : la phrase du
+/// refus, ou `null`. Le cas d'usage ne lit pas le plan comptable : l'appelant
+/// (le fournisseur de l'écran) lui prête cette lecture — voir
+/// `verifierCompteDuRoleSurPlan` pour la règle, pure.
+typedef VerificateurCompteDuRole =
+    Future<String?> Function(RoleCompte role, String numero);
+
+/// Une clé `compte_<rôle>` soumise sans verificateur : refusée. Fermer par
+/// défaut (un compte jamais confronté au plan serait imputé sur des pièces
+/// validées, donc immuables), ouvrir par câblage.
+const String refusVerificateurComptesAbsent =
+    'La correspondance des comptes ne peut pas être enregistrée : le plan '
+    'comptable de ce poste n’est pas disponible pour la vérifier.';
+
 const String messageEnregistre = 'Paramètres enregistrés.';
 const String messageAucunChangement = 'Aucune valeur modifiée.';
 
@@ -56,9 +71,14 @@ const String messageAucunChangement = 'Aucune valeur modifiée.';
 /// @see RG-10 paramétrage sans déploiement
 /// @see PA-62 / PA-124 cohérence de l'état résultant
 class EnregistrerParametres {
-  const EnregistrerParametres(this._stockage);
+  const EnregistrerParametres(this._stockage, {this.verifierCompte});
 
   final StockageParametres _stockage;
+
+  /// La vérification des clés `compte_<rôle>` contre le plan comptable
+  /// (existence, classe du rôle, compte imputable) — celle du serveur
+  /// (`EnregistrerParametreService::verifierComptes`).
+  final VerificateurCompteDuRole? verifierCompte;
 
   Future<ResultatEcriture> executer(
     Map<String, Object?> soumis, {
@@ -89,6 +109,21 @@ class EnregistrerParametres {
         case ValeurRefusee(:final motif):
           erreurs[e.key] = motif;
       }
+    }
+    // La correspondance des comptes : chaque clé `compte_<rôle>` non vidée est
+    // jugée contre le plan (le serveur le fait pour toute écriture, la
+    // synchronisation comprise ; ce poste le fait avant d'écrire).
+    for (final e in normalisees.entries) {
+      final role = RolesCorrespondance.parCle(e.key);
+      final numero = e.value;
+      if (role == null || numero == null || erreurs.containsKey(e.key)) {
+        continue;
+      }
+      final verificateur = verifierCompte;
+      final refus = verificateur == null
+          ? refusVerificateurComptesAbsent
+          : await verificateur(role, numero);
+      if (refus != null) erreurs[e.key] = refus;
     }
     if (erreurs.isNotEmpty) {
       return EcritureRefusee(motif: erreurs.values.first, parCle: erreurs);

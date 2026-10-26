@@ -11,6 +11,8 @@
 ///      DEUX sens
 library;
 
+import '../../comptabilite/domain/messages_comptables.dart';
+import '../../comptabilite/domain/regle_numero_compte.dart';
 import 'entities/parametre.dart';
 import 'registre_parametres_local.dart';
 
@@ -148,6 +150,17 @@ Normalisation normaliser(SpecParametre spec, Object? brut) {
           !_motifCourriel.hasMatch(texte)) {
         return ValeurRefusee(
           '« ${spec.libelle} » n’est pas une adresse électronique valide.',
+        );
+      }
+      // Le numéro d'un compte de la correspondance : LA règle du plan
+      // (`RegleNumeroCompte`, `PlanComptableService::NUMERO_COMPTE_FORMAT`), et
+      // la phrase du serveur, mot pour mot.
+      if (spec.format == FormatTexte.numeroCompte &&
+          !RegleNumeroCompte.format.hasMatch(texte)) {
+        return ValeurRefusee(
+          MessagesComptables.dire('comptabilite.compte_numero_invalide', {
+            'numero': texte,
+          }),
         );
       }
       return ValeurNormalisee(texte);

@@ -332,7 +332,9 @@ abstract final class RubriquesBilan {
   static const creances = ['411'];
   static const tresorerieActif = ['521', '522', '55', '571', '572', '573'];
   static const capital = ['101'];
-  static const resultatReporte = ['131', '139'];
+  // Tout le groupe 13 (`RESULTAT_REPORTE`) : la correspondance des comptes
+  // (26/10/2026) peut rattacher le résultat à un autre compte de la classe 13.
+  static const resultatReporte = ['13'];
   static const dettesCirculantes = ['401', '4191', '421', '422', '431', '447'];
   static const tresoreriePassif = ['561', '564', '565', '566'];
 
@@ -467,16 +469,16 @@ final class DonneesEtats {
     required this.ecrituresParAnnee,
     required this.statutParAnnee,
     required this.plan,
-  });
-
     this.anneesAvecClotureActive = const {},
-  final Map<int, List<EcritureServeur>> ecrituresParAnnee;
+  });
 
   /// Les années dont la clôture est ENREGISTRÉE sur ce poste et non rouverte
   /// (`clotures_exercices_local`, v40) : c'est ce qui rend l'ouverture de
   /// l'exercice suivant « connue » même quand la clôture n'a écrit aucune pièce
   /// d'à-nouveaux (`BalanceGeneraleService::soldesOuverture`, `$connu`).
   final Set<int> anneesAvecClotureActive;
+
+  final Map<int, List<EcritureServeur>> ecrituresParAnnee;
 
   /// Un exercice absent de cette table n'existe pas : pas de N-1 pour lui, pas
   /// de report provisoire.

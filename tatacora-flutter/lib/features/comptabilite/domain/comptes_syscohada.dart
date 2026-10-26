@@ -2,13 +2,22 @@
 /// du Product Owner. RÉPLIQUE de `App\Domain\Comptabilite\Support\ComptesSyscohada`
 /// du serveur (décision du PO du 10/10/2026 : le serveur est la référence).
 ///
-/// ⚠ **À VALIDER PAR LE COMPTABLE** — comme au serveur : la correspondance a été
-/// établie par le lead à partir de sources secondaires, le texte officiel de
-/// l'AUDCIF n'a pas été consulté. Le fichier du PO fait foi. Elle n'est pas
-/// recopiée ici « à peu près » : `comptes_syscohada_contre_serveur_test.dart`
-/// EXÉCUTE PHP, relit la classe du serveur par réflexion et exige l'égalité
-/// exacte, dans les deux sens (aucun rôle en trop, aucun manquant, aucun
-/// numéro différent).
+/// ## Ces numéros sont des VALEURS PAR DÉFAUT (décision du PO du 26/10/2026)
+///
+/// « On peut impérativement modifier les comptes sur poste et le web » : chaque
+/// rôle de [RolesCorrespondance] se change à l'écran « Correspondance des
+/// comptes » (un paramètre `compte_<rôle>`, dernier écrit gagnant, synchronisé
+/// avec le serveur), et la constante ci-dessous est ce que le rôle vaut tant
+/// qu'AUCUN compte n'est choisi. Le moteur comptable lit la correspondance AU
+/// MOMENT de passer la pièce (`LigneDemandee.role`), avec repli sur le défaut.
+/// Une pièce déjà passée n'est JAMAIS réécrite (RG-11).
+///
+/// Les comptes 7073 (Locations, M8), 7061 (services vendus, circuits M9) et
+/// 4432 (TVA sur prestations) sont VALIDÉS PAR LE PO le 26/10/2026.
+///
+/// `comptes_syscohada_contre_serveur_test.dart` EXÉCUTE PHP, relit la classe du
+/// serveur par réflexion et exige l'égalité exacte, dans les deux sens (aucun
+/// rôle en trop, aucun manquant, aucun numéro différent).
 ///
 /// ## Aucun compte inventé
 ///
@@ -42,6 +51,11 @@ abstract final class ComptesSyscohada {
   static const mobileMoney = '552';
   static const produitPrestations = '7061';
   static const produitMarchandises = '7011';
+
+  /// Circuits touristiques (M9) : son PROPRE rôle depuis le 26/10/2026, pour
+  /// qu'un changement du compte du restaurant ne déplace pas les circuits. Même
+  /// numéro par défaut que [produitPrestations].
+  static const produitCircuits = '7061';
   static const produitLocations = '7073';
   static const achatsMarchandises = '6011';
   static const electricite = '6052';
@@ -66,6 +80,7 @@ abstract final class ComptesSyscohada {
     'MOBILE_MONEY': mobileMoney,
     'PRODUIT_PRESTATIONS': produitPrestations,
     'PRODUIT_MARCHANDISES': produitMarchandises,
+    'PRODUIT_CIRCUITS': produitCircuits,
     'PRODUIT_LOCATIONS': produitLocations,
     'ACHATS_MARCHANDISES': achatsMarchandises,
     'ELECTRICITE': electricite,
@@ -98,6 +113,15 @@ abstract final class ComptesSyscohada {
     'OD': 'Journal des opérations diverses',
   };
 
+  /// Les DEUX journaux que SEULE la clôture annuelle écrit (26/10/2026) : `CL`
+  /// (le solde des comptes de gestion) et `AN` (les à-nouveaux). Le serveur les
+  /// crée par la migration de la clôture, pas par son seeder — d'où cette liste
+  /// à part de [journaux] (relue du serveur par `cloture_contre_serveur_test.dart`).
+  static const journauxDeCloture = <String, String>{
+    'AN': 'Journal des à-nouveaux',
+    'CL': 'Journal de clôture',
+  };
+
   /// Numéro de compte -> libellé du centre par défaut
   /// (`ComptabiliteReferentielSeeder::CENTRE_PAR_DEFAUT`). Suggestion de saisie
   /// uniquement.
@@ -113,15 +137,6 @@ abstract final class ComptesSyscohada {
     '5211': 'Structure',
     '552': 'Structure',
     '5711': 'Hébergement',
-  /// Les DEUX journaux que SEULE la clôture annuelle écrit (26/10/2026) : `CL`
-  /// (le solde des comptes de gestion) et `AN` (les à-nouveaux). Le serveur les
-  /// crée par la migration de la clôture, pas par son seeder — d'où cette liste
-  /// à part de [journaux] (relue du serveur par `cloture_contre_serveur_test.dart`).
-  static const journauxDeCloture = <String, String>{
-    'AN': 'Journal des à-nouveaux',
-    'CL': 'Journal de clôture',
-  };
-
   };
 
   /// Registre fermé des natures d'un compte (`PlanComptableService::NATURES`).

@@ -9,6 +9,7 @@ import '../../features/auth/presentation/ecran_demarrage.dart';
 import '../../features/bar/presentation/ecran_carte_bar.dart';
 import '../../features/bar/presentation/ecran_catalogue_boissons.dart';
 import '../../features/comptabilite/presentation/ecran_comptabilite.dart';
+import '../../features/comptabilite/presentation/ecran_correspondance_comptes.dart';
 import '../../features/transverse/presentation/ecran_aide_a_propos.dart';
 import '../../features/transverse/presentation/ecran_comptes_utilisateurs.dart';
 import '../../features/transverse/presentation/ecran_contact_editeur.dart';
@@ -445,6 +446,13 @@ final routeurProvider = Provider<GoRouter>((ref) {
             builder: (context, state) => EcranComptabilite(
               ongletInitial: state.uri.queryParameters['onglet'],
             ),
+          ),
+          // « Correspondance des comptes » (PO, 26/10/2026) : le compte de chaque
+          // rôle, modifiable. Sous-route de `/comptabilite` : elle hérite du
+          // module M10 par préfixe (`accesRoute`).
+          GoRoute(
+            path: '/comptabilite/correspondance-comptes',
+            builder: (context, state) => const EcranCorrespondanceComptes(),
           ),
           GoRoute(
             path: '/import-export',

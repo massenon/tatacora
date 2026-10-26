@@ -13,6 +13,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/mesures_transverses.dart' show PaletteTransverse;
 import '../../../core/theme/mesures_transverses_complement.dart';
 import '../../../shared_widgets/bouton_standard.dart';
+import '../../comptabilite/data/comptabilite_dao.dart';
 import '../data/parametres_depot_local.dart';
 import '../domain/enregistrer_parametres.dart';
 import '../domain/entities/parametre.dart';
@@ -61,7 +62,14 @@ final stockageParametresProvider = Provider<StockageParametres>(
 );
 
 final enregistrerParametresProvider = Provider<EnregistrerParametres>(
-  (ref) => EnregistrerParametres(ref.watch(stockageParametresProvider)),
+  (ref) => EnregistrerParametres(
+    ref.watch(stockageParametresProvider),
+    // La correspondance des comptes (26/10/2026) se juge sur le plan de CE
+    // poste : le même cas d'usage écrit ses clés `compte_<rôle>`.
+    verifierCompte: ComptabiliteDao(
+      ref.watch(baseLocaleProvider),
+    ).verifierCompteDuRole,
+  ),
 );
 
 /// Le motif affiché quand le droit de lecture manque. La route filtre déjà
@@ -218,9 +226,12 @@ class _PageState extends ConsumerState<_Page> {
   }
 
   Widget _contenu(Parametres p, bool peutEcrire) {
+    // Les clés `compte_<rôle>` (groupe `comptes`) ont leur PROPRE écran,
+    // « Correspondance des comptes » : elles ne se montrent pas ici, comme
+    // sur la vue (`Parametres::render`).
     List<DefinitionParametre> de(bool Function(DefinitionParametre) f) => [
       for (final d in p.definitions)
-        if (_ongletDe(d) == _onglet && f(d)) d,
+        if (d.groupe != 'comptes' && _ongletDe(d) == _onglet && f(d)) d,
     ];
 
     Widget ligne(DefinitionParametre d) => _LigneParametre(

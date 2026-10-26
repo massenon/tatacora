@@ -10,6 +10,7 @@ import '../domain/etats_financiers.dart' show CompteDeReport;
 import 'ecritures_serveur_dao.dart' show EcritureServeur;
 import '../domain/messages_comptables.dart';
 import '../domain/refus_comptable.dart';
+import '../domain/regle_numero_compte.dart';
 
 /// Accès Drift au moteur comptable — **local pur**. Il ne rend que des entités
 /// du domaine, jamais une ligne Drift.
@@ -96,6 +97,42 @@ class ComptabiliteDao extends DatabaseAccessor<AppDatabase> {
       attachedDatabase.planComptableLocal,
     )..where((c) => c.numeroCompte.equals(numero))).getSingleOrNull();
     return r == null ? null : _compte(r);
+  }
+
+  /// Le compte d'un RÔLE comptable à l'instant de la lecture : la valeur du
+  /// paramètre `compte_<rôle>` (`parametres_systeme_local`), à défaut — clé
+  /// absente ou vide — le compte par défaut du rôle. Lecture seule : l'écriture
+  /// est celle du seul `EnregistrerParametres`.
+  ///
+  /// Un rôle hors registre LÈVE : un numéro deviné serait une pièce imputée au
+  /// hasard.
+  Future<String> compteDuRole(String code) async {
+    final role = RolesCorrespondance.parCode(code);
+    if (role == null) {
+      throw ArgumentError.value(code, 'code', 'Rôle comptable inconnu.');
+    }
+    final ligne = await (select(
+      attachedDatabase.parametresSystemeLocal,
+    )..where((p) => p.cle.equals(role.cle))).getSingleOrNull();
+    final choisi = ligne?.valeur.trim() ?? '';
+    return choisi.isEmpty ? role.defaut : choisi;
+  }
+
+  /// Les quatre refus de la correspondance, jugés sur le plan de CE poste
+  /// (`verifierCompteDuRole` : format, existence, classe du rôle, compte
+  /// imputable) — la phrase du refus, ou `null`.
+  Future<String?> verifierCompteDuRole(RoleCompte role, String numero) async {
+    final compte = RegleNumeroCompte.format.hasMatch(numero)
+        ? await compteParNumero(numero)
+        : null;
+    final division =
+        compte != null && numero.length < 4 && await aDesSousComptes(numero);
+    return verifierCompteDuRoleSurPlan(
+      role: role,
+      numero: numero,
+      compte: compte,
+      aDesSousComptes: division,
+    );
   }
 
   Future<CompteDuPlan?> compteParId(String id) async {
@@ -533,43 +570,6 @@ class ComptabiliteDao extends DatabaseAccessor<AppDatabase> {
     );
   }
 
-  Future<CompteDuPlan> insererCompte({
-    required String numero,
-    required String libelle,
-    required String nature,
-  }) async {
-    final id = nouvelId();
-    await into(attachedDatabase.planComptableLocal).insert(
-      PlanComptableLocalCompanion.insert(
-        id: id,
-        numeroCompte: numero,
-        libelle: libelle,
-        classe: numero.substring(0, 1),
-        nature: Value(nature),
-      ),
-    );
-    return (await compteParId(id))!;
-  }
-
-  /* ================================================================== */
-  /* Traduction des gardes de la base                                    */
-  /* ================================================================== */
-
-  /// Rend le refus du domaine qui correspond à une exception de la base.
-  ///
-  /// * un trigger de RG-11 -> la phrase EXACTE du serveur (l'équivalent de
-  ///   `EcritureImmuableException`) ;
-  /// * une contrainte `CHECK`, une clé étrangère ou un `NOT NULL` -> le refus
-  ///   `contrainteBase` (le serveur répond par une erreur SQL, sans phrase) ;
-  /// * toute autre exception rend `null` : une panne de disque n'est pas un
-  ///   refus comptable, et la déguiser le cacherait. L'appelant la relève.
-  static RefusComptable? traduireRefusBase(Object erreur) {
-    if (erreur is RefusComptable) return erreur;
-    final texte = erreur.toString();
-    if (texte.contains(CodesRefusBase.ecritureImmuable)) {
-      return RefusComptable.dit(
-        MotifRefus.ecritureImmuable,
-        CodesRefusBase.ecritureImmuable,
   /// Le statut d'un exercice qui CHANGE — les gestes de la clôture
   /// (démarrer, reprendre la saisie, clôturer, rouvrir). [cloture] pose la date
   /// et l'auteur de la clôture ; sans lui, les deux sont EFFACÉS (un exercice
@@ -826,6 +826,43 @@ class ComptabiliteDao extends DatabaseAccessor<AppDatabase> {
     attachedDatabase.ecrituresLocal,
   )..where((e) => e.id.equals(ecritureId))).getSingleOrNull())?.numeroPiece;
 
+  Future<CompteDuPlan> insererCompte({
+    required String numero,
+    required String libelle,
+    required String nature,
+  }) async {
+    final id = nouvelId();
+    await into(attachedDatabase.planComptableLocal).insert(
+      PlanComptableLocalCompanion.insert(
+        id: id,
+        numeroCompte: numero,
+        libelle: libelle,
+        classe: numero.substring(0, 1),
+        nature: Value(nature),
+      ),
+    );
+    return (await compteParId(id))!;
+  }
+
+  /* ================================================================== */
+  /* Traduction des gardes de la base                                    */
+  /* ================================================================== */
+
+  /// Rend le refus du domaine qui correspond à une exception de la base.
+  ///
+  /// * un trigger de RG-11 -> la phrase EXACTE du serveur (l'équivalent de
+  ///   `EcritureImmuableException`) ;
+  /// * une contrainte `CHECK`, une clé étrangère ou un `NOT NULL` -> le refus
+  ///   `contrainteBase` (le serveur répond par une erreur SQL, sans phrase) ;
+  /// * toute autre exception rend `null` : une panne de disque n'est pas un
+  ///   refus comptable, et la déguiser le cacherait. L'appelant la relève.
+  static RefusComptable? traduireRefusBase(Object erreur) {
+    if (erreur is RefusComptable) return erreur;
+    final texte = erreur.toString();
+    if (texte.contains(CodesRefusBase.ecritureImmuable)) {
+      return RefusComptable.dit(
+        MotifRefus.ecritureImmuable,
+        CodesRefusBase.ecritureImmuable,
       );
     }
     if (texte.contains(CodesRefusBase.suppressionInterdite)) {

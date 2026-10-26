@@ -1139,7 +1139,7 @@ zéro.
 
 **L'écran Paramètres est LOCAL depuis le 09/10/2026** (Drift v11, table
 `parametres_systeme_local`, décisions D104–D114 du ticket) : plus aucun appel
-réseau. Son registre fermé de 31 clés est relu du serveur par un test (PHP
+réseau. Son registre fermé de 46 clés (31 + les 15 `compte_<rôle>` de la correspondance des comptes) est relu du serveur par un test (PHP
 exécuté, `tool/parametres/exporter_registre.php`) ; une clé inconnue est refusée,
 aucune valeur réglementaire n'est posée par défaut, aucun secret n'entre en base.
 Seul `EnregistrerParametres` écrit ; les taux de paie passent par `PaieDao`. Les
@@ -1210,8 +1210,9 @@ en phrase du serveur. Séquence des pièces = compteur persisté (journal, anné
 alloué dans la transaction de la pièce. Plan comptable = le fichier du PO
 (SYSCOHADA révisé, 1332 comptes, 4 chiffres au maximum), asset octet-identique à
 la copie du serveur, installé au démarrage par `installerReferentielComptable`,
-jamais dans la migration. La correspondance rôle → compte (`ComptesSyscohada`,
-« à valider par le comptable ») est confrontée par PHP à celle du serveur. Les
+jamais dans la migration. La correspondance rôle → compte (`ComptesSyscohada`)
+est confrontée par PHP à celle du serveur : ses numéros sont les DÉFAUTS d'une
+correspondance modifiable (voir « Correspondance des comptes » plus bas). Les
 refus sont ceux du serveur, relus par PHP. Tout test qui lance PHP porte
 `@Timeout(Duration(minutes: 2))` ; `rejouer_scenario.php` exige MySQL
 `tatacora_test`. L'exercice de l'année courante s'ouvre à chaque démarrage
@@ -1312,6 +1313,72 @@ tableur ne sait pas additionner « 56 000 FCFA ».
 - **Remise** : `paniers_local.remise_type/remise_valeur_centiemes`, formule répliquée en centimes (`pos/domain/remise_panier.dart`), jugée à la saisie ET à l'encaissement ; pièce VTE sur le net (`ventilerAuNet`, dernier module = écart), `montantCloture` = net arrondi au franc (écart nommé : les centimes ne vivent que dans la pièce), vente envoyée avec type + valeur seulement si une remise existe, facture avec lignes négatives par module. Confronté au serveur dans `ventes_contre_serveur_test.dart` et `charges_contre_serveur_test.dart`.
 - Piège : le comparateur de ventes lit le NET de la pièce (débit), pas `montantCloture`.
 
+## Correspondance des comptes — les comptes SE MODIFIENT (26/10/2026, décision du PO)
+
+« ON PEUT IMPÉRATIVEMENT MODIFIER LES COMPTES SUR POSTE ET LE WEB. » Les comptes
+7073 (Locations, M8), 7061 (services vendus, circuits M9) et 4432 (TVA sur
+prestations) sont **validés par le PO le 26/10/2026** ; le comptable peut encore
+changer n'importe quel rôle à l'écran.
+
+- **Les constantes de `ComptesSyscohada` sont des DÉFAUTS.** Quinze RÔLES sont
+  modifiables (`RolesCorrespondance`, relu du serveur par
+  `correspondance_comptes_contre_serveur_test`) : produits restaurant / bar /
+  location / circuits (`PRODUIT_CIRCUITS` est NEUF : M9 ne partage plus M4), TVA
+  facturée biens et prestations, TVA récupérable, caisse / banque / Mobile
+  Money, clients, fournisseurs, avances clients, résultat bénéfice / perte. Les
+  cinq comptes de CHARGE (achats, électricité, eau, location, téléphone) n'en
+  sont PAS : le compte d'une charge se choisit ligne par ligne à la saisie d'une
+  dépense, un réglage sans lecteur serait l'indicateur qui affirme sans vérifier.
+- **Stockage : aucun schéma.** Un rôle = un paramètre `compte_<rôle en
+  minuscules>` de `parametres_systeme_local` (registre fermé, groupe `comptes`,
+  quinze clés de plus : 46 en tout, côté serveur comme côté poste). Dernier
+  écrit gagnant, clé par clé, par le chemin des autres paramètres : le poste
+  enfile UN enregistrement (le Journal d'Audit du poste le relit), le serveur le
+  passe par `EnregistrerParametreService` (audit avec l'ancienne valeur), la
+  descente le pose sans rien renvoyer. Vide / absent = le défaut.
+- **Une règle de validation, DEUX endroits, les mêmes phrases** : format
+  `RegleNumeroCompte` (`PlanComptableService::NUMERO_COMPTE_FORMAT`), compte
+  existant au plan, classe cohérente avec le rôle (produit : 7, TVA collectée :
+  443, TVA récupérable : 445, trésorerie : 5, clients : 411, fournisseurs : 401,
+  avances : 419, résultat : 13), compte imputable (pas une division). Au serveur
+  la validation vit DANS `EnregistrerParametreService` (donc l'écran ET la
+  synchronisation d'un poste) ; au poste dans `EnregistrerParametres`
+  (`verifierCompte`, fermé par défaut : sans vérificateur, une clé de rôle est
+  refusée). `rejouer_correspondance.php` rejoue 1 185 opérations contre le vrai
+  service.
+- **Le moteur lit au moment de passer la pièce.** `LigneDemandee(role: …)` : le
+  moteur résout le rôle (`ComptabiliteDao.compteDuRole`) dans la transaction de
+  la pièce ; une ligne sans rôle garde son numéro. Serveur : `CorrespondanceComptesService`
+  injecté dans VenteService (M4/M5/M8/M9, TVA, clients, trésorerie),
+  ReservationService, AnnulationReservationService, EncaissementFactureService,
+  ReglementFournisseurService, DepenseService, ClotureExerciceService. Un compte
+  choisi sans centre par défaut au plan ne bloque pas la pièce : la ligne qui
+  nomme son rôle retombe sur le centre du compte PAR DÉFAUT du rôle (jamais un
+  centre inventé).
+- **RG-11 : une pièce déjà passée n'est JAMAIS réécrite.** L'écran le DIT en
+  tête. Les états qui relisent un compte sur une période (déclaration de TVA)
+  lisent le compte choisi ET le défaut (`comptesLus`) ; les valeurs
+  intermédiaires d'un rôle changé plusieurs fois ne sont retrouvées que dans le
+  journal d'audit (écart assumé). Le bilan lit tout le groupe 13
+  (`RESULTAT_REPORTE = ['13']`, serveur et poste) : un résultat reporté sur un
+  autre compte de la classe 13 ne le déséquilibre pas.
+- **Écran** : « Correspondance des comptes », lien de l'onglet Plan du hub
+  (`/pwa/comptabilite/correspondance-comptes`, poste
+  `/comptabilite/correspondance-comptes`) ; vue Blade
+  `correspondance-comptes.blade.php`, libellés de `lang/fr/comptes_correspondance.php`
+  repris au mot (les mots de la MODALE sont des littéraux de l'écran : le
+  comparateur ne cherche une modale que dans les fichiers qui portent la vue ;
+  un test les égale à la langue). Droit : M10 (lecture pour voir, écriture
+  pour modifier : administrateurs, gérant, comptable). Les clés `compte_*` ne se
+  montrent PAS dans l'écran Paramètres.
+- **Écart assumé** : TVA récupérable, résultat bénéfice et perte n'ont aucun
+  lecteur sur le POSTE (déclaration de TVA et clôture sont au serveur) : leur
+  ligne le dit (`serveurSeul`), et le registre local les déclare sans lecteur.
+- **Parité prouvée contre le VRAI PHP** (un scénario `_scenarioCorrespondance`
+  par flux, mêmes ops des deux côtés) : ventes (`ventes_contre_serveur_test`),
+  règlement fournisseur, encaissement de facture, acompte et remboursement,
+  dépense. Les cinq outils `tool/*/rejouer_*.php` ont une opération `parametre`.
+
 ## Tourisme et location au comptoir (22/10/2026)
 
 > **RETIRÉS DE LA SÉLECTION (26/10/2026, directive du PO)** : « il faut enlever
@@ -1341,7 +1408,8 @@ poste comme au web. » Le serveur les REFUSAIT aussi (`VenteService::MODULES_ENC
   centre « Véhicules » ; M9 (tourisme, `circuits.prix`) crédite **7061** « services
   vendus » (le plan du PO n'a pas de compte dédié aux circuits), centre
   « Tourisme » ; la TVA des deux va sur **4432** (prestations). Ordre de la pièce :
-  M4, M5, M8, M9. Comptes « à valider par le comptable », comme le reste.
+  M4, M5, M8, M9. Comptes 7073, 7061 et 4432 **validés par le PO le 26/10/2026**
+  (et modifiables : voir « Correspondance des comptes »).
 - **Quantité** : un nombre de places (circuit) ou de jours (véhicule), au prix
   du catalogue local. Aucune sortie de stock (ni au poste ni au serveur) ;
   `annuler()` du serveur n'exige plus le point « bar » s'il n'y a pas de boisson.

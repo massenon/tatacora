@@ -526,11 +526,13 @@ try {
                         'modules' => VenteService::MODULES,
                         'modules_encaissables' => VenteService::MODULES_ENCAISSABLES,
                         'journal' => VenteService::JOURNAL,
-                        'comptes_produit' => VenteService::COMPTES_PRODUIT,
-                        'comptes_tva' => VenteService::COMPTES_TVA,
+                        // Depuis le 26/10/2026 le registre porte des RÔLES (la
+                        // correspondance des comptes est modifiable), pas des numéros.
+                        'roles_produit' => VenteService::ROLES_PRODUIT,
+                        'roles_tva' => VenteService::ROLES_TVA,
                         'centres_par_module' => VenteService::CENTRES_PAR_MODULE,
                         'contreparties' => VenteService::CONTREPARTIES_TRESORERIE,
-                        'compte_clients' => VenteService::COMPTE_CLIENTS,
+                        'role_clients' => VenteService::ROLE_CLIENTS,
                         'remise_valeur_invalide' => __('ventes.remise_valeur_invalide'),
                         'remise_pourcentage_hors_bornes' => __('ventes.remise_pourcentage_hors_bornes'),
                         'remise_superieure_au_total' => __('ventes.remise_superieure_au_total'),

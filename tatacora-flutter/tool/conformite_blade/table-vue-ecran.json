@@ -57,6 +57,9 @@
     "comptabilite/bilan": [],
     "comptabilite/cloture": [],
     "comptabilite/compte-resultat": [],
+    "comptabilite/correspondance-comptes": [
+      "features/comptabilite/presentation/ecran_correspondance_comptes.dart"
+    ],
     "comptabilite/etats-financiers": [],
     "comptabilite/flux-tresorerie": [],
     "comptabilite/grand-livre": [],
@@ -66,10 +69,10 @@
       "features/comptabilite/presentation/widgets/modale_ecriture.dart",
       "features/comptabilite/presentation/widgets/modales_hub_comptabilite.dart",
       "features/comptabilite/presentation/widgets/modales_immobilisations.dart",
+      "features/comptabilite/presentation/widgets/onglet_clotures.dart",
       "features/comptabilite/presentation/widgets/onglet_immobilisations.dart",
       "shared_widgets/modale_export.dart"
     ],
-      "features/comptabilite/presentation/widgets/onglet_clotures.dart",
     "comptabilite/journal": [],
     "comptabilite/notes-annexes": [],
     "comptabilite/plan-comptable": [],

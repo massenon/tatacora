@@ -2,6 +2,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tatacora_flutter/features/parametres/data/parametres_dao.dart';
 import 'package:tatacora_flutter/core/database/app_database.dart';
 import 'package:tatacora_flutter/features/comptabilite/data/comptabilite_dao.dart';
 import 'package:tatacora_flutter/features/comptabilite/domain/entities/comptabilite.dart';
@@ -160,8 +161,61 @@ void main() {
     {'op': 'libelles'},
   ];
 
+  // LA CORRESPONDANCE DES COMPTES modifiée (26/10/2026) : la MÊME pièce de
+  // dépense, avant et après chaque changement du compte de trésorerie. Les
+  // comptes choisis (5712, 5212, 558) n'ont AUCUN centre par défaut au plan, et
+  // la dépense porte son centre explicite : la pièce passe des deux côtés. Le
+  // compte stocké sur la dépense (`compte_tresorerie`) n'est pas comparé : le
+  // poste n'a pas cette colonne, la pièce porte la même information.
+  final scenarioCorrespondance = <Map<String, Object?>>[
+    // Les DÉFAUTS : 5711, 552, 5211.
+    depense('2031-03-04', 'caisse', 'Marché du matin', [
+      ligne('6011', 'Oignons', 15000, NatureDepense.oignon),
+    ], centre: 'Restaurant'),
+    depense('2031-03-05', 'momo', 'Location minibus', [
+      ligne('6223', 'Minibus', 25000, NatureDepense.transport),
+    ], centre: 'Tourisme'),
+    depense('2031-03-06', 'banque', 'Électricité', [
+      ligne('6052', 'Recharge', 45000, NatureDepense.electriciteEau),
+    ], centre: 'Structure'),
+    // Une dépense héritée, écrite AVANT le changement, rattrapée APRÈS.
+    ancienne('a1', '2031-02-01', 'Dépense héritée', [
+      ligne('6011', 'Riz', 20000, NatureDepense.riz),
+    ]),
+
+    // Les comptes CHOISIS.
+    {'op': 'parametre', 'cle': 'compte_caisse', 'valeur': '5712'},
+    {'op': 'parametre', 'cle': 'compte_banque', 'valeur': '5212'},
+    {'op': 'parametre', 'cle': 'compte_mobile_money', 'valeur': '558'},
+    depense('2031-03-04', 'caisse', 'Marché du matin', [
+      ligne('6011', 'Oignons', 15000, NatureDepense.oignon),
+    ], centre: 'Restaurant'),
+    depense('2031-03-05', 'momo', 'Location minibus', [
+      ligne('6223', 'Minibus', 25000, NatureDepense.transport),
+    ], centre: 'Tourisme'),
+    depense('2031-03-06', 'banque', 'Électricité', [
+      ligne('6052', 'Recharge', 45000, NatureDepense.electriciteEau),
+    ], centre: 'Structure'),
+    rattrapage('a1', centre: 'Restaurant'),
+    {'op': 'compter'},
+
+    // Le retour au défaut, puis un compte CHOISI que le plan refuse (une
+    // DIVISION, posée hors validation) : même refus, rien d'écrit.
+    {'op': 'parametre', 'cle': 'compte_caisse', 'valeur': null},
+    depense('2031-03-07', 'caisse', 'Retour au défaut', [
+      ligne('6011', 'Tomates', 8500, NatureDepense.tomate),
+    ], centre: 'Restaurant'),
+    {'op': 'parametre', 'cle': 'compte_caisse', 'valeur': '57'},
+    depense('2031-03-08', 'caisse', 'Division', [
+      ligne('6011', 'Piment', 2000, NatureDepense.piment),
+    ], centre: 'Restaurant'),
+    {'op': 'compter'},
+  ];
+
   late List<dynamic> serveur;
   late List<Map<String, Object?>> local;
+  late List<dynamic> serveurCorrespondance;
+  late List<Map<String, Object?>> localCorrespondance;
 
   setUpAll(() async {
     final reponse = await executerPhp(
@@ -171,6 +225,14 @@ void main() {
     );
     serveur = reponse['resultats'] as List<dynamic>;
     local = await _jouerLocalement(scenario);
+
+    final reponse2 = await executerPhp(
+      'rejouer_depenses.php',
+      dossier: 'depenses',
+      entree: {'aujourdhui': '2031-06-15', 'ops': scenarioCorrespondance},
+    );
+    serveurCorrespondance = reponse2['resultats'] as List<dynamic>;
+    localCorrespondance = await _jouerLocalement(scenarioCorrespondance);
   });
 
   test('chaque opération du scénario a un résultat des deux côtés', () {
@@ -186,6 +248,69 @@ void main() {
         reason: 'opération $i : ${scenario[i]}',
       );
     }
+  });
+
+  test('CORRESPONDANCE DES COMPTES modifiée : la MÊME pièce de dépense que '
+      'le serveur, avant et après chaque changement (parité)', () {
+    expect(serveurCorrespondance, hasLength(scenarioCorrespondance.length));
+    expect(localCorrespondance, hasLength(scenarioCorrespondance.length));
+    // `compte_tresorerie` : stocké par le serveur, absent du poste (la pièce
+    // porte la même information).
+    Object? sansCompteStocke(Object? v) {
+      if (v is! Map) return v;
+      final r = Map<String, Object?>.from(v.cast<String, Object?>());
+      final d = r['depense'];
+      if (d is Map) {
+        r['depense'] = {
+          for (final e in d.entries)
+            if (e.key != 'compte_tresorerie') e.key: e.value,
+        };
+      }
+      return r;
+    }
+
+    for (var i = 0; i < scenarioCorrespondance.length; i++) {
+      expect(
+        sansCompteStocke(localCorrespondance[i]),
+        equals(sansCompteStocke(serveurCorrespondance[i])),
+        reason: 'opération $i : ${scenarioCorrespondance[i]}',
+      );
+    }
+  });
+
+  test('la parité de la dépense n’est pas verte à vide : les comptes choisis '
+      'portent les pièces futures, jamais les passées', () {
+    Set<String> comptesDe(Iterable<int> indices) => {
+      for (final i in indices)
+        for (final l
+            in (((serveurCorrespondance[i] as Map)['depense'] as Map)['piece']
+                as List))
+          (l as Map)['compte'] as String,
+    };
+    final defauts = comptesDe([0, 1, 2]);
+    expect(defauts, containsAll(<String>['5711', '552', '5211']));
+    final choisis = comptesDe([7, 8, 9, 10]);
+    expect(choisis, containsAll(<String>['5712', '558', '5212']));
+    for (final ancien in ['5711', '552', '5211']) {
+      expect(choisis, isNot(contains(ancien)), reason: ancien);
+    }
+    // Le rattrapage (10) d'une dépense héritée en caisse passe sa pièce sur le
+    // compte CHOISI à cet instant, pas sur celui d'avant.
+    expect(comptesDe([10]), contains('5712'));
+    expect(comptesDe([10]), isNot(contains('5711')));
+    // La division : même refus, rien d'écrit.
+    final refus = serveurCorrespondance[15] as Map;
+    expect(refus['refus'], 'RuntimeException');
+    expect(
+      refus['message'],
+      contains('Le compte 57 est une division du plan comptable'),
+    );
+    // Huit dépenses écrites (six dépenses, la dépense héritée, le retour au
+    // défaut) : la refusée n'a rien écrit.
+    expect(
+      ((serveurCorrespondance[16] as Map)['compte'] as Map)['depenses'],
+      8,
+    );
   });
 
   test('le scénario éprouve les chemins qui comptent (pas un vert à vide)', () {
@@ -498,6 +623,13 @@ Future<List<Map<String, Object?>>> _jouerLocalement(
               'depense': await decrire((await dao.parId(id))!),
             });
           }
+        case 'parametre':
+          // Posée DIRECTEMENT, comme le script PHP : c'est la LECTURE au
+          // moment de passer la pièce qu'on mesure, pas l'écran.
+          await ParametresDao(db).ecrire({
+            op['cle']! as String: op['valeur'] as String?,
+          }, auteurId: null);
+          resultats.add({'ok': true});
         case 'poser_centre_defaut':
           await db.customStatement(
             'UPDATE plan_comptable_local SET centre_cout_defaut_id = ? '

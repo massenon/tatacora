@@ -12,8 +12,10 @@ import 'support/outils_comptabilite.dart';
 /// La table de correspondance rôle -> compte, CONFRONTÉE à `ComptesSyscohada.php`
 /// par réflexion (PHP exécuté) — jamais deux listes qui divergent.
 ///
-/// La table est « à valider par le comptable » au serveur ; la répliquer ne la
-/// valide pas, elle garantit seulement que le poste ne dérive pas.
+/// Ces numéros sont les VALEURS PAR DÉFAUT de la correspondance (modifiable
+/// depuis le 26/10/2026) ; les comptes 7073, 7061 et 4432 sont validés par le PO
+/// le 26/10/2026. Répliquer la table ne la valide pas : elle garantit que le
+/// poste ne dérive pas.
 void main() {
   late Map<String, dynamic> serveur;
   late Set<String> plan;
@@ -23,9 +25,9 @@ void main() {
     plan = lirePlanComptable(lirePlanEmbarque()).map((c) => c.numero).toSet();
   });
 
-  test('19 rôles relus de la classe du serveur — export non vide', () {
-    expect(serveur['comptes'], hasLength(19));
-    expect(ComptesSyscohada.tous, hasLength(19));
+  test('20 rôles relus de la classe du serveur — export non vide', () {
+    expect(serveur['comptes'], hasLength(20));
+    expect(ComptesSyscohada.tous, hasLength(20));
   });
 
   test(
@@ -41,7 +43,7 @@ void main() {
   );
 
   test('les constantes Dart nommées sont celles de la table `tous`', () {
-    // Les 19 constantes sont lues UNE à UNE : `tous` pourrait en omettre une
+    // Les 20 constantes sont lues UNE à UNE : `tous` pourrait en omettre une
     // sans qu'aucun test précédent ne le voie.
     expect(ComptesSyscohada.tous.values.toSet(), {
       ComptesSyscohada.clients,

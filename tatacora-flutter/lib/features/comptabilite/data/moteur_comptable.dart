@@ -1,3 +1,5 @@
+import '../domain/comptes_syscohada.dart';
+import '../domain/correspondance_comptes.dart';
 import '../domain/entities/comptabilite.dart';
 import '../domain/messages_comptables.dart';
 import '../domain/montant_comptable.dart';
@@ -7,16 +9,30 @@ import '../domain/regles_ecriture.dart';
 import 'comptabilite_dao.dart';
 
 /// Une ligne de pièce telle que le module métier la demande : un NUMÉRO de
-/// compte (jamais un identifiant), un débit OU un crédit en centimes, un
-/// libellé optionnel et un centre optionnel.
+/// compte (jamais un identifiant) OU un RÔLE comptable, un débit OU un crédit en
+/// centimes, un libellé optionnel et un centre optionnel.
+///
+/// ## Le rôle (26/10/2026, décision du PO : les comptes se modifient)
+///
+/// Une ligne qui nomme un [role] (`PRODUIT_LOCATIONS`, `CAISSE`…) n'impose pas
+/// son numéro : le moteur lit la CORRESPONDANCE au moment de passer la pièce
+/// (le compte choisi à l'écran « Correspondance des comptes », sinon le défaut
+/// de `ComptesSyscohada`). [compte] porte alors le DÉFAUT du rôle, pour qui lit
+/// la demande sans passer par le moteur (tests, aperçus). Une ligne sans rôle
+/// garde son numéro, tel quel (compte de charge saisi, pièce libre).
 final class LigneDemandee {
   const LigneDemandee({
-    required this.compte,
+    String? compte,
+    this.role,
     this.debitCentimes = 0,
     this.creditCentimes = 0,
     this.libelle,
     this.centreId,
-  });
+  }) : assert(
+         compte != null || role != null,
+         'Une ligne nomme un compte ou un rôle.',
+       ),
+       _compte = compte;
 
   /// La conversion EXPLICITE depuis les chaînes décimales du serveur
   /// (`"12500.00"`), tronquée comme `bcadd(.., '0', 2)`. Une chaîne illisible
@@ -49,7 +65,13 @@ final class LigneDemandee {
     );
   }
 
-  final String compte;
+  final String? _compte;
+
+  /// Le numéro de la ligne : celui qui est demandé, sinon le DÉFAUT de son rôle.
+  String get compte => _compte ?? ComptesSyscohada.tous[role]!;
+
+  /// Le rôle comptable de la ligne (`RolesCorrespondance`), ou `null`.
+  final String? role;
   final int debitCentimes;
   final int creditCentimes;
   final String? libelle;
@@ -64,12 +86,19 @@ final class DemandePiece {
     required this.date,
     required this.libelle,
     required this.lignes,
+    this.statutsExerciceAdmis = const {StatutExercice.ouvert},
   });
 
   final String journal;
   final String date;
   final String libelle;
   final List<LigneDemandee> lignes;
+
+  /// Les statuts d'exercice où cette pièce peut passer
+  /// (`statuts_exercice_admis` du serveur) : `ouvert` seul pour les modules ;
+  /// la pièce de clôture admet `en_cloture`, la pièce d'à-nouveaux et la saisie
+  /// d'inventaire du comptable `ouvert` et `en_cloture`. Jamais `cloture`.
+  final Set<StatutExercice> statutsExerciceAdmis;
 }
 
 /// Le moteur comptable du poste — RÉPLIQUE de `PasserEcritureService`,
@@ -86,19 +115,12 @@ final class DemandePiece {
 ///
 /// ## Quatre refus, aucun repli
 ///
-    this.statutsExerciceAdmis = const {StatutExercice.ouvert},
 /// Journal inconnu, compte inconnu, exercice absent ou non ouvert, centre
 /// introuvable : chacun lève [RefusComptable] avec la phrase du serveur. Aucun
 /// n'est remplacé par une valeur plausible : un compte « 601 » (division)
 /// substitué au « 6011 » attendu imputerait une charge au mauvais poste sur une
 /// pièce validée, donc immuable.
 ///
-
-  /// Les statuts d'exercice où cette pièce peut passer
-  /// (`statuts_exercice_admis` du serveur) : `ouvert` seul pour les modules ;
-  /// la pièce de clôture admet `en_cloture`, la pièce d'à-nouveaux et la saisie
-  /// d'inventaire du comptable `ouvert` et `en_cloture`. Jamais `cloture`.
-  final Set<StatutExercice> statutsExerciceAdmis;
 /// ## Tout ou rien
 ///
 /// Chaque geste public tient dans UNE transaction. Un refus — y compris celui
@@ -176,12 +198,19 @@ class MoteurComptable {
 
       final resolues = <_LigneResolue>[];
       for (final ligne in demande.lignes) {
-        final compte = await _compteImputable(ligne.compte);
+        // Le compte d'un RÔLE est lu de la correspondance ICI, au moment de
+        // passer la pièce, dans la transaction de la pièce (jamais plus tôt :
+        // un changement fait entre-temps vaut pour cette pièce-ci).
+        final role = ligne.role;
+        final numero = role == null
+            ? ligne.compte
+            : await _dao.compteDuRole(role);
+        final compte = await _compteImputable(numero);
         resolues.add(
           _LigneResolue(
             compte: compte,
             centreId: centrePour(
-              centreExplicite: ligne.centreId,
+              centreExplicite: await _centreExplicite(ligne, compte),
               compte: compte,
             ),
             debitCentimes: ligne.debitCentimes,
@@ -363,35 +392,6 @@ class MoteurComptable {
     });
   }
 
-  /* ================================================================== */
-  /* Exercices                                                           */
-  /* ================================================================== */
-
-  /// Ouvre un nouvel exercice — l'année entière, du 1er janvier au 31 décembre.
-  /// Créer la ligne, rien d'autre : aucune écriture d'à-nouveaux, aucune reprise
-  /// de solde (périmètre minimal du serveur, Vague E).
-  ///
-  /// ⚠ **Sans exercice ouvert couvrant la date, tout mouvement est refusé**
-  /// (`exerciceAbsent`). Le serveur n'ouvre jamais l'exercice suivant tout seul
-  /// (« les exercices suivants sont ouverts par le geste de clôture, jamais par
-  /// un seeder ») ; le POSTE, lui, ouvre celui de l'année courante à chaque
-  /// démarrage (`installerReferentielComptable`, ticket D197 option (b)) — c'est
-  /// l'écart assumé qui évite qu'il cesse de comptabiliser le 01/01/2027. Cette
-  /// méthode reste le geste explicite pour toute AUTRE année.
-  Future<ExerciceComptable> ouvrirExercice(int annee) async {
-    if (annee < 2000 || annee > 2100) {
-      throw RefusComptable.dit(
-        MotifRefus.exerciceAnneeInvalide,
-        'comptabilite.exercice_annee_invalide',
-      );
-    }
-    return _dao.enTransaction(() async {
-      if (await _dao.exerciceDeLAnnee(annee) != null) {
-        throw RefusComptable.dit(
-          MotifRefus.exerciceDejaExistant,
-          'comptabilite.exercice_deja_existant',
-          {'annee': '$annee'},
-        );
   /// Contre-passe une PIÈCE (ses lignes d'origine, trouvées par son numéro dans
   /// [exerciceId]) à SA PROPRE DATE et dans SON exercice — la contre-passation
   /// de la RÉOUVERTURE d'un exercice (`ClotureExerciceService::contrePasser`).
@@ -442,6 +442,35 @@ class MoteurComptable {
     });
   }
 
+  /* ================================================================== */
+  /* Exercices                                                           */
+  /* ================================================================== */
+
+  /// Ouvre un nouvel exercice — l'année entière, du 1er janvier au 31 décembre.
+  /// Créer la ligne, rien d'autre : aucune écriture d'à-nouveaux, aucune reprise
+  /// de solde (périmètre minimal du serveur, Vague E).
+  ///
+  /// ⚠ **Sans exercice ouvert couvrant la date, tout mouvement est refusé**
+  /// (`exerciceAbsent`). Le serveur n'ouvre jamais l'exercice suivant tout seul
+  /// (« les exercices suivants sont ouverts par le geste de clôture, jamais par
+  /// un seeder ») ; le POSTE, lui, ouvre celui de l'année courante à chaque
+  /// démarrage (`installerReferentielComptable`, ticket D197 option (b)) — c'est
+  /// l'écart assumé qui évite qu'il cesse de comptabiliser le 01/01/2027. Cette
+  /// méthode reste le geste explicite pour toute AUTRE année.
+  Future<ExerciceComptable> ouvrirExercice(int annee) async {
+    if (annee < 2000 || annee > 2100) {
+      throw RefusComptable.dit(
+        MotifRefus.exerciceAnneeInvalide,
+        'comptabilite.exercice_annee_invalide',
+      );
+    }
+    return _dao.enTransaction(() async {
+      if (await _dao.exerciceDeLAnnee(annee) != null) {
+        throw RefusComptable.dit(
+          MotifRefus.exerciceDejaExistant,
+          'comptabilite.exercice_deja_existant',
+          {'annee': '$annee'},
+        );
       }
       return _dao.insererExercice(
         annee: annee,
@@ -578,6 +607,25 @@ class MoteurComptable {
       );
     }
     return e;
+  }
+
+  /// Le centre EXPLICITE de la ligne ; à défaut, et seulement si le compte
+  /// choisi pour son rôle n'a pas de centre par défaut au plan, celui du compte
+  /// PAR DÉFAUT du rôle (`PasserEcritureService::centre` du serveur) — jamais un
+  /// centre inventé : sans lui, la ligne reste refusée par RG-12.
+  Future<String?> _centreExplicite(
+    LigneDemandee ligne,
+    CompteDuPlan compte,
+  ) async {
+    final explicite = ligne.centreId;
+    if (explicite != null && explicite.isNotEmpty) return explicite;
+    final propre = compte.centreCoutDefautId;
+    if (propre != null && propre.isNotEmpty) return explicite;
+    final role = ligne.role == null
+        ? null
+        : RolesCorrespondance.parCode(ligne.role!);
+    if (role == null) return explicite;
+    return (await _dao.compteParNumero(role.defaut))?.centreCoutDefautId;
   }
 
   Future<CompteDuPlan> _compteImputable(String numero) async {

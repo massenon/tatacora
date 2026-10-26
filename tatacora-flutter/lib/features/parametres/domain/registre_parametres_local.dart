@@ -49,6 +49,12 @@ enum FormatTexte {
   /// domaine pointé. Il protège un en-tête imprimé et, depuis le 14/10/2026,
   /// l'expéditeur des messages à l'éditeur (`email_smtp_utilisateur`).
   courriel,
+
+  /// `regex:/^[1-9][0-9]{1,3}$/` du serveur — LA règle du numéro de compte
+  /// (`PlanComptableService::NUMERO_COMPTE_FORMAT`, `RegleNumeroCompte`). Sa
+  /// validation complète (existence au plan, classe du rôle, compte imputable)
+  /// est celle de la correspondance des comptes, pas celle d'un texte.
+  numeroCompte,
 }
 
 /// Pourquoi un taux confirmé de la paie ne peut pas être vidé.
@@ -471,7 +477,171 @@ abstract final class RegistreParametresLocal {
       // dans la correction.
       lecteur: 'lib/features/alertes/presentation/providers_alertes.dart',
     ),
+
+    // --- La correspondance rôle -> compte comptable (26/10/2026, décision du
+    // PO : « on peut impérativement modifier les comptes sur poste et le
+    // web »). Quinze clés `compte_<rôle>`, générées côté serveur depuis
+    // `RolesCorrespondance::ROLES` ; elles ne se montrent PAS dans l'écran
+    // Paramètres (leur écran est « Correspondance des comptes », hub de la
+    // comptabilité). Lecteur : `ComptabiliteDao.compteDuRole`, appelé par le
+    // moteur au moment de passer la pièce. Trois rôles n'ont AUCUN lecteur
+    // sur ce poste — la TVA récupérable et les deux comptes de résultat sont
+    // lus par la déclaration de TVA et la clôture, qui sont au serveur — et
+    // l'écran le dit.
+    SpecParametre(
+      cle: 'compte_produit_prestations',
+      groupe: 'comptes',
+      libelle: 'Compte — Produits du restaurant',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Crédité par une vente du restaurant au comptoir. Vide : le compte par défaut (7061). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+      lecteur: _lecteurDesComptes,
+    ),
+    SpecParametre(
+      cle: 'compte_produit_marchandises',
+      groupe: 'comptes',
+      libelle: 'Compte — Produits du bar',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Crédité par une vente de boissons au comptoir. Vide : le compte par défaut (7011). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+      lecteur: _lecteurDesComptes,
+    ),
+    SpecParametre(
+      cle: 'compte_produit_locations',
+      groupe: 'comptes',
+      libelle: 'Compte — Produits de la location de véhicules',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Crédité par une location encaissée au comptoir. Vide : le compte par défaut (7073). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+      lecteur: _lecteurDesComptes,
+    ),
+    SpecParametre(
+      cle: 'compte_produit_circuits',
+      groupe: 'comptes',
+      libelle: 'Compte — Produits du tourisme, circuits',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Crédité par un circuit encaissé au comptoir. Vide : le compte par défaut (7061). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+      lecteur: _lecteurDesComptes,
+    ),
+    SpecParametre(
+      cle: 'compte_tva_facturee_biens',
+      groupe: 'comptes',
+      libelle: 'Compte — TVA facturée sur les ventes de biens (bar)',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Crédité par la part de TVA d’une vente de boissons ; lu par la déclaration de TVA. Vide : le compte par défaut (4431). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+      lecteur: _lecteurDesComptes,
+    ),
+    SpecParametre(
+      cle: 'compte_tva_facturee_prestations',
+      groupe: 'comptes',
+      libelle:
+          'Compte — TVA facturée sur les prestations (restaurant, location, tourisme)',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Crédité par la part de TVA d’une prestation de services ; lu par la déclaration de TVA. Vide : le compte par défaut (4432). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+      lecteur: _lecteurDesComptes,
+    ),
+    SpecParametre(
+      cle: 'compte_tva_recuperable_achats',
+      groupe: 'comptes',
+      libelle: 'Compte — TVA récupérable sur les achats',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Lu par la déclaration de TVA, au titre de la TVA déductible. Vide : le compte par défaut (4452). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+    ),
+    SpecParametre(
+      cle: 'compte_caisse',
+      groupe: 'comptes',
+      libelle: 'Compte — Caisse',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Trésorerie des règlements en espèces. Vide : le compte par défaut (5711). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+      lecteur: _lecteurDesComptes,
+    ),
+    SpecParametre(
+      cle: 'compte_banque',
+      groupe: 'comptes',
+      libelle: 'Compte — Banque',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Trésorerie des règlements par carte, virement ou chèque. Vide : le compte par défaut (5211). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+      lecteur: _lecteurDesComptes,
+    ),
+    SpecParametre(
+      cle: 'compte_mobile_money',
+      groupe: 'comptes',
+      libelle: 'Compte — Mobile Money',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Trésorerie des règlements par Mobile Money. Vide : le compte par défaut (552). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+      lecteur: _lecteurDesComptes,
+    ),
+    SpecParametre(
+      cle: 'compte_clients',
+      groupe: 'comptes',
+      libelle: 'Compte — Clients',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Débité par une vente portée sur la note de chambre, crédité par l’encaissement d’une facture. Vide : le compte par défaut (4111). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+      lecteur: _lecteurDesComptes,
+    ),
+    SpecParametre(
+      cle: 'compte_fournisseurs',
+      groupe: 'comptes',
+      libelle: 'Compte — Fournisseurs',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Débité par le règlement d’une commande fournisseur. Vide : le compte par défaut (4011). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+      lecteur: _lecteurDesComptes,
+    ),
+    SpecParametre(
+      cle: 'compte_avances_clients',
+      groupe: 'comptes',
+      libelle: 'Compte — Avances et acomptes clients',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Crédité par l’acompte d’une réservation, débité par son remboursement. Vide : le compte par défaut (4191). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+      lecteur: _lecteurDesComptes,
+    ),
+    SpecParametre(
+      cle: 'compte_resultat_benefice',
+      groupe: 'comptes',
+      libelle: 'Compte — Résultat net : bénéfice',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Crédité par la clôture d’un exercice qui dégage un bénéfice. Vide : le compte par défaut (131). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+    ),
+    SpecParametre(
+      cle: 'compte_resultat_perte',
+      groupe: 'comptes',
+      libelle: 'Compte — Résultat net : perte',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Débité par la clôture d’un exercice qui dégage une perte. Vide : le compte par défaut (139). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+    ),
   ];
+
+  /// Le lecteur des quinze clés `compte_<rôle>` : le DAO qui les lit au moment
+  /// de passer une pièce.
+  static const String _lecteurDesComptes =
+      'lib/features/comptabilite/data/comptabilite_dao.dart';
 }
 
 /// Un paramètre de la base vierge : clé, valeur, description.

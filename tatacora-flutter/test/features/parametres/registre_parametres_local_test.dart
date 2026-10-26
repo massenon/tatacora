@@ -4,6 +4,7 @@ library;
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tatacora_flutter/features/comptabilite/domain/regle_numero_compte.dart';
 import 'package:tatacora_flutter/features/parametres/domain/entities/parametre.dart';
 import 'package:tatacora_flutter/features/parametres/domain/regles_parametres.dart';
 import 'package:tatacora_flutter/features/parametres/domain/registre_parametres_local.dart';
@@ -87,12 +88,17 @@ void main() {
   final serveur = RegistreServeur.charger();
   final locales = RegistreParametresLocal.definitions;
 
-  test('le balayage n’est pas vide : 31 définitions côté serveur', () {
-    // 31 = 10 identité + 4 fiscalité + 5 social + 5 exploitation + 4 email
-    // + 3 activation. Le compte est écrit pour que le test échoue si la
-    // lecture de PHP rendait une liste vide ou tronquée.
-    expect(serveur.definitions.length, 31);
-    expect(locales.length, 31);
+  test('le balayage n’est pas vide : 46 définitions côté serveur', () {
+    // 46 = 10 identité + 4 fiscalité + 5 social + 5 exploitation + 4 email
+    // + 3 activation + 15 correspondance des comptes (26/10/2026, une clé
+    // `compte_<rôle>` par rôle). Le compte est écrit pour que le test échoue
+    // si la lecture de PHP rendait une liste vide ou tronquée.
+    expect(serveur.definitions.length, 46);
+    expect(locales.length, 46);
+    expect(
+      serveur.definitions.where((d) => d['groupe'] == 'comptes'),
+      hasLength(15),
+    );
   });
 
   test('mêmes clés, dans le même ordre, ni plus ni moins', () {
@@ -141,7 +147,11 @@ void main() {
       );
       expect(
         l.format,
-        regles.any((r) => r.startsWith('regex:'))
+        // LA règle du numéro de compte (`NUMERO_COMPTE_FORMAT`), confrontée à
+        // celle de `RegleNumeroCompte` : une seule règle des deux côtés.
+        regles.contains('regex:/${RegleNumeroCompte.format.pattern}/')
+            ? FormatTexte.numeroCompte
+            : regles.any((r) => r.startsWith('regex:'))
             ? FormatTexte.telephone
             : regles.any((r) => r.startsWith('email'))
             ? FormatTexte.courriel
@@ -235,6 +245,20 @@ void main() {
         // (`OptionsSysteme.cleSuppression`), jamais par le littéral : le lecteur
         // déclaré doit contenir l'un OU l'autre.
         final source = f.readAsStringSync();
+        // Une clé `compte_<rôle>` (26/10/2026) n'est jamais écrite en littéral :
+        // elle se DÉRIVE du rôle (`RoleCompte.cle`), et son lecteur est
+        // `ComptabiliteDao.compteDuRole`, qui lit celle du rôle demandé. Le
+        // comportement de chaque rôle est prouvé par les tests de parité.
+        if (s.groupe == 'comptes') {
+          expect(source, contains('compteDuRole'), reason: s.cle);
+          expect(
+            source,
+            contains('RolesCorrespondance.parCode'),
+            reason: s.cle,
+          );
+          verifies++;
+          continue;
+        }
         final constante = _constanteDeCle[s.cle];
         expect(
           source.contains("'${s.cle}'") ||
@@ -259,10 +283,12 @@ void main() {
       // 14/10/2026) ; les DEUX réglages de RG-14, préavis et couverture (lus
       // par `conges_plannings_dao.dart` depuis le 21/10/2026). 13 + 10 + 4 +
       // 2 = 29.
-      expect(verifies, 29);
+      // 13 + 10 + 4 + 2 = 29, plus les DOUZE rôles de la correspondance des
+      // comptes que le moteur de ce poste lit (26/10/2026) : 41.
+      expect(verifies, 41);
     });
 
-    test('2 clés n’ont AUCUN lecteur sur ce poste, et c’est dit', () {
+    test('5 clés n’ont AUCUN lecteur sur ce poste, et c’est dit', () {
       final sansLecteur = [
         for (final s in RegistreParametresLocal.definitions)
           if (s.lecteur == null) s.cle,
@@ -273,9 +299,15 @@ void main() {
       // SMTP (lot J2) ; 4 → 2 le 21/10/2026 : le préavis et la couverture des
       // congés (RG-14, `conges_plannings_dao.dart`). Les deux restantes,
       // NOMMÉES :
+      // Les trois derniers sont des rôles de la correspondance des comptes que
+      // le SERVEUR seul lit (déclaration de TVA, clôture de l'exercice) : leur
+      // écran le dit (`TextesCorrespondancePoste.serveurSeul`).
       expect(sansLecteur, [
         'entreprise_numero_mecef',
         'duree_retention_audit_jours',
+        'compte_tva_recuperable_achats',
+        'compte_resultat_benefice',
+        'compte_resultat_perte',
       ]);
       expect(sansLecteur, isNot(contains('reinitialisation_seeders')));
       expect(sansLecteur, isNot(contains('tolerance_reception_pct')));
@@ -324,7 +356,7 @@ void main() {
         );
         balayees++;
       }
-      expect(balayees, 29, reason: 'balayage non vide');
+      expect(balayees, 41, reason: 'balayage non vide');
     });
 
     test('chaque exemption NOMME réellement sa clé : une exemption périmée '

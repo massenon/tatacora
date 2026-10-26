@@ -1,5 +1,4 @@
 import '../../comptabilite/data/moteur_comptable.dart';
-import '../../comptabilite/domain/comptes_syscohada.dart';
 import '../../depenses/domain/categories_depense.dart';
 import '../domain/entities/fiche_reservation.dart';
 import '../domain/messages_annulation.dart';
@@ -53,11 +52,8 @@ DemandePiece? pieceDeLAcompte({
     date: dateIso,
     libelle: MessagesAnnulation.libelleDeLAcompte(reservationId),
     lignes: [
-      LigneDemandee(compte: tresorerie.compte, debitCentimes: acompteCentimes),
-      LigneDemandee(
-        compte: ComptesSyscohada.avancesClients,
-        creditCentimes: acompteCentimes,
-      ),
+      LigneDemandee(role: tresorerie.role, debitCentimes: acompteCentimes),
+      LigneDemandee(role: 'AVANCES_CLIENTS', creditCentimes: acompteCentimes),
     ],
   );
 }
@@ -85,11 +81,8 @@ DemandePiece pieceDuRemboursement({
     date: dateIso,
     libelle: MessagesAnnulation.libelleDeLaPiece(client),
     lignes: [
-      LigneDemandee(
-        compte: ComptesSyscohada.avancesClients,
-        debitCentimes: rembourseCentimes,
-      ),
-      LigneDemandee(compte: caisse.compte, creditCentimes: rembourseCentimes),
+      LigneDemandee(role: 'AVANCES_CLIENTS', debitCentimes: rembourseCentimes),
+      LigneDemandee(role: caisse.role, creditCentimes: rembourseCentimes),
     ],
   );
 }

@@ -1,6 +1,5 @@
 import '../../comptabilite/data/moteur_comptable.dart';
 import '../../comptabilite/domain/calcul_tva.dart';
-import '../../comptabilite/domain/comptes_syscohada.dart';
 import '../../depenses/domain/categories_depense.dart';
 import '../domain/entities/mode_reglement.dart';
 import '../domain/messages_ventes.dart';
@@ -28,25 +27,29 @@ const List<String> modulesEncaissables = ['M4', 'M5', 'M8', 'M9'];
 /// d'un séjour qui en porterait une ligne est refusée, comme sur le web.
 const List<String> modulesEncaissablesAuSejour = ['M4', 'M5'];
 
-/// Le compte de produits de chaque module — `VenteService::COMPTES_PRODUIT`.
-/// Location (M8) sur 7073 « Locations » ; tourisme (M9) sur 7061 « services
-/// vendus » (le plan du PO n'a pas de compte dédié aux circuits).
-const Map<String, String> comptesProduitParModule = {
-  'M4': ComptesSyscohada.produitPrestations,
-  'M5': ComptesSyscohada.produitMarchandises,
-  'M8': ComptesSyscohada.produitLocations,
-  'M9': ComptesSyscohada.produitPrestations,
+/// Le RÔLE du compte de produits de chaque module — `VenteService::ROLES_PRODUIT`.
+/// Le compte qu'un rôle désigne est celui de la correspondance (modifiable
+/// depuis le 26/10/2026), lu par le moteur au moment de passer la pièce ; ses
+/// défauts sont ceux de `ComptesSyscohada` : restaurant (M4) 7061, bar (M5)
+/// 7011, location de véhicules (M8) 7073 « Locations », tourisme (M9) 7061
+/// « services vendus » (le plan du PO n'a pas de compte dédié aux circuits ;
+/// validés par le PO le 26/10/2026).
+const Map<String, String> rolesProduitParModule = {
+  'M4': 'PRODUIT_PRESTATIONS',
+  'M5': 'PRODUIT_MARCHANDISES',
+  'M8': 'PRODUIT_LOCATIONS',
+  'M9': 'PRODUIT_CIRCUITS',
 };
 
-/// Le compte de TVA facturée de chaque module — `VenteService::COMPTES_TVA` :
-/// boissons revendues (M5) sur 4431, prestations servies (M4 repas, M8
-/// location, M9 circuit) sur 4432. Table « à valider par le comptable »,
-/// comme `ComptesSyscohada`.
-const Map<String, String> comptesTvaParModule = {
-  'M4': ComptesSyscohada.tvaFactureePrestations,
-  'M5': ComptesSyscohada.tvaFactureeBiens,
-  'M8': ComptesSyscohada.tvaFactureePrestations,
-  'M9': ComptesSyscohada.tvaFactureePrestations,
+/// Le RÔLE de la TVA facturée de chaque module — `VenteService::ROLES_TVA` :
+/// boissons revendues (M5) sur 4431 par défaut, prestations servies (M4 repas,
+/// M8 location, M9 circuit) sur 4432 par défaut (validé par le PO le
+/// 26/10/2026).
+const Map<String, String> rolesTvaParModule = {
+  'M4': 'TVA_FACTUREE_PRESTATIONS',
+  'M5': 'TVA_FACTUREE_BIENS',
+  'M8': 'TVA_FACTUREE_PRESTATIONS',
+  'M9': 'TVA_FACTUREE_PRESTATIONS',
 };
 
 /// Le centre de coût de chaque module — `VenteService::CENTRES_PAR_MODULE` :
@@ -76,21 +79,21 @@ String libelleDeLaPiece(String panierId) {
   return '${MessagesVentes.libelleDeLaPiece(courte)} — $panierId';
 }
 
-/// Le compte de DÉBIT d'une vente selon le mode — `VenteService::
-/// compteDeContrepartie`.
+/// Le RÔLE du compte de DÉBIT d'une vente selon le mode — `VenteService::
+/// roleDeContrepartie`.
 ///
 /// `note_chambre` : aucune trésorerie ne bouge, la consommation devient une
-/// créance client (`4111`). Débiter la caisse gonflerait le fond de caisse d'un
-/// argent que personne n'a remis. Les quatre autres modes passent par la table
-/// de trésorerie des dépenses (`TresorerieDepense`, réplique de
-/// `DepenseService::TRESORERIES`), seule à faire foi : « carte » entre en
+/// créance client (rôle `CLIENTS`, 4111 par défaut). Débiter la caisse gonflerait
+/// le fond de caisse d'un argent que personne n'a remis. Les quatre autres modes
+/// passent par la table de trésorerie des dépenses (`TresorerieDepense`, réplique
+/// de `DepenseService::TRESORERIES`), seule à faire foi : « carte » entre en
 /// BANQUE, le TPE crédite le compte bancaire, jamais le tiroir.
-String compteDeContrepartie(ModeReglement mode) => switch (mode) {
-  ModeReglement.noteChambre => ComptesSyscohada.clients,
-  ModeReglement.especes => TresorerieDepense.caisse.compte,
-  ModeReglement.mobileMoney => TresorerieDepense.momo.compte,
-  ModeReglement.carte => TresorerieDepense.banque.compte,
-  ModeReglement.virement => TresorerieDepense.banque.compte,
+String roleDeContrepartie(ModeReglement mode) => switch (mode) {
+  ModeReglement.noteChambre => 'CLIENTS',
+  ModeReglement.especes => TresorerieDepense.caisse.role,
+  ModeReglement.mobileMoney => TresorerieDepense.momo.role,
+  ModeReglement.carte => TresorerieDepense.banque.role,
+  ModeReglement.virement => TresorerieDepense.banque.role,
 };
 
 /// La pièce comptable d'une vente — **fonction pure**, réplique de
@@ -139,18 +142,19 @@ DemandePiece pieceDeLaVente({
   }
 
   final lignes = <LigneDemandee>[
-    LigneDemandee(compte: compteDeContrepartie(mode), debitCentimes: total),
+    LigneDemandee(role: roleDeContrepartie(mode), debitCentimes: total),
   ];
 
   final tvaActive = tva.estActive;
   // Dans l'ordre d'insertion, comme le tableau PHP : le premier module qui
-  // porte de la TVA ouvre sa ligne.
-  final tvaParCompte = <String, int>{};
+  // porte de la TVA ouvre sa ligne. Groupée par RÔLE (deux rôles de TVA
+  // rattachés au même compte donnent deux lignes, comme au serveur).
+  final tvaParRole = <String, int>{};
 
   for (final e in ordonne.entries) {
     final module = e.key;
-    final compte = comptesProduitParModule[module];
-    if (compte == null) {
+    final roleProduit = rolesProduitParModule[module];
+    if (roleProduit == null) {
       throw RefusVente(
         MessagesVentes.compteProduitAbsent(
           MessagesVentes.modulesDuServeur[module] ?? module,
@@ -161,23 +165,23 @@ DemandePiece pieceDeLaVente({
     var credit = e.value;
     if (tvaActive) {
       final ht = tva.ventiler(e.value).htCentimes;
-      final compteTva = comptesTvaParModule[module]!;
-      tvaParCompte[compteTva] = (tvaParCompte[compteTva] ?? 0) + (e.value - ht);
+      final roleTva = rolesTvaParModule[module]!;
+      tvaParRole[roleTva] = (tvaParRole[roleTva] ?? 0) + (e.value - ht);
       credit = ht;
     }
 
     lignes.add(
       LigneDemandee(
-        compte: compte,
+        role: roleProduit,
         creditCentimes: credit,
         centreId: centreDuModule(module),
       ),
     );
   }
 
-  for (final e in tvaParCompte.entries) {
+  for (final e in tvaParRole.entries) {
     if (e.value > 0) {
-      lignes.add(LigneDemandee(compte: e.key, creditCentimes: e.value));
+      lignes.add(LigneDemandee(role: e.key, creditCentimes: e.value));
     }
   }
 

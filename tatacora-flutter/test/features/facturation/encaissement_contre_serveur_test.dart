@@ -10,6 +10,8 @@ import 'package:tatacora_flutter/features/caisse/domain/especes_de_la_session.da
 import 'package:tatacora_flutter/features/caisse/domain/messages_caisse.dart';
 import 'package:tatacora_flutter/features/caisse/domain/regles_caisse.dart';
 import 'package:tatacora_flutter/features/comptabilite/data/comptabilite_dao.dart';
+import 'package:tatacora_flutter/features/comptabilite/domain/refus_comptable.dart';
+import 'package:tatacora_flutter/features/parametres/data/parametres_dao.dart';
 import 'package:tatacora_flutter/features/comptabilite/domain/montant_comptable.dart';
 import 'package:tatacora_flutter/features/crm/data/client_dao.dart';
 import 'package:tatacora_flutter/features/crm/domain/entities/client.dart';
@@ -309,8 +311,58 @@ void main() {
       {'op': 'droits_recouvrement', 'role': role, 'client': 'k'},
   ];
 
+  // LA CORRESPONDANCE DES COMPTES modifiée (26/10/2026) : la MÊME pièce
+  // d'encaissement, avant et après chaque changement de compte (clients,
+  // caisse, banque, Mobile Money). Les comptes choisis n'ont AUCUN centre par
+  // défaut au plan (4112, 5712, 5212, 558) : seul le repli sur le centre du
+  // compte par défaut du rôle les fait passer, des deux côtés.
+  final scenarioCorrespondance = <Map<String, Object?>>[
+    {'op': 'utilisateur', 'ref': 'g', 'role': 'gerant'},
+    {'op': 'client', 'ref': 'k', 'nom': 'KORA', 'prenom': 'Jean'},
+    {
+      'op': 'facture',
+      'ref': 'f1',
+      'client': 'k',
+      'ttc': '100000',
+      'date': '2026-10-01',
+    },
+    {
+      'op': 'session',
+      'user': 'g',
+      'point': 'bar',
+      'fond': '10000',
+      'ouverte': true,
+      'il_y_a_minutes': 60,
+    },
+    encaisser('f1', '1000', 'especes'), // défauts : 5711 / 4111
+    encaisser('f1', '2000', 'mobile_money'), // 552
+    encaisser('f1', '3000', 'carte'), // 5211
+    encaisser('f1', '4000', 'virement'), // 5211
+    {'op': 'parametre', 'cle': 'compte_clients', 'valeur': '4112'},
+    {'op': 'parametre', 'cle': 'compte_caisse', 'valeur': '5712'},
+    {'op': 'parametre', 'cle': 'compte_banque', 'valeur': '5212'},
+    {'op': 'parametre', 'cle': 'compte_mobile_money', 'valeur': '558'},
+    encaisser('f1', '1000', 'especes'),
+    encaisser('f1', '2000', 'mobile_money'),
+    encaisser('f1', '3000', 'carte'),
+    encaisser('f1', '4000', 'virement'),
+    {'op': 'etat'},
+    // Retour au défaut : la valeur est relue à chaque encaissement.
+    {'op': 'parametre', 'cle': 'compte_caisse', 'valeur': null},
+    {'op': 'parametre', 'cle': 'compte_clients', 'valeur': null},
+    encaisser('f1', '500', 'especes'),
+    // Un compte CHOISI que le plan refuse : même refus, rien d'écrit.
+    {'op': 'parametre', 'cle': 'compte_clients', 'valeur': '7999'},
+    encaisser('f1', '500', 'especes'),
+    {'op': 'parametre', 'cle': 'compte_clients', 'valeur': '41'},
+    encaisser('f1', '500', 'especes'),
+    {'op': 'etat'},
+  ];
+
   late List<dynamic> serveur;
   late List<Map<String, Object?>> local;
+  late List<dynamic> serveurCorrespondance;
+  late List<Map<String, Object?>> localCorrespondance;
 
   setUpAll(() async {
     final reponse = await executerPhp(
@@ -320,6 +372,18 @@ void main() {
     );
     serveur = reponse['resultats'] as List<dynamic>;
     local = await _rejouerSurLePoste(scenario, serveur, maintenant);
+
+    final reponseCorrespondance = await executerPhp(
+      'rejouer_encaissement.php',
+      dossier: 'encaissement',
+      entree: {'aujourdhui': aujourdhui, 'ops': scenarioCorrespondance},
+    );
+    serveurCorrespondance = reponseCorrespondance['resultats'] as List<dynamic>;
+    localCorrespondance = await _rejouerSurLePoste(
+      scenarioCorrespondance,
+      serveurCorrespondance,
+      maintenant,
+    );
   });
 
   test('le scénario est assez large pour que la comparaison compte', () {
@@ -421,6 +485,66 @@ void main() {
       }
     }
     expect(ecarts, isEmpty, reason: ecarts.join('\n'));
+  });
+
+  test('CORRESPONDANCE DES COMPTES modifiée : la MÊME pièce d’encaissement '
+      'que le serveur, avant et après chaque changement (parité)', () {
+    expect(serveurCorrespondance, hasLength(scenarioCorrespondance.length));
+    expect(localCorrespondance, hasLength(scenarioCorrespondance.length));
+    final ecarts = <String>[];
+    for (var i = 0; i < scenarioCorrespondance.length; i++) {
+      final s = _normaliserServeur(
+        serveurCorrespondance[i] as Map<String, dynamic>,
+      );
+      final l = _normaliserLocal(localCorrespondance[i]);
+      if (_canon(s) != _canon(l)) {
+        ecarts.add(
+          'op #$i ${scenarioCorrespondance[i]}\n  ${_difference(s, l)}',
+        );
+      }
+    }
+    expect(ecarts, isEmpty, reason: ecarts.join('\n'));
+  });
+
+  test('la parité de l’encaissement n’est pas verte à vide : les comptes '
+      'choisis portent les pièces futures, jamais les passées', () {
+    final etats = [
+      for (var i = 0; i < scenarioCorrespondance.length; i++)
+        if (scenarioCorrespondance[i]['op'] == 'etat')
+          serveurCorrespondance[i] as Map<String, dynamic>,
+    ];
+    final lignes = (etats.first['ecritures'] as List)
+        .cast<Map<String, dynamic>>();
+    List<String> comptes(Iterable<Map<String, dynamic>> l) => [
+      for (final e in l) e['compte'] as String,
+    ];
+    // Huit encaissements, deux lignes chacun : quatre sur les défauts, quatre
+    // sur les comptes choisis.
+    expect(lignes, hasLength(16));
+    expect(
+      comptes(lignes.take(8)),
+      containsAll(<String>['4111', '5711', '552', '5211']),
+    );
+    expect(
+      comptes(lignes.skip(8)),
+      containsAll(<String>['4112', '5712', '558', '5212']),
+    );
+    for (final ancien in ['4111', '5711', '552', '5211']) {
+      expect(comptes(lignes.skip(8)), isNot(contains(ancien)), reason: ancien);
+    }
+    // Le centre du compte client choisi (sans défaut au plan) : « Structure ».
+    final clients = lignes.skip(8).where((e) => e['compte'] == '4112');
+    expect(clients, isNotEmpty);
+    expect(clients.map((e) => e['centre']).toSet(), {'Structure'});
+    // Les deux refus n'ont rien écrit.
+    final refus = [
+      for (final r in serveurCorrespondance)
+        if (r is Map && r.containsKey('refus')) r['message'] as String,
+    ];
+    expect(refus, hasLength(2));
+    expect(refus.first, contains('Compte comptable inconnu : 7999'));
+    expect(refus.last, contains('Le compte 41 est une division'));
+    expect(etats.last['nb_ecritures'], 18);
   });
 
   test('les phrases et les libellés sont ceux du serveur', () {
@@ -727,6 +851,14 @@ Future<List<Map<String, Object?>>> _rejouerSurLePoste(
         );
         resultats.add({'ok': true});
 
+      case 'parametre':
+        // Posée DIRECTEMENT, comme le script PHP : c'est la LECTURE au moment
+        // d'encaisser qu'on mesure, pas l'écran.
+        await ParametresDao(db).ecrire({
+          op['cle']! as String: op['valeur'] as String?,
+        }, auteurId: null);
+        resultats.add({'ok': true});
+
       case 'encaisser':
         final ref = op['facture']! as String;
         try {
@@ -743,6 +875,10 @@ Future<List<Map<String, Object?>>> _rejouerSurLePoste(
             'reste_du': await resteDu(ref),
           });
         } on RefusEncaissement catch (e) {
+          resultats.add({'refus': 'RefusEncaissement', 'message': e.message});
+        } on RefusComptable catch (e) {
+          // Le refus de la PIÈCE (compte choisi absent du plan, division) : le
+          // serveur lève une `RuntimeException`, ramenée au même refus.
           resultats.add({'refus': 'RefusEncaissement', 'message': e.message});
         }
 

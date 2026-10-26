@@ -262,11 +262,83 @@ final _scenario = <Map<String, Object?>>[
   {'op': 'compter'},
 ];
 
+/// LA CORRESPONDANCE DES COMPTES modifiée (26/10/2026) : la MÊME pièce d'acompte
+/// et de remboursement, avant et après chaque changement de compte (avances
+/// clients, caisse, banque, Mobile Money). Les comptes choisis n'ont AUCUN
+/// centre par défaut au plan (4192, 5712, 5212, 558) : seul le repli sur le
+/// centre du compte par défaut du rôle les fait passer, des deux côtés.
+final _scenarioCorrespondance = <Map<String, Object?>>[
+  // Les DÉFAUTS : 4191, 5711 (caisse), 552, 5211.
+  _reserver('r1', 'u1', '2031-07-10', '2031-07-12', '5000', 'mobile_money'),
+  _reserver(
+    'r2',
+    'u2',
+    '2031-07-10',
+    '2031-07-12',
+    '10000',
+    'especes',
+    client: 'c2',
+  ),
+  _reserver(
+    'r3',
+    'u3',
+    '2031-07-10',
+    '2031-07-12',
+    '8000',
+    'virement',
+    client: 'c3',
+  ),
+  _annuler('r1', '50', valeur: '60'),
+  {'op': 'compter'},
+
+  // Les comptes CHOISIS.
+  _parametre('compte_avances_clients', '4192'),
+  _parametre('compte_caisse', '5712'),
+  _parametre('compte_banque', '5212'),
+  _parametre('compte_mobile_money', '558'),
+  _reserver('r4', 'u1', '2031-08-01', '2031-08-03', '3000', 'mobile_money'),
+  _reserver(
+    'r5',
+    'u2',
+    '2031-08-01',
+    '2031-08-03',
+    '4000',
+    'especes',
+    client: 'c2',
+  ),
+  _reserver(
+    'r6',
+    'u3',
+    '2031-08-01',
+    '2031-08-03',
+    '2000',
+    'virement',
+    client: 'c3',
+  ),
+  _reserver('r7', 'u1', '2031-09-01', '2031-09-03', '1000', 'cheque'),
+  _annuler('r2', '10', valeur: '60.00'),
+  _annuler('r4', '50', valeur: '100'),
+  {'op': 'compter'},
+
+  // Un compte CHOISI que le plan refuse (une DIVISION, posée hors validation) :
+  // même refus, la réservation n'est pas écrite.
+  _parametre('compte_avances_clients', '419'),
+  _reserver('r8', 'u2', '2031-10-01', '2031-10-03', '1000', 'especes'),
+  // Retour aux défauts : la valeur est relue à chaque pièce.
+  _parametre('compte_avances_clients', null),
+  _parametre('compte_caisse', null),
+  _reserver('r9', 'u3', '2031-10-01', '2031-10-03', '1000', 'especes'),
+  _annuler('r3', '0', mode: 'montant', valeur: '8000'),
+  {'op': 'compter'},
+];
+
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
 
   late List<dynamic> serveur;
   late List<Map<String, Object?>> local;
+  late List<dynamic> serveurCorrespondance;
+  late List<Map<String, Object?>> localCorrespondance;
 
   setUpAll(() async {
     final r = await executerPhp(
@@ -276,6 +348,18 @@ void main() {
     );
     serveur = r['resultats'] as List<dynamic>;
     local = await _jouerLocalement(_scenario);
+
+    final r2 = await executerPhp(
+      'rejouer_annulations.php',
+      dossier: 'hebergement',
+      entree: {
+        'aujourdhui': '2031-06-15',
+        'parc': _parc,
+        'ops': _scenarioCorrespondance,
+      },
+    );
+    serveurCorrespondance = r2['resultats'] as List<dynamic>;
+    localCorrespondance = await _jouerLocalement(_scenarioCorrespondance);
   });
 
   test('chaque opération du scénario a un résultat des deux côtés', () {
@@ -292,6 +376,73 @@ void main() {
         reason: 'opération $i : ${_scenario[i]}',
       );
     }
+  });
+
+  test('CORRESPONDANCE DES COMPTES modifiée : la MÊME pièce d’acompte et de '
+      'remboursement que le serveur (parité)', () {
+    expect(serveurCorrespondance, hasLength(_scenarioCorrespondance.length));
+    expect(localCorrespondance, hasLength(_scenarioCorrespondance.length));
+    for (var i = 0; i < _scenarioCorrespondance.length; i++) {
+      expect(
+        localCorrespondance[i],
+        equals(serveurCorrespondance[i]),
+        reason: 'opération $i : ${_scenarioCorrespondance[i]}',
+      );
+    }
+  });
+
+  test('la parité de l’acompte n’est pas verte à vide : les comptes choisis '
+      'portent les pièces futures, jamais les passées', () {
+    Set<String> comptesDe(Iterable<int> indices) => {
+      for (final i in indices)
+        for (final l
+            in ((serveurCorrespondance[i] as Map)['piece'] as List? ??
+                const []))
+          '${(l as Map)['journal']}/${l['compte']}',
+    };
+    // Les indices : 0-2 acomptes, 3 remboursement ; 9-12 acomptes choisis,
+    // 13-14 remboursements.
+    final defauts = comptesDe([0, 1, 2, 3]);
+    expect(
+      defauts,
+      containsAll(<String>[
+        'BQ/552',
+        'CAI/5711',
+        'BQ/5211',
+        'BQ/4191',
+        'CAI/4191',
+      ]),
+    );
+    final choisis = comptesDe([9, 10, 11, 12, 13, 14]);
+    expect(
+      choisis,
+      containsAll(<String>[
+        'BQ/558',
+        'CAI/5712',
+        'BQ/5212',
+        'BQ/4192',
+        'CAI/4192',
+      ]),
+    );
+    for (final ancien in ['552', '5711', '5211', '4191']) {
+      expect(
+        choisis.where((c) => c.endsWith('/$ancien')),
+        isEmpty,
+        reason: ancien,
+      );
+    }
+    // Le refus de la division : même phrase, rien d'écrit (compteur inchangé).
+    final refus = serveurCorrespondance[17] as Map;
+    expect(refus['refus'], isNotNull);
+    expect(
+      '${refus['refus']}',
+      contains('Le compte 419 est une division du plan comptable'),
+    );
+    // Sept réservations, puis r9 : r8 (refusée) n'a rien écrit.
+    expect(
+      ((serveurCorrespondance[22] as Map)['compte'] as Map)['reservations'],
+      8,
+    );
   });
 
   test('le scénario éprouve les chemins qui comptent (pas un vert à vide)', () {

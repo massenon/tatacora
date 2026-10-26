@@ -357,6 +357,89 @@ final _scenario = <Map<String, Object?>>[
   {'op': 'compter'},
 ];
 
+/// La CORRESPONDANCE DES COMPTES modifiée (26/10/2026, décision du PO : « on
+/// peut impérativement modifier les comptes sur poste et le web ») : la MÊME
+/// pièce des deux côtés, avant et après chaque changement.
+///
+/// Les clés `compte_<rôle>` sont posées par l'opération `parametre` (écrite
+/// DIRECTEMENT en base des deux côtés : la validation de l'écran n'est pas ce
+/// qu'on mesure ici, c'est la LECTURE par la vente, au moment de passer la
+/// pièce). Les comptes choisis n'ont volontairement AUCUN centre par défaut au
+/// plan (4112, 5712, 5212, 558, 4433, 4434) : seule la règle « le centre du
+/// compte par défaut du rôle » les fait passer, des deux côtés.
+final _scenarioCorrespondance = <Map<String, Object?>>[
+  _parametre('tva_active', 'true'),
+  _parametre('taux_tva', '18'),
+  _parametre('convention_prix', 'ttc'),
+
+  // --- Les DÉFAUTS : rien n'a encore été choisi ------------------------------
+  _vente('comptoir', 'especes', [
+    _ligne('biere', 3),
+    _ligne('riz', 2),
+    _ligne('circuit', 1),
+    _ligne('location', 2),
+  ]),
+  _vente('sejour', 'note_chambre', [
+    _ligne('biere', 2),
+    _ligne('brochette', 1),
+  ]),
+
+  // --- Chaque rôle de produit, de TVA, de trésorerie, de tiers -------------
+  _parametre('compte_produit_prestations', '7062'),
+  _parametre('compte_produit_marchandises', '7012'),
+  _parametre('compte_produit_locations', '7078'),
+  _parametre('compte_produit_circuits', '7064'),
+  _parametre('compte_tva_facturee_biens', '4434'),
+  _parametre('compte_tva_facturee_prestations', '4433'),
+  _parametre('compte_caisse', '5712'),
+  _parametre('compte_banque', '5212'),
+  _parametre('compte_mobile_money', '558'),
+  _parametre('compte_clients', '4112'),
+  _vente('comptoir', 'especes', [
+    _ligne('biere', 3),
+    _ligne('riz', 2),
+    _ligne('circuit', 1),
+    _ligne('location', 2),
+  ]),
+  _vente('comptoir', 'mobile_money', [_ligne('cocktail', 2)]),
+  _vente('comptoir', 'carte', [_ligne('brochette', 1), _ligne('location', 1)]),
+  _vente('comptoir', 'virement', [_ligne('circuit', 4)]),
+  _vente('sejour', 'note_chambre', [
+    _ligne('biere', 2),
+    _ligne('brochette', 1),
+  ]),
+  _vente('service', 'especes', [_ligne('circuit', 3), _ligne('biere', 1)]),
+  // La remise et la TVA, sur les comptes choisis.
+  _vente('comptoir', 'especes', [
+    _ligne('biere', 3),
+    _ligne('riz', 2),
+  ], remise: _remise('pourcentage', '10')),
+
+  // --- Deux rôles de TVA rattachés au MÊME compte : deux lignes, pas une ----
+  _parametre('compte_tva_facturee_biens', '4433'),
+  _vente('comptoir', 'carte', [_ligne('biere', 3), _ligne('riz', 2)]),
+
+  // --- La valeur est RELUE à chaque pièce : espaces, puis retour au défaut --
+  _parametre('compte_caisse', '  5711 '),
+  _vente('comptoir', 'especes', [_ligne('biere', 1)]),
+  _parametre('compte_caisse', null),
+  _parametre('compte_clients', null),
+  _parametre('compte_produit_locations', null),
+  _vente('comptoir', 'especes', [_ligne('location', 1), _ligne('biere', 1)]),
+  _vente('sejour', 'note_chambre', [_ligne('biere', 2)]),
+
+  // --- Un compte CHOISI que le plan refuse (posé hors validation) : le même
+  // refus des deux côtés, rien d'écrit. Une vente qui ne le touche pas passe.
+  _parametre('compte_produit_locations', '7999'),
+  _vente('comptoir', 'especes', [_ligne('location', 1)]),
+  _vente('comptoir', 'especes', [_ligne('biere', 1)]),
+  _parametre('compte_produit_locations', '70'),
+  _vente('comptoir', 'especes', [_ligne('location', 1)]),
+  _parametre('compte_produit_locations', null),
+  _vente('comptoir', 'especes', [_ligne('location', 1)]),
+  {'op': 'compter'},
+];
+
 /// Le scénario où le centre « Bar » a disparu : RG-12 refuse, naming le compte.
 final _scenarioSansCentre = <Map<String, Object?>>[
   {'op': 'retirer_centre', 'libelle': 'Bar'},
@@ -396,6 +479,8 @@ void main() {
   late List<Map<String, Object?>> local;
   late List<dynamic> serveurSansCentre;
   late List<Map<String, Object?>> localSansCentre;
+  late List<dynamic> serveurCorrespondance;
+  late List<Map<String, Object?>> localCorrespondance;
 
   setUpAll(() async {
     final r = await executerPhp(
@@ -421,6 +506,18 @@ void main() {
     );
     serveurSansCentre = r2['resultats'] as List<dynamic>;
     localSansCentre = await _jouerLocalement(_scenarioSansCentre);
+
+    final r3 = await executerPhp(
+      'rejouer_ventes.php',
+      dossier: 'ventes',
+      entree: {
+        'aujourdhui': '2031-06-15',
+        'catalogue': _catalogue,
+        'ops': _scenarioCorrespondance,
+      },
+    );
+    serveurCorrespondance = r3['resultats'] as List<dynamic>;
+    localCorrespondance = await _jouerLocalement(_scenarioCorrespondance);
   });
 
   test('chaque opération du scénario a un résultat des deux côtés', () {
@@ -472,6 +569,76 @@ void main() {
       'ventes': 2,
       'ecritures': 4,
     });
+  });
+
+  test('CORRESPONDANCE DES COMPTES modifiée : la MÊME pièce que le serveur, '
+      'avant et après chaque changement (parité)', () {
+    expect(serveurCorrespondance, hasLength(_scenarioCorrespondance.length));
+    expect(localCorrespondance, hasLength(_scenarioCorrespondance.length));
+    for (var i = 0; i < _scenarioCorrespondance.length; i++) {
+      expect(
+        localCorrespondance[i],
+        equals(serveurCorrespondance[i]),
+        reason: 'opération $i : ${_scenarioCorrespondance[i]}',
+      );
+    }
+  });
+
+  test('la parité de la correspondance n’est pas verte à vide : les comptes '
+      'CHOISIS portent vraiment les pièces, les anciens plus', () {
+    List<String> comptesDe(int i) => [
+      for (final l in ((serveurCorrespondance[i] as Map)['piece'] as List))
+        (l as Map)['compte'] as String,
+    ];
+    // Les indices de `_scenarioCorrespondance` (3 paramètres d'abord).
+    final defauts = comptesDe(3);
+    expect(
+      defauts,
+      containsAll(<String>['5711', '7011', '7061', '7073', '4431', '4432']),
+    );
+    final note = comptesDe(4);
+    expect(note, contains('4111'));
+
+    final choisis = comptesDe(15);
+    expect(
+      choisis,
+      containsAll(<String>[
+        '5712',
+        '7012',
+        '7062',
+        '7078',
+        '7064',
+        '4434',
+        '4433',
+      ]),
+    );
+    for (final ancien in ['5711', '7011', '7061', '7073', '4431', '4432']) {
+      expect(choisis, isNot(contains(ancien)), reason: ancien);
+    }
+    expect(comptesDe(16), contains('558'));
+    expect(comptesDe(17), contains('5212'));
+    // La note de chambre sur un compte client SANS centre par défaut passe :
+    // le centre est celui du compte par défaut du rôle (Structure).
+    final noteChoisie = ((serveurCorrespondance[19] as Map)['piece'] as List)
+        .cast<Map<String, dynamic>>();
+    final client = noteChoisie.firstWhere((l) => l['compte'] == '4112');
+    expect(client['centre'], 'Structure');
+
+    // Deux rôles de TVA sur le même compte : DEUX lignes, comme au serveur.
+    final memeCompte = ((serveurCorrespondance[23] as Map)['piece'] as List)
+        .cast<Map<String, dynamic>>();
+    expect(memeCompte.where((l) => l['compte'] == '4433').length, 2);
+
+    // Les refus : le compte absent du plan, puis la division.
+    expect(
+      (serveurCorrespondance[32] as Map)['refus'],
+      contains('Compte comptable inconnu : 7999'),
+    );
+    expect((serveurCorrespondance[33] as Map)['ok'], isTrue);
+    expect(
+      (serveurCorrespondance[35] as Map)['refus'],
+      contains('Le compte 70 est une division du plan comptable'),
+    );
   });
 
   test('le scénario éprouve les chemins qui comptent (pas un vert à vide)', () {
@@ -593,26 +760,25 @@ void main() {
     // Les tables : le journal, les comptes, les centres, les contreparties.
     expect(l['journal'], journalDesVentes);
     expect(l['modules_encaissables'], modulesEncaissables);
-    expect(l['comptes_produit'], comptesProduitParModule);
-    expect(l['comptes_tva'], comptesTvaParModule);
+    // Depuis le 26/10/2026 le serveur déclare des RÔLES (la correspondance des
+    // comptes est modifiable) : le poste porte les mêmes.
+    expect(l['roles_produit'], rolesProduitParModule);
+    expect(l['roles_tva'], rolesTvaParModule);
     expect(l['centres_par_module'], centresParModule);
-    expect(
-      l['compte_clients'],
-      compteDeContrepartie(ModeReglement.noteChambre),
-    );
+    expect(l['role_clients'], roleDeContrepartie(ModeReglement.noteChambre));
     expect(l['modules'], MessagesVentes.modulesDuServeur);
     final contreparties = (l['contreparties'] as Map).cast<String, String>();
     expect(contreparties.length, 4);
     for (final e in contreparties.entries) {
       final mode = ModeReglement.parCode(e.key);
       expect(
-        compteDeContrepartie(mode),
-        TresorerieDepense.depuisCode(e.value)!.compte,
+        roleDeContrepartie(mode),
+        TresorerieDepense.depuisCode(e.value)!.role,
         reason: e.key,
       );
     }
     // Non vide : sinon l'égalité ci-dessus comparerait des vides.
-    expect(l['comptes_produit'], isNotEmpty);
+    expect(l['roles_produit'], isNotEmpty);
   });
 
   test('LA REMISE (21/10/2026) : le net, ses centimes, ses refus — chaque '

@@ -39,6 +39,7 @@ declare(strict_types=1);
 |   {"op":"annuler","reglement":0,"motif":"Doublon","user":"g"}
 |   {"op":"vue","user":"g","statut":"","recherche":""}
 |   {"op":"droits","role":"gerant"}
+|   {"op":"parametre","cle":"compte_caisse","valeur":"5712"|null}
 |   {"op":"etat"}  {"op":"libelles"}
 | Sortie (stdout, JSON) : { "resultats": [ ... un par operation ... ] }
 |
@@ -318,6 +319,24 @@ try {
                     ]);
                     $commandes[$op['ref']] = $c;
                     $resultats[] = ['ok' => true, 'montant_total' => $m2($c->montant_total)];
+                    break;
+
+                case 'parametre':
+                    // La correspondance des comptes (26/10/2026) : une cle
+                    // `compte_<role>` posee DIRECTEMENT en base (la validation de
+                    // l'ecran n'est pas ce qu'on mesure : c'est la LECTURE au
+                    // moment de regler). `null` retire la ligne : le defaut.
+                    DB::table('parametres_systeme')->where('cle', $op['cle'])->delete();
+                    if ($op['valeur'] !== null) {
+                        DB::table('parametres_systeme')->insert([
+                            'id' => (string) Str::uuid(),
+                            'cle' => $op['cle'],
+                            'valeur' => $op['valeur'],
+                            'created_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+                    }
+                    $resultats[] = ['ok' => true];
                     break;
 
                 case 'statut':
