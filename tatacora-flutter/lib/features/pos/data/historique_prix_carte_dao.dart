@@ -140,6 +140,7 @@ class HistoriquePrixCarteDao {
               )
               ..orderBy([
                 (t) => OrderingTerm.asc(t.creeLe),
+                (t) => OrderingTerm.asc(const CustomExpression<int>('rowid')),
                 (t) => OrderingTerm.asc(t.id),
               ]))
             .get();
@@ -178,8 +179,9 @@ class HistoriquePrixCarteDao {
   /* ================================================================== */
 
   /// L'historique de CET article, du plus récent au plus ancien — comme la vue
-  /// (`orderByDesc('created_at')`), départagé par l'identifiant pour un ordre
-  /// stable.
+  /// (`orderByDesc('created_at')`), départagé par l'ORDRE D'INSERTION (`rowid`)
+  /// puis l'identifiant : deux traces écrites à la même seconde restent dans
+  /// l'ordre où elles ont été écrites (l'identifiant seul est un UUID au hasard).
   Future<List<TracePrix>> deLArticle(
     SourceCarte source,
     String sourceId,
@@ -192,6 +194,7 @@ class HistoriquePrixCarteDao {
               )
               ..orderBy([
                 (t) => OrderingTerm.desc(t.creeLe),
+                (t) => OrderingTerm.desc(const CustomExpression<int>('rowid')),
                 (t) => OrderingTerm.desc(t.id),
               ]))
             .get();

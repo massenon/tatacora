@@ -14,6 +14,10 @@
 --}}
 <div class="contents">
 
+  {{-- Le changement d'un compte flashe `pwa-succes` : sans ce rendu, le geste a
+       lieu et l'écran reste muet. --}}
+  @include('pwa.partials.toast-succes')
+
   @include('pwa.partials.barre-superieure')
 
   <div class="flex flex-1 overflow-hidden">

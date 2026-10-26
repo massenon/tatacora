@@ -270,15 +270,12 @@ final class TourismeEtLocationTest extends TestCase
     }
 
     /**
-     * Le maillon manquant du processus, constaté et non masqué : une location
-     * erronée ne peut pas être annulée (PA-50), alors que la prestation
-     * touristique, elle, le peut.
-     *
-     * L'asymétrie est le fait notable — deux modules du même processus n'ont
-     * pas la même capacité de correction.
+     * Le maillon qui manquait au processus (PA-50) est fermé le 26/10/2026 : une
+     * location erronée s'annule comme une prestation touristique, et le
+     * véhicule redevient libre sur sa plage (RG-08).
      */
     #[Test]
-    public function pa50_l_annulation_est_possible_cote_circuit_mais_pas_cote_vehicule(): void
+    public function pa50_l_annulation_est_possible_cote_circuit_et_cote_vehicule(): void
     {
         $tours = app(ReservationTourService::class);
         $locations = app(ContratLocationService::class);
@@ -291,7 +288,7 @@ final class TourismeEtLocationTest extends TestCase
             'nb_participants' => 4,
         ]);
 
-        $locations->creer([
+        $contrat = $locations->creer([
             'vehicule_id' => $this->prado->id,
             'client_id' => $this->client->id,
             'date_debut' => self::DEPART,
@@ -303,10 +300,11 @@ final class TourismeEtLocationTest extends TestCase
         $tours->annuler($prestation);
         $this->assertSame(12, $tours->placesRestantes($this->cascade->fresh(), self::DEPART));
 
-        // Côté M8 : rien ne libère le véhicule. Il n'existe aucune méthode
-        // d'annulation, et le contrat continue de bloquer sa plage.
-        $this->assertFalse(method_exists($locations, 'annuler'));
+        // Côté M8 : le contrat bloque sa plage tant qu'il n'est pas annulé, puis
+        // le véhicule redevient libre.
         $this->assertFalse($locations->estDisponible($this->prado->id, self::DEPART, '2026-09-16'));
+        $locations->annuler($contrat);
+        $this->assertTrue($locations->estDisponible($this->prado->id, self::DEPART, '2026-09-16'));
     }
 
     // ------------------------------------------------------------- Helpers
