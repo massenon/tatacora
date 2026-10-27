@@ -1602,3 +1602,14 @@ Décision D4 du PO (« convertir en CRUD, même logique que le web » ; un trans
 - **Pièges** : `corps?['code']` dans une garde `when` ou un ternaire est lu comme `? :` (calculer avant) ; `Request::call` de Laravel ignore `withToken` (passer `HTTP_AUTHORIZATION`) et le garde Sanctum mémorise l'utilisateur d'un test (`forgetGuards()`) ; l'aligneur CONSERVE la ligne d'une dépense tant qu'une opération l'attend (accuser la création avant de tester la descente) ; ne jamais `dart format` un dossier partagé.
 - **Non fait / assumé** : pas de réduction d'image ; pas d'essai Dart ↔ `artisan serve` de bout en bout (le transport HTTP réel du poste est éprouvé contre `MockClient`/faux, le contrôleur contre le vrai Laravel en PHP) ; reçu non joignable après coup (la dépense est immuable, comme au web).
 
+
+## Lots L0-L2 : verrou, bulletin A4, modales d'ouverture, restauration d'archives (27/10/2026, sans schéma)
+
+Détail : `../docs/INVENTAIRE_POSTE_LECTURE_SEULE.md` §9. Décision du PO : « convertir en CRUD, même logique que le web ».
+
+- **A11** : l'archivage des employés passe par `core/rbac/regle_archivage.dart` (administrateur / super_admin OU bascule), relue à chaque geste (D272).
+- **A1 Verrou de session** : `features/auth/domain/verrou_session.dart` + `voile_verrou_session.dart`, minuteur d'inactivité, limiteur d'essais rejoué contre `VerrouSession` (`tool/session/rejouer_verrou.php`). Horloge, stockage et vérificateur injectables ; un test de widget démonte l'arbre avant la vérification des minuteurs.
+- **A3 Bulletin de paie A4** : `features/rh/impression/bulletin_paie_a4.dart` (gabarit commun `entete_a4.dart`, `texteTicket`) ; « Imprimer » / « PDF » sont des actions injectables. Classé dans `documentsClient` de `pdf_directive_test` (document REMIS, pas de visas).
+- **A2 Modales d'ouverture** : `features/alertes/{domain,presentation}/modales_ouverture.dart`, `HoteModalesOuverture` dans la coquille, déclenché par `ouvertureEnAttenteProvider` (posé à la connexion). Stock critique, puis départs et créances ; check-out via `SejourDao.checkoutDuSejour`, relance tracée ; droits M1/M3. Preuve : `tool/alertes/rejouer_modales_ouverture.php`. Piège : `etapesOuvertureProvider` n'est PAS autoDispose (libéré pendant `.future`).
+- **A4 Restaurer** : `features/transverse/{domain/registre_archives,data/archives_poste}.dart`. Registre DÉRIVÉ (unités `actif=false`, véhicules `hors_service`), « archivé le/par » lu de `operations_sync_local`, aucune table d'archives. Restaurées = restauration précédée d'un archivage connu, plafond 100. Preuve : `tool/transverse/rejouer_archives.php`. Écarts : archives d'un autre poste absentes ; « — » sans opération locale. A5 (purge) NON fait.
+- **Pièges** : basenames identiques (domaine/présentation) = sauvegardes de mutation écrasées ; ne pas lancer `dart format` sur de larges dossiers.

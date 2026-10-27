@@ -307,6 +307,7 @@
       "features/transverse/presentation/widgets/modales_contact_editeur.dart"
     ],
     "transverse/import-export": [
+      "core/theme/mesures_archives.dart",
       "features/transverse/presentation/ecran_import_export.dart"
     ],
     "transverse/journal-audit": [

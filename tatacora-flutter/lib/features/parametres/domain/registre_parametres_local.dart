@@ -471,12 +471,11 @@ abstract final class RegistreParametresLocal {
       type: TypeParametre.booleen,
       aide:
           'Affiche les stocks critiques et les créances échues dès la connexion.',
-      // LUE depuis le 14/10/2026 (lot B, cloche de la barre supérieure) :
-      // fermée, la cloche ne dérive plus aucune alerte, comme au serveur
-      // (`AlertesOuverture::pour()`). Les deux modales d'ouverture de session
-      // de la vue ne sont pas portées sur ce poste : l'aide (celle de la vue,
-      // non touchée) promet plus que ce que le poste fait, l'écart est NOMMÉ
-      // dans la correction.
+      // LUE : la cloche de la barre supérieure (lot B, 14/10/2026) et, depuis
+      // le 27/10/2026 (A2), les deux modales d'ouverture de session
+      // (`HoteModalesOuverture`, `AlertesOuvertureModales`) : fermée, ni la
+      // cloche ni les modales ne s'affichent, comme au serveur
+      // (`AlertesOuverture::pour()`). L'aide, celle de la vue, est donc vraie.
       lecteur: 'lib/features/alertes/presentation/providers_alertes.dart',
     ),
 

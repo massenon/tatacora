@@ -24,10 +24,10 @@ Journal d'audit, Recherche globale, Aide) n'ont aucune action et ne sont pas com
 | Indicateur | Nombre |
 |---|---|
 | Actions web d'écriture inventoriées | **150** |
-| Couvertes (OUI complet) | **139** (135 à la mesure, +4 par le lot L3) |
-| Partielles | **3** (7 à la mesure, −4 par le lot L3 : A9, A11, A12 restent) |
+| Couvertes (OUI complet) | **144** (135 à la mesure, +4 par le lot L3, +5 par les lots L1-L2 : A11, A1, A3, A2, A4) |
+| Partielles | **2** (7 à la mesure, −4 par le lot L3, −1 par A11 : A9 et A12 restent) |
 | Lecture seule | **0** |
-| Absentes | **8** |
+| Absentes | **4** (8 à la mesure, −4 par L1-L2 : A5 et les journaux hors périmètre restent) |
 
 Parmi les absentes et partielles, certaines sont des écarts voulus (section 3) : 
 **9 lignes relèvent des vrais manques (section 2 ; 13 à la mesure, 4 livrés par le lot L3)** et **2 sont des écarts voulus ou impossibles hors ligne (section 3)**. 
@@ -73,17 +73,17 @@ ou de « non porté » sont **périmés** (section 6) : ils ne doivent pas servi
 
 | Réf. | Manque | Statut | Cause | Effort | Schéma ? |
 |---|---|---|---|---|---|
-| A1 | Verrou de session (`VerrouSession::deverrouiller`) | ABSENT | écran non construit | S | non |
-| A2 | Modales d'ouverture de session : check-out inline, relance inline (`AlertesOuvertureModales`) | ABSENT | écran non construit ; l'aide du paramètre « Alertes à l'ouverture » le dit (`registre_parametres_local.dart:474`) | M | non |
-| A3 | Bulletin de paie sur papier A4 : « Imprimer » et « PDF » (`Paie::exporterPdf`) | ABSENT | gabarit non construit ; les deux boutons s'affichent et répondent `VueBulletin.impressionAbsente` (`modales_paie.dart:1320`, `:1442-1451`) | M | non |
-| A4 | Archives : « Restaurer » un élément (`ImportExport::restaurerArchive`) | ABSENT | refusé sur un motif **inexact** : le web n'a pas de table d'archives, son registre est un agrégat DÉRIVÉ des unités et véhicules `hors_service` (`RegistreArchivesService`). Le poste a ces deux états (`ParcDao.archiver/restaurer`, `VehiculeDao.changerStatut`) | M | non |
+| A1 | **FAIT (L1, 27/10/2026)** Verrou de session (`VerrouSession::deverrouiller`) | OUI | voile + minuteur d'inactivité, limiteur d'essais du serveur (`tool/session/rejouer_verrou.php`) | - | non |
+| A2 | **FAIT (L1, 27/10/2026)** Modales d'ouverture de session : check-out inline, relance inline (`AlertesOuvertureModales`) | OUI | `HoteModalesOuverture` : stock critique puis départs/créances, droits M1/M3 relus, 3 collecteurs et mots comparés au serveur (`tool/alertes/rejouer_modales_ouverture.php`) ; l'aide du paramètre est désormais vraie | - | non |
+| A3 | **FAIT (L1, 27/10/2026)** Bulletin de paie sur papier A4 : « Imprimer » et « PDF » (`Paie::exporterPdf`) | OUI | `rh/impression/bulletin_paie_a4.dart` (gabarit commun `entete_a4.dart`, `texteTicket`), actions injectables ; classé document REMIS (sans visas), comme le gabarit serveur | - | non |
+| A4 | **FAIT (L2, 27/10/2026)** Archives : « Restaurer » un élément (`ImportExport::restaurerArchive`) | OUI | registre DÉRIVÉ des unités et véhicules `hors_service` (`registre_archives.dart`, `archives_poste.dart`), « archivé le/par » lu de la file d'envoi, aucune table ; preuve contre le serveur `tool/transverse/rejouer_archives.php`. Écarts : archives d'un autre poste absentes, « — » sans opération locale | - | non |
 | A5 | Archives : « Purger » définitivement (`purgerArchive`) | ABSENT | suppression physique d'une unité ou d'un véhicule archivé (`ParcHebergementService::purger`, `ParcVehiculeService::purger`) ; le protocole de synchronisation ne connaît que création et modification, le serveur ne recevrait jamais la suppression | L | non (protocole serveur) |
 | A6 | Véhicule : Places, Année, Transmission (`Locations::enregistrerVehicule`) | **FAIT (L3, 27/10/2026)** | `vehicules_local.annee/capacite/transmission` (v41), `VehiculeDao.enregistrerVehicule` (bornes et phrases du serveur), `GestionnaireVehicules::modifier` les accepte, descente (`COLONNES` portait déjà les trois) | - | v41 |
 | A7 | Contrat : N° `LOC-`, Remise, Acompte, Reste dû (`Locations::enregistrerContrat`) | **FAIT (L3, 27/10/2026)** | `contrats_location_local.numero/remise/acompte/montant` (v41) : montant net FIGÉ à la signature (plus de recalcul au tarif courant), reste dû = montant − acompte, N° du serveur posé à l'accusé ; `GestionnaireContratsLocation` accepte remise et acompte (phrases `lte` de la vue) ; anciens contrats : colonnes nulles, « — » | - | v41 |
 | A8 | Plat : champ « Catégorie » (dix valeurs, `Restauration::enregistrerPlat`) | **FAIT (L3, 27/10/2026)** | `plats_local.categorie` (v41), modale, colonne et filtre du catalogue, import M4 ; `GestionnairePlats` accepte `categorie` en synchronisation (registre fermé de la vue ; `CHAMPS_REFUSES` de l'API inchangé) ; `COLONNES` descend `plats.categorie`. Écart assumé : la CARTE du restaurant classe encore par type de menu | - | v41 |
 | A9 | **LIVRÉ le 27/10/2026 (lot L4, v42)** — Dépense : reçu / justificatif image (`Depenses::enregistrerDepense`, `photoRecu`) | OUI | aucune colonne ni sélecteur (`ecran_depenses.dart:90`) ; la synchronisation est du JSON, aucun transport de fichier ; la pastille « sans reçu » est vraie pour toutes les lignes | L | v41 (chemin du reçu) + serveur |
 | A10 | Guide : Certification et Tarif/jour (`Departs::enregistrerGuide`) | **FAIT (L3, 27/10/2026)** | `guides_local.certification/tarif_jour` (v41) rangés par `TourismeDao.enregistrerGuide` (ils partaient déjà au serveur) et redescendus | - | v41 |
-| A11 | Archivage des employés : règle « administrateur / super_admin OU bascule » (`Paie::archiverEmployes`) | PARTIEL | `peutArchiverPaieProvider` réduit la règle aux deux rôles ; la règle unique `core/rbac/regle_archivage.dart` existe et sert déjà Fournisseurs, Clients, Articles (D272) | S | non |
+| A11 | **FAIT (L1, 27/10/2026)** Archivage des employés : règle « administrateur / super_admin OU bascule » (`Paie::archiverEmployes`) | OUI | `core/rbac/regle_archivage.dart` (D272) relue à chaque geste | - | non |
 | A12 | Création d'un compte du plan comptable (`Hub::enregistrerCompte`) | PARTIEL | écrit sur le poste seulement : aucune table au registre de synchronisation (`ecran_comptabilite.dart:69`) ; un compte web n'arrive pas au poste, et inversement | L | non (serveur : gestionnaire + descente) |
 
 Notes sur A4 : la restauration passée (« déjà restaurées ») se lit au web du journal d'audit ;
@@ -277,9 +277,9 @@ et l'instant, donc aucun schéma n'est nécessaire.
 | `Paie::etablirBulletin` | **OUI** | `PaieDao.etablir` | - | non |  |
 | `Paie::genererBulletinsManquants` | **OUI** | `panneaux_paie.dart:890` | - | non |  |
 | `Paie::annulerBulletin` | **OUI** | `PaieDao.annuler` | - | non |  |
-| `Paie::confirmerArchivage` / `archiverEmployes` | **PARTIEL** | `EmployeDao.archiver` ; règle réduite aux deux rôles d'administration (bascule non lue) | S | non | A11 |
+| `Paie::confirmerArchivage` / `archiverEmployes` | **OUI (L1)** | `EmployeDao.archiver` + règle unique d'archivage | - | non | A11 |
 | `Paie::genererExport` (livre de paie) | **OUI** | `ecran_paie.dart:220` | - | non |  |
-| `Paie::exporterPdf` (bulletin A4) | **ABSENT** | boutons « Imprimer » et « PDF » sans document | M | non | A3 |
+| `Paie::exporterPdf` (bulletin A4) | **OUI (L1)** | `bulletin_paie_a4.dart` | - | non | A3 |
 | `CongesPlannings::enregistrerPlanning` | **OUI** | `CongesPlanningsDao.planifier` | - | non |  |
 | `CongesPlannings::enregistrerConge` | **OUI** | `CongesPlanningsDao.demander` | - | non |  |
 | `CongesPlannings::validerConge` | **OUI** | `CongesPlanningsDao.valider` | - | non |  |
@@ -333,12 +333,12 @@ et l'instant, donc aucun schéma n'est nécessaire.
 | `ImportExport::genererSauvegarde` / `telechargerSauvegarde` | **OUI** | `SauvegardesPoste` (`VACUUM INTO`) | - | non |  |
 | `ImportExport::retirerSauvegarde` / `confirmerRetraitSauvegarde` | **OUI** | `SauvegardesPoste.retirer` | - | non |  |
 | `ImportExport::exporterTable` | **OUI** | `ecran_import_export.dart` | - | non |  |
-| `ImportExport::restaurerArchive` | **ABSENT** | jeton `blade-refuse:transverse/import-export#restaurer` | M | non | A4 |
+| `ImportExport::restaurerArchive` | **OUI (L2)** | registre dérivé, `ArchivesPoste.restaurer` | - | non | A4 |
 | `ImportExport::purgerArchive` | **ABSENT** | jeton `blade-refuse:…#modale:import_export.purge_titre` | L | non | A5 |
 | `ImportExport::reinitialiserDonneesTest` | **OUI** | `reinitialisation_locale.dart` | - | non |  |
-| `VerrouSession::deverrouiller` | **ABSENT** | aucun minuteur d'inactivité ni voile dans `lib/` | S | non | A1 |
-| `AlertesOuvertureModales::effectuerCheckOutOuverture` | **ABSENT** | la cloche existe (`alertes_ouverture.dart`), pas les modales | M | non | A2 |
-| `AlertesOuvertureModales::tracerRelanceOuverture` | **ABSENT** | idem ; `RelancesClientsDao` et `SejourDao` existent déjà | M | non | A2 |
+| `VerrouSession::deverrouiller` | **OUI (L1)** | `voile_verrou_session.dart`, `verrou_session.dart` | - | non | A1 |
+| `AlertesOuvertureModales::effectuerCheckOutOuverture` | **OUI (L1)** | `ModalesOuvertureNotifier.effectuerCheckOut` | - | non | A2 |
+| `AlertesOuvertureModales::tracerRelanceOuverture` | **OUI (L1)** | `ModalesOuvertureNotifier.tracerRelance` | - | non | A2 |
 | `ClocheNotifications::marquerLu` / `marquerToutLu` | **OUI** | `AlertesVuesDao.marquerVues` | - | non |  |
 | `SynchronisationPostes::synchroniser` / `revoquer` | **OUI** | `ServiceSuiviPostes` (exige le serveur) | - | non |  |
 | `ReceptionSynchronisation::enregistrerCorrection` / `relancer` / `ignorer` | **ABSENT** | journal de réception du SERVEUR ; le poste a sa propre file | - | non | B7 |
@@ -373,7 +373,7 @@ Relevés au cours de la lecture, à corriger au lot L0 pour qu'ils cessent de d�
 - `lib/features/vehicules/presentation/ecran_vehicules.dart:71` : « Immobilisations : vide, aucune table locale » ; faux depuis la v32 (`modale_immobilisation.dart:250`, `VehiculeDao.enregistrerEntretien`).
 - `lib/features/tourisme/presentation/ecran_tourisme.dart:79-82` : dit que `reservations_tour` n'est au registre d'aucune synchronisation et qu'une prestation reste sur le poste ; faux, `circuits`, `guides`, `reservations_tour` sont dans `TableSynchronisee`.
 - `lib/features/hebergement/presentation/ecran_reservations.dart` (onglet Annulations « sans source ») : périmé depuis la v19 (huit colonnes d'annulation).
-- `lib/features/transverse/presentation/ecran_import_export.dart:63-75` : attribue le refus de « Restaurer » à une table d'archives à créer ; le web n'en a pas (A4).
+- (CORRIGÉ au lot L2) `lib/features/transverse/presentation/ecran_import_export.dart` : attribuait le refus de « Restaurer » à une table d'archives à créer ; le web n'en a pas (A4).
 - `lib/features/restaurant/presentation/ecran_carte_restaurant.dart:110` : jeton `blade-refuse:…#modale:modal-retirerdelacartedujour` alors que la phrase voisine dit que le refus est retiré et que le retrait est livré (`IndisponibilitesCarteDao.retirer`).
 - `lib/features/rh/presentation/providers_rh.dart:79` : la condition de réouverture (« si les Paramètres deviennent locaux ») est remplie depuis la v11.
 - `CLAUDE.md` du poste : le titre « schéma v21, 53 tables » côtoie v38/v40 ; `AUDIT_POSTE_AUTONOME.md` §5 s'arrête à la v40 mais le titre du tableau §3 est inchangé.
@@ -393,7 +393,7 @@ la liste » (le geste existe : `SauvegardesPoste.retirer`).
 - **D4** : justificatif de dépense : accepte-t-on un transport de fichier dans la synchronisation (aujourd'hui JSON seul) ?
 - **D5** : la purge définitive d'une unité ou d'un véhicule archivé doit-elle exister au poste (impose une opération `suppression` dans le protocole) ?
 - **D6** : D246 est-il rouvert pour le plan comptable (A12) et les pièces saisies à la main (B4) ?
-- **D7** : PA-192, PDF « certifié A4 » : le bulletin de paie A4 (A3) reprend-il le gabarit tabulaire commun ou exige-t-il visas et en-tête propres ?
+- **D7** (TRANCHÉ en pratique, A3 : document remis, sans visas, comme le gabarit serveur) : PA-192, PDF « certifié A4 » : le bulletin de paie A4 (A3) reprend-il le gabarit tabulaire commun ou exige-t-il visas et en-tête propres ?
 
 ## 8. Lot L3-S + L3 livré (27/10/2026, schéma v41)
 
@@ -439,3 +439,9 @@ plat, guide ».
 ## 8. Suite du lot L4 (27/10/2026)
 
 D4 = OUI. A9 est livré : colonnes `depenses_local.recu_*` (schéma **v42**, après la v41 de L3), fichier rangé dans `recus_depenses/` à côté de `poste.json`, dépôt `PUT /api/v1/sync/depenses/{id}/recu` (idempotent par SHA-256, 400 Ko, mêmes droits que la dépense, journal de réception `recus_depenses`), référence redescendue (`donnees.recu`), téléchargement à la demande. Détail et écarts : `tatacora-flutter/CLAUDE.md`, section « Le reçu en image d'une dépense ».
+
+## 9. Lots L0, L1, L2 livrés (27/10/2026, sans schéma)
+- **L0** : en-têtes et jetons `blade-refuse:` périmés corrigés (section 6) après vérification ; le jeton `#restaurer` est levé (A4), il ne reste que `#modale:import_export.purge_titre` (A5, hors périmètre).
+- **L1** : A11 (règle d'archivage unique), A1 (verrou de session), A3 (bulletin A4), A2 (modales d'ouverture) livrés ; chacun avec preuve contre le serveur PHP réel et mutation-tests.
+- **L2** : A4 (Restaurer) sur registre dérivé. Gardes web `PwaActionsReluesTest` et `PwaEcritureAutoriseeTest` : 15 tests verts, aucune garde Livewire manquante à inscrire.
+- **Écarts assumés** : le bulletin A4 n'a pas de visas ; durée du circuit non composée dans les départs à échéance ; export Immobilisations absent ; registre d'archives limité à CE poste (« — » sans opération locale) ; A5 (purge) et A12 non faits.

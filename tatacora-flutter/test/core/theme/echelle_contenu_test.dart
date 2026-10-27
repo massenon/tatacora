@@ -477,6 +477,10 @@ void main() {
         '(`partials/acces-rapide`) sont inclus APRÈS `</main>` dans les onze '
         'vues qui les portent (ex. `livewire/accueil.blade.php` l.1752, '
         '`</main>` l.1392) : le remappage typographique ne les atteint pas.',
+    'lib/features/alertes/presentation/modales_ouverture.dart':
+        'Châssis. Les deux modales d ouverture de session sont posées par '
+        'l hôte de la coquille, comme la modale `AlertesOuvertureModales` du '
+        'serveur (A2, 27/10/2026) : contenu de dialogue à l échelle de la vue.',
     'lib/features/alertes/presentation/cloche_notifications.dart':
         'Châssis. La cloche et son panneau vivent dans la barre supérieure '
         '(`partials/barre-superieure`, frère de `<main>`), lot B du 14/10/2026.',

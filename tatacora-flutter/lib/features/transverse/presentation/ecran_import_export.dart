@@ -68,17 +68,15 @@ import 'widgets/briques_transverses.dart';
 ///   disent « ce serveur » (« la sauvegarde automatique tourne chaque nuit… »,
 ///   « tant qu'elle reste sur ce serveur », la rétention, la modale de retrait)
 ///   disent ici « ce poste », ou la vérité du poste.
-/// - **Restaurer** : REFUSÉ (21/10/2026). Le serveur tient un registre
-///   d'archives (éléments supprimés de tous les modules, restaurables ou
-///   purgeables depuis cet onglet) ; ce poste n'en a aucun : un élément
-///   « archivé » n'y est qu'un drapeau de son module (fournisseur inactif,
-///   unité hors service), qui se réintègre depuis l'écran de ce module. Un
-///   registre transverse demanderait une table d'archives (changement de
-///   schéma), des écritures dans des modules qui ne sont pas ceux de cet écran
-///   et un contrat de synchronisation de la purge (suppression définitive,
-///   que le serveur ne reçoit nulle part). L'encadré de la vue est rendu,
-///   suivi d'une ligne « Sur ce poste ». Jetons, un par bloc refusé :
-///     blade-refuse:transverse/import-export#restaurer
+/// - **Restaurer** : rendu (A4, 27/10/2026). Registre DÉRIVÉ, sans table
+///   d'archives (comme le serveur, `RegistreArchivesService`) : les unités
+///   d'hébergement et les véhicules `hors_service` sont les « archivés » ;
+///   « archivé le / par » vient de la file d'envoi (`operations_sync_local`),
+///   « — » à défaut. Les « déjà restaurées » sont les restaurations locales
+///   précédées d'un archivage connu (plafond de cent). « Restaurer » écrit par
+///   le DAO du module (unité `libre`, véhicule `disponible`) et enfile. ÉCARTS
+///   nommés : les archives d'un autre poste n'y figurent pas ; l'ordre des
+///   lignes suit l'instant d'archivage. REFUS restant :
 ///     blade-refuse:transverse/import-export#modale:import_export.purge_titre
 /// - **Réinitialiser** : « Réinitialiser comme neuf » (demande du PO du
 ///   14/10/2026, lot E), réplique LOCALE du serveur
