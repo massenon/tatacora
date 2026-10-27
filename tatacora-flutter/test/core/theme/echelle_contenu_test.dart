@@ -379,6 +379,10 @@ void main() {
         '`<main>`.',
     'lib/features/auth/presentation/ecran_demarrage.dart':
         '`demarrage.blade.php` est la seconde page sans `<main>`.',
+    'lib/features/auth/presentation/voile_verrou_session.dart':
+        'Châssis. Le voile de verrouillage est monté par `layouts/pwa` comme '
+        'frère de `<main>` (`@livewire(VerrouSession)`), `fixed inset-0` : le '
+        'remappage de `app.css` ne l atteint pas.',
     'lib/features/auth/presentation/formulaire_premier_compte.dart':
         'Rendu par l écran de connexion, donc hors `<main>` comme lui.',
     'lib/features/ventes/presentation/widgets/dialogue_detail_vente.dart':

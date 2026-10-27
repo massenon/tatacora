@@ -101,6 +101,26 @@ final class SessionRepositoryLocal implements SessionRepository {
     return session;
   }
 
+  /// Vérifie le mot de passe de [login] SANS ouvrir de session : l'équivalent
+  /// de `Auth::validate()` que `VerrouSession::deverrouiller()` emploie au web
+  /// (jamais `Auth::attempt()`, qui régénérerait la session). Ne touche ni au
+  /// coffre ni à l'état de la session ; un compte inconnu ou désactivé rend
+  /// `false`, comme un mot de passe faux (même refus, PA-103).
+  Future<bool> verifierMotDePasse(String login, String motDePasse) async {
+    final ligne =
+        await (_base.select(_base.utilisateursLocal)
+              ..where((u) => u.login.equals(login.trim().toLowerCase())))
+            .getSingleOrNull();
+    if (ligne == null || !ligne.actif) return false;
+    return VerificateurHorsLigne(
+      login: ligne.login,
+      sel: ligne.sel,
+      empreinte: ligne.empreinte,
+      iterations: ligne.iterations,
+      derniereConnexionEnLigne: ligne.dateMotDePasse,
+    ).correspond(motDePasse);
+  }
+
   /// Y a-t-il au moins un compte sur ce poste ?
   ///
   /// Commande l'écran de premier démarrage. Un poste vierge ne doit pas
