@@ -62,7 +62,7 @@ php artisan tatacora:verifier-production
 
 - [ ] La version installée est la nouvelle : Paramètres Windows →
       Applications → TATACORA, version = celle de `pubspec.yaml` (l'installateur
-      s'appelle `TATACORA_Setup_<version>.exe`). « Aide → À propos » ne
+      s'appelle `LogiReStock_Setup_<version>.exe`). « Aide → À propos » ne
       l'affiche pas.
 - [ ] Connexion avec un compte du poste.
 - [ ] La base est au bon endroit :

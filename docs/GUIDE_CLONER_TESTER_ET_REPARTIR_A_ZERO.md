@@ -249,7 +249,7 @@ cd tatacora\tatacora-flutter
 build_windows.bat
 ```
 
-Le résultat est `build\installer\TATACORA_Setup_<version>.exe`.
+Le résultat est `build\installer\LogiReStock_Setup_<version>.exe`.
 
 1. Installez-le sur chaque poste, en commençant par un poste de test.
 2. Créez le compte administrateur du poste, puis appairez-le (B3, étape 2)

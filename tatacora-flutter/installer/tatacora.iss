@@ -3,13 +3,14 @@
 ;
 ;  Compilé par build_windows.bat, qui passe la version lue dans pubspec.yaml :
 ;      ISCC.exe /DAppVersion=1.0.0 installer\tatacora.iss
-;  Produit : build\installer\TATACORA_Setup_<version>.exe
+;  Produit : build\installer\LogiReStock_Setup_<version>.exe
 ;
 ;  Ce qui est installé : TOUT le dossier de sortie de
 ;  `flutter build windows --release` (build\windows\x64\runner\Release\) —
 ;  tatacora_flutter.exe, les DLL (flutter_windows.dll, sqlite3.dll, greffons)
 ;  et le dossier data\ (flutter_assets, icudtl.dat, app.so) — dans
-;  {autopf}\TATACORA (C:\Program Files\TATACORA), plus le modèle
+;  {autopf}\LogiReStock (C:\Program Files\LogiReStock ; une installation
+;  existante garde son dossier : même AppId), plus le modèle
 ;  poste.example.json.
 ;
 ;  Ce qui n'est JAMAIS dans le dossier d'installation, donc JAMAIS effacé par la
@@ -27,9 +28,20 @@
   #define AppVersion "1.0.0"
 #endif
 
-#define AppName "TATACORA — Système de gestion Intégré"
-#define AppPublisher "TATACORA AFRIQUE"
+; Nom commercial et éditeur : build_windows.bat les passe à ISCC
+; (/DAppName=… /DAppPublisher=…) ; ces valeurs ne servent que si l'on compile
+; ce fichier seul.
+#ifndef AppName
+  #define AppName "LogiReStock"
+#endif
+#ifndef AppPublisher
+  #define AppPublisher "Dr MASSENON Rhodes"
+#endif
+; Nom du fichier de l'installateur (sans extension, sans la version).
+#define SetupBaseName "LogiReStock_Setup"
 #define AppExeName "tatacora_flutter.exe"
+; Les noms des dossiers de DONNÉES (%LOCALAPPDATA%\TATACORA, %APPDATA%\TATACORA)
+; ne changent PAS avec le nom commercial : ils contiennent la base du poste.
 #define SourceDir AddBackslash(SourcePath) + "..\build\windows\x64\runner\Release"
 #define IconFile AddBackslash(SourcePath) + "..\windows\runner\resources\app_icon.ico"
 
@@ -48,11 +60,11 @@ AppPublisher={#AppPublisher}
 VersionInfoVersion={#AppVersion}
 VersionInfoCompany={#AppPublisher}
 VersionInfoProductName={#AppName}
-DefaultDirName={autopf}\TATACORA
-DefaultGroupName=TATACORA
+DefaultDirName={autopf}\LogiReStock
+DefaultGroupName=LogiReStock
 DisableProgramGroupPage=yes
 OutputDir=..\build\installer
-OutputBaseFilename=TATACORA_Setup_{#AppVersion}
+OutputBaseFilename={#SetupBaseName}_{#AppVersion}
 #if FileExists(IconFile)
 SetupIconFile={#IconFile}
 #endif
@@ -83,8 +95,8 @@ Source: "poste.example.json"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"
-Name: "{group}\{cm:UninstallProgram,TATACORA}"; Filename: "{uninstallexe}"
+Name: "{group}\{cm:UninstallProgram,{#AppName}}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,TATACORA}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent
