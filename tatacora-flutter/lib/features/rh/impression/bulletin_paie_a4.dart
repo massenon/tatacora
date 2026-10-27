@@ -120,52 +120,6 @@ final class BulletinPaieA4 {
   static String fourchette(int min, int max) =>
       '${formaterFcfa(min)} — ${formaterFcfa(max)}';
 
-  /// Les textes réellement composés, dans l'ordre du papier : la garde
-  /// d'impression les relit (jamais un échantillon écrit à la main).
-  List<String> get textes {
-    final b = bulletin;
-    final e = b.employe;
-    final cout = recapitulatif.cout;
-    return [
-      titre,
-      periodeLongue,
-      b.numero,
-      salarie,
-      e.nomComplet(),
-      e.poste,
-      matricule(e.matricule),
-      cnss(e.sansNumeroCnss ? cnssAbsent : (e.numeroCnss ?? '')),
-      affectation,
-      e.serviceLibelle ?? '—',
-      etabliLe(formaterDate(b.etabliLe)),
-      if (b.estAnnule) annule(b.motifAnnulation ?? ''),
-      ...colonnes,
-      brutLibelle,
-      formaterFcfa(b.brut),
-      cnssSalarialeLibelle,
-      formaterFcfa(b.cnssSalarie),
-      imposableLibelle,
-      formaterFcfa(b.revenuImposable),
-      itsLibelle,
-      formaterFcfa(b.its),
-      if (b.autresRetenues > 0) ...[
-        autresLibelle,
-        formaterFcfa(b.autresRetenues),
-      ],
-      netLibelle,
-      formaterFcfa(b.netAPayer),
-      patronalesTitre,
-      confirmeesLibelle,
-      formaterFcfa(b.chargesPatronalesConfirmees),
-      rpLibelle,
-      fourchette(cout.rpMin, cout.rpMax),
-      coutTotalLibelle,
-      fourchette(cout.coutMin, cout.coutMax),
-      noteRp,
-      '$pied — ${auteur ?? '—'}',
-    ];
-  }
-
   static String _t(String source) => texteTicket(source);
 
   pw.Widget _texte(

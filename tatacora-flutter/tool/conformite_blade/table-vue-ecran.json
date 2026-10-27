@@ -258,6 +258,7 @@
       "features/rh/domain/services/bulletin_paie_service.dart",
       "features/rh/domain/services/calcul_paie_service.dart",
       "features/rh/domain/services/livre_de_paie_service.dart",
+      "features/rh/impression/bulletin_paie_a4.dart",
       "features/rh/impression/etat_paie.dart",
       "features/rh/presentation/ecran_paie.dart",
       "features/rh/presentation/providers_rh.dart",

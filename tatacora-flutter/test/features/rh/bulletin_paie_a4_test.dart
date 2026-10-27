@@ -133,70 +133,106 @@ void main() {
     });
   });
 
+  /// Le papier, normalisé comme `texteTicket` le compose : les parenthèses
+  /// échappées du flux PDF rendues, les mots recollés par une espace.
+  Future<String> lu(BulletinPaieA4 d) async =>
+      (await papier(d)).replaceAll(r'\(', '(').replaceAll(r'\)', ')');
+
   group('Le contenu : rien d’inventé, la fourchette reste une fourchette', () {
-    test('les montants sont ceux des colonnes figées du bulletin', () {
-      final textes = document(bulletin()).textes;
-      for (final attendu in [
-        '160 000 FCFA', // brut
-        '9 000 FCFA', // CNSS salariale
-        '151 000 FCFA', // revenu imposable
-        '4 000 FCFA', // ITS
-        '147 000 FCFA', // net
-        '31 040 FCFA', // charges patronales confirmées
-      ]) {
-        expect(textes, contains(attendu), reason: attendu);
-      }
-    });
-
-    test('le risque professionnel et le coût total sont des FOURCHETTES', () {
-      final d = document(bulletin());
-      final cout = recapitulatif(bulletin()).cout;
-      expect(cout.rpMax, greaterThan(cout.rpMin));
+    test('les montants sont ceux des colonnes figées, À LEUR PLACE', () async {
+      final texte = await lu(document(bulletin()));
+      // Chaque ligne du tableau : libellé puis ses cellules, dans l'ordre.
       expect(
-        d.textes,
-        contains(BulletinPaieA4.fourchette(cout.rpMin, cout.rpMax)),
+        texte,
+        contains('Salaire brut soumis à cotisations 160 000 FCFA CNSS'),
       );
       expect(
-        d.textes,
-        contains(BulletinPaieA4.fourchette(cout.coutMin, cout.coutMax)),
+        texte,
+        contains(
+          'CNSS - cotisation salariale 160 000 FCFA 9 000 FCFA '
+          'Revenu imposable (brut - CNSS) 151 000 FCFA '
+          'ITS - Impôt sur les Traitements et Salaires 4 000 FCFA '
+          'NET À PAYER 147 000 FCFA',
+        ),
       );
-      // 1 % et 4 % du brut (160 000) : bornes réglementaires.
-      expect(cout.rpMin, 1600);
-      expect(cout.rpMax, 6400);
-      expect(cout.coutMin, 160000 + 31040 + 1600);
-      expect(cout.coutMax, 160000 + 31040 + 6400);
+      expect(
+        texte,
+        contains('Total charges patronales confirmées 31 040 FCFA'),
+      );
     });
 
-    test('« Autres retenues » n’apparaît que si elle est positive', () {
-      expect(document(bulletin()).textes, isNot(contains('Autres retenues')));
-      final avec = document(bulletin(retenues: 9000 + 4000 + 2500)).textes;
-      expect(avec, contains('Autres retenues'));
-      expect(avec, contains('2 500 FCFA'));
+    test(
+      'le risque professionnel et le coût total sont des FOURCHETTES',
+      () async {
+        final cout = recapitulatif(bulletin()).cout;
+        // 1 % et 4 % du brut (160 000) : bornes réglementaires.
+        expect(cout.rpMin, 1600);
+        expect(cout.rpMax, 6400);
+        expect(cout.coutMin, 160000 + 31040 + 1600);
+        expect(cout.coutMax, 160000 + 31040 + 6400);
+        final texte = await lu(document(bulletin()));
+        expect(
+          texte,
+          contains(
+            'CNSS - risques professionnels 1 600 FCFA - 6 400 FCFA '
+            'Coût total employeur 192 640 FCFA - 197 440 FCFA',
+          ),
+        );
+      },
+    );
+
+    test('« Autres retenues » n’apparaît que si elle est positive', () async {
+      expect(
+        await lu(document(bulletin())),
+        isNot(contains('Autres retenues')),
+      );
+      final avec = await lu(document(bulletin(retenues: 9000 + 4000 + 2500)));
+      expect(
+        avec,
+        contains('4 000 FCFA Autres retenues 2 500 FCFA NET À PAYER'),
+      );
     });
 
-    test('un salarié sans numéro CNSS le DIT, un bulletin annulé aussi', () {
+    test(
+      'un salarié sans numéro CNSS le DIT, un bulletin annulé aussi',
+      () async {
+        expect(
+          await lu(document(bulletin(cnss: null))),
+          contains('N° CNSS non communiqué'),
+        );
+        expect(
+          await lu(document(bulletin(statut: StatutBulletin.annulee))),
+          contains('Annulé - Erreur de saisie'),
+        );
+        expect(await lu(document(bulletin())), isNot(contains('Annulé')));
+      },
+    );
+
+    test('la note des risques professionnels est imprimée en Latin-1 (les '
+        'apostrophes typographiques ne disparaissent pas)', () async {
+      final texte = await lu(document(bulletin()));
+      expect(texte, contains(texteTicket(BulletinPaieA4.noteRp)));
       expect(
-        document(bulletin(cnss: null)).textes,
-        contains('N° CNSS non communiqué'),
+        caracteresNonImprimables(texteTicket(BulletinPaieA4.noteRp)),
+        isEmpty,
       );
-      final annule = document(bulletin(statut: StatutBulletin.annulee)).textes;
-      expect(annule, contains('Annulé — Erreur de saisie'));
       expect(
-        document(bulletin()).textes.any((t) => t.startsWith('Annulé')),
-        isFalse,
+        BulletinPaieA4.noteRp,
+        contains('’'),
+        reason: 'la source a bien des ’',
       );
     });
 
     test(
       'le pied est la phrase du gabarit, un tiret, le login ; sans login : —',
-      () {
+      () async {
         expect(
-          document(bulletin()).textes.last,
-          '${BulletinPaieA4.pied} — essai',
+          await lu(document(bulletin())),
+          contains(texteTicket('${BulletinPaieA4.pied} — essai')),
         );
         expect(
-          document(bulletin(), auteur: null).textes.last,
-          '${BulletinPaieA4.pied} — —',
+          await lu(document(bulletin(), auteur: null)),
+          contains(texteTicket('${BulletinPaieA4.pied} — —')),
         );
       },
     );
@@ -207,38 +243,21 @@ void main() {
   });
 
   group('Le papier réellement composé', () {
-    test('chaque texte est imprimable en Latin-1 après texteTicket', () {
-      for (final b in [
-        bulletin(),
-        bulletin(cnss: null),
-        bulletin(statut: StatutBulletin.annulee),
-      ]) {
-        for (final t in document(b).textes) {
-          expect(caracteresNonImprimables(texteTicket(t)), isEmpty, reason: t);
-        }
-      }
-    });
-
-    test('le PDF porte l’identité, les montants, la fourchette et le pied — '
-        'et AUCUN visa ni pied de rapport (document remis)', () async {
+    test('le PDF porte l’identité, le salarié et la pagination — et AUCUN visa '
+        'ni pied de rapport (document remis)', () async {
       final d = document(bulletin());
       final octets = await d.pdf();
       expect(latin1.decode(octets.sublist(0, 5)), '%PDF-');
 
-      final texte = await papier(d);
+      final texte = await lu(d);
       for (final attendu in [
         'BULLETIN DE PAIE',
-        'septembre 2026',
-        'BUL-2026-00001',
-        'KORA',
-        'EMP-0001',
-        'Hébergement',
-        '160 000 FCFA',
-        '147 000 FCFA',
-        'Total charges patronales confirmées',
-        'risques professionnels',
+        'septembre 2026 · BUL-2026-00001',
+        'SALARIÉ KORA Jean-Baptiste Réceptionniste Matricule EMP-0001 '
+            'N° CNSS BJ-CNSS-0088412',
+        'AFFECTATION Hébergement Établi le 14/09/2026',
+        'Désignation Base Taux Gain Retenue',
         'Page 1 / 1',
-        'essai',
       ]) {
         expect(texte, contains(attendu), reason: attendu);
       }
@@ -248,8 +267,7 @@ void main() {
     });
 
     test('l’en-tête de l’établissement est celui de l’appelant', () async {
-      final texte = await papier(document(bulletin()));
-      expect(texte, contains('TATACORA'));
+      expect(await lu(document(bulletin())), contains('TATACORA'));
     });
   });
 }

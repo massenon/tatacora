@@ -712,7 +712,7 @@ final bulletinA4Provider =
       return BulletinPaieA4(
         recapitulatif: recapitulatif,
         periodeLongue: periode?.libelleLong ?? recapitulatif.bulletin.periode,
-        auteur: null,
+        auteur: ref.read(sessionProvider)?.login,
       ).avecEntete(await ref.read(lireEnteteEtablissementProvider)());
     });
 
