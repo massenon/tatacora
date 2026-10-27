@@ -72,7 +72,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * @see RG-18 Fiche client unique — détection de doublon avertissante
  */
 #[Layout('layouts.pwa')]
-#[Title('Réservations — TATACORA AFRIQUE')]
+#[Title('Réservations — LogiReStock — TATACORA AFRIQUE')]
 final class Reservations extends PageMetier
 {
     use FormulaireModal;
@@ -889,7 +889,7 @@ final class Reservations extends PageMetier
                 : new EloquentCollection(),
         ]))->layout('layouts.pwa', [
             'module' => self::MODULE,
-            'title' => 'Réservations — TATACORA AFRIQUE',
+            'title' => 'Réservations — LogiReStock — TATACORA AFRIQUE',
         ]);
     }
 

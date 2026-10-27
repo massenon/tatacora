@@ -93,7 +93,7 @@ use RuntimeException;
  * @see docs/PROPOSITION_MODELE_PANIER_POS.md §5 (R-a a R-d)
  */
 #[Layout('layouts.pwa')]
-#[Title('Point de vente — clients hébergés — TATACORA AFRIQUE')]
+#[Title('Point de vente — clients hébergés — LogiReStock — TATACORA AFRIQUE')]
 class PosHeberges extends PageMetier
 {
     use ComposePanier;

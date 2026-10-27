@@ -75,7 +75,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * @see RG-02 Disponibilité toujours calculée
  */
 #[Layout('layouts.pwa')]
-#[Title('Hébergement & Réservations — TATACORA AFRIQUE')]
+#[Title('Hébergement & Réservations — LogiReStock — TATACORA AFRIQUE')]
 final class Hebergement extends PageMetier
 {
     use FormulaireModal;
@@ -693,7 +693,7 @@ final class Hebergement extends PageMetier
                 : UniteHebergement::find($this->uniteAArchiver),
         ]))->layout('layouts.pwa', [
             'module' => self::MODULE,
-            'title' => 'Hébergement & Réservations — TATACORA AFRIQUE',
+            'title' => 'Hébergement & Réservations — LogiReStock — TATACORA AFRIQUE',
         ]);
     }
 

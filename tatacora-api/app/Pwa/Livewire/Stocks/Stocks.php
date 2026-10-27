@@ -91,7 +91,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * @see RG-19 Export PDF/CSV
  * @see docs/DIRECTIVE_CONFORMITE_100.md Articles 3.3, 4.6, 7, 8
  */
-#[Title('Gestion des Stocks — TATACORA AFRIQUE')]
+#[Title('Gestion des Stocks — LogiReStock — TATACORA AFRIQUE')]
 class Stocks extends PageMetier
 {
     use AutoriseArchivage;

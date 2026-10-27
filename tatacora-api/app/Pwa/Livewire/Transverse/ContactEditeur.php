@@ -83,7 +83,7 @@ use Livewire\WithFileUploads;
  * @see RG-15 Traçabilité des actions sensibles
  * @see LARAVEL_PWA.md §1, §3
  */
-#[Title("Contactez l'éditeur — TATACORA AFRIQUE")]
+#[Title("Contactez l'éditeur — LogiReStock — TATACORA AFRIQUE")]
 class ContactEditeur extends PageTransverse
 {
     use WithFileUploads;
@@ -223,6 +223,6 @@ class ContactEditeur extends PageTransverse
         return view('pwa.transverse.contact-editeur', array_merge($this->socle(), [
             'titrePage' => __('pwa.contact.titre'),
             'envois' => $envois,
-        ]))->layout('layouts.pwa', ['title' => __('pwa.contact.titre') . ' — ' . __('pwa.marque')]);
+        ]))->layout('layouts.pwa', ['title' => __('pwa.contact.titre') . ' — ' . __('pwa.titre_defaut')]);
     }
 }

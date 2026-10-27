@@ -58,7 +58,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * @see LARAVEL_PWA.md §1, §3
  * @see DIRECTIVE_CONFORMITE_100.md Article 3.3, Article 8
  */
-#[Title('Import & Export — TATACORA AFRIQUE')]
+#[Title('Import & Export — LogiReStock — TATACORA AFRIQUE')]
 class ImportExport extends PageTransverse
 {
     use FormulaireModal;

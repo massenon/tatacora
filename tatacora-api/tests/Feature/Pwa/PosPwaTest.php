@@ -272,9 +272,9 @@ final class PosPwaTest extends TestCase
     public function les_trois_ecrans_repondent_200_et_portent_leur_propre_titre(): void
     {
         $attendus = [
-            '/pwa/pos/comptant' => 'Point de vente comptant — TATACORA AFRIQUE',
-            '/pwa/pos/heberges' => 'Point de vente — clients hébergés — TATACORA AFRIQUE',
-            '/pwa/historique-ventes' => 'Historique des ventes — TATACORA AFRIQUE',
+            '/pwa/pos/comptant' => 'Point de vente comptant — LogiReStock — TATACORA AFRIQUE',
+            '/pwa/pos/heberges' => 'Point de vente — clients hébergés — LogiReStock — TATACORA AFRIQUE',
+            '/pwa/historique-ventes' => 'Historique des ventes — LogiReStock — TATACORA AFRIQUE',
         ];
 
         foreach ($attendus as $url => $titre) {

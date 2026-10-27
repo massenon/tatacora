@@ -81,7 +81,7 @@ use Livewire\Attributes\Title;
  *
  * @see EF-M10-06
  */
-#[Title('Tableau des Flux de Trésorerie — TATACORA AFRIQUE')]
+#[Title('Tableau des Flux de Trésorerie — LogiReStock — TATACORA AFRIQUE')]
 class FluxTresorerie extends PageComptabilite
 {
     public function render(): View

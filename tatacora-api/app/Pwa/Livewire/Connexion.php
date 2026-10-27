@@ -17,7 +17,7 @@ use Livewire\Component;
 // langue : `pwa.connexion.titre_page`, passé par `render()` sous `titre`,
 // que `layouts/pwa-invite` lit AVANT `$title`.
 //
-// L'attribut `#[Title('LogiRestock TATACORA AFRIQUE — TATACORA AFRIQUE')]`
+// L'attribut `#[Title('LogiRestock TATACORA AFRIQUE — LogiReStock — TATACORA AFRIQUE')]`
 // qui figurait ici a été RETIRÉ le 13/10/2026 (PA-209, ticket D390) : il
 // n'était jamais lu — `$titre ?? $title` s'arrête au premier — et portait
 // encore le nom d'un autre produit (décision du PO, PA-208). Le titre rendu

@@ -72,7 +72,7 @@ use RuntimeException;
  * @see RG-16 Contrôle d'accès basé sur les rôles
  * @see LARAVEL_PWA.md §5
  */
-#[Title('Rôles & Permissions — TATACORA AFRIQUE')]
+#[Title('Rôles & Permissions — LogiReStock — TATACORA AFRIQUE')]
 class RolesPermissions extends PageTransverse
 {
     use FormulaireModal;

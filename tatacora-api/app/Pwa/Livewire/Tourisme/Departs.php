@@ -77,7 +77,7 @@ use RuntimeException;
  * @see DIRECTIVE_CONFORMITE_100.md Articles 3.3, 4, 7
  */
 #[Layout('layouts.pwa')]
-#[Title('Tourisme — TATACORA AFRIQUE')]
+#[Title('Tourisme — LogiReStock — TATACORA AFRIQUE')]
 class Departs extends PageMetier
 {
     use FormulaireModal;

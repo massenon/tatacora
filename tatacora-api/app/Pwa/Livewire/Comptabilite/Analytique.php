@@ -76,7 +76,7 @@ use Livewire\Attributes\Title;
  * @see EF-M10-03 Comptabilite analytique par centre
  * @see RG-12 Centre analytique obligatoire sur les classes 6, 7 et 8
  */
-#[Title('Comptabilité Analytique — TATACORA AFRIQUE')]
+#[Title('Comptabilité Analytique — LogiReStock — TATACORA AFRIQUE')]
 class Analytique extends PageComptabilite
 {
     public function render(): View

@@ -70,7 +70,7 @@ class _EtatApplication extends ConsumerState<ApplicationTatacora> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
-      title: 'TATACORA AFRIQUE',
+      title: 'LogiReStock — TATACORA AFRIQUE',
       debugShowCheckedModeBanner: false,
       // Le messager de la garde du routeur (« Accès refusé à ce module. »).
       scaffoldMessengerKey: messagerApplication,

@@ -61,7 +61,7 @@ use Symfony\Component\HttpFoundation\Response;
  * @see RG-19 Tout export passe par un gabarit unique
  */
 #[Layout('layouts.pwa')]
-#[Title('Historique des ventes — TATACORA AFRIQUE')]
+#[Title('Historique des ventes — LogiReStock — TATACORA AFRIQUE')]
 class HistoriqueVentes extends PageMetier
 {
     use FormulaireModal;

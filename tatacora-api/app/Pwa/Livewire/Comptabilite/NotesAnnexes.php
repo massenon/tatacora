@@ -74,7 +74,7 @@ use Livewire\Attributes\Title;
  *
  * @see EF-M10-06
  */
-#[Title('Notes Annexes — TATACORA AFRIQUE')]
+#[Title('Notes Annexes — LogiReStock — TATACORA AFRIQUE')]
 class NotesAnnexes extends PageComptabilite
 {
     public function render(): View

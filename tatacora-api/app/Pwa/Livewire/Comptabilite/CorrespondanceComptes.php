@@ -45,7 +45,7 @@ use RuntimeException;
  * @see RG-11 immutabilité des pièces
  * @see RG-15 traçabilité des actions sensibles
  */
-#[Title('Correspondance des comptes — TATACORA AFRIQUE')]
+#[Title('Correspondance des comptes — LogiReStock — TATACORA AFRIQUE')]
 class CorrespondanceComptes extends PageComptabilite
 {
     use FormulaireModal;

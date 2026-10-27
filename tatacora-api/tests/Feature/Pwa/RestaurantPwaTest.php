@@ -90,7 +90,7 @@ final class RestaurantPwaTest extends TestCase
 
         $html = (string) $this->get('/pwa/restaurant/carte')->assertOk()->getContent();
 
-        $this->assertStringContainsString('<title>Carte du restaurant — TATACORA AFRIQUE</title>', $html);
+        $this->assertStringContainsString('<title>Carte du restaurant — LogiReStock — TATACORA AFRIQUE</title>', $html);
         $this->assertSame(1, substr_count($html, '<h1 '), 'Un seul <h1> par page.');
         $this->assertStringContainsString('>Carte du restaurant</h1>', $html);
         $this->assertStringContainsString('<body data-module="M4"', $html);
@@ -344,7 +344,7 @@ final class RestaurantPwaTest extends TestCase
         // Directive) pendant que le <h1> disait déjà « Restaurant & Cuisine »
         // (mot du maître, qui gagne) : deux noms pour la même page, et
         // `BaliseTitrePwaTest` le refusait à raison.
-        $this->assertStringContainsString('<title>Restaurant &amp; Cuisine — TATACORA AFRIQUE</title>', $html);
+        $this->assertStringContainsString('<title>Restaurant &amp; Cuisine — LogiReStock — TATACORA AFRIQUE</title>', $html);
         $this->assertSame(1, substr_count($html, '<h1 '), 'Un seul <h1> par page.');
         // Le mot du MAÎTRE (l.28) : la vue livrée rendait « Catalogue des
         // Plats & Restauration ».

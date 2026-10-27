@@ -85,7 +85,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * @see DIRECTIVE_CONFORMITE_100.md Articles 3.3, 4, 7
  */
 #[Layout('layouts.pwa')]
-#[Title('Véhicules & Locations — TATACORA AFRIQUE')]
+#[Title('Véhicules & Locations — LogiReStock — TATACORA AFRIQUE')]
 class Locations extends PageMetier
 {
     use FormulaireModal;

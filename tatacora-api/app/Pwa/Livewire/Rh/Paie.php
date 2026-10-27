@@ -95,7 +95,7 @@ use RuntimeException;
  * @see DIRECTIVE_CONFORMITE_100.md Articles 3.3, 4, 7
  */
 #[Layout('layouts.pwa')]
-#[Title('Personnel & Paie — TATACORA AFRIQUE')]
+#[Title('Personnel & Paie — LogiReStock — TATACORA AFRIQUE')]
 class Paie extends PageMetier
 {
     // « Qui peut archiver » vit dans le trait partagé, jamais recopié ici :

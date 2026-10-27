@@ -117,7 +117,7 @@
   },
   "livewire/accueil": {
     "blade": 300,
-    "ordonnes": 142,
+    "ordonnes": 141,
     "ongletsNonCliquables": 0
   },
   "comptabilite/hub": {

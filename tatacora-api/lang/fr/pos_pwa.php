@@ -60,7 +60,7 @@ return [
     // =====================================================================
 
     'comptant' => [
-        'titre_page' => 'Point de vente comptant — TATACORA AFRIQUE',
+        'titre_page' => 'Point de vente comptant — LogiReStock — TATACORA AFRIQUE',
 
         // maitre — pos.html l.34-35
         'salle' => 'Salle',
@@ -254,7 +254,7 @@ return [
          * reformulation — un titre reformule est un ecart de gabarit, au meme
          * titre qu'une classe changee.
          */
-        'titre_page' => 'Point de vente — clients hébergés — TATACORA AFRIQUE',
+        'titre_page' => 'Point de vente — clients hébergés — LogiReStock — TATACORA AFRIQUE',
 
         // maitre — pos-heberges.html l.24-28
         'titre' => 'Point de vente — clients hébergés',
@@ -337,7 +337,7 @@ return [
     // =====================================================================
 
     'journal' => [
-        'titre_page' => 'Historique des ventes — TATACORA AFRIQUE',
+        'titre_page' => 'Historique des ventes — LogiReStock — TATACORA AFRIQUE',
 
         /*
          * L'ACCORDÉON de la bande d'indicateurs (03/09/2026, demande du

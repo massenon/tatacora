@@ -32,7 +32,7 @@ use RuntimeException;
  * confirmation par la modale du dépôt, jamais `wire:confirm`. Le poste
  * révoqué garde sa file intacte et le dit jusqu'au réappairage.
  */
-#[Title('Postes & Appairage — TATACORA AFRIQUE')]
+#[Title('Postes & Appairage — LogiReStock — TATACORA AFRIQUE')]
 class SynchronisationPostes extends PageTransverse
 {
     /** Les onglets de l'écran : `postes`, `reception`, `envoi` (26/10/2026). */

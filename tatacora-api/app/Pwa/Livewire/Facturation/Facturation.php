@@ -185,7 +185,7 @@ use Symfony\Component\HttpFoundation\Response;
  * @see LARAVEL_PWA.md §1, §3
  * @see DIRECTIVE_CONFORMITE_100.md Articles 4, 6, 7, 8
  */
-#[Title('Facturation & Caisse MECeF — TATACORA AFRIQUE')]
+#[Title('Facturation & Caisse MECeF — LogiReStock — TATACORA AFRIQUE')]
 class Facturation extends PageMetier
 {
     use FormulaireModal;

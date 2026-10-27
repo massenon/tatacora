@@ -60,6 +60,8 @@ declare(strict_types=1);
 
 return [
     'marque' => 'TATACORA AFRIQUE',
+    // Titre d'onglet d'une page qui n'en déclare pas (26/10/2026, PO).
+    'titre_defaut' => 'LogiReStock — TATACORA AFRIQUE',
     'baseline' => 'Consultation de secours — Gîte Chez Noël',
 
     // maquette — badge de la barre supérieure (shell.js, construireTopBar)
@@ -90,7 +92,7 @@ return [
         // mention elle-même devient « Système de gestion Intégré » (casse
         // exacte du PO) ; l'ancienne formule, « Système d'Information
         // Intégré », rougit la même garde.
-        'titre_page' => 'Système de gestion Intégré TATACORA AFRIQUE — TATACORA AFRIQUE',
+        'titre_page' => 'Système de gestion Intégré TATACORA AFRIQUE — LogiReStock — TATACORA AFRIQUE',
 
         // Panneau image de gauche (`hidden lg:block lg:w-1/2`). Le <br> tient
         // le titre sur deux lignes à la césure voulue, quelle que soit la
@@ -463,7 +465,7 @@ return [
         // tout écran de la PWA (`BaliseTitrePwaTest`). « Hors connexion » était
         // un second nom pour la même page ; le <h1> dit ce qui manque, c'est
         // lui qui fait foi.
-        'titre_page' => 'Connexion Internet requise — TATACORA AFRIQUE',
+        'titre_page' => 'Connexion Internet requise — LogiReStock — TATACORA AFRIQUE',
         'titre' => 'Connexion Internet requise',
 
         // Aucun équivalent au maître : la page n'existe que pour la PWA, qui
@@ -503,7 +505,7 @@ return [
      * charger aucune ressource distante (`DIRECTIVE_CONFORMITE_100.md`).
      */
     'erreur_404' => [
-        'titre_page' => 'Page introuvable — TATACORA AFRIQUE',
+        'titre_page' => 'Page introuvable — LogiReStock — TATACORA AFRIQUE',
         'titre' => 'Page introuvable',
         'explication' => 'Cette adresse ne correspond à aucune page de TATACORA AFRIQUE : elle a peut-être '
             . 'été déplacée, ou son lien était incorrect.',
@@ -690,7 +692,7 @@ return [
      * du maître à côté.
      */
     'aide' => [
-        'titre_page' => 'Aide & À propos — TATACORA AFRIQUE',
+        'titre_page' => 'Aide & À propos — LogiReStock — TATACORA AFRIQUE',
         // maquette — l.24-26
         'titre' => 'Aide & À propos',
         'sous_titre' => 'Documentation complète, guide des modules et foire aux questions.',
@@ -953,7 +955,7 @@ return [
      * ou si l'écran est cassé.
      */
     'contact' => [
-        'titre_page' => 'Contactez l\'éditeur — TATACORA AFRIQUE',
+        'titre_page' => 'Contactez l\'éditeur — LogiReStock — TATACORA AFRIQUE',
         // maquette — l.23-25
         'titre' => 'Contactez l\'éditeur',
         'sous_titre' => 'Assistance technique, suggestions et signalement d\'anomalies.',
@@ -1037,7 +1039,7 @@ return [
     // synchroniser, pour envoyer les données en local si le serveur a été
     // utilisé pour enregistrer des données ».
     'synchronisation_postes' => [
-        'titre_page' => 'Postes & Appairage — TATACORA AFRIQUE',
+        'titre_page' => 'Postes & Appairage — LogiReStock — TATACORA AFRIQUE',
         'titre' => 'Postes & Appairage',
         'sous_titre' => 'Postes Windows appairés au serveur : leur état, leur dernier contact, l\'expiration de '
             . 'leur jeton et leur dernier contrôle de cohérence. Ce qui a été enregistré ici part vers eux à leur '
@@ -1087,7 +1089,7 @@ return [
     ],
 
     'journal_audit' => [
-        'titre_page' => 'Journal d\'Audit — TATACORA AFRIQUE',
+        'titre_page' => 'Journal d\'Audit — LogiReStock — TATACORA AFRIQUE',
         // maquette — l.24-26
         'titre' => 'Journal d\'Audit',
         'sous_titre' => 'Traçabilité intégrale de toute action sensible — utilisateur, action, entité '
@@ -1179,7 +1181,7 @@ return [
      * manque ou si l'écran est amputé.
      */
     'profil' => [
-        'titre_page' => 'Mon profil — TATACORA AFRIQUE',
+        'titre_page' => 'Mon profil — LogiReStock — TATACORA AFRIQUE',
         // maquette — l.22-24
         'titre' => 'Mon profil',
         'sous_titre' => 'Vos informations personnelles, votre mot de passe et la trace de vos dernières '
@@ -1246,7 +1248,7 @@ return [
      * bloc de tête de `App\Pwa\Livewire\Transverse\RolesPermissions`.
      */
     'roles' => [
-        'titre_page' => 'Rôles & Permissions — TATACORA AFRIQUE',
+        'titre_page' => 'Rôles & Permissions — LogiReStock — TATACORA AFRIQUE',
         // maquette — l.23-25
         'titre' => 'Rôles & Permissions',
         'sous_titre' => 'Contrôle d\'accès basé sur les rôles (RBAC) — socle '
@@ -1317,7 +1319,7 @@ return [
      * Flutter. Les recopier ferait deux listes, qui divergeraient.
      */
     'parametres' => [
-        'titre_page' => 'Paramètres — TATACORA AFRIQUE',
+        'titre_page' => 'Paramètres — LogiReStock — TATACORA AFRIQUE',
         // maquette — l.22-24
         'titre' => 'Paramètres',
         'sous_titre' => 'Identité de l\'entreprise, informations légales, canaux de communication et '
@@ -1540,7 +1542,7 @@ return [
      * « poste »/« navigateur ») sont notées clé par clé.
      */
     'import_export' => [
-        'titre_page' => 'Import & Export — TATACORA AFRIQUE',
+        'titre_page' => 'Import & Export — LogiReStock — TATACORA AFRIQUE',
         // maquette — l.23-25
         'titre' => 'Import & Export',
         'sous_titre' => 'Chargement de données par module, sauvegardes de la base, restauration des éléments '

@@ -58,7 +58,7 @@ use Livewire\Attributes\Title;
  *
  * @see EF-M10-06
  */
-#[Title("Bilan de l'Entreprise — TATACORA AFRIQUE")]
+#[Title("Bilan de l'Entreprise — LogiReStock — TATACORA AFRIQUE")]
 class Bilan extends PageComptabilite
 {
     public function render(): View

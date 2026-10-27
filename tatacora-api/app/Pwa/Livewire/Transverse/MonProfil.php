@@ -138,7 +138,7 @@ use Livewire\Attributes\Title;
  * @see RG-15 Traçabilité des actions sensibles
  * @see LARAVEL_PWA.md §1, §6
  */
-#[Title('Mon profil — TATACORA AFRIQUE')]
+#[Title('Mon profil — LogiReStock — TATACORA AFRIQUE')]
 class MonProfil extends PageTransverse
 {
     /**

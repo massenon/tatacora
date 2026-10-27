@@ -32,7 +32,7 @@ return [
      */
     'liste' => [
         'titre' => 'Gestion des Stocks',
-        'titre_page' => 'Gestion des Stocks — TATACORA AFRIQUE',
+        'titre_page' => 'Gestion des Stocks — LogiReStock — TATACORA AFRIQUE',
 
         // maitre — m6-stocks.html l.28-31
         'sous_titre' => 'Référentiel valorisé au coût moyen pondéré — le stock affiché est',
@@ -334,7 +334,7 @@ return [
      */
     'inventaires' => [
         'titre' => 'Inventaires & Fiches de stock',
-        'titre_page' => 'Inventaires & Fiches de stock — TATACORA AFRIQUE',
+        'titre_page' => 'Inventaires & Fiches de stock — LogiReStock — TATACORA AFRIQUE',
 
         // maitre — l.28-31
         'sous_titre' => 'Stock initial, entrées, sorties et stock théorique sur une période — '

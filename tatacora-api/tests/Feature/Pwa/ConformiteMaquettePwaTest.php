@@ -99,7 +99,7 @@ final class ConformiteMaquettePwaTest extends TestCase
         // Decision du Product Owner du 13/10/2026 (PA-208) : « LogiRestock »
         // remplace ; seconde decision du meme jour (PA-209, D389) : la mention
         // est « Systeme de gestion Integre » (casse exacte du PO).
-        $this->assertStringContainsString('<title>Système de gestion Intégré TATACORA AFRIQUE — TATACORA AFRIQUE</title>', $html);
+        $this->assertStringContainsString('<title>Système de gestion Intégré TATACORA AFRIQUE — LogiReStock — TATACORA AFRIQUE</title>', $html);
     }
 
     /**

@@ -96,7 +96,7 @@ use Symfony\Component\HttpFoundation\Response;
  * @see LARAVEL_PWA.md §1, §3
  * @see docs/PLAN_ACTION_SEQUENCE_POST_AUDIT.md PA-20, PA-21, PA-65, PA-121, PA-126, PA-165
  */
-#[Title('Clients & Créances — TATACORA AFRIQUE')]
+#[Title('Clients & Créances — LogiReStock — TATACORA AFRIQUE')]
 class ClientsCreances extends PageMetier
 {
     use AutoriseArchivage;

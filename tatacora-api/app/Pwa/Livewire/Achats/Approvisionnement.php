@@ -79,7 +79,7 @@ use Symfony\Component\HttpFoundation\Response;
  * @see RG-10 Tolérance de réception (dans `ReceptionService`, jamais ici)
  * @see LARAVEL_PWA.md §3, §5
  */
-#[Title('Approvisionnement — TATACORA AFRIQUE')]
+#[Title('Approvisionnement — LogiReStock — TATACORA AFRIQUE')]
 class Approvisionnement extends PageMetier
 {
     use FormulaireModal;

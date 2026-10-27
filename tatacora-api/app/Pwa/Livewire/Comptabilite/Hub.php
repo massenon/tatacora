@@ -186,7 +186,7 @@ use Throwable;
  * @see LARAVEL_PWA.md §1, §3
  * @see DIRECTIVE_CONFORMITE_100.md Articles 3.3, 6, 8
  */
-#[Title('Comptabilité — SYSCOHADA révisé — TATACORA AFRIQUE')]
+#[Title('Comptabilité — SYSCOHADA révisé — LogiReStock — TATACORA AFRIQUE')]
 class Hub extends PageComptabilite
 {
     use FormulaireModal;

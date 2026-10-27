@@ -1,7 +1,7 @@
 {
-    "name": "TATACORA AFRIQUE — Consultation",
-    "short_name": "TATACORA",
-    "description": "Consultation de secours, en lecture seule, du systeme de gestion du Gite Chez Noel. La saisie se fait exclusivement depuis l'application TATACORA.",
+    "name": "LogiReStock — TATACORA AFRIQUE",
+    "short_name": "LogiReStock",
+    "description": "Consultation de secours, en lecture seule, du systeme de gestion du Gite Chez Noel. La saisie se fait exclusivement depuis l'application LogiReStock.",
     "start_url": "/pwa",
     "scope": "/pwa",
     "display": "standalone",

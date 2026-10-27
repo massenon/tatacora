@@ -19,7 +19,7 @@
     `$titre` reste accepté en premier : deux vues appellent ce layout en le
     passant, et les casser pour uniformiser un nom serait un dommage gratuit.
 --}}
-@include('pwa.partials.tete', ['titre' => $titre ?? $title ?? __('pwa.marque')])
+@include('pwa.partials.tete', ['titre' => $titre ?? $title ?? __('pwa.titre_defaut')])
 @livewireStyles
 {{-- Bascule plein ecran (directive PO du 02/09/2026) : la classe
      `sidebar-masquee` posee sur <body> escamote le menu lateral sur grand

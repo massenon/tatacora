@@ -241,7 +241,7 @@ abstract final class MessagesCorrespondance {
     'attendu_prefixe': 'commence par :prefixe',
     'attendu_ou': ' ou ',
     'titre': 'Correspondance des comptes',
-    'titre_page': 'Correspondance des comptes — TATACORA AFRIQUE',
+    'titre_page': 'Correspondance des comptes — LogiReStock — TATACORA AFRIQUE',
     'sous_titre':
         'Le compte que chaque pièce automatique utilise pour chaque rôle',
     'avertissement':

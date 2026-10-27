@@ -144,7 +144,7 @@ use RuntimeException;
  * @see DIRECTIVE_CONFORMITE_100.md Articles 3.3, 4.6
  */
 #[Layout('layouts.pwa')]
-#[Title('Restaurant & Cuisine — TATACORA AFRIQUE')]
+#[Title('Restaurant & Cuisine — LogiReStock — TATACORA AFRIQUE')]
 class Restauration extends PageMetier
 {
     use FormulaireModal;

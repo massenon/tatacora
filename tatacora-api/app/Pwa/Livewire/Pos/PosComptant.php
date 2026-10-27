@@ -98,7 +98,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * @see RG-06 Rupture assumee, jamais subie en silence
  */
 #[Layout('layouts.pwa')]
-#[Title('Point de vente comptant — TATACORA AFRIQUE')]
+#[Title('Point de vente comptant — LogiReStock — TATACORA AFRIQUE')]
 class PosComptant extends PageMetier
 {
     use ComposePanier;

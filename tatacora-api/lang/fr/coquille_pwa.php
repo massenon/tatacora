@@ -36,5 +36,5 @@ return [
      * personne ne lit est du code mort qui a l'air d'une spécification — le
      * fichier `pwa.php` le dit lui-même en tête.
      */
-    'demarrage_titre_page' => 'Démarrage — TATACORA AFRIQUE',
+    'demarrage_titre_page' => 'Démarrage — LogiReStock — TATACORA AFRIQUE',
 ];

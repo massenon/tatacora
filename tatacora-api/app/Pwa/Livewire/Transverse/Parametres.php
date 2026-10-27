@@ -140,7 +140,7 @@ use Throwable;
  * @see RG-16 RBAC à 3 niveaux
  * @see DIRECTIVE_CONFORMITE_100.md Articles 4.5, 6, 7, 8
  */
-#[Title('Paramètres — TATACORA AFRIQUE')]
+#[Title('Paramètres — LogiReStock — TATACORA AFRIQUE')]
 class Parametres extends PageTransverse
 {
     use FormulaireModal;

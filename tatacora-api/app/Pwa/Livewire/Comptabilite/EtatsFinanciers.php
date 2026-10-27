@@ -89,7 +89,7 @@ use Livewire\Attributes\Url;
  *
  * @see EF-M10-06
  */
-#[Title('États Financiers — TATACORA AFRIQUE')]
+#[Title('États Financiers — LogiReStock — TATACORA AFRIQUE')]
 class EtatsFinanciers extends PageComptabilite
 {
     /**

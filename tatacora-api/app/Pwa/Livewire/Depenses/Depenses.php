@@ -116,7 +116,7 @@ use Symfony\Component\HttpFoundation\Response;
  * @see LARAVEL_PWA.md §3, §5
  * @see DIRECTIVE_CONFORMITE_100.md Articles 1, 4, 6, 7, 8
  */
-#[Title('Dépense courante — TATACORA AFRIQUE')]
+#[Title('Dépense courante — LogiReStock — TATACORA AFRIQUE')]
 class Depenses extends PageMetier
 {
     use FormulaireModal;

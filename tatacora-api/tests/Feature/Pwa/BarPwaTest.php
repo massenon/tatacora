@@ -81,7 +81,7 @@ final class BarPwaTest extends TestCase
 
         $html = (string) $this->get('/pwa/bar/carte')->assertOk()->getContent();
 
-        $this->assertStringContainsString('<title>Carte du bar — TATACORA AFRIQUE</title>', $html);
+        $this->assertStringContainsString('<title>Carte du bar — LogiReStock — TATACORA AFRIQUE</title>', $html);
         $this->assertSame(1, substr_count($html, '<h1 '), 'Un seul <h1> par page.');
         $this->assertStringContainsString(
             '<h1 class="text-lg lg:text-xl font-bold" style="color:var(--navy)">Carte du bar</h1>',

@@ -63,7 +63,7 @@ use Symfony\Component\HttpFoundation\Response;
  * @see DIRECTIVE_CONFORMITE_100.md Articles 3.3, 4.6
  */
 #[Layout('layouts.pwa')]
-#[Title('Carte du bar — TATACORA AFRIQUE')]
+#[Title('Carte du bar — LogiReStock — TATACORA AFRIQUE')]
 class CarteBar extends PageMetier
 {
     use EcranDeCarte;

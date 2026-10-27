@@ -24,7 +24,7 @@ return [
 
     // --- Écran.
     'titre' => 'Correspondance des comptes',
-    'titre_page' => 'Correspondance des comptes — TATACORA AFRIQUE',
+    'titre_page' => 'Correspondance des comptes — LogiReStock — TATACORA AFRIQUE',
     'sous_titre' => 'Le compte que chaque pièce automatique utilise pour chaque rôle',
     'avertissement' => 'Un changement vaut pour les pièces futures. Une pièce déjà '
         . 'passée n’est jamais réécrite : elle reste sur le compte où elle a été passée.',

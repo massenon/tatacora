@@ -34,7 +34,7 @@ use Tests\TestCase;
  * 1. Le `<title>` rendu **diffère d'une page à l'autre** : deux écrans ne
  *    peuvent pas porter le même.
  * 2. Il porte la marque, et il porte autre chose que la marque : la forme
- *    `<Nom de l'écran> — TATACORA AFRIQUE`.
+ *    `<Nom de l'écran> — LogiReStock — TATACORA AFRIQUE`.
  * 3. Le nom de l'écran est celui du `<h1>` que la page REND — la même phrase
  *    dans l'onglet et dans le corps. Jusqu'au 10/09/2026, la référence était
  *    le `<h1>` d'une page de `prototype_v2/` ; la vue Blade étant désormais
@@ -63,7 +63,10 @@ final class BaliseTitrePwaTest extends TestCase
      */
     private function marque(): string
     {
-        return trim((string) __('pwa.marque'));
+        // Depuis le 26/10/2026 (PO), l'onglet porte « LogiReStock — TATACORA
+        // AFRIQUE » : la clé `titre_defaut`, qui est aussi le titre d'une page
+        // sans titre propre.
+        return trim((string) __('pwa.titre_defaut'));
     }
 
     /** Plancher mesuré le 31/08/2026 : 42 écrans servis en HTTP 200 sur 44. */

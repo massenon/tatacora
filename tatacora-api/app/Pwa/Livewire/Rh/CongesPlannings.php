@@ -40,7 +40,7 @@ use RuntimeException;
  * @see EF-M13-04 Congés et absences avec workflow de validation
  */
 #[Layout('layouts.pwa')]
-#[Title('Congés & Plannings — TATACORA AFRIQUE')]
+#[Title('Congés & Plannings — LogiReStock — TATACORA AFRIQUE')]
 class CongesPlannings extends PageMetier
 {
     use FormulaireModal;

@@ -108,7 +108,7 @@ use Livewire\Attributes\Url;
  * @see RG-15 Traçabilité des actions sensibles
  * @see LARAVEL_PWA.md §1, §3
  */
-#[Title("Journal d'Audit — TATACORA AFRIQUE")]
+#[Title("Journal d'Audit — LogiReStock — TATACORA AFRIQUE")]
 class JournalAudit extends PageTransverse
 {
     /**
