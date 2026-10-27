@@ -30,7 +30,8 @@ abstract final class MessagesRestaurant {
   // valide `categorie` en synchronisation (`GestionnairePlats`, `validation.required`
   // et `validation.in` avec le libellé « Catégorie » de la vue), relues par
   // `tool/vehicules/rejouer_champs_location.php`.
-  static const categorieDuPlatObligatoire = 'Le champ Catégorie est obligatoire.';
+  static const categorieDuPlatObligatoire =
+      'Le champ Catégorie est obligatoire.';
   static const categorieDuPlatInvalide =
       'La valeur sélectionnée pour Catégorie est invalide.';
   static const menuObligatoire =

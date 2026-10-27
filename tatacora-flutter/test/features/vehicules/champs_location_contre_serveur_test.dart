@@ -90,8 +90,9 @@ void main() {
     ),
   );
 
-  Matcher refusDe(String phrase) =>
-      throwsA(isA<RefusVehicule>().having((e) => e.message, 'message', phrase));
+  Matcher refusDe(Object? phrase) => throwsA(
+    isA<RefusVehicule>().having((e) => e.message, 'message', phrase as String),
+  );
 
   test('le script a rendu toute l’histoire (l’extraction n’est pas vide)', () {
     expect(refus.length, greaterThanOrEqualTo(17));

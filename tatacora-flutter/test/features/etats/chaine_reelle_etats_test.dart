@@ -579,7 +579,9 @@ void main() {
           ],
         ]);
         expect(valeurs(a), ['2', '120000.00']);
-        expect(a.mentions.single, contains('tarif courant'));
+        // v41 : le montant est le montant FIGÉ du contrat ; aucune mention tant
+        // que chaque contrat en a un.
+        expect(a.mentions, isEmpty);
       },
     );
 

@@ -257,6 +257,8 @@ void main() {
         // v36 : le lien direct au stock (ajouté en dernier).
         'article_id',
         'unites_vendables',
+        // v41 : la catégorie du plat (dix valeurs de la carte).
+        'categorie',
       ]);
 
       // Ni un coût, ni une marge, ni des portions, ni un taux n'est une colonne
@@ -278,7 +280,8 @@ void main() {
           'disponible',
           // `composition_provisoire` n'est plus interdite : la v35 (21/10/2026)
           // l'ajoute à `recettes_local`, la PWA l'écrivant.
-          'categorie',
+          // `categorie` n'est plus interdite sur `plats_local` : la v41 (27/10/2026)
+          // l'ajoute (les dix catégories de la carte, saisies comme au web).
           'statut_sync',
         ]) {
           expect(cols, isNot(contains(interdit)), reason: '$t.$interdit');

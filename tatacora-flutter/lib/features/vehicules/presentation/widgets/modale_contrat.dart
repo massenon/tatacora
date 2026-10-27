@@ -432,7 +432,8 @@ class _ModaleContratState extends ConsumerState<_ModaleContrat> {
       if (!mounted) return;
       // Les deux refus de montant se posent sous leur champ, comme la vue
       // (`addError('remiseSaisie')` / `addError('acompteSaisi')`).
-      final champ = refus.message.startsWith(
+      final champ =
+          refus.message.startsWith(
             'Le champ ${MessagesVehicules.libelleRemise} ',
           )
           ? 'remise'

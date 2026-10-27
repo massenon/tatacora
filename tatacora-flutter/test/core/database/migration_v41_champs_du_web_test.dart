@@ -107,7 +107,7 @@ void main() {
       "('ct-1', 'v-1', 'c-1', 1788000000, 1788259200)",
     );
     await avant.customStatement(
-      "INSERT INTO guides_local (id, nom, zone_competence) "
+      'INSERT INTO guides_local (id, nom, zone_competence) '
       "VALUES ('g-1', 'Moussa', 'Atacora')",
     );
     if (cible >= 5) {
@@ -119,11 +119,11 @@ void main() {
     }
     if (cible >= 14) {
       await avant.customStatement(
-        "INSERT INTO menus_local (id, libelle, type, cree_le, cree_par) "
+        'INSERT INTO menus_local (id, libelle, type, cree_le, cree_par) '
         "VALUES ('m-1', 'Carte', 'local', 0, 'u-1')",
       );
       await avant.customStatement(
-        "INSERT INTO recettes_local (id, libelle, cree_le, cree_par) "
+        'INSERT INTO recettes_local (id, libelle, cree_le, cree_par) '
         "VALUES ('r-1', 'Riz', 0, 'u-1')",
       );
       await avant.customStatement(
@@ -307,7 +307,7 @@ void main() {
       expect(await version(apres), apres.schemaVersion);
       expect(await compte(apres, 'vehicules_local'), 1);
       final v = await apres
-          .customSelect("SELECT annee, capacite FROM vehicules_local")
+          .customSelect('SELECT annee, capacite FROM vehicules_local')
           .getSingle();
       expect([v.data['annee'], v.data['capacite']], [2021, 5]);
       for (final e in ajouts.entries) {
