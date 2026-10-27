@@ -23,6 +23,7 @@ import 'package:tatacora_flutter/features/rh/data/paie_dao.dart';
 import 'package:tatacora_flutter/features/rh/domain/entities/employe.dart';
 import 'package:tatacora_flutter/features/rh/domain/entities/periode_paie.dart';
 import 'package:tatacora_flutter/features/rh/domain/services/bulletin_paie_service.dart';
+import 'package:tatacora_flutter/features/rh/impression/bulletin_paie_a4.dart';
 import 'package:tatacora_flutter/features/rh/impression/etat_paie.dart';
 import 'package:tatacora_flutter/features/rh/presentation/ecran_paie.dart';
 import 'package:tatacora_flutter/features/rh/presentation/providers_rh.dart';
@@ -1240,38 +1241,81 @@ void main() {
 
   /* ================================================================== */
   group('Le bulletin en consultation', () {
-    testWidgets('« Imprimer » et « PDF » DISENT que ce poste ne produit pas le '
-        'document — ils ne restent pas muets', (tester) async {
+    testWidgets('« Imprimer » envoie le papier A4 à l\'impression (action '
+        'injectable), « PDF » l\'enregistre en bulletin_<numéro>.pdf', (
+      tester,
+    ) async {
       final employe = await semerUnSalarie();
-      await monter(tester);
+      final imprimes = <BulletinPaieA4>[];
+      final selecteur = SelecteurEssai();
+      await monter(
+        tester,
+        surcharges: [
+          imprimerBulletinProvider.overrideWithValue((b) async {
+            imprimes.add(b);
+          }),
+          ...selecteur.surcharges,
+        ],
+      );
       await ouvrirEtablissement(tester, employe.id);
       await tester.tap(find.byKey(const Key('paie-etablissement-confirmer')));
       await tester.pumpAndSettle();
 
+      // Plus aucune phrase d'absence : le document existe.
       expect(
         find.byKey(const Key('paie-bulletin-impression-absente')),
         findsNothing,
       );
 
-      for (final bouton in const [
-        'paie-bulletin-imprimer',
-        'paie-bulletin-pdf',
-      ]) {
-        await tester.tap(find.byKey(Key(bouton)));
-        await tester.pumpAndSettle();
-        expect(
-          tester
-              .widget<Text>(
-                find.byKey(const Key('paie-bulletin-impression-absente')),
-              )
-              .data,
-          'Ce poste ne produit pas encore le bulletin sur papier A4 : aucun '
-          'document n’a été généré. Le bulletin reste lisible à l’écran, '
-          'avec tous ses montants.',
-          reason: bouton,
-        );
-      }
+      await tester.tap(find.byKey(const Key('paie-bulletin-imprimer')));
+      await tester.pumpAndSettle();
+      expect(imprimes, hasLength(1));
+      expect(imprimes.single.bulletin.employe.id, employe.id);
+      expect(imprimes.single.periodeLongue, 'septembre 2026');
+      expect(imprimes.single.auteur, 'essai');
+      expect(
+        selecteur.ecrits,
+        isEmpty,
+        reason: '« Imprimer » n\'écrit aucun fichier',
+      );
+
+      await tester.tap(find.byKey(const Key('paie-bulletin-pdf')));
+      await tester.pumpAndSettle();
+      final pdf = selecteur.ecrits.single;
+      expect(pdf.type, TypeFichierEnregistre.pdf);
+      expect(pdf.estUnPdf, isTrue);
+      expect(pdf.nom, startsWith('bulletin_BUL-2026-'));
+      expect(pdf.nom, endsWith('.pdf'));
+      expect(
+        tester
+            .widget<Text>(find.byKey(const Key('paie-bulletin-pdf-enregistre')))
+            .data,
+        'Export enregistré : ${pdf.nom}',
+      );
     });
+
+    testWidgets(
+      'un rôle en LECTURE imprime et télécharge son bulletin (lecture, comme '
+      '`exporterPdf`)',
+      (tester) async {
+        final employe = await semerUnSalarie();
+        await BulletinPaieService(
+          paie,
+          employes,
+        ).etablirBulletin(employe, periodeDeTest);
+        final selecteur = SelecteurEssai();
+        await monter(
+          tester,
+          niveauM13: 'L',
+          role: 'Comptable',
+          surcharges: selecteur.surcharges,
+        );
+        await toucher(tester, Key('paie-voir-bulletin-${employe.id}'));
+        await tester.tap(find.byKey(const Key('paie-bulletin-pdf')));
+        await tester.pumpAndSettle();
+        expect(selecteur.ecrits, hasLength(1));
+      },
+    );
 
     testWidgets(
       'le document porte l\'identité, le salarié, les montants calculés et '

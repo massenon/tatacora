@@ -130,6 +130,85 @@ class SejourDao extends DatabaseAccessor<AppDatabase> {
     ];
   }
 
+  /// Les séjours arrivés À ÉCHÉANCE — `AlertesOuverture::departsAEcheance()` :
+  /// arrivée réelle renseignée, départ réel absent, départ prévu AUJOURD'HUI ou
+  /// avant (comparé au JOUR), le plus ancien d'abord. Jointures INTERNES du
+  /// serveur : un séjour dont la réservation, le client ou l'unité a disparu
+  /// n'est pas listé. Un séjour déjà clos n'appelle aucune action.
+  Future<
+    List<
+      ({
+        String sejourId,
+        String reservationId,
+        DateTime dateDepart,
+        String? clientPrenom,
+        String clientNom,
+        String uniteNumero,
+      })
+    >
+  >
+  departsAEcheance(DateTime maintenant) async {
+    final demain = DateTime(
+      maintenant.year,
+      maintenant.month,
+      maintenant.day + 1,
+    );
+    final ouverts =
+        await (select(_sejours)..where(
+              (s) =>
+                  s.dateCheckinReel.isNotNull() & s.dateCheckoutReel.isNull(),
+            ))
+            .get();
+    if (ouverts.isEmpty) return const [];
+
+    final reservations = {
+      for (final r
+          in await (select(_reservations)..where(
+                (r) =>
+                    r.id.isIn(ouverts.map((s) => s.reservationId)) &
+                    r.dateDepart.isSmallerThanValue(demain),
+              ))
+              .get())
+        r.id: r,
+    };
+    final clients = {
+      for (final c
+          in await (select(attachedDatabase.clientsLocal)..where(
+                (c) => c.id.isIn(reservations.values.map((r) => r.clientId)),
+              ))
+              .get())
+        c.id: c,
+    };
+    final unites = {
+      for (final u
+          in await (select(_unites)..where(
+                (u) => u.id.isIn(reservations.values.map((r) => r.uniteId)),
+              ))
+              .get())
+        u.id: u,
+    };
+
+    final lignes =
+        [
+          for (final s in ouverts)
+            if (reservations[s.reservationId] case final r?)
+              if (clients[r.clientId] case final c?)
+                if (unites[r.uniteId] case final u?)
+                  (
+                    sejourId: s.id,
+                    reservationId: r.id,
+                    dateDepart: r.dateDepart,
+                    clientPrenom: c.prenom,
+                    clientNom: c.nom,
+                    uniteNumero: u.numero,
+                  ),
+        ]..sort((a, b) {
+          final parDate = a.dateDepart.compareTo(b.dateDepart);
+          return parDate != 0 ? parDate : a.sejourId.compareTo(b.sejourId);
+        });
+    return lignes;
+  }
+
   /// La réservation à pointer sur une UNITÉ — `Hebergement::reservationDuJour`
   /// du plan d'hébergement : même unité, non annulée, arrivée au plus
   /// aujourd'hui, départ après aujourd'hui, la plus ancienne arrivée d'abord.

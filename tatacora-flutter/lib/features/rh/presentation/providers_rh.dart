@@ -11,11 +11,14 @@
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pdf/pdf.dart' show PdfPageFormat;
+import 'package:printing/printing.dart';
 
 import '../../comptabilite/presentation/exercice_consulte.dart';
 import '../../../core/di/providers.dart';
 import '../../../core/fichiers/enregistrement_export.dart';
 import '../../../core/format/formats.dart';
+import '../../../core/impression/entete_parametree.dart';
 import '../../../core/impression/export_etat_a4.dart';
 import '../../../core/rbac/garde_acces.dart';
 import '../../../core/rbac/regle_archivage.dart';
@@ -30,6 +33,7 @@ import '../domain/refus_rh.dart';
 import '../domain/services/bulletin_paie_service.dart';
 import '../domain/services/calcul_paie_service.dart';
 import '../domain/services/livre_de_paie_service.dart';
+import '../impression/bulletin_paie_a4.dart';
 import '../impression/etat_paie.dart';
 
 /* ====================================================================== */
@@ -695,6 +699,51 @@ final exporterPaiePdfProvider = Provider<Future<String?> Function(EtatPaie)>(
       (etat) =>
           enregistrerEtatA4(ref, etat.etatA4(), base: etat.prefixeFichier),
 );
+
+/// Le bulletin de la modale, composé pour le papier : l'en-tête est lu des
+/// paramètres au moment d'éditer, le login est celui de la session
+/// (`$utilisateur->login`), la période est celle du BULLETIN.
+final bulletinA4Provider =
+    Provider.family<Future<BulletinPaieA4>, RecapitulatifBulletin>((
+      ref,
+      recapitulatif,
+    ) async {
+      final periode = PeriodePaie.depuisTexte(recapitulatif.bulletin.periode);
+      return BulletinPaieA4(
+        recapitulatif: recapitulatif,
+        periodeLongue: periode?.libelleLong ?? recapitulatif.bulletin.periode,
+        auteur: null,
+      ).avecEntete(await ref.read(lireEnteteEtablissementProvider)());
+    });
+
+/// « Imprimer » du bulletin : la boîte d'impression du système, avec le papier
+/// A4. Une action injectable — un test de widget n'a pas de greffon natif, et il
+/// doit exister un seul endroit où l'impression est déclenchée.
+final imprimerBulletinProvider =
+    Provider<Future<void> Function(BulletinPaieA4)>(
+      (ref) => (bulletin) async {
+        await Printing.layoutPdf(
+          onLayout: (_) => bulletin.pdf(),
+          name: bulletin.prefixeFichier,
+          format: PdfPageFormat.a4,
+        );
+      },
+    );
+
+/// « PDF » du bulletin : le fichier `bulletin_<numéro>.pdf` par la fenêtre
+/// « Enregistrer sous » (la vue le télécharge, `streamDownload`). Rend le
+/// chemin écrit, `null` : annulé.
+final exporterBulletinPdfProvider =
+    Provider<Future<String?> Function(BulletinPaieA4)>(
+      (ref) =>
+          (bulletin) async => ref
+              .read(enregistrementExportProvider)
+              .exporter(
+                base: bulletin.prefixeFichier,
+                type: TypeFichierEnregistre.pdf,
+                octets: await bulletin.pdf(),
+              ),
+    );
 
 /// Recharge tout ce qui dépend de la paie, après une écriture.
 ///

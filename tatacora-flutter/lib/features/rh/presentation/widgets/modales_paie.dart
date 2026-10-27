@@ -21,16 +21,16 @@
 ///
 /// Aucun de ces blocs n'est rendu inerte : ils sont omis, et nommés ici.
 ///
-/// ## « Imprimer » et « PDF » du bulletin — ÉCART DATÉ (09/10/2026)
+/// ## « Imprimer » et « PDF » du bulletin — PORTÉS (27/10/2026, lot A3)
 ///
 /// La vue : « Imprimer » appelle `window.print()` sur la modale et « PDF »
-/// télécharge `pdf.paie-bulletin` (l.1175-1178). Ici : les deux boutons sont
-/// rendus et DISENT que ce poste ne produit pas encore ce document — jamais un
-/// bouton qui ne fait rien (Article 3.3). Raison : aucun gabarit de bulletin A4
-/// n'existe côté client (`features/rh/` n'a pas de dossier `impression/` pour
-/// le bulletin) et un bulletin sans en-tête unique ni visas serait un faux
-/// document remis à un salarié. Le bulletin reste lisible à l'écran, avec
-/// tous ses montants. À rouvrir avec le gabarit PDF (PA-192).
+/// télécharge `pdf.paie-bulletin` (l.1175-1178). Le texte du 09/10/2026 (« ces
+/// deux boutons DISENT que le poste ne produit pas le document ») est PÉRIMÉ :
+/// `BulletinPaieA4` (`impression/bulletin_paie_a4.dart`) compose le papier, par
+/// le gabarit commun (`enTeteA4`, `texteTicket`). « Imprimer » ouvre la boîte
+/// d'impression du système ([imprimerBulletinProvider]), « PDF » enregistre
+/// `bulletin_<numéro>.pdf` ([exporterBulletinPdfProvider]) : deux actions
+/// injectables, en LECTURE (aucun droit d'écriture, comme `exporterPdf`).
 ///
 /// ## L'échelle typographique est celle des MODALES
 ///
@@ -53,6 +53,8 @@ import '../../domain/entities/bulletin_paie.dart';
 import '../../domain/entities/employe.dart';
 import '../../domain/refus_rh.dart';
 import '../../domain/services/bulletin_paie_service.dart';
+import '../../../../shared_widgets/toast_export.dart';
+import '../../impression/bulletin_paie_a4.dart';
 import '../providers_rh.dart';
 import 'panneaux_paie.dart';
 
@@ -1332,19 +1334,43 @@ class VueBulletin extends ConsumerStatefulWidget {
 
   final RecapitulatifBulletin recapitulatif;
 
-  /// Ce que disent « Imprimer » et « PDF » : voir l'écart daté en tête de ce
-  /// fichier. Jamais un bouton qui ne fait rien.
-  static const String impressionAbsente =
-      'Ce poste ne produit pas encore le bulletin sur papier A4 : aucun '
-      'document n’a été généré. Le bulletin reste lisible à l’écran, avec '
-      'tous ses montants.';
-
   @override
   ConsumerState<VueBulletin> createState() => _VueBulletinState();
 }
 
 class _VueBulletinState extends ConsumerState<VueBulletin> {
-  bool _impressionDemandee = false;
+  /// Le papier A4 du bulletin (`pdf/paie-bulletin`), composé au geste : l'en-tête
+  /// est lu des paramètres à CE moment-là.
+  Future<BulletinPaieA4> _papier() =>
+      ref.read(bulletinA4Provider(widget.recapitulatif));
+
+  /// « Imprimer » (`window.print()` au web) : la boîte d'impression du système.
+  Future<void> _imprimer() async {
+    final messageur = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(imprimerBulletinProvider)(await _papier());
+    } on Object catch (erreur) {
+      messageur
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            key: const Key('paie-bulletin-impression-echec'),
+            content: Text('Impression impossible : $erreur'),
+          ),
+        );
+    }
+  }
+
+  /// « PDF » (`exporterPdf`) : `bulletin_<numéro>.pdf`, par « Enregistrer sous ».
+  Future<void> _telechargerPdf() async {
+    final bulletin = await _papier();
+    if (!mounted) return;
+    await executerExport(
+      context,
+      () => ref.read(exporterBulletinPdfProvider)(bulletin),
+      cleSucces: const Key('paie-bulletin-pdf-enregistre'),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1444,27 +1470,19 @@ class _VueBulletinState extends ConsumerState<VueBulletin> {
               fontSize: Tailles.t10,
             ),
           ),
-          if (_impressionDemandee) ...[
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              VueBulletin.impressionAbsente,
-              key: const Key('paie-bulletin-impression-absente'),
-              style: _Textes.ligne.copyWith(color: PaletteMaitre.ambre900),
-            ),
-          ],
         ],
       ),
       actions: [
         OutlinedButton(
           key: const Key('paie-bulletin-imprimer'),
           style: _Textes.styleBouton(),
-          onPressed: () => setState(() => _impressionDemandee = true),
+          onPressed: _imprimer,
           child: const Text('Imprimer', style: _Textes.bouton),
         ),
         OutlinedButton(
           key: const Key('paie-bulletin-pdf'),
           style: _Textes.styleBouton(),
-          onPressed: () => setState(() => _impressionDemandee = true),
+          onPressed: _telechargerPdf,
           child: const Text('PDF', style: _Textes.bouton),
         ),
         FilledButton(

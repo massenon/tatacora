@@ -147,6 +147,10 @@ void main() {
       'facturation/impression/facture_a4.dart',
       'facturation/impression/ticket_facture.dart',
       'hebergement/impression/confirmation_reservation.dart',
+      // Le bulletin de paie A4 (`pdf/paie-bulletin.blade.php`, lot A3 du
+      // 27/10/2026) : remis au salarié, le gabarit serveur n'a ni visa ni pied
+      // de rapport.
+      'rh/impression/bulletin_paie_a4.dart',
       // Le ticket de la vente encaissée (80 mm, remis au client), 26/10/2026.
       'ventes/impression/ticket_vente.dart',
     };
