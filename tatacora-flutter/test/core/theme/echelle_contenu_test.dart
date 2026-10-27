@@ -401,6 +401,9 @@ void main() {
         'Modale. Le formulaire de `depenses/depenses.blade.php` (`<x-pwa.modale>`, '
         'l.324-511) est posé après `</main>` : le remappage typographique ne '
         'l atteint pas.',
+    'lib/features/depenses/presentation/widgets/dialogue_recu_depense.dart':
+        'Fenetre d affichage du recu (lot L4) : une modale, hors `</main>`, '
+        'comme la modale de saisie de la meme vue.',
     'lib/features/hebergement/presentation/widgets/modale_unite.dart':
         'Modale de création et d édition d une unité, hors `</main>` dans '
         '`hebergement/plan.blade.php`.',

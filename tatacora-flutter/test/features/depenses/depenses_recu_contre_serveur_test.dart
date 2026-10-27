@@ -118,7 +118,8 @@ void main() {
 
   test('la borne est PILE celle du web : 400 × 1024 octets passent, un octet '
       'de plus est refusé', () {
-    expect(tailleMaxRecuKo, serveur['constantes']['taille_max_ko']);
+    final constantes = serveur['constantes'] as Map<String, dynamic>;
+    expect(tailleMaxRecuKo, constantes['taille_max_ko']);
     expect(tailleMaxRecuOctets, 409600);
     expect(duServeur('png-a-la-borne')['ok'], isTrue);
     expect(verifierRecu(corpus['png-a-la-borne']!), isA<RecuAccepte>());
@@ -147,7 +148,8 @@ void main() {
 
   test('l’aide de la vue promet une réduction que rien ne fait : la fausseté '
       'est épinglée à la SOURCE, et la phrase fausse n’est pas rendue', () {
-    final aide = (serveur['constantes']['phrases'] as Map)['champ_recu_aide'];
+    final constantes = serveur['constantes'] as Map<String, dynamic>;
+    final aide = (constantes['phrases'] as Map)['champ_recu_aide'];
     // Elle rougit le jour où la vue est corrigée : l’écart nommé au code
     // (`_ChampRecu`) devra alors être relu.
     expect(

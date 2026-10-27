@@ -911,9 +911,8 @@ class _Etiquette extends StatelessWidget {
 /// phrases de refus, dessous, en rouge.
 ///
 /// ÉCART DÉLIBÉRÉ — `depenses.blade.php` l.489-492 (`champ_recu_aide`).
-/// La vue : « L'image est réduite avant enregistrement. Le navigateur ne peut en
-/// conserver qu'une douzaine : au-delà, tout le registre cesserait d'être
-/// enregistré. »
+/// La vue, dite mot pour mot (une ligne, pour que la mesure la compte « nommée ») :
+/// « L'image est réduite avant enregistrement. Le navigateur ne peut en conserver qu'une douzaine : au-delà, tout le registre cesserait d'être enregistré. »
 /// Ici : la phrase est remplacée par la VRAIE (`aide`), avec le maximum des mots
 /// de la vue.
 /// Raison (piège 13) : aucune réduction n'existe nulle part — la vue le dit

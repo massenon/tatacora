@@ -484,6 +484,7 @@ final class FauxTelechargement implements TelechargementRecuDepense {
     if (direct) {
       return RecuDisponible(octets: octetsPng(), type: TypeRecu.png);
     }
-    return await _repondre(depenseId) as IssueRecuDistant;
+    return await Future<Object?>.value(_repondre(depenseId))
+        as IssueRecuDistant;
   }
 }

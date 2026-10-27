@@ -81,7 +81,7 @@ ou de « non porté » sont **périmés** (section 6) : ils ne doivent pas servi
 | A6 | Véhicule : Places, Année, Transmission (`Locations::enregistrerVehicule`) | **FAIT (L3, 27/10/2026)** | `vehicules_local.annee/capacite/transmission` (v41), `VehiculeDao.enregistrerVehicule` (bornes et phrases du serveur), `GestionnaireVehicules::modifier` les accepte, descente (`COLONNES` portait déjà les trois) | - | v41 |
 | A7 | Contrat : N° `LOC-`, Remise, Acompte, Reste dû (`Locations::enregistrerContrat`) | **FAIT (L3, 27/10/2026)** | `contrats_location_local.numero/remise/acompte/montant` (v41) : montant net FIGÉ à la signature (plus de recalcul au tarif courant), reste dû = montant − acompte, N° du serveur posé à l'accusé ; `GestionnaireContratsLocation` accepte remise et acompte (phrases `lte` de la vue) ; anciens contrats : colonnes nulles, « — » | - | v41 |
 | A8 | Plat : champ « Catégorie » (dix valeurs, `Restauration::enregistrerPlat`) | **FAIT (L3, 27/10/2026)** | `plats_local.categorie` (v41), modale, colonne et filtre du catalogue, import M4 ; `GestionnairePlats` accepte `categorie` en synchronisation (registre fermé de la vue ; `CHAMPS_REFUSES` de l'API inchangé) ; `COLONNES` descend `plats.categorie`. Écart assumé : la CARTE du restaurant classe encore par type de menu | - | v41 |
-| A9 | Dépense : reçu / justificatif image (`Depenses::enregistrerDepense`, `photoRecu`) | PARTIEL | aucune colonne ni sélecteur (`ecran_depenses.dart:90`) ; la synchronisation est du JSON, aucun transport de fichier ; la pastille « sans reçu » est vraie pour toutes les lignes | L | v41 (chemin du reçu) + serveur |
+| A9 | **LIVRÉ le 27/10/2026 (lot L4, v42)** — Dépense : reçu / justificatif image (`Depenses::enregistrerDepense`, `photoRecu`) | OUI | aucune colonne ni sélecteur (`ecran_depenses.dart:90`) ; la synchronisation est du JSON, aucun transport de fichier ; la pastille « sans reçu » est vraie pour toutes les lignes | L | v41 (chemin du reçu) + serveur |
 | A10 | Guide : Certification et Tarif/jour (`Departs::enregistrerGuide`) | **FAIT (L3, 27/10/2026)** | `guides_local.certification/tarif_jour` (v41) rangés par `TourismeDao.enregistrerGuide` (ils partaient déjà au serveur) et redescendus | - | v41 |
 | A11 | Archivage des employés : règle « administrateur / super_admin OU bascule » (`Paie::archiverEmployes`) | PARTIEL | `peutArchiverPaieProvider` réduit la règle aux deux rôles ; la règle unique `core/rbac/regle_archivage.dart` existe et sert déjà Fournisseurs, Clients, Articles (D272) | S | non |
 | A12 | Création d'un compte du plan comptable (`Hub::enregistrerCompte`) | PARTIEL | écrit sur le poste seulement : aucune table au registre de synchronisation (`ecran_comptabilite.dart:69`) ; un compte web n'arrive pas au poste, et inversement | L | non (serveur : gestionnaire + descente) |
@@ -289,7 +289,7 @@ et l'instant, donc aucun schéma n'est nécessaire.
 
 | Action web | Poste | Preuve / cause | Effort | Schéma ? | Réf. |
 |---|---|---|---|---|---|
-| `enregistrerDepense` (multi-lignes, centre, trésorerie) | **PARTIEL** | `DepenseDao.enregistrer` ; **reçu (photo)** absent | L | v41 | A9 |
+| `enregistrerDepense` (multi-lignes, centre, trésorerie, reçu image) | **OUI** (L4, 27/10/2026) | `DepenseDao.enregistrer(recu:)`, `EnvoiRecusDepenses`, `PUT /sync/depenses/{id}/recu` | - | v42 | A9 |
 | `comptabiliserDepense` | **OUI** | `DepenseDao.comptabiliser` (centre explicite) | - | non |  |
 | `genererExport` | **OUI** | `barre_filtres_depenses.dart:260` | - | non |  |
 
@@ -358,7 +358,7 @@ dans `retour_arriere_schema.dart`), puis ce qui exige une décision du PO.
 | **L2** | A4 : « Restaurer » depuis un registre dérivé (unités + véhicules `hors_service`, restaurations passées lues de la file d'envoi) | rien | M | non |
 | **L3-S** | **FAIT (27/10/2026)** — serveur d'abord : `GestionnaireVehicules::modifier` accepte année, places, transmission ; `GestionnaireContratsLocation` accepte remise et acompte (phrases de la vue) et range le montant net ; `GestionnairePlats` accepte `categorie` en synchronisation ; guides déjà prêts ; `COLONNES` descend `plats.categorie` et `contrats_location.acompte` | décisions D1, D2 | L | côté serveur seulement |
 | **L3** | **FAIT (27/10/2026)** — **poste v41** : `vehicules_local` (capacité, année, transmission), `contrats_location_local` (numéro, remise, acompte, montant figé ; le reste dû se calcule), `plats_local` (catégorie), `guides_local` (certification, tarif jour) ; modales A6, A7, A8, A10, import M8/M4, états (Contrats, M14 « Locations », tableau de bord), descente, `retour_arriere_schema`, `migration_v41_champs_du_web_test` sur fichier réel | L3-S | L | **v41** |
-| **L4** | A9 reçu de dépense : colonne `recu_chemin` + sélecteur de fichier (mécanisme `captures_editeur.dart` existant) + transport de fichier à la synchronisation | décision D4, serveur | L | **v41 ou v42** (v42 si L3 est déjà livré) |
+| **L4 (LIVRÉ 27/10/2026, v42)** | A9 reçu de dépense : colonne `recu_chemin` + sélecteur de fichier (mécanisme `captures_editeur.dart` existant) + transport de fichier à la synchronisation | décision D4, serveur | L | **v41 ou v42** (v42 si L3 est déjà livré) |
 | **L5** | Décisions structurantes : A5 purge (protocole `suppression`), A12 plan comptable synchronisé, B4/D246 pièces manuelles partagées | décisions D5, D6 | L chacun | non (protocole/serveur) |
 
 Ordre recommandé : L0, L1 (A11 → A1 → A3 → A2), L2, puis L3-S et L3 ensemble, puis L4, et
@@ -435,3 +435,7 @@ plat, guide ».
   le poste garde le sien — la descente ne réécrit jamais le montant figé du poste ; (4) les
   KPI et la ligne TOTAL des contrats rendent « — » dès qu'un contrat actif de la période est
   d'avant la v41 et pas encore reçu du serveur (une somme amputée serait plausible et fausse).
+
+## 8. Suite du lot L4 (27/10/2026)
+
+D4 = OUI. A9 est livré : colonnes `depenses_local.recu_*` (schéma **v42**, après la v41 de L3), fichier rangé dans `recus_depenses/` à côté de `poste.json`, dépôt `PUT /api/v1/sync/depenses/{id}/recu` (idempotent par SHA-256, 400 Ko, mêmes droits que la dépense, journal de réception `recus_depenses`), référence redescendue (`donnees.recu`), téléchargement à la demande. Détail et écarts : `tatacora-flutter/CLAUDE.md`, section « Le reçu en image d'une dépense ».
