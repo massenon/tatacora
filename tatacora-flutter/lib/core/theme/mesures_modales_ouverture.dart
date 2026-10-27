@@ -19,6 +19,9 @@ abstract final class MesuresModalesOuverture {
   /// `w-1.5 h-1.5` — la pastille de ligne (1,5 × 4 px).
   static const double pastille = 6;
 
+  /// `opacity-45` — une ligne déjà traitée (« Fait » / « Tracée »).
+  static const double opaciteLigneTraitee = 0.45;
+
   /// `max-h-64` — le défilement d'un bloc (64 × 4 px).
   static const double hauteurMaxBloc = 256;
 

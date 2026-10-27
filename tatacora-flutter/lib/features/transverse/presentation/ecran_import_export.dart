@@ -16,7 +16,15 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/mesures_transverses.dart';
 import '../../../shared_widgets/bouton_standard.dart';
 import '../../../shared_widgets/cadre_tirete.dart';
+import '../../../core/theme/mesures_archives.dart';
 import '../../../shared_widgets/toast_export.dart';
+import '../../hebergement/presentation/providers_hebergement.dart'
+    show rafraichirListes;
+import '../../vehicules/presentation/providers_vehicules.dart'
+    show rechargerVehicules;
+import '../data/archives_poste.dart';
+import '../domain/registre_archives.dart';
+import 'providers_archives.dart';
 import '../../synchronisation/domain/reinitialisation_serveur.dart';
 import '../data/importeurs_locaux.dart';
 import '../data/reinitialisation_locale.dart';
@@ -150,6 +158,11 @@ abstract final class TextesImportExport {
       "Ici, « supprimer » archive : une unité d'hébergement ou un véhicule retiré du parc est conservé au complet et peut être remis en place ci-dessous. Partout ailleurs, rien ne se supprime — on annule ou on contre-passe, et l'enregistrement reste lisible sur l'écran de son module. La purge définitive existe, mais elle est réservée à l'administrateur et n'a pas de retour : c'est le seul endroit de l'application où une donnée disparaît vraiment.";
   static const String rechercheArchives = 'Rechercher dans les archives…';
   static const String filtreRestaurables = 'À restaurer';
+  static const String filtreToutes = 'Toutes les entrées';
+  static const String filtreRestaurees = 'Déjà restaurées';
+  static const String actionRestaurer = 'Restaurer';
+  static const String badgeRestaure = 'RESTAURÉ';
+  static const String archivesVide = 'Aucun élément archivé ne correspond.';
   static const String colElement = 'ÉLÉMENT';
   static const String colModule = 'MODULE';
   static const String colArchiveLe = 'ARCHIVÉ LE';
@@ -284,7 +297,6 @@ abstract final class TextesImportExport {
       "La retirer la perd définitivement : il n'en existe aucune copie ailleurs.";
   static const String retraitConfirmer = 'Retirer quand même';
   static const String sauvegardeRetiree = 'Sauvegarde retirée de la liste.';
-  static const String archivesVideSurCePoste = 'Aucune archive.';
   // « Réinitialiser comme neuf » (lot E, 14/10/2026) — les mots de la vue.
   static const String seedersVerrouilleOuvrirAvant =
       "Un administrateur peut l'ouvrir dans";
@@ -391,7 +403,7 @@ class _EcranImportExportState extends ConsumerState<EcranImportExport> {
             peutEcrire: peutEcrire,
             nombreTables: nombreTables,
           ),
-          2 => const _PanneauRestaurer(),
+          2 => _PanneauRestaurer(peutEcrire: peutEcrire),
           _ => _PanneauSeeders(
             peutEcrire: peutEcrire,
             role: ref.watch(sessionProvider)?.role,
@@ -2100,11 +2112,65 @@ class _ModaleExportTableState extends State<_ModaleExportTable> {
   }
 }
 
-class _PanneauRestaurer extends StatelessWidget {
-  const _PanneauRestaurer();
+/// L'onglet « Restaurer » — le registre DÉRIVÉ des unités d'hébergement et des
+/// véhicules `hors_service` (`registre_archives.dart`), sa recherche, son filtre
+/// et son seul geste, « Restaurer ». Aucune table d'archives, ici comme au web.
+class _PanneauRestaurer extends ConsumerStatefulWidget {
+  const _PanneauRestaurer({required this.peutEcrire});
 
+  final bool peutEcrire;
+
+  @override
+  ConsumerState<_PanneauRestaurer> createState() => _PanneauRestaurerState();
+}
+
+class _PanneauRestaurerState extends ConsumerState<_PanneauRestaurer> {
   static const String _retour =
       r'<path stroke-linecap="round" stroke-linejoin="round" d="M3 12a9 9 0 109-9 9 9 0 00-6.36 2.64L3 8"/><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v5h5"/>';
+
+  final _recherche = TextEditingController();
+  FiltreArchives _filtre = FiltreArchives.restaurables;
+
+  /// `@error('archives')` : le refus de la dernière restauration.
+  String? _refus;
+
+  @override
+  void dispose() {
+    _recherche.dispose();
+    super.dispose();
+  }
+
+  Future<void> _restaurer(EntreeArchive entree) async {
+    setState(() => _refus = null);
+    final messager = ScaffoldMessenger.of(context);
+    try {
+      final libelle = await ref.read(restaurerArchiveProvider)(
+        entree.type,
+        entree.id,
+      );
+      // Les écrans des deux modules relisent leur parc : l'élément y revient.
+      rafraichirListes(ref);
+      rechargerVehicules(ref);
+      messager
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            key: const Key('ie-archive-restauree'),
+            content: Text(MessagesArchives.restauree(libelle)),
+          ),
+        );
+    } on RefusArchive catch (refus) {
+      if (mounted) setState(() => _refus = refus.message);
+    }
+  }
+
+  static String _date(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}/'
+      '${d.month.toString().padLeft(2, '0')}/${d.year}';
+
+  static String _heure(DateTime d) =>
+      '${d.hour.toString().padLeft(2, '0')}:'
+      '${d.minute.toString().padLeft(2, '0')}';
 
   @override
   Widget build(BuildContext context) {
@@ -2113,6 +2179,26 @@ class _PanneauRestaurer extends StatelessWidget {
       couleur: PaletteMaitre.bleu900,
       interligne: AppLayout.interligneDetendu,
     );
+    final registre = ref.watch(registreArchivesProvider);
+    final entrees = registre.hasValue
+        ? filtrerArchives(
+            registre.requireValue,
+            filtre: _filtre,
+            recherche: _recherche.text,
+          )
+        : const <EntreeArchive>[];
+
+    Widget cellule(String texte, {bool fort = false}) => Text(
+      texte,
+      style: fort
+          ? styleTransverse(
+              TaillesContenu.t15,
+              poids: FontWeight.w600,
+              couleur: Ardoise.c700,
+            )
+          : styleTransverse(TaillesContenu.t13, couleur: Ardoise.c600),
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -2150,54 +2236,80 @@ class _PanneauRestaurer extends StatelessWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.mdPlus),
-        Tooltip(
-          message: TextesImportExport.archivesVideSurCePoste,
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  key: const Key('ie-recherche-archives'),
-                  enabled: false,
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                key: const Key('ie-recherche-archives'),
+                controller: _recherche,
+                onChanged: (_) => setState(() {}),
+                style: styleTransverse(TaillesContenu.t15),
+                decoration: InputDecoration(
+                  isDense: true,
+                  hintText: TextesImportExport.rechercheArchives,
+                  filled: true,
+                  fillColor: AppColors.neutre0,
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    borderSide: const BorderSide(color: Ardoise.c200),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.sm,
+                vertical: AppSpacing.unit,
+              ),
+              decoration: BoxDecoration(
+                color: AppColors.neutre0,
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                border: Border.all(color: Ardoise.c200),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<FiltreArchives>(
+                  key: const Key('ie-filtre-archives'),
+                  value: _filtre,
                   style: styleTransverse(TaillesContenu.t15),
-                  decoration: InputDecoration(
-                    isDense: true,
-                    hintText: TextesImportExport.rechercheArchives,
-                    filled: true,
-                    fillColor: AppColors.neutre0,
-                    disabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                      borderSide: const BorderSide(color: Ardoise.c200),
+                  items: const [
+                    DropdownMenuItem(
+                      value: FiltreArchives.restaurables,
+                      child: Text(TextesImportExport.filtreRestaurables),
                     ),
-                  ),
+                    DropdownMenuItem(
+                      value: FiltreArchives.toutes,
+                      child: Text(TextesImportExport.filtreToutes),
+                    ),
+                    DropdownMenuItem(
+                      value: FiltreArchives.restaurees,
+                      child: Text(TextesImportExport.filtreRestaurees),
+                    ),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) setState(() => _filtre = v);
+                  },
                 ),
               ),
-              const SizedBox(width: AppSpacing.sm),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm,
-                  vertical: AppSpacing.xsPlus,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.neutre0,
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  border: Border.all(color: Ardoise.c200),
-                ),
-                child: Text(
-                  TextesImportExport.filtreRestaurables,
-                  style: styleTransverse(
-                    TaillesContenu.t15,
-                    couleur: Ardoise.c400,
-                  ),
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
+        if (_refus != null) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            _refus!,
+            key: const Key('ie-archives-refus'),
+            style: styleTransverse(
+              TaillesContenu.t12,
+              couleur: PaletteMaitre.rouge600,
+            ),
+          ),
+        ],
         const SizedBox(height: AppSpacing.md),
-        const CarteTransverse(
+        CarteTransverse(
           padding: EdgeInsets.zero,
           child: TableauTransverse(
-            colonnes: [
+            colonnes: const [
               (
                 titre: TextesImportExport.colElement,
                 alignement: TextAlign.left,
@@ -2213,9 +2325,69 @@ class _PanneauRestaurer extends StatelessWidget {
                 alignement: TextAlign.right,
               ),
             ],
-            lignes: [],
-            vide: TextesImportExport.archivesVideSurCePoste,
-            cleVide: Key('ie-archives-vide'),
+            lignes: [
+              for (final e in entrees)
+                [
+                  Opacity(
+                    key: Key('ie-archive-${e.type.code}-${e.id}'),
+                    // `opacity-60` d'une ligne déjà restaurée.
+                    opacity: e.restaure
+                        ? MesuresArchives.opaciteLigneRestauree
+                        : 1,
+                    child: cellule(e.libelle, fort: true),
+                  ),
+                  cellule(e.type.libelleModule),
+                  e.archiveLe == null
+                      ? cellule(TextesImportExport.tiret)
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            cellule(_date(e.archiveLe!)),
+                            Text(
+                              _heure(e.archiveLe!),
+                              style: styleTransverse(
+                                TaillesContenu.t12,
+                                couleur: Ardoise.c400,
+                              ),
+                            ),
+                          ],
+                        ),
+                  cellule(e.archivePar ?? TextesImportExport.tiret),
+                  if (e.restaure)
+                    Container(
+                      key: Key('ie-archive-badge-${e.id}'),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.xs,
+                        vertical: AppSpacing.unit,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.badgeVertFond,
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                      ),
+                      child: Text(
+                        TextesImportExport.badgeRestaure,
+                        style: styleTransverse(
+                          TaillesContenu.t12,
+                          poids: FontWeight.bold,
+                          couleur: AppColors.succes,
+                        ),
+                      ),
+                    )
+                  else if (widget.peutEcrire)
+                    BoutonTransverse(
+                      cle: Key('ie-archive-restaurer-${e.id}'),
+                      libelle: TextesImportExport.actionRestaurer,
+                      fond: AppColors.succes,
+                      trace: _retour,
+                      onTap: () => _restaurer(e),
+                    )
+                  else
+                    const SizedBox.shrink(),
+                ],
+            ],
+            vide: TextesImportExport.archivesVide,
+            cleVide: const Key('ie-archives-vide'),
           ),
         ),
       ],

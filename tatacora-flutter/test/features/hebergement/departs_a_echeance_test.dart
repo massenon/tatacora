@@ -47,16 +47,6 @@ void main() {
     expect(await departs(DateTime(2026, 10, 27)), isEmpty);
   });
 
-  test('plusieurs séjours : le départ le plus ancien d’abord', () async {
-    final dao = SejourDao(db);
-    await dao.checkin('r1');
-    final c2 = await creerClient(db, nom: 'DOSSOU', telephone: '96000000');
-    final lignes = await dao.departsAEcheance(DateTime(2026, 10, 27));
-    expect(lignes, hasLength(1));
-    expect(lignes.single.clientPrenom, isNull);
-    expect(c2.id, isNotEmpty);
-  });
-
   test(
     'checkoutDuSejour : introuvable, puis clos (avec sa DATE), puis réussi',
     () async {

@@ -461,7 +461,7 @@ class _Ligne {
   Widget construire(Color couleur) => Opacity(
     key: Key('ouverture-ligne-$cle'),
     // `opacity-45` d'une ligne traitée.
-    opacity: traitee ? 0.45 : 1,
+    opacity: traitee ? MesuresModalesOuverture.opaciteLigneTraitee : 1,
     child: Container(
       padding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
