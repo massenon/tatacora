@@ -1083,15 +1083,31 @@ class _AnnulationState extends ConsumerState<_Annulation> {
 /// la génération les saute sans un mot — l'avertissement vit ICI, pas en
 /// verrou, car un départ sans solde dû est légitime.
 ///
-/// Le droit d'archiver est relu À L'OUVERTURE : l'ouverture ne protège rien par
-/// elle-même, mais une modale que la confirmation refuserait serait un faux
-/// geste.
+/// Le droit d'archiver (règle UNIQUE de `regle_archivage.dart`, bascule
+/// `activation_suppression` lue en base) est exigé À L'OUVERTURE comme à
+/// l'exécution (`exigerArchivage()` du serveur) : l'ouverture ne protège rien
+/// par elle-même, mais une modale que la confirmation refuserait serait un faux
+/// geste. Refusé, le geste DIT sa phrase du serveur au lieu de se taire.
 Future<void> ouvrirArchivage(
   BuildContext context,
   WidgetRef ref, {
   String? employeId,
 }) async {
-  if (!ref.read(peutArchiverPaieProvider)) return;
+  final messageur = ScaffoldMessenger.of(context);
+  try {
+    await ref.read(exigerArchivagePaieProvider)();
+  } on RefusRh catch (refus) {
+    messageur
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          key: const Key('paie-archivage-refuse'),
+          content: Text(refus.message),
+        ),
+      );
+    return;
+  }
+  if (!context.mounted) return;
 
   final ids = employeId != null
       ? [employeId]
@@ -1232,17 +1248,18 @@ class _ArchivageState extends ConsumerState<_Archivage> {
   Future<void> _archiver() async {
     setState(() => _enCours = true);
 
-    final dao = ref.read(employeDaoProvider);
+    // `Paie::archiverEmployes` : le droit est exigé de nouveau, puis chaque
+    // employé du lot est archivé ; un refus d'une ligne n'arrête pas les autres.
     var archives = 0;
     final refus = <String>[];
-
-    for (final vise in widget.vises) {
-      try {
-        await dao.archiver(vise.id);
-        archives++;
-      } on RefusRh catch (r) {
-        refus.add(r.message);
-      }
+    try {
+      final bilan = await ref.read(archiverEmployesProvider)([
+        for (final vise in widget.vises) vise.id,
+      ]);
+      archives = bilan.archives;
+      refus.addAll(bilan.refus);
+    } on RefusRh catch (r) {
+      refus.add(r.message);
     }
 
     if (!mounted) return;

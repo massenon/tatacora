@@ -19,10 +19,12 @@
 /// l'écrit qu'une fois. La valeur de la bascule est lue par
 /// `OptionsSysteme.suppressionActive` (un seul lecteur).
 ///
-/// ⚠ Seule la fiche fournisseur (M7) l'emploie à ce jour (12/10/2026). La Paie
-/// (`peutArchiverPaieProvider`) et d'autres écrans portent encore leur règle
-/// réduite aux deux rôles : les y brancher est un changement de QUI archive, que
-/// ce lot ne fait pas (D272).
+/// Lecteurs au 27/10/2026 : fournisseurs (M7), clients (M3), articles (M6) et
+/// désormais la Paie (M13, `peutArchiverPaieProvider`, D272 levée par la
+/// décision du PO « le poste fait comme le web »). Les unités d'hébergement
+/// lisent la bascule seule (`vue_plan_hebergement.dart`, décision du
+/// 13/10/2026 : tous les rôles qui écrivent). Aucun écran ne porte plus de
+/// copie réduite aux deux rôles.
 ///
 /// @see RG-15 traçabilité — un archivage ne détruit rien
 library;

@@ -9,9 +9,13 @@ import 'package:tatacora_flutter/core/database/app_database.dart';
 import 'package:tatacora_flutter/core/di/providers.dart';
 import 'package:tatacora_flutter/core/fichiers/selecteur_fichiers.dart';
 import 'package:tatacora_flutter/core/rbac/garde_acces.dart';
+import 'package:tatacora_flutter/core/rbac/regle_archivage.dart';
 import 'package:tatacora_flutter/core/theme/app_colors.dart';
 import 'package:tatacora_flutter/core/theme/app_theme.dart';
+import 'package:tatacora_flutter/features/achats/domain/messages_achats.dart';
 import 'package:tatacora_flutter/features/auth/domain/session.dart';
+import 'package:tatacora_flutter/features/parametres/data/parametres_dao.dart';
+import 'package:tatacora_flutter/features/parametres/domain/options_systeme.dart';
 import 'package:tatacora_flutter/features/restaurant/presentation/widgets/coquille_modale_restaurant.dart';
 import 'package:tatacora_flutter/features/restaurant/presentation/widgets/tableau_restaurant.dart';
 import 'package:tatacora_flutter/features/rh/data/employe_dao.dart';
@@ -708,37 +712,122 @@ void main() {
 
   /* ================================================================== */
   group("L'archivage — « Supprimer » veut dire archiver", () {
+    /// La bascule `activation_suppression` de Paramètres, telle que la lit la
+    /// règle UNIQUE (`regle_archivage.dart`).
+    Future<void> poserBascule(String? valeur) => ParametresDao(
+      db,
+      maintenant: maintenant,
+    ).ecrire({OptionsSysteme.cleSuppression: valeur}, auteurId: null);
+
     testWidgets(
-      'seuls l\'administrateur et le super_admin voient la case et le bouton '
-      '« Archiver » ; un comptable en écriture ne les voit pas',
+      'la règle du web : administrateur et super_admin voient la case et le '
+      'bouton « Archiver » SANS la bascule ; tout autre rôle en écriture '
+      'seulement quand la bascule est OUVERTE ; en lecture, jamais',
       (tester) async {
         final employe = await semerUnSalarie();
 
         for (final cas in const [
-          ('Administrateur', 'C', true),
-          ('super_admin', 'C', true),
-          ('Super admin', 'C', true),
-          ('Comptable', 'C', false),
-          ('Gerant', 'C', false),
+          ('Administrateur', 'C', 'false', true),
+          ('super_admin', 'C', 'false', true),
+          ('Super admin', 'C', 'false', true),
+          ('Comptable', 'C', 'false', false),
+          ('Gerant', 'C', 'false', false),
+          // Bascule ouverte : tout rôle en écriture archive (D272 levée).
+          ('Comptable', 'C', 'true', true),
+          ('Gerant', 'C', 'true', true),
           // Un administrateur en lecture seule n'écrit pas : le niveau passe
-          // avant le rôle.
-          ('Administrateur', 'L', false),
+          // avant le rôle, bascule ouverte ou non.
+          ('Administrateur', 'L', 'false', false),
+          ('Comptable', 'L', 'true', false),
         ]) {
+          await poserBascule(cas.$3);
           await monter(tester, role: cas.$1, niveauM13: cas.$2);
 
+          final raison = '${cas.$1} en ${cas.$2}, bascule ${cas.$3}';
           expect(
             find.byKey(Key('paie-archiver-${employe.id}')),
-            cas.$3 ? findsOneWidget : findsNothing,
-            reason: '${cas.$1} en ${cas.$2}',
+            cas.$4 ? findsOneWidget : findsNothing,
+            reason: raison,
           );
           expect(
             find.byKey(const Key('paie-case-tout')),
-            cas.$3 ? findsOneWidget : findsNothing,
-            reason: '${cas.$1} en ${cas.$2}',
+            cas.$4 ? findsOneWidget : findsNothing,
+            reason: raison,
           );
 
           await tester.pumpWidget(const SizedBox());
         }
+      },
+    );
+
+    testWidgets(
+      'la bascule se REFERME entre l\'ouverture et le clic : rien n\'est '
+      'archivé, la phrase du serveur est dite (la règle est relue à chaque '
+      'geste, le rôle est celui de la session)',
+      (tester) async {
+        final employe = await semerUnSalarie();
+        await poserBascule('true');
+        await monter(tester, role: 'Comptable');
+
+        await toucher(tester, Key('paie-archiver-${employe.id}'));
+        expect(find.text('Archiver cet employé ?'), findsOneWidget);
+
+        await poserBascule('false');
+        await tester.tap(find.byKey(const Key('paie-archivage-confirmer')));
+        await tester.pumpAndSettle();
+
+        expect((await employes.parId(employe.id))!.statut, StatutEmploye.actif);
+        expect(
+          tester
+              .widget<Text>(find.byKey(const Key('paie-archivage-bilan')))
+              .data,
+          MessagesAchats.refusBascule,
+        );
+      },
+    );
+
+    testWidgets(
+      'la bascule est fermée quand on clique « Archiver » (ligne restée à '
+      'l\'écran) : la confirmation ne s\'ouvre pas, la phrase est dite',
+      (tester) async {
+        final employe = await semerUnSalarie();
+        await poserBascule('true');
+        await monter(tester, role: 'Comptable');
+        await poserBascule('false');
+
+        await toucher(tester, Key('paie-archiver-${employe.id}'));
+
+        expect(find.text('Archiver cet employé ?'), findsNothing);
+        expect(
+          find.descendant(
+            of: find.byKey(const Key('paie-archivage-refuse')),
+            matching: find.text(MessagesAchats.refusBascule),
+          ),
+          findsOneWidget,
+        );
+        expect((await employes.parId(employe.id))!.statut, StatutEmploye.actif);
+      },
+    );
+
+    testWidgets(
+      'un comptable, bascule ouverte, archive réellement (le DAO enfile '
+      'l\'archivage dans sa transaction)',
+      (tester) async {
+        final employe = await semerUnSalarie();
+        await poserBascule('true');
+        await monter(tester, role: 'Comptable');
+
+        await toucher(tester, Key('paie-archiver-${employe.id}'));
+        await tester.tap(find.byKey(const Key('paie-archivage-confirmer')));
+        await tester.pumpAndSettle();
+
+        expect((await employes.parId(employe.id))!.statut, StatutEmploye.parti);
+        expect(
+          tester
+              .widget<Text>(find.byKey(const Key('paie-archivage-bilan')))
+              .data,
+          '1 employé archivé.',
+        );
       },
     );
 
@@ -1389,7 +1478,9 @@ void main() {
 
           // Prouvée NON VIDE : un balayage vide serait vert à vide.
           expect(serveur, containsAll(['administrateur', 'super_admin']));
-          expect(rolesAdministrationPaie, serveur);
+          // La Paie n'a plus de constante propre (D272 levée) : elle emploie
+          // la règle UNIQUE du poste, relue ici contre le serveur.
+          expect(rolesAdministration, serveur);
         },
       );
 
