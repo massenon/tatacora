@@ -356,13 +356,14 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
     });
   }
 
-  /// Change le statut d'un véhicule — immobilisation et remise en service.
+  /// Change le statut d'un véhicule — sortie du parc louable et remise en
+  /// service (depuis sa ligne du parc).
   ///
-  /// C'est le SEUL effet qu'une immobilisation peut avoir sur ce poste :
-  /// `entretiens_vehicule` n'a **aucune table locale**, ni motif, ni date, ni
-  /// coût à écrire. Le véhicule cesse d'être louable, ce que [creerContrat]
-  /// oppose ensuite à toute location — le reste du formulaire du maître est
-  /// rendu inerte avec sa raison, plutôt que collecté puis jeté.
+  /// ⚠ Une IMMOBILISATION n'est plus ce geste (relu le 27/10/2026) : depuis la
+  /// v32 elle écrit une ligne `entretiens_vehicule_local` par
+  /// [enregistrerEntretien] et ne touche PAS au statut, comme la PWA (statut ≠
+  /// disponibilité). Le véhicule cesse d'être louable par ce statut-ci, ce que
+  /// [creerContrat] oppose ensuite à toute location.
   Future<Vehicule> changerStatut(String vehiculeId, StatutVehicule statut) {
     return transaction(() async {
       final ligne = await _ligneVehicule(vehiculeId);

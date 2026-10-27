@@ -68,7 +68,7 @@ import 'widgets/vue_planning.dart';
 /// | Parc & disponibilité | rendu, avec création, édition et archivage |
 /// | Contrats | rendu — 3 colonnes sur 10 sans source, nommées ; état et annulation portés (v38) |
 /// | Planning du parc | rendu — les 3 couches de la vue (libre, location, immobilisé = hors service) |
-/// | Immobilisations | **vide** — en-têtes et message de la vue, aucune table locale, et un encadré le dit |
+/// | Immobilisations | **rendu** — lit `entretiens_vehicule_local` (v32, `VehiculeDao.enregistrerEntretien`) ; « Au », « Jours » et « Commentaire » restent « — » comme la vue |
 /// | Annulation d'un contrat | **portée** (v38, 26/10/2026) — `contrats_location_local.statut`, `VehiculeDao.annulerContrat` |
 class EcranVehicules extends ConsumerWidget {
   const EcranVehicules({super.key});

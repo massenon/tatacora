@@ -21,11 +21,6 @@
       "motif": "« Modifier la boisson » est propre au bar : le drapeau creation_boisson est faux pour le restaurant, qui modifie ses plats sur « Plats & menus ». Le comparateur ne evalue pas les conditions Blade. Voir ecran_carte_restaurant.dart.",
       "date": "2026-10-08"
     },
-    "restaurant/carte|modale:modal-retirerdelacartedujour": {
-      "classe": "a",
-      "motif": "Modale « Retirer de la carte du jour » : elle ECRIT une indisponibilite (indisponibilites_carte), table absente de ce poste zero reseau. Le bouton « Rendre indispo. » affiche le message d'ecriture impossible. A rouvrir avec la source de M4. Voir ecran_carte_restaurant.dart.",
-      "date": "2026-10-09"
-    },
     "transverse/import-export|restaurer": {
       "classe": "a",
       "motif": "Restauration depuis un REGISTRE d'archives central : le poste n'en tient pas ; l'archivage y est un drapeau `actif` de chaque module (articles, clients, fournisseurs) et se restaure depuis l'ecran de ce module (bouton « Restaurer »). Voir ecran_import_export.dart.",

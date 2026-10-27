@@ -223,6 +223,7 @@
     "restaurant/carte": [
       "features/bar/presentation/widgets/modale_historique_prix.dart",
       "features/bar/presentation/widgets/modale_prix_boisson.dart",
+      "features/bar/presentation/widgets/modale_retrait_carte.dart",
       "features/restaurant/presentation/ecran_carte_restaurant.dart",
       "features/restaurant/presentation/widgets/modale_lien_stock_plat.dart",
       "features/restaurant/presentation/widgets/modale_prix_plat.dart",

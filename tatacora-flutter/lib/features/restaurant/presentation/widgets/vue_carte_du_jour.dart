@@ -67,16 +67,17 @@ const List<ColonneRestaurant> colonnesCarteDuJour = [
 /// l'arbitrage du serveur (`LignePlatCarteResource` : « `portions_vendables`
 /// peut valoir `null`, et ce n'est pas `0` »).
 ///
-/// ## Deux colonnes de la vue n'ont AUCUNE source sur ce poste (09/10/2026)
+/// ## « Disponible » est servie ; « Réserve » ne l'est pas (relu le 27/10/2026)
 ///
-/// « Disponible » (la disponibilité du jour vient d'`indisponibilites_carte`,
-/// l.321) et « Réserve » (le stock détenu hors du point de vente, dérivé de
-/// `mouvements_stock` et du lien direct à un article, l.390-393) : aucune table
-/// locale ne les porte (D15 pour la première ; la seconde exige le lien direct,
-/// que ce poste ne pose pas). Elles restent EN PLACE et rendent « — » avec leur
-/// raison en infobulle — la vue fait de même pour « Réserve » quand la donnée
-/// n'a pas pu être lue (l.398) ; un zéro se lirait « rien en réserve » ou
-/// « tout est indisponible ».
+/// « Disponible » (`l.321`) lit `indisponibilites_carte_local` depuis la v31
+/// (`LigneCarteRestaurant.estRetire`) : « oui » / « non », avec « Rendre indispo. »
+/// et « Remettre ». Le texte du 09/10/2026 (« aucune table ne la porte, D15 »)
+/// était périmé. « Réserve » (le stock détenu hors du point de vente, dérivé de
+/// `mouvements_stock` et du lien direct à un article, l.390-393) reste EN PLACE
+/// et rend « — » avec sa raison en infobulle : aucun calcul de réserve n'est
+/// écrit sur ce poste (le lien direct existe pourtant depuis la v36 : une
+/// réserve calculable est un lot à part, non fait ici). Un zéro se lirait
+/// « rien en réserve ».
 ///
 /// ## Ce qui a une source depuis la v14 (09/10/2026)
 ///

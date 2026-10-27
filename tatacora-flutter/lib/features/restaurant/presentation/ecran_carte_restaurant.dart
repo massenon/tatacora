@@ -83,31 +83,20 @@ import 'widgets/vue_ventes_restaurant.dart';
 /// ## Ce que cet écran REFUSE de rendre, et pourquoi (09/10/2026)
 ///
 /// Les modales restantes sont des blocs entiers de la vue que le corps partagé
-/// des cartes ne pose pas sur cette page, ou que ce poste ne rend pas (le retrait
-/// de la carte a sa modale propre, voir [VueCarteDuJour]).
+/// des cartes ne pose pas sur cette page (voir la section suivante). Le retrait
+/// de la carte a sa modale (`modale_retrait_carte.dart`, rendue par
+/// [VueCarteDuJour] et écrite par `IndisponibilitesCarteDao`) : son jeton de
+/// refus est retiré le 27/10/2026, un bloc rendu ne se déclare pas refusé.
 ///
-/// ## L'onglet « Ventes du Restaurant » : rendu, SANS donnée (09/10/2026)
+/// ## L'onglet « Ventes du Restaurant » : CALCULÉ sur ce poste (26/10/2026)
 ///
-/// Il était refusé en bloc (jeton de refus du bloc « ventes », retiré le
-/// 09/10/2026 : le copier ici le ferait revivre). Le motif
-/// reste vrai — **vérifié le 09/10/2026 contre les tables locales** : rien ne
-/// sert ce relevé. `ventes_bar_local` / `lignes_vente_bar_local` ne portent que
-/// le bar (clé étrangère vers `cartes_boisson_local`, ni statut validée/annulée
-/// ni utilisateur). `paniers_local` porte bien des lignes `moduleSource = M4`
-/// (le panier accepte bar et restaurant), mais ce sont des lignes de CAISSE
-/// sans le stock du jour, le statut ni l'utilisateur que le tableau de la vue
-/// exige, et `pieces_facturation_local` n'est qu'un registre de factures. Les
-/// exposer comme « ventes du restaurant » serait inventer un relevé de ventes
-/// M4 ; le relevé serveur des ventes M4 est un autre objet, que ce poste ne
-/// détient pas.
-///
-/// Mais ce motif refuse la DONNÉE, pas le cadre : la vue montre toujours ses
-/// filtres, son titre, ses neuf colonnes et sa ligne de total, même sans une
-/// seule vente. L'onglet les rend donc ([VueVentesRestaurant]), sans un seul
-/// chiffre, et chaque geste dit pourquoi il ne produit rien. Le refus de bloc
-/// est retiré : un bloc rendu ne se déclare pas refusé.
-///
-///  - blade-refuse:restaurant/carte#modale:modal-retirerdelacartedujour
+/// ⚠ Le texte du 09/10/2026 (« rendu SANS donnée », « rien ne sert ce relevé »)
+/// est PÉRIMÉ : les lignes de vente du rayon sont calculées sur les paniers du
+/// poste, les siens et ceux des autres postes que la descente lui a rendus
+/// (`ventes/domain/lignes_vente_du_rayon.dart`, réplique de
+/// `LignesVenteDuRayonService`), avec statut, numéro `V-` et auteur (v38). Les
+/// filtres, les neuf colonnes, la ligne de total et les exports lisent ce relevé
+/// ([VueVentesRestaurant]).
 ///
 /// ## « Nouvelle boisson » n'est PAS un refus : la vue ne la rend jamais ici
 ///
@@ -123,8 +112,9 @@ import 'widgets/vue_ventes_restaurant.dart';
 ///
 /// ## Ce que la vue rend et que cet écran ne peut PAS rendre, sans être un bloc
 ///
-///  - la colonne « Disponible » et la colonne « Réserve » : aucune table ne les
-///    porte, elles rendent « — » avec leur raison (voir [VueCarteDuJour]) ;
+///  - la colonne « Réserve » : aucun calcul de réserve n'est écrit sur ce
+///    poste, elle rend « — » avec sa raison (voir [VueCarteDuJour]) ; la colonne
+///    « Disponible » est servie depuis la v31 (`indisponibilites_carte_local`) ;
 ///  - l'avertissement « stock non consulté » (l.277-283) : une lecture locale ne
 ///    « échoue » pas ; un point cuisine absent, lui, est DIT (l.267-275) ;
 ///  - « Rapprocher automatiquement » : la vue ne le pose que sur le bar ;

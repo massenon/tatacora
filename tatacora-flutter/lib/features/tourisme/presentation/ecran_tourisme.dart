@@ -31,8 +31,13 @@ import 'widgets/vue_reservations.dart';
 /// aucune réservation de circuit — c'est le piège 11 de ce dépôt, rencontré
 /// une quatrième fois (après PA-127, PA-128 et PA-129).
 ///
-/// Rien ne part au serveur, et l'écran le dit plutôt que d'afficher un badge
-/// « en attente de synchronisation » sur ce qui n'attend rien (PA-59/60/61).
+/// ⚠ Cet en-tête disait « Rien ne part au serveur ». C'est FAUX (relu le
+/// 27/10/2026) : `circuits`, `guides` et `reservations_tour` sont au registre
+/// `TableSynchronisee` (lot F4, 17/10/2026) et `TourismeDao` enfile chaque geste
+/// dans sa transaction (`reserver`, `annulerReservation`, `annulerDepart`,
+/// l'enregistrement d'un circuit ou d'un guide, la réaffectation). L'écran ne
+/// peint pourtant pas de badge « en attente » : le bouton de la barre supérieure
+/// et l'écran de synchronisation disent ce qui attend (PA-59/60/61).
 ///
 /// ## Trois règles portées, et ce qu'elles coûtent
 ///
@@ -69,22 +74,26 @@ import 'widgets/vue_reservations.dart';
 ///    — « Réservations tourisme », « Catalogue tourisme », et des colonnes
 ///    que l'écran n'a pas : « Téléphone », « Prix FCFA », « Indicatif EUR »,
 ///    « Page catalogue ». NON PORTÉ : ce poste n'imprime pas l'écran (aucune
-///    action d'impression de page, et aucun A4 de M9 n'est classé aux visas,
-///    PA-192). Ce n'est PAS le fichier de « Exporter » : celui-ci écrit les
-///    colonnes de `TourismeExport` (celles de l'écran), relues par un test.
-///    « Indicatif EUR » et « Page catalogue » n'ont de toute façon aucune
-///    source au schéma ; le téléphone existe (`clients_local.telephone`) et
-///    l'écran le montre déjà sous le nom du client. Libellés nommés ici avec
-///    les mots de la vue : le comparateur les compte « nommés comme refusés »,
-///    PAS « rendus » — la dette n'a pas été réduite par du portage.
+///    action d'impression de page). Ce n'est PAS le fichier de « Exporter » :
+///    celui-ci écrit les colonnes de `TourismeExport` (celles de l'écran),
+///    relues par un test ; son PDF A4 (`etat_tourisme.dart`) est classé au
+///    registre de `pdf_directive_test` (visas PA-192). « Indicatif EUR » et
+///    « Page catalogue » n'ont de toute façon aucune source au schéma ; le
+///    téléphone existe (`clients_local.telephone`) et l'écran le montre déjà
+///    sous le nom du client. Libellés nommés ici avec les mots de la vue : le
+///    comparateur les compte « nommés comme refusés », PAS « rendus » — la
+///    dette n'a pas été réduite par du portage.
 ///  - **Suppression** d'une prestation, d'une réservation ou d'un départ :
 ///    interdite (RG-02), tout s'ANNULE. L'annulation libère la place et
 ///    conserve la ligne (RG-15).
 ///  - **Arbitrage de la capacité entre DEUX postes** : RG-13 est vérifiée dans
-///    la transaction qui insère, ce qui protège CE poste. `reservations_tour`
-///    n'est au registre d'aucune synchronisation : deux postes hors ligne
-///    peuvent sur-réserver le même départ (même famille que RG-01). Une
-///    prestation créée ici reste sur ce poste (note sous le catalogue).
+///    la transaction qui insère, ce qui protège CE poste. Entre deux postes
+///    hors ligne, c'est le SERVEUR qui arbitre à la réception
+///    (`GestionnaireReservationsTour` rejoue `ReservationTourService`, capacité
+///    cumulée et exclusivité du guide sous verrou) : la seconde vente des
+///    dernières places est refusée avec la phrase du service et revient dans
+///    « À traiter » (même famille que RG-01). Une prestation créée ici part
+///    avec la synchronisation, comme un guide.
 ///
 /// ## Le bloc de la vue qui est REFUSÉ, et déclaré comme tel
 ///
@@ -106,8 +115,8 @@ import 'widgets/vue_reservations.dart';
 ///
 /// La modale d'export, elle, n'est PLUS refusée : le bouton « Exporter » ouvre
 /// le partiel partagé (`choisirFormatExport`) et écrit le CSV de l'onglet
-/// affiché (`BoutonExporterTourisme`). Le choix PDF y est offert et refusé
-/// avec son message — aucun état A4 de M9 n'est classé aux visas (PA-192).
+/// affiché (`BoutonExporterTourisme`). Le choix PDF y produit l'état A4 de M9
+/// (`exporterTourismePdfProvider`, classé aux visas de `pdf_directive_test`).
 class EcranTourisme extends ConsumerWidget {
   const EcranTourisme({super.key});
 

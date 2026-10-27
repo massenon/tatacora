@@ -41,30 +41,28 @@ import 'widgets/vue_reservations_en_cours.dart';
 /// porté dans [VueDisponibilites] ; l'écran orphelin est retiré, après
 /// vérification qu'aucune route ni entrée de menu n'y menait.
 ///
-/// ## Ce que la vue pose et que cet écran ne rend pas (motifs relus le 09/10/2026)
+/// ## Ce que la vue pose et que cet écran ne rend pas (motifs relus le 27/10/2026)
 ///
-/// Chaque motif a été relu contre les tables locales
-/// (`lib/core/database/tables/hebergement_tables.dart` : aucune table
-/// `sejours` n'existe sur ce poste). Ils vivaient dans un bloc gris affiché
-/// sous le plan (le bloc « Ce que le plan de la PWA propose… ») ; la vue ne le rend pas et sa
-/// directive du Product Owner du 02/09/2026 dit « un écran dit ce qu'il FAIT —
-/// ce qu'il ne fait pas se déclare dans le code ». Il est donc retiré de
-/// l'écran, et ses raisons sont ICI :
+/// Chaque motif a été relu contre le code (piège 1 : une raison qui a cessé
+/// d'être vraie transforme une décision en oubli). Ils vivaient dans un bloc
+/// gris affiché sous le plan ; la vue ne le rend pas et sa directive du Product
+/// Owner du 02/09/2026 dit « un écran dit ce qu'il FAIT — ce qu'il ne fait pas
+/// se déclare dans le code ». Il est donc retiré de l'écran, et ses raisons
+/// sont ICI :
 ///
-/// - **« Effectuer Check-In Client » / « Effectuer Check-Out »**
-///   (`hebergement.blade.php` l.260-273) : la vue appelle `SejourService`, qui
-///   écrit la table `sejours` et le statut de l'unité. Cette table n'est pas
-///   répliquée sur ce poste, et `ReservationDao` est l'unique auteur de la
-///   réservation : aucun geste de séjour n'y existe. Les boutons sont RENDUS
-///   (un bouton absent changerait la carte) et DISENT, au clic, que le geste
-///   n'est pas enregistré sur ce poste ([MessagesPlanHebergement]).
-/// - **Modale « Réservation rapide »** (l.560-629) : la fiche de réservation
-///   complète existe et enregistre réellement. Le bouton « Réserver cette
-///   unité » ouvre cette fiche ; une seconde saisie, plus courte, écrirait les
-///   mêmes lignes par un second chemin — c'est un arbitrage à rendre, pas une
-///   évidence (Article 8). À REMONTER AU PRODUCT OWNER.
+/// - ~~**« Effectuer Check-In Client » / « Effectuer Check-Out »**~~ — PORTÉS
+///   (lot D, 14/10/2026) : `sejours_local` existe et les deux boutons appellent
+///   `SejourDao.checkin` / `SejourDao.checkout` (`vue_plan_hebergement.dart`),
+///   comme l'accueil. Le motif du 09/10/2026 (« aucune table `sejours` »)
+///   était périmé.
+/// - ~~**Modale « Réservation rapide »**~~ — PORTÉE : « Réserver cette unité »
+///   ouvre `ModaleReservationRapide` (`modale_reservation_rapide.dart`), qui
+///   écrit par le même `CreerReservation` que la fiche. L'arbitrage « une
+///   seconde saisie » est tranché par la décision du Product Owner (« le poste
+///   fait comme le web »).
 /// - **« Importer »** : la vue le déclare elle-même refusé (l.140-145) :
-///   `unites_hebergement` n'a aucun moteur d'import.
+///   `unites_hebergement` n'a aucun moteur d'import. L'import des unités existe
+///   à l'écran Import / Export (`ImporteurUnites`), pas ici.
 /// - **Bandeaux de session** `pwa-succes`, `cycle`, `archivage`, `export`
 ///   (l.58-74) : ils relaient un message flash de Livewire. Ici le même message
 ///   s'affiche dans une barre de notification (`SnackBar`), au même moment.

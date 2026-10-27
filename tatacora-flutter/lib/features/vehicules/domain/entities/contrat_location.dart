@@ -181,14 +181,13 @@ final class SaisieContrat {
 /// Les deux motifs d'immobilisation du schéma de référence
 /// (`entretiens_vehicule.type`).
 ///
-/// ## Aucune table locale ne les porte, et ce registre sert quand même
+/// ## Ils s'écrivent dans `entretiens_vehicule_local` (v32, relu le 27/10/2026)
 ///
-/// La vue propose « Entretien » et « Carburation ». `entretiens_vehicule`
-/// **n'a aucune table locale** : ni motif, ni date, ni coût n'ont où
-/// s'écrire. Le registre reste déclaré pour que la modale affiche la liste
-/// **fermée** du schéma plutôt qu'un champ libre — un motif inventé y serait
-/// refusé le jour où la table existera. Ce que l'immobilisation change
-/// réellement sur ce poste est le **statut du véhicule**, et rien d'autre.
+/// La vue propose « Entretien » et « Carburation ». Le texte précédent (« aucune
+/// table locale, ni motif, ni date, ni coût ») était périmé : la table existe
+/// depuis la v32 et `VehiculeDao.enregistrerEntretien` y écrit le type, le jour,
+/// le coût et le chauffeur (liste FERMÉE du schéma, jamais un champ libre).
+/// L'immobilisation ne change PAS le statut du véhicule, comme la PWA.
 enum TypeEntretien {
   entretien('entretien', 'Entretien'),
   carburation('carburation', 'Carburation');

@@ -45,8 +45,10 @@ import 'widgets/modale_annulation_reservation.dart';
 ///
 /// Il liste les réservations annulées du poste. Les colonnes de la vue qui
 /// supposent le calcul d'annulation du serveur (total, taux, commission
-/// retenue, remboursé, auteur) n'ont pas de source ici : le poste ne stocke que
-/// le motif. Elles rendent « — », jamais « 0 » (PA-126).
+/// retenue, remboursé, date, auteur) ont une source depuis la v19 : huit
+/// colonnes d'annulation fixées par `ReservationDao.annulerAvecConditions`
+/// (`AnnulationEnregistree`). Seule une annulation D'AVANT la v19 rend « — »,
+/// jamais « 0 » (PA-126) : voir `_cellulesDAnnulation`.
 class EcranReservations extends ConsumerStatefulWidget {
   const EcranReservations({super.key});
 

@@ -159,9 +159,11 @@ class _ModaleReservationState extends ConsumerState<_ModaleReservation> {
                   DropdownMenuItem(
                     value: c.id,
                     // La vue compose « nom — prix · durée » (l.671). La durée
-                    // n'est pas répliquée : elle est omise plutôt que rendue
-                    // « — » au milieu d'une ligne d'option, où le tiret se
-                    // lirait comme une valeur.
+                    // existe (`Circuit.duree`, texte libre) mais n'est pas
+                    // composée ici : écart OUVERT (relu le 27/10/2026, l'ancien
+                    // motif « non répliquée » était faux). Elle est omise
+                    // plutôt que rendue « — » au milieu d'une ligne d'option,
+                    // où le tiret se lirait comme une valeur.
                     child: Text('${c.nom} — ${formaterFcfa(c.prix)}'),
                   ),
               ],

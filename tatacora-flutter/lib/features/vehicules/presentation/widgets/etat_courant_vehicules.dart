@@ -94,9 +94,11 @@ Future<EtatVehicules?> construireEtatCourant(WidgetRef ref) async {
       );
 
     case OngletVehicules.immobilisations:
-      // Aucune table locale ne porte les immobilisations : il n'y a rien à
-      // exporter, et un fichier à en-têtes seules se lirait « aucune
-      // immobilisation ».
+      // ⚠ Le motif d'origine (« aucune table locale ne porte les
+      // immobilisations ») est PÉRIMÉ depuis la v32 (`entretiens_vehicule_local`).
+      // Cet onglet n'a toujours pas d'export ici, alors que le web exporte cinq
+      // colonnes (véhicule, motif, date, coût, auteur) : écart OUVERT, signalé
+      // le 27/10/2026, non traité par ce nettoyage.
       return null;
 
     case OngletVehicules.planning:

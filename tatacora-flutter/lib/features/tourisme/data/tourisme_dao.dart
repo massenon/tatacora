@@ -12,41 +12,35 @@ import '../domain/entities/reservation_tour.dart';
 
 /// M9 — l'accès aux trois tables locales du Tourisme.
 ///
-/// ## Tout est LOCAL, et rien ne part — ce qui se dit, jamais ne se masque
+/// ## Tout se lit en LOCAL, et tout part avec la synchronisation (relu le 27/10/2026)
 ///
-/// `circuits`, `guides` et `reservations_tour` ne sont **pas** au registre
-/// `TABLES_SYNCHRONISABLES` du serveur, qui ne connaît que `reservations` et
-/// `clients`. Une opération poussée depuis ces tables serait rejetée à chaque
-/// tentative. Trois conséquences, toutes tenues ici :
+/// ⚠ Cet en-tête disait « rien ne part » et que ces tables n'avaient « aucune
+/// descente » : c'est FAUX depuis le lot F4 (17/10/2026). `circuits`, `guides`
+/// et `reservations_tour` sont au registre [TableSynchronisee] ET descendent
+/// (`AligneurDocuments._circuit`, `_guide`, `_reservationTour`). Chaque geste
+/// d'écriture ci-dessous enfile son opération DANS sa transaction. Deux
+/// conséquences restent tenues :
 ///
-/// 1. **aucune entrée de file** n'est écrite — un badge « en attente de
-///    synchronisation » sur ce qui ne partira jamais serait exactement
-///    PA-59/60/61 ;
-/// 2. `statutSync` est écrit à [statutSyncLocal] et **jamais affiché**. Le
+/// 1. `statutSync` est écrit à [statutSyncLocal] et **jamais affiché**. Le
 ///    schéma lui donne pour défaut `en_attente_synchronisation` : c'est le
 ///    piège de `MouvementsStockLocal` (PA-134), un statut qui décrirait une
-///    attente sans fin. On l'écrase à l'insertion plutôt que de le laisser
-///    mentir en base ;
-/// 3. l'écran dit « enregistré sur ce poste ».
+///    attente sans fin. Ce qui attend, c'est la FILE d'envoi qui le dit ;
+/// 2. « Synchronisé » ne se dit que du confirmé : l'écran dit « enregistré sur
+///    ce poste ».
 ///
 /// ## Qui écrit ces tables — la question des deux moitiés (piège 11)
 ///
-/// `circuits_local` est **descendue** du serveur par
-/// `CatalogueDao.alignerCatalogue()` (PA-129). `guides_local` et
-/// `reservations_tour_local` n'avaient, elles, **aucun écrivain dans tout le
-/// dépôt** avant ce lot — vérifié par balayage le 14/09/2026, et non supposé.
-/// Ce DAO est leur premier. Elles n'ont toujours **aucune descente** : aucune
-/// route de l'API n'expose le référentiel des guides, et un poste neuf n'a
-/// donc pas de guide tant qu'on n'en saisit pas. L'écran le dit avec les mots
-/// du maître (« Aucun guide au référentiel »), il ne laisse pas un formulaire
-/// vide pour seule explication.
+/// Écriture de saisie : ce DAO, seul. Descente : `AligneurCatalogue` /
+/// `AligneurDocuments`, qui n'enfilent jamais. Un guide saisi ici part au
+/// serveur (`GestionnaireGuides`) ; un guide du serveur descend ici.
 ///
 /// ## Le verrou pessimiste est au SERVEUR, pas ici
 ///
 /// RG-13 se tranche sous `lockForUpdate()` côté Laravel. SQLite n'a qu'un seul
 /// écrivain à la fois, et la vérification est faite **dans la transaction qui
 /// insère** : cela protège ce poste. Cela ne protège pas deux postes hors
-/// ligne l'un de l'autre — même famille que RG-01, et c'est nommé à l'écran.
+/// ligne l'un de l'autre : le serveur arbitre à la réception
+/// (`GestionnaireReservationsTour`), même famille que RG-01.
 ///
 /// @see EF-M9-01 Catalogue de circuits
 /// @see EF-M9-03 Réservation avec affectation de guide
@@ -439,11 +433,9 @@ class TourismeDao extends DatabaseAccessor<AppDatabase> {
 
   /// Crée ou met à jour une prestation du catalogue (EF-M9-01).
   ///
-  /// ⚠ **La prestation reste sur ce poste.** `circuits_local` DESCEND du
-  /// serveur (`CatalogueDao.alignerCatalogue`) et ne remonte jamais : une
-  /// prestation saisie ici ne sera connue d'aucun autre poste, et n'apparaîtra
-  /// pas au catalogue de la PWA. L'écran le dit. Aucune suppression n'est
-  /// exposée : une prestation ne se supprime pas (RG-02), elle cesse d'être
+  /// La prestation PART au serveur (lot F4 : catalogue fusionné sur le nom,
+  /// dernier écrit gagnant) et descend aux autres postes. Aucune suppression
+  /// n'est exposée : une prestation ne se supprime pas (RG-02), elle cesse d'être
   /// proposée.
   ///
   /// La capacité est celle de la fiche : c'est elle que RG-13 contrôlera.
