@@ -80,6 +80,10 @@ final class SessionNotifier extends Notifier<Session?> {
   /// n'atteignait cet ecran.
   Future<void> connecter(String identifiant, String motDePasse) async {
     state = await _depot.connecter(identifiant, motDePasse);
+    // `Connexion::seConnecter()` pose le drapeau des modales d'ouverture de
+    // session : une CONNEXION les déclenche, une session restaurée au
+    // démarrage ne le fait pas.
+    ref.read(ouvertureEnAttenteProvider.notifier).poser();
   }
 
   Future<void> deconnecter() async {
@@ -97,6 +101,25 @@ final class SessionNotifier extends Notifier<Session?> {
     if (courante == null) return;
     state = await ref.read(depotSessionProvider).relire(courante.login);
   }
+}
+
+/// Le drapeau « modales d'ouverture de session en attente » — le
+/// `alertes_ouverture_en_attente` que `Connexion::seConnecter()` met en session
+/// et qu'`AlertesOuvertureModales` consomme : vrai de la connexion jusqu'au
+/// moment où les modales ont été montrées (ou jugées inutiles). Jamais posé par
+/// la restauration d'une session au démarrage.
+final ouvertureEnAttenteProvider =
+    NotifierProvider<OuvertureEnAttenteNotifier, bool>(
+      OuvertureEnAttenteNotifier.new,
+    );
+
+final class OuvertureEnAttenteNotifier extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void poser() => state = true;
+
+  void consommer() => state = false;
 }
 
 /// Droits de la session — jamais `null`, pour eviter un `?.` a chaque usage.

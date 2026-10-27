@@ -56,6 +56,7 @@ class _EtatHote extends ConsumerState<HoteModalesOuverture> {
     // pas à chaque page.
     ref.read(ouvertureEnAttenteProvider.notifier).consommer();
     try {
+      ref.invalidate(etapesOuvertureProvider);
       final etapes = await ref.read(etapesOuvertureProvider.future);
       if (!mounted || etapes.isEmpty) return;
       ref.read(modalesOuvertureProvider.notifier).remettreAZero();
@@ -64,7 +65,7 @@ class _EtatHote extends ConsumerState<HoteModalesOuverture> {
         final destination = await showDialog<String>(
           context: context,
           barrierColor: AppColors.voileModale,
-          builder: (_) => _ModaleEtape(
+          builder: (_) => ModaleEtapeOuverture(
             etape: etapes[i],
             rang: i + 1,
             total: etapes.length,
@@ -90,8 +91,11 @@ class _EtatHote extends ConsumerState<HoteModalesOuverture> {
   }
 }
 
-class _ModaleEtape extends ConsumerWidget {
-  const _ModaleEtape({
+/// Une modale de la séquence (étape [rang] sur [total]). Publique pour que les
+/// essais la montent avec des lignes fabriquées (plus de dix lignes, par exemple).
+class ModaleEtapeOuverture extends ConsumerWidget {
+  const ModaleEtapeOuverture({
+    super.key,
     required this.etape,
     required this.rang,
     required this.total,
@@ -139,9 +143,8 @@ class _ModaleEtape extends ConsumerWidget {
           couleur: MesuresModalesOuverture.couleurStock,
           trace: MesuresModalesOuverture.traceStock,
           libelleLien: TextesOuverture.lienStocks,
-          surLien: () => Navigator.of(
-            context,
-          ).pop(route('pwa.stocks.liste') ?? '/stocks'),
+          surLien: () =>
+              Navigator.of(context).pop(route('pwa.stocks.liste') ?? '/stocks'),
           lignes: [
             for (final l in lignes)
               _Ligne(
@@ -316,7 +319,9 @@ class _Bloc extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            color: couleur.withValues(alpha: MesuresModalesOuverture.alphaBandeau),
+            color: couleur.withValues(
+              alpha: MesuresModalesOuverture.alphaBandeau,
+            ),
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.md, // px-4
               vertical: AppSpacing.sm, // py-3
@@ -505,7 +510,7 @@ class _Ligne {
               ],
             ),
           ),
-          if (action != null) action!,
+          ?action,
         ],
       ),
     ),

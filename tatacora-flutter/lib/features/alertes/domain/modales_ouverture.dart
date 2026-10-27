@@ -32,6 +32,7 @@
 library;
 
 import '../../facturation/domain/creances.dart';
+import '../../hebergement/domain/messages_sejour.dart' show MessagesSejour;
 import '../../stocks/domain/calcul_stock.dart';
 import 'alertes_ouverture.dart' show ancienneteCreanceJours, quantiteAffichee;
 
@@ -83,8 +84,7 @@ abstract final class TextesOuverture {
   static const String lienReservations = 'Ouvrir les réservations';
   static const String checkout = 'Check-out';
   static const String fait = 'Fait';
-  static const String sejourIntrouvable =
-      'Ce séjour n’existe plus : rien n’a été modifié.';
+  static const String sejourIntrouvable = MessagesSejour.sejourIntrouvable;
 
   static const String blocCreancesTitre = 'Créances à relancer';
   static const String blocCreancesSousTitre =

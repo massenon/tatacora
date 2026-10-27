@@ -17,6 +17,12 @@ abstract final class MessagesSejour {
       "L'arrivée a déjà été enregistrée le $date. "
       'La ressaisir créerait un second séjour pour un seul client.';
 
+  /// `pwa.alertes_ouverture.sejour_introuvable` — le séjour d'une ligne des
+  /// modales d'ouverture de session n'existe plus (relu par PHP exécuté dans
+  /// `modales_ouverture_contre_serveur_test.dart`).
+  static const String sejourIntrouvable =
+      'Ce séjour n’existe plus : rien n’a été modifié.';
+
   /// `sejour.deja_parti` — `:date` au format `d/m/Y H:i`, VIDE quand le
   /// composant ne trouve aucun séjour ouvert (`Accueil::confirmerCheckout`
   /// passe `['date' => '']` : la phrase finit alors sur « le . »).

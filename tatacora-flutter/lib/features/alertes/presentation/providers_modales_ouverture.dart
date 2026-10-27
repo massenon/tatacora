@@ -19,11 +19,13 @@ import 'providers_alertes.dart';
 ///
 /// Un bloc dont le module n'est pas LISIBLE par le compte n'est pas lu du tout
 /// (`MenuLateral::moduleAccessible` du serveur : masqué sur `-` seulement).
-Future<({
-  List<LigneStockOuverture>? stock,
-  List<LigneDepartOuverture>? departs,
-  List<LigneCreanceOuverture>? creances,
-})>
+Future<
+  ({
+    List<LigneStockOuverture>? stock,
+    List<LigneDepartOuverture>? departs,
+    List<LigneCreanceOuverture>? creances,
+  })
+>
 lireLignesOuverture(
   Ref ref, {
   required GardeAcces droits,
@@ -71,24 +73,30 @@ lireLignesOuverture(
 /// Vide quand personne n'est connecté ou quand la bascule « Alertes à
 /// l'ouverture de session » est fermée (la même qui gouverne la cloche) :
 /// `doitAfficher()` du composant.
-final etapesOuvertureProvider =
-    FutureProvider.autoDispose<List<EtapeOuverture>>((ref) async {
-      if (ref.watch(sessionProvider) == null) return const [];
-      final base = ref.watch(baseLocaleProvider);
-      if (!await lireAlertesOuvertureActives(ParametresDao(base))) {
-        return const [];
-      }
-      final lignes = await lireLignesOuverture(
-        ref,
-        droits: ref.watch(droitsProvider),
-        maintenant: ref.watch(horlogeAlertesProvider)(),
-      );
-      return etapesOuverture(
-        stock: lignes.stock,
-        departs: lignes.departs,
-        creances: lignes.creances,
-      );
-    });
+///
+/// Ce n'est PAS un `autoDispose` : l'hôte lit `.future` hors d'un fournisseur,
+/// et un `autoDispose` libérerait son `Ref` pendant l'attente (piège Riverpod
+/// de CLAUDE.md). L'hôte l'invalide avant chaque lecture — rien n'est gardé
+/// d'une connexion à l'autre.
+final etapesOuvertureProvider = FutureProvider<List<EtapeOuverture>>((
+  ref,
+) async {
+  if (ref.watch(sessionProvider) == null) return const [];
+  final base = ref.watch(baseLocaleProvider);
+  if (!await lireAlertesOuvertureActives(ParametresDao(base))) {
+    return const [];
+  }
+  final lignes = await lireLignesOuverture(
+    ref,
+    droits: ref.watch(droitsProvider),
+    maintenant: ref.watch(horlogeAlertesProvider)(),
+  );
+  return etapesOuverture(
+    stock: lignes.stock,
+    departs: lignes.departs,
+    creances: lignes.creances,
+  );
+});
 
 /// L'état des modales : ce qui a déjà été traité et l'erreur de la dernière
 /// action (`$traites` et `alerte_ouverture` du composant).
@@ -137,7 +145,9 @@ final class ModalesOuvertureNotifier extends Notifier<EtatModalesOuverture> {
     }
     try {
       await ref.read(sejourDaoProvider).checkoutDuSejour(ligne.sejourId);
-      state = state.avec(traites: {...state.traites, 'sejour:${ligne.sejourId}'});
+      state = state.avec(
+        traites: {...state.traites, 'sejour:${ligne.sejourId}'},
+      );
     } on RefusSejour catch (refus) {
       state = state.avec(erreur: () => refus.message);
     }

@@ -275,6 +275,28 @@ class SejourDao extends DatabaseAccessor<AppDatabase> {
   /* Écritures                                                           */
   /* ================================================================== */
 
+  /// Le check-out d'UN SÉJOUR par son identifiant — le geste inline des modales
+  /// d'ouverture de session (`AlertesOuvertureModales::effectuerCheckOutOuverture`
+  /// : `Sejour::find($id)` puis `SejourService::checkout($sejour)`). Un séjour
+  /// introuvable DIT « Ce séjour n'existe plus : rien n'a été modifié. » ; un
+  /// séjour déjà clos refuse avec la phrase du service, DATE comprise (le
+  /// composant de l'accueil, lui, la rend vide : [checkout]).
+  ///
+  /// @throws RefusSejour séjour introuvable, déjà clos, ou refus de [checkout]
+  Future<void> checkoutDuSejour(String sejourId) async {
+    final sejour = await (select(
+      _sejours,
+    )..where((s) => s.id.equals(sejourId))).getSingleOrNull();
+    if (sejour == null) {
+      throw const RefusSejour(MessagesSejour.sejourIntrouvable);
+    }
+    final clos = sejour.dateCheckoutReel;
+    if (clos != null) {
+      throw RefusSejour(MessagesSejour.dejaParti(dateHeureCommeServeur(clos)));
+    }
+    await checkout(sejour.reservationId);
+  }
+
   /// Enregistre l'arrivée réelle — `SejourService::checkin`.
   ///
   /// @throws RefusSejour réservation inconnue ou annulée, séjour déjà

@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 
 import '../di/providers.dart';
 import '../../features/alertes/presentation/cloche_notifications.dart';
+import '../../features/alertes/presentation/modales_ouverture.dart';
 import '../../features/synchronisation/presentation/bouton_synchronisation.dart';
 import '../../features/auth/domain/session.dart';
 import '../../features/caisse/domain/indicateur_caisse.dart';
@@ -156,6 +157,10 @@ class CoquilleApplication extends ConsumerWidget {
             ],
           ),
           Positioned.fill(child: PanneauAccesRapide(routeActive: routeActive)),
+          // Les deux modales d'ouverture de session (`layouts/pwa` monte
+          // `AlertesOuvertureModales` une fois, pour tout écran) : l'hôte ne
+          // rend rien, il les enchaîne quand une connexion vient d'avoir lieu.
+          const HoteModalesOuverture(),
         ],
       ),
     );
