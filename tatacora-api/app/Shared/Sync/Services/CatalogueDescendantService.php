@@ -108,8 +108,7 @@ class CatalogueDescendantService
      * un poste doit les écrire (un élément cité avant celui qui le cite).
      *
      * Écartées délibérément : `articles.prix_achat` et `cout_moyen_pondere`,
-     * `recettes.cout_matiere_calcule` (calculs), `plats.categorie` (refusée en
-     * saisie : la catégorie d'un plat EST le type de son menu), les colonnes
+     * `recettes.cout_matiere_calcule` (calculs), les colonnes
      * d'audit (le poste n'a pas les utilisateurs du serveur).
      *
      * @var array<string, list<string>>
@@ -120,7 +119,9 @@ class CatalogueDescendantService
         'cartes_boisson' => ['article_id', 'libelle', 'categorie', 'prix_vente', 'unites_vendables_par_unite_stock', 'prix_provisoire', 'prix_corrige_main'],
         'menus' => ['libelle', 'type', 'date_debut', 'date_fin'],
         'recettes' => ['libelle', 'composition_provisoire'],
-        'plats' => ['menu_id', 'recette_id', 'article_id', 'unites_vendables_par_unite_stock', 'libelle', 'prix_vente', 'prix_provisoire', 'prix_corrige_main'],
+        // 27/10/2026 (lot L3) : `categorie` descend (les dix catégories de la carte, écrites
+        // par la PWA et, depuis la v41, par le poste).
+        'plats' => ['menu_id', 'recette_id', 'article_id', 'unites_vendables_par_unite_stock', 'libelle', 'prix_vente', 'categorie', 'prix_provisoire', 'prix_corrige_main'],
         // Lot « indisponibilités de la carte » (21/10/2026) : après les boissons
         // et les plats qu'elles citent. Le retour (remise à la carte) descend
         // avec la ligne : une retouche fait avancer le curseur.
@@ -171,7 +172,7 @@ class CatalogueDescendantService
             // `date_creation` est celle de l'audit — sa RÉCEPTION au serveur.
             'created_at',
         ],
-        'depenses' => ['numero', 'date_transaction', 'tresorerie', 'montant_total', 'libelle'],
+        'depenses' => ['numero', 'date_transaction', 'tresorerie', 'montant_total', 'libelle', 'recu_path', 'recu_sha256', 'recu_taille', 'recu_type'],
         // Lot F6 : l'OCCUPATION des tables (paniers DE TABLE seulement), après
         // la vente qui la libère ; ouverte = occupée.
         'paniers' => ['point_vente', 'table_id', 'statut', 'cloture_at'],
@@ -190,7 +191,9 @@ class CatalogueDescendantService
         'reservations_tour' => ['circuit_id', 'client_id', 'guide_id', 'date_circuit', 'nb_participants', 'statut'],
         // Audit de couverture (18/10/2026) : le parc M8 et ses contrats.
         'vehicules' => ['immatriculation', 'categorie', 'annee', 'transmission', 'capacite', 'tarif_jour', 'statut'],
-        'contrats_location' => ['vehicule_id', 'client_id', 'guide_id', 'date_debut', 'date_fin', 'numero', 'statut', 'montant'],
+        // 27/10/2026 (lot L3) : `acompte` descend avec `montant` (net, figé) ; le reste dû
+        // en est la différence, jamais une colonne de plus.
+        'contrats_location' => ['vehicule_id', 'client_id', 'guide_id', 'date_debut', 'date_fin', 'numero', 'statut', 'montant', 'acompte'],
         'entretiens_vehicule' => ['vehicule_id', 'type', 'date', 'cout', 'chauffeur_id'],
         // Audit de couverture (18/10/2026) : M13 — le référentiel des services,
         // le dossier des employés, puis la paie.
@@ -332,7 +335,7 @@ class CatalogueDescendantService
     private const BOOLEENS = ['actif', 'prix_provisoire', 'prix_corrige_main', 'composition_provisoire', 'encaisse'];
 
     /** @var list<string> */
-    private const ENTIERS = ['capacite_max', 'nb_participants'];
+    private const ENTIERS = ['capacite_max', 'nb_participants', 'recu_taille'];
 
     /** Les colonnes ENTIÈRES des lignes (les autres restent des chaînes). */
     private const ENTIERS_ENFANTS = ['quantite'];
@@ -708,6 +711,20 @@ class CatalogueDescendantService
                 default => true,
             };
             unset($donnees['actif']);
+
+            // Le reçu d'une dépense (lot L4) : la RÉFÉRENCE seulement — jamais le
+            // chemin du disque, jamais le fichier (téléchargé à la demande par
+            // `GET /sync/depenses/{depense}/recu`). `null` : pas de reçu. Un
+            // reçu joint par l'écran web avant la migration n'a pas
+            // d'empreinte : `sha256`, `taille` et `type` valent alors `null`.
+            if ($table === 'depenses') {
+                $donnees['recu'] = $donnees['recu_path'] === null ? null : [
+                    'sha256' => $donnees['recu_sha256'],
+                    'taille' => $donnees['recu_taille'],
+                    'type' => $donnees['recu_type'],
+                ];
+                unset($donnees['recu_path'], $donnees['recu_sha256'], $donnees['recu_taille'], $donnees['recu_type']);
+            }
 
             if ($table === 'recettes') {
                 $donnees['lignes'] = $compositions[(string) $ligne->id] ?? [];

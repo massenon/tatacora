@@ -6,11 +6,13 @@ import '../../pos/data/panier_dao.dart';
 import '../../rh/data/employe_dao.dart';
 import '../../rh/data/paie_dao.dart';
 import '../../transverse/data/configuration_poste.dart';
+import '../../vehicules/data/vehicule_dao.dart';
 import '../domain/bilan_synchronisation.dart';
 import '../domain/descente_catalogue.dart';
 import '../domain/operation_sync.dart';
 import 'descente_catalogue.dart';
 import 'descente_catalogue_dao.dart';
+import 'envoi_recus_depenses.dart';
 import 'operations_sync_dao.dart';
 import 'transport_synchronisation.dart';
 
@@ -80,6 +82,7 @@ class SyncManager {
     this.bail = const Duration(minutes: 5),
     this._surBilan,
     this._descente,
+    this._recus,
   }) : _url = urlServeur,
        _lecteur = lecteur ?? LecteurConfigurationPoste(),
        _ecrivain = ecrivain ?? EcrivainConfigurationPoste(),
@@ -96,6 +99,12 @@ class SyncManager {
 
   /// La descente du catalogue (lot F2b) ; `null` : envoi seul.
   final DescenteCatalogue? _descente;
+
+  /// L'envoi des reçus de dépenses (lot L4, 27/10/2026) ; `null` : aucun reçu
+  /// ne part. Il suit l'envoi de la file (un reçu ne précède jamais sa dépense)
+  /// et précède la descente ; il passe par le MÊME interrupteur, la même
+  /// génération et les mêmes refus 401/403.
+  final EnvoiRecusDepenses? _recus;
 
   /// La taille d'un lot — 50, le plafond de `SynchroniserRequest`.
   final int tailleLot;
@@ -243,7 +252,43 @@ class SyncManager {
     }
 
     await _dao.libererBauxExpires();
-    final envoi = await _envoyerFile(appairage);
+    var envoi = await _envoyerFile(appairage);
+
+    // Les REÇUS en image des dépenses acceptées (lot L4) : après la file, avant
+    // la descente. Un refus du jeton ou du poste vaut pour tout le passage.
+    final recus = _recus;
+    if (recus != null &&
+        (envoi.etat == EtatSynchronisation.termine ||
+            envoi.etat == EtatSynchronisation.alerte)) {
+      final bilanRecus = await recus.envoyer(
+        appairage,
+        generation: await _etat.generation(),
+      );
+      switch (bilanRecus.arret) {
+        case ArretEnvoiRecus.jetonRefuse:
+          await _consignerRefus(401);
+          return envoi.copierAvec(
+            etat: EtatSynchronisation.jetonRefuse,
+            codeHttp: 401,
+          );
+        case ArretEnvoiRecus.posteNonReconnu:
+          await _consignerRefus(403);
+          return envoi.copierAvec(
+            etat: EtatSynchronisation.posteNonReconnu,
+            codeHttp: 403,
+          );
+        case ArretEnvoiRecus.serveurReinitialise:
+          await _etat.consignerReinitialisationServeur(
+            bilanRecus.reinitialiseLe ?? _maintenant(),
+          );
+          return envoi.copierAvec(
+            etat: EtatSynchronisation.serveurReinitialise,
+            codeHttp: 409,
+          );
+        case ArretEnvoiRecus.serveurIndisponible || null:
+          break;
+      }
+    }
 
     final descente = _descente;
     if (descente == null ||
@@ -539,6 +584,18 @@ class SyncManager {
       await PanierDao(
         _dao.attachedDatabase,
       ).regulariserNumeroVente(o.entiteId, numeroVente);
+    }
+    // 27/10/2026 (v41) : le N° `LOC-…` du contrat est celui du serveur (séquence
+    // continue) — posé à l'accusé de la création, jamais inventé ici.
+    final numeroContrat = resultat['numero'];
+    if (statut == 'synchronise' &&
+        o.table == TableSynchronisee.contratsLocation &&
+        o.type == TypeOperationSync.creation &&
+        resultat['fusionne_avec'] == null &&
+        numeroContrat is String) {
+      await VehiculeDao(
+        _dao.attachedDatabase,
+      ).regulariserNumero(o.entiteId, numeroContrat);
     }
     final numeroBulletin = resultat['numero'];
     if (statut == 'synchronise' &&

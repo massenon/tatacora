@@ -207,11 +207,16 @@ Map<String, Object?> chargePlat({
   required bool prixCorrigeMain,
   String? articleId,
   String? unitesVendables,
+  String? categorie,
 }) => {
   'libelle': libelle,
   'menu_id': menuId,
   'recette_id': recetteId,
   'prix_vente': prixVenteFrancs,
+  // Depuis la v41 : la catégorie du plat, l'une des dix clés de la carte (le
+  // serveur l'accepte en synchronisation et la valide contre ce registre). Absente
+  // d'un plat d'avant : jamais envoyée en `null`.
+  'categorie': ?categorie,
   'prix_provisoire': prixProvisoire,
   'prix_corrige_main': prixCorrigeMain,
   // Le lien direct au stock (v36) : les DEUX champs vont ensemble, ou aucun
@@ -779,16 +784,25 @@ Map<String, Object?> chargeReglementFournisseur({
 /* Véhicules (audit de couverture, 18/10/2026)                            */
 /* ==================================================================== */
 
-/// `vehicules` (création) — `GestionnaireVehicules`. Le poste ne saisit ni
-/// année ni capacité : le serveur range l'année 0 et le SIGNALE.
+/// `vehicules` (création) — `GestionnaireVehicules`. Depuis la v41 (27/10/2026) le
+/// poste saisit l'année, les places (`capacite`) et la transmission comme le web ;
+/// un véhicule d'avant n'en a pas et l'année absente est rangée à 0 par le
+/// serveur, qui la SIGNALE. Les clés absentes ne sont pas envoyées (jamais un
+/// `null` qui vaudrait « effacer »).
 Map<String, Object?> chargeVehicule({
   required String immatriculation,
   required String categorie,
   required int tarifJour,
+  int? annee,
+  int? capacite,
+  String? transmission,
 }) => {
   'immatriculation': immatriculation,
   'categorie': categorie,
   'tarif_jour': tarifJour,
+  'annee': ?annee,
+  'capacite': ?capacite,
+  'transmission': ?transmission,
 };
 
 /// `entretiens_vehicule` (création) — `GestionnaireEntretiensVehicule` : un fait
@@ -858,6 +872,8 @@ Map<String, Object?> chargeContratLocation({
   required DateTime fin,
   required String pieceIdentite,
   required String? permisConduire,
+  int? remiseFrancs,
+  int? acompteFrancs,
 }) => {
   'vehicule_id': vehiculeId,
   'client_id': clientId,
@@ -866,6 +882,11 @@ Map<String, Object?> chargeContratLocation({
   'date_fin': jourIso(fin),
   'piece_identite': pieceIdentite,
   'permis_conduire': permisConduire,
+  // Depuis la v41 : la remise et l'acompte (FCFA entiers) de la signature. Le
+  // serveur juge `remise <= brut` puis `acompte <= net` avec les phrases de la
+  // vue et range le montant NET ; absents (poste d'avant), il range le brut.
+  'remise': ?remiseFrancs,
+  'acompte': ?acompteFrancs,
 };
 
 /// `contrats_location` (modification) — l'ANNULATION, la seule admise

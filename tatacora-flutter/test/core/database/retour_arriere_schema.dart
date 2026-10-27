@@ -125,6 +125,34 @@ const tablesAjouteesEnV39 = <String>{'boite_envoi_emails_local'};
 const tablesAjouteesEnV40 = <String>{'clotures_exercices_local'};
 
 const _ajoutsParVersion = <int, List<String>>{
+  // La v42 (27/10/2026, le recu en image d'une depense) ajoute SIX colonnes
+  // nullables a `depenses_local`, aucune table, ni indexees ni referencees :
+  // retour arriere symetrique.
+  42: <String>[
+    'ALTER TABLE depenses_local DROP COLUMN recu_nom',
+    'ALTER TABLE depenses_local DROP COLUMN recu_sha256',
+    'ALTER TABLE depenses_local DROP COLUMN recu_taille',
+    'ALTER TABLE depenses_local DROP COLUMN recu_type',
+    'ALTER TABLE depenses_local DROP COLUMN recu_statut',
+    'ALTER TABLE depenses_local DROP COLUMN recu_cause',
+  ],
+
+  // La v41 (27/10/2026, les champs du web que le poste ne portait pas) ajoute DIX
+  // colonnes nullables, aucune table, ni indexees ni referencees : retour arriere
+  // symetrique.
+  41: <String>[
+    'ALTER TABLE vehicules_local DROP COLUMN annee',
+    'ALTER TABLE vehicules_local DROP COLUMN capacite',
+    'ALTER TABLE vehicules_local DROP COLUMN transmission',
+    'ALTER TABLE contrats_location_local DROP COLUMN numero',
+    'ALTER TABLE contrats_location_local DROP COLUMN remise',
+    'ALTER TABLE contrats_location_local DROP COLUMN acompte',
+    'ALTER TABLE contrats_location_local DROP COLUMN montant',
+    'ALTER TABLE plats_local DROP COLUMN categorie',
+    'ALTER TABLE guides_local DROP COLUMN certification',
+    'ALTER TABLE guides_local DROP COLUMN tarif_jour',
+  ],
+
   // La v40 (26/10/2026, la cloture annuelle sur le poste) ajoute UNE table
   // neuve : ses cles etrangeres (exercices, utilisateurs) pointent vers des
   // tables qui existent deja, rien ne la reference — retour arriere symetrique.

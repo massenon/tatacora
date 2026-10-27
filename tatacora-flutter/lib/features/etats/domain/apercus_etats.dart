@@ -344,7 +344,10 @@ ApercuEtat apercuLocations(
   final categorieDe = {
     for (final v in parc) v.immatriculation: v.categorieBrute,
   };
-  final montant = Somme.de(contrats.map((c) => c.montant));
+  // Le montant FIGÉ à la signature (v41) ; un contrat d'avant n'en a pas (`null`) :
+  // case vide et hors du cumul, jamais le tarif d'aujourd'hui.
+  final montant = Somme.de(contrats.map((c) => c.montant ?? ''));
+  final sansMontant = contrats.where((c) => c.montant == null).length;
 
   return _apercu(
     modele,
@@ -358,13 +361,14 @@ ApercuEtat apercuLocations(
           dateIsoServeur(c.debut),
           dateIsoServeur(c.fin),
           '${c.nombreJours}',
-          _montantEcrit(c.montant),
+          c.montant == null ? '' : _montantEcrit(c.montant!),
         ],
     ],
-    mentions: const [
-      'Le montant d\'un contrat est recalculé au tarif courant du véhicule : '
-          'aucune colonne ne le fige à la signature. '
-          'Modifier la grille réécrit les contrats déjà signés.',
+    mentions: [
+      if (sansMontant > 0)
+        '$sansMontant contrat(s) sans montant connu (signé avant que ce poste '
+            'le fige, et pas encore reçu du serveur) : case vide, hors du '
+            'cumul.',
     ],
   );
 }

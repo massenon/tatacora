@@ -27,7 +27,7 @@ import 'modale_vehicule.dart';
 /// |---|---|
 /// | Véhicule | `immatriculation` — la table n'a pas de nom |
 /// | Catégorie | `categorie`, rendue par son libellé d'affichage |
-/// | Places | **aucune colonne locale** → « — » |
+/// | Places | `capacite` (v41) ; « — » pour un véhicule d'avant |
 /// | Permis | dérivé de la catégorie (RG-09, unique auteur) |
 /// | Tarif / jour | `tarifJour` |
 /// | Montant période | `tarif × jours`, en décimal exact |
@@ -164,16 +164,13 @@ class _Corps extends ConsumerWidget {
                         v.categorieLibelle ?? CarteIndicateurRestaurant.absent,
                         style: TextesRestaurant.corps,
                       ),
-                      // Aucune colonne `capacite` sur ce poste — « — », jamais 0.
-                      Tooltip(
-                        message:
-                            'Le nombre de places n’est pas enregistré sur ce '
-                            'poste.',
-                        child: Text(
-                          v.capacite?.toString() ??
-                              CarteIndicateurRestaurant.absent,
-                          style: TextesRestaurant.corps,
-                        ),
+                      // `$v->capacite ?? —` : « — » pour un véhicule d'avant la v41,
+                      // jamais 0.
+                      Text(
+                        v.capacite?.toString() ??
+                            CarteIndicateurRestaurant.absent,
+                        key: Key('vehicules-places-${v.id}'),
+                        style: TextesRestaurant.corps,
                       ),
                       _PastillePermis(exige: v.exigePermis),
                       Text(
@@ -220,11 +217,14 @@ class _CelluleVehicule extends StatelessWidget {
             style: TextesRestaurant.corpsFort,
           ),
         ),
-        // La vue affiche ici « année · transmission ». Aucune des deux colonnes
-        // n'existe dans `vehicules_local` : la sous-ligne porte le STATUT, qui
-        // existe et qui commande la disponibilité, plutôt qu'une ligne vide.
+        // La sous-ligne de la vue : « année · transmission » (v41). Vide pour un
+        // véhicule d'avant, comme la vue (`{{ $v->annee }}{{ $v->transmission ?
+        // ' · ' . $v->transmission : '' }}`) : le statut, lui, se lit dans la
+        // colonne « Disponibilité ».
         Text(
-          vehicule.statutLibelle ?? CarteIndicateurRestaurant.absent,
+          '${vehicule.annee ?? ''}'
+          '${(vehicule.transmission ?? '').isEmpty ? '' : ' · ${vehicule.transmission}'}',
+          key: Key('vehicules-annee-transmission-${vehicule.id}'),
           style: TextesRestaurant.mentionFine,
         ),
       ],

@@ -592,16 +592,26 @@ void main() {
     });
 
     test(
-      'le montant suit le tarif COURANT — la lacune est reproduite',
+      'le montant est FIGÉ à la signature — changer la grille ne réécrit pas un '
+      'contrat signé (v41), et un contrat d’avant reste sans montant',
       () async {
-        // ⚠ Ce cas FIGE un défaut connu, il ne le célèbre pas : aucune colonne
-        // ne porte le tarif d'une location, donc changer la grille réécrit le
-        // montant d'un contrat déjà signé (PA-55 appliqué à M8). Le jour où la
-        // colonne existera, ce cas échouera — et ce sera la bonne nouvelle.
         final v = await creerVehicule(tarif: 25000);
         await louer(v.id, debut: '2026-09-10', fin: '2026-09-15');
+        // Un contrat d'AVANT la v41 : colonnes nulles, rien n'est déduit.
+        final ancien = await louer(
+          v.id,
+          debut: '2026-10-01',
+          fin: '2026-10-03',
+        );
+        await db.customStatement(
+          'UPDATE contrats_location_local SET montant = NULL, acompte = NULL, '
+          "remise = NULL WHERE id = '${ancien.id}'",
+        );
 
-        expect((await dao.contrats()).single.montant, '125000.00');
+        expect((await dao.contrats()).map((c) => c.montant), [
+          null,
+          '125000.00',
+        ]);
 
         await dao.enregistrerVehicule(
           id: v.id,
@@ -610,7 +620,12 @@ void main() {
           tarifJour: 30000,
         );
 
-        expect((await dao.contrats()).single.montant, '150000.00');
+        // Le contrat signé garde son montant ; l'ancien reste « — » (jamais le
+        // tarif d'aujourd'hui, 30 000 x 2 = 60 000, qui serait plausible et faux).
+        final apres = await dao.contrats();
+        expect(apres.map((c) => c.montant), [null, '125000.00']);
+        expect(apres.first.resteDu, isNull);
+        expect(apres.last.resteDu, '125000.00');
       },
     );
 

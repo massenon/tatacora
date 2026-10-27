@@ -338,6 +338,17 @@ SaisiePlatLue verifierPlat(SaisiePlat s) {
     erreurs['recette_id'] = MessagesRestaurant.recetteObligatoire;
   }
 
+  // La catégorie (v41) : `null` = non soumise (importation, plat d'avant) ; une
+  // clé soumise doit être l'une des dix de la carte, comme le serveur la juge.
+  final categorie = s.categorie;
+  if (categorie != null) {
+    if (categorie.trim().isEmpty) {
+      erreurs['categorie'] = MessagesRestaurant.categorieDuPlatObligatoire;
+    } else if (CategorieCarte.depuisCode(categorie) == null) {
+      erreurs['categorie'] = MessagesRestaurant.categorieDuPlatInvalide;
+    }
+  }
+
   if (erreurs.isNotEmpty) return SaisiePlatLue(erreurs: erreurs);
   return SaisiePlatLue(libelle: libelle, prixFrancs: prix.francs!);
 }

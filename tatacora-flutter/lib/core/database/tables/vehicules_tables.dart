@@ -15,6 +15,23 @@ class VehiculesLocal extends Table {
   RealColumn get tarifJour => real()();
   TextColumn get statut => text()();
 
+  /// v41 (27/10/2026) — LES TROIS CHAMPS DE LA FICHE VÉHICULE que le web saisit
+  /// (`Locations::enregistrerVehicule` : Année, Places, Transmission), comme
+  /// `vehicules.annee` / `.capacite` / `.transmission` du serveur. NULLABLES : un
+  /// véhicule d'avant la v41 n'en a pas, et la migration n'en fabrique aucun
+  /// (l'écran affiche « — », jamais une valeur plausible).
+  ///
+  /// | Qui l'écrit | Qui la lit | Qui la descend |
+  /// |---|---|---|
+  /// | `VehiculeDao.enregistrerVehicule` (seul écrivain de saisie, il enfile) | le parc, le planning, l'état « Véhicules » | `AligneurDocuments._vehicule` (n'enfile jamais) |
+  IntColumn get annee => integer().nullable()();
+
+  /// v41 — les « Places » (`capacite` du serveur), 1 à 99. Voir [annee].
+  IntColumn get capacite => integer().nullable()();
+
+  /// v41 — la transmission, texte libre (255 au plus), vidable. Voir [annee].
+  TextColumn get transmission => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -47,6 +64,35 @@ class ContratsLocationLocal extends Table {
   /// |---|---|---|
   /// | `VehiculeDao.annulerContrat` (seul écrivain de saisie) ; l'aligneur de documents applique l'annulation DU SERVEUR (`annulationDescendue`) | le planning, la disponibilité (RG-08), les indicateurs, l'archivage d'un client | `AligneurDocuments._contratLocation` (vers l'avant seulement : `annule` ne redevient jamais `actif`) |
   TextColumn get statut => text().nullable()();
+
+  /// v41 (27/10/2026) — LE N° `LOC-` du contrat (`contrats_location.numero`).
+  /// NULLABLE, et le poste n'en INVENTE aucun : la séquence est celle du serveur,
+  /// qui le rend à l'accusé du `POST /sync` (`VehiculeDao.regulariserNumero`) ou à
+  /// la descente. Un contrat d'avant, ou pas encore envoyé : « — ».
+  ///
+  /// | Qui l'écrit | Qui la lit | Qui la descend |
+  /// |---|---|---|
+  /// | `SyncManager` (accusé) par `VehiculeDao.regulariserNumero` ; l'aligneur | la liste des contrats, l'état « Locations » | `AligneurDocuments._contratLocation` (n'enfile jamais) |
+  TextColumn get numero => text().nullable()();
+
+  /// v41 — la REMISE accordée à la signature, en francs entiers
+  /// (`Locations::enregistrerContrat`, « Remise (FCFA) »). NULLABLE : le serveur
+  /// ne la garde pas (il n'en range que le montant net), donc un contrat descendu
+  /// d'un autre poste ou du web n'en a pas — « — », jamais déduite par
+  /// soustraction avec un tarif qui a pu changer.
+  IntColumn get remise => integer().nullable()();
+
+  /// v41 — l'ACOMPTE reçu, en francs entiers (« Acompte reçu (FCFA) »). NULLABLE :
+  /// « — » pour un contrat d'avant. Écrit par `VehiculeDao.creerContrat`, descendu.
+  IntColumn get acompte => integer().nullable()();
+
+  /// v41 — LE MONTANT NET, FIGÉ À LA SIGNATURE (tarif du jour × jours − remise), en
+  /// francs entiers : `contrats_location.montant` du serveur. Avant la v41, le
+  /// montant était RECALCULÉ au tarif courant du véhicule — un changement de grille
+  /// réécrivait un contrat déjà signé. NULLABLE : un contrat d'avant n'a pas de
+  /// montant figé et la migration n'en déduit AUCUN (« — », pas le tarif courant).
+  /// Le « reste dû » en est la différence avec l'acompte : jamais une colonne.
+  IntColumn get montant => integer().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};

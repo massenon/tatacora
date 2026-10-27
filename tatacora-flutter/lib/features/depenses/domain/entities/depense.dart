@@ -1,4 +1,5 @@
 import '../categories_depense.dart';
+import '../recu_depense.dart';
 
 /// Une ligne d'achat — libellé, compte de charge, catégorie, prix.
 ///
@@ -57,7 +58,12 @@ final class Depense {
     this.ecritureRefus,
     this.recueDuServeur = false,
     this.posteOrigine,
+    this.recu,
   });
+
+  /// Le reçu en image (lot L4), ou `null` : « sans reçu ». Son ÉTAT ne se dit
+  /// que de ce que le serveur a accusé (voir [StatutRecu]).
+  final RecuDepense? recu;
 
   final String id;
   final DateTime dateTransaction;

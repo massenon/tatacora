@@ -180,6 +180,45 @@ abstract final class MessagesVehicules {
   static String categorieInconnue(String categorie) =>
       'La catégorie « $categorie » n\'existe pas au registre du parc.';
 
+  /// Les libellés de la vue (`vehicules.pwa.champ_*`) que les phrases du serveur
+  /// nomment : `GestionnaireVehicules` et `GestionnaireContratsLocation` les
+  /// passent à la validation comme noms de champ.
+  static const String libelleAnnee = 'Année';
+  static const String libellePlaces = 'Places';
+  static const String libelleTransmission = 'Transmission';
+  static const String libelleRemise = 'Remise (FCFA)';
+  static const String libelleAcompte = 'Acompte reçu (FCFA)';
+
+  /// `validation.required` — « Le champ :attribute est obligatoire. »
+  static String champObligatoire(String champ) =>
+      'Le champ $champ est obligatoire.';
+
+  /// `validation.integer` — la phrase du serveur, accent compris.
+  static String champEntier(String champ) =>
+      'Le champ $champ doit être un entier.';
+
+  /// `validation.min.numeric` — ⚠ le fichier de langue du serveur n'a PAS
+  /// d'accent ici (« etre ») : la phrase est recopiée telle qu'il la rend.
+  static String champMinimum(String champ, int minimum) =>
+      'Le champ $champ doit etre au minimum de $minimum.';
+
+  /// `validation.max.numeric` — sans accent non plus (« etre superieur a »).
+  static String champMaximum(String champ, int maximum) =>
+      'Le champ $champ ne peut pas etre superieur a $maximum.';
+
+  /// `validation.max.string` — la transmission tient en 255 caractères.
+  static const String transmissionTropLongue =
+      'Le champ Transmission ne peut pas contenir plus de 255 caracteres.';
+
+  /// `validation.lte.numeric` — la phrase de la vue quand la remise dépasse le
+  /// montant brut ([brut] : « 75000.00 »).
+  static String remiseSuperieureAuBrut(String brut) =>
+      'Le champ $libelleRemise doit être inférieur ou égal à $brut.';
+
+  /// `validation.lte.numeric` — l'acompte dépasse le montant net ([net]).
+  static String acompteSuperieurAuNet(String net) =>
+      'Le champ $libelleAcompte doit être inférieur ou égal à $net.';
+
   /// `vehicules.verrou` — un élément engagé ne s'archive pas.
   ///
   /// La vue nomme le NOMBRE d'opérations : « 1 contrat » et « 6 contrats » ne
@@ -201,6 +240,76 @@ abstract final class MessagesVehicules {
 /// lisible, ne compte plus dans les chiffres et ne bloque plus son véhicule
 /// (RG-08) : `_contratsEnConflit` l'écarte, comme `ContratLocationService`
 /// depuis la même date.
+
+/// L'année maximale d'un véhicule : l'an prochain (`max:` de
+/// `Locations::enregistrerVehicule`, `(int) date('Y') + 1`).
+int anneeMaximaleVehicule([DateTime? maintenant]) =>
+    (maintenant ?? DateTime.now()).year + 1;
+
+/// L'année minimale d'un véhicule (`min:1950`).
+const int anneeMinimaleVehicule = 1950;
+
+/// Le contrôle d'une « Année » saisie, aux phrases du serveur ; `null` = valide.
+/// Obligatoire, entière, de 1950 à l'an prochain — comme la vue.
+String? refusAnnee(String? saisie, {DateTime? maintenant}) {
+  final texte = (saisie ?? '').trim();
+  if (texte.isEmpty) {
+    return MessagesVehicules.champObligatoire(MessagesVehicules.libelleAnnee);
+  }
+  final valeur = int.tryParse(texte);
+  if (valeur == null) {
+    return MessagesVehicules.champEntier(MessagesVehicules.libelleAnnee);
+  }
+  return refusAnneeEntiere(valeur, maintenant: maintenant);
+}
+
+/// Les bornes seules, pour un entier déjà lu.
+String? refusAnneeEntiere(int valeur, {DateTime? maintenant}) {
+  if (valeur < anneeMinimaleVehicule) {
+    return MessagesVehicules.champMinimum(
+      MessagesVehicules.libelleAnnee,
+      anneeMinimaleVehicule,
+    );
+  }
+  final maximum = anneeMaximaleVehicule(maintenant);
+  if (valeur > maximum) {
+    return MessagesVehicules.champMaximum(
+      MessagesVehicules.libelleAnnee,
+      maximum,
+    );
+  }
+  return null;
+}
+
+/// Le contrôle des « Places » saisies : obligatoires, entières, de 1 à 99.
+String? refusPlaces(String? saisie) {
+  final texte = (saisie ?? '').trim();
+  if (texte.isEmpty) {
+    return MessagesVehicules.champObligatoire(MessagesVehicules.libellePlaces);
+  }
+  final valeur = int.tryParse(texte);
+  if (valeur == null) {
+    return MessagesVehicules.champEntier(MessagesVehicules.libellePlaces);
+  }
+  return refusPlacesEntieres(valeur);
+}
+
+/// Les bornes seules (1 à 99), pour un entier déjà lu.
+String? refusPlacesEntieres(int valeur) {
+  if (valeur < 1) {
+    return MessagesVehicules.champMinimum(MessagesVehicules.libellePlaces, 1);
+  }
+  if (valeur > 99) {
+    return MessagesVehicules.champMaximum(MessagesVehicules.libellePlaces, 99);
+  }
+  return null;
+}
+
+/// La transmission : texte libre, 255 caractères au plus ; `null` = valide.
+String? refusTransmission(String? saisie) =>
+    (saisie ?? '').trim().runes.length > 255
+    ? MessagesVehicules.transmissionTropLongue
+    : null;
 
 /// Le nombre de jours d'une location — bornes demi-ouvertes, `null` si la
 /// plage est vide ou inversée.

@@ -66,7 +66,7 @@ import 'widgets/vue_planning.dart';
 /// | Élément de la vue | État |
 /// |---|---|
 /// | Parc & disponibilité | rendu, avec création, édition et archivage |
-/// | Contrats | rendu — 3 colonnes sur 10 sans source, nommées ; état et annulation portés (v38) |
+/// | Contrats | rendu — les 10 colonnes (N°, montant figé, acompte, reste dû : v41) ; état et annulation portés (v38) |
 /// | Planning du parc | rendu — les 3 couches de la vue (libre, location, immobilisé = hors service) |
 /// | Immobilisations | **rendu** — lit `entretiens_vehicule_local` (v32, `VehiculeDao.enregistrerEntretien`) ; « Au », « Jours » et « Commentaire » restent « — » comme la vue |
 /// | Annulation d'un contrat | **portée** (v38, 26/10/2026) — `contrats_location_local.statut`, `VehiculeDao.annulerContrat` |
@@ -237,10 +237,16 @@ class _Indicateurs extends ConsumerWidget {
       _CarteKpi(
         id: 'reste',
         libelle: 'Reste à encaisser',
-        // Structurellement absent — jamais « 0 FCFA ».
-        valeur: null,
+        // Somme des restes dus des contrats actifs (v41) ; « — » si un seul
+        // contrat n'a pas de montant ou d'acompte connu — jamais « 0 FCFA ».
+        valeur: formaterMontantDecimal(
+          indicateurs?.resteAEncaisser,
+          suffixe: 'FCFA',
+        ),
         detail: 'Soldes de location',
-        raison: IndicateursVehicules.raisons['reste_a_encaisser'],
+        raison: indicateurs?.resteAEncaisser == null
+            ? IndicateursVehicules.raisons['reste_a_encaisser']
+            : null,
       ),
       _CarteKpi(
         id: 'jours',

@@ -8,6 +8,7 @@ use App\Domain\Comptabilite\Services\PlanComptableService;
 use App\Domain\Depenses\Models\Depense;
 use App\Domain\Depenses\Models\LigneDepense;
 use App\Domain\Depenses\Services\DepenseService;
+use App\Domain\Depenses\Services\RecuDepenseService;
 use App\Exports\DepensesExport;
 use App\Pwa\Livewire\Concerns\FormulaireModal;
 use App\Pwa\Livewire\PageMetier;
@@ -18,6 +19,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
@@ -160,8 +162,12 @@ class Depenses extends PageMetier
         'Marché' => ['Oignon', 'Tomate', 'Piment', 'Viande', 'Poisson', 'Igname', 'Riz'],
     ];
 
-    /** Taille maximale du reçu, en kilo-octets — `depenses-engine.js` l.46. */
-    public const RECU_MAX_KO = 400;
+    /**
+     * Taille maximale du reçu, en kilo-octets — `depenses-engine.js` l.46.
+     * Une seule valeur, celle du service : le poste la dépose par la
+     * synchronisation sous la même borne (lot L4, 27/10/2026).
+     */
+    public const RECU_MAX_KO = RecuDepenseService::TAILLE_MAX_KO;
 
     // --- Filtres (maître l.58-64) ----------------------------------------
 
@@ -397,10 +403,23 @@ class Depenses extends PageMetier
         ]);
 
         $recu = null;
+        $empreinte = [];
 
         if ($this->photoRecu !== null) {
-            $chemin = $this->photoRecu->store('recus_depenses', 'public');
+            $chemin = $this->photoRecu->store(RecuDepenseService::DOSSIER, 'public');
             $recu = is_string($chemin) ? $chemin : null;
+
+            // L'empreinte, la taille et le type du fichier RANGÉ (lot L4) : ce
+            // sont elles que les autres postes reçoivent pour vérifier ce
+            // qu'ils téléchargent. Relues du disque, jamais supposées.
+            if ($recu !== null) {
+                $octets = (string) Storage::disk('public')->get($recu);
+                $empreinte = [
+                    'recu_sha256' => hash('sha256', $octets),
+                    'recu_taille' => strlen($octets),
+                    'recu_type' => (string) (new \finfo(FILEINFO_MIME_TYPE))->buffer($octets),
+                ];
+            }
         }
 
         $libelleDepense = trim((string) $valide['libelle']);
@@ -443,6 +462,7 @@ class Depenses extends PageMetier
                 'centre_id' => ($valide['centreId'] ?? '') !== '' ? (string) $valide['centreId'] : null,
                 'libelle' => $libelleDepense,
                 'recu_path' => $recu,
+                ...$empreinte,
                 'lignes' => $lignes,
             ], Auth::user());
         } catch (RuntimeException $refus) {

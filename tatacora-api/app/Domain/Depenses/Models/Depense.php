@@ -38,6 +38,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $montant_total
  * @property string $libelle
  * @property string|null $recu_path
+ * @property string|null $recu_sha256
+ * @property int|null $recu_taille
+ * @property string|null $recu_type
  * @property string|null $ecriture_id
  * @property string|null $ecriture_refus
  * @property string|null $utilisateur_id
@@ -59,6 +62,9 @@ class Depense extends Model
         'montant_total',
         'libelle',
         'recu_path',
+        'recu_sha256',
+        'recu_taille',
+        'recu_type',
         'ecriture_id',
         'ecriture_refus',
         'utilisateur_id',
@@ -74,6 +80,7 @@ class Depense extends Model
             'date_transaction' => 'date',
             'montant_total' => 'decimal:2',
             'lignes_json' => 'array',
+            'recu_taille' => 'integer',
             'date_creation' => 'datetime',
             'date_modification' => 'datetime',
         ];

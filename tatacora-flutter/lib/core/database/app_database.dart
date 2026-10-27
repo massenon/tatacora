@@ -454,8 +454,26 @@ class AppDatabase extends _$AppDatabase {
   /// réouverture), aucune colonne ajoutée. Elle apparaît VIDE : un exercice
   /// déjà « clôturé » d'avant (statut descendu du serveur) n'a pas de clôture
   /// locale et son ouverture reste « inconnue » — aucune ligne n'est fabriquée.
+  ///
+  /// v41 (27/10/2026) — LES CHAMPS QUE LE WEB SAISIT ET QUE LE POSTE NE PORTAIT PAS
+  /// (décisions D1 et D2 du PO : « convertir en CRUD, même logique que le web ») :
+  /// aucune table neuve, DIX colonnes NULLABLES — `vehicules_local` (annee,
+  /// capacite, transmission), `contrats_location_local` (numero, remise, acompte,
+  /// montant FIGÉ à la signature), `plats_local` (categorie, les dix valeurs de la
+  /// carte), `guides_local` (certification, tarif_jour). Rien n'est fabriqué pour
+  /// l'existant : « — » à l'écran, et le montant d'un ancien contrat n'est PAS
+  /// recalculé au tarif courant. Le curseur de descente est oublié : le catalogue
+  /// redescend avec ces champs.
+  ///
+  /// v42 (27/10/2026) — LE REÇU EN IMAGE D'UNE DÉPENSE (lot L4, décision D4 du
+  /// PO : un transport de fichier dans la synchronisation) : aucune table neuve,
+  /// SIX colonnes NULLABLES sur `depenses_local` (`recu_nom`, `recu_sha256`,
+  /// `recu_taille`, `recu_type`, `recu_statut`, `recu_cause`). Le fichier reste
+  /// hors de la base (`recus_depenses/` à côté de `poste.json`). Rien n'est
+  /// fabriqué pour l'existant : « sans reçu ». Le curseur de descente est oublié :
+  /// les dépenses déjà au serveur redescendent avec la référence de leur reçu.
   @override
-  int get schemaVersion => 40;
+  int get schemaVersion => 42;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1294,6 +1312,98 @@ class AppDatabase extends _$AppDatabase {
             )
             .get();
         if (existe.isEmpty) await m.createTable(cloturesExercicesLocal);
+      }
+      if (from < 41) {
+        // LES CHAMPS DU WEB QUE LE POSTE NE PORTAIT PAS (27/10/2026) : dix colonnes
+        // NULLABLES, aucune table, aucune valeur fabriquée (un ancien contrat garde
+        // montant, acompte et N° nuls : « — »). Ajouts CONDITIONNELS (piège 3) : une
+        // fixture ramenée en arrière depuis la définition courante les porte déjà,
+        // et un fichier déjà à la forme v41 mais marqué v40 doit se rejouer. Le
+        // curseur est oublié : plats, véhicules, contrats et guides déjà au serveur
+        // redescendent avec leurs nouveaux champs.
+        Future<Set<String>> colonnesDe(String t) async => {
+          for (final c
+              in await m.database.customSelect('PRAGMA table_info($t)').get())
+            c.data['name'] as String,
+        };
+        final vehicules = await colonnesDe('vehicules_local');
+        if (!vehicules.contains('annee')) {
+          await m.addColumn(vehiculesLocal, vehiculesLocal.annee);
+        }
+        if (!vehicules.contains('capacite')) {
+          await m.addColumn(vehiculesLocal, vehiculesLocal.capacite);
+        }
+        if (!vehicules.contains('transmission')) {
+          await m.addColumn(vehiculesLocal, vehiculesLocal.transmission);
+        }
+        final contrats = await colonnesDe('contrats_location_local');
+        if (!contrats.contains('numero')) {
+          await m.addColumn(contratsLocationLocal, contratsLocationLocal.numero);
+        }
+        if (!contrats.contains('remise')) {
+          await m.addColumn(contratsLocationLocal, contratsLocationLocal.remise);
+        }
+        if (!contrats.contains('acompte')) {
+          await m.addColumn(
+            contratsLocationLocal,
+            contratsLocationLocal.acompte,
+          );
+        }
+        if (!contrats.contains('montant')) {
+          await m.addColumn(
+            contratsLocationLocal,
+            contratsLocationLocal.montant,
+          );
+        }
+        if (!(await colonnesDe('plats_local')).contains('categorie')) {
+          await m.addColumn(platsLocal, platsLocal.categorie);
+        }
+        final guides = await colonnesDe('guides_local');
+        if (!guides.contains('certification')) {
+          await m.addColumn(guidesLocal, guidesLocal.certification);
+        }
+        if (!guides.contains('tarif_jour')) {
+          await m.addColumn(guidesLocal, guidesLocal.tarifJour);
+        }
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
+      }
+      if (from < 42) {
+        // LE REÇU EN IMAGE D'UNE DÉPENSE (27/10/2026) : six colonnes NULLABLES,
+        // aucune table, aucune valeur fabriquée. Ajouts CONDITIONNELS (piège 3) :
+        // une fixture ramenée en arrière depuis la définition courante les porte
+        // déjà, et un fichier à la forme v42 marqué v41 doit se rejouer. Le curseur
+        // est oublié : les dépenses déjà au serveur redescendent avec la référence
+        // de leur reçu.
+        final depenses = {
+          for (final c
+              in await m.database
+                  .customSelect('PRAGMA table_info(depenses_local)')
+                  .get())
+            c.data['name'] as String,
+        };
+        if (!depenses.contains('recu_nom')) {
+          await m.addColumn(depensesLocal, depensesLocal.recuNom);
+        }
+        if (!depenses.contains('recu_sha256')) {
+          await m.addColumn(depensesLocal, depensesLocal.recuSha256);
+        }
+        if (!depenses.contains('recu_taille')) {
+          await m.addColumn(depensesLocal, depensesLocal.recuTaille);
+        }
+        if (!depenses.contains('recu_type')) {
+          await m.addColumn(depensesLocal, depensesLocal.recuType);
+        }
+        if (!depenses.contains('recu_statut')) {
+          await m.addColumn(depensesLocal, depensesLocal.recuStatut);
+        }
+        if (!depenses.contains('recu_cause')) {
+          await m.addColumn(depensesLocal, depensesLocal.recuCause);
+        }
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
       }
       if (from < 33) {
         // LES PLANNINGS ET LES CONGÉS (21/10/2026). Deux tables NEUVES, sans

@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/format/formats.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../crm/domain/entities/client.dart';
@@ -28,13 +29,14 @@ import '../providers_vehicules.dart';
 /// `VehiculeDao.creerContrat()`, qui tient RG-08 et RG-09 dans la transaction
 /// qui insère.
 ///
-/// ## Trois champs de la vue sont rendus INERTES, avec leur raison
+/// ## « Remise (FCFA) » et « Acompte reçu (FCFA) » sont saisis (v41, 27/10/2026)
 ///
-/// « Téléphone », « Remise (FCFA) » et « Acompte reçu (FCFA) » n'ont aucune
-/// colonne dans `contrats_location_local`. Les offrir à la saisie produirait
-/// « Contrat établi » sur un contrat au montant plein, et le client serait
-/// relancé pour une somme qu'il a versée. Un silence est plus trompeur qu'un
-/// refus.
+/// Ils étaient rendus inertes tant que `contrats_location_local` n'avait pas leurs
+/// colonnes. Le contrat porte désormais sa remise, son acompte et son montant NET
+/// FIGÉ à la signature : la modale les demande comme la vue, l'aperçu montre le
+/// reste à payer, et le DAO refuse (avec les phrases du serveur) une remise
+/// supérieure au montant brut puis un acompte supérieur au net. « Téléphone » reste
+/// ce que la vue en fait : la lecture du client choisi.
 ///
 /// ## Sur un référentiel vide, la modale REFUSE de s'ouvrir
 ///
@@ -64,6 +66,8 @@ class _ModaleContrat extends ConsumerStatefulWidget {
 class _ModaleContratState extends ConsumerState<_ModaleContrat> {
   final _piece = TextEditingController();
   final _permis = TextEditingController();
+  final _remise = TextEditingController();
+  final _acompte = TextEditingController();
 
   late String? _vehiculeId = widget.vehiculePrechoisi?.id;
   String? _clientId;
@@ -78,6 +82,8 @@ class _ModaleContratState extends ConsumerState<_ModaleContrat> {
   void dispose() {
     _piece.dispose();
     _permis.dispose();
+    _remise.dispose();
+    _acompte.dispose();
     super.dispose();
   }
 
@@ -284,29 +290,26 @@ class _ModaleContratState extends ConsumerState<_ModaleContrat> {
           const SizedBox(height: AppSpacing.md),
 
           // ------------------------- 8 et 9. Remise / Acompte reçu (l.686)
-          const Row(
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: _ChampInerte(
-                  cle: Key('modale-contrat-remise'),
-                  etiquette: 'Remise (FCFA)',
-                  raison:
-                      'Ce poste n’enregistre pas de remise sur un contrat : '
-                      'la valeur serait perdue, et le contrat garderait son '
-                      'montant plein.',
+                child: _ChampMontant(
+                  cle: const Key('modale-contrat-remise'),
+                  etiquette: MessagesVehicules.libelleRemise,
+                  controleur: _remise,
+                  erreur: _parChamp['remise'],
+                  onChanged: () => setState(() {}),
                 ),
               ),
-              SizedBox(width: AppSpacing.sm),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
-                child: _ChampInerte(
-                  cle: Key('modale-contrat-acompte'),
-                  etiquette: 'Acompte reçu (FCFA)',
-                  raison:
-                      'Même cas que la remise : aucune colonne. Un acompte '
-                      'saisi ici produirait « Contrat établi » sur un contrat '
-                      'au montant plein, et le client serait relancé pour une '
-                      'somme qu’il a versée.',
+                child: _ChampMontant(
+                  cle: const Key('modale-contrat-acompte'),
+                  etiquette: MessagesVehicules.libelleAcompte,
+                  controleur: _acompte,
+                  erreur: _parChamp['acompte'],
+                  onChanged: () => setState(() {}),
                 ),
               ),
             ],
@@ -314,7 +317,13 @@ class _ModaleContratState extends ConsumerState<_ModaleContrat> {
           const SizedBox(height: AppSpacing.md),
 
           // ------------------------------------------ L'aperçu (l.699-714)
-          _Apercu(vehicule: choisi, debut: _debut, fin: _fin),
+          _Apercu(
+            vehicule: choisi,
+            debut: _debut,
+            fin: _fin,
+            remise: _montantSaisi(_remise.text) ?? 0,
+            acompte: _montantSaisi(_acompte.text) ?? 0,
+          ),
 
           if (!referentielsPrets && !clients.isLoading && !parc.isLoading) ...[
             const SizedBox(height: AppSpacing.md),
@@ -373,6 +382,13 @@ class _ModaleContratState extends ConsumerState<_ModaleContrat> {
         'date_fin': MessagesVehicules.finApresDebut,
       if (_piece.text.trim().isEmpty)
         'piece_identite': MessagesVehicules.pieceIdentiteRequise,
+      // La remise et l'acompte : des francs entiers, zéro ou plus. Les bornes
+      // (remise <= brut, acompte <= net) sont celles du DAO, qui rend la phrase.
+      'remise': ?_refusMontant(_remise.text, MessagesVehicules.libelleRemise),
+      'acompte': ?_refusMontant(
+        _acompte.text,
+        MessagesVehicules.libelleAcompte,
+      ),
       // RG-09 n'est PAS recopiée ici : la condition est lue sur `exigePermis`,
       // que le DAO dérive de l'unique auteur.
       if ((choisi?.exigePermis ?? false) && _permis.text.trim().isEmpty)
@@ -405,6 +421,8 @@ class _ModaleContratState extends ConsumerState<_ModaleContrat> {
               permisConduire: _permis.text.trim().isEmpty
                   ? null
                   : _permis.text.trim(),
+              remiseFrancs: _montantSaisi(_remise.text) ?? 0,
+              acompteFrancs: _montantSaisi(_acompte.text) ?? 0,
             ),
           );
 
@@ -412,11 +430,40 @@ class _ModaleContratState extends ConsumerState<_ModaleContrat> {
       Navigator.of(context).pop(true);
     } on RefusVehicule catch (refus) {
       if (!mounted) return;
+      // Les deux refus de montant se posent sous leur champ, comme la vue
+      // (`addError('remiseSaisie')` / `addError('acompteSaisi')`).
+      final champ = refus.message.startsWith(
+            'Le champ ${MessagesVehicules.libelleRemise} ',
+          )
+          ? 'remise'
+          : refus.message.startsWith(
+              'Le champ ${MessagesVehicules.libelleAcompte} ',
+            )
+          ? 'acompte'
+          : null;
       setState(() {
         _envoi = false;
-        _refus = refus.message;
+        if (champ == null) {
+          _refus = refus.message;
+        } else {
+          _parChamp = {champ: refus.message};
+        }
       });
     }
+  }
+
+  /// Un montant saisi en francs entiers ; vide = zéro (la vue pose 0 par défaut) ;
+  /// `null` si illisible.
+  static int? _montantSaisi(String saisie) {
+    final texte = saisie.trim().replaceAll(' ', '');
+    return texte.isEmpty ? 0 : int.tryParse(texte);
+  }
+
+  static String? _refusMontant(String saisie, String libelle) {
+    final valeur = _montantSaisi(saisie);
+    if (valeur == null) return MessagesVehicules.champEntier(libelle);
+    if (valeur < 0) return MessagesVehicules.champMinimum(libelle, 0);
+    return null;
   }
 }
 
@@ -435,7 +482,7 @@ class _InfoVehicule extends StatelessWidget {
           children: [
             // Le gabarit de `vehicules.pwa.info_vehicule`, AU MOT :
             // « :places place(s) · :categorie · chauffeur inclus », suivi du
-            // permis. Les places valent toujours « — » : aucune colonne locale.
+            // permis. Les places valent « — » pour un véhicule d'avant la v41.
             //
             // ⚠ « · chauffeur inclus » avait disparu de cette ligne. Ce n'est
             // pas une mention décorative : le tarif du catalogue INCLUT le
@@ -464,22 +511,23 @@ class _InfoVehicule extends StatelessWidget {
   }
 }
 
-/// L'aperçu de la vue (l.699-714) — **réduit à ce qui existe**.
-///
-/// La vue y pose quatre lignes : « N jour(s) × tarif », « Remise »,
-/// « Acompte », « Reste à payer ». Les trois dernières dépendent de colonnes
-/// que la table locale n'a pas : un « Reste à payer » calculé sur une remise
-/// jamais enregistrée annoncerait au client une somme qu'il ne devra pas.
+/// L'aperçu de la vue (l.699-714) : « N jour(s) × tarif », « Remise », « Acompte »
+/// et « Reste à payer » (brut − remise − acompte). Depuis la v41 les trois dernières
+/// lignes existent : le reste à payer annoncé est celui que le contrat portera.
 class _Apercu extends StatelessWidget {
   const _Apercu({
     required this.vehicule,
     required this.debut,
     required this.fin,
+    required this.remise,
+    required this.acompte,
   });
 
   final Vehicule? vehicule;
   final String? debut;
   final String? fin;
+  final int remise;
+  final int acompte;
 
   @override
   Widget build(BuildContext context) {
@@ -488,6 +536,35 @@ class _Apercu extends StatelessWidget {
     if (v == null || jours == null) return const SizedBox.shrink();
 
     final montant = sommeDecimales(List<String>.filled(jours, v.tarifJour));
+    final brut = montant == null ? null : double.tryParse(montant)?.round();
+    final reste = brut == null ? null : brut - remise - acompte;
+    String fcfa(int? francs) => francs == null
+        ? '—'
+        : formaterMontantDecimal('$francs.00', suffixe: 'FCFA') ?? '—';
+
+    Widget ligne(Key cle, String libelle, String valeur, {bool fort = false}) =>
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              libelle,
+              style: fort
+                  ? TextesModaleRestaurant.corps.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.navy,
+                    )
+                  : TextesModaleRestaurant.aide,
+            ),
+            Text(
+              valeur,
+              key: cle,
+              style: TextesModaleRestaurant.corps.copyWith(
+                fontWeight: fort ? FontWeight.w700 : FontWeight.w400,
+                color: fort ? AppColors.navy : PaletteMaitre.emeraude700,
+              ),
+            ),
+          ],
+        );
 
     return Container(
       // `border border-slate-200 rounded-lg p-3 text-[12px]`.
@@ -516,14 +593,22 @@ class _Apercu extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.xxs),
-          const Text(
-            'La vue affiche ici « Remise », « Acompte » et « Reste à payer ». '
-            'Aucune des trois colonnes n’existe sur ce poste : un reste à '
-            'payer calculé sur une remise jamais enregistrée annoncerait au '
-            'client une somme qu’il ne devra pas.',
-            key: Key('modale-contrat-apercu-absents'),
-            style: TextesModaleRestaurant.aide,
+          ligne(
+            const Key('modale-contrat-apercu-remise'),
+            'Remise',
+            '− ${fcfa(remise)}',
+          ),
+          ligne(
+            const Key('modale-contrat-apercu-acompte'),
+            'Acompte',
+            '− ${fcfa(acompte)}',
+          ),
+          const Divider(height: AppSpacing.sm),
+          ligne(
+            const Key('modale-contrat-apercu-reste'),
+            'Reste à payer',
+            fcfa(reste),
+            fort: true,
           ),
         ],
       ),
@@ -615,17 +700,21 @@ class _Telephone extends StatelessWidget {
   }
 }
 
-/// Un champ de la vue que la table locale ne porte pas — rendu **à sa place**,
-/// inerte, avec sa raison.
-class _ChampInerte extends StatelessWidget {
-  const _ChampInerte({
-    required Key cle,
+/// Un champ de montant en francs entiers — étiquette de la vue, jamais obligatoire.
+class _ChampMontant extends StatelessWidget {
+  const _ChampMontant({
+    required this.cle,
     required this.etiquette,
-    required this.raison,
-  }) : super(key: cle);
+    required this.controleur,
+    required this.onChanged,
+    this.erreur,
+  });
 
+  final Key cle;
   final String etiquette;
-  final String raison;
+  final TextEditingController controleur;
+  final VoidCallback onChanged;
+  final String? erreur;
 
   @override
   Widget build(BuildContext context) {
@@ -634,14 +723,18 @@ class _ChampInerte extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         EtiquetteChampRestaurant(texte: etiquette),
-        Container(
-          padding: const EdgeInsets.all(AppSpacing.xs),
-          decoration: BoxDecoration(
-            color: Ardoise.c50,
-            border: Border.all(color: Ardoise.c200),
-            borderRadius: BorderRadius.circular(AppRadius.roundedLg),
+        TextField(
+          key: cle,
+          controller: controleur,
+          keyboardType: TextInputType.number,
+          style: TextesModaleRestaurant.corps,
+          onChanged: (_) => onChanged(),
+          decoration: InputDecoration(
+            isDense: true,
+            border: const OutlineInputBorder(),
+            errorText: erreur,
+            errorMaxLines: 3,
           ),
-          child: Text(raison, style: TextesModaleRestaurant.aide),
         ),
       ],
     );

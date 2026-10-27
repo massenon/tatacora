@@ -10,30 +10,16 @@ const String statutContratActif = 'actif';
 
 /// Un contrat, tel que `contrats_location_local` le porte.
 ///
-/// ## Ce que la table LOCALE ne porte pas, et qui reste affiché « — »
+/// ## Les dix colonnes de la vue (v41, 27/10/2026)
 ///
-/// La vue pose les colonnes `N°`, `Véhicule`, `Client`, `Période`, `Jours`,
-/// `Montant`, `Acompte`, `Reste dû`, `État`, actions. Confrontées à
-/// `contrats_location_local` (`core/database/tables/vehicules_tables.dart`) :
-///
-/// | Colonne | Source locale |
-/// |---|---|
-/// | N° | **aucune colonne** — le contrat n'a qu'un UUID |
-/// | Véhicule | résolu sur `vehicules_local` (l'immatriculation) |
-/// | Client | résolu sur `clients_local` |
-/// | Période | `dateDebut` / `dateFin` |
-/// | Jours | calculé, bornes demi-ouvertes |
-/// | Montant | **calculé** au tarif COURANT — voir [montant] |
-/// | Acompte | **aucune colonne** |
-/// | Reste dû | **aucune colonne** — il se déduirait de l'acompte |
-/// | État | `statut` (v38, 26/10/2026) : `actif` ou `annule` ; `null` = actif |
-///
-/// ⚠ La vue Blade, elle, rend `$c->numero`, `$c->acompte` et
-/// `$c->reste_a_payer` : le schéma **serveur** a gagné ces colonnes, la table
-/// **locale** ne les a pas. C'est un écart de schéma, pas un choix de portage,
-/// et il est consigné tel quel — l'inventer localement produirait des montants
-/// qu'aucune saisie n'a posés. Le STATUT, lui, est porté depuis la v38 : le
-/// poste annule un contrat comme la PWA, et reçoit l'annulation du serveur.
+/// `N°`, `Véhicule`, `Client`, `Période`, `Jours`, `Montant`, `Acompte`,
+/// `Reste dû`, `État`, actions. Depuis la v41 le contrat porte son [numero]
+/// (`LOC-…`, rendu par le serveur), sa [remise], son [acompte] et son [montant]
+/// NET FIGÉ à la signature (tarif du jour × jours − remise) ; le [resteDu] en est
+/// la différence avec l'acompte, jamais une colonne. Chacun est `null` pour un
+/// contrat d'avant la v41 (ou pas encore envoyé, pour le N°) : la migration n'en
+/// déduit AUCUN, et l'écran rend « — » — jamais le tarif courant, jamais « Soldé »
+/// sur un reste inconnu.
 final class ContratLocation {
   const ContratLocation({
     required this.id,
@@ -42,8 +28,11 @@ final class ContratLocation {
     required this.debut,
     required this.fin,
     required this.nombreJours,
-    required this.montant,
     required this.packageAvecGuide,
+    this.montant,
+    this.numero,
+    this.remise,
+    this.acompte,
     this.clientNom,
     this.statut,
   });
@@ -65,14 +54,52 @@ final class ContratLocation {
 
   final int nombreJours;
 
-  /// Montant décimal en chaîne (« 75000.00 »).
+  /// Le montant NET, FIGÉ à la signature (« 70000.00 »), ou `null`.
   ///
-  /// ⚠ **Il est RECALCULÉ au tarif courant du véhicule, jamais figé.**
-  /// `contrats_location_local` n'a aucune colonne de montant ni de tarif : il
-  /// n'y a rien à figer à la signature. Un changement de grille réécrit donc le
-  /// montant d'un contrat déjà signé — c'est le défaut exact que PA-55 a
-  /// corrigé sur `tarifNuit`, et il ne peut pas l'être ici sans colonne.
-  final String montant;
+  /// Avant la v41 il était RECALCULÉ au tarif courant du véhicule : modifier la
+  /// grille réécrivait un contrat déjà signé. Il est désormais une colonne
+  /// (`contrats_location_local.montant`), écrite une fois par
+  /// `VehiculeDao.creerContrat` (ou reçue du serveur), jamais recalculée. `null` :
+  /// contrat d'avant, non encore rempli par la descente — « — ».
+  final String? montant;
+
+  /// Le N° `LOC-…` du serveur, ou `null` (contrat d'avant, ou pas encore
+  /// envoyé : le poste n'invente aucun numéro).
+  final String? numero;
+
+  /// La remise accordée à la signature (« 5000.00 »), ou `null`. Le serveur ne la
+  /// garde pas : un contrat reçu d'ailleurs n'en a pas.
+  final String? remise;
+
+  /// L'acompte reçu (« 20000.00 »), ou `null` (contrat d'avant).
+  final String? acompte;
+
+  /// Le reste dû : [montant] − [acompte], en chaîne décimale, ou `null` quand l'un
+  /// des deux est inconnu. `contrats_location.reste_a_payer` du serveur vaut
+  /// toujours cette différence (aucun geste ne la modifie).
+  String? get resteDu {
+    final m = montant;
+    final a = acompte;
+    if (m == null || a == null) return null;
+    final montantCentimes = _centimes(m);
+    final acompteCentimes = _centimes(a);
+    if (montantCentimes == null || acompteCentimes == null) return null;
+    final reste = montantCentimes - acompteCentimes;
+    final negatif = reste < 0;
+    final absolu = reste.abs();
+    return '${negatif ? '-' : ''}${absolu ~/ 100}.'
+        '${(absolu % 100).toString().padLeft(2, '0')}';
+  }
+
+  static int? _centimes(String brut) {
+    final point = brut.indexOf('.');
+    final entier = int.tryParse(point < 0 ? brut : brut.substring(0, point));
+    final decimale = point < 0
+        ? 0
+        : int.tryParse(brut.substring(point + 1).padRight(2, '0'));
+    if (entier == null || decimale == null) return null;
+    return entier * 100 + decimale;
+  }
 
   /// EF-M8-04 — package véhicule + guide. `guideId != null`.
   final bool packageAvecGuide;
@@ -98,6 +125,9 @@ final class ContratLocation {
     fin: fin,
     nombreJours: nombreJours,
     montant: montant,
+    numero: numero,
+    remise: remise,
+    acompte: acompte,
     packageAvecGuide: packageAvecGuide,
     clientNom: nom,
     statut: statut,
@@ -124,14 +154,13 @@ final class ContratLocation {
 
 /// Ce qu'il faut pour établir un contrat — **et rien d'autre**.
 ///
-/// ## Trois champs de la vue ne sont ni acceptés ni refusés : ils n'existent pas
+/// ## Remise et acompte : portés depuis la v41 (27/10/2026)
 ///
-/// La modale demande « Remise (FCFA) », « Acompte reçu (FCFA) » et
-/// « Téléphone ». Aucun des trois n'a de colonne dans
-/// `contrats_location_local`. Ils ne figurent donc pas ici : un champ qu'on
-/// collecte pour le jeter produit « Contrat établi » sur un contrat au montant
-/// plein, et l'utilisateur serait relancé pour une somme qu'il a versée. Un
-/// refus se voit ; un silence non.
+/// La modale demande « Remise (FCFA) » et « Acompte reçu (FCFA) » comme la vue :
+/// [remiseFrancs] et [acompteFrancs] (zéro par défaut, comme la vue) servent à
+/// figer le montant NET à la signature (`VehiculeDao.creerContrat`). Une remise
+/// supérieure au brut, puis un acompte supérieur au net, sont refusés avec les
+/// phrases du serveur.
 ///
 /// ## « Client » est une clé étrangère, jamais du texte libre
 ///
@@ -145,8 +174,8 @@ final class ContratLocation {
 /// sans eux, le contrat est refusé — mais `contrats_location_local` ne porte
 /// que des chemins de fichier (`cheminPieceIdentiteLocal`), pas des numéros.
 /// Ils ne sont donc pas écrits, et aucune de ces colonnes n'est détournée pour
-/// les y ranger. La vérification protège le comptoir ; la trace manque au
-/// schéma.
+/// les y ranger. Ils partent, eux, dans la charge du serveur. La vérification
+/// protège le comptoir ; la trace manque au schéma local.
 final class SaisieContrat {
   const SaisieContrat({
     required this.vehiculeId,
@@ -156,7 +185,15 @@ final class SaisieContrat {
     required this.pieceIdentite,
     this.permisConduire,
     this.guideId,
+    this.remiseFrancs = 0,
+    this.acompteFrancs = 0,
   });
+
+  /// La remise de la signature, en francs entiers (>= 0).
+  final int remiseFrancs;
+
+  /// L'acompte reçu, en francs entiers (>= 0).
+  final int acompteFrancs;
 
   final String vehiculeId;
   final String clientId;

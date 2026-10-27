@@ -58,4 +58,17 @@ return [
     'ligne_tresorerie_absente' => "La pièce ne porte aucune contrepartie de trésorerie sur le compte "
         .':compte : la dépense ne peut pas être rattachée à son écriture.',
 
+
+    // --- Reçu en image déposé par un poste (lot L4, 27/10/2026) -----------
+    //
+    // Les refus de CONTENU (type, taille) sont les phrases de l'écran web : le
+    // dépôt passe par les mêmes règles `image` et `max:400` de Laravel.
+
+    'recu_vide' => 'Le reçu est vide : aucun octet reçu.',
+    'recu_empreinte' => "L'empreinte du reçu ne correspond pas au fichier reçu : il a été altéré en route. "
+        .'Le poste le renverra.',
+    'recu_deja_rattache' => 'Cette dépense porte déjà un autre reçu : un reçu ne se remplace pas.',
+    'recu_depense_inconnue' => "Cette dépense n'est pas encore connue du serveur : le reçu partira après elle.",
+    'recu_introuvable' => "Cette dépense n'a pas de reçu sur le serveur.",
+    'recu_autre_poste' => 'Cette dépense a été saisie sur un autre poste : son reçu ne peut pas être joint depuis celui-ci.',
 ];

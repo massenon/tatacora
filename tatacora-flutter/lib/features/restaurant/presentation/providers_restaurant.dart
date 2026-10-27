@@ -130,8 +130,8 @@ final rechercheRestaurationProvider = NotifierProvider<_TexteNotifier, String>(
 
 /// Le filtre « Toutes les catégories » du catalogue — l.66-76.
 final categorieRestaurationProvider =
-    NotifierProvider<_CategorieNotifier, CategoriePlat?>(
-      _CategorieNotifier.new,
+    NotifierProvider<_CategorieCarteNotifier, CategorieCarte?>(
+      _CategorieCarteNotifier.new,
     );
 
 /// La page courante du catalogue. Elle revient à 1 dès qu'un filtre change —
@@ -195,6 +195,15 @@ final class _TexteNotifier extends Notifier<String> {
   String build() => '';
 
   void definir(String valeur) => state = valeur;
+}
+
+/// Le filtre « Toutes les catégories » du catalogue : l'une des dix catégories du
+/// plat (v41), plus le type du menu.
+final class _CategorieCarteNotifier extends Notifier<CategorieCarte?> {
+  @override
+  CategorieCarte? build() => null;
+
+  void definir(CategorieCarte? valeur) => state = valeur;
 }
 
 final class _CategorieNotifier extends Notifier<CategoriePlat?> {

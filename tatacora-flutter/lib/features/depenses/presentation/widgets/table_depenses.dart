@@ -12,7 +12,9 @@ import '../../../restaurant/presentation/widgets/corps_carte_commun.dart'
     show styleContenuCarte;
 import '../../../restaurant/presentation/widgets/tableau_restaurant.dart';
 import '../../domain/entities/depense.dart';
+import '../../domain/recu_depense.dart';
 import '../providers_depenses.dart';
+import 'dialogue_recu_depense.dart';
 import 'modale_comptabiliser_depense.dart';
 
 /// Le libellé du bouton de rattrapage — `rattrapage_action` de
@@ -178,11 +180,13 @@ class TableDepenses extends ConsumerWidget {
 ///
 /// ## Trois choses y vivent, et la troisième n'est pas à la vue
 ///
-/// 1. La pastille « sans reçu » de la vue est rendue, et elle est **vraie pour
-///    toutes les lignes** : aucun reçu ne peut être joint sur ce poste, faute de
-///    sélecteur de fichier. Elle n'est donc pas un état parmi deux, et son
-///    infobulle le dit — sinon « sans reçu » se lirait comme un oubli de saisie
-///    réparable, et quelqu'un chercherait où joindre la photo.
+/// 1. Le lien « reçu » (une dépense qui porte un reçu) ou la pastille « sans
+///    reçu » (une dépense qui n'en porte pas) de la vue — un état parmi deux
+///    depuis le lot L4 (27/10/2026) : le reçu se joint à la saisie, comme au
+///    web. À côté du lien, l'ÉTAT du reçu sur ce poste, que la vue n'a pas :
+///    « en attente d'envoi », « envoyé » (après l'accusé du serveur seulement),
+///    « refusé » (la cause en infobulle). Un clic sur « reçu » ouvre le fichier,
+///    téléchargé à la demande pour la dépense d'un autre poste.
 /// 2. Une dépense SANS pièce comptable porte la pastille rouge « non
 ///    comptabilisée » et le bouton « Comptabiliser » (vue l.283-287, rendus
 ///    depuis la v16 : le poste a maintenant un moteur comptable). Le bouton
@@ -201,11 +205,10 @@ class _Pieces extends ConsumerWidget {
 
   final Depense depense;
 
-  /// L'infobulle de la pastille — testée au mot près.
-  static const String infobulle =
-      'Aucun reçu ne peut être joint sur ce poste : aucun sélecteur de '
-      'fichier n’est embarqué dans ce client. La pastille est donc vraie '
-      'pour toutes les lignes, ce n’est pas un état parmi deux.';
+  /// L'infobulle de « sans reçu » : aucun reçu n'a été joint à cette dépense
+  /// (lot L4 — depuis le 27/10/2026 la pastille est un ÉTAT, vrai ou faux
+  /// ligne par ligne, plus l'aveu qu'aucun reçu ne peut être joint).
+  static const String infobulle = 'Aucun reçu n’a été joint à cette dépense.';
 
   /// L'infobulle de « pièce au serveur » (lot F4) : une dépense descendue
   /// d'un autre poste.
@@ -235,15 +238,18 @@ class _Pieces extends ConsumerWidget {
         spacing: AppSpacing.unit,
         runSpacing: AppSpacing.unit,
         children: [
-          const Tooltip(
-            message: infobulle,
-            child: _Badge(
-              key: Key('depenses-sans-recu'),
-              texte: 'sans reçu',
-              fond: PaletteMaitre.ambre50,
-              couleur: PaletteMaitre.ambre700,
-            ),
-          ),
+          if (depense.recu == null)
+            const Tooltip(
+              message: infobulle,
+              child: _Badge(
+                key: Key('depenses-sans-recu'),
+                texte: 'sans reçu',
+                fond: PaletteMaitre.ambre50,
+                couleur: PaletteMaitre.ambre700,
+              ),
+            )
+          else
+            ..._pastillesDuRecu(context, ref, depense, depense.recu!),
           if (depense.pieceAuServeur)
             // Lot F4 : saisie sur un autre poste, sa pièce est au serveur —
             // aucun rattrapage n'est offert (il la compterait deux fois).
@@ -316,6 +322,78 @@ class _Pieces extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Le lien « reçu » de la vue (l.283-286 : `text-[11px] font-semibold px-2
+/// py-0.5 rounded bg-slate-100 text-slate-600`) et, à côté, l'ÉTAT du reçu sur
+/// ce poste — la vue n'a pas d'état : son reçu est joint à la saisie, au
+/// serveur. Ici le fichier part à la synchronisation, et l'écran DIT où il en
+/// est : « en attente d'envoi » tant que le serveur n'a rien accusé (hors
+/// réseau, synchronisation éteinte, dépense pas encore acceptée), « envoyé »
+/// après l'accusé seulement, « refusé » avec la cause du serveur. Un reçu venu
+/// d'un autre poste n'a pas d'état d'envoi : il se télécharge à la demande.
+List<Widget> _pastillesDuRecu(
+  BuildContext context,
+  WidgetRef ref,
+  Depense depense,
+  RecuDepense recu,
+) {
+  final etat = switch (recu.statut) {
+    StatutRecu.enAttente => (
+      texte: 'en attente d’envoi',
+      info: TextesEtatRecu.enAttente,
+      fond: PaletteMaitre.ambre50,
+      couleur: PaletteMaitre.ambre700,
+    ),
+    StatutRecu.envoye => (
+      texte: 'envoyé',
+      info: TextesEtatRecu.envoye,
+      fond: PaletteMaitre.vert50,
+      couleur: PaletteMaitre.vert700,
+    ),
+    StatutRecu.refuse => (
+      texte: 'refusé',
+      info: TextesEtatRecu.refuse(recu.cause),
+      fond: PaletteMaitre.rouge50,
+      couleur: PaletteMaitre.rouge700,
+    ),
+    StatutRecu.duServeur => null,
+  };
+  return [
+    InkWell(
+      key: Key('depense-recu-${depense.id}'),
+      borderRadius: BorderRadius.circular(AppRadius.rounded),
+      onTap: () => ouvrirRecuDepense(context, depense),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xs,
+          vertical: AppSpacing.demi,
+        ),
+        decoration: BoxDecoration(
+          color: Ardoise.c100,
+          borderRadius: BorderRadius.circular(AppRadius.rounded),
+        ),
+        child: Text(
+          'reçu',
+          style: styleContenuCarte(
+            TaillesContenu.t11,
+            poids: FontWeight.w600,
+            couleur: Ardoise.c600,
+          ),
+        ),
+      ),
+    ),
+    if (etat != null)
+      Tooltip(
+        message: etat.info,
+        child: _Badge(
+          key: Key('depense-recu-etat-${depense.id}'),
+          texte: etat.texte,
+          fond: etat.fond,
+          couleur: etat.couleur,
+        ),
+      ),
+  ];
 }
 
 /// `text-[11px] px-2 py-0.5 rounded` (l.64) — la pastille de la colonne

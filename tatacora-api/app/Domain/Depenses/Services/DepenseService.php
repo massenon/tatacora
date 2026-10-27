@@ -119,7 +119,7 @@ class DepenseService
      *   numéro de SON exercice : la synchronisation passe l'année de
      *   `date_transaction`.
      *
-     * @param  array{id?: string, date_transaction?: string, tresorerie?: string, centre_id?: string|null, libelle?: string, recu_path?: string|null, lignes?: list<array{compte_charge: string, montant: string|float, libelle?: string|null, nature?: string, famille?: string, centre_id?: string}>}  $donnees
+     * @param  array{id?: string, date_transaction?: string, tresorerie?: string, centre_id?: string|null, libelle?: string, recu_path?: string|null, recu_sha256?: string|null, recu_taille?: int|null, recu_type?: string|null, lignes?: list<array{compte_charge: string, montant: string|float, libelle?: string|null, nature?: string, famille?: string, centre_id?: string}>}  $donnees
      *
      * @throws RuntimeException trésorerie inconnue, aucune ligne, montant nul,
      *                          ou pièce comptable refusée (compte, journal, exercice, centre)
@@ -196,6 +196,14 @@ class DepenseService
                 'montant_total' => $montantTotal,
                 'libelle' => $libelle,
                 'recu_path' => $donnees['recu_path'] ?? null,
+                // L'empreinte du reçu (lot L4) : posée avec le fichier, jamais
+                // devinée — et seulement quand il y en a une (une dépense sans
+                // reçu n'écrit rien de plus qu'avant).
+                ...array_filter([
+                    'recu_sha256' => $donnees['recu_sha256'] ?? null,
+                    'recu_taille' => $donnees['recu_taille'] ?? null,
+                    'recu_type' => $donnees['recu_type'] ?? null,
+                ], static fn ($valeur): bool => $valeur !== null),
                 'ecriture_id' => $this->ligneDeTresorerie($piece, $tresorerie['compte']),
                 'ecriture_refus' => null,
                 'utilisateur_id' => $utilisateur !== null ? $utilisateur->id : auth()->id(),

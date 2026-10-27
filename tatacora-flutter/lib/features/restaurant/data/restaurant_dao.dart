@@ -323,6 +323,7 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
     menuId: p.menuId,
     menuLibelle: m.libelle,
     categorieBrute: m.type,
+    categorieCarteBrute: p.categorie,
     recetteId: p.recetteId,
     recetteLibelle: r.libelle,
     prixProvisoire: p.prixProvisoire,
@@ -349,9 +350,11 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
     final terme = cleDeComparaison((recherche ?? '').trim());
     final plats = [
       for (final l in lignes)
+        // Le filtre « Toutes les catégories » du catalogue porte sur la CATÉGORIE
+        // du plat (`plats.categorie`, v41), comme la vue — plus sur le type du menu.
         if ((categorie == null ||
                 categorie.isEmpty ||
-                l.readTable(m).type == categorie) &&
+                l.readTable(p).categorie == categorie) &&
             (menuId == null || l.readTable(p).menuId == menuId) &&
             (terme.isEmpty ||
                 cleDeComparaison(l.readTable(p).libelle).contains(terme)))
@@ -710,6 +713,7 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
             libelle: lue.libelle,
             prixVente: lue.prixFrancs,
             prixProvisoire: Value(saisie.prixProvisoire),
+            categorie: Value(saisie.categorie),
             creeLe: _maintenant(),
             creePar: auteurId!,
           ),
@@ -737,6 +741,10 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
           libelle: Value(lue.libelle),
           prixVente: Value(lue.prixFrancs),
           prixProvisoire: Value(saisie.prixProvisoire),
+          // `null` : la catégorie est laissée telle quelle (jamais effacée).
+          categorie: saisie.categorie == null
+              ? const Value.absent()
+              : Value(saisie.categorie),
           prixCorrigeMain: Value(
             prixCorrigeMainApres(
               corrigeActuel: existant.prixCorrigeMain,
@@ -1026,6 +1034,7 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
     prixCorrigeMain: p.prixCorrigeMain,
     articleId: p.articleId,
     unitesVendables: p.unitesVendables,
+    categorie: p.categorie,
   );
 
   /// Les deux colonnes du lien, retirées : elles repartent en `null`

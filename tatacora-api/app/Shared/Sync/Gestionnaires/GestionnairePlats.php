@@ -7,6 +7,7 @@ namespace App\Shared\Sync\Gestionnaires;
 use App\Domain\Restaurant\Http\Requests\EnregistrerPlatRequest;
 use App\Domain\Restaurant\Models\Plat;
 use App\Domain\Restaurant\Services\CartePlatMenuService;
+use App\Pwa\Livewire\Restaurant\CarteRestaurant;
 use App\Shared\Sync\Exceptions\DonneesSynchroniseesInvalidesException;
 use App\Shared\Sync\Services\ResolveurCorrespondances;
 use App\Shared\Sync\Support\ContexteSynchronisation;
@@ -34,8 +35,19 @@ use Illuminate\Validation\ValidationException;
  *
  * ## Validation : `EnregistrerPlatRequest`
  *
- * Ingrédients en texte libre, catégorie, disponibilité, coût matière et marge
- * sont INTERDITS comme à l'API (PA-23, PA-24).
+ * Ingrédients en texte libre, disponibilité, coût matière et marge sont
+ * INTERDITS comme à l'API (PA-23, PA-24).
+ *
+ * ## La catégorie du plat (lot L3-S, 27/10/2026, décision D1 du PO)
+ *
+ * `EnregistrerPlatRequest::CHAMPS_REFUSES` interdit toujours `categorie` À
+ * L'API (la route ne l'a jamais écrite) ; la PWA, elle, l'écrit en direct
+ * (`Restauration::enregistrerPlat` → `CartePlatMenuService`), parmi les dix
+ * valeurs de `CarteRestaurant::CATEGORIES`. Le poste fait comme le web : dans le
+ * chemin de SYNCHRONISATION seulement, `categorie` est séparée du payload comme
+ * le lien au stock, puis validée contre le même registre fermé, et écrite par le
+ * service. Toutes les autres validations de l'API sont gardées. Un poste d'avant
+ * la v41 n'en envoie pas : le plat est rangé sans catégorie, comme aujourd'hui.
  *
  * ## Le lien direct au stock (« Lier au stock », poste v36)
  *
@@ -69,6 +81,12 @@ final class GestionnairePlats extends GestionnaireReferentielAbstrait
      */
     private const CHAMPS_LIEN = ['article_id', 'unites_vendables_par_unite_stock'];
 
+    /**
+     * Champs que l'API interdit mais que la PWA écrit : séparés du payload avant
+     * la validation de l'API (qui les refuserait), validés ici.
+     */
+    private const CHAMPS_PWA = ['categorie'];
+
     protected const REQUETE = EnregistrerPlatRequest::class;
 
     protected const PARAMETRE_ROUTE = 'plat';
@@ -98,6 +116,7 @@ final class GestionnairePlats extends GestionnaireReferentielAbstrait
     protected function validerCreation(array $payload): array
     {
         [$lien, $payload] = $this->separerLien($payload);
+        [$pwa, $payload] = $this->separerChampsPwa($payload);
 
         $donnees = $this->valider(
             $payload,
@@ -105,14 +124,57 @@ final class GestionnairePlats extends GestionnaireReferentielAbstrait
             EnregistrerPlatRequest::class,
         );
 
-        return [...$donnees, ...$this->validerLien($lien)];
+        return [...$donnees, ...$this->validerLien($lien), ...$this->validerChampsPwa($pwa)];
     }
 
     protected function validerModification(Model $element, array $payload): array
     {
         [$lien, $payload] = $this->separerLien($payload);
+        [$pwa, $payload] = $this->separerChampsPwa($payload);
 
-        return [...parent::validerModification($element, $payload), ...$this->validerLien($lien)];
+        return [
+            ...parent::validerModification($element, $payload),
+            ...$this->validerLien($lien),
+            ...$this->validerChampsPwa($pwa),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array{0: array<string, mixed>, 1: array<string, mixed>}
+     */
+    private function separerChampsPwa(array $payload): array
+    {
+        $pwa = array_intersect_key($payload, array_flip(self::CHAMPS_PWA));
+
+        return [$pwa, array_diff_key($payload, $pwa)];
+    }
+
+    /**
+     * La catégorie, comme `Restauration::enregistrerPlat` : obligatoire quand elle
+     * est soumise (jamais effacée par un `null`), dans le registre fermé des dix
+     * catégories de la carte. La phrase est celle de la vue (`in`), le champ porte
+     * son libellé de la vue.
+     *
+     * @param  array<string, mixed>  $pwa
+     * @return array<string, mixed>
+     */
+    private function validerChampsPwa(array $pwa): array
+    {
+        if ($pwa === []) {
+            return [];
+        }
+
+        try {
+            return Validator::make(
+                $pwa,
+                ['categorie' => ['required', 'string', 'in:' . implode(',', array_keys(CarteRestaurant::CATEGORIES))]],
+                [],
+                ['categorie' => __('carte_pwa.restauration.label_categorie')],
+            )->validate();
+        } catch (ValidationException $e) {
+            throw DonneesSynchroniseesInvalidesException::depuis($e);
+        }
     }
 
     /**

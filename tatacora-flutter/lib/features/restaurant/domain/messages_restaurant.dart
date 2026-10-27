@@ -26,6 +26,13 @@ abstract final class MessagesRestaurant {
       'Catégorie inconnue. Le registre est fermé : local, europeen, special. '
       "Un filtre incompris serait ignoré, et la carte entière s'afficherait "
       'sous un intitulé qui promet le contraire.';
+  // La catégorie d'un plat (v41, 27/10/2026) : les phrases du serveur quand il
+  // valide `categorie` en synchronisation (`GestionnairePlats`, `validation.required`
+  // et `validation.in` avec le libellé « Catégorie » de la vue), relues par
+  // `tool/vehicules/rejouer_champs_location.php`.
+  static const categorieDuPlatObligatoire = 'Le champ Catégorie est obligatoire.';
+  static const categorieDuPlatInvalide =
+      'La valeur sélectionnée pour Catégorie est invalide.';
   static const menuObligatoire =
       "Un plat appartient obligatoirement à un menu : c'est le menu qui porte "
       'sa catégorie et sa période de validité.';

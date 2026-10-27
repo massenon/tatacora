@@ -497,32 +497,42 @@ final class ImporteurCarteRestaurant extends ImporteurLocal {
   @override
   String get description =>
       'Plats proposés au restaurant. Chaque plat se rattache à un menu et à '
-      'une fiche recette existants. La catégorie du plat est celle de son menu.';
+      'une fiche recette existants.';
   @override
   String get identifiant => 'libelle';
   @override
-  List<ColonneImport> get colonnes => const [
-    ColonneImport(
+  List<ColonneImport> get colonnes => [
+    const ColonneImport(
       champ: 'libelle',
       libelle: 'Nom du plat',
       requis: true,
       exemple: 'Poulet DG',
     ),
+    // La catégorie du plat (v41) : l'une des dix clés de la carte, relue du
+    // registre du poste (`CategorieCarte`), comme le modèle du serveur.
     ColonneImport(
+      champ: 'categorie',
+      libelle: 'Catégorie',
+      requis: true,
+      type: TypeColonneImport.liste,
+      valeurs: [for (final c in CategorieCarte.values) c.code],
+      exemple: 'plats',
+    ),
+    const ColonneImport(
       champ: 'prix_vente',
       libelle: 'Prix de vente (FCFA)',
       requis: true,
       type: TypeColonneImport.montant,
       exemple: '4500',
     ),
-    ColonneImport(
+    const ColonneImport(
       champ: 'menu',
       libelle: 'Menu',
       requis: true,
       type: TypeColonneImport.reference,
       exemple: 'Menu local',
     ),
-    ColonneImport(
+    const ColonneImport(
       champ: 'recette',
       libelle: 'Fiche recette',
       requis: true,
@@ -555,6 +565,7 @@ final class ImporteurCarteRestaurant extends ImporteurLocal {
         menuId: ligne.exiger('menu'),
         recetteId: ligne.exiger('recette'),
         prixVente: '${ImporteurLocal.francs(ligne.exiger('prix_vente'))}',
+        categorie: ligne.exiger('categorie'),
       ),
       modification: false,
       auteurId: auteurId(),
@@ -685,6 +696,28 @@ final class ImporteurVehicules extends ImporteurLocal {
       valeurs: [for (final c in CategorieVehicule.values) c.code],
       exemple: '4x4',
     ),
+    // Année, places et transmission : les colonnes du modèle du serveur
+    // (`ReferentielsImport::vehicules`), portées depuis la v41.
+    const ColonneImport(
+      champ: 'annee',
+      libelle: 'Année',
+      requis: true,
+      type: TypeColonneImport.nombre,
+      exemple: '2022',
+    ),
+    const ColonneImport(
+      champ: 'capacite',
+      libelle: 'Nombre de places',
+      requis: false,
+      type: TypeColonneImport.nombre,
+      exemple: '5',
+    ),
+    const ColonneImport(
+      champ: 'transmission',
+      libelle: 'Transmission',
+      requis: false,
+      exemple: 'Manuelle',
+    ),
     const ColonneImport(
       champ: 'tarif_jour',
       libelle: 'Tarif journalier (FCFA)',
@@ -707,9 +740,20 @@ final class ImporteurVehicules extends ImporteurLocal {
       immatriculation: ligne.exiger('immatriculation'),
       categorie: CategorieVehicule.depuisCode(ligne['categorie'])!,
       tarifJour: ImporteurLocal.francs(ligne.exiger('tarif_jour')),
+      annee: _entier(ligne.exiger('annee'), 'année'),
+      capacite: ligne['capacite'] == null
+          ? null
+          : _entier(ligne.exiger('capacite'), 'nombre de places'),
+      transmission: ligne['transmission'],
     );
     return null;
   }
+
+  static int _entier(String valeur, String nom) =>
+      int.tryParse(valeur) ??
+      (throw RefusLigneImport(
+        '$nom « $valeur » : un nombre entier est attendu',
+      ));
 }
 
 /* ====================================================================== */

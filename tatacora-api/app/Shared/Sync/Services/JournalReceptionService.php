@@ -43,6 +43,14 @@ class JournalReceptionService
     /** Durée de conservation d'une ligne qui attend encore un humain. */
     public const RETENTION_A_TRAITER_JOURS = 365;
 
+    /**
+     * La « table » sous laquelle le dépôt d'un reçu de dépense (fichier, pas un
+     * document du protocole) est consigné. Elle n'est pas au registre des
+     * gestionnaires : rien n'est à corriger ni à rejouer côté serveur, le poste
+     * renvoie un fichier valable (lot L4, 27/10/2026).
+     */
+    public const TABLE_RECUS_DEPENSES = 'recus_depenses';
+
     /** Les clés de la charge dont la valeur n'est jamais conservée. */
     private const CLES_SECRETES = '/mot_de_passe|secret|jeton|token|password/i';
 
@@ -94,7 +102,7 @@ class JournalReceptionService
             // traitement : son issue remplace l'erreur.
             if ($existant->issue === Journal::ERREUR && $erreur === null && ($resultat['rejeu_idempotent'] ?? false) !== true) {
                 $analyse = $this->analyser($operation, $resultat, $extras, null);
-                $existant->fill([...$analyse, ...$this->traitementInitial($analyse['issue']), ...$tentative])->save();
+                $existant->fill([...$analyse, ...$this->traitementInitial($analyse['issue'], (string) $operation['table']), ...$tentative])->save();
 
                 return;
             }
@@ -120,7 +128,7 @@ class JournalReceptionService
             'derniere_tentative_le' => $maintenant,
             'payload' => $this->charge($operation),
             ...$analyse,
-            ...$this->traitementInitial($analyse['issue']),
+            ...$this->traitementInitial($analyse['issue'], (string) $operation['table']),
         ]);
     }
 
@@ -129,8 +137,13 @@ class JournalReceptionService
      *
      * @return array{traitement: ?string}
      */
-    private function traitementInitial(string $issue): array
+    private function traitementInitial(string $issue, string $table): array
     {
+        // Un dépôt de fichier refusé n'attend aucun humain côté serveur.
+        if ($table === self::TABLE_RECUS_DEPENSES) {
+            return ['traitement' => null];
+        }
+
         return ['traitement' => in_array($issue, Journal::ISSUES_A_TRAITER, true) ? Journal::A_TRAITER : null];
     }
 

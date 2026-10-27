@@ -25,13 +25,15 @@ import 'entities/vehicule.dart';
 
 /// Additionne des montants décimaux en chaîne, **exactement**.
 ///
-/// Rend `null` si la liste est vide ou si **une seule** valeur est illisible :
-/// mieux vaut ne rien afficher qu'un total silencieusement incomplet.
-String? sommeDecimales(Iterable<String> montants) {
+/// Rend `null` si la liste est vide ou si **une seule** valeur est illisible OU
+/// ABSENTE (`null`, depuis la v41 : le montant d'un contrat d'avant n'est pas
+/// connu) : mieux vaut ne rien afficher qu'un total silencieusement incomplet.
+String? sommeDecimales(Iterable<String?> montants) {
   var centimes = 0;
   var vus = 0;
 
   for (final brut in montants) {
+    if (brut == null) return null;
     final c = _enCentimes(brut);
     if (c == null) return null;
     centimes += c;
@@ -131,10 +133,12 @@ final class IndicateursVehicules {
   /// « Choisissez une période », jamais « 0 % ».
   final int? tauxOccupation;
 
-  /// **Toujours `null`.** `contrats_location` n'a **aucune colonne d'acompte**,
-  /// et `CreerContratLocationRequest` n'en accepte aucun. Sans acompte, aucun
-  /// reste à encaisser ne se calcule. Afficher « 0 F » dirait « tout est
-  /// soldé » sur un écran où l'on décide de relancer un client.
+  /// Somme des restes dus (montant figé − acompte) des contrats ACTIFS de la
+  /// période — `agregerContratsActifs()['reste_a_encaisser']` de la vue. `'0.00'`
+  /// quand aucun contrat actif ne compte ; `null` si UN SEUL contrat n'a pas de
+  /// montant ou d'acompte connu (signé avant la v41 et pas encore reçu du
+  /// serveur) : une somme amputée dirait « tout est soldé » sur un écran où l'on
+  /// décide de relancer un client.
   final String? resteAEncaisser;
 
   final int joursLoues;
@@ -143,9 +147,9 @@ final class IndicateursVehicules {
   /// la carte lit cette table, elle ne réécrit pas la phrase.
   static const Map<String, String> raisons = {
     'reste_a_encaisser':
-        // Raison technique : aucune colonne d'acompte sur les contrats.
-        'Ce poste n’enregistre aucun acompte sur un contrat de location : '
-        'le reste à encaisser n’est pas connu. « 0 FCFA » se lirait « tout '
+        'Au moins un contrat de la période n’a ni montant ni acompte connus '
+        '(signé avant que ce poste les enregistre, et pas encore reçu du '
+        'serveur) : la somme serait amputée, et « 0 FCFA » se lirait « tout '
         'est soldé ».',
     // ⚠ Corrigé le 09/10/2026 : le texte disait « Choisissez une période »
     // alors que le taux est aussi `null` sur un parc VIDE, période choisie —
@@ -154,8 +158,9 @@ final class IndicateursVehicules {
         'Aucun taux sans période choisie ni véhicule au parc : « 0 % » se '
         'lirait comme un parc inoccupé.',
     'chiffre_affaires':
-        'Un montant de contrat que ce client n’a pas su lire — une somme '
-        'amputée serait plausible et fausse.',
+        'Au moins un contrat de la période n’a pas de montant connu (signé '
+        'avant que ce poste le fige, et pas encore reçu du serveur) : une '
+        'somme amputée serait plausible et fausse.',
     'immobilises':
         'Compté sur le statut courant des véhicules (« Entretien », « Hors '
         'service »), et non sur les immobilisations de la période, que ce '
@@ -211,8 +216,9 @@ IndicateursVehicules calculerIndicateurs({
     tauxOccupation: denominateur == null || denominateur == 0
         ? null
         : ((joursLoues * 100) / denominateur).round(),
-    // Structurellement absent — voir le champ.
-    resteAEncaisser: null,
+    resteAEncaisser: actifs.isEmpty
+        ? '0.00'
+        : sommeDecimales(actifs.map((c) => c.resteDu)),
     joursLoues: joursLoues,
   );
 }

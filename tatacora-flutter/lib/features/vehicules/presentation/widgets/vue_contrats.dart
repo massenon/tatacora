@@ -21,17 +21,15 @@ import 'vue_parc.dart' show CarteVideVehicules, dateFrVehicules;
 ///
 /// @see EF-M8-03 Contrat de location
 ///
-/// ## Trois des dix colonnes de la vue n'ont aucune source LOCALE
+/// ## Les dix colonnes de la vue sont portées (v41, 27/10/2026)
 ///
-/// « N° », « Acompte » et « Reste dû » n'ont pas de colonne dans
-/// `contrats_location_local`. Elles gardent leur place et portent « — » : les
-/// retirer supprimerait des éléments visibles de la vue, et les remplir
-/// inventerait des montants sur un écran où l'on décide de relancer un client.
-///
-/// ⚠ Le schéma **serveur** a gagné `numero`, `acompte` et `reste_a_payer` — la
-/// vue les rend. La table **locale** ne les a pas. C'est un écart de schéma,
-/// consigné tel quel : le combler ici fabriquerait des valeurs que personne n'a
-/// saisies.
+/// « N° » (`LOC-…`, rendu par le serveur), « Montant » (net, FIGÉ à la
+/// signature), « Acompte » et « Reste dû » ont chacun leur colonne locale. Un
+/// contrat d'avant la v41 (ou dont le N° n'est pas encore revenu du serveur) porte
+/// « — » : ni le tarif d'aujourd'hui, ni « Soldé » sur un reste inconnu, ni un
+/// zéro. Comme la vue : l'acompte nul se rend « — », un reste nul « Soldé », un
+/// reste positif en rouge ; la ligne TOTAL additionne les montants, acomptes et
+/// restes des contrats NON annulés (« — » si l'un d'eux est inconnu).
 ///
 /// ## « État » et « Annuler » SONT portés (v38, 26/10/2026)
 ///
@@ -125,9 +123,11 @@ class _Corps extends StatelessWidget {
     // La vue n'additionne que les contrats NON annulés (`@if (! $estAnnule)`) et
     // compte « contrat(s) actif(s) » de même.
     final actifs = contrats.where((c) => !c.annule).toList(growable: false);
-    final total = actifs.isEmpty
-        ? '0.00'
-        : sommeDecimales(actifs.map((c) => c.montant));
+    String? somme(String? Function(ContratLocation) lire) =>
+        actifs.isEmpty ? '0.00' : sommeDecimales(actifs.map(lire));
+    final total = somme((c) => c.montant);
+    final totalAcompte = somme((c) => c.acompte);
+    final totalReste = somme((c) => c.resteDu);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -159,9 +159,7 @@ class _Corps extends StatelessWidget {
                 lignes: [
                   for (final c in page)
                     [
-                      const _Absent(
-                        raison: 'Un contrat n’a pas de numéro sur ce poste.',
-                      ),
+                      _Numero(contrat: c),
                       _CelluleVehicule(contrat: c),
                       _CelluleClient(contrat: c),
                       // La période de la vue : deux dates sur deux lignes.
@@ -183,30 +181,17 @@ class _Corps extends StatelessWidget {
                         c.nombreJours.toString(),
                         style: TextesRestaurant.corps,
                       ),
-                      Tooltip(
-                        message:
-                            'Montant RECALCULÉ au tarif courant du véhicule : '
-                            'aucune colonne ne fige le tarif d’une location. '
-                            'Modifier la grille réécrit le montant de ce contrat.',
-                        child: Text(
-                          formaterMontantDecimal(c.montant, suffixe: 'FCFA') ??
-                              CarteIndicateurRestaurant.absent,
-                          style: TextesRestaurant.corpsFort.copyWith(
-                            color: AppColors.navy,
-                          ),
+                      // `MontantFcfa::format($c->montant)` : le montant FIGÉ.
+                      Text(
+                        formaterMontantDecimal(c.montant, suffixe: 'FCFA') ??
+                            CarteIndicateurRestaurant.absent,
+                        key: Key('vehicules-contrat-montant-${c.id}'),
+                        style: TextesRestaurant.corpsFort.copyWith(
+                          color: AppColors.navy,
                         ),
                       ),
-                      const _Absent(
-                        raison:
-                            'Ce poste n’enregistre aucun acompte sur un '
-                            'contrat. « 0 FCFA » se lirait « rien versé ».',
-                      ),
-                      const _Absent(
-                        raison:
-                            'Le reste dû se déduit de l’acompte, qui n’existe pas. '
-                            '« Soldé » serait une bonne nouvelle que personne n’a '
-                            'vérifiée.',
-                      ),
+                      _Acompte(contrat: c),
+                      _ResteDu(contrat: c),
                       _EtatContrat(contrat: c),
                       _ActionAnnuler(contrat: c, peutEcrire: peutEcrire),
                     ],
@@ -214,10 +199,15 @@ class _Corps extends StatelessWidget {
               ),
             ),
           ),
-          // La ligne TOTAL de la vue — fond navy, texte blanc, gras. Rendue sous
-          // le tableau plutôt que dans son gabarit, parce que trois de ses
-          // quatre montants n'existent pas.
-          _LigneTotal(nombre: actifs.length, montant: total),
+          // La ligne TOTAL de la vue — fond navy, texte blanc, gras, avec ses
+          // trois totaux (montant, acompte, reste dû). Rendue sous le tableau
+          // plutôt que dans son gabarit.
+          _LigneTotal(
+            nombre: actifs.length,
+            montant: total,
+            acompte: totalAcompte,
+            reste: totalReste,
+          ),
         ],
         // La page se termine après le tableau (directive du PO, 14/10/2026).
       ],
@@ -228,10 +218,17 @@ class _Corps extends StatelessWidget {
 /// La ligne TOTAL — `.total-fort { background: var(--navy); color: #fff;
 /// font-weight: 700 }`.
 class _LigneTotal extends StatelessWidget {
-  const _LigneTotal({required this.nombre, required this.montant});
+  const _LigneTotal({
+    required this.nombre,
+    required this.montant,
+    required this.acompte,
+    required this.reste,
+  });
 
   final int nombre;
   final String? montant;
+  final String? acompte;
+  final String? reste;
 
   @override
   Widget build(BuildContext context) {
@@ -263,6 +260,18 @@ class _LigneTotal extends StatelessWidget {
             formaterMontantDecimal(montant, suffixe: 'FCFA') ??
                 CarteIndicateurRestaurant.absent,
             key: const Key('vehicules-contrats-total-montant'),
+            style: style,
+          ),
+          Text(
+            formaterMontantDecimal(acompte, suffixe: 'FCFA') ??
+                CarteIndicateurRestaurant.absent,
+            key: const Key('vehicules-contrats-total-acompte'),
+            style: style,
+          ),
+          Text(
+            formaterMontantDecimal(reste, suffixe: 'FCFA') ??
+                CarteIndicateurRestaurant.absent,
+            key: const Key('vehicules-contrats-total-reste'),
             style: style,
           ),
         ],
@@ -370,11 +379,12 @@ class _EtatContrat extends StatelessWidget {
 /// Le succès dit la phrase de la vue (« Contrat :numero annulé — le véhicule
 /// redevient disponible. »), le refus du DAO s'affiche tel quel.
 ///
-/// ÉCART DÉLIBÉRÉ — `locations.blade.php` l.836-843. La vue nomme le contrat par
-/// son NUMÉRO (`numero ?? id`) ; ce poste n'en a pas (colonne absente) : la
-/// question et le message nomment son véhicule, lisible, plutôt qu'un
-/// identifiant. La vue calcule AVANT la modale ses verrous (`$verrousArchivage`) ;
-/// le seul ici est « déjà annulé », et le bouton n'est pas offert dans ce cas.
+/// La vue nomme le contrat par son NUMÉRO (`numero ?? id`, v41) : la question et
+/// le message le nomment ainsi. ÉCART DÉLIBÉRÉ — tant que le N° n'est pas revenu
+/// du serveur (contrat d'avant, ou pas encore envoyé), c'est le véhicule qui le
+/// nomme, lisible, plutôt qu'un identifiant. La vue calcule AVANT la modale ses
+/// verrous (`$verrousArchivage`) ; le seul ici est « déjà annulé », et le bouton
+/// n'est pas offert dans ce cas.
 class _ActionAnnuler extends ConsumerWidget {
   const _ActionAnnuler({required this.contrat, required this.peutEcrire});
 
@@ -407,7 +417,7 @@ class _ActionAnnuler extends ConsumerWidget {
   }
 
   Future<void> _annuler(BuildContext context, WidgetRef ref) async {
-    final element = contrat.immatriculation;
+    final element = contrat.numero ?? contrat.immatriculation;
     final confirme = await ouvrirArchivageAchats(
       context,
       message: MessagesVehicules.questionAnnulerContrat(element),
@@ -436,20 +446,80 @@ class _ActionAnnuler extends ConsumerWidget {
   }
 }
 
-/// Une cellule sans source — « — » et sa raison, jamais un zéro.
-class _Absent extends StatelessWidget {
-  const _Absent({required this.raison});
+/// La colonne « N° » — `$c->numero ?? —`, en police mono 11 px. Le numéro est celui
+/// du serveur (séquence `LOC-`) : « — » tant qu'il n'est pas revenu.
+class _Numero extends StatelessWidget {
+  const _Numero({required this.contrat});
 
-  final String raison;
+  final ContratLocation contrat;
 
   @override
   Widget build(BuildContext context) {
-    return Tooltip(
-      message: raison,
-      child: const Text(
-        CarteIndicateurRestaurant.absent,
-        style: TextesRestaurant.corps,
+    return Text(
+      contrat.numero ?? CarteIndicateurRestaurant.absent,
+      key: Key('vehicules-contrat-numero-${contrat.id}'),
+      style: TextesRestaurant.mentionFine.copyWith(
+        fontFamily: 'monospace',
+        color: Ardoise.c500,
       ),
     );
   }
 }
+
+/// La colonne « Acompte » — `MontantFcfa::formatOuTiret` : un acompte nul se rend
+/// « — » (comme la vue), et un acompte INCONNU aussi.
+class _Acompte extends StatelessWidget {
+  const _Acompte({required this.contrat});
+
+  final ContratLocation contrat;
+
+  @override
+  Widget build(BuildContext context) {
+    final texte = _nonNul(contrat.acompte)
+        ? formaterMontantDecimal(contrat.acompte, suffixe: 'FCFA')
+        : null;
+    return Text(
+      texte ?? CarteIndicateurRestaurant.absent,
+      key: Key('vehicules-contrat-acompte-${contrat.id}'),
+      style: TextesRestaurant.corps.copyWith(color: PaletteMaitre.emeraude700),
+    );
+  }
+}
+
+/// La colonne « Reste dû » — positif : le montant en rouge ; nul : « Soldé »
+/// (`vehicules.pwa.solde`) ; INCONNU (montant ou acompte absent) : « — », jamais
+/// « Soldé » — une bonne nouvelle que personne n'a vérifiée.
+class _ResteDu extends StatelessWidget {
+  const _ResteDu({required this.contrat});
+
+  final ContratLocation contrat;
+
+  @override
+  Widget build(BuildContext context) {
+    final reste = contrat.resteDu;
+    final String texte;
+    final Color couleur;
+    if (reste == null) {
+      texte = CarteIndicateurRestaurant.absent;
+      couleur = Ardoise.c400;
+    } else if (_positif(reste)) {
+      texte =
+          formaterMontantDecimal(reste, suffixe: 'FCFA') ??
+          CarteIndicateurRestaurant.absent;
+      couleur = PaletteMaitre.rouge600;
+    } else {
+      texte = 'Soldé';
+      couleur = Ardoise.c400;
+    }
+    return Text(
+      texte,
+      key: Key('vehicules-contrat-reste-${contrat.id}'),
+      style: TextesRestaurant.corpsFort.copyWith(color: couleur),
+    );
+  }
+}
+
+bool _nonNul(String? montant) =>
+    montant != null && (double.tryParse(montant) ?? 0) != 0;
+
+bool _positif(String montant) => (double.tryParse(montant) ?? 0) > 0;

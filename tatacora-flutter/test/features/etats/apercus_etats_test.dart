@@ -150,6 +150,38 @@ void main() {
       },
     );
 
+    test('un contrat d’AVANT la v41 n’a pas de montant : case vide, hors du '
+        'cumul, jamais le tarif d’aujourd’hui', () {
+      final a = apercuLocations(
+        const [
+          ContratLocation(
+            id: 'c-1',
+            immatriculation: 'A-1',
+            clientId: 'cli-1',
+            debut: '2026-10-05',
+            fin: '2026-10-07',
+            nombreJours: 2,
+            packageAvecGuide: false,
+          ),
+          ContratLocation(
+            id: 'c-2',
+            immatriculation: 'A-1',
+            clientId: 'cli-1',
+            debut: '2026-10-10',
+            fin: '2026-10-11',
+            nombreJours: 1,
+            montant: '35000.00',
+            packageAvecGuide: false,
+          ),
+        ],
+        [vehicule('A-1', '35000.00', 'disponible')],
+      );
+
+      expect(a.lignes.map((l) => l.last), ['', '35000.00']);
+      expect(a.indicateur('Montant total'), '35000.00');
+      expect(a.mentions.single, contains('1 contrat(s) sans montant connu'));
+    });
+
     test(
       'une réservation de circuit annulée n’entre ni dans les comptes ni dans le montant',
       () {

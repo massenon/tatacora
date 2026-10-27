@@ -70,10 +70,10 @@ abstract class GestionnaireDocumentAbstrait extends GestionnaireAbstrait
      *
      * @throws DonneesSynchroniseesInvalidesException
      */
-    protected function validerForme(array $donnees, array $regles, array $messages = []): array
+    protected function validerForme(array $donnees, array $regles, array $messages = [], array $attributs = []): array
     {
         try {
-            return Validator::make($donnees, $regles, $messages)->validate();
+            return Validator::make($donnees, $regles, $messages, $attributs)->validate();
         } catch (ValidationException $e) {
             throw DonneesSynchroniseesInvalidesException::depuis($e);
         }

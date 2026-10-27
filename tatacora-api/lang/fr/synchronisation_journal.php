@@ -37,6 +37,7 @@ return [
     ],
 
     'tables' => [
+        'recus_depenses' => 'Reçu de dépense',
         'reservations' => 'Réservation',
         'sejours' => 'Séjour',
         'clients' => 'Client',
@@ -161,6 +162,32 @@ return [
             'phrase' => 'Refusée par une règle de gestion',
             'cause' => 'Une règle de gestion du serveur refuse cette opération : « :detail » '
                 . 'Corrigez la charge reçue si la valeur en cause est modifiable, puis relancez.',
+        ],
+        // --- Reçu en image d'une dépense (lot L4, 27/10/2026) ---------------
+        'recu_invalide' => [
+            'phrase' => 'Reçu refusé : ce n\'est pas une image acceptée',
+            'cause' => 'Le fichier déposé par le poste comme reçu n\'est pas une image acceptée (JPG, PNG, GIF, BMP ou WEBP) : « :detail » '
+                . 'Rien n\'a été rattaché à la dépense. Le poste le dit à l\'opérateur, qui joint un autre fichier.',
+        ],
+        'recu_trop_lourd' => [
+            'phrase' => 'Reçu refusé : fichier trop lourd',
+            'cause' => 'Le fichier déposé par le poste comme reçu dépasse la taille maximale de l\'écran de saisie : « :detail » '
+                . 'Rien n\'a été rattaché à la dépense. L\'opérateur joint une image plus légère.',
+        ],
+        'recu_empreinte' => [
+            'phrase' => 'Reçu refusé : empreinte différente',
+            'cause' => 'Le fichier reçu ne correspond pas à l\'empreinte annoncée par le poste : il a été altéré pendant le transfert. '
+                . 'Aucun fichier n\'a été rangé ; le poste le renvoie de lui-même.',
+        ],
+        'recu_deja_rattache' => [
+            'phrase' => 'Reçu refusé : la dépense a déjà un autre reçu',
+            'cause' => 'Cette dépense porte déjà un reçu différent de celui que le poste dépose. Un reçu ne se remplace pas : '
+                . 'celui du serveur est conservé et le poste en est informé.',
+        ],
+        'recu_autre_poste' => [
+            'phrase' => 'Reçu refusé : dépense d\'un autre poste',
+            'cause' => 'Cette dépense a été saisie sur un autre poste (ou par un autre compte) : son reçu ne peut pas être joint '
+                . 'depuis celui-ci.',
         ],
         'conflit_financier' => [
             'phrase' => 'Modification concurrente sur une donnée financière',

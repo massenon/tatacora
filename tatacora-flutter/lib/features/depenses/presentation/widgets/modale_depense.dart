@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/di/providers.dart';
+import '../../../../core/fichiers/selecteur_fichiers.dart';
 import '../../../../core/format/formats.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -12,6 +13,7 @@ import '../../../comptabilite/domain/refus_comptable.dart';
 import '../../../restaurant/presentation/widgets/coquille_modale_restaurant.dart';
 import '../../domain/categories_depense.dart';
 import '../../domain/entities/depense.dart';
+import '../../domain/recu_depense.dart';
 import '../providers_depenses.dart';
 
 /// La modale **« Nouvelle Dépense »** de la vue (l.324-511), posée dans le
@@ -104,6 +106,13 @@ class _ModaleDepenseState extends ConsumerState<ModaleDepense> {
 
   String? _refus;
   bool _envoiEnCours = false;
+
+  /// Le reçu choisi (lot L4), déjà jugé par la règle du web ; `null` : aucun.
+  RecuAJoindre? _recu;
+
+  /// Pourquoi le dernier fichier choisi a été refusé — sous le champ, en rouge,
+  /// comme le `@error('photoRecu')` de la vue (l.513).
+  String? _refusRecu;
 
   @override
   void dispose() {
@@ -198,7 +207,16 @@ class _ModaleDepenseState extends ConsumerState<ModaleDepense> {
           ),
           const SizedBox(height: AppSpacing.md),
 
-          const _RecuAbsent(),
+          _ChampRecu(
+            recu: _recu,
+            refus: _refusRecu,
+            occupe: _envoiEnCours,
+            surChoisir: _choisirRecu,
+            surRetirer: () => setState(() {
+              _recu = null;
+              _refusRecu = null;
+            }),
+          ),
         ],
       ),
       actions: [
@@ -674,6 +692,41 @@ class _ModaleDepenseState extends ConsumerState<ModaleDepense> {
 
   /* ------------------------------------------------------ enregistrement */
 
+  /// « Choisir un fichier » : la fenêtre native « Ouvrir », puis la règle du web
+  /// (image reconnue à son contenu, 400 Ko au plus). Un fichier refusé n'est
+  /// pas gardé, et la phrase du web est dite sous le champ.
+  Future<void> _choisirRecu() async {
+    final FichierLu? fichier;
+    try {
+      fichier = await ref
+          .read(selecteurFichiersProvider)
+          .ouvrirImage(extensions: TypeRecu.extensionsProposees);
+    } on Object {
+      if (mounted) {
+        setState(
+          () => _refusRecu = 'Le fichier n’a pas pu être ouvert. Réessayez.',
+        );
+      }
+      return;
+    }
+    if (fichier == null || !mounted) return;
+    final issue = verifierRecu(fichier.octets);
+    setState(() {
+      switch (issue) {
+        case RecuAccepte(:final type):
+          _recu = RecuAJoindre(
+            nom: fichier!.nom,
+            octets: fichier.octets,
+            type: type,
+          );
+          _refusRecu = null;
+        case RecuRefuse(:final phrase):
+          _recu = null;
+          _refusRecu = phrase;
+      }
+    });
+  }
+
   Future<void> _enregistrer() async {
     final tresorerie = _tresorerie;
 
@@ -744,6 +797,7 @@ class _ModaleDepenseState extends ConsumerState<ModaleDepense> {
             lignes: saisies,
             auteurId: ref.read(sessionProvider)?.utilisateurId ?? '',
             centreId: _centreId,
+            recu: _recu,
           );
 
       ref
@@ -846,53 +900,101 @@ class _Etiquette extends StatelessWidget {
   }
 }
 
-/// « Reçu / facture (photo) » — le champ de la vue, **refusé et nommé**.
+/// « Reçu / facture (photo) » — le champ de la vue (l.487-493), PORTÉ depuis le
+/// lot L4 (27/10/2026, décision du PO : la dépense du poste joint un reçu comme
+/// l'écran web, et le fichier voyage par la synchronisation).
 ///
-/// ÉCART DÉLIBÉRÉ — vue l.487-493.
-/// La vue : un `<input type="file" accept="image/*">` qui téléverse la photo et
-/// la range dans `depenses.recu_path`, avec l'aide (`champ_recu_aide`), dite ici
-/// mot pour mot :
-/// « L'image est réduite avant enregistrement. Le navigateur ne peut en conserver qu'une douzaine : au-delà, tout le registre cesserait d'être enregistré. »
-/// (Ce poste n'est pas un navigateur : la réduction d'image et la « douzaine »
-/// n'y ont aucun sens, et la phrase n'est donc PAS rendue — la mesure la compte
-/// « nommée », pas « portée ».)
-/// Ici : l'étiquette garde sa place, et le motif est affiché à celle du champ.
-/// Raison (relue le 09/10/2026 contre `depenses_tables.dart`) : aucun sélecteur
-/// de fichier n'est embarqué dans ce client — ni `file_picker`, ni
-/// `image_picker` au `pubspec.yaml` — et ni `depenses_local` ni
-/// `lignes_depense_local` n'ont de colonne `recu_path`. Un champ inerte serait
-/// pire qu'un champ absent : il laisserait croire que la photo a été jointe, et
-/// l'aide de la vue promet en plus une réduction d'image que rien ne ferait.
-/// Une colonne que personne n'écrit, rendue comme un fait, est le défaut
-/// PA-126.
-class _RecuAbsent extends StatelessWidget {
-  const _RecuAbsent();
+/// La vue : `<input type="file" accept="image/*">`, la règle `image|max:400`,
+/// l'aide `champ_recu_aide` et l'erreur `photoRecu` en rouge dessous. Ici : un
+/// bouton qui ouvre la fenêtre native « Ouvrir » (JPG, PNG, GIF, BMP, WEBP), la
+/// MÊME règle (jugée sur le contenu, 400 Ko — `verifierRecu`) et les MÊMES
+/// phrases de refus, dessous, en rouge.
+///
+/// ÉCART DÉLIBÉRÉ — `depenses.blade.php` l.489-492 (`champ_recu_aide`).
+/// La vue : « L'image est réduite avant enregistrement. Le navigateur ne peut en
+/// conserver qu'une douzaine : au-delà, tout le registre cesserait d'être
+/// enregistré. »
+/// Ici : la phrase est remplacée par la VRAIE (`aide`), avec le maximum des mots
+/// de la vue.
+/// Raison (piège 13) : aucune réduction n'existe nulle part — la vue le dit
+/// elle-même (son commentaire « Reduction du recu joint : le maitre l'offre a la
+/// saisie, aucune colonne ne la porte et aucun service ne la calcule »), et le
+/// serveur refuse au-delà de 400 Ko sans rien réduire — et ce poste n'est pas un
+/// navigateur : il n'a pas de « douzaine » de reçus à conserver. Afficher la
+/// phrase de la vue promettrait un geste que rien ne fait, sur une pièce
+/// justificative. Un test épingle la fausseté à la source (il rougit le jour où
+/// la vue est corrigée) et un autre refuse la phrase fausse dans le code rendu.
+class _ChampRecu extends StatelessWidget {
+  const _ChampRecu({
+    required this.recu,
+    required this.refus,
+    required this.occupe,
+    required this.surChoisir,
+    required this.surRetirer,
+  });
 
-  /// Le motif affiché à la place du champ — testé au mot près.
-  static const String motif =
-      'Aucun reçu ne peut être joint sur ce poste : ce client n\'embarque '
-      'pas de sélecteur de fichier. Conservez la pièce papier — la '
-      'dépense reste enregistrée sans elle.';
+  final RecuAJoindre? recu;
+  final String? refus;
+  final bool occupe;
+  final VoidCallback surChoisir;
+  final VoidCallback surRetirer;
+
+  /// L'aide du champ — la phrase VRAIE (voir l'écart ci-dessus), testée au mot
+  /// près.
+  static const String aide =
+      'L’image n’est pas réduite avant enregistrement : elle pèse $tailleMaxRecuKo '
+      'kilo-octets au plus (JPG, PNG, GIF, BMP ou WEBP). Elle est rangée sur ce '
+      'poste, puis envoyée au serveur à la synchronisation.';
+
+  /// Le texte du champ vide — celui du navigateur devant un `<input type=file>`.
+  static const String aucunFichier = 'Aucun fichier choisi';
 
   @override
   Widget build(BuildContext context) {
+    final choisi = recu;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
         const _Etiquette('Reçu / facture (photo)'),
-        Container(
-          key: const Key('depense-recu-absent'),
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.sm,
-            vertical: AppSpacing.xs,
-          ),
-          decoration: BoxDecoration(
-            color: Ardoise.c50,
-            borderRadius: BorderRadius.circular(AppRadius.roundedLg),
-          ),
-          child: const Text(motif, style: _Textes.aide),
+        Row(
+          children: [
+            OutlinedButton(
+              key: const Key('depense-recu-choisir'),
+              style: _Textes.styleBouton(),
+              onPressed: occupe ? null : surChoisir,
+              child: const Text('Choisir un fichier', style: _Textes.bouton),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text(
+                choisi == null
+                    ? aucunFichier
+                    : '${choisi.nom} · ${(choisi.octets.length / 1024).ceil()} Ko',
+                key: const Key('depense-recu-nom'),
+                overflow: TextOverflow.ellipsis,
+                style: _Textes.aide,
+              ),
+            ),
+            if (choisi != null)
+              TextButton(
+                key: const Key('depense-recu-retirer'),
+                onPressed: occupe ? null : surRetirer,
+                child: const Text('Retirer', style: _Textes.bouton),
+              ),
+          ],
         ),
+        const SizedBox(height: AppSpacing.xxs),
+        const Text(aide, key: Key('depense-recu-aide'), style: _Textes.aide),
+        if (refus != null)
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.xxs),
+            child: Text(
+              refus!,
+              key: const Key('depense-recu-refus'),
+              style: _Textes.refus,
+            ),
+          ),
       ],
     );
   }

@@ -29,13 +29,14 @@ import '../providers_vehicules.dart';
 /// fait foi depuis PA-183, et ses libellés sont repris au mot de
 /// `tatacora-api/lang/fr/vehicules.php`.
 ///
-/// ## Trois champs de la vue sont rendus INERTES, avec leur raison
+/// ## « Places », « Année » et « Transmission » sont saisis (v41, 27/10/2026)
 ///
-/// « Places », « Année » et « Transmission » sont au schéma **serveur** et
-/// n'ont aucune colonne dans `vehicules_local`. Les offrir à la saisie les
-/// ferait collecter puis jeter en silence — « Véhicule enregistré » sur une
-/// fiche amputée. Ils gardent leur place et disent pourquoi ils ne prennent
-/// rien.
+/// Ils étaient rendus inertes tant que `vehicules_local` n'avait pas leurs
+/// colonnes. Ils ont désormais les leurs (nullables) : la modale les demande comme
+/// la vue (Places et Année obligatoires, Transmission facultative), les valide aux
+/// bornes et aux phrases du serveur, les écrit et les enfile à la synchronisation.
+/// Un véhicule d'avant la v41 s'ouvre avec ces champs VIDES : Places et Année sont
+/// obligatoires à l'enregistrement, comme la vue — rien n'est pré-rempli.
 Future<bool?> ouvrirModaleVehicule(
   BuildContext context, {
   Vehicule? vehicule,
@@ -64,6 +65,16 @@ class _ModaleVehiculeState extends ConsumerState<_ModaleVehicule> {
     text: _tarifInitial(widget.vehicule),
   );
 
+  late final _capacite = TextEditingController(
+    text: widget.vehicule?.capacite?.toString() ?? '',
+  );
+  late final _annee = TextEditingController(
+    text: widget.vehicule?.annee?.toString() ?? '',
+  );
+  late final _transmission = TextEditingController(
+    text: widget.vehicule?.transmission ?? '',
+  );
+
   late CategorieVehicule _categorie =
       widget.vehicule?.categorie ?? CategorieVehicule.voiture;
 
@@ -75,6 +86,9 @@ class _ModaleVehiculeState extends ConsumerState<_ModaleVehicule> {
   void dispose() {
     _immatriculation.dispose();
     _tarif.dispose();
+    _capacite.dispose();
+    _annee.dispose();
+    _transmission.dispose();
     super.dispose();
   }
 
@@ -174,32 +188,37 @@ class _ModaleVehiculeState extends ConsumerState<_ModaleVehicule> {
           const SizedBox(height: AppSpacing.md),
 
           // ------------- 3, 4 et 5. Places / Année / Transmission (l.801)
-          const Row(
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
-                child: _ChampInerte(
-                  cle: Key('modale-vehicule-capacite'),
+                child: _ChampSaisi(
+                  cle: const Key('modale-vehicule-capacite'),
                   etiquette: 'Places',
-                  raison:
-                      'Le nombre de places n’est pas enregistré sur ce '
-                      'poste : le saisir ici le perdrait à l’enregistrement.',
+                  obligatoire: true,
+                  controleur: _capacite,
+                  chiffres: true,
+                  erreur: _parChamp['capacite'],
                 ),
               ),
-              SizedBox(width: AppSpacing.sm),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
-                child: _ChampInerte(
-                  cle: Key('modale-vehicule-annee'),
+                child: _ChampSaisi(
+                  cle: const Key('modale-vehicule-annee'),
                   etiquette: 'Année',
-                  raison: 'L’année n’est pas enregistrée sur ce poste.',
+                  obligatoire: true,
+                  controleur: _annee,
+                  chiffres: true,
+                  erreur: _parChamp['annee'],
                 ),
               ),
-              SizedBox(width: AppSpacing.sm),
+              const SizedBox(width: AppSpacing.sm),
               Expanded(
-                child: _ChampInerte(
-                  cle: Key('modale-vehicule-transmission'),
+                child: _ChampSaisi(
+                  cle: const Key('modale-vehicule-transmission'),
                   etiquette: 'Transmission',
-                  raison: 'La transmission n’est pas enregistrée sur ce poste.',
+                  controleur: _transmission,
+                  erreur: _parChamp['transmission'],
                 ),
               ),
             ],
@@ -224,10 +243,11 @@ class _ModaleVehiculeState extends ConsumerState<_ModaleVehicule> {
           ),
           const SizedBox(height: AppSpacing.xxs),
           const Text(
+            // Le montant d'un contrat est FIGÉ à sa signature (v41) : modifier le
+            // tarif ne réécrit plus les contrats déjà signés.
             'En francs ENTIERS : le XOF n’a pas de sous-unité en circulation. '
-            'C’est ce tarif qui donne son montant à chaque contrat — et comme '
-            'aucune colonne ne fige le tarif d’une location, le modifier '
-            'recalcule le montant des contrats DÉJÀ signés sur ce véhicule.',
+            'C’est ce tarif qui donne son montant à chaque NOUVEAU contrat ; '
+            'celui d’un contrat déjà signé ne change pas.',
             key: Key('modale-vehicule-aide-tarif'),
             style: TextesModaleRestaurant.aide,
           ),
@@ -256,9 +276,18 @@ class _ModaleVehiculeState extends ConsumerState<_ModaleVehicule> {
     final plaque = _immatriculation.text.trim();
     final tarif = int.tryParse(_tarif.text.trim().replaceAll(' ', ''));
 
+    // Aux phrases du serveur (`GestionnaireVehicules`), champ par champ : le DAO
+    // refait ces contrôles dans sa transaction, ceux-ci posent l'erreur sous le
+    // bon champ.
+    final refusPlacesSaisies = refusPlaces(_capacite.text);
+    final refusAnneeSaisie = refusAnnee(_annee.text);
+    final refusTransmissionSaisie = refusTransmission(_transmission.text);
     final manquants = <String, String>{
       if (plaque.isEmpty)
         'immatriculation': MessagesVehicules.immatriculationRequise,
+      'capacite': ?refusPlacesSaisies,
+      'annee': ?refusAnneeSaisie,
+      'transmission': ?refusTransmissionSaisie,
       if (tarif == null || tarif <= 0)
         'tarif_jour': MessagesVehicules.tarifInvalide,
     };
@@ -286,6 +315,10 @@ class _ModaleVehiculeState extends ConsumerState<_ModaleVehicule> {
             // change par son propre geste, sur la ligne du parc. Le confondre
             // avec l'édition rendrait louable un véhicule au garage.
             statut: widget.vehicule?.statut ?? StatutVehicule.disponible,
+            annee: int.parse(_annee.text.trim()),
+            capacite: int.parse(_capacite.text.trim()),
+            // Vide : la transmission est effacée (chaîne vide), jamais « inchangée ».
+            transmission: _transmission.text.trim(),
           );
 
       if (!mounted) return;
@@ -307,17 +340,24 @@ class _ModaleVehiculeState extends ConsumerState<_ModaleVehicule> {
   }
 }
 
-/// Un champ de la vue que la table locale ne porte pas — rendu **à sa place**,
-/// inerte, avec sa raison.
-class _ChampInerte extends StatelessWidget {
-  const _ChampInerte({
-    required Key cle,
+/// Un champ de saisie de la modale — étiquette de la vue, `*` si obligatoire.
+class _ChampSaisi extends StatelessWidget {
+  const _ChampSaisi({
+    required this.cle,
     required this.etiquette,
-    required this.raison,
-  }) : super(key: cle);
+    required this.controleur,
+    this.obligatoire = false,
+    this.chiffres = false,
+    this.erreur,
+  });
 
+  /// La clé du CHAMP de saisie (celle que les essais et les gardes ciblent).
+  final Key cle;
   final String etiquette;
-  final String raison;
+  final TextEditingController controleur;
+  final bool obligatoire;
+  final bool chiffres;
+  final String? erreur;
 
   @override
   Widget build(BuildContext context) {
@@ -325,15 +365,18 @@ class _ChampInerte extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        EtiquetteChampRestaurant(texte: etiquette),
-        Container(
-          padding: const EdgeInsets.all(AppSpacing.xs),
-          decoration: BoxDecoration(
-            color: Ardoise.c50,
-            border: Border.all(color: Ardoise.c200),
-            borderRadius: BorderRadius.circular(AppRadius.roundedLg),
+        EtiquetteChampRestaurant(texte: etiquette, obligatoire: obligatoire),
+        TextField(
+          key: cle,
+          controller: controleur,
+          keyboardType: chiffres ? TextInputType.number : null,
+          style: TextesModaleRestaurant.corps,
+          decoration: InputDecoration(
+            isDense: true,
+            border: const OutlineInputBorder(),
+            errorText: erreur,
+            errorMaxLines: 3,
           ),
-          child: Text(raison, style: TextesModaleRestaurant.aide),
         ),
       ],
     );

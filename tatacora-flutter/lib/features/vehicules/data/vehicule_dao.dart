@@ -51,21 +51,26 @@ import '../domain/regles_vehicules.dart';
 /// contrepartie exacte de la décision, et elle est structurelle, pas un défaut
 /// de ce code.
 ///
-/// ## Trois colonnes manquent au schéma local, et elles ne sont pas inventées
+/// ## Ce que la v41 (27/10/2026) a porté — et ce qui reste un « — »
 ///
-/// - `vehicules_local` n'a **ni `annee`, ni `transmission`, ni `capacite`** ;
-///   l'entité les porte à `null` et l'écran affiche « — ».
-/// - `contrats_location_local` n'a **aucune colonne de montant ni de tarif** :
-///   le montant est donc **recalculé** au tarif COURANT du véhicule, et non
-///   figé à la signature. Un changement de grille réécrit le montant d'un
-///   contrat déjà signé — c'est le défaut exact que PA-55 a corrigé sur
-///   `tarifNuit`, et il ne peut pas l'être ici sans colonne. L'écran le dit.
-/// - `contrats_location_local` ne porte que des **chemins de fichier**
+/// - `vehicules_local` porte `annee`, `capacite` (les places) et `transmission`
+///   (NULLABLES) : [enregistrerVehicule] les écrit, les enfile et les valide aux
+///   bornes et aux phrases du serveur. Un véhicule d'avant la v41 les a à `null`
+///   (« — »), la migration n'en fabrique aucun.
+/// - `contrats_location_local` porte `numero` (`LOC-…`, rendu par le serveur à
+///   l'accusé : le poste n'en invente aucun), `remise`, `acompte` et `montant`,
+///   le montant NET **FIGÉ à la signature** (tarif du jour × jours − remise).
+///   Il n'est plus recalculé au tarif courant : modifier la grille ne réécrit
+///   plus un contrat signé. Le reste dû en est la différence avec l'acompte. Un
+///   contrat d'avant a ces quatre colonnes nulles : « — », jamais un chiffre
+///   déduit du tarif d'aujourd'hui.
+/// - `contrats_location_local` ne porte toujours que des **chemins de fichier**
 ///   (`cheminPieceIdentiteLocal`), pas les NUMÉROS de pièce et de permis. RG-09
 ///   est donc vérifiée à la saisie — sans numéro, pas de contrat — mais le
-///   numéro n'est **conservé nulle part**. Aucune de ces deux colonnes n'est
-///   détournée pour l'y ranger : écrire un numéro de CNI dans une colonne
-///   nommée « chemin » serait une divergence que personne ne verrait.
+///   numéro n'est **conservé nulle part** (il part dans la charge du serveur).
+///   Aucune de ces colonnes n'est détournée pour l'y ranger : écrire un numéro
+///   de CNI dans une colonne nommée « chemin » serait une divergence que
+///   personne ne verrait.
 class VehiculeDao extends DatabaseAccessor<AppDatabase> {
   VehiculeDao(super.db, {Uuid? uuid}) : _uuid = uuid ?? const Uuid();
 
@@ -164,11 +169,12 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
             debut: _iso(l.dateDebut),
             fin: _iso(l.dateFin),
             nombreJours: jours,
-            // ⚠ RECALCULÉ au tarif COURANT — voir l'en-tête de cette classe : la
-            // table ne porte aucun montant, il n'y a donc rien à figer.
-            montant: v == null
-                ? '0.00'
-                : _decimale(_francs(v.tarifJour) * jours),
+            // Le montant NET FIGÉ à la signature (v41) : `null` pour un contrat
+            // d'avant, JAMAIS recalculé au tarif courant — « — » à l'écran.
+            montant: _francsOuNull(l.montant),
+            numero: l.numero,
+            remise: _francsOuNull(l.remise),
+            acompte: _francsOuNull(l.acompte),
             packageAvecGuide: l.guideId != null,
             clientNom: client == null
                 ? null
@@ -199,6 +205,9 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
     required CategorieVehicule categorie,
     required int tarifJour,
     StatutVehicule statut = StatutVehicule.disponible,
+    int? annee,
+    int? capacite,
+    String? transmission,
   }) async {
     final plaque = immatriculation.trim();
     if (plaque.isEmpty) {
@@ -207,6 +216,16 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
     if (tarifJour <= 0) {
       throw const RefusVehicule(MessagesVehicules.tarifInvalide);
     }
+    // Année, places, transmission (v41) : les bornes et les PHRASES du serveur
+    // (`GestionnaireVehicules`, relues par `tool/vehicules/rejouer_champs_location.php`).
+    // Un paramètre absent (`null`) laisse la colonne telle qu'elle est ; la
+    // transmission vide l'efface (chaîne vide).
+    final refusChamp =
+        (annee == null ? null : refusAnneeEntiere(annee)) ??
+        (capacite == null ? null : refusPlacesEntieres(capacite)) ??
+        refusTransmission(transmission);
+    if (refusChamp != null) throw RefusVehicule(refusChamp);
+    final transmissionNette = transmission?.trim();
 
     final identifiant = id ?? _uuid.v4();
 
@@ -229,6 +248,11 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
       }
 
       final avant = await _ligneVehicule(identifiant);
+      final anneeFinale = annee ?? avant?.annee;
+      final capaciteFinale = capacite ?? avant?.capacite;
+      final transmissionFinale = transmissionNette == null
+          ? avant?.transmission
+          : (transmissionNette.isEmpty ? null : transmissionNette);
       await into(attachedDatabase.vehiculesLocal).insertOnConflictUpdate(
         VehiculesLocalCompanion.insert(
           id: identifiant,
@@ -236,6 +260,9 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
           immatriculation: plaque,
           tarifJour: tarifJour.toDouble(),
           statut: statut.code,
+          annee: Value(anneeFinale),
+          capacite: Value(capaciteFinale),
+          transmission: Value(transmissionFinale),
         ),
       );
       await _envoyer(identifiant, {
@@ -246,6 +273,16 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
         if (avant != null && avant.tarifJour.round() != tarifJour)
           'tarif_jour': tarifJour,
         if (avant != null && avant.statut != statut.code) 'statut': statut.code,
+        // Les trois champs de la v41 : seulement ceux qui ont CHANGÉ ; vider la
+        // transmission part en `null` explicite.
+        if (avant != null && anneeFinale != null && avant.annee != anneeFinale)
+          'annee': anneeFinale,
+        if (avant != null &&
+            capaciteFinale != null &&
+            avant.capacite != capaciteFinale)
+          'capacite': capaciteFinale,
+        if (avant != null && avant.transmission != transmissionFinale)
+          'transmission': transmissionFinale,
       });
 
       return Vehicule(
@@ -253,10 +290,9 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
         immatriculation: plaque,
         categorie: categorie,
         categorieBrute: categorie.code,
-        // Trois colonnes que la table locale n'a pas — voir l'en-tête.
-        annee: null,
-        transmission: null,
-        capacite: null,
+        annee: anneeFinale,
+        transmission: transmissionFinale,
+        capacite: capaciteFinale,
         tarifJour: _decimale(tarifJour),
         statut: statut,
         statutBrut: statut.code,
@@ -459,13 +495,18 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
     final fin = jourDe(saisie.fin);
 
     return transaction(() async {
+      // L'ORDRE DU SERVEUR (`GestionnaireContratsLocation`, rejoué par
+      // `tool/vehicules/rejouer_champs_location.php`) : dates, véhicule, client,
+      // remise, acompte — puis seulement les refus du service (louable, pièces,
+      // permis, chevauchement).
+      final jours = nombreDeJoursEntre(debut, fin);
+      if (jours == null) {
+        throw const RefusVehicule(MessagesVehicules.finApresDebut);
+      }
+
       final vehicule = await _ligneVehicule(saisie.vehiculeId);
       if (vehicule == null) {
         throw const RefusVehicule(MessagesVehicules.vehiculeInexistant);
-      }
-
-      if (!statutsLouables.contains(vehicule.statut)) {
-        throw RefusVehicule(MessagesVehicules.nonLouable(vehicule.statut));
       }
 
       final client = await (select(
@@ -475,9 +516,35 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
         throw const RefusVehicule(MessagesVehicules.clientInexistant);
       }
 
-      final jours = nombreDeJoursEntre(debut, fin);
-      if (jours == null) {
-        throw const RefusVehicule(MessagesVehicules.finApresDebut);
+      // La remise puis l'acompte, comme `Locations::enregistrerContrat` : une
+      // remise supérieure au brut produirait un montant négatif ; un acompte
+      // supérieur au net, un reste dû négatif présenté comme une créance du
+      // client sur le gîte. Le montant NET est FIGÉ ici, une fois.
+      if (saisie.remiseFrancs < 0) {
+        throw RefusVehicule(
+          MessagesVehicules.champMinimum(MessagesVehicules.libelleRemise, 0),
+        );
+      }
+      if (saisie.acompteFrancs < 0) {
+        throw RefusVehicule(
+          MessagesVehicules.champMinimum(MessagesVehicules.libelleAcompte, 0),
+        );
+      }
+      final brut = _francs(vehicule.tarifJour) * jours;
+      if (saisie.remiseFrancs > brut) {
+        throw RefusVehicule(
+          MessagesVehicules.remiseSuperieureAuBrut(_decimale(brut)),
+        );
+      }
+      final net = brut - saisie.remiseFrancs;
+      if (saisie.acompteFrancs > net) {
+        throw RefusVehicule(
+          MessagesVehicules.acompteSuperieurAuNet(_decimale(net)),
+        );
+      }
+
+      if (!statutsLouables.contains(vehicule.statut)) {
+        throw RefusVehicule(MessagesVehicules.nonLouable(vehicule.statut));
       }
 
       // RG-09 — la pièce d'identité est exigée quelle que soit la catégorie.
@@ -517,6 +584,11 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
           statutSync: const Value(statutSyncLocal),
           // Comme le serveur à la création (`GestionnaireContratsLocation`).
           statut: const Value(statutContratActif),
+          // v41 : le montant NET figé, la remise et l'acompte de la signature.
+          // Le N° `LOC-` reste NUL : il vient du serveur, à l'accusé.
+          montant: Value(net),
+          remise: Value(saisie.remiseFrancs),
+          acompte: Value(saisie.acompteFrancs),
         ),
       );
 
@@ -543,6 +615,10 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
           fin: fin,
           pieceIdentite: saisie.pieceIdentite.trim(),
           permisConduire: saisie.permisConduire?.trim(),
+          // Envoyées quand elles existent : un serveur d'avant le lot L3-S
+          // ignorerait ces clés, et zéro n'a rien à dire.
+          remiseFrancs: saisie.remiseFrancs > 0 ? saisie.remiseFrancs : null,
+          acompteFrancs: saisie.acompteFrancs > 0 ? saisie.acompteFrancs : null,
         ),
       );
 
@@ -553,7 +629,9 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
         debut: _iso(debut),
         fin: _iso(fin),
         nombreJours: jours,
-        montant: _decimale(_francs(vehicule.tarifJour) * jours),
+        montant: _decimale(net),
+        remise: _decimale(saisie.remiseFrancs),
+        acompte: _decimale(saisie.acompteFrancs),
         packageAvecGuide: saisie.guideId != null,
         clientNom: [
           client.nom,
@@ -562,6 +640,15 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
         statut: statutContratActif,
       );
     });
+  }
+
+  /// Pose le N° `LOC-…` rendu par le serveur à l'accusé de la création du contrat
+  /// (`SyncManager`) : le poste n'en invente aucun. Une ligne qui porte déjà un
+  /// numéro n'est pas réécrite (un rejeu d'accusé ne change rien).
+  Future<void> regulariserNumero(String contratId, String numero) async {
+    await (update(attachedDatabase.contratsLocationLocal)
+          ..where((c) => c.id.equals(contratId) & c.numero.isNull()))
+        .write(ContratsLocationLocalCompanion(numero: Value(numero)));
   }
 
   /// Annule un contrat — « Annuler » de la vue (`Locations::executerSuppression`,
@@ -645,6 +732,9 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
         immatriculation: v.immatriculation,
         categorie: v.categorie,
         tarifJour: v.tarifJour.round(),
+        annee: v.annee,
+        capacite: v.capacite,
+        transmission: v.transmission,
       ),
     );
     if (v.statut != 'disponible' && v.statut != 'loue') {
@@ -698,12 +788,11 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
     immatriculation: v.immatriculation,
     categorie: CategorieVehicule.depuisCode(v.categorie),
     categorieBrute: v.categorie,
-    // Aucune de ces trois colonnes n'existe dans `vehicules_local`. On rend
-    // `null` plutôt qu'une valeur plausible : l'écran affiche « — » et dit
-    // pourquoi, là où un « 5 places » inventé se lirait comme une mesure.
-    annee: null,
-    transmission: null,
-    capacite: null,
+    // Les trois colonnes de la v41 : `null` pour un véhicule d'avant, jamais une
+    // valeur plausible (un « 5 places » inventé se lirait comme une mesure).
+    annee: v.annee,
+    transmission: v.transmission,
+    capacite: v.capacite,
     tarifJour: _decimale(_francs(v.tarifJour)),
     statut: StatutVehicule.depuisCode(v.statut),
     statutBrut: v.statut,
@@ -716,6 +805,11 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
   /// Ce DAO n'écrit que des entiers ; l'arrondi ne sert qu'à une base qui
   /// porterait une valeur héritée. Le XOF n'a pas de sous-unité en circulation.
   static int _francs(double valeur) => valeur.round();
+
+  /// Des francs entiers stockés (v41), en décimal du domaine ; `null` reste `null`
+  /// (jamais « 0.00 » : un contrat d'avant n'a pas de montant, il ne vaut pas zéro).
+  static String? _francsOuNull(int? francs) =>
+      francs == null ? null : _decimale(francs);
 
   /// Le montant décimal attendu par le domaine (« 25000.00 »).
   ///

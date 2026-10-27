@@ -1,15 +1,21 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:drift/drift.dart' show TableUpdateQuery;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
 
 import '../../comptabilite/presentation/providers_comptabilite.dart';
+import '../../depenses/data/recus_depenses_locaux.dart';
+import '../../depenses/domain/recu_depense.dart';
 import '../../../core/config/environnement.dart';
 import '../../../core/di/providers.dart';
 import '../../transverse/data/configuration_poste.dart';
 import '../data/controle_coherence.dart';
 import '../data/descente_catalogue.dart';
 import '../data/descente_catalogue_dao.dart';
+import '../data/telechargement_recu_depense.dart';
+import '../data/envoi_recus_depenses.dart';
 import '../data/operations_sync_dao.dart';
 import '../data/service_appairage.dart';
 import '../data/sync_manager.dart';
@@ -156,6 +162,49 @@ final descenteCatalogueProvider = Provider<DescenteCatalogue>((ref) {
   );
 });
 
+/// Le transport des FICHIERS (lot L4 — le reçu d'une dépense) : le même
+/// `package:http` que [transportSynchronisationProvider], mais une interface à
+/// part (`/sync` reste du JSON). Un test le remplace.
+final transportFichiersProvider = Provider<TransportFichiers>(
+  (ref) => TransportHttp(),
+);
+
+/// Le rangement des reçus de dépenses : `recus_depenses/` à côté de
+/// `poste.json`, jamais dans la base (lot L4, 27/10/2026).
+final recusDepensesLocauxProvider = Provider<RecusDepensesLocaux>((ref) {
+  final chemin = ref.watch(cheminConfigurationPosteProvider);
+  return RecusDepensesLocaux(
+    () async =>
+        Directory(p.join(p.dirname(await chemin()), dossierRecusDepenses)),
+  );
+});
+
+/// L'envoi des reçus de dépenses (lot L4), branché sur le passage du
+/// [SyncManager].
+final envoiRecusDepensesProvider = Provider<EnvoiRecusDepenses>(
+  (ref) => EnvoiRecusDepenses(
+    db: ref.watch(baseLocaleProvider),
+    transport: ref.watch(transportFichiersProvider),
+    recus: ref.watch(recusDepensesLocauxProvider),
+  ),
+);
+
+/// Le téléchargement À LA DEMANDE d'un reçu (lot L4) : le fichier du poste s'il
+/// y est, sinon le serveur — jamais en masse, jamais interrupteur éteint.
+final telechargementRecuDepenseProvider = Provider<TelechargementRecuDepense>((
+  ref,
+) {
+  final chemin = ref.watch(cheminConfigurationPosteProvider);
+  return TelechargementRecuDepense(
+    db: ref.watch(baseLocaleProvider),
+    transport: ref.watch(transportFichiersProvider),
+    recus: ref.watch(recusDepensesLocauxProvider),
+    urlServeur: ref.watch(urlServeurSynchronisationProvider),
+    demonstration: ref.watch(synchronisationInterditeProvider),
+    lecteur: LecteurConfigurationPoste(chemin: chemin),
+  );
+});
+
 /// Le moteur d'envoi — UNE instance : c'est elle qui tient le « un seul
 /// envoi à la fois » du processus. Depuis le lot F2b, il descend aussi le
 /// catalogue après l'envoi.
@@ -171,6 +220,7 @@ final syncManagerProvider = Provider<SyncManager>((ref) {
     surBilan: (bilan) =>
         ref.read(dernierBilanSynchronisationProvider.notifier).poser(bilan),
     descente: ref.watch(descenteCatalogueProvider),
+    recus: ref.watch(envoiRecusDepensesProvider),
   );
 });
 

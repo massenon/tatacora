@@ -28,15 +28,16 @@ import 'textes_modale_restaurant.dart';
 /// menu ni la fiche. La v14 en a une : la vue n'a plus ces deux champs, et les
 /// afficher inertes aurait été garder un contrôle mort (Article 3.3).
 ///
-/// ## Le champ « Catégorie » de la vue n'est PAS porté, et c'est un arbitrage
-/// OUVERT (D100)
+/// ## Le champ « Catégorie » est PORTÉ depuis la v41 (27/10/2026, décision D1)
 ///
 /// La vue écrit une colonne `plats.categorie` de dix valeurs (« Entrées »,
-/// « Plats complets »…) que ce poste ne porte pas : la catégorie d'un plat est
-/// ici celle de son MENU (`menus.type`, trois valeurs), comme l'API du serveur.
-/// Les deux ne sont pas la même notion ; trancher n'est pas à cet écran. Le
-/// sélecteur de menu affiche donc le type de chaque menu, pour que le geste
-/// « classer le plat » reste le même.
+/// « Plats complets »…, `CategorieCarte`) : ce poste la porte désormais, la saisit
+/// à la création et à la modification, l'enfile à la synchronisation (le serveur
+/// l'accepte dans ce registre) et la redescend. Ce n'est PAS le type du menu
+/// (`menus.type`, trois valeurs) : les deux notions coexistent, et le menu garde
+/// son sélecteur plus bas. Comme la vue, la création propose la première valeur et
+/// une modification propose celle du plat (la première pour un plat d'avant la
+/// v41, qui n'en avait pas).
 ///
 /// ## Menu et fiche sont de VRAIES clés étrangères, créables sur place
 ///
@@ -78,6 +79,10 @@ class _ModalePlatState extends ConsumerState<_ModalePlat> {
     text: _prixInitial(widget.plat?.prixVente),
   );
 
+  /// Comme la vue : la valeur du plat, sinon la première des dix.
+  late CategorieCarte _categorie =
+      widget.plat?.categorieCarte ?? CategorieCarte.values.first;
+
   late String? _menuId = widget.plat?.menuId;
   late String? _recetteId = widget.plat?.recetteId;
   late bool _provisoire = widget.plat?.prixProvisoire ?? false;
@@ -118,6 +123,8 @@ class _ModalePlatState extends ConsumerState<_ModalePlat> {
       corps: _Corps(
         libelle: _libelle,
         prix: _prix,
+        categorie: _categorie,
+        onCategorie: (c) => setState(() => _categorie = c),
         menus: menus,
         recettes: recettes,
         menuId: _menuId,
@@ -186,6 +193,7 @@ class _ModalePlatState extends ConsumerState<_ModalePlat> {
             recetteId: _recetteId ?? '',
             prixVente: _prix.text,
             prixProvisoire: _provisoire,
+            categorie: _categorie.code,
           ),
           modification: _modification,
         );
@@ -228,6 +236,8 @@ class _Corps extends StatelessWidget {
   const _Corps({
     required this.libelle,
     required this.prix,
+    required this.categorie,
+    required this.onCategorie,
     required this.menus,
     required this.recettes,
     required this.menuId,
@@ -244,6 +254,8 @@ class _Corps extends StatelessWidget {
 
   final TextEditingController libelle;
   final TextEditingController prix;
+  final CategorieCarte categorie;
+  final ValueChanged<CategorieCarte> onCategorie;
   final AsyncValue<List<MenuRestaurant>?> menus;
   final AsyncValue<List<Recette>?> recettes;
   final String? menuId;
@@ -278,7 +290,30 @@ class _Corps extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.md),
 
-        // 2. « Prix de vente (FCFA) » — `label_prix`, libellé au caractère près.
+        // 2. « Catégorie » — `label_categorie`, les dix catégories de la carte
+        // (`CarteRestaurant::CATEGORIES`) : la clé est stockée, le libellé affiché.
+        const EtiquetteChampRestaurant(texte: 'Catégorie', obligatoire: true),
+        DropdownButtonFormField<CategorieCarte>(
+          key: const Key('modale-plat-categorie'),
+          initialValue: categorie,
+          isExpanded: true,
+          style: TextesModaleRestaurant.etiquette,
+          decoration: InputDecoration(
+            isDense: true,
+            border: const OutlineInputBorder(),
+            errorText: erreurs['categorie'],
+          ),
+          items: [
+            for (final c in CategorieCarte.values)
+              DropdownMenuItem(value: c, child: Text(c.libelle)),
+          ],
+          onChanged: (c) {
+            if (c != null) onCategorie(c);
+          },
+        ),
+        const SizedBox(height: AppSpacing.md),
+
+        // 3. « Prix de vente (FCFA) » — `label_prix`, libellé au caractère près.
         const EtiquetteChampRestaurant(
           texte: 'Prix de vente (FCFA)',
           obligatoire: true,
@@ -351,8 +386,8 @@ class _Corps extends StatelessWidget {
           ),
         const SizedBox(height: AppSpacing.md),
 
-        // 3. « Menu » — `label_menu`. À la place de « Catégorie » : le menu,
-        // qui la porte (voir l'en-tête, D100).
+        // 4. « Menu » — `label_menu`, une vraie clé étrangère (le menu garde son
+        // type, distinct de la catégorie du plat).
         const EtiquetteChampRestaurant(texte: 'Menu', obligatoire: true),
         _SelecteurReferentiel(
           cle: const Key('modale-plat-menu'),
@@ -376,7 +411,7 @@ class _Corps extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.md),
 
-        // 4. « Fiche technique (recette) » — `label_fiche`.
+        // 5. « Fiche technique (recette) » — `label_fiche`.
         const EtiquetteChampRestaurant(
           texte: 'Fiche technique (recette)',
           obligatoire: true,

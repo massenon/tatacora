@@ -171,6 +171,8 @@ ModuleVehicules moduleVehicules({
   return ModuleVehicules(
     parc: parc.length,
     contratsActifs: retenus.length,
+    // Le montant FIGÉ des contrats (v41) ; `null` si l'un d'eux n'en a pas encore
+    // (signé avant la v41, pas encore reçu du serveur) : jamais une somme amputée.
     chiffreAffaires: retenus.isEmpty
         ? '0.00'
         : sommeDecimales(retenus.map((c) => c.montant)),

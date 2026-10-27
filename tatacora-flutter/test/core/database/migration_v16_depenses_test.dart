@@ -152,6 +152,14 @@ void main() {
         'saisie_le',
         'ecriture_id',
         'ecriture_refus',
+        // Puis, a la reouverture, les six colonnes du recu de la v42
+        // (27/10/2026) : la liste est celle de la forme COURANTE.
+        'recu_nom',
+        'recu_sha256',
+        'recu_taille',
+        'recu_type',
+        'recu_statut',
+        'recu_cause',
       ]);
       // La v16 n'ajoute aucune table et n'en recrée aucune.
       // La v17 (sessions de caisse) et la v18 (encaissement de facture)

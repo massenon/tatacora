@@ -75,6 +75,29 @@ final class TourismeSynchronisationTest extends TestCase
     }
 
     /**
+     * Lot L3-S (27/10/2026) : la certification et le tarif journalier saisis au poste
+     * sont rangés par le serveur (et jamais signalés « sans tarif »), à la création
+     * comme à la modification.
+     */
+    #[Test]
+    public function la_certification_et_le_tarif_d_un_guide_du_poste_sont_ranges(): void
+    {
+        $id = $this->uuid();
+        $this->pousser([$this->creation('guides', $id, [
+            'nom' => 'Awa', 'zone_competence' => 'Atacora', 'certification' => 'Guide diplômé', 'tarif_jour' => 15000,
+        ])], $this->guide, 'poste-a')->assertJsonPath('resultats.0.statut', 'synchronise');
+
+        $g = Guide::findOrFail($id);
+        $this->assertSame(['Guide diplômé', '15000.00'], [$g->certification, (string) $g->tarif_jour]);
+        $this->assertFalse(AnomalieSynchronisation::query()->where('entite_id', $id)->exists());
+
+        $this->pousser([$this->operation('guides', 'modification', $id, ['certification' => 'Guide national', 'tarif_jour' => 18000])], $this->guide, 'poste-a')
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+        $g = Guide::findOrFail($id);
+        $this->assertSame(['Guide national', '18000.00'], [$g->certification, (string) $g->tarif_jour]);
+    }
+
+    /**
      * Deux postes vendent hors ligne les dernières places du même départ : le
      * second est refusé avec la phrase du service — jamais un départ au-delà
      * de sa capacité.

@@ -8,6 +8,8 @@ import '../../achats/domain/entities/fournisseur.dart';
 import '../../achats/data/reglements_fournisseur_dao.dart';
 import '../../comptabilite/data/comptabilite_dao.dart';
 import '../../crm/domain/entities/relance.dart' show CanalRelance;
+import '../../depenses/data/depense_dao.dart';
+import '../../depenses/domain/recu_depense.dart' show StatutRecu;
 import '../../comptabilite/data/ecritures_serveur_dao.dart';
 import '../../comptabilite/data/moteur_comptable.dart';
 import '../../comptabilite/domain/entities/comptabilite.dart'
@@ -854,6 +856,9 @@ class AligneurCatalogue {
           unitesVendables: Value(lienUnites),
           prixProvisoire: Value(_booleen(d['prix_provisoire'])),
           prixCorrigeMain: Value(_booleen(d['prix_corrige_main'])),
+          // v41 : la catégorie du plat (les dix clés de la carte), texte brut du
+          // serveur — `null` si le plat n'en a pas.
+          categorie: Value(_texte(d['categorie'])),
         ),
       );
       return const Aligne();
@@ -882,6 +887,7 @@ class AligneurCatalogue {
             unitesVendables: Value(lienUnites),
             prixProvisoire: Value(_booleen(d['prix_provisoire'])),
             prixCorrigeMain: Value(_booleen(d['prix_corrige_main'])),
+            categorie: Value(_texte(d['categorie'])),
             creeLe: _maintenant(),
             creePar: auteur,
           ),

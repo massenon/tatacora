@@ -167,7 +167,9 @@ final class CatalogueRestaurantSynchronisationTest extends TestCase
         $fiche = app(ReferentielRecetteService::class)->creer(['libelle' => 'Riz gras']);
 
         $this->pousser([
-            // La catégorie d'un plat EST le type de son menu (PA-23).
+            // Lot L3-S (27/10/2026, D1) : la catégorie du plat est portée comme au web,
+            // mais dans le registre FERMÉ des dix catégories de la carte ; « Plats »
+            // n'en est pas une (la clé est `plats`).
             $this->creation('plats', $this->uuid(), [
                 'libelle' => 'Riz gras', 'menu_id' => $menu->id, 'recette_id' => $fiche->id,
                 'prix_vente' => '2500', 'categorie' => 'Plats',
@@ -184,13 +186,65 @@ final class CatalogueRestaurantSynchronisationTest extends TestCase
                 'libelle' => 'Sans menu', 'menu_id' => $this->uuid(), 'recette_id' => $fiche->id, 'prix_vente' => '100',
             ]),
         ], $this->cuisinier)
-            ->assertJsonPath('resultats.0.motif', __('restaurant.validation.categorie_du_menu'))
+            ->assertJsonPath('resultats.0.motif', __('validation.in', ['attribute' => __('carte_pwa.restauration.label_categorie')]))
             ->assertJsonPath('resultats.1.motif', __('restaurant.validation.ingredient_en_double'))
             ->assertJsonPath('resultats.2.motif', __('restaurant.validation.cout_matiere_calcule'))
             ->assertJsonPath('resultats.3.motif', __('restaurant.validation.menu_inexistant'));
 
         $this->assertSame(0, Plat::count());
         $this->assertSame(1, Recette::count());
+    }
+
+    /**
+     * Lot L3-S (27/10/2026, décision D1 du PO) : le poste porte la catégorie d'un
+     * plat comme le web. Les dix valeurs de la carte passent, à la création et à la
+     * modification, et l'API garde son refus (`CHAMPS_REFUSES`) : seul le chemin de
+     * synchronisation l'accepte, les autres validations restant celles de l'API.
+     */
+    #[Test]
+    public function la_categorie_d_un_plat_se_synchronise_dans_les_dix_valeurs_du_web(): void
+    {
+        $this->assertContains('categorie', \App\Domain\Restaurant\Http\Requests\EnregistrerPlatRequest::CHAMPS_REFUSES);
+        $this->assertCount(10, \App\Pwa\Livewire\Restaurant\CarteRestaurant::CATEGORIES);
+
+        $menu = app(CartePlatMenuService::class)->creerMenu(['libelle' => 'Carte', 'type' => 'local']);
+        $fiche = app(ReferentielRecetteService::class)->creer(['libelle' => 'Riz gras']);
+
+        foreach (array_keys(\App\Pwa\Livewire\Restaurant\CarteRestaurant::CATEGORIES) as $rang => $categorie) {
+            $id = $this->uuid();
+            $this->pousser([$this->creation('plats', $id, [
+                'libelle' => 'Plat ' . $rang, 'menu_id' => $menu->id, 'recette_id' => $fiche->id,
+                'prix_vente' => '1000', 'categorie' => $categorie,
+            ])], $this->cuisinier)->assertJsonPath('resultats.0.statut', 'synchronise');
+            $this->assertSame($categorie, Plat::findOrFail($id)->categorie);
+        }
+
+        $id = Plat::query()->where('libelle', 'Plat 0')->value('id');
+        $this->pousser([$this->operation('plats', 'modification', $id, ['categorie' => 'pizzas'])], $this->cuisinier)
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertSame('pizzas', Plat::findOrFail($id)->categorie);
+
+        // Hors registre, vide ou nulle : refusée avec la phrase de la vue, rien n'est écrit.
+        $phrase = __('validation.in', ['attribute' => __('carte_pwa.restauration.label_categorie')]);
+        $this->pousser([$this->operation('plats', 'modification', $id, ['categorie' => 'Plats'])], $this->cuisinier)
+            ->assertJsonPath('resultats.0.statut', 'rejete')
+            ->assertJsonPath('resultats.0.motif', $phrase);
+        $this->pousser([$this->operation('plats', 'modification', $id, ['categorie' => null])], $this->cuisinier)
+            ->assertJsonPath('resultats.0.statut', 'rejete');
+        $this->assertSame('pizzas', Plat::findOrFail($id)->categorie);
+
+        // Un poste d'avant la v41 n'en envoie pas : plat sans catégorie, comme avant.
+        $ancien = $this->uuid();
+        $this->pousser([$this->creation('plats', $ancien, [
+            'libelle' => 'Ancien', 'menu_id' => $menu->id, 'recette_id' => $fiche->id, 'prix_vente' => '500',
+        ])], $this->cuisinier)->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertNull(Plat::findOrFail($ancien)->categorie);
+
+        // Les autres validations de l'API restent tenues avec une catégorie valide.
+        $this->pousser([$this->creation('plats', $this->uuid(), [
+            'libelle' => 'Sans menu', 'menu_id' => $this->uuid(), 'recette_id' => $fiche->id,
+            'prix_vente' => '100', 'categorie' => 'plats',
+        ])], $this->cuisinier)->assertJsonPath('resultats.0.motif', __('restaurant.validation.menu_inexistant'));
     }
 
     /**

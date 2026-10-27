@@ -15,7 +15,6 @@ import '../../achats/presentation/widgets/modale_archivage_achats.dart';
 import '../../bar/data/boissons_api.dart' show BarRecu, BarRefuse;
 import '../../pos/data/dto/catalogue_dto.dart' show IndisponibiliteDistante;
 import '../data/restaurant_api.dart';
-import '../domain/entities/carte_restaurant.dart';
 import '../domain/entities/plat.dart';
 import 'providers_restaurant.dart';
 import 'widgets/coquille_restaurant.dart';
@@ -46,9 +45,11 @@ import 'widgets/tableau_restaurant.dart';
 // Ce que la vue porte et que cet écran ne rend pas, et pourquoi :
 //  - la carte « Compositions provisoires » : « — », aucune source (la marque
 //    « provisoire » d'une fiche n'a pas de colonne sur ce poste) ;
-//  - le champ « Catégorie » du formulaire de plat : la vue écrit une colonne de
-//    dix valeurs que ce poste ne porte pas, la catégorie est ici celle du menu
-//    (arbitrage D100, ouvert).
+//
+// Le champ « Catégorie » du formulaire de plat et la colonne / le filtre du
+// catalogue sont PORTÉS depuis la v41 (27/10/2026, décision D1 du PO) : la
+// catégorie est celle du PLAT (`plats.categorie`, dix valeurs), plus le type du
+// menu ; l'arbitrage D100 est tranché.
 
 /// Les trois onglets de la vue (`pwa/restaurant/restauration.blade.php`).
 const _onglets = <(String, String)>[
@@ -376,7 +377,7 @@ class _BarreOutilsState extends ConsumerState<_BarreOutils> {
               vertical: AppSpacing.xs,
             ),
             child: DropdownButtonHideUnderline(
-              child: DropdownButton<CategoriePlat?>(
+              child: DropdownButton<CategorieCarte?>(
                 key: const Key('restauration-filtre-categorie'),
                 // Sans cela le champ impose 48 px de haut (`kMinInteractiveDimension`)
                 // à une liste de 13 px : la carte de filtres grandit de 12 px.
@@ -389,11 +390,11 @@ class _BarreOutilsState extends ConsumerState<_BarreOutils> {
                 ),
                 items: [
                   // Le libellé de l'option vide EST celui du filtre de la vue.
-                  const DropdownMenuItem<CategoriePlat?>(
+                  const DropdownMenuItem<CategorieCarte?>(
                     child: Text('Toutes les catégories'),
                   ),
-                  for (final c in CategoriePlat.values)
-                    DropdownMenuItem<CategoriePlat?>(
+                  for (final c in CategorieCarte.values)
+                    DropdownMenuItem<CategorieCarte?>(
                       value: c,
                       child: Text(c.libelle),
                     ),
@@ -1277,8 +1278,11 @@ class _NomPlat extends StatelessWidget {
   }
 }
 
-/// La pastille de catégorie — `m4-restauration.html` l.84-100, aux trois
-/// couples de couleurs qu'il déclare.
+/// La colonne « Catégorie » — la vue la rend en TEXTE (`text-right text-slate-500
+/// text-[12px]`) : `$categories[$plat->categorie] ?? $plat->categorie ?? —`, c'est-à-dire
+/// le libellé de la catégorie du PLAT (dix valeurs, `plats.categorie`, v41), la clé
+/// brute si le registre ne la connaît pas, « — » sans catégorie. Ce n'est plus le
+/// type du menu, ni une pastille aux trois couleurs de l'ancien maître.
 class _BadgeCategorie extends StatelessWidget {
   const _BadgeCategorie({required this.plat});
 
@@ -1286,25 +1290,10 @@ class _BadgeCategorie extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final categorie = plat.categorie;
-
-    // Le repli du moteur quand la valeur n'est prévue par aucune couleur —
-    // `{bg:'#F3F4F6', txt:'#6B7280'}` (`crud-engine.js` l.216).
-    final (fond, texte) = switch (categorie) {
-      CategoriePlat.local => (AppColors.badgeVertFond, AppColors.succes),
-      CategoriePlat.europeen => (AppColors.badgeBleuFond, AppColors.info),
-      CategoriePlat.special => (
-        AppColors.reserveGoldFond,
-        AppColors.reserveGoldTexte,
-      ),
-      null => (AppColors.badgeGrisFond, AppColors.badgeGrisTexte),
-    };
-
-    return PastilleRestaurant(
-      cle: Key('restauration-categorie-${plat.id}'),
-      texte: plat.categorieLibelle ?? CarteIndicateurRestaurant.absent,
-      fond: fond,
-      couleur: texte,
+    return Text(
+      plat.categorieCarteLibelle ?? CarteIndicateurRestaurant.absent,
+      key: Key('restauration-categorie-${plat.id}'),
+      style: TextesRestaurant.mention.copyWith(color: Ardoise.c500),
     );
   }
 }

@@ -769,11 +769,40 @@ extension _AlignementDocuments on AligneurCatalogue {
   /* Dépenses                                                            */
   /* ================================================================== */
 
+  /// La référence du reçu d'une dépense, telle que la descente la porte
+  /// (`donnees.recu`), ou `null` : pas de reçu. Un champ illisible n'invente
+  /// rien : il vaut `null` (un reçu web d'avant les empreintes les a toutes
+  /// trois à `null`).
+  ({String? sha256, int? taille, String? type})? _referenceRecu(Object? brut) {
+    if (brut is! Map) return null;
+    final sha = AligneurCatalogue._texte(brut['sha256']);
+    final taille = brut['taille'];
+    return (
+      sha256: sha,
+      taille: taille is int ? taille : null,
+      type: AligneurCatalogue._texte(brut['type']),
+    );
+  }
+
   /// Une dépense d'un autre poste, SANS pièce (`ecriture_id` nul) : le
   /// rattrapage la refuse (`DepenseDao.comptabiliser`, origine lue ici).
   Future<IssueAlignement> _depense(String id, ElementCatalogue e) async {
     final d = e.donnees;
-    if (await _existe(_db.depensesLocal, id)) return const Aligne();
+    final reference = _referenceRecu(d['recu']);
+    if (await _existe(_db.depensesLocal, id)) {
+      // Une dépense détenue n'est jamais réécrite ; seule la RÉFÉRENCE de son
+      // reçu bouge (lot L4) : `DepenseDao` en décide (accusé implicite d'un
+      // reçu en attente dont l'empreinte revient, reçu d'un autre poste…).
+      if (reference != null) {
+        await DepenseDao(_db).retenirReferenceRecu(
+          id,
+          sha256: reference.sha256,
+          taille: reference.taille,
+          type: reference.type,
+        );
+      }
+      return const Aligne();
+    }
     final libelle = AligneurCatalogue._texte(d['libelle']);
     final tresorerie = AligneurCatalogue._texte(d['tresorerie']);
     if (libelle == null || tresorerie == null) {
@@ -824,6 +853,14 @@ extension _AlignementDocuments on AligneurCatalogue {
             tresorerie: tresorerie,
             libelle: libelle,
             saisieLe: Value(_maintenant()),
+            // Le reçu du serveur (lot L4) : la RÉFÉRENCE seule, sans fichier —
+            // il se télécharge à la demande.
+            recuStatut: Value(
+              reference == null ? null : StatutRecu.duServeur.code,
+            ),
+            recuSha256: Value(reference?.sha256),
+            recuTaille: Value(reference?.taille),
+            recuType: Value(reference?.type),
           ),
         );
     for (var i = 0; i < converties.length; i++) {
@@ -871,7 +908,9 @@ extension _AlignementDocuments on AligneurCatalogue {
   /// statut suivent (dernier écrit gagnant, une retouche locale en attente
   /// est conservée par la règle commune). Une plaque déjà au parc LOCAL est
   /// le même véhicule (le serveur fusionne) : correspondance, pas de
-  /// doublon. Année, transmission et capacité n'ont pas de colonne ici.
+  /// doublon. Année, places et transmission descendent aussi (v41, 27/10/2026) :
+  /// une année `0` du serveur (véhicule venu d'un poste d'avant, SIGNALÉ « sans
+  /// année ») est rangée à `null`, jamais 0 — « — » s'affiche, pas « 0 ».
   Future<IssueAlignement> _vehicule(String id, ElementCatalogue e) async {
     final d = e.donnees;
     final plaque = AligneurCatalogue._texte(d['immatriculation']);
@@ -887,11 +926,17 @@ extension _AlignementDocuments on AligneurCatalogue {
       );
     }
     final t = _db.vehiculesLocal;
+    final annee = _entierPositifOuNull(d['annee']);
+    final capacite = _entierPositifOuNull(d['capacite']);
+    final transmission = AligneurCatalogue._texte(d['transmission']);
     final valeurs = VehiculesLocalCompanion(
       categorie: Value(categorie!),
       immatriculation: Value(plaque),
       tarifJour: Value(tarif.toDouble()),
       statut: Value(statut!),
+      annee: Value(annee),
+      capacite: Value(capacite),
+      transmission: Value(transmission),
     );
     if (await _existe(t, id)) {
       await (_db.update(t)..where((v) => v.id.equals(id))).write(valeurs);
@@ -921,10 +966,20 @@ extension _AlignementDocuments on AligneurCatalogue {
             immatriculation: plaque,
             tarifJour: tarif.toDouble(),
             statut: statut,
+            annee: Value(annee),
+            capacite: Value(capacite),
+            transmission: Value(transmission),
           ),
         );
     await _retenirOrigine(e, id);
     return const Aligne();
+  }
+
+  /// Un entier STRICTEMENT positif du serveur (année, places), ou `null` : `0`,
+  /// absent ou illisible se lisent « inconnu », jamais « zéro ».
+  static int? _entierPositifOuNull(Object? brut) {
+    final valeur = entierDepuisDecimal(brut, 0);
+    return valeur == null || valeur <= 0 ? null : valeur;
   }
 
   /// Un contrat de location d'un autre poste (ou de la PWA) : il occupe le
@@ -934,22 +989,42 @@ extension _AlignementDocuments on AligneurCatalogue {
   /// l'annulation est revenue — l'est ici aussi. Vers l'avant seulement :
   /// `annule` ne redevient jamais `actif`, comme au serveur (aucun geste ne
   /// rouvre un contrat). Les numéros de pièce et de permis ne descendent pas.
+  ///
+  /// v41 (27/10/2026) : le N° `LOC-…`, le montant net et l'acompte descendent. Un
+  /// contrat DÉTENU les reçoit seulement là où sa colonne est NULLE (un contrat
+  /// signé ici d'avant la v41, ou dont l'accusé s'est perdu) : le montant FIGÉ à la
+  /// signature du poste n'est JAMAIS réécrit par un recalcul du serveur. La
+  /// remise ne descend pas (le serveur ne la garde pas).
   Future<IssueAlignement> _contratLocation(
     String id,
     ElementCatalogue e,
   ) async {
     final annuleAuServeur =
         AligneurCatalogue._texte(e.donnees['statut']) == statutContratAnnule;
-    if (await _existe(_db.contratsLocationLocal, id)) {
-      if (annuleAuServeur) {
-        await (_db.update(
-          _db.contratsLocationLocal,
-        )..where((c) => c.id.equals(id))).write(
-          const ContratsLocationLocalCompanion(
-            statut: Value(statutContratAnnule),
-          ),
-        );
-      }
+    final numero = AligneurCatalogue._texte(e.donnees['numero']);
+    final montant = entierDepuisDecimal(e.donnees['montant'], 0);
+    final acompte = entierDepuisDecimal(e.donnees['acompte'], 0);
+    final t = _db.contratsLocationLocal;
+    final local = await (_db.select(
+      t,
+    )..where((c) => c.id.equals(id))).getSingleOrNull();
+    if (local != null) {
+      await (_db.update(t)..where((c) => c.id.equals(id))).write(
+        ContratsLocationLocalCompanion(
+          statut: annuleAuServeur
+              ? const Value(statutContratAnnule)
+              : const Value.absent(),
+          numero: local.numero == null && numero != null
+              ? Value(numero)
+              : const Value.absent(),
+          montant: local.montant == null && montant != null
+              ? Value(montant)
+              : const Value.absent(),
+          acompte: local.acompte == null && acompte != null
+              ? Value(acompte)
+              : const Value.absent(),
+        ),
+      );
       return const Aligne();
     }
     final d = e.donnees;
@@ -1001,6 +1076,9 @@ extension _AlignementDocuments on AligneurCatalogue {
             statut: Value(
               annuleAuServeur ? statutContratAnnule : statutContratActif,
             ),
+            numero: Value(numero),
+            montant: Value(montant),
+            acompte: Value(acompte),
           ),
         );
     await _retenirOrigine(e, id);
@@ -2094,6 +2172,10 @@ extension _AlignementDocuments on AligneurCatalogue {
   Future<IssueAlignement> _guide(String id, ElementCatalogue e) async {
     final nom = AligneurCatalogue._texte(e.donnees['nom']);
     if (nom == null) return const RefuseParLePoste('nom absent');
+    // v41 : la certification et le tarif journalier descendent. Un tarif qui n'est
+    // pas un nombre entier de francs est rangé `null` (« — »), jamais arrondi : le
+    // guide reste utilisable, il n'est pas refusé pour un tarif que ce poste ne
+    // sait pas tenir.
     await _db
         .into(_db.guidesLocal)
         .insertOnConflictUpdate(
@@ -2103,6 +2185,10 @@ extension _AlignementDocuments on AligneurCatalogue {
             zoneCompetence: Value(
               AligneurCatalogue._texte(e.donnees['zone_competence']),
             ),
+            certification: Value(
+              AligneurCatalogue._texte(e.donnees['certification']),
+            ),
+            tarifJour: Value(entierDepuisDecimal(e.donnees['tarif_jour'], 0)),
           ),
         );
     await _retenirOrigine(e, id);

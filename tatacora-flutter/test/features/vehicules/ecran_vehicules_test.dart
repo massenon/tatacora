@@ -181,9 +181,11 @@ void main() {
         '5 %',
         'Sur la période',
       ]);
+      // v41 : le reste à encaisser est la somme des restes dus (montant FIGÉ −
+      // acompte, ici zéro) des contrats actifs de la période.
       expect(carte(tester, 'reste'), [
         'RESTE À ENCAISSER',
-        '—',
+        '50 000 FCFA',
         'Soldes de location',
       ]);
       expect(carte(tester, 'jours'), ['JOURS LOUÉS', '2', 'Toutes catégories']);
@@ -215,8 +217,22 @@ void main() {
 
     testWidgets('la raison d’une absence est dans l’infobulle, pas dans la '
         'carte', (tester) async {
+      // Un contrat d'AVANT la v41 : ni montant, ni acompte. Ni le chiffre
+      // d'affaires ni le reste à encaisser ne se somment — « — » et sa raison,
+      // jamais « 0 FCFA » ni le tarif d'aujourd'hui.
+      await semer();
+      await db.customStatement(
+        'UPDATE contrats_location_local SET montant = NULL, acompte = NULL, '
+        'remise = NULL',
+      );
       await monter(tester);
 
+      expect(carte(tester, 'reste'), [
+        'RESTE À ENCAISSER',
+        '—',
+        'Soldes de location',
+      ]);
+      expect(carte(tester, 'ca')[1], '—');
       final infobulle = tester.widget<Tooltip>(
         find.byKey(const Key('vehicules-kpi-reste-raison')),
       );
@@ -224,13 +240,24 @@ void main() {
         infobulle.message,
         IndicateursVehicules.raisons['reste_a_encaisser'],
       );
+      expect(
+        tester
+            .widget<Tooltip>(find.byKey(const Key('vehicules-kpi-ca-raison')))
+            .message,
+        IndicateursVehicules.raisons['chiffre_affaires'],
+      );
       // Elle n'est PAS écrite sous le détail : sur six cartes côte à côte, la
       // plus bavarde poussait toute la page de ~96 px.
       expect(
         find.text(IndicateursVehicules.raisons['reste_a_encaisser']!),
         findsNothing,
       );
-      // Et la raison du taux ne ment plus sur une période pourtant choisie.
+    });
+
+    testWidgets('la raison du taux ne ment pas sur une période pourtant '
+        'choisie', (tester) async {
+      await monter(tester);
+
       final taux = tester.widget<Tooltip>(
         find.byKey(const Key('vehicules-kpi-occupation-raison')),
       );

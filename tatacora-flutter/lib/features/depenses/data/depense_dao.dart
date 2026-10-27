@@ -11,8 +11,10 @@ import '../../synchronisation/domain/charges_synchronisation.dart';
 import '../../synchronisation/domain/operation_sync.dart';
 import '../domain/categories_depense.dart';
 import '../domain/entities/depense.dart';
+import '../domain/recu_depense.dart';
 import '../domain/repositories/depenses_repository.dart';
 import 'piece_de_la_depense.dart';
+import 'recus_depenses_locaux.dart';
 
 /// Accès Drift aux dépenses courantes (M10) — **local pur**.
 ///
@@ -61,6 +63,17 @@ import 'piece_de_la_depense.dart';
 /// construite trop tôt servirait un plan vide. Le résolveur est appelé à chaque
 /// écriture, après l'installation. Sans résolveur, écrire une dépense LÈVE
 /// (`StateError`) — jamais d'écriture sans pièce par omission.
+///
+/// ## Le REÇU en image (lot L4, 27/10/2026, schéma v42)
+///
+/// Les six colonnes `recu_*` de `depenses_local` ont UN seul écrivain, ce DAO
+/// (avec le miroir du serveur, `aligneur_documents.dart`, pour la référence d'un
+/// reçu descendu) : `enregistrer(recu:)` range le fichier (hors de la base,
+/// [RecusDepensesLocaux]) puis écrit sa référence DANS la transaction de la
+/// dépense, en `en_attente` ; l'envoi consigne ensuite l'accusé
+/// ([accuserRecu]) ou le refus du serveur ([refuserRecu]). **`envoye` n'est
+/// écrit que par l'accusé** (ou par la référence que le serveur redescend avec
+/// la MÊME empreinte) : jamais sur la foi d'un envoi tenté.
 class DepenseDao extends DatabaseAccessor<AppDatabase>
     implements DepensesRepository {
   DepenseDao(
@@ -68,8 +81,13 @@ class DepenseDao extends DatabaseAccessor<AppDatabase>
     Uuid? uuid,
     DateTime Function()? maintenant,
     this.moteur,
+    this.recus,
   }) : _uuid = uuid ?? const Uuid(),
        _maintenant = maintenant ?? DateTime.now;
+
+  /// Le rangement des reçus ; sans lui, joindre un reçu LÈVE (`StateError`) —
+  /// un fichier n'est jamais abandonné en silence.
+  final RecusDepensesLocaux? recus;
 
   final Uuid _uuid;
 
@@ -202,14 +220,70 @@ class DepenseDao extends DatabaseAccessor<AppDatabase>
     required List<SaisieLigneDepense> lignes,
     required String auteurId,
     String? centreId,
+    RecuAJoindre? recu,
   }) async {
     final libelleNet = libelle.trim();
     await _validerLaSaisie(libelleNet, lignes);
+    if (recu != null) {
+      // La MÊME règle que l'écran de saisie, rejugée ici : le DAO ne range pas
+      // ce que le web refuserait.
+      final issue = verifierRecu(recu.octets);
+      if (issue is RecuRefuse) throw RefusDepense(issue.phrase);
+    }
 
     final moteur = await _moteurObligatoire();
     final id = _uuid.v4();
     final maintenant = _maintenant();
 
+    // Le fichier d'abord, hors de la base ; retiré si la dépense n'est pas
+    // écrite (pièce refusée, panne) — jamais un reçu orphelin.
+    RecuRange? range;
+    if (recu != null) {
+      final magasin = recus;
+      if (magasin == null) {
+        throw StateError(
+          'DepenseDao sans rangement des reçus : un reçu n’est jamais '
+          'abandonné en silence.',
+        );
+      }
+      range = await magasin.ranger(id, recu.type, recu.octets);
+    }
+
+    try {
+      await _ecrireLaDepense(
+        id: id,
+        maintenant: maintenant,
+        moteur: moteur,
+        dateTransaction: dateTransaction,
+        tresorerie: tresorerie,
+        libelleNet: libelleNet,
+        lignes: lignes,
+        auteurId: auteurId,
+        centreId: centreId,
+        recu: range == null ? null : (range: range, type: recu!.type),
+      );
+    } on Object {
+      if (range != null) await recus?.retirer(range.nom);
+      rethrow;
+    }
+
+    // Relu plutôt que composé de mémoire : c'est la base qui fait foi, et le
+    // montant décaissé se somme des lignes réellement écrites.
+    return (await parId(id))!;
+  }
+
+  Future<void> _ecrireLaDepense({
+    required String id,
+    required DateTime maintenant,
+    required MoteurComptable moteur,
+    required DateTime dateTransaction,
+    required TresorerieDepense tresorerie,
+    required String libelleNet,
+    required List<SaisieLigneDepense> lignes,
+    required String auteurId,
+    required String? centreId,
+    required ({RecuRange range, TypeRecu type})? recu,
+  }) async {
     await transaction(() async {
       // La pièce D'ABORD, comme le serveur : si elle est refusée, la dépense
       // n'est jamais écrite et l'opérateur reçoit la raison comptable.
@@ -235,6 +309,12 @@ class DepenseDao extends DatabaseAccessor<AppDatabase>
           libelle: libelleNet,
           saisieLe: Value(maintenant),
           ecritureId: Value(_ligneDeTresorerie(piece)),
+          // Le reçu (v42) : sa RÉFÉRENCE, en attente d'accusé du serveur.
+          recuNom: Value(recu?.range.nom),
+          recuSha256: Value(recu?.range.sha256),
+          recuTaille: Value(recu?.range.taille),
+          recuType: Value(recu?.type.mime),
+          recuStatut: Value(recu == null ? null : StatutRecu.enAttente.code),
         ),
       );
 
@@ -278,10 +358,6 @@ class DepenseDao extends DatabaseAccessor<AppDatabase>
         dateMetier: jourIso(dateTransaction),
       );
     });
-
-    // Relu plutôt que composé de mémoire : c'est la base qui fait foi, et le
-    // montant décaissé se somme des lignes réellement écrites.
-    return (await parId(id))!;
   }
 
   /// Rattrapage : passe la pièce d'une dépense qui n'en a pas
@@ -410,6 +486,160 @@ class DepenseDao extends DatabaseAccessor<AppDatabase>
   }
 
   /* ================================================================== */
+  /* Le reçu en image : l'état se dit de ce que le serveur a accusé      */
+  /* ================================================================== */
+
+  /// Les reçus à envoyer : `en_attente`, du plus ancien au plus récent
+  /// (identifiant, fichier, empreinte, type).
+  Future<List<RecuAEnvoyer>> recusEnAttente({int limite = 25}) async {
+    final lignes =
+        await (select(attachedDatabase.depensesLocal)
+              ..where((d) => d.recuStatut.equals(StatutRecu.enAttente.code))
+              ..orderBy([
+                (d) => OrderingTerm.asc(d.saisieLe),
+                (d) => OrderingTerm.asc(d.id),
+              ])
+              ..limit(limite))
+            .get();
+    return [
+      for (final d in lignes)
+        RecuAEnvoyer(
+          depenseId: d.id,
+          nom: d.recuNom,
+          sha256: d.recuSha256,
+          type: d.recuType,
+        ),
+    ];
+  }
+
+  /// L'ACCUSÉ du serveur : le reçu est `envoye`. Seul chemin vers cet état
+  /// avec [retenirReferenceRecu] (le serveur redit la même empreinte).
+  Future<void> accuserRecu(String depenseId) =>
+      (update(attachedDatabase.depensesLocal)..where(
+            (d) =>
+                d.id.equals(depenseId) &
+                d.recuStatut.equals(StatutRecu.enAttente.code),
+          ))
+          .write(
+            DepensesLocalCompanion(
+              recuStatut: Value(StatutRecu.envoye.code),
+              recuCause: const Value(null),
+            ),
+          );
+
+  /// Le serveur a REFUSÉ le reçu : l'état est `refuse`, la cause est dite.
+  Future<void> refuserRecu(String depenseId, String cause) =>
+      (update(attachedDatabase.depensesLocal)..where(
+            (d) =>
+                d.id.equals(depenseId) &
+                d.recuStatut.equals(StatutRecu.enAttente.code),
+          ))
+          .write(
+            DepensesLocalCompanion(
+              recuStatut: Value(StatutRecu.refuse.code),
+              recuCause: Value(cause),
+            ),
+          );
+
+  /// La RÉFÉRENCE du reçu que le serveur détient (descente, lot L4). Rend vrai
+  /// si la ligne a changé.
+  ///
+  ///  * dépense sans reçu : le reçu est `du_serveur`, sans fichier — il se
+  ///    télécharge à la demande ;
+  ///  * reçu `en_attente` de CE poste : la MÊME empreinte vaut accusé (le
+  ///    serveur détient exactement ce fichier : `envoye`) ; une AUTRE empreinte
+  ///    le fait `refuse` (le serveur garde le sien, un reçu ne se remplace pas) ;
+  ///  * reçu `du_serveur` : la référence se met à jour, et un fichier déjà
+  ///    téléchargé mais d'une autre empreinte est oublié ;
+  ///  * `envoye` et `refuse` : intouchés, ce sont des faits.
+  Future<bool> retenirReferenceRecu(
+    String depenseId, {
+    required String? sha256,
+    required int? taille,
+    required String? type,
+  }) async {
+    final d = await (select(
+      attachedDatabase.depensesLocal,
+    )..where((x) => x.id.equals(depenseId))).getSingleOrNull();
+    if (d == null) return false;
+    final statut = StatutRecu.depuisCode(d.recuStatut);
+    final cible = update(attachedDatabase.depensesLocal)
+      ..where((x) => x.id.equals(depenseId));
+
+    switch (statut) {
+      case null:
+        await cible.write(
+          DepensesLocalCompanion(
+            recuStatut: Value(StatutRecu.duServeur.code),
+            recuSha256: Value(sha256),
+            recuTaille: Value(taille),
+            recuType: Value(type),
+          ),
+        );
+        return true;
+      case StatutRecu.enAttente:
+        if (sha256 != null && sha256 == d.recuSha256) {
+          await cible.write(
+            DepensesLocalCompanion(
+              recuStatut: Value(StatutRecu.envoye.code),
+              recuCause: const Value(null),
+            ),
+          );
+        } else {
+          await cible.write(
+            DepensesLocalCompanion(
+              recuStatut: Value(StatutRecu.refuse.code),
+              recuCause: const Value(TextesRecuPoste.autreRecuAuServeur),
+            ),
+          );
+        }
+        return true;
+      case StatutRecu.duServeur:
+        if (sha256 == d.recuSha256 &&
+            taille == d.recuTaille &&
+            type == d.recuType) {
+          return false;
+        }
+        final memeFichier = sha256 != null && sha256 == d.recuSha256;
+        await cible.write(
+          DepensesLocalCompanion(
+            recuSha256: Value(sha256),
+            recuTaille: Value(taille),
+            recuType: Value(type),
+            recuNom: memeFichier ? const Value.absent() : const Value(null),
+          ),
+        );
+        if (!memeFichier) await recus?.retirer(d.recuNom);
+        return true;
+      case StatutRecu.envoye || StatutRecu.refuse:
+        return false;
+    }
+  }
+
+  /// Le fichier d'un reçu `du_serveur` vient d'être TÉLÉCHARGÉ et vérifié :
+  /// il est rangé, et la ligne sait où. L'empreinte, la taille et le type
+  /// observés complètent une référence qui ne les portait pas (reçu joint par
+  /// le web avant les empreintes).
+  Future<void> retenirFichierTelecharge(
+    String depenseId, {
+    required RecuRange range,
+    required TypeRecu type,
+  }) =>
+      (update(attachedDatabase.depensesLocal)..where(
+            (d) =>
+                d.id.equals(depenseId) &
+                d.recuStatut.equals(StatutRecu.duServeur.code),
+          ))
+          .write(
+            DepensesLocalCompanion(
+              recuNom: Value(range.nom),
+              recuSha256: Value(range.sha256),
+              recuTaille: Value(range.taille),
+              recuType: Value(type.mime),
+            ),
+          );
+
+  /* ================================================================== */
   /* Interne                                                             */
   /* ================================================================== */
 
@@ -523,7 +753,24 @@ class DepenseDao extends DatabaseAccessor<AppDatabase>
     ecritureRefus: d.ecritureRefus,
     recueDuServeur: origines.containsKey(d.id),
     posteOrigine: origines[d.id],
+    recu: _versRecu(d),
   );
+
+  /// Le reçu tel que la ligne le dit, ou `null` : `recu_statut` est SEUL juge
+  /// de sa présence (un statut inconnu d'une version future n'invente pas un
+  /// reçu).
+  static RecuDepense? _versRecu(DepensesLocalData d) {
+    final statut = StatutRecu.depuisCode(d.recuStatut);
+    if (statut == null) return null;
+    return RecuDepense(
+      statut: statut,
+      nom: d.recuNom,
+      sha256: d.recuSha256,
+      taille: d.recuTaille,
+      type: d.recuType,
+      cause: d.recuCause,
+    );
+  }
 
   LigneDepense _versLigne(LignesDepenseLocalData l) => LigneDepense(
     id: l.id,
@@ -533,4 +780,21 @@ class DepenseDao extends DatabaseAccessor<AppDatabase>
     famille: l.famille,
     montant: l.montant,
   );
+}
+
+/// Un reçu à envoyer au serveur : ce que l'envoi lit de la ligne.
+final class RecuAEnvoyer {
+  const RecuAEnvoyer({
+    required this.depenseId,
+    required this.nom,
+    required this.sha256,
+    required this.type,
+  });
+
+  final String depenseId;
+
+  /// Le fichier rangé sur ce poste.
+  final String? nom;
+  final String? sha256;
+  final String? type;
 }

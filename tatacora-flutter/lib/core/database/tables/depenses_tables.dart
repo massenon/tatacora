@@ -88,6 +88,37 @@ class DepensesLocal extends Table {
   /// dépense se lit de `ecriture_id`, seule preuve qu'une pièce existe.
   TextColumn get ecritureRefus => text().nullable()();
 
+  /// LE REÇU EN IMAGE (v42, 27/10/2026 — lot L4, décision du PO : la dépense du
+  /// poste joint un reçu comme l'écran web, et le fichier voyage par la
+  /// synchronisation). SIX colonnes NULLABLES, toutes nulles pour l'existant :
+  /// aucune valeur n'est fabriquée (« sans reçu »). **Le fichier n'est JAMAIS
+  /// dans Drift** : il est rangé dans `recus_depenses/` à côté de `poste.json`
+  /// (comme les archives de clôture), et la ligne n'en garde que la RÉFÉRENCE.
+  ///
+  /// Le nom du fichier rangé (`<id de la dépense>.<ext>`). `null` tant que le
+  /// fichier n'est pas sur ce poste (reçu d'un autre poste, pas encore
+  /// téléchargé) — la présence d'un reçu se lit de [recuStatut], pas d'ici.
+  TextColumn get recuNom => text().nullable()();
+
+  /// L'empreinte SHA-256 (hexadécimale) : elle rend le dépôt idempotent au
+  /// serveur et permet de vérifier un téléchargement. `null` pour un reçu que
+  /// l'écran web a joint avant que les empreintes existent.
+  TextColumn get recuSha256 => text().nullable()();
+
+  /// La taille en octets.
+  IntColumn get recuTaille => integer().nullable()();
+
+  /// Le type MIME (`image/png`…), lu du CONTENU.
+  TextColumn get recuType => text().nullable()();
+
+  /// L'état du reçu : `en_attente` | `envoye` | `refuse` | `du_serveur`
+  /// (`StatutRecu`). `null` = la dépense n'a pas de reçu. **`envoye` n'est
+  /// écrit qu'après l'accusé du serveur** (piège 1).
+  TextColumn get recuStatut => text().nullable()();
+
+  /// La cause d'un refus du serveur (`recu_statut = refuse`), dite à l'écran.
+  TextColumn get recuCause => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }

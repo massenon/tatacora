@@ -95,8 +95,8 @@ return [
         'commande_inconnue' => 'Règlement refusé : la commande n\'est pas connue du serveur (pas encore reçue, ou refusée).',
     ],
     'vehicules' => [
-        'champ_non_modifiable' => 'Un véhicule ne se modifie que par sa catégorie, son immatriculation, son tarif '
-            . 'et son statut (champ(s) refusé(s) : :champs).',
+        'champ_non_modifiable' => 'Un véhicule ne se modifie que par sa catégorie, son immatriculation, son tarif, '
+            . 'son année, ses places, sa transmission et son statut (champ(s) refusé(s) : :champs).',
         'statut_non_synchronisable' => 'Statut « :statut » refusé : « loué » se déduit des contrats.',
         'inconnu' => 'Contrat refusé : le véhicule n\'est pas connu du serveur (pas encore reçu, ou refusé).',
         'contrat_champ_non_modifiable' => 'Un contrat de location ne se modifie que par son annulation (champ(s) refusé(s) : :champs).',

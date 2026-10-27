@@ -151,7 +151,7 @@ void main() {
     //
     // 75 → 76 : `clotures_exercices_local` (v40, la clôture d'exercice).
     expect(base.allTables.length, 76);
-    expect(base.schemaVersion, 40);
+    expect(base.schemaVersion, 42);
     expect(
       base.allTables.map((t) => t.actualTableName).toSet().containsAll({
         'origines_documents_local',

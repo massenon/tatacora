@@ -1,5 +1,6 @@
 import '../categories_depense.dart';
 import '../entities/depense.dart';
+import '../recu_depense.dart';
 
 /// Le contrat du dépôt des dépenses.
 ///
@@ -34,6 +35,10 @@ abstract interface class DepensesRepository {
   /// défaut du compte, et un compte sans défaut est refusé (RG-12).
   /// [auteurId] est celui qui passe la pièce (RG-15).
   ///
+  /// [recu] est le reçu en image (facultatif, comme au web) : jugé par la règle
+  /// du web (image, 400 Ko), rangé hors de la base, sa référence écrite avec la
+  /// dépense en `en_attente` d'envoi.
+  ///
   /// Lève `RefusDepense` (saisie) ou `RefusComptable` (pièce refusée par le
   /// moteur, avec la phrase du serveur) — et rien d'autre n'est écrit : ni
   /// dépense, ni ligne, ni pièce, ni numéro de séquence consommé.
@@ -44,6 +49,7 @@ abstract interface class DepensesRepository {
     required List<SaisieLigneDepense> lignes,
     required String auteurId,
     String? centreId,
+    RecuAJoindre? recu,
   });
 
   /// Rattrapage : passe la pièce d'une dépense qui n'en a pas. Voir

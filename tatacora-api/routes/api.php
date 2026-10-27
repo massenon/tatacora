@@ -24,6 +24,7 @@ use App\Shared\Auth\Http\Controllers\AuthController;
 use App\Shared\Parametres\Http\Controllers\ParametreController;
 use App\Shared\Sync\Http\Controllers\CoherenceController;
 use App\Shared\Sync\Http\Controllers\DemandeSynchronisationController;
+use App\Shared\Sync\Http\Controllers\RecuDepenseController;
 use App\Shared\Sync\Http\Controllers\ReferentielsController;
 use App\Shared\Sync\Http\Controllers\SuiviPostesController;
 use App\Shared\Sync\Http\Controllers\SyncController;
@@ -94,6 +95,23 @@ Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
     // La génération des données (19/10/2026) : un poste d'avant une
     // réinitialisation du serveur est refusé (409) sur ces quatre routes.
     Route::get('/referentiels', ReferentielsController::class)->middleware(GenerationDesDonnees::class);
+
+    // Le REÇU en image d'une dépense (lot L4, décision du PO du 27/10/2026 :
+    // un transport de fichier dans la synchronisation). Le dépôt (PUT, corps =
+    // le fichier brut) est rattaché à l'UUID de la dépense que le poste a
+    // créée par `/sync` ; le téléchargement se fait À LA DEMANDE d'un poste
+    // (la descente ne porte que la référence). Mêmes droits que la dépense :
+    // écriture sur M10 pour déposer, lecture pour télécharger — contrôlés dans
+    // le contrôleur, comme `/sync` (pas de middleware `module:` : le poste du
+    // jeton doit aussi concorder).
+    Route::put('/sync/depenses/{depense}/recu', [RecuDepenseController::class, 'deposer'])
+        ->middleware(GenerationDesDonnees::class)
+        ->where('depense', '[0-9a-fA-F-]{36}')
+        ->name('api.sync.recu_depense.deposer');
+    Route::get('/sync/depenses/{depense}/recu', [RecuDepenseController::class, 'telecharger'])
+        ->middleware(GenerationDesDonnees::class)
+        ->where('depense', '[0-9a-fA-F-]{36}')
+        ->name('api.sync.recu_depense.telecharger');
 
     Route::prefix('hebergement')->group(function () {
         // Le PARC entier — referentiel descendant du client Flutter (PA-128).

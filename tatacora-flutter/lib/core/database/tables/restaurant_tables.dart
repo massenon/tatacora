@@ -170,6 +170,18 @@ class PlatsLocal extends Table {
   /// serveur l'envoie, jamais un `double`. `null` avec [articleId] nul.
   TextColumn get unitesVendables => text().nullable()();
 
+  /// v41 (27/10/2026) — LA CATÉGORIE du plat (`plats.categorie` du serveur), l'une
+  /// des dix clés de `CategorieCarte` (« entrees », « plats », « sauces »…). Ce
+  /// n'est PAS le type du menu (`menus.type`, trois valeurs) : le web classe la
+  /// carte par cette colonne-ci (`Restauration::enregistrerPlat`). NULLABLE : un
+  /// plat d'avant la v41 n'en a pas, la migration n'en déduit aucune (le type du
+  /// menu n'est pas une catégorie).
+  ///
+  /// | Qui l'écrit | Qui la lit | Qui la descend |
+  /// |---|---|---|
+  /// | `RestaurantDao.enregistrerPlat` (il enfile) | le catalogue des plats (filtre, colonne, détail) | `AligneurCatalogue._plat` (n'enfile jamais) |
+  TextColumn get categorie => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }

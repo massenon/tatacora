@@ -363,8 +363,8 @@ void main() {
     });
 
     testWidgets(
-      '« sans reçu » : l’infobulle dit que c’est vrai pour toutes les '
-      'lignes',
+      '« sans reçu » : une dépense qui ne porte aucun reçu, et son infobulle '
+      'le dit',
       (tester) async {
         await semer();
         await monter(tester);
@@ -376,13 +376,8 @@ void main() {
               .ancestor(of: pastille.first, matching: find.byType(Tooltip))
               .first,
         );
-        expect(
-          infobulle.message,
-          'Aucun reçu ne peut être joint sur ce poste : aucun sélecteur de '
-          'fichier n’est embarqué dans ce client. La pastille est donc vraie '
-          'pour toutes les lignes, ce n’est pas un état parmi deux.',
-        );
-        // Aucun lien « reçu » (aucun fichier joignable), et rien « non
+        expect(infobulle.message, 'Aucun reçu n’a été joint à cette dépense.');
+        // Aucun lien « reçu » (aucune de ces dépenses n'en porte), et rien « non
         // comptabilisée » : les deux dépenses semées ont leur pièce.
         expect(find.text('reçu'), findsNothing);
         expect(find.text('non comptabilisée'), findsNothing);
@@ -390,26 +385,27 @@ void main() {
       },
     );
 
-    testWidgets('le champ « Reçu / facture (photo) » dit pourquoi il est '
-        'absent', (tester) async {
+    testWidgets('le champ « Reçu / facture (photo) » existe : libellé de la '
+        'vue, bouton, aide VRAIE (400 Ko), aucun fichier choisi', (
+      tester,
+    ) async {
       await monter(tester);
       await tester.tap(find.byKey(const Key('depenses-nouvelle')));
       await tester.pumpAndSettle();
 
       expect(find.text('Reçu / facture (photo)'), findsOneWidget);
+      expect(find.byKey(const Key('depense-recu-choisir')), findsOneWidget);
       expect(
-        tester
-            .widget<Text>(
-              find.descendant(
-                of: find.byKey(const Key('depense-recu-absent')),
-                matching: find.byType(Text),
-              ),
-            )
-            .data,
-        'Aucun reçu ne peut être joint sur ce poste : ce client n\'embarque '
-        'pas de sélecteur de fichier. Conservez la pièce papier — la '
-        'dépense reste enregistrée sans elle.',
+        tester.widget<Text>(find.byKey(const Key('depense-recu-nom'))).data,
+        'Aucun fichier choisi',
       );
+      expect(
+        tester.widget<Text>(find.byKey(const Key('depense-recu-aide'))).data,
+        'L’image n’est pas réduite avant enregistrement : elle pèse 400 '
+        'kilo-octets au plus (JPG, PNG, GIF, BMP ou WEBP). Elle est rangée sur '
+        'ce poste, puis envoyée au serveur à la synchronisation.',
+      );
+      expect(find.byKey(const Key('depense-recu-absent')), findsNothing);
     });
 
     testWidgets('le total de la modale tombe sous la TROISIÈME colonne, comme '

@@ -70,8 +70,8 @@ Future<EtatVehicules?> construireEtatCourant(WidgetRef ref) async {
             [
               v.immatriculation,
               v.categorieLibelle,
-              // `null` s'écrit vide : aucune colonne locale, et « 0 » se
-              // lirait « aucune place ».
+              // `null` (véhicule d'avant la v41) s'écrit vide : « 0 » se lirait
+              // « aucune place ».
               v.capacite?.toString(),
               v.exigePermis ? 'exigé' : 'dispensé',
               v.tarifJour,
@@ -87,7 +87,8 @@ Future<EtatVehicules?> construireEtatCourant(WidgetRef ref) async {
           'Colonne « Statut » et non « Disponibilité » : la disponibilité se '
               'calcule sur la période affichée, et ne veut plus rien dire une '
               'fois le fichier remis. La période du document est en en-tête.',
-          'Colonne « Places » vide : aucune colonne de capacité sur ce poste.',
+          'Colonne « Places » vide pour un véhicule saisi avant que ce poste '
+              'l\'enregistre : « 0 » se lirait « aucune place ».',
           'Le « Véhicule » est son IMMATRICULATION : la table n\'a aucune '
               'colonne de nom.',
         ],
@@ -140,8 +141,8 @@ Future<EtatVehicules?> construireEtatCourant(WidgetRef ref) async {
         lignes: [
           for (final c in lignes)
             [
-              // Aucune colonne de numéro.
-              null,
+              // Le N° `LOC-…` du serveur (v41) ; vide tant qu'il n'est pas revenu.
+              c.numero,
               c.immatriculation,
               c.clientNom,
               // Exigés à la saisie, stockés nulle part.
@@ -150,25 +151,24 @@ Future<EtatVehicules?> construireEtatCourant(WidgetRef ref) async {
               c.debut,
               c.fin,
               c.nombreJours.toString(),
+              // Le montant FIGÉ, l'acompte et le reste dû (v41) ; vides pour un
+              // contrat d'avant (la case vide dit « inconnu », jamais « soldé »).
               c.montant,
-              // Aucune colonne d'acompte, donc aucun reste dû.
-              null,
-              null,
+              c.acompte,
+              c.resteDu,
               // `contrat_annule` / `contrat_actif`.
               c.annule ? 'Annulé' : 'Actif',
             ],
         ],
         mentions: [
           mentionFiltre,
-          'Colonnes « N° », « Acompte » et « Reste dû » vides : '
-              'ce poste ne les enregistre pas. Une case vide dit '
+          'Colonnes « N° », « Montant », « Acompte » et « Reste dû » vides pour '
+              'un contrat signé avant que ce poste les enregistre (ou dont le '
+              'numéro n\'est pas encore revenu du serveur). Une case vide dit '
               '« la donnée n\'existe pas » ; un « 0 » dirait « soldé ».',
           'Colonnes « Pièce » et « Permis » vides : les deux numéros sont '
               'exigés pour établir un contrat, et ne sont conservés nulle '
               'part — la table ne porte que des chemins de fichier.',
-          'Colonne « Montant » RECALCULÉE au tarif courant du véhicule : '
-              'aucune colonne ne fige le tarif d\'une location, et modifier la '
-              'grille réécrit le montant des contrats déjà signés.',
         ],
       );
   }

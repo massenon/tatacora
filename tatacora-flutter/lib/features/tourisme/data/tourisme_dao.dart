@@ -74,7 +74,13 @@ class TourismeDao extends DatabaseAccessor<AppDatabase> {
     )..orderBy([(g) => OrderingTerm.asc(g.nom)])).get();
     return lignes
         .map(
-          (g) => Guide(id: g.id, nom: g.nom, zoneCompetence: g.zoneCompetence),
+          (g) => Guide(
+            id: g.id,
+            nom: g.nom,
+            zoneCompetence: g.zoneCompetence,
+            certification: g.certification,
+            tarifJourFrancs: g.tarifJour,
+          ),
         )
         .toList(growable: false);
   }
@@ -571,11 +577,23 @@ class TourismeDao extends DatabaseAccessor<AppDatabase> {
         }
       }
 
+      // Depuis la v41 la certification et le tarif journalier sont RANGÉS ici (ils
+      // partaient déjà au serveur sans l'être sur le poste). `null` : champ non
+      // soumis, la colonne reste telle quelle ; la certification vide l'efface.
+      final avant = existant
+          ? await (select(
+              attachedDatabase.guidesLocal,
+            )..where((g) => g.id.equals(identifiant))).getSingleOrNull()
+          : null;
       await into(attachedDatabase.guidesLocal).insertOnConflictUpdate(
         GuidesLocalCompanion.insert(
           id: identifiant,
           nom: nom.trim(),
           zoneCompetence: Value(zone),
+          certification: Value(
+            certification == null ? avant?.certification : certif,
+          ),
+          tarifJour: Value(tarifJourFrancs ?? avant?.tarifJour),
         ),
       );
       await _file.enfiler(
@@ -593,7 +611,16 @@ class TourismeDao extends DatabaseAccessor<AppDatabase> {
       );
     });
 
-    return Guide(id: identifiant, nom: nom.trim(), zoneCompetence: zone);
+    final range = await (select(
+      attachedDatabase.guidesLocal,
+    )..where((g) => g.id.equals(identifiant))).getSingle();
+    return Guide(
+      id: identifiant,
+      nom: nom.trim(),
+      zoneCompetence: zone,
+      certification: range.certification,
+      tarifJourFrancs: range.tarifJour,
+    );
   }
 
   /// Une saisie vide devient `null` : deux façons d'écrire « rien » finissent

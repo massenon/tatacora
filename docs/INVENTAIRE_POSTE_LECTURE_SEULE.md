@@ -1,8 +1,10 @@
 # Inventaire du poste : écrans en lecture seule ou partiels, par rapport au web
 
-Date : 27/10/2026. Branche `claude/quirky-johnson-2pbs4t`. Aucune modification de
-code : cet inventaire est le seul livrable. Schéma du poste au moment de la mesure :
-**v40, 76 tables** (`AppDatabase.schemaVersion`).
+Date : 27/10/2026. Branche `claude/quirky-johnson-2pbs4t`. L'inventaire a été mesuré
+sans modification de code, à la **v40, 76 tables**. **Mise à jour du lot L3-S + L3
+(27/10/2026, décisions D1 et D2 du PO) : A6, A7, A8 et A10 sont LIVRÉS**, schéma
+**v41** (dix colonnes nullables, toujours 76 tables) ; voir la section 8. Les lignes
+concernées portent la mention « FAIT (L3) » ; le reste de l'inventaire est inchangé.
 
 Sources lues : `tatacora-flutter/CLAUDE.md`, `docs/AUDIT_POSTE_AUTONOME.md`, tous les
 composants `tatacora-api/app/Pwa/Livewire/**` (58 fichiers), les vues Blade
@@ -22,13 +24,13 @@ Journal d'audit, Recherche globale, Aide) n'ont aucune action et ne sont pas com
 | Indicateur | Nombre |
 |---|---|
 | Actions web d'écriture inventoriées | **150** |
-| Couvertes (OUI complet) | **135** |
-| Partielles | **7** |
+| Couvertes (OUI complet) | **139** (135 à la mesure, +4 par le lot L3) |
+| Partielles | **3** (7 à la mesure, −4 par le lot L3 : A9, A11, A12 restent) |
 | Lecture seule | **0** |
 | Absentes | **8** |
 
 Parmi les absentes et partielles, certaines sont des écarts voulus (section 3) : 
-**13 lignes relèvent des vrais manques (section 2)** et **2 sont des écarts voulus ou impossibles hors ligne (section 3)**. 
+**9 lignes relèvent des vrais manques (section 2 ; 13 à la mesure, 4 livrés par le lot L3)** et **2 sont des écarts voulus ou impossibles hors ligne (section 3)**. 
 Les lignes OUI portant une référence B sont des gestes complets dont une conséquence serveur est voulue (MECeF, stock, pièces manuelles).
 
 | Module | Actions | OUI | PARTIEL | ABSENT |
@@ -36,12 +38,12 @@ Les lignes OUI portant une référence B sont des gestes complets dont une cons�
 | M1 Hébergement | 14 | 14 | 0 | 0 |
 | M2 Facturation | 3 | 3 | 0 | 0 |
 | M3 CRM / Clients | 7 | 7 | 0 | 0 |
-| M4 Restaurant | 10 | 9 | 1 | 0 |
+| M4 Restaurant | 10 | 10 | 0 | 0 |
 | M5 Bar | 6 | 6 | 0 | 0 |
 | M6 Stocks | 10 | 10 | 0 | 0 |
 | M7 Achats | 8 | 8 | 0 | 0 |
-| M8 Véhicules / Locations | 7 | 5 | 2 | 0 |
-| M9 Tourisme | 7 | 6 | 1 | 0 |
+| M8 Véhicules / Locations | 7 | 7 | 0 | 0 |
+| M9 Tourisme | 7 | 7 | 0 | 0 |
 | M10 Comptabilité | 9 | 8 | 1 | 0 |
 | M11 Tableau de bord | 7 | 7 | 0 | 0 |
 | M12 Notifications | 7 | 7 | 0 | 0 |
@@ -52,8 +54,9 @@ Les lignes OUI portant une référence B sont des gestes complets dont une cons�
 
 **Lecture clé : le poste n'est presque plus en « lecture seule ».** Aucune action web n'est
 restée purement lisible sur le poste ; les écarts réels sont (a) huit lignes absentes (six gestes à construire, deux journaux du
-serveur hors périmètre), (b) cinq fiches dont des champs n'ont pas de colonne locale ou de
-transport, (c) deux écarts de droit ou de synchronisation (A11, A12). Plusieurs en-têtes de code Dart qui parlent encore de « lecture seule »
+serveur hors périmètre), (b) une fiche dont un champ n'a pas de transport (A9, le reçu de
+dépense ; les quatre autres fiches sont livrées par le lot L3), (c) deux écarts de droit ou de
+synchronisation (A11, A12). Plusieurs en-têtes de code Dart qui parlent encore de « lecture seule »
 ou de « non porté » sont **périmés** (section 6) : ils ne doivent pas servir de source.
 
 ## 1. Légende
@@ -75,11 +78,11 @@ ou de « non porté » sont **périmés** (section 6) : ils ne doivent pas servi
 | A3 | Bulletin de paie sur papier A4 : « Imprimer » et « PDF » (`Paie::exporterPdf`) | ABSENT | gabarit non construit ; les deux boutons s'affichent et répondent `VueBulletin.impressionAbsente` (`modales_paie.dart:1320`, `:1442-1451`) | M | non |
 | A4 | Archives : « Restaurer » un élément (`ImportExport::restaurerArchive`) | ABSENT | refusé sur un motif **inexact** : le web n'a pas de table d'archives, son registre est un agrégat DÉRIVÉ des unités et véhicules `hors_service` (`RegistreArchivesService`). Le poste a ces deux états (`ParcDao.archiver/restaurer`, `VehiculeDao.changerStatut`) | M | non |
 | A5 | Archives : « Purger » définitivement (`purgerArchive`) | ABSENT | suppression physique d'une unité ou d'un véhicule archivé (`ParcHebergementService::purger`, `ParcVehiculeService::purger`) ; le protocole de synchronisation ne connaît que création et modification, le serveur ne recevrait jamais la suppression | L | non (protocole serveur) |
-| A6 | Véhicule : Places, Année, Transmission (`Locations::enregistrerVehicule`) | PARTIEL | `vehicules_local` n'a que `id, categorie, immatriculation, tarifJour, statut` ; trois champs rendus inertes (`modale_vehicule.dart:177-205`) ; le serveur accepte les trois à la création (`GestionnaireVehicules`) mais refuse leur modification (`champ_non_modifiable`) | M | v41 (3 colonnes) + serveur |
-| A7 | Contrat : N° `LOC-`, Remise, Acompte, Reste dû (`Locations::enregistrerContrat`) | PARTIEL | `contrats_location_local` n'a aucune de ces colonnes ; le montant est recalculé au tarif COURANT (pas figé) ; champs inertes (`modale_contrat.dart:285-310`). Le serveur fixe acompte à 0 pour un contrat venu d'un poste (`GestionnaireContratsLocation`) | L | v41 (4 colonnes) + serveur |
-| A8 | Plat : champ « Catégorie » (dix valeurs, `Restauration::enregistrerPlat`) | PARTIEL | `plats_local` n'a pas `categorie` ; décision PO D100/D148 ouverte (`modale_plat.dart:31`) ; **le web l'écrit en direct** par `CartePlatMenuService`, mais `EnregistrerPlatRequest::CHAMPS_REFUSES` l'interdit par l'API et donc par la synchronisation | M | v41 (1 colonne) + serveur |
+| A6 | Véhicule : Places, Année, Transmission (`Locations::enregistrerVehicule`) | **FAIT (L3, 27/10/2026)** | `vehicules_local.annee/capacite/transmission` (v41), `VehiculeDao.enregistrerVehicule` (bornes et phrases du serveur), `GestionnaireVehicules::modifier` les accepte, descente (`COLONNES` portait déjà les trois) | - | v41 |
+| A7 | Contrat : N° `LOC-`, Remise, Acompte, Reste dû (`Locations::enregistrerContrat`) | **FAIT (L3, 27/10/2026)** | `contrats_location_local.numero/remise/acompte/montant` (v41) : montant net FIGÉ à la signature (plus de recalcul au tarif courant), reste dû = montant − acompte, N° du serveur posé à l'accusé ; `GestionnaireContratsLocation` accepte remise et acompte (phrases `lte` de la vue) ; anciens contrats : colonnes nulles, « — » | - | v41 |
+| A8 | Plat : champ « Catégorie » (dix valeurs, `Restauration::enregistrerPlat`) | **FAIT (L3, 27/10/2026)** | `plats_local.categorie` (v41), modale, colonne et filtre du catalogue, import M4 ; `GestionnairePlats` accepte `categorie` en synchronisation (registre fermé de la vue ; `CHAMPS_REFUSES` de l'API inchangé) ; `COLONNES` descend `plats.categorie`. Écart assumé : la CARTE du restaurant classe encore par type de menu | - | v41 |
 | A9 | Dépense : reçu / justificatif image (`Depenses::enregistrerDepense`, `photoRecu`) | PARTIEL | aucune colonne ni sélecteur (`ecran_depenses.dart:90`) ; la synchronisation est du JSON, aucun transport de fichier ; la pastille « sans reçu » est vraie pour toutes les lignes | L | v41 (chemin du reçu) + serveur |
-| A10 | Guide : Certification et Tarif/jour (`Departs::enregistrerGuide`) | PARTIEL | `guides_local` n'a que `id, nom, zoneCompetence` ; les deux valeurs PARTENT au serveur (`chargeGuide`) mais ne sont pas rangées ici | S | v41 (2 colonnes) |
+| A10 | Guide : Certification et Tarif/jour (`Departs::enregistrerGuide`) | **FAIT (L3, 27/10/2026)** | `guides_local.certification/tarif_jour` (v41) rangés par `TourismeDao.enregistrerGuide` (ils partaient déjà au serveur) et redescendus | - | v41 |
 | A11 | Archivage des employés : règle « administrateur / super_admin OU bascule » (`Paie::archiverEmployes`) | PARTIEL | `peutArchiverPaieProvider` réduit la règle aux deux rôles ; la règle unique `core/rbac/regle_archivage.dart` existe et sert déjà Fournisseurs, Clients, Articles (D272) | S | non |
 | A12 | Création d'un compte du plan comptable (`Hub::enregistrerCompte`) | PARTIEL | écrit sur le poste seulement : aucune table au registre de synchronisation (`ecran_comptabilite.dart:69`) ; un compte web n'arrive pas au poste, et inversement | L | non (serveur : gestionnaire + descente) |
 
@@ -154,7 +157,7 @@ et l'instant, donc aucun schéma n'est nécessaire.
 
 | Action web | Poste | Preuve / cause | Effort | Schéma ? | Réf. |
 |---|---|---|---|---|---|
-| `Restauration::enregistrerPlat` (créer / modifier) | **PARTIEL** | `RestaurantDao.enregistrerPlat` ; **catégorie** (dix valeurs) non portée | M | v41 | A8 |
+| `Restauration::enregistrerPlat` (créer / modifier) | **OUI** | `RestaurantDao.enregistrerPlat` ; catégorie (dix valeurs) portée depuis la v41 (A8, FAIT L3) | - | v41 | A8 |
 | `Restauration::enregistrerMenu` (créer / modifier) | **OUI** | `RestaurantDao.enregistrerMenu` | - | non |  |
 | `Restauration::enregistrerRecette`, `ajouterIngredient`, `retirerIngredient` | **OUI** | `RestaurantDao.enregistrerRecette` | - | non |  |
 | `Restauration::confirmerRetraitDuPlat` | **OUI** | `ecran_restauration.dart:1381`, `RetraitsPlats.retirer` | - | non |  |
@@ -208,9 +211,9 @@ et l'instant, donc aucun schéma n'est nécessaire.
 
 | Action web | Poste | Preuve / cause | Effort | Schéma ? | Réf. |
 |---|---|---|---|---|---|
-| `enregistrerVehicule` (créer / modifier) | **PARTIEL** | `VehiculeDao.enregistrerVehicule` ; **Places, Année, Transmission** inertes | M | v41 | A6 |
+| `enregistrerVehicule` (créer / modifier) | **OUI** | `VehiculeDao.enregistrerVehicule` ; Places, Année, Transmission portées depuis la v41 (A6, FAIT L3) | - | v41 | A6 |
 | `remettreEnService` | **OUI** | `vue_parc.dart:399` (`changerStatut`) | - | non |  |
-| `enregistrerContrat` | **PARTIEL** | `VehiculeDao.creerContrat` (RG-08/RG-09 tenues) ; **N°, Remise, Acompte, Reste dû** absents, montant non figé | L | v41 | A7 |
+| `enregistrerContrat` | **OUI** | `VehiculeDao.creerContrat` (RG-08/RG-09 tenues) ; N°, Remise, Acompte, Reste dû portés et montant FIGÉ depuis la v41 (A7, FAIT L3) | - | v41 | A7 |
 | `enregistrerImmobilisation` (entretien) | **OUI** | `VehiculeDao.enregistrerEntretien` (v32) ; pas de date de fin non plus au serveur | - | non | B14 |
 | `confirmerArchivage` / `executerSuppression` (véhicule) | **OUI** | `VehiculeDao.archiverVehicule`, `vue_parc.dart:446` | - | non |  |
 | `confirmerArchivage` / `executerSuppression` (contrat = annuler) | **OUI** | `VehiculeDao.annulerContrat` (v38), `vue_contrats.dart:418` | - | non |  |
@@ -221,7 +224,7 @@ et l'instant, donc aucun schéma n'est nécessaire.
 | Action web | Poste | Preuve / cause | Effort | Schéma ? | Réf. |
 |---|---|---|---|---|---|
 | `enregistrerReservation` | **OUI** | `TourismeDao.reserver` (RG-13 sur ce poste) | - | non |  |
-| `enregistrerGuide` | **PARTIEL** | `TourismeDao.enregistrerGuide` ; certification et tarif/jour partent au serveur mais ne sont pas rangés | S | v41 | A10 |
+| `enregistrerGuide` | **OUI** | `TourismeDao.enregistrerGuide` ; certification et tarif/jour rangés depuis la v41 (A10, FAIT L3) | - | v41 | A10 |
 | `enregistrerReaffectationGuide` | **OUI** | `TourismeDao.reaffecterGuide` | - | non |  |
 | `enregistrerPrestation` (créer / modifier) | **OUI** | `TourismeDao.enregistrerCircuit` | - | non |  |
 | `executerSuppression` (réservation = annuler) | **OUI** | `TourismeDao.annulerReservation` | - | non | B13 |
@@ -353,8 +356,8 @@ dans `retour_arriere_schema.dart`), puis ce qui exige une décision du PO.
 | **L0** | Nettoyage des commentaires et jetons périmés (section 6), sans changer le comportement | rien | S | non |
 | **L1** | Gestes sans schéma : A11 (règle d'archivage de la Paie, après décision D272), A1 (verrou de session), A3 (bulletin de paie PDF/impression), A2 (modales d'ouverture de session) | L0 (facultatif) | S + S + M + M | non |
 | **L2** | A4 : « Restaurer » depuis un registre dérivé (unités + véhicules `hors_service`, restaurations passées lues de la file d'envoi) | rien | M | non |
-| **L3-S** | **Serveur d'abord** : `GestionnaireVehicules::modifier` accepte année, capacité, transmission ; `GestionnaireContratsLocation` accepte remise et acompte et renvoie le `numero` ; `EnregistrerPlatRequest` / `GestionnairePlats` acceptent `categorie` en synchronisation ; guides déjà prêts | décisions D1, D2 | L | côté serveur seulement |
-| **L3** | **Poste v41** (colonnes nullables, jamais de valeur inventée) : `vehicules_local` (capacité, année, transmission), `contrats_location_local` (numéro, remise, acompte, reste), `plats_local` (catégorie), `guides_local` (certification, tarif jour). Modales A6, A7, A8, A10, import M8/M4, états, descente (`AligneurCatalogue`), `retour_arriere_schema`, `migration_v41_*_test` sur fichier réel | L3-S pour A6, A7, A8 ; A10 immédiat | L | **v41** |
+| **L3-S** | **FAIT (27/10/2026)** — serveur d'abord : `GestionnaireVehicules::modifier` accepte année, places, transmission ; `GestionnaireContratsLocation` accepte remise et acompte (phrases de la vue) et range le montant net ; `GestionnairePlats` accepte `categorie` en synchronisation ; guides déjà prêts ; `COLONNES` descend `plats.categorie` et `contrats_location.acompte` | décisions D1, D2 | L | côté serveur seulement |
+| **L3** | **FAIT (27/10/2026)** — **poste v41** : `vehicules_local` (capacité, année, transmission), `contrats_location_local` (numéro, remise, acompte, montant figé ; le reste dû se calcule), `plats_local` (catégorie), `guides_local` (certification, tarif jour) ; modales A6, A7, A8, A10, import M8/M4, états (Contrats, M14 « Locations », tableau de bord), descente, `retour_arriere_schema`, `migration_v41_champs_du_web_test` sur fichier réel | L3-S | L | **v41** |
 | **L4** | A9 reçu de dépense : colonne `recu_chemin` + sélecteur de fichier (mécanisme `captures_editeur.dart` existant) + transport de fichier à la synchronisation | décision D4, serveur | L | **v41 ou v42** (v42 si L3 est déjà livré) |
 | **L5** | Décisions structurantes : A5 purge (protocole `suppression`), A12 plan comptable synchronisé, B4/D246 pièces manuelles partagées | décisions D5, D6 | L chacun | non (protocole/serveur) |
 
@@ -384,10 +387,51 @@ la liste » (le geste existe : `SauvegardesPoste.retirer`).
 
 ## 7. Décisions que le PO doit trancher
 
-- **D1** : lever l'arbitrage D100/D148 : la catégorie d'un plat (dix valeurs du web) est-elle portée par le poste, ce qui oblige le serveur à l'accepter en synchronisation (aujourd'hui interdite par `CHAMPS_REFUSES`) ? Sinon le web garde un champ que le poste n'aura jamais.
-- **D2** : le contrat de location du poste doit-il porter remise et acompte comme le web (le serveur fixe aujourd'hui l'acompte d'un contrat de poste à 0) ? Et le montant doit-il être **figé** à la signature (aujourd'hui recalculé au tarif courant) ?
+- **D1** *(TRANCHÉ : OUI, 27/10/2026, livré par le lot L3)* : lever l'arbitrage D100/D148 : la catégorie d'un plat (dix valeurs du web) est-elle portée par le poste, ce qui oblige le serveur à l'accepter en synchronisation (aujourd'hui interdite par `CHAMPS_REFUSES`) ? Sinon le web garde un champ que le poste n'aura jamais.
+- **D2** *(TRANCHÉ : OUI, 27/10/2026, livré par le lot L3)* : le contrat de location du poste doit-il porter remise et acompte comme le web (le serveur fixe aujourd'hui l'acompte d'un contrat de poste à 0) ? Et le montant doit-il être **figé** à la signature (aujourd'hui recalculé au tarif courant) ?
 - **D3** : brancher la règle d'archivage unique (administrateur / super_admin OU bascule) sur la Paie (D272) ?
 - **D4** : justificatif de dépense : accepte-t-on un transport de fichier dans la synchronisation (aujourd'hui JSON seul) ?
 - **D5** : la purge définitive d'une unité ou d'un véhicule archivé doit-elle exister au poste (impose une opération `suppression` dans le protocole) ?
 - **D6** : D246 est-il rouvert pour le plan comptable (A12) et les pièces saisies à la main (B4) ?
 - **D7** : PA-192, PDF « certifié A4 » : le bulletin de paie A4 (A3) reprend-il le gabarit tabulaire commun ou exige-t-il visas et en-tête propres ?
+
+## 8. Lot L3-S + L3 livré (27/10/2026, schéma v41)
+
+Décisions D1 (catégorie d'un plat) et D2 (remise, acompte, N° et montant FIGÉ d'un contrat)
+prises par le PO : « convertir en CRUD, même logique que le web ». Le détail technique est
+dans `tatacora-flutter/CLAUDE.md`, section « Les champs du web portés : véhicule, contrat,
+plat, guide ».
+
+- **Serveur** (`tatacora-api`, `app/Shared/Sync`) : `GestionnaireVehicules::modifier` accepte
+  `annee` (1950 à l'an prochain), `capacite` (1 à 99) et `transmission` ;
+  `GestionnaireContratsLocation::creer` accepte `remise` et `acompte`, les juge dans l'ordre
+  de `Locations::enregistrerContrat` (remise > brut, puis acompte > net, phrases `lte` de la
+  vue) et range montant net, acompte et reste dû ; `GestionnairePlats` accepte `categorie`
+  (dix clés de `CarteRestaurant::CATEGORIES`, `required`, jamais nulle) sans lever
+  `EnregistrerPlatRequest::CHAMPS_REFUSES` pour l'API ; `GestionnaireGuides` rangeait déjà
+  certification et tarif. `CatalogueDescendantService::COLONNES` : `plats.categorie` et
+  `contrats_location.acompte` descendent. Tests : `VehiculesSynchronisationTest`,
+  `CatalogueRestaurantSynchronisationTest`, `TourismeSynchronisationTest`,
+  `ChampsPosteDescendantsTest`.
+- **Poste** : v41, dix colonnes nullables, aucune table neuve (76 tables). Rien n'est déduit
+  pour l'existant : un ancien contrat garde N°, montant, acompte et remise nuls (« — », le
+  montant n'est PAS recalculé au tarif courant ; la descente le comble avec le chiffre du
+  serveur là où il est nul), un ancien véhicule n'a ni année ni places, un ancien plat n'a
+  pas de catégorie, un ancien guide ni certification ni tarif.
+- **Mentions retirées** : « Places / Année / Transmission non enregistrées » (modale et
+  colonne), « Remise / Acompte / Reste à payer sans colonne » (modale, aperçu, liste, état),
+  « montant recalculé au tarif courant » (liste, état, aide du tarif), « catégorie du plat =
+  type du menu, arbitrage D100 ouvert » (modale et catalogue du restaurant), « le poste ne
+  saisit ni année ni capacité » et « le tarif du guide n'est pas saisi au poste » (commentaires
+  des gestionnaires du serveur).
+- **Guide** : la mention « certification et tarif partent au serveur mais ne sont pas rangés »
+  (A10) est périmée : `guides_local.certification` et `.tarif_jour` existent, la fiche les écrit
+  et les relit, la descente les redonne.
+- **Écarts assumés** : (1) la CARTE du restaurant (filtre, couverture du stock, impressions)
+  classe toujours par type de menu, comme `CarteRestaurantService` de l'API, alors que la vue
+  PWA la classe par la catégorie du plat ; (2) le serveur ne garde pas la remise : un contrat
+  descendu d'ailleurs n'a pas de remise ; (3) si le tarif d'un véhicule change entre la
+  signature au poste et la réception, le serveur range SON montant (tarif de sa réception) et
+  le poste garde le sien — la descente ne réécrit jamais le montant figé du poste ; (4) les
+  KPI et la ligne TOTAL des contrats rendent « — » dès qu'un contrat actif de la période est
+  d'avant la v41 et pas encore reçu du serveur (une somme amputée serait plausible et fausse).

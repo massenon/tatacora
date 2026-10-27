@@ -256,7 +256,7 @@ final class RestaurantApi {
 
   Future<ResultatRestaurant<PageRestaurant<Plat>>> plats({
     String? recherche,
-    CategoriePlat? categorie,
+    CategorieCarte? categorie,
     String? menuId,
     int page = 1,
     int parPage = platsParPage,

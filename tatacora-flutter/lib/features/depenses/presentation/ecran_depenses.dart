@@ -85,11 +85,13 @@ import 'widgets/table_depenses.dart';
 /// l'export, 14/10/2026, en-tête lu des paramètres), pas à l'écran. C'était
 /// déjà l'unique libellé absent de la page à la mesure précédente.
 ///
-/// ## Ce que la vue porte et que cet écran ne peut pas rendre (09/10/2026)
+/// ## Ce que la vue porte et que cet écran ne rend pas (09/10/2026, relu le 27/10/2026)
 ///
-/// - **Lien « reçu »** (l.272-274) : aucune colonne ne porte de pièce jointe
-///   et aucun sélecteur de fichier n'est embarqué. La pastille « sans reçu »
-///   est vraie pour toutes les lignes et son infobulle le dit.
+/// - **Lien « reçu »** (l.272-274) : PORTÉ depuis le lot L4 (27/10/2026,
+///   schéma v42) — la modale joint un reçu en image (règle du web : image, 400
+///   Ko), la colonne « Pièces » rend le lien « reçu » ou la pastille « sans
+///   reçu », et l'ÉTAT du reçu (en attente d'envoi, envoyé, refusé) ne se dit
+///   que de ce que le serveur a accusé.
 /// - **État replié des indicateurs, d'une session à l'autre** (l.152) : la vue
 ///   le retient en `localStorage`. Aucun magasin de préférences n'est embarqué.
 ///

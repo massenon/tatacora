@@ -89,6 +89,11 @@ class CorrectionReceptionService
             }
         }
 
+        // Le dépôt d'un reçu de dépense (fichier) suit le droit de lecture de M10.
+        if ($utilisateur->niveauSurModule('M10') !== '-') {
+            $tables[] = JournalReceptionService::TABLE_RECUS_DEPENSES;
+        }
+
         return $tables;
     }
 
