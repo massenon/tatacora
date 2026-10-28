@@ -1,6 +1,12 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'core/database/app_database.dart';
+import 'core/demarrage/demarrage_resilient.dart';
+import 'core/demarrage/journal_demarrage.dart';
 import 'core/di/providers.dart';
 import 'core/router/app_router.dart';
 import 'features/auth/presentation/voile_verrou_session.dart';
@@ -17,9 +23,37 @@ import 'features/notifications/presentation/providers_notifications.dart'
 /// l'exécution. Le flavor `demo` a son propre point d'entrée (`main_demo.dart`)
 /// parce qu'il ne doit émettre aucun appel réseau : partager ce fichier
 /// laisserait la possibilité d'en émettre un par inadvertance.
+///
+/// Le démarrage est enveloppé (PRD réinstallation R1) : la fenêtre s'ouvre sur
+/// « Mise à jour de la base du poste… », la base est ouverte et migrée, puis
+/// seulement le premier écran métier ; toute erreur laisse une ligne dans
+/// `demarrage.log` et affiche l'écran de panne.
 void main() {
-  WidgetsFlutterBinding.ensureInitialized();
-  runApp(const ProviderScope(child: ApplicationTatacora()));
+  final controleur = ControleurDemarrage();
+  runZonedGuarded(() async {
+    WidgetsFlutterBinding.ensureInitialized();
+    brancherFilets(controleur);
+    Directory? dossier;
+    try {
+      dossier = await dossierDonneesDuPoste();
+      controleur.attacherJournal(
+        JournalDemarrage(dossier)..nouvelleSession('Démarrage TATACORA'),
+      );
+    } on Object catch (e, s) {
+      controleur.signaler('dossier des données', e, s);
+    }
+    runApp(
+      DemarrageResilient(
+        controleur: controleur,
+        dossierDonnees: dossier?.path,
+        preparer: () => ouvrirBaseDuPoste(controleur.journal),
+        construire: (base) => ProviderScope(
+          overrides: [baseDemarrageProvider.overrideWithValue(base)],
+          child: const ApplicationTatacora(),
+        ),
+      ),
+    );
+  }, (erreur, pile) => controleur.signaler('zone', erreur, pile));
 }
 
 class ApplicationTatacora extends ConsumerStatefulWidget {

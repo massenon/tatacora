@@ -30,8 +30,12 @@ import '../database/app_database.dart';
 import '../database/auteur_ecriture.dart';
 import '../rbac/garde_acces.dart';
 
+/// La base déjà ouverte ET migrée par le démarrage résilient (`main.dart`,
+/// PRD réinstallation R1) ; `null` partout ailleurs (tests, démo).
+final baseDemarrageProvider = Provider<AppDatabase?>((ref) => null);
+
 final baseLocaleProvider = Provider<AppDatabase>((ref) {
-  final base = AppDatabase();
+  final base = ref.watch(baseDemarrageProvider) ?? AppDatabase();
   // QUI écrit, depuis quel poste (v38) : le compte CONNECTÉ à l'instant de
   // l'écriture — relu à chaque fois, jamais capturé ici (une session qui change
   // entre deux gestes ne doit pas écrire sous l'identité de la précédente,

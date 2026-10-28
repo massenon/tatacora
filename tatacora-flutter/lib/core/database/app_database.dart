@@ -294,6 +294,10 @@ class AppDatabase extends _$AppDatabase {
   /// l'auteur est inconnu et l'écran dit « — ».
   AuteurEcriture Function() auteurEcriture = () => aucunAuteurEcriture;
 
+  /// Où la migration écrit ce qu'elle fait (`demarrage.log`, PRD réinstallation
+  /// R1/R2). Posé par le démarrage avant la première ouverture ; `null` en test.
+  void Function(String ligne)? journalDemarrage;
+
   /// v2 (18/08/2026) — M1 Hébergement : `reference`, `tarifNuit`, `motifRejet`
   /// et `motifAnnulation` ajoutés à `ReservationsLocal`, et `statutSync`
   /// ramené à `local` par défaut. Motifs détaillés dans `hebergement_tables.dart`.
@@ -1507,6 +1511,11 @@ class AppDatabase extends _$AppDatabase {
     },
 
     beforeOpen: (details) async {
+      journalDemarrage?.call(
+        'Base ouverte : schéma v${details.versionNow}'
+        '${details.hadUpgrade ? ' (migrée depuis v${details.versionBefore})' : ''}'
+        '${details.wasCreated ? ' (créée)' : ''}',
+      );
       // Les clés étrangères ne sont PAS actives par défaut sous SQLite.
       // Sans cette ligne, une ligne de facture peut survivre à sa facture,
       // et l'incohérence ne se voit qu'à la synchronisation.
@@ -1530,16 +1539,20 @@ class AppDatabase extends _$AppDatabase {
 /// Conserver un paquet no-op parce qu'un document l'énumère serait pire qu'une
 /// divergence signalée : personne ne saurait, dans six mois, s'il est encore
 /// nécessaire.
+Future<Directory> dossierDonneesDuPoste() async {
+  final windows = Platform.isWindows
+      ? dossierBaseWindows(Platform.environment)
+      : null;
+  return windows != null
+      ? Directory(windows)
+      : Directory(
+          p.join((await getApplicationSupportDirectory()).path, 'donnees'),
+        );
+}
+
 LazyDatabase _ouvrir() {
   return LazyDatabase(() async {
-    final windows = Platform.isWindows
-        ? dossierBaseWindows(Platform.environment)
-        : null;
-    final neuf = windows != null
-        ? Directory(windows)
-        : Directory(
-            p.join((await getApplicationSupportDirectory()).path, 'donnees'),
-          );
+    final neuf = await dossierDonneesDuPoste();
     final emplacement = await preparerEmplacementBase(
       dossierNeuf: neuf,
       dossierAncien: await getApplicationDocumentsDirectory(),
