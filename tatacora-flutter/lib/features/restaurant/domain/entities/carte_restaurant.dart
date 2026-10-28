@@ -22,6 +22,14 @@
 library;
 
 import '../../../pos/data/dto/catalogue_dto.dart' show IndisponibiliteDistante;
+import 'plat.dart' show CategorieCarte;
+
+/// Le groupe d'un plat SANS catégorie (un plat d'avant la v41, ou reçu sans
+/// elle). La vue web le range sous sa clé brute vide, à l'intitulé VIDE
+/// (`EcranDeCarte::couverture` et `grouperParCategorie`) ; une cellule sans mot
+/// ne se lit pas, le poste écrit « Autres » — le mot que sa fiche des prix
+/// employait déjà. Aucune des dix catégories n'est jamais devinée.
+const String libelleSansCategorie = 'Autres';
 
 /// La catégorie d'un plat — **le type de son menu porteur**, jamais une
 /// colonne de `plats`.
@@ -209,6 +217,12 @@ final class IngredientLimitant {
   final String? uniteMesure;
 }
 
+/// Le libellé d'une clé de `plats.categorie` : celui du registre, la clé brute
+/// hors registre, [libelleSansCategorie] quand elle est vide.
+String libelleDeCategorie(String cle) =>
+    CategorieCarte.depuisCode(cle)?.libelle ??
+    (cle.isEmpty ? libelleSansCategorie : cle);
+
 /// Un plat de la carte, avec sa couverture de stock.
 final class LigneCarteRestaurant {
   const LigneCarteRestaurant({
@@ -262,8 +276,11 @@ final class LigneCarteRestaurant {
   /// `null` = non lu.
   final String? recetteLibelle;
 
-  /// Le code brut du serveur. Conservé **en plus** de [categorie] : un type
-  /// inconnu doit rester affichable tel quel plutôt que disparaître.
+  /// La clé de `plats.categorie` (l'une des dix de [CategorieCarte]), ou `''`
+  /// pour un plat sans catégorie — comme la vue web, qui classe la carte par la
+  /// catégorie du PLAT et non par le type de son menu (C1, 28/10/2026). Conservée
+  /// **en plus** de [categorie] : une clé hors registre reste affichable telle
+  /// quelle plutôt que de disparaître.
   final String categorieBrute;
 
   final String? menuId;
@@ -314,11 +331,11 @@ final class LigneCarteRestaurant {
   /// l'enregistrement quand le prix d'un plat provisoire change (jamais coché).
   final bool prixCorrigeMain;
 
-  CategoriePlat? get categorie => CategoriePlat.depuisCode(categorieBrute);
+  CategorieCarte? get categorie => CategorieCarte.depuisCode(categorieBrute);
 
-  /// Le libellé affichable de la catégorie — le code brut si le registre ne le
-  /// connaît pas, jamais une traduction inventée.
-  String get categorieLibelle => categorie?.libelle ?? categorieBrute;
+  /// Le libellé affichable de la catégorie — la clé brute si le registre ne la
+  /// connaît pas, « Autres » sans catégorie ; jamais une traduction inventée.
+  String get categorieLibelle => libelleDeCategorie(categorieBrute);
 }
 
 /// La bande de six cartes du maître (`carte-module.js` l.379-397).
@@ -408,8 +425,8 @@ final class CouvertureCategorie {
   /// [IndicateursCarte.tauxCouverture].
   final String? taux;
 
-  CategoriePlat? get categorie => CategoriePlat.depuisCode(categorieBrute);
-  String get categorieLibelle => categorie?.libelle ?? categorieBrute;
+  CategorieCarte? get categorie => CategorieCarte.depuisCode(categorieBrute);
+  String get categorieLibelle => libelleDeCategorie(categorieBrute);
 
   /// Le taux en nombre, pour la barre de progression. `null` quand il manque :
   /// une barre à zéro affirmerait une couverture nulle qui n'a pas été mesurée.

@@ -414,7 +414,7 @@ final class PlatCalcule {
     required this.id,
     required this.libelle,
     required this.menuId,
-    required this.menuType,
+    required this.categorie,
     required this.recetteId,
     required this.prixFrancs,
     required this.composition,
@@ -436,8 +436,9 @@ final class PlatCalcule {
   /// Le retrait de la carte du jour en cours (v31), ou `null`.
   final IndisponibiliteDistante? indisponibilite;
 
-  /// `menus.type` : la catégorie du plat (comme l'API).
-  final String menuType;
+  /// `plats.categorie` : la catégorie du PLAT (C1 — comme la vue web), `null`
+  /// pour un plat d'avant la v41. Ce n'est PAS le type du menu porteur.
+  final String? categorie;
   final String recetteId;
 
   /// Le libellé de la fiche, tel que la colonne « Article de stock » le nomme.
@@ -770,7 +771,7 @@ LigneCarteRestaurant _ligne(PlatCalcule p, {required bool pointCuisine}) {
   return LigneCarteRestaurant(
     id: p.id,
     libelle: p.libelle,
-    categorieBrute: p.menuType,
+    categorieBrute: p.categorie ?? '',
     menuId: p.menuId,
     recetteId: p.recetteId,
     recetteLibelle: p.recetteLibelle,
@@ -852,17 +853,24 @@ List<CouvertureCategorie> _couverture(List<LigneCarteRestaurant> lignes) {
         (lies[l.categorieBrute] ?? 0) + (l.lieAuStock ? 1 : 0);
   }
 
-  // `ksort` : l'ordre des clés (octets), pas celui des libellés.
-  final cles = plats.keys.toList()..sort();
+  // L'ordre de la vue (`EcranDeCarte::couverture`) : TOUTES les catégories du
+  // registre, dans son ordre, même vides ; puis les clés hors registre (dont
+  // le groupe « Autres » des plats sans catégorie), rendues et non jetées —
+  // la somme des lignes doit retomber sur le total.
+  final cles = [
+    for (final c in CategorieCarte.values) c.code,
+    ...(plats.keys.where((k) => CategorieCarte.depuisCode(k) == null).toList()
+      ..sort()),
+  ];
 
   return [
     for (final c in cles)
       CouvertureCategorie(
         categorieBrute: c,
-        plats: plats[c]!,
-        lies: lies[c]!,
-        sansLien: plats[c]! - lies[c]!,
-        taux: tauxCouverture(lies[c]!, plats[c]!),
+        plats: plats[c] ?? 0,
+        lies: lies[c] ?? 0,
+        sansLien: (plats[c] ?? 0) - (lies[c] ?? 0),
+        taux: tauxCouverture(lies[c] ?? 0, plats[c] ?? 0),
       ),
   ];
 }

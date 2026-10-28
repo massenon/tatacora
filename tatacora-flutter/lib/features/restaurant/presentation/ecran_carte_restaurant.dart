@@ -11,6 +11,7 @@ import '../../../shared_widgets/modale_export.dart';
 import '../../../shared_widgets/toast_export.dart';
 import '../data/restaurant_api.dart';
 import '../domain/entities/carte_restaurant.dart';
+import '../domain/entities/plat.dart' show CategorieCarte;
 import 'providers_restaurant.dart';
 import 'widgets/coquille_restaurant.dart';
 import 'widgets/corps_carte_commun.dart';
@@ -591,14 +592,14 @@ class _Filtres extends ConsumerWidget {
       cleRecherche: const Key('carte-restaurant-recherche'),
       onRecherche: (v) =>
           ref.read(rechercheCarteRestaurantProvider.notifier).definir(v),
-      categorie: ListeFiltre<CategoriePlat?>(
+      categorie: ListeFiltre<CategorieCarte?>(
         cleListe: const Key('carte-restaurant-filtre-categorie'),
         largeur: AppLayout.filtreCategorieCarteRestaurant,
         valeur: ref.watch(categorieCarteRestaurantProvider),
         options: [
           // L'option vide de la vue (`toutes_categories`, l.240).
           const (null, 'Toutes les catégories'),
-          for (final c in CategoriePlat.values) (c, c.libelle),
+          for (final c in CategorieCarte.values) (c, c.libelle),
         ],
         onChange: (c) =>
             ref.read(categorieCarteRestaurantProvider.notifier).definir(c),

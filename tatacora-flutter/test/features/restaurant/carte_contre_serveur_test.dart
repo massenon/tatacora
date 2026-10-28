@@ -113,6 +113,9 @@ Future<Map<String, dynamic>> _versPhp(
   }
 
   final db = m.db;
+  final categoriesDesPlats = {
+    for (final r in await db.select(db.platsLocal).get()) r.categorie ?? '',
+  };
   return {
     'points': [
       for (final p in await m.stocks.points())
@@ -138,9 +141,14 @@ Future<Map<String, dynamic>> _versPhp(
           'quantite': ecrireCentiemes(mv.centiemes),
         },
     ],
+    // C1 : l'API du serveur classe par `menus.type`, la vue web par la catégorie
+    // du PLAT. Pour confronter le CLASSEMENT au vrai `CarteRestaurantService`, on
+    // lui donne un menu par catégorie de plat (`type` = `plats.categorie`, vide
+    // pour un plat sans catégorie) : ce qu'il range sous « type » EST alors la
+    // catégorie du plat. Les menus réels du poste ne servent plus au classement.
     'menus': [
-      for (final r in await db.select(db.menusLocal).get())
-        {'id': r.id, 'libelle': r.libelle, 'type': r.type},
+      for (final c in categoriesDesPlats)
+        {'id': 'cat-$c', 'libelle': 'Catégorie $c', 'type': c},
     ],
     'recettes': [
       for (final r in await db.select(db.recettesLocal).get())
@@ -159,7 +167,7 @@ Future<Map<String, dynamic>> _versPhp(
         {
           'id': r.id,
           'libelle': r.libelle,
-          'menu_id': r.menuId,
+          'menu_id': 'cat-${r.categorie ?? ''}',
           'recette_id': r.recetteId,
           'prix_vente': ecrirePrix(r.prixVente),
           'prix_provisoire': r.prixProvisoire,
@@ -236,16 +244,31 @@ void _comparer(
 
   final couverture = (sansFiltre['couverture'] as List<dynamic>)
       .cast<Map<String, dynamic>>();
+  // Le serveur ne rend que les catégories PRÉSENTES, par ordre d'octets ; la vue
+  // web (et le poste) rendent les dix du registre, dans SON ordre, même vides,
+  // puis les clés hors registre. Mêmes comptes sur les catégories présentes :
   expect(
     [
       for (final c in locale.couverture)
-        [c.categorieBrute, c.plats, c.lies, c.sansLien, c.taux],
-    ],
+        if (c.plats > 0)
+          [c.categorieBrute, c.plats, c.lies, c.sansLien, c.taux],
+    ]..sort((a, b) => (a[0]! as String).compareTo(b[0]! as String)),
     [
       for (final c in couverture)
         [c['categorie'], c['plats'], c['lies'], c['sans_lien'], c['taux']],
     ],
     reason: '$contexte : couverture',
+  );
+  // … et l'ORDRE est celui de la vue : le registre d'abord, intégral.
+  expect(
+    [for (final c in locale.couverture) c.categorieBrute].take(10).toList(),
+    [for (final c in CategorieCarte.values) c.code],
+    reason: '$contexte : ordre du registre',
+  );
+  expect(
+    [for (final c in locale.couverture) c.plats].fold<int>(0, (a, b) => a + b),
+    i.plats,
+    reason: '$contexte : la somme des groupes est le total',
   );
 
   expect(
@@ -287,7 +310,7 @@ void main() {
             final requetes = <Map<String, String?>>[
               {'recherche': null, 'categorie': null, 'etat': null},
               {'recherche': 'plat-0', 'categorie': null, 'etat': null},
-              {'recherche': null, 'categorie': 'local', 'etat': null},
+              {'recherche': null, 'categorie': 'plats', 'etat': null},
               {'recherche': null, 'categorie': null, 'etat': 'lie'},
               {'recherche': null, 'categorie': null, 'etat': 'rupture_stock'},
             ];
@@ -296,7 +319,7 @@ void main() {
             final filtres = <(String?, String?, EtatArticleCarte)>[
               (null, null, EtatArticleCarte.tous),
               ('plat-0', null, EtatArticleCarte.tous),
-              (null, 'local', EtatArticleCarte.tous),
+              (null, 'plats', EtatArticleCarte.tous),
               (null, null, EtatArticleCarte.liesAuStock),
               (null, null, EtatArticleCarte.enRuptureDeStock),
             ];
@@ -306,7 +329,7 @@ void main() {
               final carte =
                   ((await m.api.carte(
                             recherche: recherche,
-                            categorie: CategoriePlat.depuisCode(categorie),
+                            categorie: CategorieCarte.depuisCode(categorie),
                             etat: etat,
                           ))
                           as RestaurantRecu<CarteRestaurant>)
@@ -631,6 +654,10 @@ Future<void> _peupler(
         recetteId: m.fiches[hasard.nextInt(m.fiches.length)],
         prixVente: '${hasard.nextInt(20000)}',
         prixProvisoire: hasard.nextInt(4) == 0,
+        // Une catégorie sur cinq manque (plat d'avant la v41).
+        categorie: hasard.nextInt(5) == 0
+            ? null
+            : CategorieCarte.values[hasard.nextInt(3)].code,
       ),
       modification: false,
       auteurId: 'u-1',

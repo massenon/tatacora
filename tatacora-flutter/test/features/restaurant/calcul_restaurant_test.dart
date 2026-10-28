@@ -34,7 +34,7 @@ PlatCalcule plat(
   String id,
   String libelle, {
   List<IngredientCalcule> composition = const [],
-  String type = 'local',
+  String? type = 'plats',
   int prix = 1000,
   bool provisoire = false,
   IndisponibiliteDistante? retrait,
@@ -42,8 +42,8 @@ PlatCalcule plat(
   indisponibilite: retrait,
   id: id,
   libelle: libelle,
-  menuId: 'm-$type',
-  menuType: type,
+  menuId: 'm-${type ?? 'aucune'}',
+  categorie: type,
   recetteId: 'r-$id',
   prixFrancs: prix,
   prixProvisoire: provisoire,
@@ -626,11 +626,11 @@ void main() {
     final poulet = ing('a-poulet', quantite: 300, stock: 1000, cmp: 25000000);
     final plats = [
       plat('p-1', 'Poulet DG', composition: [poulet], prix: 4500),
-      plat('p-2', 'Épinards', type: 'special', provisoire: true),
+      plat('p-2', 'Épinards', type: 'desserts', provisoire: true),
       plat(
         'p-3',
         'abricot',
-        type: 'europeen',
+        type: 'entrees',
         composition: [ing('a-x', quantite: 100, stock: 0)],
       ),
       plat('p-4', 'Zèbre', composition: [poulet], provisoire: true),
@@ -668,7 +668,7 @@ void main() {
 
     test('les indicateurs portent sur la carte ENTIÈRE, les lignes sur le '
         'filtre', () {
-      final c = carte(categorie: 'special');
+      final c = carte(categorie: 'desserts');
       expect([for (final l in c.lignes) l.id], ['p-2']);
       expect(c.indicateurs.plats, 4);
       expect(c.indicateurs.lies, 3);
@@ -729,15 +729,46 @@ void main() {
       expect(ids(EtatArticleCarte.tous), hasLength(4));
     });
 
-    test('la couverture : par type de menu, dans l’ordre des clés', () {
+    test('la couverture : par CATÉGORIE DU PLAT, les dix du registre dans son '
+        'ordre (même vides), comme la vue web (C1)', () {
       final cou = carte().couverture;
       expect(
         [for (final c in cou) c.categorieBrute],
-        ['europeen', 'local', 'special'],
+        [for (final c in CategorieCarte.values) c.code],
       );
-      expect([for (final c in cou) c.taux], ['100.0', '100.0', '0.0']);
-      expect(cou.last.plats, 1);
-      expect(cou.last.sansLien, 1);
+      final par = {for (final c in cou) c.categorieBrute: c};
+      expect(par['entrees']!.plats, 1);
+      expect(par['plats']!.plats, 2);
+      expect(par['desserts']!.plats, 1);
+      expect(par['desserts']!.sansLien, 1);
+      expect(par['entrees']!.taux, '100.0');
+      expect(par['plats']!.taux, '100.0');
+      expect(par['desserts']!.taux, '0.0');
+      // Une catégorie vide n'a pas de taux mesuré : « — », jamais 0 inventé.
+      expect(par['pizzas']!.plats, 0);
+      expect(par['pizzas']!.taux, isNull);
+    });
+
+    test('un plat SANS catégorie (d’avant la v41) ou hors registre : un groupe '
+        'à part, APRÈS les dix, jamais une catégorie inventée', () {
+      final c = calculerCarte(
+        plats: [
+          plat('p-1', 'Ancien', type: null),
+          plat('p-2', 'Étrange', type: 'gastronomique'),
+          plat('p-3', 'Riz', type: 'plats'),
+        ],
+        pointCuisineId: 'p-cui',
+        arreteAu: '2026-10-09T08:00:00',
+      );
+      final cles = [for (final x in c.couverture) x.categorieBrute];
+      expect(cles.take(10), [for (final x in CategorieCarte.values) x.code]);
+      expect(cles.skip(10), ['', 'gastronomique']);
+      expect(c.couverture[10].categorieLibelle, 'Autres');
+      expect(c.couverture[11].categorieLibelle, 'gastronomique');
+      expect(c.lignes.firstWhere((l) => l.id == 'p-1').categorie, isNull);
+      // La somme des groupes retombe sur le total des plats.
+      expect(c.couverture.fold<int>(0, (s, x) => s + x.plats), 3);
+      expect(carte(categorie: 'plats').lignes.length, 2);
     });
 
     test('sans point cuisine : aucune portion, aucune rupture déclarée', () {
@@ -756,10 +787,10 @@ void main() {
       expect(
         carte(
           recherche: 'po',
-          categorie: 'local',
+          categorie: 'plats',
           etat: EtatArticleCarte.liesAuStock,
         ).filtresAppliques,
-        {'recherche': 'po', 'categorie': 'local', 'etat': 'lie'},
+        {'recherche': 'po', 'categorie': 'plats', 'etat': 'lie'},
       );
     });
 

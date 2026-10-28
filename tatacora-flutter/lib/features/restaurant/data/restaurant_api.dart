@@ -214,11 +214,11 @@ final class RestaurantApi {
   /* ================================================================== */
 
   /// La carte entière, calculée des plats, des fiches et du stock du point
-  /// cuisine. [categorie] est le type du menu porteur (`local`, `europeen`,
-  /// `special`).
+  /// cuisine. [categorie] est la catégorie du PLAT (`plats.categorie`, l'une des
+  /// dix de [CategorieCarte]) — comme la vue web, plus le type du menu (C1).
   Future<ResultatRestaurant<CarteRestaurant>> carte({
     String? recherche,
-    CategoriePlat? categorie,
+    CategorieCarte? categorie,
     EtatArticleCarte? etat,
   }) async {
     if (!_peutLire()) return _refusLecture();

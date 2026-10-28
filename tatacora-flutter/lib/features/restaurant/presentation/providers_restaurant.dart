@@ -90,8 +90,8 @@ final rechercheCarteRestaurantProvider =
 
 /// Le sélecteur de catégorie de la carte — l.63.
 final categorieCarteRestaurantProvider =
-    NotifierProvider<_CategorieNotifier, CategoriePlat?>(
-      _CategorieNotifier.new,
+    NotifierProvider<_CategorieCarteNotifier, CategorieCarte?>(
+      _CategorieCarteNotifier.new,
     );
 
 /// Le sélecteur d'état de la carte — l.64-71.
@@ -197,20 +197,13 @@ final class _TexteNotifier extends Notifier<String> {
   void definir(String valeur) => state = valeur;
 }
 
-/// Le filtre « Toutes les catégories » du catalogue : l'une des dix catégories du
-/// plat (v41), plus le type du menu.
+/// Le filtre « Toutes les catégories » de la carte ET du catalogue : l'une des
+/// dix catégories du plat (v41).
 final class _CategorieCarteNotifier extends Notifier<CategorieCarte?> {
   @override
   CategorieCarte? build() => null;
 
   void definir(CategorieCarte? valeur) => state = valeur;
-}
-
-final class _CategorieNotifier extends Notifier<CategoriePlat?> {
-  @override
-  CategoriePlat? build() => null;
-
-  void definir(CategoriePlat? valeur) => state = valeur;
 }
 
 final class _EtatNotifier extends Notifier<EtatArticleCarte> {

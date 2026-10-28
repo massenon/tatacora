@@ -960,9 +960,10 @@ void main() {
         'Article;Categorie;Prix;Ingredients;Portions vendables;Cout matiere;'
         'Marque de prix',
       );
-      // Le plat : nombre brut, catégorie du menu, portions et coût calculés.
+      // Le plat : nombre brut, catégorie du PLAT (aucune ici : « Autres », jamais
+      // une catégorie devinée), portions et coût calculés.
       // La dernière case (marque de prix) est VIDE : le tarif est ferme.
-      expect(lignes[3], 'Poulet DG;Local;4500.00;1;33;750.00;');
+      expect(lignes[3], 'Poulet DG;Autres;4500.00;1;33;750.00;');
       expect(lignes, hasLength(4));
     });
 

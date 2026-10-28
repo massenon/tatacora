@@ -263,7 +263,7 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
             id: l.readTable(p).id,
             libelle: l.readTable(p).libelle,
             menuId: l.readTable(p).menuId,
-            menuType: l.readTable(m).type,
+            categorie: l.readTable(p).categorie,
             recetteId: l.readTable(p).recetteId,
             recetteLibelle: libellesFiches[l.readTable(p).recetteId],
             prixFrancs: l.readTable(p).prixVente,

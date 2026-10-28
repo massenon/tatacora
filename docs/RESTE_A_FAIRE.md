@@ -19,13 +19,13 @@
 
 ## B. Corrections serveur (PRD `PRD_CORRECTIONS_LOCATIONS_ET_ARCHIVAGE_VEHICULE.md`)
 
-- [ ] **B1** L'état M14 « Locations » exclut les contrats annulés (serveur + aperçu poste).
-- [ ] **B2** L'archivage d'un véhicule : même règle de date au serveur et au poste
+- [x] **B1** L'état M14 « Locations » exclut les contrats annulés (serveur + aperçu poste).
+- [x] **B2** L'archivage d'un véhicule : même règle de date au serveur et au poste
       (le jour de restitution engage encore), avec test de parité.
 
 ## C. Cohérence de la carte du restaurant
 
-- [ ] **C1** La carte du restaurant (filtre, groupes de la couverture, impressions) classe par
+- [x] **C1** La carte du restaurant (filtre, groupes de la couverture, impressions) classe par
       **catégorie du plat** comme la vue web (aujourd'hui par type de menu).
 
 ## D. Recette sur un vrai poste (par le PO, à signaler ici)

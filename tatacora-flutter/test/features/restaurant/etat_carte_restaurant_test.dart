@@ -16,10 +16,11 @@ LigneCarteRestaurant ligne(
   bool provisoire = false,
   bool corrige = false,
   String prix = '4500.00',
+  String categorie = 'plats',
 }) => LigneCarteRestaurant(
   id: libelle,
   libelle: libelle,
-  categorieBrute: 'local',
+  categorieBrute: categorie,
   prixVente: prix,
   lieAuStock: true,
   nbIngredients: 1,
@@ -74,10 +75,10 @@ void main() {
       );
       expect(
         lignes[3],
-        'Brochette;Local;4500.00;1;33;750.00;'
+        'Brochette;Plats complets;4500.00;1;33;750.00;'
         'prix provisoire · prix corrigé à la main',
       );
-      expect(lignes[4], 'Riz;Local;4500.00;1;33;750.00;');
+      expect(lignes[4], 'Riz;Plats complets;4500.00;1;33;750.00;');
     });
 
     test('les octets sont de l’UTF-8 : le BOM fait EF BB BF et les accents '
@@ -113,6 +114,22 @@ void main() {
       ]);
       expect(ecartes, 1);
       expect(octets.length, greaterThan(1000));
+    });
+
+    test('la fiche des prix groupe par catégorie du PLAT, dans l’ordre du '
+        'registre, « Autres » en dernier (C1)', () {
+      final groupes = EtatCarteRestaurant.groupesDeLaFiche([
+        ligne('Sans', categorie: ''),
+        ligne('Flan', categorie: 'desserts'),
+        ligne('Riz', categorie: 'plats'),
+        ligne('Beignet', categorie: 'entrees'),
+        ligne('Alloco', categorie: 'plats'),
+      ]);
+      expect(
+        [for (final g in groupes) g.$1],
+        ['Entrées', 'Plats complets', 'Nos desserts', 'Autres'],
+      );
+      expect([for (final l in groupes[1].$2) l.libelle], ['Alloco', 'Riz']);
     });
   });
 }
