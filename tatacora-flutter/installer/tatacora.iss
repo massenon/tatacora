@@ -128,7 +128,10 @@ begin
     'Désinstaller {#AppName} supprimera aussi TOUTES les données de ce poste :' + #13#10 +
     '  - la base locale (réservations, ventes, factures, stocks, comptabilité...)' + #13#10 +
     '  - la configuration (jeton d''appairage, messagerie SMTP)' + #13#10 +
-    '  - les archives de clôture et les reçus de dépenses' + #13#10 + #13#10 +
+    '  - les archives de clôture et les reçus de dépenses' + #13#10 +
+    '  - les sauvegardes (Paramètres > Sauvegardes) et la copie avant restauration' + #13#10 +
+    '  - le logo et l''icône de l''entreprise' + #13#10 +
+    '  - le journal de démarrage (demarrage.log)' + #13#10 + #13#10 +
     'Les saisies NON ENCORE SYNCHRONISÉES avec le serveur seront PERDUES, définitivement. ' +
     'Cette action est irréversible.' + #13#10 + #13#10 +
     'Voulez-vous désinstaller et supprimer ces données ?' + #13#10 + #13#10 +
