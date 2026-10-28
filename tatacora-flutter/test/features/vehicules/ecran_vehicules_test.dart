@@ -573,6 +573,52 @@ void main() {
   });
 
   /* ================================================================== */
+  group('Reçu de location — le bouton « Reçu » (28/10/2026)', () {
+    testWidgets('« Reçu » remet le contrat à l’action d’impression, pour un '
+        'rôle en LECTURE (M8 = L), sans rien écrire ; le contrat annulé '
+        'l’offre aussi', (tester) async {
+      await semer();
+      final id = (await dao.contrats()).single.id;
+      final recus = <ContratLocation>[];
+      await monter(
+        tester,
+        droits: const {'M8': 'L'},
+        surcharges: [
+          imprimerRecuLocationProvider.overrideWithValue((c) async {
+            recus.add(c);
+          }),
+        ],
+      );
+      await ouvrirOnglet(tester, 'contrats');
+
+      // Lecture seule : « Annuler » n'est pas offert, « Reçu » l'est.
+      expect(find.byKey(Key('vehicules-annuler-$id')), findsNothing);
+      expect(find.text('Reçu'), findsOneWidget);
+      await tester.tap(find.byKey(Key('vehicules-recu-$id')));
+      await tester.pump();
+
+      expect(recus.single.id, id);
+      expect(recus.single.immatriculation, 'AB 1234 RB');
+      expect((await dao.contrats()).single.annule, isFalse);
+    });
+
+    testWidgets('un contrat ANNULÉ offre « Reçu » (le document porte ANNULÉ)', (
+      tester,
+    ) async {
+      await semer();
+      final id = (await dao.contrats()).single.id;
+      await dao.annulerContrat(id);
+      await monter(tester);
+      await ouvrirOnglet(tester, 'contrats');
+      await tester.tap(find.byKey(const Key('vehicules-filtre-statut')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Tous').last);
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(Key('vehicules-recu-$id')), findsOneWidget);
+    });
+  });
+
   group('Annuler un contrat — l’écran (v38, 26/10/2026)', () {
     Future<String> ouvrirContrats(WidgetTester tester) async {
       await semer();

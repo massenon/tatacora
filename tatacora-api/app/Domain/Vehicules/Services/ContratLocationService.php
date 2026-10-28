@@ -107,6 +107,32 @@ class ContratLocationService
     }
 
     /**
+     * Ce que le REÇU de location porte en plus du contrat — une LECTURE
+     * (`pdf.location-recu`, jumeau de `impression/recu_location.dart`).
+     *
+     * Le tarif journalier n'est rendu que s'il EXPLIQUE le montant figé
+     * (tarif du véhicule × jours = montant) : le montant est figé à la
+     * signature, le tarif du véhicule a pu changer depuis ; sinon `null`.
+     *
+     * @return array{annule: bool, jours: int, tarif: string|null}
+     */
+    public function donneesRecu(ContratLocation $contrat): array
+    {
+        $jours = $contrat->nombreJours();
+        $tarif = $contrat->vehicule?->tarif_jour;
+        $montant = $contrat->montant;
+
+        $explique = $tarif !== null && $montant !== null
+            && bccomp(bcmul((string) $tarif, (string) $jours, 2), (string) $montant, 2) === 0;
+
+        return [
+            'annule' => $contrat->statut === self::STATUT_ANNULE,
+            'jours' => $jours,
+            'tarif' => $explique ? (string) $tarif : null,
+        ];
+    }
+
+    /**
      * Le véhicule est-il libre sur la période ? Lecture sans verrou, destinée
      * à l'affichage d'un planning — ne remplace jamais `creer()`.
      *

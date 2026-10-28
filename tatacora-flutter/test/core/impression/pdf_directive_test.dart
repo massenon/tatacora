@@ -153,6 +153,9 @@ void main() {
       'rh/impression/bulletin_paie_a4.dart',
       // Le ticket de la vente encaissée (80 mm, remis au client), 26/10/2026.
       'ventes/impression/ticket_vente.dart',
+      // Le reçu de location (`pdf/location-recu.blade.php`, 28/10/2026) : remis
+      // au client, ni visa ni pied de rapport.
+      'vehicules/impression/recu_location.dart',
     };
     // Tableur seulement : aucun PDF composé. Vide depuis le Lot J1 ; le
     // registre reste, pour qu'un futur export CSV seul s'y classe.

@@ -18,15 +18,19 @@
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pdf/pdf.dart';
+import 'package:printing/printing.dart';
 
 import '../../../core/di/providers.dart';
 import '../../../core/fichiers/enregistrement_export.dart';
+import '../../../core/impression/entete_parametree.dart';
 import '../../../core/impression/export_etat_a4.dart';
 import '../data/vehicule_dao.dart';
 import '../domain/entities/contrat_location.dart';
 import '../domain/entities/vehicule.dart';
 import '../domain/indicateurs_vehicules.dart';
 import '../impression/etat_vehicules.dart';
+import '../impression/recu_location.dart';
 
 /// L'accès aux deux tables locales de M8.
 final vehiculeDaoProvider = Provider<VehiculeDao>(
@@ -261,4 +265,41 @@ final exporterVehiculesPdfProvider =
     Provider<Future<String?> Function(EtatVehicules)>(
       (ref) =>
           (etat) => enregistrerEtatA4(ref, etat.etatA4(), base: 'vehicules'),
+    );
+
+/// Le tarif courant du véhicule d'un contrat, lu sur le parc LOCAL (zéro
+/// réseau), ou `null` quand ce poste ne détient pas le véhicule.
+Future<String?> _tarifDuVehicule(Ref ref, String immatriculation) async {
+  final parc = await ref.read(vehiculeDaoProvider).parc();
+  for (final v in parc) {
+    if (v.immatriculation == immatriculation) return v.tarifJour;
+  }
+  return null;
+}
+
+/// Le reçu de location d'UN contrat, exposé comme **action** (jamais appelé
+/// depuis un widget) : composé sous l'en-tête lu des paramètres, puis remis à
+/// l'impression du poste (`Printing.layoutPdf`).
+///
+/// Une LECTURE : rien n'est écrit, aucun numéro n'est alloué, et le poste n'a
+/// besoin d'aucune synchronisation — toutes les données sont locales. L'émetteur
+/// est « Nom — Rôle » de la session, comme `ReportHeaderService` du serveur.
+final imprimerRecuLocationProvider =
+    Provider<Future<void> Function(ContratLocation)>(
+      (ref) => (contrat) async {
+        final session = ref.read(sessionProvider);
+        final recu = RecuLocation(
+          contrat: contrat,
+          emisLe: DateTime.now(),
+          emisPar: session == null
+              ? 'Auteur non identifié'
+              : '${session.nom} — ${session.role}',
+          tarifJour: await _tarifDuVehicule(ref, contrat.immatriculation),
+        ).avecEntete(await ref.read(lireEnteteEtablissementProvider)());
+        await Printing.layoutPdf(
+          onLayout: (_) => recu.pdf(),
+          name: 'Reçu de location ${contrat.numero ?? contrat.immatriculation}',
+          format: PdfPageFormat.a4,
+        );
+      },
     );

@@ -576,6 +576,8 @@ final class PwaActionsReluesTest extends TestCase
             'ouvrirFormulaireImmobilisation', 'enregistrerImmobilisation',
             'confirmerArchivage', 'executerSuppression',
             'genererExport', 'fermerModales',
+            // Reçu de location (PDF d'UN contrat) : une lecture.
+            'imprimerRecu',
         ],
 
         // ⚠ LES DEUX PAGES M14 — un cas a part, et il le reste sous le

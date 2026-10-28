@@ -185,6 +185,24 @@ return [
         'contrat_annule' => 'Annulé',
         'solde' => 'Soldé',
         'annuler_contrat' => 'Annuler',
+
+        // --- Reçu de location (PDF, web + poste, 28/10/2026) ------------
+        'recu' => 'Reçu',
+        'recu_titre' => 'REÇU DE LOCATION',
+        'recu_fichier' => 'recu_location',
+        'recu_mention' => 'Ce document atteste un contrat de location. Il ne vaut pas facture : la facture normalisée est émise à l\'encaissement.',
+        'recu_annule_bandeau' => 'ANNULÉ',
+        'recu_annule_mention' => 'Ce contrat est annulé : aucun montant n\'est dû au titre de ce contrat.',
+        'recu_numero' => 'N° du contrat',
+        'recu_duree' => 'Durée',
+        'recu_jours' => ':jours jour(s)',
+        'recu_tarif' => 'Tarif journalier',
+        'recu_montant' => 'Montant total',
+        'recu_acompte' => 'Acompte versé',
+        'recu_reste' => 'Reste dû',
+        'recu_statut' => 'Statut',
+        'recu_emis_le' => 'Émis le',
+        'recu_emis_par' => 'Émis par',
         'total_contrats' => 'TOTAL — :nombre contrat(s) actif(s)',
 
         // --- Onglet Planning -------------------------------------------

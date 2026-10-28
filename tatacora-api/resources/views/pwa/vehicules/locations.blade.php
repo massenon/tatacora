@@ -388,7 +388,11 @@
                             <span class="text-[11px] px-2 py-0.5 rounded bg-emerald-50 text-emerald-700">{{ __('vehicules.pwa.contrat_actif') }}</span>
                           @endif
                         </td>
-                        <td class="px-3 py-2 text-right">
+                        <td class="px-3 py-2 text-right whitespace-nowrap">
+                          {{-- Le reçu (PDF) est une LECTURE : offert à tout rôle qui voit l'écran,
+                               annulé compris (le document porte alors « ANNULÉ »). --}}
+                          <button type="button" wire:click="imprimerRecu('{{ $c->id }}')"
+                                  class="text-[11px] px-2 py-0.5 rounded border border-slate-300 hover:bg-white">{{ __('vehicules.pwa.recu') }}</button>
                           @if ($peutEcrire && ! $estAnnule)
                             <button type="button" wire:click="confirmerArchivage('contrat', '{{ $c->id }}')"
                                     class="text-[11px] px-2 py-0.5 rounded border border-slate-300 hover:bg-white">{{ __('vehicules.pwa.annuler_contrat') }}</button>

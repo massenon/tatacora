@@ -674,6 +674,53 @@ class Locations extends PageMetier
         );
     }
 
+    /**
+     * Le REÇU de location (PDF A4) d'UN contrat — la même pièce que le poste
+     * (`impression/recu_location.dart`).
+     *
+     * ## C'est une LECTURE
+     *
+     * Rien n'est écrit et aucun numéro n'est alloué : le N° est celui que le
+     * contrat porte déjà (`LOC-…`), un contrat qui n'en a pas rend le tiret.
+     * Comme `genererExport()`, elle n'exige pas le droit d'écriture : elle ne
+     * rend que ce que l'écran affiche déjà. Inscrite dans
+     * `METHODES_DE_LECTURE` de `PwaEcritureAutoriseeTest`, donc relue.
+     *
+     * ## Ce que le document dit, et ne dit pas
+     *
+     * - il ne vaut PAS facture (mention au corps) : la facture normalisée est
+     *   émise à l'encaissement ;
+     * - un contrat ANNULÉ porte le bandeau « ANNULÉ » et AUCUN montant : ni
+     *   total, ni acompte, ni reste dû (rien n'est dû au titre d'un contrat
+     *   annulé) ;
+     * - le tarif journalier n'est écrit que s'il EXPLIQUE le montant figé
+     *   (tarif du véhicule × jours = montant) ; sinon le tiret — le montant
+     *   est figé à la signature, le tarif du véhicule peut avoir changé.
+     */
+    public function imprimerRecu(string $contrat): StreamedResponse
+    {
+        $piece = ContratLocation::with(['vehicule', 'client'])->findOrFail($contrat);
+
+        $pdf = Pdf::loadView('pdf.location-recu', [
+            'contrat' => $piece,
+            ...app(ContratLocationService::class)->donneesRecu($piece),
+            'entete' => $this->enTeteRapport(
+                __('vehicules.pwa.recu_titre'),
+                __('rapports.periode.du_au', [
+                    'debut' => $piece->date_debut->format('d/m/Y'),
+                    'fin' => $piece->date_fin->format('d/m/Y'),
+                ]),
+            ),
+        ])->setPaper('a4', 'portrait');
+
+        return response()->streamDownload(
+            static function () use ($pdf): void {
+                echo $pdf->output();
+            },
+            __('vehicules.pwa.recu_fichier').'_'.($piece->numero ?? substr((string) $piece->id, 0, 8)).'.pdf',
+        );
+    }
+
     public function fermerModales(): void
     {
         $this->etatFormulaire = null;

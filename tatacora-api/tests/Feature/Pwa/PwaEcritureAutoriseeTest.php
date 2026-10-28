@@ -152,6 +152,8 @@ final class PwaEcritureAutoriseeTest extends TestCase
         // cette garde le dirait.
         'ouvrirExport',
         'genererExport',
+        // Reçu de location : le PDF d'UN contrat, une lecture (28/10/2026).
+        'imprimerRecu',
         'exporterPdf',
         // Lot 4 (20/10/2026) : délivre l'archive de clôture DÉJÀ écrite,
         // vérifiée contre son empreinte — `ArchiveClotureService::zip()` ne

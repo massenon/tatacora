@@ -193,7 +193,18 @@ class _Corps extends StatelessWidget {
                       _Acompte(contrat: c),
                       _ResteDu(contrat: c),
                       _EtatContrat(contrat: c),
-                      _ActionAnnuler(contrat: c, peutEcrire: peutEcrire),
+                      // « Reçu » est une LECTURE : offert à tout rôle qui voit
+                      // l'écran, contrat annulé compris (le document porte alors
+                      // « ANNULÉ »). « Annuler » reste derrière le droit M8.
+                      Wrap(
+                        alignment: WrapAlignment.end,
+                        spacing: AppSpacing.xs,
+                        runSpacing: AppSpacing.xs,
+                        children: [
+                          _ActionRecu(contrat: c),
+                          _ActionAnnuler(contrat: c, peutEcrire: peutEcrire),
+                        ],
+                      ),
                     ],
                 ],
               ),
@@ -369,6 +380,39 @@ class _EtatContrat extends StatelessWidget {
             fond: AppColors.badgeVertFond,
             couleur: AppColors.succes,
           );
+  }
+}
+
+/// Le bouton « Reçu » de la vue (`vehicules.pwa.recu`) : le reçu de location (PDF
+/// A4) du contrat, par l'impression du poste (`Printing.layoutPdf` — imprimer ou
+/// « Enregistrer au format PDF »). Une lecture : aucun droit d'écriture, aucune
+/// écriture, aucun réseau.
+class _ActionRecu extends ConsumerWidget {
+  const _ActionRecu({required this.contrat});
+
+  final ContratLocation contrat;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return InkWell(
+      key: Key('vehicules-recu-${contrat.id}'),
+      borderRadius: BorderRadius.circular(AppRadius.rounded),
+      onTap: () => ref.read(imprimerRecuLocationProvider)(contrat),
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xs,
+          vertical: AppSpacing.demi,
+        ),
+        decoration: BoxDecoration(
+          border: Border.all(color: Ardoise.c300),
+          borderRadius: BorderRadius.circular(AppRadius.rounded),
+        ),
+        child: Text(
+          'Reçu',
+          style: TextesRestaurant.mention.copyWith(color: Ardoise.c700),
+        ),
+      ),
+    );
   }
 }
 
