@@ -1289,6 +1289,10 @@ void main() {
         if (f is! File || !f.path.endsWith('.dart')) continue;
         if (f.path.endsWith('.g.dart')) continue;
         if (f.path.endsWith('app_database.dart')) continue;
+        // Exception NOMMÉE (28/10/2026, R2) : la réconciliation du schéma
+        // rejoue la migration v43 (élargissement du CHECK) sur la table ; elle
+        // ne lit ni n'écrit une ligne de la file.
+        if (f.path.endsWith('core/database/reconcilier_schema.dart')) continue;
         final code = f.readAsStringSync();
         if (motifs.any((m) => m.hasMatch(code))) ecrivains.add(f.path);
       }
