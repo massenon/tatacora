@@ -61,7 +61,7 @@ void main() {
     );
     await moteur.passerEtValider(
       DemandePiece(
-        journal: 'ACH',
+        journal: 'CAI',
         date: date,
         libelle: 'Achat',
         lignes: [

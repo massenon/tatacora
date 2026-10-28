@@ -7,13 +7,13 @@
 
 ## A. Obstacles comptables à lever (poste autonome)
 
-- [ ] **A1** Les états du poste (compte de résultat, bilan, indicateurs, balance) incluent
+- [x] **A1** Les états du poste (compte de résultat, bilan, indicateurs, balance) incluent
       les pièces saisies à la main du poste **pas encore reprises** par le serveur
       (reconnues par leur identifiant d'origine : jamais de double comptage), même quand
       la synchronisation est active et que le miroir du serveur contient des écritures.
-- [ ] **A2** Une pièce refusée par le serveur reste validée, immuable et **comptée** dans les
+- [x] **A2** Une pièce refusée par le serveur reste validée, immuable et **comptée** dans les
       états du poste ; l'écran le dit (bandeau) et le refus se lit dans « À traiter ».
-- [ ] **A3** Les pièces saisies à la main **avant la v44** : un geste explicite, réservé aux
+- [x] **A3** Les pièces saisies à la main **avant la v44** : un geste explicite, réservé aux
       administrateurs et confirmé (« Envoyer mes anciennes pièces saisies »), les marque et
       les envoie — jamais déduit en silence. Sans ce geste, elles restent comptées au poste.
 

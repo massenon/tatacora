@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../synchronisation/domain/operation_sync.dart';
+import '../../synchronisation/domain/suivi_synchronisation.dart'
+    show libelleDocument, motifOperation;
 import '../../synchronisation/presentation/providers_synchronisation.dart';
 import '../../../core/di/providers.dart';
 import '../../transverse/data/configuration_poste.dart';
@@ -93,9 +95,13 @@ Future<DonneesEtats> lireDonneesEtats(Ref ref) async {
   final dao = ref.read(comptabiliteDaoProvider);
   final miroir = EcrituresServeurDao(ref.read(baseLocaleProvider));
   final exercices = await dao.exercices();
+  // A1 : le miroir + les pièces saisies à la main PAS ENCORE reprises (leur
+  // identifiant d'origine n'est pas dans le miroir : jamais de double compte).
+  final manuelles = await dao.ecrituresPiecesManuellesNonReprises();
   return DonneesEtats(
     ecrituresParAnnee: {
-      for (final e in exercices) e.annee: await miroir.deLAnnee(e.annee),
+      for (final e in exercices)
+        e.annee: [...await miroir.deLAnnee(e.annee), ...?manuelles[e.annee]],
     },
     statutParAnnee: {for (final e in exercices) e.annee: e.statut},
     plan: await _planDeReport(dao),
@@ -190,7 +196,14 @@ final indicateursComptablesProvider = FutureProvider.autoDispose
 /// sont arrivées, sinon les pièces de CE poste.
 Future<List<ChargeDatee>> lireChargesDatees(Ref ref) async {
   if (await lireSourceEtats(ref) == SourceEtatsFinanciers.miroirDuServeur) {
-    return EcrituresServeurDao(ref.read(baseLocaleProvider)).chargesDatees();
+    return [
+      ...await EcrituresServeurDao(
+        ref.read(baseLocaleProvider),
+      ).chargesDatees(),
+      ...await ref
+          .read(comptabiliteDaoProvider)
+          .chargesPiecesManuellesNonReprises(),
+    ];
   }
   final d = await lireDonneesComptabilite(ref.read(comptabiliteDaoProvider));
   return [
@@ -203,3 +216,46 @@ Future<List<ChargeDatee>> lireChargesDatees(Ref ref) async {
         ),
   ];
 }
+
+/// Un refus du serveur sur une pièce saisie à la main (lot A2) : la pièce reste
+/// validée, immuable (RG-11) et COMPTÉE dans les états de ce poste.
+final class RefusPieceSaisie {
+  const RefusPieceSaisie({required this.libelle, required this.motif});
+  final String libelle;
+  final String motif;
+}
+
+/// Ce que le bandeau de provenance dit des pièces saisies à la main (A1, A2, A3).
+final class PiecesManuellesEnAttente {
+  const PiecesManuellesEnAttente({
+    required this.comptees,
+    required this.refusees,
+    required this.anciennesNonEnvoyees,
+  });
+
+  /// Pièces saisies à la main comptées ici en attendant que le serveur les reprenne.
+  final int comptees;
+  final List<RefusPieceSaisie> refusees;
+
+  /// Anciennes pièces (avant la v44) que le geste du hub n'a pas encore envoyées.
+  final int anciennesNonEnvoyees;
+}
+
+final piecesManuellesEnAttenteProvider =
+    FutureProvider.autoDispose<PiecesManuellesEnAttente>((ref) async {
+      final dao = ref.watch(comptabiliteDaoProvider);
+      final aTraiter = await ref.watch(operationsSyncDaoProvider).aTraiter();
+      return PiecesManuellesEnAttente(
+        comptees: await dao.nombrePiecesManuellesCompteesEnAttente(),
+        refusees: [
+          for (final a in aTraiter)
+            if (a.operation.table == TableSynchronisee.piecesSaisie &&
+                a.operation.statut == StatutOperationSync.rejete)
+              RefusPieceSaisie(
+                libelle: libelleDocument(a.operation) ?? '—',
+                motif: motifOperation(a.operation),
+              ),
+        ],
+        anciennesNonEnvoyees: (await dao.anciennesPiecesSaisies()).length,
+      );
+    });

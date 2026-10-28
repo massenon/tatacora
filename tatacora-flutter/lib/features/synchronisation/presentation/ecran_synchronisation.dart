@@ -811,6 +811,8 @@ class _ATraiter extends ConsumerWidget {
             couleur: AppColors.erreur,
           ),
           _ligneTexte(motifOperation(o), cle: Key('sync-motif-$uuid')),
+          if (notePieceSaisieRefusee(o) case final note?)
+            _ligneTexte(note, cle: Key('sync-note-$uuid')),
           for (final (i, e) in cause.erreurs.indexed)
             _ligneTexte(
               '${e.libelle} : ${e.messages.join(' ')}',

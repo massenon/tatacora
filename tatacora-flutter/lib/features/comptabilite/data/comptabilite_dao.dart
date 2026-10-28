@@ -3,6 +3,8 @@ import 'package:uuid/uuid.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/database/declencheurs_comptables.dart';
+import '../../tableau_de_bord/domain/indicateurs_locaux.dart' show ChargeDatee;
+import '../domain/anciennes_pieces_saisies.dart';
 import '../domain/cloture_exercice.dart';
 import '../domain/correspondance_comptes.dart';
 import '../domain/entities/comptabilite.dart';
@@ -883,6 +885,183 @@ class ComptabiliteDao extends DatabaseAccessor<AppDatabase> {
             )
             ..orderBy([(p) => OrderingTerm.asc(p.creeLe)]))
           .get();
+
+  /// Les numéros des ANCIENNES pièces saisies à la main (avant la v44, lot A3) :
+  /// ni marquées (`pieces_saisie_local`), ni rattachées à un module, une clôture
+  /// ou une contre-passation. Voir `anciennes_pieces_saisies.dart` : EN CAS DE
+  /// DOUTE la pièce n'y est pas. Le filtre se fait par PIÈCE (un `NOT IN` sur les
+  /// numéros), jamais ligne à ligne : une pièce dont UNE ligne est citée par un
+  /// module disparaît entière.
+  static final String _sqlAnciennesPieces =
+      '''
+SELECT e.numero_piece FROM ecritures_local e
+  JOIN journaux_local j ON j.id = e.journal_id
+  JOIN exercices_local x ON x.id = e.exercice_id
+ WHERE e.numero_piece IS NOT NULL
+   AND j.code NOT IN (${journauxDesModulesEtDeCloture.map((c) => "'$c'").join(',')})
+   AND x.statut <> 'cloture'
+   AND NOT EXISTS (SELECT 1 FROM pieces_saisie_local p
+                    WHERE p.numero_piece = e.numero_piece)
+   AND e.numero_piece NOT IN (
+     SELECT e2.numero_piece FROM ecritures_local e2
+      WHERE e2.numero_piece IS NOT NULL
+        AND (e2.ecriture_contrepassee_id IS NOT NULL
+          OR e2.id IN (SELECT ecriture_contrepassee_id FROM ecritures_local
+                        WHERE ecriture_contrepassee_id IS NOT NULL)
+          OR e2.id IN (SELECT ecriture_id FROM depenses_local
+                        WHERE ecriture_id IS NOT NULL)
+          OR e2.id IN (SELECT ecriture_remboursement_id FROM reservations_local
+                        WHERE ecriture_remboursement_id IS NOT NULL)))
+ GROUP BY e.numero_piece
+HAVING COUNT(*) >= 2
+   AND COUNT(DISTINCT e.journal_id) = 1
+   AND COUNT(DISTINCT e.exercice_id) = 1
+   AND COUNT(DISTINCT e.statut) = 1
+   AND COUNT(DISTINCT e.date_ecriture) = 1
+   AND SUM(e.debit_centimes) = SUM(e.credit_centimes)''';
+
+  /// Les pièces saisies à la main que le poste COMPTE en attendant le serveur :
+  /// celles qu'il a marquées et que le serveur n'a pas reprises (reconnues par
+  /// l'identifiant d'origine) ET les anciennes pièces encore non marquées —
+  /// jamais perdues tant que le geste n'est pas fait.
+  static final String _sqlPiecesACompter = '''
+SELECT p.numero_piece FROM pieces_saisie_local p
+ WHERE NOT EXISTS (SELECT 1 FROM ecritures_serveur_local s
+                    WHERE s.piece_origine_id = p.id)
+UNION
+$_sqlAnciennesPieces''';
+
+  /// Les anciennes pièces saisies à la main, proposées à l'envoi (lot A3), les
+  /// plus anciennes d'abord. Lecture seule : rien n'est marqué ici.
+  Future<List<AnciennePieceSaisie>> anciennesPiecesSaisies() async {
+    final numeros = [
+      for (final r in await customSelect(_sqlAnciennesPieces).get())
+        r.read<String>('numero_piece'),
+    ];
+    final comptes = <String, String>{};
+    final centres = {for (final c in await this.centres()) c.id: c.libelle};
+    final journaux = {for (final j in await this.journaux()) j.id: j.code};
+    final pieces = <AnciennePieceSaisie>[];
+    for (final numero in numeros) {
+      final lignes = await lignesDeLaPiece(numero);
+      for (final l in lignes) {
+        comptes[l.compteId] ??= (await compteParId(l.compteId))!.numero;
+      }
+      final premiere = lignes.first;
+      pieces.add(
+        AnciennePieceSaisie(
+          numeroPiece: numero,
+          journal: journaux[premiere.journalId] ?? '',
+          date: premiere.dateEcriture,
+          libelle: premiere.libelle,
+          statut: premiere.estValidee ? 'validee' : 'brouillon',
+          lignes: [
+            for (final l in lignes)
+              LigneAnciennePiece(
+                compte: comptes[l.compteId]!,
+                debitCentimes: l.debitCentimes,
+                creditCentimes: l.creditCentimes,
+                libelle: l.libelle,
+                centreLibelle: centres[l.centreId] ?? '',
+              ),
+          ],
+        ),
+      );
+    }
+    pieces.sort((a, b) {
+      final d = a.date.compareTo(b.date);
+      return d != 0 ? d : a.numeroPiece.compareTo(b.numeroPiece);
+    });
+    return pieces;
+  }
+
+  /// Les écritures VALIDÉES des pièces saisies à la main que le serveur n'a pas
+  /// encore reprises, par année d'exercice et agrégées (journal, compte), au
+  /// format du miroir : elles s'AJOUTENT au miroir `ecritures_serveur_local`
+  /// (lot A1). Sans double compte : la pièce redescendue est reconnue par son
+  /// identifiant d'origine et sort d'ici.
+  Future<Map<int, List<EcritureServeur>>>
+  ecrituresPiecesManuellesNonReprises() async {
+    final e = attachedDatabase.ecrituresLocal;
+    final x = attachedDatabase.exercicesLocal;
+    final j = attachedDatabase.journauxLocal;
+    final p = attachedDatabase.planComptableLocal;
+    final debit = e.debitCentimes.sum();
+    final credit = e.creditCentimes.sum();
+    final requete =
+        selectOnly(e).join([
+            innerJoin(x, x.id.equalsExp(e.exerciceId)),
+            innerJoin(j, j.id.equalsExp(e.journalId)),
+            innerJoin(p, p.id.equalsExp(e.compteId)),
+          ])
+          ..addColumns([
+            x.annee,
+            j.code,
+            p.numeroCompte,
+            p.libelle,
+            p.classe,
+            debit,
+            credit,
+          ])
+          ..where(
+            e.statut.equals('validee') &
+                CustomExpression<bool>(
+                  'ecritures_local.numero_piece IN ($_sqlPiecesACompter)',
+                ),
+          )
+          ..groupBy([x.annee, j.code, p.numeroCompte, p.libelle, p.classe]);
+    final parAnnee = <int, List<EcritureServeur>>{};
+    for (final r in await requete.get()) {
+      final annee = r.read(x.annee)!;
+      (parAnnee[annee] ??= []).add(
+        EcritureServeur(
+          annee: annee,
+          codeJournal: r.read(j.code)!,
+          numeroCompte: r.read(p.numeroCompte)!,
+          libelleCompte: r.read(p.libelle)!,
+          classe: r.read(p.classe)!,
+          debitCentimes: r.read(debit) ?? 0,
+          creditCentimes: r.read(credit) ?? 0,
+        ),
+      );
+    }
+    return parAnnee;
+  }
+
+  /// Les charges (classe 6) VALIDÉES des mêmes pièces, datées — « Dépenses
+  /// cumulées » du tableau de bord quand la source est le miroir (lot A1).
+  Future<List<ChargeDatee>> chargesPiecesManuellesNonReprises() async {
+    final e = attachedDatabase.ecrituresLocal;
+    final p = attachedDatabase.planComptableLocal;
+    final lignes =
+        await (select(e).join([innerJoin(p, p.id.equalsExp(e.compteId))])
+              ..where(
+                e.statut.equals('validee') &
+                    p.classe.equals('6') &
+                    CustomExpression<bool>(
+                      'ecritures_local.numero_piece IN ($_sqlPiecesACompter)',
+                    ),
+              ))
+            .get();
+    return [
+      for (final r in lignes)
+        ChargeDatee(
+          date: r.readTable(e).dateEcriture,
+          debitCentimes: r.readTable(e).debitCentimes,
+          creditCentimes: r.readTable(e).creditCentimes,
+        ),
+    ];
+  }
+
+  /// Combien de PIÈCES saisies à la main (au moins une ligne validée) le poste
+  /// compte en attendant le serveur — pour le bandeau de provenance.
+  Future<int> nombrePiecesManuellesCompteesEnAttente() async {
+    final r = await customSelect(
+      'SELECT COUNT(DISTINCT numero_piece) AS n FROM ecritures_local '
+      "WHERE statut = 'validee' AND numero_piece IN ($_sqlPiecesACompter)",
+    ).getSingle();
+    return r.read<int>('n');
+  }
 
   /// Un compte du plan DESCENDU du serveur (28/10/2026, D246 rouvert) : ajouté
   /// SEULEMENT si son numéro manque ici — jamais réécrit, pas même un compte créé

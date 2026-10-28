@@ -24,6 +24,7 @@ import '../impression/etat_journal_comptable.dart';
 import 'exercice_consulte.dart';
 import 'providers_consultation_comptable.dart';
 import 'providers_etats_financiers.dart';
+import 'widgets/envoi_anciennes_pieces.dart';
 import 'widgets/modale_ecriture.dart';
 import 'widgets/onglet_immobilisations.dart';
 import 'widgets/onglets_etats_financiers.dart';
@@ -1242,6 +1243,7 @@ class _Saisie extends ConsumerWidget {
               ],
             ),
           ),
+        const BlocEnvoiAnciennesPieces(),
       ],
     );
   }

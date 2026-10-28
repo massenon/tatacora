@@ -284,6 +284,59 @@ class MoteurComptable {
     });
   }
 
+  /// Le geste « Envoyer mes anciennes pièces saisies » (lot A3, 28/10/2026) :
+  /// MARQUE (`pieces_saisie_local`, identifiant d'origine neuf) puis ENFILE
+  /// (`pieces_saisie`) chaque ancienne pièce de saisie manuelle que
+  /// [ComptabiliteDao.anciennesPiecesSaisies] propose — en cas de doute elle n'y
+  /// est pas. Une transaction ; rien n'est déduit hors de ce geste. Interrupteur
+  /// « Synchronisation activée » éteint : les pièces sont marquées et enfilées,
+  /// `enfiler` ne dépose rien et rien ne part. Le droit (administration,
+  /// comptable) se vérifie à l'écran, comme pour la saisie. Rend le nombre de
+  /// pièces marquées.
+  Future<int> envoyerAnciennesPieces({required String auteurId}) async {
+    _exigerAuteur(auteurId);
+    return _dao.enTransaction(() async {
+      final pieces = await _dao.anciennesPiecesSaisies();
+      for (final piece in pieces) {
+        final id = _dao.nouvelId();
+        await _dao.insererPieceSaisie(
+          id: id,
+          numeroPiece: piece.numeroPiece,
+          codeJournal: piece.journal,
+          datePiece: piece.date,
+          libelle: piece.libelle,
+          statut: piece.statut,
+          creeLe: _maintenant(),
+        );
+        await OperationsSyncDao(_dao.attachedDatabase).enfiler(
+          table: TableSynchronisee.piecesSaisie,
+          entiteId: id,
+          type: TypeOperationSync.creation,
+          payload: chargePieceSaisie(
+            journal: piece.journal,
+            date: piece.date,
+            libelle: piece.libelle,
+            statut: piece.statut,
+            lignes: [
+              for (final l in piece.lignes)
+                (
+                  compte: l.compte,
+                  debitCentimes: l.debitCentimes,
+                  creditCentimes: l.creditCentimes,
+                  libelle: l.libelle == piece.libelle ? null : l.libelle,
+                  centreLibelle: l.centreLibelle.isEmpty
+                      ? null
+                      : l.centreLibelle,
+                ),
+            ],
+          ),
+          dateMetier: piece.date,
+        );
+      }
+      return pieces.length;
+    });
+  }
+
   /// La SAISIE MANUELLE d'une pièce (hub comptable, « Nouvelle écriture ») —
   /// D246 rouvert par le PO (28/10/2026) : elle est partagée. Passe la pièce
   /// ([passer], ou [passerEtValider] si [valider]), marque son identifiant

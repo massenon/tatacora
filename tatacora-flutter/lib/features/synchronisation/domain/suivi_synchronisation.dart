@@ -61,6 +61,27 @@ String motifOperation(OperationSync o) {
   };
 }
 
+/// Lot A2 : une pièce saisie à la main REFUSÉE par le serveur ne disparaît pas
+/// du poste. Validée, elle est immuable (RG-11) et COMPTÉE dans ses états ;
+/// brouillon, elle y est comptée dès qu'elle est validée. `null` pour toute
+/// autre opération.
+String? notePieceSaisieRefusee(OperationSync o) {
+  if (o.table != TableSynchronisee.piecesSaisie ||
+      o.statut != StatutOperationSync.rejete) {
+    return null;
+  }
+  final Object? brut;
+  try {
+    brut = jsonDecode(o.payload);
+  } on FormatException {
+    return null;
+  }
+  final validee = brut is Map && brut['statut'] == 'validee';
+  return validee
+      ? 'Cette pièce reste validée, immuable et COMPTÉE dans les états de ce poste.'
+      : 'Cette pièce reste sur ce poste en brouillon ; elle sera comptée dans les états dès qu\'elle y sera validée.';
+}
+
 /// Le DOCUMENT que l'opération porte, en clair — lu du payload figé. `null`
 /// quand le payload ne le dit pas (une modification partielle ne porte que
 /// ses champs changés).

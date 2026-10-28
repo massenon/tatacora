@@ -52,6 +52,11 @@ abstract final class TextesEtatsFinanciers {
   static const String provenanceVide = 'Aucune écriture à afficher.';
   static const String piecesDuPoste =
       'Chiffres calculés sur les écritures validées passées par ce poste.';
+  static String piecesManuellesComptees(int n) => n == 1
+      ? 'Une pièce saisie à la main sur ce poste est comptée ici en attendant que le serveur la reprenne.'
+      : '$n pièces saisies à la main sur ce poste sont comptées ici en attendant que le serveur les reprenne.';
+  static String pieceRefusee(String libelle, String motif) =>
+      'Pièce refusée par le serveur : $libelle. Motif : $motif Elle reste validée, immuable et COMPTÉE dans les états de ce poste ; le refus se lit dans « À traiter » (Synchronisation).';
   static String reportProvisoire(int annee) =>
       "À-nouveaux provisoires : l'exercice $annee n'est pas clôturé, ses soldes sont reportés sans l'être définitivement.";
   static const String illisible = "Les écritures n'ont pas pu être lues.";
@@ -109,16 +114,45 @@ class _SourceDuPoste extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final source = ref.watch(sourceEtatsFinanciersProvider).value;
-    if (source != SourceEtatsFinanciers.piecesDuPoste) {
-      return const SizedBox.shrink();
-    }
-    return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-      child: Text(
-        TextesEtatsFinanciers.piecesDuPoste,
-        key: const Key('compta-etats-source-poste'),
-        style: styleTransverse(TaillesContenu.t12, couleur: Ardoise.c500),
-      ),
+    final pieces = ref.watch(piecesManuellesEnAttenteProvider).value;
+    final style = styleTransverse(TaillesContenu.t12, couleur: Ardoise.c500);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (source == SourceEtatsFinanciers.piecesDuPoste)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+            child: Text(
+              TextesEtatsFinanciers.piecesDuPoste,
+              key: const Key('compta-etats-source-poste'),
+              style: style,
+            ),
+          ),
+        if (source == SourceEtatsFinanciers.miroirDuServeur &&
+            pieces != null &&
+            pieces.comptees > 0)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+            child: Text(
+              TextesEtatsFinanciers.piecesManuellesComptees(pieces.comptees),
+              key: const Key('compta-etats-pieces-manuelles'),
+              style: style,
+            ),
+          ),
+        for (final (i, r)
+            in (pieces?.refusees ?? const <RefusPieceSaisie>[]).indexed)
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+            child: Text(
+              TextesEtatsFinanciers.pieceRefusee(r.libelle, r.motif),
+              key: Key('compta-etats-piece-refusee-$i'),
+              style: styleTransverse(
+                TaillesContenu.t12,
+                couleur: AppColors.erreur,
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
