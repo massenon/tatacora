@@ -80,7 +80,7 @@ void main() {
       db.execute(bloc);
     }
     db.execute('PRAGMA user_version = $version');
-    db.dispose();
+    db.close();
     return fichier;
   }
 
@@ -97,6 +97,22 @@ void main() {
         .map((r) => r['name'] as String)
         .toList();
     final comptes = <String, int>{};
+    // La file d'envoi (v26+) porte des CHECK métier que le semis générique ne
+    // sait pas remplir : deux opérations RÉALISTES, dont les `seq` doivent
+    // survivre à la copie de table de la v43.
+    if (tables.contains('operations_sync_local')) {
+      for (final (seq, type, statut) in [
+        (5, 'creation', 'en_attente'),
+        (9, 'modification', 'rejete'),
+      ]) {
+        db.execute(
+          'INSERT INTO operations_sync_local (seq, uuid_operation, '
+          'table_serveur, entite_id, type, payload, horodatage_client, statut, '
+          'cree_le) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          [seq, 'u$seq', 'clients', 'c$seq', type, '{}', 'h', statut, 1],
+        );
+      }
+    }
     for (final t in tables) {
       final cols = db.select('PRAGMA table_info("$t")');
       for (var i = 1; i <= 2; i++) {
@@ -125,7 +141,7 @@ void main() {
       comptes[t] =
           db.select('SELECT COUNT(*) AS n FROM "$t"').first['n'] as int;
     }
-    db.dispose();
+    db.close();
     return comptes;
   }
 
@@ -141,7 +157,7 @@ void main() {
       for (final t in tables)
         t: db.select('SELECT COUNT(*) AS n FROM "$t"').first['n'] as int,
     };
-    db.dispose();
+    db.close();
     return r;
   }
 
@@ -164,7 +180,21 @@ void main() {
           '${c['name']} ${(c['type'] as String).toUpperCase()} '
               'nn=${c['notnull']} dflt=${c['dflt_value']} pk=${c['pk']}',
       ]..sort();
-      r['table $nom'] = cols.join(' | ');
+      // Les CHECK ne sont pas dans `table_info` : un CHECK resté étroit (cas
+      // réel de la file d'envoi) passerait inaperçu sans cette lecture du SQL.
+      final ddl =
+          db.select(
+                "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?",
+                [nom],
+              ).first['sql']
+              as String;
+      final checks =
+          RegExp(r'CHECK\s*\(([^()]*(?:\([^()]*\)[^()]*)*)\)')
+              .allMatches(ddl)
+              .map((m) => m[1]!.replaceAll(RegExp(r'\s+'), ' ').trim())
+              .toList()
+            ..sort();
+      r['table $nom'] = '${cols.join(' | ')} || checks=${checks.join(' ; ')}';
       for (final i in db.select('PRAGMA index_list("$nom")')) {
         final n = i['name'] as String;
         if (n.startsWith('sqlite_autoindex')) continue;
@@ -183,7 +213,7 @@ void main() {
         ' ',
       );
     }
-    db.dispose();
+    db.close();
     return r;
   }
 
@@ -249,12 +279,34 @@ void main() {
             reason: 'v$version : lignes perdues dans ${e.key}',
           );
         }
+        if (avant.containsKey('operations_sync_local')) {
+          final db = sql.sqlite3.open(fichier.path);
+          expect(
+            db
+                .select(
+                  'SELECT seq, type, statut FROM operations_sync_local '
+                  'WHERE seq IN (5, 9) ORDER BY seq',
+                )
+                .map((r) => '${r['seq']} ${r['type']} ${r['statut']}')
+                .toList(),
+            ['5 creation en_attente', '9 modification rejete'],
+            reason: 'v$version : la file d envoi doit garder ses opérations',
+          );
+          // La v43 élargit le CHECK du type : `suppression` est admis.
+          db.execute(
+            'INSERT INTO operations_sync_local (uuid_operation, '
+            'table_serveur, entite_id, type, payload, horodatage_client, '
+            "cree_le) VALUES ('us', 'vehicules', 'v', 'suppression', '{}', "
+            "'h', 1)",
+          );
+          db.close();
+        }
         final diff = ecarts(empreinte(await baseNeuve()), empreinte(fichier));
         expect(diff, isEmpty, reason: 'v$version :\n${diff.join('\n')}');
 
         final db = sql.sqlite3.open(fichier.path, mode: sql.OpenMode.readOnly);
         expect(db.select('PRAGMA user_version').first.values.first, 44);
-        db.dispose();
+        db.close();
       },
       timeout: const Timeout(Duration(minutes: 2)),
     );

@@ -25,6 +25,7 @@ import 'package:drift/drift.dart';
 
 import 'app_database.dart';
 import 'declencheurs_comptables.dart';
+import 'elargir_types_operations_sync.dart';
 
 /// Ce qu'a fait une réconciliation.
 class RapportReconciliation {
@@ -32,10 +33,12 @@ class RapportReconciliation {
   final List<String> colonnesAjoutees = [];
   final List<String> indexCrees = [];
   final List<String> declencheursCrees = [];
+  final List<String> tablesRecopiees = [];
   final List<String> enTrop = [];
 
   bool get aPose =>
       tablesCreees.isNotEmpty ||
+      tablesRecopiees.isNotEmpty ||
       colonnesAjoutees.isNotEmpty ||
       indexCrees.isNotEmpty ||
       declencheursCrees.isNotEmpty;
@@ -71,6 +74,7 @@ Future<bool> ecartRapide(AppDatabase db) async {
   for (final e in db.allSchemaEntities.whereType<Index>()) {
     if (!index.contains(e.entityName)) return true;
   }
+  if (await _fileAEtroite(db)) return true;
   final declencheurs = await _noms(db, 'trigger');
   if (!declencheurs.containsAll(declencheursAttendus)) return true;
   final comptes = await db
@@ -86,6 +90,20 @@ Future<bool> ecartRapide(AppDatabase db) async {
     if ((parTable[t.actualTableName] ?? 0) < t.$columns.length) return true;
   }
   return false;
+}
+
+/// La file d'envoi garde-t-elle l'ancien `CHECK` du type (sans `suppression`) ?
+/// Cas RÉEL trouvé par les vraies bases (R3) : une base marquée v44 par le
+/// commit où la v43 n'existait pas encore n'a jamais eu la copie de la v43.
+Future<bool> _fileAEtroite(AppDatabase db) async {
+  final ligne = await db
+      .customSelect(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' "
+        "AND name = 'operations_sync_local'",
+      )
+      .getSingleOrNull();
+  final sql = ligne?.read<String?>('sql');
+  return sql != null && !sql.contains("'suppression'");
 }
 
 String _defautPour(GeneratedColumn<Object> c) => switch (c.type) {
@@ -135,6 +153,13 @@ Future<RapportReconciliation> reconcilierSchema(AppDatabase db) async {
     rapport.enTrop.add('table $extra');
   }
 
+  // Copie de table conditionnelle de la v43 (types de la file d'envoi), pour
+  // les bases qui l'ont manquée ; sans effet si le `CHECK` est déjà large.
+  if (await _fileAEtroite(db)) {
+    await elargirTypesOperationsSync(m, db.operationsSyncLocal);
+    rapport.tablesRecopiees.add('operations_sync_local');
+  }
+
   final index = await _noms(db, 'index');
   for (final e in db.allSchemaEntities.whereType<Index>()) {
     if (index.contains(e.entityName)) continue;
@@ -151,6 +176,7 @@ Future<RapportReconciliation> reconcilierSchema(AppDatabase db) async {
     if (rapport.aPose) {
       journal(
         'Réconciliation du schéma : tables créées ${rapport.tablesCreees}, '
+        'tables recopiées (CHECK élargi) ${rapport.tablesRecopiees}, '
         'colonnes ajoutées ${rapport.colonnesAjoutees}, index créés '
         '${rapport.indexCrees}, déclencheurs créés ${rapport.declencheursCrees}',
       );
