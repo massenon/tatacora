@@ -144,7 +144,7 @@
       <img src="{{ app(\App\Shared\Parametres\Services\ApparenceEtablissementService::class)->urlLogo() }}" alt="{{ __('pwa.alt_logo') }}" class="w-[73px] h-10 rounded-lg bg-white object-contain ring-2 ring-[var(--gold)]">
       <div class="hidden md:block">
         <div class="flex items-center gap-2">
-          <span class="text-white font-bold text-base tracking-tight">{{ __('pwa.marque') }}</span>
+          <span class="text-white font-bold text-sm tracking-tight">{{ __('pwa.marque') }}</span>
           <span class="text-[10px] font-semibold text-[var(--gold)] border border-[var(--gold)] rounded px-1.5 py-0.5">{{ __('pwa.enseigne_courte') }}</span>
         </div>
         {{-- maquette — shell.js l.110 écrivait « Natitingou, Bénin —
@@ -159,7 +159,7 @@
              Le client Flutter relit cette clé (D373). Seconde décision du PO
              du 13/10/2026 (PA-209, D389) : la mention devient « Système de
              gestion Intégré » (casse exacte du PO), dans la clé seule. --}}
-        <p class="text-white/40 text-[11px]">{{ __('rapports.entete.localisation') }}</p>
+        <p class="text-white/40 text-[11px]">{{ __('pwa.barre_localisation') }}</p>
       </div>
     </a>
 

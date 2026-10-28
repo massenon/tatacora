@@ -92,12 +92,9 @@ void main() {
         r'<p class="text-white/40 text-\[11px\]">(.*?)</p>',
       ).firstMatch(barre);
       expect(ligne, isNotNull, reason: 'ligne sous la marque introuvable');
+      expect(ligne!.group(1)!.trim(), "{{ __('pwa.barre_localisation') }}");
       expect(
-        ligne!.group(1)!.trim(),
-        "{{ __('rapports.entete.localisation') }}",
-      );
-      expect(
-        VueBlade.libelle('rapports.entete.localisation'),
+        VueBlade.libelle('pwa.barre_localisation'),
         LibellesCoquille.localisation,
       );
       // Le nom de l'autre produit (PA-194) n'est plus rendu par la barre.

@@ -340,10 +340,10 @@ class _BarreSuperieure extends ConsumerWidget implements PreferredSizeWidget {
                           )..layout()).width;
                       final styleMarque = TextStyle(
                         // `tracking-tight` : −0,025 em.
-                        letterSpacing: AppTextStyles.suiviSerre * Tailles.t16,
+                        letterSpacing: AppTextStyles.suiviSerre * Tailles.t14,
                         color: AppColors.neutre0,
                         fontFamily: AppTextStyles.police,
-                        fontSize: Tailles.t16,
+                        fontSize: Tailles.t14,
                         fontWeight: FontWeight.bold,
                       );
                       const styleBadge = TextStyle(

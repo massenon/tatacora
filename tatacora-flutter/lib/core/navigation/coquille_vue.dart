@@ -43,8 +43,11 @@ abstract final class LibellesCoquille {
   /// TROISIÈME DÉCISION DU PO DU 14/10/2026 : la ligne sous la marque
   /// devient « Système de gestion Intégré — Gîte Chez Noël, Natitingou
   /// (Bénin) », comme la clé serveur `rapports.entete.localisation`.
-  static const String localisation =
-      'Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)';
+  ///
+  /// QUATRIÈME DÉCISION DU PO (28/10/2026) : la barre supérieure n'affiche plus
+  /// « — Gîte Chez Noël, Natitingou (Bénin) » ; la mention reste dans l'en-tête
+  /// des états (`rapports.entete.localisation`). La barre rend `pwa.barre_localisation`.
+  static const String localisation = 'Système de gestion Intégré';
 
   /// `pwa.alt_logo` — le texte de remplacement du logo, rendu en sémantique.
   static const String altLogo = 'Logo TATACORA AFRIQUE';

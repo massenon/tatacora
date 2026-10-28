@@ -158,8 +158,13 @@ void main() {
 
         final valeur = VueBlade.libelle('rapports.entete.localisation');
         expect(valeur, localisationDemarrage);
-        // Un seul texte pour la barre supérieure et le démarrage, comme la vue.
-        expect(valeur, LibellesCoquille.localisation);
+        // La barre supérieure rend sa propre ligne (`pwa.barre_localisation`,
+        // décision du PO du 28/10/2026 : sans « Gîte Chez Noël, Natitingou
+        // (Bénin) »), le démarrage garde la localisation des états.
+        expect(
+          VueBlade.libelle('pwa.barre_localisation'),
+          LibellesCoquille.localisation,
+        );
 
         await monter(tester);
         expect(find.text(valeur!), findsOneWidget);

@@ -60,6 +60,9 @@ declare(strict_types=1);
 
 return [
     'marque' => 'TATACORA AFRIQUE',
+    // Ligne sous la marque de la barre supérieure (PO, 28/10/2026) : sans la mention
+    // « Gîte Chez Noël, Natitingou (Bénin) », qui reste dans l'en-tête des états.
+    'barre_localisation' => 'Système de gestion Intégré',
     // Titre d'onglet d'une page qui n'en déclare pas (26/10/2026, PO).
     'titre_defaut' => 'LogiReStock — TATACORA AFRIQUE',
     'baseline' => 'Consultation de secours — Gîte Chez Noël',

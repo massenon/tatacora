@@ -106,7 +106,7 @@ final class AucunLogiRestockAfficheTest extends TestCase
     {
         $vues = [
             'pwa/demarrage' => "{{ __('rapports.entete.localisation') }}",
-            'pwa/partials/barre-superieure' => "{{ __('rapports.entete.localisation') }}",
+            'pwa/partials/barre-superieure' => "{{ __('pwa.barre_localisation') }}",
             'pwa/livewire/connexion' => "{!! __('pwa.connexion.titre_panneau') !!}",
             'pwa/transverse/aide-a-propos' => "{{ __('pwa.aide.enseigne') }}",
         ];
