@@ -25,6 +25,7 @@ declare(strict_types=1);
 | Entree (stdin, JSON) :
 |   { "aujourdhui": "2026-10-12",
 |     "poste_id": "poste-essai",
+|     "role": "administrateur" | "super_admin"   (facultatif ; la purge exige super_admin),
 |     "operations": [ { "uuid_operation", "table", "type", "entite_id",
 |                       "payload": {...}, "horodatage_client" }, ... ] }
 | Sortie (stdout, JSON) :
@@ -115,11 +116,20 @@ try {
     // du poste — ce n'est pas le contrat qu'on mesure ici.
     SessionCaisse::query()->whereNull('date_cloture')->update(['date_cloture' => now()]);
 
-    // L'administrateur : C sur tous les modules, et le droit d'archiver.
+    // L'administrateur : C sur tous les modules, et le droit d'archiver. `role`
+    // (facultatif, 28/10/2026) : « super_admin » pour la PURGE (A5), que seul lui
+    // rejoue ; tout autre rôle que ces deux-là est refusé.
+    $role = (string) ($lot['role'] ?? 'administrateur');
+
+    if (! in_array($role, ['administrateur', 'super_admin'], true)) {
+        fwrite(STDERR, "Role inconnu : {$role}\n");
+        exit(4);
+    }
+
     $admin = User::create([
         'login' => 'sync.' . Str::random(6),
         'mot_de_passe_hash' => Hash::make('mot-de-passe-de-test'),
-        'role_id' => Role::where('libelle', 'administrateur')->firstOrFail()->id,
+        'role_id' => Role::where('libelle', $role)->firstOrFail()->id,
         'statut' => 'actif',
     ]);
     Auth::login($admin);

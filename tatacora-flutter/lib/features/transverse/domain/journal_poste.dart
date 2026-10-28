@@ -32,7 +32,8 @@ const int plafondJournalAudit = 200;
 /// (`JournalAudit::ACTIONS`).
 enum ActionJournalPoste {
   creation('creation', 'Création'),
-  modification('modification', 'Modification');
+  modification('modification', 'Modification'),
+  suppression('suppression', 'Suppression');
 
   const ActionJournalPoste(this.code, this.libelle);
 
@@ -89,6 +90,7 @@ final class EntreeJournalPoste {
         action: switch (o.type) {
           TypeOperationSync.creation => ActionJournalPoste.creation,
           TypeOperationSync.modification => ActionJournalPoste.modification,
+          TypeOperationSync.suppression => ActionJournalPoste.suppression,
         },
         table: o.table.nomServeur,
         entiteId: o.entiteId,

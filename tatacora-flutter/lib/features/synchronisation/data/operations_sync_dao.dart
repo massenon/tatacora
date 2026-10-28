@@ -95,6 +95,20 @@ class OperationsSyncDao extends DatabaseAccessor<AppDatabase> {
         'le serveur refuse toute modification de cette table',
       );
     }
+    if (type == TypeOperationSync.suppression) {
+      // Registre FERMÉ (A5) : deux tables, jamais une de plus. Le serveur exige
+      // un corps non vide : le libellé de l'élément purgé.
+      if (!table.accepteSuppression) {
+        throw ArgumentError.value(
+          table.nomServeur,
+          'table',
+          'le serveur refuse toute suppression de cette table',
+        );
+      }
+      if (payload.isEmpty) {
+        throw ArgumentError.value(payload, 'payload', 'suppression sans libellé');
+      }
+    }
     if (type == TypeOperationSync.creation && payload.isEmpty) {
       throw ArgumentError.value(payload, 'payload', 'création sans document');
     }

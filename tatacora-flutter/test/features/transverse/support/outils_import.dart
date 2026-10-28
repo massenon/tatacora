@@ -297,6 +297,7 @@ List<Override> surchargesImport(
   AppDatabase db, {
   Map<String, String> droits = droitsImportComplets,
   String cheminPoste = '/inexistant/poste.json',
+  String role = 'administrateur',
 }) {
   final garde = GardeAcces.depuisJson(droits);
   return [
@@ -308,7 +309,7 @@ List<Override> surchargesImport(
         utilisateurId: auteurImport,
         login: 'import',
         nom: 'Responsable import',
-        role: 'administrateur',
+        role: role,
         droits: garde,
       ),
     ),

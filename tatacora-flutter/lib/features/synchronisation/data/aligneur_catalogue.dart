@@ -16,6 +16,8 @@ import '../../comptabilite/domain/entities/comptabilite.dart'
     show StatutExercice;
 import '../../facturation/data/facture_dao.dart';
 import '../../hebergement/data/canaux_reservation_dao.dart';
+import '../../hebergement/data/parc_dao.dart';
+import '../../vehicules/data/vehicule_dao.dart';
 import '../../pos/data/historique_prix_carte_dao.dart';
 import '../../pos/domain/changement_prix_carte.dart';
 import '../../hebergement/domain/entities/fiche_reservation.dart'
@@ -97,6 +99,7 @@ class AligneurCatalogue {
   /// dans un point de sauvegarde : une exception n'emporte que lui).
   Future<IssueAlignement> aligner(ElementCatalogue e) async {
     final idLocal = await _dao.idLocal(e.table.nomServeur, e.id);
+    if (e.supprime) return _suppression(idLocal, e);
     final synchronisee = e.table.tableSynchronisee;
     if (synchronisee != null &&
         await _file.enSuspens(synchronisee.nomServeur, idLocal)) {
@@ -151,10 +154,10 @@ class AligneurCatalogue {
       TableDescendue.roles => _role(idLocal, e),
       TableDescendue.modelesNotification => _modeleNotification(idLocal, e),
       TableDescendue.exercicesComptables => _exercice(e),
+      TableDescendue.planComptable => _compteDuPlan(e),
       TableDescendue.ecrituresComptables => _ecritureServeur(e),
       TableDescendue.immobilisations => alignerDocument(idLocal, e),
       TableDescendue.inventaires => alignerDocument(idLocal, e),
-      TableDescendue.planComptable => _compteDuPlan(e),
     };
   }
 
@@ -957,6 +960,45 @@ class AligneurCatalogue {
   /// → `hors_service`) ou sa réintégration (`actif: true` sur une unité hors
   /// service → `libre`, comme `ParcDao.restaurer`). Une unité NOUVELLE naît
   /// dans le statut du serveur.
+  /// Une PURGE faite ailleurs (A5, 28/10/2026) : l'élément est retiré de CE poste
+  /// SEULEMENT si aucune saisie locale n'y est rattachée — ni opération qui
+  /// attend de partir, ni réservation / contrat / entretien qui le cite.
+  /// Sinon il est CONSERVÉ (le journal de réception le dit). Le retrait passe
+  /// par l'écrivain du module et n'enfile rien : le serveur a déjà purgé.
+  Future<IssueAlignement> _suppression(String id, ElementCatalogue e) async {
+    final table = e.table.tableSynchronisee;
+    if (table == null || !table.accepteSuppression) {
+      return const RefuseParLePoste('suppression non admise pour cette table');
+    }
+    if (await _file.enSuspens(table.nomServeur, id)) {
+      return const ConserveLocalement(raisonPurgeSaisieEnAttente);
+    }
+    final retire = switch (e.table) {
+      TableDescendue.unitesHebergement => await ParcDao(
+        _db,
+      ).retirerUnitePurgeeAilleurs(id),
+      TableDescendue.vehicules => await VehiculeDao(
+        _db,
+      ).retirerVehiculePurgeAilleurs(id),
+      _ => null,
+    };
+    if (retire == null) {
+      return const RefuseParLePoste('suppression non admise pour cette table');
+    }
+    return retire
+        ? const Aligne()
+        : const ConserveLocalement(raisonPurgeSaisieRattachee);
+  }
+
+  /// Pourquoi une purge faite ailleurs n'est pas rejouée sur ce poste.
+  static const String raisonPurgeSaisieEnAttente =
+      'purgé définitivement sur un autre poste, mais une saisie de ce poste '
+      'concernant cet élément attend encore de partir : il est conservé';
+  static const String raisonPurgeSaisieRattachee =
+      'purgé définitivement sur un autre poste, mais une saisie faite sur ce '
+      'poste le cite encore (réservation, contrat de location ou entretien) : '
+      'il est conservé';
+
   Future<IssueAlignement> _unite(String id, ElementCatalogue e) async {
     final d = e.donnees;
     final numero = _texte(d['numero']);
@@ -1585,6 +1627,34 @@ class AligneurCatalogue {
     return dernier != null && dernier != StatutOperationSync.synchronise;
   }
 
+  /// Un compte du plan du serveur (28/10/2026, D246 rouvert). Reconnu à son
+  /// NUMÉRO : ajouté s'il manque, JAMAIS réécrit — un compte créé ici et pas
+  /// encore accepté garde son libellé (c'est l'envoi qui arbitre, et un libellé
+  /// différent y devient un refus lisible « À traiter »). Rien n'est enfilé. Un
+  /// numéro mal formé, une classe qui n'est pas son premier chiffre ou une nature
+  /// hors registre est refusé, pas deviné.
+  Future<IssueAlignement> _compteDuPlan(ElementCatalogue e) async {
+    final d = e.donnees;
+    final numero = _texte(d['numero_compte']);
+    final libelle = _texte(d['libelle']);
+    final nature = _texte(d['nature']);
+    if (numero == null ||
+        libelle == null ||
+        !RegExp(r'^[1-9][0-9]*$').hasMatch(numero) ||
+        _texte(d['classe']) != numero.substring(0, 1) ||
+        (nature != null &&
+            !const ['actif', 'passif', 'charge', 'produit'].contains(nature))) {
+      return const RefuseParLePoste('compte du plan illisible');
+    }
+    await ComptabiliteDao(_db).insererCompteDescendu(
+      id: e.id,
+      numero: numero,
+      libelle: libelle,
+      nature: nature,
+    );
+    return const Aligne();
+  }
+
   /// Une écriture VALIDÉE du serveur, en miroir de lecture (v34). Ajoutée si
   /// elle manque, jamais réécrite (RG-11) ; aucune clé étrangère, donc rien à
   /// attendre. Une fraction de centime ou un champ manquant la refuse.
@@ -1624,37 +1694,10 @@ class AligneurCatalogue {
       creditCentimes: credit,
       numeroPiece: _texte(d['numero_piece']),
       ecritureContrepasseeId: _texte(d['ecriture_contrepassee_id']),
+      pieceOrigineId: _texte(d['piece_origine_id']),
     );
     return const Aligne();
   }
-  /// Un compte du plan du serveur (28/10/2026, D246 rouvert). Reconnu à son
-  /// NUMÉRO : ajouté s'il manque, JAMAIS réécrit — un compte créé ici et pas
-  /// encore accepté garde son libellé (c'est l'envoi qui arbitre, et un libellé
-  /// différent y devient un refus lisible « À traiter »). Rien n'est enfilé. Un
-  /// numéro mal formé, une classe qui n'est pas son premier chiffre ou une nature
-  /// hors registre est refusé, pas deviné.
-  Future<IssueAlignement> _compteDuPlan(ElementCatalogue e) async {
-    final d = e.donnees;
-    final numero = _texte(d['numero_compte']);
-    final libelle = _texte(d['libelle']);
-    final nature = _texte(d['nature']);
-    if (numero == null ||
-        libelle == null ||
-        !RegExp(r'^[1-9][0-9]*$').hasMatch(numero) ||
-        _texte(d['classe']) != numero.substring(0, 1) ||
-        (nature != null &&
-            !const ['actif', 'passif', 'charge', 'produit'].contains(nature))) {
-      return const RefuseParLePoste('compte du plan illisible');
-    }
-    await ComptabiliteDao(_db).insererCompteDescendu(
-      id: e.id,
-      numero: numero,
-      libelle: libelle,
-      nature: nature,
-    );
-    return const Aligne();
-  }
-
 
   /// Un rôle du serveur et sa matrice, recopiée sur les comptes qui le
   /// portent. Apparié par son LIBELLÉ à un rôle du socle né ici sous un
@@ -1694,7 +1737,6 @@ class AligneurCatalogue {
           idLocal: homonyme.id,
           origine: 'libelle',
         );
-      pieceOrigineId: _texte(d['piece_origine_id']),
         cible = homonyme.id;
       }
     }

@@ -1,8 +1,8 @@
 {
   "_lisez-moi": "PRODUIT par `node tool/conformite_blade/t-blade-flutter.js --figer-dette`, jamais ecrit a la main. Chaque cle est « vue|bloc », chaque valeur le NOMBRE de libelles de la vue Blade absents du code Flutter. Le script echoue si un chiffre monte, s'il baisse sans que la dette soit resserree, si un bloc incomplet n'y figure pas, et si une entree ne correspond plus a rien ou a un bloc desormais porte ou refuse.",
-  "_regenere-le": "2026-10-27",
-  "_blocs-a-porter": 9,
-  "_libelles-absents": 12,
+  "_regenere-le": "2026-10-28",
+  "_blocs-a-porter": 8,
+  "_libelles-absents": 11,
   "ecarts": {
     "comptabilite/hub|modale:modale-titre-calcule": 1,
     "livewire/accueil|page": 1,
@@ -10,7 +10,6 @@
     "notifications/hub|page": 1,
     "transverse/aide-a-propos|page": 2,
     "transverse/import-export|modale:import_export.retrait_titre": 1,
-    "transverse/import-export|restaurer": 1,
     "transverse/import-export|sauvegardes": 3,
     "transverse/parametres|email": 1
   }

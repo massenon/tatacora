@@ -19,6 +19,7 @@ import 'declencheurs_comptables.dart';
 import 'emplacement_base.dart';
 import 'tables/clients_table.dart';
 import 'tables/clotures_exercices_tables.dart';
+import 'elargir_types_operations_sync.dart';
 import 'tables/comptabilite_tables.dart';
 import 'tables/depenses_tables.dart';
 import 'tables/descente_sync_tables.dart';
@@ -477,6 +478,13 @@ class AppDatabase extends _$AppDatabase {
   /// hors de la base (`recus_depenses/` à côté de `poste.json`). Rien n'est
   /// fabriqué pour l'existant : « sans reçu ». Le curseur de descente est oublié :
   /// les dépenses déjà au serveur redescendent avec la référence de leur reçu.
+  ///
+  /// v43 (28/10/2026) — A5 « PURGER » : la file d'envoi (`operations_sync_local`)
+  /// accepte le type `suppression` (la purge définitive d'une unité d'hébergement
+  /// ou d'un véhicule archivé). Aucune colonne, aucune table : la contrainte
+  /// `CHECK` du type est élargie, ce qu'SQLite n'autorise que par une table
+  /// RECRÉE — `elargirTypesOperationsSync`, conditionnel, copie intégrale avant
+  /// tout abandon, `seq` conservé. Aucune ligne n'est fabriquée.
   ///
   /// v44 (28/10/2026) — D246 ROUVERT PAR LE PO (« le poste fait ce que le web fait
   /// + synchronisation ») : les comptes du plan et les pièces saisies à la main
@@ -1419,6 +1427,13 @@ class AppDatabase extends _$AppDatabase {
         await customStatement(
           "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
         );
+      }
+      if (from < 43) {
+        // A5 « PURGER » (28/10/2026) : la file d'envoi accepte le type
+        // `suppression`. Le CHECK d'une table ne se modifie pas : la table est
+        // RECRÉE par `elargirTypesOperationsSync` (conditionnel, copie intégrale
+        // avant tout abandon, `seq` conservé). Aucune ligne n'est fabriquée.
+        await elargirTypesOperationsSync(m, operationsSyncLocal);
       }
       if (from < 44) {
         // D246 ROUVERT (28/10/2026) : une table NEUVE et une colonne NULLABLE, aucune

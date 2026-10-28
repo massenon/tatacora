@@ -19,6 +19,7 @@
 /// autre — ce que le PHPDoc de `Vehicule::exigePermis()` dit lui-même.
 library;
 
+import '../../../core/format/formats.dart' show formaterDate;
 import 'entities/vehicule.dart';
 
 /// Les catégories dispensées de permis — **l'unique auteur local de RG-09**.
@@ -228,6 +229,35 @@ abstract final class MessagesVehicules {
       'Ce véhicule est engagé dans $contrats contrat(s) de location en cours '
       'ou à venir : il ne peut pas être archivé. La ligne correspondante '
       'deviendrait illisible, et le client a un véhicule réservé.';
+
+  /// `pwa.import_export.purge_refusee_non_archive` — seul un élément archivé se purge.
+  static const String purgeRefuseeNonArchive =
+      'Purge refusée : seul un élément archivé se purge.';
+
+  /// `pwa.import_export.purge_refusee_referencee` — un contrat ou un entretien,
+  /// même passé, cite encore le véhicule.
+  static const String purgeRefuseeReferencee =
+      'Purge refusée : des enregistrements passés référencent encore cet '
+      "élément, et l'effacer les rendrait illisibles.";
+
+  /// `vehicules.verrou` tel que `ParcVehiculeService::messageVerrou` le rend à la
+  /// PURGE : le nombre de contrats engagés puis trois d'entre eux (« Contrat
+  /// :numero du :debut au :fin », séparés par « · », suivis de « … » au-delà).
+  static String purgeVerrouille(
+    List<({String numero, DateTime debut, DateTime fin})> contrats,
+  ) {
+    final apercu = contrats
+        .take(3)
+        .map(
+          (c) =>
+              'Contrat ${c.numero} du ${formaterDate(c.debut)} au '
+              '${formaterDate(c.fin)}',
+        )
+        .join(' · ');
+    return 'Élément engagé dans ${contrats.length} opération(s) : '
+        '$apercu${contrats.length > 3 ? ' …' : ''}. Il ne peut pas être '
+        'archivé — la ligne correspondante deviendrait illisible.';
+  }
 }
 
 /// L'ANNULATION D'UN CONTRAT existe depuis la v38 (26/10/2026) — PA-50 levé.

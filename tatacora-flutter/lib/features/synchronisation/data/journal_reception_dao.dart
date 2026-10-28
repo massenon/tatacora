@@ -99,7 +99,9 @@ class JournalReceptionDao extends DatabaseAccessor<AppDatabase> {
       motif: motif,
       champ: a.champ,
       dependance: a.dependance,
-      etiquette: etiquetteElement(element.donnees),
+      etiquette: element.supprime
+          ? 'Purge définitive'
+          : etiquetteElement(element.donnees),
       posteOrigine: element.posteOrigine,
       elementJson: genre.ouverte ? element.encoder() : null,
       tentative: tentative,

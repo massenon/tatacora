@@ -115,7 +115,10 @@ class OperationsSyncLocal extends Table {
 
   @override
   List<String> get customConstraints => [
-    "CHECK (type IN ('creation', 'modification'))",
+    // v43 (28/10/2026, A5) : `suppression` — la purge d'une unité ou d'un véhicule
+    // archivé. SQLite ne modifie pas un CHECK : `elargirTypesOperationsSync`
+    // recrée la table (copie intégrale, `seq` conservé).
+    "CHECK (type IN ('creation', 'modification', 'suppression'))",
     "CHECK (statut IN ('en_attente', 'en_cours', 'synchronise', 'rejete', "
         "'conflit', 'bloque'))",
   ];

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/di/providers.dart';
 import '../../../core/rbac/garde_acces.dart';
+import '../../../core/rbac/regle_archivage.dart' show estSuperAdmin;
 import '../../hebergement/presentation/providers_hebergement.dart'
     show parcDaoProvider;
 import '../../vehicules/presentation/providers_vehicules.dart'
@@ -37,6 +38,25 @@ final restaurerArchiveProvider =
         final libelle = await ref
             .read(archivesPosteProvider)
             .restaurer(type, id);
+        ref.invalidate(registreArchivesProvider);
+        return libelle;
+      },
+    );
+
+/// `purgerArchive` : le rôle `super_admin` (`exigerSuperAdmin`) PUIS le niveau
+/// `C` du module Paramètres (`exigerEcriture`) sont relus à l'instant du geste,
+/// dans l'ordre de l'écran ; l'élément est alors purgé par l'écrivain de son
+/// module, qui enfile la `suppression`. Rend le libellé de l'élément.
+final purgerArchiveProvider =
+    Provider<Future<String> Function(TypeArchive, String)>(
+      (ref) => (type, id) async {
+        if (!estSuperAdmin(ref.read(sessionProvider)?.role)) {
+          throw const RefusArchive(MessagesArchives.superAdminRequis);
+        }
+        if (!ref.read(droitsProvider).peutEcrire(ModuleTatacora.parametres)) {
+          throw const RefusArchive(MessagesArchives.droitManquant);
+        }
+        final libelle = await ref.read(archivesPosteProvider).purger(type, id);
         ref.invalidate(registreArchivesProvider);
         return libelle;
       },

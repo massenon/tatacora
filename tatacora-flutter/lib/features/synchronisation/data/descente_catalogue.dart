@@ -320,6 +320,8 @@ class DescenteCatalogue {
     await _journal.consigner(
       e,
       issue,
+      // Une purge rejouée se DIT : sans cela, « aligné » sans motif.
+      note: e.supprime && issue is Aligne ? _notePurgeRejouee : null,
       tentative: _vuCetPassage.add('${e.table.nomServeur}:${e.id}'),
       seulementSiChange: automatique,
     );
@@ -376,6 +378,10 @@ class DescenteCatalogue {
       }
     }
   }
+
+  static const _notePurgeRejouee =
+      'Purgé définitivement sur un autre poste : retiré de ce poste, rien ne '
+      'lui était rattaché.';
 
   static const _noteVersionPerimee =
       'La modification faite sur ce poste a été appliquée par le serveur : la '

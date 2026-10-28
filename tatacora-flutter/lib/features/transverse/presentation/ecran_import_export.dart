@@ -9,6 +9,7 @@ import '../../../core/fichiers/selecteur_fichiers.dart';
 import '../../../core/navigation/coquille_vue.dart';
 import '../../../core/navigation/trace_svg.dart';
 import '../../../core/rbac/garde_acces.dart';
+import '../../../core/rbac/regle_archivage.dart' show estSuperAdmin;
 import '../../../core/theme/app_breakpoints.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -76,8 +77,12 @@ import 'widgets/briques_transverses.dart';
 ///   précédées d'un archivage connu (plafond de cent). « Restaurer » écrit par
 ///   le DAO du module (unité `libre`, véhicule `disponible`) et enfile. ÉCARTS
 ///   nommés : les archives d'un autre poste n'y figurent pas ; l'ordre des
-///   lignes suit l'instant d'archivage. REFUS restant :
-///     blade-refuse:transverse/import-export#modale:import_export.purge_titre
+///   lignes suit l'instant d'archivage. « Purger » (A5, 28/10/2026) : la corbeille
+///   de chaque ligne, offerte au seul `super_admin`, ouvre la confirmation forte
+///   de la vue ; les verrous (non archivé, engagé, cité par un enregistrement
+///   passé) sont ceux des services de parc du serveur, dits dans la modale
+///   restée ouverte. La `suppression` part au serveur (protocole fermé à ces
+///   deux tables) et redescend vers les autres postes.
 /// - **Réinitialiser** : « Réinitialiser comme neuf » (demande du PO du
 ///   14/10/2026, lot E), réplique LOCALE du serveur
 ///   (`data/reinitialisation_locale.dart`) : refus en build production
@@ -159,6 +164,15 @@ abstract final class TextesImportExport {
   static const String filtreToutes = 'Toutes les entrées';
   static const String filtreRestaurees = 'Déjà restaurées';
   static const String actionRestaurer = 'Restaurer';
+
+  // La purge définitive (A5) — `pwa.import_export.*`, au mot.
+  static const String actionPurger = 'Purger définitivement (administrateur)';
+  static const String purgeTitre = 'Purger définitivement';
+  static const String purgeMessage =
+      'Cet élément sera effacé sans retour possible.';
+  static const String purgeDetail =
+      "Contrairement à l'archivage, la purge ne laisse aucune trace restaurable.";
+  static const String purgeConfirmer = 'Purger';
   static const String badgeRestaure = 'RESTAURÉ';
   static const String archivesVide = 'Aucun élément archivé ne correspond.';
   static const String colElement = 'ÉLÉMENT';
@@ -1997,6 +2011,127 @@ class _ModaleRetraitSauvegarde extends StatelessWidget {
   }
 }
 
+/// La confirmation forte de « Purger » (`import_export.purge_titre`, maquette
+/// l.707-720) : titre, élément en sous-titre, message, détail, Annuler /
+/// « Purger ». Un refus MOTIVÉ du domaine (non archivé, engagé, cité) s'affiche
+/// ICI et la modale reste ouverte (`@error('purge')`). Rend le libellé purgé.
+class _ModalePurge extends StatefulWidget {
+  const _ModalePurge({required this.libelle, required this.purger});
+
+  final String libelle;
+  final Future<String> Function() purger;
+
+  @override
+  State<_ModalePurge> createState() => _ModalePurgeState();
+}
+
+class _ModalePurgeState extends State<_ModalePurge> {
+  String? _refus;
+  bool _enCours = false;
+
+  Future<void> _confirmer() async {
+    if (_enCours) return;
+    setState(() {
+      _enCours = true;
+      _refus = null;
+    });
+    try {
+      final libelle = await widget.purger();
+      if (mounted) Navigator.of(context).pop(libelle);
+    } on RefusArchive catch (refus) {
+      if (mounted) {
+        setState(() {
+          _refus = refus.message;
+          _enCours = false;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      key: const Key('ie-modale-purge'),
+      backgroundColor: AppColors.neutre0,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: Largeurs.maxMd),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                TextesImportExport.purgeTitre,
+                style: styleTransverse(
+                  TaillesContenu.base,
+                  poids: FontWeight.bold,
+                  couleur: AppColors.navy,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.unit),
+              Text(
+                widget.libelle,
+                key: const Key('ie-purge-element'),
+                style: styleTransverse(
+                  TaillesContenu.t13,
+                  couleur: Ardoise.c500,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                TextesImportExport.purgeMessage,
+                style: styleTransverse(
+                  TaillesContenu.t15,
+                  couleur: Ardoise.c600,
+                ),
+              ),
+              const SizedBox(height: AppSpacing.unit),
+              Text(
+                TextesImportExport.purgeDetail,
+                style: styleTransverse(
+                  TaillesContenu.t13,
+                  couleur: Ardoise.c500,
+                ),
+              ),
+              if (_refus != null) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  _refus!,
+                  key: const Key('ie-purge-refus'),
+                  style: styleTransverse(
+                    TaillesContenu.t12,
+                    couleur: PaletteMaitre.rouge600,
+                  ),
+                ),
+              ],
+              const SizedBox(height: AppSpacing.mdPlus),
+              Wrap(
+                alignment: WrapAlignment.end,
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.xs,
+                children: [
+                  BoutonTransverse(
+                    cle: const Key('ie-purge-annuler'),
+                    libelle: TextesImportExport.annuler,
+                    onTap: () => Navigator.of(context).pop(),
+                  ),
+                  BoutonTransverse(
+                    cle: const Key('ie-purge-confirmer'),
+                    libelle: TextesImportExport.purgeConfirmer,
+                    fond: AppColors.erreur,
+                    onTap: _confirmer,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// La modale « Exporter une table existante » : la liste des tables, puis
 /// Annuler / « Télécharger ». Rend la table choisie, `null` : annulé.
 class _ModaleExportTable extends StatefulWidget {
@@ -2126,6 +2261,9 @@ class _PanneauRestaurerState extends ConsumerState<_PanneauRestaurer> {
   static const String _retour =
       r'<path stroke-linecap="round" stroke-linejoin="round" d="M3 12a9 9 0 109-9 9 9 0 00-6.36 2.64L3 8"/><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v5h5"/>';
 
+  static const String _poubelle =
+      r'<path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z"/>';
+
   final _recherche = TextEditingController();
   FiltreArchives _filtre = FiltreArchives.restaurables;
 
@@ -2162,6 +2300,32 @@ class _PanneauRestaurerState extends ConsumerState<_PanneauRestaurer> {
     }
   }
 
+  /// `ouvrirPurge` puis `purgerArchive` : la confirmation forte ; un refus MOTIVÉ
+  /// (engagé, cité, non archivé) s'affiche dans la modale, qui reste ouverte.
+  Future<void> _purger(EntreeArchive entree) async {
+    setState(() => _refus = null);
+    final messager = ScaffoldMessenger.of(context);
+    final libelle = await showDialog<String>(
+      context: context,
+      barrierColor: AppColors.voileModale,
+      builder: (_) => _ModalePurge(
+        libelle: entree.libelle,
+        purger: () => ref.read(purgerArchiveProvider)(entree.type, entree.id),
+      ),
+    );
+    if (libelle == null || !mounted) return;
+    rafraichirListes(ref);
+    rechargerVehicules(ref);
+    messager
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          key: const Key('ie-archive-purgee'),
+          content: Text(MessagesArchives.purgee(libelle)),
+        ),
+      );
+  }
+
   static String _date(DateTime d) =>
       '${d.day.toString().padLeft(2, '0')}/'
       '${d.month.toString().padLeft(2, '0')}/${d.year}';
@@ -2178,6 +2342,8 @@ class _PanneauRestaurerState extends ConsumerState<_PanneauRestaurer> {
       interligne: AppLayout.interligneDetendu,
     );
     final registre = ref.watch(registreArchivesProvider);
+    // Le bouton de purge n'est offert qu'au SUPER_ADMIN (PO 03/09/2026).
+    final superAdmin = estSuperAdmin(ref.watch(sessionProvider)?.role);
     final entrees = registre.hasValue
         ? filtrerArchives(
             registre.requireValue,
@@ -2352,36 +2518,59 @@ class _PanneauRestaurerState extends ConsumerState<_PanneauRestaurer> {
                           ],
                         ),
                   cellule(e.archivePar ?? TextesImportExport.tiret),
-                  if (e.restaure)
-                    Container(
-                      key: Key('ie-archive-badge-${e.id}'),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.xs,
-                        vertical: AppSpacing.unit,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.badgeVertFond,
-                        borderRadius: BorderRadius.circular(AppRadius.sm),
-                      ),
-                      child: Text(
-                        TextesImportExport.badgeRestaure,
-                        style: styleTransverse(
-                          TaillesContenu.t12,
-                          poids: FontWeight.bold,
-                          couleur: AppColors.succes,
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (e.restaure)
+                        Container(
+                          key: Key('ie-archive-badge-${e.id}'),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.xs,
+                            vertical: AppSpacing.unit,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.badgeVertFond,
+                            borderRadius: BorderRadius.circular(AppRadius.sm),
+                          ),
+                          child: Text(
+                            TextesImportExport.badgeRestaure,
+                            style: styleTransverse(
+                              TaillesContenu.t12,
+                              poids: FontWeight.bold,
+                              couleur: AppColors.succes,
+                            ),
+                          ),
+                        )
+                      else if (widget.peutEcrire)
+                        BoutonTransverse(
+                          cle: Key('ie-archive-restaurer-${e.id}'),
+                          libelle: TextesImportExport.actionRestaurer,
+                          fond: AppColors.succes,
+                          trace: _retour,
+                          onTap: () => _restaurer(e),
                         ),
-                      ),
-                    )
-                  else if (widget.peutEcrire)
-                    BoutonTransverse(
-                      cle: Key('ie-archive-restaurer-${e.id}'),
-                      libelle: TextesImportExport.actionRestaurer,
-                      fond: AppColors.succes,
-                      trace: _retour,
-                      onTap: () => _restaurer(e),
-                    )
-                  else
-                    const SizedBox.shrink(),
+                      if (!e.restaure && superAdmin)
+                        Padding(
+                          padding: const EdgeInsets.only(left: AppSpacing.unit),
+                          child: Tooltip(
+                            message: TextesImportExport.actionPurger,
+                            child: InkWell(
+                              key: Key('ie-archive-purger-${e.id}'),
+                              onTap: () => _purger(e),
+                              borderRadius: BorderRadius.circular(AppRadius.sm),
+                              child: const Padding(
+                                padding: EdgeInsets.all(AppSpacing.xs),
+                                child: IconeTrace(
+                                  trace: _poubelle,
+                                  taille: MesuresTransverses.iconeBouton,
+                                  couleur: Ardoise.c400,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ],
             ],
             vide: TextesImportExport.archivesVide,

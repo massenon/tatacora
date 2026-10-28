@@ -443,6 +443,68 @@ class ParcDao extends DatabaseAccessor<AppDatabase> with _$ParcDaoMixin {
     });
   }
 
+  /// « Purger » définitivement une unité ARCHIVÉE (A5, 28/10/2026) —
+  /// `ParcHebergementService::purger`, les mêmes verrous dans le même ordre et
+  /// aux mots du serveur :
+  ///
+  /// 1. l'unité doit être archivée ([PurgeRefuseeNonArchive]) ;
+  /// 2. aucune réservation à venir ne l'engage ([UniteEngagee], la phrase
+  ///    d'archivage du serveur) ;
+  /// 3. aucune réservation, même passée, ne la cite ([PurgeRefuseeReferencee]).
+  ///
+  /// La suppression et son enfilement (`suppression`, libellé de l'unité) sont
+  /// UNE transaction : le serveur rejoue son service de purge et ses verrous.
+  /// Seul chemin de suppression d'une unité saisie sur ce poste. Rend le numéro.
+  Future<String> purger(String uniteId) {
+    return transaction(() async {
+      final unite = await _exigerUnite(uniteId);
+      if (unite.statut != StatutUniteLocal.horsService) {
+        throw const PurgeRefuseeNonArchive();
+      }
+      final retenues = await engagements(uniteId);
+      if (retenues.isNotEmpty) throw UniteEngagee(retenues);
+      if (await _citeeParUneReservation(uniteId)) {
+        throw const PurgeRefuseeReferencee();
+      }
+
+      await (delete(
+        unitesHebergementLocal,
+      )..where((u) => u.id.equals(uniteId))).go();
+      await _file.enfiler(
+        table: TableSynchronisee.unitesHebergement,
+        entiteId: uniteId,
+        type: TypeOperationSync.suppression,
+        payload: {'libelle': unite.numero},
+      );
+      return unite.numero;
+    });
+  }
+
+  /// La DESCENTE d'une purge faite ailleurs (A5) : l'unité est retirée de CE
+  /// poste SEULEMENT si aucune réservation locale ne la cite. Rend `true` si
+  /// retirée (ou déjà absente), `false` si une saisie locale y est rattachée —
+  /// l'appelant la conserve et le dit. N'enfile rien : le serveur a déjà purgé.
+  Future<bool> retirerUnitePurgeeAilleurs(String uniteId) {
+    return transaction(() async {
+      final unite = await (select(
+        unitesHebergementLocal,
+      )..where((u) => u.id.equals(uniteId))).getSingleOrNull();
+      if (unite == null) return true;
+      if (await _citeeParUneReservation(uniteId)) return false;
+      await (delete(
+        unitesHebergementLocal,
+      )..where((u) => u.id.equals(uniteId))).go();
+      return true;
+    });
+  }
+
+  Future<bool> _citeeParUneReservation(String uniteId) async =>
+      (await (select(reservationsLocal)
+                ..where((r) => r.uniteId.equals(uniteId))
+                ..limit(1))
+              .get())
+          .isNotEmpty;
+
   /// La file d'envoi (lot F1). Son propre générateur d'UUID : celui de ce DAO
   /// est injectable.
   OperationsSyncDao get _file => OperationsSyncDao(attachedDatabase);

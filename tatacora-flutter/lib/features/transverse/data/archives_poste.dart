@@ -2,12 +2,14 @@ import 'dart:convert';
 
 import '../../../core/database/app_database.dart';
 import '../../hebergement/data/parc_dao.dart';
-import '../../hebergement/domain/refus_parc.dart' show RefusParc;
+import '../../hebergement/domain/refus_parc.dart'
+    show RefusParc, UniteIntrouvableAuParc;
 import '../../synchronisation/data/operations_sync_dao.dart';
 import '../../synchronisation/domain/operation_sync.dart';
 import '../../vehicules/data/vehicule_dao.dart';
 import '../../vehicules/domain/entities/vehicule.dart' show StatutVehicule;
-import '../../vehicules/domain/regles_vehicules.dart' show RefusVehicule;
+import '../../vehicules/domain/regles_vehicules.dart'
+    show MessagesVehicules, RefusVehicule;
 import '../domain/registre_archives.dart';
 
 /// Un « Restaurer » refusé : rien n'est modifié. [message] est la phrase du
@@ -119,12 +121,50 @@ class ArchivesPoste {
         }
     }
   }
+
+  /// `RegistreArchivesService::purger()` : efface DÉFINITIVEMENT l'élément archivé
+  /// et rend son libellé (le « :element » de « :element purgé définitivement. »).
+  ///
+  /// Les verrous sont ceux des services de parc du serveur, rejoués par les
+  /// écrivains uniques des deux tables (`ParcDao.purger`, `VehiculeDao.purger`),
+  /// qui enfilent la `suppression` dans leur transaction — ce fichier n'écrit
+  /// rien lui-même.
+  ///
+  /// @throws RefusArchive élément introuvable, non archivé, engagé ou encore cité
+  Future<String> purger(TypeArchive type, String id) async {
+    try {
+      return switch (type) {
+        TypeArchive.uniteHebergement => await parc.purger(id),
+        TypeArchive.vehicule => await vehicules.purger(id),
+      };
+    } on UniteIntrouvableAuParc {
+      throw const RefusArchive(MessagesArchives.elementIntrouvable);
+    } on RefusParc catch (refus) {
+      throw RefusArchive(refus.message);
+    } on RefusVehicule catch (refus) {
+      throw RefusArchive(
+        refus.message == MessagesVehicules.vehiculeInexistant
+            ? MessagesArchives.elementIntrouvable
+            : refus.message,
+      );
+    }
+  }
 }
 
 /// Les phrases de l'onglet « Restaurer » (`pwa.import_export.*`, au mot).
 abstract final class MessagesArchives {
   /// `pwa.import_export.archive_restauree`.
   static String restauree(String element) => '$element remis en place.';
+
+  /// `pwa.import_export.archive_purgee`.
+  static String purgee(String element) => '$element purgé définitivement.';
+
+  /// La purge est réservée au super administrateur
+  /// (`ImportExport::exigerSuperAdmin`) : le serveur répond 403 SANS phrase ; le
+  /// poste le dit.
+  static const String superAdminRequis =
+      'Accès refusé : seul le super administrateur purge définitivement un '
+      'élément. Rien n’a été supprimé.';
 
   /// Le serveur répond 403 sans phrase (`exigerEcriture`) ; le poste le dit.
   static const String droitManquant =

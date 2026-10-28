@@ -40,7 +40,14 @@ enum TableSynchronisee {
   /// 21/10/2026 : le retrait (création) et la remise à la carte (modification).
   indisponibilitesCarte('indisponibilites_carte', accepteModification: true),
   categoriesHebergement('categories_hebergement', accepteModification: true),
-  unitesHebergement('unites_hebergement', accepteModification: true),
+
+  /// 28/10/2026 (A5) : avec les véhicules, la SEULE table dont une `suppression`
+  /// (la purge définitive d'un élément archivé) se synchronise.
+  unitesHebergement(
+    'unites_hebergement',
+    accepteModification: true,
+    accepteSuppression: true,
+  ),
 
   /// Lot F6 : l'envoi et la clôture (le statut seul).
   commandesAchat('commandes_achat', accepteModification: true),
@@ -78,7 +85,7 @@ enum TableSynchronisee {
 
   /// Audit de couverture (18/10/2026) : le parc M8 (retouches et statut par
   /// ses gestes), puis les contrats (création seule, RG-08 au serveur).
-  vehicules('vehicules', accepteModification: true),
+  vehicules('vehicules', accepteModification: true, accepteSuppression: true),
 
   /// 26/10/2026 : l'annulation d'un contrat (`statut = annule`) est la SEULE
   /// modification admise ; le contrat se crée, ne se corrige pas.
@@ -114,13 +121,6 @@ enum TableSynchronisee {
   /// messages tracés restent sur leur poste.
   modelesNotification('modeles_notification', accepteModification: true),
 
-  /// 21/10/2026 : une immobilisation (M10) se crée, elle ne se modifie pas ; son
-  /// plan d'amortissement est CALCULÉ, jamais envoyé.
-  immobilisations('immobilisations', accepteModification: false),
-
-  /// 21/10/2026 : les canaux de réservation (Paramètres) — création (nom), puis
-  /// l'état entier en modification (renommage, désactivation, réactivation).
-  canauxReservation('canaux_reservation', accepteModification: true),
   /// 28/10/2026 (D246 rouvert par le PO) : un COMPTE du plan comptable créé sur le
   /// poste (création seule, `PlanComptableService` au serveur), AVANT les pièces
   /// saisies à la main qui le citent par son numéro.
@@ -132,6 +132,13 @@ enum TableSynchronisee {
   /// seule. Jamais une pièce d'un module (vente, dépense…) ni une pièce descendue.
   piecesSaisie('pieces_saisie', accepteModification: false),
 
+  /// 21/10/2026 : une immobilisation (M10) se crée, elle ne se modifie pas ; son
+  /// plan d'amortissement est CALCULÉ, jamais envoyé.
+  immobilisations('immobilisations', accepteModification: false),
+
+  /// 21/10/2026 : les canaux de réservation (Paramètres) — création (nom), puis
+  /// l'état entier en modification (renommage, désactivation, réactivation).
+  canauxReservation('canaux_reservation', accepteModification: true),
 
   /// 21/10/2026 : un inventaire physique CLÔTURÉ — le document complet (point,
   /// jour, lignes comptées), création seule ; sa régularisation part en
@@ -146,7 +153,11 @@ enum TableSynchronisee {
     accepteModification: false,
   );
 
-  const TableSynchronisee(this.nomServeur, {required this.accepteModification});
+  const TableSynchronisee(
+    this.nomServeur, {
+    required this.accepteModification,
+    this.accepteSuppression = false,
+  });
 
   /// Le nom au registre du serveur — jamais le nom local (`_local`).
   final String nomServeur;
@@ -155,6 +166,12 @@ enum TableSynchronisee {
   /// la refuse la rejetterait (`sync.modification_non_synchronisable`) :
   /// `OperationsSyncDao.enfiler` refuse donc de l'enfiler.
   final bool accepteModification;
+
+  /// Le gestionnaire serveur accepte-t-il une `suppression` (A5, 28/10/2026) ?
+  /// REGISTRE FERMÉ : les unités d'hébergement et les véhicules, par leur purge
+  /// définitive. Un test relit le serveur (`GestionnaireSynchronisation::
+  /// accepteSuppression`) pour que cette liste ne diverge pas.
+  final bool accepteSuppression;
 
   static TableSynchronisee? depuisNom(String nom) {
     for (final t in values) {
@@ -167,7 +184,11 @@ enum TableSynchronisee {
 /// `operations.*.type` du protocole.
 enum TypeOperationSync {
   creation('creation'),
-  modification('modification');
+  modification('modification'),
+
+  /// 28/10/2026 (A5) : la purge définitive d'un élément archivé (registre
+  /// FERMÉ : [TableSynchronisee.accepteSuppression]).
+  suppression('suppression');
 
   const TypeOperationSync(this.code);
   final String code;
@@ -175,6 +196,7 @@ enum TypeOperationSync {
   static TypeOperationSync depuisCode(String code) => switch (code) {
     'creation' => creation,
     'modification' => modification,
+    'suppression' => suppression,
     _ => throw StateError('Type d’opération inconnu : « $code ».'),
   };
 }

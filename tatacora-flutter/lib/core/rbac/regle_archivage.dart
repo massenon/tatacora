@@ -41,6 +41,12 @@ const Set<String> rolesAdministration = {'administrateur', 'super_admin'};
 String roleNormalise(String? role) =>
     (role ?? '').trim().toLowerCase().replaceAll(' ', '_');
 
+/// `User::estSuperAdmin()` : le rôle `super_admin`, et lui seul. La PURGE
+/// définitive (A5, `ImportExport::exigerSuperAdmin`, directive du PO du
+/// 03/09/2026) lui est réservée : l'administrateur restaure et réinitialise,
+/// lui seul purge.
+bool estSuperAdmin(String? role) => roleNormalise(role) == 'super_admin';
+
 /// `peutArchiver()` du serveur : le droit `C` sur [module], PUIS un des deux
 /// rôles d'administration OU la bascule ouverte.
 bool peutArchiver({

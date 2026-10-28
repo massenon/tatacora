@@ -20,11 +20,6 @@
       "classe": "a",
       "motif": "« Modifier la boisson » est propre au bar : le drapeau creation_boisson est faux pour le restaurant, qui modifie ses plats sur « Plats & menus ». Le comparateur ne evalue pas les conditions Blade. Voir ecran_carte_restaurant.dart.",
       "date": "2026-10-08"
-    },
-    "transverse/import-export|modale:import_export.purge_titre": {
-      "classe": "a",
-      "motif": "Purge definitive (A5) : hors perimetre du poste a ce jour, rien n'y est supprime ; un element archive reste restaurable depuis l'onglet « Restaurer » (registre derive des elements hors service). Voir ecran_import_export.dart.",
-      "date": "2026-10-26"
     }
   },
   "oublis": {

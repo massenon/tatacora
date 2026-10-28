@@ -241,9 +241,16 @@ final class ElementCatalogue {
     required this.modifieLe,
     required this.donnees,
     this.posteOrigine,
+    this.supprime = false,
   });
 
   final TableDescendue table;
+
+  /// `true` : la PURGE définitive de l'élément, faite ailleurs (A5, 28/10/2026).
+  /// Seules les unités d'hébergement et les véhicules en portent ; [donnees] est
+  /// vide. L'aligneur la rejoue SEULEMENT si aucune saisie locale n'y est
+  /// rattachée.
+  final bool supprime;
 
   /// Le poste qui a saisi le document (lot F4) ; `null` : saisi au serveur.
   final String? posteOrigine;
@@ -265,24 +272,42 @@ final class ElementCatalogue {
     final donnees = brut['donnees'];
     if (table is! String || id is! String || id.isEmpty) return null;
     final t = TableDescendue.depuisNom(table);
-    if (t == null || donnees is! Map) return null;
+    final supprime = brut['supprime'] == true;
+    // Une suppression ne porte aucune donnée (le serveur rend `{}`) ; seule la
+    // table du REGISTRE FERMÉ de la purge est admise, jamais une autre.
+    if (supprime) {
+      if (t == null || !_tablesSupprimables.contains(t)) return null;
+    } else if (t == null || donnees is! Map) {
+      return null;
+    }
     return ElementCatalogue(
       table: t,
       id: id,
-      actif: brut['actif'] != false,
+      supprime: supprime,
+      actif: supprime ? false : brut['actif'] != false,
       modifieLe: brut['modifie_le'] is String
           ? brut['modifie_le']! as String
           : '',
-      donnees: Map<String, Object?>.from(donnees),
+      donnees: donnees is Map
+          ? Map<String, Object?>.from(donnees)
+          : const <String, Object?>{},
       posteOrigine: brut['poste_origine'] is String
           ? brut['poste_origine']! as String
           : null,
     );
   }
 
+  /// Le registre FERMÉ de la purge (A5) : le miroir de `SuppressionsDescendantes::
+  /// TABLES` du serveur.
+  static const Set<TableDescendue> _tablesSupprimables = {
+    TableDescendue.unitesHebergement,
+    TableDescendue.vehicules,
+  };
+
   Map<String, Object?> versJson() => {
     'table': table.nomServeur,
     'id': id,
+    if (supprime) 'supprime': true,
     'actif': actif,
     'modifie_le': modifieLe,
     'poste_origine': posteOrigine,

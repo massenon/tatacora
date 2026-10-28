@@ -242,6 +242,11 @@ class _EtatEcranJournalAudit extends ConsumerState<EcranJournalAudit> {
         AppColors.reserveGoldFond,
         AppColors.gold,
       ),
+      // `JournalAudit::ACTIONS['suppression']` : #FDECEC / #C62828.
+      ActionJournalPoste.suppression => (
+        AppColors.badgeRougeFond,
+        AppColors.erreur,
+      ),
     };
     return Container(
       padding: const EdgeInsets.symmetric(

@@ -136,6 +136,13 @@ const _ajoutsParVersion = <int, List<String>>{
     'ALTER TABLE ecritures_serveur_local DROP COLUMN piece_origine_id',
   ],
 
+  // La v43 (28/10/2026, A5 « Purger ») n'ajoute ni colonne ni table : elle ELARGIT le
+  // CHECK du type de `operations_sync_local` (`suppression`). Le retour arriere
+  // RETRECIT donc la contrainte en recreant la table (voir `_retrecirTypesOperations`,
+  // appele par `ramenerSchemaA` a cette etape) : la migration a alors un vrai
+  // travail a faire dans chaque fixture qui la traverse.
+  43: <String>[],
+
   // La v42 (27/10/2026, le recu en image d'une depense) ajoute SIX colonnes
   // nullables a `depenses_local`, aucune table, ni indexees ni referencees :
   // retour arriere symetrique.
@@ -560,7 +567,50 @@ Future<void> ramenerSchemaA(AppDatabase db, int cible) async {
     for (final ordre in ordres) {
       await db.customStatement(ordre);
     }
+    if (version == 43) await _retrecirTypesOperations(db);
   }
 
   await db.customStatement('PRAGMA user_version = $cible');
+}
+
+/// Annule la v43 : remet le `CHECK (type IN ('creation', 'modification'))` de la file
+/// d'envoi (SQLite ne modifie pas une contrainte : la table est recreee, ses lignes
+/// recopiees, ses index recrees). Les lignes de type `suppression` n'existent pas
+/// encore a ce stade d'une fixture ; elles sont ecartees par la copie, comme une
+/// version anterieure les ignorerait.
+Future<void> _retrecirTypesOperations(AppDatabase db) async {
+  const nom = 'operations_sync_local';
+  final sql =
+      (await db
+              .customSelect(
+                "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = '$nom'",
+              )
+              .getSingle())
+          .read<String>('sql');
+  const large = "'creation', 'modification', 'suppression'";
+  if (!sql.contains(large)) return;
+  final index = [
+    for (final r
+        in await db
+            .customSelect(
+              "SELECT name, sql FROM sqlite_master WHERE type = 'index' "
+              "AND tbl_name = '$nom' AND sql IS NOT NULL",
+            )
+            .get())
+      (nom: r.read<String>('name'), sql: r.read<String>('sql')),
+  ];
+  for (final i in index) {
+    await db.customStatement('DROP INDEX ${i.nom}');
+  }
+  await db.customStatement('ALTER TABLE $nom RENAME TO ${nom}_large');
+  await db.customStatement(
+    sql.replaceFirst(large, "'creation', 'modification'"),
+  );
+  await db.customStatement(
+    "INSERT INTO $nom SELECT * FROM ${nom}_large WHERE type <> 'suppression'",
+  );
+  await db.customStatement('DROP TABLE ${nom}_large');
+  for (final i in index) {
+    await db.customStatement(i.sql);
+  }
 }

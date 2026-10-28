@@ -471,6 +471,95 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
     });
   }
 
+  /// « Purger » définitivement un véhicule ARCHIVÉ (A5, 28/10/2026) —
+  /// `ParcVehiculeService::purger`, les mêmes verrous dans le même ordre et aux
+  /// mots du serveur :
+  ///
+  /// 1. le véhicule doit être archivé (`hors_service`) ;
+  /// 2. aucun contrat non annulé ne l'engage (fin du contrat AUJOURD'HUI ou
+  ///    plus tard — `date_fin >= aujourd'hui`, plus large que l'archivage) :
+  ///    la phrase `vehicules.verrou`, avec ses trois premiers contrats ;
+  /// 3. aucun contrat (même annulé ou passé) ni entretien ne le cite.
+  ///
+  /// La suppression et son enfilement sont UNE transaction. Rend l'immatriculation.
+  Future<String> purger(String vehiculeId, {DateTime? aujourdHui}) {
+    final jour = jourDe(aujourdHui ?? DateTime.now());
+
+    return transaction(() async {
+      final ligne = await _ligneVehicule(vehiculeId);
+      if (ligne == null) {
+        throw const RefusVehicule(MessagesVehicules.vehiculeInexistant);
+      }
+      if (ligne.statut != 'hors_service') {
+        throw const RefusVehicule(MessagesVehicules.purgeRefuseeNonArchive);
+      }
+
+      final contrats =
+          await (select(attachedDatabase.contratsLocationLocal)
+                ..where((c) => c.vehiculeId.equals(vehiculeId))
+                ..orderBy([(c) => OrderingTerm.asc(c.dateDebut)]))
+              .get();
+      final engages = contrats
+          .where(
+            (c) =>
+                c.statut != statutContratAnnule &&
+                !jourDe(c.dateFin).isBefore(jour),
+          )
+          .toList(growable: false);
+      if (engages.isNotEmpty) {
+        throw RefusVehicule(
+          MessagesVehicules.purgeVerrouille([
+            for (final c in engages)
+              (numero: c.numero ?? c.id, debut: c.dateDebut, fin: c.dateFin),
+          ]),
+        );
+      }
+      if (contrats.isNotEmpty || await _citeParUnEntretien(vehiculeId)) {
+        throw const RefusVehicule(MessagesVehicules.purgeRefuseeReferencee);
+      }
+
+      await (delete(
+        attachedDatabase.vehiculesLocal,
+      )..where((v) => v.id.equals(vehiculeId))).go();
+      await OperationsSyncDao(attachedDatabase).enfiler(
+        table: TableSynchronisee.vehicules,
+        entiteId: vehiculeId,
+        type: TypeOperationSync.suppression,
+        payload: {'libelle': ligne.immatriculation},
+      );
+      return ligne.immatriculation;
+    });
+  }
+
+  /// La DESCENTE d'une purge faite ailleurs (A5) : le véhicule est retiré de CE
+  /// poste SEULEMENT si aucun contrat ni entretien local ne le cite. `true` si
+  /// retiré (ou déjà absent), `false` si une saisie locale y est rattachée.
+  /// N'enfile rien : le serveur a déjà purgé.
+  Future<bool> retirerVehiculePurgeAilleurs(String vehiculeId) {
+    return transaction(() async {
+      if (await _ligneVehicule(vehiculeId) == null) return true;
+      final cite =
+          (await (select(attachedDatabase.contratsLocationLocal)
+                    ..where((c) => c.vehiculeId.equals(vehiculeId))
+                    ..limit(1))
+                  .get())
+              .isNotEmpty ||
+          await _citeParUnEntretien(vehiculeId);
+      if (cite) return false;
+      await (delete(
+        attachedDatabase.vehiculesLocal,
+      )..where((v) => v.id.equals(vehiculeId))).go();
+      return true;
+    });
+  }
+
+  Future<bool> _citeParUnEntretien(String vehiculeId) async =>
+      (await (select(attachedDatabase.entretiensVehiculeLocal)
+                ..where((e) => e.vehiculeId.equals(vehiculeId))
+                ..limit(1))
+              .get())
+          .isNotEmpty;
+
   /// Établit un contrat de location — **RG-08 et RG-09 dans la transaction qui
   /// écrit**.
   ///
