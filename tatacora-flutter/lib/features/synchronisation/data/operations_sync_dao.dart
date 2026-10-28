@@ -106,7 +106,11 @@ class OperationsSyncDao extends DatabaseAccessor<AppDatabase> {
         );
       }
       if (payload.isEmpty) {
-        throw ArgumentError.value(payload, 'payload', 'suppression sans libellé');
+        throw ArgumentError.value(
+          payload,
+          'payload',
+          'suppression sans libellé',
+        );
       }
     }
     if (type == TypeOperationSync.creation && payload.isEmpty) {
