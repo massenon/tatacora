@@ -3,7 +3,6 @@ library;
 
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tatacora_flutter/core/database/app_database.dart';
 import 'package:tatacora_flutter/features/comptabilite/data/comptabilite_dao.dart';
 import 'package:tatacora_flutter/features/comptabilite/data/ecritures_serveur_dao.dart';
 import 'package:tatacora_flutter/features/comptabilite/data/moteur_comptable.dart';

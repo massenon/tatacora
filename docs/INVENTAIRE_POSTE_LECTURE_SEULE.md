@@ -24,8 +24,8 @@ Journal d'audit, Recherche globale, Aide) n'ont aucune action et ne sont pas com
 | Indicateur | Nombre |
 |---|---|
 | Actions web d'écriture inventoriées | **150** |
-| Couvertes (OUI complet) | **144** (135 à la mesure, +4 par le lot L3, +5 par les lots L1-L2 : A11, A1, A3, A2, A4) |
-| Partielles | **2** (7 à la mesure, −4 par le lot L3, −1 par A11 : A9 et A12 restent) |
+| Couvertes (OUI complet) | **145** (135 à la mesure, +4 par le lot L3, +5 par les lots L1-L2 : A11, A1, A3, A2, A4, +1 par le lot L5-A12 : A12) |
+| Partielles | **1** (7 à la mesure, −4 par le lot L3, −1 par A11, −1 par L5-A12 : A9 reste) |
 | Lecture seule | **0** |
 | Absentes | **4** (8 à la mesure, −4 par L1-L2 : A5 et les journaux hors périmètre restent) |
 
@@ -97,7 +97,7 @@ et l'instant, donc aucun schéma n'est nécessaire.
 | B1 | Numéro officiel `F-` et certification MECeF | `AUDIT_POSTE_AUTONOME.md` §4.1 : service fiscal externe + séquence du serveur ; le poste émet `PROV-…` |
 | B2 | E-mail réel : seul le canal e-mail part ; WhatsApp, Android, SMS « à transmettre à la main » | `AUDIT` §4.2 (décision PO 26/10/2026 limitée à l'e-mail), aucun contrat de transport |
 | B3 | Sorties de stock d'une vente (RG-05) : le poste ne les écrit pas, il ESTIME « −X en attente d'envoi » | D240 + `CLAUDE.md` « Stock estimé hors ligne » : le serveur sort le stock à la réception, un mouvement local serait compté deux fois |
-| B4 | Pièces comptables saisies à la main (`enregistrerPieceBrouillon/Validee`) restent sur le poste | D246 : « le poste n'envoie JAMAIS une écriture » ; à rouvrir seulement si le PO veut une saisie manuelle partagée |
+| B4 | ~~Pièces comptables saisies à la main restent sur le poste~~ **LEVÉ le 28/10/2026** : D246 rouvert par décision du PO, la pièce SOURCE de la saisie part (`pieces_saisie`), le serveur la rejoue et passe la sienne (section 10) | D246 rouvert par décision du PO du 28/10/2026 |
 | B5 | « Ouvrir un exercice » local non poussé ; le serveur ouvre le sien | D210 « écart assumé » ; l'exercice descend avec son statut (`TableDescendue.exercicesComptables`) |
 | B6 | Clôture annuelle : pas de relevés bancaires, PDF d'archive au gabarit commun, archives hors sauvegarde, résultat sur les seules pièces du poste | `AUDIT` §4.3, `CLAUDE.md` v40 « Écarts nommés » |
 | B7 | Onglets « Réception » et « Envoi » de Postes & Appairage (corriger, relancer, ignorer une opération reçue ; redescente) | données du SERVEUR (`journal_reception_synchronisation`, `journal_envoi_synchronisation`) ; le poste a sa propre file (« À traiter », Renvoyer/Débloquer) ; exige le serveur par nature (`AUDIT` §3, dernière ligne) |
@@ -235,9 +235,9 @@ et l'instant, donc aucun schéma n'est nécessaire.
 
 | Action web | Poste | Preuve / cause | Effort | Schéma ? | Réf. |
 |---|---|---|---|---|---|
-| `Hub::enregistrerPieceBrouillon` | **OUI** | `MoteurComptable` (local) ; non synchronisée | - | non | B4 |
-| `Hub::enregistrerPieceValidee` | **OUI** | `MoteurComptable.passerEtValider` ; non synchronisée | - | non | B4 |
-| `Hub::enregistrerCompte` | **PARTIEL** | `MoteurComptable.creerCompte` ; reste sur le poste, aucune table au registre de synchronisation | L | non | A12 |
+| `Hub::enregistrerPieceBrouillon` | **OUI** | `MoteurComptable.saisirPiece(valider: false)` (v44), synchronisée (`pieces_saisie`) | - | non | B4 |
+| `Hub::enregistrerPieceValidee` | **OUI** | `MoteurComptable.saisirPiece(valider: true)` (v44), synchronisée (`pieces_saisie`) | - | non | B4 |
+| `Hub::enregistrerCompte` | **OUI** | `MoteurComptable.creerCompte` (v44), synchronisé (`plan_comptable`, création seule), plan descendu du serveur | - | non | A12 |
 | `Hub::enregistrerImmo` (+ plan d'amortissement) | **OUI** | `ImmobilisationsDao.creer` (v35), synchronisée | - | non |  |
 | `Hub::enregistrerExercice` | **OUI** | `ComptabiliteDao.insererExercice` ; non poussé, le serveur ouvre le sien | - | non | B5 |
 | `Hub::demarrerCloture` / `reprendreSaisie` / `cloturerExercice` / `rouvrirExercice` | **OUI** | `ClotureExerciceLocale` (v40) ; demandes `demandes_cloture_exercice` | - | non | B6 |
@@ -392,7 +392,7 @@ la liste » (le geste existe : `SauvegardesPoste.retirer`).
 - **D3** : brancher la règle d'archivage unique (administrateur / super_admin OU bascule) sur la Paie (D272) ?
 - **D4** : justificatif de dépense : accepte-t-on un transport de fichier dans la synchronisation (aujourd'hui JSON seul) ?
 - **D5** : la purge définitive d'une unité ou d'un véhicule archivé doit-elle exister au poste (impose une opération `suppression` dans le protocole) ?
-- **D6** : D246 est-il rouvert pour le plan comptable (A12) et les pièces saisies à la main (B4) ?
+- **D6** *(TRANCHÉ : OUI, 28/10/2026, livré par le lot L5-A12)* : D246 est rouvert par décision du PO pour le plan comptable (A12) et les pièces saisies à la main (B4) : le poste fait ce que le web fait, avec sa synchronisation.
 - **D7** (TRANCHÉ en pratique, A3 : document remis, sans visas, comme le gabarit serveur) : PA-192, PDF « certifié A4 » : le bulletin de paie A4 (A3) reprend-il le gabarit tabulaire commun ou exige-t-il visas et en-tête propres ?
 
 ## 8. Lot L3-S + L3 livré (27/10/2026, schéma v41)
@@ -445,3 +445,11 @@ D4 = OUI. A9 est livré : colonnes `depenses_local.recu_*` (schéma **v42**, apr
 - **L1** : A11 (règle d'archivage unique), A1 (verrou de session), A3 (bulletin A4), A2 (modales d'ouverture) livrés ; chacun avec preuve contre le serveur PHP réel et mutation-tests.
 - **L2** : A4 (Restaurer) sur registre dérivé. Gardes web `PwaActionsReluesTest` et `PwaEcritureAutoriseeTest` : 15 tests verts, aucune garde Livewire manquante à inscrire.
 - **Écarts assumés** : le bulletin A4 n'a pas de visas ; durée du circuit non composée dans les départs à échéance ; export Immobilisations absent ; registre d'archives limité à CE poste (« — » sans opération locale) ; A5 (purge) et A12 non faits.
+
+## 10. Lot L5-A12 / B4 livré (28/10/2026, schéma v44) — D246 rouvert par décision du PO du 28/10/2026
+
+- **A12, compte du plan** : `MoteurComptable.creerCompte` enfile une `creation` (`plan_comptable`, numéro + libellé + nature) dans sa transaction. Serveur : `GestionnairePlanComptable` rejoue `PlanComptableService::creerCompte` (mêmes validations, mêmes phrases), idempotent sur l'identifiant du poste ; un numéro déjà pris est FONDU si libellé et nature sont les mêmes (`fusionne_avec`), sinon REFUSÉ à la phrase « Le compte … existe déjà » (À traiter). Le web n'a aucune modification de libellé : création seule. Descente : `TableDescendue.planComptable`, après les exercices et AVANT les écritures ; l'aligneur ajoute un compte absent (clé : le numéro), n'en réécrit jamais un, n'enfile rien.
+- **B4, pièce saisie à la main** : `MoteurComptable.saisirPiece` (seul chemin qui enfile une pièce) passe la pièce, la marque (`pieces_saisie_local`, identifiant d'origine) et enfile la SOURCE (`pieces_saisie` : journal, date, libellé, statut, lignes en centimes, centre par son libellé). Serveur : `GestionnairePiecesSaisie` rejoue `PasserEcritureService` (équilibre, exercice ouvert ou en clôture, compte imputable, RG-12, journaux CL/AN refusés) et passe SA pièce, brouillon ou validée, avec `ecritures_comptables.piece_origine_id`. Les pièces des modules (vente, dépense, règlement, clôture) ne partent jamais, ni une pièce descendue.
+- **Pas de double comptage** : les états ne lisent que le miroir `ecritures_serveur_local`, jamais `ecritures_local`. Une pièce redescendue y arrive avec `piece_origine_id` : `ComptabiliteDao.piecesSaisiesNonReprises` la reconnaît (plus « en attente de reprise »), et une pièce validée non encore reprise n'est dans aucun état (le bandeau de provenance compte l'opération en attente).
+- **Écarts assumés** : une pièce saisie AVANT la v44 n'est ni marquée ni envoyée (le serveur ne peut pas la distinguer d'une pièce de module) ; un brouillon du poste reste brouillon au serveur (ni le web ni le poste n'ont de validation différée) ; interrupteur « Synchronisation activée » éteint : rien n'est enfilé.
+

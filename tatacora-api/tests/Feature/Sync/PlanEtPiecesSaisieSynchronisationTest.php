@@ -96,6 +96,10 @@ final class PlanEtPiecesSaisieSynchronisationTest extends TestCase
             ->assertJsonPath('resultats.0.statut', 'rejete')
             ->assertJsonPath('resultats.0.motif', __('comptabilite.compte_deja_existant', ['numero' => '6099']));
         $this->assertSame(1, CompteComptable::query()->where('numero_compte', '6099')->count());
+
+        // Même libellé, autre nature : ce n'est pas le même compte, il ne se fond pas.
+        $this->pousser([$this->compte($this->uuid(), '6099', 'Charges diverses', 'produit')], $this->comptable)
+            ->assertJsonPath('resultats.0.statut', 'rejete');
     }
 
     #[Test]

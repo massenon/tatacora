@@ -124,7 +124,18 @@ const tablesAjouteesEnV39 = <String>{'boite_envoi_emails_local'};
 /// La table que la v40 AJOUTE (clôtures d'exercice du poste, 26/10/2026).
 const tablesAjouteesEnV40 = <String>{'clotures_exercices_local'};
 
+/// La table que la v44 AJOUTE (pièces saisies à la main, 28/10/2026).
+const tablesAjouteesEnV44 = <String>{'pieces_saisie_local'};
+
 const _ajoutsParVersion = <int, List<String>>{
+  // La v44 (28/10/2026, D246 rouvert : comptes et pieces saisies a la main
+  // partages) ajoute UNE table neuve, sans cle etrangere ni index, et UNE colonne
+  // nullable, ni indexee ni referencee : retour arriere symetrique.
+  44: <String>[
+    'DROP TABLE pieces_saisie_local',
+    'ALTER TABLE ecritures_serveur_local DROP COLUMN piece_origine_id',
+  ],
+
   // La v42 (27/10/2026, le recu en image d'une depense) ajoute SIX colonnes
   // nullables a `depenses_local`, aucune table, ni indexees ni referencees :
   // retour arriere symetrique.

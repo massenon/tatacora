@@ -222,6 +222,23 @@ Légende : **O** fonctionne sans serveur ; **N→O** ne fonctionnait pas, corrig
    balance de M14 ne compte pas les brouillons ; la note annexe n° 7 (événements
    postérieurs) est « non saisie » : son texte libre vit au serveur.
 
+10. **D246 ROUVERT par décision du PO du 28/10/2026 : comptes du plan et pièces
+   saisies à la main sont synchronisés** — FAIT en v44. Compte créé au hub
+   (`MoteurComptable.creerCompte`) : `creation` `plan_comptable`, rejouée par
+   `PlanComptableService::creerCompte` (doublon de numéro : fusion si même
+   libellé et même nature, sinon refus lisible), plan descendu du serveur
+   (aligneur qui n'enfile jamais et ne réécrit aucun compte local). Pièce saisie
+   à la main (`MoteurComptable.saisirPiece`) : la SOURCE part (`pieces_saisie`,
+   centimes), le serveur la rejoue par `PasserEcritureService` et passe SA pièce
+   (`piece_origine_id` = identifiant du poste). Le poste n'envoie jamais la
+   pièce d'un module ni une pièce descendue. Les états restent lus sur UNE seule
+   source (voir §2) : une pièce redescendue est reconnue par son origine
+   (`ComptabiliteDao.piecesSaisiesNonReprises`), jamais comptée deux fois.
+   Preuves : `plan_pieces_contre_serveur_test.dart` (vrai PHP,
+   `tool/comptabilite/rejouer_plan_et_pieces.php`), `plan_pieces_saisie_poste_test.dart`,
+   `PlanEtPiecesSaisieSynchronisationTest`. Interrupteur éteint : rien n'est
+   enfilé, le poste reste autonome.
+
 ## 5. Schéma
 
 Version **38** (74 tables) : une table neuve, `historique_prix_carte_local`, et six
@@ -245,3 +262,11 @@ neuve, `clotures_exercices_local`, migration additive CONDITIONNELLE
 (`migration_v40_clotures_exercices_test.dart`). Les journaux `AN` et `CL` sont
 installés avec le référentiel. Aucune clôture n'est déduite pour les exercices
 d'avant.
+
+Version **44** (77 tables, D246 rouvert, 28/10/2026) : UNE table neuve,
+`pieces_saisie_local` (identifiant d'origine des pièces de saisie manuelle), et
+UNE colonne NULLABLE, `ecritures_serveur_local.piece_origine_id`. Migration
+additive CONDITIONNELLE (`from < 44`), curseur de descente oublié, fixture
+`_ajoutsParVersion[44]`, test sur fichier réel
+(`migration_v44_pieces_saisie_test.dart`). Aucune pièce d'avant n'est marquée.
+

@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:drift/drift.dart' show Value, driftRuntimeOptions;
+import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tatacora_flutter/core/database/app_database.dart';
 import 'package:tatacora_flutter/features/comptabilite/data/comptabilite_dao.dart';
@@ -233,9 +233,11 @@ void main() {
           valider: true,
         );
         expect(piece.every((l) => l.estValidee), isTrue);
-        final p = jsonDecode(
-          (await file(TableSynchronisee.piecesSaisie)).single.payload,
-        );
+        final p =
+            jsonDecode(
+                  (await file(TableSynchronisee.piecesSaisie)).single.payload,
+                )
+                as Map<String, Object?>;
         expect(p['statut'], 'validee');
       },
     );
@@ -281,7 +283,7 @@ void main() {
             journal: 'OD',
             date: '2031-06-10',
             libelle: 'x',
-            lignes: const [LigneDemandee(role: 'caisse', debitCentimes: 1)],
+            lignes: const [LigneDemandee(role: 'CLIENTS', debitCentimes: 1)],
           ),
           auteurId: auteurEssai,
           valider: true,
