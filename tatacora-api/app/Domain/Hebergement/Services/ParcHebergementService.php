@@ -7,8 +7,10 @@ namespace App\Domain\Hebergement\Services;
 use App\Domain\Hebergement\Models\CategorieHebergement;
 use App\Domain\Hebergement\Models\Reservation;
 use App\Domain\Hebergement\Models\UniteHebergement;
+use App\Shared\Sync\Services\SuppressionsDescendantes;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use RuntimeException;
 use Throwable;
 
@@ -210,7 +212,12 @@ class ParcHebergementService
         }
 
         try {
-            $unite->delete();
+            // A5 : la suppression et sa trace vont ensemble (les postes rejouent
+            // la suppression s'ils n'y ont rien rattaché).
+            DB::transaction(static function () use ($unite): void {
+                $unite->delete();
+                SuppressionsDescendantes::noter('unites_hebergement', (string) $unite->id);
+            });
         } catch (Throwable) {
             // Le filet des références que ce service ne connaît pas : une FK
             // ajoutée demain (`restrictOnDelete` partout au schéma) doit

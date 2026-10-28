@@ -217,6 +217,13 @@ class SynchronisationService
 
         $gestionnaire = $this->registre->pour($table);
 
+        // A5 (28/10/2026) : la SUPPRESSION a son propre chemin — registre
+        // fermé, droit propre (super administrateur + écriture PARAM, comme
+        // l'écran web), aucun arbitrage de version : la purge est un acte.
+        if ($operation['type'] === 'suppression') {
+            return $this->traiterSuppression($operation, $gestionnaire, $posteId, $utilisateurId);
+        }
+
         // RBAC par operation — 2e niveau, applique ici faute de pouvoir l'etre
         // sur la route (PA-65). Un lot est multi-modules par nature : un seul
         // `VerifierAccesModule` sur `/api/v1/sync` serait soit trop laxiste,
@@ -308,6 +315,78 @@ class SynchronisationService
         // En laissant l'exception remonter, la requête échoue en 500, le client
         // rejoue plus tard, et l'idempotence (§5) protège les opérations du
         // même lot déjà traitées.
+
+        return $this->memoriser($operation, $posteId, $utilisateurId, $resultat);
+    }
+
+    /**
+     * Le module dont l'écriture est exigée pour purger (celui de l'onglet
+     * « Import/Export » où vit le bouton « Purger »).
+     */
+    public const MODULE_PURGE = 'PARAM';
+
+    /**
+     * Rejoue une PURGE DÉFINITIVE (`suppression`) par le gestionnaire, donc par
+     * le service de parc : mêmes verrous, mêmes phrases que l'écran web. Sans
+     * l'élément (déjà purgé, rejeu), l'opération réussit sans rien faire —
+     * idempotente.
+     *
+     * @param  array<string, mixed>  $operation
+     * @return array<string, mixed>
+     */
+    private function traiterSuppression(array $operation, GestionnaireSynchronisation $gestionnaire, string $posteId, string $utilisateurId): array
+    {
+        if (! $gestionnaire->accepteSuppression()) {
+            return $this->memoriser($operation, $posteId, $utilisateurId, $this->rejet(
+                $operation,
+                __('sync.suppression_non_synchronisable'),
+                'suppression_non_synchronisable',
+            ));
+        }
+
+        $utilisateur = $this->utilisateurs[$utilisateurId] ??= User::find($utilisateurId);
+
+        if (! $utilisateur instanceof User || ! $utilisateur->estActif()) {
+            $this->extras['compte_inactif'] = true;
+
+            return $this->memoriser($operation, $posteId, $utilisateurId, $this->rejet($operation, __('auth.module_refuse'), 'compte_inactif'));
+        }
+
+        // Dans l'ordre de l'écran : super administrateur d'abord, puis l'écriture du module.
+        if (! $utilisateur->estSuperAdmin() || $utilisateur->niveauSurModule(self::MODULE_PURGE) !== 'C') {
+            JournalSecurite::create([
+                'type_evenement' => 'acces_refuse_rbac',
+                'utilisateur_id' => $utilisateur->id,
+                'adresse_ip' => request()->ip(),
+                'module_concerne' => self::MODULE_PURGE,
+            ]);
+            $this->extras['module'] = self::MODULE_PURGE;
+
+            return $this->memoriser($operation, $posteId, $utilisateurId, $this->rejet(
+                $operation,
+                __('sync.suppression_reservee'),
+                'droit_manquant',
+            ));
+        }
+
+        $horodatage = Carbon::parse((string) $operation['horodatage_client']);
+        $contexte = new ContexteSynchronisation($posteId, $utilisateur, $horodatage, $horodatage->copy());
+
+        try {
+            $resultat = DB::transaction(function () use ($operation, $gestionnaire, $contexte): array {
+                $idPoste = (string) $operation['entite_id'];
+                $entiteId = $this->correspondances->resoudre($gestionnaire->table(), $idPoste);
+
+                if (DB::table($gestionnaire->table())->where('id', $entiteId)->doesntExist()) {
+                    return $this->succes($operation, new EcritureSynchronisee($idPoste, complements: ['deja_supprime' => true]));
+                }
+
+                return $this->succes($operation, $gestionnaire->supprimer($entiteId, $contexte));
+            });
+        } catch (RuntimeException $e) {
+            $this->extras['exception'] = $e::class;
+            $resultat = $this->rejet($operation, $e->getMessage(), $this->codeDeLException($e));
+        }
 
         return $this->memoriser($operation, $posteId, $utilisateurId, $resultat);
     }

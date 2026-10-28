@@ -62,6 +62,20 @@ final class GestionnaireVehicules extends GestionnaireAbstrait
         return true;
     }
 
+    /** A5 : la purge définitive d'un véhicule archivé (28/10/2026). */
+    public function accepteSuppression(): bool
+    {
+        return true;
+    }
+
+    /** Les verrous et les phrases sont ceux du service de parc, jamais réécrits ici. */
+    public function supprimer(string $entiteId, ContexteSynchronisation $contexte): EcritureSynchronisee
+    {
+        $this->parc->purger(Vehicule::query()->lockForUpdate()->findOrFail($entiteId));
+
+        return new EcritureSynchronisee($entiteId);
+    }
+
     public function creer(string $entiteId, array $payload, ContexteSynchronisation $contexte): EcritureSynchronisee
     {
         $donnees = $this->validerGeste($payload, [

@@ -7,8 +7,10 @@ namespace App\Domain\Vehicules\Services;
 use App\Domain\Vehicules\Models\ContratLocation;
 use App\Domain\Vehicules\Models\EntretienVehicule;
 use App\Domain\Vehicules\Models\Vehicule;
+use App\Shared\Sync\Services\SuppressionsDescendantes;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use RuntimeException;
 use Throwable;
 
@@ -224,7 +226,12 @@ class ParcVehiculeService
         }
 
         try {
-            $vehicule->delete();
+            // A5 : la suppression et sa trace vont ensemble (les postes rejouent
+            // la suppression s'ils n'y ont rien rattaché).
+            DB::transaction(static function () use ($vehicule): void {
+                $vehicule->delete();
+                SuppressionsDescendantes::noter('vehicules', (string) $vehicule->id);
+            });
         } catch (Throwable) {
             // Le filet des références que ce service ne connaît pas : une FK
             // ajoutée demain doit rendre le même refus nommé, jamais une

@@ -29,6 +29,10 @@ return [
     // ses modifications le dit, plutôt que d'écrire en brut.
     'modification_non_synchronisable' => 'Modification non synchronisable : cet enregistrement ne se modifie pas '
         . 'hors connexion. Faites la modification depuis l\'écran en ligne.',
+    'suppression_non_synchronisable' => 'Suppression non synchronisable : seule la purge d\'une unité d\'hébergement '
+        . 'ou d\'un véhicule archivé se rejoue depuis un poste.',
+    'suppression_reservee' => 'Purge refusée : seul le super administrateur purge définitivement un élément, '
+        . 'et il lui faut le droit d\'écrire dans ce module.',
     'modification_entite_inconnue' => 'Modification impossible : l\'enregistrement visé n\'existe pas sur le serveur. '
         . 'Sa création n\'a peut-être pas encore été synchronisée, ou a été refusée.',
     // Décision PO du 15/10/2026 : une modification dont la cible est inconnue

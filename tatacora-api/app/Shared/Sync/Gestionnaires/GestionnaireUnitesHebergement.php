@@ -9,6 +9,7 @@ use App\Domain\Hebergement\Models\UniteHebergement;
 use App\Domain\Hebergement\Services\ParcHebergementService;
 use App\Shared\Sync\Services\ResolveurCorrespondances;
 use App\Shared\Sync\Support\ContexteSynchronisation;
+use App\Shared\Sync\Support\EcritureSynchronisee;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -116,6 +117,20 @@ final class GestionnaireUnitesHebergement extends GestionnaireReferentielAbstrai
     {
         /** @var UniteHebergement $element */
         $this->parc->modifierUnite($element, $donnees);
+    }
+
+    /** A5 : la purge définitive d'une unité archivée (28/10/2026). */
+    public function accepteSuppression(): bool
+    {
+        return true;
+    }
+
+    /** Les verrous et les phrases sont ceux du service de parc, jamais réécrits ici. */
+    public function supprimer(string $entiteId, ContexteSynchronisation $contexte): EcritureSynchronisee
+    {
+        $this->parc->purger($this->trouver($entiteId));
+
+        return new EcritureSynchronisee($entiteId);
     }
 
     protected function archivable(): bool

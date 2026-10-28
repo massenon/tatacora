@@ -54,6 +54,18 @@ abstract class GestionnaireAbstrait implements GestionnaireSynchronisation
         return false;
     }
 
+    /** Par défaut : aucune suppression ne se synchronise (registre fermé, A5). */
+    public function accepteSuppression(): bool
+    {
+        return false;
+    }
+
+    public function supprimer(string $entiteId, ContexteSynchronisation $contexte): EcritureSynchronisee
+    {
+        // Jamais appelé quand `accepteSuppression()` est faux : bogue de programmation.
+        throw new LogicException(__('sync.interne.modification_non_declaree', ['table' => $this->table()]));
+    }
+
     public function champDateDocument(): ?string
     {
         return null;

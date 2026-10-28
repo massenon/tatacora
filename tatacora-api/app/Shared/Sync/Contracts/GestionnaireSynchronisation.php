@@ -82,6 +82,13 @@ interface GestionnaireSynchronisation
     /** `false` : toute `modification` est rejetée, `modifier()` n'est jamais appelé. */
     public function accepteModification(): bool;
 
+    /**
+     * `false` (défaut) : toute `suppression` est rejetée, `supprimer()` n'est
+     * jamais appelé. Le registre est FERMÉ (A5, 28/10/2026) : `vrai` pour les
+     * seules unités d'hébergement et véhicules, par leur purge définitive.
+     */
+    public function accepteSuppression(): bool;
+
     /** Champ du payload portant la date métier du document, ou `null`. */
     public function champDateDocument(): ?string;
 
@@ -147,4 +154,15 @@ interface GestionnaireSynchronisation
      * @throws \LogicException si `accepteModification()` est faux
      */
     public function modifier(string $entiteId, array $payload, ContexteSynchronisation $contexte): EcritureSynchronisee;
+
+    /**
+     * Rejoue la PURGE DÉFINITIVE d'un élément archivé, par le service de parc
+     * (mêmes verrous, mêmes phrases que l'écran web). L'élément existe
+     * (identifiant serveur résolu) ; l'absence est traitée par le moteur
+     * (idempotence).
+     *
+     * @throws \RuntimeException refus métier (non archivé, engagé, référencé)
+     * @throws \LogicException si `accepteSuppression()` est faux
+     */
+    public function supprimer(string $entiteId, ContexteSynchronisation $contexte): EcritureSynchronisee;
 }
