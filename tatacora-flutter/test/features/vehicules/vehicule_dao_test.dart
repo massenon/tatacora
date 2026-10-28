@@ -647,8 +647,13 @@ void main() {
       final v = await creerVehicule();
       await louer(v.id, debut: '2026-09-10', fin: '2026-09-15');
 
-      // Bornes demi-ouvertes : au 15, la restitution a eu lieu.
-      await dao.archiverVehicule(v.id, aujourdHui: DateTime(2026, 9, 15));
+      // Règle unique avec le serveur (`date_fin >= aujourd'hui`) : le jour de
+      // restitution ENGAGE encore ; le lendemain, plus rien.
+      await expectLater(
+        dao.archiverVehicule(v.id, aujourdHui: DateTime(2026, 9, 15)),
+        throwsA(isA<RefusVehicule>()),
+      );
+      await dao.archiverVehicule(v.id, aujourdHui: DateTime(2026, 9, 16));
 
       expect((await dao.parc()).single.statut, StatutVehicule.horsService);
     });

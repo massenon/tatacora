@@ -12,12 +12,14 @@ use App\Shared\ReportEngine\Data\EtatResultat;
  * État des locations de véhicules — EF-M14-02 appliqué à M8.
  *
  * `montant()` est CALCULÉ (`tarif_jour × nombreJours()`, `ContratLocation`) —
- * jamais une seconde formule. `contrats_location` ne porte NI `statut` NI
- * suivi de règlement (PA-50) : ce document ne prétend donc à aucun « reste
- * dû », à la différence de M7 où `montant_regle` existe réellement.
+ * jamais une seconde formule. Les contrats ANNULÉS (`statut = annule`,
+ * `ContratLocationService::annuler`) sont exclus des lignes, du nombre et du
+ * montant : ils ne sont pas du chiffre d'affaires. Ce document ne prétend à
+ * aucun « reste dû » (pas de suivi de règlement ici), à la différence de M7
+ * où `montant_regle` existe réellement.
  *
  * @see EF-M14-02 Bibliothèque d'états standards par module
- * @see PA-50 `contrats_location` sans statut ni suivi de règlement
+ * @see PA-50 historique : le statut n'existait pas encore
  */
 class EtatLocations implements EtatInterface
 {
@@ -57,7 +59,9 @@ class EtatLocations implements EtatInterface
         $debut = $filtres['date_debut'] ?? null;
         $fin = $filtres['date_fin'] ?? null;
 
-        $requete = ContratLocation::query()->with(['client', 'vehicule'])->orderByDesc('date_debut');
+        $requete = ContratLocation::query()->with(['client', 'vehicule'])
+            ->where('statut', '!=', 'annule')
+            ->orderByDesc('date_debut');
 
         if (filled($debut)) {
             $requete->whereDate('date_debut', '>=', $debut);

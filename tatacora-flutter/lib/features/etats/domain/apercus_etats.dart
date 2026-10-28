@@ -337,10 +337,17 @@ ApercuEtat apercuParcVehicules(
 }
 
 ApercuEtat apercuLocations(
-  List<ContratLocation> contrats,
+  List<ContratLocation> tousLesContrats,
   List<Vehicule> parc,
 ) {
   const modele = EtatLocal.locationsVehicules;
+  // `EtatLocations` (serveur) exclut `statut = annule` des lignes, du nombre et
+  // du montant : un contrat annulé n'est pas du chiffre d'affaires.
+  final contrats = [
+    for (final c in tousLesContrats)
+      if (c.statut != statutContratAnnule) c,
+  ];
+  final annules = tousLesContrats.length - contrats.length;
   final categorieDe = {
     for (final v in parc) v.immatriculation: v.categorieBrute,
   };
@@ -365,6 +372,7 @@ ApercuEtat apercuLocations(
         ],
     ],
     mentions: [
+      if (annules > 0) '$annules contrat(s) annulé(s) exclu(s) de l\'état.',
       if (sansMontant > 0)
         '$sansMontant contrat(s) sans montant connu (signé avant que ce poste '
             'le fige, et pas encore reçu du serveur) : case vide, hors du '

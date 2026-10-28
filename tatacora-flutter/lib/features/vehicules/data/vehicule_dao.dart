@@ -446,13 +446,15 @@ class VehiculeDao extends DatabaseAccessor<AppDatabase> {
         attachedDatabase.contratsLocationLocal,
       )..where((c) => c.vehiculeId.equals(vehiculeId))).get();
 
-      // Un contrat dont la restitution est passée n'engage plus rien : bornes
-      // demi-ouvertes, le jour de restitution est déjà libre. Un contrat
-      // ANNULÉ n'engage plus rien non plus (`ParcVehiculeService::contratsEngages`
+      // Règle UNIQUE avec le serveur : un contrat engage le véhicule tant que
+      // `date_fin >= aujourd'hui` — le jour de restitution COMPTE encore (le
+      // véhicule peut être dehors). Un contrat ANNULÉ n'engage plus rien non plus (`ParcVehiculeService::contratsEngages`
       // : `statut != annule`).
       final encours = engagements
           .where(
-            (c) => c.statut != statutContratAnnule && c.dateFin.isAfter(jour),
+            (c) =>
+                c.statut != statutContratAnnule &&
+                !jourDe(c.dateFin).isBefore(jour),
           )
           .toList(growable: false);
 
