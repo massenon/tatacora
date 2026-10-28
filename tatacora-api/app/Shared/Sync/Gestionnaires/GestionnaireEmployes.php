@@ -7,6 +7,7 @@ namespace App\Shared\Sync\Gestionnaires;
 use App\Domain\Rh\Models\Employe;
 use App\Domain\Rh\Models\Service;
 use App\Domain\Rh\Services\EmployeService;
+use App\Shared\Mail\Support\AdresseEmailFacultative;
 use App\Shared\Sync\Services\ResolveurCorrespondances;
 use App\Shared\Sync\Services\SignalementAnomalies;
 use App\Shared\Sync\Support\ContexteSynchronisation;
@@ -28,7 +29,7 @@ final class GestionnaireEmployes extends GestionnaireDocumentAbstrait
 {
     public const CHAMPS = [
         'nom', 'prenom', 'poste', 'service_id', 'service_libelle', 'date_embauche', 'salaire_base',
-        'numero_cnss', 'type_contrat', 'date_fin_contrat', 'statut',
+        'numero_cnss', 'type_contrat', 'date_fin_contrat', 'statut', 'email',
     ];
 
     public function __construct(
@@ -80,6 +81,8 @@ final class GestionnaireEmployes extends GestionnaireDocumentAbstrait
             'type_contrat' => ['nullable', 'in:CDI,CDD,Stage,Journalier'],
             'date_fin_contrat' => ['nullable', 'date_format:Y-m-d'],
             'statut' => ['nullable', 'in:actif,conge,suspendu,parti'],
+            // 28/10/2026 : e-mail facultatif, même règle que l'écran (normalisé par le poste).
+            'email' => AdresseEmailFacultative::REGLES,
         ]);
 
         $this->employes->creerEmploye([
@@ -110,6 +113,10 @@ final class GestionnaireEmployes extends GestionnaireDocumentAbstrait
         }
 
         $donnees = $payload;
+
+        if (array_key_exists('email', $payload)) {
+            $this->validerForme(['email' => $payload['email']], ['email' => AdresseEmailFacultative::REGLES]);
+        }
 
         if (isset($payload['service_id']) || isset($payload['service_libelle'])) {
             $donnees['service_id'] = $this->service($payload);

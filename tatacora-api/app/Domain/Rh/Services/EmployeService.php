@@ -6,6 +6,7 @@ namespace App\Domain\Rh\Services;
 
 use App\Domain\Rh\Models\Employe;
 use App\Domain\Rh\Models\Service as ServiceRh;
+use App\Shared\Mail\Support\AdresseEmailFacultative;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -55,7 +56,7 @@ class EmployeService
     /**
      * Crée un salarié et lui alloue son matricule, dans la même transaction.
      *
-     * @param  array{nom?: string, prenom?: string, poste?: string, service_id?: string, date_embauche?: string, numero_cnss?: string|null, type_contrat?: string|null, date_fin_contrat?: string|null, salaire_base?: string, statut?: string}  $donnees
+     * @param  array{nom?: string, prenom?: string, email?: string|null, poste?: string, service_id?: string, date_embauche?: string, numero_cnss?: string|null, type_contrat?: string|null, date_fin_contrat?: string|null, salaire_base?: string, statut?: string}  $donnees
      *
      * @throws RuntimeException service inconnu, type de contrat ou statut hors registre
      */
@@ -70,6 +71,7 @@ class EmployeService
                 'matricule' => $this->matriculeSuivant(),
                 'nom' => trim((string) ($donnees['nom'] ?? '')),
                 'prenom' => trim((string) ($donnees['prenom'] ?? '')),
+                'email' => AdresseEmailFacultative::normaliser($donnees['email'] ?? null),
                 'poste' => trim((string) ($donnees['poste'] ?? '')),
                 'service_id' => (string) ($donnees['service_id'] ?? ''),
                 'date_embauche' => (string) ($donnees['date_embauche'] ?? now()->toDateString()),
@@ -86,7 +88,7 @@ class EmployeService
      * Met à jour un salarié. Le matricule n'est jamais réattribué : il est
      * imprimé sur les bulletins déjà remis.
      *
-     * @param  array{nom?: string, prenom?: string, poste?: string, service_id?: string, date_embauche?: string, numero_cnss?: string|null, type_contrat?: string|null, date_fin_contrat?: string|null, salaire_base?: string, statut?: string}  $donnees
+     * @param  array{nom?: string, prenom?: string, email?: string|null, poste?: string, service_id?: string, date_embauche?: string, numero_cnss?: string|null, type_contrat?: string|null, date_fin_contrat?: string|null, salaire_base?: string, statut?: string}  $donnees
      *
      * @throws RuntimeException service inconnu, type de contrat ou statut hors registre
      */
@@ -98,6 +100,10 @@ class EmployeService
             $employe->update([
                 'nom' => trim((string) ($donnees['nom'] ?? $employe->nom)),
                 'prenom' => trim((string) ($donnees['prenom'] ?? $employe->prenom)),
+                // Absent de la charge (un poste d'avant la v45) = inchangé ; présent et vide = effacé.
+                'email' => array_key_exists('email', $donnees)
+                    ? AdresseEmailFacultative::normaliser($donnees['email'])
+                    : $employe->email,
                 'poste' => trim((string) ($donnees['poste'] ?? $employe->poste)),
                 'service_id' => (string) ($donnees['service_id'] ?? $employe->service_id),
                 'date_embauche' => (string) ($donnees['date_embauche']

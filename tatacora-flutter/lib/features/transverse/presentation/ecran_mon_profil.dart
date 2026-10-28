@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/di/providers.dart';
+import '../../../core/format/adresse_email_facultative.dart';
 import '../../../core/navigation/coquille_vue.dart';
 import '../../../core/rbac/garde_acces.dart';
 import '../../../core/theme/app_breakpoints.dart';
@@ -13,6 +14,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/mesures_transverses.dart';
 import '../../../shared_widgets/bouton_standard.dart';
 import '../../auth/domain/session_repository.dart';
+import '../domain/comptes_utilisateurs.dart';
 import 'providers_transverses.dart';
 import 'widgets/briques_transverses.dart';
 
@@ -36,6 +38,9 @@ import 'widgets/briques_transverses.dart';
 /// - **Nom complet** : la vue lit la fiche RH ; ce poste n'a pas de lien
 ///   compte → employé, il affiche le NOM DU COMPTE saisi à sa création
 ///   (`utilisateurs_local.nom`). Écart nommé.
+/// - **Email** : ÉDITABLE depuis le 28/10/2026 (décision du Product Owner, comme
+///   la vue) — facultatif, normalisé, validé comme le serveur, enregistré par
+///   « Enregistrer les informations » dans `utilisateurs_local.email`.
 /// - **Fonction** : « — » (aucune fiche RH rattachée).
 /// - **Mot de passe** : RÉEL depuis le 14/10/2026 — la modale de la vue
 ///   (ancien, nouveau, confirmation) écrit par
@@ -140,6 +145,10 @@ abstract final class TextesProfil {
   static const String telephone = 'Téléphone';
   static const String fonction = 'Fonction';
   static const String exempleEmail = 'ex. nom@tatacora.com';
+
+  /// `pwa.profil.enregistrer_infos` — le bouton de la carte « Informations
+  /// personnelles » (rendu depuis le 28/10/2026 : il n'écrit que l'e-mail).
+  static const String enregistrerInfos = 'Enregistrer les informations';
   static const String exempleTelephone = '+229 01 XX XX XX XX';
   static const String noteFonctionAvant =
       "La fonction et les droits d'accès (RBAC) sont gérés par l'administrateur système — voir ";
@@ -352,16 +361,86 @@ class _Metadonnees extends StatelessWidget {
   }
 }
 
-/// « Informations personnelles » : quatre champs en LECTURE (la vue les rend
-/// en `<p>` grisés), puis l'encart bleu de la fonction.
-class _Informations extends StatelessWidget {
+/// « Informations personnelles » : trois champs en LECTURE (la vue les rend en
+/// `<p>` grisés), l'E-MAIL ÉDITABLE (facultatif, depuis le 28/10/2026 : décision
+/// du Product Owner, comme la vue — champ puis « Enregistrer les informations »),
+/// puis l'encart bleu de la fonction.
+///
+/// L'e-mail est celui du COMPTE de la session (`utilisateurs_local.email`), écrit
+/// par `ComptesUtilisateursDao.enregistrerEmail` : normalisé (trim, minuscules),
+/// validé comme le serveur, vidé = effacé, aucune unicité. Il reste LOCAL (les
+/// comptes ne se synchronisent pas).
+class _Informations extends ConsumerStatefulWidget {
   const _Informations({required this.nom, required this.versRoles});
 
   final String? nom;
   final VoidCallback versRoles;
 
   @override
+  ConsumerState<_Informations> createState() => _InformationsState();
+}
+
+class _InformationsState extends ConsumerState<_Informations> {
+  final _email = TextEditingController();
+  String? _erreurEmail;
+  bool _enCours = false;
+
+  String? get _nom => widget.nom;
+  VoidCallback get _versRoles => widget.versRoles;
+
+  @override
+  void initState() {
+    super.initState();
+    _charger();
+  }
+
+  @override
+  void dispose() {
+    _email.dispose();
+    super.dispose();
+  }
+
+  Future<void> _charger() async {
+    final id = ref.read(sessionProvider)?.utilisateurId;
+    if (id == null) return;
+    final adresse = await ref
+        .read(comptesUtilisateursDaoProvider)
+        .emailDuCompte(id);
+    if (mounted && _email.text.isEmpty) _email.text = adresse ?? '';
+  }
+
+  Future<void> _enregistrer() async {
+    final id = ref.read(sessionProvider)?.utilisateurId;
+    if (id == null) return;
+    setState(() {
+      _enCours = true;
+      _erreurEmail = null;
+    });
+    try {
+      final adresse = await ref
+          .read(comptesUtilisateursDaoProvider)
+          .enregistrerEmail(utilisateurId: id, email: _email.text);
+      if (!mounted) return;
+      _email.text = adresse ?? '';
+      setState(() => _enCours = false);
+      direTransverse(
+        context,
+        AdresseEmailFacultative.messageEnregistree,
+        cle: const Key('profil-email-enregistre'),
+      );
+    } on RefusComptes catch (refus) {
+      if (!mounted) return;
+      setState(() {
+        _enCours = false;
+        _erreurEmail = refus.erreurs['email'] ?? refus.message;
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final nom = _nom;
+    final versRoles = _versRoles;
     Widget champ(
       String libelle,
       String valeur, {
@@ -427,15 +506,11 @@ class _Informations extends StatelessWidget {
           const SizedBox(height: AppSpacing.md),
           champ(
             TextesProfil.nomComplet,
-            (nom == null || nom!.trim().isEmpty) ? TextesProfil.tiret : nom!,
+            (nom == null || nom.trim().isEmpty) ? TextesProfil.tiret : nom,
             note: TextesProfil.sansFicheRhPoste,
             cle: const Key('profil-nom-complet'),
           ),
-          champ(
-            TextesProfil.email,
-            TextesProfil.tiret,
-            note: TextesProfil.exempleEmail,
-          ),
+          _champEmail(),
           champ(
             TextesProfil.telephone,
             TextesProfil.tiret,
@@ -469,10 +544,76 @@ class _Informations extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(height: AppSpacing.smPlus),
+          BoutonTransverse(
+            cle: const Key('profil-infos-enregistrer'),
+            libelle: TextesProfil.enregistrerInfos,
+            fond: AppColors.gold,
+            taille: TaillesContenu.sm,
+            pleineLargeur: true,
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.mdPlus,
+              vertical: AppSpacing.xsPlus,
+            ),
+            onTap: () {
+              if (!_enCours) _enregistrer();
+            },
+          ),
         ],
       ),
     );
   }
+
+  /// « Email » — le champ éditable : même étiquette (`pwa.profil.email`) et même
+  /// place que la vue, saisie à la mesure des champs de la modale du mot de passe.
+  Widget _champEmail() => Padding(
+    padding: const EdgeInsets.only(bottom: AppSpacing.smPlus),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          TextesProfil.email,
+          style: styleTransverse(
+            TaillesContenu.t15,
+            poids: FontWeight.w600,
+            couleur: Ardoise.c700,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xxs),
+        TextField(
+          key: const Key('profil-champ-email'),
+          controller: _email,
+          enabled: !_enCours,
+          keyboardType: TextInputType.emailAddress,
+          autofillHints: const [AutofillHints.email],
+          style: styleTransverse(TaillesContenu.sm),
+          decoration: InputDecoration(
+            isDense: true,
+            hintText: TextesProfil.exempleEmail,
+            hintStyle: styleTransverse(
+              TaillesContenu.sm,
+              couleur: Ardoise.c400,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              borderSide: const BorderSide(color: Ardoise.c300),
+            ),
+          ),
+        ),
+        if (_erreurEmail != null) ...[
+          const SizedBox(height: AppSpacing.unit),
+          Text(
+            _erreurEmail!,
+            key: const Key('profil-erreur-email'),
+            style: styleTransverse(
+              TaillesContenu.t12,
+              couleur: AppColors.erreur,
+            ),
+          ),
+        ],
+      ],
+    ),
+  );
 }
 
 /// « Modifier le mot de passe » : titre, sous-titre et le bouton doré.

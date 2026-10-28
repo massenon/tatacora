@@ -78,6 +78,14 @@ class EmployesLocal extends Table {
 
   TextColumn get prenom => text().withDefault(const Constant(''))();
 
+  /// L'adresse e-mail FACULTATIVE du salarié (v45, 28/10/2026) : destinataire des
+  /// notifications e-mail qui le visent (`bulletin_disponible`, composé par le
+  /// serveur). Nulle = non renseignée — jamais une adresse déduite. Normalisée
+  /// (trim, minuscules) et validée par `adresse_email_facultative.dart`, comme le
+  /// serveur (`AdresseEmailFacultative`) ; aucune unicité. Écrite par `EmployeDao`
+  /// et par l'aligneur de la descente (qui n'enfile jamais).
+  TextColumn get email => text().nullable()();
+
   TextColumn get poste => text()();
 
   TextColumn get serviceId => text().references(ServicesRhLocal, #id)();

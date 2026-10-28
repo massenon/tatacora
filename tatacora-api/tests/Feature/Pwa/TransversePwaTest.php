@@ -190,6 +190,13 @@ final class TransversePwaTest extends TestCase
             'aide-a-propos' => ['recherche'],
             'journal-audit' => ['recherche'],
             'import-export' => ['rechercheArchives'],
+            // 28/10/2026 (décision du PO) : l'e-mail facultatif du compte COURANT est le seul champ
+            // d'« Informations personnelles » que le compte porte (`utilisateurs.email`). Comme au
+            // maître, il vit dans la carte, avec « Enregistrer les informations » : ce n'est pas un
+            // filtre mais une écriture sans module RBAC, inscrite à ce titre dans
+            // `PwaEcritureAutoriseeTest::ECRITURES_HORS_MODULE`. Le champ de mot de passe, lui, reste
+            // derrière sa modale.
+            'mon-profil' => ['emailSaisi'],
         ];
 
         foreach (self::PAGES as $nom => $page) {

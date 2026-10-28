@@ -128,6 +128,18 @@ const tablesAjouteesEnV40 = <String>{'clotures_exercices_local'};
 const tablesAjouteesEnV44 = <String>{'pieces_saisie_local'};
 
 const _ajoutsParVersion = <int, List<String>>{
+  // La v45 (28/10/2026, l'e-mail facultatif d'un employe et d'un compte) ajoute DEUX
+  // colonnes nullables, aucune table, ni indexees ni referencees.
+  //
+  // ⚠ Le retour arriere est SYMETRIQUE pour `employes_local` seulement.
+  // `utilisateurs_local.email` est CONSERVEE : plusieurs DAO joignent la table
+  // entiere des utilisateurs (StocksDao, ...) et les tests v13/v14 SEMENT par les
+  // DAO d'aujourd'hui sur la forme ancienne ; un fichier sans la colonne ne se lit
+  // plus par le code courant. Le retrait de la colonne des comptes est eprouve a
+  // part, sur fichier (`migration_v45_email_test`, qui la retire lui-meme) et sur
+  // la VRAIE base v44 (`migration_depuis_anciens_schemas_test`).
+  45: <String>['ALTER TABLE employes_local DROP COLUMN email'],
+
   // La v44 (28/10/2026, D246 rouvert : comptes et pieces saisies a la main
   // partages) ajoute UNE table neuve, sans cle etrangere ni index, et UNE colonne
   // nullable, ni indexee ni referencee : retour arriere symetrique.

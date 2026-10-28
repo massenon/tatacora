@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/format/adresse_email_facultative.dart';
 import '../../../core/rbac/regle_archivage.dart';
 import '../../auth/data/verificateur_hors_ligne.dart';
 import '../domain/comptes_utilisateurs.dart';
@@ -15,7 +16,7 @@ import '../domain/comptes_utilisateurs.dart';
 /// | `SessionRepositoryLocal.creerCompte` | le PREMIER compte (poste vierge) |
 /// | `SessionRepositoryLocal.changerMotDePasse` | le mot de passe de la session (« Mon profil ») |
 /// | `RolesDao` | `droitsJson` des comptes d'un rôle modifié |
-/// | **ce DAO** | création d'un compte, `actif`, mot de passe réinitialisé |
+/// | **ce DAO** | création d'un compte, `actif`, mot de passe réinitialisé, `email` (v45 : à la création, et par son titulaire depuis « Mon profil ») |
 ///
 /// ## Le même dérivé que partout
 ///
@@ -57,6 +58,7 @@ class ComptesUtilisateursDao {
               t.actif,
               t.dateCreation,
               t.dateMotDePasse,
+              t.email,
             ]))
             .get();
     final comptes = [
@@ -69,6 +71,7 @@ class ComptesUtilisateursDao {
           actif: l.read(t.actif) ?? false,
           dateCreation: l.read(t.dateCreation)!,
           dateMotDePasse: l.read(t.dateMotDePasse)!,
+          email: l.read(t.email),
         ),
     ];
     comptes.sort((a, b) {
@@ -90,6 +93,7 @@ class ComptesUtilisateursDao {
     required String? role,
     required String motDePasse,
     required String confirmation,
+    String? email,
   }) async {
     await _exigerAdministration(auteurId);
 
@@ -105,6 +109,10 @@ class ComptesUtilisateursDao {
     if (erreurIdentifiant != null) erreurs['identifiant'] = erreurIdentifiant;
     if (role == null || role.trim().isEmpty) {
       erreurs['role'] = MessagesComptes.roleObligatoire;
+    }
+    // E-mail FACULTATIF (v45) : normalisé, validé comme le serveur ; vide : rien.
+    if (AdresseEmailFacultative.erreur(email) != null) {
+      erreurs['email'] = MessagesComptes.emailInvalide;
     }
     erreurs.addAll(_validerMotDePasse(motDePasse, confirmation));
     if (erreurs.isNotEmpty) throw RefusComptes(erreurs);
@@ -142,6 +150,7 @@ class ComptesUtilisateursDao {
               id: id,
               login: login,
               nom: nomPropre,
+              email: Value(AdresseEmailFacultative.normaliser(email)),
               role: ligneRole.libelle,
               droitsJson: ligneRole.droitsJson,
               sel: v.sel,
@@ -241,6 +250,38 @@ class ComptesUtilisateursDao {
         dateMotDePasse: Value(date),
       ),
     );
+  }
+
+  /// « Enregistrer les informations » de « Mon profil » : l'e-mail FACULTATIF du
+  /// compte [utilisateurId] — celui de la SESSION, jamais celui d'un tiers (le
+  /// geste ne prend pas d'auteur distinct : un compte n'écrit que le sien, sans
+  /// droit d'administration, comme le changement de mot de passe). Vide efface ;
+  /// normalisé (trim, minuscules) ; mal formé : [RefusComptes] sur `email`, rien
+  /// n'est écrit. Aucune unicité. Rend l'adresse enregistrée (`null` : effacée).
+  Future<String?> enregistrerEmail({
+    required String utilisateurId,
+    required String? email,
+  }) async {
+    if (AdresseEmailFacultative.erreur(email) != null) {
+      throw RefusComptes.message('email', MessagesComptes.emailInvalide);
+    }
+    final adresse = AdresseEmailFacultative.normaliser(email);
+    final compte = await _compte(utilisateurId);
+    await (_base.update(_base.utilisateursLocal)
+          ..where((u) => u.id.equals(compte.id)))
+        .write(UtilisateursLocalCompanion(email: Value(adresse)));
+    return adresse;
+  }
+
+  /// L'e-mail du compte [utilisateurId] (`null` : non renseigné ou compte inconnu).
+  Future<String?> emailDuCompte(String utilisateurId) async {
+    final t = _base.utilisateursLocal;
+    final ligne =
+        await (_base.selectOnly(t)
+              ..addColumns([t.email])
+              ..where(t.id.equals(utilisateurId)))
+            .getSingleOrNull();
+    return ligne?.read(t.email);
   }
 
   /// L'auteur, relu en base : actif ET d'un rôle d'administration.

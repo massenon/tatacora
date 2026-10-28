@@ -1279,6 +1279,7 @@ extension _AlignementDocuments on AligneurCatalogue {
       matricule: Value(matricule),
       nom: Value(nom),
       prenom: Value(AligneurCatalogue._texte(d['prenom']) ?? ''),
+      email: Value(AligneurCatalogue._texte(d['email'])),
       poste: Value(poste),
       serviceId: Value(service),
       dateEmbauche: Value(embauche),

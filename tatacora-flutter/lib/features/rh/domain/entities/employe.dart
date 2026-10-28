@@ -85,12 +85,16 @@ final class Employe {
     this.dateFinContrat,
     this.numeroCnss,
     this.typeContrat,
+    this.email,
   });
 
   final String id;
   final String matricule;
   final String nom;
   final String prenom;
+
+  /// L'e-mail FACULTATIF (v45), déjà normalisé ; `null` : non renseigné.
+  final String? email;
   final String poste;
   final String serviceId;
 

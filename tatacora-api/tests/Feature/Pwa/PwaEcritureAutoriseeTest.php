@@ -263,6 +263,8 @@ final class PwaEcritureAutoriseeTest extends TestCase
         // schéma que `seConnecter`, déjà inscrite ci-dessus dans les deux
         // registres à la fois.
         'changerMotDePasse',
+        // `MonProfil::enregistrerInformations` (28/10/2026) : l'e-mail du compte COURANT, même famille.
+        'enregistrerInformations',
         'envoyerMessage',
         'signalerBug',
         // `ClocheNotifications` (01/09/2026) — même schéma : inscrites dans
@@ -364,6 +366,7 @@ final class PwaEcritureAutoriseeTest extends TestCase
     private const ECRITURES_HORS_MODULE = [
         'Connexion::seConnecter',
         'MonProfil::changerMotDePasse',
+        'MonProfil::enregistrerInformations',
         'ContactEditeur::envoyerMessage',
         'ContactEditeur::signalerBug',
 

@@ -73,7 +73,10 @@
               </div>
               <div class="groupe-champ">
                 <label class="block text-[15px] font-semibold text-slate-700 mb-1.5">{{ __('pwa.profil.email') }}</label>
-                <p class="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-slate-100 text-slate-600">—</p>
+                {{-- Éditable depuis le 28/10/2026 (décision du PO) : `utilisateurs.email`, facultatif. --}}
+                <input type="email" wire:model="emailSaisi" autocomplete="email"
+                       class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm">
+                @error('emailSaisi') <p class="text-[12px] text-red-600 mt-1">{{ $message }}</p> @enderror
               </div>
               <div class="groupe-champ">
                 <label class="block text-[15px] font-semibold text-slate-700 mb-1.5">{{ __('pwa.profil.telephone') }}</label>
@@ -91,9 +94,12 @@
                   {{ __('pwa.profil.note_fonction_avant') }}<a href="{{ route('pwa.roles-permissions') }}" wire:navigate class="underline font-semibold">{{ __('pwa.profil.note_fonction_lien') }}</a>{{ __('pwa.profil.note_fonction_apres') }}
                 </p>
               </div>
-              {{-- Le bouton « Enregistrer les informations » du maître n'est
-                   pas rendu, et rien ne le dit à l'écran : le refus est
-                   déclaré dans `MonProfil` (directive du 31/08/2026). --}}
+              {{-- « Enregistrer les informations » (maître) : rendu depuis le
+                   28/10/2026, il n'écrit que l'e-mail du compte. --}}
+              <button type="button" wire:click="enregistrerInformations"
+                      class="btn w-full px-5 py-2.5 rounded-lg text-white text-sm font-semibold" style="background:var(--gold)">
+                {{ __('pwa.profil.enregistrer_infos') }}
+              </button>
             </div>
           </section>
 

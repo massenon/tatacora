@@ -45,6 +45,13 @@ class UtilisateursLocal extends Table {
 
   TextColumn get nom => text()();
 
+  /// L'adresse e-mail FACULTATIVE du compte (v45, 28/10/2026) : saisie à la
+  /// création du compte (« Comptes utilisateurs ») et modifiable par son titulaire
+  /// (« Mon profil »). Nulle = non renseignée. Normalisée (trim, minuscules),
+  /// validée comme le serveur (`utilisateurs.email`), sans unicité. LOCALE : les
+  /// comptes ne se synchronisent pas (l'authentification reste sur le poste).
+  TextColumn get email => text().nullable()();
+
   /// Le rôle, tel que la matrice RBAC le nomme — `administrateur`,
   /// `receptionniste`, `barman`…
   TextColumn get role => text()();

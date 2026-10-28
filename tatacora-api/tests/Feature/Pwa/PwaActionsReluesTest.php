@@ -308,7 +308,7 @@ final class PwaActionsReluesTest extends TestCase
         // par `exigerEcriture()`, meme famille que `seConnecter`/
         // `deverrouiller`. `ouvrirFormulaireMotDePasse` et `fermerModales`
         // n'ecrivent rien : etat d'interface seul.
-        MonProfil::class => ['render', 'ouvrirFormulaireMotDePasse', 'fermerModales', 'changerMotDePasse'],
+        MonProfil::class => ['render', 'mount', 'ouvrirFormulaireMotDePasse', 'fermerModales', 'changerMotDePasse', 'enregistrerInformations'],
 
         // Le voile de verrouillage — monté une seule fois par
         // `layouts.pwa`, sur CHAQUE écran authentifié. `deverrouiller()`

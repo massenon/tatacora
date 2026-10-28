@@ -224,6 +224,9 @@ void main() {
     expect('${r['matricule']}', isNotEmpty);
     final ecrit = serveur('employes', s.employe);
     expect((ecrit['nom'], ecrit['salaire_base']), ('HOUNSOU', '150000.00'));
+    // L'e-mail facultatif (v45) monte normalisé (trim, minuscules) et le vrai
+    // serveur l'écrit sur la fiche.
+    expect(ecrit['email'], 'marceline.hounsou@exemple.bj');
   });
 
   test('M13 (21/10/2026) : le créneau est écrit par PlanningService, la '

@@ -904,6 +904,7 @@ Map<String, Object?> chargeAnnulationContratLocation() => {'statut': 'annule'};
 Map<String, Object?> chargeEmploye({
   required String nom,
   required String prenom,
+  required String? email,
   required String poste,
   required String serviceId,
   required String serviceLibelle,
@@ -916,6 +917,8 @@ Map<String, Object?> chargeEmploye({
 }) => {
   'nom': nom,
   'prenom': prenom,
+  // v45 : toujours présent (null = effacé), comme le serveur le relit.
+  'email': email,
   'poste': poste,
   'service_id': serviceId,
   'service_libelle': serviceLibelle,

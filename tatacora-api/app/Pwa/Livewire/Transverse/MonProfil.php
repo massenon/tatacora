@@ -6,6 +6,7 @@ namespace App\Pwa\Livewire\Transverse;
 
 use App\Models\User;
 use App\Shared\Audit\Models\JournalAudit as EntreeJournalAudit;
+use App\Shared\Mail\Support\AdresseEmailFacultative;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -28,6 +29,11 @@ use Livewire\Attributes\Title;
  * desormais ailleurs sur ce depot), mais parce qu'aucune colonne de
  * `utilisateurs` ne porte ce que ce formulaire collecte : voir le bloc dedie
  * ci-dessous, qui distingue les deux raisons.
+ *
+ * ⚠ MIS À JOUR LE 28/10/2026 (décision du PO) : `utilisateurs.email` existe désormais,
+ * FACULTATIF. Le champ « Email » est ÉDITABLE et « Enregistrer les informations »
+ * est rendu (`enregistrerInformations()`, l'e-mail du compte courant seul). Seul
+ * « Téléphone » reste « — » : ce qui suit, sur l'e-mail, est l'historique.
  *
  * ÉCART DÉLIBÉRÉ — `mon-profil.html` l.61-97 (« Informations personnelles »)
  * Le maitre : quatre champs de saisie — « Nom complet », « Email »,
@@ -171,11 +177,65 @@ class MonProfil extends PageTransverse
      */
     public ?string $etatFormulaire = null;
 
+    /**
+     * L'e-mail FACULTATIF du compte (28/10/2026, décision du PO) : le champ
+     * « Email » des informations personnelles, seul champ du bloc que le compte
+     * porte lui-même (`utilisateurs.email`). Destinataire des notifications
+     * e-mail adressées à ce compte ; vide = non renseigné.
+     */
+    public string $emailSaisi = '';
+
     public string $ancienMotDePasse = '';
 
     public string $nouveauMotDePasse = '';
 
     public string $confirmationMotDePasse = '';
+
+    public function mount(): void
+    {
+        $this->emailSaisi = (string) Auth::user()?->email;
+    }
+
+    /**
+     * Les phrases de refus de l'e-mail facultatif — celles du poste, mot pour mot.
+     *
+     * @return array<string, string>
+     */
+    protected function messages(): array
+    {
+        return [
+            'emailSaisi.email' => __('rh_pwa.email_invalide'),
+            'emailSaisi.max' => __('rh_pwa.email_invalide'),
+            'emailSaisi.not_regex' => __('rh_pwa.email_invalide'),
+        ];
+    }
+
+    /**
+     * « Enregistrer les informations » — écrit l'e-mail du compte COURANT, et
+     * lui seul (jamais celui d'un tiers). Même famille que `changerMotDePasse()` :
+     * aucun module RBAC, le geste ne porte que sur le compte qui le fait.
+     *
+     * Facultatif : vide efface l'adresse. Normalisé (trim, minuscules) puis
+     * validé comme la fiche employé (`AdresseEmailFacultative`) ; aucune
+     * unicité imposée.
+     */
+    public function enregistrerInformations(): void
+    {
+        /** @var User|null $utilisateur */
+        $utilisateur = Auth::user();
+
+        if ($utilisateur === null) {
+            abort(401, __('auth.requise'));
+        }
+
+        $this->emailSaisi = (string) AdresseEmailFacultative::normaliser($this->emailSaisi);
+
+        $donnees = $this->validate(['emailSaisi' => AdresseEmailFacultative::REGLES]);
+
+        $utilisateur->update(['email' => AdresseEmailFacultative::normaliser($donnees['emailSaisi'])]);
+
+        session()->flash('pwa-succes', __('rh_pwa.email_enregistre'));
+    }
 
     /**
      * Ouvre la modale « Modifier le mot de passe ». N'ecrit rien : remet la

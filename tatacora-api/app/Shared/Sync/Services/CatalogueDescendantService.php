@@ -215,7 +215,7 @@ class CatalogueDescendantService
         // le dossier des employés, puis la paie.
         'services' => ['libelle'],
         'employes' => [
-            'matricule', 'nom', 'prenom', 'poste', 'service_id', 'date_embauche', 'numero_cnss', 'type_contrat',
+            'matricule', 'nom', 'prenom', 'email', 'poste', 'service_id', 'date_embauche', 'numero_cnss', 'type_contrat',
             'date_fin_contrat', 'salaire_base', 'statut',
         ],
         'bulletins_paie' => [

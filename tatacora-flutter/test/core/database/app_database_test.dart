@@ -150,8 +150,11 @@ void main() {
     // d'envoi des e-mails de notification ; auteur : `BoiteEnvoiEmailsDao`).
     //
     // 75 → 76 : `clotures_exercices_local` (v40, la clôture d'exercice).
+    //
+    // v45 (28/10/2026) : deux colonnes (`email` d'un employé et d'un compte),
+    // AUCUNE table — le compte reste 77.
     expect(base.allTables.length, 77);
-    expect(base.schemaVersion, 44);
+    expect(base.schemaVersion, 45);
     expect(
       base.allTables.map((t) => t.actualTableName).toSet().containsAll({
         'origines_documents_local',

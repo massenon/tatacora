@@ -91,8 +91,8 @@ void main() {
       final tablesAvant = await preparer(depart);
 
       final apres = AppDatabase.surFichier(fichier);
-      expect(await version(apres), 44);
-      expect(apres.schemaVersion, 44);
+      expect(await version(apres), apres.schemaVersion);
+      expect(apres.schemaVersion, greaterThanOrEqualTo(44));
       expect(await tables(apres), containsAll(tablesAvant));
       expect(await tables(apres), contains('pieces_saisie_local'));
 
@@ -144,7 +144,7 @@ void main() {
       );
       await apres.close();
       final relue = AppDatabase.surFichier(fichier);
-      expect(await version(relue), 44);
+      expect(await version(relue), relue.schemaVersion);
       final p = await relue
           .customSelect(
             'SELECT p.numero_piece, e.piece_origine_id FROM pieces_saisie_local p '
@@ -170,7 +170,7 @@ void main() {
     await base.close();
 
     final apres = AppDatabase.surFichier(fichier);
-    expect(await version(apres), 44);
+    expect(await version(apres), apres.schemaVersion);
     final p = await apres
         .customSelect('SELECT libelle FROM pieces_saisie_local')
         .getSingle();

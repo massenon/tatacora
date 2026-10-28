@@ -138,6 +138,7 @@ class EcranComptesUtilisateurs extends ConsumerWidget {
               role: s.role,
               motDePasse: s.motDePasse,
               confirmation: s.confirmation,
+              email: s.email,
             );
         identifiant = ReglesComptes.normaliserIdentifiant(s.identifiant);
       },

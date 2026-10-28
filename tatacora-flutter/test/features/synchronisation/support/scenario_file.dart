@@ -499,6 +499,9 @@ Future<ScenarioFile> jouerJourneeComplete(AppDatabase db) async {
     serviceId: hebergement.id,
     dateEmbauche: DateTime(2023, 2, 1),
     salaireBase: 150000,
+    // E-mail facultatif (v45) : saisi avec des majuscules et des blancs, le poste
+    // le normalise et le serveur doit l'écrire tel quel.
+    email: '  Marceline.Hounsou@Exemple.BJ ',
   )).id;
 
   // M13 (21/10/2026) : un créneau de planning, puis une demande de congé que

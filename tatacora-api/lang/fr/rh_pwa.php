@@ -251,6 +251,10 @@ return [
     'champ_numero_cnss_invite' => 'BJ-CNSS-0000000',
     'champ_salaire_base' => 'Salaire de base (FCFA)',
     'champ_statut' => 'Statut',
+    // E-mail facultatif (28/10/2026) : l'intitulé est celui de `pwa.profil.email`; ces phrases
+    // sont celles que le poste rejoue mot pour mot.
+    'email_invalide' => 'Adresse email invalide.',
+    'email_enregistre' => 'Adresse email enregistrée.',
     'apercu_cout' => 'Coût employeur :min à :max',
     'homonymes_un' => 'Un employé existant correspond déjà',
     'homonymes_plusieurs' => ':nombre employés existants correspondent',

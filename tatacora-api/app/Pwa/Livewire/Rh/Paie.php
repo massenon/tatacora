@@ -17,6 +17,7 @@ use App\Pwa\Livewire\PageMetier;
 use App\Pwa\Support\AutoriseArchivage;
 use App\Pwa\Support\ExerciceConsulte;
 use App\Pwa\Support\MontantFcfa;
+use App\Shared\Mail\Support\AdresseEmailFacultative;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -176,6 +177,8 @@ class Paie extends PageMetier
 
     public string $prenomSaisi = '';
 
+    public string $emailSaisi = '';
+
     public string $posteSaisi = '';
 
     public string $serviceSaisi = '';
@@ -228,7 +231,7 @@ class Paie extends PageMetier
     {
         return [
             'employe' => [
-                'employeId', 'nomSaisi', 'prenomSaisi', 'posteSaisi', 'serviceSaisi',
+                'employeId', 'nomSaisi', 'prenomSaisi', 'emailSaisi', 'posteSaisi', 'serviceSaisi',
                 'embaucheSaisie', 'finContratSaisie', 'numeroCnssSaisi', 'contratSaisi',
                 'salaireBaseSaisi', 'statutSaisi', 'doublonConfirme',
             ],
@@ -242,6 +245,20 @@ class Paie extends PageMetier
     // =====================================================================
     // Écritures — dossier du personnel
     // =====================================================================
+
+    /**
+     * Les phrases de refus de l'e-mail facultatif — celles du poste, mot pour mot.
+     *
+     * @return array<string, string>
+     */
+    protected function messages(): array
+    {
+        return [
+            'emailSaisi.email' => __('rh_pwa.email_invalide'),
+            'emailSaisi.max' => __('rh_pwa.email_invalide'),
+            'emailSaisi.not_regex' => __('rh_pwa.email_invalide'),
+        ];
+    }
 
     /**
      * Ouvre « Nouvel employé » ou « Modifier <matricule> ».
@@ -264,6 +281,7 @@ class Paie extends PageMetier
         $this->employeId = $employe->getKey();
         $this->nomSaisi = $employe->nom;
         $this->prenomSaisi = (string) $employe->prenom;
+        $this->emailSaisi = (string) $employe->email;
         $this->posteSaisi = $employe->poste;
         $this->serviceSaisi = $employe->service_id;
         $this->embaucheSaisie = $employe->date_embauche->format('Y-m-d');
@@ -283,9 +301,13 @@ class Paie extends PageMetier
      */
     public function enregistrerEmploye(): void
     {
+        // E-mail FACULTATIF : normalisé (trim, minuscules) AVANT la validation, comme le poste.
+        $this->emailSaisi = (string) AdresseEmailFacultative::normaliser($this->emailSaisi);
+
         $donnees = $this->validerEcriture([
             'nomSaisi' => ['required', 'string', 'max:120'],
             'prenomSaisi' => ['required', 'string', 'max:120'],
+            'emailSaisi' => AdresseEmailFacultative::REGLES,
             'posteSaisi' => ['required', 'string', 'max:120'],
             'serviceSaisi' => ['required', 'string'],
             'embaucheSaisie' => ['required', 'date'],
@@ -313,6 +335,7 @@ class Paie extends PageMetier
         $charge = [
             'nom' => (string) $donnees['nomSaisi'],
             'prenom' => (string) $donnees['prenomSaisi'],
+            'email' => (string) $donnees['emailSaisi'],
             'poste' => (string) $donnees['posteSaisi'],
             'service_id' => (string) $donnees['serviceSaisi'],
             'date_embauche' => (string) $donnees['embaucheSaisie'],

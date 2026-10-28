@@ -305,7 +305,8 @@ void main() {
         expect(diff, isEmpty, reason: 'v$version :\n${diff.join('\n')}');
 
         final db = sql.sqlite3.open(fichier.path, mode: sql.OpenMode.readOnly);
-        expect(db.select('PRAGMA user_version').first.values.first, 44);
+        // La version COURANTE (45 depuis l'e-mail facultatif, 28/10/2026).
+        expect(db.select('PRAGMA user_version').first.values.first, 45);
         db.close();
       },
       timeout: const Timeout(Duration(minutes: 2)),

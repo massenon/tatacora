@@ -44,6 +44,7 @@ library;
 import 'package:flutter/material.dart' hide Simulation;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/format/adresse_email_facultative.dart';
 import '../../../../core/format/formats.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
@@ -267,6 +268,9 @@ class _FicheEmployeState extends ConsumerState<_FicheEmploye> {
   late final TextEditingController _prenom = TextEditingController(
     text: widget.employe?.prenom ?? '',
   );
+  late final TextEditingController _email = TextEditingController(
+    text: widget.employe?.email ?? '',
+  );
   late final TextEditingController _poste = TextEditingController(
     text: widget.employe?.poste ?? '',
   );
@@ -293,6 +297,7 @@ class _FicheEmployeState extends ConsumerState<_FicheEmploye> {
   void dispose() {
     _nom.dispose();
     _prenom.dispose();
+    _email.dispose();
     _poste.dispose();
     _numeroCnss.dispose();
     _salaire.dispose();
@@ -355,6 +360,18 @@ class _FicheEmployeState extends ConsumerState<_FicheEmploye> {
                     valeur == null ? 'Le service est obligatoire.' : null,
               ),
             ]),
+            const SizedBox(height: AppSpacing.md),
+            // E-mail FACULTATIF (v45) : sous Poste / Service, comme la vue. Le
+            // validateur ne pose pas l'astérisque (champ non obligatoire) ; sa
+            // phrase est celle du serveur.
+            _champTexte(
+              'Email',
+              const Key('paie-champ-email'),
+              _email,
+              clavier: TextInputType.emailAddress,
+              validator: AdresseEmailFacultative.erreur,
+              obligatoire: false,
+            ),
             const SizedBox(height: AppSpacing.md),
             _rangee([
               _champListe<TypeContrat>(
@@ -471,11 +488,12 @@ class _FicheEmployeState extends ConsumerState<_FicheEmploye> {
     TextInputType? clavier,
     ValueChanged<String>? onChanged,
     FormFieldValidator<String>? validator,
+    bool? obligatoire,
   }) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     mainAxisSize: MainAxisSize.min,
     children: [
-      _Etiquette(libelle, obligatoire: validator != null),
+      _Etiquette(libelle, obligatoire: obligatoire ?? validator != null),
       TextFormField(
         key: cle,
         controller: controleur,
@@ -697,6 +715,7 @@ class _FicheEmployeState extends ConsumerState<_FicheEmploye> {
           dateFinContrat: _finContrat,
           numeroCnss: _numeroCnss.text,
           typeContrat: _contrat,
+          email: _email.text,
           statut: _statut,
         );
       } else {
@@ -711,6 +730,7 @@ class _FicheEmployeState extends ConsumerState<_FicheEmploye> {
           dateFinContrat: _finContrat,
           numeroCnss: _numeroCnss.text,
           typeContrat: _contrat,
+          email: _email.text,
           statut: _statut,
         );
       }

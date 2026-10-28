@@ -500,8 +500,16 @@ class AppDatabase extends _$AppDatabase {
   /// envoyées (le serveur ne les a jamais reçues et n'a pas de moyen sûr de les
   /// distinguer de celles d'un module). Le curseur de descente est oublié : le
   /// plan comptable du serveur et l'origine des pièces redescendent.
+  ///
+  /// v45 (28/10/2026) — L'E-MAIL FACULTATIF d'un employé et d'un compte (décision du
+  /// PO) : DEUX colonnes NULLABLES, `employes_local.email` et
+  /// `utilisateurs_local.email`, aucune table. Rien n'est déduit : les lignes d'avant
+  /// n'ont pas d'adresse. Celle de l'employé part au serveur (charge `employes`) et
+  /// redescend ; celle du compte reste LOCALE (les comptes ne se synchronisent pas).
+  /// Le curseur de descente est oublié : les adresses des employés déjà au serveur
+  /// redescendent.
   @override
-  int get schemaVersion => 44;
+  int get schemaVersion => 45;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1366,10 +1374,16 @@ class AppDatabase extends _$AppDatabase {
         }
         final contrats = await colonnesDe('contrats_location_local');
         if (!contrats.contains('numero')) {
-          await m.addColumn(contratsLocationLocal, contratsLocationLocal.numero);
+          await m.addColumn(
+            contratsLocationLocal,
+            contratsLocationLocal.numero,
+          );
         }
         if (!contrats.contains('remise')) {
-          await m.addColumn(contratsLocationLocal, contratsLocationLocal.remise);
+          await m.addColumn(
+            contratsLocationLocal,
+            contratsLocationLocal.remise,
+          );
         }
         if (!contrats.contains('acompte')) {
           await m.addColumn(
@@ -1470,6 +1484,33 @@ class AppDatabase extends _$AppDatabase {
             ecrituresServeurLocal,
             ecrituresServeurLocal.pieceOrigineId,
           );
+        }
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
+      }
+      if (from < 45) {
+        // L'E-MAIL FACULTATIF d'un employé et d'un compte (28/10/2026) : DEUX colonnes
+        // NULLABLES, aucune table, aucune adresse déduite. Ajouts CONDITIONNELS
+        // (piège 3) : une fixture ramenée en arrière depuis la définition courante les
+        // porte déjà, et un fichier à la forme v45 marqué v44 doit se rejouer. Une table
+        // absente (jeu de colonnes vide) n'est pas touchée ici : la réconciliation finale
+        // la complète. Le curseur est oublié : les e-mails des employés déjà au serveur
+        // redescendent.
+        Future<Set<String>> colonnes(String table) async => {
+          for (final c
+              in await m.database
+                  .customSelect('PRAGMA table_info($table)')
+                  .get())
+            c.data['name'] as String,
+        };
+        final employes = await colonnes('employes_local');
+        if (employes.isNotEmpty && !employes.contains('email')) {
+          await m.addColumn(employesLocal, employesLocal.email);
+        }
+        final comptes = await colonnes('utilisateurs_local');
+        if (comptes.isNotEmpty && !comptes.contains('email')) {
+          await m.addColumn(utilisateursLocal, utilisateursLocal.email);
         }
         await customStatement(
           "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",

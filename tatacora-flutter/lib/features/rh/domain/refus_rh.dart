@@ -14,6 +14,7 @@
 /// quel — exactement comme le composant PWA rend le message du service.
 library;
 
+import '../../../core/format/adresse_email_facultative.dart';
 import '../../../core/format/formats.dart';
 import '../../achats/domain/messages_achats.dart';
 
@@ -124,6 +125,15 @@ final class ServiceInconnu extends RefusRh {
 
   @override
   String get message => "Le service désigné n'existe pas.";
+}
+
+/// L'e-mail facultatif est renseigné mais mal formé — la phrase du serveur
+/// (`rh_pwa.email_invalide`), relue par `email_facultatif_contre_serveur_test`.
+final class EmailInvalide extends RefusRh {
+  const EmailInvalide();
+
+  @override
+  String get message => AdresseEmailFacultative.messageInvalide;
 }
 
 final class ContratInconnu extends RefusRh {

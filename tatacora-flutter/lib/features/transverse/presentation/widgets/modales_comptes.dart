@@ -33,6 +33,8 @@ abstract final class TextesModalesComptes {
   static const String identifiantAide =
       'Minuscules sans accent, chiffres, point, tiret ou souligné — de 3 à 50 '
       'caractères. Il sert à la connexion et ne se modifie plus ensuite.';
+  static const String email = 'Email';
+  static const String emailInvite = 'ex. nom@exemple.bj';
   static const String role = 'Rôle';
   static const String roleInvite = 'Choisir un rôle';
   static const String motDePasse = 'Mot de passe';
@@ -149,6 +151,7 @@ typedef SaisieCompte = ({
   String? role,
   String motDePasse,
   String confirmation,
+  String email,
 });
 
 // ---------------------------------------------------------- NOUVEAU COMPTE
@@ -176,6 +179,7 @@ class _ModaleNouveauCompte extends StatefulWidget {
 class _ModaleNouveauCompteState extends State<_ModaleNouveauCompte> {
   final _nom = TextEditingController();
   final _identifiant = TextEditingController();
+  final _email = TextEditingController();
   final _motDePasse = TextEditingController();
   final _confirmation = TextEditingController();
   String? _role;
@@ -186,6 +190,7 @@ class _ModaleNouveauCompteState extends State<_ModaleNouveauCompte> {
   void dispose() {
     _nom.dispose();
     _identifiant.dispose();
+    _email.dispose();
     _motDePasse.dispose();
     _confirmation.dispose();
     super.dispose();
@@ -203,6 +208,7 @@ class _ModaleNouveauCompteState extends State<_ModaleNouveauCompte> {
         role: _role,
         motDePasse: _motDePasse.text,
         confirmation: _confirmation.text,
+        email: _email.text,
       ));
       if (mounted) Navigator.of(context).pop(true);
     } on RefusComptes catch (refus) {
@@ -242,6 +248,17 @@ class _ModaleNouveauCompteState extends State<_ModaleNouveauCompte> {
             invite: TextesModalesComptes.identifiantInvite,
             aide: TextesModalesComptes.identifiantAide,
             erreur: _erreurs['identifiant'],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          // E-mail FACULTATIF (v45) : pas d'astérisque, destinataire des
+          // notifications e-mail adressées à ce compte.
+          ..._champ(
+            cle: 'email',
+            etiquette: TextesModalesComptes.email,
+            controleur: _email,
+            invite: TextesModalesComptes.emailInvite,
+            erreur: _erreurs['email'],
+            obligatoire: false,
           ),
           const SizedBox(height: AppSpacing.md),
           const EtiquetteChampRestaurant(

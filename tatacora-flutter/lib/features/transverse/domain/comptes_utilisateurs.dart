@@ -13,6 +13,7 @@
 /// ces écrans en ont (libellé des rôles, règle des 8 caractères).
 library;
 
+import '../../../core/format/adresse_email_facultative.dart';
 import '../../../core/rbac/regle_archivage.dart';
 
 /// Un compte tel que l'écran le liste — JAMAIS le sel ni l'empreinte.
@@ -25,6 +26,7 @@ final class CompteUtilisateur {
     required this.actif,
     required this.dateCreation,
     required this.dateMotDePasse,
+    this.email,
   });
 
   final String id;
@@ -38,6 +40,9 @@ final class CompteUtilisateur {
   final bool actif;
   final DateTime dateCreation;
   final DateTime dateMotDePasse;
+
+  /// L'e-mail FACULTATIF (v45), normalisé ; `null` : non renseigné.
+  final String? email;
 
   /// L'un des deux rôles d'administration (`User::ROLES_ADMINISTRATION`).
   bool get estAdministration =>
@@ -98,6 +103,9 @@ abstract final class MessagesComptes {
   static const String dernierAdministrateur =
       'Ce compte est le dernier administrateur actif du poste : le désactiver '
       "fermerait l'administration à tout le monde.";
+
+  /// L'e-mail facultatif mal formé : la phrase du serveur (`rh_pwa.email_invalide`).
+  static const String emailInvalide = AdresseEmailFacultative.messageInvalide;
 
   static String compteCree(String identifiant) =>
       'Compte « $identifiant » créé.';
