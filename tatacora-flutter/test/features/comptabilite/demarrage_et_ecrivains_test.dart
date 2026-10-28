@@ -135,7 +135,22 @@ void main() {
       // Accès Drift typé.
       expect(qui('.ecrituresLocal'), {'comptabilite_dao.dart'});
       // SQL brut : les quatre triggers de RG-11, et personne d'autre.
-      expect(qui('ecritures_local'), {'declencheurs_comptables.dart'});
+      // Lot A1/A3 (28/10/2026) : le DAO LIT par SQL brut (pièces saisies non
+      // reprises, anciennes pièces) ; il n'y écrit jamais en SQL brut.
+      expect(qui('ecritures_local'), {
+        'declencheurs_comptables.dart',
+        'comptabilite_dao.dart',
+      });
+      expect(
+        RegExp(
+          r'(INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+ecritures_local',
+        ).hasMatch(
+          File(
+            'lib/features/comptabilite/data/comptabilite_dao.dart',
+          ).readAsStringSync(),
+        ),
+        isFalse,
+      );
     });
 
     test('l’écriture d’une ligne ne s’appelle que par le moteur', () {
@@ -221,6 +236,8 @@ void main() {
         'cloture_exercice_locale.dart',
       });
       expect(qui('moteurComptableProvider'), {
+        // Lot A3 : le geste « Envoyer mes anciennes pièces saisies ».
+        'envoi_anciennes_pieces.dart',
         'providers_achats.dart',
         'providers_comptabilite.dart',
         'providers_depenses.dart',
