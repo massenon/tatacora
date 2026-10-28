@@ -232,11 +232,14 @@ void main() {
           "('$uuid', 'clients', 'c', '$type', '{}', 'h', 0"
           "${statut == null ? '' : ", '$statut'"})",
         );
-    await expectLater(inserer('u-1', 'suppression'), throwsA(anything));
+    // Le registre des types est FERMÉ : un type inconnu est refusé. (« suppression »
+    // en fait partie depuis la v43 — la purge d'une unité ou d'un véhicule.)
+    await expectLater(inserer('u-1', 'effacement'), throwsA(anything));
     await expectLater(inserer('u-1', 'creation', 'perdu'), throwsA(anything));
     await inserer('u-1', 'creation');
     await expectLater(inserer('u-1', 'creation'), throwsA(anything));
-    expect(await compte(apres, 'operations_sync_local'), 1);
+    await inserer('u-2', 'suppression');
+    expect(await compte(apres, 'operations_sync_local'), 2);
     await apres.close();
   });
 
