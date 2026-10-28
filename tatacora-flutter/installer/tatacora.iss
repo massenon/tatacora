@@ -13,15 +13,19 @@
 ;  existante garde son dossier : même AppId), plus le modèle
 ;  poste.example.json.
 ;
-;  Ce qui n'est JAMAIS dans le dossier d'installation, donc JAMAIS effacé par la
-;  désinstallation :
+;  Ce qui n'est PAS dans le dossier d'installation (DÉCISION DU PO du 28/10/2026 :
+;  la désinstallation les SUPPRIME, après un avertissement et un choix Oui / Non —
+;  voir [UninstallDelete] et [Code] plus bas ; une MISE À JOUR, même AppId, n'y
+;  touche jamais) :
 ;    * la base Drift : %LOCALAPPDATA%\TATACORA\donnees\tatacora.sqlite
 ;      (lib\core\database\emplacement_base.dart, décision du PO du 17/10/2026 :
 ;      plus dans Documents ; une ancienne base de Documents y est déménagée au
 ;      premier démarrage et renommée tatacora.sqlite.deplacee-vers-appdata) ;
 ;    * la configuration du poste : %APPDATA%\TATACORA\poste.json
 ;      (mot de passe SMTP, lib\features\transverse\data\configuration_poste.dart).
-;  Aucune section [UninstallDelete] ne les vise, et il ne faut pas en ajouter.
+;  Le coffre du système (Gestionnaire d'identifiants Windows) n'est pas touché.
+;  Désinstallation silencieuse (/SILENT, /VERYSILENT) : les données sont GARDÉES
+;  (aucune confirmation possible, donc aucune suppression).
 ; =============================================================================
 
 #ifndef AppVersion
@@ -97,6 +101,48 @@ Source: "poste.example.json"; DestDir: "{app}"; Flags: ignoreversion
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"
 Name: "{group}\{cm:UninstallProgram,{#AppName}}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: desktopicon
+
+[UninstallDelete]
+; Décision du PO du 28/10/2026 : la désinstallation supprime la base du poste,
+; sa configuration, les archives et les reçus — SEULEMENT si l'utilisateur a
+; répondu Oui à l'avertissement (SupprimerLesDonnees, posé par
+; InitializeUninstall). Une mise à jour ne passe jamais par ici.
+Type: filesandordirs; Name: "{localappdata}\TATACORA"; Check: SupprimerLesDonnees
+Type: filesandordirs; Name: "{userappdata}\TATACORA"; Check: SupprimerLesDonnees
+
+[Code]
+var
+  SupprimerDonnees: Boolean;
+
+{ Avertissement AVANT toute désinstallation. Oui = désinstaller ET supprimer les
+  données du poste. Non = la désinstallation est ANNULÉE (rien n'est retiré).
+  Le bouton par défaut est Non : un Entrée distrait ne supprime rien. }
+function InitializeUninstall(): Boolean;
+begin
+  Result := True;
+  SupprimerDonnees := False;
+  { Silencieux : pas de question possible, donc les données sont gardées. }
+  if UninstallSilent then
+    Exit;
+  if MsgBox(
+    'Désinstaller {#AppName} supprimera aussi TOUTES les données de ce poste :' + #13#10 +
+    '  - la base locale (réservations, ventes, factures, stocks, comptabilité...)' + #13#10 +
+    '  - la configuration (jeton d''appairage, messagerie SMTP)' + #13#10 +
+    '  - les archives de clôture et les reçus de dépenses' + #13#10 + #13#10 +
+    'Les saisies NON ENCORE SYNCHRONISÉES avec le serveur seront PERDUES, définitivement. ' +
+    'Cette action est irréversible.' + #13#10 + #13#10 +
+    'Voulez-vous désinstaller et supprimer ces données ?' + #13#10 + #13#10 +
+    'Oui : tout supprimer.     Non : annuler la désinstallation.',
+    mbError, MB_YESNO or MB_DEFBUTTON2) = IDYES then
+    SupprimerDonnees := True
+  else
+    Result := False;
+end;
+
+function SupprimerLesDonnees(): Boolean;
+begin
+  Result := SupprimerDonnees;
+end;
 
 [Run]
 Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent

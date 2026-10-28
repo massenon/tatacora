@@ -100,7 +100,15 @@ donnée non synchronisée pendant qu'on cherche.
 - Rapport de santé du poste (écran Paramètres → Diagnostic : version du schéma, dernier
   démarrage, écarts réconciliés).
 
-## 6. Décision à prendre par le Product Owner
+> **DÉCISION DU PO (28/10/2026)** : la désinstallation SUPPRIME le dossier de données
+> (`%LOCALAPPDATA%\TATACORA`, `%APPDATA%\TATACORA` : base, `poste.json`, archives, reçus), après
+> un avertissement et un choix **Oui / Non** (Non annule la désinstallation). Livrée dans
+> `installer/tatacora.iss` (`[UninstallDelete]` + `InitializeUninstall`). Garde-fous ajoutés :
+> bouton par défaut = Non ; désinstallation silencieuse = données gardées ; mise à jour = jamais.
+> Ce choix rend **R1 à R3 d'autant plus utiles** (une réinstallation repart d'une base neuve,
+> mais une MISE À JOUR migre toujours une ancienne base).
+
+## 6. Décision à prendre par le Product Owner (historique de la réflexion)
 
 AgriERP a choisi que la désinstallation **supprime** la base, avec confirmation. Pour TATACORA :
 

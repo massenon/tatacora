@@ -47,6 +47,12 @@ Le script enchaîne, et **s'arrête à la première erreur** :
    — le point d'entrée de **production** (jamais `main_demo.dart`)
 4. Inno Setup (`ISCC.exe`) compile `installer\tatacora.iss`
 
+**Désinstallation (décision du PO du 28/10/2026)** : un avertissement demande de confirmer
+(Oui / Non, Non par défaut). Oui désinstalle ET supprime les données du poste
+(`%LOCALAPPDATA%\TATACORA`, `%APPDATA%\TATACORA` : base, `poste.json`, archives, reçus) ; Non annule
+tout. Les saisies non synchronisées sont alors perdues. Une désinstallation silencieuse garde les
+données ; une mise à jour (même `AppId`) n'y touche jamais.
+
 Nom commercial et éditeur de l'installateur : **LogiReStock** et **Dr MASSENON
 Rhodes**, définis en tête de `build_windows.bat` (`APP_NOM_COMMERCIAL`,
 `APP_EDITEUR`) et passés à Inno Setup ; ils s'affichent dans l'assistant, le

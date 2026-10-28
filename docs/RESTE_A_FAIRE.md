@@ -34,6 +34,7 @@
 - [ ] **D2** Envoyer un vrai e-mail par le relais SMTP du Gîte (notification d'un client).
 - [ ] **D3** Essai à plusieurs postes avec coupures réseau, puis synchronisation désactivée.
 - [ ] **D4** Déposer le reçu d'une dépense et le revoir sur un second poste.
+- [ ] **D5** Désinstaller : l'avertissement Oui/Non s'affiche ; Non annule ; Oui supprime `%LOCALAPPDATA%\TATACORA` et `%APPDATA%\TATACORA` ; une mise à jour (même AppId) garde les données.
 
 ## Plus tard (hors périmètre, décisions du PO ou impossible hors ligne)
 
