@@ -39,7 +39,7 @@
 ## E. Démarrage résilient (PRD `PRD_REINSTALLATION_ET_DEMARRAGE_RESILIENT.md`)
 
 - [x] **E1** (R1) Écran « L'application ne peut pas démarrer » + journal `demarrage.log` (5 fichiers, secrets expurgés) ; base ouverte et migrée avant le premier écran métier, « préparation bloquée » au-delà de 45 s.
-- [ ] **E2** (R2) `reconcilierSchema` : tables, colonnes, index et déclencheurs RG-11 manquants rétablis à la fin de `onUpgrade` et à l'ouverture, jamais destructive, journalisée.
+- [x] **E2** (R2) `reconcilierSchema` : tables, colonnes, index et déclencheurs RG-11 manquants rétablis à la fin de `onUpgrade` et à l'ouverture, jamais destructive, journalisée.
 - [ ] **E3** (R3) Migration prouvée depuis de vrais anciens schémas (`test/fixtures/schemas_anciens/vNN.sql`) : écart zéro avec une base neuve.
 
 ## Plus tard (hors périmètre, décisions du PO ou impossible hors ligne)

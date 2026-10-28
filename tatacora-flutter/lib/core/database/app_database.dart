@@ -16,6 +16,7 @@ import 'tables/boite_envoi_emails_tables.dart';
 import 'tables/caisse_tables.dart';
 import 'auteur_ecriture.dart';
 import 'declencheurs_comptables.dart';
+import 'reconcilier_schema.dart';
 import 'emplacement_base.dart';
 import 'tables/clients_table.dart';
 import 'tables/clotures_exercices_tables.dart';
@@ -1508,6 +1509,10 @@ class AppDatabase extends _$AppDatabase {
           "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
         );
       }
+
+      // Filet final (PRD réinstallation R2) : ce que les paliers n'ont pas posé
+      // (palier sauté, branche parallèle) est complété, jamais retiré.
+      await reconcilierSchema(this);
     },
 
     beforeOpen: (details) async {
@@ -1516,6 +1521,13 @@ class AppDatabase extends _$AppDatabase {
         '${details.hadUpgrade ? ' (migrée depuis v${details.versionBefore})' : ''}'
         '${details.wasCreated ? ' (créée)' : ''}',
       );
+      // Version courante mais schéma incomplet : réparée AVANT d'activer les
+      // clés étrangères (un `ADD COLUMN ... REFERENCES` les refuserait).
+      if (!details.wasCreated &&
+          !details.hadUpgrade &&
+          await ecartRapide(this)) {
+        await reconcilierSchema(this);
+      }
       // Les clés étrangères ne sont PAS actives par défaut sous SQLite.
       // Sans cette ligne, une ligne de facture peut survivre à sa facture,
       // et l'incohérence ne se voit qu'à la synchronisation.
