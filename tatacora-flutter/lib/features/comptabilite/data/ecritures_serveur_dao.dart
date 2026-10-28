@@ -63,6 +63,7 @@ class EcrituresServeurDao {
     required int creditCentimes,
     String? numeroPiece,
     String? ecritureContrepasseeId,
+    String? pieceOrigineId,
   }) async {
     final ajoutees = await _db
         .into(_db.ecrituresServeurLocal)
@@ -80,6 +81,7 @@ class EcrituresServeurDao {
             creditCentimes: Value(creditCentimes),
             numeroPiece: Value(numeroPiece),
             ecritureContrepasseeId: Value(ecritureContrepasseeId),
+            pieceOrigineId: Value(pieceOrigineId),
           ),
           mode: InsertMode.insertOrIgnore,
         );

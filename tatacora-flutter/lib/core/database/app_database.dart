@@ -23,6 +23,7 @@ import 'tables/comptabilite_tables.dart';
 import 'tables/depenses_tables.dart';
 import 'tables/descente_sync_tables.dart';
 import 'tables/historique_prix_carte_tables.dart';
+import 'tables/pieces_saisie_tables.dart';
 import 'tables/journal_reception_tables.dart';
 import 'tables/indisponibilites_carte_tables.dart';
 import 'tables/conges_plannings_tables.dart';
@@ -241,6 +242,10 @@ part 'app_database.g.dart';
     // résultat, archive légale et son empreinte, réouverture). Seul auteur :
     // `ClotureExerciceLocale` (voir `tables/clotures_exercices_tables.dart`).
     CloturesExercicesLocal,
+    // v44 (28/10/2026) : les pièces saisies à la main sur le poste, partagées
+    // avec le serveur (D246 rouvert). Seul auteur : `MoteurComptable.saisirPiece`
+    // (voir `tables/pieces_saisie_tables.dart`).
+    PiecesSaisieLocal,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -472,8 +477,18 @@ class AppDatabase extends _$AppDatabase {
   /// hors de la base (`recus_depenses/` à côté de `poste.json`). Rien n'est
   /// fabriqué pour l'existant : « sans reçu ». Le curseur de descente est oublié :
   /// les dépenses déjà au serveur redescendent avec la référence de leur reçu.
+  ///
+  /// v44 (28/10/2026) — D246 ROUVERT PAR LE PO (« le poste fait ce que le web fait
+  /// + synchronisation ») : les comptes du plan et les pièces saisies à la main
+  /// sont partagés. UNE table neuve, `pieces_saisie_local` (l'identifiant d'origine
+  /// de chaque pièce de saisie manuelle), et UNE colonne NULLABLE,
+  /// `ecritures_serveur_local.piece_origine_id` (l'origine d'une pièce redescendue).
+  /// Rien n'est fabriqué : les pièces saisies avant la v44 ne sont ni marquées ni
+  /// envoyées (le serveur ne les a jamais reçues et n'a pas de moyen sûr de les
+  /// distinguer de celles d'un module). Le curseur de descente est oublié : le
+  /// plan comptable du serveur et l'origine des pièces redescendent.
   @override
-  int get schemaVersion => 42;
+  int get schemaVersion => 44;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1400,6 +1415,41 @@ class AppDatabase extends _$AppDatabase {
         }
         if (!depenses.contains('recu_cause')) {
           await m.addColumn(depensesLocal, depensesLocal.recuCause);
+        }
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
+      }
+      if (from < 44) {
+        // D246 ROUVERT (28/10/2026) : une table NEUVE et une colonne NULLABLE, aucune
+        // ligne fabriquée. Ajouts CONDITIONNELS (piège 3) : une fixture ramenée en
+        // arrière depuis la définition courante les porte déjà, et un fichier déjà
+        // à la forme v44 mais marqué v42 ou v43 doit se rejouer. Le curseur est
+        // oublié : le plan du serveur et l'origine des pièces redescendent.
+        final tables = {
+          for (final t
+              in await m.database
+                  .customSelect(
+                    "SELECT name FROM sqlite_master WHERE type = 'table'",
+                  )
+                  .get())
+            t.data['name'] as String,
+        };
+        if (!tables.contains('pieces_saisie_local')) {
+          await m.createTable(piecesSaisieLocal);
+        }
+        final miroir = {
+          for (final c
+              in await m.database
+                  .customSelect('PRAGMA table_info(ecritures_serveur_local)')
+                  .get())
+            c.data['name'] as String,
+        };
+        if (!miroir.contains('piece_origine_id')) {
+          await m.addColumn(
+            ecrituresServeurLocal,
+            ecrituresServeurLocal.pieceOrigineId,
+          );
         }
         await customStatement(
           "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",

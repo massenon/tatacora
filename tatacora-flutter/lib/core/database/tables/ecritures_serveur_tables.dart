@@ -69,6 +69,12 @@ class EcrituresServeurLocal extends Table {
   /// La ligne d'ORIGINE qu'une contre-passation inverse.
   TextColumn get ecritureContrepasseeId => text().nullable()();
 
+  /// v44 (28/10/2026) : l'identifiant d'ORIGINE de la pièce quand elle a été
+  /// saisie à la main sur un poste (`pieces_saisie_local.id`) ; `null` pour une
+  /// pièce du serveur (vente, dépense, clôture, saisie web). C'est ce qui fait
+  /// reconnaître au poste SA pièce redescendue.
+  TextColumn get pieceOrigineId => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }

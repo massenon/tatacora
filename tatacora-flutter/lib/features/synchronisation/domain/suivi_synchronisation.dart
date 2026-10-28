@@ -115,6 +115,16 @@ String? libelleDocument(OperationSync o) {
       final d? => 'Vente du $d',
       null => null,
     },
+    // 28/10/2026 (D246 rouvert) : un compte du plan se dit par son numéro ; une
+    // pièce saisie à la main, par son libellé (la branche par défaut).
+    TableSynchronisee.planComptable => switch ((
+      t('numero_compte'),
+      t('libelle'),
+    )) {
+      (final n?, final l?) => '$n · $l',
+      (final n?, null) => n,
+      _ => null,
+    },
     // 26/10/2026 : la demande de clôture d'un exercice se dit par le geste de
     // l'onglet « Clôtures » (les mots de la vue, `comptabilite_pwa.*`).
     TableSynchronisee.demandesClotureExercice => switch ((

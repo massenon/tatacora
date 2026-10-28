@@ -121,6 +121,17 @@ enum TableSynchronisee {
   /// 21/10/2026 : les canaux de réservation (Paramètres) — création (nom), puis
   /// l'état entier en modification (renommage, désactivation, réactivation).
   canauxReservation('canaux_reservation', accepteModification: true),
+  /// 28/10/2026 (D246 rouvert par le PO) : un COMPTE du plan comptable créé sur le
+  /// poste (création seule, `PlanComptableService` au serveur), AVANT les pièces
+  /// saisies à la main qui le citent par son numéro.
+  planComptable('plan_comptable', accepteModification: false),
+
+  /// 28/10/2026 : une PIÈCE saisie à la main (en-tête et lignes en centimes,
+  /// brouillon ou validée) — document source, jamais une écriture reçue : le
+  /// serveur la rejoue par `PasserEcritureService` et passe SA pièce. Création
+  /// seule. Jamais une pièce d'un module (vente, dépense…) ni une pièce descendue.
+  piecesSaisie('pieces_saisie', accepteModification: false),
+
 
   /// 21/10/2026 : un inventaire physique CLÔTURÉ — le document complet (point,
   /// jour, lignes comptées), création seule ; sa régularisation part en

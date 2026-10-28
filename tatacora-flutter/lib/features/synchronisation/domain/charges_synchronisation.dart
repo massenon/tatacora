@@ -1012,6 +1012,56 @@ Map<String, Object?> chargeModeleNotification({
   'actif': actif,
 };
 
+/// `plan_comptable` (création seule, 28/10/2026, D246 rouvert) —
+/// `GestionnairePlanComptable` : le compte tel que `PlanComptableService::creerCompte`
+/// le prend. La classe ne part pas : elle est DÉRIVÉE du numéro, des deux côtés.
+Map<String, Object?> chargeCompte({
+  required String numeroCompte,
+  required String libelle,
+  required String nature,
+}) => {'numero_compte': numeroCompte, 'libelle': libelle, 'nature': nature};
+
+/// `pieces_saisie` (création seule, 28/10/2026, D246 rouvert) —
+/// `GestionnairePiecesSaisie` : la SOURCE d'une saisie manuelle, jamais une
+/// écriture. Journal (code), date `AAAA-MM-JJ`, libellé, statut (`brouillon` ou
+/// `validee`) et lignes : compte par son NUMÉRO, débit et crédit en CENTIMES
+/// entiers, libellé de ligne et centre de coût seulement s'ils ont été saisis
+/// (sinon le serveur applique RG-12 à SON plan). Le centre voyage par son
+/// LIBELLÉ, jamais par l'identifiant du poste (le poste et le serveur ne
+/// partagent pas leurs identifiants de centre). Le numéro de pièce ne part pas :
+/// c'est celui du serveur.
+Map<String, Object?> chargePieceSaisie({
+  required String journal,
+  required String date,
+  required String libelle,
+  required String statut,
+  required List<
+    ({
+      String compte,
+      int debitCentimes,
+      int creditCentimes,
+      String? libelle,
+      String? centreLibelle,
+    })
+  >
+  lignes,
+}) => {
+  'journal': journal,
+  'date': date,
+  'libelle': libelle,
+  'statut': statut,
+  'lignes': [
+    for (final l in lignes)
+      {
+        'compte': l.compte,
+        'debit': l.debitCentimes,
+        'credit': l.creditCentimes,
+        'libelle': ?l.libelle,
+        'centre': ?l.centreLibelle,
+      },
+  ],
+};
+
 /// `immobilisations` (création seule, 21/10/2026) —
 /// `GestionnaireImmobilisations` : le bien, sa valeur d'origine en CENTIMES
 /// entiers (le serveur : `DECIMAL(15,2)`), sa mise en service en `AAAA-MM-JJ`

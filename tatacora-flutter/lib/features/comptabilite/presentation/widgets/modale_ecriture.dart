@@ -283,11 +283,7 @@ class _ModaleEcritureState extends ConsumerState<ModaleEcriture> {
 
     try {
       final moteur = await ref.read(moteurComptableProvider.future);
-      if (valider) {
-        await moteur.passerEtValider(demande, auteurId: auteurId);
-      } else {
-        await moteur.passer(demande, auteurId: auteurId);
-      }
+      await moteur.saisirPiece(demande, auteurId: auteurId, valider: valider);
     } on RefusComptable catch (e) {
       if (!mounted) return;
       setState(() {

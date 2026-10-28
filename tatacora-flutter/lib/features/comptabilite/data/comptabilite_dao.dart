@@ -844,6 +844,69 @@ class ComptabiliteDao extends DatabaseAccessor<AppDatabase> {
     return (await compteParId(id))!;
   }
 
+  /// Marque une pièce de SAISIE MANUELLE (v44, D246 rouvert) : son identifiant
+  /// d'origine, celui que le poste envoie et que le serveur pose sur sa pièce.
+  /// Seul appelant : [MoteurComptable.saisirPiece], dans la transaction de la pièce.
+  Future<void> insererPieceSaisie({
+    required String id,
+    required String numeroPiece,
+    required String codeJournal,
+    required String datePiece,
+    required String libelle,
+    required String statut,
+    required DateTime creeLe,
+  }) async {
+    await into(attachedDatabase.piecesSaisieLocal).insert(
+      PiecesSaisieLocalCompanion.insert(
+        id: id,
+        numeroPiece: numeroPiece,
+        codeJournal: codeJournal,
+        datePiece: datePiece,
+        libelle: libelle,
+        statut: statut,
+        creeLe: creeLe,
+      ),
+    );
+  }
+
+  /// Les pièces de saisie manuelle que le serveur n'a PAS encore reprises : leur
+  /// identifiant d'origine ne figure pas dans le miroir `ecritures_serveur_local`
+  /// (seules les pièces validées y descendent). Une pièce validée ici, envoyée
+  /// puis redescendue, n'y figure plus — c'est la même pièce, jamais deux.
+  Future<List<PieceSaisieLigne>> piecesSaisiesNonReprises() =>
+      (select(attachedDatabase.piecesSaisieLocal)
+            ..where(
+              (p) => CustomExpression<bool>(
+                'NOT EXISTS (SELECT 1 FROM ecritures_serveur_local e '
+                'WHERE e.piece_origine_id = pieces_saisie_local.id)',
+              ),
+            )
+            ..orderBy([(p) => OrderingTerm.asc(p.creeLe)]))
+          .get();
+
+  /// Un compte du plan DESCENDU du serveur (28/10/2026, D246 rouvert) : ajouté
+  /// SEULEMENT si son numéro manque ici — jamais réécrit, pas même un compte créé
+  /// sur ce poste dont l'envoi attend ou a été refusé. Rend `true` quand il est
+  /// neuf. Le numéro est la clé naturelle ; l'identifiant est celui du serveur.
+  Future<bool> insererCompteDescendu({
+    required String id,
+    required String numero,
+    required String libelle,
+    required String? nature,
+  }) async {
+    final ajoutes = await into(attachedDatabase.planComptableLocal).insert(
+      PlanComptableLocalCompanion.insert(
+        id: id,
+        numeroCompte: numero,
+        libelle: libelle,
+        classe: numero.substring(0, 1),
+        nature: Value(nature),
+      ),
+      mode: InsertMode.insertOrIgnore,
+    );
+    return ajoutes > 0;
+  }
+
   /* ================================================================== */
   /* Traduction des gardes de la base                                    */
   /* ================================================================== */

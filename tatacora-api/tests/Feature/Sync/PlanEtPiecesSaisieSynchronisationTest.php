@@ -61,7 +61,7 @@ final class PlanEtPiecesSaisieSynchronisationTest extends TestCase
     {
         return [
             ['compte' => '5711', 'debit' => $centimes, 'credit' => 0],
-            ['compte' => '7011', 'debit' => 0, 'credit' => $centimes, 'centre_id' => $this->bar()],
+            ['compte' => '7011', 'debit' => 0, 'credit' => $centimes, 'centre' => 'Bar'],
         ];
     }
 
@@ -144,7 +144,7 @@ final class PlanEtPiecesSaisieSynchronisationTest extends TestCase
         $cas = [
             'desequilibre' => [$this->piece($this->uuid(), [
                 ['compte' => '5711', 'debit' => 150000, 'credit' => 0],
-                ['compte' => '7011', 'debit' => 0, 'credit' => 100000, 'centre_id' => $this->bar()],
+                ['compte' => '7011', 'debit' => 0, 'credit' => 100000, 'centre' => 'Bar'],
             ])],
             'journal reserve' => [$this->piece($this->uuid(), $this->equilibre(), ['journal' => 'CL'])],
             'compte inconnu' => [$this->piece($this->uuid(), [
@@ -153,7 +153,7 @@ final class PlanEtPiecesSaisieSynchronisationTest extends TestCase
             ])],
             'debit et credit' => [$this->piece($this->uuid(), [
                 ['compte' => '5711', 'debit' => 100, 'credit' => 100],
-                ['compte' => '7011', 'debit' => 0, 'credit' => 0, 'centre_id' => $this->bar()],
+                ['compte' => '7011', 'debit' => 0, 'credit' => 0, 'centre' => 'Bar'],
             ])],
             'une seule ligne' => [$this->piece($this->uuid(), [['compte' => '5711', 'debit' => 100, 'credit' => 0]])],
             'exercice absent' => [$this->piece($this->uuid(), $this->equilibre(), ['date' => '2020-01-05'])],
@@ -181,7 +181,7 @@ final class PlanEtPiecesSaisieSynchronisationTest extends TestCase
         $this->pousser([
             $this->compte($compte, '6099'),
             $this->piece($piece, [
-                ['compte' => '6099', 'debit' => 5000, 'credit' => 0, 'centre_id' => $this->bar()],
+                ['compte' => '6099', 'debit' => 5000, 'credit' => 0, 'centre' => 'Bar'],
                 ['compte' => '5711', 'debit' => 0, 'credit' => 5000],
             ]),
         ], $this->comptable)

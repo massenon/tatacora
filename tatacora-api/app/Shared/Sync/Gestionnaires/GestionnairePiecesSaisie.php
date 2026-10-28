@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Shared\Sync\Gestionnaires;
 
+use App\Domain\Comptabilite\Models\CentreCout;
 use App\Domain\Comptabilite\Services\ClotureExerciceService;
 use App\Domain\Comptabilite\Services\EcritureComptableService;
 use App\Domain\Comptabilite\Services\PasserEcritureService;
@@ -93,7 +94,7 @@ final class GestionnairePiecesSaisie extends GestionnaireDocumentAbstrait
             'lignes' => ['nullable', 'array'],
             'lignes.*.compte' => ['nullable', 'string'],
             'lignes.*.libelle' => ['nullable', 'string'],
-            'lignes.*.centre_id' => ['nullable', 'string'],
+            'lignes.*.centre' => ['nullable', 'string'],
             'lignes.*.debit' => ['nullable', 'integer', 'min:0'],
             'lignes.*.credit' => ['nullable', 'integer', 'min:0'],
         ]);
@@ -103,7 +104,13 @@ final class GestionnairePiecesSaisie extends GestionnaireDocumentAbstrait
         $lignesBrutes = [];
 
         foreach ((array) ($forme['lignes'] ?? []) as $ligne) {
-            $centre = $this->resoudre('centres_cout', $ligne['centre_id'] ?? null);
+            // Le centre voyage par son LIBELLÉ (les identifiants de centre du poste
+            // ne sont pas ceux du serveur) ; un libellé inconnu reste tel quel et
+            // tombe sur la règle `exists` du web.
+            $libelleCentre = trim((string) ($ligne['centre'] ?? ''));
+            $centre = $libelleCentre === ''
+                ? null
+                : (CentreCout::query()->where('libelle', $libelleCentre)->value('id') ?? $libelleCentre);
 
             $lignesBrutes[] = [
                 'compte' => (string) ($ligne['compte'] ?? ''),

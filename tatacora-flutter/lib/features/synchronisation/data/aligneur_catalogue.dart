@@ -154,6 +154,7 @@ class AligneurCatalogue {
       TableDescendue.ecrituresComptables => _ecritureServeur(e),
       TableDescendue.immobilisations => alignerDocument(idLocal, e),
       TableDescendue.inventaires => alignerDocument(idLocal, e),
+      TableDescendue.planComptable => _compteDuPlan(e),
     };
   }
 
@@ -1626,6 +1627,34 @@ class AligneurCatalogue {
     );
     return const Aligne();
   }
+  /// Un compte du plan du serveur (28/10/2026, D246 rouvert). Reconnu à son
+  /// NUMÉRO : ajouté s'il manque, JAMAIS réécrit — un compte créé ici et pas
+  /// encore accepté garde son libellé (c'est l'envoi qui arbitre, et un libellé
+  /// différent y devient un refus lisible « À traiter »). Rien n'est enfilé. Un
+  /// numéro mal formé, une classe qui n'est pas son premier chiffre ou une nature
+  /// hors registre est refusé, pas deviné.
+  Future<IssueAlignement> _compteDuPlan(ElementCatalogue e) async {
+    final d = e.donnees;
+    final numero = _texte(d['numero_compte']);
+    final libelle = _texte(d['libelle']);
+    final nature = _texte(d['nature']);
+    if (numero == null ||
+        libelle == null ||
+        !RegExp(r'^[1-9][0-9]*$').hasMatch(numero) ||
+        _texte(d['classe']) != numero.substring(0, 1) ||
+        (nature != null &&
+            !const ['actif', 'passif', 'charge', 'produit'].contains(nature))) {
+      return const RefuseParLePoste('compte du plan illisible');
+    }
+    await ComptabiliteDao(_db).insererCompteDescendu(
+      id: e.id,
+      numero: numero,
+      libelle: libelle,
+      nature: nature,
+    );
+    return const Aligne();
+  }
+
 
   /// Un rôle du serveur et sa matrice, recopiée sur les comptes qui le
   /// portent. Apparié par son LIBELLÉ à un rôle du socle né ici sous un
@@ -1665,6 +1694,7 @@ class AligneurCatalogue {
           idLocal: homonyme.id,
           origine: 'libelle',
         );
+      pieceOrigineId: _texte(d['piece_origine_id']),
         cible = homonyme.id;
       }
     }

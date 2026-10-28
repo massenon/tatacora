@@ -1,3 +1,6 @@
+import '../../synchronisation/data/operations_sync_dao.dart';
+import '../../synchronisation/domain/charges_synchronisation.dart';
+import '../../synchronisation/domain/operation_sync.dart';
 import '../domain/comptes_syscohada.dart';
 import '../domain/correspondance_comptes.dart';
 import '../domain/entities/comptabilite.dart';
@@ -278,6 +281,83 @@ class MoteurComptable {
     return _dao.enTransaction(() async {
       final piece = await passer(demande, auteurId: auteurId);
       return valider(piece, auteurId: auteurId);
+    });
+  }
+
+  /// La SAISIE MANUELLE d'une pièce (hub comptable, « Nouvelle écriture ») —
+  /// D246 rouvert par le PO (28/10/2026) : elle est partagée. Passe la pièce
+  /// ([passer], ou [passerEtValider] si [valider]), marque son identifiant
+  /// d'origine (`pieces_saisie_local`) et enfile la pièce SOURCE (`pieces_saisie`,
+  /// création seule) — le tout dans UNE transaction : un refus n'enfile rien.
+  ///
+  /// C'est le SEUL chemin qui enfile une pièce. [passer] et [passerEtValider]
+  /// restent ceux des modules (vente, dépense, règlement, clôture…), dont le
+  /// serveur recrée la pièce de leur document source : y brancher l'envoi
+  /// compterait chaque mouvement deux fois. Le poste n'envoie jamais une pièce
+  /// descendue : celles-ci n'entrent que dans le miroir, jamais ici.
+  ///
+  /// Les lignes envoyées sont celles de la DEMANDE (compte par son numéro,
+  /// centimes, centre explicite) : le serveur rejoue SES règles — équilibre,
+  /// exercice, compte imputable, RG-12 — et passe sa pièce, sous son numéro.
+  /// Interrupteur « Synchronisation activée » éteint : rien n'est enfilé, la pièce
+  /// reste locale (`enfiler` ne dépose rien).
+  Future<List<EcritureComptable>> saisirPiece(
+    DemandePiece demande, {
+    required String auteurId,
+    required bool valider,
+  }) async {
+    _exigerAuteur(auteurId);
+    for (final l in demande.lignes) {
+      if (l.role != null) {
+        throw ArgumentError.value(
+          l.role,
+          'role',
+          'une saisie manuelle nomme un compte, jamais un rôle',
+        );
+      }
+    }
+    return _dao.enTransaction(() async {
+      final piece = valider
+          ? await passerEtValider(demande, auteurId: auteurId)
+          : await passer(demande, auteurId: auteurId);
+      final id = _dao.nouvelId();
+      await _dao.insererPieceSaisie(
+        id: id,
+        numeroPiece: piece.first.numeroPiece!,
+        codeJournal: demande.journal,
+        datePiece: demande.date,
+        libelle: demande.libelle,
+        statut: valider ? 'validee' : 'brouillon',
+        creeLe: _maintenant(),
+      );
+      final libellesCentres = {
+        for (final c in await _dao.centres()) c.id: c.libelle,
+      };
+      await OperationsSyncDao(_dao.attachedDatabase).enfiler(
+        table: TableSynchronisee.piecesSaisie,
+        entiteId: id,
+        type: TypeOperationSync.creation,
+        payload: chargePieceSaisie(
+          journal: demande.journal,
+          date: demande.date,
+          libelle: demande.libelle,
+          statut: valider ? 'validee' : 'brouillon',
+          lignes: [
+            for (final l in demande.lignes)
+              (
+                compte: l.compte,
+                debitCentimes: l.debitCentimes,
+                creditCentimes: l.creditCentimes,
+                libelle: l.libelle,
+                centreLibelle: l.centreId == null
+                    ? null
+                    : libellesCentres[l.centreId],
+              ),
+          ],
+        ),
+        dateMetier: demande.date,
+      );
+      return piece;
     });
   }
 
@@ -568,11 +648,24 @@ class MoteurComptable {
           {'numero': numero},
         );
       }
-      return _dao.insererCompte(
+      final cree = await _dao.insererCompte(
         numero: numero,
         libelle: propre,
         nature: nature,
       );
+      // D246 rouvert (28/10/2026) : le compte rejoint le plan du serveur, qui
+      // rejoue `PlanComptableService::creerCompte` (création seule).
+      await OperationsSyncDao(_dao.attachedDatabase).enfiler(
+        table: TableSynchronisee.planComptable,
+        entiteId: cree.id,
+        type: TypeOperationSync.creation,
+        payload: chargeCompte(
+          numeroCompte: numero,
+          libelle: propre,
+          nature: nature,
+        ),
+      );
+      return cree;
     });
   }
 

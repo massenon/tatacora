@@ -140,6 +140,12 @@ enum TableDescendue {
   /// les pousse pas.
   exercicesComptables('exercices_comptables', null),
 
+  /// Le PLAN COMPTABLE du serveur (28/10/2026, D246 rouvert), après les exercices
+  /// et AVANT les écritures et les pièces qui citent un compte par son numéro.
+  /// Un compte se reconnaît à son NUMÉRO : le poste ajoute ceux qu'il n'a pas et
+  /// n'en réécrit aucun, y compris un compte créé ici qui attend son envoi.
+  planComptable('plan_comptable', TableSynchronisee.planComptable),
+
   /// Les écritures VALIDÉES du serveur (21/10/2026), après leurs exercices :
   /// un miroir de LECTURE pour les états financiers, jamais mêlé aux pièces du
   /// poste. Le poste ne les pousse pas.
@@ -218,6 +224,8 @@ String libelleTableServeur(String nom) => switch (nom) {
   'exercices_comptables' => 'Exercices comptables',
   'ecritures_comptables' => 'Écritures comptables validées',
   'immobilisations' => 'Immobilisations',
+  'plan_comptable' => 'Plan comptable',
+  'pieces_saisie' => 'Pièces comptables saisies',
   'canaux_reservation' => 'Canaux de réservation',
   'inventaires' => 'Inventaires physiques',
   'demandes_cloture_exercice' => 'Demandes de clôture d’exercice',
