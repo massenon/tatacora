@@ -7,6 +7,7 @@ import '../../../restaurant/presentation/widgets/coquille_restaurant.dart';
 import '../../../restaurant/presentation/widgets/tableau_restaurant.dart';
 import '../../domain/apercu_etat.dart';
 import '../../domain/entities/etat_catalogue.dart';
+import '../../domain/registre_etats.dart';
 import '../providers_etats.dart';
 import 'textes_etats.dart';
 
@@ -157,6 +158,11 @@ class _Apercu extends ConsumerWidget {
           moduleSource: apercu?.moduleSource ?? etat.module,
           lignes: apercu == null ? tiretApercu : '${apercu.nombreLignes}',
           indicateurs: apercu?.indicateurs ?? const [],
+          // `@if ($offreCaseAnnules)` (l.147-153 de la vue) : la case n'existe
+          // que sur l'état « Locations ».
+          action: etat.code == EtatLocal.locationsVehicules.code
+              ? const _CaseAnnules()
+              : null,
         ),
         Expanded(
           child: resultat.when(
@@ -202,6 +208,7 @@ class _EnTete extends StatelessWidget {
     required this.moduleSource,
     required this.lignes,
     required this.indicateurs,
+    this.action,
   });
 
   final String titre;
@@ -209,6 +216,10 @@ class _EnTete extends StatelessWidget {
   final String moduleSource;
   final String lignes;
   final List<IndicateurApercu> indicateurs;
+
+  /// Ce qui se pose à droite du titre (`justify-between`, l.138) : la case
+  /// « Inclure les contrats annulés » de l'état « Locations ».
+  final Widget? action;
 
   @override
   Widget build(BuildContext context) {
@@ -225,32 +236,45 @@ class _EnTete extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            titre,
-            key: const Key('etats-apercu-titre'),
-            style: TextesEtats.titreBarre,
-          ),
-          const SizedBox(height: AppSpacing.demi),
-          // `{{ $periodeEtat }} · module source M6 · N ligne(s)` (l.140-144) :
-          // les puces sont `text-slate-300`.
-          Text.rich(
-            key: const Key('etats-apercu-sous-ligne'),
-            TextSpan(
-              style: TextesEtats.etiquetteBarre,
-              children: [
-                TextSpan(text: periode),
-                const TextSpan(
-                  text: ' · ',
-                  style: TextesEtats.separateurApercu,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      titre,
+                      key: const Key('etats-apercu-titre'),
+                      style: TextesEtats.titreBarre,
+                    ),
+                    const SizedBox(height: AppSpacing.demi),
+                    // `{{ $periodeEtat }} · module source M6 · N ligne(s)` (l.140-144) :
+                    // les puces sont `text-slate-300`.
+                    Text.rich(
+                      key: const Key('etats-apercu-sous-ligne'),
+                      TextSpan(
+                        style: TextesEtats.etiquetteBarre,
+                        children: [
+                          TextSpan(text: periode),
+                          const TextSpan(
+                            text: ' · ',
+                            style: TextesEtats.separateurApercu,
+                          ),
+                          TextSpan(text: 'module source $moduleSource'),
+                          const TextSpan(
+                            text: ' · ',
+                            style: TextesEtats.separateurApercu,
+                          ),
+                          TextSpan(text: '$lignes ligne(s)'),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                TextSpan(text: 'module source $moduleSource'),
-                const TextSpan(
-                  text: ' · ',
-                  style: TextesEtats.separateurApercu,
-                ),
-                TextSpan(text: '$lignes ligne(s)'),
-              ],
-            ),
+              ),
+              ?action,
+            ],
           ),
           if (indicateurs.isNotEmpty) ...[
             // `mt-3` (l.147) ; `flex flex-wrap gap-2`.
@@ -266,6 +290,38 @@ class _EnTete extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// La case « Inclure les contrats annulés » — `pwa.etats.inclure_annules`,
+/// DÉCOCHÉE par défaut ; le libellé est celui de la vue, au mot.
+///
+/// Un `Row` et non un `CheckboxListTile` (voir la case des doublons du
+/// registre clients). Cochée, l'aperçu s'ajoute la colonne « Statut » et liste
+/// les annulés à part, SANS les compter dans les totaux (`apercuLocations`).
+class _CaseAnnules extends ConsumerWidget {
+  const _CaseAnnules();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final coche = ref.watch(inclureAnnulesEtatsProvider);
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Checkbox(
+          key: const Key('etats-inclure-annules'),
+          value: coche,
+          onChanged: (v) => ref
+              .read(inclureAnnulesEtatsProvider.notifier)
+              .definir(v ?? false),
+        ),
+        const Text(
+          'Inclure les contrats annulés',
+          key: Key('etats-inclure-annules-libelle'),
+          style: TextesEtats.etiquetteBarre,
+        ),
+      ],
     );
   }
 }

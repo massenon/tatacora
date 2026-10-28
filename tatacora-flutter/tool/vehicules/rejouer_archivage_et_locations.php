@@ -11,7 +11,12 @@ declare(strict_types=1);
 | Sortie (stdout, JSON) :
 |   engages     { fin_hier, fin_aujourdhui, fin_demain, annule } : nombre de
 |               contrats engageant le véhicule de chaque cas
-|   etat        { nombre, montant, lignes } : l'état « Locations » du même jeu
+|   etat        { nombre, montant, lignes, periode, entetes } : l'état « Locations »
+|               du même jeu, case « Inclure les contrats annulés » DÉCOCHÉE
+|   etat_inclus  la même forme, case COCHÉE (`inclure_annules` = 1) : `cellules`
+|               porte les lignes entières (annulé listé à part, montant vide,
+|               statut), `kpis` les totaux (identiques à `etat` : un annulé n'est
+|               jamais compté)
 |
 | Horloge posée au 21/10/2026. La base N'EST PAS un double : le script REFUSE
 | toute base autre que `tatacora_test` (ou une base d'essai PRIVÉE
@@ -105,6 +110,20 @@ try {
         'montant' => $valeurs[1],
         'lignes' => array_map(static fn (array $l): string => (string) $l[1], $etat->lignes),
     ];
+
+    $inclus = (new EtatLocations())->calculer(['inclure_annules' => '1']);
+    $valeursInclus = array_values($inclus->kpis);
+    $sortie['etat_inclus'] = [
+        'nombre' => $valeursInclus[0],
+        'montant' => $valeursInclus[1],
+        'lignes' => array_map(static fn (array $l): string => (string) $l[1], $inclus->lignes),
+        'periode' => (new EtatLocations())->periode(['inclure_annules' => '1']),
+        'entetes' => $inclus->entetes,
+        'cellules' => $inclus->lignes,
+    ];
+    $sortie['etat']['periode'] = (new EtatLocations())->periode([]);
+    $sortie['etat']['entetes'] = $etat->entetes;
+    $sortie['etat']['cellules'] = $etat->lignes;
 
     echo json_encode($sortie, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 } finally {

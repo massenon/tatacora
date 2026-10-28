@@ -3,7 +3,10 @@
 library;
 
 import 'dart:convert';
+import 'dart:math';
 import 'dart:typed_data';
+
+import 'package:image/image.dart' as img;
 
 const String _base64Png =
     'iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAAFklEQVQImWM8ISfHwMDAxMDAwMDAAAANBAEIG3S2BgAAAABJRU5ErkJggg==';
@@ -54,3 +57,40 @@ Map<String, List<int>> corpusRecus() => {
   'png-a-la-borne': complete(octetsPng(), 400 * 1024),
   'png-un-octet-de-trop': complete(octetsPng(), 400 * 1024 + 1),
 };
+
+/// Une image BRUITÉE (incompressible) de [largeur] × [hauteur] : lourde en PNG
+/// comme en JPEG, donc au-delà de 400 Ko à la moindre taille. Déterministe
+/// ([graine]). PNG sans compression : l'encodage reste rapide.
+Uint8List imageLourdePng({
+  int largeur = 1200,
+  int hauteur = 800,
+  int graine = 42,
+}) {
+  final hasard = Random(graine);
+  final image = img.Image(width: largeur, height: hauteur);
+  for (final p in image) {
+    p
+      ..r = hasard.nextInt(256)
+      ..g = hasard.nextInt(256)
+      ..b = hasard.nextInt(256);
+  }
+  return img.encodePng(image, level: 0);
+}
+
+/// Une image LISSE (dégradé + léger grain) de [largeur] × [hauteur] : lourde en
+/// PNG mais qui tient en JPEG à la première qualité une fois ramenée à
+/// 2048 px — le cas où le serveur et le poste doivent donner les MÊMES
+/// dimensions (seul le plafond de côté joue).
+Uint8List imageLisseLourdePng({int largeur = 3000, int hauteur = 2000}) {
+  final hasard = Random(7);
+  final image = img.Image(width: largeur, height: hauteur);
+  for (final p in image) {
+    final x = p.x / largeur;
+    final y = p.y / hauteur;
+    p
+      ..r = (255 * x).round() + hasard.nextInt(3)
+      ..g = (255 * y).round() + hasard.nextInt(3)
+      ..b = (128 + 100 * sin(6 * x + 4 * y)).round().clamp(0, 255);
+  }
+  return img.encodePng(image, level: 1);
+}

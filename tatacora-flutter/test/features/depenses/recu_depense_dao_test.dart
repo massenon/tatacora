@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:drift/drift.dart' show Variable;
 
@@ -145,6 +146,49 @@ void main() {
             (r) => r.message,
             'message',
             TextesRecu.nonImage,
+          ),
+        ),
+      );
+      expect(await compter(db, 'depenses_local'), 0);
+      expect(Directory('${dossier.path}/r').existsSync(), isFalse);
+    });
+
+    test('une image de plus de 400 Ko est RÉDUITE avant d’être rangée (PO, '
+        '28/10/2026) : le fichier, l’empreinte et la taille sont ceux de '
+        'l’image réduite, jamais ceux de l’original', () async {
+      final lourde = imageLourdePng(largeur: 900, hauteur: 600);
+      expect(lourde.length, greaterThan(tailleMaxRecuOctets));
+
+      final d = await saisir(
+        recu: RecuAJoindre(nom: 'gros.png', octets: lourde, type: TypeRecu.png),
+      );
+
+      final c = await colonnes(d.id);
+      expect(c['recu_nom'], '${d.id}.jpg');
+      expect(c['recu_type'], 'image/jpeg');
+      expect(c['recu_taille'] as int, lessThanOrEqualTo(tailleMaxRecuOctets));
+      final fichier = File('${dossier.path}/r/${d.id}.jpg');
+      expect(fichier.existsSync(), isTrue);
+      final octets = fichier.readAsBytesSync();
+      expect(octets.length, c['recu_taille']);
+      expect(c['recu_sha256'], RecusDepensesLocaux.empreinte(octets));
+      // Aucun fichier sous l'extension d'origine.
+      expect(File('${dossier.path}/r/${d.id}.png').existsSync(), isFalse);
+    });
+
+    test('une image lourde ILLISIBLE est refusée avant tout (le seul refus '
+        'qui reste pour une image) : aucune dépense, aucun fichier', () async {
+      final abimee = Uint8List.fromList(imageLourdePng())
+        ..fillRange(100, 450 * 1024, 0);
+      await expectLater(
+        saisir(
+          recu: RecuAJoindre(nom: 'x.png', octets: abimee, type: TypeRecu.png),
+        ),
+        throwsA(
+          isA<RefusDepense>().having(
+            (r) => r.message,
+            'message',
+            TextesRecu.illisible,
           ),
         ),
       );

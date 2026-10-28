@@ -167,6 +167,41 @@ final class EtatsPwaTest extends TestCase
     }
 
     /**
+     * État « Locations » : la case « Inclure les contrats annulés » n'existe
+     * que sur lui, décochée par défaut ; cochée, la colonne « Statut » apparaît
+     * et l'annulé est listé sans entrer dans les totaux.
+     */
+    #[Test]
+    public function la_case_des_contrats_annules_ne_concerne_que_l_etat_locations(): void
+    {
+        $this->jeuDeDonnees();
+        $this->actingAs($this->utilisateur('administrateur'));
+
+        $vehicule = \App\Domain\Vehicules\Models\Vehicule::create([
+            'categorie' => 'voiture', 'immatriculation' => 'AB 1', 'annee' => 2020,
+            'tarif_jour' => '10000.00', 'statut' => 'disponible',
+        ]);
+        $client = \App\Domain\Crm\Models\Client::factory()->create();
+        foreach ([['2026-10-01', '2026-10-03', 'actif'], ['2026-10-10', '2026-10-12', 'annule']] as [$debut, $fin, $statut]) {
+            \App\Domain\Vehicules\Models\ContratLocation::create([
+                'vehicule_id' => $vehicule->id, 'client_id' => $client->id, 'date_debut' => $debut, 'date_fin' => $fin,
+            ])->forceFill(['statut' => $statut])->save();
+        }
+
+        $stocks = $this->corpsPrincipalPwa((string) $this->get('/pwa/etats?etat=stocks')->assertOk()->getContent(), 'm14-etats-studio');
+        $this->assertStringNotContainsString('Inclure les contrats annulés', $stocks);
+
+        $decoche = $this->corpsPrincipalPwa((string) $this->get('/pwa/etats?etat=locations-vehicules')->assertOk()->getContent(), 'm14-etats-studio');
+        $this->assertStringContainsString('Inclure les contrats annulés', $decoche);
+        $this->assertStringContainsString('contrats annulés exclus', $decoche);
+        $this->assertStringNotContainsString('>Statut<', $decoche);
+
+        $coche = $this->corpsPrincipalPwa((string) $this->get('/pwa/etats?etat=locations-vehicules&annules=1')->assertOk()->getContent(), 'm14-etats-studio');
+        $this->assertStringContainsString('contrats annulés inclus', $coche);
+        $this->assertStringContainsString('Statut', $coche);
+    }
+
+    /**
      * Un code d'etat tape dans l'URL ne contourne PAS le filtrage RBAC du
      * catalogue.
      *

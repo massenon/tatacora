@@ -3,10 +3,13 @@ library;
 
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
 import 'package:tatacora_flutter/features/depenses/data/recus_depenses_locaux.dart';
 import 'package:tatacora_flutter/features/depenses/domain/recu_depense.dart';
+import 'package:tatacora_flutter/features/depenses/domain/reduction_recu.dart';
 
 import 'support/corpus_recus.dart';
 
@@ -29,7 +32,16 @@ void main() {
   late Map<String, List<int>> corpus;
 
   setUpAll(() async {
-    corpus = corpusRecus();
+    corpus = {
+      ...corpusRecus(),
+      // Les images LOURDES : le serveur les RÉDUIT (`preparer`), le poste aussi.
+      'lourde-bruitee': imageLourdePng(),
+      'lourde-lisse': imageLisseLourdePng(),
+      // Signature et IHDR intacts, corps vidé : « image » pour finfo, illisible.
+      'lourde-illisible': (Uint8List.fromList(imageLourdePng())
+        ..fillRange(100, 450 * 1024, 0)),
+      'texte-lourd': Uint8List.fromList(List.filled(450 * 1024, 65)),
+    };
     final php = await Process.start('php', ['tool/depenses/rejouer_recus.php']);
     php.stdin.write(
       jsonEncode({
@@ -61,7 +73,7 @@ void main() {
   test(
     'le corpus est RELU en entier : aucun fichier n’échappe au jugement',
     () {
-      expect(corpus.length, greaterThanOrEqualTo(15));
+      expect(corpus.length, greaterThanOrEqualTo(19));
       expect((serveur['resultats'] as List).length, corpus.length);
     },
   );
@@ -133,6 +145,83 @@ void main() {
     );
   });
 
+  test('RÉDUCTION : mêmes constantes, et pour chaque fichier la MÊME décision '
+      'que `RecuDepenseService::preparer` — accepté (réduit ou non, même type, '
+      '400 Ko au plus) ou refusé avec la même phrase', () async {
+    final r =
+        (serveur['constantes'] as Map<String, dynamic>)['reduction']
+            as Map<String, dynamic>;
+    expect(coteMaxRecuPx, r['cote_max_px']);
+    expect(qualitesRecu, (r['qualites'] as List).cast<int>());
+    expect(facteurReductionRecu, (r['facteur'] as num).toDouble());
+    expect(coteMinRecuPx, r['cote_min_px']);
+
+    final divergences = <String>[];
+    for (final e in corpus.entries) {
+      final attendu = duServeur(e.key)['preparer'] as Map<String, dynamic>;
+      final poste = await preparerRecu(e.value);
+      switch (poste) {
+        case RecuAccepte(:final type, :final octets, :final reduit):
+          if (attendu['ok'] != true) {
+            divergences.add('${e.key} : poste accepte, serveur dit $attendu');
+            continue;
+          }
+          if (attendu['type'] != type.mime ||
+              attendu['reduit'] != reduit ||
+              (octets!.length > tailleMaxRecuOctets) ||
+              (attendu['taille'] as int) > tailleMaxRecuOctets) {
+            divergences.add(
+              '${e.key} : poste (${type.mime}, réduit=$reduit, '
+              '${octets!.length} o) / serveur $attendu',
+            );
+          }
+          // Mêmes dimensions quand seul le plafond de côté joue (image lisse).
+          if (reduit) {
+            final lu = img.decodeJpg(octets)!;
+            final cote = lu.width > lu.height ? lu.width : lu.height;
+            if (cote > coteMaxRecuPx ||
+                (attendu['largeur'] as int) > coteMaxRecuPx) {
+              divergences.add('${e.key} : côté > $coteMaxRecuPx');
+            }
+            if (e.key == 'lourde-lisse' &&
+                (lu.width != attendu['largeur'] ||
+                    lu.height != attendu['hauteur'])) {
+              divergences.add(
+                '${e.key} : ${lu.width}x${lu.height} / serveur '
+                '${attendu['largeur']}x${attendu['hauteur']}',
+              );
+            }
+          }
+        case RecuRefuse(:final phrase):
+          if (attendu['ok'] == true || attendu['message'] != phrase) {
+            divergences.add(
+              '${e.key} : poste refuse (« $phrase »), serveur dit $attendu',
+            );
+          }
+      }
+    }
+    expect(divergences, isEmpty, reason: divergences.join('\n'));
+
+    // Ancrages en dur : le poids n'est PLUS une cause de refus, ni ici ni là.
+    expect((duServeur('lourde-bruitee')['preparer'] as Map)['reduit'], isTrue);
+    expect(
+      (duServeur('png-un-octet-de-trop')['preparer'] as Map)['ok'],
+      isTrue,
+    );
+    expect(
+      (duServeur('lourde-illisible')['preparer'] as Map)['refus'],
+      'recu_illisible',
+    );
+    expect(
+      (duServeur('lourde-illisible')['preparer'] as Map)['message'],
+      TextesRecu.illisible,
+    );
+    expect(
+      (duServeur('texte-lourd')['preparer'] as Map)['message'],
+      TextesRecu.nonImage,
+    );
+  });
+
   test('les phrases et les constantes du poste sont celles du serveur', () {
     final c = serveur['constantes'] as Map<String, dynamic>;
     final phrases = c['phrases'] as Map<String, dynamic>;
@@ -146,29 +235,26 @@ void main() {
     expect(phrases['sans_recu'], 'sans reçu');
   });
 
-  test('l’aide de la vue promet une réduction que rien ne fait : la fausseté '
-      'est épinglée à la SOURCE, et la phrase fausse n’est pas rendue', () {
+  test('l’aide du champ est la phrase de la vue (désormais VRAIE : la '
+      'réduction existe au serveur et ici), et sa borne est tailleMaxRecuKo', () {
     final constantes = serveur['constantes'] as Map<String, dynamic>;
-    final aide = (constantes['phrases'] as Map)['champ_recu_aide'];
-    // Elle rougit le jour où la vue est corrigée : l’écart nommé au code
-    // (`_ChampRecu`) devra alors être relu.
+    final aide = (constantes['phrases'] as Map)['champ_recu_aide'] as String;
     expect(
       aide,
-      "L'image est réduite avant enregistrement. Le navigateur ne peut en "
-      "conserver qu'une douzaine : au-delà, tout le registre cesserait d'être "
-      'enregistré.',
+      "L'image est réduite automatiquement avant enregistrement si elle pèse "
+      'plus de 400 Ko.',
     );
-    final vue = File(
-      '../tatacora-api/resources/views/pwa/depenses/depenses.blade.php',
-    ).readAsStringSync();
-    expect(
-      vue,
-      contains('Reduction du recu joint : le maitre l\'offre a la saisie, '),
-      reason: 'la vue dit elle-même que la réduction n’est PAS portée',
-    );
+    expect(aide, contains('$tailleMaxRecuKo Ko'));
+    final modale =
+        File('lib/features/depenses/presentation/widgets/modale_depense.dart')
+            .readAsStringSync()
+            .replaceAll(RegExp(r"'\s*\n\s*'"), '')
+            .replaceAll("\\'", "'");
+    expect(modale, contains(aide), reason: 'le champ dit la phrase de la vue');
 
-    // Et le code RENDU ne la répète pas : on lit les fichiers qui rendent le
-    // champ (sans leurs commentaires, qui la citent pour la nommer).
+    // La 2ᵉ phrase du prototype (« une douzaine ») n’est plus ni dans la vue ni
+    // dans le code rendu : elle décrivait le stockage d’un navigateur.
+    expect(aide, isNot(contains('douzaine')));
     for (final chemin in const [
       'lib/features/depenses/presentation/widgets/modale_depense.dart',
       'lib/features/depenses/presentation/widgets/dialogue_recu_depense.dart',
@@ -178,7 +264,7 @@ void main() {
           .readAsLinesSync()
           .where((l) => !l.trimLeft().startsWith('//'))
           .join('\n');
-      expect(code, isNot(contains('est réduite avant enregistrement')));
+      expect(code, isNot(contains('n’est pas réduite avant enregistrement')));
       expect(code, isNot(contains('qu\'une douzaine')));
       expect(code, isNot(contains('qu’une douzaine')));
     }

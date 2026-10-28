@@ -8,6 +8,10 @@ declare(strict_types=1);
 | pense (type reconnu, refus, phrase) a ce que le serveur en dira au depot
 | (lot L4, 27/10/2026 : le recu en image d'une depense).
 |
+| Depuis le 28/10/2026 (PO : une image trop lourde est REDUITE, pas refusee), chaque
+| fichier est aussi passe par `preparer()` — la regle de SAISIE du web — et
+| rend sous `preparer` : ok/type/reduit/taille/largeur/hauteur, ou le refus.
+|
 | Aucune base n'est ouverte : le controle du contenu (regles `image` et `max:400`
 | de Laravel, empreinte) ne lit que les octets. Rien n'est ecrit.
 |
@@ -59,23 +63,54 @@ foreach ($entree['fichiers'] as $fichier) {
     }
 
     try {
-        $resultats[] = ['nom' => $fichier['nom'], 'ok' => true, ...$service->controler($octets)];
+        $resultat = ['nom' => $fichier['nom'], 'ok' => true, ...$service->controler($octets)];
     } catch (RefusRecuDepense $refus) {
-        $resultats[] = [
+        $resultat = [
             'nom' => $fichier['nom'],
             'refus' => $refus->codeMotif,
             'statut' => $refus->statutHttp,
             'message' => $refus->getMessage(),
         ];
     }
+
+    // La regle de SAISIE : reduire au lieu de refuser le poids.
+    try {
+        $prepare = $service->preparer($octets);
+        $dimensions = @getimagesizefromstring($prepare['octets']) ?: [0, 0];
+        $resultat['preparer'] = [
+            'ok' => true,
+            'type' => $prepare['type'],
+            'extension' => $prepare['extension'],
+            'reduit' => $prepare['reduit'],
+            'taille' => strlen($prepare['octets']),
+            'largeur' => $dimensions[0],
+            'hauteur' => $dimensions[1],
+            'sha256' => $prepare['sha256'],
+        ];
+    } catch (RefusRecuDepense $refus) {
+        $resultat['preparer'] = [
+            'ok' => false,
+            'refus' => $refus->codeMotif,
+            'message' => $refus->getMessage(),
+        ];
+    }
+
+    $resultats[] = $resultat;
 }
 
 echo json_encode([
     'constantes' => [
         'taille_max_ko' => RecuDepenseService::TAILLE_MAX_KO,
         'dossier' => RecuDepenseService::DOSSIER,
+        'reduction' => [
+            'cote_max_px' => RecuDepenseService::COTE_MAX_PX,
+            'qualites' => RecuDepenseService::QUALITES,
+            'facteur' => RecuDepenseService::FACTEUR_REDUCTION,
+            'cote_min_px' => RecuDepenseService::COTE_MIN_PX,
+        ],
         'phrases' => [
             'recu_vide' => __('depenses.recu_vide'),
+            'recu_illisible' => __('depenses.recu_illisible'),
             'recu_deja_rattache' => __('depenses.recu_deja_rattache'),
             'recu_empreinte' => __('depenses.recu_empreinte'),
             'recu_depense_inconnue' => __('depenses.recu_depense_inconnue'),

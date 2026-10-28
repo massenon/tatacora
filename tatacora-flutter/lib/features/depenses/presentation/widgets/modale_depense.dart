@@ -14,6 +14,7 @@ import '../../../restaurant/presentation/widgets/coquille_modale_restaurant.dart
 import '../../domain/categories_depense.dart';
 import '../../domain/entities/depense.dart';
 import '../../domain/recu_depense.dart';
+import '../../domain/reduction_recu.dart';
 import '../providers_depenses.dart';
 
 /// La modale **« Nouvelle Dépense »** de la vue (l.324-511), posée dans le
@@ -692,9 +693,11 @@ class _ModaleDepenseState extends ConsumerState<ModaleDepense> {
 
   /* ------------------------------------------------------ enregistrement */
 
-  /// « Choisir un fichier » : la fenêtre native « Ouvrir », puis la règle du web
-  /// (image reconnue à son contenu, 400 Ko au plus). Un fichier refusé n'est
-  /// pas gardé, et la phrase du web est dite sous le champ.
+  /// « Choisir un fichier » : la fenêtre native « Ouvrir », puis la règle de
+  /// saisie (PO, 28/10/2026) : image reconnue à son contenu ; si elle pèse plus
+  /// de 400 Ko elle est RÉDUITE (`preparerRecu`), jamais refusée pour son poids.
+  /// Un fichier refusé (non-image, illisible) n'est pas gardé, et la phrase du
+  /// web est dite sous le champ.
   Future<void> _choisirRecu() async {
     final FichierLu? fichier;
     try {
@@ -710,14 +713,16 @@ class _ModaleDepenseState extends ConsumerState<ModaleDepense> {
       return;
     }
     if (fichier == null || !mounted) return;
-    final issue = verifierRecu(fichier.octets);
+    final issue = await preparerRecu(fichier.octets);
+    if (!mounted) return;
     setState(() {
       switch (issue) {
-        case RecuAccepte(:final type):
+        case RecuAccepte(:final type, :final octets, :final reduit):
           _recu = RecuAJoindre(
             nom: fichier!.nom,
-            octets: fichier.octets,
+            octets: octets ?? fichier.octets,
             type: type,
+            tailleOrigine: reduit ? fichier.octets.length : null,
           );
           _refusRecu = null;
         case RecuRefuse(:final phrase):
@@ -910,19 +915,13 @@ class _Etiquette extends StatelessWidget {
 /// MÊME règle (jugée sur le contenu, 400 Ko — `verifierRecu`) et les MÊMES
 /// phrases de refus, dessous, en rouge.
 ///
-/// ÉCART DÉLIBÉRÉ — `depenses.blade.php` l.489-492 (`champ_recu_aide`).
-/// La vue, dite mot pour mot (une ligne, pour que la mesure la compte « nommée ») :
-/// « L'image est réduite avant enregistrement. Le navigateur ne peut en conserver qu'une douzaine : au-delà, tout le registre cesserait d'être enregistré. »
-/// Ici : la phrase est remplacée par la VRAIE (`aide`), avec le maximum des mots
-/// de la vue.
-/// Raison (piège 13) : aucune réduction n'existe nulle part — la vue le dit
-/// elle-même (son commentaire « Reduction du recu joint : le maitre l'offre a la
-/// saisie, aucune colonne ne la porte et aucun service ne la calcule »), et le
-/// serveur refuse au-delà de 400 Ko sans rien réduire — et ce poste n'est pas un
-/// navigateur : il n'a pas de « douzaine » de reçus à conserver. Afficher la
-/// phrase de la vue promettrait un geste que rien ne fait, sur une pièce
-/// justificative. Un test épingle la fausseté à la source (il rougit le jour où
-/// la vue est corrigée) et un autre refuse la phrase fausse dans le code rendu.
+/// L'aide `champ_recu_aide` est reprise AU MOT, puis complétée de ce que fait ce
+/// poste : depuis le 28/10/2026 la réduction existe réellement, sur le serveur
+/// (`RecuDepenseService::preparer`) comme ici (`preparerRecu`,
+/// `reduction_recu.dart`), et la vue a retiré sa 2ᵉ phrase (« le navigateur ne
+/// peut en conserver qu'une douzaine », qui décrivait le stockage du prototype).
+/// L'ancien écart du lot L4 (piège 13 : la vue promettait une réduction que rien
+/// ne faisait) est donc SOLDÉ. Un test relit la phrase de la vue dans le PHP.
 class _ChampRecu extends StatelessWidget {
   const _ChampRecu({
     required this.recu,
@@ -938,12 +937,13 @@ class _ChampRecu extends StatelessWidget {
   final VoidCallback surChoisir;
   final VoidCallback surRetirer;
 
-  /// L'aide du champ — la phrase VRAIE (voir l'écart ci-dessus), testée au mot
-  /// près.
+  /// L'aide du champ : la phrase de la vue, au mot (apostrophe droite, comme le
+  /// maître), puis ce que fait ce poste. « 400 Ko » est écrit en clair (le
+  /// comparateur lit le texte du code) ; un test le lie à [tailleMaxRecuKo].
   static const String aide =
-      'L’image n’est pas réduite avant enregistrement : elle pèse $tailleMaxRecuKo '
-      'kilo-octets au plus (JPG, PNG, GIF, BMP ou WEBP). Elle est rangée sur ce '
-      'poste, puis envoyée au serveur à la synchronisation.';
+      'L\'image est réduite automatiquement avant enregistrement si elle pèse '
+      'plus de 400 Ko. Elle est rangée sur ce poste (JPG, PNG, GIF, BMP ou '
+      'WEBP), puis envoyée au serveur à la synchronisation.';
 
   /// Le texte du champ vide — celui du navigateur devant un `<input type=file>`.
   static const String aucunFichier = 'Aucun fichier choisi';
@@ -969,7 +969,8 @@ class _ChampRecu extends StatelessWidget {
               child: Text(
                 choisi == null
                     ? aucunFichier
-                    : '${choisi.nom} · ${(choisi.octets.length / 1024).ceil()} Ko',
+                    : '${choisi.nom} · ${(choisi.octets.length / 1024).ceil()} Ko'
+                          '${choisi.tailleOrigine == null ? '' : ' (réduite de ${(choisi.tailleOrigine! / 1024).ceil()} Ko)'}',
                 key: const Key('depense-recu-nom'),
                 overflow: TextOverflow.ellipsis,
                 style: _Textes.aide,

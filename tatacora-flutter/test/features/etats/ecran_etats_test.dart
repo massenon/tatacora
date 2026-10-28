@@ -686,6 +686,79 @@ void main() {
       },
     );
 
+    testWidgets('la case « Inclure les contrats annulés » n’existe que sur '
+        'l’état « Locations », décochée, et recalcule l’aperçu', (
+      tester,
+    ) async {
+      tester.view
+        ..physicalSize = const Size(1600, 1000)
+        ..devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            catalogueEtatsProvider.overrideWith(
+              (ref) async => [
+                _etat('stocks', 'M6', 'État des stocks'),
+                _etat(
+                  'locations-vehicules',
+                  'M8',
+                  'État des locations de véhicules',
+                ),
+              ],
+            ),
+            apercuEtatProvider.overrideWith((ref, code) async {
+              final coche = ref.watch(inclureAnnulesEtatsProvider);
+              return ApercuRecu(
+                ApercuEtat(
+                  code: code,
+                  titre: 't',
+                  periode: coche ? 'inclus' : 'exclus',
+                  moduleSource: 'M8',
+                  indicateurs: const [],
+                  entetes: const ['A'],
+                  lignes: [
+                    ['x'],
+                    if (coche) ['annulé'],
+                  ],
+                ),
+              );
+            }),
+          ],
+          child: MaterialApp(
+            theme: AppTheme.clair,
+            home: const Scaffold(body: EcranEtats()),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('etats-entree-stocks')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('etats-inclure-annules')), findsNothing);
+
+      await tester.tap(
+        find.byKey(const Key('etats-entree-locations-vehicules')),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        _texte(tester, const Key('etats-inclure-annules-libelle')),
+        'Inclure les contrats annulés',
+      );
+      // Décochée par défaut : un seul contrat.
+      expect(
+        tester
+            .widget<Checkbox>(find.byKey(const Key('etats-inclure-annules')))
+            .value,
+        isFalse,
+      );
+      expect(find.byKey(const Key('etats-cellule-1-0')), findsNothing);
+
+      await tester.tap(find.byKey(const Key('etats-inclure-annules')));
+      await tester.pumpAndSettle();
+      expect(_texte(tester, const Key('etats-cellule-1-0')), 'annulé');
+    });
+
     testWidgets('changer d’état change le titre', (tester) async {
       await monterAvec(
         tester,

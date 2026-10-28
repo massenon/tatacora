@@ -68,7 +68,8 @@ enum TypeRecu {
 }
 
 /// Les phrases du web (`validation.image`, `validation.max.file`) et celles du
-/// dépôt, au mot.
+/// dépôt, au mot. (`tropLourd` ne se dit plus à la saisie — le fichier est
+/// réduit — mais reste celle du serveur à un dépôt hors limite.)
 abstract final class TextesRecu {
   /// `Le champ :attribute doit être une image.` — attribut `photo recu`.
   static const String nonImage = 'Le champ photo recu doit être une image.';
@@ -80,6 +81,11 @@ abstract final class TextesRecu {
 
   /// Un fichier sans octet (`depenses.recu_vide`).
   static const String vide = 'Le reçu est vide : aucun octet reçu.';
+
+  /// Une image trop lourde qu'on ne sait pas décoder pour la réduire
+  /// (`depenses.recu_illisible`) — le seul refus qui touche une image lourde.
+  static const String illisible =
+      'Ce fichier n\'a pas pu être lu comme une image : choisissez-en un autre.';
 }
 
 /// Les causes que le POSTE dit lui-même (le serveur, lui, dit les siennes).
@@ -111,9 +117,24 @@ sealed class IssueRecu {
 }
 
 final class RecuAccepte extends IssueRecu {
-  const RecuAccepte(this.type);
+  const RecuAccepte(
+    this.type, {
+    this.octets,
+    this.reduit = false,
+    this.tailleOrigine,
+  });
 
   final TypeRecu type;
+
+  /// Les octets À RANGER : ceux du fichier choisi, ou son image RÉDUITE
+  /// (`preparerRecu`). `null` pour un simple jugement ([verifierRecu]).
+  final Uint8List? octets;
+
+  /// Vrai quand l'image était trop lourde et a été réduite (JPEG, 400 Ko au plus).
+  final bool reduit;
+
+  /// Le poids du fichier choisi, avant toute réduction.
+  final int? tailleOrigine;
 }
 
 final class RecuRefuse extends IssueRecu {
@@ -123,9 +144,15 @@ final class RecuRefuse extends IssueRecu {
   final String phrase;
 }
 
-/// Juge [octets] comme le fait l'écran web : image reconnue à son CONTENU,
-/// d'au plus 400 Ko. L'ordre est celui de Laravel (type puis taille) pour la
-/// phrase d'un fichier qui cumulerait les deux défauts : le type d'abord.
+/// Juge [octets] comme la PORTE DE DÉPÔT du serveur : image reconnue à son
+/// CONTENU, d'au plus 400 Ko. L'ordre est celui de Laravel (type puis taille)
+/// pour la phrase d'un fichier qui cumulerait les deux défauts : le type
+/// d'abord.
+///
+/// ⚠ Ce n'est plus la règle de SAISIE (PO, 28/10/2026) : à la saisie, une image
+/// trop lourde est RÉDUITE, pas refusée — voir `preparerRecu`
+/// (`reduction_recu.dart`). Cette fonction juge ce qui est DÉPOSÉ : le fichier
+/// rangé et envoyé tient en 400 Ko, ou le serveur le refuse (413).
 IssueRecu verifierRecu(List<int> octets) {
   if (octets.isEmpty) return const RecuRefuse(TextesRecu.vide);
   final type = typeRecuDepuisOctets(octets);
@@ -243,10 +270,20 @@ final class RecuDepense {
 /// Un fichier à joindre à la saisie : ses octets, déjà jugés par
 /// [verifierRecu].
 final class RecuAJoindre {
-  RecuAJoindre({required this.nom, required this.octets, required this.type});
+  RecuAJoindre({
+    required this.nom,
+    required this.octets,
+    required this.type,
+    this.tailleOrigine,
+  });
 
   /// Le nom d'origine, pour l'afficher dans la modale.
   final String nom;
+
+  /// Les octets À RANGER (l'image réduite, le cas échéant).
   final Uint8List octets;
   final TypeRecu type;
+
+  /// Le poids du fichier choisi quand il a été RÉDUIT (`null` : gardé tel quel).
+  final int? tailleOrigine;
 }

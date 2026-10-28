@@ -144,7 +144,13 @@ final class EtatsApi {
         ),
   ];
 
-  Future<ResultatApercu> apercu(String code) async {
+  /// [inclureAnnules] : la case « Inclure les contrats annulés » de l'état
+  /// « Locations » (`inclure_annules` du serveur). Les autres états l'ignorent,
+  /// comme le serveur : la vue ne l'offre que sur celui-là.
+  Future<ResultatApercu> apercu(
+    String code, {
+    bool inclureAnnules = false,
+  }) async {
     final etat = EtatLocal.depuisCode(code);
     if (etat == null) return const ApercuRefuse(motif: refusCodeInconnu);
 
@@ -191,7 +197,9 @@ final class EtatsApi {
           sources.contrats(),
           sources.parcVehicules(),
         ).wait;
-        return ApercuRecu(apercuLocations(contrats, parc));
+        return ApercuRecu(
+          apercuLocations(contrats, parc, inclureAnnules: inclureAnnules),
+        );
       case EtatLocal.reservations:
         final (reservations, unites) = await (
           sources.reservations(),

@@ -12,6 +12,7 @@ import '../../synchronisation/domain/operation_sync.dart';
 import '../domain/categories_depense.dart';
 import '../domain/entities/depense.dart';
 import '../domain/recu_depense.dart';
+import '../domain/reduction_recu.dart';
 import '../domain/repositories/depenses_repository.dart';
 import 'piece_de_la_depense.dart';
 import 'recus_depenses_locaux.dart';
@@ -224,11 +225,14 @@ class DepenseDao extends DatabaseAccessor<AppDatabase>
   }) async {
     final libelleNet = libelle.trim();
     await _validerLaSaisie(libelleNet, lignes);
+    // La MÊME règle que l'écran de saisie, rejouée ici : une image trop lourde
+    // est RÉDUITE (PO, 28/10/2026), jamais rangée à plus de 400 Ko ; le DAO ne
+    // range pas non plus ce que le web refuserait (non-image, illisible).
+    RecuAccepte? preparePourRanger;
     if (recu != null) {
-      // La MÊME règle que l'écran de saisie, rejugée ici : le DAO ne range pas
-      // ce que le web refuserait.
-      final issue = verifierRecu(recu.octets);
+      final issue = await preparerRecu(recu.octets);
       if (issue is RecuRefuse) throw RefusDepense(issue.phrase);
+      preparePourRanger = issue as RecuAccepte;
     }
 
     final moteur = await _moteurObligatoire();
@@ -246,7 +250,11 @@ class DepenseDao extends DatabaseAccessor<AppDatabase>
           'abandonné en silence.',
         );
       }
-      range = await magasin.ranger(id, recu.type, recu.octets);
+      range = await magasin.ranger(
+        id,
+        preparePourRanger!.type,
+        preparePourRanger.octets!,
+      );
     }
 
     try {
@@ -260,7 +268,9 @@ class DepenseDao extends DatabaseAccessor<AppDatabase>
         lignes: lignes,
         auteurId: auteurId,
         centreId: centreId,
-        recu: range == null ? null : (range: range, type: recu!.type),
+        recu: range == null
+            ? null
+            : (range: range, type: preparePourRanger!.type),
       );
     } on Object {
       if (range != null) await recus?.retirer(range.nom);

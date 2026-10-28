@@ -55,6 +55,10 @@ dependencies:
   crypto: ^3.0.6
   printing: ^5.15.0
   pdf: ^3.13.0
+  # Reduction d'un recu en image trop lourd (PO, 28/10/2026) : decodage et
+  # JPEG en Dart pur. DEJA dans l'arbre (tire par `pdf`), seulement declare
+  # direct : aucune nouvelle dependance, aucun code natif.
+  image: ^4.9.2
   # Trace des graphiques du tableau de bord (PA-121). Retenue pour trois
   # raisons verifiees le 25/08/2026 : licence MIT, Windows supporte, et
   # AUCUNE dependance native (equatable + vector_math seulement) — le poste

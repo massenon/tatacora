@@ -385,28 +385,29 @@ void main() {
       },
     );
 
-    testWidgets('le champ « Reçu / facture (photo) » existe : libellé de la '
-        'vue, bouton, aide VRAIE (400 Ko), aucun fichier choisi', (
-      tester,
-    ) async {
-      await monter(tester);
-      await tester.tap(find.byKey(const Key('depenses-nouvelle')));
-      await tester.pumpAndSettle();
+    testWidgets(
+      'le champ « Reçu / facture (photo) » existe : libellé de la '
+      'vue, bouton, aide de la vue + ce que fait le poste (400 Ko), aucun fichier choisi',
+      (tester) async {
+        await monter(tester);
+        await tester.tap(find.byKey(const Key('depenses-nouvelle')));
+        await tester.pumpAndSettle();
 
-      expect(find.text('Reçu / facture (photo)'), findsOneWidget);
-      expect(find.byKey(const Key('depense-recu-choisir')), findsOneWidget);
-      expect(
-        tester.widget<Text>(find.byKey(const Key('depense-recu-nom'))).data,
-        'Aucun fichier choisi',
-      );
-      expect(
-        tester.widget<Text>(find.byKey(const Key('depense-recu-aide'))).data,
-        'L’image n’est pas réduite avant enregistrement : elle pèse 400 '
-        'kilo-octets au plus (JPG, PNG, GIF, BMP ou WEBP). Elle est rangée sur '
-        'ce poste, puis envoyée au serveur à la synchronisation.',
-      );
-      expect(find.byKey(const Key('depense-recu-absent')), findsNothing);
-    });
+        expect(find.text('Reçu / facture (photo)'), findsOneWidget);
+        expect(find.byKey(const Key('depense-recu-choisir')), findsOneWidget);
+        expect(
+          tester.widget<Text>(find.byKey(const Key('depense-recu-nom'))).data,
+          'Aucun fichier choisi',
+        );
+        expect(
+          tester.widget<Text>(find.byKey(const Key('depense-recu-aide'))).data,
+          'L\'image est réduite automatiquement avant enregistrement si elle pèse '
+          'plus de 400 Ko. Elle est rangée sur ce poste (JPG, PNG, GIF, BMP ou '
+          'WEBP), puis envoyée au serveur à la synchronisation.',
+        );
+        expect(find.byKey(const Key('depense-recu-absent')), findsNothing);
+      },
+    );
 
     testWidgets('le total de la modale tombe sous la TROISIÈME colonne, comme '
         'la vue', (tester) async {

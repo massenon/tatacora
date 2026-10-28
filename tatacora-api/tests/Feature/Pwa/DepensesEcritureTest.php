@@ -14,7 +14,9 @@ use App\Shared\Rbac\Models\Role;
 use Database\Seeders\ComptabiliteReferentielSeeder;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use PHPUnit\Framework\Attributes\Test;
 use ReflectionClass;
@@ -576,6 +578,74 @@ final class DepensesEcritureTest extends TestCase
         // 4. La ventilation est persistée sur `lignes_depense`.
         $this->assertSame(1, LigneDepense::query()->count());
         $this->assertSame($compte, LigneDepense::query()->firstOrFail()->compte_charge);
+    }
+
+    /**
+     * Reçu trop lourd : RÉDUIT, pas refusé (PO, 28/10/2026). Avant ce jour la
+     * règle `max:400` refusait l'image ; ce cas épingle l'inverse.
+     */
+    #[Test]
+    public function un_recu_de_plus_de_400_ko_est_reduit_et_la_depense_enregistree(): void
+    {
+        Storage::fake('public');
+        $this->actingAs($this->utilisateur($this->roleQuiEcritSurM10()));
+
+        $image = imagecreatetruecolor(1500, 1000);
+        mt_srand(42);
+        for ($x = 0; $x < 1500; $x++) {
+            for ($y = 0; $y < 1000; $y++) {
+                imagesetpixel($image, $x, $y, (mt_rand(0, 255) << 16) | (mt_rand(0, 255) << 8) | mt_rand(0, 255));
+            }
+        }
+        ob_start();
+        imagepng($image, null, 0);
+        $lourde = (string) ob_get_clean();
+        $this->assertGreaterThan(400 * 1024, strlen($lourde));
+
+        Livewire::test(Depenses::class)
+            ->call('ouvrirFormulaireDepense')
+            ->set('dateTransaction', now()->toDateString())
+            ->set('libelle', 'Facture')
+            ->set('tresorerieCode', 'caisse')
+            ->set('lignes.0.libelle', 'Facture')
+            ->set('lignes.0.nature', 'Oignon')
+            ->set('lignes.0.compte_charge', $this->compteDeCharge())
+            ->set('lignes.0.montant', '15000')
+            ->set('photoRecu', UploadedFile::fake()->createWithContent('recu.png', $lourde))
+            ->call('enregistrerDepense')
+            ->assertHasNoErrors();
+
+        $depense = Depense::query()->firstOrFail();
+        $this->assertNotNull($depense->recu_path);
+        $range = Storage::disk('public')->get($depense->recu_path);
+        $this->assertLessThanOrEqual(400 * 1024, strlen($range));
+        $this->assertSame('image/jpeg', $depense->recu_type);
+        $this->assertSame(strlen($range), (int) $depense->recu_taille);
+        $this->assertSame(hash('sha256', $range), $depense->recu_sha256);
+        $this->assertStringEndsWith('.jpg', $depense->recu_path);
+    }
+
+    /** Un fichier qui n'est pas une image reste refusé, avec la phrase du validateur. */
+    #[Test]
+    public function un_recu_qui_n_est_pas_une_image_reste_refuse(): void
+    {
+        Storage::fake('public');
+        $this->actingAs($this->utilisateur($this->roleQuiEcritSurM10()));
+
+        Livewire::test(Depenses::class)
+            ->call('ouvrirFormulaireDepense')
+            ->set('dateTransaction', now()->toDateString())
+            ->set('libelle', 'Facture')
+            ->set('tresorerieCode', 'caisse')
+            ->set('lignes.0.libelle', 'Facture')
+            ->set('lignes.0.nature', 'Oignon')
+            ->set('lignes.0.compte_charge', $this->compteDeCharge())
+            ->set('lignes.0.montant', '15000')
+            ->set('photoRecu', UploadedFile::fake()->createWithContent('recu.txt', str_repeat('texte ', 100_000)))
+            ->call('enregistrerDepense')
+            ->assertHasErrors(['photoRecu']);
+
+        $this->assertSame(0, Depense::query()->count());
     }
 
     #[Test]

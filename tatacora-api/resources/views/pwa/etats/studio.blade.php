@@ -142,6 +142,15 @@
                       <span class="text-slate-300">·</span> {{ __('pwa.etats.lignes', ['nombre' => $resultat->nombreLignes()]) }}
                     </p>
                   </div>
+                  {{-- État « Locations » seulement : la case décochée par
+                       défaut. Un contrat annulé coché n'est JAMAIS compté
+                       (voir `EtatLocations`). Propriété, pas action. --}}
+                  @if ($offreCaseAnnules)
+                    <label class="flex items-center gap-2 text-[12px] text-slate-600 cursor-pointer sans-impression">
+                      <input type="checkbox" wire:model.live="inclureAnnules" class="rounded border-slate-300">
+                      {{ __('pwa.etats.inclure_annules') }}
+                    </label>
+                  @endif
                 </div>
                 @if ($resultat->kpis !== [])
                   <div class="flex flex-wrap gap-2 mt-3">

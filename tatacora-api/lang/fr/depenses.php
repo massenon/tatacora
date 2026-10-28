@@ -62,9 +62,14 @@ return [
     // --- Reçu en image déposé par un poste (lot L4, 27/10/2026) -----------
     //
     // Les refus de CONTENU (type, taille) sont les phrases de l'écran web : le
-    // dépôt passe par les mêmes règles `image` et `max:400` de Laravel.
+    // dépôt passe par les mêmes règles `image` et `max:400` de Laravel. À la
+    // SAISIE (écran web, poste) une image trop lourde est réduite avant le
+    // dépôt (voir `RecuDepenseService`).
 
     'recu_vide' => 'Le reçu est vide : aucun octet reçu.',
+    // Image trop lourde : RÉDUITE, pas refusée (PO, 28/10/2026). Seul un fichier
+    // qu'on ne sait pas lire comme une image est refusé, avec cette phrase.
+    'recu_illisible' => "Ce fichier n'a pas pu être lu comme une image : choisissez-en un autre.",
     'recu_empreinte' => "L'empreinte du reçu ne correspond pas au fichier reçu : il a été altéré en route. "
         .'Le poste le renverra.',
     'recu_deja_rattache' => 'Cette dépense porte déjà un autre reçu : un reçu ne se remplace pas.',

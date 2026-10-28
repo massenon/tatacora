@@ -122,8 +122,11 @@ return [
     'champ_tresorerie_aide' => "D'où l'argent est sorti.",
     'champ_nature' => 'Catégorie de dépenses',
     'champ_recu' => 'Reçu / facture (photo)',
-    'champ_recu_aide' => "L'image est réduite avant enregistrement. Le navigateur ne peut en "
-        .'conserver qu\'une douzaine : au-delà, tout le registre cesserait d\'être enregistré.',
+    // Vraie depuis le 28/10/2026 : une image de plus de 400 Ko est réduite
+    // (`RecuDepenseService::preparer`), sur l'écran web comme sur le poste. La
+    // 2ᵉ phrase du maître (« le navigateur ne peut en conserver qu'une
+    // douzaine ») décrivait le stockage du prototype, pas ce serveur : retirée.
+    'champ_recu_aide' => "L'image est réduite automatiquement avant enregistrement si elle pèse plus de 400 Ko.",
     'choisir' => '— Choisir —',
     'enregistrer' => 'Enregistrer la dépense',
 

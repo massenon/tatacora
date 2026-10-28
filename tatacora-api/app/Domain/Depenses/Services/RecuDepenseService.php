@@ -26,9 +26,34 @@ use Illuminate\Support\Str;
  * ## Les bornes sont CELLES DU WEB, par la même règle
  *
  * Le contenu est jugé par le validateur de Laravel sur un `UploadedFile`, avec
- * les règles `image` et `max:400` de l'écran : mêmes types (jpg, jpeg, png,
- * gif, bmp, webp — jamais svg), même taille maximale, MÊMES PHRASES. Le type
- * est lu du CONTENU (`finfo`), jamais du nom du fichier.
+ * les règles `image` et `max:400` : mêmes types (jpg, jpeg, png, gif, bmp,
+ * webp — jamais svg), même taille maximale, MÊMES PHRASES. Le type est lu du
+ * CONTENU (`finfo`), jamais du nom du fichier. [controler] est la porte de
+ * DÉPÔT (synchronisation) : elle reste stricte, 400 Ko au plus.
+ *
+ * ## Une image trop lourde est RÉDUITE, jamais refusée (PO, 28/10/2026)
+ *
+ * À la SAISIE — l'écran web et le poste —, le poids n'est plus une cause de
+ * refus : [preparer] réduit l'image au lieu de la refuser. Seuls un fichier qui
+ * n'est pas une image (mêmes phrases que le validateur) ou qu'on ne peut pas
+ * lire comme une image ([RECU_ILLISIBLE]) sont refusés. La règle, IDENTIQUE
+ * sur le poste (`reduction_recu.dart`) — mêmes constantes, confrontées par
+ * `depenses_recu_contre_serveur_test.dart` :
+ *
+ *  1. un fichier de 400 Ko au plus est gardé TEL QUEL (octets, type et
+ *     empreinte d'origine) — la réduction ne touche que l'excès ;
+ *  2. sinon l'image est décodée, remise à l'endroit (orientation EXIF), mise
+ *     sur fond BLANC (un JPEG n'a pas de transparence), ramenée à
+ *     [COTE_MAX_PX] pixels sur son grand côté, puis encodée en JPEG à la
+ *     première qualité de [QUALITES] qui tient en 400 Ko ;
+ *  3. si aucune qualité ne suffit, les dimensions sont multipliées par
+ *     [FACTEUR_REDUCTION] et on recommence, jusqu'à [COTE_MIN_PX] — plancher
+ *     théorique : une image de 64 px tient toujours en 400 Ko.
+ *
+ * Le résultat est donc toujours un JPEG de 400 Ko au plus : c'est aussi ce que
+ * le poste dépose, et que [controler] accepte à la synchronisation. Les
+ * octets produits ne sont pas identiques d'un côté et de l'autre (deux
+ * encodeurs) ; la RÈGLE l'est : même décision, même type, même borne.
  *
  * ## Idempotent par empreinte
  *
@@ -50,6 +75,21 @@ final class RecuDepenseService
 
     /** Le dossier du disque public (`storage/app/public`), comme le web. */
     public const DOSSIER = 'recus_depenses';
+
+    /** Grand côté maximal, en pixels, d'une image RÉDUITE. */
+    public const COTE_MAX_PX = 2048;
+
+    /** Qualités JPEG essayées, de la meilleure à la plus faible. */
+    public const QUALITES = [85, 75, 65, 55, 45, 35];
+
+    /** Facteur appliqué aux dimensions quand aucune qualité ne suffit. */
+    public const FACTEUR_REDUCTION = 0.8;
+
+    /** Plancher du grand côté : en dessous, on s'arrête (tient en 400 Ko). */
+    public const COTE_MIN_PX = 64;
+
+    /** Code de refus d'un fichier de type image qu'on ne sait pas décoder. */
+    public const RECU_ILLISIBLE = 'recu_illisible';
 
     /**
      * Dépose [octets] comme reçu de la dépense [depenseId].
@@ -141,7 +181,7 @@ final class RecuDepenseService
      *
      * @throws RefusRecuDepense
      */
-    public function controler(string $octets, ?string $empreinteAnnoncee = null): array
+    public function controler(string $octets, ?string $empreinteAnnoncee = null, bool $verifierPoids = true): array
     {
         if ($octets === '') {
             throw new RefusRecuDepense('recu_invalide', __('depenses.recu_vide'));
@@ -165,7 +205,7 @@ final class RecuDepenseService
 
             $validateur = Validator::make(
                 ['photoRecu' => $fichier],
-                ['photoRecu' => ['required', 'image', 'max:'.self::TAILLE_MAX_KO]],
+                ['photoRecu' => ['required', 'image', ...($verifierPoids ? ['max:'.self::TAILLE_MAX_KO] : [])]],
             );
 
             if ($validateur->fails()) {
@@ -186,6 +226,136 @@ final class RecuDepenseService
         } finally {
             @unlink($temporaire);
         }
+    }
+
+    /**
+     * Prépare le reçu SAISI (écran web) : le garde tel quel s'il tient en
+     * 400 Ko, le RÉDUIT sinon. Refuse seulement un fichier vide, qui n'est pas
+     * une image, ou illisible.
+     *
+     * @return array{octets: string, sha256: string, type: string, extension: string, reduit: bool, taille_origine: int}
+     *
+     * @throws RefusRecuDepense
+     */
+    public function preparer(string $octets): array
+    {
+        $origine = strlen($octets);
+
+        // Le type d'abord, SANS le poids : un fichier lourd qui n'est pas une
+        // image reste refusé par la phrase du validateur.
+        $contenu = $this->controler($octets, null, false);
+
+        if ($origine <= self::TAILLE_MAX_KO * 1024) {
+            return [...$contenu, 'octets' => $octets, 'reduit' => false, 'taille_origine' => $origine];
+        }
+
+        $reduit = $this->reduire($octets);
+        // Filet : ce qu'on remet passe la porte de dépôt, 400 Ko compris.
+        $apres = $this->controler($reduit);
+
+        return [...$apres, 'octets' => $reduit, 'reduit' => true, 'taille_origine' => $origine];
+    }
+
+    /**
+     * Réduit une image trop lourde en JPEG de 400 Ko au plus (règle en tête de
+     * classe).
+     *
+     * @throws RefusRecuDepense `recu_illisible` si le fichier n'est pas décodable
+     */
+    public function reduire(string $octets): string
+    {
+        $illisible = new RefusRecuDepense(self::RECU_ILLISIBLE, __('depenses.recu_illisible'));
+
+        if (! function_exists('imagecreatefromstring')) {
+            throw new \RuntimeException('L\'extension GD est requise pour réduire un reçu.');
+        }
+
+        // Une photo de 24 Mpx décodée pèse ~100 Mo : le plafond par défaut de
+        // PHP (128 Mo) ne suffit pas, le relever le temps de la réduction.
+        $plafond = ini_get('memory_limit');
+        if ($plafond !== '-1' && $this->enOctets((string) $plafond) < 768 * 1024 * 1024) {
+            @ini_set('memory_limit', '768M');
+        }
+
+        $taille = @getimagesizefromstring($octets);
+        $source = $taille === false ? false : @imagecreatefromstring($octets);
+
+        if ($source === false) {
+            throw $illisible;
+        }
+
+        try {
+            $source = $this->remettreADroit($source, $octets);
+            $largeur = imagesx($source);
+            $hauteur = imagesy($source);
+
+            $echelle = min(1.0, self::COTE_MAX_PX / max($largeur, $hauteur));
+            $l = max(1, (int) round($largeur * $echelle));
+            $h = max(1, (int) round($hauteur * $echelle));
+
+            while (true) {
+                $toile = imagecreatetruecolor($l, $h);
+                // Fond BLANC : un JPEG n'a pas de transparence.
+                imagefill($toile, 0, 0, (int) imagecolorallocate($toile, 255, 255, 255));
+                imagecopyresampled($toile, $source, 0, 0, 0, 0, $l, $h, $largeur, $hauteur);
+
+                $dernier = '';
+                foreach (self::QUALITES as $qualite) {
+                    ob_start();
+                    imagejpeg($toile, null, $qualite);
+                    $dernier = (string) ob_get_clean();
+
+                    if (strlen($dernier) <= self::TAILLE_MAX_KO * 1024) {
+                        return $dernier;
+                    }
+                }
+
+                if (max($l, $h) <= self::COTE_MIN_PX) {
+                    return $dernier;
+                }
+
+                $l = max(1, (int) floor($l * self::FACTEUR_REDUCTION));
+                $h = max(1, (int) floor($h * self::FACTEUR_REDUCTION));
+            }
+        } finally {
+            unset($source, $toile);
+        }
+    }
+
+    /**
+     * Applique l'orientation EXIF d'un JPEG (photo de téléphone prise en
+     * portrait) : sans elle, la réduction — qui perd l'EXIF — coucherait l'image.
+     */
+    private function remettreADroit(\GdImage $image, string $octets): \GdImage
+    {
+        if (! function_exists('exif_read_data') || ! str_starts_with($octets, "\xFF\xD8")) {
+            return $image;
+        }
+
+        $exif = @exif_read_data('data://image/jpeg;base64,'.base64_encode($octets));
+        $orientation = is_array($exif) ? (int) ($exif['Orientation'] ?? 1) : 1;
+
+        $angle = [3 => 180, 6 => -90, 8 => 90][$orientation] ?? 0;
+
+        if ($angle === 0) {
+            return $image;
+        }
+
+        $tournee = imagerotate($image, $angle, 0);
+
+        return $tournee === false ? $image : $tournee;
+    }
+
+    private function enOctets(string $valeur): int
+    {
+        $n = (int) $valeur;
+
+        return match (strtoupper(substr(trim($valeur), -1))) {
+            'G' => $n * 1024 ** 3,
+            'M' => $n * 1024 ** 2,
+            'K' => $n * 1024,
+            default => $n,
+        };
     }
 
     private function typeDe(string $octets): string

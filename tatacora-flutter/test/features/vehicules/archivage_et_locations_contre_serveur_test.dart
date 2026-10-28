@@ -141,5 +141,39 @@ void main() {
       a.lignes.map((l) => l[1]).toList()..sort(),
       (etat['lignes'] as List).cast<String>().toList()..sort(),
     );
+    // Case décochée : la période DIT que les annulés sont exclus, six colonnes.
+    expect(a.periode, etat['periode']);
+    expect(a.entetes, (etat['entetes'] as List).cast<String>());
+    expect(a.lignes, [
+      for (final l in etat['cellules'] as List) (l as List).cast<String>(),
+    ]);
+  });
+
+  test('R4/R5 : case « Inclure les contrats annulés » COCHÉE — même état que '
+      '`EtatLocations` avec `inclure_annules` : annulé listé à part, statut, '
+      'montant vide, totaux inchangés', () async {
+    await poser();
+    final parc = await dao.parc();
+    final a = apercuLocations(await dao.contrats(), parc, inclureAnnules: true);
+    final decoche = serveur['etat'] as Map<String, dynamic>;
+    final inclus = serveur['etat_inclus'] as Map<String, dynamic>;
+
+    // Un annulé n'est JAMAIS compté : mêmes totaux, case cochée ou non.
+    expect(inclus['nombre'], decoche['nombre']);
+    expect(inclus['montant'], decoche['montant']);
+    expect(a.indicateur('Contrats'), inclus['nombre']);
+    expect(a.indicateur('Montant total'), inclus['montant']);
+
+    expect(a.periode, inclus['periode']);
+    expect(a.entetes, (inclus['entetes'] as List).cast<String>());
+    expect(a.entetes.last, 'Statut');
+    // Les lignes, cellule par cellule ET dans le même ordre (annulés en fin).
+    expect(a.lignes, [
+      for (final l in inclus['cellules'] as List) (l as List).cast<String>(),
+    ]);
+    // Le jeu porte bien un annulé, listé le dernier, au montant vide.
+    expect(a.lignes.last[5], isEmpty);
+    expect(a.lignes.last.last, 'Annulé');
+    expect(a.lignes, hasLength(4));
   });
 }

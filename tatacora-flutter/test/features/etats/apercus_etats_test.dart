@@ -150,6 +150,68 @@ void main() {
       },
     );
 
+    group('case « Inclure les contrats annulés »', () {
+      const actif = ContratLocation(
+        id: 'c-1',
+        immatriculation: 'A-1',
+        clientId: 'cli-1',
+        debut: '2026-10-05',
+        fin: '2026-10-07',
+        nombreJours: 2,
+        montant: '70000.00',
+        statut: statutContratActif,
+        packageAvecGuide: false,
+      );
+      const annule = ContratLocation(
+        id: 'c-2',
+        immatriculation: 'A-1',
+        clientId: 'cli-1',
+        debut: '2026-10-20',
+        fin: '2026-10-22',
+        nombreJours: 2,
+        montant: '70000.00',
+        statut: statutContratAnnule,
+        packageAvecGuide: false,
+      );
+      final parc = [vehicule('A-1', '35000.00', 'disponible')];
+
+      test('décochée (défaut) : annulé exclu, six colonnes, la période le '
+          'dit', () {
+        final a = apercuLocations(const [annule, actif], parc);
+        expect(a.lignes, hasLength(1));
+        expect(a.entetes, hasLength(6));
+        expect(a.periode, 'Toutes dates · contrats annulés exclus');
+        expect(a.indicateur('Contrats'), '1');
+        expect(a.indicateur('Montant total'), '70000.00');
+      });
+
+      test('cochée : l’annulé est listé APRÈS les actifs, statut « Annulé », '
+          'montant vide, et JAMAIS compté', () {
+        // L'annulé est volontairement donné AVANT l'actif.
+        final a = apercuLocations(
+          const [annule, actif],
+          parc,
+          inclureAnnules: true,
+        );
+        expect(a.entetes.last, 'Statut');
+        expect(a.lignes.map((l) => l.last), ['Actif', 'Annulé']);
+        expect(a.lignes[0][5], '70000.00');
+        expect(a.lignes[1][5], isEmpty);
+        // Les totaux ne bougent pas.
+        expect(a.indicateur('Contrats'), '1');
+        expect(a.indicateur('Montant total'), '70000.00');
+        expect(a.periode, contains('annulés inclus, non comptés'));
+        expect(a.mentions.single, contains('listé(s) à part'));
+      });
+
+      test('cochée sans aucun annulé : même état qu’avant, plus la colonne '
+          '« Statut »', () {
+        final a = apercuLocations(const [actif], parc, inclureAnnules: true);
+        expect(a.lignes.single.last, 'Actif');
+        expect(a.mentions, isEmpty);
+      });
+    });
+
     test('un contrat d’AVANT la v41 n’a pas de montant : case vide, hors du '
         'cumul, jamais le tarif d’aujourd’hui', () {
       final a = apercuLocations(

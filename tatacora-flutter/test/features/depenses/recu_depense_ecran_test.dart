@@ -209,23 +209,45 @@ void main() {
       expect(find.byKey(const Key('depenses-sans-recu')), findsOneWidget);
     });
 
-    testWidgets('un fichier trop lourd : « ne peut pas peser plus de 400 '
-        'kilo-octets » ; pile à la borne il passe', (tester) async {
+    testWidgets('un fichier de plus de 400 Ko n’est PLUS refusé : il est '
+        'RÉDUIT (PO, 28/10/2026), le nom dit « réduite de … Ko », et c’est '
+        'l’image réduite qui est rangée', (tester) async {
+      final lourde = imageLourdePng(largeur: 900, hauteur: 600);
+      expect(lourde.length, greaterThan(400 * 1024));
       await monter(
         tester,
         selecteur: SelecteurEssai(
-          lu: FichierLu(
-            nom: 'gros.png',
-            octets: complete(octetsPng(), 400 * 1024 + 1),
-          ),
+          lu: FichierLu(nom: 'gros.png', octets: lourde),
         ),
       );
       await ouvrirModale(tester);
-      await choisir(tester);
+      await remplir(tester);
+      await tester.ensureVisible(find.byKey(const Key('depense-recu-choisir')));
+      await tester.tap(find.byKey(const Key('depense-recu-choisir')));
+      // La réduction tourne dans un isolat : l'horloge simulée ne l'avance pas.
+      await tester.runAsync(() async {
+        for (var i = 0; i < 200; i++) {
+          await Future<void>.delayed(const Duration(milliseconds: 100));
+          if (texte(tester, 'depense-recu-nom') != 'Aucun fichier choisi') {
+            break;
+          }
+        }
+      });
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('depense-recu-refus')), findsNothing);
       expect(
-        texte(tester, 'depense-recu-refus'),
-        'Le fichier photo recu ne peut pas peser plus de 400 kilo-octets.',
+        texte(tester, 'depense-recu-nom'),
+        matches(RegExp(r'^gros\.png · \d+ Ko \(réduite de \d+ Ko\)$')),
       );
+
+      await tester.ensureVisible(find.byKey(const Key('depense-enregistrer')));
+      await tester.tap(find.byKey(const Key('depense-enregistrer')));
+      await tester.pumpAndSettle();
+      final enBase = (await dao.depenses()).single;
+      expect(enBase.recu!.type, 'image/jpeg');
+      expect(enBase.recu!.taille, lessThanOrEqualTo(400 * 1024));
+      expect(memoire.fichiers['${enBase.id}.jpg']!.length, enBase.recu!.taille);
     });
 
     testWidgets('« Retirer » vide le choix ; annuler la fenêtre ne change '
@@ -251,14 +273,14 @@ void main() {
       expect(find.byKey(const Key('depense-recu-refus')), findsNothing);
     });
 
-    testWidgets('l’aide du champ est la phrase VRAIE : plus de « douzaine », '
-        'plus de réduction promise', (tester) async {
+    testWidgets('l’aide du champ est la phrase de la vue, désormais VRAIE '
+        '(la réduction existe) : plus de « douzaine »', (tester) async {
       await monter(tester);
       await ouvrirModale(tester);
       final aide = texte(tester, 'depense-recu-aide');
-      expect(aide, contains('400 kilo-octets'));
+      expect(aide, startsWith('L\'image est réduite automatiquement'));
+      expect(aide, contains('400 Ko'));
       expect(aide, isNot(contains('douzaine')));
-      expect(aide, isNot(contains('est réduite')));
     });
   });
 

@@ -2215,6 +2215,10 @@ return [
         'lignes' => ':nombre ligne(s)',
         'aucune_ligne' => 'Aucune ligne sur cette période.',
 
+        // État « Locations » (M8) : la case de la barre d'aperçu (décochée =
+        // contrats annulés exclus). Reprise telle quelle par le poste.
+        'inclure_annules' => 'Inclure les contrats annulés',
+
         // Les cinq clés « refus_* » qui documentaient ici « Ce que cet écran
         // ne fait pas » sont RETIRÉES (directive du Product Owner du
         // 31/08/2026, voir le docblock d'`EtatsStudio`) : un écran ne

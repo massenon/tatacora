@@ -80,7 +80,7 @@ le poste à `ParcVehiculeService` exécuté par PHP, comme les autres parités.
 
 ### Souhaitables (P1)
 
-- **R4 — Case « Inclure les contrats annulés »** sur l'état « Locations »
+- **R4 — Case « Inclure les contrats annulés »** (livrée le 28/10/2026, voir `JOURNAL_DES_LOTS.md`) sur l'état « Locations »
   (décochée par défaut), avec une colonne « Statut ». Le poste l'offre aussi.
 - **R5 — Libellé de l'aperçu poste** : l'encadré « Sur ce poste » de l'aperçu de
   l'état dit si les annulés sont exclus.

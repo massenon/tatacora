@@ -119,6 +119,9 @@ return [
         'col_fin' => 'Fin',
         'col_jours' => 'Jours',
         'col_montant' => 'Montant',
+        'col_statut' => 'Statut',
+        'annules_exclus' => 'contrats annulés exclus',
+        'annules_inclus' => 'contrats annulés inclus, non comptés dans les totaux',
     ],
 
     // -------------------------------------------------------------- tourisme (M9)

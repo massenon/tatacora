@@ -98,7 +98,9 @@ ApercuEtat _apercu(
   required List<List<String>> lignes,
   List<String> mentions = const [],
   List<String>? libellesIndicateurs,
+  List<String>? entetes,
 }) {
+  final colonnes = entetes ?? etat.entetes;
   final libelles = libellesIndicateurs ?? etat.indicateurs;
   assert(
     libelles.length == valeurs.length,
@@ -107,8 +109,8 @@ ApercuEtat _apercu(
   );
   for (final l in lignes) {
     assert(
-      l.length == etat.entetes.length,
-      '${etat.code} : ${l.length} cellules pour ${etat.entetes.length} '
+      l.length == colonnes.length,
+      '${etat.code} : ${l.length} cellules pour ${colonnes.length} '
       'colonnes — un décalage place chaque valeur sous le mauvais intitulé.',
     );
   }
@@ -121,7 +123,7 @@ ApercuEtat _apercu(
       for (var i = 0; i < valeurs.length; i++)
         IndicateurApercu(libelles[i], valeurs[i]),
     ],
-    entetes: etat.entetes,
+    entetes: colonnes,
     lignes: lignes,
     mentions: mentions,
   );
@@ -336,18 +338,52 @@ ApercuEtat apercuParcVehicules(
   );
 }
 
+/// `etats_m14.locations.col_statut` — la colonne ajoutée par la case « Inclure
+/// les contrats annulés » (`pwa.etats.inclure_annules`). Libellés relus du
+/// serveur par `registre_contre_serveur_test.dart`.
+const String colonneStatutLocations = 'Statut';
+
+/// `etats_m14.locations.annules_exclus` / `annules_inclus` : ce que la période
+/// de l'état DIT des contrats annulés.
+const String annulesExclusLocations = 'contrats annulés exclus';
+const String annulesInclusLocations =
+    'contrats annulés inclus, non comptés dans les totaux';
+
+/// `vehicules.pwa.contrat_actif` / `contrat_annule` : le statut d'un contrat.
+const String statutActifLocations = 'Actif';
+const String statutAnnuleLocations = 'Annulé';
+
+/// L'état « Locations » (M8) — `EtatLocations::calculer`.
+///
+/// ## Les contrats annulés (PRD corrections Locations R4/R5, décision du PO du
+/// 28/10/2026)
+///
+/// Case [inclureAnnules] DÉCOCHÉE par défaut = `inclure_annules` absent au
+/// serveur : les annulés sont exclus des lignes, du nombre et du montant (B1).
+/// COCHÉE : ils sont ajoutés, avec les MÊMES garanties que le serveur :
+///
+///  - un annulé n'est JAMAIS compté : ni dans « Contrats », ni dans « Montant
+///    total » (les totaux sont identiques case cochée ou non) ;
+///  - il est listé À PART, après tous les contrats actifs, avec la colonne
+///    « Statut » (ajoutée seulement case cochée) et une cellule « Montant »
+///    VIDE (« — ») : son montant théorique, dans la colonne qu'on additionne,
+///    ferait lire un total faux ;
+///  - la période de l'état DIT si les annulés sont exclus ou inclus.
 ApercuEtat apercuLocations(
   List<ContratLocation> tousLesContrats,
-  List<Vehicule> parc,
-) {
+  List<Vehicule> parc, {
+  bool inclureAnnules = false,
+}) {
   const modele = EtatLocal.locationsVehicules;
-  // `EtatLocations` (serveur) exclut `statut = annule` des lignes, du nombre et
-  // du montant : un contrat annulé n'est pas du chiffre d'affaires.
   final contrats = [
     for (final c in tousLesContrats)
       if (c.statut != statutContratAnnule) c,
   ];
-  final annules = tousLesContrats.length - contrats.length;
+  final annulesListes = [
+    for (final c in tousLesContrats)
+      if (c.statut == statutContratAnnule) c,
+  ];
+  final annules = annulesListes.length;
   final categorieDe = {
     for (final v in parc) v.immatriculation: v.categorieBrute,
   };
@@ -356,23 +392,35 @@ ApercuEtat apercuLocations(
   final montant = Somme.de(contrats.map((c) => c.montant ?? ''));
   final sansMontant = contrats.where((c) => c.montant == null).length;
 
+  List<String> ligne(ContratLocation c, {required bool annule}) => [
+    c.clientNom ?? '',
+    '${categorieDe[c.immatriculation] ?? tiretApercu} — ${c.immatriculation}',
+    dateIsoServeur(c.debut),
+    dateIsoServeur(c.fin),
+    '${c.nombreJours}',
+    // Un annulé n'a pas de montant dans l'état : cellule vide.
+    annule || c.montant == null ? '' : _montantEcrit(c.montant!),
+    if (inclureAnnules) annule ? statutAnnuleLocations : statutActifLocations,
+  ];
+
   return _apercu(
     modele,
-    periode: modele.periode!,
+    periode:
+        '${modele.periode!} · '
+        '${inclureAnnules ? annulesInclusLocations : annulesExclusLocations}',
     valeurs: ['${contrats.length}', montant.ecrite],
+    entetes: [...modele.entetes, if (inclureAnnules) colonneStatutLocations],
     lignes: [
-      for (final c in contrats)
-        [
-          c.clientNom ?? '',
-          '${categorieDe[c.immatriculation] ?? tiretApercu} — ${c.immatriculation}',
-          dateIsoServeur(c.debut),
-          dateIsoServeur(c.fin),
-          '${c.nombreJours}',
-          c.montant == null ? '' : _montantEcrit(c.montant!),
-        ],
+      for (final c in contrats) ligne(c, annule: false),
+      if (inclureAnnules)
+        for (final c in annulesListes) ligne(c, annule: true),
     ],
     mentions: [
-      if (annules > 0) '$annules contrat(s) annulé(s) exclu(s) de l\'état.',
+      if (annules > 0 && !inclureAnnules)
+        '$annules contrat(s) annulé(s) exclu(s) de l\'état.',
+      if (annules > 0 && inclureAnnules)
+        '$annules contrat(s) annulé(s) listé(s) à part, non comptés dans les '
+            'totaux.',
       if (sansMontant > 0)
         '$sansMontant contrat(s) sans montant connu (signé avant que ce poste '
             'le fige, et pas encore reçu du serveur) : case vide, hors du '
