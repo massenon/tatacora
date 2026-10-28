@@ -32,6 +32,8 @@ use App\Shared\Sync\Gestionnaires\GestionnaireMouvementsStock;
 use App\Shared\Sync\Gestionnaires\GestionnairePaiements;
 use App\Shared\Sync\Gestionnaires\GestionnairePaniersTable;
 use App\Shared\Sync\Gestionnaires\GestionnaireParametres;
+use App\Shared\Sync\Gestionnaires\GestionnairePiecesSaisie;
+use App\Shared\Sync\Gestionnaires\GestionnairePlanComptable;
 use App\Shared\Sync\Gestionnaires\GestionnairePlannings;
 use App\Shared\Sync\Gestionnaires\GestionnairePlats;
 use App\Shared\Sync\Gestionnaires\GestionnairePointsStockage;
@@ -167,6 +169,13 @@ class RegistreSynchronisation
         'mouvements_stock' => GestionnaireMouvementsStock::class,
         // Lot 10f : la configuration M12 (jamais les messages tracés).
         'modeles_notification' => GestionnaireModelesNotification::class,
+        // 28/10/2026 (D246 rouvert par le PO) : un COMPTE du plan créé sur un poste
+        // (création seule, `PlanComptableService`), AVANT les pièces manuelles et
+        // les immobilisations qui le citent par son numéro.
+        'plan_comptable' => GestionnairePlanComptable::class,
+        // 28/10/2026 : une PIÈCE saisie à la main sur un poste (brouillon ou
+        // validée), rejouée par `PasserEcritureService` — le serveur passe SA pièce.
+        'pieces_saisie' => GestionnairePiecesSaisie::class,
         // 21/10/2026 : les immobilisations (M10), création seule — le plan
         // d'amortissement est calculé, jamais stocké.
         'immobilisations' => GestionnaireImmobilisations::class,

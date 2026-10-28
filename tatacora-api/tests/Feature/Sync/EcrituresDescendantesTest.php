@@ -130,4 +130,45 @@ final class EcrituresDescendantesTest extends TestCase
             'statut' => 'actif',
         ]);
     }
+
+    #[Test]
+    public function le_plan_comptable_descend_avant_les_ecritures_et_la_piece_d_un_poste_porte_son_origine(): void
+    {
+        $this->actingAs($this->utilisateur('comptable'));
+        $origine = (string) Str::uuid();
+        $poste = $this->utilisateur('comptable');
+        $this->travel(CatalogueDescendantService::HORIZON_SECONDES + 1)->seconds();
+        Sanctum::actingAs($poste);
+        $piece = app(PasserEcritureService::class)->passer([
+            'journal' => 'OD', 'date' => '2026-10-20', 'libelle' => 'Saisie poste', 'lignes' => [
+                ['compte' => '5711', 'debit' => '10.00'],
+                ['compte' => '7011', 'credit' => '10.00', 'centre_id' => CentreCout::query()->value('id')],
+            ],
+        ]);
+        \Illuminate\Support\Facades\DB::table('ecritures_comptables')->whereIn('id', $piece->pluck('id'))->update(['piece_origine_id' => $origine]);
+        app(\App\Domain\Comptabilite\Services\EcritureComptableService::class)->valider($piece);
+
+        $this->travel(CatalogueDescendantService::HORIZON_SECONDES + 1)->seconds();
+        $elements = [];
+        $curseur = null;
+        do {
+            $reponse = $this->getJson('/api/v1/referentiels?' . http_build_query(array_filter([
+                'poste_id' => 'poste-1', 'depuis' => $curseur, 'limite' => 200,
+            ], static fn ($v): bool => $v !== null)))->assertOk();
+            $elements = [...$elements, ...$reponse->json('data.elements')];
+            $curseur = $reponse->json('meta.curseur');
+        } while (! $reponse->json('meta.complet'));
+
+        $tables = array_column($elements, 'table');
+        $this->assertContains('plan_comptable', $tables);
+        // Le plan arrive AVANT toute écriture : un compte cité existe déjà au poste.
+        $this->assertLessThan(array_search('ecritures_comptables', $tables, true), array_search('plan_comptable', $tables, true));
+        $compte = collect($elements)->first(static fn (array $e): bool => $e['table'] === 'plan_comptable' && $e['donnees']['numero_compte'] === '5711');
+        $this->assertSame(['numero_compte', 'libelle', 'classe', 'nature'], array_keys($compte['donnees']));
+        $ecritures = array_filter($elements, static fn (array $e): bool => $e['table'] === 'ecritures_comptables');
+        $this->assertNotEmpty($ecritures);
+        foreach ($ecritures as $e) {
+            $this->assertSame($origine, $e['donnees']['piece_origine_id']);
+        }
+    }
 }

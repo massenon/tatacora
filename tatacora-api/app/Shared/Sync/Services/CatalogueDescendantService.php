@@ -49,7 +49,16 @@ use InvalidArgumentException;
  * limite assumée : une transaction de référentiel tenue plus de cinq
  * secondes (aucune ne l'est : ce sont des écritures d'une ligne).
  *
- * ## Rien n'est jamais retiré du flux
+ * ## Une seule suppression : la purge (A5, 28/10/2026)
+ *
+ * La purge définitive d'une unité d'hébergement ou d'un véhicule archivé
+ * (`SuppressionsDescendantes`, registre fermé) descend comme un élément
+ * `supprime: true` (`donnees` vide), lu dans `suppressions_synchronisation` sous
+ * son propre curseur (`SUPPRESSIONS`), après les tables et avant les
+ * correspondances. Le poste la rejoue SEULEMENT si aucune saisie locale n'y est
+ * rattachée ; sinon il la conserve et le dit au journal de réception.
+ *
+ * ## Rien d'autre n'est jamais retiré du flux
  *
  * Un élément archivé (`articles.actif`, `fournisseurs.actif`,
  * `clients.actif`, unité `hors_service`) DESCEND, marqué `actif: false` : le poste doit savoir
@@ -102,6 +111,13 @@ class CatalogueDescendantService
 
     /** Pseudo-source du curseur pour les correspondances. */
     public const CORRESPONDANCES = 'correspondances';
+
+    /**
+     * Pseudo-source du curseur pour les SUPPRESSIONS (A5, 28/10/2026) : les
+     * purges d'unités d'hébergement et de véhicules, rendues comme des éléments
+     * `supprime: true` que chaque poste rejoue s'il n'y a rien rattaché.
+     */
+    public const SUPPRESSIONS = 'suppressions';
 
     /**
      * Les colonnes de DÉFINITION descendues, table par table, dans l'ordre où
@@ -218,10 +234,14 @@ class CatalogueDescendantService
         // Passage d'année (20/10/2026) : les exercices et leur STATUT — une
         // clôture faite au serveur verrouille aussi l'année sur les postes.
         'exercices_comptables' => ['annee', 'date_debut', 'date_fin', 'statut', 'date_cloture'],
+        // 28/10/2026 (D246 rouvert) : le PLAN COMPTABLE, après les exercices et AVANT
+        // les écritures et les pièces qui citent un compte par son numéro. Le poste
+        // reconnaît un compte à son numéro (clé naturelle) et n'en réécrit aucun.
+        'plan_comptable' => ['numero_compte', 'libelle', 'classe', 'nature'],
         // 21/10/2026 : les écritures VALIDÉES, après leurs exercices. Les champs
         // `annee`, `code_journal`, `numero_compte`, `libelle_compte` et `classe`
         // sont ajoutés à la sérialisation (voir `ecrituresDeLaPage`).
-        'ecritures_comptables' => ['exercice_id', 'date_ecriture', 'libelle', 'debit', 'credit', 'numero_piece', 'ecriture_contrepassee_id', 'journal_id', 'compte_id'],
+        'ecritures_comptables' => ['exercice_id', 'date_ecriture', 'libelle', 'debit', 'credit', 'numero_piece', 'ecriture_contrepassee_id', 'journal_id', 'compte_id', 'piece_origine_id'],
         // 21/10/2026 : les immobilisations (M10), de tous les postes. Le plan
         // d'amortissement ne descend pas : il se CALCULE depuis ces colonnes.
         'immobilisations' => ['code', 'libelle', 'compte_immobilisation', 'valeur_origine', 'date_mise_service', 'duree_annees'],
@@ -420,7 +440,42 @@ class CatalogueDescendantService
 
         if ($complet && $restant === 0) {
             $complet = false;
-        } elseif ($complet && $lisibles !== []) {
+        }
+
+        if ($complet && $lisibles !== []) {
+            [$lignes, $reste] = $this->lire(
+                DB::table('suppressions_synchronisation')
+                    ->select(['id', 'table_concernee', 'entite_id'])
+                    ->whereIn('table_concernee', array_values(array_intersect(SuppressionsDescendantes::TABLES, $lisibles))),
+                'created_at',
+                $positions[self::SUPPRESSIONS] ?? null,
+                $horizon,
+                $restant,
+            );
+
+            if ($lignes !== []) {
+                $derniere = end($lignes);
+                $positions[self::SUPPRESSIONS] = [(string) $derniere->filigrane, (string) $derniere->id];
+
+                foreach ($lignes as $ligne) {
+                    $elements[] = [
+                        'table' => (string) $ligne->table_concernee,
+                        'id' => (string) $ligne->entite_id,
+                        'supprime' => true,
+                        'actif' => false,
+                        'modifie_le' => (string) $ligne->filigrane,
+                        'poste_origine' => null,
+                        'donnees' => (object) [],
+                    ];
+                }
+
+                $restant -= count($lignes);
+            }
+
+            $complet = ! $reste;
+        }
+
+        if ($complet && $lisibles !== []) {
             [$lignes, $reste] = $this->lire(
                 DB::table('correspondances_synchronisation')
                     ->select(['id', 'table_concernee', 'id_poste', 'id_serveur'])
@@ -505,6 +560,30 @@ class CatalogueDescendantService
             }
 
             $restants[$table] = $requete->count();
+        }
+
+        // A5 : les suppressions encore à livrer comptent pour leur table.
+        $lues = array_values(array_intersect(SuppressionsDescendantes::TABLES, array_keys($restants)));
+
+        if ($lues !== []) {
+            $suppressions = DB::table('suppressions_synchronisation')
+                ->whereIn('table_concernee', $lues)
+                ->where('created_at', '<', $horizon);
+
+            if (isset($positions[self::SUPPRESSIONS])) {
+                [$apres, $id] = $positions[self::SUPPRESSIONS];
+
+                $suppressions->where(static function (Builder $w) use ($apres, $id): void {
+                    $w->where('created_at', '>', $apres)
+                        ->orWhere(static function (Builder $egal) use ($apres, $id): void {
+                            $egal->where('created_at', '=', $apres)->where('id', '>', $id);
+                        });
+                });
+            }
+
+            foreach ($suppressions->select('table_concernee', DB::raw('count(*) as n'))->groupBy('table_concernee')->get() as $ligne) {
+                $restants[(string) $ligne->table_concernee] += (int) $ligne->n;
+            }
         }
 
         return $restants;
@@ -952,7 +1031,7 @@ class CatalogueDescendantService
             throw new InvalidArgumentException(__('sync.referentiels.curseur_invalide'));
         }
 
-        $sources = [...array_keys(self::COLONNES), self::CORRESPONDANCES];
+        $sources = [...array_keys(self::COLONNES), self::SUPPRESSIONS, self::CORRESPONDANCES];
         $positions = [];
 
         foreach ($contenu['p'] as $source => $position) {

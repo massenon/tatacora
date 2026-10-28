@@ -200,7 +200,7 @@ class PlanComptableService
      *
      * @throws RuntimeException numéro déjà pris, nature hors registre, libellé absent
      */
-    public function creerCompte(string $numero, string $libelle, string $nature): CompteComptable
+    public function creerCompte(string $numero, string $libelle, string $nature, ?string $id = null): CompteComptable
     {
         if (! preg_match(self::NUMERO_COMPTE_FORMAT, $numero)) {
             throw new RuntimeException(__('comptabilite.compte_numero_invalide', ['numero' => $numero]));
@@ -221,6 +221,9 @@ class PlanComptableService
         }
 
         return CompteComptable::create([
+            // D246 rouvert (28/10/2026) : un poste crée un compte SOUS SON
+            // identifiant (synchronisation) ; l'écran web n'en passe pas.
+            ...($id === null ? [] : ['id' => $id]),
             'numero_compte' => $numero,
             'libelle' => $libelle,
             'classe' => substr($numero, 0, 1),

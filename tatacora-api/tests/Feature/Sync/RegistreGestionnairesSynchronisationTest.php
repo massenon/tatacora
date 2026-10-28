@@ -98,6 +98,9 @@ final class RegistreGestionnairesSynchronisationTest extends TestCase
             'parametres_systeme', 'roles',
             // Lot 10f : les mouvements de stock saisis sur un poste.
             'mouvements_stock', 'modeles_notification',
+            // 28/10/2026 : un compte du plan et une pièce saisie à la main (M10),
+            // AVANT les immobilisations qui citent un compte.
+            'plan_comptable', 'pieces_saisie',
             // 21/10/2026 : les immobilisations (M10), création seule.
             'immobilisations',
             // 21/10/2026 : les canaux de réservation (Paramètres).
