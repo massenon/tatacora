@@ -223,13 +223,36 @@ void main() {
       .initialValue!
       .libelle;
 
+  /// La liste déroulante DANS un sélecteur de référentiel (le sélecteur porte aussi
+  /// son bouton « créer » et son aide : son centre n'est pas la liste).
+  Future<void> choisirDans(
+    WidgetTester tester,
+    Key selecteur,
+    String texte,
+  ) async {
+    final liste = find.descendant(
+      of: find.byKey(selecteur),
+      matching: find.byType(DropdownButtonFormField<String>),
+    );
+    await tester.ensureVisible(liste);
+    await tester.pumpAndSettle();
+    await tester.tap(liste);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(texte).last);
+    await tester.pumpAndSettle();
+  }
+
   Future<void> choisirMenuEtFiche(WidgetTester tester) async {
-    await toucher(tester, const Key('modale-plat-menu'));
-    await tester.tap(find.text('Carte du jour — Local').last);
-    await tester.pumpAndSettle();
-    await toucher(tester, const Key('modale-plat-recette'));
-    await tester.tap(find.text('Recette Poulet DG').last);
-    await tester.pumpAndSettle();
+    await choisirDans(
+      tester,
+      const Key('modale-plat-menu'),
+      'Carte du jour — Local',
+    );
+    await choisirDans(
+      tester,
+      const Key('modale-plat-recette'),
+      'Recette Poulet DG',
+    );
   }
 
   Future<void> enregistrer(WidgetTester tester) async {

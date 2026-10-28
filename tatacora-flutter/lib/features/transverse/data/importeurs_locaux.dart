@@ -22,10 +22,11 @@
 ///  - **M6** : le modèle est celui de l'écran Stocks (`colonnesImportArticles`,
 ///    huit colonnes, stock d'ouverture compris) — c'est le moteur du poste,
 ///    partagé, pas la déclaration à cinq colonnes du serveur.
-///  - **M4** : pas de colonne « Catégorie » — sur ce poste la catégorie d'un
-///    plat est le type de son menu (D148), aucune colonne ne la porte.
-///  - **M8** : ni « Année », ni « Nombre de places », ni « Transmission » —
-///    `vehicules_local` n'a pas ces colonnes ; les importer serait les jeter.
+///  - **M4** : « Catégorie » (liste fermée des dix clés de la carte, v41) est la
+///    colonne du modèle du serveur ; confrontée au vrai `ControleImportService`
+///    (`tool/transverse/rejouer_import_m4.php`).
+///  - **M8** : « Année », « Nombre de places » et « Transmission » sont celles du
+///    modèle du serveur (v41).
 ///  - **M9** : « Thème » est un texte libre, comme la modale « Prestation » du
 ///    poste — l'énumération vit dans un schéma MySQL que le poste ne détient
 ///    pas.
