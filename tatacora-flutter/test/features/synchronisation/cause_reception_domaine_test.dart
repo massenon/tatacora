@@ -112,6 +112,9 @@ void main() {
     'sans menu ou sans fiche technique',
     'sans réservation au serveur',
     'sans ligne retrouvée au serveur',
+    // Purge définitive (A5) : règle propre du poste (le compte du plan
+    // illisible (A12) se classe « donnée illisible »).
+    'suppression non admise pour cette table',
   ];
 
   test('CHAQUE motif « refusé » a une cause précise — sauf les règles du '

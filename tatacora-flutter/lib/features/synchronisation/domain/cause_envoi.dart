@@ -74,6 +74,12 @@ const Map<String, ({String titre, String conseil})> causesRefusServeur = {
         'traitez d’abord l’opération de création du même élément dans cette '
         'liste, puis renvoyez celle-ci.',
   ),
+  'suppression_non_synchronisable': (
+    titre: 'Suppression non admise',
+    conseil:
+        'Seules les unités d’hébergement et les véhicules archivés se '
+        'purgent. Rien à renvoyer : l’élément reste sur le serveur.',
+  ),
   'entite_existante': (
     titre: 'Identifiant déjà utilisé',
     conseil: 'Rien à corriger : le serveur détient déjà ce document.',
