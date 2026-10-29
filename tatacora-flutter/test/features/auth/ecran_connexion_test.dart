@@ -111,124 +111,181 @@ void main() {
     'livewire/connexion',
   ).replaceAll(RegExp(r'\{\{--.*?--\}\}', dotAll: true), '');
 
-  group('Structure — une carte unique, dans l\'ordre de la vue', () {
-    testWidgets('aucune photo, aucune colonne : la carte seule', (
-      tester,
-    ) async {
-      for (final largeur in const [800.0, 1440.0]) {
-        await monter(tester, largeur);
-        // Plus de panneau image (`hidden lg:block lg:w-1/2` retiré de la vue).
-        expect(find.byType(Image), findsNothing);
-        expect(vue(), isNot(contains('gite-cover')));
-        expect(vue(), contains('max-w-[560px]'));
-      }
-    });
-
-    testWidgets('la carte est bornée à 560 px et centrée', (tester) async {
-      await monter(tester, 1440);
-      final carte = find.byType(Form);
-      final boite = tester.getRect(carte);
-      expect(
-        boite.width,
-        MesuresConnexion.largeurCarte - 2 * MesuresConnexion.interieurLarge - 2,
-        reason: 'la largeur du formulaire = carte 560 − 2 × 32 − 2 de bordure',
-      );
-      expect(
-        (boite.center.dx - 1440 / 2).abs(),
-        lessThan(1),
-        reason: 'la carte est centrée horizontalement',
-      );
-    });
-
-    testWidgets('les éléments se suivent de haut en bas comme dans la vue', (
-      tester,
-    ) async {
-      await monter(tester, 1280);
-      // L'ordre du handoff §1, relu dans la vue ET vérifié dans le rendu.
-      final textes = <String>[
-        TextesConnexion.slogan,
-        TextesConnexion.bienvenue,
-        TextesConnexion.accroche,
-        TextesConnexion.login,
-        TextesConnexion.motDePasse,
-        TextesConnexion.seSouvenir,
-        TextesConnexion.motDePasseOublie,
-        TextesConnexion.valider,
-        TextesConnexion.piedDePage,
-      ];
-      var yPrecedent = -1.0;
-      for (final t in textes) {
-        final y = tester.getTopLeft(find.text(t)).dy;
-        expect(y, greaterThan(yPrecedent), reason: '« $t » hors d\'ordre');
-        yPrecedent = y;
-      }
-
-      // La marque (deux tons) est AU-DESSUS du slogan.
-      final marque = find.text('Logi');
-      expect(marque, findsOneWidget);
-      expect(
-        tester.getTopLeft(marque).dy,
-        lessThan(tester.getTopLeft(find.text(TextesConnexion.slogan)).dy),
+  group(
+    'Structure — deux panneaux dès 1024 px, la carte dans l\'ordre de la vue',
+    () {
+      testWidgets(
+        'dès 1024 px : DEUX panneaux, la photo à gauche, la carte à droite',
+        (tester) async {
+          for (final largeur in const [1024.0, 1440.0, 2560.0]) {
+            await monter(tester, largeur);
+            final photo = find.byWidgetPredicate(
+              (w) =>
+                  w is Image &&
+                  w.image is AssetImage &&
+                  (w.image as AssetImage).assetName ==
+                      'assets/img/gite-cover.jpg',
+            );
+            expect(
+              photo,
+              findsOneWidget,
+              reason: 'photo embarquée à $largeur px',
+            );
+            expect(
+              tester.widget<Image>(photo).semanticLabel,
+              'Gîte Chez Noël, Natitingou',
+            );
+            expect(tester.widget<Image>(photo).fit, BoxFit.cover);
+            final gauche = tester.getRect(photo);
+            final carte = tester.getRect(find.byType(Form));
+            expect(
+              gauche.width,
+              closeTo(largeur / 2, 0.5),
+              reason: 'moitié gauche',
+            );
+            expect(gauche.left, 0);
+            expect(carte.left, greaterThanOrEqualTo(largeur / 2));
+            // Carte centrée dans la moitié droite.
+            expect(carte.center.dx, closeTo(largeur * 0.75, 1));
+            // Textes du panneau, relus de la langue du serveur.
+            expect(
+              find.text(
+                VueBlade.libelle(
+                  'pwa.connexion.titre_panneau',
+                )!.replaceAll('<br>', '\n'),
+              ),
+              findsOneWidget,
+            );
+            expect(
+              find.text(VueBlade.libelle('pwa.connexion.accroche_panneau')!),
+              findsOneWidget,
+            );
+            expect(tester.takeException(), isNull);
+          }
+          expect(vue(), contains('hidden lg:block lg:w-1/2 relative'));
+        },
       );
 
-      // Le même ordre, dans le document de la vue.
-      final v = VueBlade.resolue('livewire/connexion');
-      var p = 0;
-      for (final t in textes.take(8)) {
-        final i = v.indexOf(t.replaceAll("'", "'"), p);
-        expect(i, greaterThanOrEqualTo(0), reason: '« $t » absent de la vue');
-        p = i + t.length;
-      }
-    });
+      testWidgets('sous 1024 px : une seule colonne, pas de photo', (
+        tester,
+      ) async {
+        for (final largeur in const [320.0, 800.0, 1023.0]) {
+          await monter(tester, largeur);
+          expect(find.byType(Image), findsNothing, reason: 'à $largeur px');
+          expect(find.text(TextesConnexion.accrochePanneau), findsNothing);
+          expect(find.text(TextesConnexion.bienvenue), findsOneWidget);
+        }
+      });
 
-    testWidgets('la marque est en DEUX tons : Logi navy, ReStock gold', (
-      tester,
-    ) async {
-      await monter(tester, 1280);
-      final logi = tester.widget<Text>(find.text('Logi'));
-      final restock = tester.widget<Text>(find.text('ReStock'));
-      expect(logi.style!.color, AppColors.navy);
-      expect(restock.style!.color, AppColors.gold);
-      // Collés : « LogiReStock » est UN mot, deux tons.
-      expect(
-        tester.getTopRight(find.text('Logi')).dx,
-        closeTo(tester.getTopLeft(find.text('ReStock')).dx, 0.5),
-      );
-      expect(find.text('TATACORA AFRIQUE'), findsOneWidget);
-    });
-
-    testWidgets('le bandeau porte SEPT pictogrammes, chacun avec son nom', (
-      tester,
-    ) async {
-      await monter(tester, 1280);
-      const modules = [
-        'Restauration',
-        'Hébergement',
-        'Éco-tourisme',
-        'Stock',
-        'Location',
-        'Caisse',
-        'Comptabilité',
-      ];
-      for (final m in modules) {
-        expect(find.byTooltip(m), findsOneWidget, reason: 'infobulle « $m »');
-        final icone = find.descendant(
-          of: find.byTooltip(m),
-          matching: find.byType(IconeTrace),
+      testWidgets('la carte est bornée à 560 px et centrée', (tester) async {
+        await monter(tester, 800);
+        final carte = find.byType(Form);
+        final boite = tester.getRect(carte);
+        expect(
+          boite.width,
+          MesuresConnexion.largeurCarte -
+              2 * MesuresConnexion.interieurLarge -
+              2,
+          reason:
+              'la largeur du formulaire = carte 560 − 2 × 32 − 2 de bordure',
         );
-        expect(icone, findsOneWidget);
-        expect(tester.widget<IconeTrace>(icone).taille, 26);
-      }
-      // Les sept se partagent la largeur à égale distance.
-      final xs = [
-        for (final m in modules) tester.getCenter(find.byTooltip(m)).dx,
-      ];
-      final pas = xs[1] - xs[0];
-      for (var i = 2; i < xs.length; i++) {
-        expect(xs[i] - xs[i - 1], closeTo(pas, 0.5));
-      }
-    });
-  });
+        expect(
+          (boite.center.dx - 800 / 2).abs(),
+          lessThan(1),
+          reason: 'la carte est centrée horizontalement',
+        );
+      });
+
+      testWidgets('les éléments se suivent de haut en bas comme dans la vue', (
+        tester,
+      ) async {
+        await monter(tester, 1280);
+        // L'ordre du handoff §1, relu dans la vue ET vérifié dans le rendu.
+        final textes = <String>[
+          TextesConnexion.slogan,
+          TextesConnexion.bienvenue,
+          TextesConnexion.accroche,
+          TextesConnexion.login,
+          TextesConnexion.motDePasse,
+          TextesConnexion.seSouvenir,
+          TextesConnexion.motDePasseOublie,
+          TextesConnexion.valider,
+          TextesConnexion.piedDePage,
+        ];
+        var yPrecedent = -1.0;
+        for (final t in textes) {
+          final y = tester.getTopLeft(find.text(t)).dy;
+          expect(y, greaterThan(yPrecedent), reason: '« $t » hors d\'ordre');
+          yPrecedent = y;
+        }
+
+        // La marque (deux tons) est AU-DESSUS du slogan.
+        final marque = find.text('Logi');
+        expect(marque, findsOneWidget);
+        expect(
+          tester.getTopLeft(marque).dy,
+          lessThan(tester.getTopLeft(find.text(TextesConnexion.slogan)).dy),
+        );
+
+        // Le même ordre, dans le document de la vue.
+        final v = VueBlade.resolue('livewire/connexion');
+        var p = 0;
+        for (final t in textes.take(8)) {
+          final i = v.indexOf(t.replaceAll("'", "'"), p);
+          expect(i, greaterThanOrEqualTo(0), reason: '« $t » absent de la vue');
+          p = i + t.length;
+        }
+      });
+
+      testWidgets('la marque est en DEUX tons : Logi navy, ReStock gold', (
+        tester,
+      ) async {
+        await monter(tester, 1280);
+        final logi = tester.widget<Text>(find.text('Logi'));
+        final restock = tester.widget<Text>(find.text('ReStock'));
+        expect(logi.style!.color, AppColors.navy);
+        expect(restock.style!.color, AppColors.gold);
+        // Collés : « LogiReStock » est UN mot, deux tons.
+        expect(
+          tester.getTopRight(find.text('Logi')).dx,
+          closeTo(tester.getTopLeft(find.text('ReStock')).dx, 0.5),
+        );
+        expect(find.text('TATACORA AFRIQUE'), findsOneWidget);
+      });
+
+      testWidgets('le bandeau porte SEPT pictogrammes, chacun avec son nom', (
+        tester,
+      ) async {
+        await monter(tester, 1280);
+        const modules = [
+          'Restauration',
+          'Hébergement',
+          'Éco-tourisme',
+          'Stock',
+          'Location',
+          'Caisse',
+          'Comptabilité',
+        ];
+        for (final m in modules) {
+          expect(find.byTooltip(m), findsOneWidget, reason: 'infobulle « $m »');
+          final icone = find.descendant(
+            of: find.byTooltip(m),
+            matching: find.byType(IconeTrace),
+          );
+          expect(icone, findsOneWidget);
+          expect(tester.widget<IconeTrace>(icone).taille, 26);
+        }
+        // Les sept se partagent la largeur à égale distance.
+        final xs = [
+          for (final m in modules) tester.getCenter(find.byTooltip(m)).dx,
+        ];
+        final pas = xs[1] - xs[0];
+        for (var i = 2; i < xs.length; i++) {
+          expect(xs[i] - xs[i - 1], closeTo(pas, 0.5));
+        }
+      });
+    },
+  );
 
   group('Logo téléversé — décision du PO du 29/10/2026', () {
     // PNG 1 × 1 valide.
@@ -237,9 +294,9 @@ void main() {
     );
 
     testWidgets(
-      'présent : il coiffe la carte (64 px), au-dessus de la marque',
+      'sous 1024 px : il coiffe la carte (64 px), au-dessus de la marque',
       (tester) async {
-        await monter(tester, 1280, logo: png);
+        await monter(tester, 800, logo: png);
         await tester.pump();
         final image = tester.widget<Image>(find.byType(Image));
         expect(image.height, 64);
@@ -258,16 +315,34 @@ void main() {
           ),
           findsOneWidget, // le pictogramme s'ajoute sous le logo, il reste
         );
-        // La marque et le slogan restent sous le logo.
         expect(find.text('Logi'), findsOneWidget);
         expect(find.text(TextesConnexion.slogan), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'dès 1024 px : le logo est dans le panneau gauche, PAS répété',
+      (tester) async {
+        await monter(tester, 1280, logo: png);
+        await tester.pump();
+        final panneau = find.byKey(const Key('connexion-logo-panneau'));
+        expect(panneau, findsOneWidget);
+        expect(tester.getSize(panneau), const Size(64, 64));
+        final logos = find.byWidgetPredicate(
+          (w) => w is Image && w.semanticLabel == 'Logo TATACORA AFRIQUE',
+        );
+        expect(logos, findsOneWidget, reason: 'un seul logo, jamais deux');
+        expect(tester.getRect(logos).right, lessThan(1280 / 2));
+        // La marque (pictogramme + nom) reste en tête de la carte.
+        expect(find.text('Logi'), findsOneWidget);
+        expect(tester.getTopLeft(find.text('Logi')).dx, greaterThan(1280 / 2));
       },
     );
 
     testWidgets('absent : la marque seule, pictogramme compris', (
       tester,
     ) async {
-      await monter(tester, 1280);
+      await monter(tester, 800);
       await tester.pump();
       expect(find.byType(Image), findsNothing);
       expect(
@@ -282,7 +357,7 @@ void main() {
     testWidgets('aucun débordement avec le logo, de 320 px au large', (
       tester,
     ) async {
-      for (final largeur in const [320.0, 1440.0]) {
+      for (final largeur in const [320.0, 800.0, 1440.0]) {
         await monter(tester, largeur, logo: png);
         expect(tester.takeException(), isNull, reason: 'à $largeur px');
       }
@@ -340,10 +415,27 @@ void main() {
     });
   });
 
+  group('Deux panneaux — hauteur faible', () {
+    testWidgets(
+      'aucun débordement à 1024 × 300 et 2560 × 400, carte défilante',
+      (tester) async {
+        for (final taille in const [Size(1024, 300), Size(2560, 400)]) {
+          await monter(tester, taille.width, hauteur: taille.height);
+          expect(tester.takeException(), isNull, reason: '$taille');
+          await tester.ensureVisible(find.text(TextesConnexion.valider));
+          await tester.pump();
+          expect(tester.takeException(), isNull);
+        }
+      },
+    );
+  });
+
   group('Libellés — au caractère près, relus dans la langue du serveur', () {
     test('chaque texte de l\'écran est celui de `lang/fr/pwa.php`', () {
       const attendu = <String, String>{
         'pwa.connexion.titre_h1': TextesConnexion.titreH1,
+        'pwa.connexion.alt_couverture': TextesConnexion.altCouverture,
+        'pwa.connexion.accroche_panneau': TextesConnexion.accrochePanneau,
         'pwa.connexion.marque_logi': TextesConnexion.marqueLogi,
         'pwa.connexion.marque_restock': TextesConnexion.marqueRestock,
         'pwa.marque': TextesConnexion.sousMarque,

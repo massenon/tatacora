@@ -37,6 +37,25 @@
 --}}
 <div class="contents">
 
+  {{-- PANNEAU GAUCHE — décision du PO du 29/10/2026 : deux panneaux dès `lg`
+       (1024 px), comme l'ancienne mise en page. Photo du gîte en `object-cover`,
+       voile dégradé dérivé de `--navy` (le dégradé historique
+       `rgba(20,33,61,.2)` → `.85` EST le navy du dépôt), puis le logo TÉLÉVERSÉ
+       (carré 64, rayon `xl`, anneau doré de 2 px, `object-contain` : le logo est
+       paysage, jamais rogné), le titre et l'accroche, collés EN BAS. Sous `lg`
+       ce panneau disparaît et le logo remonte dans la carte. --}}
+  <div class="hidden lg:block lg:w-1/2 relative">
+    <img src="{{ asset('assets/img/gite-cover.jpg') }}" alt="{{ __('pwa.connexion.alt_couverture') }}" class="absolute inset-0 w-full h-full object-cover">
+    <div class="absolute inset-0" style="background:linear-gradient(180deg, color-mix(in srgb, var(--navy) 20%, transparent), color-mix(in srgb, var(--navy) 85%, transparent))"></div>
+    <div class="relative z-10 h-full flex flex-col justify-end p-12 text-white">
+      <img src="{{ app(\App\Shared\Parametres\Services\ApparenceEtablissementService::class)->urlLogo() }}" alt="{{ __('pwa.alt_logo') }}" class="w-16 h-16 rounded-xl mb-6 ring-2 ring-[var(--gold)] object-contain">
+      {{-- `<h2>` et non `<h1>` : le `<h1>` de la page est « Connexion »
+           (masqué), dont l'onglet reprend le nom (BaliseTitrePwaTest). --}}
+      <h2 class="text-3xl font-bold mb-2 leading-tight">{!! __('pwa.connexion.titre_panneau') !!}</h2>
+      <p class="text-white/70 text-sm max-w-md">{{ __('pwa.connexion.accroche_panneau') }}</p>
+    </div>
+  </div>
+
   <div class="flex-1 flex items-center justify-center p-4 md:p-6 overflow-y-auto">
     <div class="w-full max-w-[560px] my-auto bg-white border border-slate-200 rounded-2xl shadow-sm p-6 md:p-8">
 
@@ -44,11 +63,12 @@
 
       {{-- 1. Marque. Décision du PO du 29/10/2026 : le logo TÉLÉVERSÉ de
            l'établissement (Paramètres → Logo & Apparence) coiffe la carte
-           quand il existe, AU-DESSUS de la marque (qui reste toujours affichée).
+           quand il existe, AU-DESSUS de la marque (qui reste toujours affichée) ; dès
+           `lg` il est dans le panneau gauche et n'est PAS répété ici.
            Proportions gardées (`object-contain`, jamais rogné ni étiré). --}}
       @php($logoTeleverse = app(\App\Shared\Parametres\Services\ApparenceEtablissementService::class)->fichierDe('logo') !== null)
       @if ($logoTeleverse)
-        <img src="{{ app(\App\Shared\Parametres\Services\ApparenceEtablissementService::class)->urlLogo() }}" alt="{{ __('pwa.alt_logo') }}" class="block mx-auto h-16 w-auto max-w-full object-contain mb-4">
+        <img src="{{ app(\App\Shared\Parametres\Services\ApparenceEtablissementService::class)->urlLogo() }}" alt="{{ __('pwa.alt_logo') }}" class="block mx-auto h-16 w-auto max-w-full object-contain mb-4 lg:hidden">
       @endif
       {{-- Pictogramme + « LogiReStock » + « TATACORA AFRIQUE » (décision du PO
            du 29/10/2026) : éléments de marque, TOUJOURS affichés, le logo

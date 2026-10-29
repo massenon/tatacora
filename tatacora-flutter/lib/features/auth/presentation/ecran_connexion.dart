@@ -7,6 +7,7 @@ import '../../../core/di/providers.dart';
 import '../../../core/navigation/coquille_vue.dart';
 import '../../../core/navigation/trace_svg.dart';
 import '../../../core/responsive/breakpoints.dart';
+import '../../../core/theme/app_assets.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_durations.dart';
 import '../../../core/theme/app_shadows.dart';
@@ -23,6 +24,15 @@ import 'formulaire_premier_compte.dart';
 /// caractère près (`ecran_connexion_test.dart` les confronte à la langue du
 /// serveur, résolue par PHP : une copie qui dérive fait rougir).
 abstract final class TextesConnexion {
+  /// `pwa.connexion.titre_panneau` (son `<br>` devient un saut de ligne),
+  /// `accroche_panneau` et `alt_couverture` — le panneau image de gauche.
+  static const titrePanneau = 'Système de gestion Intégré\nTATACORA AFRIQUE';
+  static const accrochePanneau =
+      'Hébergement, restauration, tourisme, véhicules, achats, stocks, '
+      'comptabilité et ressources humaines — une seule plateforme, pour le '
+      'Gîte Chez Noël à Natitingou.';
+  static const altCouverture = 'Gîte Chez Noël, Natitingou';
+
   /// `pwa.connexion.titre_h1` — le `<h1>` de la vue, masqué à l'œil.
   static const titreH1 = 'Connexion';
 
@@ -194,6 +204,7 @@ class _EtatEcranConnexion extends ConsumerState<EcranConnexion> {
   @override
   Widget build(BuildContext context) {
     return CadreInvite(
+      deuxPanneaux: true,
       formulaire: _formulaire,
       enfants: [
         // `<h1 class="sr-only">` : le titre de la page, lu par les
@@ -473,12 +484,23 @@ class _EtatEcranConnexion extends ConsumerState<EcranConnexion> {
 /// « J'ai perdu mon mot de passe administrateur » — le reprennent tel quel :
 /// mêmes jetons, mêmes pictogrammes (29/10/2026, option A du PO).
 class CadreInvite extends StatelessWidget {
-  const CadreInvite({super.key, required this.enfants, this.formulaire});
+  const CadreInvite({
+    super.key,
+    required this.enfants,
+    this.formulaire,
+    this.deuxPanneaux = false,
+  });
 
   final List<Widget> enfants;
 
   /// La clé du `Form` de la carte, quand l'écran valide ses champs.
   final GlobalKey<FormState>? formulaire;
+
+  /// L'écran de CONNEXION seul porte le panneau image de gauche (décision du PO
+  /// du 29/10/2026) : `hidden lg:block lg:w-1/2` — visible dès 1024 px de
+  /// large, la carte occupant l'autre moitié. Les autres écrans « invité »
+  /// restent une carte seule.
+  final bool deuxPanneaux;
 
   @override
   Widget build(BuildContext context) {
@@ -495,24 +517,41 @@ class CadreInvite extends StatelessWidget {
       // `<body style="background:var(--fond-clair)">` — #F2F2F2.
       backgroundColor: AppColors.fondClair,
       body: SafeArea(
-        // `flex-1 flex items-center justify-center p-4 md:p-6 overflow-y-auto`
+        // Le seuil `lg` se mesure sur la largeur DISPONIBLE, pas sur l'écran.
         child: LayoutBuilder(
-          builder: (context, contraintes) => SingleChildScrollView(
-            padding: EdgeInsets.all(marge),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: contraintes.maxHeight - 2 * marge,
-              ),
-              child: Center(
+          builder: (context, espace) {
+            final deux = deuxPanneaux && espace.maxWidth >= Breakpoints.desktop;
+            final carte = LayoutBuilder(
+              // `flex-1 flex items-center justify-center p-4 md:p-6 overflow-y-auto`
+              builder: (context, contraintes) => SingleChildScrollView(
+                padding: EdgeInsets.all(marge),
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    maxWidth: MesuresConnexion.largeurCarte,
+                  constraints: BoxConstraints(
+                    minHeight: contraintes.maxHeight - 2 * marge,
                   ),
-                  child: _carte(interieur),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        maxWidth: MesuresConnexion.largeurCarte,
+                      ),
+                      child: _carte(interieur),
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
+            );
+            return PanneauxConnexion(
+              deux: deux,
+              child: deux
+                  ? Row(
+                      children: [
+                        const Expanded(child: PanneauImageConnexion()),
+                        Expanded(child: carte),
+                      ],
+                    )
+                  : carte,
+            );
+          },
         ),
       ),
     );
@@ -536,6 +575,134 @@ class CadreInvite extends StatelessWidget {
       child: formulaire == null
           ? colonne
           : Form(key: formulaire, child: colonne),
+    );
+  }
+}
+
+/// Dit aux enfants de la carte si le panneau image est affiché : alors le logo
+/// téléversé est à GAUCHE et n'est pas répété en haut de la carte.
+class PanneauxConnexion extends InheritedWidget {
+  const PanneauxConnexion({
+    super.key,
+    required this.deux,
+    required super.child,
+  });
+
+  final bool deux;
+
+  static bool visible(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<PanneauxConnexion>()?.deux ??
+      false;
+
+  @override
+  bool updateShouldNotify(PanneauxConnexion ancien) => deux != ancien.deux;
+}
+
+/// Le PANNEAU GAUCHE — `hidden lg:block lg:w-1/2 relative` : la photo du gîte
+/// (EMBARQUÉE : le poste est hors ligne) en `object-cover`, le voile en dégradé
+/// dérivé du navy, puis, collés en bas (`justify-end p-12 text-white`), le logo
+/// téléversé (64 × 64, `rounded-xl`, anneau doré de 2, `object-contain`), le
+/// titre `text-3xl font-bold leading-tight` et l'accroche
+/// `text-white/70 text-sm max-w-md`.
+class PanneauImageConnexion extends ConsumerWidget {
+  const PanneauImageConnexion({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final logo = ref.watch(logoTeleverseProvider).value;
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.asset(
+          AppAssets.couvertureConnexion,
+          fit: BoxFit.cover,
+          semanticLabel: TextesConnexion.altCouverture,
+        ),
+        // `linear-gradient(180deg, rgba(20,33,61,.2), rgba(20,33,61,.85))` : le
+        // navy du dépôt EST rgb(20,33,61), les deux arrêts s'en dérivent.
+        DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                AppColors.navy.withValues(alpha: 0.20),
+                AppColors.navy.withValues(alpha: 0.85),
+              ],
+            ),
+          ),
+        ),
+        LayoutBuilder(
+          builder: (context, c) => SingleChildScrollView(
+            reverse: true,
+            padding: const EdgeInsets.all(AppSpacingLarge.p12),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: (c.maxHeight - 2 * AppSpacingLarge.p12).clamp(
+                  0,
+                  double.infinity,
+                ),
+              ),
+              child: Align(
+                alignment: Alignment.bottomLeft,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // `w-16 h-16 rounded-xl mb-6 ring-2 ring-[var(--gold)]`
+                    Container(
+                      key: const Key('connexion-logo-panneau'),
+                      width: MesuresConnexion.hauteurLogo,
+                      height: MesuresConnexion.hauteurLogo,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(AppRadius.lg),
+                        border: Border.all(color: AppColors.gold, width: 2),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: switch (logo) {
+                        final octets? => Image.memory(
+                          octets,
+                          fit: BoxFit.contain,
+                          semanticLabel: LibellesCoquille.altLogo,
+                        ),
+                        _ => Image.asset(
+                          AppAssets.logo,
+                          fit: BoxFit.contain,
+                          semanticLabel: LibellesCoquille.altLogo,
+                        ),
+                      },
+                    ),
+                    const SizedBox(height: AppSpacing.lg), // mb-6
+                    Text(
+                      TextesConnexion.titrePanneau,
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        fontSize: Tailles.t30,
+                        fontWeight: FontWeight.bold,
+                        height: Tailles.interligneSerre,
+                        color: AppColors.neutre0,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xs), // mb-2
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(
+                        maxWidth: Largeurs.maxMd,
+                      ),
+                      child: Text(
+                        TextesConnexion.accrochePanneau,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontSize: Tailles.t14,
+                          color: AppColors.neutre0.withValues(alpha: 0.70),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -658,7 +825,10 @@ class MarqueConnexion extends ConsumerWidget {
     final theme = Theme.of(context);
     // Décision du PO du 29/10/2026 : le logo TÉLÉVERSÉ (Paramètres → Logo &
     // Apparence) coiffe la carte ; absent, le pictogramme de marque.
-    final logo = ref.watch(logoTeleverseProvider).value;
+    // Panneau gauche visible : le logo est à gauche, pas répété ici.
+    final logo = PanneauxConnexion.visible(context)
+        ? null
+        : ref.watch(logoTeleverseProvider).value;
     final styleMarque = theme.textTheme.headlineMedium?.copyWith(
       fontSize: Tailles.t28,
       fontWeight: FontWeight.w800,

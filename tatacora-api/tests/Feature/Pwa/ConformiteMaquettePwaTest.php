@@ -74,10 +74,18 @@ final class ConformiteMaquettePwaTest extends TestCase
     {
         $html = (string) $this->get('/pwa/connexion')->getContent();
 
-        // Plus de panneau image.
-        $this->assertStringNotContainsString('hidden lg:block lg:w-1/2', $html);
-        $this->assertStringNotContainsString('gite-cover.jpg', $html);
+        // DEUX panneaux depuis la decision du PO du 29/10/2026 : photo a gauche
+        // (dès `lg`), carte a droite.
+        $this->assertStringContainsString('hidden lg:block lg:w-1/2 relative', $html);
+        $this->assertStringContainsString('assets/img/gite-cover.jpg', $html);
+        $this->assertStringContainsString('alt="Gîte Chez Noël, Natitingou"', html_entity_decode($html, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+        $this->assertStringContainsString('relative z-10 h-full flex flex-col justify-end p-12 text-white', $html);
+        $this->assertStringContainsString('w-16 h-16 rounded-xl mb-6 ring-2 ring-[var(--gold)] object-contain', $html);
+        $this->assertStringContainsString('Système de gestion Intégré<br>TATACORA AFRIQUE', $html);
+        $this->assertStringContainsString('une seule plateforme, pour le Gîte Chez Noël à Natitingou.', html_entity_decode($html, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
         $this->assertStringContainsString('max-w-[560px]', $html);
+        // Le panneau gauche precede la carte dans le document.
+        $this->assertLessThan(strpos($html, 'max-w-[560px]'), strpos($html, 'hidden lg:block lg:w-1/2'));
 
         // Les libellés, dans l'ordre exact du document (apostrophes décodées).
         $texte = html_entity_decode($html, ENT_QUOTES | ENT_HTML5, 'UTF-8');
@@ -102,7 +110,6 @@ final class ConformiteMaquettePwaTest extends TestCase
 
         // Sept pictogrammes de module, tous décoratifs, plus la marque.
         $this->assertSame(7, substr_count($html, '<li title="'));
-        $this->assertStringNotContainsString('<img', $html);
 
         // Accessibilité : labels explicites, autocomplete, œil nommé et pressé.
         $this->assertStringContainsString('<label for="champ-identifiant"', $html);
@@ -142,16 +149,19 @@ final class ConformiteMaquettePwaTest extends TestCase
         \Illuminate\Support\Facades\Storage::fake(\App\Shared\Parametres\Services\ApparenceEtablissementService::DISQUE);
 
         $sans = (string) $this->get('/pwa/connexion')->getContent();
-        $this->assertStringNotContainsString('<img', $sans);
+        $this->assertStringNotContainsString('lg:hidden"', $sans, 'Sans logo televerse, la carte n\'a pas d\'image de logo.');
         $this->assertStringContainsString('M6 30L32 8l26 22', $sans, 'Le pictogramme de marque est toujours affiche.');
 
         \Illuminate\Support\Facades\Storage::disk(\App\Shared\Parametres\Services\ApparenceEtablissementService::DISQUE)
             ->put(\App\Shared\Parametres\Services\ApparenceEtablissementService::REPERTOIRE.'/logo.png', 'x');
 
         $avec = (string) $this->get('/pwa/connexion')->getContent();
-        $this->assertMatchesRegularExpression('#<img src="[^"]*/pwa/apparence/logo[^"]*" alt="Logo TATACORA AFRIQUE" class="[^"]*h-16[^"]*object-contain#', $avec);
+        // Sous `lg` : logo en haut de la carte (`lg:hidden`) ; dès `lg` : dans le
+        // panneau gauche, jamais repete en haut de la carte.
+        $this->assertMatchesRegularExpression('#<img src="[^"]*/pwa/apparence/logo[^"]*" alt="Logo TATACORA AFRIQUE" class="[^"]*h-16[^"]*object-contain[^"]*lg:hidden"#', $avec);
+        $this->assertMatchesRegularExpression('#<img src="[^"]*/pwa/apparence/logo[^"]*" alt="Logo TATACORA AFRIQUE" class="w-16 h-16 rounded-xl mb-6#', $avec);
         $this->assertStringContainsString('M6 30L32 8l26 22', $avec, 'Le logo s ajoute AU-DESSUS : le pictogramme reste.');
-        $this->assertLessThan(strpos($avec, 'M6 30L32 8l26 22'), strpos($avec, '<img src='), 'Le logo est au-dessus de la marque.');
+        $this->assertLessThan(strpos($avec, 'M6 30L32 8l26 22'), strpos($avec, 'h-16 w-auto'), 'Le logo est au-dessus de la marque.');
         $this->assertStringContainsString('>Logi<', $avec);
         $this->assertStringContainsString('>ReStock<', $avec);
     }

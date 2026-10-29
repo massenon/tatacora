@@ -18,4 +18,9 @@ abstract final class AppAssets {
   /// Dans les cadres CARRÉS de la vue, il s'affiche en `BoxFit.contain` (la
   /// vue écrit `object-contain`) : jamais rogné, jamais étiré.
   static const String logo = 'assets/img/logo.png';
+
+  /// La photo du gîte du panneau gauche de la connexion (119 Ko, déjà sous le
+  /// seuil des 400 Ko : livrée telle quelle, copie octet pour octet de celle de
+  /// la PWA). EMBARQUÉE : le poste est hors ligne.
+  static const String couvertureConnexion = 'assets/img/gite-cover.jpg';
 }

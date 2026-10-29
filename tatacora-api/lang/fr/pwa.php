@@ -96,6 +96,15 @@ return [
 
         // Marque en deux tons : « Logi » en couleur primaire (navy), « ReStock »
         // en accent (gold). Le nom reste UN mot pour un lecteur d'écran.
+        // Panneau image de gauche (dès `lg`) — rétabli le 29/10/2026 (PO). Le <br>
+        // tient le titre sur deux lignes à la césure voulue ; mêmes décisions du
+        // 13/10/2026 (PA-208, PA-209) que l'ancien `titre_page`.
+        'titre_panneau' => 'Système de gestion Intégré<br>TATACORA AFRIQUE',
+        'accroche_panneau' => 'Hébergement, restauration, tourisme, véhicules, '
+            . 'achats, stocks, comptabilité et ressources humaines — une seule '
+            . 'plateforme, pour le Gîte Chez Noël à Natitingou.',
+        'alt_couverture' => 'Gîte Chez Noël, Natitingou',
+
         'marque_logi' => 'Logi',
         'marque_restock' => 'ReStock',
         'slogan' => 'VOTRE LOGICIEL DE GESTION INTÉGRÉE',
