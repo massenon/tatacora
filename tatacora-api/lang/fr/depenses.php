@@ -70,6 +70,7 @@ return [
     // Image trop lourde : RÉDUITE, pas refusée (PO, 28/10/2026). Seul un fichier
     // qu'on ne sait pas lire comme une image est refusé, avec cette phrase.
     'recu_illisible' => "Ce fichier n'a pas pu être lu comme une image : choisissez-en un autre.",
+    'recu_gd_requise' => "L'extension GD du serveur est requise pour réduire un reçu : contactez l'administrateur.",
     'recu_empreinte' => "L'empreinte du reçu ne correspond pas au fichier reçu : il a été altéré en route. "
         .'Le poste le renverra.',
     'recu_deja_rattache' => 'Cette dépense porte déjà un autre reçu : un reçu ne se remplace pas.',

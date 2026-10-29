@@ -267,7 +267,7 @@ final class RecuDepenseService
         $illisible = new RefusRecuDepense(self::RECU_ILLISIBLE, __('depenses.recu_illisible'));
 
         if (! function_exists('imagecreatefromstring')) {
-            throw new \RuntimeException('L\'extension GD est requise pour réduire un reçu.');
+            throw new \RuntimeException(__('depenses.recu_gd_requise'));
         }
 
         // Une photo de 24 Mpx décodée pèse ~100 Mo : le plafond par défaut de
