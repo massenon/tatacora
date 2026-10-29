@@ -1743,3 +1743,7 @@ Décision du PO (option A) : aucun « mot de passe oublié » automatique ; le l
 ## Blueprint de la synchronisation multi-postes (29/10/2026, documentation seule)
 
 Demande du PO : un guide de référence réutilisable dans un autre projet, écrit à partir du code réel. Livré : `BLUEPRINT_SYNCHRONISATION_MULTI_POSTES.md` (architecture, appairage, envoi, réception, « Synchroniser » vers tous les postes, réinitialisation, installateur et démarrage résilient, recette et pièges, gabarit indépendant de la pile, prompt d'implémentation). Aucun code ni test modifié. Constats consignés dans le guide (§1.5) : pas de push ni de WebSocket (polling 5 min et 30 s), pas d'expiration de jeton configurée, pas d'écran d'arbitrage des conflits financiers, pas de sauvegarde automatique avant migration du poste (R4 non livré).
+
+## Spécification synchronisation et installation V2 (29/10/2026, documentation seule)
+
+Demande du PO : spécification produit des écarts constatés (temps réel, code d appairage web, table postes et expiration des jetons, arbitrage des conflits financiers, suppression synchronisée, sauvegarde avant migration, runtime VC++, sauvegarde à la désinstallation, garde-fous de build_windows.bat). Livré : `SPEC_SYNCHRONISATION_ET_INSTALLATION_V2.md` (9 exigences EX-1 à EX-9 en P0/P1/P2 avec critères Étant donné/Quand/Alors, 7 lots, 12 questions ouvertes). Aucun code ni test modifié.
