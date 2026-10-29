@@ -124,6 +124,10 @@ class Connexion extends Component
     {
         return view('pwa.livewire.connexion')->layout('layouts.pwa-invite', [
             'titre' => __('pwa.connexion.titre_page'),
+            // Fond BLANC uni (decision du PO du 29/10/2026) et page qui s'etire
+            // au lieu d'une hauteur figee : pas d'ascenseur a hauteur normale.
+            'classeBody' => 'min-h-screen flex',
+            'styleBody' => 'background:white',
         ]);
     }
 }

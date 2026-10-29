@@ -56,8 +56,12 @@
     </div>
   </div>
 
-  <div class="flex-1 flex items-center justify-center p-4 md:p-6 overflow-y-auto">
-    <div class="w-full max-w-[560px] my-auto bg-white border border-slate-200 rounded-2xl shadow-sm p-6 md:p-8">
+  {{-- PANNEAU DROIT — correction du PO du 29/10/2026 : fond BLANC uni, plus de
+       « carte » (ni fond distinct, ni bordure, ni ombre, ni rayon), plus de
+       marge verticale : le contenu est centré dans la hauteur de la fenêtre
+       (`min-h-screen flex items-center`), seul un retrait HORIZONTAL reste. --}}
+  <div class="flex-1 min-h-screen flex items-center justify-center bg-white px-6 md:px-8">
+    <div class="w-full max-w-[520px]">
 
       <h1 class="sr-only">{{ __('pwa.connexion.titre_h1') }}</h1>
 
@@ -100,10 +104,10 @@
       </div>
 
       {{-- 2-4. Filet, slogan, filet, bandeau de sept modules, filet. --}}
-      <hr class="border-slate-200 mt-5">
-      <p class="text-[12px] font-semibold tracking-[0.2em] text-slate-500 text-center py-3">{{ __('pwa.connexion.slogan') }}</p>
+      <hr class="border-slate-200 mt-3">
+      <p class="text-[12px] font-semibold tracking-[0.2em] text-slate-500 text-center py-2">{{ __('pwa.connexion.slogan') }}</p>
       <hr class="border-slate-200">
-      <ul class="flex items-center justify-between gap-1 py-4 text-slate-500" aria-label="{{ __('pwa.connexion.bandeau_modules') }}">
+      <ul class="flex items-center justify-between gap-1 py-2.5 text-slate-500" aria-label="{{ __('pwa.connexion.bandeau_modules') }}">
         @foreach (['restauration', 'hebergement', 'eco_tourisme', 'stock', 'location', 'caisse', 'comptabilite'] as $module)
           <li title="{{ __('pwa.connexion.modules.'.$module) }}" class="flex-1 flex justify-center">
             <span class="sr-only">{{ __('pwa.connexion.modules.'.$module) }}</span>
@@ -111,11 +115,11 @@
           </li>
         @endforeach
       </ul>
-      <hr class="border-slate-200 mb-6">
+      <hr class="border-slate-200 mb-4">
 
       {{-- 5. Accueil. --}}
       <h2 class="text-[28px] font-extrabold leading-tight" style="color:var(--navy)">{{ __('pwa.connexion.bienvenue') }}</h2>
-      <p class="text-[15px] text-slate-500 mt-1 mb-6">{{ __('pwa.connexion.accroche') }}</p>
+      <p class="text-[15px] text-slate-500 mt-1 mb-4">{{ __('pwa.connexion.accroche') }}</p>
 
       {{-- Un changement de mot de passe vient d'aboutir (ou un temporaire a expiré) :
            l'information est dite UNE fois, au retour sur la connexion. --}}
@@ -129,7 +133,7 @@
            dans l'adresse, l'historique et les journaux du serveur (constaté en local le
            21/10/2026). Le repli est désormais inerte : rien ne part, le mot de passe ne
            quitte jamais le champ. Livewire, lui, écoute toujours `submit`. --}}
-      <form id="formulaire-connexion" class="space-y-4" method="post" action="{{ route('pwa.connexion') }}" onsubmit="return false" wire:submit="seConnecter"
+      <form id="formulaire-connexion" class="space-y-3" method="post" action="{{ route('pwa.connexion') }}" onsubmit="return false" wire:submit="seConnecter"
             x-data="{
               souvenir: false,
               aide: false,
@@ -222,7 +226,7 @@
       {{-- Bloc « Comptes de démonstration (RBAC) » du maître : voir le refus
            déclaré en tête de ce fichier (maitre-refuse:login.html#comptes-demo). --}}
 
-      <p class="text-center text-[13px] text-slate-500 mt-8">{{ __('pwa.pied_de_page') }}</p>
+      <p class="text-center text-[13px] text-slate-500 mt-4">{{ __('pwa.pied_de_page') }}</p>
     </div>
   </div>
 

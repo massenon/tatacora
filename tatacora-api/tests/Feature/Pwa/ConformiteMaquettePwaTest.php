@@ -83,9 +83,24 @@ final class ConformiteMaquettePwaTest extends TestCase
         $this->assertStringContainsString('w-16 h-16 rounded-xl mb-6 ring-2 ring-[var(--gold)] object-contain', $html);
         $this->assertStringContainsString('Système de gestion Intégré<br>TATACORA AFRIQUE', $html);
         $this->assertStringContainsString('une seule plateforme, pour le Gîte Chez Noël à Natitingou.', html_entity_decode($html, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
-        $this->assertStringContainsString('max-w-[560px]', $html);
+        $this->assertStringContainsString('max-w-[520px]', $html);
+        // Correction du PO du 29/10/2026 : panneau droit BLANC uni, sans carte
+        // (ni bordure, ni ombre, ni rayon), centre dans la hauteur de la fenetre
+        // et SANS marge verticale (aucun ascenseur a hauteur normale).
+        $this->assertStringContainsString('flex-1 min-h-screen flex items-center justify-center bg-white px-6 md:px-8', $html);
+        $this->assertMatchesRegularExpression('#<body class="min-h-screen flex" style="background:white"#', $html);
+        $this->assertStringNotContainsString('rounded-2xl', $html);
+        $this->assertStringNotContainsString('shadow-sm', $html);
+        $this->assertStringNotContainsString('overflow-y-auto', $html);
+        $this->assertStringNotContainsString('var(--fond-clair)', $html);
+        // Les deux champs ont EXACTEMENT la meme bordure de repos.
+        preg_match_all('#<input id="champ-(?:identifiant|motdepasse)"[^>]*class="([^"]*)"#', $html, $champs);
+        $this->assertCount(2, $champs[1]);
+        foreach ($champs[1] as $classes) {
+            $this->assertStringContainsString('border border-slate-300 hover:border-slate-400 rounded-xl', $classes);
+        }
         // Le panneau gauche precede la carte dans le document.
-        $this->assertLessThan(strpos($html, 'max-w-[560px]'), strpos($html, 'hidden lg:block lg:w-1/2'));
+        $this->assertLessThan(strpos($html, 'max-w-[520px]'), strpos($html, 'hidden lg:block lg:w-1/2'));
 
         // Les libellés, dans l'ordre exact du document (apostrophes décodées).
         $texte = html_entity_decode($html, ENT_QUOTES | ENT_HTML5, 'UTF-8');

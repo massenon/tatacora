@@ -315,7 +315,7 @@ class _EtatEcranConnexion extends ConsumerState<EcranConnexion> {
             ),
           ),
         ),
-        const SizedBox(height: AppSpacing.md),
+        const SizedBox(height: AppSpacing.sm),
       ],
 
       // Ordre de tabulation (handoff §8) : identifiant → mot de passe → œil →
@@ -332,7 +332,7 @@ class _EtatEcranConnexion extends ConsumerState<EcranConnexion> {
             ? TextesConnexion.identifiantRequis
             : null,
       ),
-      const SizedBox(height: AppSpacing.md), // space-y-4
+      const SizedBox(height: AppSpacing.sm), // space-y-4
       ChampConnexion(
         etiquette: TextesConnexion.motDePasse,
         controleur: _motDePasse,
@@ -367,7 +367,7 @@ class _EtatEcranConnexion extends ConsumerState<EcranConnexion> {
           ),
         ),
       ),
-      const SizedBox(height: AppSpacing.md),
+      const SizedBox(height: AppSpacing.sm),
 
       // `flex items-center justify-between gap-3 flex-wrap`
       Wrap(
@@ -403,7 +403,7 @@ class _EtatEcranConnexion extends ConsumerState<EcranConnexion> {
         ],
       ),
       if (_aide) ...[
-        const SizedBox(height: AppSpacing.md),
+        const SizedBox(height: AppSpacing.sm),
         // `role="status"` : la phrase est annoncée à l'ouverture.
         Semantics(
           liveRegion: true,
@@ -452,11 +452,11 @@ class _EtatEcranConnexion extends ConsumerState<EcranConnexion> {
 
       // `#erreur-identifiants` (`role="alert"`) : n'existe que sur un refus.
       if (_erreur != null) ...[
-        const SizedBox(height: AppSpacing.md),
+        const SizedBox(height: AppSpacing.sm),
         BandeauAlerteConnexion(message: _erreur!),
       ],
 
-      const SizedBox(height: AppSpacing.md),
+      const SizedBox(height: AppSpacing.sm),
       BoutonPleinConnexion(
         libelle: TextesConnexion.valider,
         libelleEnCours: TextesConnexion.connexionEnCours,
@@ -465,7 +465,7 @@ class _EtatEcranConnexion extends ConsumerState<EcranConnexion> {
       ),
 
       // `text-center text-[13px] text-slate-500 mt-8`
-      const SizedBox(height: MesuresConnexion.piedHaut),
+      const SizedBox(height: MesuresConnexion.piedHautConnexion),
       Text(
         TextesConnexion.piedDePage,
         textAlign: TextAlign.center,
@@ -514,31 +514,43 @@ class CadreInvite extends StatelessWidget {
         : MesuresConnexion.interieurEtroit;
 
     return Scaffold(
-      // `<body style="background:var(--fond-clair)">` — #F2F2F2.
-      backgroundColor: AppColors.fondClair,
+      // Connexion : fond BLANC uni (correction du PO du 29/10/2026). Les autres
+      // écrans « invité » gardent `<body style="background:var(--fond-clair)">`.
+      backgroundColor: deuxPanneaux ? AppColors.neutre0 : AppColors.fondClair,
       body: SafeArea(
         // Le seuil `lg` se mesure sur la largeur DISPONIBLE, pas sur l'écran.
         child: LayoutBuilder(
           builder: (context, espace) {
             final deux = deuxPanneaux && espace.maxWidth >= Breakpoints.desktop;
             final carte = LayoutBuilder(
-              // `flex-1 flex items-center justify-center p-4 md:p-6 overflow-y-auto`
-              builder: (context, contraintes) => SingleChildScrollView(
-                padding: EdgeInsets.all(marge),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    minHeight: contraintes.maxHeight - 2 * marge,
-                  ),
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        maxWidth: MesuresConnexion.largeurCarte,
+              builder: (context, contraintes) {
+                // Connexion (`flex-1 min-h-screen flex items-center
+                // justify-center bg-white px-6 md:px-8`) : AUCUNE marge
+                // verticale, un retrait horizontal seul, le contenu centré dans
+                // la hauteur ; le défilement n'est qu'un secours. Autres écrans :
+                // `p-4 md:p-6 overflow-y-auto` et la carte.
+                final rembourrage = deuxPanneaux
+                    ? EdgeInsets.symmetric(horizontal: interieur)
+                    : EdgeInsets.all(marge);
+                return SingleChildScrollView(
+                  padding: rembourrage,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: contraintes.maxHeight - rembourrage.vertical,
+                    ),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxWidth: deuxPanneaux
+                              ? MesuresConnexion.largeurContenu
+                              : MesuresConnexion.largeurCarte,
+                        ),
+                        child: deuxPanneaux ? _contenu() : _carte(interieur),
                       ),
-                      child: _carte(interieur),
                     ),
                   ),
-                ),
-              ),
+                );
+              },
             );
             return PanneauxConnexion(
               deux: deux,
@@ -557,13 +569,22 @@ class CadreInvite extends StatelessWidget {
     );
   }
 
-  /// `bg-white border border-slate-200 rounded-2xl shadow-sm p-6 md:p-8`.
+  Widget _colonne() => Column(
+    mainAxisSize: MainAxisSize.min,
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: enfants,
+  );
+
+  /// Le contenu NU de la connexion : ni fond distinct, ni bordure, ni ombre, ni
+  /// rayon (correction du PO du 29/10/2026) — posé sur le blanc du panneau.
+  Widget _contenu() => formulaire == null
+      ? _colonne()
+      : Form(key: formulaire, child: _colonne());
+
+  /// `bg-white border border-slate-200 rounded-2xl shadow-sm p-6 md:p-8`
+  /// (écrans « invité » autres que la connexion).
   Widget _carte(double interieur) {
-    final colonne = Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: enfants,
-    );
+    final colonne = _colonne();
     return Container(
       padding: EdgeInsets.all(interieur),
       decoration: BoxDecoration(

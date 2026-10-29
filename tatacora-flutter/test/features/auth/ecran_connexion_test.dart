@@ -177,23 +177,91 @@ void main() {
         }
       });
 
-      testWidgets('la carte est bornée à 560 px et centrée', (tester) async {
+      testWidgets('fond BLANC uni, contenu nu : ni bordure, ni ombre, ni rayon', (
+        tester,
+      ) async {
+        for (final largeur in const [800.0, 1440.0]) {
+          await monter(tester, largeur);
+          expect(
+            tester.widget<Scaffold>(find.byType(Scaffold)).backgroundColor,
+            AppColors.neutre0,
+            reason: 'le fond de la page est blanc, pas gris',
+          );
+          // Aucun conteneur autour du formulaire ne porte bordure, ombre ni rayon.
+          final habillages = find
+              .ancestor(of: find.byType(Form), matching: find.byType(Container))
+              .evaluate()
+              .map((e) => (e.widget as Container).decoration)
+              .whereType<BoxDecoration>();
+          for (final d in habillages) {
+            expect(d.border, isNull);
+            expect(d.boxShadow, isNull);
+            expect(d.borderRadius, isNull);
+            expect(d.color, isNull);
+          }
+          expect(
+            find.ancestor(of: find.byType(Form), matching: find.byType(Card)),
+            findsNothing,
+          );
+        }
+        final v = vue();
+        expect(v, contains('bg-white px-6 md:px-8'));
+        expect(v, isNot(contains('rounded-2xl')));
+        expect(v, isNot(contains('shadow-sm')));
+      });
+
+      testWidgets('le contenu est borné à 520 px et centré', (tester) async {
         await monter(tester, 800);
-        final carte = find.byType(Form);
-        final boite = tester.getRect(carte);
-        expect(
-          boite.width,
-          MesuresConnexion.largeurCarte -
-              2 * MesuresConnexion.interieurLarge -
-              2,
-          reason:
-              'la largeur du formulaire = carte 560 − 2 × 32 − 2 de bordure',
-        );
-        expect(
-          (boite.center.dx - 800 / 2).abs(),
-          lessThan(1),
-          reason: 'la carte est centrée horizontalement',
-        );
+        final boite = tester.getRect(find.byType(Form));
+        expect(boite.width, MesuresConnexion.largeurContenu);
+        expect((boite.center.dx - 800 / 2).abs(), lessThan(1));
+        expect(vue(), contains('max-w-[520px]'));
+      });
+
+      testWidgets('AUCUN ascenseur à 1280×768 et 1024×700, centré en hauteur', (
+        tester,
+      ) async {
+        for (final taille in const [Size(1280, 768), Size(1024, 700)]) {
+          await monter(tester, taille.width, hauteur: taille.height);
+          for (final defilement in tester.stateList<ScrollableState>(
+            find.byType(Scrollable),
+          )) {
+            expect(
+              defilement.position.maxScrollExtent,
+              0,
+              reason: 'ascenseur à $taille',
+            );
+          }
+          final form = tester.getRect(find.byType(Form));
+          // Marge de sécurité de 40 px : la police Inter réelle est un peu plus
+          // haute que celle des bancs de test.
+          expect(form.height, lessThanOrEqualTo(taille.height - 40));
+          expect(form.top, greaterThanOrEqualTo(0));
+          expect(form.bottom, lessThanOrEqualTo(taille.height));
+          // Centré verticalement : même marge en haut et en bas (à 1 px près
+          // d'arrondi de ligne).
+          expect(
+            (form.top - (taille.height - form.bottom)).abs(),
+            lessThan(40),
+            reason: 'centrage vertical à $taille',
+          );
+        }
+      });
+
+      testWidgets('les deux champs ont la MÊME bordure de repos', (
+        tester,
+      ) async {
+        await monter(tester, 1280);
+        final champs = tester
+            .widgetList<TextField>(find.byType(TextField))
+            .toList();
+        expect(champs, hasLength(2));
+        final a = champs[0].decoration!.enabledBorder as OutlineInputBorder;
+        final b = champs[1].decoration!.enabledBorder as OutlineInputBorder;
+        expect(a.borderSide, b.borderSide);
+        expect(a.borderSide.width, greaterThan(0));
+        expect(a.borderRadius, b.borderRadius);
+        expect(a.borderSide.color, AppColors.neutre300);
       });
 
       testWidgets('les éléments se suivent de haut en bas comme dans la vue', (

@@ -11,6 +11,10 @@ abstract final class MesuresConnexion {
   /// `max-w-[560px]` — la carte.
   static const double largeurCarte = 560;
 
+  /// `max-w-[520px]` — le contenu de la connexion, posé sur le blanc du
+  /// panneau droit (plus de carte : correction du PO du 29/10/2026).
+  static const double largeurContenu = 520;
+
   /// `p-4` / `md:p-6` — la marge autour de la carte (16, puis 24 dès `md`).
   static const double margeEtroit = 16;
   static const double margeLarge = 24;
@@ -68,18 +72,23 @@ abstract final class MesuresConnexion {
   /// `w-4 h-4` — la case « Se souvenir de moi » (16).
   static const double caseACocher = 16;
 
-  /// `mt-5` / `mb-6` / `mt-8` / `mt-1` / `mb-1.5` / `gap-3` / `gap-2` en px.
-  static const double filetHaut = 20;
-  static const double filetBas = 24;
+  /// Resserrés le 29/10/2026 (PO : aucun ascenseur à 768 px) : `mt-3` / `mb-4` /
+  /// `py-2` / `py-2.5` ; avant `mt-5` / `mb-6` / `py-3` / `py-4`. Autrefois `mt-5` / `mb-6` / `mt-8` / `mt-1` / `mb-1.5` / `gap-3` / `gap-2` en px.
+  static const double filetHaut = 12;
+  static const double filetBas = 16;
   static const double piedHaut = 32;
+
+  /// `mt-4` — le pied de page de la CONNEXION (resserré le 29/10/2026 pour que
+  /// la page tienne à 768 px de haut sans ascenseur).
+  static const double piedHautConnexion = 16;
   static const double ecartMarque = 12;
   static const double ecartLabel = 6;
   static const double ecartPetit = 4;
   static const double ecartCase = 8;
 
   /// `py-3` (slogan) / `py-4` (bandeau) — marges verticales (12 / 16).
-  static const double margeSlogan = 12;
-  static const double margeBandeau = 16;
+  static const double margeSlogan = 8;
+  static const double margeBandeau = 10;
 
   // -------------------------------------------------------------------------
   // Les tracés : COPIE OCTET POUR OCTET de
