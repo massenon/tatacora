@@ -117,6 +117,28 @@
               {{ __('pwa.profil.mdp_ouvrir') }}
             </button>
           </section>
+
+          {{-- ============================ Code de secours =================== --}}
+          {{-- 29/10/2026 (PO, option A) : le recours du DERNIER administrateur.
+               Seul le hash du code est stocké ; le code lui-même n'est montré
+               qu'une fois, dans la modale ci-dessous. --}}
+          @if ($estAdministrateur)
+            <section id="section-code-secours" class="bg-white rounded-xl border border-slate-200 p-5">
+              <h2 class="text-sm font-bold text-slate-700 mb-4">{{ __('pwa.profil.code_secours_titre') }}</h2>
+              <p class="text-[13px] text-slate-500 mb-2">{{ __('pwa.profil.code_secours_sous_titre') }}</p>
+              <p id="etat-code-secours" class="text-[13px] text-slate-700 mb-4">
+                @if ($codeSecoursPoseLe)
+                  {{ __('pwa.profil.code_secours_present', ['date' => $codeSecoursPoseLe->format('d/m/Y H:i')]) }}
+                @else
+                  {{ __('pwa.profil.code_secours_absent') }}
+                @endif
+              </p>
+              <button type="button" wire:click="ouvrirFormulaireCodeSecours"
+                      class="btn w-full px-5 py-2.5 rounded-lg text-white text-sm font-semibold" style="background:var(--gold)">
+                {{ __('pwa.profil.code_secours_ouvrir') }}
+              </button>
+            </section>
+          @endif
         </div>
 
         {{-- ============================== Journal d'audit =================== --}}
@@ -198,6 +220,37 @@
                 class="text-[13px] px-4 py-2 rounded-lg text-white font-semibold hover:opacity-90" style="background:var(--gold)">{{ __('pwa.profil.mdp_bouton') }}</button>
       </x-slot:pied>
     </x-pwa.modale>
+  @endif
+
+  {{-- ================ MODALE « CODE DE SECOURS » ================ --}}
+  @if ($etatFormulaire === 'code_secours')
+    @if ($codeSecoursAffiche === null)
+      <x-pwa.modale :titre="__('pwa.profil.code_secours_modale_titre')" :sousTitre="__('pwa.profil.code_secours_modale_sous_titre')" largeur="480px">
+        <div class="groupe-champ">
+          <label class="block text-[15px] font-semibold text-slate-700 mb-1.5">{{ __('pwa.profil.code_secours_mot_de_passe') }}</label>
+          <input type="password" wire:model="motDePasseCodeSecours" autocomplete="current-password"
+                 class="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm">
+          @error('motDePasseCodeSecours')<p class="text-[12px] mt-1" style="color:var(--erreur)">{{ $message }}</p>@enderror
+        </div>
+
+        <x-slot:pied>
+          <button type="button" wire:click="fermerModales"
+                  class="text-[13px] px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50">{{ __('pwa.modale.annuler') }}</button>
+          <button id="generer-code-secours" type="button" wire:click="genererCodeSecours"
+                  class="text-[13px] px-4 py-2 rounded-lg text-white font-semibold hover:opacity-90" style="background:var(--gold)">{{ __('pwa.profil.code_secours_generer') }}</button>
+        </x-slot:pied>
+      </x-pwa.modale>
+    @else
+      <x-pwa.modale :titre="__('pwa.profil.code_secours_affiche_titre')" largeur="520px">
+        <x-pwa.secret-unique :secret="$codeSecoursAffiche" id="code-secours-profil" :imprimable="true"
+                             :titre="__('pwa.profil.code_secours_impression_titre')"
+                             :consigne="__('pwa.profil.code_secours_consigne')" />
+        <x-slot:pied>
+          <button id="fermer-code-secours" type="button" wire:click="fermerModales"
+                  class="text-[13px] px-4 py-2 rounded-lg text-white font-semibold hover:opacity-90" style="background:var(--gold)">{{ __('pwa.profil.code_secours_fermer') }}</button>
+        </x-slot:pied>
+      </x-pwa.modale>
+    @endif
   @endif
 
 </div>

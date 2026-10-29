@@ -56,6 +56,7 @@ final class MenuLateral
             'pwa.notifications',
             'pwa.import-export',
             'pwa.roles-permissions',
+            'pwa.comptes-utilisateurs',
             'pwa.parametres',
             'pwa.synchronisation-postes',
             'pwa.clients',
@@ -132,6 +133,10 @@ final class MenuLateral
             // retirer l'entrée du menu ne retire donc aucun contrôle.
             ['nom' => 'Import & Export', 'icone' => 'import', 'module' => 'PARAM', 'route' => 'pwa.import-export'],
             ['nom' => 'Rôles & Permissions', 'icone' => 'roles', 'module' => 'ROLES', 'route' => 'pwa.roles-permissions'],
+            // 29/10/2026 (PO, option A du « mot de passe perdu ») : la liste des comptes et
+            // « Réinitialiser le mot de passe ». Même entrée, même icône (les
+            // personnes) que sur le poste Windows.
+            ['nom' => 'Comptes utilisateurs', 'icone' => 'crm', 'module' => 'ROLES', 'route' => 'pwa.comptes-utilisateurs'],
             ['nom' => 'Paramètres', 'icone' => 'parametres', 'module' => 'PARAM', 'route' => 'pwa.parametres'],
             // 21/10/2026 (demande du PO) : « Postes & Appairage » a son entrée de menu,
             // en plus de celle du menu de compte (qui reste, ouverte à tout

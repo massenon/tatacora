@@ -123,6 +123,8 @@ return [
         // Aucune route de réinitialisation n'existe : le lien dit la vérité
         // plutôt que de mener nulle part (même phrase sur le poste).
         'mot_de_passe_oublie_aide' => 'Contactez l\'administrateur',
+        // 29/10/2026 (PO, option A) : le recours du dernier administrateur.
+        'mot_de_passe_administrateur_perdu' => 'J\'ai perdu mon mot de passe administrateur',
         'valider' => 'SE CONNECTER',
         'connexion_en_cours' => 'Connexion…',
 
@@ -1168,6 +1170,7 @@ return [
             'commandes_achat' => 'Commande d\'achat',
             'fournisseurs' => 'Fournisseur',
             'parametres_systeme' => 'Paramètre système',
+            'utilisateurs' => 'Compte utilisateur',
         ],
 
         // maquette — l.57
@@ -1235,6 +1238,24 @@ return [
         'mdp_identique' => 'Le nouveau mot de passe est identique à l\'ancien.',
         'mdp_ancien_invalide' => 'L\'ancien mot de passe est incorrect.',
         'mdp_mise_a_jour' => 'Mot de passe mis à jour.',
+
+        // 29/10/2026 (PO, option A) : le code de secours de l\'administrateur.
+        'code_secours_titre' => 'Code de secours',
+        'code_secours_sous_titre' => 'À usage unique : il permet au dernier administrateur de retrouver l\'accès si '
+            . 'son mot de passe est perdu.',
+        'code_secours_present' => 'Un code de secours est enregistré (posé le :date).',
+        'code_secours_absent' => 'Aucun code de secours n\'est enregistré.',
+        'code_secours_ouvrir' => 'Générer un code de secours',
+        'code_secours_modale_titre' => 'Générer un code de secours',
+        'code_secours_modale_sous_titre' => 'Confirmez votre mot de passe. Le code précédent, s\'il existe, ne '
+            . 'fonctionnera plus.',
+        'code_secours_mot_de_passe' => 'Mot de passe actuel',
+        'code_secours_generer' => 'Générer le code',
+        'code_secours_affiche_titre' => 'Votre code de secours',
+        'code_secours_consigne' => 'Ce code ne sera plus affiché. Notez-le ou imprimez-le et rangez-le au coffre.',
+        'code_secours_fermer' => 'J\'ai rangé ce code',
+        'code_secours_impression_titre' => 'Code de secours de l\'administrateur',
+        'code_secours_reserve' => 'Le code de secours est réservé aux administrateurs.',
 
         // maquette — l.144-166, le journal personnel
         'journal_titre' => 'Journal d\'audit — :nombre dernières actions',
@@ -2694,6 +2715,92 @@ return [
      * pose cinq gabarits pour tout le prototype. Les libelles de chrome
      * (fermer, annuler) vivent donc ici, une fois, et pas dans dix-neuf vues.
      */
+    // ------------------------------------------------------------------------
+    // Mot de passe perdu SANS e-mail (décision du PO du 29/10/2026, option A).
+    // Les libellés ci-dessous sont repris à l\'identique par le poste Windows
+    // (`ecran_comptes_utilisateurs.dart`, `ecran_changement_mot_de_passe.dart`,
+    // `ecran_code_secours.dart`) : une copie qui dérive fait rougir son test.
+    // ------------------------------------------------------------------------
+    'comptes' => [
+        'titre_page' => 'Comptes utilisateurs — LogiReStock — TATACORA AFRIQUE',
+        'titre' => 'Comptes utilisateurs',
+        'sous_titre' => 'Réinitialisez le mot de passe d\'un compte : un mot de passe temporaire, valable '
+            . '24 heures, vous est affiché une seule fois.',
+        'col_identifiant' => 'Identifiant',
+        'col_nom' => 'Nom',
+        'col_role' => 'Rôle',
+        'col_statut' => 'Statut',
+        'col_mot_de_passe' => 'Mot de passe',
+        'col_actions' => 'Actions',
+        'changement_requis' => 'Changement requis',
+        'temporaire_expire' => 'Temporaire expiré',
+        'vide' => 'Aucun compte.',
+        'reinitialiser' => 'Réinitialiser le mot de passe',
+        'reinitialiser_titre' => 'Réinitialiser le mot de passe de « :login »',
+        'reinitialiser_texte' => 'Un mot de passe temporaire va être généré. Il sera valable :heures heures et '
+            . 'n\'ouvrira que l\'écran de choix d\'un nouveau mot de passe. Les sessions ouvertes de ce compte seront '
+            . 'fermées.',
+        'reinitialiser_confirmer' => 'Générer le mot de passe temporaire',
+        'resultat_titre' => 'Mot de passe temporaire de « :login »',
+        'resultat_consigne' => 'Communiquez-le à son titulaire. Il ne sera plus affiché. Valable jusqu\'au :date.',
+        'fermer' => 'Fermer',
+        'refus_droit' => 'Ce geste est réservé à l\'Administrateur.',
+        'refus_soi_meme' => 'Vous ne pouvez pas réinitialiser votre propre mot de passe par ce chemin. Utilisez '
+            . '« Mon profil » avec votre ancien mot de passe.',
+        'refus_introuvable' => 'Ce compte est introuvable.',
+        'refus_super_admin' => 'Seul un super administrateur peut réinitialiser le mot de passe d\'un super '
+            . 'administrateur.',
+    ],
+
+    'changement_mdp' => [
+        'titre_page' => 'Définissez votre nouveau mot de passe — LogiReStock — TATACORA AFRIQUE',
+        'titre_h1' => 'Définissez votre nouveau mot de passe',
+        'accroche' => 'Votre mot de passe a été réinitialisé par un administrateur. Choisissez maintenant un mot de '
+            . 'passe que vous seul connaissez.',
+        'nouveau' => 'NOUVEAU MOT DE PASSE',
+        'confirmation' => 'CONFIRMER LE NOUVEAU MOT DE PASSE',
+        'regle' => 'Min. 8 caractères, différent du mot de passe temporaire et de l\'ancien.',
+        'bouton' => 'ENREGISTRER',
+        'en_cours' => 'Enregistrement…',
+        'se_deconnecter' => 'Se déconnecter',
+        'nouveau_requis' => 'Veuillez saisir votre nouveau mot de passe.',
+        'confirmation_requise' => 'Veuillez confirmer votre nouveau mot de passe.',
+        'trop_court' => 'Le mot de passe doit compter au moins 8 caractères.',
+        'identique_temporaire' => 'Le nouveau mot de passe doit être différent du mot de passe temporaire.',
+        'identique_ancien' => 'Le nouveau mot de passe doit être différent de l\'ancien.',
+        'expire' => 'Ce mot de passe temporaire a expiré. Demandez-en un nouveau à l\'administrateur.',
+        'succes' => 'Mot de passe défini. Connectez-vous avec votre nouveau mot de passe.',
+    ],
+
+    'code_secours' => [
+        'titre_page' => 'J\'ai perdu mon mot de passe administrateur — LogiReStock — TATACORA AFRIQUE',
+        'titre' => 'J\'ai perdu mon mot de passe administrateur',
+        'accroche' => 'Saisissez votre nom d\'utilisateur, le code de secours rangé au coffre et un nouveau mot de '
+            . 'passe.',
+        'login' => 'NOM D\'UTILISATEUR',
+        'code' => 'CODE DE SECOURS',
+        'regle' => 'Min. 8 caractères. Le code de secours ne sert qu\'une fois : un nouveau vous sera remis.',
+        'bouton' => 'RÉINITIALISER LE MOT DE PASSE',
+        'en_cours' => 'Vérification…',
+        'login_requis' => 'Veuillez saisir votre nom d\'utilisateur.',
+        'code_requis' => 'Veuillez saisir votre code de secours.',
+        // UN SEUL message de refus : le compte existe ou non, est administrateur ou non.
+        'refus' => 'Nom d\'utilisateur ou code de secours incorrect.',
+        'bloque' => 'Trop de tentatives. Réessayez dans :minutes minute(s).',
+        'mdp_reinitialise' => 'Mot de passe réinitialisé.',
+        'nouveau_code_titre' => 'Votre nouveau code de secours',
+        'consigne_coffre' => 'Ce code ne sera plus affiché. Notez-le ou imprimez-le et rangez-le au coffre : '
+            . 'l\'ancien code ne fonctionne plus.',
+        'impression_titre' => 'Code de secours de l\'administrateur',
+        'retour_connexion' => 'Retour à la connexion',
+    ],
+
+    'secret_unique' => [
+        'copier' => 'Copier',
+        'copie' => 'Copié',
+        'imprimer' => 'Imprimer',
+    ],
+
     'modale' => [
         // maquette — `crud-ui.js` l.92, attribut `aria-label`
         'fermer' => 'Fermer',

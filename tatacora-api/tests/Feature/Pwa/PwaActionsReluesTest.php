@@ -9,6 +9,8 @@ use App\Pwa\Livewire\Accueil;
 use App\Pwa\Livewire\Achats\Achats;
 use App\Pwa\Livewire\Achats\Approvisionnement;
 use App\Pwa\Livewire\Bar\CarteBar;
+use App\Pwa\Livewire\ChangementMotDePasseObligatoire;
+use App\Pwa\Livewire\CodeSecours;
 use App\Pwa\Livewire\Comptabilite\Analytique;
 use App\Pwa\Livewire\Comptabilite\Balance;
 use App\Pwa\Livewire\Comptabilite\Bilan;
@@ -44,6 +46,7 @@ use App\Pwa\Livewire\Stocks\Inventaires;
 use App\Pwa\Livewire\Stocks\Stocks;
 use App\Pwa\Livewire\Tourisme\Departs;
 use App\Pwa\Livewire\Transverse\AideAPropos;
+use App\Pwa\Livewire\Transverse\ComptesUtilisateurs;
 use App\Pwa\Livewire\Transverse\ContactEditeur;
 use App\Pwa\Livewire\Transverse\EnvoiSynchronisation;
 use App\Pwa\Livewire\Transverse\ImportExport;
@@ -144,6 +147,16 @@ final class PwaActionsReluesTest extends TestCase
      */
     private const ACTIONS_RELUES = [
         Connexion::class => ['seConnecter', 'render'],
+
+        // Mot de passe perdu SANS e-mail (29/10/2026, option A du PO). Les deux
+        // écrans « invité » : aucune session (ou une session « changement
+        // obligatoire » qui ne touche qu\'à son propre compte) — donc aucun
+        // module RBAC, même famille que `seConnecter`.
+        ChangementMotDePasseObligatoire::class => ['render', 'definirNouveauMotDePasse'],
+        CodeSecours::class => ['render', 'reinitialiserParCodeDeSecours'],
+        // La liste des comptes et « Réinitialiser le mot de passe » : l\'écriture
+        // exige `C` sur ROLES (`exigerEcriture`) ET un rôle d\'administration.
+        ComptesUtilisateurs::class => ['render', 'ouvrirReinitialisation', 'fermerModales', 'reinitialiserMotDePasse'],
 
         // ⚠ M11 — LE TABLEAU DE BORD PORTE CINQ GESTES RAPIDES (31/08/2026).
         //
@@ -308,7 +321,7 @@ final class PwaActionsReluesTest extends TestCase
         // par `exigerEcriture()`, meme famille que `seConnecter`/
         // `deverrouiller`. `ouvrirFormulaireMotDePasse` et `fermerModales`
         // n'ecrivent rien : etat d'interface seul.
-        MonProfil::class => ['render', 'mount', 'ouvrirFormulaireMotDePasse', 'fermerModales', 'changerMotDePasse', 'enregistrerInformations'],
+        MonProfil::class => ['render', 'mount', 'ouvrirFormulaireMotDePasse', 'fermerModales', 'changerMotDePasse', 'enregistrerInformations', 'ouvrirFormulaireCodeSecours', 'genererCodeSecours'],
 
         // Le voile de verrouillage — monté une seule fois par
         // `layouts.pwa`, sur CHAQUE écran authentifié. `deverrouiller()`
@@ -1176,7 +1189,16 @@ final class PwaActionsReluesTest extends TestCase
         // n'ouvre aucune route : il revele « Contactez l'administrateur »).
         // Toujours aucun bouton par role, aucun lien.
         $this->assertSame(3, substr_count($html, '<button'), 'La page de connexion ne doit porter que la soumission, l\'oeil du mot de passe et « Mot de passe oublie ? ».');
-        $this->assertSame(0, substr_count($html, '<a '), 'La page de connexion ne doit porter aucun lien.');
+        // UN lien depuis le 29/10/2026 (PO, option A du « mot de passe perdu ») :
+        // « J'ai perdu mon mot de passe administrateur », dans le message
+        // « Contactez l'administrateur ». Il mene a UNE page fixe (le recours par
+        // code de secours) — jamais un lien par compte, ce que ce controle interdit.
+        $this->assertSame(1, substr_count($html, '<a '), 'La page de connexion ne porte qu\'un lien : le recours du dernier administrateur.');
+        $this->assertMatchesRegularExpression(
+            '#<a [^>]*href="'.preg_quote(route('pwa.code-secours'), '#').'"[^>]*>\s*'.preg_quote(e(__('pwa.connexion.mot_de_passe_administrateur_perdu')), '#').'\s*</a>#',
+            $html,
+            'Le seul lien de la page de connexion mene a l\'ecran du code de secours.',
+        );
 
         preg_match_all('#<button[^>]*type="(submit|button)"[^>]*>(.*?)</button>#s', $html, $boutons, PREG_SET_ORDER);
         $this->assertCount(3, $boutons, 'Les trois boutons doivent porter un type explicite.');
@@ -1204,7 +1226,13 @@ final class PwaActionsReluesTest extends TestCase
 
         // Aucune cle de role ne sert d'etiquette a un element interactif.
         preg_match_all('#<(?:button|a)\b[^>]*>(.*?)</(?:button|a)>#is', $html, $interactifs);
-        $texteInteractif = strip_tags(implode(' ', $interactifs[1]));
+        $texteInteractif = html_entity_decode(strip_tags(implode(' ', $interactifs[1])), ENT_QUOTES);
+
+        // Le libelle voulu par le PO (29/10/2026) contient le mot « administrateur »,
+        // qui est aussi une cle de role. Ce n'est pas une tuile de compte : c'est
+        // le lien fixe vers l'ecran du code de secours, verifie plus haut (href et
+        // texte exacts). On le retire du balayage, et de lui SEUL.
+        $texteInteractif = str_replace(__('pwa.connexion.mot_de_passe_administrateur_perdu'), '', $texteInteractif);
 
         // Le balayage ci-dessous ne vaut que s'il porte sur quelque chose.
         // La regex a d'abord ete ecrite avec `\b` corrompu en caractere de

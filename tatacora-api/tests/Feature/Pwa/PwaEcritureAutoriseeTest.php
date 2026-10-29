@@ -265,6 +265,16 @@ final class PwaEcritureAutoriseeTest extends TestCase
         // schéma que `seConnecter`, déjà inscrite ci-dessus dans les deux
         // registres à la fois.
         'changerMotDePasse',
+        // Mot de passe perdu SANS e-mail (29/10/2026, option A du PO) :
+        //  - `ouvrirFormulaireCodeSecours` et `ouvrirReinitialisation` ouvrent une
+        //    fenêtre, n\'écrivent rien (réservées aux administrateurs, 403 sinon) ;
+        //  - les trois écritures hors module sont inscrites ici ET dans
+        //    `ECRITURES_HORS_MODULE` (même schéma que `changerMotDePasse`).
+        'ouvrirFormulaireCodeSecours',
+        'ouvrirReinitialisation',
+        'genererCodeSecours',
+        'definirNouveauMotDePasse',
+        'reinitialiserParCodeDeSecours',
         // `MonProfil::enregistrerInformations` (28/10/2026) : l'e-mail du compte COURANT, même famille.
         'enregistrerInformations',
         'envoyerMessage',
@@ -369,6 +379,20 @@ final class PwaEcritureAutoriseeTest extends TestCase
         'Connexion::seConnecter',
         'MonProfil::changerMotDePasse',
         'MonProfil::enregistrerInformations',
+        // 29/10/2026 (PO, option A du « mot de passe perdu ») — trois écritures
+        // qui ne relèvent d\'AUCUN module :
+        //  - `genererCodeSecours` : le code de l\'administrateur COURANT, après
+        //    confirmation de son mot de passe (même famille que `changerMotDePasse`) ;
+        //  - `definirNouveauMotDePasse` : le titulaire dont le mot de passe vient
+        //    d\'être réinitialisé choisit le sien — il n\'a, par construction, accès
+        //    à aucun module tant qu\'il ne l\'a pas fait ;
+        //  - `reinitialiserParCodeDeSecours` : AUCUNE session n\'existe encore
+        //    (login + code de secours à usage unique, essais limités).
+        // La réinitialisation PAR UN ADMINISTRATEUR, elle, exige `C` sur ROLES
+        // (`ComptesUtilisateurs::reinitialiserMotDePasse` appelle `exigerEcriture`).
+        'MonProfil::genererCodeSecours',
+        'ChangementMotDePasseObligatoire::definirNouveauMotDePasse',
+        'CodeSecours::reinitialiserParCodeDeSecours',
         'ContactEditeur::envoyerMessage',
         'ContactEditeur::signalerBug',
 

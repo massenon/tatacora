@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Pwa\Livewire;
 
+use App\Pwa\Support\EmpreinteMotDePasseEnSession;
 use App\Shared\Auth\Http\Controllers\AuthController;
 use App\Shared\Rbac\Models\JournalSecurite;
 use Illuminate\Support\Facades\Auth;
@@ -70,8 +71,31 @@ class Connexion extends Component
             return null;
         }
 
+        // Mot de passe TEMPORAIRE posé par un administrateur (29/10/2026) : expiré
+        // (24 h), il n'ouvre rien ; valide, il n'ouvre QUE « Définissez votre
+        // nouveau mot de passe » (`ExigerChangementMotDePasse` ferme le reste).
+        if ($utilisateur->motDePasseTemporaireExpire()) {
+            Auth::logout();
+            $this->reset('motDePasse');
+            $this->addError('identifiants', __('pwa.changement_mdp.expire'));
+
+            return null;
+        }
+
         RateLimiter::clear($cle);
         session()->regenerate();
+
+        // L'empreinte du mot de passe est rangée dans la session : si un
+        // administrateur réinitialise ce compte, `FermerLesSessionsPerimees` la
+        // voit changer et ferme cette session. Sans cela, elle ne serait rangée
+        // qu'à la requête suivante — APRÈS une réinitialisation éventuelle.
+        EmpreinteMotDePasseEnSession::poser($utilisateur);
+
+        if ($utilisateur->must_change_password) {
+            $utilisateur->forceFill(['derniere_connexion' => now()])->save();
+
+            return $this->redirectRoute('pwa.changement-mot-de-passe', navigate: true);
+        }
 
         // Les modales d'ouverture (alertes-ouverture.js du maitre) se
         // montrent UNE fois par connexion : le drapeau est pose ici,

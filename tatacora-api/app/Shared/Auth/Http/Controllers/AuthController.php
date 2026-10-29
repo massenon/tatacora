@@ -121,6 +121,17 @@ final class AuthController extends Controller
             ])->status(403);
         }
 
+        // Mot de passe TEMPORAIRE posé par un administrateur (29/10/2026) : aucun
+        // jeton d'API tant que le titulaire n'a pas défini le sien (écran web).
+        // Refus prononcé APRÈS validation du mot de passe, comme le précédent.
+        if ($utilisateur->must_change_password) {
+            RateLimiter::hit($cle, self::BLOCAGE_SECONDES);
+
+            throw ValidationException::withMessages([
+                'identifiant' => __('auth.changement_requis'),
+            ])->status(403);
+        }
+
         RateLimiter::clear($cle);
 
         // Le jeton antérieur de ce poste est révoqué : un appareil perdu ne

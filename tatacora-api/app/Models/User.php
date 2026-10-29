@@ -30,6 +30,11 @@ use Laravel\Sanctum\HasApiTokens;
  * @property string $role_id
  * @property string $statut
  * @property \Illuminate\Support\Carbon|null $derniere_connexion
+ * @property bool $must_change_password
+ * @property \Illuminate\Support\Carbon|null $temp_expires_at
+ * @property string|null $previous_password_hash
+ * @property string|null $recovery_code_hash
+ * @property \Illuminate\Support\Carbon|null $recovery_code_generated_at
  * @property-read Role|null $role
  */
 class User extends Authenticatable
@@ -56,6 +61,8 @@ class User extends Authenticatable
     protected $hidden = [
         'mot_de_passe_hash',
         'remember_token',
+        'previous_password_hash',
+        'recovery_code_hash',
     ];
 
     protected function casts(): array
@@ -63,6 +70,9 @@ class User extends Authenticatable
         return [
             'mot_de_passe_hash' => 'hashed',
             'derniere_connexion' => 'datetime',
+            'must_change_password' => 'boolean',
+            'temp_expires_at' => 'datetime',
+            'recovery_code_generated_at' => 'datetime',
         ];
     }
 
@@ -129,6 +139,19 @@ class User extends Authenticatable
     public function estActif(): bool
     {
         return $this->statut === 'actif';
+    }
+
+    /**
+     * Le mot de passe TEMPORAIRE posé par un administrateur est-il expiré ?
+     *
+     * Vrai seulement si un changement est exigé ET que l'échéance est passée :
+     * un compte ordinaire (aucun temporaire) n'expire jamais.
+     */
+    public function motDePasseTemporaireExpire(): bool
+    {
+        return $this->must_change_password
+            && $this->temp_expires_at !== null
+            && $this->temp_expires_at->isPast();
     }
 
     /**

@@ -30,7 +30,10 @@
 
     « Mot de passe oublié ? » : aucune route de réinitialisation n'existe. Le
     lien n'ouvre donc rien ; il révèle, sur place, la phrase « Contactez
-    l'administrateur » (la même qu'au poste, qui est hors ligne).
+    l'administrateur » (la même qu'au poste, qui est hors ligne). Depuis le
+    29/10/2026 (option A du PO) il propose aussi, en dessous, « J'ai perdu mon mot
+    de passe administrateur » : le recours par code de secours du dernier
+    administrateur.
 --}}
 <div class="contents">
 
@@ -75,6 +78,12 @@
       {{-- 5. Accueil. --}}
       <h2 class="text-[28px] font-extrabold leading-tight" style="color:var(--navy)">{{ __('pwa.connexion.bienvenue') }}</h2>
       <p class="text-[15px] text-slate-500 mt-1 mb-6">{{ __('pwa.connexion.accroche') }}</p>
+
+      {{-- Un changement de mot de passe vient d'aboutir (ou un temporaire a expiré) :
+           l'information est dite UNE fois, au retour sur la connexion. --}}
+      @if (session('pwa-connexion-info'))
+        <p id="information-connexion" role="status" class="mb-4 text-[15px] text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">{{ session('pwa-connexion-info') }}</p>
+      @endif
 
       {{-- ⚠ `method="post"` + `onsubmit="return false"` : sans eux, un navigateur dont
            Livewire n'a pas démarré (script bloqué, 404 sur son adresse, cache périmé)
@@ -146,7 +155,13 @@
           <button type="button" @click="aide = !aide" :aria-expanded="aide ? 'true' : 'false'" aria-expanded="false" aria-controls="aide-mot-de-passe-oublie"
                   class="text-[15px] font-semibold underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--navy)] rounded" style="color:var(--navy)">{{ __('pwa.connexion.mot_de_passe_oublie') }}</button>
         </div>
-        <p id="aide-mot-de-passe-oublie" x-show="aide" x-cloak role="status" class="text-[15px] text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">{{ __('pwa.connexion.mot_de_passe_oublie_aide') }}</p>
+        <div id="aide-mot-de-passe-oublie" x-show="aide" x-cloak role="status" class="text-[15px] text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+          <p>{{ __('pwa.connexion.mot_de_passe_oublie_aide') }}</p>
+          {{-- 29/10/2026 (PO, option A) : le recours du DERNIER administrateur.
+               Un compte ordinaire s'adresse à un administrateur, qui lui génère
+               un mot de passe temporaire (Comptes utilisateurs). --}}
+          <p class="mt-1"><a id="lien-mot-de-passe-administrateur-perdu" href="{{ route('pwa.code-secours') }}" wire:navigate class="font-semibold underline underline-offset-2" style="color:var(--navy)">{{ __('pwa.connexion.mot_de_passe_administrateur_perdu') }}</a></p>
+        </div>
 
         {{--
             Bandeau d'échec d'authentification — l'élément n'existe que lorsqu'il

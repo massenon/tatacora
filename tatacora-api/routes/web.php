@@ -7,6 +7,8 @@ use App\Pwa\Livewire\Accueil;
 use App\Pwa\Livewire\Achats\Achats;
 use App\Pwa\Livewire\Achats\Approvisionnement;
 use App\Pwa\Livewire\Bar\CarteBar;
+use App\Pwa\Livewire\ChangementMotDePasseObligatoire;
+use App\Pwa\Livewire\CodeSecours;
 use App\Pwa\Livewire\Comptabilite\Analytique;
 use App\Pwa\Livewire\Comptabilite\Balance;
 use App\Pwa\Livewire\Comptabilite\Bilan;
@@ -38,6 +40,7 @@ use App\Pwa\Livewire\Stocks\Inventaires;
 use App\Pwa\Livewire\Stocks\Stocks;
 use App\Pwa\Livewire\Tourisme\Departs;
 use App\Pwa\Livewire\Transverse\AideAPropos;
+use App\Pwa\Livewire\Transverse\ComptesUtilisateurs;
 use App\Pwa\Livewire\Transverse\ContactEditeur;
 use App\Pwa\Livewire\Transverse\ImportExport;
 use App\Pwa\Livewire\Transverse\JournalAudit;
@@ -46,6 +49,8 @@ use App\Pwa\Livewire\Transverse\Parametres;
 use App\Pwa\Livewire\Transverse\RolesPermissions;
 use App\Pwa\Livewire\Transverse\SynchronisationPostes;
 use App\Pwa\Livewire\Vehicules\Locations;
+use App\Pwa\Middleware\ExigerChangementMotDePasse;
+use App\Pwa\Middleware\FermerLesSessionsPerimees;
 use App\Pwa\Middleware\ForcerLectureSeule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -84,9 +89,18 @@ Route::prefix('pwa')
 
         Route::middleware('guest')->group(function () {
             Route::get('/connexion', Connexion::class)->name('pwa.connexion');
+            // « J'ai perdu mon mot de passe administrateur » (29/10/2026) :
+            // login + code de secours + nouveau mot de passe, sans session.
+            Route::get('/mot-de-passe-administrateur-perdu', CodeSecours::class)->name('pwa.code-secours');
         });
 
-        Route::middleware('auth')->group(function () {
+        // Le compte dont le mot de passe vient d'être réinitialisé : authentifié,
+        // mais hors du groupe des modules — c'est la SEULE page qu'il atteint.
+        Route::middleware(['auth', FermerLesSessionsPerimees::class, ExigerChangementMotDePasse::class])
+            ->get('/changement-mot-de-passe', ChangementMotDePasseObligatoire::class)
+            ->name('pwa.changement-mot-de-passe');
+
+        Route::middleware(['auth', FermerLesSessionsPerimees::class, ExigerChangementMotDePasse::class])->group(function () {
             // ACCUEIL & TABLEAU DE BORD (M11)
             Route::get('/', Accueil::class)->name('pwa.accueil');
 
@@ -94,6 +108,9 @@ Route::prefix('pwa')
             Route::get('/aide-a-propos', AideAPropos::class)->name('pwa.aide-a-propos');
             Route::get('/contact-editeur', ContactEditeur::class)->name('pwa.contact-editeur');
             Route::get('/mon-profil', MonProfil::class)->name('pwa.mon-profil');
+            // Réinitialisation du mot de passe d'un compte par un administrateur (29/10/2026).
+            Route::middleware('module:ROLES,L')
+                ->get('/comptes-utilisateurs', ComptesUtilisateurs::class)->name('pwa.comptes-utilisateurs');
             // Décision PO du 18/10/2026 : le bouton « Synchroniser » du serveur.
             Route::get('/synchronisation-postes', SynchronisationPostes::class)->name('pwa.synchronisation-postes');
 

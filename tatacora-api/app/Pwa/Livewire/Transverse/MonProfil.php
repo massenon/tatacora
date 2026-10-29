@@ -5,13 +5,17 @@ declare(strict_types=1);
 namespace App\Pwa\Livewire\Transverse;
 
 use App\Models\User;
+use App\Pwa\Support\EmpreinteMotDePasseEnSession;
 use App\Shared\Audit\Models\JournalAudit as EntreeJournalAudit;
+use App\Shared\Auth\Services\MotDePassePerduService;
 use App\Shared\Mail\Support\AdresseEmailFacultative;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\View\View;
 use Livewire\Attributes\Title;
+use RuntimeException;
 
 /**
  * Mon profil — maitre : `prototype_v2/pages/mon-profil.html`.
@@ -191,6 +195,15 @@ class MonProfil extends PageTransverse
 
     public string $confirmationMotDePasse = '';
 
+    /**
+     * « Code de secours » (29/10/2026, option A du PO) : le mot de passe de
+     * confirmation saisi, puis le code lui-même — affiché UNE seule fois, vidé
+     * par `fermerModales()`. Réservé aux deux rôles d\'administration.
+     */
+    public string $motDePasseCodeSecours = '';
+
+    public ?string $codeSecoursAffiche = null;
+
     public function mount(): void
     {
         $this->emailSaisi = (string) Auth::user()?->email;
@@ -253,8 +266,80 @@ class MonProfil extends PageTransverse
     public function fermerModales(): void
     {
         $this->etatFormulaire = null;
-        $this->reset(['ancienMotDePasse', 'nouveauMotDePasse', 'confirmationMotDePasse']);
+        $this->reset([
+            'ancienMotDePasse', 'nouveauMotDePasse', 'confirmationMotDePasse',
+            'motDePasseCodeSecours', 'codeSecoursAffiche',
+        ]);
         $this->resetValidation();
+    }
+
+    /**
+     * Ouvre « Générer un code de secours » (administrateurs seulement). N\'écrit
+     * rien : remet la saisie à zéro, comme `ouvrirFormulaireMotDePasse()`.
+     */
+    public function ouvrirFormulaireCodeSecours(): void
+    {
+        abort_unless(Auth::user()?->estAdministrateur() ?? false, 403, __('pwa.comptes.refus_droit'));
+
+        $this->reset(['motDePasseCodeSecours', 'codeSecoursAffiche']);
+        $this->resetValidation();
+        $this->etatFormulaire = 'code_secours';
+    }
+
+    /**
+     * Pose un NOUVEAU code de secours à l\'administrateur COURANT, après
+     * confirmation de son mot de passe, et le rend UNE fois. L\'ancien code, s\'il
+     * existe, est remplacé. Comme `changerMotDePasse()` : aucun module RBAC, le
+     * geste ne porte que sur le compte qui le fait. Cinq essais de mot de passe
+     * par quart d\'heure — le formulaire ne sert pas à deviner un mot de passe.
+     */
+    public function genererCodeSecours(MotDePassePerduService $service): void
+    {
+        /** @var User|null $utilisateur */
+        $utilisateur = Auth::user();
+
+        if ($utilisateur === null) {
+            abort(401, __('auth.requise'));
+        }
+
+        abort_unless($utilisateur->estAdministrateur(), 403, __('pwa.comptes.refus_droit'));
+
+        $this->validate(['motDePasseCodeSecours' => ['required', 'string']], [
+            'motDePasseCodeSecours.required' => __('pwa.profil.mdp_ancien_invalide'),
+        ]);
+
+        $cle = 'code-secours-generer|'.$utilisateur->id;
+
+        if (RateLimiter::tooManyAttempts($cle, MotDePassePerduService::ESSAIS_MAX)) {
+            $this->reset('motDePasseCodeSecours');
+            $this->addError('motDePasseCodeSecours', __('pwa.code_secours.bloque', [
+                'minutes' => (string) max(1, (int) ceil(RateLimiter::availableIn($cle) / 60)),
+            ]));
+
+            return;
+        }
+
+        $valide = Auth::validate([
+            'login' => $utilisateur->login,
+            'password' => $this->motDePasseCodeSecours,
+        ]);
+
+        $this->reset('motDePasseCodeSecours');
+
+        if (! $valide) {
+            RateLimiter::hit($cle, MotDePassePerduService::BLOCAGE_SECONDES);
+            $this->addError('motDePasseCodeSecours', __('pwa.profil.mdp_ancien_invalide'));
+
+            return;
+        }
+
+        RateLimiter::clear($cle);
+
+        try {
+            $this->codeSecoursAffiche = $service->poserCodeDeSecours($utilisateur, request()->ip());
+        } catch (RuntimeException $refus) {
+            $this->addError('motDePasseCodeSecours', $refus->getMessage());
+        }
     }
 
     /**
@@ -312,6 +397,10 @@ class MonProfil extends PageTransverse
 
         $utilisateur->forceFill(['mot_de_passe_hash' => Hash::make($donnees['nouveauMotDePasse'])])->save();
 
+        // Le titulaire reste connecte : sa session retient la nouvelle empreinte
+        // (sans quoi `FermerLesSessionsPerimees` la fermerait a la requete suivante).
+        EmpreinteMotDePasseEnSession::poser($utilisateur);
+
         // Ni `Auth::logout()`, ni regeneration de session : l'utilisateur
         // reste connecte apres avoir change son propre mot de passe.
         $this->etatFormulaire = null;
@@ -348,6 +437,9 @@ class MonProfil extends PageTransverse
             'fonction' => $employe?->poste,
             // L'adresse vue par le SERVEUR — la remarque du maitre appliquee.
             'adressePoste' => request()->ip(),
+            // Le code de secours (29/10/2026) : réservé aux administrateurs.
+            'estAdministrateur' => $utilisateur?->estAdministrateur() ?? false,
+            'codeSecoursPoseLe' => $utilisateur?->recovery_code_generated_at,
         ]))->layout('layouts.pwa', ['title' => __('pwa.profil.titre_page')]);
     }
 }

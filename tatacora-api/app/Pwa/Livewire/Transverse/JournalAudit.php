@@ -131,6 +131,13 @@ class JournalAudit extends PageTransverse
         'modification' => ['libelle' => 'Modification', 'fond' => '#FDF3E0', 'texte' => '#B8891E'],
         'suppression' => ['libelle' => 'Suppression', 'fond' => '#FDECEC', 'texte' => '#C62828'],
         'rupture_stock_forcee' => ['libelle' => 'Rupture de stock forcée', 'fond' => '#FDECEC', 'texte' => '#C62828'],
+        // Mot de passe perdu SANS e-mail (29/10/2026, option A du PO) : écrits par
+        // `MotDePassePerduService` — jamais le secret ni son empreinte.
+        'reinitialisation_mot_de_passe' => ['libelle' => 'Réinitialisation du mot de passe', 'fond' => '#FDF3E0', 'texte' => '#B8891E'],
+        'code_secours_genere' => ['libelle' => 'Code de secours généré', 'fond' => '#E8EEFD', 'texte' => '#1D4ED8'],
+        'code_secours_utilise' => ['libelle' => 'Réinitialisation par code de secours', 'fond' => '#FDF3E0', 'texte' => '#B8891E'],
+        'code_secours_refuse' => ['libelle' => 'Code de secours refusé', 'fond' => '#FDECEC', 'texte' => '#C62828'],
+        'code_secours_bloque' => ['libelle' => 'Code de secours bloqué', 'fond' => '#FDECEC', 'texte' => '#C62828'],
     ];
 
     /**
@@ -178,6 +185,8 @@ class JournalAudit extends PageTransverse
         'ventes' => ['numero'],
         'bulletins_paie' => ['numero'],
         'parametres_systeme' => ['cle'],
+        // Les comptes (29/10/2026) : le login, jamais l'identifiant seul.
+        'utilisateurs' => ['login'],
     ];
 
     /**
