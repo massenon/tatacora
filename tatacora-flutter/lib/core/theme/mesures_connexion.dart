@@ -42,6 +42,9 @@ abstract final class MesuresConnexion {
   /// `width="20"` — les icônes des champs, de l'œil et du cadenas du bouton.
   static const double iconeChamp = 20;
 
+  /// `h-16` — le logo téléversé de l'établissement, en tête de la carte (64).
+  static const double hauteurLogo = 64;
+
   /// `width="40"` — le pictogramme de la marque.
   static const double iconeMarque = 40;
 

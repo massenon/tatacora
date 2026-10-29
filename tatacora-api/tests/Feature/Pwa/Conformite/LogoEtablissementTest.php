@@ -49,10 +49,11 @@ final class LogoEtablissementTest extends TestCase
      * Images du logo dans les vues, mesuré le 14/10/2026 : barre supérieure,
      * connexion ×2, démarrage, hors connexion, 404, aide, Paramètres ×2 (9).
      * Refonte de l'écran de connexion du 29/10/2026 (PO, handoff LogiReStock) :
-     * sa marque est un pictogramme monochrome en SVG, plus le logo de
-     * l'établissement — les deux images de la connexion ont disparu, 7 restent.
+     * sa marque était un pictogramme sans logo (7), puis décision du PO du
+     * même jour : le logo téléversé coiffe de nouveau la carte, en UNE image
+     * (au lieu de deux) — 8.
      */
-    private const PLANCHER_IMAGES_LOGO = 7;
+    private const PLANCHER_IMAGES_LOGO = 8;
 
     protected function setUp(): void
     {

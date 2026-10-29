@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/di/providers.dart';
+import '../../../core/navigation/coquille_vue.dart';
 import '../../../core/navigation/trace_svg.dart';
 import '../../../core/responsive/breakpoints.dart';
 import '../../../core/theme/app_colors.dart';
@@ -11,6 +12,7 @@ import '../../../core/theme/app_shadows.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/mesures_connexion.dart';
+import '../../parametres/data/apparence_poste.dart';
 import '../data/identifiant_memorise.dart';
 import '../domain/session_repository.dart';
 import 'formulaire_premier_compte.dart';
@@ -483,18 +485,21 @@ class _Filet extends StatelessWidget {
 }
 
 /// La marque : pictogramme + « LogiReStock » en deux tons + sous-titre.
-class _Marque extends StatelessWidget {
+class _Marque extends ConsumerWidget {
   const _Marque();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    // Décision du PO du 29/10/2026 : le logo TÉLÉVERSÉ (Paramètres → Logo &
+    // Apparence) coiffe la carte ; absent, le pictogramme de marque.
+    final logo = ref.watch(logoTeleverseProvider).value;
     final styleMarque = theme.textTheme.headlineMedium?.copyWith(
       fontSize: Tailles.t28,
       fontWeight: FontWeight.w800,
       height: Tailles.interligneAucun,
     );
-    return Semantics(
+    final marque = Semantics(
       container: true,
       label:
           '${TextesConnexion.marqueLogi}${TextesConnexion.marqueRestock} '
@@ -507,12 +512,14 @@ class _Marque extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const IconeTrace(
-                trace: MesuresConnexion.traceMarque,
-                taille: MesuresConnexion.iconeMarque,
-                couleur: AppColors.navy,
-              ),
-              const SizedBox(width: MesuresConnexion.ecartMarque),
+              if (logo == null) ...[
+                const IconeTrace(
+                  trace: MesuresConnexion.traceMarque,
+                  taille: MesuresConnexion.iconeMarque,
+                  couleur: AppColors.navy,
+                ),
+                const SizedBox(width: MesuresConnexion.ecartMarque),
+              ],
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
@@ -555,6 +562,22 @@ class _Marque extends StatelessWidget {
           ),
         ),
       ),
+    );
+    if (logo == null) return marque;
+    // `h-16 w-auto max-w-full object-contain mb-4` : 64 px de haut, proportions
+    // gardées, jamais rogné. `alt` = `pwa.alt_logo`.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Image.memory(
+          logo,
+          height: MesuresConnexion.hauteurLogo,
+          fit: BoxFit.contain,
+          semanticLabel: LibellesCoquille.altLogo,
+        ),
+        const SizedBox(height: AppSpacing.md),
+        marque,
+      ],
     );
   }
 }

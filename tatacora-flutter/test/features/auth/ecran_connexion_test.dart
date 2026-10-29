@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -12,6 +13,7 @@ import 'package:tatacora_flutter/core/theme/app_colors.dart';
 import 'package:tatacora_flutter/core/theme/app_theme.dart';
 import 'package:tatacora_flutter/core/theme/mesures_connexion.dart';
 import 'package:tatacora_flutter/features/auth/data/identifiant_memorise.dart';
+import 'package:tatacora_flutter/features/parametres/data/apparence_poste.dart';
 import 'package:tatacora_flutter/features/auth/data/session_repository_local.dart';
 import 'package:tatacora_flutter/features/auth/domain/session.dart';
 import 'package:tatacora_flutter/features/auth/presentation/ecran_connexion.dart';
@@ -80,6 +82,7 @@ void main() {
     double largeur, {
     double hauteur = 900,
     bool aucunCompte = false,
+    Uint8List? logo,
   }) async {
     tester.view.physicalSize = Size(largeur, hauteur);
     tester.view.devicePixelRatio = 1.0;
@@ -92,6 +95,7 @@ void main() {
           // place à la création du premier compte quand la base est vierge.
           aucunCompteProvider.overrideWith((ref) async => aucunCompte),
           baseLocaleProvider.overrideWithValue(base),
+          logoTeleverseProvider.overrideWith((ref) async => logo),
           // La mémoire de « Se souvenir » vit dans un dossier d'essai.
           dossierConnexionProvider.overrideWithValue(() async => memoire),
         ],
@@ -222,6 +226,60 @@ void main() {
       final pas = xs[1] - xs[0];
       for (var i = 2; i < xs.length; i++) {
         expect(xs[i] - xs[i - 1], closeTo(pas, 0.5));
+      }
+    });
+  });
+
+  group('Logo téléversé — décision du PO du 29/10/2026', () {
+    // PNG 1 × 1 valide.
+    final png = base64Decode(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+    );
+
+    testWidgets(
+      'présent : il coiffe la carte (64 px), le pictogramme s\'efface',
+      (tester) async {
+        await monter(tester, 1280, logo: png);
+        await tester.pump();
+        final image = tester.widget<Image>(find.byType(Image));
+        expect(image.height, 64);
+        expect(image.fit, BoxFit.contain);
+        expect(image.semanticLabel, 'Logo TATACORA AFRIQUE');
+        expect(
+          tester.getTopLeft(find.byType(Image)).dy,
+          lessThan(tester.getTopLeft(find.text('Logi')).dy),
+          reason: 'le logo est AU-DESSUS de la marque',
+        );
+        expect(
+          find.byWidgetPredicate(
+            (w) => w is IconeTrace && w.trace == MesuresConnexion.traceMarque,
+          ),
+          findsNothing,
+        );
+        // La marque et le slogan restent sous le logo.
+        expect(find.text('Logi'), findsOneWidget);
+        expect(find.text(TextesConnexion.slogan), findsOneWidget);
+      },
+    );
+
+    testWidgets('absent : repli sur le pictogramme de marque', (tester) async {
+      await monter(tester, 1280);
+      await tester.pump();
+      expect(find.byType(Image), findsNothing);
+      expect(
+        find.byWidgetPredicate(
+          (w) => w is IconeTrace && w.trace == MesuresConnexion.traceMarque,
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('aucun débordement avec le logo, de 320 px au large', (
+      tester,
+    ) async {
+      for (final largeur in const [320.0, 1440.0]) {
+        await monter(tester, largeur, logo: png);
+        expect(tester.takeException(), isNull, reason: 'à $largeur px');
       }
     });
   });

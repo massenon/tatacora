@@ -39,9 +39,19 @@
 
       <h1 class="sr-only">{{ __('pwa.connexion.titre_h1') }}</h1>
 
-      {{-- 1. Marque : pictogramme + « LogiReStock » en deux tons + sous-titre. --}}
+      {{-- 1. Marque. Décision du PO du 29/10/2026 : le logo TÉLÉVERSÉ de
+           l'établissement (Paramètres → Logo & Apparence) coiffe la carte
+           quand il existe ; à défaut, le pictogramme de marque. « LogiReStock »
+           en deux tons et son sous-titre restent dessous dans les deux cas.
+           Proportions gardées (`object-contain`, jamais rogné ni étiré). --}}
+      @php($logoTeleverse = app(\App\Shared\Parametres\Services\ApparenceEtablissementService::class)->fichierDe('logo') !== null)
+      @if ($logoTeleverse)
+        <img src="{{ app(\App\Shared\Parametres\Services\ApparenceEtablissementService::class)->urlLogo() }}" alt="{{ __('pwa.alt_logo') }}" class="block mx-auto h-16 w-auto max-w-full object-contain mb-4">
+      @endif
       <div class="flex items-center justify-center gap-3">
-        <span class="shrink-0" style="color:var(--navy)">@include('pwa.partials.pictogramme-connexion', ['nom' => 'marque', 'taille' => 40])</span>
+        @unless ($logoTeleverse)
+          <span class="shrink-0" style="color:var(--navy)">@include('pwa.partials.pictogramme-connexion', ['nom' => 'marque', 'taille' => 40])</span>
+        @endunless
         <div class="min-w-0">
           <p class="text-[28px] font-extrabold leading-none"><span style="color:var(--navy)">{{ __('pwa.connexion.marque_logi') }}</span><span style="color:var(--gold)">{{ __('pwa.connexion.marque_restock') }}</span></p>
           <p class="text-[11px] font-bold uppercase tracking-widest text-slate-500 mt-1">{{ __('pwa.marque') }}</p>

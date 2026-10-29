@@ -128,7 +128,31 @@ final class ConformiteMaquettePwaTest extends TestCase
         $this->assertSame(1, substr_count($html, 'localStorage.setItem(this.cle, this.$refs.identifiant.value)'));
 
         // Titre d'onglet : le <h1> « Connexion » suivi de la marque.
-        $this->assertStringContainsString('<title>Connexion — LogiReStock — TATACORA AFRIQUE</title>', $html);
+        $this->assertStringContainsString('<title>Connexion — LogiReStock</title>', $html);
+    }
+
+    /**
+     * Decision du PO du 29/10/2026 : le logo TELEVERSE coiffe la carte de
+     * connexion (hauteur 64, proportions gardees, alt = nom de la marque) ;
+     * absent, le pictogramme de marque prend sa place. « LogiReStock » reste.
+     */
+    #[Test]
+    public function le_logo_televerse_coiffe_la_carte_et_son_absence_laisse_le_pictogramme(): void
+    {
+        \Illuminate\Support\Facades\Storage::fake(\App\Shared\Parametres\Services\ApparenceEtablissementService::DISQUE);
+
+        $sans = (string) $this->get('/pwa/connexion')->getContent();
+        $this->assertStringNotContainsString('<img', $sans);
+        $this->assertStringContainsString('M12 22V12', $sans, 'Repli : le pictogramme de marque.');
+
+        \Illuminate\Support\Facades\Storage::disk(\App\Shared\Parametres\Services\ApparenceEtablissementService::DISQUE)
+            ->put(\App\Shared\Parametres\Services\ApparenceEtablissementService::REPERTOIRE.'/logo.png', 'x');
+
+        $avec = (string) $this->get('/pwa/connexion')->getContent();
+        $this->assertMatchesRegularExpression('#<img src="[^"]*/pwa/apparence/logo[^"]*" alt="Logo TATACORA AFRIQUE" class="[^"]*h-16[^"]*object-contain#', $avec);
+        $this->assertStringNotContainsString('M12 22V12', $avec, 'Le pictogramme cede la place au logo.');
+        $this->assertStringContainsString('>Logi<', $avec);
+        $this->assertStringContainsString('>ReStock<', $avec);
     }
 
     /**

@@ -89,6 +89,9 @@ final class BaliseTitrePwaTest extends TestCase
      * @var array<string, string>
      */
     private const TITRE_DISTINCT_DU_H1 = [
+        '/pwa/connexion' => 'Ecran de connexion : decision du PO du 29/10/2026, l onglet est '
+            .'« Connexion — LogiReStock » (le <h1> « Connexion » plus la marque COURTE, sans '
+            .'« — TATACORA AFRIQUE »). Exception limitee a cette page.',
         '/pwa/demarrage' => 'Ecran de demarrage : son <h1> est la MARQUE, pas un titre de page ; l onglet '
             .'nomme l ecran d abord (« Demarrage — … »). Ecart delibere documente dans '
             .'`lang/fr/coquille_pwa.php` (cle demarrage_titre_page).',
@@ -166,6 +169,11 @@ final class BaliseTitrePwaTest extends TestCase
             }
 
             $relus++;
+
+            // Exception du PO (29/10/2026), limitee a l'ecran declare : marque courte.
+            if ($ecran['url'] === '/pwa/connexion' && $titre === 'Connexion — '.explode(' — ', $marque)[0]) {
+                continue;
+            }
 
             $suffixe = ' — '.$marque;
 

@@ -89,7 +89,10 @@ return [
         // Intégré » (PA-209) vivait dans ce panneau et reste portée par le
         // démarrage et l'aide. `AucunLogiRestockAfficheTest` garde l'ancien nom.
         'titre_h1' => 'Connexion',
-        'titre_page' => 'Connexion — LogiReStock — TATACORA AFRIQUE',
+        // Décision du PO du 29/10/2026 : « Connexion — LogiReStock », SANS la
+        // suite « — TATACORA AFRIQUE » des autres pages (exception déclarée dans
+        // `BaliseTitrePwaTest::TITRE_DISTINCT_DU_H1`, limitée à cette page).
+        'titre_page' => 'Connexion — LogiReStock',
 
         // Marque en deux tons : « Logi » en couleur primaire (navy), « ReStock »
         // en accent (gold). Le nom reste UN mot pour un lecteur d'écran.
