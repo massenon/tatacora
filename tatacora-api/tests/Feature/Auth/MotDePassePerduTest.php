@@ -237,6 +237,25 @@ final class MotDePassePerduTest extends TestCase
         }
     }
 
+    #[Test]
+    public function le_journal_d_audit_affiche_les_actions_sous_leur_libelle_et_le_login_du_compte(): void
+    {
+        $cible = $this->compte('marie', 'receptionniste');
+        $this->reinitialiser($cible);
+        $code = $this->codeDeSecours();
+        $this->actingAs($this->admin);
+
+        $html = (string) $this->get('/pwa/journal-audit')->assertOk()->getContent();
+
+        $this->assertStringContainsString('Réinitialisation du mot de passe', $html);
+        $this->assertStringContainsString('Code de secours généré', $html);
+        $texte = (string) preg_replace('/\s+/', ' ', strip_tags($html));
+        $this->assertStringContainsString('Compte utilisateur : marie', $texte);
+        // Le journal rendu à l'écran ne porte lui non plus aucun secret.
+        $this->assertStringNotContainsString($code, $html);
+        $this->assertStringNotContainsString(GenerateurDeSecret::normaliserCode($code), $html);
+    }
+
     // ================================================= changement obligatoire
 
     #[Test]

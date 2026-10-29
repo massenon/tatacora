@@ -326,6 +326,13 @@ final class ExtraireStructureBladeTest extends TestCase
             'variantes' => ['principal' => ''],
             'jeu' => 'parc',
         ],
+        // 29/10/2026 (PO, option A du « mot de passe perdu ») : la liste des comptes et
+        // « Réinitialiser le mot de passe ».
+        'transverse/comptes-utilisateurs' => [
+            'url' => '/pwa/comptes-utilisateurs',
+            'variantes' => ['principal' => ''],
+            'jeu' => 'vide',
+        ],
     ];
 
     /** Elements dont le texte propre est releve (le reste est du decor). */
