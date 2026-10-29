@@ -45,14 +45,14 @@ use App\Pwa\Livewire\Stocks\Stocks;
 use App\Pwa\Livewire\Tourisme\Departs;
 use App\Pwa\Livewire\Transverse\AideAPropos;
 use App\Pwa\Livewire\Transverse\ContactEditeur;
+use App\Pwa\Livewire\Transverse\EnvoiSynchronisation;
 use App\Pwa\Livewire\Transverse\ImportExport;
 use App\Pwa\Livewire\Transverse\JournalAudit;
 use App\Pwa\Livewire\Transverse\MonProfil;
 use App\Pwa\Livewire\Transverse\PageTransverse;
 use App\Pwa\Livewire\Transverse\Parametres;
-use App\Pwa\Livewire\Transverse\RolesPermissions;
-use App\Pwa\Livewire\Transverse\EnvoiSynchronisation;
 use App\Pwa\Livewire\Transverse\ReceptionSynchronisation;
+use App\Pwa\Livewire\Transverse\RolesPermissions;
 use App\Pwa\Livewire\Transverse\SynchronisationPostes;
 use App\Pwa\Livewire\Transverse\VerrouSession;
 use App\Pwa\Livewire\Vehicules\Locations;
@@ -1097,8 +1097,8 @@ final class PwaActionsReluesTest extends TestCase
     {
         $this->get('/pwa/connexion')
             ->assertOk()
-            ->assertSee('Identifiant')
-            ->assertSee('Se connecter');
+            ->assertSee(__('pwa.connexion.login'))
+            ->assertSee(__('pwa.connexion.valider'));
     }
 
     /**
@@ -1171,17 +1171,23 @@ final class PwaActionsReluesTest extends TestCase
         // PAR ROLE, portant le NOM et la FONCTION d'un compte
         // (SECURITY_STRICT.md §12) : ce que le bloc ci-dessous verifie
         // reste vrai, juste sur un compte de deux plutot qu'un.
-        $this->assertSame(2, substr_count($html, '<button'), 'La page de connexion ne doit porter que le bouton de soumission et l\'oeil du mot de passe.');
+        // ⚠ TROIS boutons depuis le 29/10/2026 (refonte de l'ecran, PO) : la
+        // soumission, l'oeil, et « Mot de passe oublie ? » (type="button", qui
+        // n'ouvre aucune route : il revele « Contactez l'administrateur »).
+        // Toujours aucun bouton par role, aucun lien.
+        $this->assertSame(3, substr_count($html, '<button'), 'La page de connexion ne doit porter que la soumission, l\'oeil du mot de passe et « Mot de passe oublie ? ».');
         $this->assertSame(0, substr_count($html, '<a '), 'La page de connexion ne doit porter aucun lien.');
 
         preg_match_all('#<button[^>]*type="(submit|button)"[^>]*>(.*?)</button>#s', $html, $boutons, PREG_SET_ORDER);
-        $this->assertCount(2, $boutons, 'Les deux boutons doivent porter un type explicite.');
+        $this->assertCount(3, $boutons, 'Les trois boutons doivent porter un type explicite.');
 
         $soumission = array_values(array_filter($boutons, static fn (array $b): bool => $b[1] === 'submit'));
         $this->assertCount(1, $soumission, 'Un seul bouton de soumission.');
+        // Le bouton porte deux etats (repos / « Connexion… » pendant l'envoi) :
+        // le libelle de connexion y figure, rien d'autre que ces deux phrases.
         $this->assertSame(
-            __('pwa.connexion.valider'),
-            trim(strip_tags($soumission[0][2])),
+            __('pwa.connexion.valider').' '.__('pwa.connexion.connexion_en_cours'),
+            trim((string) preg_replace('/\s+/', ' ', strip_tags($soumission[0][2]))),
             'Le bouton de soumission doit porter le libelle de connexion.',
         );
 
@@ -1189,8 +1195,12 @@ final class PwaActionsReluesTest extends TestCase
         // texte visible est vide (icones SVG seules), ce qui interdit
         // structurellement qu'il soit pris pour une tuile de compte.
         $autre = array_values(array_filter($boutons, static fn (array $b): bool => $b[1] === 'button'));
-        $this->assertCount(1, $autre);
-        $this->assertSame('', trim(strip_tags($autre[0][2])), 'Le bouton hors soumission ne doit porter aucun texte visible.');
+        $this->assertCount(2, $autre);
+        // L'oeil : aucun texte visible. « Mot de passe oublie ? » : cette phrase
+        // et aucune autre — jamais un nom ni une fonction de compte.
+        $textes = array_map(static fn (array $b): string => trim(strip_tags($b[2])), $autre);
+        sort($textes);
+        $this->assertSame(['', __('pwa.connexion.mot_de_passe_oublie')], $textes, 'Les boutons hors soumission ne portent que l\'oeil et « Mot de passe oublie ? ».');
 
         // Aucune cle de role ne sert d'etiquette a un element interactif.
         preg_match_all('#<(?:button|a)\b[^>]*>(.*?)</(?:button|a)>#is', $html, $interactifs);

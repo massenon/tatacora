@@ -92,10 +92,10 @@ final class AucunLogiRestockAfficheTest extends TestCase
         // Decision PO du 14/10/2026 : la mention sous la marque.
         $this->assertStringContainsString(e('Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)'), $demarrage);
         $this->assertStringContainsString(e('Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)'), $aide);
-        // `{!! !!}` : le <br> de la vue passe tel quel.
-        $this->assertStringContainsString('Système de gestion Intégré<br>TATACORA AFRIQUE', $connexion);
+        // Refonte du 29/10/2026 : la connexion n'a plus de panneau portant la
+        // mention ; son onglet est « Connexion — LogiReStock — TATACORA AFRIQUE ».
         $this->assertStringContainsString(
-            '<title>'.e('Système de gestion Intégré TATACORA AFRIQUE — LogiReStock — TATACORA AFRIQUE').'</title>',
+            '<title>'.e('Connexion — LogiReStock — TATACORA AFRIQUE').'</title>',
             $connexion,
         );
         $this->assertStringContainsString(e('Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)'), $aide);
@@ -107,7 +107,6 @@ final class AucunLogiRestockAfficheTest extends TestCase
         $vues = [
             'pwa/demarrage' => "{{ __('rapports.entete.localisation') }}",
             'pwa/partials/barre-superieure' => "{{ __('pwa.barre_localisation') }}",
-            'pwa/livewire/connexion' => "{!! __('pwa.connexion.titre_panneau') !!}",
             'pwa/transverse/aide-a-propos' => "{{ __('pwa.aide.enseigne') }}",
         ];
         foreach ($vues as $vue => $rendu) {
@@ -122,8 +121,7 @@ final class AucunLogiRestockAfficheTest extends TestCase
         $this->assertSame('pwa.demarrage.localisation', __('pwa.demarrage.localisation'));
 
         $this->assertSame('Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)', __('rapports.entete.localisation'));
-        $this->assertSame('Système de gestion Intégré<br>TATACORA AFRIQUE', __('pwa.connexion.titre_panneau'));
-        $this->assertSame('Système de gestion Intégré TATACORA AFRIQUE — LogiReStock — TATACORA AFRIQUE', __('pwa.connexion.titre_page'));
+        $this->assertSame('Connexion — LogiReStock — TATACORA AFRIQUE', __('pwa.connexion.titre_page'));
         $this->assertSame('Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)', __('pwa.aide.enseigne'));
     }
 

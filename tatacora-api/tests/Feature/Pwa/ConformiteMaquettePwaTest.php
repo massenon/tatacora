@@ -63,43 +63,72 @@ final class ConformiteMaquettePwaTest extends TestCase
     // ------------------------------------------------------- Écran de connexion
 
     /**
-     * L'écart mesuré au brief : la maquette est en DEUX colonnes — panneau
-     * image `hidden lg:block lg:w-1/2` à gauche, formulaire `flex-1` à droite.
-     * La vue Blade n'en avait qu'une, dans une carte centrée.
+     * Refonte du 29/10/2026 (PO, docs/HANDOFF_ECRAN_CONNEXION_LOGIRESTOCK.md) :
+     * l'écran de connexion est une CARTE UNIQUE centrée, dans l'ordre du
+     * handoff : marque, slogan, bandeau de sept pictogrammes, accueil, deux
+     * champs, « Se souvenir de moi » / « Mot de passe oublié ? », bouton. Le
+     * panneau image à deux colonnes de l'ancienne maquette n'existe plus.
      */
     #[Test]
-    public function l_ecran_de_connexion_est_en_deux_colonnes_comme_la_maquette(): void
+    public function l_ecran_de_connexion_est_une_carte_unique_dans_l_ordre_du_handoff(): void
     {
         $html = (string) $this->get('/pwa/connexion')->getContent();
 
-        $this->assertStringContainsString('hidden lg:block lg:w-1/2 relative', $html);
-        $this->assertStringContainsString('assets/img/gite-cover.jpg', $html);
-        $this->assertStringContainsString('flex-1 flex items-center justify-center p-6 overflow-y-auto', $html);
-        $this->assertStringContainsString('w-full max-w-sm py-8', $html);
+        // Plus de panneau image.
+        $this->assertStringNotContainsString('hidden lg:block lg:w-1/2', $html);
+        $this->assertStringNotContainsString('gite-cover.jpg', $html);
+        $this->assertStringContainsString('max-w-[560px]', $html);
 
-        // Le corps porte les classes qui mettent les deux colonnes cote a
-        // cote : sans elles, elles existeraient dans le HTML l une sous l autre.
-        $this->assertMatchesRegularExpression('#<body class="h-screen flex"#', $html);
+        // Les libellés, dans l'ordre exact du document (apostrophes décodées).
+        $texte = html_entity_decode($html, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $ordre = [
+            'Logi', 'ReStock', 'TATACORA AFRIQUE',
+            'VOTRE LOGICIEL DE GESTION INTÉGRÉE',
+            'Restauration', 'Hébergement', 'Éco-tourisme', 'Stock', 'Location', 'Caisse', 'Comptabilité',
+            'Bienvenue !',
+            'Connectez-vous à votre espace d\'administration LogiReStock.',
+            'NOM D\'UTILISATEUR OU E-MAIL',
+            'MOT DE PASSE',
+            'Se souvenir de moi',
+            'Mot de passe oublié ?',
+            'SE CONNECTER',
+        ];
+        $position = 0;
+        foreach ($ordre as $libelle) {
+            $trouve = strpos($texte, $libelle, $position);
+            $this->assertNotFalse($trouve, "« {$libelle} » absent ou hors d'ordre.");
+            $position = $trouve + strlen($libelle);
+        }
 
-        // Hierarchie typographique de l ecran.
-        $this->assertStringContainsString('text-3xl font-bold mb-2 leading-tight', $html);
-        $this->assertStringContainsString('text-xl font-bold text-center mb-1', $html);
-        $this->assertStringContainsString('text-[15px] text-slate-400 text-center mb-6', $html);
+        // Sept pictogrammes de module, tous décoratifs, plus la marque.
+        $this->assertSame(7, substr_count($html, '<li title="'));
+        $this->assertStringNotContainsString('<img', $html);
 
-        // Champs : classes `champ` du design system, invite de saisie.
-        $this->assertStringContainsString('champ w-full border border-slate-200 rounded-lg px-3.5 py-3 text-sm', $html);
-        $this->assertStringContainsString('ex. n.nabogou', $html);
+        // Accessibilité : labels explicites, autocomplete, œil nommé et pressé.
+        $this->assertStringContainsString('<label for="champ-identifiant"', $html);
+        $this->assertStringContainsString('<label for="champ-motdepasse"', $html);
+        $this->assertStringContainsString('autocomplete="username"', $html);
+        $this->assertStringContainsString('autocomplete="current-password"', $html);
+        $this->assertStringContainsString('aria-label="Afficher le mot de passe"', $html);
+        $this->assertStringContainsString('aria-pressed', $html);
 
-        // Pied de page.
-        $this->assertStringContainsString('TATACORA AFRIQUE © 2026 — PAEB / FAGUEZ SARL', $html);
+        // L'ordre de tabulation est celui du document : identifiant, mot de
+        // passe, œil, case, lien, bouton (aucun tabindex positif).
+        $this->assertDoesNotMatchRegularExpression('#tabindex="[1-9]#', $html);
+        $suite = ['id="champ-identifiant"', 'id="champ-motdepasse"', 'aria-pressed', 'type="checkbox"', 'aria-controls="aide-mot-de-passe-oublie"', 'type="submit"'];
+        $position = 0;
+        foreach ($suite as $element) {
+            $trouve = strpos($html, $element, $position);
+            $this->assertNotFalse($trouve, "{$element} hors de l'ordre de tabulation.");
+            $position = $trouve + strlen($element);
+        }
 
-        // Titre d'onglet : meme ordre (ecran, marque) que les autres pages —
-        // voir `lang/fr/coquille_pwa.php` pour l'unique exception (le splash).
-        // Le nom d'onglet suit le <h1> de la page (contrat de BaliseTitrePwaTest).
-        // Decision du Product Owner du 13/10/2026 (PA-208) : « LogiRestock »
-        // remplace ; seconde decision du meme jour (PA-209, D389) : la mention
-        // est « Systeme de gestion Integre » (casse exacte du PO).
-        $this->assertStringContainsString('<title>Système de gestion Intégré TATACORA AFRIQUE — LogiReStock — TATACORA AFRIQUE</title>', $html);
+        // « Se souvenir » ne mémorise jamais le mot de passe.
+        $this->assertSame(1, substr_count($html, 'setItem(this'));
+        $this->assertSame(1, substr_count($html, 'localStorage.setItem(this.cle, this.$refs.identifiant.value)'));
+
+        // Titre d'onglet : le <h1> « Connexion » suivi de la marque.
+        $this->assertStringContainsString('<title>Connexion — LogiReStock — TATACORA AFRIQUE</title>', $html);
     }
 
     /**

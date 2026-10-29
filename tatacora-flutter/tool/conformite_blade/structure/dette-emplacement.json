@@ -51,8 +51,8 @@
     "ongletsNonCliquables": 0
   },
   "livewire/connexion": {
-    "blade": 8,
-    "ordonnes": 8,
+    "blade": 20,
+    "ordonnes": 12,
     "ongletsNonCliquables": 0
   },
   "demarrage": {

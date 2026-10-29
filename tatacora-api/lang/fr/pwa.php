@@ -81,40 +81,47 @@ return [
         . 'Les saisies passent par les écrans de l\'interface.',
 
     'connexion' => [
-        // Le nom d'onglet est le <h1> de la page (BaliseTitrePwaTest, même
-        // règle que les 49 autres pages), suivi de la marque.
-        //
-        // DÉCISION DU PRODUCT OWNER DU 13/10/2026 (PA-208, ticket D385) :
-        // « LogiRestock » — nom d'un autre produit, que l'ancienne maquette
-        // `login.html` portait en titre de colonne gauche — est REMPLACÉ par
-        // la mention que la barre supérieure et l'en-tête des états rendent
-        // déjà (`rapports.entete.localisation`, D373). Ne pas le rétablir :
-        // `AucunLogiRestockAfficheTest` rougit.
-        //
-        // SECONDE DÉCISION DU PO DU 13/10/2026 (PA-209, ticket D389) : la
-        // mention elle-même devient « Système de gestion Intégré » (casse
-        // exacte du PO) ; l'ancienne formule, « Système d'Information
-        // Intégré », rougit la même garde.
-        'titre_page' => 'Système de gestion Intégré TATACORA AFRIQUE — LogiReStock — TATACORA AFRIQUE',
+        // Le nom d'onglet est le <h1> de la page suivi de la marque
+        // (BaliseTitrePwaTest) : le <h1> est « Connexion » (masqué à l'oeil,
+        // lu par les lecteurs d'écran), la marque est `pwa.titre_defaut`.
+        // Refonte du 29/10/2026 (PO, docs/HANDOFF_ECRAN_CONNEXION_LOGIRESTOCK.md) :
+        // carte unique, sans panneau image ; la mention « Système de gestion
+        // Intégré » (PA-209) vivait dans ce panneau et reste portée par le
+        // démarrage et l'aide. `AucunLogiRestockAfficheTest` garde l'ancien nom.
+        'titre_h1' => 'Connexion',
+        'titre_page' => 'Connexion — LogiReStock — TATACORA AFRIQUE',
 
-        // Panneau image de gauche (`hidden lg:block lg:w-1/2`). Le <br> tient
-        // le titre sur deux lignes à la césure voulue, quelle que soit la
-        // largeur. Mêmes décisions du 13/10/2026 que `titre_page`.
-        'titre_panneau' => 'Système de gestion Intégré<br>TATACORA AFRIQUE',
-        // maquette — `login.html` l.20
-        'accroche_panneau' => 'Hébergement, restauration, tourisme, véhicules, '
-            . 'achats, stocks, comptabilité et ressources humaines — une seule '
-            . 'plateforme, pour le Gîte Chez Noël à Natitingou.',
-        'alt_couverture' => 'Gîte Chez Noël, Natitingou',
+        // Marque en deux tons : « Logi » en couleur primaire (navy), « ReStock »
+        // en accent (gold). Le nom reste UN mot pour un lecteur d'écran.
+        'marque_logi' => 'Logi',
+        'marque_restock' => 'ReStock',
+        'slogan' => 'VOTRE LOGICIEL DE GESTION INTÉGRÉE',
 
-        // maquette — colonne de droite
-        'sous_titre' => 'Connectez-vous à votre espace de travail',
-        'login' => 'Identifiant',
-        'exemple_login' => 'ex. n.nabogou',
-        'mot_de_passe' => 'Mot de passe',
+        // Bandeau de sept pictogrammes : un par module, infobulle = ce libellé.
+        'modules' => [
+            'restauration' => 'Restauration',
+            'hebergement' => 'Hébergement',
+            'eco_tourisme' => 'Éco-tourisme',
+            'stock' => 'Stock',
+            'location' => 'Location',
+            'caisse' => 'Caisse',
+            'comptabilite' => 'Comptabilité',
+        ],
+        'bandeau_modules' => 'Modules de LogiReStock',
+
+        'bienvenue' => 'Bienvenue !',
+        'accroche' => 'Connectez-vous à votre espace d\'administration LogiReStock.',
+        'login' => 'NOM D\'UTILISATEUR OU E-MAIL',
+        'mot_de_passe' => 'MOT DE PASSE',
         'afficher_mot_de_passe' => 'Afficher le mot de passe',
         'masquer_mot_de_passe' => 'Masquer le mot de passe',
-        'valider' => 'Se connecter',
+        'se_souvenir' => 'Se souvenir de moi',
+        'mot_de_passe_oublie' => 'Mot de passe oublié ?',
+        // Aucune route de réinitialisation n'existe : le lien dit la vérité
+        // plutôt que de mener nulle part (même phrase sur le poste).
+        'mot_de_passe_oublie_aide' => 'Contactez l\'administrateur',
+        'valider' => 'SE CONNECTER',
+        'connexion_en_cours' => 'Connexion…',
 
         // La limitation de débit porte sur le couple (login + IP) : au Gîte,
         // tous les postes sortent derrière la même adresse publique, et

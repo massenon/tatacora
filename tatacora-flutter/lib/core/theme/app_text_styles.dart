@@ -52,6 +52,15 @@ abstract final class AppTextStyles {
   /// 6 px sur « RÉSERVATIONS & SÉJOURS » (mesuré au relevé du châssis).
   static const double suiviPlusLarge = 0.05;
 
+  /// `tracking-widest` de Tailwind — **0.1em**. Le sous-titre de marque de
+  /// l'écran de connexion (« TATACORA AFRIQUE », `text-[11px] … tracking-widest`).
+  /// JETON AJOUTÉ le 29/10/2026.
+  static const double suiviTresLarge = 0.1;
+
+  /// `tracking-[0.2em]` — le slogan de l'écran de connexion (valeur entre
+  /// crochets de la vue, pas un palier Tailwind). JETON AJOUTÉ le 29/10/2026.
+  static const double suiviSlogan = 0.2;
+
   /// `tracking-tight` de Tailwind — **−0.025em**. La marque de la barre
   /// supérieure (`text-base font-bold tracking-tight`).
   static const double suiviSerre = -0.025;
@@ -195,6 +204,12 @@ abstract final class Tailles {
 
   /// `text-xl` — titres de page et de modale.
   static const double t20 = 20;
+
+  /// `text-[28px]` — la marque « LogiReStock » et le titre « Bienvenue ! » de
+  /// l'écran de connexion (sa vue Blade, refonte du
+  /// 29/10/2026). JETON AJOUTÉ pour cet écran : aucun palier existant ne
+  /// valait 28, et le poste ne doit pas l'écrire en dur.
+  static const double t28 = 28;
 
   /// `text-3xl` — le seul très grand titre du maître, en colonne image.
   static const double t30 = 30;

@@ -3,54 +3,121 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/di/providers.dart';
-import '../../../core/navigation/coquille_vue.dart';
+import '../../../core/navigation/trace_svg.dart';
 import '../../../core/responsive/breakpoints.dart';
-import '../../../core/theme/app_assets.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_durations.dart';
+import '../../../core/theme/app_shadows.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/theme/mesures_connexion.dart';
+import '../data/identifiant_memorise.dart';
 import '../domain/session_repository.dart';
 import 'formulaire_premier_compte.dart';
 
-/// Écran de connexion — **traduction de `prototype_v2/pages/login.html`**.
+/// Les libellés de l'écran — `lang/fr/pwa.php`, groupe `connexion`, au
+/// caractère près (`ecran_connexion_test.dart` les confronte à la langue du
+/// serveur, résolue par PHP : une copie qui dérive fait rougir).
+abstract final class TextesConnexion {
+  /// `pwa.connexion.titre_h1` — le `<h1>` de la vue, masqué à l'œil.
+  static const titreH1 = 'Connexion';
+
+  /// `pwa.connexion.marque_logi` / `marque_restock` — la marque en deux tons.
+  static const marqueLogi = 'Logi';
+  static const marqueRestock = 'ReStock';
+
+  /// `pwa.marque`.
+  static const sousMarque = 'TATACORA AFRIQUE';
+
+  /// `pwa.connexion.slogan`.
+  static const slogan = 'VOTRE LOGICIEL DE GESTION INTÉGRÉE';
+
+  /// `pwa.connexion.modules.*` — l'infobulle de chaque pictogramme du bandeau.
+  static const restauration = 'Restauration';
+  static const hebergement = 'Hébergement';
+  static const ecoTourisme = 'Éco-tourisme';
+  static const stock = 'Stock';
+  static const location = 'Location';
+  static const caisse = 'Caisse';
+  static const comptabilite = 'Comptabilité';
+
+  /// `pwa.connexion.bandeau_modules`.
+  static const bandeauModules = 'Modules de LogiReStock';
+
+  /// `pwa.connexion.bienvenue` / `accroche`.
+  static const bienvenue = 'Bienvenue !';
+  static const accroche =
+      "Connectez-vous à votre espace d'administration LogiReStock.";
+
+  /// `pwa.connexion.login` / `mot_de_passe`.
+  static const login = "NOM D'UTILISATEUR OU E-MAIL";
+  static const motDePasse = 'MOT DE PASSE';
+
+  /// `pwa.connexion.afficher_mot_de_passe` / `masquer_mot_de_passe`.
+  static const afficherMotDePasse = 'Afficher le mot de passe';
+  static const masquerMotDePasse = 'Masquer le mot de passe';
+
+  /// `pwa.connexion.se_souvenir` / `mot_de_passe_oublie` /
+  /// `mot_de_passe_oublie_aide`.
+  static const seSouvenir = 'Se souvenir de moi';
+  static const motDePasseOublie = 'Mot de passe oublié ?';
+  static const motDePasseOublieAide = "Contactez l'administrateur";
+
+  /// `pwa.connexion.valider` / `connexion_en_cours`.
+  static const valider = 'SE CONNECTER';
+  static const connexionEnCours = 'Connexion…';
+
+  /// `pwa.pied_de_page`.
+  static const piedDePage = 'TATACORA AFRIQUE © 2026 — PAEB / FAGUEZ SARL';
+
+  /// Les refus de saisie (`data-regle-requis` du maître, historiques).
+  static const identifiantRequis = 'Veuillez saisir votre identifiant.';
+  static const motDePasseRequis = 'Veuillez saisir votre mot de passe.';
+}
+
+/// Écran de connexion — **traduction de `pwa/livewire/connexion.blade.php`**
+/// (refonte du 29/10/2026, demande du PO,
+/// `docs/HANDOFF_ECRAN_CONNEXION_LOGIRESTOCK.md`).
 ///
 /// ## Le maître de mise en page
 ///
-/// `prototype_v2/` est la référence, tranchée par le Product Owner le
-/// 21/08/2026. Cet écran n'est pas une conception : c'est une traduction, et
-/// chaque valeur ci-dessous est relevée dans le HTML, jamais estimée.
+/// Une CARTE UNIQUE centrée, une colonne, dans l'ordre de la vue : marque
+/// (pictogramme, « LogiReStock » en deux tons, sous-titre), filet, slogan,
+/// filet, bandeau de sept pictogrammes, filet, « Bienvenue ! » et son accroche,
+/// champ identifiant, champ mot de passe (œil afficher/masquer), « Se souvenir
+/// de moi » · « Mot de passe oublié ? », bouton « SE CONNECTER ». L'ancien
+/// panneau image à deux colonnes (`login.html`) n'existe plus, ni sur la vue ni
+/// ici ; la vue le disait en `hidden lg:block`, le seuil `lg` ne change donc
+/// plus rien à cet écran.
 ///
-/// Structure du maître (l.12-24) : `<body class="h-screen flex">`, donc deux
-/// colonnes côte à côte.
+/// Largeur de la carte `max-w-[560px]`, marge `p-4` puis `md:p-6`, intérieur
+/// `p-6` puis `md:p-8` : le palier `md` se décide sur la largeur de l'ÉCRAN
+/// (`MediaQuery`), pas sur celle d'un conteneur.
 ///
-///  - **colonne image** `hidden lg:block lg:w-1/2` — `gite-cover.jpg` en
-///    `object-cover`, voile en dégradé, et un bloc de texte aligné **en bas**
-///    (`justify-end p-12`) portant le logo, le titre et l'accroche ;
-///  - **colonne formulaire** `flex-1 flex items-center justify-center p-6`,
-///    contenu borné à `max-w-sm` (384 px).
+/// ## Écarts nommés
 ///
-/// Le seuil `lg` de Tailwind vaut 1024 px, exactement [Breakpoints.desktop].
-/// En deçà, la colonne image disparaît et le logo réapparaît au-dessus du
-/// formulaire (`lg:hidden`, l.26-28) — ce n'est pas une simplification, c'est
-/// le comportement responsive du maître.
+///  - **Pictogrammes** : les mêmes tracés que la vue (`MesuresConnexion`,
+///    dessinés par `IconeTrace`), pas des `Icons.*` Material — le dépôt sait
+///    déjà rejouer un SVG de la vue, autant garder le même dessin.
+///  - **« Mot de passe oublié ? »** : aucune route de réinitialisation
+///    n'existe, ni sur la vue ni au poste (hors ligne). Le lien révèle sur
+///    place « Contactez l'administrateur », comme la vue.
+///  - **« Se souvenir de moi »** : l'identifiant seul, dans un fichier à côté
+///    de `poste.json` (`IdentifiantMemorise`) ; la vue le range dans le
+///    navigateur. Jamais le mot de passe.
+///  - **Bouton non désactivé à vide** (handoff §5) : la vue ne le fait pas
+///    non plus — un champ rempli par le navigateur sans événement de saisie
+///    resterait bloqué ; le refus de saisie vide est dit sous les champs.
+///  - **Aucun message « réseau »** : la connexion du poste est locale, la
+///    branche `ReseauIndisponible` (que plus aucun chemin ne lève) a été retirée.
 ///
 /// ## Ce que cet écran ne contient PAS, et pourquoi
 ///
 /// **Aucune grille de comptes cliquables. Aucun raccourci de connexion par
-/// rôle.** Le maître en affiche une (l.54-67) ; `SECURITY_STRICT.md` §12
-/// l'interdit dans **tout** environnement, y compris le flavor `demo`. La
-/// raison n'est pas théorique : une grille qui pré-remplit le mot de passe
-/// transforme chaque capture d'écran de formation, chaque démonstration filmée
-/// et chaque poste laissé ouvert en fuite d'identifiants.
-///
-/// **L'exclusion emporte le séparateur, et c'est le point qu'une lecture rapide
-/// inverse.** Le séparateur `my-6` à deux filets (l.47-51) ne porte pas un
-/// titre neutre : il annonce littéralement « Comptes de démonstration (RBAC) »,
-/// et le paragraphe suivant invite à « cliquer pour vous connecter
-/// instantanément ». Les trois n'existent que pour introduire la grille
-/// interdite. Les porter sans elle laisserait un intitulé qui n'annonce rien —
-/// **moins fidèle** que de les retirer ensemble. Privé de sa grille, le maître
-/// va du bouton « Se connecter » au pied de page.
+/// rôle.** `SECURITY_STRICT.md` §12 l'interdit dans **tout** environnement, y
+/// compris le flavor `demo` : une grille qui pré-remplit le mot de passe
+/// transforme chaque capture d'écran de formation en fuite d'identifiants. Le
+/// séparateur et le texte qui l'annonçaient partent avec elle.
 class EcranConnexion extends ConsumerStatefulWidget {
   const EcranConnexion({super.key});
 
@@ -65,7 +132,22 @@ class _EtatEcranConnexion extends ConsumerState<EcranConnexion> {
 
   bool _enCours = false;
   bool _masque = true;
+  bool _souvenir = false;
+  bool _aide = false;
   String? _erreur;
+
+  @override
+  void initState() {
+    super.initState();
+    // « Se souvenir de moi » : l'identifiant mémorisé, JAMAIS le mot de passe.
+    ref.read(identifiantMemoriseProvider).lire().then((memorise) {
+      if (!mounted || memorise == null || _identifiant.text.isNotEmpty) return;
+      setState(() {
+        _souvenir = true;
+        _identifiant.text = memorise;
+      });
+    });
+  }
 
   @override
   void dispose() {
@@ -75,27 +157,24 @@ class _EtatEcranConnexion extends ConsumerState<EcranConnexion> {
   }
 
   Future<void> _soumettre() async {
-    if (!_formulaire.currentState!.validate()) return;
+    if (_enCours || !_formulaire.currentState!.validate()) return;
     setState(() {
       _enCours = true;
       _erreur = null;
     });
 
     try {
+      final memoire = ref.read(identifiantMemoriseProvider);
+      if (_souvenir) {
+        await memoire.enregistrer(_identifiant.text.trim());
+      } else {
+        await memoire.oublier();
+      }
       await ref
           .read(sessionProvider.notifier)
           .connecter(_identifiant.text.trim(), _motDePasse.text);
     } on EchecConnexion catch (e) {
       if (mounted) setState(() => _erreur = e.message);
-    } on ReseauIndisponible {
-      // Message distinct d'un refus d'identifiants : sans cette distinction,
-      // l'utilisateur ressaisit son mot de passe alors que le serveur est
-      // simplement injoignable.
-      if (mounted) {
-        setState(
-          () => _erreur = 'Serveur injoignable. Vérifiez la connexion réseau.',
-        );
-      }
     } finally {
       if (mounted) setState(() => _enCours = false);
     }
@@ -103,96 +182,34 @@ class _EtatEcranConnexion extends ConsumerState<EcranConnexion> {
 
   @override
   Widget build(BuildContext context) {
-    // `MediaQuery`, et non `LayoutBuilder` : la largeur du CONTENU n'est pas
-    // celle de l'écran. Décider d'une mise en page sur `constraints.maxWidth`
-    // est le défaut de responsive le plus courant — ici les deux coïncident,
-    // mais s'y fier installerait l'habitude qui se trompe ailleurs.
-    final deuxColonnes = Breakpoints.de(context) == Palier.desktop;
+    // `md:` : la largeur de l'ÉCRAN, pas celle d'un conteneur.
+    final large = MediaQuery.sizeOf(context).width >= Breakpoints.tablette;
+    final marge = large
+        ? MesuresConnexion.margeLarge
+        : MesuresConnexion.margeEtroit;
+    final interieur = large
+        ? MesuresConnexion.interieurLarge
+        : MesuresConnexion.interieurEtroit;
 
     return Scaffold(
       // `<body style="background:var(--fond-clair)">` — #F2F2F2.
       backgroundColor: AppColors.fondClair,
       body: SafeArea(
-        child: Row(
-          children: [
-            // `hidden lg:block lg:w-1/2` — la moitié exacte, pas une
-            // proportion approchée.
-            if (deuxColonnes) const Expanded(child: _ColonneImage()),
-            Expanded(child: _colonneFormulaire(context, deuxColonnes)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// `flex-1 flex items-center justify-center p-6 overflow-y-auto` (l.24).
-  Widget _colonneFormulaire(BuildContext context, bool deuxColonnes) {
-    final theme = Theme.of(context);
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(AppSpacing.lg), // p-6 = 24
-      child: Center(
-        child: ConstrainedBox(
-          // `w-full max-w-sm py-8` — max-w-sm vaut 384 px.
-          constraints: const BoxConstraints(maxWidth: Largeurs.maxSm),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
-            child: Form(
-              key: _formulaire,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // `lg:hidden` (l.26-28) : le logo ne réapparaît au-dessus du
-                  // formulaire QUE lorsque la colonne image a disparu. Le
-                  // montrer dans les deux cas le ferait figurer deux fois.
-                  if (!deuxColonnes) ...[
-                    const Center(child: _Logo(cote: 56)), // w-14 h-14
-                    const SizedBox(height: AppSpacing.lg), // mb-6
-                  ],
-
-                  // `text-xl font-bold text-center mb-1` couleur navy.
-                  Text(
-                    'TATACORA AFRIQUE',
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontSize: Tailles.t20,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.navy,
-                    ),
+        // `flex-1 flex items-center justify-center p-4 md:p-6 overflow-y-auto`
+        child: LayoutBuilder(
+          builder: (context, contraintes) => SingleChildScrollView(
+            padding: EdgeInsets.all(marge),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: contraintes.maxHeight - 2 * marge,
+              ),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    maxWidth: MesuresConnexion.largeurCarte,
                   ),
-                  const SizedBox(height: AppSpacing.unit), // mb-1
-                  // `text-[15px] text-slate-400 text-center mb-6`
-                  Text(
-                    'Connectez-vous à votre espace de travail',
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontSize: Tailles.t15,
-                      color: AppColors.neutre500,
-                    ),
-                  ),
-
-                  // Pastille « Environnement : … » RETIRÉE le 14/10/2026 —
-                  // demande du PO : la vue de connexion n'en a pas, le
-                  // formulaire suit directement le sous-titre.
-                  const SizedBox(height: AppSpacing.lg), // mb-6
-                  // **Poste vierge : on cede la place a la creation du premier
-                  // compte.** L'authentification etant locale (PA-103), un
-                  // poste neuf n'a aucun compte, et afficher un formulaire qui
-                  // refusera tout ce qu'on y saisit ferait croire a une faute
-                  // de frappe. La colonne image, elle, ne bouge pas.
-                  ...switch (ref.watch(aucunCompteProvider)) {
-                    AsyncData(value: true) => const [FormulairePremierCompte()],
-                    AsyncData() => _formulaireConnexion(context),
-                    // Tant que la reponse n'est pas connue, on n'affiche NI
-                    // l'un NI l'autre : proposer une connexion puis la
-                    // remplacer par une creation ferait clignoter l'ecran
-                    // d'ouverture.
-                    _ => const [
-                      Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                    ],
-                  },
-                ],
+                  child: _carte(context, interieur),
+                ),
               ),
             ),
           ),
@@ -201,103 +218,251 @@ class _EtatEcranConnexion extends ConsumerState<EcranConnexion> {
     );
   }
 
-  /// Le formulaire de connexion proprement dit — l.31-45 du maitre.
-  List<Widget> _formulaireConnexion(BuildContext context) {
+  /// `bg-white border border-slate-200 rounded-2xl shadow-sm p-6 md:p-8`.
+  Widget _carte(BuildContext context, double interieur) {
+    return Container(
+      padding: EdgeInsets.all(interieur),
+      decoration: BoxDecoration(
+        color: AppColors.neutre0,
+        borderRadius: BorderRadius.circular(MesuresConnexion.rayonCarte),
+        border: Border.all(color: AppColors.neutre200),
+        boxShadow: MesuresConnexion.ombreCarte,
+      ),
+      child: Form(
+        key: _formulaire,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // `<h1 class="sr-only">` : le titre de la page, lu par les
+            // lecteurs d'écran, jamais dessiné.
+            Semantics(
+              header: true,
+              label: TextesConnexion.titreH1,
+              child: const SizedBox.shrink(),
+            ),
+            const _Marque(),
+            // **Poste vierge : on cède la place à la création du premier
+            // compte.** L'authentification étant locale (PA-103), un poste
+            // neuf n'a aucun compte, et afficher un formulaire qui refusera
+            // tout ce qu'on y saisit ferait croire à une faute de frappe. Seul
+            // l'en-tête de marque est repris (handoff §6).
+            ...switch (ref.watch(aucunCompteProvider)) {
+              AsyncData(value: true) => const [
+                SizedBox(height: MesuresConnexion.filetBas),
+                FormulairePremierCompte(),
+              ],
+              AsyncData() => _contenuConnexion(context),
+              // Tant que la réponse n'est pas connue, on n'affiche NI l'un NI
+              // l'autre : proposer une connexion puis la remplacer par une
+              // création ferait clignoter l'écran d'ouverture.
+              _ => const [
+                SizedBox(height: MesuresConnexion.filetBas),
+                Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              ],
+            },
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Du filet au pied de page : tout ce qui suit la marque dans la vue.
+  List<Widget> _contenuConnexion(BuildContext context) {
     final theme = Theme.of(context);
     return [
-      _Champ(
-        etiquette: 'Identifiant',
-        child: TextFormField(
-          controller: _identifiant,
-          autofillHints: const [AutofillHints.username],
-          textInputAction: TextInputAction.next,
-          decoration: const InputDecoration(
-            hintText: 'ex. n.nabogou', // placeholder du maître
+      // `<hr class="border-slate-200 mt-5">`
+      const SizedBox(height: MesuresConnexion.filetHaut),
+      const _Filet(),
+      // `text-[12px] font-semibold tracking-[0.2em] text-slate-500 text-center py-3`
+      Padding(
+        padding: const EdgeInsets.symmetric(
+          vertical: MesuresConnexion.margeSlogan,
+        ),
+        child: Text(
+          TextesConnexion.slogan,
+          textAlign: TextAlign.center,
+          style: theme.textTheme.bodySmall?.copyWith(
+            fontSize: Tailles.t12,
+            fontWeight: FontWeight.w600,
+            letterSpacing: AppTextStyles.suiviSlogan * Tailles.t12,
+            color: AppColors.neutre500,
           ),
-          validator: (v) => (v == null || v.trim().isEmpty)
-              // Message du maître, `data-regle-requis` l.34.
-              ? 'Veuillez saisir votre identifiant.'
-              : null,
+        ),
+      ),
+      const _Filet(),
+      const _BandeauModules(),
+      const _Filet(),
+      const SizedBox(height: MesuresConnexion.filetBas), // mb-6
+      // `text-[28px] font-extrabold leading-tight` navy.
+      Semantics(
+        header: true,
+        child: Text(
+          TextesConnexion.bienvenue,
+          style: theme.textTheme.headlineMedium?.copyWith(
+            fontSize: Tailles.t28,
+            fontWeight: FontWeight.w800,
+            height: Tailles.interligneSerre,
+            color: AppColors.navy,
+          ),
+        ),
+      ),
+      const SizedBox(height: MesuresConnexion.ecartPetit), // mt-1
+      // `text-[15px] text-slate-500 mt-1 mb-6`
+      Text(
+        TextesConnexion.accroche,
+        style: theme.textTheme.bodyMedium?.copyWith(
+          fontSize: Tailles.t15,
+          color: AppColors.neutre500,
+        ),
+      ),
+      const SizedBox(height: MesuresConnexion.filetBas),
+
+      // Ordre de tabulation (handoff §8) : identifiant → mot de passe → œil →
+      // « Se souvenir » → « Mot de passe oublié ? » → « SE CONNECTER » — celui
+      // du document, donc celui de la lecture.
+      _ChampConnexion(
+        etiquette: TextesConnexion.login,
+        controleur: _identifiant,
+        trace: MesuresConnexion.traceUtilisateur,
+        autofocus: true,
+        indicesAutoRemplissage: const [AutofillHints.username],
+        onSoumis: _soumettre,
+        validateur: (v) => (v == null || v.trim().isEmpty)
+            ? TextesConnexion.identifiantRequis
+            : null,
+      ),
+      const SizedBox(height: AppSpacing.md), // space-y-4
+      _ChampConnexion(
+        etiquette: TextesConnexion.motDePasse,
+        controleur: _motDePasse,
+        trace: MesuresConnexion.traceCadenas,
+        masque: _masque,
+        indicesAutoRemplissage: const [AutofillHints.password],
+        onSoumis: _soumettre,
+        validateur: (v) =>
+            (v == null || v.isEmpty) ? TextesConnexion.motDePasseRequis : null,
+        // L'œil : `aria-label` (la phrase entière) et `aria-pressed`.
+        suffixe: Semantics(
+          toggled: !_masque,
+          child: IconButton(
+            tooltip: _masque
+                ? TextesConnexion.afficherMotDePasse
+                : TextesConnexion.masquerMotDePasse,
+            onPressed: () => setState(() => _masque = !_masque),
+            style: IconButton.styleFrom(
+              minimumSize: const Size.square(MesuresConnexion.cibleOeil),
+              fixedSize: const Size.square(MesuresConnexion.cibleOeil),
+              padding: EdgeInsets.zero,
+              foregroundColor: AppColors.neutre500,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            icon: IconeTrace(
+              trace: _masque
+                  ? MesuresConnexion.traceOeil
+                  : MesuresConnexion.traceOeilBarre,
+              taille: MesuresConnexion.iconeChamp,
+              couleur: AppColors.neutre500,
+            ),
+          ),
         ),
       ),
       const SizedBox(height: AppSpacing.md),
-      _Champ(
-        etiquette: 'Mot de passe',
-        child: TextFormField(
-          controller: _motDePasse,
-          obscureText: _masque,
-          autofillHints: const [AutofillHints.password],
-          textInputAction: TextInputAction.done,
-          onFieldSubmitted: (_) => _soumettre(),
-          decoration: InputDecoration(
-            hintText: '••••••••', // placeholder du maître
-            // ÉCART DÉLIBÉRÉ — absent du maître (l.39).
-            // Le maître est manipulé au clavier physique ; le
-            // poste du comptoir peut être tactile, où une saisie
-            // invisible se retape entièrement à la moindre faute.
-            suffixIcon: IconButton(
-              icon: Icon(_masque ? Icons.visibility : Icons.visibility_off),
-              // `:aria-label` de la vue (`pwa.connexion.afficher_mot_de_passe` /
-              // `masquer_mot_de_passe`) : la phrase entière, pas un mot.
-              tooltip: _masque
-                  ? 'Afficher le mot de passe'
-                  : 'Masquer le mot de passe',
-              onPressed: () => setState(() => _masque = !_masque),
+
+      // `flex items-center justify-between gap-3 flex-wrap`
+      Wrap(
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: AppSpacing.sm,
+        runSpacing: AppSpacing.xs,
+        children: [
+          _CaseSeSouvenir(
+            valeur: _souvenir,
+            onChanged: (v) => setState(() => _souvenir = v),
+          ),
+          Semantics(
+            expanded: _aide,
+            child: TextButton(
+              onPressed: () => setState(() => _aide = !_aide),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.navy,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.xs,
+                  vertical: AppSpacing.xs,
+                ),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                textStyle: const TextStyle(
+                  fontSize: Tailles.t15,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              child: const Text(TextesConnexion.motDePasseOublie),
             ),
           ),
-          validator: (v) => (v == null || v.isEmpty)
-              // Message du maître, `data-regle-requis` l.39.
-              ? 'Veuillez saisir votre mot de passe.'
-              : null,
-        ),
+        ],
       ),
-
-      // `#erreur-identifiants` (l.41) : masqué tant qu'aucun refus
-      // n'a eu lieu, puis rouge sur fond rouge très clair.
-      if (_erreur != null) ...[
+      if (_aide) ...[
         const SizedBox(height: AppSpacing.md),
-        Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md, // px-3
-            vertical: AppSpacing.xs, // py-2
-          ),
-          decoration: BoxDecoration(
-            color: AppColors.erreurFondLeger,
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            border: Border.all(color: AppColors.erreurBordure),
-          ),
-          child: Text(
-            // Le maître préfixe d'un « ⚠ ». Conservé : le signe
-            // porte l'alerte pour qui distingue mal le rouge.
-            '⚠ $_erreur',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              fontSize: Tailles.t15,
-              color: AppColors.erreur,
+        // `role="status"` : la phrase est annoncée à l'ouverture.
+        Semantics(
+          liveRegion: true,
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: AppSpacing.xs,
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.neutre50,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(color: AppColors.neutre200),
+            ),
+            child: Text(
+              TextesConnexion.motDePasseOublieAide,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontSize: Tailles.t15,
+                color: AppColors.neutre700,
+              ),
             ),
           ),
         ),
       ],
 
-      const SizedBox(height: AppSpacing.md), // space-y-4
-      // `btn w-full py-3 rounded-lg text-white text-sm font-semibold`
-      ElevatedButton(
-        onPressed: _enCours ? null : _soumettre,
-        child: _enCours
-            ? const SizedBox(
-                height: 18,
-                width: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: AppColors.neutre0,
-                ),
-              )
-            : const Text('Se connecter'),
-      ),
+      // `#erreur-identifiants` (`role="alert"`) : n'existe que sur un refus.
+      if (_erreur != null) ...[
+        const SizedBox(height: AppSpacing.md),
+        Semantics(
+          liveRegion: true,
+          child: Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm, // px-3
+              vertical: AppSpacing.xs, // py-2
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.erreurFondLeger,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(color: AppColors.erreurBordure),
+            ),
+            child: Text(
+              // La vue préfixe d'un « ⚠ » : le signe porte l'alerte pour qui
+              // distingue mal le rouge.
+              '⚠ $_erreur',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontSize: Tailles.t15,
+                color: AppColors.erreur,
+              ),
+            ),
+          ),
+        ),
+      ],
 
-      // `text-center text-[13px] text-slate-400 mt-8` (l.57).
-      const SizedBox(height: AppSpacing.xl),
+      const SizedBox(height: AppSpacing.md),
+      _BoutonSeConnecter(enCours: _enCours, onPressed: _soumettre),
+
+      // `text-center text-[13px] text-slate-500 mt-8`
+      const SizedBox(height: MesuresConnexion.piedHaut),
       Text(
-        'TATACORA AFRIQUE © 2026 — PAEB / FAGUEZ SARL',
+        TextesConnexion.piedDePage,
         textAlign: TextAlign.center,
         style: theme.textTheme.bodySmall?.copyWith(
           fontSize: Tailles.t13,
@@ -308,172 +473,441 @@ class _EtatEcranConnexion extends ConsumerState<EcranConnexion> {
   }
 }
 
-/// La colonne image — `hidden lg:block lg:w-1/2 relative` (l.14-22).
-///
-/// Trois plans superposés, dans cet ordre : la photo en `object-cover`, le
-/// voile en dégradé, puis le texte. C'est un `Stack`, pas une `Column` : le
-/// texte se pose SUR la photo.
-class _ColonneImage extends StatelessWidget {
-  const _ColonneImage();
+/// `<hr class="border-slate-200">`.
+class _Filet extends StatelessWidget {
+  const _Filet();
+
+  @override
+  Widget build(BuildContext context) =>
+      const Divider(height: 1, thickness: 1, color: AppColors.neutre200);
+}
+
+/// La marque : pictogramme + « LogiReStock » en deux tons + sous-titre.
+class _Marque extends StatelessWidget {
+  const _Marque();
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        // `absolute inset-0 w-full h-full object-cover`
-        Image.asset(
-          'assets/img/gite-cover.jpg',
-          fit: BoxFit.cover,
-          // La photo est EMBARQUÉE, jamais chargée du réseau : la connexion
-          // doit s'afficher entière au Gîte, hors ligne.
-          semanticLabel: 'Gîte Chez Noël, Natitingou',
+    final styleMarque = theme.textTheme.headlineMedium?.copyWith(
+      fontSize: Tailles.t28,
+      fontWeight: FontWeight.w800,
+      height: Tailles.interligneAucun,
+    );
+    return Semantics(
+      container: true,
+      label:
+          '${TextesConnexion.marqueLogi}${TextesConnexion.marqueRestock} '
+          '${TextesConnexion.sousMarque}',
+      child: ExcludeSemantics(
+        // `flex items-center justify-center gap-3` — `FittedBox` : à 320 px la
+        // marque rétrécit au lieu de déborder.
+        child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const IconeTrace(
+                trace: MesuresConnexion.traceMarque,
+                taille: MesuresConnexion.iconeMarque,
+                couleur: AppColors.navy,
+              ),
+              const SizedBox(width: MesuresConnexion.ecartMarque),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // `text-[28px] font-extrabold leading-none` : « Logi » navy
+                  // (primaire), « ReStock » gold (accent).
+                  //
+                  // Deux `Text` côte à côte et non un `Text.rich` : la vue pose
+                  // deux `<span>` (le comparateur d'emplacement lit un texte par
+                  // élément), et le rendu est le même, mot collé.
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text(
+                        TextesConnexion.marqueLogi,
+                        style: styleMarque?.copyWith(color: AppColors.navy),
+                      ),
+                      Text(
+                        TextesConnexion.marqueRestock,
+                        style: styleMarque?.copyWith(color: AppColors.gold),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: MesuresConnexion.ecartPetit), // mt-1
+                  // `text-[11px] font-bold uppercase tracking-widest text-slate-500`
+                  Text(
+                    TextesConnexion.sousMarque,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontSize: Tailles.t11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: AppTextStyles.suiviTresLarge * Tailles.t11,
+                      color: AppColors.neutre500,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+}
 
-        // `linear-gradient(180deg, rgba(20,33,61,.2), rgba(20,33,61,.85))`
-        // Le navy du dépôt EST rgb(20,33,61) : les deux arrêts se dérivent
-        // donc de `AppColors.navy`, ils ne se recopient pas en hexadécimal.
-        DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                AppColors.navy.withValues(alpha: 0.20),
-                AppColors.navy.withValues(alpha: 0.85),
+/// Le bandeau de sept pictogrammes : restauration, hébergement, éco-tourisme,
+/// stock, location, caisse, comptabilité — `flex … justify-between py-4`, un
+/// `title` (infobulle) et un libellé lu par module.
+class _BandeauModules extends StatelessWidget {
+  const _BandeauModules();
+
+  static const _modules = <(String, String)>[
+    (TextesConnexion.restauration, MesuresConnexion.traceRestauration),
+    (TextesConnexion.hebergement, MesuresConnexion.traceHebergement),
+    (TextesConnexion.ecoTourisme, MesuresConnexion.traceEcoTourisme),
+    (TextesConnexion.stock, MesuresConnexion.traceStock),
+    (TextesConnexion.location, MesuresConnexion.traceLocation),
+    (TextesConnexion.caisse, MesuresConnexion.traceCaisse),
+    (TextesConnexion.comptabilite, MesuresConnexion.traceComptabilite),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        vertical: MesuresConnexion.margeBandeau,
+      ),
+      child: Semantics(
+        container: true,
+        label: TextesConnexion.bandeauModules,
+        child: Row(
+          children: [
+            for (final (libelle, trace) in _modules)
+              Expanded(
+                child: Center(
+                  child: Tooltip(
+                    message: libelle,
+                    child: Semantics(
+                      label: libelle,
+                      child: ExcludeSemantics(
+                        child: IconeTrace(
+                          trace: trace,
+                          taille: MesuresConnexion.iconeModule,
+                          couleur: AppColors.neutre500,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Un champ étiqueté — `.groupe-champ` de la vue : `<label>` en capitales AU
+/// DESSUS du champ (pas un `labelText` flottant), icône à gauche, bordure
+/// `slate-300` (survol `slate-400`), anneau de focus navy, erreur dessous.
+class _ChampConnexion extends StatefulWidget {
+  const _ChampConnexion({
+    required this.etiquette,
+    required this.controleur,
+    required this.trace,
+    required this.validateur,
+    required this.onSoumis,
+    required this.indicesAutoRemplissage,
+    this.masque = false,
+    this.autofocus = false,
+    this.suffixe,
+  });
+
+  final String etiquette;
+  final TextEditingController controleur;
+  final String trace;
+  final String? Function(String?) validateur;
+  final VoidCallback onSoumis;
+  final List<String> indicesAutoRemplissage;
+  final bool masque;
+  final bool autofocus;
+  final Widget? suffixe;
+
+  @override
+  State<_ChampConnexion> createState() => _EtatChampConnexion();
+}
+
+class _EtatChampConnexion extends State<_ChampConnexion> {
+  final _focus = FocusNode();
+  bool _survol = false;
+  bool _focalise = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _focus.addListener(() {
+      if (mounted) setState(() => _focalise = _focus.hasFocus);
+    });
+  }
+
+  @override
+  void dispose() {
+    _focus.dispose();
+    super.dispose();
+  }
+
+  OutlineInputBorder _bordure(Color couleur, {double epaisseur = 1}) =>
+      OutlineInputBorder(
+        borderRadius: BorderRadius.circular(MesuresConnexion.rayonChamp),
+        borderSide: BorderSide(color: couleur, width: epaisseur),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // `block text-[12px] font-bold tracking-wider text-slate-800 mb-1.5`.
+        // Le libellé est porté par le champ (sémantique), pas lu deux fois.
+        ExcludeSemantics(
+          child: Text(
+            widget.etiquette,
+            style: theme.textTheme.bodySmall?.copyWith(
+              fontSize: Tailles.t12,
+              fontWeight: FontWeight.w700,
+              letterSpacing: AppTextStyles.suiviPlusLarge * Tailles.t12,
+              color: AppColors.neutre800,
+            ),
+          ),
+        ),
+        const SizedBox(height: MesuresConnexion.ecartLabel),
+        MouseRegion(
+          onEnter: (_) => setState(() => _survol = true),
+          onExit: (_) => setState(() => _survol = false),
+          child: AnimatedContainer(
+            duration: AppDurations.courte,
+            curve: Curves.easeOut,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(MesuresConnexion.rayonChamp),
+              boxShadow: _focalise ? AppShadows.focusChamp : const [],
+            ),
+            child: Semantics(
+              label: widget.etiquette,
+              child: TextFormField(
+                controller: widget.controleur,
+                focusNode: _focus,
+                autofocus: widget.autofocus,
+                obscureText: widget.masque,
+                autofillHints: widget.indicesAutoRemplissage,
+                textInputAction: TextInputAction.done,
+                onFieldSubmitted: (_) => widget.onSoumis(),
+                validator: widget.validateur,
+                style: theme.textTheme.bodyLarge?.copyWith(
+                  fontSize: Tailles.t16,
+                  color: AppColors.neutre900,
+                ),
+                decoration: InputDecoration(
+                  constraints: const BoxConstraints(
+                    minHeight: MesuresConnexion.hauteurChamp,
+                  ),
+                  // `pl-11` : le texte démarre après l'icône (`left-3.5`).
+                  prefixIcon: Padding(
+                    padding: const EdgeInsets.only(
+                      left: MesuresConnexion.margeIcone,
+                      right: AppSpacing.sm,
+                    ),
+                    child: IconeTrace(
+                      trace: widget.trace,
+                      taille: MesuresConnexion.iconeChamp,
+                      couleur: AppColors.neutre500,
+                    ),
+                  ),
+                  prefixIconConstraints: const BoxConstraints(
+                    minWidth: MesuresConnexion.retraitIcone,
+                    minHeight: MesuresConnexion.iconeChamp,
+                  ),
+                  suffixIcon: widget.suffixe == null
+                      ? null
+                      : Padding(
+                          padding: const EdgeInsets.only(right: 6), // right-1.5
+                          child: widget.suffixe,
+                        ),
+                  suffixIconConstraints: const BoxConstraints(
+                    minWidth: MesuresConnexion.cibleOeil,
+                    minHeight: MesuresConnexion.cibleOeil,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm + 2,
+                    vertical: AppSpacing.md,
+                  ),
+                  enabledBorder: _bordure(
+                    _survol ? AppColors.neutre400 : AppColors.neutre300,
+                  ),
+                  border: _bordure(AppColors.neutre300),
+                  focusedBorder: _bordure(AppColors.navy),
+                  errorBorder: _bordure(AppColors.erreur),
+                  focusedErrorBorder: _bordure(AppColors.erreur),
+                  // `.message-erreur` : 13 px, rouge, 4 px sous le champ.
+                  errorStyle: theme.textTheme.bodySmall?.copyWith(
+                    fontSize: Tailles.t13,
+                    color: AppColors.erreur,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// « Se souvenir de moi » — la case et son libellé, un seul arrêt de
+/// tabulation, un seul élément pour un lecteur d'écran.
+class _CaseSeSouvenir extends StatelessWidget {
+  const _CaseSeSouvenir({required this.valeur, required this.onChanged});
+
+  final bool valeur;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return InkWell(
+      // La case porte le focus ; le libellé n'ajoute pas d'arrêt.
+      canRequestFocus: false,
+      borderRadius: BorderRadius.circular(AppRadius.sm),
+      onTap: () => onChanged(!valeur),
+      child: MergeSemantics(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: MesuresConnexion.caseACocher + AppSpacing.md,
+              height: MesuresConnexion.caseACocher + AppSpacing.md,
+              child: Checkbox(
+                value: valeur,
+                onChanged: (v) => onChanged(v ?? false),
+                activeColor: AppColors.navy,
+                side: const BorderSide(color: AppColors.neutre300, width: 1.5),
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+            ),
+            const SizedBox(width: MesuresConnexion.ecartCase),
+            // `Flexible` : à 320 px, ou sous une police plus large, le libellé
+            // passe à la ligne au lieu de déborder.
+            Flexible(
+              child: Text(
+                TextesConnexion.seSouvenir,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontSize: Tailles.t15,
+                  color: AppColors.neutre700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Le bouton plein « SE CONNECTER » : navy, 52 px, rayon 12, capitales.
+/// Au repos le cadenas ouvert ; en cours, la pastille tournante et
+/// « Connexion… » (`aria-busy`), le bouton est désactivé.
+class _BoutonSeConnecter extends StatelessWidget {
+  const _BoutonSeConnecter({required this.enCours, required this.onPressed});
+
+  final bool enCours;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      // `aria-busy` : l'état de chargement est annoncé.
+      label: enCours
+          ? TextesConnexion.connexionEnCours
+          : TextesConnexion.valider,
+      child: ExcludeSemantics(
+        child: SizedBox(
+          height: MesuresConnexion.hauteurChamp,
+          child: ElevatedButton(
+            onPressed: enCours ? null : onPressed,
+            style: ButtonStyle(
+              minimumSize: const WidgetStatePropertyAll(
+                Size.fromHeight(MesuresConnexion.hauteurChamp),
+              ),
+              backgroundColor: WidgetStateProperty.resolveWith(
+                (etats) => etats.contains(WidgetState.disabled)
+                    // `.btn:disabled { opacity: .4 }`
+                    ? AppColors.navy.withValues(alpha: 0.4)
+                    : AppColors.navy,
+              ),
+              foregroundColor: const WidgetStatePropertyAll(AppColors.neutre0),
+              // `.btn:hover { filter: brightness(0.92) }`
+              overlayColor: WidgetStateProperty.resolveWith(
+                (etats) => etats.contains(WidgetState.hovered)
+                    ? const Color(0x14000000)
+                    : null,
+              ),
+              elevation: const WidgetStatePropertyAll(0),
+              shape: WidgetStateProperty.resolveWith(
+                (etats) => RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(
+                    MesuresConnexion.rayonChamp,
+                  ),
+                  // Anneau de focus visible : jamais retiré sans équivalent.
+                  side: etats.contains(WidgetState.focused)
+                      ? const BorderSide(color: AppColors.gold, width: 2)
+                      : BorderSide.none,
+                ),
+              ),
+              textStyle: WidgetStatePropertyAll(
+                TextStyle(
+                  fontSize: Tailles.t16,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: AppTextStyles.suiviPlusLarge * Tailles.t16,
+                ),
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (enCours)
+                  const SizedBox(
+                    height: 18,
+                    width: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.neutre0,
+                    ),
+                  )
+                else
+                  const IconeTrace(
+                    trace: MesuresConnexion.traceCadenasOuvert,
+                    taille: MesuresConnexion.iconeChamp,
+                    couleur: AppColors.neutre0,
+                  ),
+                const SizedBox(width: MesuresConnexion.ecartCase),
+                Flexible(
+                  child: Text(
+                    enCours
+                        ? TextesConnexion.connexionEnCours
+                        : TextesConnexion.valider,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
               ],
             ),
           ),
         ),
-
-        // `relative z-10 h-full flex flex-col justify-end p-12 text-white`
-        Padding(
-          padding: const EdgeInsets.all(AppSpacingLarge.p12), // p-12
-          child: Column(
-            // `justify-end` : le bloc est collé EN BAS, pas centré.
-            mainAxisAlignment: MainAxisAlignment.end,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const _Logo(cote: 64), // w-16 h-16
-              const SizedBox(height: AppSpacing.lg), // mb-6
-              // `text-3xl font-bold mb-2 leading-tight` — le maître force le
-              // retour à la ligne par un <br>, il ne le laisse pas au hasard
-              // de la largeur disponible.
-              Text(
-                // `pwa.connexion.titre_panneau`, au mot près : le saut de
-                // ligne est celui de son `<br>`, qui tient le titre sur deux
-                // lignes à la césure voulue. DÉCISION DU PRODUCT OWNER DU
-                // 13/10/2026 (PA-208, D385) : la vue écrit désormais
-                // une mention propre à la place du nom d'un autre produit —
-                // elle a été corrigée d'abord, ce client la suit. Seconde
-                // décision du même jour (PA-209, D389) : la mention est
-                // « Système de gestion Intégré », casse exacte du PO.
-                'Système de gestion Intégré\nTATACORA AFRIQUE',
-                style: theme.textTheme.headlineMedium?.copyWith(
-                  fontSize: Tailles.t30,
-                  fontWeight: FontWeight.bold,
-                  height: Tailles.interligneSerre, // leading-tight
-                  color: AppColors.neutre0,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.xs), // mb-2
-              // `text-white/70 text-sm max-w-md`
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: Largeurs.maxMd),
-                child: Text(
-                  'Hébergement, restauration, tourisme, véhicules, achats, '
-                  'stocks, comptabilité et ressources humaines — une seule '
-                  'plateforme, pour le Gîte Chez Noël à Natitingou.',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontSize: Tailles.t14,
-                    color: AppColors.neutre0.withValues(alpha: 0.70),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-/// Le logo cerclé d'or — `rounded-xl ring-2 ring-[var(--gold)] object-contain`.
-///
-/// Deux tailles au maître, et une seule différence entre elles : le côté.
-/// 64 px dans la colonne image, 56 px au-dessus du formulaire en étroit.
-///
-/// Décision du PO du 14/10/2026 (D392, PA-210) : le logo est un PNG
-/// PAYSAGE ; la vue de connexion garde son cadre carré et passe
-/// d'`object-cover` (qui le rognait) à `object-contain` — `BoxFit.contain`,
-/// jamais d'étirement. Les bandes libres restent transparentes, comme dans
-/// la vue (le conteneur n'a pas de fond).
-class _Logo extends StatelessWidget {
-  const _Logo({required this.cote});
-
-  final double cote;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: cote,
-      height: cote,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(AppRadius.lg), // rounded-xl
-        border: Border.all(color: AppColors.gold, width: 2), // ring-2
       ),
-      clipBehavior: Clip.antiAlias,
-      // `alt="{{ __('pwa.alt_logo') }}"` : le texte de remplacement du logo.
-      child: Image.asset(
-        AppAssets.logo,
-        fit: BoxFit.contain,
-        semanticLabel: LibellesCoquille.altLogo,
-      ),
-    );
-  }
-}
-
-/// Un groupe étiquette + champ — `.groupe-champ` du maître (l.32-36).
-///
-/// L'étiquette est un `<label>` AU-DESSUS du champ, avec un astérisque rouge,
-/// et non un `labelText` flottant de Material : ce sont deux mises en page
-/// différentes, et c'est la première que le commanditaire a validée.
-class _Champ extends StatelessWidget {
-  const _Champ({required this.etiquette, required this.child});
-
-  final String etiquette;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // `block text-[15px] font-semibold text-slate-700 mb-1.5`
-        Text.rich(
-          TextSpan(
-            children: [
-              TextSpan(text: etiquette),
-              // `<span class="text-red-500">*</span>`
-              TextSpan(
-                text: ' *',
-                style: TextStyle(color: AppColors.erreur),
-              ),
-            ],
-          ),
-          style: theme.textTheme.bodyMedium?.copyWith(
-            fontSize: Tailles.t15,
-            fontWeight: FontWeight.w600,
-            color: AppColors.neutre700,
-          ),
-        ),
-        const SizedBox(height: 6), // mb-1.5
-        child,
-      ],
     );
   }
 }

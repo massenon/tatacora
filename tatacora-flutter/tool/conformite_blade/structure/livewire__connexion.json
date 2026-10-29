@@ -5,32 +5,80 @@
     "onglets": {
         "principal": [
             {
-                "type": "h2",
+                "type": "h1",
+                "texte": "Connexion"
+            },
+            {
+                "type": "span",
+                "texte": "Logi"
+            },
+            {
+                "type": "span",
+                "texte": "ReStock"
+            },
+            {
+                "type": "p",
                 "texte": "TATACORA AFRIQUE"
             },
             {
                 "type": "p",
-                "texte": "Connectez-vous à votre espace de travail"
+                "texte": "VOTRE LOGICIEL DE GESTION INTÉGRÉE"
+            },
+            {
+                "type": "span",
+                "texte": "Restauration"
+            },
+            {
+                "type": "span",
+                "texte": "Hébergement"
+            },
+            {
+                "type": "span",
+                "texte": "Éco-tourisme"
+            },
+            {
+                "type": "span",
+                "texte": "Stock"
+            },
+            {
+                "type": "span",
+                "texte": "Location"
+            },
+            {
+                "type": "span",
+                "texte": "Caisse"
+            },
+            {
+                "type": "span",
+                "texte": "Comptabilité"
+            },
+            {
+                "type": "h2",
+                "texte": "Bienvenue !"
+            },
+            {
+                "type": "p",
+                "texte": "Connectez-vous à votre espace d'administration LogiReStock."
             },
             {
                 "type": "label",
-                "texte": "Identifiant"
-            },
-            {
-                "type": "champ",
-                "texte": "ex. n.nabogou"
+                "texte": "NOM D'UTILISATEUR OU E-MAIL"
             },
             {
                 "type": "label",
-                "texte": "Mot de passe"
+                "texte": "MOT DE PASSE"
             },
             {
-                "type": "champ",
-                "texte": "••••••••"
+                "type": "label",
+                "texte": "Se souvenir de moi"
             },
             {
                 "type": "button",
-                "texte": "Se connecter"
+                "texte": "Mot de passe oublié ?"
+            },
+            {
+                "type": "span",
+                "texte": "SE CONNECTER"
             },
             {
                 "type": "p",
