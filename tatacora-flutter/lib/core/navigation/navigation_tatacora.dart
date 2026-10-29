@@ -437,19 +437,19 @@ const List<GroupeMenu> groupesMenu = [
         page: 'roles-permissions.html',
         route: '/roles-permissions',
       ),
-      // AJOUT DU POSTE (Lot J2, directive du PO du 14/10/2026) — la PWA n'a
-      // AUCUN écran de gestion des comptes (relu : ni composant `app/Pwa`, ni
-      // vue, ni route `pwa.*`) ; sur ce poste sans serveur, c'est le seul
-      // endroit où un administrateur crée un compte. Réservé aux deux rôles
-      // d'administration ([rolesAdministration]), en plus du droit sur ROLES.
-      // L'icône est celle des personnes (`crm`) : aucune clé de
-      // `MenuLateral::ICONES` ne nomme les comptes, et en inventer une
-      // romprait la confrontation des tracés au registre PHP.
+      // « Comptes utilisateurs » : AJOUT DU POSTE au Lot J2 (directive du PO du
+      // 14/10/2026), PORTÉ PAR LA PWA depuis le 29/10/2026 (option A du PO, mot de
+      // passe perdu SANS e-mail : `pwa.comptes-utilisateurs`, juste après « Rôles &
+      // Permissions », module ROLES) — ce n'est plus un ajout. Sur ce poste sans
+      // serveur c'est aussi l'endroit où un administrateur crée, désactive ou
+      // réinitialise un compte. Réservé aux deux rôles d'administration
+      // ([rolesExiges]), en plus du droit sur ROLES. L'icône est celle des
+      // personnes (`crm`), comme la PWA.
       DestinationMenu(
         nom: 'Comptes utilisateurs',
         icone: IconeModule.crm,
         module: ModuleTatacora.roles,
-        page: '(ajout du poste, sans page de la vue)',
+        page: 'comptes-utilisateurs.html',
         // Littéral, comme toutes les entrées (= [routeComptesUtilisateurs]).
         route: '/comptes-utilisateurs',
         rolesExiges: rolesAdministration,

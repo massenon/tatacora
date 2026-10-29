@@ -124,6 +124,7 @@ void main() {
       ...tablesAjouteesEnV39,
       ...tablesAjouteesEnV40,
       ...tablesAjouteesEnV44,
+      ...tablesAjouteesEnV46,
     });
     expect(
       await compte(apres, 'operations_sync_local'),

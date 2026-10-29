@@ -33,12 +33,40 @@ const int plafondJournalAudit = 200;
 enum ActionJournalPoste {
   creation('creation', 'Création'),
   modification('modification', 'Modification'),
-  suppression('suppression', 'Suppression');
+  suppression('suppression', 'Suppression'),
+
+  // Mot de passe perdu SANS e-mail (29/10/2026, option A du PO) : les gestes
+  // sensibles sur les comptes, consignés en LOCAL (`journal_securite_local`) —
+  // jamais dans la file d'envoi. Les libellés sont ceux de
+  // `JournalAudit::ACTIONS` du serveur. Jamais le secret ni son dérivé.
+  reinitialisationMotDePasse(
+    'reinitialisation_mot_de_passe',
+    'Réinitialisation du mot de passe',
+  ),
+  codeSecoursGenere('code_secours_genere', 'Code de secours généré'),
+  codeSecoursUtilise(
+    'code_secours_utilise',
+    'Réinitialisation par code de secours',
+  ),
+  codeSecoursRefuse('code_secours_refuse', 'Code de secours refusé'),
+  codeSecoursBloque('code_secours_bloque', 'Code de secours bloqué');
 
   const ActionJournalPoste(this.code, this.libelle);
 
   final String code;
   final String libelle;
+
+  /// Une action du journal de SÉCURITÉ du poste (les trois premières viennent
+  /// de la file d'envoi).
+  bool get estDeSecurite => index >= reinitialisationMotDePasse.index;
+
+  /// L'action portant ce [code], `null` si le poste ne la connaît pas.
+  static ActionJournalPoste? depuisCode(String code) {
+    for (final a in values) {
+      if (a.code == code) return a;
+    }
+    return null;
+  }
 }
 
 /// Le libellé FRANÇAIS de chaque table tracée — `pwa.journal_audit.tables`,
@@ -72,6 +100,8 @@ const Map<String, String> libellesTablesJournal = {
   'commandes_achat': 'Commande d\'achat',
   'fournisseurs': 'Fournisseur',
   'parametres_systeme': 'Paramètre système',
+  // Le journal de sécurité du poste (v46) — `pwa.journal_audit.tables.utilisateurs`.
+  'utilisateurs': 'Compte utilisateur',
 };
 
 /// Une entrée du journal du poste.
@@ -114,6 +144,29 @@ final class EntreeJournalPoste {
 
   /// Le libellé français de la table, ou son nom technique.
   String get libelleTable => libellesTablesJournal[table] ?? table;
+}
+
+/// Une entrée du journal de SÉCURITÉ du poste, vue comme une entrée du journal :
+/// le compte visé tient lieu d'enregistrement (le login, comme la vue du serveur
+/// qui résout `utilisateurs` en login).
+EntreeJournalPoste? entreeDepuisSecurite({
+  required String action,
+  required DateTime creeLe,
+  String? auteurLogin,
+  String? posteNom,
+  String? cibleId,
+  String? cibleLogin,
+}) {
+  final a = ActionJournalPoste.depuisCode(action);
+  if (a == null || !a.estDeSecurite) return null;
+  return EntreeJournalPoste(
+    action: a,
+    table: 'utilisateurs',
+    entiteId: cibleLogin ?? cibleId ?? '—',
+    dateHeure: creeLe,
+    utilisateur: auteurLogin,
+    poste: posteNom,
+  );
 }
 
 /// Ce que l'écran rend : les entrées les plus récentes (au plus

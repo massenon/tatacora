@@ -2,7 +2,7 @@
 /// `allSchemaEntities` et complétée de ce qui lui manque (PRD réinstallation,
 /// exigence R2).
 ///
-/// Pourquoi : `user_version` dit « v44 » ; il ne dit pas que les 77 tables, leurs
+/// Pourquoi : `user_version` dit « v44 » ; il ne dit pas que les 78 tables, leurs
 /// colonnes, leurs index et les gardes RG-11 existent. Une base à paliers sautés
 /// ou issue d'une branche parallèle échouait au premier accès (`no such table`,
 /// `no such column`).

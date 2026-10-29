@@ -178,6 +178,7 @@ void main() {
         ...tablesAjouteesEnV39,
         ...tablesAjouteesEnV40,
         ...tablesAjouteesEnV44,
+        ...tablesAjouteesEnV46,
       });
       expect(tablesAvant.difference(await tables(apres)), isEmpty);
 

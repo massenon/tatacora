@@ -127,7 +127,24 @@ const tablesAjouteesEnV40 = <String>{'clotures_exercices_local'};
 /// La table que la v44 AJOUTE (pièces saisies à la main, 28/10/2026).
 const tablesAjouteesEnV44 = <String>{'pieces_saisie_local'};
 
+/// La table que la v46 AJOUTE (journal de securite du poste, 29/10/2026).
+const tablesAjouteesEnV46 = <String>{'journal_securite_local'};
+
 const _ajoutsParVersion = <int, List<String>>{
+  // La v46 (29/10/2026, mot de passe perdu SANS e-mail) ajoute ONZE colonnes a
+  // `utilisateurs_local` (changement obligatoire, expiration du temporaire, derive
+  // de l'ancien mot de passe, derive du code de secours, compteur d'echecs) et UNE
+  // table locale neuve, `journal_securite_local`, sans cle etrangere ni index.
+  //
+  // ⚠ Le retour arriere ne retire QUE la table. Les colonnes de
+  // `utilisateurs_local` sont CONSERVEES, pour la meme raison que
+  // `utilisateurs_local.email` (v45) : plusieurs DAO joignent la table entiere des
+  // utilisateurs et les tests v13/v14 SEMENT par les DAO d'aujourd'hui sur la forme
+  // ancienne ; un fichier sans ces colonnes ne se lit plus par le code courant. Leur
+  // retrait est eprouve a part, sur fichier (`migration_v46_mot_de_passe_perdu_test`,
+  // qui les retire lui-meme) et sur la VRAIE base v45 (`migration_depuis_anciens_schemas_test`).
+  46: <String>['DROP TABLE journal_securite_local'],
+
   // La v45 (28/10/2026, l'e-mail facultatif d'un employe et d'un compte) ajoute DEUX
   // colonnes nullables, aucune table, ni indexees ni referencees.
   //

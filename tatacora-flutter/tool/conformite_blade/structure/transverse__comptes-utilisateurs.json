@@ -1,0 +1,53 @@
+{
+    "_lisez-moi": "PRODUIT par ExtraireStructureBladeTest, jamais ecrit a la main. Chaque variante (onglet) : les textes VISIBLES de <main>, dans l'ordre du document.",
+    "vue": "transverse/comptes-utilisateurs",
+    "jeu": "vide",
+    "onglets": {
+        "principal": [
+            {
+                "type": "h1",
+                "texte": "Comptes utilisateurs"
+            },
+            {
+                "type": "p",
+                "texte": "Réinitialisez le mot de passe d'un compte : un mot de passe temporaire, valable 24 heures, vous est affiché une seule fois."
+            },
+            {
+                "type": "th",
+                "texte": "Identifiant"
+            },
+            {
+                "type": "th",
+                "texte": "Nom"
+            },
+            {
+                "type": "th",
+                "texte": "Rôle"
+            },
+            {
+                "type": "th",
+                "texte": "Statut"
+            },
+            {
+                "type": "th",
+                "texte": "Mot de passe"
+            },
+            {
+                "type": "th",
+                "texte": "Actions"
+            },
+            {
+                "type": "td",
+                "texte": "compte.structure"
+            },
+            {
+                "type": "td",
+                "texte": "Administrateur système"
+            },
+            {
+                "type": "span",
+                "texte": "Actif"
+            }
+        ]
+    }
+}

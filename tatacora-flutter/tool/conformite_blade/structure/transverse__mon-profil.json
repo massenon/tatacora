@@ -77,6 +77,10 @@
                 "texte": "Rôles & Permissions"
             },
             {
+                "type": "button",
+                "texte": "Enregistrer les informations"
+            },
+            {
                 "type": "h2",
                 "texte": "Modifier le mot de passe"
             },
@@ -87,6 +91,22 @@
             {
                 "type": "button",
                 "texte": "Modifier le mot de passe"
+            },
+            {
+                "type": "h2",
+                "texte": "Code de secours"
+            },
+            {
+                "type": "p",
+                "texte": "À usage unique : il permet au dernier administrateur de retrouver l'accès si son mot de passe est perdu."
+            },
+            {
+                "type": "p",
+                "texte": "Aucun code de secours n'est enregistré."
+            },
+            {
+                "type": "button",
+                "texte": "Générer un code de secours"
             },
             {
                 "type": "h2",

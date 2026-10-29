@@ -36,7 +36,7 @@ void main() {
     FlutterSecureStorage.setMockInitialValues({});
     db = AppDatabase.enMemoire();
     dao = ComptesUtilisateursDao(db, horloge: () => jour);
-    depot = SessionRepositoryLocal(db);
+    depot = SessionRepositoryLocal(db, horloge: () => jour);
     await RolesDao(db).installerSocle();
   });
   tearDown(() => db.close());
@@ -341,46 +341,27 @@ void main() {
     });
   });
 
-  group('Réinitialisation du mot de passe', () {
-    test('l’administrateur pose le nouveau : il ouvre, l’ancien n’ouvre plus ; '
-        'identique à l’actuel : refusé', () async {
+  group('Réinitialisation du mot de passe (option A, 29/10/2026)', () {
+    // Le détail — expiration, changement forcé, code de secours, journal — est
+    // éprouvé dans `test/features/auth/mot_de_passe_perdu_test.dart`. Ici : le
+    // geste vu du DAO des comptes.
+    test('l’administrateur ne CHOISIT plus le mot de passe : le poste en '
+        'génère un temporaire, rendu une fois ; l’ancien n’ouvre plus', () async {
       await poser('admin', 'administrateur');
       final id = await creer();
-
-      expect(
-        await refus(
-          dao.reinitialiserMotDePasse(
-            auteurId: 'admin',
-            compteId: id,
-            nouveau: 'comptoir2026',
-            confirmation: 'comptoir2026',
-          ),
-        ),
-        {'motDePasse': MessagesComptes.motDePasseIdentique},
-      );
-      expect(
-        await refus(
-          dao.reinitialiserMotDePasse(
-            auteurId: 'admin',
-            compteId: id,
-            nouveau: 'court',
-            confirmation: 'autre',
-          ),
-        ),
-        {
-          'motDePasse': MessagesComptes.motDePasseCourt,
-          'confirmation': MessagesComptes.confirmationDifferente,
-        },
-      );
       expect(await seConnecte('j.kora', 'comptoir2026'), isTrue);
 
-      await dao.reinitialiserMotDePasse(
+      final fait = await dao.reinitialiserParAdministrateur(
         auteurId: 'admin',
         compteId: id,
-        nouveau: 'nouveauSecret1',
-        confirmation: 'nouveauSecret1',
       );
-      expect(await seConnecte('j.kora', 'nouveauSecret1'), isTrue);
+
+      expect(fait.login, 'j.kora');
+      expect(fait.motDePasse.length, greaterThanOrEqualTo(12));
+      expect(fait.expireLe, jour.add(const Duration(hours: 24)));
+      // Le temporaire ouvre (sur l'écran de changement seulement) ; l'ancien non.
+      final session = await depot.connecter('j.kora', fait.motDePasse);
+      expect(session.changementObligatoire, isTrue);
       expect(await seConnecte('j.kora', 'comptoir2026'), isFalse);
     });
 
@@ -391,16 +372,12 @@ void main() {
       final avant = (await ligne(id)).empreinte;
       expect(
         await refus(
-          dao.reinitialiserMotDePasse(
-            auteurId: 'recep',
-            compteId: id,
-            nouveau: 'piratage123',
-            confirmation: 'piratage123',
-          ),
+          dao.reinitialiserParAdministrateur(auteurId: 'recep', compteId: id),
         ),
         {'droit': MessagesComptes.refusDroit},
       );
       expect((await ligne(id)).empreinte, avant);
+      expect((await ligne(id)).changementObligatoire, isFalse);
     });
   });
 

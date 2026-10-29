@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' show Value, driftRuntimeOptions;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tatacora_flutter/core/database/app_database.dart';
@@ -10,6 +11,8 @@ import 'package:tatacora_flutter/features/auth/domain/session.dart';
 import 'package:tatacora_flutter/features/transverse/domain/comptes_utilisateurs.dart';
 import 'package:tatacora_flutter/features/transverse/domain/roles_du_poste.dart';
 import 'package:tatacora_flutter/features/transverse/presentation/ecran_comptes_utilisateurs.dart';
+import 'package:tatacora_flutter/features/transverse/presentation/widgets/modales_comptes.dart';
+import 'package:tatacora_flutter/shared_widgets/affichage_secret_unique.dart';
 
 /// L'écran « Comptes utilisateurs » (Lot J2) monté sur une base RÉELLE en
 /// mémoire : qui y entre, la liste paginée, la modale « + Nouveau compte »
@@ -123,9 +126,8 @@ void main() {
   });
 
   group('La liste', () {
-    testWidgets('sa propre ligne n’offre PAS « Désactiver » ; les autres, si', (
-      tester,
-    ) async {
+    testWidgets('sa propre ligne n’offre NI « Désactiver » NI « Réinitialiser le '
+        'mot de passe » ; les autres, si', (tester) async {
       await poser('admin', 'administrateur');
       await poser('barman1', 'barman');
       await monter(tester);
@@ -134,7 +136,9 @@ void main() {
       final nom = tester.widget<Text>(cle('comptes-nom-admin'));
       expect(nom.textSpan!.toPlainText(), contains(TextesComptes.vous));
       expect(cle('comptes-basculer-admin'), findsNothing);
-      expect(cle('comptes-reinitialiser-admin'), findsOneWidget);
+      // Un administrateur change son mot de passe par « Mon profil » (29/10/2026).
+      expect(cle('comptes-reinitialiser-admin'), findsNothing);
+      expect(cle('comptes-reinitialiser-barman1'), findsOneWidget);
       expect(cle('comptes-basculer-barman1'), findsOneWidget);
     });
 
@@ -154,6 +158,99 @@ void main() {
       await tester.tap(cle('comptes-pagination-suivant'));
       await tester.pumpAndSettle();
       expect(lignes(), findsNWidgets(4));
+    });
+  });
+
+  group('« Réinitialiser le mot de passe » (option A, 29/10/2026)', () {
+    testWidgets('confirmation, puis le mot de passe TEMPORAIRE montré UNE fois '
+        '(copier), « Changement requis » dans la liste', (tester) async {
+      final copies = <String>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, (appel) async {
+            if (appel.method == 'Clipboard.setData') {
+              copies.add((appel.arguments as Map)['text'] as String);
+            }
+            return null;
+          });
+      addTearDown(
+        () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(SystemChannels.platform, null),
+      );
+      await poser('admin', 'administrateur');
+      await poser('barman1', 'barman');
+      await monter(tester);
+      expect(find.text(TextesComptes.changementRequis), findsNothing);
+
+      await tester.tap(cle('comptes-reinitialiser-barman1'));
+      await tester.pumpAndSettle();
+      // La confirmation dit ce qui va se passer — et ne demande AUCUN mot de passe.
+      expect(
+        find.text(TextesModalesComptes.reinitialiserTitre('barman1')),
+        findsOneWidget,
+      );
+      expect(
+        find.text(TextesModalesComptes.reinitialiserTexte(24)),
+        findsOneWidget,
+      );
+      expect(find.byType(TextField), findsNothing);
+
+      await tester.tap(cle('comptes-mot-de-passe-enregistrer'));
+      await tester.pump(const Duration(milliseconds: 1));
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 1500)),
+      );
+      await tester.pumpAndSettle();
+
+      // Le temporaire est affiché, une fois, avec « Copier ».
+      final temporaire = tester
+          .widget<SelectableText>(cle('comptes-temporaire-valeur'))
+          .data!;
+      expect(temporaire.length, greaterThanOrEqualTo(12));
+      expect(
+        find.text(TextesModalesComptes.resultatTitre('barman1')),
+        findsOneWidget,
+      );
+      expect(find.textContaining('Valable jusqu’au'), findsNothing);
+      expect(find.textContaining("Valable jusqu'au"), findsOneWidget);
+      await tester.tap(cle('comptes-temporaire-copier'));
+      await tester.pump();
+      expect(copies, [temporaire]);
+      expect(find.text(TextesSecretUnique.copie), findsOneWidget);
+      // Pas d'« Imprimer » pour un mot de passe temporaire.
+      expect(cle('comptes-temporaire-imprimer'), findsNothing);
+
+      await tester.tap(cle('comptes-temporaire-fermer'));
+      await tester.pumpAndSettle();
+      // Il ne revient plus : la fenêtre est fermée, la liste dit seulement
+      // l'état du compte.
+      expect(cle('comptes-temporaire-valeur'), findsNothing);
+      expect(find.text(temporaire), findsNothing);
+      expect(
+        tester.widget<Text>(cle('comptes-changement-barman1')).data,
+        TextesComptes.changementRequis,
+      );
+    });
+
+    testWidgets('un temporaire expiré se lit « Temporaire expiré »', (
+      tester,
+    ) async {
+      await poser('admin', 'administrateur');
+      await poser('barman1', 'barman');
+      await (db.update(
+        db.utilisateursLocal,
+      )..where((u) => u.id.equals('barman1'))).write(
+        UtilisateursLocalCompanion(
+          changementObligatoire: const Value(true),
+          mdpTemporaireExpireLe: Value(
+            DateTime.now().subtract(const Duration(hours: 1)),
+          ),
+        ),
+      );
+      await monter(tester);
+      expect(
+        tester.widget<Text>(cle('comptes-changement-barman1')).data,
+        TextesComptes.temporaireExpire,
+      );
     });
   });
 

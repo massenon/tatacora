@@ -334,6 +334,10 @@ void main() {
       // « Correspondance des comptes » (26/10/2026) : mesurée en emplacement ;
       // relevé de géométrie à capturer dans le navigateur de la Phase 1D.
       'comptabilite/correspondance-comptes',
+      // « Comptes utilisateurs » (29/10/2026, mot de passe perdu SANS e-mail) :
+      // mesurée en emplacement ; relevé de géométrie à capturer dans le
+      // navigateur de la Phase 1D.
+      'transverse/comptes-utilisateurs',
     };
     final manquantes = [
       for (final cas in casEcrans)

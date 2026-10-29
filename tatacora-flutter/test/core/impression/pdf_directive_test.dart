@@ -156,6 +156,11 @@ void main() {
       // Le reçu de location (`pdf/location-recu.blade.php`, 28/10/2026) : remis
       // au client, ni visa ni pied de rapport.
       'vehicules/impression/recu_location.dart',
+      // La feuille du code de secours (29/10/2026, option A du PO) : un document
+      // INTERNE, à ranger au coffre — ni visa ni pied de rapport, ni en-tête
+      // d'établissement. Le code n'est écrit nulle part : il n'existe que dans les
+      // octets remis au dialogue d'impression.
+      'auth/impression/feuille_code_secours.dart',
     };
     // Tableur seulement : aucun PDF composé. Vide depuis le Lot J1 ; le
     // registre reste, pour qu'un futur export CSV seul s'y classe.

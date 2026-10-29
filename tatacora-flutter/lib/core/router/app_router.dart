@@ -4,6 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/achats/presentation/ecran_approvisionnement.dart';
 import '../../features/achats/presentation/ecran_fournisseurs.dart';
+import '../../features/auth/domain/mot_de_passe_perdu.dart';
+import '../../features/auth/presentation/ecran_changement_mot_de_passe.dart';
+import '../../features/auth/presentation/ecran_code_secours.dart';
 import '../../features/auth/presentation/ecran_connexion.dart';
 import '../../features/auth/presentation/ecran_demarrage.dart';
 import '../../features/bar/presentation/ecran_carte_bar.dart';
@@ -85,8 +88,12 @@ final routeurProvider = Provider<GoRouter>((ref) {
     initialLocation: '/demarrage',
     refreshListenable: _EcouteSession(ref),
     redirect: (context, state) {
-      final connecte = ref.read(sessionProvider) != null;
+      final session = ref.read(sessionProvider);
+      final connecte = session != null;
       final versConnexion = state.matchedLocation == '/connexion';
+      final versRecours =
+          state.matchedLocation == routeMotDePasseAdministrateurPerdu;
+      final versChangement = state.matchedLocation == routeChangementMotDePasse;
 
       // Le demarrage s'affiche TOUJOURS, connecte ou non. Sans cette
       // exemption, la redirection l'ecarterait avant sa premiere image et
@@ -94,8 +101,25 @@ final routeurProvider = Provider<GoRouter>((ref) {
       // du defaut « declare, jamais branche » (PA-63).
       if (state.matchedLocation == '/demarrage') return null;
 
+      // « J'ai perdu mon mot de passe administrateur » (29/10/2026, option A du
+      // PO) : le recours du dernier administrateur, atteint SANS session depuis
+      // le message « Contactez l'administrateur » de la connexion.
+      if (!connecte && versRecours) return null;
+
       if (!connecte && !versConnexion) return '/connexion';
-      if (connecte && versConnexion) return _routeRepli;
+
+      // MOT DE PASSE RÉINITIALISÉ PAR UN ADMINISTRATEUR (29/10/2026) : tant que le
+      // titulaire n'a pas défini le sien, aucun module — la seule page qu'il
+      // atteint est « Définissez votre nouveau mot de passe ». La garde relit
+      // la session à chaque navigation (`_EcouteSession`), comme le web
+      // (middleware `ExigerChangementMotDePasse`).
+      if (connecte && session.changementObligatoire) {
+        return versChangement ? null : routeChangementMotDePasse;
+      }
+      // Sans changement exigé, cet écran n'a pas d'objet.
+      if (connecte && (versConnexion || versRecours || versChangement)) {
+        return _routeRepli;
+      }
       if (!connecte) return null;
 
       // LA GARDE DES ROUTES (Lot J2, 14/10/2026). Une route tapée ou suivie
@@ -108,11 +132,10 @@ final routeurProvider = Provider<GoRouter>((ref) {
       // Comme `GardeAcces` elle-même, cette garde est le premier niveau du
       // RBAC : elle évite d'ouvrir un écran refusé, chaque écrivain relit
       // encore le droit au geste.
-      final session = ref.read(sessionProvider);
       final verdict = accesRoute(
         state.uri.path,
         droits: ref.read(droitsProvider),
-        role: session?.role,
+        role: session.role,
       );
       switch (verdict) {
         case AccesRoute.autorise:
@@ -134,6 +157,17 @@ final routeurProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/connexion',
         builder: (context, state) => const EcranConnexion(),
+      ),
+      // Les deux écrans « invité » du mot de passe perdu SANS e-mail (29/10/2026) :
+      // hors de la coquille, comme la connexion. Chemins LITTÉRAUX
+      // (= `routeChangementMotDePasse`, `routeMotDePasseAdministrateurPerdu`).
+      GoRoute(
+        path: '/changement-mot-de-passe',
+        builder: (context, state) => const EcranChangementMotDePasse(),
+      ),
+      GoRoute(
+        path: '/mot-de-passe-administrateur-perdu',
+        builder: (context, state) => const EcranCodeSecours(),
       ),
       ShellRoute(
         builder: (context, state, enfant) => CoquilleApplication(

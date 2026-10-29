@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tatacora_flutter/core/database/app_database.dart';
 import 'package:tatacora_flutter/core/di/providers.dart';
 import 'package:tatacora_flutter/core/rbac/garde_acces.dart';
 import 'package:tatacora_flutter/core/theme/app_theme.dart';
+import 'package:tatacora_flutter/features/transverse/data/journal_securite_dao.dart';
 import 'package:tatacora_flutter/features/transverse/domain/journal_poste.dart';
 import 'package:tatacora_flutter/features/transverse/presentation/ecran_journal_audit.dart';
 import 'package:tatacora_flutter/features/transverse/presentation/providers_transverses.dart';
@@ -60,6 +62,51 @@ void main() {
     expect(filtre.total, 5);
     final libre = filtrerJournalPoste(entrees(10), recherche: 'client');
     expect(libre.total, 4, reason: 'libellé français de la table');
+  });
+
+  testWidgets('le journal de SÉCURITÉ du poste est lu avec la file : qui, quel '
+      'compte, quelle action — jamais un secret (29/10/2026)', (tester) async {
+    final db = AppDatabase.enMemoire();
+    addTearDown(db.close);
+    await JournalSecuriteDao(db, horloge: () => base).tracer(
+      action: ActionJournalPoste.reinitialisationMotDePasse,
+      auteurLogin: 'n.kora',
+      cibleId: 'u-1',
+      cibleLogin: 'marie',
+    );
+    await JournalSecuriteDao(db, horloge: () => base).tracer(
+      action: ActionJournalPoste.codeSecoursRefuse,
+      cibleLogin: 'inconnu',
+    );
+    tester.view
+      ..physicalSize = const Size(1600, 2600)
+      ..devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          baseLocaleProvider.overrideWithValue(db),
+          droitsProvider.overrideWithValue(const GardeAcces({'M14': 'L'})),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.clair,
+          home: const Scaffold(body: EcranJournalAudit()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Réinitialisation du mot de passe'), findsWidgets);
+    expect(find.text('Code de secours refusé'), findsWidgets);
+    expect(find.text('Compte utilisateur : marie'), findsOneWidget);
+    expect(find.text('Compte utilisateur : inconnu'), findsOneWidget);
+    expect(find.text('n.kora'), findsOneWidget, reason: 'l’utilisateur');
+    expect(
+      find.text('2 entrée(s) au registre pour ce filtre.'),
+      findsOneWidget,
+    );
+    // Libère l'écran (et les flux de la base) avant la fin du cas.
+    await tester.pumpWidget(const SizedBox());
   });
 
   testWidgets('un journal vide dit la phrase de la vue, sans zéro inventé', (

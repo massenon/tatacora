@@ -27,6 +27,17 @@ abstract final class MesuresConnexion {
     BoxShadow(color: Color(0x0D000000), blurRadius: 2, offset: Offset(0, 1)),
   ];
 
+  /// `.btn:hover { filter: brightness(0.92) }` — le voile de survol du bouton
+  /// plein, en noir à 8 %.
+  static const Color voileSurvolBouton = Color(0x14000000);
+
+  /// `right-1.5` — le retrait de l'œil à droite du champ (6).
+  static const double retraitOeil = 6;
+
+  /// `px-3.5` — le remplissage horizontal du champ (14), qui laisse la place du
+  /// pictogramme et de l'œil.
+  static const double remplissageChamp = 14;
+
   /// `h-[52px]` — champs ET bouton (cible tactile ≥ 48 px).
   static const double hauteurChamp = 52;
 

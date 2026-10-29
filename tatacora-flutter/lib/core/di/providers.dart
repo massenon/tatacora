@@ -23,6 +23,7 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../features/auth/data/code_secours_local.dart';
 import '../../features/auth/data/session_repository_local.dart';
 import '../../features/auth/domain/session.dart';
 import '../../features/auth/domain/session_repository.dart';
@@ -58,6 +59,29 @@ final baseLocaleProvider = Provider<AppDatabase>((ref) {
 final depotSessionProvider = Provider<SessionRepositoryLocal>((ref) {
   return SessionRepositoryLocal(ref.watch(baseLocaleProvider));
 });
+
+/// Le code de secours de l'administrateur (29/10/2026, option A du PO) — le
+/// recours du DERNIER administrateur qui a perdu son mot de passe. Local, comme
+/// tout le reste de l'authentification.
+final codeSecoursProvider = Provider<CodeSecoursLocal>((ref) {
+  return CodeSecoursLocal(ref.watch(baseLocaleProvider));
+});
+
+/// Une information dite UNE fois sur l'écran de connexion (comme le flash
+/// `pwa-connexion-info` du web) : « Mot de passe défini. Connectez-vous… » après
+/// un changement forcé. L'écran de connexion la lit, puis la consomme.
+final infoConnexionProvider = NotifierProvider<InfoConnexionNotifier, String?>(
+  InfoConnexionNotifier.new,
+);
+
+final class InfoConnexionNotifier extends Notifier<String?> {
+  @override
+  String? build() => null;
+
+  void dire(String message) => state = message;
+
+  void consommer() => state = null;
+}
 
 /// Session active, `null` si personne n'est connecte.
 final sessionProvider = NotifierProvider<SessionNotifier, Session?>(

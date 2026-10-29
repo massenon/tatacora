@@ -1,3 +1,4 @@
+// Vue Blade maîtresse (PA-183) : pwa/transverse/comptes-utilisateurs.blade.php
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -14,6 +15,7 @@ import '../domain/comptes_utilisateurs.dart';
 import '../domain/roles_du_poste.dart';
 import 'providers_transverses.dart';
 import 'widgets/briques_transverses.dart';
+import 'widgets/modale_secret_unique.dart';
 import 'widgets/modales_comptes.dart';
 
 /// L'écran **Comptes utilisateurs** — Lot J2, directive du Product Owner du
@@ -156,16 +158,26 @@ class EcranComptesUtilisateurs extends ConsumerWidget {
     final fait = await ouvrirModaleReinitialiserMotDePasse(
       context,
       compte: compte,
-      enregistrer: (nouveau, confirmation) => ref
+      generer: () => ref
           .read(comptesUtilisateursDaoProvider)
-          .reinitialiserMotDePasse(
+          .reinitialiserParAdministrateur(
             auteurId: _auteur(ref),
             compteId: compte.id,
-            nouveau: nouveau,
-            confirmation: confirmation,
           ),
     );
-    if (fait == true && context.mounted) {
+    if (fait == null || !context.mounted) return;
+    // Le mot de passe temporaire : montré UNE seule fois, à l'administrateur.
+    await ouvrirModaleSecretUnique(
+      context,
+      titre: TextesModalesComptes.resultatTitre(fait.login),
+      secret: fait.motDePasse,
+      consigne: TextesModalesComptes.resultatConsigne(
+        formaterDateHeure(fait.expireLe),
+      ),
+      libelleFermer: TextesModalesComptes.fermer,
+      prefixeCle: 'comptes-temporaire',
+    );
+    if (context.mounted) {
       _apres(
         context,
         ref,
@@ -225,10 +237,17 @@ class EcranComptesUtilisateurs extends ConsumerWidget {
 /// Les textes de l'écran.
 abstract final class TextesComptes {
   static const String titre = 'Comptes utilisateurs';
-  static const String sousTitre =
-      "Les comptes d'accès de ce poste — chacun reçoit les droits de son rôle "
-      '(« Rôles & Permissions »). Un compte ne se supprime jamais : il se '
-      "désactive, et ce qu'il a saisi garde son auteur.";
+
+  /// `pwa.comptes.sous_titre` — la phrase de la réinitialisation (29/10/2026).
+  static const String sousTitreReinitialisation =
+      "Réinitialisez le mot de passe d'un compte : un mot de passe temporaire, valable 24 heures, vous est affiché une seule fois.";
+
+  /// Ce que le poste ajoute à la vue jumelle (qui n'a que la liste et la
+  /// réinitialisation) : créer, désactiver, les droits du rôle.
+  static const String sousTitreAjouts =
+      "Chaque compte reçoit les droits de son rôle (« Rôles & Permissions »). Un compte ne se supprime jamais : il se désactive, et ce qu'il a saisi garde son auteur.";
+
+  static const String sousTitre = '$sousTitreReinitialisation $sousTitreAjouts';
   static const String boutonNouveau = '+ Nouveau compte';
   static const String lectureImpossible =
       'Les comptes de ce poste ne peuvent pas être lus.';
@@ -245,7 +264,12 @@ abstract final class TextesComptes {
   static const String reinitialiser = 'Réinitialiser le mot de passe';
   static const String desactiver = 'Désactiver';
   static const String reactiver = 'Réactiver';
-  static const String vide = 'Aucun compte sur ce poste.';
+  static const String vide = 'Aucun compte.';
+
+  /// `pwa.comptes.changement_requis` / `temporaire_expire` — l'état du mot de
+  /// passe d'un compte réinitialisé par un administrateur.
+  static const String changementRequis = 'Changement requis';
+  static const String temporaireExpire = 'Temporaire expiré';
 }
 
 class _Tableau extends StatelessWidget {
@@ -301,6 +325,7 @@ class _Tableau extends StatelessWidget {
 
   List<Widget> _ligne(CompteUtilisateur c) {
     final soi = c.id == sessionId;
+    final maintenant = DateTime.now();
     return [
       Text.rich(
         TextSpan(
@@ -328,18 +353,42 @@ class _Tableau extends StatelessWidget {
         ),
       ),
       celluleTexte(formaterDate(c.dateCreation)),
-      celluleTexte(formaterDate(c.dateMotDePasse)),
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          celluleTexte(formaterDate(c.dateMotDePasse)),
+          // Un compte réinitialisé par un administrateur : « Changement requis »,
+          // ou « Temporaire expiré » passé les 24 h (`pwa.comptes.*`).
+          if (c.changementObligatoire)
+            Text(
+              c.temporaireExpire(maintenant)
+                  ? TextesComptes.temporaireExpire
+                  : TextesComptes.changementRequis,
+              key: Key('comptes-changement-${c.identifiant}'),
+              style: styleTransverse(
+                TaillesContenu.t12,
+                poids: FontWeight.w600,
+                couleur: AppColors.gold,
+              ),
+            ),
+        ],
+      ),
       Wrap(
         alignment: WrapAlignment.end,
         spacing: AppSpacing.xs,
         runSpacing: AppSpacing.xs,
         children: [
-          BoutonStandard(
-            key: Key('comptes-reinitialiser-${c.identifiant}'),
-            libelle: TextesComptes.reinitialiser,
-            compact: true,
-            onPressed: () => onReinitialiser(c),
-          ),
+          // Sa propre ligne n'offre pas « Réinitialiser » : un administrateur
+          // change son mot de passe par « Mon profil », avec l'ancien (le DAO
+          // refuserait aussi, d'une phrase lisible).
+          if (!soi)
+            BoutonStandard(
+              key: Key('comptes-reinitialiser-${c.identifiant}'),
+              libelle: TextesComptes.reinitialiser,
+              compact: true,
+              onPressed: () => onReinitialiser(c),
+            ),
           // Sa propre ligne n'offre pas « Désactiver » : le DAO le refuserait,
           // et un bouton qui mène à un refus certain est un bouton inerte.
           if (!soi)

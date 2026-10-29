@@ -7,6 +7,9 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../parametres/data/parametres_depot_local.dart';
+import '../../transverse/presentation/widgets/modale_secret_unique.dart';
+import '../impression/feuille_code_secours.dart';
+import '../domain/mot_de_passe_perdu.dart';
 import '../domain/session_repository.dart';
 
 /// La création du **premier compte**, sur un poste vierge.
@@ -126,6 +129,42 @@ class _EtatFormulairePremierCompte
               'en posant les paramètres initiaux du poste vierge',
             ),
           ),
+        );
+      }
+      // LE CODE DE SECOURS (29/10/2026, option A du PO) : le premier compte est
+      // l'administrateur ; s'il perd son mot de passe, personne d'autre ne peut le
+      // réinitialiser. Le code à usage unique est affiché UNE seule fois — copier,
+      // imprimer, ranger au coffre —, seul son dérivé est stocké. Un échec n'empêche
+      // pas d'entrer : l'administrateur en génère un depuis « Mon profil → Code de
+      // secours ».
+      String? codeSecours;
+      try {
+        codeSecours = await ref
+            .read(codeSecoursProvider)
+            .poser(login: _login.text);
+      } on Object catch (e, pile) {
+        FlutterError.reportError(
+          FlutterErrorDetails(
+            exception: e,
+            stack: pile,
+            library: 'tatacora',
+            context: ErrorDescription(
+              'en posant le code de secours du premier compte',
+            ),
+          ),
+        );
+      }
+      if (codeSecours != null && mounted) {
+        final code = codeSecours;
+        final login = _login.text.trim().toLowerCase();
+        await ouvrirModaleSecretUnique(
+          context,
+          titre: MessagesMotDePassePerdu.codeSecoursAfficheTitre,
+          secret: code,
+          consigne: MessagesMotDePassePerdu.codeSecoursConsigne,
+          libelleFermer: MessagesMotDePassePerdu.codeSecoursFermer,
+          surImprimer: () => ref.read(imprimerCodeSecoursProvider)(code, login),
+          prefixeCle: 'premier-compte-code',
         );
       }
       // On enchaîne sur la connexion : demander de ressaisir ce qu'on vient de

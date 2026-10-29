@@ -82,6 +82,7 @@ void main() {
       ...tablesAjouteesEnV39,
       ...tablesAjouteesEnV40,
       ...tablesAjouteesEnV44,
+      ...tablesAjouteesEnV46,
     });
 
     final roles = await apres

@@ -146,8 +146,8 @@
     "ongletsNonCliquables": 0
   },
   "transverse/mon-profil": {
-    "blade": 28,
-    "ordonnes": 21,
+    "blade": 33,
+    "ordonnes": 22,
     "ongletsNonCliquables": 0
   },
   "transverse/roles-permissions": {
@@ -168,6 +168,11 @@
   "comptabilite/correspondance-comptes": {
     "blade": 134,
     "ordonnes": 77,
+    "ongletsNonCliquables": 0
+  },
+  "transverse/comptes-utilisateurs": {
+    "blade": 11,
+    "ordonnes": 5,
     "ongletsNonCliquables": 0
   }
 }

@@ -1,6 +1,7 @@
 // Vue Blade maîtresse (PA-183) : pwa/livewire/connexion.blade.php
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/di/providers.dart';
 import '../../../core/navigation/coquille_vue.dart';
@@ -14,6 +15,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/mesures_connexion.dart';
 import '../../parametres/data/apparence_poste.dart';
 import '../data/identifiant_memorise.dart';
+import '../domain/mot_de_passe_perdu.dart';
 import '../domain/session_repository.dart';
 import 'formulaire_premier_compte.dart';
 
@@ -64,6 +66,12 @@ abstract final class TextesConnexion {
   static const seSouvenir = 'Se souvenir de moi';
   static const motDePasseOublie = 'Mot de passe oublié ?';
   static const motDePasseOublieAide = "Contactez l'administrateur";
+
+  /// `pwa.connexion.mot_de_passe_administrateur_perdu` — le recours du dernier
+  /// administrateur (29/10/2026, option A du PO) : mène à l'écran du code de
+  /// secours.
+  static const motDePasseAdministrateurPerdu =
+      "J'ai perdu mon mot de passe administrateur";
 
   /// `pwa.connexion.valider` / `connexion_en_cours`.
   static const valider = 'SE CONNECTER';
@@ -160,6 +168,7 @@ class _EtatEcranConnexion extends ConsumerState<EcranConnexion> {
 
   Future<void> _soumettre() async {
     if (_enCours || !_formulaire.currentState!.validate()) return;
+    ref.read(infoConnexionProvider.notifier).consommer();
     setState(() {
       _enCours = true;
       _erreur = null;
@@ -184,88 +193,37 @@ class _EtatEcranConnexion extends ConsumerState<EcranConnexion> {
 
   @override
   Widget build(BuildContext context) {
-    // `md:` : la largeur de l'ÉCRAN, pas celle d'un conteneur.
-    final large = MediaQuery.sizeOf(context).width >= Breakpoints.tablette;
-    final marge = large
-        ? MesuresConnexion.margeLarge
-        : MesuresConnexion.margeEtroit;
-    final interieur = large
-        ? MesuresConnexion.interieurLarge
-        : MesuresConnexion.interieurEtroit;
-
-    return Scaffold(
-      // `<body style="background:var(--fond-clair)">` — #F2F2F2.
-      backgroundColor: AppColors.fondClair,
-      body: SafeArea(
-        // `flex-1 flex items-center justify-center p-4 md:p-6 overflow-y-auto`
-        child: LayoutBuilder(
-          builder: (context, contraintes) => SingleChildScrollView(
-            padding: EdgeInsets.all(marge),
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: contraintes.maxHeight - 2 * marge,
-              ),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    maxWidth: MesuresConnexion.largeurCarte,
-                  ),
-                  child: _carte(context, interieur),
-                ),
-              ),
-            ),
-          ),
+    return CadreInvite(
+      formulaire: _formulaire,
+      enfants: [
+        // `<h1 class="sr-only">` : le titre de la page, lu par les
+        // lecteurs d'écran, jamais dessiné.
+        Semantics(
+          header: true,
+          label: TextesConnexion.titreH1,
+          child: const SizedBox.shrink(),
         ),
-      ),
-    );
-  }
-
-  /// `bg-white border border-slate-200 rounded-2xl shadow-sm p-6 md:p-8`.
-  Widget _carte(BuildContext context, double interieur) {
-    return Container(
-      padding: EdgeInsets.all(interieur),
-      decoration: BoxDecoration(
-        color: AppColors.neutre0,
-        borderRadius: BorderRadius.circular(MesuresConnexion.rayonCarte),
-        border: Border.all(color: AppColors.neutre200),
-        boxShadow: MesuresConnexion.ombreCarte,
-      ),
-      child: Form(
-        key: _formulaire,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // `<h1 class="sr-only">` : le titre de la page, lu par les
-            // lecteurs d'écran, jamais dessiné.
-            Semantics(
-              header: true,
-              label: TextesConnexion.titreH1,
-              child: const SizedBox.shrink(),
-            ),
-            const _Marque(),
-            // **Poste vierge : on cède la place à la création du premier
-            // compte.** L'authentification étant locale (PA-103), un poste
-            // neuf n'a aucun compte, et afficher un formulaire qui refusera
-            // tout ce qu'on y saisit ferait croire à une faute de frappe. Seul
-            // l'en-tête de marque est repris (handoff §6).
-            ...switch (ref.watch(aucunCompteProvider)) {
-              AsyncData(value: true) => const [
-                SizedBox(height: MesuresConnexion.filetBas),
-                FormulairePremierCompte(),
-              ],
-              AsyncData() => _contenuConnexion(context),
-              // Tant que la réponse n'est pas connue, on n'affiche NI l'un NI
-              // l'autre : proposer une connexion puis la remplacer par une
-              // création ferait clignoter l'écran d'ouverture.
-              _ => const [
-                SizedBox(height: MesuresConnexion.filetBas),
-                Center(child: CircularProgressIndicator(strokeWidth: 2)),
-              ],
-            },
+        const MarqueConnexion(),
+        // **Poste vierge : on cède la place à la création du premier
+        // compte.** L'authentification étant locale (PA-103), un poste
+        // neuf n'a aucun compte, et afficher un formulaire qui refusera
+        // tout ce qu'on y saisit ferait croire à une faute de frappe. Seul
+        // l'en-tête de marque est repris (handoff §6).
+        ...switch (ref.watch(aucunCompteProvider)) {
+          AsyncData(value: true) => const [
+            SizedBox(height: MesuresConnexion.filetBas),
+            FormulairePremierCompte(),
           ],
-        ),
-      ),
+          AsyncData() => _contenuConnexion(context),
+          // Tant que la réponse n'est pas connue, on n'affiche NI l'un NI
+          // l'autre : proposer une connexion puis la remplacer par une
+          // création ferait clignoter l'écran d'ouverture.
+          _ => const [
+            SizedBox(height: MesuresConnexion.filetBas),
+            Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          ],
+        },
+      ],
     );
   }
 
@@ -275,7 +233,7 @@ class _EtatEcranConnexion extends ConsumerState<EcranConnexion> {
     return [
       // `<hr class="border-slate-200 mt-5">`
       const SizedBox(height: MesuresConnexion.filetHaut),
-      const _Filet(),
+      const FiletConnexion(),
       // `text-[12px] font-semibold tracking-[0.2em] text-slate-500 text-center py-3`
       Padding(
         padding: const EdgeInsets.symmetric(
@@ -292,9 +250,9 @@ class _EtatEcranConnexion extends ConsumerState<EcranConnexion> {
           ),
         ),
       ),
-      const _Filet(),
+      const FiletConnexion(),
       const _BandeauModules(),
-      const _Filet(),
+      const FiletConnexion(),
       const SizedBox(height: MesuresConnexion.filetBas), // mb-6
       // `text-[28px] font-extrabold leading-tight` navy.
       Semantics(
@@ -320,10 +278,39 @@ class _EtatEcranConnexion extends ConsumerState<EcranConnexion> {
       ),
       const SizedBox(height: MesuresConnexion.filetBas),
 
+      // Un changement de mot de passe vient d'aboutir (ou un temporaire a
+      // expiré) : l'information est dite UNE fois, au retour sur la connexion
+      // (le flash `pwa-connexion-info` de la vue).
+      if (ref.watch(infoConnexionProvider) case final info?) ...[
+        Semantics(
+          liveRegion: true,
+          child: Container(
+            key: const Key('connexion-information'),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: AppSpacing.xs,
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.neutre50,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(color: AppColors.neutre200),
+            ),
+            child: Text(
+              info,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontSize: Tailles.t15,
+                color: AppColors.neutre700,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+      ],
+
       // Ordre de tabulation (handoff §8) : identifiant → mot de passe → œil →
       // « Se souvenir » → « Mot de passe oublié ? » → « SE CONNECTER » — celui
       // du document, donc celui de la lecture.
-      _ChampConnexion(
+      ChampConnexion(
         etiquette: TextesConnexion.login,
         controleur: _identifiant,
         trace: MesuresConnexion.traceUtilisateur,
@@ -335,7 +322,7 @@ class _EtatEcranConnexion extends ConsumerState<EcranConnexion> {
             : null,
       ),
       const SizedBox(height: AppSpacing.md), // space-y-4
-      _ChampConnexion(
+      ChampConnexion(
         etiquette: TextesConnexion.motDePasse,
         controleur: _motDePasse,
         trace: MesuresConnexion.traceCadenas,
@@ -419,12 +406,34 @@ class _EtatEcranConnexion extends ConsumerState<EcranConnexion> {
               borderRadius: BorderRadius.circular(AppRadius.md),
               border: Border.all(color: AppColors.neutre200),
             ),
-            child: Text(
-              TextesConnexion.motDePasseOublieAide,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontSize: Tailles.t15,
-                color: AppColors.neutre700,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  TextesConnexion.motDePasseOublieAide,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontSize: Tailles.t15,
+                    color: AppColors.neutre700,
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.unit),
+                // 29/10/2026 (PO, option A) : le recours du DERNIER
+                // administrateur. Un compte ordinaire s'adresse à un
+                // administrateur, qui lui génère un mot de passe temporaire.
+                InkWell(
+                  key: const Key('connexion-lien-mot-de-passe-perdu'),
+                  onTap: () => context.go(routeMotDePasseAdministrateurPerdu),
+                  child: Text(
+                    TextesConnexion.motDePasseAdministrateurPerdu,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontSize: Tailles.t15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.navy,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -433,33 +442,16 @@ class _EtatEcranConnexion extends ConsumerState<EcranConnexion> {
       // `#erreur-identifiants` (`role="alert"`) : n'existe que sur un refus.
       if (_erreur != null) ...[
         const SizedBox(height: AppSpacing.md),
-        Semantics(
-          liveRegion: true,
-          child: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.sm, // px-3
-              vertical: AppSpacing.xs, // py-2
-            ),
-            decoration: BoxDecoration(
-              color: AppColors.erreurFondLeger,
-              borderRadius: BorderRadius.circular(AppRadius.md),
-              border: Border.all(color: AppColors.erreurBordure),
-            ),
-            child: Text(
-              // La vue préfixe d'un « ⚠ » : le signe porte l'alerte pour qui
-              // distingue mal le rouge.
-              '⚠ $_erreur',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontSize: Tailles.t15,
-                color: AppColors.erreur,
-              ),
-            ),
-          ),
-        ),
+        BandeauAlerteConnexion(message: _erreur!),
       ],
 
       const SizedBox(height: AppSpacing.md),
-      _BoutonSeConnecter(enCours: _enCours, onPressed: _soumettre),
+      BoutonPleinConnexion(
+        libelle: TextesConnexion.valider,
+        libelleEnCours: TextesConnexion.connexionEnCours,
+        enCours: _enCours,
+        onPressed: _soumettre,
+      ),
 
       // `text-center text-[13px] text-slate-500 mt-8`
       const SizedBox(height: MesuresConnexion.piedHaut),
@@ -475,9 +467,182 @@ class _EtatEcranConnexion extends ConsumerState<EcranConnexion> {
   }
 }
 
+/// Le CADRE « invité » de la vue de connexion : fond `--fond-clair`, une carte
+/// unique centrée (`max-w-[560px]`, `p-6 md:p-8`, `rounded-2xl`), défilante. Les
+/// écrans qui suivent la connexion — « Définissez votre nouveau mot de passe »,
+/// « J'ai perdu mon mot de passe administrateur » — le reprennent tel quel :
+/// mêmes jetons, mêmes pictogrammes (29/10/2026, option A du PO).
+class CadreInvite extends StatelessWidget {
+  const CadreInvite({super.key, required this.enfants, this.formulaire});
+
+  final List<Widget> enfants;
+
+  /// La clé du `Form` de la carte, quand l'écran valide ses champs.
+  final GlobalKey<FormState>? formulaire;
+
+  @override
+  Widget build(BuildContext context) {
+    // `md:` : la largeur de l'ÉCRAN, pas celle d'un conteneur.
+    final large = MediaQuery.sizeOf(context).width >= Breakpoints.tablette;
+    final marge = large
+        ? MesuresConnexion.margeLarge
+        : MesuresConnexion.margeEtroit;
+    final interieur = large
+        ? MesuresConnexion.interieurLarge
+        : MesuresConnexion.interieurEtroit;
+
+    return Scaffold(
+      // `<body style="background:var(--fond-clair)">` — #F2F2F2.
+      backgroundColor: AppColors.fondClair,
+      body: SafeArea(
+        // `flex-1 flex items-center justify-center p-4 md:p-6 overflow-y-auto`
+        child: LayoutBuilder(
+          builder: (context, contraintes) => SingleChildScrollView(
+            padding: EdgeInsets.all(marge),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: contraintes.maxHeight - 2 * marge,
+              ),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    maxWidth: MesuresConnexion.largeurCarte,
+                  ),
+                  child: _carte(interieur),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// `bg-white border border-slate-200 rounded-2xl shadow-sm p-6 md:p-8`.
+  Widget _carte(double interieur) {
+    final colonne = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: enfants,
+    );
+    return Container(
+      padding: EdgeInsets.all(interieur),
+      decoration: BoxDecoration(
+        color: AppColors.neutre0,
+        borderRadius: BorderRadius.circular(MesuresConnexion.rayonCarte),
+        border: Border.all(color: AppColors.neutre200),
+        boxShadow: MesuresConnexion.ombreCarte,
+      ),
+      child: formulaire == null
+          ? colonne
+          : Form(key: formulaire, child: colonne),
+    );
+  }
+}
+
+/// Le bandeau d'alerte de la carte : `text-[15px] text-red-600 bg-red-50 border
+/// border-red-100 rounded-lg px-3 py-2`, préfixé d'un « ⚠ » (le signe porte
+/// l'alerte pour qui distingue mal le rouge), `role="alert"`.
+class BandeauAlerteConnexion extends StatelessWidget {
+  const BandeauAlerteConnexion({super.key, required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      liveRegion: true,
+      child: Container(
+        key: const Key('connexion-alerte'),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.sm, // px-3
+          vertical: AppSpacing.xs, // py-2
+        ),
+        decoration: BoxDecoration(
+          color: AppColors.erreurFondLeger,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+          border: Border.all(color: AppColors.erreurBordure),
+        ),
+        child: Text(
+          '⚠ $message',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            fontSize: Tailles.t15,
+            color: AppColors.erreur,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Un champ MOT DE PASSE de la carte « invité » : le [ChampConnexion] avec son
+/// œil afficher/masquer (`aria-pressed`), comme le champ de la connexion.
+class ChampSecretConnexion extends StatefulWidget {
+  const ChampSecretConnexion({
+    super.key,
+    required this.etiquette,
+    required this.controleur,
+    required this.validateur,
+    required this.onSoumis,
+    this.indicesAutoRemplissage = const [],
+    this.autofocus = false,
+  });
+
+  final String etiquette;
+  final TextEditingController controleur;
+  final String? Function(String?) validateur;
+  final VoidCallback onSoumis;
+  final List<String> indicesAutoRemplissage;
+  final bool autofocus;
+
+  @override
+  State<ChampSecretConnexion> createState() => _EtatChampSecretConnexion();
+}
+
+class _EtatChampSecretConnexion extends State<ChampSecretConnexion> {
+  bool _masque = true;
+
+  @override
+  Widget build(BuildContext context) {
+    return ChampConnexion(
+      etiquette: widget.etiquette,
+      controleur: widget.controleur,
+      trace: MesuresConnexion.traceCadenas,
+      masque: _masque,
+      autofocus: widget.autofocus,
+      indicesAutoRemplissage: widget.indicesAutoRemplissage,
+      onSoumis: widget.onSoumis,
+      validateur: widget.validateur,
+      suffixe: Semantics(
+        toggled: !_masque,
+        child: IconButton(
+          tooltip: _masque
+              ? TextesConnexion.afficherMotDePasse
+              : TextesConnexion.masquerMotDePasse,
+          onPressed: () => setState(() => _masque = !_masque),
+          style: IconButton.styleFrom(
+            minimumSize: const Size.square(MesuresConnexion.cibleOeil),
+            fixedSize: const Size.square(MesuresConnexion.cibleOeil),
+            padding: EdgeInsets.zero,
+            foregroundColor: AppColors.neutre500,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          icon: IconeTrace(
+            trace: _masque
+                ? MesuresConnexion.traceOeil
+                : MesuresConnexion.traceOeilBarre,
+            taille: MesuresConnexion.iconeChamp,
+            couleur: AppColors.neutre500,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 /// `<hr class="border-slate-200">`.
-class _Filet extends StatelessWidget {
-  const _Filet();
+class FiletConnexion extends StatelessWidget {
+  const FiletConnexion({super.key});
 
   @override
   Widget build(BuildContext context) =>
@@ -485,8 +650,8 @@ class _Filet extends StatelessWidget {
 }
 
 /// La marque : pictogramme + « LogiReStock » en deux tons + sous-titre.
-class _Marque extends ConsumerWidget {
-  const _Marque();
+class MarqueConnexion extends ConsumerWidget {
+  const MarqueConnexion({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -637,8 +802,9 @@ class _BandeauModules extends StatelessWidget {
 /// Un champ étiqueté — `.groupe-champ` de la vue : `<label>` en capitales AU
 /// DESSUS du champ (pas un `labelText` flottant), icône à gauche, bordure
 /// `slate-300` (survol `slate-400`), anneau de focus navy, erreur dessous.
-class _ChampConnexion extends StatefulWidget {
-  const _ChampConnexion({
+class ChampConnexion extends StatefulWidget {
+  const ChampConnexion({
+    super.key,
     required this.etiquette,
     required this.controleur,
     required this.trace,
@@ -661,10 +827,10 @@ class _ChampConnexion extends StatefulWidget {
   final Widget? suffixe;
 
   @override
-  State<_ChampConnexion> createState() => _EtatChampConnexion();
+  State<ChampConnexion> createState() => _EtatChampConnexion();
 }
 
-class _EtatChampConnexion extends State<_ChampConnexion> {
+class _EtatChampConnexion extends State<ChampConnexion> {
   final _focus = FocusNode();
   bool _survol = false;
   bool _focalise = false;
@@ -757,7 +923,9 @@ class _EtatChampConnexion extends State<_ChampConnexion> {
                   suffixIcon: widget.suffixe == null
                       ? null
                       : Padding(
-                          padding: const EdgeInsets.only(right: 6), // right-1.5
+                          padding: const EdgeInsets.only(
+                            right: MesuresConnexion.retraitOeil,
+                          ), // right-1.5
                           child: widget.suffixe,
                         ),
                   suffixIconConstraints: const BoxConstraints(
@@ -765,7 +933,7 @@ class _EtatChampConnexion extends State<_ChampConnexion> {
                     minHeight: MesuresConnexion.cibleOeil,
                   ),
                   contentPadding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm + 2,
+                    horizontal: MesuresConnexion.remplissageChamp,
                     vertical: AppSpacing.md,
                   ),
                   enabledBorder: _bordure(
@@ -840,12 +1008,21 @@ class _CaseSeSouvenir extends StatelessWidget {
   }
 }
 
-/// Le bouton plein « SE CONNECTER » : navy, 52 px, rayon 12, capitales.
-/// Au repos le cadenas ouvert ; en cours, la pastille tournante et
-/// « Connexion… » (`aria-busy`), le bouton est désactivé.
-class _BoutonSeConnecter extends StatelessWidget {
-  const _BoutonSeConnecter({required this.enCours, required this.onPressed});
+/// Le bouton plein de la carte « invité » — « SE CONNECTER » sur la connexion,
+/// « ENREGISTRER » sur le changement de mot de passe : navy, 52 px, rayon 12,
+/// capitales. Au repos le cadenas ouvert ; en cours, la pastille tournante et
+/// le libellé d'attente (`aria-busy`), le bouton est désactivé.
+class BoutonPleinConnexion extends StatelessWidget {
+  const BoutonPleinConnexion({
+    super.key,
+    required this.libelle,
+    required this.libelleEnCours,
+    required this.enCours,
+    required this.onPressed,
+  });
 
+  final String libelle;
+  final String libelleEnCours;
   final bool enCours;
   final VoidCallback onPressed;
 
@@ -854,9 +1031,7 @@ class _BoutonSeConnecter extends StatelessWidget {
     return Semantics(
       button: true,
       // `aria-busy` : l'état de chargement est annoncé.
-      label: enCours
-          ? TextesConnexion.connexionEnCours
-          : TextesConnexion.valider,
+      label: enCours ? libelleEnCours : libelle,
       child: ExcludeSemantics(
         child: SizedBox(
           height: MesuresConnexion.hauteurChamp,
@@ -876,7 +1051,7 @@ class _BoutonSeConnecter extends StatelessWidget {
               // `.btn:hover { filter: brightness(0.92) }`
               overlayColor: WidgetStateProperty.resolveWith(
                 (etats) => etats.contains(WidgetState.hovered)
-                    ? const Color(0x14000000)
+                    ? MesuresConnexion.voileSurvolBouton
                     : null,
               ),
               elevation: const WidgetStatePropertyAll(0),
@@ -920,9 +1095,7 @@ class _BoutonSeConnecter extends StatelessWidget {
                 const SizedBox(width: MesuresConnexion.ecartCase),
                 Flexible(
                   child: Text(
-                    enCours
-                        ? TextesConnexion.connexionEnCours
-                        : TextesConnexion.valider,
+                    enCours ? libelleEnCours : libelle,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),

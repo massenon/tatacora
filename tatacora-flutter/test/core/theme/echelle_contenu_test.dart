@@ -386,6 +386,23 @@ void main() {
         'remappage de `app.css` ne l atteint pas.',
     'lib/features/auth/presentation/formulaire_premier_compte.dart':
         'Rendu par l écran de connexion, donc hors `<main>` comme lui.',
+    // Mot de passe perdu SANS e-mail (29/10/2026, option A du PO) : les deux
+    // écrans « invité » reprennent la carte de la connexion, qui n a pas de
+    // `<main>` ; les fenêtres du secret et du code de secours sont des modales,
+    // hors `</main>` comme toutes celles des vues.
+    'lib/features/auth/presentation/ecran_changement_mot_de_passe.dart':
+        '`livewire/changement-mot-de-passe-obligatoire.blade.php` reprend la '
+        'carte de la connexion : aucune balise `<main>`.',
+    'lib/features/auth/presentation/ecran_code_secours.dart':
+        '`livewire/code-secours.blade.php` reprend la carte de la connexion : '
+        'aucune balise `<main>`.',
+    'lib/features/transverse/presentation/widgets/modale_secret_unique.dart':
+        'Modale — la fenêtre du secret affiché une seule fois, hors `</main>`.',
+    'lib/features/transverse/presentation/widgets/modale_code_secours.dart':
+        'Modale — « Générer un code de secours » de Mon profil, hors `</main>`.',
+    'lib/shared_widgets/affichage_secret_unique.dart':
+        'Rendu DANS une modale (le secret affiché une seule fois) ou sur la '
+        'carte de la connexion : hors `<main>` dans les deux cas.',
     'lib/features/ventes/presentation/widgets/dialogue_detail_vente.dart':
         'Modale. Les conteneurs de modales des vues sont hors `</main>`.',
     'lib/features/facturation/presentation/widgets/vue_ticket.dart':

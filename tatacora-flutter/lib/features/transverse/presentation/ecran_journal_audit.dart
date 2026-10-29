@@ -243,9 +243,22 @@ class _EtatEcranJournalAudit extends ConsumerState<EcranJournalAudit> {
         AppColors.gold,
       ),
       // `JournalAudit::ACTIONS['suppression']` : #FDECEC / #C62828.
-      ActionJournalPoste.suppression => (
+      ActionJournalPoste.suppression ||
+      ActionJournalPoste.codeSecoursRefuse ||
+      ActionJournalPoste.codeSecoursBloque => (
         AppColors.badgeRougeFond,
         AppColors.erreur,
+      ),
+      // `JournalAudit::ACTIONS` (29/10/2026) : réinitialisations en doré,
+      // code de secours posé en bleu.
+      ActionJournalPoste.reinitialisationMotDePasse ||
+      ActionJournalPoste.codeSecoursUtilise => (
+        AppColors.reserveGoldFond,
+        AppColors.gold,
+      ),
+      ActionJournalPoste.codeSecoursGenere => (
+        AppColors.badgeBleuFond,
+        AppColors.info,
       ),
     };
     return Container(

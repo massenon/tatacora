@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/rbac/garde_acces.dart';
+import '../domain/mot_de_passe_perdu.dart';
 import '../domain/session.dart';
 import '../domain/session_repository.dart';
 import 'verificateur_hors_ligne.dart';
@@ -45,11 +46,16 @@ import 'verificateur_hors_ligne.dart';
 /// même été tenté. Ici les refus sont un **jeu fermé de trois messages**,
 /// écrits localement.
 final class SessionRepositoryLocal implements SessionRepository {
-  SessionRepositoryLocal(this._base, {FlutterSecureStorage? coffre})
-    : _coffre = coffre ?? const FlutterSecureStorage();
+  SessionRepositoryLocal(
+    this._base, {
+    FlutterSecureStorage? coffre,
+    DateTime Function()? horloge,
+  }) : _coffre = coffre ?? const FlutterSecureStorage(),
+       _horloge = horloge ?? DateTime.now;
 
   final AppDatabase _base;
   final FlutterSecureStorage _coffre;
+  final DateTime Function() _horloge;
 
   static const _uuid = Uuid();
   static const String _cleSessionCourante = 'tatacora_session_courante';
@@ -96,9 +102,107 @@ final class SessionRepositoryLocal implements SessionRepository {
       throw const EchecConnexion(refusIdentifiants);
     }
 
+    // Mot de passe TEMPORAIRE posé par un administrateur (29/10/2026) : expiré
+    // (24 h) il n'ouvre rien — le refus est prononcé APRÈS la vérification du mot
+    // de passe, comme le compte désactivé du serveur, pour ne rien dire à qui ne
+    // le connaît pas. Valide, il n'ouvre QUE l'écran de changement (la session
+    // porte `changementObligatoire`, la garde du routeur fait le reste).
+    if (_temporaireExpire(ligne, _horloge())) {
+      throw const EchecConnexion(MessagesMotDePassePerdu.expire);
+    }
+
     final session = _depuisLigne(ligne);
     await _memoriserSession(ligne);
     return session;
+  }
+
+  /// Le mot de passe temporaire de [ligne] est-il expiré à [maintenant] ?
+  static bool _temporaireExpire(UtilisateurLocal ligne, DateTime maintenant) =>
+      ligne.changementObligatoire &&
+      ligne.mdpTemporaireExpireLe != null &&
+      !maintenant.isBefore(ligne.mdpTemporaireExpireLe!);
+
+  /// Définit le mot de passe CHOISI par le titulaire après une réinitialisation
+  /// par un administrateur (29/10/2026, option A du PO) — la SEULE sortie de
+  /// « changement obligatoire ».
+  ///
+  /// Règles : celles de « Mon profil » (8 caractères au moins), PLUS :
+  /// différent du mot de passe temporaire et différent de l'ancien. Un temporaire
+  /// expiré (24 h) n'autorise plus rien. Le nouveau est dérivé par le MÊME
+  /// [VerificateurHorsLigne.creer] que partout ; l'indicateur, l'échéance et le
+  /// dérivé de l'ancien mot de passe sont effacés. La session n'est pas fermée ICI
+  /// (le notificateur de session la ferme : on se reconnecte avec le nouveau mot
+  /// de passe, comme au web).
+  ///
+  /// La confirmation (« les deux saisies correspondent ») est un contrôle de
+  /// SAISIE : elle reste au formulaire.
+  Future<void> definirNouveauMotDePasse({
+    required String login,
+    required String nouveau,
+  }) async {
+    if (nouveau.length < ReglesMotDePassePerdu.longueurMin) {
+      throw const RefusMotDePassePerdu(MessagesMotDePassePerdu.tropCourt);
+    }
+    final ligne =
+        await (_base.select(_base.utilisateursLocal)
+              ..where((u) => u.login.equals(login.trim().toLowerCase())))
+            .getSingleOrNull();
+    if (ligne == null || !ligne.actif || !ligne.changementObligatoire) {
+      // Un compte qui n'a rien à changer n'a rien à faire ici.
+      throw const RefusMotDePassePerdu(refusIdentifiants);
+    }
+    final maintenant = _horloge();
+    if (_temporaireExpire(ligne, maintenant)) {
+      throw const RefusMotDePassePerdu(MessagesMotDePassePerdu.expire);
+    }
+
+    final temporaire = VerificateurHorsLigne(
+      login: ligne.login,
+      sel: ligne.sel,
+      empreinte: ligne.empreinte,
+      iterations: ligne.iterations,
+      derniereConnexionEnLigne: ligne.dateMotDePasse,
+    );
+    if (temporaire.correspond(nouveau)) {
+      throw const RefusMotDePassePerdu(
+        MessagesMotDePassePerdu.identiqueTemporaire,
+      );
+    }
+    if (ligne.selPrecedent != null && ligne.empreintePrecedente != null) {
+      final ancien = VerificateurHorsLigne(
+        login: ligne.login,
+        sel: ligne.selPrecedent!,
+        empreinte: ligne.empreintePrecedente!,
+        iterations: ligne.iterationsPrecedentes ?? 1,
+        derniereConnexionEnLigne: ligne.dateMotDePasse,
+      );
+      if (ancien.correspond(nouveau)) {
+        throw const RefusMotDePassePerdu(
+          MessagesMotDePassePerdu.identiqueAncien,
+        );
+      }
+    }
+
+    final v = VerificateurHorsLigne.creer(
+      login: ligne.login,
+      motDePasse: nouveau,
+      maintenant: maintenant,
+    );
+    await (_base.update(
+      _base.utilisateursLocal,
+    )..where((u) => u.id.equals(ligne.id))).write(
+      UtilisateursLocalCompanion(
+        sel: Value(v.sel),
+        empreinte: Value(v.empreinte),
+        iterations: Value(v.iterations),
+        dateMotDePasse: Value(maintenant),
+        changementObligatoire: const Value(false),
+        mdpTemporaireExpireLe: const Value(null),
+        selPrecedent: const Value(null),
+        empreintePrecedente: const Value(null),
+        iterationsPrecedentes: const Value(null),
+      ),
+    );
   }
 
   /// Vérifie le mot de passe de [login] SANS ouvrir de session : l'équivalent
@@ -265,7 +369,7 @@ final class SessionRepositoryLocal implements SessionRepository {
       _base.utilisateursLocal,
     )..where((u) => u.login.equals(login))).getSingleOrNull();
 
-    if (ligne == null || !ligne.actif) {
+    if (ligne == null || !ligne.actif || _temporaireExpire(ligne, _horloge())) {
       await _coffre.delete(key: _cleSessionCourante);
       return null;
     }
@@ -326,6 +430,7 @@ final class SessionRepositoryLocal implements SessionRepository {
       // MEME fabrique que la voie serveur : une seconde lecture de la matrice
       // divergerait de la premiere, et c'est le RBAC qui en paierait le prix.
       droits: GardeAcces.depuisJson(droits),
+      changementObligatoire: ligne.changementObligatoire,
     );
   }
 }

@@ -77,6 +77,42 @@ class UtilisateursLocal extends Table {
   /// traçable sans révéler quoi que ce soit du secret lui-même.
   DateTimeColumn get dateMotDePasse => dateTime()();
 
+  // --------------------------------------------------------------------------
+  // v46 (29/10/2026) — MOT DE PASSE PERDU, SANS E-MAIL (décision du PO, option
+  // A). Toutes ces colonnes sont LOCALES (les comptes ne se synchronisent pas,
+  // aucun hash de mot de passe ne quitte le poste) et ADDITIVES : un compte
+  // d'avant la v46 fonctionne sans changement et n'a pas de code de secours.
+  // Jamais un secret en clair : seuls des dérivés PBKDF2 (sel + empreinte).
+  // --------------------------------------------------------------------------
+
+  /// Le compte doit définir un nouveau mot de passe avant tout accès aux
+  /// modules (vrai après une réinitialisation par un administrateur). La garde
+  /// du routeur le relit à chaque navigation.
+  BoolColumn get changementObligatoire =>
+      boolean().withDefault(const Constant(false))();
+
+  /// L'instant où le mot de passe TEMPORAIRE cesse d'ouvrir quoi que ce soit
+  /// (24 h après sa génération). Nul : pas de temporaire en cours.
+  DateTimeColumn get mdpTemporaireExpireLe => dateTime().nullable()();
+
+  /// Le dérivé de l'ANCIEN mot de passe, gardé le temps du changement forcé
+  /// pour refuser sa réutilisation (« différent de l'ancien »), puis effacé.
+  TextColumn get selPrecedent => text().nullable()();
+  TextColumn get empreintePrecedente => text().nullable()();
+  IntColumn get iterationsPrecedentes => integer().nullable()();
+
+  /// Le dérivé du CODE DE SECOURS de l'administrateur (jamais le code). Nul :
+  /// pas de code (comptes d'avant la v46, comptes non administrateurs).
+  TextColumn get codeSecoursSel => text().nullable()();
+  TextColumn get codeSecoursEmpreinte => text().nullable()();
+  IntColumn get codeSecoursIterations => integer().nullable()();
+  DateTimeColumn get codeSecoursGenereLe => dateTime().nullable()();
+
+  /// Les essais ratés du code de secours sur CE compte, et l'instant du
+  /// dernier : cinq échecs bloquent le compte pendant quinze minutes.
+  IntColumn get codeSecoursEchecs => integer().withDefault(const Constant(0))();
+  DateTimeColumn get codeSecoursDernierEchecLe => dateTime().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }

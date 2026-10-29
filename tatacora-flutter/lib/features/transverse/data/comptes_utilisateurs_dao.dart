@@ -5,7 +5,10 @@ import '../../../core/database/app_database.dart';
 import '../../../core/format/adresse_email_facultative.dart';
 import '../../../core/rbac/regle_archivage.dart';
 import '../../auth/data/verificateur_hors_ligne.dart';
+import '../../auth/domain/mot_de_passe_perdu.dart';
 import '../domain/comptes_utilisateurs.dart';
+import '../domain/journal_poste.dart';
+import 'journal_securite_dao.dart';
 
 /// Les gestes d'administration des comptes du poste — Lot J2 (14/10/2026).
 ///
@@ -16,7 +19,9 @@ import '../domain/comptes_utilisateurs.dart';
 /// | `SessionRepositoryLocal.creerCompte` | le PREMIER compte (poste vierge) |
 /// | `SessionRepositoryLocal.changerMotDePasse` | le mot de passe de la session (« Mon profil ») |
 /// | `RolesDao` | `droitsJson` des comptes d'un rôle modifié |
-/// | **ce DAO** | création d'un compte, `actif`, mot de passe réinitialisé, `email` (v45 : à la création, et par son titulaire depuis « Mon profil ») |
+/// | **ce DAO** | création d'un compte, `actif`, mot de passe TEMPORAIRE posé par un administrateur (v46), `email` (v45 : à la création, et par son titulaire depuis « Mon profil ») |
+/// | `SessionRepositoryLocal.definirNouveauMotDePasse` | le mot de passe choisi après une réinitialisation (v46), qui lève « changement obligatoire » |
+/// | `CodeSecoursLocal` | le code de secours de l'administrateur et son compteur d'essais (v46) |
 ///
 /// ## Le même dérivé que partout
 ///
@@ -36,12 +41,22 @@ import '../domain/comptes_utilisateurs.dart';
 ///
 /// @see RG-15 Traçabilité — un compte désactivé reste en base
 /// @see RG-16 Contrôle d'accès basé sur les rôles
+/// Le résultat d'une réinitialisation : le mot de passe TEMPORAIRE, rendu une
+/// seule fois à l'administrateur, et son échéance.
+typedef MotDePasseTemporaire = ({
+  String login,
+  String motDePasse,
+  DateTime expireLe,
+});
+
 class ComptesUtilisateursDao {
   ComptesUtilisateursDao(this._base, {DateTime Function()? horloge})
-    : _horloge = horloge ?? DateTime.now;
+    : _horloge = horloge ?? DateTime.now,
+      _journal = JournalSecuriteDao(_base, horloge: horloge);
 
   final AppDatabase _base;
   final DateTime Function() _horloge;
+  final JournalSecuriteDao _journal;
 
   static const _uuid = Uuid();
 
@@ -59,6 +74,8 @@ class ComptesUtilisateursDao {
               t.dateCreation,
               t.dateMotDePasse,
               t.email,
+              t.changementObligatoire,
+              t.mdpTemporaireExpireLe,
             ]))
             .get();
     final comptes = [
@@ -72,6 +89,8 @@ class ComptesUtilisateursDao {
           dateCreation: l.read(t.dateCreation)!,
           dateMotDePasse: l.read(t.dateMotDePasse)!,
           email: l.read(t.email),
+          changementObligatoire: l.read(t.changementObligatoire) ?? false,
+          temporaireExpireLe: l.read(t.mdpTemporaireExpireLe),
         ),
     ];
     comptes.sort((a, b) {
@@ -206,50 +225,86 @@ class ComptesUtilisateursDao {
     });
   }
 
-  /// « Réinitialiser le mot de passe » — l'administrateur pose le nouveau.
-  /// Règles de `changerMotDePasse` : 8 caractères au moins, différent de
-  /// l'actuel (vérifié contre le dérivé stocké, l'ancien n'étant pas saisi).
-  /// La confirmation est rejouée ici aussi.
-  Future<void> reinitialiserMotDePasse({
+  /// « Réinitialiser le mot de passe » (29/10/2026, option A du PO : pas d'e-mail
+  /// automatique). L'administrateur ne CHOISIT plus le mot de passe : le poste
+  /// génère un mot de passe TEMPORAIRE (14 caractères, sans caractère ambigu) et le
+  /// RENDU une seule fois, que l'écran montre à l'administrateur. Seul son dérivé
+  /// est écrit ; le compte est marqué « changement obligatoire » et le temporaire
+  /// expire après 24 h.
+  ///
+  /// Refus, dans cet ordre : droit (relu en base), SOI-MÊME (un administrateur
+  /// change le sien par « Mon profil », avec l'ancien mot de passe), compte
+  /// inconnu, super administrateur visé par un simple administrateur (il lirait le
+  /// temporaire et se connecterait avant son titulaire).
+  ///
+  /// Le geste et sa trace au journal de sécurité (qui, quel compte, quand, quelle
+  /// machine — JAMAIS le mot de passe ni son dérivé) partagent UNE transaction.
+  /// Le dérivé de l'ancien mot de passe est gardé jusqu'au changement forcé, pour
+  /// refuser sa réutilisation. La session du compte visé, si elle est restaurée,
+  /// retombe sur l'écran de changement (la garde du routeur relit la ligne).
+  Future<MotDePasseTemporaire> reinitialiserParAdministrateur({
     required String auteurId,
     required String compteId,
-    required String nouveau,
-    required String confirmation,
   }) async {
-    await _exigerAdministration(auteurId);
-    final erreurs = _validerMotDePasse(nouveau, confirmation);
-    if (erreurs.isNotEmpty) throw RefusComptes(erreurs);
-
-    final compte = await _compte(compteId);
-    final actuel = VerificateurHorsLigne(
-      login: compte.login,
-      sel: compte.sel,
-      empreinte: compte.empreinte,
-      iterations: compte.iterations,
-      derniereConnexionEnLigne: compte.dateMotDePasse,
-    );
-    if (actuel.correspond(nouveau)) {
+    final auteur = await _exigerAdministration(auteurId);
+    if (auteur.id == compteId) {
       throw RefusComptes.message(
-        'motDePasse',
-        MessagesComptes.motDePasseIdentique,
+        'compte',
+        MessagesComptes.reinitialiserSoiMeme,
       );
     }
-    final date = _horloge();
+    final compte = await _compte(compteId);
+    if (estSuperAdmin(compte.role) && !estSuperAdmin(auteur.role)) {
+      throw RefusComptes.message(
+        'compte',
+        MessagesComptes.reinitialiserSuperAdmin,
+      );
+    }
+
+    final temporaire = GenerateurDeSecret.motDePasseTemporaire();
+    final maintenant = _horloge();
+    final expireLe = maintenant.add(ReglesMotDePassePerdu.validiteTemporaire);
+    // Le dérivé est calculé HORS de la transaction (PBKDF2, 120 000 tours).
     final v = VerificateurHorsLigne.creer(
       login: compte.login,
-      motDePasse: nouveau,
-      maintenant: date,
+      motDePasse: temporaire,
+      maintenant: maintenant,
     );
-    await (_base.update(
-      _base.utilisateursLocal,
-    )..where((u) => u.id.equals(compte.id))).write(
-      UtilisateursLocalCompanion(
-        sel: Value(v.sel),
-        empreinte: Value(v.empreinte),
-        iterations: Value(v.iterations),
-        dateMotDePasse: Value(date),
-      ),
-    );
+
+    await _base.transaction(() async {
+      // L'« ancien » à ne pas réutiliser est le dernier mot de passe CHOISI par
+      // son titulaire : si un temporaire est déjà en cours, on garde celui qu'il
+      // avait mémorisé, pas le temporaire précédent.
+      final garder =
+          compte.changementObligatoire && compte.selPrecedent != null;
+      await (_base.update(
+        _base.utilisateursLocal,
+      )..where((u) => u.id.equals(compte.id))).write(
+        UtilisateursLocalCompanion(
+          sel: Value(v.sel),
+          empreinte: Value(v.empreinte),
+          iterations: Value(v.iterations),
+          dateMotDePasse: Value(maintenant),
+          selPrecedent: Value(garder ? compte.selPrecedent : compte.sel),
+          empreintePrecedente: Value(
+            garder ? compte.empreintePrecedente : compte.empreinte,
+          ),
+          iterationsPrecedentes: Value(
+            garder ? compte.iterationsPrecedentes : compte.iterations,
+          ),
+          changementObligatoire: const Value(true),
+          mdpTemporaireExpireLe: Value(expireLe),
+        ),
+      );
+      await _journal.tracer(
+        action: ActionJournalPoste.reinitialisationMotDePasse,
+        auteurLogin: auteur.login,
+        cibleId: compte.id,
+        cibleLogin: compte.login,
+      );
+    });
+
+    return (login: compte.login, motDePasse: temporaire, expireLe: expireLe);
   }
 
   /// « Enregistrer les informations » de « Mon profil » : l'e-mail FACULTATIF du
@@ -285,7 +340,7 @@ class ComptesUtilisateursDao {
   }
 
   /// L'auteur, relu en base : actif ET d'un rôle d'administration.
-  Future<void> _exigerAdministration(String auteurId) async {
+  Future<UtilisateurLocal> _exigerAdministration(String auteurId) async {
     final auteur = await (_base.select(
       _base.utilisateursLocal,
     )..where((u) => u.id.equals(auteurId))).getSingleOrNull();
@@ -294,6 +349,7 @@ class ComptesUtilisateursDao {
         !peutAdministrerComptes(auteur.role)) {
       throw RefusComptes.message('droit', MessagesComptes.refusDroit);
     }
+    return auteur;
   }
 
   Future<UtilisateurLocal> _compte(String compteId) async {

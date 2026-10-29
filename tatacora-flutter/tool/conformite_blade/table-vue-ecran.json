@@ -302,6 +302,14 @@
     "transverse/aide-a-propos": [
       "features/transverse/presentation/ecran_aide_a_propos.dart"
     ],
+    "transverse/comptes-utilisateurs": [
+      "features/auth/domain/mot_de_passe_perdu.dart",
+      "features/transverse/domain/comptes_utilisateurs.dart",
+      "features/transverse/presentation/ecran_comptes_utilisateurs.dart",
+      "features/transverse/presentation/widgets/modale_secret_unique.dart",
+      "features/transverse/presentation/widgets/modales_comptes.dart",
+      "shared_widgets/affichage_secret_unique.dart"
+    ],
     "transverse/contact-editeur": [
       "features/transverse/presentation/ecran_contact_editeur.dart",
       "features/transverse/presentation/widgets/modales_contact_editeur.dart"
@@ -314,7 +322,12 @@
       "features/transverse/presentation/ecran_journal_audit.dart"
     ],
     "transverse/mon-profil": [
-      "features/transverse/presentation/ecran_mon_profil.dart"
+      "features/auth/domain/mot_de_passe_perdu.dart",
+      "features/auth/impression/feuille_code_secours.dart",
+      "features/transverse/presentation/ecran_mon_profil.dart",
+      "features/transverse/presentation/widgets/modale_code_secours.dart",
+      "features/transverse/presentation/widgets/modale_secret_unique.dart",
+      "shared_widgets/affichage_secret_unique.dart"
     ],
     "transverse/parametres": [
       "features/hebergement/data/canaux_reservation_dao.dart",

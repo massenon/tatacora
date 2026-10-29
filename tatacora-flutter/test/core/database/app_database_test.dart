@@ -153,8 +153,12 @@ void main() {
     //
     // v45 (28/10/2026) : deux colonnes (`email` d'un employé et d'un compte),
     // AUCUNE table — le compte reste 77.
-    expect(base.allTables.length, 77);
-    expect(base.schemaVersion, 45);
+    //
+    // 77 → 78 le 29/10/2026 : `journal_securite_local` (v46 — les gestes
+    // sensibles sur les comptes, mot de passe perdu SANS e-mail ; auteur :
+    // `JournalSecuriteDao`).
+    expect(base.allTables.length, 78);
+    expect(base.schemaVersion, 46);
     expect(
       base.allTables.map((t) => t.actualTableName).toSet().containsAll({
         'origines_documents_local',

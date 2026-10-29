@@ -51,6 +51,7 @@ import 'package:tatacora_flutter/features/tableau_de_bord/presentation/ecran_tab
 import 'package:tatacora_flutter/features/stocks/presentation/ecran_inventaires.dart';
 import 'package:tatacora_flutter/features/stocks/presentation/ecran_stocks.dart';
 import 'package:tatacora_flutter/features/tourisme/presentation/ecran_tourisme.dart';
+import 'package:tatacora_flutter/features/transverse/presentation/ecran_comptes_utilisateurs.dart';
 import 'package:tatacora_flutter/features/rh/presentation/ecran_conges_plannings.dart';
 import 'package:tatacora_flutter/features/vehicules/presentation/ecran_vehicules.dart';
 import 'package:tatacora_flutter/features/ventes/presentation/ecran_historique_ventes.dart';
@@ -433,6 +434,14 @@ final casEcrans = <CasEcran>[
     jeu: JeuEcran.parc,
     droits: _droitsAdministrateur,
     ecran: () => const EcranMonProfil(),
+    surcharges: _sessionAdministrateur,
+  ),
+  // 29/10/2026 (PO, option A du « mot de passe perdu ») : la liste des comptes.
+  CasEcran(
+    vue: 'transverse/comptes-utilisateurs',
+    jeu: JeuEcran.vide,
+    droits: _droitsAdministrateur,
+    ecran: () => const EcranComptesUtilisateurs(),
     surcharges: _sessionAdministrateur,
   ),
   CasEcran(

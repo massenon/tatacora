@@ -4,17 +4,20 @@
 /// suppression (RG-15 : un compte désactivé reste en base, ses saisies gardent
 /// leur auteur).
 ///
-/// ## Un AJOUT du poste, sans modèle dans la vue
+/// ## Un AJOUT du poste — et, depuis le 29/10/2026, un écran jumeau au web
 ///
-/// La PWA n'a aucun écran de gestion des comptes (relu le 14/10/2026 : ni
-/// composant sous `app/Pwa`, ni vue, ni route `pwa.*` ; les comptes y naissent
-/// par l'opérateur). Les mots ci-dessous sont donc ceux du poste ; ils
-/// reprennent ceux de « Rôles & Permissions » et de « Mon profil » partout où
-/// ces écrans en ont (libellé des rôles, règle des 8 caractères).
+/// La PWA n'avait aucun écran de gestion des comptes (relu le 14/10/2026). Le
+/// 29/10/2026 (option A du PO, mot de passe perdu SANS e-mail) elle reçoit
+/// `pwa/transverse/comptes-utilisateurs.blade.php` : la liste des comptes et
+/// « Réinitialiser le mot de passe ». Les mots de la RÉINITIALISATION sont ceux
+/// de cette vue (`lang/fr/pwa.php`, groupe `comptes`) ; le reste (création,
+/// désactivation) est propre au poste. Les comptes du web et du poste sont
+/// DISTINCTS : rien ne se synchronise.
 library;
 
 import '../../../core/format/adresse_email_facultative.dart';
 import '../../../core/rbac/regle_archivage.dart';
+import '../../auth/domain/mot_de_passe_perdu.dart';
 
 /// Un compte tel que l'écran le liste — JAMAIS le sel ni l'empreinte.
 final class CompteUtilisateur {
@@ -27,6 +30,8 @@ final class CompteUtilisateur {
     required this.dateCreation,
     required this.dateMotDePasse,
     this.email,
+    this.changementObligatoire = false,
+    this.temporaireExpireLe,
   });
 
   final String id;
@@ -43,6 +48,19 @@ final class CompteUtilisateur {
 
   /// L'e-mail FACULTATIF (v45), normalisé ; `null` : non renseigné.
   final String? email;
+
+  /// Le compte doit définir un nouveau mot de passe (v46, 29/10/2026) : un
+  /// administrateur l'a réinitialisé et le temporaire n'a pas encore été remplacé.
+  final bool changementObligatoire;
+
+  /// L'échéance du mot de passe temporaire (v46) ; `null` : aucun.
+  final DateTime? temporaireExpireLe;
+
+  /// Le temporaire est-il expiré à [maintenant] ? Faux hors changement exigé.
+  bool temporaireExpire(DateTime maintenant) =>
+      changementObligatoire &&
+      temporaireExpireLe != null &&
+      !maintenant.isBefore(temporaireExpireLe!);
 
   /// L'un des deux rôles d'administration (`User::ROLES_ADMINISTRATION`).
   bool get estAdministration =>
@@ -115,6 +133,13 @@ abstract final class MessagesComptes {
       'Compte « $identifiant » réactivé.';
   static String motDePasseReinitialise(String identifiant) =>
       'Mot de passe de « $identifiant » réinitialisé.';
+
+  /// Les refus de la réinitialisation par un administrateur (v46, 29/10/2026) —
+  /// les phrases de `pwa.comptes.*`.
+  static const String reinitialiserSoiMeme =
+      MessagesMotDePassePerdu.refusSoiMeme;
+  static const String reinitialiserSuperAdmin =
+      MessagesMotDePassePerdu.refusSuperAdmin;
 }
 
 /// Un refus d'un geste sur les comptes — par CHAMP, pour que la modale

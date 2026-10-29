@@ -1,3 +1,4 @@
+// Vue Blade maîtresse (PA-183) : pwa/transverse/comptes-utilisateurs.blade.php
 /// Les modales de « Comptes utilisateurs » (Lot J2, 14/10/2026) — « Nouveau
 /// compte », « Réinitialiser le mot de passe » et la confirmation de
 /// désactivation, dans le châssis partagé des modales
@@ -20,6 +21,8 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/theme/mesures_transverses.dart';
 import '../../../../shared_widgets/bouton_standard.dart';
 import '../../../restaurant/presentation/widgets/coquille_modale_restaurant.dart';
+import '../../../auth/domain/mot_de_passe_perdu.dart';
+import '../../data/comptes_utilisateurs_dao.dart';
 import '../../domain/comptes_utilisateurs.dart';
 import '../../domain/roles_du_poste.dart';
 
@@ -45,11 +48,20 @@ abstract final class TextesModalesComptes {
   static const String noteMotDePasse =
       "Ce mot de passe n'est enregistré nulle part en clair et ne peut pas "
       'être récupéré. Transmettez-le à son titulaire.';
+  // « Réinitialiser le mot de passe » (29/10/2026, option A du PO) — les phrases
+  // de `pwa.comptes.*` : l'administrateur ne choisit plus le mot de passe, le
+  // poste en génère un TEMPORAIRE.
   static String reinitialiserTitre(String identifiant) =>
-      'Réinitialiser le mot de passe — $identifiant';
-  static const String reinitialiserSousTitre =
-      'Le titulaire se connectera avec ce nouveau mot de passe ; il pourra le '
-      'changer depuis « Mon profil ».';
+      'Réinitialiser le mot de passe de « $identifiant »';
+  static String reinitialiserTexte(int heures) =>
+      "Un mot de passe temporaire va être généré. Il sera valable $heures heures et n'ouvrira que l'écran de choix d'un nouveau mot de passe. Les sessions ouvertes de ce compte seront fermées.";
+  static const String reinitialiserConfirmer =
+      'Générer le mot de passe temporaire';
+  static String resultatTitre(String identifiant) =>
+      'Mot de passe temporaire de « $identifiant »';
+  static String resultatConsigne(String date) =>
+      "Communiquez-le à son titulaire. Il ne sera plus affiché. Valable jusqu'au $date.";
+  static const String fermer = 'Fermer';
   static String desactiverTitre(String identifiant) =>
       'Désactiver le compte — $identifiant';
   static const String desactiverTexte =
@@ -332,55 +344,46 @@ class _ModaleNouveauCompteState extends State<_ModaleNouveauCompte> {
 
 // ------------------------------------------ RÉINITIALISER LE MOT DE PASSE
 
-/// Ouvre « Réinitialiser le mot de passe » sur [compte]. [enregistrer] écrit
-/// (et lève [RefusComptes]).
-Future<bool?> ouvrirModaleReinitialiserMotDePasse(
+/// Ouvre la confirmation « Réinitialiser le mot de passe de … » sur [compte].
+/// [generer] écrit (et lève [RefusComptes], affiché dans la modale) ; elle rend
+/// le mot de passe TEMPORAIRE, que la modale ferme en le renvoyant à l'appelant,
+/// qui l'affiche UNE fois. `null` : annulé.
+Future<MotDePasseTemporaire?> ouvrirModaleReinitialiserMotDePasse(
   BuildContext context, {
   required CompteUtilisateur compte,
-  required Future<void> Function(String nouveau, String confirmation)
-  enregistrer,
-}) => showDialog<bool>(
+  required Future<MotDePasseTemporaire> Function() generer,
+}) => showDialog<MotDePasseTemporaire>(
   context: context,
-  builder: (_) =>
-      _ModaleReinitialiser(compte: compte, enregistrer: enregistrer),
+  builder: (_) => _ModaleReinitialiser(compte: compte, generer: generer),
 );
 
 class _ModaleReinitialiser extends StatefulWidget {
-  const _ModaleReinitialiser({required this.compte, required this.enregistrer});
+  const _ModaleReinitialiser({required this.compte, required this.generer});
 
   final CompteUtilisateur compte;
-  final Future<void> Function(String nouveau, String confirmation) enregistrer;
+  final Future<MotDePasseTemporaire> Function() generer;
 
   @override
   State<_ModaleReinitialiser> createState() => _ModaleReinitialiserState();
 }
 
 class _ModaleReinitialiserState extends State<_ModaleReinitialiser> {
-  final _motDePasse = TextEditingController();
-  final _confirmation = TextEditingController();
-  Map<String, String> _erreurs = const {};
+  String? _refus;
   bool _enCours = false;
-
-  @override
-  void dispose() {
-    _motDePasse.dispose();
-    _confirmation.dispose();
-    super.dispose();
-  }
 
   Future<void> _valider() async {
     setState(() {
       _enCours = true;
-      _erreurs = const {};
+      _refus = null;
     });
     try {
-      await widget.enregistrer(_motDePasse.text, _confirmation.text);
-      if (mounted) Navigator.of(context).pop(true);
+      final fait = await widget.generer();
+      if (mounted) Navigator.of(context).pop(fait);
     } on RefusComptes catch (refus) {
       if (mounted) {
         setState(() {
           _enCours = false;
-          _erreurs = refus.erreurs;
+          _refus = refus.message;
         });
       }
     }
@@ -391,34 +394,18 @@ class _ModaleReinitialiserState extends State<_ModaleReinitialiser> {
     return CoquilleModaleRestaurant(
       cle: const Key('comptes-modale-mot-de-passe'),
       titre: TextesModalesComptes.reinitialiserTitre(widget.compte.identifiant),
-      sousTitre: TextesModalesComptes.reinitialiserSousTitre,
       largeur: MesuresTransverses.modaleCompte,
-      refus: _erreurs['droit'] ?? _erreurs['compte'],
+      refus: _refus,
       cleRefus: const Key('comptes-modale-refus'),
-      corps: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          ..._champ(
-            cle: 'mot-de-passe',
-            etiquette: TextesModalesComptes.nouveauMotDePasse,
-            controleur: _motDePasse,
-            invite: TextesModalesComptes.motDePasseInvite,
-            masque: true,
-            erreur: _erreurs['motDePasse'],
-          ),
-          const SizedBox(height: AppSpacing.md),
-          ..._champ(
-            cle: 'confirmation',
-            etiquette: TextesModalesComptes.confirmation,
-            controleur: _confirmation,
-            invite: TextesModalesComptes.confirmationInvite,
-            masque: true,
-            erreur: _erreurs['confirmation'],
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          const Text(TextesModalesComptes.noteMotDePasse, style: _aide),
-        ],
+      corps: Text(
+        TextesModalesComptes.reinitialiserTexte(
+          ReglesMotDePassePerdu.validiteTemporaire.inHours,
+        ),
+        style: const TextStyle(
+          fontFamily: AppTextStyles.police,
+          fontSize: Tailles.t13,
+          color: Ardoise.c600,
+        ),
       ),
       actions: _pied(
         context,
@@ -426,7 +413,7 @@ class _ModaleReinitialiserState extends State<_ModaleReinitialiser> {
         enCours: _enCours,
         action: BoutonStandard(
           key: const Key('comptes-mot-de-passe-enregistrer'),
-          libelle: TextesModalesComptes.enregistrer,
+          libelle: TextesModalesComptes.reinitialiserConfirmer,
           variante: VarianteBouton.primaire,
           taillePolice: Tailles.t13,
           onPressed: _enCours ? null : _valider,

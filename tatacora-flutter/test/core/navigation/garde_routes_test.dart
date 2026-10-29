@@ -55,9 +55,16 @@ void main() {
         chemins.add('$parent/$p');
       }
     }
-    return chemins
-        .where((c) => c != '/demarrage' && c != '/connexion')
-        .toList();
+    // Les écrans HORS coquille — démarrage, connexion, et depuis le 29/10/2026 les
+    // deux écrans « invité » du mot de passe perdu — n'ont pas de module : leur
+    // garde est celle de la session (`garde_mot_de_passe_perdu_test.dart`).
+    const horsCoquille = {
+      '/demarrage',
+      '/connexion',
+      '/changement-mot-de-passe',
+      '/mot-de-passe-administrateur-perdu',
+    };
+    return chemins.where((c) => !horsCoquille.contains(c)).toList();
   }
 
   final codes = socleRbacCdcf['super_admin']!.keys.toList();

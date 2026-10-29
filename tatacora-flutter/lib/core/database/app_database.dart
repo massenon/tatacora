@@ -25,6 +25,7 @@ import 'tables/comptabilite_tables.dart';
 import 'tables/depenses_tables.dart';
 import 'tables/descente_sync_tables.dart';
 import 'tables/historique_prix_carte_tables.dart';
+import 'tables/journal_securite_tables.dart';
 import 'tables/pieces_saisie_tables.dart';
 import 'tables/journal_reception_tables.dart';
 import 'tables/indisponibilites_carte_tables.dart';
@@ -248,6 +249,10 @@ part 'app_database.g.dart';
     // avec le serveur (D246 rouvert). Seul auteur : `MoteurComptable.saisirPiece`
     // (voir `tables/pieces_saisie_tables.dart`).
     PiecesSaisieLocal,
+    // v46 (29/10/2026) : le journal de sécurité du poste (réinitialisations de
+    // mot de passe, code de secours). Seul auteur : `JournalSecuriteDao` (voir
+    // `tables/journal_securite_tables.dart`). LOCAL : ne part jamais au serveur.
+    JournalSecuriteLocal,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -508,8 +513,16 @@ class AppDatabase extends _$AppDatabase {
   /// redescend ; celle du compte reste LOCALE (les comptes ne se synchronisent pas).
   /// Le curseur de descente est oublié : les adresses des employés déjà au serveur
   /// redescendent.
+  ///
+  /// v46 (29/10/2026) — MOT DE PASSE PERDU SANS E-MAIL (décision du PO, option A) :
+  /// ONZE colonnes ADDITIVES sur `utilisateurs_local` (indicateur « changement
+  /// obligatoire », expiration du temporaire, dérivé de l'ancien mot de passe, dérivé
+  /// du code de secours, compteur et horodatage des échecs) et UNE table locale neuve,
+  /// `journal_securite_local`. Aucune ligne fabriquée : un compte d'avant la v46
+  /// fonctionne sans changement et n'a pas de code de secours. Rien ne se
+  /// synchronise : les comptes restent LOCAUX et aucun hash ne part.
   @override
-  int get schemaVersion => 45;
+  int get schemaVersion => 46;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1515,6 +1528,63 @@ class AppDatabase extends _$AppDatabase {
         await customStatement(
           "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
         );
+      }
+      if (from < 46) {
+        // MOT DE PASSE PERDU SANS E-MAIL (29/10/2026) : colonnes ADDITIVES sur les
+        // comptes et UNE table locale. Ajouts CONDITIONNELS (piège 3) : une fixture
+        // ramenée en arrière depuis la définition courante porte déjà les colonnes
+        // des comptes (`retour_arriere_schema.dart`), et un fichier à la forme v46
+        // marqué v45 doit se rejouer. Une table absente (jeu de colonnes vide) n'est
+        // pas touchée ici : la réconciliation finale la complète. Aucune ligne n'est
+        // fabriquée, aucun code de secours posé.
+        final comptes = {
+          for (final c
+              in await m.database
+                  .customSelect('PRAGMA table_info(utilisateurs_local)')
+                  .get())
+            c.data['name'] as String,
+        };
+        if (comptes.isNotEmpty) {
+          final ajouts = <(String, GeneratedColumn<Object>)>[
+            ('changement_obligatoire', utilisateursLocal.changementObligatoire),
+            (
+              'mdp_temporaire_expire_le',
+              utilisateursLocal.mdpTemporaireExpireLe,
+            ),
+            ('sel_precedent', utilisateursLocal.selPrecedent),
+            ('empreinte_precedente', utilisateursLocal.empreintePrecedente),
+            ('iterations_precedentes', utilisateursLocal.iterationsPrecedentes),
+            ('code_secours_sel', utilisateursLocal.codeSecoursSel),
+            ('code_secours_empreinte', utilisateursLocal.codeSecoursEmpreinte),
+            (
+              'code_secours_iterations',
+              utilisateursLocal.codeSecoursIterations,
+            ),
+            ('code_secours_genere_le', utilisateursLocal.codeSecoursGenereLe),
+            ('code_secours_echecs', utilisateursLocal.codeSecoursEchecs),
+            (
+              'code_secours_dernier_echec_le',
+              utilisateursLocal.codeSecoursDernierEchecLe,
+            ),
+          ];
+          for (final (nom, colonne) in ajouts) {
+            if (!comptes.contains(nom)) {
+              await m.addColumn(utilisateursLocal, colonne);
+            }
+          }
+        }
+        final tables = {
+          for (final t
+              in await m.database
+                  .customSelect(
+                    "SELECT name FROM sqlite_master WHERE type = 'table'",
+                  )
+                  .get())
+            t.data['name'] as String,
+        };
+        if (!tables.contains('journal_securite_local')) {
+          await m.createTable(journalSecuriteLocal);
+        }
       }
       if (from < 33) {
         // LES PLANNINGS ET LES CONGÉS (21/10/2026). Deux tables NEUVES, sans

@@ -13,10 +13,15 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/mesures_transverses.dart';
 import '../../../shared_widgets/bouton_standard.dart';
+import '../../../core/format/formats.dart';
+import '../../auth/impression/feuille_code_secours.dart';
+import '../../auth/domain/mot_de_passe_perdu.dart';
 import '../../auth/domain/session_repository.dart';
 import '../domain/comptes_utilisateurs.dart';
 import 'providers_transverses.dart';
 import 'widgets/briques_transverses.dart';
+import 'widgets/modale_code_secours.dart';
+import 'widgets/modale_secret_unique.dart';
 
 /// L'écran **Mon profil** — lot D du plan du Product Owner (14/10/2026).
 ///
@@ -81,6 +86,21 @@ class EcranMonProfil extends ConsumerWidget {
       },
     );
     const motDePasse = _MotDePasse();
+    // Le code de secours (29/10/2026, option A du PO) : réservé aux deux rôles
+    // d'administration, sous la carte du mot de passe.
+    final codeSecours = peutAdministrerComptes(session?.role)
+        ? const _CodeSecours()
+        : null;
+    final colonneMotDePasse = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        motDePasse,
+        if (codeSecours != null) ...[
+          const SizedBox(height: AppSpacing.mdPlus),
+          codeSecours,
+        ],
+      ],
+    );
 
     return PageTransverse(
       largeurMax: MesuresTransverses.pageProfil,
@@ -104,14 +124,14 @@ class EcranMonProfil extends ConsumerWidget {
               children: [
                 Expanded(child: infos),
                 const SizedBox(width: AppSpacing.mdPlus),
-                const Expanded(child: motDePasse),
+                Expanded(child: colonneMotDePasse),
               ],
             ),
           )
         else ...[
           infos,
           const SizedBox(height: AppSpacing.mdPlus),
-          motDePasse,
+          colonneMotDePasse,
         ],
         const SizedBox(height: AppSpacing.mdPlus),
         _JournalProfil(
@@ -654,6 +674,93 @@ class _MotDePasse extends StatelessWidget {
       ],
     ),
   );
+}
+
+/// Quand le code de secours de ce compte a été posé (`null` : aucun) — relu à
+/// chaque visite, jamais mis en cache.
+final _codeSecoursPoseLeProvider = FutureProvider.autoDispose<DateTime?>((ref) {
+  final login = ref.watch(sessionProvider)?.login;
+  if (login == null) return Future.value();
+  return ref.watch(codeSecoursProvider).posePar(login);
+});
+
+/// « Code de secours » (`pwa.profil.code_secours_*`, 29/10/2026) : l'état du
+/// code et le bouton qui en génère un nouveau, après confirmation du mot de passe.
+/// Le code lui-même n'est montré qu'UNE fois, par la fenêtre du secret.
+class _CodeSecours extends ConsumerWidget {
+  const _CodeSecours();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pose = ref.watch(_codeSecoursPoseLeProvider).value;
+    return CarteTransverse(
+      key: const Key('profil-code-secours'),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            MessagesMotDePassePerdu.codeSecoursTitre,
+            style: styleTransverse(
+              TaillesContenu.sm,
+              poids: FontWeight.bold,
+              couleur: Ardoise.c700,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            MessagesMotDePassePerdu.codeSecoursSousTitre,
+            style: styleTransverse(TaillesContenu.t13, couleur: Ardoise.c500),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            pose == null
+                ? MessagesMotDePassePerdu.codeSecoursAbsent
+                : MessagesMotDePassePerdu.codeSecoursPresent(
+                    formaterDateHeure(pose),
+                  ),
+            key: const Key('profil-code-secours-etat'),
+            style: styleTransverse(TaillesContenu.t13, couleur: Ardoise.c700),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          BoutonTransverse(
+            cle: const Key('profil-code-secours-ouvrir'),
+            libelle: MessagesMotDePassePerdu.codeSecoursOuvrir,
+            fond: AppColors.gold,
+            taille: TaillesContenu.sm,
+            pleineLargeur: true,
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.mdPlus,
+              vertical: AppSpacing.xsPlus,
+            ),
+            onTap: () => _generer(context, ref),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static Future<void> _generer(BuildContext context, WidgetRef ref) async {
+    final login = ref.read(sessionProvider)?.login;
+    if (login == null) return;
+    final code = await ouvrirModaleGenererCodeSecours(
+      context,
+      generer: (motDePasse) => ref
+          .read(codeSecoursProvider)
+          .genererPourSession(login: login, motDePasse: motDePasse),
+    );
+    if (code == null || !context.mounted) return;
+    // Montré UNE seule fois : copier, imprimer, ranger au coffre.
+    await ouvrirModaleSecretUnique(
+      context,
+      titre: MessagesMotDePassePerdu.codeSecoursAfficheTitre,
+      secret: code,
+      consigne: MessagesMotDePassePerdu.codeSecoursConsigne,
+      libelleFermer: MessagesMotDePassePerdu.codeSecoursFermer,
+      surImprimer: () => ref.read(imprimerCodeSecoursProvider)(code, login),
+      prefixeCle: 'profil-code-secours-code',
+    );
+    ref.invalidate(_codeSecoursPoseLeProvider);
+  }
 }
 
 Future<void> _ouvrirModaleMotDePasse(BuildContext context) async {
