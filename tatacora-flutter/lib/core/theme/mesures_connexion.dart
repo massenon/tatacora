@@ -56,8 +56,8 @@ abstract final class MesuresConnexion {
   /// `h-16` — le logo téléversé de l'établissement, en tête de la carte (64).
   static const double hauteurLogo = 64;
 
-  /// `width="40"` — le pictogramme de la marque.
-  static const double iconeMarque = 40;
+  /// `w-[68px]` — le pictogramme de la marque.
+  static const double iconeMarque = 68;
 
   /// `width="26"` — les pictogrammes du bandeau de sept modules.
   static const double iconeModule = 26;
@@ -90,12 +90,24 @@ abstract final class MesuresConnexion {
   static const String _arrondi =
       'stroke-linecap="round" stroke-linejoin="round"';
 
-  static const String traceMarque =
-      '<path d="m16 16 2 2 4-4" $_arrondi/>'
-      '<path d="M21 10V8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l2-1.1" $_arrondi/>'
-      '<path d="m7.5 4.3 9 5.1" $_arrondi/>'
-      '<path d="M3.3 7 12 12l8.7-5" $_arrondi/>'
-      '<path d="M12 22V12" $_arrondi/>';
+  /// Le pictogramme « F — maison et cloche » (viewBox 64, fil de 3,2) : la
+  /// maison en navy, la cloche et son plateau en or. Deux tracés, deux
+  /// couleurs, deux `IconeTrace` superposés. La cloche de la vue est un groupe
+  /// `translate(16 28) scale(.9)` : ses coordonnées sont ici CALCULÉES (le
+  /// lecteur de tracés ne lit ni groupe ni transformation).
+  static const String traceMarqueMaison =
+      '<path d="M6 30L32 8l26 22" $_arrondi/>'
+      '<path d="M12 26v30h40V26" $_arrondi/>';
+
+  static const String traceMarqueCloche =
+      '<path d="M17.8 47.8a12.6 12.6 0 0 1 25.2 0z" $_arrondi/>'
+      '<path d="M30.4 35.2V32.5" $_arrondi/>'
+      '<path d="M16 51.4h28.8" $_arrondi/>'
+      '<path d="M18 52h28" $_arrondi/>';
+
+  /// `viewBox="0 0 64 64"` et `stroke-width="3.2"` du pictogramme de marque.
+  static const double coteMarque = 64;
+  static const double epaisseurMarque = 3.2;
 
   static const String traceRestauration =
       '<path d="M6 3v6a3 3 0 0 0 6 0V3" $_arrondi/>'

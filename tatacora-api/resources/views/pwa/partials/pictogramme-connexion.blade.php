@@ -11,9 +11,6 @@
 @php($taille = $taille ?? 24)
 <svg width="{{ $taille }}" height="{{ $taille }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
 @switch($nom)
-  @case('marque')
-    <path d="m16 16 2 2 4-4"/><path d="M21 10V8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l2-1.1"/><path d="m7.5 4.3 9 5.1"/><path d="M3.3 7 12 12l8.7-5"/><path d="M12 22V12"/>
-    @break
   @case('restauration')
     <path d="M6 3v6a3 3 0 0 0 6 0V3"/><path d="M9 3v18"/><path d="M18 21V3c-2.5 1.5-3.5 4.5-3.5 8v2h3.5"/>
     @break

@@ -237,7 +237,7 @@ void main() {
     );
 
     testWidgets(
-      'présent : il coiffe la carte (64 px), le pictogramme s\'efface',
+      'présent : il coiffe la carte (64 px), au-dessus de la marque',
       (tester) async {
         await monter(tester, 1280, logo: png);
         await tester.pump();
@@ -252,9 +252,11 @@ void main() {
         );
         expect(
           find.byWidgetPredicate(
-            (w) => w is IconeTrace && w.trace == MesuresConnexion.traceMarque,
+            (w) =>
+                w is IconeTrace &&
+                w.trace == MesuresConnexion.traceMarqueMaison,
           ),
-          findsNothing,
+          findsOneWidget, // le pictogramme s'ajoute sous le logo, il reste
         );
         // La marque et le slogan restent sous le logo.
         expect(find.text('Logi'), findsOneWidget);
@@ -262,13 +264,16 @@ void main() {
       },
     );
 
-    testWidgets('absent : repli sur le pictogramme de marque', (tester) async {
+    testWidgets('absent : la marque seule, pictogramme compris', (
+      tester,
+    ) async {
       await monter(tester, 1280);
       await tester.pump();
       expect(find.byType(Image), findsNothing);
       expect(
         find.byWidgetPredicate(
-          (w) => w is IconeTrace && w.trace == MesuresConnexion.traceMarque,
+          (w) =>
+              w is IconeTrace && w.trace == MesuresConnexion.traceMarqueMaison,
         ),
         findsOneWidget,
       );
@@ -281,6 +286,57 @@ void main() {
         await monter(tester, largeur, logo: png);
         expect(tester.takeException(), isNull, reason: 'à $largeur px');
       }
+    });
+  });
+
+  group('En-tête de marque — pictogramme, LogiReStock, sous-titre', () {
+    testWidgets(
+      '« TATACORA AFRIQUE » a EXACTEMENT la largeur de « LogiReStock »',
+      (tester) async {
+        for (final largeur in const [360.0, 1280.0]) {
+          await monter(tester, largeur);
+          final logi = tester.getRect(find.text('Logi'));
+          final restock = tester.getRect(find.text('ReStock'));
+          final sous = tester.getRect(find.text('TATACORA AFRIQUE'));
+          // Les bords gauche ET droit du sous-titre épousent ceux du nom.
+          expect(
+            sous.left,
+            closeTo(logi.left, 0.6),
+            reason: 'gauche à $largeur px',
+          );
+          expect(
+            sous.right,
+            closeTo(restock.right, 0.6),
+            reason: 'droite à $largeur px',
+          );
+          expect(sous.left, closeTo(logi.left, 0.6));
+          expect(tester.takeException(), isNull);
+        }
+      },
+    );
+
+    testWidgets('le pictogramme est à gauche du texte, sur une ligne', (
+      tester,
+    ) async {
+      await monter(tester, 1280);
+      final pict = tester.getRect(
+        find.byWidgetPredicate(
+          (w) =>
+              w is IconeTrace && w.trace == MesuresConnexion.traceMarqueMaison,
+        ),
+      );
+      final logi = tester.getRect(find.text('Logi'));
+      expect(pict.width, 68);
+      expect(pict.right, lessThanOrEqualTo(logi.left));
+      expect(
+        tester.getRect(find.text('Logi')).center.dy,
+        closeTo(pict.center.dy, 40),
+      );
+      // Le slogan vient APRÈS le filet qui suit la marque.
+      expect(
+        tester.getTopLeft(find.text(TextesConnexion.slogan)).dy,
+        greaterThan(tester.getRect(find.text('TATACORA AFRIQUE')).bottom),
+      );
     });
   });
 
@@ -392,10 +448,9 @@ void main() {
       return {for (final b in blocs) b.group(1)!: _elements(b.group(2)!)};
     }
 
-    test('les treize tracés de Dart sont ceux du partial Blade', () {
+    test('les douze tracés de Dart sont ceux du partial Blade', () {
       final vueTraces = tracesDeLaVue();
       final dart = <String, String>{
-        'marque': MesuresConnexion.traceMarque,
         'restauration': MesuresConnexion.traceRestauration,
         'hebergement': MesuresConnexion.traceHebergement,
         'eco_tourisme': MesuresConnexion.traceEcoTourisme,
@@ -416,6 +471,28 @@ void main() {
         // Et le lecteur de tracés sait les dessiner (il lève sinon).
         expect(TraceSvg.lire(trace).elements, isNotEmpty);
       });
+    });
+
+    test('le pictogramme de marque : mêmes tracés navy et or que la vue', () {
+      final source = VueBlade.brute('partials/pictogramme-marque');
+      final groupes = RegExp(
+        r'<g stroke="var\(--(navy|gold)\)">(.*?)</g>',
+        dotAll: true,
+      ).allMatches(source).toList();
+      expect(groupes.map((g) => g.group(1)), ['navy', 'gold']);
+      expect(source, contains('viewBox="0 0 64 64"'));
+      expect(source, contains('stroke-width="3.2"'));
+      expect(source, contains('aria-hidden="true"'));
+      expect(
+        _elements(MesuresConnexion.traceMarqueMaison),
+        _elements(groupes[0].group(2)!),
+      );
+      expect(
+        _elements(MesuresConnexion.traceMarqueCloche),
+        _elements(groupes[1].group(2)!),
+      );
+      expect(MesuresConnexion.coteMarque, 64);
+      expect(MesuresConnexion.epaisseurMarque, 3.2);
     });
 
     test('la vue pose le fil arrondi de 2 sur chaque pictogramme', () {

@@ -56,6 +56,7 @@ class IconeTrace extends StatelessWidget {
     required this.taille,
     required this.couleur,
     this.epaisseur = epaisseurTraceVue,
+    this.viewBox = coteViewBox,
     super.key,
   });
 
@@ -71,27 +72,32 @@ class IconeTrace extends StatelessWidget {
   final Color couleur;
   final double epaisseur;
 
+  /// Le côté de la `viewBox` de CE tracé (24 pour toutes les icônes de la
+  /// coquille ; 64 pour le pictogramme de marque de la connexion).
+  final double viewBox;
+
   @override
   Widget build(BuildContext context) => SizedBox(
     width: taille,
     height: taille,
     child: CustomPaint(
-      painter: _PeintreTrace(TraceSvg.lire(trace), couleur, epaisseur),
+      painter: _PeintreTrace(TraceSvg.lire(trace), couleur, epaisseur, viewBox),
     ),
   );
 }
 
 class _PeintreTrace extends CustomPainter {
-  _PeintreTrace(this.trace, this.couleur, this.epaisseur);
+  _PeintreTrace(this.trace, this.couleur, this.epaisseur, this.viewBox);
 
   final TraceSvg trace;
   final Color couleur;
   final double epaisseur;
+  final double viewBox;
 
   @override
   void paint(Canvas canvas, Size size) {
     canvas.save();
-    canvas.scale(size.width / IconeTrace.coteViewBox);
+    canvas.scale(size.width / viewBox);
     for (final e in trace.elements) {
       canvas.drawPath(
         e.chemin,
@@ -115,7 +121,8 @@ class _PeintreTrace extends CustomPainter {
   bool shouldRepaint(_PeintreTrace ancien) =>
       ancien.trace != trace ||
       ancien.couleur != couleur ||
-      ancien.epaisseur != epaisseur;
+      ancien.epaisseur != epaisseur ||
+      ancien.viewBox != viewBox;
 }
 
 final RegExp _balise = RegExp(r'<\s*([a-zA-Z]+)\b([^>]*?)/?>');

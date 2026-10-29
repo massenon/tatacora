@@ -137,20 +137,21 @@ final class ConformiteMaquettePwaTest extends TestCase
      * absent, le pictogramme de marque prend sa place. « LogiReStock » reste.
      */
     #[Test]
-    public function le_logo_televerse_coiffe_la_carte_et_son_absence_laisse_le_pictogramme(): void
+    public function le_logo_televerse_coiffe_la_carte_et_la_marque_reste_toujours(): void
     {
         \Illuminate\Support\Facades\Storage::fake(\App\Shared\Parametres\Services\ApparenceEtablissementService::DISQUE);
 
         $sans = (string) $this->get('/pwa/connexion')->getContent();
         $this->assertStringNotContainsString('<img', $sans);
-        $this->assertStringContainsString('M12 22V12', $sans, 'Repli : le pictogramme de marque.');
+        $this->assertStringContainsString('M6 30L32 8l26 22', $sans, 'Le pictogramme de marque est toujours affiche.');
 
         \Illuminate\Support\Facades\Storage::disk(\App\Shared\Parametres\Services\ApparenceEtablissementService::DISQUE)
             ->put(\App\Shared\Parametres\Services\ApparenceEtablissementService::REPERTOIRE.'/logo.png', 'x');
 
         $avec = (string) $this->get('/pwa/connexion')->getContent();
         $this->assertMatchesRegularExpression('#<img src="[^"]*/pwa/apparence/logo[^"]*" alt="Logo TATACORA AFRIQUE" class="[^"]*h-16[^"]*object-contain#', $avec);
-        $this->assertStringNotContainsString('M12 22V12', $avec, 'Le pictogramme cede la place au logo.');
+        $this->assertStringContainsString('M6 30L32 8l26 22', $avec, 'Le logo s ajoute AU-DESSUS : le pictogramme reste.');
+        $this->assertLessThan(strpos($avec, 'M6 30L32 8l26 22'), strpos($avec, '<img src='), 'Le logo est au-dessus de la marque.');
         $this->assertStringContainsString('>Logi<', $avec);
         $this->assertStringContainsString('>ReStock<', $avec);
     }

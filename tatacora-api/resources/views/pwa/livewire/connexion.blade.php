@@ -44,20 +44,38 @@
 
       {{-- 1. Marque. Décision du PO du 29/10/2026 : le logo TÉLÉVERSÉ de
            l'établissement (Paramètres → Logo & Apparence) coiffe la carte
-           quand il existe ; à défaut, le pictogramme de marque. « LogiReStock »
-           en deux tons et son sous-titre restent dessous dans les deux cas.
+           quand il existe, AU-DESSUS de la marque (qui reste toujours affichée).
            Proportions gardées (`object-contain`, jamais rogné ni étiré). --}}
       @php($logoTeleverse = app(\App\Shared\Parametres\Services\ApparenceEtablissementService::class)->fichierDe('logo') !== null)
       @if ($logoTeleverse)
         <img src="{{ app(\App\Shared\Parametres\Services\ApparenceEtablissementService::class)->urlLogo() }}" alt="{{ __('pwa.alt_logo') }}" class="block mx-auto h-16 w-auto max-w-full object-contain mb-4">
       @endif
+      {{-- Pictogramme + « LogiReStock » + « TATACORA AFRIQUE » (décision du PO
+           du 29/10/2026) : éléments de marque, TOUJOURS affichés, le logo
+           s'ajoutant au-dessus. Le sous-titre prend EXACTEMENT la largeur de
+           « LogiReStock » : un script léger mesure les deux à l'affichage et en
+           déduit l'interlettrage (jamais `text-align-last: justify`, qui écarte
+           les mots). `wire:ignore` : Livewire ne défait pas le style posé. --}}
       <div class="flex items-center justify-center gap-3">
-        @unless ($logoTeleverse)
-          <span class="shrink-0" style="color:var(--navy)">@include('pwa.partials.pictogramme-connexion', ['nom' => 'marque', 'taille' => 40])</span>
-        @endunless
-        <div class="min-w-0">
-          <p class="text-[28px] font-extrabold leading-none"><span style="color:var(--navy)">{{ __('pwa.connexion.marque_logi') }}</span><span style="color:var(--gold)">{{ __('pwa.connexion.marque_restock') }}</span></p>
-          <p class="text-[11px] font-bold uppercase tracking-widest text-slate-500 mt-1">{{ __('pwa.marque') }}</p>
+        <span class="shrink min-w-[48px] w-[68px]">@include('pwa.partials.pictogramme-marque')</span>
+        <div class="shrink-0" wire:ignore
+             x-data="{
+               ajuster() {
+                 const nom = this.$refs.nom, sous = this.$refs.sous;
+                 sous.style.letterSpacing = '0px'; sous.style.marginRight = '0px'; sous.style.fontSize = '';
+                 const cible = nom.getBoundingClientRect().width;
+                 const brut = sous.getBoundingClientRect().width;
+                 const lettres = sous.textContent.trim().length;
+                 if (!cible || !brut) return;
+                 if (brut > cible) { sous.style.fontSize = (parseFloat(getComputedStyle(sous).fontSize) * cible / brut) + 'px'; return; }
+                 const ecart = (cible - brut) / (lettres - 1);
+                 sous.style.letterSpacing = ecart + 'px';
+                 sous.style.marginRight = (-ecart) + 'px';
+               }
+             }"
+             x-init="ajuster(); if (document.fonts) document.fonts.ready.then(() => ajuster())">
+          <p class="text-[28px] font-extrabold leading-none whitespace-nowrap"><span x-ref="nom" class="inline-block"><span style="color:var(--navy)">{{ __('pwa.connexion.marque_logi') }}</span><span style="color:var(--gold)">{{ __('pwa.connexion.marque_restock') }}</span></span></p>
+          <p class="text-[15px] font-bold uppercase tracking-widest text-slate-500 mt-1 leading-none whitespace-nowrap"><span x-ref="sous" class="inline-block">{{ __('pwa.marque') }}</span></p>
         </div>
       </div>
 

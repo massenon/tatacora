@@ -664,6 +664,39 @@ class MarqueConnexion extends ConsumerWidget {
       fontWeight: FontWeight.w800,
       height: Tailles.interligneAucun,
     );
+    final styleSous = theme.textTheme.bodySmall?.copyWith(
+      fontSize: Tailles.t15,
+      fontWeight: FontWeight.w700,
+      color: AppColors.neutre500,
+    );
+    // « TATACORA AFRIQUE » prend EXACTEMENT la largeur de « LogiReStock » : on
+    // mesure les deux textes, puis l'interlettrage s'en déduit (la vue fait la
+    // même chose en JavaScript à l'affichage). Si le sous-titre était plus
+    // large à interlettrage nul, c'est sa taille qui rétrécit.
+    final echelle = MediaQuery.textScalerOf(context);
+    double largeurDe(String texte, TextStyle? style) {
+      final peintre = TextPainter(
+        text: TextSpan(text: texte, style: style),
+        textDirection: TextDirection.ltr,
+        textScaler: echelle,
+      )..layout();
+      final w = peintre.width;
+      peintre.dispose();
+      return w;
+    }
+
+    final largeurNom = largeurDe(
+      '${TextesConnexion.marqueLogi}${TextesConnexion.marqueRestock}',
+      styleMarque,
+    );
+    final largeurSous0 = largeurDe(TextesConnexion.sousMarque, styleSous);
+    final lettres = TextesConnexion.sousMarque.length;
+    final reduit = largeurSous0 > largeurNom;
+    final styleSousAjuste = styleSous?.copyWith(
+      fontSize: reduit ? Tailles.t15 * largeurNom / largeurSous0 : Tailles.t15,
+      letterSpacing: reduit ? 0 : (largeurNom - largeurSous0) / (lettres - 1),
+    );
+
     final marque = Semantics(
       container: true,
       label:
@@ -671,30 +704,44 @@ class MarqueConnexion extends ConsumerWidget {
           '${TextesConnexion.sousMarque}',
       child: ExcludeSemantics(
         // `flex items-center justify-center gap-3` — `FittedBox` : à 320 px la
-        // marque rétrécit au lieu de déborder.
+        // marque rétrécit au lieu de déborder. Le pictogramme et le texte sont
+        // des éléments de marque : TOUJOURS affichés (le logo s'ajoute dessus).
         child: FittedBox(
           fit: BoxFit.scaleDown,
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (logo == null) ...[
-                const IconeTrace(
-                  trace: MesuresConnexion.traceMarque,
-                  taille: MesuresConnexion.iconeMarque,
-                  couleur: AppColors.navy,
+              // Décoratif (`aria-hidden`) : le texte « LogiReStock » suffit.
+              SizedBox(
+                width: MesuresConnexion.iconeMarque,
+                height: MesuresConnexion.iconeMarque,
+                child: Stack(
+                  children: const [
+                    IconeTrace(
+                      trace: MesuresConnexion.traceMarqueMaison,
+                      taille: MesuresConnexion.iconeMarque,
+                      couleur: AppColors.navy,
+                      epaisseur: MesuresConnexion.epaisseurMarque,
+                      viewBox: MesuresConnexion.coteMarque,
+                    ),
+                    IconeTrace(
+                      trace: MesuresConnexion.traceMarqueCloche,
+                      taille: MesuresConnexion.iconeMarque,
+                      couleur: AppColors.gold,
+                      epaisseur: MesuresConnexion.epaisseurMarque,
+                      viewBox: MesuresConnexion.coteMarque,
+                    ),
+                  ],
                 ),
-                const SizedBox(width: MesuresConnexion.ecartMarque),
-              ],
+              ),
+              const SizedBox(width: MesuresConnexion.ecartMarque),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // `text-[28px] font-extrabold leading-none` : « Logi » navy
-                  // (primaire), « ReStock » gold (accent).
-                  //
-                  // Deux `Text` côte à côte et non un `Text.rich` : la vue pose
-                  // deux `<span>` (le comparateur d'emplacement lit un texte par
-                  // élément), et le rendu est le même, mot collé.
+                  // (primaire), « ReStock » gold (accent). Deux `Text` côte à
+                  // côte (la vue pose deux `<span>`), mot collé.
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.baseline,
@@ -711,15 +758,28 @@ class MarqueConnexion extends ConsumerWidget {
                     ],
                   ),
                   const SizedBox(height: MesuresConnexion.ecartPetit), // mt-1
-                  // `text-[11px] font-bold uppercase tracking-widest text-slate-500`
-                  Text(
-                    TextesConnexion.sousMarque,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      fontSize: Tailles.t11,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: AppTextStyles.suiviTresLarge * Tailles.t11,
-                      color: AppColors.neutre500,
+                  // Même largeur que « LogiReStock », alignée à gauche et à
+                  // droite : la DERNIÈRE lettre ne porte pas d'interlettrage
+                  // (sinon un blanc fantôme décalerait le bord droit).
+                  Text.rich(
+                    TextSpan(
+                      style: styleSousAjuste,
+                      children: [
+                        TextSpan(
+                          text: TextesConnexion.sousMarque.substring(
+                            0,
+                            lettres - 1,
+                          ),
+                        ),
+                        TextSpan(
+                          text: TextesConnexion.sousMarque.substring(
+                            lettres - 1,
+                          ),
+                          style: const TextStyle(letterSpacing: 0),
+                        ),
+                      ],
                     ),
+                    softWrap: false,
                   ),
                 ],
               ),
