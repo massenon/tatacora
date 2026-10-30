@@ -11,17 +11,20 @@ import '../../depenses/domain/recu_depense.dart';
 import '../../../core/config/environnement.dart';
 import '../../../core/di/providers.dart';
 import '../../transverse/data/configuration_poste.dart';
+import '../../transverse/data/journal_securite_dao.dart';
 import '../data/controle_coherence.dart';
 import '../data/descente_catalogue.dart';
 import '../data/descente_catalogue_dao.dart';
 import '../data/telechargement_recu_depense.dart';
 import '../data/envoi_recus_depenses.dart';
 import '../data/operations_sync_dao.dart';
+import '../data/service_adresse_serveur.dart';
 import '../data/service_appairage.dart';
 import '../data/sync_manager.dart';
 import '../data/transport_synchronisation.dart';
 import '../domain/bilan_synchronisation.dart';
 import '../domain/descente_catalogue.dart';
+import '../domain/frequence_synchronisation.dart';
 import '../domain/operation_sync.dart';
 import '../domain/voyant_synchronisation.dart';
 
@@ -53,7 +56,9 @@ final transportSynchronisationProvider = Provider<TransportSynchronisation>(
 );
 
 /// L'adresse de l'API du BUILD (`--dart-define=ENV=…`) ; `null` en
-/// démonstration. Jamais une saisie.
+/// démonstration. C'est la valeur PAR DÉFAUT : l'adresse choisie à l'écran
+/// (`poste.json`, `ServiceAdresseServeur`) l'emporte, et les requêtes du
+/// moteur partent vers l'adresse de l'appairage lue dans ce fichier.
 final urlServeurSynchronisationProvider = Provider<String?>(
   (ref) => Environnement.actuel.baseUrl,
 );
@@ -83,6 +88,38 @@ final serviceAppairageProvider = Provider<ServiceAppairage>((ref) {
     ecrivain: EcrivainConfigurationPoste(chemin: chemin),
   );
 });
+
+/// L'adresse du serveur (Paramètres → Synchronisation) : lire, tester,
+/// enregistrer. N'écrit jamais la file d'envoi.
+final serviceAdresseServeurProvider = Provider<ServiceAdresseServeur>((ref) {
+  final chemin = ref.watch(cheminConfigurationPosteProvider);
+  return ServiceAdresseServeur(
+    transport: ref.watch(transportSynchronisationProvider),
+    urlParDefaut: ref.watch(synchronisationInterditeProvider)
+        ? null
+        : ref.watch(urlServeurSynchronisationProvider),
+    journal: JournalSecuriteDao(ref.watch(baseLocaleProvider)),
+    lecteur: LecteurConfigurationPoste(chemin: chemin),
+    ecrivain: EcrivainConfigurationPoste(chemin: chemin),
+    descente: ref.watch(descenteCatalogueProvider),
+  );
+});
+
+/// L'adresse en vigueur, relue du fichier ; invalidée à l'enregistrement.
+final adresseServeurActuelleProvider =
+    FutureProvider.autoDispose<EtatAdresseServeur?>(
+      (ref) => ref.watch(serviceAdresseServeurProvider).etat(),
+    );
+
+/// La fréquence du réveil périodique, relue de `poste.json` (absente :
+/// 5 minutes). Invalidée à l'enregistrement : le planificateur se réarme.
+final frequenceSynchronisationProvider =
+    FutureProvider<FrequenceSynchronisation>((ref) async {
+      final minutes = await LecteurConfigurationPoste(
+        chemin: ref.watch(cheminConfigurationPosteProvider),
+      ).frequenceSynchronisationMinutes();
+      return FrequenceSynchronisation.depuisMinutes(minutes);
+    });
 
 /// L'interrupteur « Synchronisation activée » du poste, relu du fichier
 /// `poste.json` (absent : activée). Invalidé par la bascule de Paramètres.
@@ -310,7 +347,8 @@ final controleCoherenceProvider = Provider<ControleCoherence>(
   ),
 );
 
-/// La période du réveil automatique.
+/// La période PAR DÉFAUT du réveil automatique (réglable par poste :
+/// [FrequenceSynchronisation]).
 const Duration periodeSynchronisation = Duration(minutes: 5);
 
 /// La période du PASSAGE COURT (décision PO du 18/10/2026) : la lecture de
@@ -342,7 +380,8 @@ final declencheurSynchronisationProvider = Provider<void Function()>(
 );
 
 /// Le réveil AUTOMATIQUE : une synchronisation au démarrage, puis toutes les
-/// [periodeSynchronisation] tant que l'application tourne — sans requête
+/// 5 minutes par défaut (ou la fréquence choisie dans Paramètres, jusqu'à
+/// « Manuelle seulement ») tant que l'application tourne — sans requête
 /// quand aucune opération n'est échue (le moteur s'arrête sur une file vide
 /// ou en repli). Démarré par `main.dart` après la première image, PAS par
 /// `main_demo.dart` (et le moteur refuserait la démonstration de toute
@@ -350,18 +389,37 @@ final declencheurSynchronisationProvider = Provider<void Function()>(
 final synchronisationAutomatiqueProvider = Provider<void>((ref) {
   final manager = ref.watch(syncManagerProvider);
   lancerSynchronisationSansAttendre(() => manager);
-  final minuteur = Timer.periodic(
-    periodeSynchronisation,
-    (_) => lancerSynchronisationSansAttendre(() => manager),
-  );
+  // La période vient de `poste.json` (Paramètres → Synchronisation) : le
+  // défaut de 5 minutes court tant que le fichier n'est pas lu, puis le
+  // minuteur est réarmé quand le choix change — sans nouvelle synchronisation.
+  Timer? minuteur;
+  Duration? armee;
+  void armer(FrequenceSynchronisation frequence) {
+    final periode = frequence.periode;
+    if (periode == armee && (minuteur != null || periode == null)) return;
+    minuteur?.cancel();
+    armee = periode;
+    minuteur = periode == null
+        ? null
+        : Timer.periodic(
+            periode,
+            (_) => lancerSynchronisationSansAttendre(() => manager),
+          );
+  }
+
+  armer(FrequenceSynchronisation.parDefaut);
+  ref.listen(frequenceSynchronisationProvider, (_, suivante) {
+    final frequence = suivante.value;
+    if (frequence != null) armer(frequence);
+  }, fireImmediately: true);
   // Le bouton « Synchroniser » du serveur : sa demande est suivie dans les
-  // 30 s, sans attendre le réveil de 5 minutes.
+  // 30 s, sans attendre le réveil périodique.
   final passageCourt = Timer.periodic(
     periodeDemandeServeur,
     (_) => unawaited(manager.suivreDemandeDuServeur()),
   );
   ref.onDispose(() {
-    minuteur.cancel();
+    minuteur?.cancel();
     passageCourt.cancel();
   });
 });

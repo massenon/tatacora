@@ -159,7 +159,8 @@ class SyncManager {
       final appairage = await _lecteur.appairage();
       if (appairage == null ||
           appairage.refus != null ||
-          _normaliser(appairage.serveur) != _normaliser(url)) {
+          (!await _lecteur.adresseServeurChoisie() &&
+              _normaliser(appairage.serveur) != _normaliser(url))) {
         return false;
       }
       if (await _etat.reinitialisationServeur() != null) return false;
@@ -239,7 +240,10 @@ class SyncManager {
         codeHttp: refus.codeHttp,
       );
     }
-    if (_normaliser(appairage.serveur) != _normaliser(url)) {
+    // Une adresse CHOISIE à l'écran (29/10/2026) est le choix de l'opérateur :
+    // la garde ne vaut que pour un appairage recopié d'un autre build.
+    if (!await _lecteur.adresseServeurChoisie() &&
+        _normaliser(appairage.serveur) != _normaliser(url)) {
       return const BilanSynchronisation(etat: EtatSynchronisation.autreServeur);
     }
     // Le serveur a été réinitialisé depuis (19/10/2026) : aucune requête

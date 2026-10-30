@@ -49,7 +49,16 @@ enum ActionJournalPoste {
     'Réinitialisation par code de secours',
   ),
   codeSecoursRefuse('code_secours_refuse', 'Code de secours refusé'),
-  codeSecoursBloque('code_secours_bloque', 'Code de secours bloqué');
+  codeSecoursBloque('code_secours_bloque', 'Code de secours bloqué'),
+
+  // L'adresse du serveur changée à l'écran (29/10/2026) : une action PROPRE AU
+  // POSTE (le serveur n'en a pas, il ne connaît pas la configuration d'un
+  // poste). Le détail « ancienne → nouvelle » est l'ENREGISTREMENT visé ; jamais
+  // le jeton.
+  adresseServeurModifiee(
+    'adresse_serveur_modifiee',
+    'Adresse du serveur modifiée',
+  );
 
   const ActionJournalPoste(this.code, this.libelle);
 
@@ -102,7 +111,12 @@ const Map<String, String> libellesTablesJournal = {
   'parametres_systeme': 'Paramètre système',
   // Le journal de sécurité du poste (v46) — `pwa.journal_audit.tables.utilisateurs`.
   'utilisateurs': 'Compte utilisateur',
+  // Propre au poste (29/10/2026) : la configuration locale (`poste.json`).
+  tableConfigurationPoste: 'Configuration du poste',
 };
+
+/// La « table » des entrées qui concernent la configuration du poste.
+const String tableConfigurationPoste = 'configuration_poste';
 
 /// Une entrée du journal du poste.
 final class EntreeJournalPoste {
@@ -161,7 +175,9 @@ EntreeJournalPoste? entreeDepuisSecurite({
   if (a == null || !a.estDeSecurite) return null;
   return EntreeJournalPoste(
     action: a,
-    table: 'utilisateurs',
+    table: a == ActionJournalPoste.adresseServeurModifiee
+        ? tableConfigurationPoste
+        : 'utilisateurs',
     entiteId: cibleLogin ?? cibleId ?? '—',
     dateHeure: creeLe,
     utilisateur: auteurLogin,

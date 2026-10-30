@@ -133,7 +133,8 @@ class TelechargementRecuDepense {
     if (appairage.refus != null) {
       return const RecuIndisponible(TextesRecuDistant.refuse);
     }
-    if (_sansBarre(appairage.serveur) != _sansBarre(_url)) {
+    if (!await _lecteur.adresseServeurChoisie() &&
+        _sansBarre(appairage.serveur) != _sansBarre(_url)) {
       return const RecuIndisponible(TextesRecuDistant.autreServeur);
     }
     final etat = DescenteCatalogueDao(_db);

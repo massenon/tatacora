@@ -23,9 +23,9 @@ class ServiceAppairage {
 
   final TransportSynchronisation _transport;
 
-  /// L'adresse de l'API du BUILD (`Environnement.actuel.baseUrl`) — jamais
-  /// une saisie : un build de production ne doit pas pouvoir pointer
-  /// ailleurs depuis l'interface. `null` en démonstration.
+  /// L'adresse de l'API du BUILD (`Environnement.actuel.baseUrl`), valeur par
+  /// défaut tant qu'aucune adresse n'a été choisie à l'écran (`poste.json`,
+  /// `ServiceAdresseServeur`). `null` en démonstration.
   final String? _url;
   final LecteurConfigurationPoste _lecteur;
   final EcrivainConfigurationPoste _ecrivain;
@@ -42,10 +42,15 @@ class ServiceAppairage {
     required String motDePasse,
     required String nomPoste,
   }) async {
-    final url = _url;
-    if (url == null) {
+    final parDefaut = _url;
+    if (parDefaut == null) {
       return const AppairageRefuse(TextesAppairage.demonstration);
     }
+    // L'adresse choisie à l'écran (Paramètres → Synchronisation) l'emporte
+    // sur celle du build ; sinon celle du build, comme avant.
+    final url = await _lecteur.adresseServeurChoisie()
+        ? (await _lecteur.adresseServeur() ?? parDefaut)
+        : parDefaut;
     if (!await _lecteur.synchronisationActivee()) {
       return const AppairageRefuse(TextesAppairage.desactivee);
     }

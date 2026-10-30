@@ -181,6 +181,33 @@ class LecteurConfigurationPoste {
     return contenu?[cleSynchronisationActivee] != false;
   }
 
+  /// L'adresse de l'API enregistrée (`serveur`), MÊME sans jeton : l'adresse
+  /// choisie à l'écran vaut aussi pour un poste pas encore appairé. `null` :
+  /// aucune (fichier absent, illisible ou clé vide) — le poste prend alors
+  /// l'adresse du build.
+  Future<String?> adresseServeur() async {
+    final contenu = await _lireObjet(await _chemin());
+    final v = contenu?[ClesAppairage.serveur];
+    return v is String && v.trim().isNotEmpty ? v.trim() : null;
+  }
+
+  /// L'adresse a-t-elle été CHOISIE à l'écran (Paramètres → Synchronisation) ?
+  /// Alors l'appairage ne se compare plus à l'adresse du build : c'est
+  /// l'opérateur qui a décidé du serveur.
+  Future<bool> adresseServeurChoisie() async {
+    final contenu = await _lireObjet(await _chemin());
+    final v = contenu?[cleServeurModifieLe];
+    return v is String && v.trim().isNotEmpty;
+  }
+
+  /// La fréquence du réveil périodique, en minutes (`0` : manuelle), ou `null`
+  /// quand le fichier n'en dit rien (le défaut s'applique).
+  Future<int?> frequenceSynchronisationMinutes() async {
+    final contenu = await _lireObjet(await _chemin());
+    final v = contenu?[cleFrequenceSynchronisation];
+    return v is int ? v : null;
+  }
+
   /// Qui a désactivé la synchronisation, et quand (`null` : activée, ou
   /// désactivée avant que l'on consigne qui).
   Future<({String? par, DateTime? le})> desactivation() async {
@@ -201,6 +228,17 @@ class LecteurConfigurationPoste {
 const String cleSynchronisationActivee = 'synchronisation_activee';
 const String cleSynchronisationDesactiveeLe = 'synchronisation_desactivee_le';
 const String cleSynchronisationDesactiveePar = 'synchronisation_desactivee_par';
+
+/// L'adresse du serveur CHOISIE à l'écran (29/10/2026) : quand et par qui. La
+/// clé de l'adresse elle-même est `serveur` ([ClesAppairage.serveur]) ; ces
+/// deux clés disent seulement qu'elle est un CHOIX de l'opérateur, pas celle
+/// qu'un appairage a recopiée du build. Jamais le jeton.
+const String cleServeurModifieLe = 'serveur_modifie_le';
+const String cleServeurModifiePar = 'serveur_modifie_par';
+
+/// La fréquence du réveil périodique, en minutes (`0` : manuelle seulement).
+/// Absente : 5 minutes. Par poste, comme l'interrupteur.
+const String cleFrequenceSynchronisation = 'synchronisation_frequence_minutes';
 
 /// Le contenu de `poste.json`, ou `null` s'il est absent ou n'est pas un objet
 /// JSON.
@@ -359,12 +397,54 @@ class EcrivainConfigurationPoste {
           ..addAll(appairage.versJson());
       });
 
-  /// Retire l'appairage (« Dissocier ») ; le reste du fichier demeure.
-  Future<void> retirerAppairage() => _modifier((contenu) {
+  /// Retire l'appairage (« Dissocier ») ; le reste du fichier demeure. Une
+  /// adresse CHOISIE à l'écran demeure aussi : dissocier le poste ne change
+  /// pas de serveur.
+  Future<void> retirerAppairage() => _modifier(
+    (contenu) => _viderAppairage(
+      contenu,
+      garderServeur: contenu[cleServeurModifieLe] != null,
+    ),
+  );
+
+  static void _viderAppairage(
+    Map<String, Object?> contenu, {
+    required bool garderServeur,
+  }) {
     for (final cle in ClesAppairage.toutes) {
+      if (cle == ClesAppairage.serveur && garderServeur) continue;
       contenu.remove(cle);
     }
+  }
+
+  /// Enregistre l'adresse du serveur choisie à l'écran ([urlApi] : déjà
+  /// validée, `…/api/v1`), avec quand et par qui. [effacerJeton] : le jeton
+  /// et le reste de l'appairage partent dans la MÊME écriture atomique.
+  /// Jamais le jeton ailleurs que dans ce fichier ; la file d'envoi n'est pas
+  /// concernée.
+  Future<void> enregistrerAdresseServeur(
+    String urlApi, {
+    required String par,
+    required DateTime le,
+    bool effacerJeton = false,
+  }) => _modifier((contenu) {
+    if (effacerJeton) _viderAppairage(contenu, garderServeur: true);
+    contenu
+      ..[ClesAppairage.serveur] = urlApi
+      ..[cleServeurModifieLe] = le.toUtc().toIso8601String()
+      ..[cleServeurModifiePar] = par;
   });
+
+  /// Enregistre la fréquence du réveil périodique ([minutes] : 0 = manuelle).
+  /// Le défaut (5) retire la clé : un fichier jamais touché reste inchangé.
+  Future<void> enregistrerFrequenceSynchronisation(int minutes) =>
+      _modifier((contenu) {
+        if (minutes == 5) {
+          contenu.remove(cleFrequenceSynchronisation);
+        } else {
+          contenu[cleFrequenceSynchronisation] = minutes;
+        }
+      });
 
   /// Consigne le refus du jeton (401) ou du poste (403) par le serveur.
   Future<void> consignerRefus(int codeHttp, DateTime le) =>

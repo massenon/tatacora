@@ -204,6 +204,10 @@ void main() {
     // rendu dans la carte du formulaire de Paramètres comme les autres
     // onglets, donc dans `<main>` — échelle EFFECTIVE.
     'lib/features/parametres/presentation/widgets/onglet_synchronisation.dart',
+    // Les cartes « Adresse du serveur » et « Synchronisation automatique »
+    // (29/10/2026) : portées par l'onglet ci-dessus, dans `<main>` — échelle
+    // EFFECTIVE.
+    'lib/features/parametres/presentation/widgets/cartes_adresse_serveur.dart',
     // L'onglet « Logo & Apparence » (21/10/2026) : le panneau
     // `@elseif ($onglet === 'apparence')` de la vue de Paramètres, dans
     // `<main>` — échelle EFFECTIVE. Sa modale n'emploie que les styles de

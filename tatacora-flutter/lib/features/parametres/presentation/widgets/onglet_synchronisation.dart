@@ -13,6 +13,7 @@ import '../../../../shared_widgets/bouton_standard.dart';
 import '../../../synchronisation/domain/appairage.dart';
 import '../../../synchronisation/presentation/providers_synchronisation.dart';
 import '../../../transverse/data/configuration_poste.dart';
+import 'cartes_adresse_serveur.dart';
 
 /// Les mots de l'onglet « Synchronisation » (lot F2a, 15/10/2026). La vue
 /// de Paramètres n'a pas cet onglet : c'est un AJOUT du poste (le serveur
@@ -103,12 +104,20 @@ class OngletSynchronisation extends ConsumerStatefulWidget {
 class _OngletSynchronisationState extends ConsumerState<OngletSynchronisation> {
   final _identifiant = TextEditingController();
   final _motDePasse = TextEditingController();
-  late final TextEditingController _nomPoste = TextEditingController(
-    text: ref.read(nomPosteParDefautProvider),
-  );
+  late final TextEditingController _nomPoste;
   bool _occupe = false;
   String? _message;
   bool _messageErreur = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Posé ici et non à la première lecture : `dispose` ne doit pas lire
+    // `ref` d'un widget déjà démonté (vue d'un non-administrateur).
+    _nomPoste = TextEditingController(
+      text: ref.read(nomPosteParDefautProvider),
+    );
+  }
 
   @override
   void dispose() {
@@ -217,6 +226,8 @@ class _OngletSynchronisationState extends ConsumerState<OngletSynchronisation> {
         ),
         const SizedBox(height: AppSpacing.md),
         _interrupteur(),
+        const SizedBox(height: AppSpacing.md),
+        const CartesAdresseServeur(),
         const SizedBox(height: AppSpacing.md),
         appairage.when(
           loading: () => const LinearProgressIndicator(),

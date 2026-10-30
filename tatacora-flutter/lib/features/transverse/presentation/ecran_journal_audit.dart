@@ -252,6 +252,7 @@ class _EtatEcranJournalAudit extends ConsumerState<EcranJournalAudit> {
       // `JournalAudit::ACTIONS` (29/10/2026) : réinitialisations en doré,
       // code de secours posé en bleu.
       ActionJournalPoste.reinitialisationMotDePasse ||
+      ActionJournalPoste.adresseServeurModifiee ||
       ActionJournalPoste.codeSecoursUtilise => (
         AppColors.reserveGoldFond,
         AppColors.gold,
