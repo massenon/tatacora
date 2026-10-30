@@ -86,7 +86,7 @@
             },
             {
                 "type": "p",
-                "texte": "Le modèle porte les colonnes exactes et une ligne d'exemple. Ouvrez-le dans Excel, remplacez la ligne d'exemple par vos données, conservez la ligne d'en-tête, puis enregistrez en ."
+                "texte": "Le modèle est un classeur Excel : une colonne par champ, une ligne d'exemple, et une feuille « Aide » qui détaille chaque colonne. Ouvrez-le dans Excel, remplacez la ligne d'exemple par vos données, conservez la ligne d'en-tête, puis enregistrez en ."
             },
             {
                 "type": "h2",
@@ -94,7 +94,7 @@
             },
             {
                 "type": "p",
-                "texte": "Formats acceptés : CSV (séparateur point-virgule ou virgule)."
+                "texte": "Formats acceptés : classeur Excel .xlsx (recommandé) ou CSV (séparateur point-virgule, virgule ou tabulation). Les colonnes sont repérées par leur nom."
             },
             {
                 "type": "p",
@@ -122,7 +122,7 @@
             },
             {
                 "type": "p",
-                "texte": "Enregistrez en CSV UTF-8. Sans cet encodage, les accents deviennent illisibles à la relecture."
+                "texte": "Enregistrez en classeur Excel (.xlsx). Les colonnes sont repérées par leur nom ; le CSV reste accepté en secours."
             },
             {
                 "type": "p",
@@ -180,7 +180,7 @@
             },
             {
                 "type": "p",
-                "texte": "102"
+                "texte": "104"
             },
             {
                 "type": "p",

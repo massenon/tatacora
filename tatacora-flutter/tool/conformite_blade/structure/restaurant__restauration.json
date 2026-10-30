@@ -174,7 +174,7 @@
             },
             {
                 "type": "p",
-                "texte": "Une fiche sans ingrédient ne décrémente aucun stock, et le point de vente REFUSE la vente du plat qui l'utilise. Ouvrez la fiche, posez ses articles de stock et leurs quantités par portion : le coût matière se calcule tout seul."
+                "texte": "Une fiche sans ingrédient ne décrémente aucun stock : le plat qui l'utilise se vend quand même, sans sortie de stock. Ouvrez la fiche, posez ses articles de stock et leurs quantités par portion pour que la vente décrémente : le coût matière se calcule tout seul."
             },
             {
                 "type": "div",
@@ -182,7 +182,7 @@
             },
             {
                 "type": "div",
-                "texte": "Fiches vides — vente refusée"
+                "texte": "Fiches vides — sans sortie de stock"
             },
             {
                 "type": "div",
@@ -202,7 +202,7 @@
             },
             {
                 "type": "span",
-                "texte": "Ce sont elles qui bloquent la vente au comptoir."
+                "texte": "Ces plats se vendent au comptoir, sans sortie de stock."
             },
             {
                 "type": "th",
