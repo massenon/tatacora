@@ -89,6 +89,9 @@ return [
         // Intégré » (PA-209) vivait dans ce panneau et reste portée par le
         // démarrage et l'aide. `AucunLogiRestockAfficheTest` garde l'ancien nom.
         'titre_h1' => 'Connexion',
+        // Rechargement après un 419/401 (jeton ou session expiré) : voir
+        // `pwa.partials.session-expiree` et le gestionnaire d'exceptions.
+        'session_expiree' => 'Votre session a expiré, reconnectez-vous.',
         // Décision du PO du 29/10/2026 : « Connexion — LogiReStock », SANS la
         // suite « — TATACORA AFRIQUE » des autres pages (exception déclarée dans
         // `BaliseTitrePwaTest::TITRE_DISTINCT_DU_H1`, limitée à cette page).

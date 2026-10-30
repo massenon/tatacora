@@ -459,39 +459,20 @@ void main() {
     );
   });
 
-  testWidgets('le bandeau est SOUS les filtres, et reprend le texte de la vue', (
-    tester,
-  ) async {
-    await monter(tester);
+  testWidgets(
+    "le bandeau d'information du rayon n'existe plus (PO, 30/10/2026)",
+    (tester) async {
+      await monter(tester);
 
-    final onglets = tester.getRect(
-      find.byKey(const Key('onglet-carte-restaurant-carte')),
-    );
-    final filtres = tester.getRect(
-      find.byKey(const Key('carte-restaurant-recherche')),
-    );
-    final bandeau = tester.getRect(
-      find.byKey(const Key('carte-restaurant-bandeau')),
-    );
-
-    expect(onglets.top, lessThan(filtres.top));
-    expect(filtres.bottom, lessThan(bandeau.top));
-
-    // Le texte de la VUE (`carte_pwa.restaurant.bandeau_texte`), dont le compte
-    // vient des indicateurs reçus : 1 plat sans fiche sur 2.
-    final texte = tester
-        .widget<Text>(
-          find.descendant(
-            of: find.byKey(const Key('carte-restaurant-bandeau')),
-            matching: find.byType(Text),
-          ),
-        )
-        .textSpan!
-        .toPlainText();
-    expect(texte, contains("Un plat n'est pas un article de stock"));
-    expect(texte, contains('1 article(s) sur 2 ne décrémentent rien'));
-    expect(texte, contains('Un plat peut néanmoins être rattaché à la main'));
-  });
+      expect(find.byKey(const Key('carte-restaurant-bandeau')), findsNothing);
+      expect(
+        find.textContaining("n'est pas un article de stock"),
+        findsNothing,
+      );
+      expect(find.textContaining('Décrémenter un'), findsNothing);
+      expect(find.textContaining('sur 2 ne décrémentent rien'), findsNothing);
+    },
+  );
 
   testWidgets(
     'la bande compte SIX cartes, sur une seule rangée en grand écran',

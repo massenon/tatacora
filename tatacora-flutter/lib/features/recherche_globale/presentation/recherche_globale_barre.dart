@@ -4,7 +4,7 @@
 ///
 /// Ordre et classes de la vue : `relative hidden md:block mr-3` ; la boîte
 /// `flex items-center gap-2 bg-white/10 border border-white/15 rounded-lg px-3
-/// py-1.5 w-64 focus-within:border-white/40`, sa loupe 14 px, le champ
+/// py-1.5 w-[125px] focus-within:border-white/40`, sa loupe 14 px, le champ
 /// `text-xs text-white placeholder-white/40` ; le panneau `absolute left-0
 /// top-11 w-[420px] max-w-[90vw] bg-white rounded-xl shadow-2xl border
 /// border-slate-100`, ouvert au focus et à la saisie, refermé par un clic
@@ -217,6 +217,8 @@ class _EtatRechercheGlobale extends ConsumerState<RechercheGlobaleBarre> {
                   fontSize: Tailles.t12,
                   height: Tailles.interligneXsHorsMain,
                   letterSpacing: 0,
+                  // `text-ellipsis` de la vue : l'invite ne déborde jamais.
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ),

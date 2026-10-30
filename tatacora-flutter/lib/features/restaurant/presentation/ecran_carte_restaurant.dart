@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import '../../../core/donnees_absentes.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
-import '../../../core/theme/app_text_styles.dart';
 import '../../../shared_widgets/modale_export.dart';
 import '../../../shared_widgets/toast_export.dart';
 import '../data/restaurant_api.dart';
@@ -31,7 +30,7 @@ import 'widgets/vue_ventes_restaurant.dart';
 /// Une seule colonne qui défile d'un bloc (`p-5 lg:p-8`, `max-w-[1500px]`,
 /// corps l.72-73), puis : l'en-tête et ses CINQ boutons (l.75-144), l'accordéon
 /// des six indicateurs (l.163-209), les TROIS onglets (l.212-227), la barre de
-/// filtres (l.230), le bandeau du rayon (l.260), l'avertissement de point de
+/// filtres (l.230), l'avertissement de point de
 /// stockage (l.267-275), enfin le panneau de l'onglet courant. L'ossature est
 /// celle de la carte du bar : `corps_carte_commun.dart`, UN seul auteur pour
 /// les deux rayons, comme la vue.
@@ -129,17 +128,12 @@ import 'widgets/vue_ventes_restaurant.dart';
 /// compteur « Prix provisoires », et le libellé de la fiche technique dans
 /// « Article de stock ».
 ///
-/// ## Le bandeau reprend le texte de la VUE, au mot
+/// ## Le bandeau d'information du rayon n'existe plus (PO, 30/10/2026)
 ///
-/// Jusqu'au 09/10/2026 il remplaçait deux phrases du maître archivé (« Cette
-/// fiche n'existe pas… », « rattaché à la main… ») par une formulation propre
-/// à ce client, au motif que `plats` n'aurait aucune colonne d'article. La vue
-/// Blade fait foi (PA-182) et `restaurant/carte.blade.php` l.11-13 écrit
-/// l'inverse : `plats.article_id` est nullable, le lien direct est
-/// l'exception. Le motif avait cessé d'être vrai (PA-144) ; le texte de la vue
-/// est rétabli. La dernière phrase (« Un plat peut néanmoins être rattaché à la
-/// main… ») décrit un geste de la PWA que ce poste n'offre pas : le bouton
-/// « Lier au stock » existe depuis la v36 (voir plus haut).
+/// Le bandeau jaune de la vue (« Un plat n'est pas un article de stock… »)
+/// est retiré sur la vue ET sur ce poste, sur demande du Product Owner. Il
+/// n'est ni refusé ni différé : il n'existe plus nulle part, et aucune clé de
+/// langue ne le porte.
 class EcranCarteRestaurant extends ConsumerWidget {
   const EcranCarteRestaurant({super.key});
 
@@ -228,7 +222,8 @@ class _PageAvecDonnees extends ConsumerWidget {
         ),
         const _Onglets(),
         const _Filtres(),
-        _Bandeau(indicateurs: carte.indicateurs),
+        // Le bandeau jaune « Un plat n'est pas un article de stock… » est RETIRÉ,
+        // web et poste, sur demande du Product Owner du 30/10/2026.
         if (carte.sansPointCuisine)
           const AvertissementCarte(
             cle: Key('carte-restaurant-sans-point-cuisine'),
@@ -549,7 +544,7 @@ class _EnTete extends ConsumerWidget {
 }
 
 /* ====================================================================== */
-/* Onglets, filtres, bandeau — corps l.211-265                             */
+/* Onglets, filtres — corps l.211-265                             */
 /* ====================================================================== */
 
 /// Les trois onglets — `flex flex-wrap gap-1.5 mb-4` (l.212).
@@ -619,64 +614,6 @@ class _Filtres extends ConsumerWidget {
             ref.read(etatCarteRestaurantProvider.notifier).definir(e);
           }
         },
-      ),
-    );
-  }
-}
-
-/// Le bandeau du rayon — `carte-module.js` archivé l.76-85, vue
-/// `restaurant/carte.blade.php` l.43-52 : encadré « amber » (`#FFFBEB` /
-/// `#FDE68A` / `#78350F`), `rounded-xl p-3.5 mb-4`.
-///
-/// Le texte est celui de la vue, au mot (voir l'en-tête de l'écran).
-/// Chaque fragment est UN littéral : le comparateur coupe la phrase de la vue à
-/// ses balises `<strong>`, et cherche chaque morceau.
-class _Bandeau extends StatelessWidget {
-  const _Bandeau({required this.indicateurs});
-
-  final IndicateursCarte indicateurs;
-
-  @override
-  Widget build(BuildContext context) {
-    final fort = styleContenuCarte(
-      TaillesContenu.t13,
-      poids: FontWeight.bold,
-      couleur: PaletteMaitre.ambre900,
-    );
-
-    return KeyedSubtree(
-      key: const Key('carte-restaurant-bandeau'),
-      child: EncadreCarte(
-        fond: PaletteMaitre.ambre50,
-        bordure: PaletteMaitre.ambre200,
-        enfant: Text.rich(
-          TextSpan(
-            style: styleContenuCarte(
-              TaillesContenu.t13,
-              couleur: PaletteMaitre.ambre900,
-            ),
-            children: [
-              // `carte_pwa.restaurant.bandeau_titre`.
-              TextSpan(
-                text:
-                    "Un plat n'est pas un article de stock : c'est une recette. ",
-                style: fort,
-              ),
-              // `carte_pwa.restaurant.bandeau_texte`.
-              const TextSpan(text: 'Décrémenter un « Poulet DG » suppose une '),
-              TextSpan(text: 'fiche technique', style: fort),
-              const TextSpan(
-                text:
-                    " indiquant combien de grammes de poulet, d'huile et d'oignon partent à chaque assiette. ",
-              ),
-              TextSpan(text: 'Attention :', style: fort),
-              TextSpan(
-                text:
-                    " ${indicateurs.sansLien} article(s) sur ${indicateurs.plats} ne décrémentent rien à la vente. La valeur du stock affichée est donc surévaluée, et l'écart apparaîtra à l'inventaire. Un plat peut néanmoins être rattaché à la main lorsqu'il correspond à un article unique — une bouteille d'eau servie à table, par exemple.",
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

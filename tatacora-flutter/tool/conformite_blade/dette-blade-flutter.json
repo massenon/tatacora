@@ -1,6 +1,6 @@
 {
   "_lisez-moi": "PRODUIT par `node tool/conformite_blade/t-blade-flutter.js --figer-dette`, jamais ecrit a la main. Chaque cle est « vue|bloc », chaque valeur le NOMBRE de libelles de la vue Blade absents du code Flutter. Le script echoue si un chiffre monte, s'il baisse sans que la dette soit resserree, si un bloc incomplet n'y figure pas, et si une entree ne correspond plus a rien ou a un bloc desormais porte ou refuse.",
-  "_regenere-le": "2026-10-29",
+  "_regenere-le": "2026-10-30",
   "_blocs-a-porter": 8,
   "_libelles-absents": 11,
   "ecarts": {

@@ -77,6 +77,7 @@
     @livewire(\App\Pwa\Livewire\Transverse\AlertesOuvertureModales::class)
 
     @livewireScripts
+    @include('pwa.partials.session-expiree')
 
     <script>
         // Service worker : cache de l'app shell uniquement, jamais de donnees

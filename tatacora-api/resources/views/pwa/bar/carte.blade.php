@@ -5,7 +5,7 @@
     prototype_v2/pages/carte-module.js — le MÊME fichier que la carte du
     restaurant. Le corps partagé vit dans `pwa/carte/corps.blade.php` ; il ne
     reste ici que ce qui distingue réellement le rayon : titre, sous-titre,
-    icône, bandeau, refus.
+    icône, refus (le bandeau d'information a été retiré, PO 30/10/2026).
 
     ## Le sous-titre était CELUI DU RESTAURANT
 
@@ -38,17 +38,6 @@
         'onglet_ventes' => __('carte_pwa.bar.onglet_ventes'),
         // maître — m5-bar-carte.html l.29
         'icone' => '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--navy)" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 3h14l-1 9a6 6 0 01-12 0L5 3zM12 15v6M8 21h8"/></svg>',
-        // maître — carte-module.js l.66-74 : encadré « gris ».
-        'bandeau' => [
-            'fond' => '#F8FAFC',
-            'bord' => '#E2E8F0',
-            'texte' => '#334155',
-            'titre' => __('carte_pwa.bar.bandeau_titre'),
-            'corps' => __('carte_pwa.bar.bandeau_texte', [
-                'lies' => $indicateurs['lies'],
-                'total' => $indicateurs['articles'],
-            ]),
-        ],
         // `cartes_boisson.article_id` est NOT NULL : le lien se REMPLACE.
         // Cle d'accordeon PROPRE A L'ECRAN (PO 03/09/2026) : replier la
         // bande du bar ne replie pas celle du restaurant.

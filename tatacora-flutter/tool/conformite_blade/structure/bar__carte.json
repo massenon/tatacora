@@ -97,10 +97,6 @@
             },
             {
                 "type": "p",
-                "texte": "Une Béninoise 66 cl vendue, c'est une bouteille en moins. Le lien est direct et automatisable par rapprochement de libellé — à condition que la corresponde : une 33 cl ne sort pas du casier de 66 cl, et l'écart ne se verrait qu'à l'inventaire. Couverture actuelle : articles rattachés."
-            },
-            {
-                "type": "p",
                 "texte": "Aucun point de stockage de type « bar » n'est encore déclaré : le stock vendable ne peut pas être calculé, et aucun chiffre n'est affiché. Ce qui dort au magasin n'est pas vendable au comptoir — replier sur le stock tous points confondus annoncerait des bouteilles que le barman n'a pas."
             },
             {
@@ -199,10 +195,6 @@
             {
                 "type": "option",
                 "texte": "Prix provisoire"
-            },
-            {
-                "type": "p",
-                "texte": "Une Béninoise 66 cl vendue, c'est une bouteille en moins. Le lien est direct et automatisable par rapprochement de libellé — à condition que la corresponde : une 33 cl ne sort pas du casier de 66 cl, et l'écart ne se verrait qu'à l'inventaire. Couverture actuelle : articles rattachés."
             },
             {
                 "type": "p",
@@ -368,10 +360,6 @@
             {
                 "type": "option",
                 "texte": "Prix provisoire"
-            },
-            {
-                "type": "p",
-                "texte": "Une Béninoise 66 cl vendue, c'est une bouteille en moins. Le lien est direct et automatisable par rapprochement de libellé — à condition que la corresponde : une 33 cl ne sort pas du casier de 66 cl, et l'écart ne se verrait qu'à l'inventaire. Couverture actuelle : articles rattachés."
             },
             {
                 "type": "p",

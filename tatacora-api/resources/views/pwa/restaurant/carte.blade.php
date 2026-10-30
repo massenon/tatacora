@@ -39,17 +39,6 @@
         'onglet_ventes' => __('carte_pwa.restaurant.onglet_ventes'),
         // maître — m4-restaurant-carte.html l.29
         'icone' => '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--navy)" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 2v7c0 1.1.9 2 2 2h1a2 2 0 002-2V2M7 2v20M17 2a5 5 0 00-5 5v6h5m0-11v20"/></svg>',
-        // maître — carte-module.js l.76-85 : encadré « amber ».
-        'bandeau' => [
-            'fond' => '#FFFBEB',
-            'bord' => '#FDE68A',
-            'texte' => '#78350F',
-            'titre' => __('carte_pwa.restaurant.bandeau_titre'),
-            'corps' => __('carte_pwa.restaurant.bandeau_texte', [
-                'sans_lien' => $indicateurs['sans_lien'],
-                'total' => $indicateurs['articles'],
-            ]),
-        ],
         // Cle d'accordeon PROPRE A L'ECRAN (PO 03/09/2026) : replier la
         // bande du bar ne replie pas celle du restaurant.
         'cle_kpis' => 'pwa_kpis_carte_restaurant',

@@ -431,14 +431,6 @@ return [
         'sous_titre' => 'Chaque boisson vendue décrémente son casier. Le rapprochement contrôle la '
             . '<strong>contenance</strong> : une 33 cl ne sort pas du casier de 66 cl.',
 
-        // maître — carte-module.js l.66-74, branche bar
-        'bandeau_titre' => 'Au bar, vendre et sortir du stock désignent la même chose.',
-        'bandeau_texte' => 'Une Béninoise 66 cl vendue, c\'est une bouteille en moins. Le lien est '
-            . 'direct et automatisable par rapprochement de libellé — à condition que la '
-            . '<strong>contenance</strong> corresponde : une 33 cl ne sort pas du casier de 66 cl, et '
-            . 'l\'écart ne se verrait qu\'à l\'inventaire. Couverture actuelle : '
-            . '<strong>:lies / :total</strong> articles rattachés.',
-
         // Onglet AJOUTÉ le 03/09/2026 (Product Owner) — le libellé est celui
         // du rayon, jamais un « Ventes » générique : les deux écrans partagent
         // le même corps, et deux onglets homonymes ne se distingueraient pas
@@ -475,16 +467,6 @@ return [
         // maître — l.33
         'sous_titre' => 'Composition, disponibilité du jour et lien au stock. Le stock affiché est '
             . '<strong>calculé</strong>, jamais saisi.',
-
-        // maître — carte-module.js l.76-85, branche restaurant
-        'bandeau_titre' => 'Un plat n\'est pas un article de stock : c\'est une recette.',
-        'bandeau_texte' => 'Décrémenter un « Poulet DG » suppose une <strong>fiche technique</strong> '
-            . 'indiquant combien de grammes de poulet, d\'huile et d\'oignon partent à chaque '
-            . 'assiette. <strong>Attention :</strong> :sans_lien '
-            . 'article(s) sur :total ne décrémentent rien à la vente. La valeur du stock affichée est '
-            . 'donc surévaluée, et l\'écart apparaîtra à l\'inventaire. Un plat peut néanmoins être '
-            . 'rattaché à la main lorsqu\'il correspond à un article unique — une bouteille d\'eau '
-            . 'servie à table, par exemple.',
 
         // Onglet AJOUTÉ le 03/09/2026 (Product Owner) — voir `bar.onglet_ventes`.
         'onglet_ventes' => 'Ventes du Restaurant',

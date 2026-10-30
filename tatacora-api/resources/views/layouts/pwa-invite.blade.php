@@ -10,8 +10,16 @@
 @livewireStyles
 </head>
 <body class="{{ $classeBody ?? 'h-screen flex' }}" style="{{ $styleBody ?? 'background:var(--fond-clair)' }}">
+    {{-- « Votre session a expiré » : caché par défaut, montré par
+         `pwa.partials.session-expiree` (rechargement après un 419) ou par le
+         drapeau posé par le gestionnaire d'exceptions (419 hors Livewire). --}}
+    <div id="bandeau-session-expiree" role="alert" @unless (session('session_expiree')) hidden @endunless
+         style="position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:50;max-width:calc(100vw - 32px);padding:10px 16px;border-radius:8px;background:var(--navy);color:white;font-size:14px">
+        {{ __('pwa.connexion.session_expiree') }}
+    </div>
     {{ $slot }}
     @livewireScripts
+    @include('pwa.partials.session-expiree')
 <script>
     // Surface non authentifiee : la page de repli hors connexion lit ce
     // drapeau pour choisir sa variante (« Se connecter » plutot que le

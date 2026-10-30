@@ -1757,11 +1757,13 @@ abstract final class MesuresAccesRapide {
 /// Les deux composants sont HORS `<main>` : aucune taille n'est remappée par
 /// `app.css` ([Tailles], jamais [TaillesContenu]). Le champ de recherche est
 /// mesuré dans le relevé du châssis (`chassis__administrateur.json` : texte du
-/// champ à 208,4 × 16 px, la boîte `w-64` commençant 35 px plus à gauche) ;
+/// champ à 208,4 × 16 px, la boîte (alors `w-64`, aujourd'hui `w-[125px]`) commençant 35 px plus à gauche) ;
 /// les panneaux, fermés lors des captures, sont LUS sur les classes.
 abstract final class MesuresBarreSuperieure {
-  /// `w-64` — la boîte du champ de recherche, 256 px.
-  static const double champRecherche = 256;
+  /// `w-[125px]` — la boîte du champ de recherche, 125 px (décision du PO du
+  /// 30/10/2026 : « width: 125px », web ET poste ; c'était `w-64`, 256 px).
+  /// L'invite longue est tronquée par des points de suspension.
+  static const double champRecherche = 125;
 
   /// `<svg width="14">` — la loupe du champ.
   static const double iconeRecherche = 14;

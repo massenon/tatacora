@@ -96,20 +96,17 @@ void main() {
     expect(find.byKey(const Key('carte-lien-pos')), findsOneWidget);
   });
 
-  testWidgets('le bandeau est SOUS les filtres, pas au-dessus des onglets', (
-    tester,
-  ) async {
-    await monter(tester);
+  testWidgets(
+    "le bandeau d'information du rayon n'existe plus (PO, 30/10/2026)",
+    (tester) async {
+      await monter(tester);
 
-    final onglets = tester.getRect(
-      find.byKey(const Key('onglet-carte-bar-carte')),
-    );
-    final filtres = tester.getRect(find.byKey(const Key('carte-recherche')));
-    final bandeau = tester.getRect(find.byKey(const Key('carte-bandeau')));
-
-    expect(onglets.top, lessThan(filtres.top));
-    expect(filtres.bottom, lessThan(bandeau.top));
-  });
+      expect(find.byKey(const Key('carte-bandeau')), findsNothing);
+      expect(find.textContaining('désignent la même chose'), findsNothing);
+      expect(find.textContaining('Couverture actuelle'), findsNothing);
+      expect(find.textContaining('articles rattachés'), findsNothing);
+    },
+  );
 
   testWidgets(
     'la bande compte SIX cartes, sur une seule rangée en grand écran',

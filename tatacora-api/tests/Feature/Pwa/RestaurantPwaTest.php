@@ -11,10 +11,16 @@ use App\Domain\Restaurant\Models\Recette;
 use App\Domain\Stocks\Models\Article;
 use App\Domain\Stocks\Models\PointStockage;
 use App\Domain\Stocks\Services\MouvementStockService;
+use App\Domain\Ventes\Models\LigneVente;
+use App\Domain\Ventes\Models\Vente;
 use App\Models\User;
 use App\Pwa\Livewire\Restaurant\CarteRestaurant;
 use App\Pwa\Livewire\Restaurant\Restauration;
+use App\Pwa\Livewire\Transverse\ClocheNotifications;
+use App\Pwa\Livewire\Transverse\RechercheGlobale;
+use App\Pwa\Support\MontantFcfa;
 use App\Shared\Rbac\Models\Role;
+use Carbon\CarbonImmutable;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -95,11 +101,12 @@ final class RestaurantPwaTest extends TestCase
         $this->assertStringContainsString('>Carte du restaurant</h1>', $html);
         $this->assertStringContainsString('<body data-module="M4"', $html);
 
-        // Le sous-titre et le bandeau du MAÎTRE.
+        // Le sous-titre du MAÎTRE.
         $this->assertStringContainsString('Le stock affiché est <strong>calculé</strong>, jamais saisi.', $html);
-        // Blade échappe l'apostrophe : chercher la forme typographique
-        // répondrait « absente » sur une page qui porte bien la phrase.
-        $this->assertStringContainsString('c&#039;est une recette', $html);
+        // Le bandeau jaune « Un plat n'est pas un article de stock : c'est une
+        // recette… » est RETIRÉ (PO, 30/10/2026). Blade échappe l'apostrophe.
+        $this->assertStringNotContainsString('c&#039;est une recette', $html);
+        $this->assertStringNotContainsString('ne décrémentent rien à la vente. La valeur', $html);
 
         $this->assertStringContainsString('Poulet DG', $html);
     }
@@ -924,8 +931,8 @@ final class RestaurantPwaTest extends TestCase
         // actions sur CHAQUE page : elles se resolvent sur eux, jamais sur le
         // composant de page.
         foreach ([
-            \App\Pwa\Livewire\Transverse\ClocheNotifications::class,
-            \App\Pwa\Livewire\Transverse\RechercheGlobale::class,
+            ClocheNotifications::class,
+            RechercheGlobale::class,
         ] as $imbrique) {
             foreach ((new \ReflectionClass($imbrique))->getMethods(\ReflectionMethod::IS_PUBLIC) as $m) {
                 $publiques[] = $m->getName();
@@ -1132,9 +1139,9 @@ final class RestaurantPwaTest extends TestCase
         // RG-02 puis total : 2 × 4 500 = 9 000 F, les 18 000 F annulés exclus.
         $this->assertStringContainsString('V-TEST-M4-ANNULEE', $html);
         $this->assertStringContainsString('Annulée', $html);
-        $this->assertStringContainsString(\App\Pwa\Support\MontantFcfa::format('9000.00'), $html);
+        $this->assertStringContainsString(MontantFcfa::format('9000.00'), $html);
         $this->assertStringNotContainsString(
-            \App\Pwa\Support\MontantFcfa::format('27000.00'),
+            MontantFcfa::format('27000.00'),
             $html,
             "Le total additionne la vente annulée : son montant n'est pas de l'argent.",
         );
@@ -1152,7 +1159,7 @@ final class RestaurantPwaTest extends TestCase
         $this->actingAs($this->utilisateur('administrateur'));
 
         $poulet = Plat::where('libelle', 'Poulet DG')->firstOrFail();
-        $jour = \Carbon\CarbonImmutable::parse('2026-08-20 21:15:00');
+        $jour = CarbonImmutable::parse('2026-08-20 21:15:00');
 
         $this->venteDeTest('V-TEST-M4-DERNIERJOUR', $jour, [
             ['code' => $poulet->id, 'nom' => 'Poulet DG', 'module' => 'M4', 'prix' => '4500.00', 'qte' => 1],
@@ -1301,7 +1308,7 @@ final class RestaurantPwaTest extends TestCase
         $this->actingAs($this->utilisateur('administrateur'));
 
         $poulet = Plat::where('libelle', 'Poulet DG')->firstOrFail();
-        $jour = \Carbon\CarbonImmutable::parse('2026-08-20 21:15:00');
+        $jour = CarbonImmutable::parse('2026-08-20 21:15:00');
 
         $this->venteDeTest('V-TEST-M4-DANSLAPLAGE', $jour, [
             ['code' => $poulet->id, 'nom' => 'Poulet DG', 'module' => 'M4', 'prix' => '4500.00', 'qte' => 1],
@@ -1325,8 +1332,8 @@ final class RestaurantPwaTest extends TestCase
             "L'export ignore la borne haute : le document est plus large que l'écran.",
         );
 
-        $this->assertStringContainsString('19/08/2026', $texte, "Le document ne dit pas sa période.");
-        $this->assertStringContainsString('20/08/2026', $texte, "Le document ne dit pas sa période.");
+        $this->assertStringContainsString('19/08/2026', $texte, 'Le document ne dit pas sa période.');
+        $this->assertStringContainsString('20/08/2026', $texte, 'Le document ne dit pas sa période.');
     }
 
     /**
@@ -1425,14 +1432,14 @@ final class RestaurantPwaTest extends TestCase
         array $lignes,
         string $statut = 'validee',
         string $motif = '',
-    ): \App\Domain\Ventes\Models\Vente {
+    ): Vente {
         $total = '0.00';
 
         foreach ($lignes as $ligne) {
             $total = bcadd($total, bcmul($ligne['prix'], (string) $ligne['qte'], 2), 2);
         }
 
-        $vente = \App\Domain\Ventes\Models\Vente::create([
+        $vente = Vente::create([
             'numero' => $numero,
             'point_vente' => 'restaurant',
             'montant_total' => $total,
@@ -1447,7 +1454,7 @@ final class RestaurantPwaTest extends TestCase
         $vente->forceFill(['created_at' => $quand])->save();
 
         foreach ($lignes as $ligne) {
-            \App\Domain\Ventes\Models\LigneVente::create([
+            LigneVente::create([
                 'vente_id' => $vente->id,
                 'code' => $ligne['code'],
                 'nom' => $ligne['nom'],

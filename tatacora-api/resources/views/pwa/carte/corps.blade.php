@@ -15,7 +15,7 @@
     exactement d'un copier-coller de vue.
 
     Ce qui change entre les deux tient dans `$page` : titre, sous-titre,
-    icône, bandeau, refus, et le seul geste qui n'existe pas des deux côtés
+    icône, refus, et le seul geste qui n'existe pas des deux côtés
     (« Délier », impossible au bar — `cartes_boisson.article_id` est NOT NULL).
 
     ## La casse des entêtes est celle du MAÎTRE
@@ -255,14 +255,10 @@
           </div>
         </div>
 
-        {{-- BANDEAU DU MODULE — maître, carte-module.js l.63-86. Il n'est pas
-             la même dette des deux côtés. --}}
-        <div class="rounded-xl p-3.5 mb-4"
-             style="background:{{ $page['bandeau']['fond'] }};border:1px solid {{ $page['bandeau']['bord'] }}">
-          <p class="text-[13px]" style="color:{{ $page['bandeau']['texte'] }}">
-            <strong>{{ $page['bandeau']['titre'] }}</strong> {!! $page['bandeau']['corps'] !!}
-          </p>
-        </div>
+        {{-- Le bandeau d'information du module (maître, carte-module.js l.63-86 :
+             « Un plat n'est pas un article de stock… » au restaurant, « Au bar,
+             vendre et sortir du stock désignent la même chose… » au bar) a été
+             RETIRÉ sur demande du Product Owner (30/10/2026), web et poste. --}}
 
         @if ($pointDeStockageAbsent)
           {{-- Le stock vendable est celui du POINT de vente, jamais tous

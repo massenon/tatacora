@@ -741,7 +741,7 @@ trait EcranDeCarte
      * `m5-bar-carte.html` ni `m4-restaurant-carte.html` n'ont d'onglet de
      * ventes. Le code le nomme neutralement — le libellé, lui, diffère d'un
      * rayon à l'autre (« Ventes du Bar » / « Ventes du Restaurant ») et vient
-     * du `$page` de chaque vue, comme le titre et le bandeau.
+     * du `$page` de chaque vue, comme le titre.
      *
      * Un onglet hors registre retombe sur `carte` : une valeur forcée dans
      * l'URL ne doit pas rendre une page sans aucun panneau.

@@ -125,10 +125,6 @@
             },
             {
                 "type": "p",
-                "texte": "Décrémenter un « Poulet DG » suppose une indiquant combien de grammes de poulet, d'huile et d'oignon partent à chaque assiette. 0 article(s) sur 0 ne décrémentent rien à la vente. La valeur du stock affichée est donc surévaluée, et l'écart apparaîtra à l'inventaire. Un plat peut néanmoins être rattaché à la main lorsqu'il correspond à un article unique — une bouteille d'eau servie à table, par exemple."
-            },
-            {
-                "type": "p",
                 "texte": "Aucun point de stockage de type « cuisine » n'est encore déclaré : le stock vendable ne peut pas être calculé, et aucun chiffre n'est affiché. Ce qui dort au magasin n'est pas servi en salle."
             },
             {
@@ -255,10 +251,6 @@
             {
                 "type": "option",
                 "texte": "Prix provisoire"
-            },
-            {
-                "type": "p",
-                "texte": "Décrémenter un « Poulet DG » suppose une indiquant combien de grammes de poulet, d'huile et d'oignon partent à chaque assiette. 0 article(s) sur 0 ne décrémentent rien à la vente. La valeur du stock affichée est donc surévaluée, et l'écart apparaîtra à l'inventaire. Un plat peut néanmoins être rattaché à la main lorsqu'il correspond à un article unique — une bouteille d'eau servie à table, par exemple."
             },
             {
                 "type": "p",
@@ -508,10 +500,6 @@
             {
                 "type": "option",
                 "texte": "Prix provisoire"
-            },
-            {
-                "type": "p",
-                "texte": "Décrémenter un « Poulet DG » suppose une indiquant combien de grammes de poulet, d'huile et d'oignon partent à chaque assiette. 0 article(s) sur 0 ne décrémentent rien à la vente. La valeur du stock affichée est donc surévaluée, et l'écart apparaîtra à l'inventaire. Un plat peut néanmoins être rattaché à la main lorsqu'il correspond à un article unique — une bouteille d'eau servie à table, par exemple."
             },
             {
                 "type": "p",

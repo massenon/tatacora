@@ -84,6 +84,24 @@ php artisan tatacora:verifier-production
       03:00 à Natitingou) et pèse plus de 10 Ko.
 - [ ] `tatacora:verifier-production` : toujours sans ÉCHEC.
 
+## Sessions et « page expirée » : variables `.env` utiles (30/10/2026)
+
+La boîte « This page has expired. Would you like to refresh the page? » (HTTP
+419 : jeton CSRF ou session expiré) est interceptée par le gabarit
+(`pwa.partials.session-expiree`) : la page se recharge, la connexion s'affiche
+avec « Votre session a expiré, reconnectez-vous. ». Pour qu'elle reste
+l'exception, vérifier dans le `.env` de production :
+
+| Variable | Valeur | Pourquoi |
+|---|---|---|
+| `SESSION_DRIVER` | `database` | la table `sessions` est créée par la migration `0001_01_01_000003_create_sessions_table` : `php artisan migrate --force` avant la première visite. |
+| `SESSION_LIFETIME` | `480` (minutes) | une journée de service ; défaut du code : 120. Aucun « keep-alive » ne prolonge la session au-delà. |
+| `SESSION_SECURE_COOKIE` | `true` | cookie réservé à https (défaut déjà sûr hors `local`/`testing`). |
+| `TRUSTED_PROXIES` | `*` (défaut) | derrière le proxy de l'hébergeur, Laravel doit lire `X-Forwarded-Proto: https`, sinon le cookie `Secure` n'est pas reconnu et les jetons se désynchronisent. |
+| `LOG_LEVEL` | `error` | en production, seulement les erreurs. |
+
+Après modification : `php artisan config:clear` (puis `config:cache`).
+
 ## En cas d'ÉCHEC
 
 Ne pas ouvrir l'exploitation. Le détail de la ligne dit quoi faire ; sinon,
