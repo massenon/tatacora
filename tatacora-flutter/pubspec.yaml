@@ -59,6 +59,13 @@ dependencies:
   # JPEG en Dart pur. DEJA dans l'arbre (tire par `pdf`), seulement declare
   # direct : aucune nouvelle dependance, aucun code natif.
   image: ^4.9.2
+  # Classeur .xlsx des modeles d'import (PO, 30/10/2026) : un .xlsx est une
+  # archive ZIP de fichiers XML, ecrit et relu en Dart pur avec ces deux
+  # paquets. DEJA dans l'arbre (tires par `image`/`pdf`/`flutter_local_
+  # notifications`), seulement declares directs : aucune nouvelle dependance,
+  # aucun code natif. Le paquet `excel`, absent de l'arbre, aurait ajoute une dependance.
+  archive: ^4.0.9
+  xml: ^7.0.1
   # Trace des graphiques du tableau de bord (PA-121). Retenue pour trois
   # raisons verifiees le 25/08/2026 : licence MIT, Windows supporte, et
   # AUCUNE dependance native (equatable + vector_math seulement) — le poste
@@ -136,6 +143,14 @@ flutter:
     # charge dans `plan_comptable_local` par UNE fonction, a l'installation du
     # referentiel (idempotent) ; un test exige l'egalite des deux fichiers.
     - assets/data/plan-comptable-syscohada-revise.csv
+
+    # La carte du Gite Chez Noel (affiches du 30/10/2026) deja mise aux colonnes
+    # des modeles d'import : COPIE OCTET POUR OCTET de
+    # `docs/data/modele_import_<module>.xlsx` (un test exige l'egalite).
+    # Proposee par Import & Export comme « Carte du Gite Chez Noel (exemple) ».
+    - assets/import/modele_import_m6-stocks.xlsx
+    - assets/import/modele_import_m5-bar.xlsx
+    - assets/import/modele_import_m4-restaurant.xlsx
 
   # La police Inter — celle que la PWA sert (`public/assets/fonts/Inter-*.woff2`)
   # et que `AppTextStyles.police` nomme. Elle était NOMMÉE sans être LIVRÉE

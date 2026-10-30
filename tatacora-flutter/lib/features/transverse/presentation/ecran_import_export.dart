@@ -1,5 +1,6 @@
 // Vue Blade maîtresse (PA-183) : pwa/transverse/import-export.blade.php
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -122,11 +123,14 @@ abstract final class TextesImportExport {
   static const String importerModeleTitre = '2. Télécharger le fichier modèle';
   static const String importerModeleBouton = 'Télécharger le modèle';
   static const String importerModeleAide1 =
-      "Le modèle porte les colonnes exactes et une ligne d'exemple. Ouvrez-le dans Excel, remplacez la ligne d'exemple par vos données, conservez la ligne d'en-tête, puis enregistrez en";
-  static const String importerModeleAideFormat = 'CSV UTF-8';
+      "Le modèle est un classeur Excel : une colonne par champ, une ligne d'exemple, et une feuille « Aide » qui détaille chaque colonne. Ouvrez-le dans Excel, remplacez la ligne d'exemple par vos données, conservez la ligne d'en-tête, puis enregistrez en";
+  static const String importerModeleAideFormat = 'Classeur Excel (.xlsx)';
+  static const String importerGiteBouton = 'Carte du Gîte Chez Noël (exemple)';
+  static const String importerGiteAide =
+      "Le même modèle, déjà rempli avec la carte des affiches du Gîte (prix, catégories), sans stock ni quantité : le stock s'ajoute après. Ordre d'import : Articles de stock, puis Carte du bar ; la Carte du restaurant est indépendante.";
   static const String importerDepotTitre = '3. Déposer le fichier rempli';
   static const String importerDepotAide =
-      'Formats acceptés : CSV (séparateur point-virgule ou virgule).';
+      'Formats acceptés : classeur Excel .xlsx (recommandé) ou CSV (séparateur point-virgule, virgule ou tabulation). Les colonnes sont repérées par leur nom.';
   static const String importerDepotGlisser = 'Glissez votre fichier ici';
   static const String importerDepotCliquer = 'ou cliquez pour le sélectionner';
   static const String importerValider = 'Valider et contrôler le fichier';
@@ -136,7 +140,7 @@ abstract final class TextesImportExport {
   static const String demarche2Avant = 'Téléchargez le modèle et remplissez-le';
   static const String demarche2Fort = "sans modifier la ligne d'en-tête";
   static const String demarche3 =
-      'Enregistrez en CSV UTF-8. Sans cet encodage, les accents deviennent illisibles à la relecture.';
+      'Enregistrez en classeur Excel (.xlsx). Les colonnes sont repérées par leur nom ; le CSV reste accepté en secours.';
   static const String demarche4 =
       "Déposez le fichier et lancez le contrôle. Rien n'est importé à ce stade.";
   static const String demarche5 =
@@ -215,7 +219,7 @@ abstract final class TextesImportExport {
       "Confirmer l'import de $nombre ligne(s)";
   static const String rapportCorriger =
       'Corrigez les lignes ci-dessus dans votre fichier, enregistrez-le à '
-      'nouveau en CSV UTF-8, puis redéposez-le. Le contrôle se relance à '
+      'nouveau en classeur Excel (.xlsx), puis redéposez-le. Le contrôle se relance à '
       'chaque dépôt.';
   static String historiqueLignes(int nombre) => '$nombre ligne(s) importée(s)';
   static String importFait(int nombre, String module, int ignorees) =>
@@ -484,14 +488,36 @@ class _PanneauImporterState extends ConsumerState<_PanneauImporter> {
           .enregistrerFichier(
             nomSuggere: importeur.nomModele,
             octets: importeur.modeleOctets(),
-            type: TypeFichierEnregistre.csv,
+            type: TypeFichierEnregistre.xlsx,
+          ),
+      cleSucces: const Key('ie-modele-enregistre'),
+    );
+  }
+
+  /// « Carte du Gîte Chez Noël (exemple) » — le modèle du module, PRÉREMPLI
+  /// (copie de `docs/data/`, embarquée) : m6 articles des boissons, m5 boissons,
+  /// m4 plats. Sans stock ni quantité.
+  Future<void> _telechargerExempleGite(ImporteurLocal importeur) async {
+    final octets = (await rootBundle.load(
+      'assets/import/modele_import_${importeur.cle}.xlsx',
+    )).buffer.asUint8List();
+    if (!mounted) return;
+    await executerExport(
+      context,
+      () => ref
+          .read(enregistrementExportProvider)
+          .enregistrerFichier(
+            nomSuggere:
+                'modele_import_${importeur.cle}_carte_gite_chez_noel.xlsx',
+            octets: octets,
+            type: TypeFichierEnregistre.xlsx,
           ),
       cleSucces: const Key('ie-modele-enregistre'),
     );
   }
 
   Future<void> _choisirFichier() async {
-    final lu = await ref.read(selecteurFichiersProvider).ouvrirCsv();
+    final lu = await ref.read(selecteurFichiersProvider).ouvrirTableur();
     if (lu == null || !mounted) return;
     setState(() {
       _fichier = lu;
@@ -703,6 +729,40 @@ class _PanneauImporterState extends ConsumerState<_PanneauImporter> {
                 ),
                 style: _aide,
               ),
+              if (peutEcrire &&
+                  importeur != null &&
+                  const [
+                    'm6-stocks',
+                    'm5-bar',
+                    'm4-restaurant',
+                  ].contains(importeur.cle)) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      WidgetSpan(
+                        alignment: PlaceholderAlignment.baseline,
+                        baseline: TextBaseline.alphabetic,
+                        child: InkWell(
+                          key: const Key('ie-modele-gite'),
+                          onTap: () => _telechargerExempleGite(importeur),
+                          child: Text(
+                            TextesImportExport.importerGiteBouton,
+                            style: _aide.copyWith(
+                              fontWeight: FontWeight.bold,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const TextSpan(
+                        text: ' — ${TextesImportExport.importerGiteAide}',
+                      ),
+                    ],
+                  ),
+                  style: _aide,
+                ),
+              ],
             ],
           ),
         ),

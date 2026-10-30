@@ -9,7 +9,10 @@ use App\Domain\Bar\Services\CarteBoissonService;
 use App\Domain\Crm\Services\EnregistrementClientService;
 use App\Domain\Hebergement\Models\UniteHebergement;
 use App\Domain\Hebergement\Services\SejourService;
+use App\Domain\Restaurant\Models\Menu;
+use App\Domain\Restaurant\Models\Recette;
 use App\Domain\Restaurant\Services\CartePlatMenuService;
+use App\Domain\Restaurant\Services\ReferentielRecetteService;
 use App\Domain\Stocks\Services\ReferentielArticleService;
 use App\Domain\Tourisme\Models\Circuit;
 use App\Domain\Vehicules\Models\Vehicule;
@@ -113,13 +116,7 @@ class ImportReferentielsService
                 'prix_vente' => (string) $ligne['prix_vente'],
                 'article_id' => (string) $ligne['article'],
             ]),
-            'm4-restaurant' => app(CartePlatMenuService::class)->creerPlat([
-                'libelle' => (string) $ligne['libelle'],
-                'categorie' => (string) $ligne['categorie'],
-                'prix_vente' => (string) $ligne['prix_vente'],
-                'menu_id' => (string) $ligne['menu'],
-                'recette_id' => (string) $ligne['recette'],
-            ]),
+            'm4-restaurant' => $this->importerPlat($ligne),
             'm6-stocks' => app(ReferentielArticleService::class)->creer([
                 'libelle' => (string) $ligne['libelle'],
                 'categorie' => (string) $ligne['categorie'],
@@ -160,5 +157,53 @@ class ImportReferentielsService
             ]),
             default => throw new RuntimeException(__('imports.controle.module_inconnu')),
         };
+    }
+
+    /** Le menu qui reçoit les plats importés sans menu — celui que crée `RestaurantSeeder`. */
+    public const MENU_DEFAUT = 'Carte du restaurant';
+
+    /**
+     * Un plat de la carte. Menu, fiche et prix sont FACULTATIFS à l'import :
+     *
+     *  - menu vide → le menu `MENU_DEFAUT`, créé s'il n'existe pas ;
+     *  - fiche vide → une fiche du NOM du plat, sans ingrédient et marquée
+     *    « composition provisoire » : la composition (donc le stock consommé)
+     *    s'ajoute après, depuis « Fiches techniques ». Tant qu'elle est vide,
+     *    la vente du plat est refusée au comptoir (`RecetteManquanteException`)
+     *    — c'est voulu, un plat sans fiche ne décrémente rien ;
+     *  - prix vide → 0 avec la marque PROVISOIRE (plat « sur commande »).
+     *
+     * @param  array<string, mixed>  $ligne
+     */
+    private function importerPlat(array $ligne): void
+    {
+        $libelle = (string) $ligne['libelle'];
+        $prix = $ligne['prix_vente'] ?? null;
+
+        $menuId = $ligne['menu'] ?? null;
+
+        if ($menuId === null) {
+            $menu = Menu::query()->where('libelle', self::MENU_DEFAUT)->first()
+                ?? app(CartePlatMenuService::class)->creerMenu(['libelle' => self::MENU_DEFAUT, 'type' => 'local']);
+            $menuId = $menu->id;
+        }
+
+        $recetteId = $ligne['recette'] ?? null;
+
+        if ($recetteId === null) {
+            $recetteId = app(ReferentielRecetteService::class)->creer([
+                'libelle' => $libelle,
+                Recette::PROVISOIRE => true,
+            ])->id;
+        }
+
+        app(CartePlatMenuService::class)->creerPlat([
+            'libelle' => $libelle,
+            'categorie' => (string) $ligne['categorie'],
+            'prix_vente' => $prix === null ? '0' : (string) $prix,
+            'prix_provisoire' => $prix === null,
+            'menu_id' => (string) $menuId,
+            'recette_id' => (string) $recetteId,
+        ]);
     }
 }

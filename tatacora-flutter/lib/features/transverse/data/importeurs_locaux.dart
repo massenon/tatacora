@@ -39,11 +39,11 @@
 /// transaction : une ligne refusée, et rien n'entre en base.
 library;
 
-import 'dart:convert';
-
 import 'package:uuid/uuid.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/fichiers/ecriture_xlsx.dart';
+import '../../../core/fichiers/lecture_tableur.dart';
 import '../../../core/rbac/garde_acces.dart';
 import '../../achats/data/achats_dao.dart';
 import '../../achats/domain/entities/fournisseur.dart';
@@ -107,14 +107,18 @@ abstract base class ImporteurLocal {
   List<ColonneImport> get colonnes;
 
   /// Le nom proposé par « Enregistrer sous » (celui du serveur).
-  String get nomModele => 'modele_import_$cle.csv';
+  String get nomModele => 'modele_import_$cle.xlsx';
 
-  /// Le modèle : BOM UTF-8, en-tête au point-virgule, AUCUNE ligne de
-  /// données — décision du PO du 14/10/2026 pour l'import d'articles, étendue
-  /// ici : une ligne d'exemple oubliée serait importée comme une vraie fiche.
-  /// Les exemples sont dans la fiche « Colonnes attendues ».
-  List<int> modeleOctets() =>
-      utf8.encode('\u{FEFF}${colonnes.map((c) => c.libelle).join(';')}\r\n');
+  /// Le modèle : un VRAI classeur `.xlsx` (PO, 30/10/2026) — feuille « Modèle »
+  /// (en-têtes en gras, une ligne d'exemple grisée) et feuille « Aide ». Le
+  /// CSV au point-virgule qui le précédait s'ouvrait en UNE seule colonne dans
+  /// un Excel réglé sur la virgule. L'exemple laissé tel quel est ignoré par
+  /// le contrôle : il n'est jamais importé comme une vraie fiche.
+  List<int> modeleOctets() => ecrireClasseurXlsx(
+    nomModule: nom,
+    description: description,
+    colonnes: colonnesTableur(colonnes),
+  );
 
   /// Les identifiants déjà en base, NORMALISÉS.
   Future<Set<String>> existants();
@@ -179,18 +183,21 @@ final class ImporteurArticles extends ImporteurLocal {
     ColonneImport(
       champ: 'nom',
       libelle: 'nom',
+      alias: ["Désignation de l'article"],
       requis: true,
       exemple: 'Riz local (sac 50 kg)',
     ),
     ColonneImport(
       champ: 'categorie',
       libelle: 'categorie',
+      alias: ['Catégorie'],
       requis: false,
       exemple: 'Denrées',
     ),
     ColonneImport(
       champ: 'unite_mesure',
       libelle: 'unite_mesure',
+      alias: ['Unité de mesure'],
       requis: true,
       exemple: 'sac',
     ),
@@ -203,12 +210,14 @@ final class ImporteurArticles extends ImporteurLocal {
     ColonneImport(
       champ: 'seuil_alerte',
       libelle: 'seuil_alerte',
+      alias: ["Seuil d'alerte"],
       requis: false,
       exemple: '5',
     ),
     ColonneImport(
       champ: 'point_stockage',
       libelle: 'point_stockage',
+      alias: ['Point de stockage'],
       requis: false,
       exemple: 'Magasin général',
     ),
@@ -519,24 +528,28 @@ final class ImporteurCarteRestaurant extends ImporteurLocal {
       valeurs: [for (final c in CategorieCarte.values) c.code],
       exemple: 'plats',
     ),
+    // 30/10/2026 — prix, menu et fiche FACULTATIFS (comme le serveur) : prix
+    // vide = plat « sur commande », entré à 0 avec la marque prix PROVISOIRE ;
+    // menu vide = « Carte du restaurant » ; fiche vide = une fiche du nom du
+    // plat, sans ingrédient (le stock s'y ajoute après).
     const ColonneImport(
       champ: 'prix_vente',
       libelle: 'Prix de vente (FCFA)',
-      requis: true,
+      requis: false,
       type: TypeColonneImport.montant,
       exemple: '4500',
     ),
     const ColonneImport(
       champ: 'menu',
       libelle: 'Menu',
-      requis: true,
+      requis: false,
       type: TypeColonneImport.reference,
       exemple: 'Menu local',
     ),
     const ColonneImport(
       champ: 'recette',
       libelle: 'Fiche recette',
-      requis: true,
+      requis: false,
       type: TypeColonneImport.reference,
       exemple: 'Poulet DG',
     ),
@@ -560,19 +573,46 @@ final class ImporteurCarteRestaurant extends ImporteurLocal {
 
   @override
   Future<String?> ecrire(LigneImport ligne) async {
+    final auteur = auteurId();
+    final libelle = ligne.exiger('libelle');
+    final prix = ligne['prix_vente'];
+
+    var menuId = ligne['menu'];
+    if (menuId == null) {
+      final existant = await (base.select(
+        base.menusLocal,
+      )..where((m) => m.libelle.equals(menuParDefaut))).getSingleOrNull();
+      menuId =
+          existant?.id ??
+          (await dao.enregistrerMenu(
+            const SaisieMenu(libelle: menuParDefaut, type: 'local'),
+            auteurId: auteur,
+          )).id;
+    }
+
+    var recetteId = ligne['recette'];
+    recetteId ??= (await dao.enregistrerRecette(
+      SaisieFiche(libelle: libelle, lignes: const []),
+      auteurId: auteur,
+    )).id;
+
     await dao.enregistrerPlat(
       SaisiePlat(
-        libelle: ligne.exiger('libelle'),
-        menuId: ligne.exiger('menu'),
-        recetteId: ligne.exiger('recette'),
-        prixVente: '${ImporteurLocal.francs(ligne.exiger('prix_vente'))}',
+        libelle: libelle,
+        menuId: menuId,
+        recetteId: recetteId,
+        prixVente: prix == null ? '0' : '${ImporteurLocal.francs(prix)}',
+        prixProvisoire: prix == null,
         categorie: ligne.exiger('categorie'),
       ),
       modification: false,
-      auteurId: auteurId(),
+      auteurId: auteur,
     );
     return null;
   }
+
+  /// Le menu qui reçoit les plats importés sans menu (celui du serveur).
+  static const String menuParDefaut = 'Carte du restaurant';
 }
 
 /* ====================================================================== */
@@ -893,18 +933,18 @@ final class MoteurImportLocal {
     ImporteurLocal importeur,
     List<int> octets,
   ) async {
-    final String contenu;
+    final List<List<String>> tableau;
     try {
-      contenu = utf8.decode(octets);
-    } on FormatException {
-      return RapportImport.refusGlobal(TextesControleImport.fichierIllisible);
+      tableau = lireTableur(octets);
+    } on TableurIllisible catch (e) {
+      return RapportImport.refusGlobal(e.message);
     }
 
     await importeur.preparer();
     final rapport = controlerImport(
       colonnes: importeur.colonnes,
       identifiant: importeur.identifiant,
-      tableau: analyserCsvImport(contenu),
+      tableau: tableau,
       existants: await importeur.existants(),
       references: await importeur.references(),
     );

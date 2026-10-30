@@ -45,9 +45,9 @@
 /// (`etatFormulaire === 'import'`).
 library;
 
-import 'dart:convert';
-
-import '../../../core/fichiers/lecture_csv.dart';
+import '../../../core/fichiers/ecriture_xlsx.dart';
+import '../../transverse/domain/import_referentiels.dart'
+    show estLigneExemple, normaliserImport;
 import 'calcul_stock.dart';
 import 'entities/etat_stock.dart';
 import 'entities/mouvement_stock.dart';
@@ -58,20 +58,23 @@ abstract final class TextesImportArticles {
   // Un littéral sur UNE ligne : la mesure de conformité ne recolle pas un
   // double guillemet suivi d'un simple.
   static const String sousTitre =
-      "Fichier CSV, une ligne par article. Le stock d'ouverture entre comme un mouvement d'entrée.";
-  static const String fichier = 'Fichier CSV';
+      "Classeur Excel (.xlsx), une ligne par article. Le stock d'ouverture entre comme un mouvement d'entrée.";
+  static const String fichier = 'Fichier Excel (.xlsx) ou CSV';
   static const String valider = 'Importer';
   static const String modele = 'Modèle';
   static const String fichierIllisible =
-      "Le fichier n'a pas pu être lu : il est vide, ou ce n'est pas un CSV.";
-  static const String enteteAbsente =
-      "La première ligne doit être l'en-tête du modèle. Téléchargez le modèle "
-      'et repartez de lui.';
+      "Le fichier n'a pas pu être lu : il est vide, ou ce n'est ni un classeur "
+      '.xlsx ni un CSV.';
+  static String enteteAbsente(List<String> absentes, List<String> trouvees) =>
+      'Ligne 1 : colonne(s) obligatoire(s) absente(s) de l\'en-tête : '
+      '${absentes.join(', ')}. Colonnes trouvées : '
+      '${trouvees.where((t) => t.trim().isNotEmpty).join(' ; ')}. '
+      'Téléchargez le modèle .xlsx et repartez de lui.';
 
   /// `colonnes` : « Colonnes attendues, dans cet ordre : :colonnes », les
   /// colonnes jointes par « ; » (`implode(' ; ', COLONNES_IMPORT)`).
   static final String colonnes =
-      'Colonnes attendues, dans cet ordre : ${colonnesImportArticles.join(' ; ')}';
+      "Colonnes attendues (repérées par leur nom, dans n'importe quel ordre) : ${colonnesImportArticles.join(' ; ')}";
 
   static String bilan(int crees) => '$crees article(s) importé(s).';
   static String bilanPartiel(int crees, int refuses) =>
@@ -85,7 +88,7 @@ abstract final class TextesImportArticles {
       "d'ouverture ($raison).";
 
   /// Le nom proposé par la fenêtre « Enregistrer sous » — celui du serveur.
-  static const String nomModele = 'modele_import_articles.csv';
+  static const String nomModele = 'modele_import_articles.xlsx';
 }
 
 /// `Stocks::COLONNES_IMPORT` — l'en-tête du modèle, dans l'ordre.
@@ -100,14 +103,84 @@ const List<String> colonnesImportArticles = [
   'stock_initial',
 ];
 
-/// Le modèle d'import : BOM UTF-8, en-tête au point-virgule, AUCUNE ligne.
-///
-/// ÉCART au serveur, demandé par le PO le 14/10/2026 (« le CSV vide aux
-/// colonnes attendues ») : `telechargerModeleCsv()` ajoute une ligne
-/// d'exemple (« Riz local (sac 50 kg) ») qui serait importée comme un vrai
-/// article si l'utilisateur oubliait de l'effacer.
-List<int> modeleImportArticlesOctets() =>
-    utf8.encode('\u{FEFF}${colonnesImportArticles.join(';')}\r\n');
+/// Les colonnes du modèle (`Stocks::colonnesImport` du serveur) — la
+/// déclaration dont découlent le classeur `.xlsx` ET la lecture par nom.
+const List<ColonneTableur> colonnesTableurArticles = [
+  ColonneTableur(
+    libelle: 'nom',
+    requis: true,
+    format: 'Texte libre',
+    exemple: 'Riz local (sac 50 kg)',
+  ),
+  ColonneTableur(
+    libelle: 'categorie',
+    requis: false,
+    format: 'Une valeur de la liste',
+    valeurs: ['Denrées', 'Boissons', 'Fournitures', 'Pièces véhicules'],
+    exemple: 'Denrées',
+  ),
+  ColonneTableur(
+    libelle: 'unite_mesure',
+    requis: true,
+    format: 'Une valeur de la liste',
+    valeurs: [
+      'kg',
+      'L',
+      'unité',
+      'sac',
+      'carton',
+      'casier',
+      'pack',
+      'bidon',
+      'bouteille',
+    ],
+    exemple: 'sac',
+  ),
+  ColonneTableur(
+    libelle: 'prix_achat',
+    requis: false,
+    format: 'Nombre',
+    numerique: true,
+    exemple: '32000',
+  ),
+  ColonneTableur(
+    libelle: 'seuil_alerte',
+    requis: false,
+    format: 'Nombre',
+    numerique: true,
+    exemple: '4',
+  ),
+  ColonneTableur(
+    libelle: 'point_stockage',
+    requis: false,
+    format: "Libellé exact d'une fiche existante",
+    exemple: 'Magasin général',
+  ),
+  ColonneTableur(
+    libelle: 'suivi',
+    requis: false,
+    format: 'Une valeur de la liste',
+    valeurs: ['permanent', 'journalier'],
+    exemple: 'permanent',
+  ),
+  ColonneTableur(
+    libelle: 'stock_initial',
+    requis: false,
+    format: 'Nombre',
+    numerique: true,
+    exemple: '10',
+  ),
+];
+
+/// Le modèle d'import : un VRAI classeur `.xlsx` (PO, 30/10/2026), feuilles
+/// « Modèle » (en-têtes en gras, une ligne d'exemple, ignorée si elle reste
+/// telle quelle) et « Aide ». Le CSV au point-virgule qui le précédait
+/// s'ouvrait en UNE seule colonne dans un Excel réglé sur la virgule.
+List<int> modeleImportArticlesOctets() => ecrireClasseurXlsx(
+  nomModule: TextesImportArticles.titre,
+  description: TextesImportArticles.sousTitre,
+  colonnes: colonnesTableurArticles,
+);
 
 /// Le compte rendu d'un import.
 final class BilanImportArticles {
@@ -138,11 +211,6 @@ final class BilanImportArticles {
           ? TextesImportArticles.bilan(crees)
           : TextesImportArticles.bilanPartiel(crees, refusees.length));
 }
-
-/// Lit un CSV au point-virgule comme `fgetcsv` — le lecteur commun du poste
-/// (`core/fichiers/lecture_csv.dart`), au séparateur du serveur.
-List<List<String>> lireCsvPointVirgule(String contenu) =>
-    lireCsv(contenu, separateur: ';');
 
 /// `is_numeric` de PHP sur une chaîne déjà rognée : entier ou décimal à point,
 /// signe et exposant admis. « 12,5 » n'est PAS numérique pour le serveur.
@@ -214,20 +282,38 @@ LigneArticleLue lireLigneArticle(
   );
 }
 
-/// Importe [contenu] : une ligne = un appel à [enregistrer] (validation et
-/// transaction de `StocksApi.enregistrerArticle`). [nouvelId] fournit l'UUID
-/// de chaque article — né côté client, comme pour la modale.
+/// Importe [tableau] (première ligne = en-tête, lue PAR NOM : une colonne
+/// déplacée ou ajoutée ne décale rien) : une ligne = un appel à [enregistrer]
+/// (validation et transaction de `StocksApi.enregistrerArticle`). [nouvelId]
+/// fournit l'UUID de chaque article — né côté client, comme pour la modale.
 Future<BilanImportArticles> importerArticles({
-  required String contenu,
+  required List<List<String>> tableau,
   required List<PointStockage> points,
   required Future<ResultatImportLigne> Function(SaisieArticle saisie)
   enregistrer,
   required String Function() nouvelId,
 }) async {
-  final lignes = lireCsvPointVirgule(contenu);
-  if (lignes.isEmpty || lignes.first.length < colonnesImportArticles.length) {
-    return const BilanImportArticles(
-      erreurFichier: TextesImportArticles.enteteAbsente,
+  // champ → index de colonne, par nom d'en-tête.
+  final index = <int, int>{};
+  if (tableau.isNotEmpty) {
+    for (final (i, e) in tableau.first.indexed) {
+      final n = normaliserImport(e);
+      final k = colonnesImportArticles.indexWhere(
+        (c) => normaliserImport(c) == n,
+      );
+      if (k >= 0 && !index.containsKey(k)) index[k] = i;
+    }
+  }
+  final absentes = [
+    for (final (k, c) in colonnesImportArticles.indexed)
+      if ((c == 'nom' || c == 'unite_mesure') && !index.containsKey(k)) c,
+  ];
+  if (absentes.isNotEmpty) {
+    return BilanImportArticles(
+      erreurFichier: TextesImportArticles.enteteAbsente(
+        absentes,
+        tableau.isEmpty ? const [] : tableau.first,
+      ),
     );
   }
 
@@ -237,9 +323,20 @@ Future<BilanImportArticles> importerArticles({
   final reserves = <String>[];
   var numero = 1;
 
-  for (final colonnes in lignes.skip(1)) {
+  for (final brute in tableau.skip(1)) {
     numero++;
-    if (colonnes.every((v) => v.trim().isEmpty)) continue;
+    if (brute.every((v) => v.trim().isEmpty)) continue;
+
+    // Remis dans l'ordre canonique de `colonnesImportArticles`.
+    final colonnes = [
+      for (var k = 0; k < colonnesImportArticles.length; k++)
+        index.containsKey(k)
+            ? (index[k]! < brute.length ? brute[index[k]!] : '')
+            // Colonne ABSENTE du fichier : le défaut du serveur (`?? '0'`).
+            : (k == 4 || k == 7 ? '0' : ''),
+    ];
+    // La ligne d'exemple du modèle (« (exemple) … ») n'est pas une donnée.
+    if (estLigneExemple(brute)) continue;
 
     final lue = lireLigneArticle(
       colonnes,

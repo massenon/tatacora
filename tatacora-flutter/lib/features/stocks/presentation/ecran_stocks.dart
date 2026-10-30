@@ -662,6 +662,7 @@ class _FiltresState extends ConsumerState<_Filtres> {
         .enregistrerSous(
           nomSuggere: TextesImportArticles.nomModele,
           octets: modeleImportArticlesOctets(),
+          type: TypeFichierEnregistre.xlsx,
         );
     if (chemin == null || !mounted) return;
     _dire(

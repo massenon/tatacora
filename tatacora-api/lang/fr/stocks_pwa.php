@@ -310,20 +310,20 @@ return [
      */
     'import' => [
         'titre' => 'Importer des articles',
-        'sous_titre' => 'Fichier CSV, une ligne par article. Le stock d\'ouverture entre comme '
+        'sous_titre' => 'Classeur Excel (.xlsx), une ligne par article. Le stock d\'ouverture entre comme '
             . 'un mouvement d\'entrée.',
-        'fichier' => 'Fichier CSV',
-        'colonnes' => 'Colonnes attendues, dans cet ordre : :colonnes',
+        'fichier' => 'Fichier Excel (.xlsx) ou CSV',
+        'colonnes' => 'Colonnes attendues (repérées par leur nom, dans n\'importe quel ordre) : :colonnes',
         'valider' => 'Importer',
         'telecharger_modele' => 'Télécharger le modèle',
 
         'bilan' => ':crees article(s) importé(s).',
         'bilan_partiel' => ':crees importé(s), :refuses refusé(s).',
         'ligne_refusee' => 'ligne :numero — :nom : :raison',
-        'fichier_illisible' => 'Le fichier n\'a pas pu être lu : il est vide, ou ce n\'est pas '
-            . 'un CSV.',
-        'entete_absente' => 'La première ligne doit être l\'en-tête du modèle. Téléchargez le '
-            . 'modèle et repartez de lui.',
+        'fichier_illisible' => 'Le fichier n\'a pas pu être lu : il est vide, ou ce n\'est ni un classeur '
+            . '.xlsx ni un CSV.',
+        'entete_absente' => 'Ligne 1 : colonne(s) obligatoire(s) absente(s) de l\'en-tête : :colonnes. '
+            . 'Colonnes trouvées : :trouvees. Téléchargez le modèle .xlsx et repartez de lui.',
         'colonne_manquante' => 'colonne manquante',
     ],
 

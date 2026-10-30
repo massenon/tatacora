@@ -165,7 +165,7 @@ final class PwaEcritureAutoriseeTest extends TestCase
         // `ouvrirExport`/`genererExport`). Une entrée sans appelant est un
         // joker dormant : un futur `exporterExcel` qui ÉCRIRAIT serait
         // exempté d'office par elle.
-        'telechargerModeleCsv',
+        'telechargerModele',
         'imprimerFichePrix',
         'imprimerRapportInventairePdf',
         'telechargerTicket',

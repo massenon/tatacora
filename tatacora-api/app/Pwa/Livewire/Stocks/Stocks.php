@@ -18,6 +18,8 @@ use App\Pwa\Livewire\Concerns\FormulaireModal;
 use App\Pwa\Livewire\PageMetier;
 use App\Pwa\Support\AutoriseArchivage;
 use App\Pwa\Support\MontantFcfa;
+use App\Shared\ImportExport\Data\ReferentielsImport;
+use App\Shared\ImportExport\Services\TableurService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
@@ -729,23 +731,28 @@ class Stocks extends PageMetier
     }
 
     /**
-     * Le modèle d'import — même en-tête que celle attendue par `lancerImport`.
-     *
-     * Il est servi par la même constante : deux listes écrites à deux endroits
-     * auraient fini par diverger, et l'utilisateur aurait rempli un modèle que
-     * l'import refuse.
+     * Le modèle d'import — un VRAI classeur `.xlsx` (30/10/2026). Le CSV au
+     * point-virgule qui le précédait s'ouvrait en une seule colonne dans un
+     * Excel réglé sur la virgule. Feuilles « Modèle » (en-têtes en gras, une
+     * ligne d'exemple marquée « (exemple) », jamais importée) et « Aide ».
      */
-    public function telechargerModeleCsv(): StreamedResponse
+    public function telechargerModele(TableurService $tableur): StreamedResponse
     {
         $this->exigerEcriture(self::MODULE);
 
-        return $this->fluxCsv('modele_import_articles.csv', static function ($sortie): void {
-            fputcsv($sortie, self::COLONNES_IMPORT, ';');
-            fputcsv($sortie, [
-                'Riz local (sac 50 kg)', 'Denrées', 'sac', '32000',
-                '4', 'Magasin général', 'permanent', '10',
-            ], ';');
-        });
+        $octets = $tableur->ecrireClasseur(
+            __('stocks_pwa.import.titre'),
+            __('stocks_pwa.import.sous_titre'),
+            ReferentielsImport::colonnesArticlesEcranStocks(),
+        );
+
+        return response()->streamDownload(
+            static function () use ($octets): void {
+                echo $octets;
+            },
+            'modele_import_articles.xlsx',
+            ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
+        );
     }
 
     /**
@@ -759,25 +766,37 @@ class Stocks extends PageMetier
     public function lancerImport(
         ReferentielArticleService $referentiel,
         MouvementStockService $mouvements,
+        TableurService $tableur,
     ): void {
         $this->validerEcriture([
-            'fichierImport' => ['required', 'file', 'mimes:csv,txt', 'max:2048'],
+            'fichierImport' => ['required', 'file', 'mimes:xlsx,csv,txt', 'max:2048'],
         ]);
 
-        $chemin = $this->fichierImport?->getRealPath();
-        $flux = is_string($chemin) ? fopen($chemin, 'r') : false;
-
-        if ($flux === false) {
-            $this->addError('fichierImport', __('stocks_pwa.import.fichier_illisible'));
+        try {
+            $tableau = $tableur->lire(
+                (string) $this->fichierImport?->getRealPath(),
+                (string) $this->fichierImport?->getClientOriginalName(),
+            );
+        } catch (\RuntimeException $refus) {
+            $this->addError('fichierImport', $refus->getMessage());
 
             return;
         }
 
-        $entete = fgetcsv($flux, 0, ';');
+        // Les en-têtes se lisent PAR NOM : une colonne déplacée ou ajoutée ne
+        // décale plus rien. `nom` et `unite_mesure` sont indispensables ; les
+        // autres, absentes, retombent sur leur défaut.
+        $index = $tableur->indexerEntetes($tableau[0] ?? [], ReferentielsImport::colonnesArticlesEcranStocks());
+        $absentes = array_values(array_filter(
+            ['nom', 'unite_mesure'],
+            static fn (string $champ): bool => ! isset($index[$champ]),
+        ));
 
-        if (! is_array($entete) || count($entete) < count(self::COLONNES_IMPORT)) {
-            fclose($flux);
-            $this->addError('fichierImport', __('stocks_pwa.import.entete_absente'));
+        if ($absentes !== []) {
+            $this->addError('fichierImport', __('stocks_pwa.import.entete_absente', [
+                'colonnes' => implode(', ', $absentes),
+                'trouvees' => implode(' ; ', array_filter(array_map('trim', $tableau[0] ?? []), static fn (string $v): bool => $v !== '')),
+            ]));
 
             return;
         }
@@ -785,19 +804,26 @@ class Stocks extends PageMetier
         $points = PointStockage::query()->pluck('id', 'libelle');
         $crees = 0;
         $refuses = [];
-        $numero = 1;
 
-        while (($colonnes = fgetcsv($flux, 0, ';')) !== false) {
-            $numero++;
+        foreach (array_slice($tableau, 1) as $position => $brute) {
+            // Comme Excel : l'en-tête est la ligne 1.
+            $numero = $position + 2;
 
-            if (count(array_filter($colonnes, static fn ($v): bool => trim((string) $v) !== '')) === 0) {
+            $cellule = static fn (string $champ): string => isset($index[$champ]) ? trim((string) ($brute[$index[$champ]] ?? '')) : '';
+
+            if (array_filter($brute, static fn ($v): bool => trim((string) $v) !== '') === []) {
                 continue;   // ligne vide : ce n'est pas une erreur, c'est un blanc.
             }
 
-            $nom = trim((string) ($colonnes[0] ?? ''));
+            // La ligne d'exemple du modèle (« (exemple) … ») n'est pas une donnée.
+            if ($tableur->estLigneExemple($brute)) {
+                continue;
+            }
+
+            $nom = $cellule('nom');
 
             try {
-                $pointId = $points->get(trim((string) ($colonnes[5] ?? '')));
+                $pointId = $points->get($cellule('point_stockage'));
 
                 // Un mode de suivi hors registre retombe sur « permanent »
                 // plutôt que de faire échouer la ligne : c'est le défaut du
@@ -805,7 +831,7 @@ class Stocks extends PageMetier
                 // ligne entière pour une colonne facultative ferait perdre
                 // l'article. La valeur est cependant relue telle quelle — rien
                 // n'est deviné à partir d'autre chose.
-                $suiviLu = trim((string) ($colonnes[6] ?? ''));
+                $suiviLu = $cellule('suivi');
                 $suivi = in_array($suiviLu, Article::SUIVIS, true)
                     ? $suiviLu
                     : ConsultationStockService::SUIVI_AVEC_STOCK;
@@ -813,14 +839,14 @@ class Stocks extends PageMetier
 
                 $article = $referentiel->creer([
                     'libelle' => $nom,
-                    'categorie' => trim((string) ($colonnes[1] ?? '')),
-                    'unite_mesure' => trim((string) ($colonnes[2] ?? '')),
-                    'seuil_alerte' => $journalier ? '0' : trim((string) ($colonnes[4] ?? '0')),
+                    'categorie' => $cellule('categorie'),
+                    'unite_mesure' => $cellule('unite_mesure'),
+                    'seuil_alerte' => $journalier || ! isset($index['seuil_alerte']) ? '0' : $cellule('seuil_alerte'),
                     'suivi' => $suivi,
                     'point_stockage_id' => is_string($pointId) ? $pointId : null,
                 ]);
 
-                $ouverture = trim((string) ($colonnes[7] ?? '0'));
+                $ouverture = $cellule('stock_initial') === '' ? '0' : $cellule('stock_initial');
 
                 if (! $journalier && is_string($pointId) && is_numeric($ouverture) && bccomp($ouverture, '0', 2) > 0) {
                     $mouvements->entree(
@@ -828,7 +854,7 @@ class Stocks extends PageMetier
                         pointId: $pointId,
                         quantite: $mouvements->arrondirQuantite($ouverture),
                         motif: __('stocks_pwa.article.stock_ouverture_motif'),
-                        coutUnitaire: is_numeric(trim((string) ($colonnes[3] ?? ''))) ? trim((string) $colonnes[3]) : null,
+                        coutUnitaire: is_numeric($cellule('prix_achat')) ? $cellule('prix_achat') : null,
                     );
                 }
 
@@ -841,8 +867,6 @@ class Stocks extends PageMetier
                 ]);
             }
         }
-
-        fclose($flux);
 
         $this->lignesRefusees = $refuses;
 

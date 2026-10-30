@@ -5,6 +5,7 @@ import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tatacora_flutter/core/fichiers/lecture_tableur.dart';
 import 'package:sqlite3/sqlite3.dart';
 import 'package:tatacora_flutter/core/database/app_database.dart';
 import 'package:tatacora_flutter/core/fichiers/selecteur_fichiers.dart';
@@ -139,8 +140,8 @@ void main() {
 
   group('« Télécharger le modèle » passe par « Enregistrer sous »', () {
     for (final cas in casImport) {
-      testWidgets('${cas.code} : nom du serveur, type CSV, BOM et en-tête du '
-          'module, aucune ligne de données ; toast', (tester) async {
+      testWidgets('${cas.code} : nom du serveur, type xlsx, en-têtes du '
+          'module, une ligne d’exemple ; toast', (tester) async {
         final selecteur = await monter(tester, moduleInitial: cas.cle);
         await cliquer(tester, find.byKey(const Key('ie-modele')));
         await attendre(tester, () => selecteur.ecrits.isNotEmpty);
@@ -149,13 +150,13 @@ void main() {
         expect(
           f.nom,
           cas.cle == 'm6-stocks'
-              ? 'modele_import_articles.csv'
-              : 'modele_import_${cas.cle}.csv',
+              ? 'modele_import_articles.xlsx'
+              : 'modele_import_${cas.cle}.xlsx',
         );
-        expect(f.type, TypeFichierEnregistre.csv);
+        expect(f.type, TypeFichierEnregistre.xlsx);
         expect(f.dossierInitial, SelecteurEssai.dossierDocuments);
-        expect(f.octets.sublist(0, 3), [0xEF, 0xBB, 0xBF]);
-        expect(utf8.decode(f.octets.sublist(3)), '${cas.entete}\r\n');
+        expect(f.octets.sublist(0, 4), [0x50, 0x4B, 3, 4]);
+        expect(lireTableur(f.octets).first, cas.entete.split(';'));
         expect(find.byKey(const Key('ie-modele-enregistre')), findsOneWidget);
       });
     }

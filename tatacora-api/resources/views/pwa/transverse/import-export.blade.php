@@ -132,7 +132,7 @@
                 <div class="flex items-start justify-between gap-3 mb-1">
                   <h2 class="text-sm font-bold text-slate-700">{{ __('pwa.import_export.importer_modele_titre') }}</h2>
                   @if ($peutEcrire)
-                    <button type="button" wire:click="telechargerModeleCsv" @if ($moduleChoisi === null) disabled @endif
+                    <button type="button" wire:click="telechargerModele" @if ($moduleChoisi === null) disabled @endif
                             class="btn shrink-0 flex items-center gap-2 px-3.5 py-2 rounded-lg text-white text-[13px] font-semibold disabled:opacity-50" style="background:var(--gold)">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
                       {{ __('pwa.import_export.importer_modele_bouton') }}
@@ -143,6 +143,13 @@
                   {{ __('pwa.import_export.importer_modele_aide_1') }}
                   <strong>{{ __('pwa.import_export.importer_modele_aide_format') }}</strong>.
                 </p>
+                @if ($peutEcrire && $moduleChoisi !== null && in_array($moduleChoisi->cle, \App\Shared\ImportExport\Services\CarteGiteChezNoelService::MODULES, true))
+                  <p class="text-[13px] text-slate-500 mt-3">
+                    <button type="button" wire:click="telechargerExempleGite"
+                            class="text-[13px] font-semibold underline" style="color:var(--navy)">{{ __('pwa.import_export.importer_gite_bouton') }}</button>
+                    — {{ __('pwa.import_export.importer_gite_aide') }}
+                  </p>
+                @endif
               </div>
 
               <div class="bg-white rounded-xl border border-slate-200 p-5">
@@ -167,7 +174,7 @@
                      zone cliquable, comme au maître (l.92) : un champ interne
                      ferait boucler le clic programmatique sur son parent. --}}
                 @if ($moduleChoisi !== null && $peutEcrire)
-                  <input type="file" accept=".csv,text/csv" x-ref="fichier" wire:model="fichierImport" class="hidden">
+                  <input type="file" accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" x-ref="fichier" wire:model="fichierImport" class="hidden">
                 @endif
                 </div>
                 @if ($fichierImport !== null)

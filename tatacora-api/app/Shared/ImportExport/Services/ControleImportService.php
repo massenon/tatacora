@@ -53,7 +53,7 @@ class ControleImportService
         [$carte, $inconnues, $manquantes] = $this->correspondance($module, $tableau[0]);
 
         foreach ($manquantes as $libelle) {
-            $erreurs[] = ['ligne' => 1, 'colonne' => $libelle, 'message' => __('imports.controle.colonne_manquante', ['libelle' => $libelle])];
+            $erreurs[] = ['ligne' => 1, 'colonne' => $libelle, 'message' => __('imports.controle.colonne_manquante', ['libelle' => $libelle, 'trouvees' => $this->entetesTrouvees($tableau[0])])];
         }
 
         // Une colonne en trop n'empêche pas l'import : ignorée, et on le dit.
@@ -65,6 +65,12 @@ class ControleImportService
         foreach (array_slice($tableau, 1) as $indice => $brute) {
             if (array_filter($brute, static fn ($v): bool => trim((string) $v) !== '') !== []) {
                 // +2 : l'en-tête est la ligne 1, l'utilisateur compte comme Excel.
+                if (app(TableurService::class)->estLigneExemple($brute)) {
+                    $avertissements[] = ['ligne' => $indice + 2, 'colonne' => null, 'message' => __('imports.controle.ligne_exemple_ignoree')];
+
+                    continue;
+                }
+
                 $corps[$indice + 2] = $brute;
             }
         }
@@ -144,39 +150,29 @@ class ControleImportService
     }
 
     /**
-     * Découpe un flux CSV — séparateur point-virgule OU virgule, celui des
-     * deux que l'en-tête emploie le plus (le maître accepte les deux,
-     * `import-export.html` l.86).
+     * Découpe un flux CSV — séparateur point-virgule, virgule OU tabulation
+     * (celui que la première ligne emploie le plus), BOM UTF-8, UTF-16 ou
+     * Windows-1252 : voir `TableurService::lireCsv()`.
      *
      * @return list<list<string>>
      */
     public function analyserCsv(string $contenu): array
     {
-        // Le BOM UTF-8 d'Excel ferait échouer la correspondance de la
-        // première colonne — retiré, jamais compté comme du texte.
-        if (str_starts_with($contenu, "\u{FEFF}")) {
-            $contenu = substr($contenu, 3);
-        }
+        return app(TableurService::class)->lireCsv($contenu);
+    }
 
-        $lignesBrutes = preg_split('/\r\n|\r|\n/', $contenu) ?: [];
-        $premiere = $lignesBrutes[0] ?? '';
-        $separateur = substr_count($premiere, ';') >= substr_count($premiere, ',') ? ';' : ',';
-
-        $tableau = [];
-        foreach ($lignesBrutes as $ligne) {
-            if (trim($ligne) === '') {
-                // Une ligne vide n'est pas une erreur, c'est un blanc — mais sa
-                // POSITION est conservée pour que les numéros restent ceux
-                // qu'Excel affiche à l'utilisateur.
-                $tableau[] = [''];
-
-                continue;
-            }
-
-            $tableau[] = array_map(strval(...), str_getcsv($ligne, $separateur, '"', '\\'));
-        }
-
-        return $tableau;
+    /**
+     * Lit un fichier déposé — `.xlsx` d'abord, CSV en secours — et rend les
+     * lignes brutes, l'en-tête en premier. LÈVE avec un message français si
+     * le fichier est illisible.
+     *
+     * @return list<list<string>>
+     *
+     * @throws \RuntimeException
+     */
+    public function analyserFichier(string $chemin, string $nomOriginal = ''): array
+    {
+        return app(TableurService::class)->lire($chemin, $nomOriginal);
     }
 
     // ------------------------------------------------------------- interne
@@ -221,6 +217,19 @@ class ControleImportService
         }
 
         return [$carte, $inconnues, $manquantes];
+    }
+
+    /**
+     * Les en-têtes lus, pour que le message dise ce que le fichier contient
+     * VRAIMENT — une seule « colonne » à rallonge trahit un séparateur perdu.
+     *
+     * @param  list<string>  $entetes
+     */
+    private function entetesTrouvees(array $entetes): string
+    {
+        $lues = array_values(array_filter(array_map(static fn ($v): string => trim((string) $v), $entetes), static fn (string $v): bool => $v !== ''));
+
+        return $lues === [] ? __('imports.controle.aucune_entete') : implode(' ; ', $lues);
     }
 
     /** Vérifie une cellule contre le type déclaré — `null` : rien à redire. */
@@ -353,11 +362,7 @@ class ControleImportService
     /** Casse et accents neutralisés — le SENS, jamais (voir l'entête). */
     private function normaliser(string $texte): string
     {
-        $texte = mb_strtolower(trim($texte));
-
-        $translit = transliterator_transliterate('NFD; [:Nonspacing Mark:] Remove; NFC', $texte);
-
-        return is_string($translit) ? $translit : $texte;
+        return app(TableurService::class)->normaliser($texte);
     }
 
     private function refusGlobal(string $message): RapportControle

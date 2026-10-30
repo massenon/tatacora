@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tatacora_flutter/core/fichiers/lecture_tableur.dart';
 import 'package:tatacora_flutter/core/database/app_database.dart';
 import 'package:tatacora_flutter/core/di/providers.dart';
 import 'package:tatacora_flutter/core/fichiers/selecteur_fichiers.dart';
@@ -681,8 +682,8 @@ void main() {
   group('Importer, Modèle, Exporter', () {
     // Import et modèle PORTÉS le 14/10/2026 (D436) : le test « ne sont pas
     // portés » est remplacé par le geste réel, sélecteur natif injecté.
-    testWidgets('Importer CRÉE les articles du fichier ; Modèle écrit le CSV '
-        'vide aux colonnes attendues', (tester) async {
+    testWidgets('Importer CRÉE les articles du fichier ; Modèle écrit le '
+        'classeur .xlsx aux colonnes attendues', (tester) async {
       selecteur = SelecteurEssai(
         lu: FichierLu(
           nom: 'articles.csv',
@@ -715,9 +716,12 @@ void main() {
 
       await toucher(tester, const Key('stocks-modele'));
       expect(selecteur.dernier.nom, TextesImportArticles.nomModele);
-      // `utf8.decode` retire le BOM : on compare les OCTETS.
-      expect(selecteur.dernier.octets, modeleImportArticlesOctets());
-      expect(selecteur.dernier.octets.take(3), [0xEF, 0xBB, 0xBF]);
+      // Un VRAI classeur .xlsx (signature ZIP), pas un CSV au point-virgule.
+      expect(selecteur.dernier.octets.take(4), [0x50, 0x4B, 3, 4]);
+      expect(
+        lireTableur(selecteur.dernier.octets).first,
+        colonnesImportArticles,
+      );
       expect(find.byKey(const Key('stocks-modele-enregistre')), findsOneWidget);
     });
 

@@ -6,7 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sqlite3/sqlite3.dart';
 import 'package:tatacora_flutter/core/database/app_database.dart';
+import 'package:tatacora_flutter/core/fichiers/ecriture_xlsx.dart';
 import 'package:tatacora_flutter/core/fichiers/lecture_csv.dart';
+import 'package:tatacora_flutter/core/fichiers/lecture_tableur.dart';
 import 'package:tatacora_flutter/core/rbac/garde_acces.dart';
 import 'package:tatacora_flutter/features/stocks/domain/import_articles.dart';
 import 'package:tatacora_flutter/features/transverse/data/importeurs_locaux.dart';
@@ -241,18 +243,42 @@ void main() {
         expect(await compterLignes(db, cas.table), avant);
       });
 
-      test('le modèle : BOM, l’en-tête attendu au point-virgule, AUCUNE ligne '
-          'de données — et rempli, il passe le contrôle', () async {
+      test('le modèle est un VRAI .xlsx : une cellule par en-tête, une ligne '
+          'd’exemple ignorée — et rempli, il passe le contrôle', () async {
         final i = importeur(cas.cle);
         final modele = i.modeleOctets();
-        expect(modele.sublist(0, 3), [0xEF, 0xBB, 0xBF], reason: 'BOM UTF-8');
-        expect(utf8.decode(modele.sublist(3)), '${cas.entete}\r\n');
-        final rempli = [
-          ...i.modeleOctets(),
-          ...utf8.encode('${cas.valides.first}\r\n'),
-        ];
+        expect(modele.sublist(0, 4), [
+          0x50,
+          0x4B,
+          3,
+          4,
+        ], reason: 'signature ZIP');
+        expect(i.nomModele, endsWith('.xlsx'));
+
+        final tableau = lireTableur(modele);
+        expect(tableau.first, cas.entete.split(';'));
+        expect(tableau, hasLength(2), reason: 'en-têtes + UNE ligne d’exemple');
+
+        // L'exemple laissé tel quel n'est jamais importé.
+        final vide = await moteur.controler(i, modele);
+        expect(vide.total, 0);
+        expect(
+          vide.avertissements.single.message,
+          TextesControleImport.ligneExempleIgnoree,
+        );
+
+        final rempli = ecrireClasseurXlsx(
+          nomModule: i.nom,
+          description: i.description,
+          colonnes: colonnesTableur(i.colonnes),
+          lignes: [lireCsv(cas.valides.first, separateur: ';').first],
+        );
         final rapport = await moteur.controler(i, rempli);
-        expect(rapport.ok, isTrue);
+        expect(
+          rapport.ok,
+          isTrue,
+          reason: '${rapport.erreurs.map((e) => e.message)}',
+        );
         expect(
           rapport.avertissements,
           isEmpty,
@@ -266,7 +292,11 @@ void main() {
   test('M6 : le modèle est celui de l’écran Stocks (moteur PARTAGÉ)', () {
     final i = importeur('m6-stocks');
     expect(i.nomModele, TextesImportArticles.nomModele);
-    expect(i.modeleOctets(), modeleImportArticlesOctets());
+    expect(i.nomModele, endsWith('.xlsx'));
+    expect(
+      lireTableur(i.modeleOctets()),
+      lireTableur(modeleImportArticlesOctets()),
+    );
     expect([for (final c in i.colonnes) c.champ], colonnesImportArticles);
   });
 

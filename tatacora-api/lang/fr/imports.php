@@ -26,7 +26,9 @@ return [
         'fichier_vide' => 'Fichier vide.',
         'module_inconnu' => 'Module inconnu.',
         'entete_absente' => 'La ligne d\'en-tête est absente ou illisible.',
-        'colonne_manquante' => 'Colonne obligatoire absente du fichier : « :libelle ».',
+        'colonne_manquante' => 'Ligne 1 : colonne obligatoire « :libelle » absente de l\'en-tête. Colonnes trouvées : :trouvees. Repartez du modèle .xlsx téléchargé.',
+        'aucune_entete' => '(aucune)',
+        'ligne_exemple_ignoree' => 'Ligne d\'exemple du modèle (« (exemple) ») — ignorée.',
         'colonne_inconnue' => 'Colonne « :libelle » non reconnue — elle sera ignorée.',
         'valeur_obligatoire' => 'valeur obligatoire absente',
         'valeur_hors_liste' => 'valeur « :valeur » hors liste (attendu : :attendu)',
@@ -39,6 +41,34 @@ return [
         'aucune_ligne' => 'Aucune ligne à importer.',
         'refus_service' => 'Ligne :ligne (« :element ») refusée par le module : :raison',
         'import_fait' => ':nombre ligne(s) importée(s) dans :module.',
+    ],
+
+    // Lecture des fichiers déposés (`TableurService`) — un message par cause.
+    'fichier' => [
+        'vide' => 'Le fichier est vide.',
+        'illisible' => 'Le fichier n\'a pas pu être lu.',
+        'xls_ancien' => 'Ce fichier est un ancien classeur .xls. Ouvrez-le dans Excel et enregistrez-le au format « Classeur Excel (.xlsx) », ou repartez du modèle .xlsx téléchargé.',
+        'xlsx_illisible' => 'Le classeur .xlsx est illisible ou protégé. Repartez du modèle .xlsx téléchargé, ou enregistrez-le de nouveau depuis Excel.',
+        'trop_long' => 'Le fichier compte plus de :maximum lignes : découpez-le en plusieurs fichiers.',
+    ],
+
+    // Le classeur .xlsx servi comme modèle (feuilles « Modèle » et « Aide »).
+    'xlsx' => [
+        'aide_titre' => 'Import — :module',
+        'aide_consigne' => 'Remplissez la feuille « Modèle », une ligne par fiche. Ne changez ni l\'ordre ni le nom des en-têtes de la ligne 1.',
+        'aide_exemple' => 'La ligne grisée de la feuille « Modèle », marquée « (exemple) », n\'est pas importée : supprimez-la ou remplacez-la par vos données.',
+        'aide_colonne' => 'Colonne',
+        'aide_obligatoire' => 'Obligatoire',
+        'aide_format' => 'Format',
+        'aide_valeurs' => 'Valeurs admises',
+        'aide_exemple_colonne' => 'Exemple',
+        'oui' => 'Oui',
+        'non' => 'Non',
+        'liste_titre' => 'Valeur hors liste',
+        'liste_erreur' => 'Valeurs admises : :valeurs',
+        'format_liste' => 'Une valeur de la liste',
+        'nom_fichier' => 'modele_import_:cle.xlsx',
+        'nom_fichier_gite' => 'modele_import_:cle_carte_gite_chez_noel.xlsx',
     ],
 
     // Rendu de la colonne « VALEURS ATTENDUES » quand la colonne n'a pas de
@@ -87,7 +117,7 @@ return [
 
     'm4_restaurant' => [
         'nom' => 'Carte du restaurant',
-        'description' => 'Plats proposés au restaurant. Chaque plat se rattache à un menu et à une fiche recette existants.',
+        'description' => 'Plats proposés au restaurant. Menu et fiche recette sont facultatifs : un plat sans menu entre dans « Carte du restaurant », un plat sans fiche reçoit une fiche vide du même nom (à composer ensuite). Un prix vide donne un plat « sur commande » à 0 FCFA, prix provisoire.',
         'colonnes' => [
             'libelle' => ['libelle' => 'Nom du plat', 'exemple' => 'Poulet DG'],
             'categorie' => ['libelle' => 'Catégorie', 'exemple' => 'plats'],

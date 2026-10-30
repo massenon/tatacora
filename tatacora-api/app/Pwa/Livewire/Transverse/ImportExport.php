@@ -10,9 +10,11 @@ use App\Shared\Backup\Services\ReinitialisationDonneesTestService;
 use App\Shared\Backup\Services\SauvegardeManuelleService;
 use App\Shared\ImportExport\Data\ReferentielsImport;
 use App\Shared\ImportExport\Models\JournalImport;
+use App\Shared\ImportExport\Services\CarteGiteChezNoelService;
 use App\Shared\ImportExport\Services\ControleImportService;
 use App\Shared\ImportExport\Services\ImportReferentielsService;
 use App\Shared\ImportExport\Services\RegistreArchivesService;
+use App\Shared\ImportExport\Services\TableurService;
 use Illuminate\View\View;
 use Livewire\Attributes\Title;
 use Livewire\Attributes\Url;
@@ -30,7 +32,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * réel derrière chaque geste :
  *
  * - **Importer les données** — registre fermé `ReferentielsImport` (huit
- *   modules), fiche « Colonnes attendues », modèle CSV généré depuis la MÊME
+ *   modules), fiche « Colonnes attendues », modèle `.xlsx` généré depuis la MÊME
  *   déclaration que le contrôle, rapport ERREUR/AVERTIS., et application en
  *   TRANSACTION UNIQUE : aucun import partiel (`ImportReferentielsService`).
  *   Historique réel (`journal_imports`). Le refus antérieur (« aucun moteur
@@ -136,11 +138,15 @@ class ImportExport extends PageTransverse
     // =====================================================================
 
     /**
-     * Le fichier modèle — généré depuis la MÊME déclaration que le contrôle
-     * (`ReferentielsImport`), règle du maître : « il ne peut pas s'en
-     * écarter ». En-têtes + une ligne d'exemple, CSV UTF-8 avec BOM.
+     * Le fichier modèle — un VRAI classeur `.xlsx`, généré depuis la MÊME
+     * déclaration que le contrôle (`ReferentielsImport`), règle du maître :
+     * « il ne peut pas s'en écarter ». Feuille « Modèle » (en-têtes en gras,
+     * une ligne d'exemple) et feuille « Aide » (une ligne par colonne).
+     *
+     * Le CSV au point-virgule qui l'a précédé s'ouvrait en UNE seule colonne
+     * dans un Excel réglé sur la virgule (30/10/2026, `TableurService`).
      */
-    public function telechargerModeleCsv(): ?StreamedResponse
+    public function telechargerModele(TableurService $tableur): ?StreamedResponse
     {
         $this->exigerEcriture(self::MODULE);
 
@@ -150,13 +156,47 @@ class ImportExport extends PageTransverse
             return null;
         }
 
-        $entetes = array_map(static fn ($c): string => $c->libelle, $module->colonnes);
-        $exemples = array_map(static fn ($c): string => $c->exemple, $module->colonnes);
+        $octets = $tableur->ecrireClasseur($module->nom, $module->description, $module->colonnes);
 
-        return $this->fluxCsv('modele_import_'.$module->cle.'.csv', static function ($sortie) use ($entetes, $exemples): void {
-            fputcsv($sortie, $entetes, ';');
-            fputcsv($sortie, $exemples, ';');
-        });
+        return $this->fluxXlsx(__('imports.xlsx.nom_fichier', ['cle' => $module->cle]), $octets);
+    }
+
+    /**
+     * « Carte du Gîte Chez Noël (exemple) » — le modèle du module choisi,
+     * PRÉREMPLI avec la carte des affiches (m6 articles des boissons, m5
+     * boissons, m4 plats). Sans stock ni quantité : il s'ajoute après.
+     */
+    public function telechargerExempleGite(CarteGiteChezNoelService $carte): ?StreamedResponse
+    {
+        $this->exigerEcriture(self::MODULE);
+
+        if (! in_array($this->moduleImport, CarteGiteChezNoelService::MODULES, true)) {
+            return null;
+        }
+
+        return $this->fluxXlsx(
+            __('imports.xlsx.nom_fichier_gite', ['cle' => $this->moduleImport]),
+            $carte->classeur($this->moduleImport),
+        );
+    }
+
+    /**
+     * Lit le fichier déposé — `.xlsx` d'abord, CSV en secours.
+     *
+     * @return list<list<string>>|null `null` : refus, déjà posé sur le champ
+     */
+    private function lireFichierDepose(ControleImportService $controle): ?array
+    {
+        try {
+            return $controle->analyserFichier(
+                (string) $this->fichierImport?->getRealPath(),
+                (string) $this->fichierImport?->getClientOriginalName(),
+            );
+        } catch (RuntimeException $refus) {
+            $this->addError('fichierImport', $refus->getMessage());
+
+            return null;
+        }
     }
 
     /**
@@ -168,7 +208,7 @@ class ImportExport extends PageTransverse
     {
         $donnees = $this->validerEcriture([
             'moduleImport' => ['required', 'string'],
-            'fichierImport' => ['required', 'file', 'mimes:csv,txt', 'max:4096'],
+            'fichierImport' => ['required', 'file', 'mimes:xlsx,csv,txt', 'max:4096'],
         ]);
 
         $module = ReferentielsImport::parCle((string) $donnees['moduleImport']);
@@ -179,8 +219,13 @@ class ImportExport extends PageTransverse
             return;
         }
 
-        $contenu = (string) file_get_contents((string) $this->fichierImport?->getRealPath());
-        $rapport = $controle->controler($module, $controle->analyserCsv($contenu));
+        $tableau = $this->lireFichierDepose($controle);
+
+        if ($tableau === null) {
+            return;
+        }
+
+        $rapport = $controle->controler($module, $tableau);
 
         $this->rapportControle = [
             'cle' => $module->cle,
@@ -202,7 +247,7 @@ class ImportExport extends PageTransverse
     {
         $donnees = $this->validerEcriture([
             'moduleImport' => ['required', 'string'],
-            'fichierImport' => ['required', 'file', 'mimes:csv,txt', 'max:4096'],
+            'fichierImport' => ['required', 'file', 'mimes:xlsx,csv,txt', 'max:4096'],
         ]);
 
         $module = ReferentielsImport::parCle((string) $donnees['moduleImport']);
@@ -213,8 +258,13 @@ class ImportExport extends PageTransverse
             return;
         }
 
-        $contenu = (string) file_get_contents((string) $this->fichierImport?->getRealPath());
-        $rapport = $controle->controler($module, $controle->analyserCsv($contenu));
+        $tableau = $this->lireFichierDepose($controle);
+
+        if ($tableau === null) {
+            return;
+        }
+
+        $rapport = $controle->controler($module, $tableau);
 
         if (! $rapport->ok) {
             // L'état a changé entre le contrôle affiché et la confirmation :
@@ -634,27 +684,17 @@ class ImportExport extends PageTransverse
     }
 
     /**
-     * Un flux CSV avec BOM UTF-8 et séparateur point-virgule — convention
-     * serveur RG-19, celle qu'Excel francophone ouvre sans boîte de dialogue.
-     *
-     * @param  callable(resource): void  $ecrire
+     * Un classeur `.xlsx` en téléchargement — le vrai type MIME, jamais
+     * `text/csv` : le navigateur et Excel n'ont ainsi rien à deviner.
      */
-    private function fluxCsv(string $nom, callable $ecrire): StreamedResponse
+    private function fluxXlsx(string $nom, string $octets): StreamedResponse
     {
         return response()->streamDownload(
-            static function () use ($ecrire): void {
-                $sortie = fopen('php://output', 'w');
-
-                if ($sortie === false) {
-                    return;
-                }
-
-                fwrite($sortie, "\xEF\xBB\xBF");
-                $ecrire($sortie);
-                fclose($sortie);
+            static function () use ($octets): void {
+                echo $octets;
             },
             $nom,
-            ['Content-Type' => 'text/csv; charset=UTF-8'],
+            ['Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
         );
     }
 }

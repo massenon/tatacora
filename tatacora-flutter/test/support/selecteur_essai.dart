@@ -54,7 +54,7 @@ final class SelecteurEssai implements SelecteurFichiers {
   FichierEnregistreEssai get dernier => ecrits.last;
 
   @override
-  Future<FichierLu?> ouvrirCsv() async => lu;
+  Future<FichierLu?> ouvrirTableur() async => lu;
 
   /// Ce que rend « Ouvrir » pour une image : le même [lu].
   @override

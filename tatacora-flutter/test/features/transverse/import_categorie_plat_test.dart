@@ -5,6 +5,7 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tatacora_flutter/core/fichiers/lecture_tableur.dart';
 import 'package:tatacora_flutter/core/database/app_database.dart';
 import 'package:tatacora_flutter/features/restaurant/domain/entities/plat.dart';
 import 'package:tatacora_flutter/features/synchronisation/data/operations_sync_dao.dart';
@@ -292,8 +293,7 @@ void main() {
 
     test('le modèle téléchargeable porte la colonne « Catégorie » à sa place, '
         'avec son exemple', () {
-      final modele = utf8.decode(importeur().modeleOctets().sublist(3));
-      expect(modele, '${entete.join(';')}\r\n');
+      expect(lireTableur(importeur().modeleOctets()).first, entete);
     });
   });
 }

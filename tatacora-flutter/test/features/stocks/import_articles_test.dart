@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tatacora_flutter/core/fichiers/lecture_tableur.dart';
 import 'package:tatacora_flutter/core/database/app_database.dart';
 import 'package:tatacora_flutter/features/stocks/data/stocks_api.dart';
 import 'package:tatacora_flutter/features/stocks/data/stocks_dao.dart';
@@ -51,7 +53,7 @@ void main() {
   tearDown(() => db.close());
 
   Future<BilanImportArticles> importer(String contenu) => importerArticles(
-    contenu: contenu,
+    tableau: lireCsvTolerant(utf8.encode(contenu)),
     points: points,
     nouvelId: () => 'art-${++compteur}',
     enregistrer: (saisie) async {
@@ -66,12 +68,42 @@ void main() {
 
   final entete = colonnesImportArticles.join(';');
 
-  test('un en-tête de moins de huit colonnes refuse le FICHIER, rien n’est '
-      'écrit', () async {
+  test('un en-tête sans une colonne obligatoire refuse le FICHIER, en disant '
+      'la ligne, la colonne et ce qui a été lu ; rien n’est écrit', () async {
     final bilan = await importer('nom;categorie\nRiz;Denrées\n');
-    expect(bilan.erreurFichier, TextesImportArticles.enteteAbsente);
-    expect(bilan.phrase, TextesImportArticles.enteteAbsente);
+    expect(
+      bilan.erreurFichier,
+      TextesImportArticles.enteteAbsente(
+        const ['unite_mesure'],
+        const ['nom', 'categorie'],
+      ),
+    );
+    expect(bilan.erreurFichier, contains('Ligne 1'));
+    expect(bilan.erreurFichier, contains('unite_mesure'));
     expect(await StocksDao(db).articles(), isEmpty);
+  });
+
+  test('les colonnes se lisent PAR NOM : ordre changé, colonnes en moins ou '
+      'en trop, casse et accents libres', () async {
+    final bilan = await importer(
+      'Commentaire;UNITE_MESURE;Nom;Catégorie\nlibre;litre;Huile;Denrées\n',
+    );
+    expect(bilan.complet, isTrue, reason: '${bilan.refusees}');
+    expect(
+      (await StocksDao(db).articles()).map((a) => a.libelle),
+      contains('Huile'),
+    );
+  });
+
+  test('la ligne d’exemple du modèle n’est jamais importée', () async {
+    final bilan = await importerArticles(
+      tableau: lireTableur(modeleImportArticlesOctets()),
+      points: points,
+      nouvelId: () => 'art-${++compteur}',
+      enregistrer: (saisie) async => throw StateError('rien à écrire'),
+    );
+    expect(bilan.crees, 0);
+    expect(bilan.complet, isTrue);
   });
 
   test('les règles du serveur, ligne par ligne, et le compte rendu', () async {
@@ -134,16 +166,13 @@ void main() {
     expect(bilan.phrase, TextesImportArticles.bilan(1));
   });
 
-  test('le modèle : BOM, en-tête au point-virgule, AUCUNE ligne', () {
-    expect(
-      String.fromCharCodes(modeleImportArticlesOctets()),
-      isNot(contains('Riz')),
-    );
-    expect(
-      lireCsvPointVirgule(
-        String.fromCharCodes(modeleImportArticlesOctets().skip(3)),
-      ),
-      [colonnesImportArticles],
-    );
+  test('le modèle est un VRAI .xlsx : en-têtes du contrat, une ligne '
+      'd’exemple marquée', () {
+    final octets = modeleImportArticlesOctets();
+    expect(octets.take(4), [0x50, 0x4B, 3, 4]);
+    final tableau = lireTableur(octets);
+    expect(tableau.first, colonnesImportArticles);
+    expect(tableau, hasLength(2));
+    expect(tableau[1].first, startsWith('(exemple) '));
   });
 }

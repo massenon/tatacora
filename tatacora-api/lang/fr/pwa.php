@@ -1611,12 +1611,16 @@ return [
         'importer_modele_titre' => '2. Télécharger le fichier modèle',
         'importer_modele_bouton' => 'Télécharger le modèle',
         // maquette l.77-81 — le <strong> est posé par la vue.
-        'importer_modele_aide_1' => 'Le modèle porte les colonnes exactes et une ligne d\'exemple. Ouvrez-le'
-            . ' dans Excel, '
-            . 'remplacez la ligne d\'exemple par vos données, conservez la ligne d\'en-tête, puis enregistrez en',
-        'importer_modele_aide_format' => 'CSV UTF-8',
+        'importer_modele_aide_1' => 'Le modèle est un classeur Excel : une colonne par champ, une ligne d\'exemple,'
+            . ' et une feuille « Aide » qui détaille chaque colonne. Ouvrez-le dans Excel, remplacez la ligne'
+            . ' d\'exemple par vos données, conservez la ligne d\'en-tête, puis enregistrez en',
+        'importer_modele_aide_format' => 'Classeur Excel (.xlsx)',
+        'importer_gite_bouton' => 'Carte du Gîte Chez Noël (exemple)',
+        'importer_gite_aide' => 'Le même modèle, déjà rempli avec la carte des affiches du Gîte (prix, catégories),'
+            . ' sans stock ni quantité : le stock s\'ajoute après. Ordre d\'import : Articles de stock, puis Carte du bar ;'
+            . ' la Carte du restaurant est indépendante.',
         'importer_depot_titre' => '3. Déposer le fichier rempli',
-        'importer_depot_aide' => 'Formats acceptés : CSV (séparateur point-virgule ou virgule).',
+        'importer_depot_aide' => 'Formats acceptés : classeur Excel .xlsx (recommandé) ou CSV (séparateur point-virgule, virgule ou tabulation). Les colonnes sont repérées par leur nom.',
         'importer_depot_glisser' => 'Glissez votre fichier ici',
         'importer_depot_cliquer' => 'ou cliquez pour le sélectionner',
         'importer_fichier_selectionne' => 'Fichier sélectionné : :nom (:taille Ko)',
@@ -1637,14 +1641,14 @@ return [
             . 'correspondent au référentiel.',
         'rapport_confirmer' => 'Confirmer l\'import de :nombre ligne(s)',
         'rapport_corriger' => 'Corrigez les lignes ci-dessus dans votre fichier, enregistrez-le à nouveau en '
-            . 'CSV UTF-8, puis redéposez-le. Le contrôle se relance à chaque dépôt.',
+            . 'classeur Excel (.xlsx), puis redéposez-le. Le contrôle se relance à chaque dépôt.',
 
         // La colonne latérale « Démarche à suivre » (maquette l.110-141).
         'demarche_titre' => 'Démarche à suivre',
         'demarche_1' => 'Choisissez le module. Les colonnes attendues s\'affichent.',
         'demarche_2_avant' => 'Téléchargez le modèle et remplissez-le',
         'demarche_2_fort' => 'sans modifier la ligne d\'en-tête',
-        'demarche_3' => 'Enregistrez en CSV UTF-8. Sans cet encodage, les accents deviennent illisibles à la relecture.',
+        'demarche_3' => 'Enregistrez en classeur Excel (.xlsx). Les colonnes sont repérées par leur nom ; le CSV reste accepté en secours.',
         'demarche_4' => 'Déposez le fichier et lancez le contrôle. Rien n\'est importé à ce stade.',
         'demarche_5' => 'Corrigez les erreurs signalées, redéposez, puis confirmez l\'import.',
         'demarche_encadre_fort' => 'Aucun import partiel.',

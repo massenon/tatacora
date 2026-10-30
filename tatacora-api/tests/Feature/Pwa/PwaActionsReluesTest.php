@@ -273,12 +273,12 @@ final class PwaActionsReluesTest extends TestCase
         // seul, reverifie dans le composant), reinitialisation (phrase VIDER,
         // modale unique au markup du maitre — l'etape intermediaire
         // `passerEtapeFinaleReinitialisation` du 01/09 est supprimee).
-        // LECTURES : `telechargerSauvegarde` et `telechargerModeleCsv`
+        // LECTURES : `telechargerSauvegarde` et `telechargerModele`
         // (fichiers/flux), `ouvrirExport` (etat d'interface), `exporterTable`
         // (contenu JSON d'une table de la liste fermee `ExportTableService`).
         ImportExport::class => [
             'render',
-            'telechargerModeleCsv', 'controlerFichierImport', 'confirmerImport',
+            'telechargerModele', 'telechargerExempleGite', 'controlerFichierImport', 'confirmerImport',
             'genererSauvegarde', 'telechargerSauvegarde',
             'retirerSauvegarde', 'confirmerRetraitSauvegarde',
             'ouvrirExport', 'exporterTable',
@@ -427,7 +427,7 @@ final class PwaActionsReluesTest extends TestCase
             'render',
             'editerArticle', 'enregistrerArticle', 'enregistrerMouvement', 'forcerMouvement',
             'nouvelArticle', 'ouvrirMouvement', 'fermerModales',
-            'genererExport', 'ouvrirExport', 'lancerImport', 'ouvrirImport', 'telechargerModeleCsv',
+            'genererExport', 'ouvrirExport', 'lancerImport', 'ouvrirImport', 'telechargerModele',
             'messages',
             // ARCHIVAGE du referentiel (03/09/2026, demande du Product Owner).
             // Les deux premieres passent par `exigerArchivage()` — RBAC
