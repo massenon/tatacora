@@ -100,6 +100,11 @@ abstract final class MessagesRestaurant {
   static const libelleTropLong =
       'Le libellé ne peut pas dépasser 255 caractères.';
 
+  /// `restaurant.validation.description_trop_longue` (500 au plus), rendue avec
+  /// `:max` = 500.
+  static const descriptionTropLongue =
+      'La description ne peut pas dépasser 500 caractères.';
+
   /// Le serveur accepte `numeric` à deux décimales ; ce poste vend en francs
   /// entiers (le franc CFA n'a pas de sous-unité en circulation, et le point de
   /// vente manipule des entiers).
@@ -141,7 +146,7 @@ abstract final class MessagesRestaurant {
   static const aucuneFiche =
       "Aucune fiche technique n'existe encore : un plat ne peut pas être créé sans elle. Créez d'abord la fiche — vous reviendrez ici avec votre saisie.";
   static const recetteSansIngredient =
-      "Sans ingrédient, cette fiche ne décrémente aucun stock : le point de vente REFUSERA la vente du plat qui l'utilise. Ajoutez au moins un article de stock, ou revenez la composer depuis l'onglet « Fiches techniques ».";
+      "Sans ingrédient, cette fiche ne décrémente aucun stock : le plat qui l'utilise se vend quand même, sans sortie de stock. Ajoutez au moins un article de stock, ou revenez la composer depuis l'onglet « Fiches techniques ».";
   static const recetteAucunArticle =
       "Aucun article de stock ne correspond. Élargissez la recherche, ou créez l'article depuis l'écran Stocks.";
 
@@ -172,8 +177,8 @@ abstract final class MessagesRestaurant {
           ? 'La fiche « $libelle » est créée, sans ingrédient : elle ne '
                 'décrémentera aucun stock tant que sa composition est vide.'
           : 'La fiche « $libelle » est enregistrée SANS ingrédient : elle ne '
-                "décrémente aucun stock, et toute vente du plat qui l'utilise "
-                'sera refusée au comptoir.';
+                "décrémente aucun stock, et le plat qui l'utilise se vend sans "
+                'sortie de stock.';
     }
     if (incomplet) {
       final articles = articlesSansCout.join(', ');

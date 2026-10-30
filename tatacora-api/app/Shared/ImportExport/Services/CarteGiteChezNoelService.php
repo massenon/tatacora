@@ -157,7 +157,7 @@ class CarteGiteChezNoelService
                 $vus[$cle] = $nom;
                 $categorie = self::CATEGORIE_ARTICLE[$this->cle((string) $article['nom'])]
                     ?? self::CATEGORIES_RESTAURANT[(string) $rubrique['rubrique']]
-                    ?? throw new RuntimeException('Rubrique sans catégorie : '.$rubrique['rubrique']);
+                    ?? throw new RuntimeException(__('imports.carte.rubrique_sans_categorie', ['rubrique' => $rubrique['rubrique']]));
 
                 $lignes[] = [
                     'libelle' => $nom,
@@ -228,7 +228,7 @@ class CarteGiteChezNoelService
         $carte = $json === false ? null : json_decode($json, true);
 
         if (! is_array($carte) || ! isset($carte['rubriques'])) {
-            throw new RuntimeException('La carte du Gîte Chez Noël est introuvable ou illisible.');
+            throw new RuntimeException(__('imports.carte.introuvable'));
         }
 
         return $carte['rubriques'];

@@ -136,6 +136,12 @@ class PlatsLocal extends Table {
 
   TextColumn get libelle => text()();
 
+  /// v47 (30/10/2026, décision du PO) — la description FACULTATIVE du plat :
+  /// 500 caractères au plus, normalisée à l'écriture (trim, vide = `NULL`),
+  /// rejouée de `DescriptionPlat` du serveur. `NULL` = pas de description, aucune
+  /// n'est déduite pour les plats d'avant.
+  TextColumn get description => text().nullable()();
+
   /// Francs entiers (voir l'en-tête).
   IntColumn get prixVente => integer()();
 

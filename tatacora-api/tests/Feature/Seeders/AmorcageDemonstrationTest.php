@@ -549,7 +549,7 @@ final class AmorcageDemonstrationTest extends TestCase
         $this->assertSame(
             0,
             Recette::query()->whereDoesntHave('ingredients')->count(),
-            'Une fiche vide est une vente refusée au point de vente restaurant.',
+            'Une fiche vide ne sortirait aucun stock à la vente (le plat se vendrait quand même).',
         );
 
         // …et l'autre moitié, qui empêche le déblocage de devenir un mensonge :
@@ -678,7 +678,7 @@ final class AmorcageDemonstrationTest extends TestCase
         // listes d'ingredients, vingt-neuf par les libelles des plats
         // eux-memes (« Frites d'igname », « Demi pintade », « Crepe au miel »).
         // Sans elles, la fiche technique de ces plats n'aurait pu porter
-        // aucune ligne, et une fiche vide REFUSE la vente.
+        // aucune ligne, et une fiche vide ne sortirait aucun stock à la vente.
         $this->assertSame(98, Article::count());
         $this->assertSame(13, \App\Domain\Tourisme\Models\Circuit::count());
         $this->assertSame(8, \App\Domain\Vehicules\Models\Vehicule::count());

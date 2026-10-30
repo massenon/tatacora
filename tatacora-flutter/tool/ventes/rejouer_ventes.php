@@ -22,6 +22,8 @@ declare(strict_types=1);
 |   { "aujourdhui": "2031-06-15",
 |     "catalogue": [{"ref":"biere","id":"<uuid>","module":"M5",
 |                    "libelle":"Beninoise 65cl","prix":"1000"}, ...],
+|     (M4 : `"sans_fiche":true` = un plat dont la fiche est VIDE — decision du PO
+|      du 30/10/2026, il se vend, sans mouvement de stock)
 |     "ops": [ ... ] }
 |   {"op":"parametre","cle":"tva_active","valeur":"true"|null}
 |   {"op":"vente","canal":"comptoir"|"sejour"|"service","mode":"especes",
@@ -38,6 +40,9 @@ declare(strict_types=1);
 |   {"op":"ventiler","taux":"18","convention":"ttc","montants":["1000.00"]}
 |                                                  (le VRAI CalculTvaService)
 |   {"op":"compter"}
+|   {"op":"sorties_derniere_vente"}    (30/10/2026 : combien de sorties de stock
+|                                       la DERNIERE vente a ecrites — 0 pour un plat
+|                                       sans fiche)
 |   {"op":"libelles"}
 | Sortie (stdout, JSON) : { "resultats": [ ... un resultat par operation ... ] }
 |   - une vente reussie : { "ok":true, "montant", "mode", "session", "piece":[..] }
@@ -47,6 +52,16 @@ declare(strict_types=1);
 */
 
 const BASE_AUTORISEE = 'tatacora_test';
+
+// Une base d'essai PRIVEE `tatacora_<nom>_test`, donnee par `TATACORA_BASE_ESSAI`,
+// remplace `tatacora_test` (30/10/2026) : jamais une autre base.
+$baseEssai = (static function (): string {
+    $voulue = getenv('TATACORA_BASE_ESSAI');
+
+    return is_string($voulue) && preg_match('/^tatacora_[a-z0-9_]*test$/', $voulue) === 1
+        ? $voulue
+        : BASE_AUTORISEE;
+})();
 
 $api = realpath(__DIR__ . '/../../../tatacora-api');
 
@@ -62,9 +77,9 @@ if (! is_array($scenario) || ! isset($scenario['ops'], $scenario['aujourdhui'], 
     exit(3);
 }
 
-putenv('DB_DATABASE=' . BASE_AUTORISEE);
-$_ENV['DB_DATABASE'] = BASE_AUTORISEE;
-$_SERVER['DB_DATABASE'] = BASE_AUTORISEE;
+putenv('DB_DATABASE=' . $baseEssai);
+$_ENV['DB_DATABASE'] = $baseEssai;
+$_SERVER['DB_DATABASE'] = $baseEssai;
 
 chdir($api);
 require $api . '/vendor/autoload.php';
@@ -83,6 +98,7 @@ use App\Domain\Restaurant\Models\Menu;
 use App\Domain\Restaurant\Models\Plat;
 use App\Domain\Restaurant\Models\Recette;
 use App\Domain\Stocks\Models\Article;
+use App\Domain\Stocks\Models\MouvementStock;
 use App\Domain\Stocks\Models\PointStockage;
 use App\Domain\Stocks\Services\MouvementStockService;
 use App\Domain\Tourisme\Models\Circuit;
@@ -103,8 +119,8 @@ use Livewire\Livewire;
 
 $base = (string) config('database.connections.' . config('database.default') . '.database');
 
-if ($base !== BASE_AUTORISEE) {
-    fwrite(STDERR, "Refus : la base active est \u{ab} {$base} \u{bb}, pas \u{ab} " . BASE_AUTORISEE . " \u{bb}.\n");
+if ($base !== $baseEssai) {
+    fwrite(STDERR, "Refus : la base active est \u{ab} {$base} \u{bb}, pas \u{ab} {$baseEssai} \u{bb}.\n");
     exit(1);
 }
 
@@ -277,7 +293,12 @@ try {
                 'cout_moyen_pondere' => '500.0000',
             ]);
             $recette = Recette::create(['libelle' => $a['libelle'], 'cout_matiere_calcule' => '0.00']);
-            $recette->ingredients()->attach([$article->id => ['quantite_unitaire' => '0.250']]);
+
+            // 30/10/2026 (decision du PO) : une fiche VIDE n'empeche plus la vente.
+            if (! ($a['sans_fiche'] ?? false)) {
+                $recette->ingredients()->attach([$article->id => ['quantite_unitaire' => '0.250']]);
+            }
+
             Plat::create([
                 'id' => $a['id'],
                 'menu_id' => $menu->id,
@@ -292,6 +313,8 @@ try {
     }
 
     $departVentes = Vente::count();
+    $sortiesAvantDerniereVente = 0;
+    $sortiesApresDerniereVente = 0;
     $departEcritures = EcritureComptable::count();
     $ventes = $app->make(VenteService::class);
 
@@ -348,7 +371,14 @@ try {
                     $resultats[] = ['ok' => true];
                     break;
 
+                case 'sorties_derniere_vente':
+                    $resultats[] = ['ok' => true, 'sorties' => $sortiesApresDerniereVente - $sortiesAvantDerniereVente];
+                    break;
+
                 case 'vente':
+                    $sortiesAvantDerniereVente = MouvementStock::where('type_mouvement', 'sortie')->count();
+                    // Rafraichi aussi quand la vente est refusee : aucune sortie.
+                    $sortiesApresDerniereVente = $sortiesAvantDerniereVente;
                     $mode = (string) $op['mode'];
                     $lignes = $lignesDe($op['lignes']);
 
@@ -424,6 +454,7 @@ try {
                             break;
                         }
 
+                        $sortiesApresDerniereVente = MouvementStock::where('type_mouvement', 'sortie')->count();
                         $resultats[] = $decrireVente(Vente::findOrFail($venteId));
                         break;
                     }
@@ -440,6 +471,7 @@ try {
                             'utilisateur_id' => $gerant->id,
                             'lignes' => $lignes,
                         ]);
+                        $sortiesApresDerniereVente = MouvementStock::where('type_mouvement', 'sortie')->count();
                         $resultats[] = $decrireVente($vente);
                         break;
                     }
@@ -458,6 +490,7 @@ try {
                         'utilisateur_id' => $gerant->id,
                         'lignes' => $lignes,
                     ]);
+                    $sortiesApresDerniereVente = MouvementStock::where('type_mouvement', 'sortie')->count();
                     $resultats[] = $decrireVente($vente);
                     break;
 

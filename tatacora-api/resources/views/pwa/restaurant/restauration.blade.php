@@ -430,7 +430,7 @@
 
                       <td class="px-3 py-2.5 text-right whitespace-nowrap">
                         @if ($vide)
-                          <span class="text-[11px] px-1.5 py-0.5 rounded font-semibold" style="background:#F1F5F9;color:#475569"
+                          <span class="text-[11px] px-1.5 py-0.5 rounded font-semibold" style="background:#F3F4F6;color:#6B7280"
                                 title="{{ __('carte_pwa.restauration.fiches_etat_vide_infobulle') }}">{{ __('carte_pwa.restauration.fiches_etat_vide') }}</span>
                         @elseif (! $fiche->decrementeUnStockSuivi())
                           {{-- LE TROISIEME ETAT (04/09/2026) : la fiche est

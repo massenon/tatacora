@@ -131,6 +131,10 @@ const tablesAjouteesEnV44 = <String>{'pieces_saisie_local'};
 const tablesAjouteesEnV46 = <String>{'journal_securite_local'};
 
 const _ajoutsParVersion = <int, List<String>>{
+  // La v47 (30/10/2026, la description facultative d'un plat) ajoute UNE colonne nullable,
+  // ni indexee ni referencee, aucune table : retour arriere symetrique.
+  47: <String>['ALTER TABLE plats_local DROP COLUMN description'],
+
   // La v46 (29/10/2026, mot de passe perdu SANS e-mail) ajoute ONZE colonnes a
   // `utilisateurs_local` (changement obligatoire, expiration du temporaire, derive
   // de l'ancien mot de passe, derive du code de secours, compteur d'echecs) et UNE

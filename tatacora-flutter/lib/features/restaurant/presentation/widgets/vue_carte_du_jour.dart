@@ -190,7 +190,8 @@ class EtatVideCarteRestaurant extends StatelessWidget {
 
 /// La première cellule — `corps.blade.php` l.338-345.
 ///
-/// La vue y empile le nom, puis le motif d'indisponibilité en ambre. Le second
+/// La vue y empile le nom, la description du plat quand elle existe, puis le motif
+/// d'indisponibilité en ambre. Le second
 /// n'existe pas ici (aucune disponibilité n'est lue, voir l'en-tête).
 class _Article extends StatelessWidget {
   const _Article({required this.ligne});
@@ -205,6 +206,16 @@ class _Article extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(ligne.libelle, style: TextesRestaurant.corpsFort),
+        // La description FACULTATIVE du plat (30/10/2026, décision du PO), en ligne
+        // secondaire discrète sous le nom, seulement quand elle existe.
+        if (ligne.description != null)
+          Text(
+            ligne.description!,
+            key: Key('carte-restaurant-description-${ligne.id}'),
+            style: TextesRestaurant.mention.copyWith(
+              color: AppColors.neutre400,
+            ),
+          ),
         if (retrait != null)
           // `{{ libelleMotif() }} — {{ commentaire }}` (l.341-343), ambre.
           Text(

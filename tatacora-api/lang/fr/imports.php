@@ -22,6 +22,12 @@ declare(strict_types=1);
 return [
 
     // ------------------------------------------------------------ contrôle
+    // La carte du Gîte Chez Noël (commande `import:generer-carte-gite`, bouton « exemple »).
+    'carte' => [
+        'rubrique_sans_categorie' => 'Rubrique sans catégorie : :rubrique',
+        'introuvable' => 'La carte du Gîte Chez Noël est introuvable ou illisible.',
+    ],
+
     'controle' => [
         'fichier_vide' => 'Fichier vide.',
         'module_inconnu' => 'Module inconnu.',

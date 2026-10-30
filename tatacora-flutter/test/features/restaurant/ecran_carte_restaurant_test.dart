@@ -844,4 +844,42 @@ void main() {
       },
     );
   });
+
+  testWidgets(
+    'la description FACULTATIVE (30/10/2026) se lit en ligne secondaire '
+    'sous le nom, seulement quand elle existe',
+    (tester) async {
+      await monter(
+        tester,
+        resultat: RestaurantRecu(
+          carte(
+            lignes: [
+              const LigneCarteRestaurant(
+                id: 'p-1',
+                libelle: 'Pizza royale',
+                description: 'Jambon, mozza',
+                categorieBrute: 'pizzas',
+                prixVente: '6000',
+                lieAuStock: false,
+                nbIngredients: 0,
+              ),
+              ligne('p-2', 'Riz sauce', lie: false),
+            ],
+          ),
+        ),
+      );
+
+      expect(find.text('Pizza royale'), findsOneWidget);
+      expect(
+        find.byKey(const Key('carte-restaurant-description-p-1')),
+        findsOneWidget,
+      );
+      expect(find.text('Jambon, mozza'), findsOneWidget);
+      expect(
+        find.byKey(const Key('carte-restaurant-description-p-2')),
+        findsNothing,
+        reason: 'pas de description : aucune ligne secondaire',
+      );
+    },
+  );
 }

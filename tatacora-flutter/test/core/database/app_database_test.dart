@@ -157,8 +157,11 @@ void main() {
     // 77 → 78 le 29/10/2026 : `journal_securite_local` (v46 — les gestes
     // sensibles sur les comptes, mot de passe perdu SANS e-mail ; auteur :
     // `JournalSecuriteDao`).
+    //
+    // v47 (30/10/2026) : une colonne (`description` d'un plat), AUCUNE table —
+    // le compte reste 78.
     expect(base.allTables.length, 78);
-    expect(base.schemaVersion, 46);
+    expect(base.schemaVersion, 47);
     expect(
       base.allTables.map((t) => t.actualTableName).toSet().containsAll({
         'origines_documents_local',

@@ -242,6 +242,25 @@ void main() {
         );
         expect(await prix('plats_local', 'Salade du Chef'), contains('4000'));
         expect(await prix('plats_local', 'Wassa wassa'), '0');
+
+        // 30/10/2026 : les descriptions de l'affiche sont importées (9 plats), les
+        // autres plats n'en ont aucune.
+        Future<Object?> description(String libelle) async =>
+            (await db
+                    .customSelect(
+                      'SELECT description AS d FROM plats_local '
+                      'WHERE libelle = ?',
+                      variables: [Variable.withString(libelle)],
+                    )
+                    .getSingle())
+                .data['d'];
+        expect(await compter('plats_local WHERE description IS NOT NULL'), 9);
+        expect(
+          await description('Pizza du gîte (grande)'),
+          'Sauce tomate, bœuf hachée, saucisse, fromage peuilh, fromage mozza',
+        );
+        expect(await description('Chawarma mixte'), 'Viande de bœuf, saucisse');
+        expect(await description('Wassa wassa'), isNull);
       },
     );
   });

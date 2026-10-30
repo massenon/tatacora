@@ -7,6 +7,7 @@ namespace App\Shared\Sync\Gestionnaires;
 use App\Domain\Restaurant\Http\Requests\EnregistrerPlatRequest;
 use App\Domain\Restaurant\Models\Plat;
 use App\Domain\Restaurant\Services\CartePlatMenuService;
+use App\Domain\Restaurant\Support\DescriptionPlat;
 use App\Pwa\Livewire\Restaurant\CarteRestaurant;
 use App\Shared\Sync\Exceptions\DonneesSynchroniseesInvalidesException;
 use App\Shared\Sync\Services\ResolveurCorrespondances;
@@ -115,6 +116,7 @@ final class GestionnairePlats extends GestionnaireReferentielAbstrait
 
     protected function validerCreation(array $payload): array
     {
+        $payload = $this->normaliserDescription($payload);
         [$lien, $payload] = $this->separerLien($payload);
         [$pwa, $payload] = $this->separerChampsPwa($payload);
 
@@ -129,6 +131,7 @@ final class GestionnairePlats extends GestionnaireReferentielAbstrait
 
     protected function validerModification(Model $element, array $payload): array
     {
+        $payload = $this->normaliserDescription($payload);
         [$lien, $payload] = $this->separerLien($payload);
         [$pwa, $payload] = $this->separerChampsPwa($payload);
 
@@ -137,6 +140,24 @@ final class GestionnairePlats extends GestionnaireReferentielAbstrait
             ...$this->validerLien($lien),
             ...$this->validerChampsPwa($pwa),
         ];
+    }
+
+    /**
+     * La description facultative (poste v47, 30/10/2026) est normalisée AVANT la
+     * validation, comme la PWA (`Restauration::enregistrerPlat`) : la borne de 500
+     * caractères porte sur le texte rogné, jamais sur ses espaces de bord. Absente,
+     * elle reste absente (une modification qui ne la nomme pas la laisse en place).
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private function normaliserDescription(array $payload): array
+    {
+        if (array_key_exists('description', $payload)) {
+            $payload['description'] = DescriptionPlat::normaliser($payload['description']);
+        }
+
+        return $payload;
     }
 
     /**

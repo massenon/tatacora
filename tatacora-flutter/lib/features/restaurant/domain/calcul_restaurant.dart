@@ -307,11 +307,17 @@ final class SaisiePlatLue {
   const SaisiePlatLue({
     this.libelle = '',
     this.prixFrancs = 0,
+    this.description,
     this.erreurs = const {},
   });
 
   final String libelle;
   final int prixFrancs;
+
+  /// La description NORMALISÉE (trim, vide = `null`). Quand la saisie n'en porte
+  /// pas ([SaisiePlat.description] `null`), elle vaut `null` aussi : le DAO
+  /// distingue les deux par la saisie.
+  final String? description;
   final Map<String, String> erreurs;
 }
 
@@ -340,6 +346,14 @@ SaisiePlatLue verifierPlat(SaisiePlat s) {
 
   // La catégorie (v41) : `null` = non soumise (importation, plat d'avant) ; une
   // clé soumise doit être l'une des dix de la carte, comme le serveur la juge.
+  // La description (v47, 30/10/2026) : facultative, 500 caractères au plus, mesurés
+  // sur le texte NORMALISÉ comme `DescriptionPlat` du serveur (`max:500` porte sur la
+  // valeur déjà rognée par la couche HTTP ; `rejouer_description_plat.php` le prouve).
+  final description = normaliserDescriptionPlat(s.description);
+  if (description != null && description.length > descriptionPlatMax) {
+    erreurs['description'] = MessagesRestaurant.descriptionTropLongue;
+  }
+
   final categorie = s.categorie;
   if (categorie != null) {
     if (categorie.trim().isEmpty) {
@@ -350,7 +364,22 @@ SaisiePlatLue verifierPlat(SaisiePlat s) {
   }
 
   if (erreurs.isNotEmpty) return SaisiePlatLue(erreurs: erreurs);
-  return SaisiePlatLue(libelle: libelle, prixFrancs: prix.francs!);
+  return SaisiePlatLue(
+    libelle: libelle,
+    prixFrancs: prix.francs!,
+    description: description,
+  );
+}
+
+/// Longueur maximale de `plats.description` — `DescriptionPlat::MAX` du serveur.
+const descriptionPlatMax = 500;
+
+/// La description facultative d'un plat, normalisée comme `DescriptionPlat::
+/// normaliser` : espaces de bord retirés, chaîne vide = `null`.
+String? normaliserDescriptionPlat(String? valeur) {
+  if (valeur == null) return null;
+  final nette = valeur.trim();
+  return nette.isEmpty ? null : nette;
 }
 
 /* ====================================================================== */
@@ -419,11 +448,15 @@ final class PlatCalcule {
     required this.prixFrancs,
     required this.composition,
     this.recetteLibelle,
+    this.description,
     this.prixProvisoire = false,
     this.prixCorrigeMain = false,
     this.indisponibilite,
     this.lien,
   });
+
+  /// `plats.description` (v47), déjà normalisée.
+  final String? description;
 
   /// Le lien direct au stock (v36), ou `null` : le plat se décrémente par sa
   /// fiche. Quand il existe, il l'emporte (`DeductionStockCuisineService`).
@@ -771,6 +804,7 @@ LigneCarteRestaurant _ligne(PlatCalcule p, {required bool pointCuisine}) {
   return LigneCarteRestaurant(
     id: p.id,
     libelle: p.libelle,
+    description: p.description,
     categorieBrute: p.categorie ?? '',
     menuId: p.menuId,
     recetteId: p.recetteId,

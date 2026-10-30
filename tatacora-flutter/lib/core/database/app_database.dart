@@ -521,8 +521,14 @@ class AppDatabase extends _$AppDatabase {
   /// `journal_securite_local`. Aucune ligne fabriquée : un compte d'avant la v46
   /// fonctionne sans changement et n'a pas de code de secours. Rien ne se
   /// synchronise : les comptes restent LOCAUX et aucun hash ne part.
+  ///
+  /// v47 (30/10/2026) — LA DESCRIPTION FACULTATIVE d'un plat (décision du PO) : UNE
+  /// colonne NULLABLE, `plats_local.description`, aucune table. Rien n'est déduit :
+  /// les plats d'avant n'ont pas de description. Elle part au serveur avec le plat
+  /// (charge `plats`) et redescend. Le curseur de descente est oublié : les
+  /// descriptions des plats déjà au serveur redescendent.
   @override
-  int get schemaVersion => 46;
+  int get schemaVersion => 47;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1585,6 +1591,28 @@ class AppDatabase extends _$AppDatabase {
         if (!tables.contains('journal_securite_local')) {
           await m.createTable(journalSecuriteLocal);
         }
+      }
+      if (from < 47) {
+        // LA DESCRIPTION FACULTATIVE d'un plat (30/10/2026) : UNE colonne NULLABLE, aucune
+        // table, aucune description déduite. Ajout CONDITIONNEL (piège 3) : une fixture
+        // ramenée en arrière depuis la définition courante la porte déjà
+        // (`retour_arriere_schema.dart`), et un fichier à la forme v47 marqué v46 doit se
+        // rejouer. Une table absente (jeu de colonnes vide) n'est pas touchée ici : la
+        // réconciliation finale la complète. Le curseur est oublié : les descriptions des
+        // plats déjà au serveur redescendent.
+        final plats = {
+          for (final c
+              in await m.database
+                  .customSelect('PRAGMA table_info(plats_local)')
+                  .get())
+            c.data['name'] as String,
+        };
+        if (plats.isNotEmpty && !plats.contains('description')) {
+          await m.addColumn(platsLocal, platsLocal.description);
+        }
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
       }
       if (from < 33) {
         // LES PLANNINGS ET LES CONGÉS (21/10/2026). Deux tables NEUVES, sans

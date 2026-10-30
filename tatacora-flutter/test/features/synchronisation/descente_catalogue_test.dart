@@ -432,6 +432,54 @@ void main() {
     });
   });
 
+  group('la description facultative d’un plat (v47, 30/10/2026)', () {
+    Map<String, Object?> plat(Object? description) =>
+        element('plats', 'plat-1', {
+          'libelle': 'Pizza royale',
+          'description': description,
+          'menu_id': 'm-1',
+          'recette_id': 'r-1',
+          'prix_vente': '6000.00',
+          'prix_provisoire': false,
+          'prix_corrige_main': false,
+        });
+    List<Map<String, Object?>> amont() => [
+      element('menus', 'm-1', {'libelle': 'Midi', 'type': 'local'}),
+      element('recettes', 'r-1', {'libelle': 'Pizza', 'lignes': <Object>[]}),
+    ];
+
+    test('elle descend avec le plat (rognée), se met à jour, et s’efface quand '
+        'le serveur la retire — sans rien enfiler', () async {
+      final appairage = (await b.lecteur.appairage())!;
+      final enFile = await b.total();
+
+      final cat = FauxCatalogue([...amont(), plat('  Jambon, mozza  ')]);
+      await b
+          .descente(transportDe(cat))
+          .descendre(appairage, surRefus: (_) async {});
+      expect(
+        (await ligne('plats_local', 'plat-1'))!['description'],
+        'Jambon, mozza',
+      );
+
+      cat.elements.add(plat('Jambon, mozza, olives'));
+      await b
+          .descente(transportDe(cat))
+          .descendre(appairage, surRefus: (_) async {});
+      expect(
+        (await ligne('plats_local', 'plat-1'))!['description'],
+        'Jambon, mozza, olives',
+      );
+
+      cat.elements.add(plat(null));
+      await b
+          .descente(transportDe(cat))
+          .descendre(appairage, surRefus: (_) async {});
+      expect((await ligne('plats_local', 'plat-1'))!['description'], isNull);
+      expect(await b.total(), enFile, reason: 'une descente n’enfile rien');
+    });
+  });
+
   group('l’ordre des clés étrangères et les dépendances différées', () {
     test('un plat reçu AVANT son menu et sa fiche attend, puis passe à la '
         'reprise de fin de descente — aucune contrainte violée', () async {

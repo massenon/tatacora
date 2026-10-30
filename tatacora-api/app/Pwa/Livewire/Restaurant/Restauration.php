@@ -488,6 +488,10 @@ class Restauration extends PageMetier
      */
     public function enregistrerPlat(): void
     {
+        // La borne de 500 caractères porte sur le texte NORMALISÉ (rogné) : le poste
+        // et l'API (qui rogne les chaînes) jugent la même valeur.
+        $this->descriptionSaisie = (string) DescriptionPlat::normaliser($this->descriptionSaisie);
+
         $valide = $this->validerEcriture([
             'libelleSaisi' => ['required', 'string', 'max:255'],
             'descriptionSaisie' => DescriptionPlat::REGLES,

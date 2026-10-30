@@ -208,8 +208,13 @@ Map<String, Object?> chargePlat({
   String? articleId,
   String? unitesVendables,
   String? categorie,
+  String? description,
 }) => {
   'libelle': libelle,
+  // Depuis la v47 (30/10/2026) : la description facultative, normalisée. Absente
+  // d'un plat qui n'en a pas ; effacée, elle part en `null` explicite (voir
+  // `RestaurantDao._differences`).
+  'description': ?description,
   'menu_id': menuId,
   'recette_id': recetteId,
   'prix_vente': prixVenteFrancs,

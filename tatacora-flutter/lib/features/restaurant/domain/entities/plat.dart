@@ -26,6 +26,7 @@ final class Plat {
     this.categorieBrute,
     this.categorieCarteBrute,
     this.recetteLibelle,
+    this.description,
     this.prixProvisoire = false,
     this.prixCorrigeMain = false,
   });
@@ -34,6 +35,10 @@ final class Plat {
 
   /// Le champ « Nom du plat » du maître (l.131-135).
   final String libelle;
+
+  /// La description FACULTATIVE (v47, 30/10/2026, décision du PO), déjà
+  /// normalisée (trim, vide = `null`) : affichée en ligne secondaire sous le nom.
+  final String? description;
 
   /// PA-161 (b) — le tarif a été POSÉ faute de relevé. Une décision, cochée à la
   /// saisie.
@@ -290,7 +295,13 @@ final class SaisiePlat {
     this.id,
     this.prixProvisoire = false,
     this.categorie,
+    this.description,
   });
+
+  /// La description facultative saisie (500 caractères au plus). `null` :
+  /// non soumise, la description du plat reste telle quelle ; une chaîne vide ou
+  /// d'espaces l'EFFACE (vide = `NULL`, comme `DescriptionPlat` du serveur).
+  final String? description;
 
   /// La clé de [CategorieCarte] (`plats.categorie`), ou `null` : inchangée.
   final String? categorie;
@@ -322,6 +333,7 @@ final class SaisiePlat {
     'prix_vente': prixVente,
     'prix_provisoire': prixProvisoire,
     'categorie': ?categorie,
+    'description': ?description,
     if (!modification && id != null) 'id': id,
   };
 }

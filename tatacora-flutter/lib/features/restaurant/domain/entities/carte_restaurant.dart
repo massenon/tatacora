@@ -251,7 +251,12 @@ final class LigneCarteRestaurant {
     this.articleStockLibelle,
     this.articleStockUnite,
     this.unitesVendables,
+    this.description,
   });
+
+  /// La description FACULTATIVE du plat (v47, 30/10/2026), normalisée ; `null` =
+  /// aucune. Affichée en ligne secondaire sous le nom.
+  final String? description;
 
   /// Le lien DIRECT au stock (v36) : l'article de stock du plat, son unité et
   /// le conditionnement (« 24 » pour un casier de 24), ou `null` sans lien.

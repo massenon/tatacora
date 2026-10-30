@@ -48,6 +48,7 @@ void main() {
     'Prix de vente (FCFA)',
     'Menu',
     'Fiche recette',
+    'Description',
   ];
 
   List<String> ligne(String nom, String categorie) => [
@@ -56,6 +57,7 @@ void main() {
     '4500',
     'Menu local',
     'Poulet DG',
+    '',
   ];
 
   List<int> csv(List<List<String>> lignes) =>
@@ -110,6 +112,13 @@ void main() {
         ],
         ['pizzas', 'I', 'Poulet DG', 'Menu local', '3000'],
       ],
+      // 5. la description (30/10/2026) : facultative, 500 passe, 501 est refusé.
+      [
+        entete,
+        [...ligne('J', 'plats')]..[5] = 'Poulet, plantain mûr',
+        [...ligne('K', 'plats')]..[5] = 'x' * 500,
+        [...ligne('L', 'plats')]..[5] = 'x' * 501,
+      ],
     ];
 
     setUpAll(() async {
@@ -159,6 +168,7 @@ void main() {
         'montant',
         'reference',
         'reference',
+        'texte',
       ]);
     });
 
@@ -200,6 +210,25 @@ void main() {
       expect(r[2]['ok'], isFalse);
       expect(r[3]['ok'], isFalse, reason: 'colonne manquante');
       expect(r[4]['ok'], isTrue, reason: 'colonnes dans le désordre');
+      expect(r[5]['ok'], isFalse, reason: '501 caractères de description');
+      expect(
+        ((r[5]['erreurs'] as List).single as Map)['message'],
+        TextesControleImport.texteTropLong('Description', 500),
+      );
+    });
+
+    test('la colonne « Description » est déclarée comme au serveur : '
+        'facultative, texte, 500 caractères au plus', () {
+      final c = (serveur['colonnes'] as List)
+          .cast<Map<String, dynamic>>()
+          .singleWhere((x) => x['champ'] == 'description');
+      final poste = importeur().colonnes.singleWhere(
+        (x) => x.champ == 'description',
+      );
+      expect((poste.libelle, poste.requis), (c['libelle'], c['requis']));
+      expect(c['requis'], isFalse);
+      expect(poste.longueurMax, c['longueur_max']);
+      expect(poste.longueurMax, 500);
     });
   });
 
@@ -290,6 +319,38 @@ void main() {
         expect([for (final c in CategorieCarte.values) c.code], dixCles);
       },
     );
+
+    test('la description s’importe, rognée ; vide = aucune ; elle part avec la '
+        'création enfilée', () async {
+      await db.customStatement('DELETE FROM operations_sync_local');
+      final issue = await moteur.appliquer(
+        importeur(),
+        csv([
+          entete,
+          [...ligne('Avec', 'plats')]..[5] = '  Poulet, plantain  ',
+          ligne('Sans', 'plats'),
+        ]),
+      );
+      expect(issue, isA<ImportFait>(), reason: '$issue');
+      final lues = {
+        for (final l
+            in await db
+                .customSelect('SELECT libelle, description FROM plats_local')
+                .get())
+          l.data['libelle']: l.data['description'],
+      };
+      expect(lues, {'Avec': 'Poulet, plantain', 'Sans': null});
+      final file = await OperationsSyncDao(
+        db,
+      ).operations(table: TableSynchronisee.plats);
+      final charges = [
+        for (final o in file) jsonDecode(o.payload) as Map<String, dynamic>,
+      ];
+      final avec = charges.singleWhere((c) => c['libelle'] == 'Avec');
+      final sans = charges.singleWhere((c) => c['libelle'] == 'Sans');
+      expect(avec['description'], 'Poulet, plantain');
+      expect(sans.containsKey('description'), isFalse);
+    });
 
     test('le modèle téléchargeable porte la colonne « Catégorie » à sa place, '
         'avec son exemple', () {

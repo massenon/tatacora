@@ -173,7 +173,8 @@ final rechercheFichesProvider = NotifierProvider<_TexteNotifier, String>(
   _TexteNotifier.new,
 );
 
-/// « Fiches vides seulement » : le filtre qui rend le blocage praticable.
+/// « Fiches vides seulement » : le filtre qui isole les plats sans sortie de stock
+/// (ils se vendent quand même, depuis le 30/10/2026).
 final videsSeulementProvider = NotifierProvider<_BoolNotifier, bool>(
   _BoolNotifier.new,
 );

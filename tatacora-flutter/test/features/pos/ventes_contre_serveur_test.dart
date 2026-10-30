@@ -60,6 +60,7 @@ const _cocktail = '00000000-0000-4000-8000-0000000000b2';
 const _ephemere = '00000000-0000-4000-8000-0000000000b3';
 const _riz = '00000000-0000-4000-8000-0000000000a1';
 const _brochette = '00000000-0000-4000-8000-0000000000a2';
+const _salade = '00000000-0000-4000-8000-0000000000a3';
 const _circuit = '00000000-0000-4000-8000-0000000000c1';
 const _vehicule = '00000000-0000-4000-8000-0000000000d1';
 
@@ -98,6 +99,16 @@ const _catalogue = <Map<String, Object?>>[
     'module': 'M4',
     'libelle': 'Brochettes de bœuf',
     'prix': '3333',
+  },
+  // Un plat dont la fiche est VIDE (30/10/2026, décision du PO « le stock s'ajoute
+  // après ») : il se vend, sans aucun mouvement de stock.
+  {
+    'ref': 'salade',
+    'id': _salade,
+    'module': 'M4',
+    'libelle': 'Salade du jour',
+    'prix': '1800',
+    'sans_fiche': true,
   },
   // Tourisme et location, encaissables au comptoir (22/10/2026) : le prix est
   // `circuits.prix` / `vehicules.tarif_jour`, le libellé du véhicule son
@@ -162,6 +173,21 @@ final _scenario = <Map<String, Object?>>[
   _vente('comptoir', 'virement', [_ligne('riz', 1)]),
   // L'ordre du panier ne change pas la pièce (M4 puis M5).
   _vente('comptoir', 'especes', [_ligne('biere', 2), _ligne('brochette', 2)]),
+  {'op': 'compter'},
+
+  // --- UN PLAT SANS FICHE SE VEND (PO, 30/10/2026) ---------------------------
+  // La fiche du plat est vide : la vente passe sur chaque canal et chaque mode,
+  // sa pièce est celle de n'importe quel plat, et AUCUN mouvement de stock n'est
+  // écrit. Un plat à fiche, vendu dans le même panier, ne change pas la pièce.
+  _vente('comptoir', 'especes', [_ligne('salade', 2)]),
+  {'op': 'sorties_derniere_vente'},
+  _vente('comptoir', 'mobile_money', [_ligne('salade', 1), _ligne('riz', 1)]),
+  _vente('service', 'virement', [_ligne('salade', 3)]),
+  {'op': 'sorties_derniere_vente'},
+  _vente('sejour', 'note_chambre', [_ligne('salade', 1)]),
+  {'op': 'sorties_derniere_vente'},
+  _vente('comptoir', 'carte', [_ligne('salade', 4)]),
+  {'op': 'sorties_derniere_vente'},
   {'op': 'compter'},
 
   // --- Les refus du comptoir, DANS L'ORDRE du serveur -----------------------
@@ -683,6 +709,42 @@ void main() {
     }
   });
 
+  test(
+    'un plat SANS FICHE se vend des deux côtés et n’écrit aucun mouvement '
+    '(PO, 30/10/2026) — et le compteur du serveur MORD sur un plat à fiche',
+    () async {
+      // Les ventes de la « salade » (fiche vide) : réussies, zéro sortie.
+      var salades = 0;
+      for (var i = 0; i < _scenario.length; i++) {
+        final op = _scenario[i];
+        if (op['op'] == 'sorties_derniere_vente') {
+          final vente = serveur[i - 1] as Map;
+          expect(vente['ok'], isTrue, reason: 'opération ${i - 1}');
+          expect((serveur[i] as Map)['sorties'], 0, reason: 'serveur, op $i');
+          expect((local[i] as Map)['sorties'], 0, reason: 'poste, op $i');
+          salades++;
+        }
+      }
+      expect(salades, 4);
+
+      // Garde contre le vert à vide : sur un plat À FICHE, le serveur écrit bien
+      // une sortie de stock (le comptoir poste, lui, n'en écrit pas : écart nommé).
+      final r = await executerPhp(
+        'rejouer_ventes.php',
+        dossier: 'ventes',
+        entree: {
+          'aujourdhui': '2031-06-15',
+          'catalogue': _catalogue,
+          'ops': [
+            _vente('comptoir', 'especes', [_ligne('riz', 2)]),
+            {'op': 'sorties_derniere_vente'},
+          ],
+        },
+      );
+      expect(((r['resultats'] as List)[1] as Map)['sorties'], greaterThan(0));
+    },
+  );
+
   test('un refus n’écrit RIEN : les comptes sont ceux des seuls succès', () {
     final comptes = [
       for (final r in serveur)
@@ -1093,6 +1155,11 @@ Future<List<Map<String, Object?>>> _jouerLocalement(
     );
   }
 
+  Future<int> compterMouvements() async =>
+      (await db.select(db.mouvementsStockLocal).get()).length;
+  var mouvementsAvantVente = 0;
+  var mouvementsApresVente = 0;
+
   final resultats = <Map<String, Object?>>[];
 
   for (final op in scenario) {
@@ -1135,7 +1202,17 @@ Future<List<Map<String, Object?>>> _jouerLocalement(
                 (await compta.toutesLesEcritures()).length - departEcritures,
           },
         });
+      case 'sorties_derniere_vente':
+        // Le poste n'écrit AUCUN mouvement de stock à la vente d'un plat (ni avec
+        // fiche, ni sans) : on mesure donc la variation de ses mouvements autour
+        // de la dernière vente.
+        resultats.add({
+          'ok': true,
+          'sorties': mouvementsApresVente - mouvementsAvantVente,
+        });
       case 'vente':
+        mouvementsAvantVente = await compterMouvements();
+        mouvementsApresVente = mouvementsAvantVente;
         final canal = op['canal'] as String;
         final sejour = canal == 'sejour';
         if (!sejour) {
@@ -1221,6 +1298,7 @@ Future<List<Map<String, Object?>>> _jouerLocalement(
             (debits + 50) ~/ 100,
             reason: 'montantCloture = net arrondi au franc : ${op['lignes']}',
           );
+          mouvementsApresVente = await compterMouvements();
           resultats.add({
             'ok': true,
             'montant': chaineDepuisCentimes(debits),

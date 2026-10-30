@@ -241,6 +241,28 @@ void main() {
       },
     );
 
+    test('UN PLAT SANS FICHE SE VEND (PO, 30/10/2026) : la fiche du plat est '
+        'vide, la vente se clôture et passe sa pièce, sans AUCUN mouvement de '
+        'stock', () async {
+      final fiche = await (db.select(
+        db.ingredientsRecetteLocal,
+      )..where((i) => i.recetteId.equals('r-1'))).get();
+      expect(fiche, isEmpty, reason: 'la fiche r-1 du plat n’a aucune ligne');
+      final avant = (await db.select(db.mouvementsStockLocal).get()).length;
+
+      final p = await garni(lignes: const [(riz, 2)]);
+      final c = await cloturer(p);
+
+      expect(c.statut, StatutPanier.cloture);
+      expect(c.montantCloture, 5000);
+      expect(await piece(p.id), ['5711 D500000', '7061 C500000']);
+      expect(
+        (await db.select(db.mouvementsStockLocal).get()).length,
+        avant,
+        reason: 'un plat sans fiche ne sort rien du stock',
+      );
+    });
+
     test(
       'TOURISME et LOCATION s’encaissent au comptoir : Dr 5711 / Cr 7073 '
       '(location) et Cr 7061 (tourisme), en centimes, comme le serveur',

@@ -533,7 +533,7 @@ class _OngletFichesState extends ConsumerState<_OngletFiches> {
           child: Text(
             // `fiches_bandeau`, au mot — en UN littéral : le comparateur ne
             // recolle pas deux morceaux.
-            "Une fiche sans ingrédient ne décrémente aucun stock, et le point de vente REFUSE la vente du plat qui l'utilise. Ouvrez la fiche, posez ses articles de stock et leurs quantités par portion : le coût matière se calcule tout seul.",
+            "Une fiche sans ingrédient ne décrémente aucun stock : le plat qui l'utilise se vend quand même, sans sortie de stock. Ouvrez la fiche, posez ses articles de stock et leurs quantités par portion pour que la vente décrémente : le coût matière se calcule tout seul.",
             style: TextesRestaurant.petitCrud.copyWith(
               fontSize: TaillesContenu.t13,
               height: 1.5,
@@ -544,12 +544,14 @@ class _OngletFichesState extends ConsumerState<_OngletFiches> {
         _GrilleCartes(
           cartes: [
             ('Fiches techniques', k?.total.toString(), null, null, null),
+            // Décision du PO du 30/10/2026 (« le stock s'ajoute après ») : la vue
+            // (`fiches_kpi_vides`) colorait ce compteur en ROUGE dès qu'il restait une
+            // fiche vide, parce qu'une fiche vide était une vente refusée au comptoir.
+            // Le refus est levé : le compteur reste un repère de saisie, en gris neutre.
             (
-              'Fiches vides — vente refusée',
+              'Fiches vides — sans sortie de stock',
               k?.vides.toString(),
-              (k?.vides ?? 0) > 0
-                  ? PaletteMaitre.rouge600
-                  : PaletteMaitre.emeraude600,
+              AppColors.neutre600,
               null,
               null,
             ),
@@ -613,7 +615,7 @@ class _OngletFichesState extends ConsumerState<_OngletFiches> {
                   ),
                   const SizedBox(width: AppSpacing.xs),
                   Text(
-                    'Ce sont elles qui bloquent la vente au comptoir.',
+                    'Ces plats se vendent au comptoir, sans sortie de stock.',
                     style: TextesRestaurant.mention.copyWith(
                       fontSize: TaillesContenu.t11,
                       color: AppColors.neutre400,
@@ -774,7 +776,7 @@ class _CoutFiche extends StatelessWidget {
   }
 }
 
-/// L'état d'une fiche — vide (rouge), composée SANS suivi (bleu), composée
+/// L'état d'une fiche — vide (gris), composée SANS suivi (bleu), composée
 /// (vert). Le troisième est la vérité d'une salade verte : la fiche est
 /// composée et ne décrémente RIEN, parce que tous ses ingrédients s'achètent au
 /// jour le jour. Rendue « composée », elle se lirait comme une fiche qui
@@ -790,11 +792,13 @@ class _EtatFicheBadge extends StatelessWidget {
       EtatFiche.vide || null => (
         // `fiches_etat_vide` et son infobulle.
         'Vide — ne décrémente rien',
-        AppColors.badgeRougeFond,
-        AppColors.erreur,
-        'Toute vente de ce plat au point de vente restaurant est REFUSÉE tant '
-            'que la composition est vide : la cuisine ne saurait pas quoi '
-            'sortir du stock.',
+        // Neutre depuis le 30/10/2026 (la vue le rendait en rouge : une fiche vide
+        // était une vente refusée). Le plat se vend, sans sortie de stock.
+        AppColors.badgeGrisFond,
+        AppColors.badgeGrisTexte,
+        'Ce plat se vend au point de vente restaurant, sans aucune sortie de '
+            'stock tant que la composition est vide. Composez la fiche pour que '
+            'la vente décrémente ses ingrédients.',
       ),
       EtatFiche.sansSuivi => (
         // `fiches_etat_sans_suivi` et son infobulle.
@@ -1254,7 +1258,26 @@ class _NomPlat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final texte = Text(plat.libelle, style: TextesRestaurant.corpsCrud);
+    final nom = Text(plat.libelle, style: TextesRestaurant.corpsCrud);
+    final description = plat.description;
+    // La description FACULTATIVE (30/10/2026, décision du PO) : une ligne secondaire
+    // discrète sous le nom, rendue seulement quand elle existe.
+    final texte = description == null
+        ? nom
+        : Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              nom,
+              Text(
+                description,
+                key: Key('restauration-description-${plat.id}'),
+                style: TextesRestaurant.mention.copyWith(
+                  color: AppColors.neutre400,
+                ),
+              ),
+            ],
+          );
     if (retrait == null) return texte;
     return Opacity(
       opacity: AppLayout.opaciteLigneRetiree,

@@ -54,6 +54,7 @@ import '../../crm/domain/entities/client.dart';
 import '../../hebergement/data/parc_dao.dart';
 import '../../hebergement/domain/refus_parc.dart';
 import '../../restaurant/data/restaurant_dao.dart';
+import '../../restaurant/domain/calcul_restaurant.dart' show descriptionPlatMax;
 import '../../restaurant/domain/entities/plat.dart';
 import '../../stocks/data/service_import_articles.dart';
 import '../../stocks/data/stocks_api.dart';
@@ -506,8 +507,12 @@ final class ImporteurCarteRestaurant extends ImporteurLocal {
   String get nom => 'Carte du restaurant';
   @override
   String get description =>
-      'Plats proposés au restaurant. Chaque plat se rattache à un menu et à '
-      'une fiche recette existants.';
+      'Plats proposés au restaurant. Menu et fiche recette sont facultatifs : '
+      'un plat sans menu entre dans « Carte du restaurant », un plat sans fiche '
+      "reçoit une fiche vide du même nom (le stock consommé s'y ajoute ensuite) "
+      "et se vend sans mouvement de stock tant qu'elle est vide. La description "
+      'est facultative (500 caractères au plus). Un prix vide donne un plat « '
+      'sur commande » à 0 FCFA, prix provisoire.';
   @override
   String get identifiant => 'libelle';
   @override
@@ -552,6 +557,15 @@ final class ImporteurCarteRestaurant extends ImporteurLocal {
       requis: false,
       type: TypeColonneImport.reference,
       exemple: 'Poulet DG',
+    ),
+    // 30/10/2026 (décision du PO) — la description FACULTATIVE du plat : 500
+    // caractères au plus, comme le serveur (`DescriptionPlat::MAX`).
+    const ColonneImport(
+      champ: 'description',
+      libelle: 'Description',
+      requis: false,
+      exemple: 'Poulet, plantain mûr, poivron, tomate',
+      longueurMax: descriptionPlatMax,
     ),
   ];
 
@@ -604,6 +618,7 @@ final class ImporteurCarteRestaurant extends ImporteurLocal {
         prixVente: prix == null ? '0' : '${ImporteurLocal.francs(prix)}',
         prixProvisoire: prix == null,
         categorie: ligne.exiger('categorie'),
+        description: ligne['description'],
       ),
       modification: false,
       auteurId: auteur,

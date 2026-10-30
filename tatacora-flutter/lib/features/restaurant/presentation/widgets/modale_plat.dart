@@ -1,10 +1,12 @@
 // Vue Blade maîtresse (PA-183) : pwa/restaurant/restauration.blade.php
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show MaxLengthEnforcement;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../data/restaurant_api.dart';
+import '../../domain/calcul_restaurant.dart' show descriptionPlatMax;
 import '../../domain/entities/plat.dart';
 import '../../domain/messages_restaurant.dart';
 import '../providers_restaurant.dart';
@@ -75,6 +77,11 @@ class _ModalePlatState extends ConsumerState<_ModalePlat> {
   late final TextEditingController _libelle = TextEditingController(
     text: widget.plat?.libelle ?? '',
   );
+
+  /// La description FACULTATIVE (v47, 30/10/2026) : `label_description`.
+  late final TextEditingController _description = TextEditingController(
+    text: widget.plat?.description ?? '',
+  );
   late final TextEditingController _prix = TextEditingController(
     text: _prixInitial(widget.plat?.prixVente),
   );
@@ -103,6 +110,7 @@ class _ModalePlatState extends ConsumerState<_ModalePlat> {
   @override
   void dispose() {
     _libelle.dispose();
+    _description.dispose();
     _prix.dispose();
     super.dispose();
   }
@@ -122,6 +130,7 @@ class _ModalePlatState extends ConsumerState<_ModalePlat> {
       cleRefus: const Key('modale-plat-refus'),
       corps: _Corps(
         libelle: _libelle,
+        description: _description,
         prix: _prix,
         categorie: _categorie,
         onCategorie: (c) => setState(() => _categorie = c),
@@ -189,6 +198,8 @@ class _ModalePlatState extends ConsumerState<_ModalePlat> {
           SaisiePlat(
             id: widget.plat?.id,
             libelle: _libelle.text,
+            // Toujours soumise (comme la vue) : vide, elle EFFACE la description.
+            description: _description.text,
             menuId: _menuId ?? '',
             recetteId: _recetteId ?? '',
             prixVente: _prix.text,
@@ -235,6 +246,7 @@ class _ModalePlatState extends ConsumerState<_ModalePlat> {
 class _Corps extends StatelessWidget {
   const _Corps({
     required this.libelle,
+    required this.description,
     required this.prix,
     required this.categorie,
     required this.onCategorie,
@@ -253,6 +265,7 @@ class _Corps extends StatelessWidget {
   });
 
   final TextEditingController libelle;
+  final TextEditingController description;
   final TextEditingController prix;
   final CategorieCarte categorie;
   final ValueChanged<CategorieCarte> onCategorie;
@@ -286,6 +299,29 @@ class _Corps extends StatelessWidget {
             isDense: true,
             border: const OutlineInputBorder(),
             errorText: erreurs['libelle'],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+
+        // 1 bis. « Description » — `label_description` (30/10/2026, décision du PO) :
+        // FACULTATIVE (pas d'astérisque), multiligne, 500 caractères au plus ; vide =
+        // aucune description.
+        const EtiquetteChampRestaurant(texte: 'Description'),
+        TextField(
+          key: const Key('modale-plat-description'),
+          controller: description,
+          minLines: 3,
+          maxLines: 3,
+          maxLength: descriptionPlatMax,
+          maxLengthEnforcement: MaxLengthEnforcement.none,
+          keyboardType: TextInputType.multiline,
+          style: TextesModaleRestaurant.etiquette,
+          decoration: InputDecoration(
+            isDense: true,
+            border: const OutlineInputBorder(),
+            counterText: '',
+            errorText: erreurs['description'],
+            errorMaxLines: 3,
           ),
         ),
         const SizedBox(height: AppSpacing.md),

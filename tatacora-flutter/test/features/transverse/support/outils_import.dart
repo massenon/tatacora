@@ -135,12 +135,14 @@ const List<CasImport> casImport = [
     nom: 'Carte du restaurant',
     table: 'plats_local',
     colonne: 'libelle',
-    entete: 'Nom du plat;Catégorie;Prix de vente (FCFA);Menu;Fiche recette',
+    entete:
+        'Nom du plat;Catégorie;Prix de vente (FCFA);Menu;Fiche recette;'
+        'Description',
     valides: [
-      'Poulet DG;plats;4500;Menu local;Poulet DG',
-      'Poulet braisé;plats;4000;Menu local;Poulet DG',
+      'Poulet DG;plats;4500;Menu local;Poulet DG;Poulet, plantain mûr',
+      'Poulet braisé;plats;4000;Menu local;Poulet DG;',
     ],
-    fautive: 'Pâte rouge;plats;3000;Menu inconnu;Poulet DG',
+    fautive: 'Pâte rouge;plats;3000;Menu inconnu;Poulet DG;',
     colonneFautive: 'Menu',
     debutMessageFautif: 'aucun enregistrement « Menu inconnu »',
   ),

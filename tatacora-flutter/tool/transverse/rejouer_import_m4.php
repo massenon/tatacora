@@ -86,6 +86,7 @@ try {
     $colonnes = array_map(static fn ($c): array => [
         'champ' => $c->champ, 'libelle' => $c->libelle, 'requis' => $c->requis, 'type' => $c->type,
         'valeurs' => $c->valeurs, 'reference' => $c->reference, 'exemple' => $c->exemple,
+        'longueur_max' => $c->longueurMax,
     ], $module->colonnes);
 
     $rapports = [];

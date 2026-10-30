@@ -855,6 +855,8 @@ class AligneurCatalogue {
           menuId: Value(menu),
           recetteId: Value(recette),
           libelle: Value(libelle),
+          // v47 : la description facultative du plat (texte rogné, vide = `null`).
+          description: Value(_texte(d['description'])),
           prixVente: Value(prix),
           articleId: Value(lienArticle),
           unitesVendables: Value(lienUnites),
@@ -886,6 +888,7 @@ class AligneurCatalogue {
             menuId: menu,
             recetteId: recette,
             libelle: libelle,
+            description: Value(_texte(d['description'])),
             prixVente: prix,
             articleId: Value(lienArticle),
             unitesVendables: Value(lienUnites),

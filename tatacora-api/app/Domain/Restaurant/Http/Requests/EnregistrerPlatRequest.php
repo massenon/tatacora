@@ -86,6 +86,17 @@ final class EnregistrerPlatRequest extends FormRequest
     }
 
     /**
+     * La description est jugée NORMALISÉE (rognée), comme à la PWA et à la
+     * synchronisation : 500 caractères de texte, pas 500 espaces compris.
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('description')) {
+            $this->merge(['description' => DescriptionPlat::normaliser($this->input('description'))]);
+        }
+    }
+
+    /**
      * @return array<string, array<int, mixed>>
      */
     public function rules(): array

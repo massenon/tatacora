@@ -262,6 +262,7 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
           PlatCalcule(
             id: l.readTable(p).id,
             libelle: l.readTable(p).libelle,
+            description: l.readTable(p).description,
             menuId: l.readTable(p).menuId,
             categorie: l.readTable(p).categorie,
             recetteId: l.readTable(p).recetteId,
@@ -319,6 +320,7 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
   Plat _plat(PlatsLocalData p, MenusLocalData m, RecettesLocalData r) => Plat(
     id: p.id,
     libelle: p.libelle,
+    description: p.description,
     prixVente: ecrirePrix(p.prixVente),
     menuId: p.menuId,
     menuLibelle: m.libelle,
@@ -711,6 +713,7 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
             menuId: saisie.menuId,
             recetteId: saisie.recetteId,
             libelle: lue.libelle,
+            description: Value(lue.description),
             prixVente: lue.prixFrancs,
             prixProvisoire: Value(saisie.prixProvisoire),
             categorie: Value(saisie.categorie),
@@ -739,6 +742,11 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
           menuId: Value(saisie.menuId),
           recetteId: Value(saisie.recetteId),
           libelle: Value(lue.libelle),
+          // `null` (non soumise) : la description reste telle quelle ; soumise vide,
+          // elle est EFFACÉE (vide = NULL), comme `Restauration::enregistrerPlat`.
+          description: saisie.description == null
+              ? const Value.absent()
+              : Value(lue.description),
           prixVente: Value(lue.prixFrancs),
           prixProvisoire: Value(saisie.prixProvisoire),
           // `null` : la catégorie est laissée telle quelle (jamais effacée).
@@ -1027,6 +1035,7 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
 
   static Map<String, Object?> _chargePlat(PlatsLocalData p) => chargePlat(
     libelle: p.libelle,
+    description: p.description,
     menuId: p.menuId,
     recetteId: p.recetteId,
     prixVenteFrancs: p.prixVente,
@@ -1044,6 +1053,10 @@ class RestaurantDao extends DatabaseAccessor<AppDatabase> {
     PlatsLocalData apres,
   ) {
     final d = champsModifies(_chargePlat(avant), _chargePlat(apres));
+    // La description effacée repart en `null` EXPLICITE (même raison que le lien).
+    if (avant.description != null && apres.description == null) {
+      d['description'] = null;
+    }
     if (avant.articleId != null && apres.articleId == null) {
       d['article_id'] = null;
       d['unites_vendables_par_unite_stock'] = null;

@@ -53,7 +53,13 @@ final class ColonneImport {
     this.valeurs,
     this.exemple = '',
     this.alias = const [],
+    this.longueurMax,
   });
+
+  /// Type `texte` : nombre de caractères AU PLUS (30/10/2026, la description d'un
+  /// plat : 500), comme `ColonneImport::$longueurMax` du serveur ; `null` = pas de
+  /// borne propre.
+  final int? longueurMax;
 
   /// D'autres en-têtes reconnus pour la même colonne — ceux du modèle du
   /// SERVEUR quand le poste garde ses propres noms (M6 : huit colonnes au lieu
@@ -200,6 +206,8 @@ abstract final class TextesControleImport {
   static String colonneInconnue(String libelle) =>
       'Colonne « $libelle » non reconnue — elle sera ignorée.';
   static const String valeurObligatoire = 'valeur obligatoire absente';
+  static String texteTropLong(String libelle, int maximum) =>
+      '« $libelle » ne peut pas dépasser $maximum caractères';
   static String valeurHorsListe(String valeur, List<String> attendu) =>
       'valeur « $valeur » hors liste (attendu : ${attendu.join(', ')})';
   static String valeurNonNumerique(String valeur) =>
@@ -433,7 +441,10 @@ String? _controlerCellule(
   }
   switch (c.type) {
     case TypeColonneImport.texte:
-      return null;
+      final max = c.longueurMax;
+      return max != null && brut.length > max
+          ? TextesControleImport.texteTropLong(c.libelle, max)
+          : null;
     case TypeColonneImport.liste:
       final valeurs = c.valeurs ?? const <String>[];
       final n = normaliserImport(brut);
