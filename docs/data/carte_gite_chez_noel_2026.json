@@ -1,0 +1,517 @@
+{
+  "_source": "Transcription des 5 affiches de carte du Gîte Chez Noël fournies par le PO (30/10/2026). Prix en FCFA. Deux prix « a/b » = taille moyen/grand ou simple/double selon la rubrique. Rien n'est lié au stock : le stock s'ajoute APRÈS.",
+  "contacts": [
+    "+229 01 97 35 59 74",
+    "0142278166",
+    "https://Tatacora.com"
+  ],
+  "rubriques": [
+    {
+      "affiche": 1,
+      "rubrique": "Nos Desserts",
+      "type": "restaurant",
+      "articles": [
+        {
+          "nom": "Crêpe sucrée",
+          "prix": 1000
+        },
+        {
+          "nom": "Crêpe au chocolat",
+          "prix": 2000
+        },
+        {
+          "nom": "Crêpe au miel",
+          "prix": 1500
+        },
+        {
+          "nom": "Crêpe flambée",
+          "prix": 1500
+        },
+        {
+          "nom": "Pancake au miel",
+          "prix": 2000
+        },
+        {
+          "nom": "Pancake au chocolat",
+          "prix": 2500
+        },
+        {
+          "nom": "Salade de fruit",
+          "prix": 1500
+        },
+        {
+          "nom": "Dégué + cake",
+          "prix": 1500
+        },
+        {
+          "nom": "Yaourt",
+          "prix": 1000
+        },
+        {
+          "nom": "Lait Caillé",
+          "prix": 1000
+        }
+      ]
+    },
+    {
+      "affiche": 1,
+      "rubrique": "Jus de fruits fait maison",
+      "type": "boisson",
+      "variantes": "moyen/grand",
+      "articles": [
+        {
+          "nom": "Jus d'ananas",
+          "prix": 1500,
+          "prix_grand": 2000
+        },
+        {
+          "nom": "Jus de pastèque",
+          "prix": 1500,
+          "prix_grand": 2000
+        },
+        {
+          "nom": "Jus de banane",
+          "prix": 1500,
+          "prix_grand": 2000
+        }
+      ]
+    },
+    {
+      "affiche": 1,
+      "rubrique": "Nos cafés",
+      "type": "boisson",
+      "variantes": "simple/double",
+      "articles": [
+        {
+          "nom": "Café simple",
+          "prix": 500,
+          "prix_grand": 1000
+        },
+        {
+          "nom": "Café expresso",
+          "prix": 1000
+        }
+      ]
+    },
+    {
+      "affiche": 2,
+      "rubrique": "Entrées",
+      "type": "restaurant",
+      "articles": [
+        {
+          "nom": "Salade Peulh",
+          "prix": 2000
+        },
+        {
+          "nom": "Salade au Poulet",
+          "prix": 6000
+        },
+        {
+          "nom": "Salade d'aubergines au Fromage Peulh",
+          "prix": 2000
+        },
+        {
+          "nom": "Salade du Chef",
+          "prix": 4000
+        },
+        {
+          "nom": "Salade Verte",
+          "prix": 1500
+        }
+      ]
+    },
+    {
+      "affiche": 2,
+      "rubrique": "Plats complets",
+      "type": "restaurant",
+      "articles": [
+        {
+          "nom": "TCHEP au Poisson",
+          "prix": 7000
+        },
+        {
+          "nom": "Tajine de Mouton + Accompagnement",
+          "prix": 5000
+        },
+        {
+          "nom": "Ragoût de Mouton",
+          "prix": 5000
+        },
+        {
+          "nom": "Ragoût de Bœuf",
+          "prix": 4000
+        },
+        {
+          "nom": "Ragoût de Poulet",
+          "prix": 6000
+        },
+        {
+          "nom": "Ragoût de Lapin",
+          "prix": 5000
+        },
+        {
+          "nom": "Tête de Mouton + Accompagnement",
+          "prix": 6000
+        },
+        {
+          "nom": "Tête de Cabri + Accompagnement",
+          "prix": 6000
+        }
+      ]
+    },
+    {
+      "affiche": 3,
+      "rubrique": "Nos sauces",
+      "type": "restaurant",
+      "articles": [
+        {
+          "nom": "Sauce man",
+          "prix": 1500
+        },
+        {
+          "nom": "Sauce acadjou",
+          "prix": 1000
+        },
+        {
+          "nom": "Sauce crin-crin / gombo",
+          "prix": 1500
+        },
+        {
+          "nom": "Sauce moyo",
+          "prix": 1000
+        },
+        {
+          "nom": "Sauce d'arachide",
+          "prix": 1000
+        }
+      ]
+    },
+    {
+      "affiche": 3,
+      "rubrique": "Garnitures",
+      "type": "restaurant",
+      "articles": [
+        {
+          "nom": "Demi-poulet",
+          "prix": 4500
+        },
+        {
+          "nom": "Demi-pintade",
+          "prix": 5500
+        },
+        {
+          "nom": "Poisson carpe",
+          "prix": 5500
+        },
+        {
+          "nom": "Poisson dorade",
+          "prix": 2500
+        },
+        {
+          "nom": "Poissons silivi",
+          "prix": 2000
+        },
+        {
+          "nom": "Poisson-chat (Pepper Soup)",
+          "prix": 6000
+        },
+        {
+          "nom": "Aileron",
+          "prix": 2000
+        },
+        {
+          "nom": "Portion de bœuf",
+          "prix": 2000
+        }
+      ]
+    },
+    {
+      "affiche": 4,
+      "rubrique": "Garniture (portions et omelettes)",
+      "type": "restaurant",
+      "articles": [
+        {
+          "nom": "Portion de mouton",
+          "prix": 2500
+        },
+        {
+          "nom": "Portion de boyaux de bœuf",
+          "prix": 1500
+        },
+        {
+          "nom": "Saucisse",
+          "prix": 1000
+        },
+        {
+          "nom": "Omelette nature",
+          "prix": 1000
+        },
+        {
+          "nom": "Omelette légume",
+          "prix": 1500
+        },
+        {
+          "nom": "Omelette sardine",
+          "prix": 2000
+        },
+        {
+          "nom": "Omelette du gîte",
+          "prix": 2500
+        },
+        {
+          "nom": "Omelette soufflée au jambon",
+          "prix": 3000
+        }
+      ]
+    },
+    {
+      "affiche": 4,
+      "rubrique": "Accompagnements",
+      "type": "restaurant",
+      "articles": [
+        {
+          "nom": "Couscous de fonio",
+          "prix": 1500
+        },
+        {
+          "nom": "Couscous marocain",
+          "prix": 1500
+        },
+        {
+          "nom": "Riz blanc",
+          "prix": 1500
+        },
+        {
+          "nom": "Riz au gras",
+          "prix": 1500
+        },
+        {
+          "nom": "Riz créole",
+          "prix": 1500
+        },
+        {
+          "nom": "Atassi (riz + haricot)",
+          "prix": 1500
+        },
+        {
+          "nom": "Pâte noire",
+          "prix": 1000
+        },
+        {
+          "nom": "Pâte blanche",
+          "prix": 1000
+        },
+        {
+          "nom": "Pâte rouge",
+          "prix": 1500
+        },
+        {
+          "nom": "Igname pilé",
+          "prix": 2000
+        },
+        {
+          "nom": "Piron",
+          "prix": 1000
+        }
+      ]
+    },
+    {
+      "affiche": 5,
+      "rubrique": "Sandwicherie",
+      "type": "restaurant",
+      "articles": [
+        {
+          "nom": "Chawarma viande",
+          "prix": 2000
+        },
+        {
+          "nom": "Chawarma poulet",
+          "prix": 3000
+        },
+        {
+          "nom": "Chawarma poisson",
+          "prix": 2000
+        },
+        {
+          "nom": "Chawarma végan",
+          "prix": 2000
+        },
+        {
+          "nom": "Chawarma mixte",
+          "prix": 3000,
+          "description": "Viande de bœuf, saucisse"
+        },
+        {
+          "nom": "Chawarma gîte",
+          "prix": 3500,
+          "description": "Viande de bœuf, jambon, fromage peuilh"
+        },
+        {
+          "nom": "Sandwich viande",
+          "prix": 1500
+        },
+        {
+          "nom": "Sandwich poisson",
+          "prix": 1500
+        },
+        {
+          "nom": "Sandwich omelette",
+          "prix": 1500
+        },
+        {
+          "nom": "Sandwich poulet",
+          "prix": 2000
+        },
+        {
+          "nom": "Panini jambon",
+          "prix": 2000
+        }
+      ]
+    },
+    {
+      "affiche": 5,
+      "rubrique": "Pizzas",
+      "type": "restaurant",
+      "articles": [
+        {
+          "nom": "Pizza du gîte (grande)",
+          "prix": 8000,
+          "description": "Sauce tomate, bœuf hachée, saucisse, fromage peuilh, fromage mozza"
+        },
+        {
+          "nom": "Pizza du nord (grande)",
+          "prix": 7000,
+          "description": "Sauce tomate, fromage peuilh, mozza"
+        },
+        {
+          "nom": "Pizza cordon bleu",
+          "prix": 9000,
+          "description": "Sauce tomate, poulet hachée, jambon, fromage mozza"
+        },
+        {
+          "nom": "Pizza végan",
+          "prix": 6000,
+          "description": "Carotte, chou, haricot vert, champignon, petit poids, maïs doux, mozza"
+        },
+        {
+          "nom": "Pizza royale (grande)",
+          "prix": 8500,
+          "description": "Carotte, choux, jambon, viande de bœuf, mozza"
+        }
+      ]
+    },
+    {
+      "affiche": 5,
+      "rubrique": "Hamburger frites",
+      "type": "restaurant",
+      "articles": [
+        {
+          "nom": "Hamburger frites",
+          "prix": 2500
+        }
+      ]
+    },
+    {
+      "affiche": 6,
+      "rubrique": "Accompagnement (affiche 6)",
+      "type": "restaurant",
+      "_note": "Piron figure aussi à l'affiche 4 (même prix 1000) : un seul enregistrement",
+      "articles": [
+        {
+          "nom": "Pommes sautées",
+          "prix": 1500,
+          "_note": "écrit « Pommés sautées » sur l'affiche"
+        },
+        {
+          "nom": "Spaghetti, coquillette",
+          "prix": 1500
+        },
+        {
+          "nom": "Attiéké + plantain",
+          "prix": 2000,
+          "_note": "écrit « plantin » sur l'affiche"
+        },
+        {
+          "nom": "Piron",
+          "prix": 1000
+        },
+        {
+          "nom": "Ratatouille",
+          "prix": 1000
+        },
+        {
+          "nom": "Akassa",
+          "prix": 500
+        },
+        {
+          "nom": "Aloco",
+          "prix": 1500
+        }
+      ]
+    },
+    {
+      "affiche": 6,
+      "rubrique": "Sandwicherie (affiche 6)",
+      "type": "restaurant",
+      "_note": "Décision PO 30/10/2026 : « Panini jambon » (affiche 5) ET « Panini » (affiche 6) sont deux articles distincts, tous deux à 2000",
+      "articles": [
+        {
+          "nom": "Panini",
+          "prix": 2000
+        }
+      ]
+    },
+    {
+      "affiche": 7,
+      "rubrique": "Petits déjeuners",
+      "type": "restaurant",
+      "supplement": "Tous les suppléments sur le petit-déjeuner sont à 500 FCFA",
+      "articles": [
+        {
+          "nom": "Réveil léger du gîte",
+          "prix": 2500,
+          "description": "Café/thé/tisane locale (citronnelle, passiflore), confiture, miel, sucre, beurre, pain"
+        },
+        {
+          "nom": "Plaisir matinal du gîte",
+          "prix": 4000,
+          "description": "Café/thé/tisane locale (citronnelle, passiflore), lait, confiture, sucre, beurre, miel, pain, bouillie locale (aklou/mille), doko, omelette, jus de fruits/salade de fruits"
+        }
+      ]
+    },
+    {
+      "affiche": 7,
+      "rubrique": "Sur commande",
+      "type": "restaurant",
+      "_note": "Décision PO 30/10/2026 : prix VIDE pour l'instant (le PO le renseignera). Si un nom existe déjà dans une autre rubrique (Panini, Igname pilé), suffixer « (sur commande) » plutôt que fusionner.",
+      "articles": [
+        {
+          "nom": "Hamburger",
+          "prix": null
+        },
+        {
+          "nom": "Panini",
+          "prix": null
+        },
+        {
+          "nom": "TCHEP",
+          "prix": null
+        },
+        {
+          "nom": "Wassa wassa",
+          "prix": null
+        },
+        {
+          "nom": "Igname pilé",
+          "prix": null
+        }
+      ]
+    }
+  ],
+  "_decisions_po_30_10_2026": [
+    "Panini jambon et Panini : deux articles",
+    "Orthographe corrigée : Pommes sautées, Attiéké + plantain, Akassa",
+    "Pas de « Jus de banane » sous Nos cafés",
+    "Articles sur commande : prix vide"
+  ]
+}
