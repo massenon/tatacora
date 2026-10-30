@@ -796,6 +796,9 @@ trait EcranDeCarte
                 'modele' => $article,
                 'id' => (string) $article->getKey(),
                 'nom' => (string) $article->libelle,
+                // 30/10/2026 (décision du PO) : la description FACULTATIVE d'un
+                // plat, en ligne secondaire sous le nom. Une boisson n'en a pas.
+                'description' => $article instanceof Plat ? $article->description : null,
                 'categorie_cle' => (string) ($article->categorie ?? ''),
                 'categorie' => $this->categoriesDeLaCarte()[$article->categorie ?? ''] ?? (string) ($article->categorie ?? ''),
                 'prix' => MontantFcfa::format((string) $article->prix_vente),

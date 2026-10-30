@@ -481,6 +481,96 @@ final class RestaurantPwaTest extends TestCase
         $this->assertSame(0, bccomp((string) $cree->prix_vente, '2500.00', 2));
     }
 
+    /**
+     * Décision du PO du 30/10/2026 : la description du plat est FACULTATIVE,
+     * normalisée (trim, vide = NULL), 500 caractères au plus, et s'affiche en
+     * ligne secondaire sous le nom dans la liste des plats.
+     */
+    #[Test]
+    public function la_description_du_plat_est_facultative_normalisee_et_affichee(): void
+    {
+        $this->jeuDeDonnees();
+        $this->actingAs($this->utilisateur('administrateur'));
+
+        $saisie = fn (string $nom, string $description) => Livewire::test(Restauration::class)
+            ->call('ouvrirCreationPlat')
+            ->set('libelleSaisi', $nom)
+            ->set('descriptionSaisie', $description)
+            ->set('prixVenteSaisi', '2500')
+            ->set('categorieSaisie', 'plats')
+            ->set('menuIdSaisi', $this->menu->id)
+            ->set('recetteIdSaisie', $this->recetteGarnie->id)
+            ->call('enregistrerPlat');
+
+        // Absente : le plat est créé, la colonne vaut NULL.
+        $saisie('Plat sans description', '')->assertHasNoErrors();
+        $this->assertNull(Plat::where('libelle', 'Plat sans description')->firstOrFail()->description);
+
+        // Faite d'espaces : NULL aussi.
+        $saisie('Plat espaces', "  \n  ")->assertHasNoErrors();
+        $this->assertNull(Plat::where('libelle', 'Plat espaces')->firstOrFail()->description);
+
+        // Saisie : rognée, conservée telle quelle à l'intérieur (multiligne).
+        $saisie('Plat décrit', "  Poulet, plantain\nsauce tomate  ")->assertHasNoErrors();
+        $plat = Plat::where('libelle', 'Plat décrit')->firstOrFail();
+        $this->assertSame("Poulet, plantain\nsauce tomate", $plat->description);
+
+        // 500 passe, 501 est refusé avec la phrase de l'API.
+        $saisie('Plat limite', str_repeat('a', 500))->assertHasNoErrors();
+        $saisie('Plat trop long', str_repeat('a', 501))
+            ->assertHasErrors(['descriptionSaisie'])
+            ->assertSee(__('restaurant.validation.description_trop_longue', ['max' => 500]));
+        $this->assertNull(Plat::where('libelle', 'Plat trop long')->first());
+
+        // La modification précharge puis efface (vide = NULL).
+        $composant = Livewire::test(Restauration::class)
+            ->call('ouvrirModificationPlat', $plat->id)
+            ->assertSet('descriptionSaisie', "Poulet, plantain\nsauce tomate");
+        $this->assertStringContainsString('Poulet, plantain', $composant->html());
+
+        // La carte du restaurant la montre en ligne secondaire sous le nom ; sans
+        // description, aucune ligne secondaire n'est rendue.
+        $carte = Livewire::test(CarteRestaurant::class)->html();
+        $this->assertStringContainsString('Poulet, plantain', $carte);
+        $this->assertStringContainsString('Plat limite', $carte);
+
+        $composant->set('descriptionSaisie', '')->call('enregistrerPlat')->assertHasNoErrors();
+        $this->assertNull($plat->refresh()->description);
+    }
+
+    /**
+     * L'API refuse comme la PWA : 501 caractères, et une modification qui ne
+     * soumet pas la description la laisse en place.
+     */
+    #[Test]
+    public function l_api_valide_la_description_et_la_modification_sans_elle_la_conserve(): void
+    {
+        $this->jeuDeDonnees();
+        $this->actingAs($this->utilisateur('administrateur'));
+
+        $corps = [
+            'libelle' => 'Plat API', 'menu_id' => $this->menu->id,
+            'recette_id' => $this->recetteGarnie->id, 'prix_vente' => '1000',
+        ];
+
+        $this->postJson('/api/v1/restaurant/plats', [...$corps, 'description' => str_repeat('b', 501)])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('description');
+
+        $id = $this->postJson('/api/v1/restaurant/plats', [...$corps, 'description' => '  Riz et sauce  '])
+            ->assertCreated()
+            ->assertJsonPath('data.description', 'Riz et sauce')
+            ->json('data.id');
+
+        $this->putJson("/api/v1/restaurant/plats/{$id}", [...$corps, 'prix_vente' => '1200'])
+            ->assertOk()
+            ->assertJsonPath('data.description', 'Riz et sauce');
+
+        $this->putJson("/api/v1/restaurant/plats/{$id}", [...$corps, 'description' => '   '])
+            ->assertOk()
+            ->assertJsonPath('data.description', null);
+    }
+
     #[Test]
     public function un_role_en_lecture_seule_ne_peut_pas_creer_de_plat(): void
     {

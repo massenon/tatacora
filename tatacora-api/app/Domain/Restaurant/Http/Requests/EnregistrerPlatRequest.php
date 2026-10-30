@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Restaurant\Http\Requests;
 
 use App\Domain\Restaurant\Models\Plat;
+use App\Domain\Restaurant\Support\DescriptionPlat;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -94,6 +95,12 @@ final class EnregistrerPlatRequest extends FormRequest
         $regles = [
             'libelle' => ['required', 'string', 'max:255'],
 
+            // La description FACULTATIVE (30/10/2026, décision du PO) : 500
+            // caractères au plus, normalisée par `DescriptionPlat` (vide = null).
+            // `sometimes` : une modification qui ne la soumet pas la laisse en
+            // place, elle ne l'efface pas.
+            'description' => ['sometimes', ...DescriptionPlat::REGLES],
+
             // De VRAIES clés étrangères, jamais du texte libre (règle projet).
             // `menu_id` porte aussi la catégorie affichée : sans lui, un plat
             // n'aurait pas de catégorie du tout.
@@ -135,6 +142,7 @@ final class EnregistrerPlatRequest extends FormRequest
             'menu_id.exists' => __('restaurant.validation.menu_inexistant'),
             'recette_id.required' => __('restaurant.validation.recette_obligatoire'),
             'recette_id.exists' => __('restaurant.validation.recette_inexistante'),
+            'description.max' => __('restaurant.validation.description_trop_longue', ['max' => DescriptionPlat::MAX]),
             'prix_vente.required' => __('restaurant.validation.prix_obligatoire'),
             'prix_vente.min' => __('restaurant.validation.prix_negatif'),
             'id.prohibited' => __('restaurant.validation.identifiant_non_modifiable'),

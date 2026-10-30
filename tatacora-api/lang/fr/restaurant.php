@@ -7,9 +7,10 @@ declare(strict_types=1);
  */
 
 return [
-    'recette_manquante' => 'Le plat « :plat » n\'a pas de fiche technique : sa vente ne pourrait '
-        // Article 8 (02/09/2026) : la reference RG-05 vit ici, jamais a l'ecran.
-        . 'décrémenter aucun stock. Renseignez sa recette avant de le mettre à la carte.',
+    // N'est plus levée (30/10/2026, décision du PO : un plat sans fiche se vend). Le texte dit
+    // ce qui est vrai : le plat n'a pas de fiche composée, sa vente ne sort aucun stock.
+    'recette_manquante' => 'Le plat « :plat » n\'a pas de fiche technique composée : sa vente ne décrémente '
+        . 'aucun stock tant qu\'elle est vide.',
     'commande_vide' => 'Une commande doit comporter au moins une ligne.',
     'deja_transmise' => 'Cette commande a déjà été transmise en cuisine.',
     'annulee_non_transmissible' => 'Une commande annulée ne peut pas être transmise.',
@@ -51,6 +52,7 @@ return [
             // Article 8 (02/09/2026) : la reference RG-05 vit ici, jamais a l'ecran.
             . 'ne décrémenterait aucun stock.',
         'recette_inexistante' => 'Fiche technique inconnue du référentiel.',
+        'description_trop_longue' => 'La description ne peut pas dépasser :max caractères.',
         'prix_obligatoire' => 'Le prix de vente est obligatoire.',
         'prix_negatif' => 'Le prix de vente ne peut pas être négatif.',
         'saison_inversee' => 'La fin de validité précède son début : ce menu ne rendrait jamais aucun '

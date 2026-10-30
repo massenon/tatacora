@@ -57,6 +57,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string|null $article_id
  * @property string|null $unites_vendables_par_unite_stock
  * @property string $libelle
+ * @property string|null $description
  * @property string $prix_vente
  * @property bool $prix_provisoire
  * @property bool $prix_corrige_main
@@ -75,7 +76,7 @@ class Plat extends Model
 
     protected $fillable = [
         'id', 'menu_id', 'recette_id', 'article_id',
-        'unites_vendables_par_unite_stock', 'libelle', 'prix_vente', 'categorie',
+        'unites_vendables_par_unite_stock', 'libelle', 'description', 'prix_vente', 'categorie',
         'prix_provisoire', 'prix_corrige_main',
     ];
 

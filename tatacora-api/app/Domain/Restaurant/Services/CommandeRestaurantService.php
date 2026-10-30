@@ -67,7 +67,6 @@ class CommandeRestaurantService
      * peut pas honorer.
      *
      * @throws \App\Domain\Stocks\Exceptions\RuptureStockException
-     * @throws \App\Domain\Restaurant\Exceptions\RecetteManquanteException
      */
     public function transmettreEnCuisine(CommandeRestaurant $commande, bool $validationRupture = false): CommandeRestaurant
     {

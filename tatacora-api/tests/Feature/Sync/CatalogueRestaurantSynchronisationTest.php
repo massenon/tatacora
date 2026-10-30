@@ -248,6 +248,42 @@ final class CatalogueRestaurantSynchronisationTest extends TestCase
     }
 
     /**
+     * La description facultative d'un plat (30/10/2026, poste v47) monte avec le plat :
+     * normalisée (trim, vide = NULL) par le service, refusée au-delà de 500 caractères avec
+     * la phrase de l'API, conservée par une modification qui ne la nomme pas.
+     */
+    #[Test]
+    public function la_description_d_un_plat_se_synchronise_normalisee_et_bornee(): void
+    {
+        $menu = app(CartePlatMenuService::class)->creerMenu(['libelle' => 'Carte', 'type' => 'local']);
+        $fiche = app(ReferentielRecetteService::class)->creer(['libelle' => 'Riz gras']);
+        $base = ['menu_id' => $menu->id, 'recette_id' => $fiche->id, 'prix_vente' => '1000', 'categorie' => 'plats'];
+
+        $id = $this->uuid();
+        $this->pousser([$this->creation('plats', $id, [...$base, 'libelle' => 'Décrit', 'description' => "  Riz, sauce\n  "])], $this->cuisinier)
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertSame('Riz, sauce', Plat::findOrFail($id)->description);
+
+        $sans = $this->uuid();
+        $this->pousser([$this->creation('plats', $sans, [...$base, 'libelle' => 'Sans', 'description' => '   '])], $this->cuisinier)
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertNull(Plat::findOrFail($sans)->description);
+
+        // Une modification sans la clé la laisse en place ; avec `null`, elle l'efface.
+        $this->pousser([$this->operation('plats', 'modification', $id, ['prix_vente' => '1200'])], $this->cuisinier)
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertSame('Riz, sauce', Plat::findOrFail($id)->description);
+        $this->pousser([$this->operation('plats', 'modification', $id, ['description' => null])], $this->cuisinier)
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertNull(Plat::findOrFail($id)->description);
+
+        $this->pousser([$this->creation('plats', $this->uuid(), [...$base, 'libelle' => 'Trop long', 'description' => str_repeat('x', 501)])], $this->cuisinier)
+            ->assertJsonPath('resultats.0.statut', 'rejete')
+            ->assertJsonPath('resultats.0.motif', __('restaurant.validation.description_trop_longue', ['max' => 500]));
+        $this->assertNull(Plat::where('libelle', 'Trop long')->first());
+    }
+
+    /**
      * Adapté le 15/10/2026 (décision PO « offline-first total ») : sans le
      * droit d'écriture sur M4, création ET modification restent refusées ;
      * avec lui, la modification d'un menu est désormais appliquée.

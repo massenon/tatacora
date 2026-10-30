@@ -44,10 +44,10 @@ use Illuminate\Support\Facades\DB;
  * ## « Lié au stock » veut dire quelque chose de précis
  *
  * `plats.recette_id` étant NOT NULL, tout plat a une fiche technique. Ce qui
- * varie, c'est qu'elle soit **remplie** : une recette sans ligne se vend sans
- * rien décrémenter, et c'est le cas exact que `RecetteManquanteException`
- * refuse à la transmission en cuisine. L'écran le montre donc AVANT la vente,
- * plutôt que de laisser le serveur découvrir le refus devant le client.
+ * varie, c'est qu'elle soit **remplie** : une recette sans ligne ne décrémente
+ * rien. Depuis le 30/10/2026 (décision du PO) le plat se vend quand même,
+ * sans sortie de stock ; l'écran le montre AVANT la vente, pour qu'un plat
+ * « non lié » ne soit pas lu comme un stock suivi.
  *
  * ## UN filtre du maître reste refusé — l'autre ne l'est plus
  *

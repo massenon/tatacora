@@ -9,7 +9,6 @@ use App\Domain\Caisse\Services\SessionCaisseService;
 use App\Domain\Comptabilite\Models\CompteComptable;
 use App\Domain\Comptabilite\Models\EcritureComptable;
 use App\Domain\Comptabilite\Models\JournalComptable;
-use App\Domain\Restaurant\Exceptions\RecetteManquanteException;
 use App\Domain\Restaurant\Models\CommandeRestaurant;
 use App\Domain\Restaurant\Models\Plat;
 use App\Domain\Restaurant\Models\Recette;
@@ -164,14 +163,15 @@ final class VentesSynchronisationTest extends TestCase
     }
 
     /**
-     * Décision du PO du 15/10/2026 : un plat SANS composition (fiche vide,
-     * aucun lien direct) ne fait pas rejeter une vente synchronisée. La vente
-     * est écrite, ses autres lignes sortent leur stock, la ligne fautive n'en
-     * sort aucun et l'anomalie `plat_sans_composition` est enregistrée — une
-     * seule fois, même au rejeu. En ligne, la même vente reste refusée.
+     * Décision du PO du 15/10/2026 (vente synchronisée), étendue le 30/10/2026
+     * (« le stock s'ajoute après ») : un plat SANS composition (fiche vide,
+     * aucun lien direct) se vend PARTOUT. La vente est écrite, ses autres lignes
+     * sortent leur stock, la ligne sans fiche n'en sort aucun et le DIT dans
+     * `stock_non_impacte` — mais ce n'est plus une anomalie à examiner. En ligne,
+     * la même vente passe aussi.
      */
     #[Test]
-    public function un_plat_sans_composition_ne_fait_pas_rejeter_la_vente_mais_est_signale(): void
+    public function un_plat_sans_fiche_se_vend_sans_mouvement_de_stock_et_sans_anomalie(): void
     {
         $ficheVide = Recette::create(['libelle' => 'Salade du jour', 'cout_matiere_calcule' => '0.00']);
         $salade = Plat::create([
@@ -188,7 +188,7 @@ final class VentesSynchronisationTest extends TestCase
         $this->pousser([$operation], $this->gerant)
             ->assertJsonPath('resultats.0.statut', 'synchronise')
             ->assertJsonPath('resultats.0.montant_total', '10500.00')
-            ->assertJsonPath('resultats.0.anomalies', [AnomalieSynchronisation::PLAT_SANS_COMPOSITION]);
+            ->assertJsonMissingPath('resultats.0.anomalies');
 
         $vente = Vente::findOrFail($id);
         $this->assertSame(3, $vente->lignes()->count());
@@ -198,27 +198,20 @@ final class VentesSynchronisationTest extends TestCase
             'motif' => __('ventes.stock_non_sorti_plat_sans_composition', ['plat' => 'Salade du jour']),
             'cause' => 'plat_sans_composition', 'plat_id' => $salade->id, 'quantite' => 3,
         ]], $vente->stock_non_impacte);
-        // Les autres lignes ont sorti leur stock.
+        // Les autres lignes ont sorti leur stock : un plat AVEC fiche décrémente toujours.
         $this->assertSame('0.50', (string) MouvementStock::where('article_id', $this->articleRiz->id)->where('type_mouvement', 'sortie')->sole()->quantite);
         $this->assertSame(1, $this->nombreDeMouvements($this->articleBiere->id, 'sortie'));
-        $this->assertDatabaseHas('anomalies_synchronisation', [
-            'table_concernee' => 'ventes', 'entite_id' => $id,
-            'type' => AnomalieSynchronisation::PLAT_SANS_COMPOSITION, 'reference' => $salade->id,
-        ]);
+        $this->assertSame(0, AnomalieSynchronisation::where('type', AnomalieSynchronisation::PLAT_SANS_COMPOSITION)->count());
 
-        // Rejeu après purge : même document, aucune seconde anomalie.
-        $this->purgerLaMemoireDIdempotence();
-        $this->pousser([$this->nouvelleTentative($operation)], $this->gerant)
-            ->assertJsonPath('resultats.0.document_deja_enregistre', true);
-        $this->assertSame(1, AnomalieSynchronisation::where('type', AnomalieSynchronisation::PLAT_SANS_COMPOSITION)->count());
-
-        // En ligne (sans `sansBonDeCuisine`), rien ne change : refusée.
-        $this->expectException(RecetteManquanteException::class);
+        // En ligne (sans `sansBonDeCuisine`) : la même vente passe, sans mouvement.
+        $avant = MouvementStock::count();
         $this->actingAs($this->gerant);
-        app(VenteService::class)->enregistrer([
+        $enLigne = app(VenteService::class)->enregistrer([
             'mode_paiement' => 'especes',
             'lignes' => [['module' => 'M4', 'reference_id' => $salade->id, 'quantite' => 1]],
         ]);
+        $this->assertSame($avant, MouvementStock::count(), 'Un plat sans fiche ne produit aucun mouvement de stock.');
+        $this->assertSame('plat_sans_composition', $enLigne->refresh()->stock_non_impacte[0]['cause']);
     }
 
     #[Test]

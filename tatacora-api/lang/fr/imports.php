@@ -31,6 +31,7 @@ return [
         'ligne_exemple_ignoree' => 'Ligne d\'exemple du modèle (« (exemple) ») — ignorée.',
         'colonne_inconnue' => 'Colonne « :libelle » non reconnue — elle sera ignorée.',
         'valeur_obligatoire' => 'valeur obligatoire absente',
+        'texte_trop_long' => '« :colonne » ne peut pas dépasser :maximum caractères',
         'valeur_hors_liste' => 'valeur « :valeur » hors liste (attendu : :attendu)',
         'valeur_non_numerique' => 'valeur « :valeur » n\'est pas un nombre',
         'montant_negatif' => 'montant négatif (:valeur)',
@@ -117,13 +118,14 @@ return [
 
     'm4_restaurant' => [
         'nom' => 'Carte du restaurant',
-        'description' => 'Plats proposés au restaurant. Menu et fiche recette sont facultatifs : un plat sans menu entre dans « Carte du restaurant », un plat sans fiche reçoit une fiche vide du même nom (à composer ensuite). Un prix vide donne un plat « sur commande » à 0 FCFA, prix provisoire.',
+        'description' => 'Plats proposés au restaurant. Menu et fiche recette sont facultatifs : un plat sans menu entre dans « Carte du restaurant », un plat sans fiche reçoit une fiche vide du même nom (le stock consommé s\'y ajoute ensuite) et se vend sans mouvement de stock tant qu\'elle est vide. La description est facultative (500 caractères au plus). Un prix vide donne un plat « sur commande » à 0 FCFA, prix provisoire.',
         'colonnes' => [
             'libelle' => ['libelle' => 'Nom du plat', 'exemple' => 'Poulet DG'],
             'categorie' => ['libelle' => 'Catégorie', 'exemple' => 'plats'],
             'prix_vente' => ['libelle' => 'Prix de vente (FCFA)', 'exemple' => '4500'],
             'menu' => ['libelle' => 'Menu', 'exemple' => 'Menu local'],
             'recette' => ['libelle' => 'Fiche recette', 'exemple' => 'Poulet DG'],
+            'description' => ['libelle' => 'Description', 'exemple' => 'Poulet, plantain mûr, poivron, tomate'],
         ],
     ],
 

@@ -42,6 +42,7 @@ class PlatResource extends JsonResource
         return [
             'id' => $this->resource->id,
             'libelle' => $this->resource->libelle,
+            'description' => $this->resource->description,
             'prix_vente' => (string) $this->resource->prix_vente,
 
             'menu_id' => $this->resource->menu_id,

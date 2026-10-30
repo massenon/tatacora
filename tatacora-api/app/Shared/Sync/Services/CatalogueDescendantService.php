@@ -136,8 +136,9 @@ class CatalogueDescendantService
         'menus' => ['libelle', 'type', 'date_debut', 'date_fin'],
         'recettes' => ['libelle', 'composition_provisoire'],
         // 27/10/2026 (lot L3) : `categorie` descend (les dix catégories de la carte, écrites
-        // par la PWA et, depuis la v41, par le poste).
-        'plats' => ['menu_id', 'recette_id', 'article_id', 'unites_vendables_par_unite_stock', 'libelle', 'prix_vente', 'categorie', 'prix_provisoire', 'prix_corrige_main'],
+        // par la PWA et, depuis la v41, par le poste). 30/10/2026 (poste v47) : `description`
+        // (facultative, 500 caractères) descend aussi.
+        'plats' => ['menu_id', 'recette_id', 'article_id', 'unites_vendables_par_unite_stock', 'libelle', 'description', 'prix_vente', 'categorie', 'prix_provisoire', 'prix_corrige_main'],
         // Lot « indisponibilités de la carte » (21/10/2026) : après les boissons
         // et les plats qu'elles citent. Le retour (remise à la carte) descend
         // avec la ligne : une retouche fait avancer le curseur.

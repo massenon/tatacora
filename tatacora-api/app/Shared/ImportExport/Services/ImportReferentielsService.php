@@ -13,6 +13,7 @@ use App\Domain\Restaurant\Models\Menu;
 use App\Domain\Restaurant\Models\Recette;
 use App\Domain\Restaurant\Services\CartePlatMenuService;
 use App\Domain\Restaurant\Services\ReferentielRecetteService;
+use App\Domain\Restaurant\Support\DescriptionPlat;
 use App\Domain\Stocks\Services\ReferentielArticleService;
 use App\Domain\Tourisme\Models\Circuit;
 use App\Domain\Vehicules\Models\Vehicule;
@@ -169,8 +170,10 @@ class ImportReferentielsService
      *  - fiche vide → une fiche du NOM du plat, sans ingrédient et marquée
      *    « composition provisoire » : la composition (donc le stock consommé)
      *    s'ajoute après, depuis « Fiches techniques ». Tant qu'elle est vide,
-     *    la vente du plat est refusée au comptoir (`RecetteManquanteException`)
-     *    — c'est voulu, un plat sans fiche ne décrémente rien ;
+     *    le plat SE VEND, sans aucun mouvement de stock (décision du PO du
+     *    30/10/2026 : « le stock s'ajoute après ») — l'ancien refus au comptoir
+     *    (`RecetteManquanteException`) est levé ;
+     *  - description vide → aucune (colonne facultative, 500 caractères) ;
      *  - prix vide → 0 avec la marque PROVISOIRE (plat « sur commande »).
      *
      * @param  array<string, mixed>  $ligne
@@ -200,6 +203,7 @@ class ImportReferentielsService
         app(CartePlatMenuService::class)->creerPlat([
             'libelle' => $libelle,
             'categorie' => (string) $ligne['categorie'],
+            'description' => DescriptionPlat::normaliser($ligne['description'] ?? null),
             'prix_vente' => $prix === null ? '0' : (string) $prix,
             'prix_provisoire' => $prix === null,
             'menu_id' => (string) $menuId,

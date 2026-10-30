@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Domain\Restaurant\Http\Controllers;
 
-use App\Domain\Restaurant\Exceptions\RecetteManquanteException;
 use App\Domain\Restaurant\Http\Requests\CreerCommandeRestaurantRequest;
 use App\Domain\Restaurant\Http\Requests\FiltrerCommandesRestaurantRequest;
 use App\Domain\Restaurant\Http\Requests\TransmettreCommandeRequest;
@@ -160,13 +159,6 @@ class CommandeRestaurantController
             // 422 avec le drapeau attendu par le client, jamais un 500 : le
             // responsable doit pouvoir assumer la rupture en un geste (RG-06).
             return response()->json($e->versReponse(), 422);
-        } catch (RecetteManquanteException $e) {
-            // Pas de drapeau de confirmation : une fiche technique vide ne
-            // s'assume pas, elle se corrige.
-            return response()->json([
-                'message' => $e->getMessage(),
-                'plat' => $e->plat,
-            ], 422);
         } catch (RuntimeException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
         }

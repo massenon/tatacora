@@ -151,10 +151,14 @@ final class ReferentielsImport
                 // plat « sur commande », entré à 0 avec la marque prix
                 // PROVISOIRE ; menu vide = le menu `ImportReferentielsService::MENU_DEFAUT` ;
                 // fiche vide = une fiche du nom du plat, SANS ingrédient et
-                // marquée « composition provisoire » (le stock s'y ajoute après).
+                // marquée « composition provisoire » (le stock s'y ajoute après ; entre-temps le plat se
+                // VEND sans mouvement de stock, décision du PO du 30/10/2026).
                 new ColonneImport('prix_vente', $t['colonnes']['prix_vente']['libelle'], false, 'montant', exemple: $t['colonnes']['prix_vente']['exemple']),
                 new ColonneImport('menu', $t['colonnes']['menu']['libelle'], false, 'reference', reference: 'menus.libelle', exemple: $t['colonnes']['menu']['exemple']),
                 new ColonneImport('recette', $t['colonnes']['recette']['libelle'], false, 'reference', reference: 'recettes.libelle', exemple: $t['colonnes']['recette']['exemple']),
+                // 30/10/2026 (décision du PO) : la description FACULTATIVE du plat,
+                // 500 caractères au plus (`DescriptionPlat::MAX`).
+                new ColonneImport('description', $t['colonnes']['description']['libelle'], false, 'texte', exemple: $t['colonnes']['description']['exemple'], longueurMax: \App\Domain\Restaurant\Support\DescriptionPlat::MAX),
             ],
         );
     }

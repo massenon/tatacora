@@ -270,7 +270,11 @@
                                aria-label="{{ __('carte_pwa.restauration.selection_ligne') }}">
                       </td>
 
-                      <td class="px-3 py-2.5 text-left font-semibold text-slate-800">{{ $plat->libelle }}</td>
+                      <td class="px-3 py-2.5 text-left font-semibold text-slate-800">{{ $plat->libelle }}
+                        @if ($plat->description !== null && $plat->description !== '')
+                          <div class="text-[11px] font-normal text-slate-400 whitespace-pre-line">{{ $plat->description }}</div>
+                        @endif
+                      </td>
 
                       <td class="px-3 py-2.5 text-right text-slate-500 text-[12px]">{{ $categories[$plat->categorie] ?? $plat->categorie ?? MontantFcfa::TIRET }}</td>
 
@@ -347,11 +351,14 @@
               <div class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">{{ __('carte_pwa.restauration.fiches_kpi_total') }}</div>
               <div class="text-[17px] font-bold mt-1" style="color:var(--navy)">{{ $fiches['total'] }}</div>
             </div>
-            {{-- Rouge dès qu'il en reste une : une fiche vide n'est pas une
-                 dette de saisie, c'est une vente refusée au comptoir. --}}
+            {{-- Décision du PO du 30/10/2026 (« le stock s'ajoute après ») : ce
+                 compteur était ROUGE dès qu'il restait une fiche vide, parce
+                 qu'une fiche vide était une vente refusée au comptoir. Le refus
+                 est levé : un plat à fiche vide se vend, sans sortie de stock.
+                 Le compteur reste un repère de saisie, en gris neutre. --}}
             <div class="bg-white rounded-xl border border-slate-200 p-3.5">
               <div class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">{{ __('carte_pwa.restauration.fiches_kpi_vides') }}</div>
-              <div class="text-[17px] font-bold mt-1 {{ $fiches['vides'] > 0 ? 'text-red-600' : 'text-emerald-600' }}">{{ $fiches['vides'] }}</div>
+              <div class="text-[17px] font-bold mt-1 text-slate-600">{{ $fiches['vides'] }}</div>
             </div>
             <div class="bg-white rounded-xl border border-slate-200 p-3.5">
               <div class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">{{ __('carte_pwa.restauration.fiches_kpi_provisoires') }}</div>
@@ -423,7 +430,7 @@
 
                       <td class="px-3 py-2.5 text-right whitespace-nowrap">
                         @if ($vide)
-                          <span class="text-[11px] px-1.5 py-0.5 rounded font-semibold" style="background:#FDECEC;color:#C62828"
+                          <span class="text-[11px] px-1.5 py-0.5 rounded font-semibold" style="background:#F1F5F9;color:#475569"
                                 title="{{ __('carte_pwa.restauration.fiches_etat_vide_infobulle') }}">{{ __('carte_pwa.restauration.fiches_etat_vide') }}</span>
                         @elseif (! $fiche->decrementeUnStockSuivi())
                           {{-- LE TROISIEME ETAT (04/09/2026) : la fiche est
@@ -554,6 +561,16 @@
                placeholder="{{ __('carte_pwa.restauration.invite_nom') }}"
                class="w-full text-[13px] border border-slate-300 rounded-lg px-3 py-2.5">
         @error('libelleSaisi')<p class="text-[11px] text-red-600 mt-1">{{ $message }}</p>@enderror
+      </div>
+
+      {{-- 30/10/2026 (décision du PO) : description FACULTATIVE, 500 caractères. --}}
+      <div>
+        <label for="plat-description" class="block text-[13px] font-semibold text-slate-700 mb-1.5">
+          {{ __('carte_pwa.restauration.label_description') }}
+        </label>
+        <textarea id="plat-description" wire:model="descriptionSaisie" rows="3" maxlength="500"
+                  class="w-full text-[13px] border border-slate-300 rounded-lg px-3 py-2.5"></textarea>
+        @error('descriptionSaisie')<p class="text-[11px] text-red-600 mt-1">{{ $message }}</p>@enderror
       </div>
 
       <div>

@@ -9,9 +9,17 @@ use RuntimeException;
 /**
  * Un plat commande n'a pas de fiche technique — RG-05 ne peut pas s'appliquer.
  *
- * Refuser est le seul comportement sur : laisser passer vendrait le plat sans
- * consommer de stock, et l'ecart n'apparaitrait qu'a l'inventaire suivant,
- * impute a tort a une perte physique.
+ * ⚠ N'EST PLUS LEVÉE depuis le 30/10/2026 (décision du PO : « le stock
+ * s'ajoute après »). Elle disait : « refuser est le seul comportement sûr :
+ * laisser passer vendrait le plat sans consommer de stock, et l'écart
+ * n'apparaîtrait qu'à l'inventaire suivant, imputé à une perte physique ».
+ * On s'en écarte : un plat sans fiche (ou à fiche sans ligne) se vend, sans
+ * mouvement de stock, et la vente le dit (`stock_non_impacte`). La classe est
+ * CONSERVÉE pour une seule raison : la cause `recette_manquante` figure dans
+ * le registre des causes d'envoi (journal de synchronisation), que les
+ * anciennes entrées du journal des postes continuent de citer.
+ *
+ * @deprecated aucune vente ne la lève plus
  */
 class RecetteManquanteException extends RuntimeException
 {

@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace Tests\Feature\Domain\Restaurant;
 
 use App\Domain\Restaurant\Events\CommandeTransmiseCuisine;
-use App\Domain\Restaurant\Exceptions\RecetteManquanteException;
 use App\Domain\Restaurant\Models\Menu;
 use App\Domain\Restaurant\Models\Plat;
 use App\Domain\Restaurant\Models\Recette;
 use App\Domain\Restaurant\Services\CommandeRestaurantService;
 use App\Domain\Stocks\Exceptions\RuptureStockException;
 use App\Domain\Stocks\Models\Article;
+use App\Domain\Stocks\Models\MouvementStock;
 use App\Domain\Stocks\Models\PointStockage;
 use App\Domain\Stocks\Services\MouvementStockService;
 use App\Domain\Stocks\Services\StockTheoriqueService;
@@ -178,9 +178,9 @@ final class Rg05SortieStockAutomatiqueTest extends TestCase
      *
      * C'est une garantie plus forte qu'un contrôle applicatif — contrairement à
      * RG-01, dont la contrainte SQL a disparu avec la bascule MySQL, celle-ci
-     * est déclarative et inviolable. `RecetteManquanteException` reste en
-     * défense de second rideau dans le service, mais la base l'a déjà rendue
-     * inatteignable par le chemin normal.
+     * est déclarative et inviolable. (`RecetteManquanteException`, qui
+     * refusait la transmission d'une fiche VIDE, n'est plus levée depuis la
+     * décision du PO du 30/10/2026 : voir le test suivant.)
      */
     #[Test]
     public function rg05_le_schema_interdit_qu_un_plat_existe_sans_fiche_technique(): void
@@ -198,8 +198,38 @@ final class Rg05SortieStockAutomatiqueTest extends TestCase
         );
 
         $this->assertSame(1, Plat::count());
-        // La classe d'exception applicative existe bien comme second rideau.
-        $this->assertTrue(class_exists(RecetteManquanteException::class));
+    }
+
+    /**
+     * Décision du PO du 30/10/2026 (« le stock s'ajoute après ») : un plat dont
+     * la fiche est VIDE (l'import crée une fiche vide au nom du plat) se
+     * transmet et se vend, sans AUCUN mouvement de stock — et sans exiger de
+     * point « cuisine » pour lui. Il refusait avant (`RecetteManquanteException`).
+     */
+    #[Test]
+    public function un_plat_sans_fiche_se_transmet_sans_aucun_mouvement_de_stock(): void
+    {
+        $vide = Recette::create(['libelle' => 'Salade du jour', 'cout_matiere_calcule' => '0.00']);
+        $salade = Plat::create([
+            'menu_id' => $this->poulletDg->menu_id,
+            'recette_id' => $vide->id,
+            'libelle' => 'Salade du jour',
+            'prix_vente' => '1500.00',
+        ]);
+
+        $avant = MouvementStock::count();
+        $commande = $this->commandes->creer([
+            ['plat_id' => $salade->id, 'quantite' => 3],
+            ['plat_id' => $this->poulletDg->id, 'quantite' => 1],
+        ]);
+
+        $this->commandes->transmettreEnCuisine($commande);
+
+        $this->assertSame('transmise_cuisine', $commande->fresh()->statut);
+        // Un plat AVEC fiche décrémente toujours (RG-05) : 2 mouvements, pour le seul poulet DG.
+        $this->assertSame($avant + 2, MouvementStock::count());
+        $this->assertSame('9.75', $this->stockRiz());
+        $this->assertSame('3.60', $this->stock->stock($this->poulet->id, $this->cuisine->id));
     }
 
     #[Test]

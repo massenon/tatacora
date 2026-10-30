@@ -333,6 +333,9 @@
 
                         <td class="px-3 py-2.5 text-left">
                           <div class="font-semibold text-slate-800">{{ $ligne['nom'] }}</div>
+                          @if (! empty($ligne['description']))
+                            <div class="text-[11px] text-slate-400 whitespace-pre-line">{{ $ligne['description'] }}</div>
+                          @endif
                           @if (! $ligne['disponible'])
                             <div class="text-[11px] text-amber-700">
                               {{ $ligne['indisponibilite']->libelleMotif() }}@if ($ligne['indisponibilite']->commentaire) — {{ $ligne['indisponibilite']->commentaire }}@endif

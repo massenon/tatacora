@@ -47,6 +47,11 @@ class AnomalieSynchronisation extends Model
      * composition (fiche vide, aucun lien direct) ne fait pas rejeter la
      * vente — la ligne n'a rien sorti du stock, et c'est signalé ici, une
      * anomalie par plat (`reference` = id du plat).
+     *
+     * ⚠ N'EST PLUS ENREGISTRÉE depuis le 30/10/2026 (décision du PO, « le stock
+     * s'ajoute après ») : un plat sans composition se vend partout, sans
+     * mouvement de stock, ce n'est plus un écart à examiner. Le type reste pour
+     * lire et libeller les anciennes anomalies.
      */
     public const PLAT_SANS_COMPOSITION = 'plat_sans_composition';
 

@@ -10,9 +10,9 @@ use App\Models\User;
 use App\Shared\Rbac\Models\Role;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Lang;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -119,6 +119,8 @@ final class MessagesUtilisateurTest extends TestCase
         $this->assertStringContainsString('10.00', $rupture->getMessage());
         $this->assertDoesNotMatchRegularExpression('#:[a-z_]+#', $rupture->getMessage());
 
+        // `RecetteManquanteException` n'est plus levée (30/10/2026) mais reste
+        // construisible : son message ne doit pas laisser de paramètre résiduel.
         $recette = new RecetteManquanteException('Poulet DG');
         $this->assertStringContainsString('Poulet DG', $recette->getMessage());
         $this->assertStringNotContainsString(':plat', $recette->getMessage());

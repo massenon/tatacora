@@ -272,6 +272,13 @@ final class ImportXlsxTest extends TestCase
         $this->assertTrue($surCommande->prix_provisoire);
         $this->assertTrue(Recette::where('libelle', 'Wassa wassa')->firstOrFail()->composition_provisoire);
         $this->assertSame(0, MouvementStock::count());
+
+        // Les descriptions de l'affiche (colonne facultative « Description ») sont importées ;
+        // les plats qui n'en portent pas ont NULL.
+        $this->assertSame(9, Plat::whereNotNull('description')->count());
+        $this->assertSame('Sauce tomate, bœuf hachée, saucisse, fromage peuilh, fromage mozza', Plat::where('libelle', 'Pizza du gîte (grande)')->firstOrFail()->description);
+        $this->assertSame('Viande de bœuf, saucisse', Plat::where('libelle', 'Chawarma mixte')->firstOrFail()->description);
+        $this->assertNull($surCommande->description);
     }
 
     #[Test]

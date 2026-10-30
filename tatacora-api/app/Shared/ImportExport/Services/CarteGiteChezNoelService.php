@@ -165,6 +165,9 @@ class CarteGiteChezNoelService
                     'prix_vente' => isset($article['prix']) ? (int) $article['prix'] : null,
                     'menu' => null,
                     'recette' => null,
+                    // 30/10/2026 : la composition annoncée sur l'affiche (JSON
+                    // `description`), colonne facultative du modèle.
+                    'description' => isset($article['description']) ? (string) $article['description'] : null,
                 ];
             }
         }

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Domain\Restaurant\Services;
 
-use App\Domain\Restaurant\Exceptions\RecetteManquanteException;
 use App\Domain\Restaurant\Models\CommandeRestaurant;
 use App\Domain\Restaurant\Models\Plat;
 use App\Domain\Stocks\Models\Article;
@@ -68,7 +67,6 @@ class DeductionStockCuisineService
      * @param  bool  $validationRupture  Rupture assumée par un utilisateur habilité (RG-06)
      * @return list<array{article_id: string, quantite: string, plat: string}>
      *
-     * @throws RecetteManquanteException
      * @throws \App\Domain\Stocks\Exceptions\RuptureStockException
      */
     public function deduire(CommandeRestaurant $commande, bool $validationRupture = false): array
@@ -100,7 +98,6 @@ class DeductionStockCuisineService
      * @param  iterable<array{plat: \App\Domain\Restaurant\Models\Plat, quantite: int}>  $lignes
      * @return list<array{article_id: string, quantite: string, plat: string}>
      *
-     * @throws RecetteManquanteException
      * @throws \App\Domain\Stocks\Exceptions\RuptureStockException
      */
     public function deduireLignes(
@@ -108,7 +105,10 @@ class DeductionStockCuisineService
         bool $validationRupture = false,
         ?CarbonInterface $dateMouvement = null,
     ): array {
-        $pointCuisine = $this->pointCuisine();
+        // Résolu à la PREMIÈRE sortie réelle seulement (30/10/2026) : un lot de
+        // plats sans composition ne sort rien et ne doit pas exiger un point
+        // « cuisine » qui n'est pas encore déclaré.
+        $pointCuisine = null;
         $sorties = [];
 
         foreach ($lignes as $ligne) {
@@ -129,7 +129,7 @@ class DeductionStockCuisineService
 
                 $this->mouvements->sortie(
                     articleId: (string) $plat->article_id,
-                    pointId: $pointCuisine->id,
+                    pointId: ($pointCuisine ??= $this->pointCuisine())->id,
                     quantite: $quantite,
                     motif: __('restaurant.motif_vente', ['plat' => $plat->libelle, 'quantite' => $nombre]),
                     validationRupture: $validationRupture,
@@ -145,15 +145,24 @@ class DeductionStockCuisineService
                 continue;
             }
 
-            // `plats.recette_id` étant NOT NULL, un plat sans fiche technique
-            // ne peut pas exister — inutile de le vérifier ici. Le trou réel
-            // que le schéma NE couvre PAS est une recette dont la nomenclature
-            // est vide : elle se vendrait sans rien consommer, et l'écart
-            // n'apparaîtrait qu'à l'inventaire, imputé à une perte physique.
+            // `plats.recette_id` étant NOT NULL, un plat a toujours une fiche
+            // technique — mais elle peut être VIDE (l'import crée une fiche
+            // vide au nom du plat).
+            //
+            // UN PLAT SANS FICHE SE VEND — décision du PO du 30/10/2026 (« le
+            // stock s'ajoute après »). Ce que ce fichier disait avant : une
+            // nomenclature vide faisait lever `RecetteManquanteException`, donc
+            // refuser la transmission en cuisine et la vente au comptoir (une
+            // vente sans sortie « n'apparaîtrait qu'à l'inventaire, imputée à
+            // une perte physique »). Pourquoi on s'en écarte : le restaurant
+            // encaisse sa carte avant d'avoir composé ses fiches. Le plat sans
+            // composition ne sort donc AUCUN stock ici, et la vente le dit
+            // (`stock_non_impacte`) ; une fiche qui a des lignes se décrémente
+            // exactement comme avant (RG-05).
             $ingredients = $this->ingredients($plat);
 
             if ($ingredients->isEmpty()) {
-                throw new RecetteManquanteException($plat->libelle);
+                continue;
             }
 
             /*
@@ -179,9 +188,9 @@ class DeductionStockCuisineService
              * tenu. Les deux ne sont pas la même question.
              *
              * ⚠ Un plat dont TOUS les ingrédients sont journaliers ne
-             * décrémente rien — et ce n'est pas le trou que
-             * `RecetteManquanteException` couvre : là, rien n'est suivi, et
-             * c'est la vérité. Pour que cela ne se lise pas comme une fiche
+             * décrémente rien — comme un plat dont la fiche est
+             * vide, mais ici la fiche existe et rien n'est suivi : c'est la
+             * vérité. Pour que cela ne se lise pas comme une fiche
              * absente, l'écran « Fiches techniques » en fait un état à part
              * (`Recette::decrementeUnStockSuivi()`).
              */
@@ -221,7 +230,7 @@ class DeductionStockCuisineService
 
                 $this->mouvements->sortie(
                     articleId: (string) $ingredient->article_id,
-                    pointId: $pointCuisine->id,
+                    pointId: ($pointCuisine ??= $this->pointCuisine())->id,
                     quantite: $quantite,
                     motif: __('restaurant.motif_vente', ['plat' => $plat->libelle, 'quantite' => $nombre]),
                     validationRupture: $validationRupture,
@@ -242,15 +251,13 @@ class DeductionStockCuisineService
     /**
      * Le plat a-t-il de quoi sortir du stock — un lien direct, ou une fiche
      * dont la nomenclature n'est pas vide ? `false` est exactement le cas où
-     * `deduireLignes()` lève `RecetteManquanteException`.
+     * `deduireLignes()` ne sort rien pour ce plat.
      *
-     * PUBLIQUE depuis le 15/10/2026 (décision du Product Owner) : une vente
-     * SYNCHRONISÉE a déjà été servie et encaissée — la refuser pour une fiche
-     * vide ferait disparaître l'argent des livres. `VenteService` (chemin
-     * `sansBonDeCuisine`, réservé à la synchronisation) écarte donc ces
-     * lignes de la déduction et les SIGNALE ; il pose la question ici pour
-     * que le critère reste celui de la déduction elle-même. En ligne, rien ne
-     * change : la vente d'un plat sans fiche reste refusée.
+     * PUBLIQUE depuis le 15/10/2026 : `VenteService` pose la question ici pour
+     * que le critère de « stock non impacté » reste celui de la déduction
+     * elle-même. Depuis le 30/10/2026 (décision du PO), la réponse `false`
+     * n'empêche plus la vente, en ligne comme synchronisée : le plat se vend
+     * sans mouvement de stock, et la vente le signale.
      */
     public function aDeQuoiDeduire(Plat $plat): bool
     {

@@ -162,6 +162,10 @@ final class ReferentielsDescendantsTest extends TestCase
 
         $this->assertFalse($elements[$this->ids['archive']]['actif']);
 
+        // 30/10/2026 (poste v47) : la description facultative d'un plat descend avec lui.
+        $plat = $elements->first(static fn (array $e): bool => $e['table'] === 'plats' && $e['donnees']['libelle'] === 'Riz sauté');
+        $this->assertSame('Riz, oignon, poivron', $plat['donnees']['description']);
+
         // Lot F3 : un client archivé descend marqué, son solde (calcul) non.
         $client = $elements[$this->ids['client']];
         $this->assertSame(['nom', 'prenom', 'telephone', 'email', 'type_client'], array_keys($client['donnees']));
@@ -397,7 +401,7 @@ final class ReferentielsDescendantsTest extends TestCase
         app(CompositionRecetteService::class)->remplacerComposition($recette, [
             ['article_id' => $riz->id, 'quantite_unitaire' => '0.150'],
         ]);
-        $carte->creerPlat(['libelle' => 'Riz sauté', 'menu_id' => $menu->id, 'recette_id' => $recette->id, 'prix_vente' => '2500']);
+        $carte->creerPlat(['libelle' => 'Riz sauté', 'description' => 'Riz, oignon, poivron', 'menu_id' => $menu->id, 'recette_id' => $recette->id, 'prix_vente' => '2500']);
 
         $categorie = CategorieHebergement::create(['libelle' => 'Bungalow', 'capacite_max' => 2, 'tarif_base' => '25000.00']);
         $unite = UniteHebergement::create(['categorie_id' => $categorie->id, 'numero' => 'B-01', 'statut' => 'libre']);

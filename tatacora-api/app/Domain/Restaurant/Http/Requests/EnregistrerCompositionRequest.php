@@ -25,7 +25,8 @@ use Illuminate\Foundation\Http\FormRequest;
  *
  * Elle est le seul moyen de vider une fiche technique erronée. Sa conséquence
  * est réelle et visible : le plat apparaît « ne décrémente rien » sur la carte,
- * et `RecetteManquanteException` refuse sa transmission en cuisine. Interdire
+ * et sa vente ne sort plus aucun stock (il se vend quand même, depuis la
+ * décision du PO du 30/10/2026). Interdire
  * le vide obligerait à laisser en place une composition fausse — bien pire,
  * puisqu'elle décrémenterait les mauvais articles sans que rien ne le signale.
  */

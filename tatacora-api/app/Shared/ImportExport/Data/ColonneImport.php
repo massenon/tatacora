@@ -25,6 +25,8 @@ final class ColonneImport
      * @param  string|null  $reference  type `reference` : `table.colonne` du
      *                                  référentiel visé — vraie clé étrangère résolue par libellé
      *                                  EXACT, jamais du texte libre conservé tel quel
+     * @param  int|null  $longueurMax  type `texte` : nombre de caractères au plus (30/10/2026,
+     *                                 la description d'un plat : 500) ; `null` = pas de borne propre
      */
     public function __construct(
         public readonly string $champ,
@@ -34,6 +36,7 @@ final class ColonneImport
         public readonly ?array $valeurs = null,
         public readonly ?string $reference = null,
         public readonly string $exemple = '',
+        public readonly ?int $longueurMax = null,
     ) {
     }
 }

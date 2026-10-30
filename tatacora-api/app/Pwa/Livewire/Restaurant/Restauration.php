@@ -12,6 +12,7 @@ use App\Domain\Restaurant\Models\Recette;
 use App\Domain\Restaurant\Services\CartePlatMenuService;
 use App\Domain\Restaurant\Services\CompositionRecetteService;
 use App\Domain\Restaurant\Services\ReferentielRecetteService;
+use App\Domain\Restaurant\Support\DescriptionPlat;
 use App\Domain\Stocks\Models\Article;
 use App\Pwa\Livewire\Concerns\FormulaireModal;
 use App\Pwa\Livewire\PageMetier;
@@ -90,6 +91,15 @@ use RuntimeException;
  * incomplet qui NOMME les articles non valorisés, ou une composition vide. Un
  * « 0 F » à la place des deux derniers serait PA-126 sur l'écran même où l'on
  * fixe un prix de vente.
+ *
+ * ## ⚠ ÉCART DU 30/10/2026 — UN PLAT SANS FICHE SE VEND (décision du PO)
+ *
+ * Le paragraphe suivant (04/09/2026) décrit un refus de vente sur fiche vide
+ * (`RecetteManquanteException`). Il est LEVÉ : le PO a décidé que le stock
+ * « s'ajoute après ». Un plat à fiche vide se vend désormais, sans mouvement de
+ * stock ; une fiche qui a des lignes décrémente comme avant (RG-05). L'état
+ * « Vide » de l'onglet « Fiches techniques » est devenu un repère de saisie, plus
+ * un blocage (compteur et pastille neutres, libellés `carte_pwa`).
  *
  * ## …ET LA CRÉATION SEULE NE DÉBLOQUAIT RIEN (04/09/2026)
  *
@@ -292,6 +302,13 @@ class Restauration extends PageMetier
 
     public string $libelleSaisi = '';
 
+    /**
+     * La description FACULTATIVE du plat (30/10/2026, décision du PO) : texte
+     * multiligne, 500 caractères au plus, normalisé à l'écriture par
+     * `DescriptionPlat` (espaces de bord retirés, vide = `null`).
+     */
+    public string $descriptionSaisie = '';
+
     public string $prixVenteSaisi = '';
 
     public string $categorieSaisie = 'plats';
@@ -389,6 +406,7 @@ class Restauration extends PageMetier
             'plat' => [
                 'platCibleId',
                 'libelleSaisi',
+                'descriptionSaisie',
                 'prixVenteSaisi',
                 'categorieSaisie',
                 'menuIdSaisi',
@@ -411,6 +429,19 @@ class Restauration extends PageMetier
                 'retourAuPlat',
             ],
             'archivage' => ['platCibleId'],
+        ];
+    }
+
+    /**
+     * La phrase de l'API (`EnregistrerPlatRequest`) pour une description trop
+     * longue : la PWA et l'API refusent la même chose, avec les mêmes mots.
+     *
+     * @return array<string, string>
+     */
+    protected function messages(): array
+    {
+        return [
+            'descriptionSaisie.max' => __('restaurant.validation.description_trop_longue', ['max' => DescriptionPlat::MAX]),
         ];
     }
 
@@ -439,6 +470,7 @@ class Restauration extends PageMetier
 
         $this->platCibleId = $plat->id;
         $this->libelleSaisi = (string) $plat->libelle;
+        $this->descriptionSaisie = (string) ($plat->description ?? '');
         $this->prixVenteSaisi = (string) $plat->prix_vente;
         $this->categorieSaisie = (string) ($plat->categorie ?? array_key_first(CarteRestaurant::CATEGORIES));
         $this->menuIdSaisi = $plat->menu_id;
@@ -458,6 +490,7 @@ class Restauration extends PageMetier
     {
         $valide = $this->validerEcriture([
             'libelleSaisi' => ['required', 'string', 'max:255'],
+            'descriptionSaisie' => DescriptionPlat::REGLES,
             'prixVenteSaisi' => ['required', 'numeric', 'min:0'],
             'categorieSaisie' => ['required', 'string', 'in:'.implode(',', array_keys(CarteRestaurant::CATEGORIES))],
             // Vraies clés étrangères, jamais du texte libre ni un menu
@@ -469,6 +502,7 @@ class Restauration extends PageMetier
 
         $donnees = [
             'libelle' => (string) $valide['libelleSaisi'],
+            'description' => DescriptionPlat::normaliser($valide['descriptionSaisie'] ?? null),
             'prix_vente' => (string) $valide['prixVenteSaisi'],
             'categorie' => (string) $valide['categorieSaisie'],
             'menu_id' => (string) $valide['menuIdSaisi'],

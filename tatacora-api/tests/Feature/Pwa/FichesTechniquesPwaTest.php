@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Feature\Pwa;
 
 use App\Domain\Comptabilite\Models\JournalComptable;
-use App\Domain\Restaurant\Exceptions\RecetteManquanteException;
 use App\Domain\Restaurant\Models\Menu;
 use App\Domain\Restaurant\Models\Plat;
 use App\Domain\Restaurant\Models\Recette;
@@ -37,8 +36,10 @@ use Tests\TestCase;
  * **3 lignes d'`ingredients_recette` en tout**. Chaque plat avait donc bien sa
  * fiche technique, et 82 sur 83 étaient VIDES.
  *
- * Une fiche vide n'est pas une fiche neutre : `DeductionStockCuisineService`
- * lève `RecetteManquanteException` sur une nomenclature vide, précisément pour
+ * ⚠ LEVÉ le 30/10/2026 (décision du PO, « le stock s'ajoute après ») : une
+ * fiche vide se vend désormais, sans mouvement de stock. Ce qui suit est
+ * l'HISTORIQUE du blocage du 04/09/2026 : `DeductionStockCuisineService`
+ * levait alors `RecetteManquanteException` sur une nomenclature vide, pour
  * qu'un plat ne se vende jamais sans décrémenter quoi que ce soit. Le blocage
  * était donc la conséquence exacte d'une garde correcte posée sur une donnée
  * absente — la même forme que PA-128 et PA-129, à ceci près qu'ici la donnée
@@ -57,16 +58,16 @@ use Tests\TestCase;
  * ## Ce que ce fichier prouve, de bout en bout
  *
  * Le premier cas est le seul qui compte vraiment, et il enchaîne les trois
- * moments : la vente REFUSÉE sur une fiche vide, la composition faite depuis
- * l'écran, la MÊME vente qui passe, et le stock des deux articles descendu de
- * la quantité exacte. Un cas qui s'arrêterait à « la ligne est en base »
+ * moments : la vente SANS mouvement sur une fiche vide, la composition faite
+ * depuis l'écran, la MÊME vente qui décrémente, et le stock des deux articles
+ * descendu de la quantité exacte. Un cas qui s'arrêterait à « la ligne est en base »
  * prouverait une écriture, pas un déblocage.
  *
  * ## Mutations RÉELLEMENT exécutées puis annulées (04/09/2026)
  *
  * | Mutation | Cas qui rougit | Résultat |
  * |---|---|---|
- * | `Restauration::enregistrerRecette()` n'appelle plus `remplacerComposition()` — seul l'entête est écrit | `une_fiche_vide_bloque_la_vente_et_la_composition_depuis_l_ecran_la_debloque` | 1 failed, l.162 : « La composition n'a pas été écrite par le service. » |
+ * | `Restauration::enregistrerRecette()` n'appelle plus `remplacerComposition()` — seul l'entête est écrit | `une_fiche_vide_se_vend_sans_mouvement_et_la_composition_depuis_l_ecran_fait_decrementer` | 1 failed, l.162 : « La composition n'a pas été écrite par le service. » |
  * | `remplacerComposition()` insère `bcadd('1', …)` au lieu de la quantité de la ligne | idem | 1 failed, l.169 : le riz descend de 2,00 au lieu de 0,50 |
  * | `remplacerComposition()` écrit `$provisoire ?? true` — la marque ne tombe jamais | `la_marque_provisoire_tombe_quand_la_composition_est_enregistree` | 1 failed, l.369 |
  *
@@ -109,8 +110,11 @@ final class FichesTechniquesPwaTest extends TestCase
     // =====================================================================
 
     /**
-     * Vente refusée → composition depuis l'écran → la MÊME vente passe, et le
-     * stock a réellement baissé de la bonne quantité.
+     * Décision du PO du 30/10/2026 (« le stock s'ajoute après ») : une fiche
+     * VIDE ne bloque plus la vente. Le plat se vend, sans AUCUN mouvement de
+     * stock ; composer la fiche depuis l'écran fait ensuite décrémenter la MÊME
+     * vente, de la quantité exacte. (Avant : la première vente était refusée par
+     * `RecetteManquanteException`.)
      *
      * ⚠ La vente passe par `VenteService::enregistrer()`, le chemin RÉEL du
      * point de vente — pas par `DeductionStockCuisineService` appelé à la main.
@@ -118,7 +122,7 @@ final class FichesTechniquesPwaTest extends TestCase
      * prouve que le mécanisme est correct, jamais qu'un écran y mène.
      */
     #[Test]
-    public function une_fiche_vide_bloque_la_vente_et_la_composition_depuis_l_ecran_la_debloque(): void
+    public function une_fiche_vide_se_vend_sans_mouvement_et_la_composition_depuis_l_ecran_fait_decrementer(): void
     {
         $this->jeuDeDonnees();
         $this->actingAs($this->utilisateur('administrateur'));
@@ -127,23 +131,17 @@ final class FichesTechniquesPwaTest extends TestCase
         $rizAvant = $stocks->stock($this->riz->id, $this->cuisine->id);
         $pouletAvant = $stocks->stock($this->poulet->id, $this->cuisine->id);
 
-        // 1. LA VENTE EST REFUSÉE — la fiche du plat est vide.
-        $refus = null;
+        // 1. LA VENTE PASSE — la fiche du plat est vide, et rien ne sort du stock.
+        $premiere = $this->encaisserLePlat();
 
-        try {
-            $this->encaisserLePlat();
-        } catch (RecetteManquanteException $leve) {
-            $refus = $leve;
-        }
-
-        $this->assertInstanceOf(
-            RecetteManquanteException::class,
-            $refus,
-            'Une fiche technique vide doit refuser la vente : sans ce refus, le plat se vendrait '
-            .'sans rien consommer, et l\'écart n\'apparaîtrait qu\'à l\'inventaire.',
+        $this->assertDatabaseHas('ventes', ['id' => $premiere->id]);
+        $this->assertSame(0, bccomp($stocks->stock($this->riz->id, $this->cuisine->id), $rizAvant, 2));
+        $this->assertSame(0, bccomp($stocks->stock($this->poulet->id, $this->cuisine->id), $pouletAvant, 2));
+        $this->assertSame(
+            'plat_sans_composition',
+            $premiere->refresh()->stock_non_impacte[0]['cause'],
+            'La vente doit DIRE que ce plat n\'a rien sorti du stock.',
         );
-
-        $this->assertSame(0, DB::table('ventes')->count(), 'Une vente refusée ne laisse rien.');
 
         // 2. LE CUISINIER COMPOSE LA FICHE, depuis l'onglet « Fiches techniques ».
         Livewire::test(Restauration::class)
@@ -167,7 +165,7 @@ final class FichesTechniquesPwaTest extends TestCase
         $lignes = app(CompositionRecetteService::class)->lignes($this->ficheVide->refresh());
         $this->assertCount(2, $lignes, 'La composition n\'a pas été écrite par le service.');
 
-        // 3. LA MÊME VENTE PASSE, et le stock a bougé de la quantité exacte.
+        // 3. LA MÊME VENTE, fiche composée : le stock a bougé de la quantité exacte.
         $vente = $this->encaisserLePlat();
 
         $this->assertDatabaseHas('ventes', ['id' => $vente->id]);
@@ -208,13 +206,13 @@ final class FichesTechniquesPwaTest extends TestCase
         $this->assertStringContainsString($this->ficheVide->libelle, $html);
         $this->assertStringContainsString($this->ficheComposee->libelle, $html);
 
-        // L'ÉTAT, qui est le sujet de l'onglet : une fiche vide doit sauter
-        // aux yeux, c'est elle qui bloque la vente.
+        // L'ÉTAT, qui est le sujet de l'onglet : une fiche vide doit se
+        // repérer, c'est elle qui ne sort aucun stock à la vente.
         $this->assertStringContainsString('Vide — ne décrémente rien', $html);
         $this->assertStringContainsString('Composée', $html);
 
         // Le PLAT servi : « Fiche à écrire » ne dit rien, « Fiche à écrire —
-        // Riz sauce » dit quelle vente est bloquée.
+        // Riz sauce » dit quel plat ne sort aucun stock.
         $this->assertStringContainsString($this->platBloque->libelle, $html);
     }
 
@@ -434,7 +432,7 @@ final class FichesTechniquesPwaTest extends TestCase
      * tout ce qu'il pose.
      *
      * ⚠ Les deux moitiés comptent. Sans la première, le point de vente
-     * restaurant reste bloqué sur une base neuve — c'est le défaut du
+     * restaurant ne décrémente rien sur une base neuve — c'est le défaut du
      * 04/09/2026. Sans la seconde, 82 grammages devinés seraient
      * indiscernables des grammages relevés en cuisine.
      *
@@ -454,8 +452,8 @@ final class FichesTechniquesPwaTest extends TestCase
         $this->assertSame(
             0,
             $vides,
-            "Le référentiel laisse {$vides} fiche(s) vide(s) : autant de plats dont la vente est "
-            .'refusée au comptoir.',
+            "Le référentiel laisse {$vides} fiche(s) vide(s) : autant de plats dont la vente ne "
+            .'sortirait aucun stock.',
         );
 
         $this->assertSame(

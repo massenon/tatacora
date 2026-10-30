@@ -536,6 +536,8 @@ return [
         'form_titre_modification' => 'Modifier le plat',
         'label_nom' => 'Nom du plat',
         'invite_nom' => 'Ex. Poulet DG',
+        // 30/10/2026 (décision du PO) : description FACULTATIVE du plat.
+        'label_description' => 'Description',
         'label_categorie' => 'Catégorie',
         'label_prix' => 'Prix de vente (FCFA)',
 
@@ -697,12 +699,17 @@ return [
          * existante — et cette phrase renvoyait l'utilisateur vers un chemin
          * qu'il n'a pas. Résultat : 82 fiches vides, et un point de vente
          * restaurant bloqué en entier sans que personne sache où aller. Le
-         * geste existe désormais sur cet écran ; le message dit la CONSÉQUENCE
-         * réelle, qui n'est pas « c'est permis » mais « la vente sera refusée ».
+         * geste existe désormais sur cet écran.
+         *
+         * ⚠ DÉCISION DU PO DU 30/10/2026 (« le stock s'ajoute après ») : ce
+         * message annonçait « le point de vente REFUSERA la vente du plat qui
+         * l'utilise ». Le refus est levé (`DeductionStockCuisineService`) : un
+         * plat à fiche vide se vend, sans mouvement de stock. Le message dit
+         * désormais cette conséquence-là, et seulement elle.
          */
         'recette_sans_ingredient' => 'Sans ingrédient, cette fiche ne décrémente aucun stock : le '
-            . 'point de vente REFUSERA la vente du plat qui l\'utilise. Ajoutez au moins un article '
-            . 'de stock, ou revenez la composer depuis l\'onglet « Fiches techniques ».',
+            . 'plat qui l\'utilise se vend quand même, sans sortie de stock. Ajoutez au moins un '
+            . 'article de stock, ou revenez la composer depuis l\'onglet « Fiches techniques ».',
         /*
          * LE COÛT MATIÈRE A TROIS ÉTATS, ET IL N'EST JAMAIS SAISI.
          *
@@ -726,8 +733,10 @@ return [
         | Constat du Product Owner : aucune vente possible au point de vente
         | restaurant. Relevé en base — 83 plats, 83 recettes, TROIS lignes
         | d'`ingredients_recette`. Chaque plat avait sa fiche, et elle était
-        | vide ; or une fiche vide n'est pas neutre, c'est une vente REFUSÉE
-        | (`RecetteManquanteException`).
+        | vide ; or une fiche vide était alors une vente REFUSÉE
+        | (`RecetteManquanteException`). ⚠ Levé le 30/10/2026 (décision du PO,
+        | « le stock s'ajoute après ») : une fiche vide se vend, sans mouvement
+        | de stock ; les libellés ci-dessous disent cet état, plus un blocage.
         |
         | Le geste qui manquait n'était pas la création — livrée le 03/09 —
         | mais la composition d'une fiche EXISTANTE. Les libellés ci-dessous
@@ -739,13 +748,13 @@ return [
         'onglet_menus' => 'Menus',
 
         'fiches_kpi_total' => 'Fiches techniques',
-        'fiches_kpi_vides' => 'Fiches vides — vente refusée',
+        'fiches_kpi_vides' => 'Fiches vides — sans sortie de stock',
         'fiches_kpi_provisoires' => 'Compositions provisoires',
         'fiches_kpi_provisoires_detail' => 'Quantités posées, jamais pesées',
 
         'fiches_recherche' => 'Rechercher une fiche technique...',
         'fiches_filtre_vides' => 'Fiches vides seulement',
-        'fiches_filtre_vides_aide' => 'Ce sont elles qui bloquent la vente au comptoir.',
+        'fiches_filtre_vides_aide' => 'Ces plats se vendent au comptoir, sans sortie de stock.',
 
         'fiches_col_fiche' => 'Fiche technique',
         'fiches_col_plat' => 'Plat servi',
@@ -755,9 +764,9 @@ return [
 
         'fiches_etat_composee' => 'Composée',
         'fiches_etat_vide' => 'Vide — ne décrémente rien',
-        'fiches_etat_vide_infobulle' => 'Toute vente de ce plat au point de vente restaurant est '
-            . 'REFUSÉE tant que la composition est vide : la cuisine ne saurait pas quoi sortir du '
-            . 'stock.',
+        'fiches_etat_vide_infobulle' => 'Ce plat se vend au point de vente restaurant, sans aucune '
+            . 'sortie de stock tant que la composition est vide. Composez la fiche pour que la '
+            . 'vente décrémente ses ingrédients.',
         /*
          * LE TROISIEME ETAT, ET IL N'EST NI « composee » NI « vide ».
          *
@@ -803,9 +812,10 @@ return [
          * l'utilisateur, à l'endroit où il peut le faire — la Directive
          * interdit un écran qui montre un problème sans offrir le geste.
          */
-        'fiches_bandeau' => 'Une fiche sans ingrédient ne décrémente aucun stock, et le point de '
-            . 'vente REFUSE la vente du plat qui l\'utilise. Ouvrez la fiche, posez ses articles de '
-            . 'stock et leurs quantités par portion : le coût matière se calcule tout seul.',
+        'fiches_bandeau' => 'Une fiche sans ingrédient ne décrémente aucun stock : le plat qui '
+            . 'l\'utilise se vend quand même, sans sortie de stock. Ouvrez la fiche, posez ses '
+            . 'articles de stock et leurs quantités par portion pour que la vente décrémente : le '
+            . 'coût matière se calcule tout seul.',
 
         // --- Modale « Modifier la fiche technique » (04/09/2026) ---
         'recette_form_titre_modification' => 'Modifier la fiche technique',
@@ -818,8 +828,8 @@ return [
             . 'marque tombera d\'elle-même.',
         'recette_modifiee' => 'La fiche « :recette » est à jour. Coût matière calculé : :cout.',
         'recette_modifiee_sans_ingredient' => 'La fiche « :recette » est enregistrée SANS '
-            . 'ingrédient : elle ne décrémente aucun stock, et toute vente du plat qui l\'utilise '
-            . 'sera refusée au comptoir.',
+            . 'ingrédient : elle ne décrémente aucun stock, et le plat qui l\'utilise se vend sans '
+            . 'sortie de stock.',
         'recette_modifiee_cout_incomplet' => 'La fiche « :recette » est à jour. Son coût matière '
             . 'reste INCONNU : :articles n\'ont pas de coût moyen pondéré (jamais réceptionnés).',
 

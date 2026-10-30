@@ -120,8 +120,10 @@ class VenteService
 
     /**
      * Cause portée par une entrée de `stock_non_impacte` quand un plat vendu
-     * hors connexion n'avait aucune composition (décision PO du 15/10/2026,
-     * chemin synchronisé seulement — voir `deduireStock()`).
+     * n'avait aucune composition : fiche sans ingrédient, aucun lien direct.
+     * Décision PO du 15/10/2026 pour la vente synchronisée, étendue à toute
+     * vente le 30/10/2026 (le plat se vend, sans mouvement de stock — voir
+     * `deduireStock()`).
      */
     public const CAUSE_PLAT_SANS_COMPOSITION = 'plat_sans_composition';
 
@@ -340,7 +342,6 @@ class VenteService
      *                          référence de catalogue introuvable, prix imposé absent ou négatif,
      *                          ou pièce comptable refusée (journal, compte, exercice, centre)
      * @throws \App\Domain\Stocks\Exceptions\RuptureStockException
-     * @throws \App\Domain\Restaurant\Exceptions\RecetteManquanteException
      */
     public function enregistrer(
         array $donnees,
@@ -935,38 +936,51 @@ class VenteService
             return $nonImpacte;
         }
 
+        /*
+         * UN PLAT SANS FICHE SE VEND — décision du PO du 30/10/2026 (« le stock
+         * s'ajoute après »).
+         *
+         * Ce que ce fichier disait avant : un plat dont la fiche technique n'a
+         * aucun ingrédient (et sans lien direct au stock) était REFUSÉ au
+         * comptoir (`RecetteManquanteException`, levée par la déduction de la
+         * cuisine) ; seule la vente synchronisée, déjà servie, était gardée —
+         * et signalée en anomalie. Pourquoi on s'en écarte : le restaurant
+         * veut encaisser la carte importée AVANT d'avoir composé ses fiches.
+         *
+         * Désormais : un plat sans composition est vendable, la vente n'écrit
+         * AUCUN mouvement de stock pour lui et le DIT (`stock_non_impacte`,
+         * cause `plat_sans_composition`). Un plat qui a une composition (fiche
+         * à ingrédients ou lien direct) sort ses denrées comme avant (RG-05).
+         */
+        $plats = [];
+
+        foreach ($lignesRestaurant as $i => $ligne) {
+            $plat = Plat::query()->with('recette')->findOrFail((string) $ligne['reference_id']);
+            $plats[$i] = $plat;
+
+            if (! $this->deductionCuisine->aDeQuoiDeduire($plat)) {
+                $nonImpacte[] = [
+                    'ligne' => (string) $ligne['nom'],
+                    'module' => 'M4',
+                    'motif' => __('ventes.stock_non_sorti_plat_sans_composition', ['plat' => $plat->libelle]),
+                    'cause' => self::CAUSE_PLAT_SANS_COMPOSITION,
+                    'plat_id' => $plat->id,
+                    'quantite' => (int) $ligne['quantite'],
+                ];
+            }
+        }
+
         if ($sansBonDeCuisine) {
             // Vente synchronisée (15/10/2026) : l'assiette est servie, aucun
             // bon de cuisine n'a de sens — mais les denrées sont sorties, par
-            // le MÊME calcul que la transmission (voir `enregistrer()`).
-            //
-            // Un plat SANS composition (fiche vide, aucun lien direct) ne fait
-            // PAS rejeter la vente (décision du Product Owner du 15/10/2026) :
-            // elle a été servie et encaissée hors connexion, la refuser ferait
-            // disparaître l'argent des livres. La ligne est écartée de la
-            // déduction et la vente le DIT (`stock_non_impacte`, cause
-            // `plat_sans_composition`) ; la synchronisation en fait une
-            // anomalie à examiner. En ligne, ce chemin n'est jamais pris : un
-            // plat sans fiche y reste refusé (`RecetteManquanteException`).
+            // le MÊME calcul que la transmission (voir `enregistrer()`). Les
+            // plats sans composition ont été notés ci-dessus et n'y entrent pas.
             $aDeduire = [];
 
-            foreach ($lignesRestaurant as $ligne) {
-                $plat = Plat::query()->with('recette')->findOrFail((string) $ligne['reference_id']);
-
-                if (! $this->deductionCuisine->aDeQuoiDeduire($plat)) {
-                    $nonImpacte[] = [
-                        'ligne' => (string) $ligne['nom'],
-                        'module' => 'M4',
-                        'motif' => __('ventes.stock_non_sorti_plat_sans_composition', ['plat' => $plat->libelle]),
-                        'cause' => self::CAUSE_PLAT_SANS_COMPOSITION,
-                        'plat_id' => $plat->id,
-                        'quantite' => (int) $ligne['quantite'],
-                    ];
-
-                    continue;
+            foreach ($lignesRestaurant as $i => $ligne) {
+                if ($this->deductionCuisine->aDeQuoiDeduire($plats[$i])) {
+                    $aDeduire[] = ['plat' => $plats[$i], 'quantite' => (int) $ligne['quantite']];
                 }
-
-                $aDeduire[] = ['plat' => $plat, 'quantite' => (int) $ligne['quantite']];
             }
 
             if ($aDeduire !== []) {
@@ -979,10 +993,16 @@ class VenteService
         if ($commandeId !== null) {
             // Le stock est sorti à la transmission en cuisine, pas ici. La
             // vente le DIT : un ticket sans mouvement de stock se lirait
-            // autrement comme un défaut de déduction.
+            // autrement comme un défaut de déduction. Un plat sans composition
+            // n'a rien sorti du tout : il est déjà noté plus haut, la phrase
+            // « déjà sorti » serait fausse pour lui.
             $commande = CommandeRestaurant::findOrFail((string) $commandeId);
 
-            foreach ($lignesRestaurant as $ligne) {
+            foreach ($lignesRestaurant as $i => $ligne) {
+                if (! $this->deductionCuisine->aDeQuoiDeduire($plats[$i])) {
+                    continue;
+                }
+
                 $nonImpacte[] = [
                     'ligne' => (string) $ligne['nom'],
                     'module' => 'M4',

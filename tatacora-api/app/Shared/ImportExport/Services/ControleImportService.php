@@ -267,6 +267,10 @@ class ControleImportService
             return null;
         }
 
+        if ($colonne->type === 'texte' && $colonne->longueurMax !== null && mb_strlen($brut) > $colonne->longueurMax) {
+            return __('imports.controle.texte_trop_long', ['colonne' => $colonne->libelle, 'maximum' => $colonne->longueurMax]);
+        }
+
         if ($colonne->type === 'reference') {
             return $this->resoudreReference($colonne, $brut) === null
                 ? __('imports.controle.reference_inconnue', [
