@@ -259,6 +259,8 @@ void main() {
         'unites_vendables',
         // v41 : la catégorie du plat (dix valeurs de la carte).
         'categorie',
+        // v47 : la description facultative du plat.
+        'description',
       ]);
 
       // Ni un coût, ni une marge, ni des portions, ni un taux n'est une colonne

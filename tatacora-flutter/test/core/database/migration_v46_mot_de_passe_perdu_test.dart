@@ -152,7 +152,8 @@ void main() {
       expect(u.data['s'], isNull, reason: 'aucun code de secours fabriqué');
       expect(u.data['n'], 0);
 
-      // Le curseur de descente n'est PAS touché par cette migration.
+      // Le curseur de descente n'est PAS touché par cette migration (la v47, qui la
+      // suit, l'OUBLIE : voir `migration_v47_description_plat_test`).
       final etat = {
         for (final l
             in await apres
@@ -162,7 +163,7 @@ void main() {
                 .get())
           l.data['cle'] as String: l.data['valeur'] as String,
       };
-      if (depart == 45) expect(etat['descente.curseur'], 'abc');
+      expect(etat.containsKey('descente.curseur'), isFalse, reason: 'v47');
       expect(etat['serveur.generation'], 'g1');
 
       // La preuve qui compte : le compte MIGRÉ se connecte avec son ancien mot
