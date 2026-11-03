@@ -16,6 +16,7 @@ import 'package:tatacora_flutter/features/auth/presentation/formulaire_premier_c
 
 import '../../support/cas_ecrans.dart';
 import '../../support/coquille_montee.dart';
+import '../../support/horloge_reference.dart';
 import '../../support/structure_rendue.dart';
 
 /// PHASE 1D — ALIGNEMENT mesuré en PIXELS, écran par écran (pilote : la
@@ -423,6 +424,7 @@ void main() {
         enfant: cas.ecran(),
         surcharges: [
           baseLocaleProvider.overrideWithValue(db),
+          ...surchargesHorlogeDeReference(),
           ...cas.surcharges(db),
         ],
       );

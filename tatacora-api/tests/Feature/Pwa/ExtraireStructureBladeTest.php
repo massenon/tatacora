@@ -14,6 +14,7 @@ use DOMDocument;
 use DOMElement;
 use DOMNode;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
@@ -343,6 +344,11 @@ final class ExtraireStructureBladeTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        // Horloge de REFERENCE (26/10/2026 12:00 UTC) : meme instant que
+        // `test/support/horloge_reference.dart` cote Flutter. Le releve porte
+        // « octobre 2026 », « lundi 26 octobre » : sans cet instant fige, le
+        // regenerer un autre mois decalerait la mesure d'emplacement.
+        Carbon::setTestNow(Carbon::create(2026, 10, 26, 12, 0, 0, 'UTC'));
         $this->seed(RolePermissionSeeder::class);
     }
 
