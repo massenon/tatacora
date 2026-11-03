@@ -20,6 +20,11 @@
       "classe": "a",
       "motif": "« Modifier la boisson » est propre au bar : le drapeau creation_boisson est faux pour le restaurant, qui modifie ses plats sur « Plats & menus ». Le comparateur ne evalue pas les conditions Blade. Voir ecran_carte_restaurant.dart.",
       "date": "2026-10-08"
+    },
+    "chassis|synchronisation-barre": {
+      "classe": "a",
+      "motif": "Modale d'icone de la barre WEB (demande du PO du 03/11/2026) : elle liste les postes APPAIRES que le SERVEUR connait et demande leur synchronisation. Le poste ne connait que lui-meme (sa file, son dernier passage) : il porte sa propre modale (bouton_synchronisation.dart, meme trace, meme place), dont les libelles different a dessein. Voir blade-refuse:chassis#synchronisation-barre.",
+      "date": "2026-11-03"
     }
   },
   "oublis": {

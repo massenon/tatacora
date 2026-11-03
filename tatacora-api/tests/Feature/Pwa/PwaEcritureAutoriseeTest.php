@@ -288,6 +288,12 @@ final class PwaEcritureAutoriseeTest extends TestCase
         'marquerLu',
         // `SynchronisationPostes` (18/10/2026) — même schéma.
         'synchroniser',
+        // L'icône de synchronisation de la barre (03/11/2026) : ouvrir et
+        // fermer la modale n'écrivent rien ; `demander` pose la MÊME demande
+        // que `synchroniser` (inscrite ci-dessous, hors module).
+        'ouvrir',
+        'fermer',
+        'demander',
         // « Actualiser » (21/10/2026) : relit l'état des postes, n'écrit rien.
         'actualiser',
         // Révocation d'appairage (19/10/2026) : ouvrir et fermer la
@@ -413,6 +419,9 @@ final class PwaEcritureAutoriseeTest extends TestCase
         // seulement passer les postes plus tôt. Tout compte qui enregistre au
         // serveur doit pouvoir la faire, quels que soient ses modules.
         'SynchronisationPostes::synchroniser',
+        // L'icône de la barre (03/11/2026) : même demande, même service, même
+        // ouverture à tout compte connecté que la page « Postes & Appairage ».
+        'SynchronisationBarre::demander',
         // La RÉVOCATION d'un appairage (19/10/2026) supprime des jetons, pas
         // une donnée métier, et n'a pas de module : elle est réservée aux
         // deux rôles d'administration (`estAdministrateur`, au composant ET

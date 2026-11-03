@@ -224,6 +224,11 @@
       </a>
     @endif
 
+    {{-- AJOUT à la maquette (PO, 03/11/2026) : l'icône de synchronisation et sa
+         modale, entre « Vente » et la cloche — le poste porte la même
+         (`BoutonSynchronisation`). Voir `SynchronisationBarre`. --}}
+    <livewire:pwa.synchronisation-barre />
+
     {{-- Le raccourci « Journal d'Audit » du maitre (shell.js l.124-127)
          n'est PLUS rendu dans la barre : directive PO du 02/09/2026, il est
          deplace dans le menu de compte (voir $entreesDeCompte ci-dessus) —

@@ -1115,6 +1115,22 @@ return [
         'revocation_faite' => 'Appairage du poste « :poste » révoqué.',
     ],
 
+    // L'icône de synchronisation de la barre supérieure (03/11/2026, demande
+    // du PO). AJOUT à la maquette ; le poste porte la même
+    // (`BoutonSynchronisation`).
+    'synchronisation_barre' => [
+        'etiquette' => 'Synchronisation',
+        'titre' => 'Synchronisation des postes',
+        'sous_titre' => 'L\'état des postes appairés et la demande de synchronisation.',
+        'voyant_gris' => 'Aucun poste appairé : rien à synchroniser.',
+        'voyant_vert' => 'Tous les postes appairés ont donné signe de vie il y a moins de :minutes minutes.',
+        'voyant_orange' => 'Au moins un poste appairé est en retard ou n\'a jamais été vu (plus de :minutes minutes sans contact).',
+        'en_retard' => 'En retard',
+        'revoque' => 'Appairage révoqué',
+        'regle' => 'Un poste appairé est « en retard » après plus de :minutes minutes sans contact avec le serveur (un poste allumé et connecté le contacte toutes les 30 secondes).',
+        'voir_detail' => 'Voir Postes & Appairage',
+    ],
+
     'journal_audit' => [
         'titre_page' => 'Journal d\'Audit — LogiReStock — TATACORA AFRIQUE',
         // maquette — l.24-26

@@ -33,6 +33,14 @@
                 },
                 {
                     "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
+                },
+                {
+                    "type": "info-bulle",
                     "texte": "Notifications"
                 },
                 {
@@ -72,6 +80,14 @@
                 {
                     "type": "span",
                     "texte": "Réseau"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -162,6 +178,14 @@
                 {
                     "type": "span",
                     "texte": "Réseau"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -245,6 +269,14 @@
                 },
                 {
                     "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
+                },
+                {
+                    "type": "info-bulle",
                     "texte": "Notifications"
                 },
                 {
@@ -296,6 +328,14 @@
                 {
                     "type": "info-bulle",
                     "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -390,6 +430,14 @@
                 {
                     "type": "info-bulle",
                     "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -473,6 +521,14 @@
                 },
                 {
                     "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
+                },
+                {
+                    "type": "info-bulle",
                     "texte": "Notifications"
                 },
                 {
@@ -524,6 +580,14 @@
                 {
                     "type": "info-bulle",
                     "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -626,6 +690,14 @@
                 {
                     "type": "info-bulle",
                     "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -709,6 +781,14 @@
                 },
                 {
                     "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
+                },
+                {
+                    "type": "info-bulle",
                     "texte": "Notifications"
                 },
                 {
@@ -760,6 +840,14 @@
                 {
                     "type": "info-bulle",
                     "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -862,6 +950,14 @@
                 {
                     "type": "info-bulle",
                     "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -933,6 +1029,14 @@
                 },
                 {
                     "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
+                },
+                {
+                    "type": "info-bulle",
                     "texte": "Notifications"
                 },
                 {
@@ -972,6 +1076,14 @@
                 {
                     "type": "span",
                     "texte": "Réseau"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -1062,6 +1174,14 @@
                 {
                     "type": "span",
                     "texte": "Réseau"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -1145,6 +1265,14 @@
                 },
                 {
                     "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
+                },
+                {
+                    "type": "info-bulle",
                     "texte": "Notifications"
                 },
                 {
@@ -1196,6 +1324,14 @@
                 {
                     "type": "info-bulle",
                     "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -1290,6 +1426,14 @@
                 {
                     "type": "info-bulle",
                     "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -1361,6 +1505,14 @@
                 },
                 {
                     "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
+                },
+                {
+                    "type": "info-bulle",
                     "texte": "Notifications"
                 },
                 {
@@ -1400,6 +1552,14 @@
                 {
                     "type": "span",
                     "texte": "Réseau"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -1494,6 +1654,14 @@
                 {
                     "type": "span",
                     "texte": "Réseau"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -1573,6 +1741,14 @@
                 },
                 {
                     "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
+                },
+                {
+                    "type": "info-bulle",
                     "texte": "Notifications"
                 },
                 {
@@ -1624,6 +1800,14 @@
                 {
                     "type": "info-bulle",
                     "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -1726,6 +1910,14 @@
                 {
                     "type": "info-bulle",
                     "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -1809,6 +2001,14 @@
                 },
                 {
                     "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
+                },
+                {
+                    "type": "info-bulle",
                     "texte": "Notifications"
                 },
                 {
@@ -1860,6 +2060,14 @@
                 {
                     "type": "info-bulle",
                     "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -1962,6 +2170,14 @@
                 {
                     "type": "info-bulle",
                     "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -2033,6 +2249,14 @@
                 },
                 {
                     "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
+                },
+                {
+                    "type": "info-bulle",
                     "texte": "Notifications"
                 },
                 {
@@ -2068,6 +2292,14 @@
                 {
                     "type": "span",
                     "texte": "Réseau"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -2150,6 +2382,14 @@
                 {
                     "type": "span",
                     "texte": "Réseau"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -2229,6 +2469,14 @@
                 },
                 {
                     "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
+                },
+                {
+                    "type": "info-bulle",
                     "texte": "Notifications"
                 },
                 {
@@ -2280,6 +2528,14 @@
                 {
                     "type": "info-bulle",
                     "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -2374,6 +2630,14 @@
                 {
                     "type": "info-bulle",
                     "texte": "Vente — encaisser une consommation sans réservation"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -2445,6 +2709,14 @@
                 },
                 {
                     "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
+                },
+                {
+                    "type": "info-bulle",
                     "texte": "Notifications"
                 },
                 {
@@ -2484,6 +2756,14 @@
                 {
                     "type": "span",
                     "texte": "Réseau"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",
@@ -2574,6 +2854,14 @@
                 {
                     "type": "span",
                     "texte": "Réseau"
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Aucun poste appairé : rien à synchroniser."
+                },
+                {
+                    "type": "info-bulle",
+                    "texte": "Synchronisation"
                 },
                 {
                     "type": "info-bulle",

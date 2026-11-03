@@ -97,6 +97,11 @@ class AppServiceProvider extends ServiceProvider
             'pwa.selecteur-exercice',
             \App\Pwa\Livewire\Transverse\SelecteurExercice::class,
         );
+        // L'icône de synchronisation de la barre (03/11/2026).
+        \Livewire\Livewire::component(
+            'pwa.synchronisation-barre',
+            \App\Pwa\Livewire\Transverse\SynchronisationBarre::class,
+        );
         // « Postes & Appairage » (26/10/2026) : les onglets Réception et Envoi.
         \Livewire\Livewire::component(
             'pwa.reception-synchronisation',

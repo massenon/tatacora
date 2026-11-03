@@ -335,6 +335,11 @@ final class PwaActionsReluesTest extends TestCase
         // qui fait le geste (`alertes_vues`) : voir `ECRITURES_HORS_MODULE`.
         \App\Pwa\Livewire\Transverse\ClocheNotifications::class => ['render', 'marquerToutLu', 'marquerLu'],
         \App\Pwa\Livewire\Transverse\RechercheGlobale::class => ['render'],
+        // L'icône de synchronisation de la barre (03/11/2026) : `ouvrir` et
+        // `fermer` n'écrivent rien ; `demander` est inscrite dans
+        // `PwaEcritureAutoriseeTest::ECRITURES_HORS_MODULE` (une demande
+        // horodatée, comme `SynchronisationPostes::synchroniser`).
+        \App\Pwa\Livewire\Transverse\SynchronisationBarre::class => ['render', 'ouvrir', 'fermer', 'demander'],
         // Le sélecteur d'exercice global (20/10/2026) — quatrième widget de la
         // barre. Choisir et revenir n'écrivent que la SESSION
         // (`ExerciceConsulte`) ; voir `METHODES_DE_LECTURE`.

@@ -793,12 +793,14 @@ final class ConformiteMaquettePwaTest extends TestCase
             'badge reseau' => 'bg-[var(--succes)]/15',
             'indicateur de caisse' => 'id="indicateur-caisse"',
             'bouton Vente' => 'bg-[var(--gold)] text-white hover:brightness-110',
+            // AJOUT du PO (03/11/2026) : entre « Vente » et la cloche.
+            'icone de synchronisation' => 'id="bouton-synchronisation"',
             'cloche de notifications' => 'id="bouton-cloche-notifications"',
             'pastille de comptage' => 'id="badge-notifications-non-lues"',
             'bloc de compte' => 'class="relative ml-2 pl-3 border-l border-white/10"',
         ];
 
-        $this->assertGreaterThanOrEqual(11, count($widgets));
+        $this->assertGreaterThanOrEqual(12, count($widgets));
 
         $precedent = -1;
         foreach ($widgets as $quoi => $marqueur) {

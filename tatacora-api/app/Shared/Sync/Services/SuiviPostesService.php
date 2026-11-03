@@ -183,6 +183,56 @@ class SuiviPostesService
         return $lignes;
     }
 
+    /**
+     * Le voyant de l'icône de synchronisation de la barre supérieure
+     * (03/11/2026, demande du PO) — UNE règle, écrite ici :
+     *
+     *  - `gris` : aucun poste appairé (rien à surveiller) ;
+     *  - `orange` : au moins un poste APPAIRÉ en retard, c'est-à-dire sans
+     *    contact avec le serveur (`jeton_utilise_le`, mis à jour par chaque
+     *    battement de 30 s) depuis plus de `RETARD_MAX_MINUTES`, ou qui n'a
+     *    jamais donné signe de vie ;
+     *  - `vert` : tous les postes appairés ont été vus récemment.
+     *
+     * Un poste révoqué (`non_appaire`) ou expiré ne compte pas : il n'est plus
+     * attendu. `$maintenant` est injectable pour les tests.
+     *
+     * @param  list<array<string, mixed>>|null  $etats  le résultat d'`etats()` (relu si omis)
+     * @return 'gris'|'vert'|'orange'
+     */
+    public function voyant(?array $etats = null, ?CarbonImmutable $maintenant = null): string
+    {
+        $maintenant ??= CarbonImmutable::now();
+        $attendus = array_filter(
+            $etats ?? $this->etats(),
+            static fn (array $poste): bool => $poste['appaire'] && in_array($poste['etat'], ['actif', 'silencieux'], true),
+        );
+
+        if ($attendus === []) {
+            return 'gris';
+        }
+
+        foreach ($attendus as $poste) {
+            if (self::enRetard($poste, $maintenant)) {
+                return 'orange';
+            }
+        }
+
+        return 'vert';
+    }
+
+    /** Un poste attendu est en retard : jamais vu, ou plus de `RETARD_MAX_MINUTES` sans contact. */
+    public static function enRetard(array $poste, ?CarbonImmutable $maintenant = null): bool
+    {
+        $contact = $poste['jeton_utilise_le'] ?? null;
+
+        return $contact === null
+            || $contact->lessThan(($maintenant ?? CarbonImmutable::now())->subMinutes(self::RETARD_MAX_MINUTES));
+    }
+
+    /** Au-delà de ce délai sans battement, l'icône de la barre passe à l'orange. */
+    public const RETARD_MAX_MINUTES = 15;
+
     /** Au-delà, un poste silencieux n'a plus d'état connu (lot « alerte avant clôture »). */
     public const SILENCE_MAX_HEURES = 24;
 
