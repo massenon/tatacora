@@ -131,6 +131,14 @@ const tablesAjouteesEnV44 = <String>{'pieces_saisie_local'};
 const tablesAjouteesEnV46 = <String>{'journal_securite_local'};
 
 const _ajoutsParVersion = <int, List<String>>{
+  // La v49 (03/11/2026, « Mon profil » sous droit) ajoute DEUX colonnes nullables a
+  // `utilisateurs_local` (`telephone`, `intitule_de_poste`), ni indexees ni
+  // referencees, aucune table. Le retour arriere CONSERVE les colonnes, comme pour la
+  // v45/v46/v48 : les DAO d'aujourd'hui qui JOIGNENT `utilisateurs_local` lisent
+  // toutes ses colonnes. La migration, elle, est eprouvee en RETIRANT les colonnes a
+  // la main (`migration_v49_profil_test`).
+  49: <String>[],
+
   // La v48 (03/11/2026, supprimer un compte) ajoute UNE colonne nullable a
   // `utilisateurs_local`, ni indexee ni referencee, aucune table. Le retour arriere
   // CONSERVE la colonne (comme la v46 conserve ses colonnes de comptes) : les DAO

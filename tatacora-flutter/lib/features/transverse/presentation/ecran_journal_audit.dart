@@ -254,6 +254,7 @@ class _EtatEcranJournalAudit extends ConsumerState<EcranJournalAudit> {
       // code de secours posé en bleu.
       ActionJournalPoste.reinitialisationMotDePasse ||
       ActionJournalPoste.adresseServeurModifiee ||
+      ActionJournalPoste.profilModifie ||
       ActionJournalPoste.codeSecoursUtilise => (
         AppColors.reserveGoldFond,
         AppColors.gold,

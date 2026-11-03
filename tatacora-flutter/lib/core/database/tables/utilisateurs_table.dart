@@ -132,6 +132,21 @@ class UtilisateursLocal extends Table {
   /// un mot de passe ni un dérivé.
   DateTimeColumn get supprimeLe => dateTime().nullable()();
 
+  // --------------------------------------------------------------------------
+  // v49 (03/11/2026) — « MON PROFIL » MODIFIABLE SOUS DROIT (décision du PO). Deux
+  // colonnes NULLABLES, LOCALES (les comptes ne se synchronisent pas) : le nom
+  // complet reste `nom` (déjà affiché par l'écran), le téléphone et l'intitulé de
+  // poste sont neufs. Ecrites par UN seul auteur, `ComptesUtilisateursDao
+  // .enregistrerProfil`, sous les droits `PROFIL_*` du compte relus en base.
+  // --------------------------------------------------------------------------
+
+  /// Le téléphone FACULTATIF du compte : chiffres, +, espaces, tirets, 30 au plus.
+  TextColumn get telephone => text().nullable()();
+
+  /// L'« intitulé de poste » : texte LIBRE et informatif, 120 caractères au plus,
+  /// SANS effet sur les droits (la fonction est le rôle). Nul = non renseigné.
+  TextColumn get intituleDePoste => text().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }

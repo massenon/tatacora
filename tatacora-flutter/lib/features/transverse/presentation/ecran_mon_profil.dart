@@ -17,6 +17,7 @@ import '../../../core/format/formats.dart';
 import '../../auth/impression/feuille_code_secours.dart';
 import '../../auth/domain/mot_de_passe_perdu.dart';
 import '../../auth/domain/session_repository.dart';
+import '../domain/champs_profil.dart';
 import '../domain/comptes_utilisateurs.dart';
 import 'providers_transverses.dart';
 import 'widgets/briques_transverses.dart';
@@ -77,6 +78,7 @@ class EcranMonProfil extends ConsumerWidget {
 
     final infos = _Informations(
       nom: session?.nom,
+      fonction: session == null ? null : roleAffiche(session.role),
       versRoles: () {
         if (droits.peutLire(ModuleTatacora.roles)) {
           GoRouter.of(context).go('/roles-permissions');
@@ -173,8 +175,17 @@ abstract final class TextesProfil {
   static const String noteFonctionAvant =
       "La fonction et les droits d'accès (RBAC) sont gérés par l'administrateur système — voir ";
   static const String noteFonctionLien = 'Rôles & Permissions';
+  // 03/11/2026 : l'ancienne fin de phrase (« Un utilisateur qui pourrait modifier sa
+  // propre fonction contournerait la matrice de droits en un clic. ») justifiait de ne
+  // rien pouvoir saisir alors qu'aucun droit n'existait. Remplacée comme à la vue
+  // (`pwa.profil.note_fonction_apres`).
   static const String noteFonctionApres =
-      '. Un utilisateur qui pourrait modifier sa propre fonction contournerait la matrice de droits en un clic.';
+      ". L'intitulé de poste est un texte libre, sans effet sur vos droits.";
+  static const String intitulePoste = 'Intitulé de poste';
+  static const String champNonModifiableAvant =
+      "Votre rôle ne permet pas de modifier ce champ — demandez à l'administrateur (";
+  static const String champNonModifiableLien = 'Rôles & Permissions';
+  static const String champNonModifiableApres = ').';
   static const String mdpTitre = 'Modifier le mot de passe';
   static const String mdpSousTitre =
       'Le changement est immédiat et ne ferme pas votre session.';
@@ -381,19 +392,30 @@ class _Metadonnees extends StatelessWidget {
   }
 }
 
-/// « Informations personnelles » : trois champs en LECTURE (la vue les rend en
-/// `<p>` grisés), l'E-MAIL ÉDITABLE (facultatif, depuis le 28/10/2026 : décision
-/// du Product Owner, comme la vue — champ puis « Enregistrer les informations »),
-/// puis l'encart bleu de la fonction.
+/// « Informations personnelles » : le nom complet, le téléphone et l'intitulé de
+/// poste, MODIFIABLES SOUS DROIT (décision du Product Owner du 03/11/2026 : droits
+/// RBAC `PROFIL_NOM`, `PROFIL_TELEPHONE`, `PROFIL_INTITULE`, réglés à l'écran
+/// « Rôles & Permissions »), l'E-MAIL ÉDITABLE (facultatif, depuis le 28/10/2026),
+/// la FONCTION en lecture (c'est le rôle, géré par l'administrateur), puis l'encart
+/// bleu.
 ///
-/// L'e-mail est celui du COMPTE de la session (`utilisateurs_local.email`), écrit
-/// par `ComptesUtilisateursDao.enregistrerEmail` : normalisé (trim, minuscules),
-/// validé comme le serveur, vidé = effacé, aucune unicité. Il reste LOCAL (les
-/// comptes ne se synchronisent pas).
+/// Un champ dont le droit est accordé est une saisie ; sinon une lecture seule
+/// suivie de la phrase VRAIE de la vue (« Votre rôle ne permet pas de modifier ce
+/// champ — demandez à l'administrateur (Rôles & Permissions). »). Les droits sont
+/// relus EN BASE par `ComptesUtilisateursDao.profil`, et le DAO les applique
+/// de nouveau à l'enregistrement : masquer un champ ne protège rien.
+///
+/// Tout est LOCAL (les comptes ne se synchronisent pas) : le profil d'un compte du
+/// poste n'est pas celui du même login au serveur.
 class _Informations extends ConsumerStatefulWidget {
-  const _Informations({required this.nom, required this.versRoles});
+  const _Informations({
+    required this.nom,
+    required this.fonction,
+    required this.versRoles,
+  });
 
   final String? nom;
+  final String? fonction;
   final VoidCallback versRoles;
 
   @override
@@ -402,10 +424,13 @@ class _Informations extends ConsumerStatefulWidget {
 
 class _InformationsState extends ConsumerState<_Informations> {
   final _email = TextEditingController();
-  String? _erreurEmail;
+  final _nomSaisi = TextEditingController();
+  final _telephone = TextEditingController();
+  final _intitule = TextEditingController();
+  ProfilDuCompte? _profil;
+  Map<String, String> _erreurs = const {};
   bool _enCours = false;
 
-  String? get _nom => widget.nom;
   VoidCallback get _versRoles => widget.versRoles;
 
   @override
@@ -417,68 +442,148 @@ class _InformationsState extends ConsumerState<_Informations> {
   @override
   void dispose() {
     _email.dispose();
+    _nomSaisi.dispose();
+    _telephone.dispose();
+    _intitule.dispose();
     super.dispose();
   }
 
   Future<void> _charger() async {
     final id = ref.read(sessionProvider)?.utilisateurId;
     if (id == null) return;
-    final adresse = await ref
-        .read(comptesUtilisateursDaoProvider)
-        .emailDuCompte(id);
-    if (mounted && _email.text.isEmpty) _email.text = adresse ?? '';
+    final dao = ref.read(comptesUtilisateursDaoProvider);
+    final adresse = await dao.emailDuCompte(id);
+    // Un compte introuvable (session sans ligne locale) n'a aucun droit de
+    // profil : tout reste en lecture seule, jamais une valeur devinée.
+    ProfilDuCompte profil;
+    try {
+      profil = await dao.profil(id);
+    } on RefusComptes {
+      profil = const ProfilDuCompte(
+        nomComplet: null,
+        telephone: null,
+        intitule: null,
+        droits: {},
+      );
+    }
+    if (!mounted) return;
+    _poser(profil);
+    if (_email.text.isEmpty) _email.text = adresse ?? '';
+  }
+
+  void _poser(ProfilDuCompte profil) {
+    setState(() => _profil = profil);
+    _nomSaisi.text = profil.nomComplet ?? '';
+    _telephone.text = profil.telephone ?? '';
+    _intitule.text = profil.intitule ?? '';
   }
 
   Future<void> _enregistrer() async {
     final id = ref.read(sessionProvider)?.utilisateurId;
-    if (id == null) return;
+    final profil = _profil;
+    if (id == null || profil == null) return;
     setState(() {
       _enCours = true;
-      _erreurEmail = null;
+      _erreurs = const {};
     });
+    final dao = ref.read(comptesUtilisateursDaoProvider);
     try {
-      final adresse = await ref
-          .read(comptesUtilisateursDaoProvider)
-          .enregistrerEmail(utilisateurId: id, email: _email.text);
+      // Un champ en lecture seule renvoie sa valeur COURANTE : le DAO ne voit
+      // aucun changement, donc n'exige aucun droit pour lui.
+      final changes = await dao.enregistrerProfil(
+        utilisateurId: id,
+        nomComplet: profil.peutModifier(ChampProfil.nomComplet)
+            ? _nomSaisi.text
+            : profil.nomComplet,
+        telephone: profil.peutModifier(ChampProfil.telephone)
+            ? _telephone.text
+            : profil.telephone,
+        intitule: profil.peutModifier(ChampProfil.intitule)
+            ? _intitule.text
+            : profil.intitule,
+        email: _email.text,
+      );
+      final relu = await dao.profil(id);
+      final adresse = await dao.emailDuCompte(id);
       if (!mounted) return;
+      _poser(relu);
       _email.text = adresse ?? '';
       setState(() => _enCours = false);
-      direTransverse(
-        context,
-        AdresseEmailFacultative.messageEnregistree,
-        cle: const Key('profil-email-enregistre'),
-      );
-    } on RefusComptes catch (refus) {
+      if (changes.isEmpty) {
+        direTransverse(
+          context,
+          MessagesProfil.aucunChangement,
+          cle: const Key('profil-aucun-changement'),
+        );
+      } else if (changes.length == 1 && changes.first == 'email') {
+        direTransverse(
+          context,
+          AdresseEmailFacultative.messageEnregistree,
+          cle: const Key('profil-email-enregistre'),
+        );
+      } else {
+        direTransverse(
+          context,
+          MessagesProfil.infosEnregistrees,
+          cle: const Key('profil-infos-enregistrees'),
+        );
+      }
+    } on RefusProfil catch (refus) {
       if (!mounted) return;
       setState(() {
         _enCours = false;
-        _erreurEmail = refus.erreurs['email'] ?? refus.message;
+        _erreurs = refus.erreurs;
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final nom = _nom;
+    final profil = _profil;
+    final nom = profil?.nomComplet ?? widget.nom;
     final versRoles = _versRoles;
+    final lecture = styleTransverse(TaillesContenu.t12, couleur: Ardoise.c400);
+
+    Widget etiquette(String libelle) => Text(
+      libelle,
+      style: styleTransverse(
+        TaillesContenu.t15,
+        poids: FontWeight.w600,
+        couleur: Ardoise.c700,
+      ),
+    );
+
+    /// La phrase d'un champ dont le droit n'est pas accordé.
+    Widget phraseLecture(String cle) => Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.unit),
+      child: Wrap(
+        key: Key('profil-lecture-$cle'),
+        children: [
+          Text(TextesProfil.champNonModifiableAvant, style: lecture),
+          InkWell(
+            onTap: versRoles,
+            child: Text(
+              TextesProfil.champNonModifiableLien,
+              style: lecture.copyWith(decoration: TextDecoration.underline),
+            ),
+          ),
+          Text(TextesProfil.champNonModifiableApres, style: lecture),
+        ],
+      ),
+    );
+
     Widget champ(
       String libelle,
       String valeur, {
       String? note,
       Key? cle,
+      String? cleLecture,
     }) => Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.smPlus),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            libelle,
-            style: styleTransverse(
-              TaillesContenu.t15,
-              poids: FontWeight.w600,
-              couleur: Ardoise.c700,
-            ),
-          ),
+          etiquette(libelle),
           const SizedBox(height: AppSpacing.xxs),
           Container(
             padding: const EdgeInsets.symmetric(
@@ -496,16 +601,17 @@ class _InformationsState extends ConsumerState<_Informations> {
               style: styleTransverse(TaillesContenu.sm, couleur: Ardoise.c600),
             ),
           ),
+          if (cleLecture != null && profil != null) phraseLecture(cleLecture),
           if (note != null) ...[
             const SizedBox(height: AppSpacing.unit),
-            Text(
-              note,
-              style: styleTransverse(TaillesContenu.t12, couleur: Ardoise.c400),
-            ),
+            Text(note, style: lecture),
           ],
         ],
       ),
     );
+
+    String ouTiret(String? v) =>
+        (v == null || v.trim().isEmpty) ? TextesProfil.tiret : v;
 
     final bleu = styleTransverse(
       TaillesContenu.t13,
@@ -524,19 +630,71 @@ class _InformationsState extends ConsumerState<_Informations> {
             ),
           ),
           const SizedBox(height: AppSpacing.md),
-          champ(
-            TextesProfil.nomComplet,
-            (nom == null || nom.trim().isEmpty) ? TextesProfil.tiret : nom,
-            note: TextesProfil.sansFicheRhPoste,
-            cle: const Key('profil-nom-complet'),
+          if (profil?.peutModifier(ChampProfil.nomComplet) ?? false)
+            _champSaisie(
+              libelle: TextesProfil.nomComplet,
+              controleur: _nomSaisi,
+              cle: 'profil-champ-nom',
+              erreur: _erreurs[ChampProfil.nomComplet.cle],
+              type: TextInputType.name,
+              indice: AutofillHints.name,
+            )
+          else
+            champ(
+              TextesProfil.nomComplet,
+              ouTiret(nom),
+              cle: const Key('profil-nom-complet'),
+              cleLecture: 'nom',
+            ),
+          _champSaisie(
+            libelle: TextesProfil.email,
+            controleur: _email,
+            cle: 'profil-champ-email',
+            cleErreur: 'profil-erreur-email',
+            erreur: _erreurs['email'],
+            type: TextInputType.emailAddress,
+            indice: AutofillHints.email,
+            invite: TextesProfil.exempleEmail,
           ),
-          _champEmail(),
+          if (profil?.peutModifier(ChampProfil.telephone) ?? false)
+            _champSaisie(
+              libelle: TextesProfil.telephone,
+              controleur: _telephone,
+              cle: 'profil-champ-telephone',
+              erreur: _erreurs[ChampProfil.telephone.cle],
+              type: TextInputType.phone,
+              indice: AutofillHints.telephoneNumber,
+              invite: TextesProfil.exempleTelephone,
+            )
+          else
+            champ(
+              TextesProfil.telephone,
+              ouTiret(profil?.telephone),
+              cle: const Key('profil-telephone'),
+              cleLecture: 'telephone',
+            ),
+          // La FONCTION est le rôle : elle porte les droits, l'administrateur la
+          // gère, son titulaire ne la modifie jamais.
           champ(
-            TextesProfil.telephone,
-            TextesProfil.tiret,
-            note: TextesProfil.exempleTelephone,
+            TextesProfil.fonction,
+            ouTiret(widget.fonction),
+            cle: const Key('profil-fonction'),
           ),
-          champ(TextesProfil.fonction, TextesProfil.tiret),
+          if (profil?.peutModifier(ChampProfil.intitule) ?? false)
+            _champSaisie(
+              libelle: TextesProfil.intitulePoste,
+              controleur: _intitule,
+              cle: 'profil-champ-intitule',
+              erreur: _erreurs[ChampProfil.intitule.cle],
+              type: TextInputType.text,
+            )
+          else
+            champ(
+              TextesProfil.intitulePoste,
+              ouTiret(profil?.intitule),
+              cle: const Key('profil-intitule'),
+              cleLecture: 'intitule',
+            ),
           Container(
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.sm,
@@ -564,6 +722,17 @@ class _InformationsState extends ConsumerState<_Informations> {
               ],
             ),
           ),
+          if (_erreurs['droit'] != null) ...[
+            const SizedBox(height: AppSpacing.unit),
+            Text(
+              _erreurs['droit']!,
+              key: const Key('profil-erreur-droit'),
+              style: styleTransverse(
+                TaillesContenu.t12,
+                couleur: AppColors.erreur,
+              ),
+            ),
+          ],
           const SizedBox(height: AppSpacing.smPlus),
           BoutonTransverse(
             cle: const Key('profil-infos-enregistrer'),
@@ -584,15 +753,24 @@ class _InformationsState extends ConsumerState<_Informations> {
     );
   }
 
-  /// « Email » — le champ éditable : même étiquette (`pwa.profil.email`) et même
-  /// place que la vue, saisie à la mesure des champs de la modale du mot de passe.
-  Widget _champEmail() => Padding(
+  /// Un champ de saisie : même étiquette que la vue, saisie à la mesure des champs
+  /// de la modale du mot de passe.
+  Widget _champSaisie({
+    required String libelle,
+    required TextEditingController controleur,
+    required String cle,
+    String? cleErreur,
+    String? erreur,
+    TextInputType type = TextInputType.text,
+    String? indice,
+    String? invite,
+  }) => Padding(
     padding: const EdgeInsets.only(bottom: AppSpacing.smPlus),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          TextesProfil.email,
+          libelle,
           style: styleTransverse(
             TaillesContenu.t15,
             poids: FontWeight.w600,
@@ -601,15 +779,15 @@ class _InformationsState extends ConsumerState<_Informations> {
         ),
         const SizedBox(height: AppSpacing.xxs),
         TextField(
-          key: const Key('profil-champ-email'),
-          controller: _email,
+          key: Key(cle),
+          controller: controleur,
           enabled: !_enCours,
-          keyboardType: TextInputType.emailAddress,
-          autofillHints: const [AutofillHints.email],
+          keyboardType: type,
+          autofillHints: indice == null ? null : [indice],
           style: styleTransverse(TaillesContenu.sm),
           decoration: InputDecoration(
             isDense: true,
-            hintText: TextesProfil.exempleEmail,
+            hintText: invite,
             hintStyle: styleTransverse(
               TaillesContenu.sm,
               couleur: Ardoise.c400,
@@ -620,11 +798,11 @@ class _InformationsState extends ConsumerState<_Informations> {
             ),
           ),
         ),
-        if (_erreurEmail != null) ...[
+        if (erreur != null) ...[
           const SizedBox(height: AppSpacing.unit),
           Text(
-            _erreurEmail!,
-            key: const Key('profil-erreur-email'),
+            erreur,
+            key: Key(cleErreur ?? '$cle-erreur'),
             style: styleTransverse(
               TaillesContenu.t12,
               couleur: AppColors.erreur,

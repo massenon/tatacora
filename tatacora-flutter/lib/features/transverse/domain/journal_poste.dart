@@ -56,6 +56,11 @@ enum ActionJournalPoste {
   // du serveur. Jamais un secret : qui, quel login, quand, depuis quel poste.
   compteSupprime('compte_supprime', 'Compte supprimé'),
 
+  // « Mon profil » (03/11/2026) : les champs changés par leur titulaire, « ancien →
+  // nouveau », consignés en LOCAL (le profil ne se synchronise pas). Libellé de
+  // `JournalAudit::ACTIONS['profil_modifie']` du serveur. Jamais un secret.
+  profilModifie('profil_modifie', 'Profil modifié'),
+
   // L'adresse du serveur changée à l'écran (29/10/2026) : une action PROPRE AU
   // POSTE (le serveur n'en a pas, il ne connaît pas la configuration d'un
   // poste). Le détail « ancienne → nouvelle » est l'ENREGISTREMENT visé ; jamais

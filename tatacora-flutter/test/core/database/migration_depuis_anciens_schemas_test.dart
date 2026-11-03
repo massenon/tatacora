@@ -306,8 +306,9 @@ void main() {
 
         final db = sql.sqlite3.open(fichier.path, mode: sql.OpenMode.readOnly);
         // La version COURANTE (47 depuis la description d'un plat, 30/10/2026 ; 46 depuis le mot de passe perdu sans e-mail,
+        // v49 (03/11/2026) : « Mon profil » sous droit — deux colonnes nullables sur les comptes.
         // 29/10/2026).
-        expect(db.select('PRAGMA user_version').first.values.first, 48);
+        expect(db.select('PRAGMA user_version').first.values.first, 49);
         db.close();
       },
       timeout: const Timeout(Duration(minutes: 2)),

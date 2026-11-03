@@ -45,6 +45,10 @@ void main() {
   }
 
   const droitsAvant = '{"M5":"C","M6":"L"}';
+  // La v49 (03/11/2026) AJOUTE les trois droits de « Mon profil » aux matrices déjà
+  // stockées (additif : les clés d'avant sont intactes).
+  const droitsApres =
+      '{"M5":"C","M6":"L","PROFIL_NOM":"C","PROFIL_TELEPHONE":"C","PROFIL_INTITULE":"-"}';
 
   test('v23 -> v24 : la table APPARAÎT vide, le compte d’avant est INTACT ; '
       'le socle se pose ensuite au geste, sans toucher le compte', () async {
@@ -92,7 +96,7 @@ void main() {
     final u = await apres
         .customSelect('SELECT role, droits_json FROM utilisateurs_local')
         .getSingle();
-    expect((u.data['role'], u.data['droits_json']), ('barman', droitsAvant));
+    expect((u.data['role'], u.data['droits_json']), ('barman', droitsApres));
 
     // Le poste migré est utilisable : le socle se pose, le compte compte, et
     // ses droits ne sont réécrits que par un geste de l'écran.
@@ -105,7 +109,7 @@ void main() {
     final relu = await apres
         .customSelect('SELECT droits_json FROM utilisateurs_local')
         .getSingle();
-    expect(relu.data['droits_json'], droitsAvant);
+    expect(relu.data['droits_json'], droitsApres);
     await apres.close();
   });
 }

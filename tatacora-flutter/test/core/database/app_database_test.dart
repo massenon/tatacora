@@ -161,7 +161,7 @@ void main() {
     // v47 (30/10/2026) : une colonne (`description` d'un plat), AUCUNE table —
     // le compte reste 78.
     expect(base.allTables.length, 78);
-    expect(base.schemaVersion, 48);
+    expect(base.schemaVersion, 49);
     expect(
       base.allTables.map((t) => t.actualTableName).toSet().containsAll({
         'origines_documents_local',

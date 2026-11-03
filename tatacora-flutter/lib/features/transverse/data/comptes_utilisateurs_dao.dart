@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
@@ -8,6 +10,7 @@ import '../../auth/data/verificateur_hors_ligne.dart';
 import '../../auth/domain/mot_de_passe_perdu.dart';
 import '../../synchronisation/data/operations_sync_dao.dart';
 import '../../synchronisation/domain/operation_sync.dart';
+import '../domain/champs_profil.dart';
 import '../domain/comptes_utilisateurs.dart';
 import '../domain/journal_poste.dart';
 import 'journal_securite_dao.dart';
@@ -416,6 +419,144 @@ class ComptesUtilisateursDao {
         .write(UtilisateursLocalCompanion(email: Value(adresse)));
     return adresse;
   }
+
+  /// Ce que « Mon profil » relit du compte [utilisateurId] : ses trois champs et SES
+  /// droits de profil, LUS EN BASE (jamais ceux, périmés, de la session). Le nom
+  /// complet est `nom`.
+  Future<ProfilDuCompte> profil(String utilisateurId) async {
+    final compte = await _compte(utilisateurId);
+    return ProfilDuCompte(
+      nomComplet: ReglesProfil.normaliser(compte.nom),
+      telephone: ReglesProfil.normaliser(compte.telephone),
+      intitule: ReglesProfil.normaliser(compte.intituleDePoste),
+      droits: _droitsProfil(compte),
+    );
+  }
+
+  /// Les champs de profil que [compte] peut modifier : actif ET `C` sur le droit
+  /// (binaire — `-`, `L` ou absent refusent, un droit ne s'obtient pas par omission).
+  static Set<ChampProfil> _droitsProfil(UtilisateurLocal compte) {
+    if (!compte.actif || compte.supprimeLe != null) return const {};
+    Object? lu;
+    try {
+      lu = jsonDecode(compte.droitsJson);
+    } on FormatException {
+      return const {};
+    }
+    if (lu is! Map) return const {};
+    return {
+      for (final c in ChampProfil.values)
+        if (lu[c.droit] == 'C') c,
+    };
+  }
+
+  /// « Enregistrer les informations » de « Mon profil » — `MonProfil::
+  /// enregistrerInformations()` du serveur : le nom complet, le téléphone, l'intitulé
+  /// de poste et l'e-mail du compte [utilisateurId] (celui de la SESSION, jamais d'un
+  /// tiers). Rend les clés des champs réellement changés (vide : rien à enregistrer).
+  ///
+  /// ## Le droit est appliqué ICI, jamais seulement dans l'écran
+  ///
+  /// Chaque champ DONT LA VALEUR CHANGE est confronté à son droit `PROFIL_*`, relu
+  /// en base, AVANT toute écriture : sans le droit, [RefusProfil] sur `droit` et
+  /// RIEN n'est écrit (pas même l'e-mail). Un champ inchangé ne déclenche rien.
+  ///
+  /// Normalisation : trim, espaces internes réduits ; vide efface (pour le nom
+  /// complet — colonne non nulle —, l'effacement rend le login, nom de repli du
+  /// compte). Validation : nom et intitulé 120 caractères, sans caractère de
+  /// contrôle ; téléphone 30, chiffres, +, espaces, tirets ; l'e-mail comme
+  /// [enregistrerEmail].
+  ///
+  /// Journal « Profil modifié » (journal de sécurité du poste), dans la MÊME
+  /// transaction : les champs changés, « ancien → nouveau ». Le profil ne porte aucun
+  /// secret. LOCAL : les comptes ne se synchronisent pas, rien n'est enfilé.
+  Future<List<String>> enregistrerProfil({
+    required String utilisateurId,
+    required String? nomComplet,
+    required String? telephone,
+    required String? intitule,
+    required String? email,
+  }) => _base.transaction(() async {
+    final compte = await _compte(utilisateurId);
+    final droits = _droitsProfil(compte);
+
+    final nouveaux = <ChampProfil, String?>{
+      ChampProfil.nomComplet: ReglesProfil.normaliser(nomComplet),
+      ChampProfil.telephone: ReglesProfil.normaliser(telephone),
+      ChampProfil.intitule: ReglesProfil.normaliser(intitule),
+    };
+    final courants = <ChampProfil, String?>{
+      ChampProfil.nomComplet: ReglesProfil.normaliser(compte.nom),
+      ChampProfil.telephone: ReglesProfil.normaliser(compte.telephone),
+      ChampProfil.intitule: ReglesProfil.normaliser(compte.intituleDePoste),
+    };
+
+    // 1. Le droit, champ par champ, sur ce qui CHANGE réellement. Le nom effacé
+    // devient le login : comparé à ce qu'il deviendrait.
+    final changes = <ChampProfil, String?>{};
+    for (final c in ChampProfil.values) {
+      final futur = c == ChampProfil.nomComplet
+          ? (nouveaux[c] ?? compte.login)
+          : nouveaux[c];
+      if (futur == courants[c]) continue;
+      if (!droits.contains(c)) {
+        throw RefusProfil.message('droit', MessagesProfil.champRefuse);
+      }
+      changes[c] = nouveaux[c];
+    }
+
+    // 2. La forme.
+    final erreurs = <String, String>{};
+    for (final c in changes.keys) {
+      final phrase = ReglesProfil.erreur(c, changes[c]);
+      if (phrase != null) erreurs[c.cle] = phrase;
+    }
+    if (AdresseEmailFacultative.erreur(email) != null) {
+      erreurs['email'] = MessagesComptes.emailInvalide;
+    }
+    if (erreurs.isNotEmpty) throw RefusProfil(erreurs);
+
+    final adresse = AdresseEmailFacultative.normaliser(email);
+    final emailChange = adresse != compte.email;
+    if (changes.isEmpty && !emailChange) return const <String>[];
+
+    String montrer(String? v) => v == null ? '—' : '« $v »';
+    final details = <String>[
+      for (final e in changes.entries)
+        '${_libelleChamp(e.key)} : ${montrer(courants[e.key])} → ${montrer(e.value)}',
+      if (emailChange) 'Email : ${montrer(compte.email)} → ${montrer(adresse)}',
+    ];
+
+    await (_base.update(
+      _base.utilisateursLocal,
+    )..where((u) => u.id.equals(compte.id))).write(
+      UtilisateursLocalCompanion(
+        nom: changes.containsKey(ChampProfil.nomComplet)
+            ? Value(changes[ChampProfil.nomComplet] ?? compte.login)
+            : const Value.absent(),
+        telephone: changes.containsKey(ChampProfil.telephone)
+            ? Value(changes[ChampProfil.telephone])
+            : const Value.absent(),
+        intituleDePoste: changes.containsKey(ChampProfil.intitule)
+            ? Value(changes[ChampProfil.intitule])
+            : const Value.absent(),
+        email: emailChange ? Value(adresse) : const Value.absent(),
+      ),
+    );
+    await _journal.tracer(
+      action: ActionJournalPoste.profilModifie,
+      auteurLogin: compte.login,
+      cibleId: compte.id,
+      cibleLogin: '${compte.login} — ${details.join(' ; ')}',
+    );
+    return [for (final c in changes.keys) c.cle, if (emailChange) 'email'];
+  });
+
+  static String _libelleChamp(ChampProfil c) => switch (c) {
+    ChampProfil.nomComplet => 'Nom complet',
+    ChampProfil.telephone => 'Téléphone',
+    ChampProfil.intitule => 'Intitulé de poste',
+  };
 
   /// L'e-mail du compte [utilisateurId] (`null` : non renseigné ou compte inconnu).
   Future<String?> emailDuCompte(String utilisateurId) async {

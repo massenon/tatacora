@@ -56,6 +56,9 @@ final class RoleDuPoste {
   /// Les droits, relus par la MÊME fabrique que la session.
   GardeAcces get droits => GardeAcces.depuisJson(niveaux);
 
+  /// Le droit de profil [code] (`PROFIL_NOM`…) est-il accordé ? Binaire : seul `C`.
+  bool droitProfil(String code) => niveaux[code] == NiveauAcces.complet.code;
+
   /// `RolesPermissions::render()` : le nombre de modules de l'écran à `C`.
   int get complet => [
     for (final m in libellesModulesMatrice.keys)
@@ -159,9 +162,12 @@ const Map<ModuleTatacora, String> libellesModulesMatrice = {
 };
 
 /// `RolePermissionSeeder::MATRICE`, recopiée À L'IDENTIQUE (14/10/2026) :
-/// DOUZE rôles (dont `super_admin`, directive du PO du 03/09/2026) et DIX-SEPT
+/// DOUZE rôles (dont `super_admin`, directive du PO du 03/09/2026) et VINGT
 /// colonnes (dont `ANNULATIONS`, droit transverse que l'écran n'affiche pas,
-/// mais que le socle pose et que « Rétablir » rétablit). Une divergence avec
+/// mais que le socle pose et que « Rétablir » rétablit, et — depuis le
+/// 03/11/2026 — les trois droits de « Mon profil » : `PROFIL_NOM`,
+/// `PROFIL_TELEPHONE` pour tous les rôles, `PROFIL_INTITULE` pour les rôles
+/// d'administration). Une divergence avec
 /// le seeder se corrige ICI, jamais acceptée comme « presque pareil ».
 const Map<String, Map<String, String>> socleRbacCdcf = {
   'super_admin': {
@@ -182,6 +188,9 @@ const Map<String, Map<String, String>> socleRbacCdcf = {
     'ROLES': 'C',
     'PARAM': 'C',
     'ANNULATIONS': 'C',
+    'PROFIL_NOM': 'C',
+    'PROFIL_TELEPHONE': 'C',
+    'PROFIL_INTITULE': 'C',
   },
   'administrateur': {
     'M1': 'C',
@@ -201,6 +210,9 @@ const Map<String, Map<String, String>> socleRbacCdcf = {
     'ROLES': 'C',
     'PARAM': 'C',
     'ANNULATIONS': 'C',
+    'PROFIL_NOM': 'C',
+    'PROFIL_TELEPHONE': 'C',
+    'PROFIL_INTITULE': 'C',
   },
   'gerant': {
     'M1': 'C',
@@ -220,6 +232,9 @@ const Map<String, Map<String, String>> socleRbacCdcf = {
     'ROLES': 'L',
     'PARAM': 'L',
     'ANNULATIONS': 'C',
+    'PROFIL_NOM': 'C',
+    'PROFIL_TELEPHONE': 'C',
+    'PROFIL_INTITULE': '-',
   },
   'receptionniste': {
     'M1': 'C',
@@ -239,6 +254,9 @@ const Map<String, Map<String, String>> socleRbacCdcf = {
     'ROLES': '-',
     'PARAM': '-',
     'ANNULATIONS': 'L',
+    'PROFIL_NOM': 'C',
+    'PROFIL_TELEPHONE': 'C',
+    'PROFIL_INTITULE': '-',
   },
   'cuisine': {
     'M1': '-',
@@ -258,6 +276,9 @@ const Map<String, Map<String, String>> socleRbacCdcf = {
     'ROLES': '-',
     'PARAM': '-',
     'ANNULATIONS': '-',
+    'PROFIL_NOM': 'C',
+    'PROFIL_TELEPHONE': 'C',
+    'PROFIL_INTITULE': '-',
   },
   'barman': {
     'M1': '-',
@@ -277,6 +298,9 @@ const Map<String, Map<String, String>> socleRbacCdcf = {
     'ROLES': '-',
     'PARAM': '-',
     'ANNULATIONS': '-',
+    'PROFIL_NOM': 'C',
+    'PROFIL_TELEPHONE': 'C',
+    'PROFIL_INTITULE': '-',
   },
   'magasinier': {
     'M1': '-',
@@ -296,6 +320,9 @@ const Map<String, Map<String, String>> socleRbacCdcf = {
     'ROLES': '-',
     'PARAM': '-',
     'ANNULATIONS': '-',
+    'PROFIL_NOM': 'C',
+    'PROFIL_TELEPHONE': 'C',
+    'PROFIL_INTITULE': '-',
   },
   'achats': {
     'M1': '-',
@@ -315,6 +342,9 @@ const Map<String, Map<String, String>> socleRbacCdcf = {
     'ROLES': '-',
     'PARAM': '-',
     'ANNULATIONS': '-',
+    'PROFIL_NOM': 'C',
+    'PROFIL_TELEPHONE': 'C',
+    'PROFIL_INTITULE': '-',
   },
   'vehicules': {
     'M1': '-',
@@ -334,6 +364,9 @@ const Map<String, Map<String, String>> socleRbacCdcf = {
     'ROLES': '-',
     'PARAM': '-',
     'ANNULATIONS': '-',
+    'PROFIL_NOM': 'C',
+    'PROFIL_TELEPHONE': 'C',
+    'PROFIL_INTITULE': '-',
   },
   'guide': {
     'M1': '-',
@@ -353,6 +386,9 @@ const Map<String, Map<String, String>> socleRbacCdcf = {
     'ROLES': '-',
     'PARAM': '-',
     'ANNULATIONS': '-',
+    'PROFIL_NOM': 'C',
+    'PROFIL_TELEPHONE': 'C',
+    'PROFIL_INTITULE': '-',
   },
   'rh': {
     'M1': '-',
@@ -372,6 +408,9 @@ const Map<String, Map<String, String>> socleRbacCdcf = {
     'ROLES': '-',
     'PARAM': '-',
     'ANNULATIONS': '-',
+    'PROFIL_NOM': 'C',
+    'PROFIL_TELEPHONE': 'C',
+    'PROFIL_INTITULE': '-',
   },
   'comptable': {
     'M1': 'L',
@@ -391,6 +430,9 @@ const Map<String, Map<String, String>> socleRbacCdcf = {
     'ROLES': '-',
     'PARAM': '-',
     'ANNULATIONS': 'L',
+    'PROFIL_NOM': 'C',
+    'PROFIL_TELEPHONE': 'C',
+    'PROFIL_INTITULE': '-',
   },
 };
 

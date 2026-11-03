@@ -16,6 +16,7 @@ import 'tables/boite_envoi_emails_tables.dart';
 import 'tables/caisse_tables.dart';
 import 'auteur_ecriture.dart';
 import 'declencheurs_comptables.dart';
+import 'droits_profil_migration.dart';
 import 'reconcilier_schema.dart';
 import 'emplacement_base.dart';
 import 'tables/clients_table.dart';
@@ -535,8 +536,16 @@ class AppDatabase extends _$AppDatabase {
   /// supprimé voyage par le LOGIN, jamais avec un mot de passe ni un dérivé. Le
   /// curseur de descente est oublié : les comptes déjà supprimés au serveur
   /// redescendent.
+  ///
+  /// v49 (03/11/2026) — « MON PROFIL » MODIFIABLE SOUS DROIT (décision du PO) : DEUX
+  /// colonnes NULLABLES sur `utilisateurs_local` (`telephone`, `intitule_de_poste`),
+  /// aucune table, locales. Le nom complet reste `nom`. Les trois droits `PROFIL_NOM`,
+  /// `PROFIL_TELEPHONE`, `PROFIL_INTITULE` entrent dans la matrice : la migration les
+  /// pose dans `roles_local.droits_json` et `utilisateurs_local.droits_json` SEULEMENT
+  /// là où la clé manque (nom et téléphone : tous ; intitulé : rôles d'administration),
+  /// et ne réécrit JAMAIS un réglage déjà fait.
   @override
-  int get schemaVersion => 48;
+  int get schemaVersion => 49;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1599,6 +1608,33 @@ class AppDatabase extends _$AppDatabase {
         if (!tables.contains('journal_securite_local')) {
           await m.createTable(journalSecuriteLocal);
         }
+      }
+      if (from < 49) {
+        // « MON PROFIL » SOUS DROIT (03/11/2026) : deux colonnes NULLABLES, aucune
+        // table, aucune valeur fabriquée. Ajout CONDITIONNEL (piège 3) : une
+        // fixture ramenée en arrière depuis la définition courante les porte déjà,
+        // et un fichier à la forme v49 marqué v48 doit se rejouer. Puis les trois
+        // droits de profil, additivement : une clé DÉJÀ présente n'est jamais
+        // réécrite (un réglage d'écran prime).
+        final comptes = {
+          for (final c
+              in await m.database
+                  .customSelect('PRAGMA table_info(utilisateurs_local)')
+                  .get())
+            c.data['name'] as String,
+        };
+        if (comptes.isNotEmpty) {
+          if (!comptes.contains('telephone')) {
+            await m.addColumn(utilisateursLocal, utilisateursLocal.telephone);
+          }
+          if (!comptes.contains('intitule_de_poste')) {
+            await m.addColumn(
+              utilisateursLocal,
+              utilisateursLocal.intituleDePoste,
+            );
+          }
+        }
+        await poserDroitsProfil(m.database);
       }
       if (from < 48) {
         // SUPPRIMER UN COMPTE (03/11/2026) : UNE colonne NULLABLE, aucune table, aucun
