@@ -1245,11 +1245,27 @@ return [
         'fonction' => 'Fonction',
         // maquette — l.86-91, la note bleue. Reprise mot pour mot : elle dit
         // pourquoi la fonction est en lecture, et cela reste vrai ici.
+        // 03/11/2026 : la note disait que « la fonction et les droits » étaient
+        // gérés par l'administrateur sans qu'aucun droit existe pour le nom, le
+        // téléphone ni l'intitulé — elle empêchait de renseigner ces champs sans
+        // le dire. Désormais vraie : la FONCTION est le rôle (ou la fiche RH) et
+        // reste à l'administrateur ; le reste dépend de trois droits explicites.
         'note_fonction_avant' => 'La fonction et les droits d\'accès (RBAC) sont gérés par l\'administrateur '
             . 'système — voir ',
         'note_fonction_lien' => 'Rôles & Permissions',
-        'note_fonction_apres' => '. Un utilisateur qui pourrait modifier sa propre fonction contournerait la '
-            . 'matrice de droits en un clic.',
+        'note_fonction_apres' => '. L\'intitulé de poste est un texte libre, sans effet sur vos droits.',
+        'intitule_poste' => 'Intitulé de poste',
+        'champ_non_modifiable_avant' => 'Votre rôle ne permet pas de modifier ce champ — demandez à '
+            . 'l\'administrateur (',
+        'champ_non_modifiable_lien' => 'Rôles & Permissions',
+        'champ_non_modifiable_apres' => ').',
+        'nom_complet_invalide' => 'Le nom complet ne peut pas dépasser 120 caractères ni contenir de caractère de contrôle.',
+        'telephone_invalide' => 'Le téléphone ne peut contenir que des chiffres, des +, des espaces et des tirets (30 caractères au plus).',
+        'intitule_invalide' => 'L\'intitulé de poste ne peut pas dépasser 120 caractères ni contenir de caractère de contrôle.',
+        'champ_refuse' => 'Votre rôle ne permet pas de modifier ce champ.',
+        'infos_enregistrees' => 'Informations enregistrées.',
+        'aucun_changement' => 'Aucune modification à enregistrer.',
+        'audit_profil_modifie' => 'Profil modifié',
         'enregistrer_infos' => 'Enregistrer les informations',
         'sans_fiche_rh' => 'Aucune fiche employé n\'est rattachée à ce compte.',
 
@@ -1322,6 +1338,15 @@ return [
         'legende_lecture' => 'Lecture seule (L)',
         'legende_aucun' => 'Aucun accès',
         'col_module' => 'Module',
+        // Section « Profil » (03/11/2026, décision du PO) : trois droits
+        // binaires de modifier SES PROPRES champs de « Mon profil ». Ajout à la
+        // maquette, qui ne les connaît pas.
+        'section_profil' => 'Profil',
+        'profil_PROFIL_NOM' => 'Modifier son nom complet',
+        'profil_PROFIL_TELEPHONE' => 'Modifier son téléphone',
+        'profil_PROFIL_INTITULE' => 'Modifier son intitulé de poste',
+        'profil_autorise' => 'Autorisé',
+        'profil_refuse' => 'Non autorisé',
 
         // maquette — l.136-137, les deux compteurs de chaque carte
         'carte_complet' => ':nombre accès complet',

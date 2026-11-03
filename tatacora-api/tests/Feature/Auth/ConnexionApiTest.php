@@ -186,7 +186,8 @@ final class ConnexionApiTest extends TestCase
             'mot_de_passe' => 'motdepasse123',
         ])->json('utilisateur.droits');
 
-        $this->assertCount(16, $droits);
+        // Seize modules + les trois droits de « Mon profil » (03/11/2026).
+        $this->assertCount(19, $droits);
         $this->assertSame('C', $droits['M1']);
         // M13 n'a jamais été accordé : il doit apparaître explicitement.
         $this->assertArrayHasKey('M13', $droits);

@@ -108,6 +108,31 @@ class RolesPermissions extends PageTransverse
     ];
 
     /**
+     * La section « Profil » de la matrice (03/11/2026, décision du PO) : les
+     * trois droits de modifier SES PROPRES champs de « Mon profil ». Binaires —
+     * `C` autorisé, `-` refusé, jamais `L`. Les codes viennent du seeder
+     * (`DROITS_PROFIL`) : la liste n'est écrite qu'une fois.
+     *
+     * @var array<string, string>
+     */
+    public const PROFIL = [
+        'PROFIL_NOM' => 'Modifier son nom complet',
+        'PROFIL_TELEPHONE' => 'Modifier son téléphone',
+        'PROFIL_INTITULE' => 'Modifier son intitulé de poste',
+    ];
+
+    /**
+     * Les modules qu'écrit la modale : les seize du maître PLUS les trois
+     * droits de profil.
+     *
+     * @return list<string>
+     */
+    private static function codesEditables(): array
+    {
+        return [...array_keys(self::MODULES), ...array_keys(self::PROFIL)];
+    }
+
+    /**
      * Les onze roles du maitre (l.96-100). La cle est celle que
      * `roles.libelle` stocke — le seeder y ecrit `administrateur`, `gerant`…
      *
@@ -198,7 +223,7 @@ class RolesPermissions extends PageTransverse
         $this->roleEnEditionLibelle = self::libelleRole($role->libelle);
 
         $niveaux = [];
-        foreach (array_keys(self::MODULES) as $module) {
+        foreach (self::codesEditables() as $module) {
             $niveaux[$module] = $role->niveauSurModule($module);
         }
         $this->niveauxSaisis = $niveaux;
@@ -227,7 +252,7 @@ class RolesPermissions extends PageTransverse
     {
         $this->exigerEcriture(self::MODULE);
 
-        foreach (array_keys(self::MODULES) as $code) {
+        foreach (self::codesEditables() as $code) {
             if ($code === 'ROLES' && $this->roleEnEditionCode === 'administrateur') {
                 continue;
             }
@@ -241,6 +266,10 @@ class RolesPermissions extends PageTransverse
         $regles = ['roleEnEditionId' => ['required', 'string']];
         foreach (array_keys(self::MODULES) as $module) {
             $regles["niveauxSaisis.{$module}"] = ['required', 'in:C,L,-'];
+        }
+        // Les droits de profil sont binaires : `L` n'a pas de sens.
+        foreach (array_keys(self::PROFIL) as $droit) {
+            $regles["niveauxSaisis.{$droit}"] = ['required', 'in:C,-'];
         }
 
         $donnees = $this->validerEcriture($regles);
@@ -296,7 +325,12 @@ class RolesPermissions extends PageTransverse
                 $droits[$module] = $role->niveauSurModule($module);
             }
 
-            $lignes[$role->libelle] = $droits;
+            $profil = [];
+            foreach (array_keys(self::PROFIL) as $droit) {
+                $profil[$droit] = $role->niveauSurModule($droit) === 'C' ? 'C' : '-';
+            }
+
+            $lignes[$role->libelle] = $droits + $profil;
 
             $cartes[] = [
                 'id' => $role->getKey(),

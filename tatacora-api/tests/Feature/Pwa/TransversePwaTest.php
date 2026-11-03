@@ -196,7 +196,9 @@ final class TransversePwaTest extends TestCase
             // filtre mais une écriture sans module RBAC, inscrite à ce titre dans
             // `PwaEcritureAutoriseeTest::ECRITURES_HORS_MODULE`. Le champ de mot de passe, lui, reste
             // derrière sa modale.
-            'mon-profil' => ['emailSaisi'],
+            // 03/11/2026 (décision du PO) : nom complet, téléphone et intitulé de poste, SOUS DROIT
+            // (modules RBAC `PROFIL_*`, relus côté serveur) — même famille que l'e-mail.
+            'mon-profil' => ['emailSaisi', 'nomSaisi', 'telephoneSaisi', 'intituleSaisi'],
         ];
 
         foreach (self::PAGES as $nom => $page) {

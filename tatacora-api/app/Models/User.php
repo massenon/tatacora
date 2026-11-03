@@ -130,6 +130,20 @@ class User extends Authenticatable
     }
 
     /**
+     * Ce compte peut-il modifier CE champ de son propre profil ? [champ] est
+     * l'une des clés de `ChampsProfil::DROITS`. Le droit est un module RBAC
+     * transverse, binaire : seul `C` autorise ; `L` ou `-` refusent. Un compte
+     * inactif ne modifie rien. Autorité unique, relue par le serveur à chaque
+     * enregistrement — masquer le champ dans l'écran ne protège rien.
+     */
+    public function peutModifierSonProfil(string $champ): bool
+    {
+        $droit = \App\Pwa\Support\ChampsProfil::DROITS[$champ] ?? null;
+
+        return $droit !== null && $this->estActif() && $this->niveauSurModule($droit) === 'C';
+    }
+
+    /**
      * Les DEUX rôles qui administrent — auteur unique de cette liste.
      *
      * Elle était écrite dans `AutoriseArchivage`, qui la lisait seul. Un

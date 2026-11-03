@@ -141,6 +141,9 @@ class JournalAudit extends PageTransverse
         // Supprimer un compte (03/11/2026) : écrits par `SuppressionCompteService` —
         // qui, quel login, depuis quel poste ; jamais un secret.
         'compte_supprime' => ['libelle' => 'Compte supprimé', 'fond' => '#FDECEC', 'texte' => '#C62828'],
+        // « Mon profil » (03/11/2026) : écrit par `MonProfil::enregistrerInformations` —
+        // les champs changés, ancien → nouveau ; jamais un secret.
+        'profil_modifie' => ['libelle' => 'Profil modifié', 'fond' => '#FDF3E0', 'texte' => '#B8891E'],
         'compte_supprime_inconnu' => ['libelle' => 'Compte supprimé (inconnu du serveur)', 'fond' => '#F3F4F6', 'texte' => '#6B7280'],
     ];
 

@@ -209,6 +209,8 @@ final class ChargementDesEcransPwaTest extends TestCase
                 $this->methodesPubliques(\App\Pwa\Livewire\Transverse\ClocheNotifications::class),
                 $this->methodesPubliques(\App\Pwa\Livewire\Transverse\RechercheGlobale::class),
                 $this->methodesPubliques(\App\Pwa\Livewire\Transverse\AlertesOuvertureModales::class),
+                // L'icône de synchronisation de la barre (03/11/2026).
+                $this->methodesPubliques(\App\Pwa\Livewire\Transverse\SynchronisationBarre::class),
             );
 
             foreach ($this->actionsLiees(implode("\n", $sources)) as $action) {

@@ -34,6 +34,30 @@ class RolePermissionSeeder extends Seeder
      * n'exécutent pas eux-mêmes un remboursement, qui reste un arbitrage de
      * direction. Tous les autres rôles restent à `-`, comme sur `M1`.
      */
+    /**
+     * ## `PROFIL_NOM`, `PROFIL_TELEPHONE`, `PROFIL_INTITULE` — « Mon profil » (03/11/2026)
+     *
+     * Trois droits TRANSVERSES, explicites, de modifier SES PROPRES champs du
+     * formulaire « Mon profil » : le nom complet, le téléphone, l'intitulé de
+     * poste (texte libre, sans effet sur les droits — la FONCTION, elle, est le
+     * rôle et reste hors de portée de son titulaire). Binaires : `C` (autorisé)
+     * ou `-` ; `L` n'a pas de sens et vaut refus.
+     *
+     * Valeurs par DÉFAUT (décision du PO) : nom et téléphone pour TOUS les
+     * rôles ; intitulé de poste pour les rôles d'administration seulement.
+     * L'administrateur peut les retirer ou les accorder à l'écran
+     * Rôles & Permissions, et le seeder ne réécrit jamais ce réglage (voir
+     * `completerModulesNouveaux()`).
+     */
+    public const DROITS_PROFIL = ['PROFIL_NOM', 'PROFIL_TELEPHONE', 'PROFIL_INTITULE'];
+
+    /**
+     * Les droits de profil qu'un rôle reçoit par défaut quel qu'il soit —
+     * y compris un rôle créé à l'écran, hors socle. `PROFIL_INTITULE` n'y est
+     * pas : réservé par défaut aux rôles d'administration.
+     */
+    public const DROITS_PROFIL_POUR_TOUS = ['PROFIL_NOM', 'PROFIL_TELEPHONE'];
+
     public const MATRICE = [
         // SUPER_ADMIN — directive PO du 03/09/2026 : tous les CRUD, la
         // suppression en bloc de tous les modules ET la purge des archives
@@ -41,18 +65,18 @@ class RolePermissionSeeder extends Seeder
         // purgent, sur `User::estSuperAdmin()`). Les tables FINANCIERES
         // restent hors de portee de toute suppression physique (RG-03/RG-11,
         // MECeF) : meme le super_admin passe par le geste metier.
-        'super_admin'    => ['M1'=>'C','M2'=>'C','M3'=>'C','M4'=>'C','M5'=>'C','M6'=>'C','M7'=>'C','M8'=>'C','M9'=>'C','M10'=>'C','M11'=>'C','M12'=>'C','M13'=>'C','M14'=>'C','ROLES'=>'C','PARAM'=>'C','ANNULATIONS'=>'C'],
-        'administrateur' => ['M1'=>'C','M2'=>'C','M3'=>'C','M4'=>'C','M5'=>'C','M6'=>'C','M7'=>'C','M8'=>'C','M9'=>'C','M10'=>'C','M11'=>'C','M12'=>'C','M13'=>'C','M14'=>'C','ROLES'=>'C','PARAM'=>'C','ANNULATIONS'=>'C'],
-        'gerant'         => ['M1'=>'C','M2'=>'C','M3'=>'C','M4'=>'C','M5'=>'C','M6'=>'C','M7'=>'C','M8'=>'C','M9'=>'C','M10'=>'C','M11'=>'C','M12'=>'C','M13'=>'C','M14'=>'C','ROLES'=>'L','PARAM'=>'L','ANNULATIONS'=>'C'],
-        'receptionniste' => ['M1'=>'C','M2'=>'C','M3'=>'C','M4'=>'L','M5'=>'L','M6'=>'L','M7'=>'-','M8'=>'L','M9'=>'L','M10'=>'-','M11'=>'L','M12'=>'L','M13'=>'-','M14'=>'L','ROLES'=>'-','PARAM'=>'-','ANNULATIONS'=>'L'],
-        'cuisine'        => ['M1'=>'-','M2'=>'-','M3'=>'L','M4'=>'C','M5'=>'-','M6'=>'C','M7'=>'-','M8'=>'-','M9'=>'-','M10'=>'-','M11'=>'L','M12'=>'-','M13'=>'-','M14'=>'L','ROLES'=>'-','PARAM'=>'-','ANNULATIONS'=>'-'],
-        'barman'         => ['M1'=>'-','M2'=>'-','M3'=>'L','M4'=>'-','M5'=>'C','M6'=>'C','M7'=>'-','M8'=>'-','M9'=>'-','M10'=>'-','M11'=>'L','M12'=>'-','M13'=>'-','M14'=>'L','ROLES'=>'-','PARAM'=>'-','ANNULATIONS'=>'-'],
-        'magasinier'     => ['M1'=>'-','M2'=>'-','M3'=>'-','M4'=>'L','M5'=>'L','M6'=>'C','M7'=>'C','M8'=>'-','M9'=>'-','M10'=>'-','M11'=>'L','M12'=>'-','M13'=>'-','M14'=>'L','ROLES'=>'-','PARAM'=>'-','ANNULATIONS'=>'-'],
-        'achats'         => ['M1'=>'-','M2'=>'-','M3'=>'-','M4'=>'-','M5'=>'-','M6'=>'L','M7'=>'C','M8'=>'-','M9'=>'-','M10'=>'-','M11'=>'L','M12'=>'-','M13'=>'-','M14'=>'L','ROLES'=>'-','PARAM'=>'-','ANNULATIONS'=>'-'],
-        'vehicules'      => ['M1'=>'-','M2'=>'-','M3'=>'L','M4'=>'-','M5'=>'-','M6'=>'-','M7'=>'-','M8'=>'C','M9'=>'L','M10'=>'-','M11'=>'L','M12'=>'-','M13'=>'-','M14'=>'L','ROLES'=>'-','PARAM'=>'-','ANNULATIONS'=>'-'],
-        'guide'          => ['M1'=>'-','M2'=>'-','M3'=>'L','M4'=>'-','M5'=>'-','M6'=>'-','M7'=>'-','M8'=>'L','M9'=>'C','M10'=>'-','M11'=>'-','M12'=>'-','M13'=>'-','M14'=>'-','ROLES'=>'-','PARAM'=>'-','ANNULATIONS'=>'-'],
-        'rh'             => ['M1'=>'-','M2'=>'-','M3'=>'-','M4'=>'-','M5'=>'-','M6'=>'-','M7'=>'-','M8'=>'-','M9'=>'-','M10'=>'L','M11'=>'L','M12'=>'-','M13'=>'C','M14'=>'L','ROLES'=>'-','PARAM'=>'-','ANNULATIONS'=>'-'],
-        'comptable'      => ['M1'=>'L','M2'=>'L','M3'=>'L','M4'=>'L','M5'=>'L','M6'=>'L','M7'=>'L','M8'=>'L','M9'=>'L','M10'=>'C','M11'=>'L','M12'=>'-','M13'=>'L','M14'=>'C','ROLES'=>'-','PARAM'=>'-','ANNULATIONS'=>'L'],
+        'super_admin'    => ['M1'=>'C','M2'=>'C','M3'=>'C','M4'=>'C','M5'=>'C','M6'=>'C','M7'=>'C','M8'=>'C','M9'=>'C','M10'=>'C','M11'=>'C','M12'=>'C','M13'=>'C','M14'=>'C','ROLES'=>'C','PARAM'=>'C','ANNULATIONS'=>'C','PROFIL_NOM'=>'C','PROFIL_TELEPHONE'=>'C','PROFIL_INTITULE'=>'C'],
+        'administrateur' => ['M1'=>'C','M2'=>'C','M3'=>'C','M4'=>'C','M5'=>'C','M6'=>'C','M7'=>'C','M8'=>'C','M9'=>'C','M10'=>'C','M11'=>'C','M12'=>'C','M13'=>'C','M14'=>'C','ROLES'=>'C','PARAM'=>'C','ANNULATIONS'=>'C','PROFIL_NOM'=>'C','PROFIL_TELEPHONE'=>'C','PROFIL_INTITULE'=>'C'],
+        'gerant'         => ['M1'=>'C','M2'=>'C','M3'=>'C','M4'=>'C','M5'=>'C','M6'=>'C','M7'=>'C','M8'=>'C','M9'=>'C','M10'=>'C','M11'=>'C','M12'=>'C','M13'=>'C','M14'=>'C','ROLES'=>'L','PARAM'=>'L','ANNULATIONS'=>'C','PROFIL_NOM'=>'C','PROFIL_TELEPHONE'=>'C','PROFIL_INTITULE'=>'-'],
+        'receptionniste' => ['M1'=>'C','M2'=>'C','M3'=>'C','M4'=>'L','M5'=>'L','M6'=>'L','M7'=>'-','M8'=>'L','M9'=>'L','M10'=>'-','M11'=>'L','M12'=>'L','M13'=>'-','M14'=>'L','ROLES'=>'-','PARAM'=>'-','ANNULATIONS'=>'L','PROFIL_NOM'=>'C','PROFIL_TELEPHONE'=>'C','PROFIL_INTITULE'=>'-'],
+        'cuisine'        => ['M1'=>'-','M2'=>'-','M3'=>'L','M4'=>'C','M5'=>'-','M6'=>'C','M7'=>'-','M8'=>'-','M9'=>'-','M10'=>'-','M11'=>'L','M12'=>'-','M13'=>'-','M14'=>'L','ROLES'=>'-','PARAM'=>'-','ANNULATIONS'=>'-','PROFIL_NOM'=>'C','PROFIL_TELEPHONE'=>'C','PROFIL_INTITULE'=>'-'],
+        'barman'         => ['M1'=>'-','M2'=>'-','M3'=>'L','M4'=>'-','M5'=>'C','M6'=>'C','M7'=>'-','M8'=>'-','M9'=>'-','M10'=>'-','M11'=>'L','M12'=>'-','M13'=>'-','M14'=>'L','ROLES'=>'-','PARAM'=>'-','ANNULATIONS'=>'-','PROFIL_NOM'=>'C','PROFIL_TELEPHONE'=>'C','PROFIL_INTITULE'=>'-'],
+        'magasinier'     => ['M1'=>'-','M2'=>'-','M3'=>'-','M4'=>'L','M5'=>'L','M6'=>'C','M7'=>'C','M8'=>'-','M9'=>'-','M10'=>'-','M11'=>'L','M12'=>'-','M13'=>'-','M14'=>'L','ROLES'=>'-','PARAM'=>'-','ANNULATIONS'=>'-','PROFIL_NOM'=>'C','PROFIL_TELEPHONE'=>'C','PROFIL_INTITULE'=>'-'],
+        'achats'         => ['M1'=>'-','M2'=>'-','M3'=>'-','M4'=>'-','M5'=>'-','M6'=>'L','M7'=>'C','M8'=>'-','M9'=>'-','M10'=>'-','M11'=>'L','M12'=>'-','M13'=>'-','M14'=>'L','ROLES'=>'-','PARAM'=>'-','ANNULATIONS'=>'-','PROFIL_NOM'=>'C','PROFIL_TELEPHONE'=>'C','PROFIL_INTITULE'=>'-'],
+        'vehicules'      => ['M1'=>'-','M2'=>'-','M3'=>'L','M4'=>'-','M5'=>'-','M6'=>'-','M7'=>'-','M8'=>'C','M9'=>'L','M10'=>'-','M11'=>'L','M12'=>'-','M13'=>'-','M14'=>'L','ROLES'=>'-','PARAM'=>'-','ANNULATIONS'=>'-','PROFIL_NOM'=>'C','PROFIL_TELEPHONE'=>'C','PROFIL_INTITULE'=>'-'],
+        'guide'          => ['M1'=>'-','M2'=>'-','M3'=>'L','M4'=>'-','M5'=>'-','M6'=>'-','M7'=>'-','M8'=>'L','M9'=>'C','M10'=>'-','M11'=>'-','M12'=>'-','M13'=>'-','M14'=>'-','ROLES'=>'-','PARAM'=>'-','ANNULATIONS'=>'-','PROFIL_NOM'=>'C','PROFIL_TELEPHONE'=>'C','PROFIL_INTITULE'=>'-'],
+        'rh'             => ['M1'=>'-','M2'=>'-','M3'=>'-','M4'=>'-','M5'=>'-','M6'=>'-','M7'=>'-','M8'=>'-','M9'=>'-','M10'=>'L','M11'=>'L','M12'=>'-','M13'=>'C','M14'=>'L','ROLES'=>'-','PARAM'=>'-','ANNULATIONS'=>'-','PROFIL_NOM'=>'C','PROFIL_TELEPHONE'=>'C','PROFIL_INTITULE'=>'-'],
+        'comptable'      => ['M1'=>'L','M2'=>'L','M3'=>'L','M4'=>'L','M5'=>'L','M6'=>'L','M7'=>'L','M8'=>'L','M9'=>'L','M10'=>'C','M11'=>'L','M12'=>'-','M13'=>'L','M14'=>'C','ROLES'=>'-','PARAM'=>'-','ANNULATIONS'=>'L','PROFIL_NOM'=>'C','PROFIL_TELEPHONE'=>'C','PROFIL_INTITULE'=>'-'],
     ];
 
     public function run(): void
@@ -104,7 +128,7 @@ class RolePermissionSeeder extends Seeder
      * Pose les permissions d'un module que la matrice connaît mais que la
      * base ne connaît pas encore — et SEULEMENT celles-là.
      */
-    private function completerModulesNouveaux(): void
+    public function completerModulesNouveaux(): void
     {
         $connus = Permission::query()->distinct()->pluck('module')->all();
         $nouveaux = array_diff(array_keys(self::MATRICE['administrateur']), $connus);
@@ -133,6 +157,19 @@ class RolePermissionSeeder extends Seeder
                 $actions = $niveau === 'C' ? ['lire', 'creer', 'modifier', 'supprimer', 'valider'] : ['lire'];
                 foreach ($actions as $action) {
                     $role->permissions()->syncWithoutDetaching([$permissions[$action]->id]);
+                }
+            }
+
+            // Un droit de profil « pour tous » atteint aussi les rôles AJOUTÉS
+            // à l'écran (hors socle) : sinon leurs titulaires ne pourraient
+            // pas renseigner leur nom (03/11/2026). Posé UNE fois, à
+            // l'apparition du module — jamais réécrit ensuite.
+            if (in_array($module, self::DROITS_PROFIL_POUR_TOUS, true)) {
+                foreach (Role::query()->whereNotIn('libelle', array_keys(self::MATRICE))->get() as $role) {
+                    $role->permissions()->syncWithoutDetaching(array_map(
+                        static fn (Permission $permission): string => (string) $permission->id,
+                        array_values($permissions),
+                    ));
                 }
             }
         }

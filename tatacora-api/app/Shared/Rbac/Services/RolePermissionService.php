@@ -80,12 +80,22 @@ class RolePermissionService
                 throw new RuntimeException(__('pwa.roles.role_deja_existant', ['libelle' => $libellePropre]));
             }
 
-            return Role::create([
+            $role = Role::create([
                 // L'UUID du poste quand le rôle y est né (synchronisation).
                 ...($id !== null ? ['id' => $id] : []),
                 'libelle' => $libellePropre,
                 'description' => filled($description) ? trim($description) : null,
             ]);
+
+            // « Mon profil » (03/11/2026, décision du PO) : modifier SON nom
+            // et SON téléphone est ouvert à tous les rôles par défaut, y
+            // compris un rôle ajouté. Le seul écart au « rôle fermé » ; tout
+            // le reste n'obtient un droit que si quelqu'un le lui donne.
+            foreach (RolePermissionSeeder::DROITS_PROFIL_POUR_TOUS as $module) {
+                $this->synchroniserSansGarde($role, $module, 'C');
+            }
+
+            return $role->refresh();
         });
     }
 

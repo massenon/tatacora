@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Pwa\Livewire\Transverse;
 
 use App\Models\User;
+use App\Pwa\Support\ChampsProfil;
 use App\Pwa\Support\EmpreinteMotDePasseEnSession;
 use App\Shared\Audit\Models\JournalAudit as EntreeJournalAudit;
 use App\Shared\Auth\Services\MotDePassePerduService;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 use Livewire\Attributes\Title;
 use RuntimeException;
@@ -33,6 +35,14 @@ use RuntimeException;
  * desormais ailleurs sur ce depot), mais parce qu'aucune colonne de
  * `utilisateurs` ne porte ce que ce formulaire collecte : voir le bloc dedie
  * ci-dessous, qui distingue les deux raisons.
+ *
+ * ⚠ MIS À JOUR LE 03/11/2026 (décision du PO) : « Nom complet », « Téléphone » et
+ * le nouveau champ « Intitulé de poste » sont désormais des colonnes de
+ * `utilisateurs` (`nom_complet`, `telephone`, `intitule_poste`), modifiables par
+ * leur titulaire SOUS DROIT (trois droits RBAC `PROFIL_*`, voir
+ * `enregistrerInformations()`). « Fonction » reste en lecture : c'est la fiche RH
+ * ou le rôle RBAC, géré par l'administrateur. Ce qui suit sur « Nom complet » /
+ * « Téléphone » en lecture est l'HISTORIQUE.
  *
  * ⚠ MIS À JOUR LE 28/10/2026 (décision du PO) : `utilisateurs.email` existe désormais,
  * FACULTATIF. Le champ « Email » est ÉDITABLE et « Enregistrer les informations »
@@ -189,6 +199,19 @@ class MonProfil extends PageTransverse
      */
     public string $emailSaisi = '';
 
+    /**
+     * « Nom complet », « Téléphone », « Intitulé de poste » (03/11/2026, décision
+     * du PO) : trois champs modifiables SOUS DROIT (`ChampsProfil::DROITS`,
+     * module RBAC transverse). Le droit est relu côté serveur à chaque
+     * enregistrement : un champ rendu en lecture seule dont la valeur serait
+     * forgée est REFUSÉ (403), jamais ignoré en silence.
+     */
+    public string $nomSaisi = '';
+
+    public string $telephoneSaisi = '';
+
+    public string $intituleSaisi = '';
+
     public string $ancienMotDePasse = '';
 
     public string $nouveauMotDePasse = '';
@@ -206,7 +229,32 @@ class MonProfil extends PageTransverse
 
     public function mount(): void
     {
-        $this->emailSaisi = (string) Auth::user()?->email;
+        $utilisateur = Auth::user();
+        $this->emailSaisi = (string) $utilisateur?->email;
+        $this->nomSaisi = (string) ($utilisateur === null ? null : $this->valeurCourante($utilisateur, ChampsProfil::NOM));
+        $this->telephoneSaisi = (string) $utilisateur?->telephone;
+        $this->intituleSaisi = (string) $utilisateur?->intitule_poste;
+    }
+
+    /**
+     * La valeur enregistrée d'un champ de profil. Le nom retombe, tant qu'il
+     * n'est pas saisi, sur celui de la fiche RH rattachée (ce que l'écran
+     * affichait avant le 03/11/2026) ; les deux autres champs n'ont que leur
+     * colonne.
+     */
+    private function valeurCourante(User $utilisateur, string $champ): ?string
+    {
+        if ($champ === ChampsProfil::NOM) {
+            $propre = ChampsProfil::normaliser($utilisateur->nom_complet);
+
+            if ($propre !== null || $utilisateur->employe === null) {
+                return $propre;
+            }
+
+            return ChampsProfil::normaliser($utilisateur->employe->prenom.' '.$utilisateur->employe->nom);
+        }
+
+        return ChampsProfil::normaliser($utilisateur->{$champ});
     }
 
     /**
@@ -220,17 +268,35 @@ class MonProfil extends PageTransverse
             'emailSaisi.email' => __('rh_pwa.email_invalide'),
             'emailSaisi.max' => __('rh_pwa.email_invalide'),
             'emailSaisi.not_regex' => __('rh_pwa.email_invalide'),
+            'nomSaisi.max' => __('pwa.profil.nom_complet_invalide'),
+            'nomSaisi.not_regex' => __('pwa.profil.nom_complet_invalide'),
+            'telephoneSaisi.max' => __('pwa.profil.telephone_invalide'),
+            'telephoneSaisi.regex' => __('pwa.profil.telephone_invalide'),
+            'intituleSaisi.max' => __('pwa.profil.intitule_invalide'),
+            'intituleSaisi.not_regex' => __('pwa.profil.intitule_invalide'),
         ];
     }
 
     /**
-     * « Enregistrer les informations » — écrit l'e-mail du compte COURANT, et
-     * lui seul (jamais celui d'un tiers). Même famille que `changerMotDePasse()` :
-     * aucun module RBAC, le geste ne porte que sur le compte qui le fait.
+     * « Enregistrer les informations » — écrit les informations du compte
+     * COURANT, et d'aucun autre : l'e-mail (facultatif, sans droit particulier)
+     * puis, SOUS DROIT, le nom complet, le téléphone et l'intitulé de poste.
+     * Même famille que `changerMotDePasse()` : aucun module métier, le geste ne
+     * porte que sur le compte qui le fait.
      *
-     * Facultatif : vide efface l'adresse. Normalisé (trim, minuscules) puis
-     * validé comme la fiche employé (`AdresseEmailFacultative`) ; aucune
-     * unicité imposée.
+     * ## Le droit est appliqué ICI, jamais seulement dans la vue
+     *
+     * Chaque champ DONT LA VALEUR CHANGE est confronté à son droit
+     * (`User::peutModifierSonProfil`) AVANT toute écriture : un champ forgé sans
+     * le droit lève un 403 et rien n'est écrit — pas même l'e-mail. Un champ
+     * rendu en lecture seule et inchangé ne déclenche rien.
+     *
+     * Normalisation : trim et espaces internes réduits ; vide efface la valeur.
+     * Validation : nom et intitulé 120 caractères au plus, sans caractère de
+     * contrôle ; téléphone 30 au plus, chiffres, +, espaces, tirets.
+     *
+     * Journal d'audit « Profil modifié » : les champs changés, ancien → nouveau,
+     * jamais un secret (le profil n'en porte aucun).
      */
     public function enregistrerInformations(): void
     {
@@ -242,12 +308,69 @@ class MonProfil extends PageTransverse
         }
 
         $this->emailSaisi = (string) AdresseEmailFacultative::normaliser($this->emailSaisi);
+        $this->nomSaisi = (string) ChampsProfil::normaliser($this->nomSaisi);
+        $this->telephoneSaisi = (string) ChampsProfil::normaliser($this->telephoneSaisi);
+        $this->intituleSaisi = (string) ChampsProfil::normaliser($this->intituleSaisi);
 
-        $donnees = $this->validate(['emailSaisi' => AdresseEmailFacultative::REGLES]);
+        $saisies = [
+            ChampsProfil::NOM => ChampsProfil::normaliser($this->nomSaisi),
+            ChampsProfil::TELEPHONE => ChampsProfil::normaliser($this->telephoneSaisi),
+            ChampsProfil::INTITULE => ChampsProfil::normaliser($this->intituleSaisi),
+        ];
 
-        $utilisateur->update(['email' => AdresseEmailFacultative::normaliser($donnees['emailSaisi'])]);
+        // 1. Le droit, champ par champ, sur ce qui CHANGE réellement.
+        $changes = [];
+        foreach ($saisies as $champ => $nouveau) {
+            if ($nouveau === $this->valeurCourante($utilisateur, $champ)) {
+                continue;
+            }
 
-        session()->flash('pwa-succes', __('rh_pwa.email_enregistre'));
+            abort_unless($utilisateur->peutModifierSonProfil($champ), 403, __('pwa.profil.champ_refuse'));
+
+            $changes[$champ] = $nouveau;
+        }
+
+        // 2. La forme.
+        $this->validate([
+            'emailSaisi' => AdresseEmailFacultative::REGLES,
+            'nomSaisi' => ['nullable', 'string', 'max:'.ChampsProfil::NOM_MAX, 'not_regex:'.ChampsProfil::MOTIF_CONTROLE],
+            'telephoneSaisi' => ['nullable', 'string', 'max:'.ChampsProfil::TELEPHONE_MAX, 'regex:'.ChampsProfil::MOTIF_TELEPHONE],
+            'intituleSaisi' => ['nullable', 'string', 'max:'.ChampsProfil::INTITULE_MAX, 'not_regex:'.ChampsProfil::MOTIF_CONTROLE],
+        ]);
+
+        $email = AdresseEmailFacultative::normaliser($this->emailSaisi);
+
+        if ($email !== $utilisateur->email) {
+            $changes['email'] = $email;
+        }
+
+        if ($changes === []) {
+            session()->flash('pwa-succes', __('pwa.profil.aucun_changement'));
+
+            return;
+        }
+
+        $avant = [];
+        foreach (array_keys($changes) as $champ) {
+            $avant[$champ] = $champ === 'email' ? $utilisateur->email : $this->valeurCourante($utilisateur, $champ);
+        }
+
+        $utilisateur->forceFill($changes)->save();
+
+        EntreeJournalAudit::create([
+            'id' => (string) Str::uuid(),
+            'utilisateur_id' => $utilisateur->id,
+            'action' => 'profil_modifie',
+            'entite_concernee' => 'utilisateurs',
+            'entite_id' => (string) $utilisateur->id,
+            'valeur_avant' => $avant,
+            'valeur_apres' => $changes,
+            'adresse_poste' => request()->ip(),
+        ]);
+
+        session()->flash('pwa-succes', array_keys($changes) === ['email']
+            ? __('rh_pwa.email_enregistre')
+            : __('pwa.profil.infos_enregistrees'));
     }
 
     /**
@@ -433,8 +556,13 @@ class MonProfil extends PageTransverse
             // rend `null` et l'ecran l'affiche EN CLAIR — jamais une couleur
             // choisie au hasard pour une valeur qu'on n'a pas comprise.
             'statut' => $utilisateur === null ? null : (self::STATUTS[$utilisateur->statut] ?? null),
-            'nomComplet' => $employe === null ? null : trim($employe->prenom.' '.$employe->nom),
-            'fonction' => $employe?->poste,
+            'nomComplet' => $utilisateur === null ? null : $this->valeurCourante($utilisateur, ChampsProfil::NOM),
+            // La FONCTION n'est pas modifiable ici : la fiche RH si elle existe,
+            // sinon le rôle RBAC (qui porte les droits).
+            'fonction' => $employe?->poste ?? ($utilisateur?->role === null ? null : \Illuminate\Support\Str::ucfirst($utilisateur->role->libelle)),
+            'peutModifierNom' => $utilisateur?->peutModifierSonProfil(ChampsProfil::NOM) ?? false,
+            'peutModifierTelephone' => $utilisateur?->peutModifierSonProfil(ChampsProfil::TELEPHONE) ?? false,
+            'peutModifierIntitule' => $utilisateur?->peutModifierSonProfil(ChampsProfil::INTITULE) ?? false,
             // L'adresse vue par le SERVEUR — la remarque du maitre appliquee.
             'adressePoste' => request()->ip(),
             // Le code de secours (29/10/2026) : réservé aux administrateurs.

@@ -64,9 +64,21 @@
           <section class="bg-white rounded-xl border border-slate-200 p-5">
             <h2 class="text-sm font-bold text-slate-700 mb-4">{{ __('pwa.profil.infos_titre') }}</h2>
             <div class="space-y-3.5">
-              <div class="groupe-champ">
+              {{-- Les champs « Nom complet », « Téléphone » et « Intitulé de poste »
+                   sont modifiables SOUS DROIT (03/11/2026, décision du PO ; modules
+                   RBAC `PROFIL_*`) : champ de saisie si le droit est accordé, sinon
+                   lecture seule avec la phrase vraie. Le droit est relu côté serveur
+                   à l'enregistrement — masquer ici ne protège rien. --}}
+              <div class="groupe-champ" id="champ-nom-complet">
                 <label class="block text-[15px] font-semibold text-slate-700 mb-1.5">{{ __('pwa.profil.nom_complet') }}</label>
-                <p class="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-slate-100 text-slate-600">{{ $nomComplet ?? '—' }}</p>
+                @if ($peutModifierNom)
+                  <input type="text" wire:model="nomSaisi" maxlength="120" autocomplete="name"
+                         class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm">
+                  @error('nomSaisi') <p class="text-[12px] text-red-600 mt-1">{{ $message }}</p> @enderror
+                @else
+                  <p class="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-slate-100 text-slate-600">{{ $nomComplet ?? '—' }}</p>
+                  @include('pwa.partials.champ-profil-en-lecture')
+                @endif
                 @if ($nomComplet === null)
                   <p class="text-[12px] text-slate-400 mt-1">{{ __('pwa.profil.sans_fiche_rh') }}</p>
                 @endif
@@ -78,15 +90,34 @@
                        class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm">
                 @error('emailSaisi') <p class="text-[12px] text-red-600 mt-1">{{ $message }}</p> @enderror
               </div>
-              <div class="groupe-champ">
+              <div class="groupe-champ" id="champ-telephone">
                 <label class="block text-[15px] font-semibold text-slate-700 mb-1.5">{{ __('pwa.profil.telephone') }}</label>
-                <p class="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-slate-100 text-slate-600">—</p>
+                @if ($peutModifierTelephone)
+                  <input type="tel" wire:model="telephoneSaisi" maxlength="30" autocomplete="tel"
+                         class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm">
+                  @error('telephoneSaisi') <p class="text-[12px] text-red-600 mt-1">{{ $message }}</p> @enderror
+                @else
+                  <p class="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-slate-100 text-slate-600">{{ $telephoneSaisi !== '' ? $telephoneSaisi : '—' }}</p>
+                  @include('pwa.partials.champ-profil-en-lecture')
+                @endif
               </div>
               <div class="groupe-champ">
                 <label class="block text-[15px] font-semibold text-slate-700 mb-1.5">{{ __('pwa.profil.fonction') }}</label>
-                {{-- Le maître rend DÉJÀ ce champ `readonly` (l.83), et il
-                     l'explique dans l'encart bleu ci-dessous. Aucun écart ici. --}}
+                {{-- La FONCTION est le rôle (ou la fiche RH) : elle porte les droits,
+                     l'administrateur la gère, son titulaire ne la modifie jamais
+                     (le maître la rend déjà `readonly`, l.83). --}}
                 <p class="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-slate-100 text-slate-600 cursor-not-allowed">{{ $fonction ?? '—' }}</p>
+              </div>
+              <div class="groupe-champ" id="champ-intitule-poste">
+                <label class="block text-[15px] font-semibold text-slate-700 mb-1.5">{{ __('pwa.profil.intitule_poste') }}</label>
+                @if ($peutModifierIntitule)
+                  <input type="text" wire:model="intituleSaisi" maxlength="120"
+                         class="w-full border border-slate-300 rounded-lg px-3 py-2.5 text-sm">
+                  @error('intituleSaisi') <p class="text-[12px] text-red-600 mt-1">{{ $message }}</p> @enderror
+                @else
+                  <p class="w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm bg-slate-100 text-slate-600">{{ $intituleSaisi !== '' ? $intituleSaisi : '—' }}</p>
+                  @include('pwa.partials.champ-profil-en-lecture')
+                @endif
               </div>
               <div class="flex items-start gap-2 rounded-lg px-3 py-2.5" style="background:#E8EEFD">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--info)" stroke-width="2.2" class="shrink-0 mt-0.5"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" d="M12 16v-4M12 8h.01"/></svg>
