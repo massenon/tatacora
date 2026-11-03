@@ -66,8 +66,8 @@
 | **Opération** | Un fait métier figé en JSON (payload) avec son `uuid_operation`, l'UUID de l'objet (`entite_id`) et l'horodatage de saisie. |
 | **Idempotence** | Rejouer la même opération renvoie la même réponse sans rien réécrire. |
 | **Gestionnaire** | Classe serveur `Gestionnaire<Table>` : seul chemin d'écriture d'une table synchronisée ; il passe par le service de domaine, comme l'écran web. |
-| **Registre** | `RegistreSynchronisation::TABLES_SYNCHRONISABLES` : liste fermée des 44 tables que le serveur accepte de recevoir (`API/Services/RegistreSynchronisation.php:107`). |
-| **Catalogue descendant** | Les 48 tables que le serveur met à disposition des postes (`CatalogueDescendantService::COLONNES`, `API/Services/CatalogueDescendantService.php:132`). |
+| **Registre** | `RegistreSynchronisation::TABLES_SYNCHRONISABLES` : liste fermée des 45 tables que le serveur accepte de recevoir (dont `utilisateurs`, pour la seule suppression d'un compte, 03/11/2026) (`API/Services/RegistreSynchronisation.php:107`). |
+| **Catalogue descendant** | Les 49 tables que le serveur met à disposition des postes (dont `utilisateurs` : les comptes SUPPRIMÉS, `login` + `supprime_le`) (`CatalogueDescendantService::COLONNES`, `API/Services/CatalogueDescendantService.php:132`). |
 | **Curseur** | Position opaque (par table : date de modif + id) conservée **par le poste** ; elle dit « j'en suis là » dans le flux descendant. |
 | **Aligneur** | Côté poste, code qui écrit un élément descendu dans la base locale (jamais d'enfilement, jamais d'écrasement d'une saisie locale en attente). |
 | **À traiter** | Liste (poste et serveur) des opérations refusées, en conflit ou bloquées, avec leur cause et les gestes « Corriger / Renvoyer / Relancer ». |
@@ -105,7 +105,7 @@
 | Horizon de stabilité du flux | 5 s | `CatalogueDescendantService.php:110` |
 | Silence avant « sans nouvelles » | 24 h | `API/Services/SuiviPostesService.php:187` |
 | Anti-rebond du bouton web | 60 s | `SuiviPostesService.php:39` |
-| Schéma de la base poste | v46, 78 tables | `FL/core/database/app_database.dart:525`, `tatacora-flutter/CLAUDE.md` |
+| Schéma de la base poste | v48, 78 tables | `FL/core/database/app_database.dart:525`, `tatacora-flutter/CLAUDE.md` |
 
 ## 1.4 Décisions du PO qui structurent tout (à reprendre ou à contester ailleurs)
 
@@ -128,7 +128,7 @@
 | Expiration de jeton | **Aucune configurée** : pas de `config/sanctum.php` dans le dépôt ; le défaut du paquet est `'expiration' => null`. La colonne « Expiration » du web lit `expires_at` s'il existait. | `tatacora-api/vendor/laravel/sanctum/config/sanctum.php:53` ; `SuiviPostesService.php:123-129` |
 | Table `postes` dédiée | **Absente** : un « poste » n'existe au serveur que par le **nom des jetons**, `etats_postes_synchronisation` et `sessions_synchronisation`. | `SuiviPostesService.php:130-184` |
 | Écran d'arbitrage des conflits financiers | **Absent** : les conflits sont écrits dans `conflits_synchronisation` (`en_attente_arbitrage`) mais aucun écran ni service ne les résout (seul `SynchronisationService` référence le modèle). Le poste dit « arbitrage sur le serveur ». | recherche `ConflitSynchronisation` dans `app/`, `resources/`, `routes/` |
-| Suppression synchronisée générale | **Absente** : « supprimer = archiver ». Seule exception : la **purge définitive** d'une unité d'hébergement ou d'un véhicule archivé. | `CatalogueDescendantService.php:52-60` ; `SYNC/domain/operation_sync.dart:44-50,88` |
+| Suppression synchronisée générale | **Absente** : « supprimer = archiver ». Deux exceptions : la **purge définitive** d'une unité d'hébergement ou d'un véhicule archivé, et — depuis le 03/11/2026 — la **suppression logique d'un compte utilisateur** (§5.8). | `CatalogueDescendantService.php:52-60` ; `SYNC/domain/operation_sync.dart:44-50,88` |
 | Fusion automatique de deux saisies d'argent | **Absente** (hors périmètre de la spec) : tables financières = `arbitrage_manuel`. | `API/Services/ClassificationConflitService.php:34-67` ; `SPEC_SYNCHRONISATION_COMPLETE.md` §3 |
 | Sauvegarde automatique du fichier avant migration du poste (R4 du PRD) | **Non livrée** (aucune occurrence de « avant-v » dans `lib/`) ; livrés : écran de panne, journal, réconciliation, tests sur vraies anciennes bases (E1–E3). | `docs/RESTE_A_FAIRE.md` §E ; recherche dans `FL/` |
 | Limitation d'essais de connexion sur le poste | **Absente** (le web et l'API limitent à 5 essais / 300 s) | `docs/JOURNAL_DES_LOTS.md` (« Mot de passe perdu… », Limites) ; `AuthController.php:84` |
@@ -144,7 +144,7 @@
 | Documents métier de ce poste (vente, dépense, réservation…) | oui, après rejeu | oui (copie d'origine) | le poste d'abord, puis le serveur par son service de domaine | **montée** (`POST /sync`) |
 | Documents des **autres** postes | oui | oui, en **lecture seule** (listes, stock, tableau de bord) | le serveur ; le poste les **aligne** | **descente** (`GET /referentiels`) |
 | Écritures comptables | oui, **seul** comptable | miroir de lecture `ecritures_serveur_local` + pièces du poste (séparées) | `MoteurComptable` (poste) / services (serveur) | **jamais montée** ; seules les écritures **validées** descendent (`CatalogueDescendantService.php:296-298`) |
-| Comptes utilisateurs, mots de passe | oui | oui (comptes **distincts**) | chaque côté | **jamais** (PA-103) |
+| Comptes utilisateurs, mots de passe | oui | oui (comptes **distincts**) | chaque côté | **Seules les SUPPRESSIONS de comptes** voyagent, par le **login** (décision du PO du 03/11/2026, §5.8) ; **jamais** un mot de passe, un hash, un rôle ni un e-mail (PA-103) |
 | Stock, coût moyen, solde client, coût matière | calculés | calculés | chacun | **jamais descendus comme valeur** : on descend les mouvements, on recalcule (`CatalogueDescendantService.php:68-76`) |
 | File d'envoi | non (journal de réception à la place) | `operations_sync_local` | **`OperationsSyncDao` seul** | locale |
 | Curseur de descente | trace informative (`etats_postes_synchronisation.curseur_descente`) | `etat_synchronisation_local` clé `descente.curseur` | le poste | locale |
@@ -301,7 +301,7 @@ Définition : `FL/core/database/tables/operations_sync_tables.dart:46-125`.
 | `tentatives`, `prochaine_tentative`, `derniere_erreur`, `code_http`, `resultat_json`, `id_serveur` | suivi, repli, réponse brute, id serveur si fusion |
 | `auteur_login`, `poste_nom` | audit local (non envoyés) |
 
-**Types d'opérations** (`SYNC/domain/operation_sync.dart:185-202`) : `creation` ; `modification` (seulement si le gestionnaire serveur l'accepte : `TableSynchronisee.accepteModification`, `:156-174`) ; `suppression` (registre **fermé** : unités d'hébergement et véhicules, `accepteSuppression`, `:44-50,88`). `enfiler` **refuse** par exception ce que le serveur refuserait par principe (`operations_sync_dao.dart:91-117`) et n'enfile pas une `modification` sans champ changé (`:120`). Le mode démonstration n'enfile rien (`fileSynchronisationActive`, `:119`).
+**Types d'opérations** (`SYNC/domain/operation_sync.dart:185-202`) : `creation` ; `modification` (seulement si le gestionnaire serveur l'accepte : `TableSynchronisee.accepteModification`, `:156-174`) ; `suppression` (registre **fermé** : unités d'hébergement et véhicules — la purge —, et depuis le 03/11/2026 les comptes utilisateurs — la suppression logique, par le login —, `accepteSuppression`, `:44-50,88`). `enfiler` **refuse** par exception ce que le serveur refuserait par principe (`operations_sync_dao.dart:91-117`) et n'enfile pas une `modification` sans champ changé (`:120`). Le mode démonstration n'enfile rien (`fileSynchronisationActive`, `:119`).
 
 ## 4.2 Enfilement (algorithme réel)
 
@@ -430,7 +430,7 @@ Le poste ne choisit **aucun** numéro définitif de document : à l'accusé `syn
 ## 4.8 Gestionnaires et registre
 
 - **Contrat** : `API/Contracts/GestionnaireSynchronisation.php:51` — `table()`, `module()`, `modulesRequis(payload)`, `niveauRequis()` (toujours `C`), `serviceDomaine()`, `estFinanciere()`, `accepteModification()`, `accepteSuppression()`, `champDateDocument()`, `tablesMiroirs()`, `creer()`, `reprendreExistant()`, `modificationSurInconnu()`, `modifier()`, `supprimer()`.
-- **Registre fermé** : 44 tables, **dans l'ordre où un poste doit les pousser** (`RegistreSynchronisation.php:107-178`) ; `pour($table)` vérifie que la clé et `table()` du gestionnaire coïncident (`:204-228`). Une table absente est refusée explicitement.
+- **Registre fermé** : 45 tables, **dans l'ordre où un poste doit les pousser** (`RegistreSynchronisation.php:107-178`) ; `pour($table)` vérifie que la clé et `table()` du gestionnaire coïncident (`:204-228`). Une table absente est refusée explicitement.
 - Abstraits : `GestionnaireAbstrait.php:35`, `GestionnaireDocumentAbstrait`, `GestionnaireReferentielAbstrait` (fusion sur **clé naturelle** pour le catalogue).
 - Un document peut exiger **plusieurs modules** (une vente avec des plats = M5 **et** M4, comme l'écran en ligne) : contrôle hors transaction pour que la trace `journal_securite` du refus survive (`SynchronisationService.php:406-419`).
 - **Côté poste**, l'enum `TableSynchronisee` (`operation_sync.dart:20`) est **relu du PHP** par un test (`TESTS-FL/operations_sync_dao_test.dart:371-390`) : les deux listes ne peuvent pas diverger.
@@ -569,6 +569,24 @@ Mécanique : chaque poste a son curseur ; le serveur est le seul à ordonner. Un
 
 `GET /api/v1/sync/coherence?du=&au=` (fenêtre ≤ 31 jours, `CoherenceService::JOURS_MAX`, `:23`) : par table et par **jour métier**, `nombre` et `total` en centimes pour 7 indicateurs (ventes validées, dépenses, paiements non annulés, factures, réservations non annulées, règlements, mouvements de stock) — `CoherenceService::INDICATEURS` (`:30-38`), filtrés par module lu. Le poste calcule les mêmes comptes localement (`SYNC/data/controle_coherence.dart:80,160`) et affiche « Ce poste a tout reçu jusqu'au… » avec les écarts ; le dernier contrôle est noté pour « Postes & Appairage » (`noterControle`).
 
+## 5.8 Supprimer un compte utilisateur, avec synchronisation (décision du PO du 03/11/2026)
+
+Jusqu'au 03/11/2026 : « un compte ne se supprime jamais, il se désactive » (RG-15) et les comptes ne se synchronisaient pas. Le PO change la règle **pour la seule suppression** ; la règle « jamais un mot de passe ni un hash » (PA-103) reste entière.
+
+**Ce que « supprimer » veut dire** (décisions par défaut, que le PO peut changer) : suppression **logique**, jamais un `DELETE`. Serveur : `utilisateurs.supprime_le` (nullable, `SoftDeletes` avec `DELETED_AT = 'supprime_le'` ; la portée globale écarte le compte de la connexion, des listes et des jetons ; les relations `belongsTo(User)` des documents utilisent `withTrashed()`). Poste : `utilisateurs_local.supprime_le` (v48) **et** `actif` faux, si bien que toutes les gardes de connexion déjà écrites pour un compte désactivé le refusent. Le compte disparaît des listes, ses jetons d'API et ses sessions sont coupés, son **login n'est pas réutilisable**, et ce qu'il a saisi garde son nom : « login (compte supprimé) ».
+
+**Qui peut quoi — la règle d'autorité, écrite une fois de chaque côté** : l'auteur est un `super_admin` actif avec l'écriture sur ROLES (`User::peutSupprimerDesComptes`, poste `peutSupprimerDesComptes`) ; la cible est un compte dont le rôle n'administre pas (`User::estSupprimable`, poste `compteSupprimable`) ; jamais soi-même. Un administrateur ou un super administrateur se **désactive**, ce qui exclut aussi le « dernier administrateur ». Le « droit explicite dans la matrice RBAC » est, aujourd'hui, le rôle `super_admin` (qui porte ROLES = C) : il n'existe pas de colonne de matrice « supprimer des comptes » (à créer si le PO veut le déléguer à un autre rôle).
+
+| Sens | Mécanisme | Clé | Garde |
+|---|---|---|---|
+| Web → postes | élément de descente `utilisateurs` (`COLONNES['utilisateurs'] = ['login','supprime_le']`, `NON_NULS`, `LECTURE_LIBRE`), curseur par poste comme les autres catalogues | **login** | l'aligneur (`_compteSupprime`) marque `supprime_le` + `actif` faux sur le compte local de même login ; **ne crée jamais** de compte ; refuse (lisiblement) un homonyme **administrateur** local ; idempotent ; n'enfile jamais |
+| Poste → web | opération de file `suppression`, table `utilisateurs`, charge `{login, supprime_par}` ; registre fermé étendu ; pas de changement du `CHECK` de la file (il ne porte que le type, déjà élargi en v43) | **login** | `SynchronisationService::traiterSuppressionDeCompte` : le compte du **jeton d'appairage** doit être super_admin, sinon rejet définitif `droit_manquant` (« À traiter » du poste, journal de réception du serveur) ; cible existante et non administratrice ; compte inconnu ou déjà supprimé = no-op journalisé (`compte_supprime_inconnu`) ; rejeu idempotent |
+| Poste → autres postes | la suppression acceptée au serveur descend comme ci-dessus | | |
+
+Deux limites assumées : l'autorité d'une suppression poste → web est celle du **compte qui a appairé le poste**, pas celle du super administrateur connecté au poste (un poste appairé avec un gérant verra ses suppressions refusées au serveur, avec une phrase claire, tout en restant supprimées localement) ; et un compte supprimé au poste puis refusé au serveur ne redescend jamais « vivant » (le flux ne ressuscite rien : il reste supprimé sur le poste qui l’a supprimé et vivant au serveur, ce que « À traiter » signale).
+
+Journal : web `journal_audit` (`compte_supprime`, `compte_supprime_inconnu` ; entité `utilisateurs` ; qui, login, rôle, poste, login local de l'auteur — jamais un secret) ; poste `journal_securite_local` (`compte_supprime`, y compris pour une suppression reçue du serveur, sans auteur local). Preuves : `SuppressionCompteSynchronisationTest.php` (12 cas, mutations de la règle), `suppression_compte_test.dart`, `suppression_compte_contre_serveur_test.dart` (script `tool/transverse/rejouer_suppression_compte.php` : 20 couples auteur/cible comparés au vrai service).
+
 ---
 
 # 6. « Renvoyer vers tous les postes » (bouton web « Synchroniser »)
@@ -617,6 +635,14 @@ Côté poste, le curseur s'oublie aussi tout seul dans deux cas : réponse **422
 - **Aucune tâche planifiée serveur ne déclenche la synchronisation des postes** (`LISTE_DES_CRON_JOBS_CPANEL.md` §3). Le cron cPanel unique (`schedule:run` chaque minute) sert à : battement du planificateur, file de jobs, ouverture d'exercices, alertes de stock, MECeF, sauvegarde 02:00 UTC, **purge de la mémoire d'idempotence 03:00 UTC**, journal d'audit, e-mails (`routes/console.php`, table du doc).
 - Les déclencheurs de synchronisation sont **tous côté poste**, chacun avec son appelant réel (piège n°1 : « un commentaire qui décrit un déclencheur n'est pas un déclencheur ») : démarrage + toutes les 5 min (`synchronisationAutomatiqueProvider`, `providers_synchronisation.dart:350`, lu par `main.dart`), après chaque **clôture de caisse** (`declencheurSynchronisationProvider`, `:337`, sans l'attendre), bouton de la barre supérieure / « Synchroniser maintenant », réactivation de l'interrupteur, passage court de 30 s. Tests : `TESTS-FL/declencheurs_synchronisation_test.dart:79,114`.
 - **Aucune sonde de connectivité** : « la tentative est l'autorité » (`providers_synchronisation.dart:343-349`).
+
+## 6.4 Propagation entre postes : ce qui existe, et l'ÉPOQUE (03/11/2026)
+
+**Constat du code (avant ce lot).** Les données d'un poste A reviennent à un poste B par DEUX passages, tous deux initiés par les postes : l'envoi de A (`POST /sync`) puis la descente de B (`GET /referentiels`). Chaque passage complet fait l'un puis l'autre. Déclencheurs réels : démarrage + toutes les 5 minutes (réglable, jusqu'à « Manuelle seulement »), après chaque clôture de caisse, « Synchroniser maintenant » / bouton de la barre supérieure, réactivation de l'interrupteur, et le **battement de 30 s** (`periodeDemandeServeur`), qui lit la dernière demande « Synchroniser » du serveur. Le bouton web « Synchroniser » ET un bouton du poste (**Postes & Appairage → « Demander la synchronisation des postes »**, `POST /sync/demande` avec le jeton d'appairage) enregistrent cette demande. **Le battement tourne aussi en mode « Manuelle seulement »** : `synchronisationAutomatiqueProvider` arme le passage court (`passageCourt`) sans condition sur la fréquence ; la fréquence ne gouverne que le minuteur de 5 minutes. Seul l'interrupteur « Synchronisation activée » l'éteint (aucune requête, pas même la lecture). Latence avant ce lot : jusqu'à 5 minutes (plus 5 s d'horizon de stabilité) sans clic, 30 s avec le bouton.
+
+**L'époque.** `EpoqueSynchronisation` (serveur) tient un compteur de changements en cache, de la forme `<nonce>.<n>` (le nonce change si le cache est vidé : seule l'ÉGALITÉ compte, jamais un ordre). Il est incrémenté quand une opération d'un poste est **acceptée** (`synchronise`, jamais un rejeu ni un refus) et à chaque suppression de compte au web. Il est rendu dans la réponse du battement : `GET /sync/demande` → `data.epoque`. Côté poste (`SyncManager.suivreDemandeDuServeur` → `_suivreEpoque`) : si l'époque diffère de la dernière vue (mémoire du processus ; la première lue après un démarrage descend une fois), le poste lance une **descente seule** (`synchroniserDescenteSeule` : mêmes contrôles d'interrupteur, d'appairage, de refus et de génération que le passage complet, mais ni envoi de la file, ni reçus), depuis son curseur. L'époque n'est retenue **qu'après une descente « à jour »** : un échec, un repli non échu (non levé : un serveur en difficulté n'est pas martelé toutes les 30 s) ou un passage déjà en cours la laissent à rejouer au battement suivant. Elle n'est jamais bloquante : absente (serveur d'avant), elle ne fait rien ; le poste fonctionne sans le serveur ; le cycle de 5 minutes reste le filet.
+
+**Latence obtenue** : au plus ~30 s (battement) + 5 s (horizon de stabilité du flux) après que A a envoyé. A envoie lui-même au plus 5 minutes après la saisie, sauf clôture de caisse, bouton ou « Synchroniser maintenant » : l'époque ne raccourcit **que** la seconde moitié du trajet. Pour raccourcir la première, il faudrait un envoi plus fréquent côté poste (décision du PO). Preuves : `epoque_serveur_test.dart` (deux postes simulés ; rejeu ; coupure réseau ; repli ; interrupteur éteint ; serveur d'avant ; mutations), `SuppressionCompteSynchronisationTest::l_epoque_…`.
 
 ---
 
@@ -709,7 +735,7 @@ L'essai a trouvé un **écart réel** : la base réelle v44 gardait l'ancien `CH
 
 | Scénario | Ce qui se passe | Données non synchronisées |
 |---|---|---|
-| **Installation neuve** | installateur → premier démarrage : base créée à v46 ; le référentiel comptable s'installe au démarrage ; un administrateur **appaire** le poste (§3) ; la descente télécharge **tout** l'historique page par page, reprenable | n/a |
+| **Installation neuve** | installateur → premier démarrage : base créée à v48 ; le référentiel comptable s'installe au démarrage ; un administrateur **appaire** le poste (§3) ; la descente télécharge **tout** l'historique page par page, reprenable | n/a |
 | **Mise à jour** (même AppId) | programme remplacé ; `onUpgrade` migre la base (palier par palier, ou d'un coup), `reconcilierSchema` complète ; `poste.json` intact (donc **toujours appairé**) | **gardées**, la file repart |
 | **Désinstallation, réponse Non** | annulée | gardées |
 | **Désinstallation, réponse Oui** | base, `poste.json`, archives, reçus, sauvegardes, logo, `demarrage.log` supprimés | **PERDUES, définitivement** |
@@ -812,15 +838,15 @@ Sources : `tatacora-flutter/CLAUDE.md` (« Les quatorze pièges »), `docs/JOURN
 
 # 10. Annexe A — registres
 
-## 10.1 Tables que le serveur ACCEPTE (montée) — 44, dans l'ordre d'envoi
+## 10.1 Tables que le serveur ACCEPTE (montée) — 45, dans l'ordre d'envoi
 
 `RegistreSynchronisation::TABLES_SYNCHRONISABLES` (`RegistreSynchronisation.php:107-178`) :
 
 `reservations`, `sejours`, `clients`, `relances_clients`, `fournisseurs`, `points_stockage`, `articles`, `cartes_boisson`, `menus`, `recettes`, `plats`, `indisponibilites_carte`, `categories_hebergement`, `unites_hebergement`, `commandes_achat`, `bons_reception`, `reglements_fournisseur`, `sessions_caisse`, `tables_salle`, `paniers`, `ventes`, `depenses`, `factures`, `paiements`, `circuits`, `guides`, `reservations_tour`, `vehicules`, `contrats_location`, `entretiens_vehicule`, `employes`, `bulletins_paie`, `plannings`, `conges`, `parametres_systeme`, `roles`, `mouvements_stock`, `modeles_notification`, `plan_comptable`, `pieces_saisie`, `immobilisations`, `canaux_reservation`, `inventaires`, `demandes_cloture_exercice`.
 
-Création seule (pas de modification acceptée) : `relances_clients`, `bons_reception`, `depenses`, `entretiens_vehicule`, `plannings`, `parametres_systeme`, `mouvements_stock`, `plan_comptable`, `pieces_saisie`, `immobilisations`, `inventaires`, `demandes_cloture_exercice` (`operation_sync.dart:20-154`). Suppression admise : `unites_hebergement`, `vehicules` (purge).
+Création seule (pas de modification acceptée) : `relances_clients`, `bons_reception`, `depenses`, `entretiens_vehicule`, `plannings`, `parametres_systeme`, `mouvements_stock`, `plan_comptable`, `pieces_saisie`, `immobilisations`, `inventaires`, `demandes_cloture_exercice` (`operation_sync.dart:20-154`). Suppression admise : `unites_hebergement`, `vehicules` (purge), `utilisateurs` (suppression logique d'un compte, par le login ; ni création ni modification). `utilisateurs` est le DERNIER élément du registre.
 
-## 10.2 Tables que le serveur MET À DISPOSITION (descente) — 48
+## 10.2 Tables que le serveur MET À DISPOSITION (descente) — 49
 
 `CatalogueDescendantService::COLONNES` (`:132-265`) : `points_stockage`, `articles`, `cartes_boisson`, `menus`, `recettes`, `plats`, `indisponibilites_carte`, `historique_prix_carte`, `categories_hebergement`, `unites_hebergement`, `tables_salle`, `fournisseurs`, `canaux_reservation`, `clients`, `relances_clients`, `reservations`, `sejours`, `sessions_caisse`, `ventes`, `depenses`, `paniers`, `factures`, `avoirs`, `paiements`, `commandes_achat`, `bons_reception`, `reglements_fournisseur`, `mouvements_stock`, `circuits`, `guides`, `reservations_tour`, `vehicules`, `contrats_location`, `entretiens_vehicule`, `services`, `employes`, `bulletins_paie`, `plannings`, `conges`, `centres_cout`, `parametres_systeme`, `roles`, `modeles_notification`, `exercices_comptables`, `plan_comptable`, `ecritures_comptables`, `immobilisations`, `inventaires` ; plus les pseudo-sources `suppressions` et `correspondances`. Descendent **sans** être montantes : `historique_prix_carte`, `avoirs`, `services`, `centres_cout`, `exercices_comptables`, `ecritures_comptables` (`MODULES_HORS_REGISTRE`, `:275`).
 
