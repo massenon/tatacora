@@ -1,3 +1,4 @@
+import '../../../core/format/auteur_compte.dart';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
@@ -1049,7 +1050,7 @@ class StocksDao extends DatabaseAccessor<AppDatabase> {
           pointLibelle: l.readTableOrNull(p)?.libelle,
           articles: siennes.length,
           regularises: siennes.where((x) => x.ecartCentiemes != 0).length,
-          par: l.readTableOrNull(u)?.login,
+          par: _auteur(l.readTableOrNull(u)),
         ),
       );
     }
@@ -1261,3 +1262,8 @@ class StocksDao extends DatabaseAccessor<AppDatabase> {
     });
   }
 }
+
+/// L'auteur d'une saisie, par son login — « (compte supprimé) » quand le compte l'est.
+String? _auteur(UtilisateurLocal? compte) => compte == null
+    ? null
+    : libelleAuteurCompte(compte.login, supprimeLe: compte.supprimeLe);

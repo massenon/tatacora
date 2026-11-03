@@ -151,6 +151,18 @@ enum TableSynchronisee {
   demandesClotureExercice(
     'demandes_cloture_exercice',
     accepteModification: false,
+  ),
+
+  /// 03/11/2026 (décision du PO : supprimer un compte, avec synchronisation) : la
+  /// SEULE chose qui se synchronise d'un compte est sa SUPPRESSION — jamais une
+  /// création, une modification, un mot de passe ni un dérivé. La clé d'appariement
+  /// est le LOGIN (`payload.login`) : les identifiants diffèrent entre le web et les
+  /// postes. Le serveur vérifie l'AUTORITÉ (le compte du jeton d'appairage doit être
+  /// super administrateur) et refuse lisiblement sinon, dans « À traiter ».
+  utilisateurs(
+    'utilisateurs',
+    accepteModification: false,
+    accepteSuppression: true,
   );
 
   const TableSynchronisee(
@@ -168,8 +180,9 @@ enum TableSynchronisee {
   final bool accepteModification;
 
   /// Le gestionnaire serveur accepte-t-il une `suppression` (A5, 28/10/2026) ?
-  /// REGISTRE FERMÉ : les unités d'hébergement et les véhicules, par leur purge
-  /// définitive. Un test relit le serveur (`GestionnaireSynchronisation::
+  /// REGISTRE FERMÉ : les unités d'hébergement et les véhicules (leur purge
+  /// définitive), et — depuis le 03/11/2026 — les comptes utilisateurs (leur
+  /// suppression logique, par le login). Un test relit le serveur (`GestionnaireSynchronisation::
   /// accepteSuppression`) pour que cette liste ne diverge pas.
   final bool accepteSuppression;
 

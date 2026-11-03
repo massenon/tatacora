@@ -115,6 +115,9 @@ void main() {
     // Purge définitive (A5) : règle propre du poste (le compte du plan
     // illisible (A12) se classe « donnée illisible »).
     'suppression non admise pour cette table',
+    // Supprimer un compte (03/11/2026) : un login homonyme d'un administrateur
+    // local ne se supprime jamais (règle d'autorité du poste).
+    'un administrateur se désactive',
   ];
 
   test('CHAQUE motif « refusé » a une cause précise — sauf les règles du '

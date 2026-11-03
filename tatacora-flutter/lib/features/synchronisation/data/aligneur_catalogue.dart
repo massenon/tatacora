@@ -24,7 +24,11 @@ import '../../hebergement/domain/entities/fiche_reservation.dart'
     show CanalReservation;
 import '../../notifications/data/notifications_dao.dart';
 import '../../parametres/data/parametres_depot_local.dart';
+import '../../transverse/data/journal_securite_dao.dart';
 import '../../transverse/data/roles_dao.dart';
+import '../../transverse/domain/comptes_utilisateurs.dart'
+    show compteSupprimable;
+import '../../transverse/domain/journal_poste.dart' show ActionJournalPoste;
 import '../../vehicules/domain/entities/contrat_location.dart'
     show statutContratActif, statutContratAnnule;
 import '../../pos/data/panier_dao.dart';
@@ -98,6 +102,9 @@ class AligneurCatalogue {
   /// Aligne UN élément. À appeler dans une transaction (le moteur l'isole
   /// dans un point de sauvegarde : une exception n'emporte que lui).
   Future<IssueAlignement> aligner(ElementCatalogue e) async {
+    // Les comptes SUPPRIMÉS (03/11/2026) s'apparient par le LOGIN, pas par un
+    // identifiant : ni correspondance ni opération en suspens à consulter.
+    if (e.table == TableDescendue.utilisateurs) return _compteSupprime(e);
     final idLocal = await _dao.idLocal(e.table.nomServeur, e.id);
     if (e.supprime) return _suppression(idLocal, e);
     final synchronisee = e.table.tableSynchronisee;
@@ -158,7 +165,69 @@ class AligneurCatalogue {
       TableDescendue.ecrituresComptables => _ecritureServeur(e),
       TableDescendue.immobilisations => alignerDocument(idLocal, e),
       TableDescendue.inventaires => alignerDocument(idLocal, e),
+      // Déjà traité plus haut (par le login) ; ce cas ne s'atteint pas.
+      TableDescendue.utilisateurs => _compteSupprime(e),
     };
+  }
+
+  /* ================================================================== */
+  /* Comptes supprimés au serveur (03/11/2026)                           */
+  /* ================================================================== */
+
+  /// Un compte SUPPRIMÉ au serveur (web, ou un autre poste dont le jeton est super
+  /// administrateur). Apparié par le LOGIN : le compte local de même login reçoit
+  /// `supprime_le` (la date du serveur) ET `actif` faux — il ne se connecte plus —
+  /// et la trace « Compte supprimé » est consignée (sans auteur local : la décision
+  /// vient du serveur).
+  ///
+  /// Ce que cette méthode ne fait JAMAIS :
+  ///  * créer un compte (login inconnu de ce poste : rien, c'est un [Aligne]) ;
+  ///  * écrire autre chose que `supprime_le` et `actif` — ni mot de passe, ni rôle,
+  ///    ni e-mail, ni droits ;
+  ///  * supprimer un compte d'ADMINISTRATION (un administrateur se désactive) : un
+  ///    login homonyme d'un administrateur local est REFUSÉ, lisiblement ;
+  ///  * enfiler (une suppression qui descend ne remonte jamais) ;
+  ///  * rien refaire pour un compte déjà supprimé (idempotent).
+  Future<IssueAlignement> _compteSupprime(ElementCatalogue e) async {
+    final login = _texte(e.donnees['login'])?.toLowerCase();
+    if (login == null) {
+      return const RefuseParLePoste('identifiant du compte absent');
+    }
+    final brut = _texte(e.donnees['supprime_le']);
+    final quand = brut == null
+        ? null
+        : DateTime.tryParse(
+            brut.contains('T') || brut.contains('Z') || brut.contains('+')
+                ? brut
+                : '${brut.replaceFirst(' ', 'T')}Z',
+          );
+    if (quand == null) {
+      return const RefuseParLePoste('date de suppression du compte illisible');
+    }
+    final ligne = await (_db.select(
+      _db.utilisateursLocal,
+    )..where((u) => u.login.equals(login))).getSingleOrNull();
+    // Jamais de création : un compte né ailleurs n'existe pas ici.
+    if (ligne == null || ligne.supprimeLe != null) return const Aligne();
+    if (!compteSupprimable(ligne.role)) {
+      return const RefuseParLePoste(
+        'compte administrateur : un administrateur se désactive, il ne se supprime pas',
+      );
+    }
+    await (_db.update(
+      _db.utilisateursLocal,
+    )..where((u) => u.id.equals(ligne.id))).write(
+      UtilisateursLocalCompanion(
+        supprimeLe: Value(quand.toLocal()),
+        actif: const Value(false),
+      ),
+    );
+    await JournalSecuriteDao(_db, horloge: _maintenant).tracer(
+      action: ActionJournalPoste.compteSupprime,
+      cibleId: ligne.id,
+      cibleLogin: ligne.login,
+    );
+    return const Aligne();
   }
 
   /* ================================================================== */

@@ -1,3 +1,4 @@
+import '../../../core/format/auteur_compte.dart';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
@@ -138,7 +139,10 @@ class PaiementsFactureDao extends DatabaseAccessor<AppDatabase>
     if (demandes.isEmpty) return const {};
     final u = attachedDatabase.utilisateursLocal;
     final lignes = await (select(u)..where((x) => x.id.isIn(demandes))).get();
-    return {for (final l in lignes) l.id: l.login};
+    return {
+      for (final l in lignes)
+        l.id: libelleAuteurCompte(l.login, supprimeLe: l.supprimeLe),
+    };
   }
 
   @override

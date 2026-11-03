@@ -38,12 +38,16 @@ import 'widgets/modales_comptes.dart';
 /// (`rolesExiges`), la garde du routeur relit la même règle, cet écran la
 /// rejoue au rendu et `ComptesUtilisateursDao` au geste.
 ///
-/// ## Ce qu'on y fait — jamais de suppression
+/// ## Ce qu'on y fait
 ///
 /// Créer un compte (le rôle donne ses droits), désactiver / réactiver,
-/// réinitialiser le mot de passe. Aucun compte ne se supprime (RG-15). Un
-/// administrateur ne se désactive pas lui-même, et le dernier administrateur
-/// actif ne se désactive pas. Rien ne part au réseau.
+/// réinitialiser le mot de passe — et, depuis le 03/11/2026 (décision du PO),
+/// SUPPRIMER un compte : suppression LOGIQUE, réservée au super administrateur et
+/// aux comptes non administrateurs (`peutSupprimerDesComptes`,
+/// `compteSupprimable`) ; le bouton est ABSENT, pas grisé, quand l'un ou l'autre
+/// manque. Un administrateur ne se désactive pas lui-même, et le dernier
+/// administrateur actif ne se désactive pas. Seules les SUPPRESSIONS de comptes
+/// partent au réseau (par le login), jamais un mot de passe.
 class EcranComptesUtilisateurs extends ConsumerWidget {
   const EcranComptesUtilisateurs({super.key});
 
@@ -90,8 +94,10 @@ class EcranComptesUtilisateurs extends ConsumerWidget {
           AsyncData(:final value) => _Tableau(
             comptes: value.comptes,
             sessionId: session.utilisateurId,
+            peutSupprimer: peutSupprimerDesComptes(session.role),
             onReinitialiser: (c) => _reinitialiser(context, ref, c),
             onBasculer: (c) => _basculer(context, ref, c),
+            onSupprimer: (c) => _supprimer(context, ref, c),
           ),
           AsyncError() => Text(
             TextesComptes.lectureImpossible,
@@ -186,6 +192,25 @@ class EcranComptesUtilisateurs extends ConsumerWidget {
     }
   }
 
+  /// Supprimer passe par une confirmation explicite (« Il ne pourra plus se
+  /// connecter. Ce qu'il a saisi garde son nom. ») ; le DAO relit le droit au geste.
+  static Future<void> _supprimer(
+    BuildContext context,
+    WidgetRef ref,
+    CompteUtilisateur compte,
+  ) async {
+    final fait = await ouvrirModaleSupprimer(
+      context,
+      compte: compte,
+      supprimer: () => ref
+          .read(comptesUtilisateursDaoProvider)
+          .supprimerCompte(auteurId: _auteur(ref), compteId: compte.id),
+    );
+    if (fait == true && context.mounted) {
+      _apres(context, ref, MessagesComptes.compteSupprime(compte.identifiant));
+    }
+  }
+
   /// Désactiver passe par une confirmation (le compte ne se connectera plus) ;
   /// réactiver est immédiat.
   static Future<void> _basculer(
@@ -245,7 +270,7 @@ abstract final class TextesComptes {
   /// Ce que le poste ajoute à la vue jumelle (qui n'a que la liste et la
   /// réinitialisation) : créer, désactiver, les droits du rôle.
   static const String sousTitreAjouts =
-      "Chaque compte reçoit les droits de son rôle (« Rôles & Permissions »). Un compte ne se supprime jamais : il se désactive, et ce qu'il a saisi garde son auteur.";
+      "Chaque compte reçoit les droits de son rôle (« Rôles & Permissions »). Un compte administrateur se désactive ; un super administrateur peut supprimer les autres, et ce qu'ils ont saisi garde leur nom.";
 
   static const String sousTitre = '$sousTitreReinitialisation $sousTitreAjouts';
   static const String boutonNouveau = '+ Nouveau compte';
@@ -263,6 +288,9 @@ abstract final class TextesComptes {
   static const String vous = '(vous)';
   static const String reinitialiser = 'Réinitialiser le mot de passe';
   static const String desactiver = 'Désactiver';
+
+  /// `pwa.comptes.supprimer` (03/11/2026).
+  static const String supprimer = 'Supprimer';
   static const String reactiver = 'Réactiver';
   static const String vide = 'Aucun compte.';
 
@@ -276,14 +304,20 @@ class _Tableau extends StatelessWidget {
   const _Tableau({
     required this.comptes,
     required this.sessionId,
+    required this.peutSupprimer,
     required this.onReinitialiser,
     required this.onBasculer,
+    required this.onSupprimer,
   });
 
   final List<CompteUtilisateur> comptes;
   final String sessionId;
+
+  /// L'auteur est un super administrateur (`peutSupprimerDesComptes`).
+  final bool peutSupprimer;
   final ValueChanged<CompteUtilisateur> onReinitialiser;
   final ValueChanged<CompteUtilisateur> onBasculer;
+  final ValueChanged<CompteUtilisateur> onSupprimer;
 
   @override
   Widget build(BuildContext context) {
@@ -402,6 +436,17 @@ class _Tableau extends StatelessWidget {
                   : VarianteBouton.secondaire,
               compact: true,
               onPressed: () => onBasculer(c),
+            ),
+          // « Supprimer » (03/11/2026) : seulement si l'auteur est super
+          // administrateur ET la cible supprimable (jamais un administrateur, jamais
+          // soi) — sinon le bouton est ABSENT, le DAO refuserait d'une phrase.
+          if (!soi && peutSupprimer && !c.estAdministration)
+            BoutonStandard(
+              key: Key('comptes-supprimer-${c.identifiant}'),
+              libelle: TextesComptes.supprimer,
+              variante: VarianteBouton.contourRouge,
+              compact: true,
+              onPressed: () => onSupprimer(c),
             ),
         ],
       ),

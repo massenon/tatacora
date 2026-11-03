@@ -406,7 +406,13 @@ void main() {
         for (final t in TableSynchronisee.values)
           if (t.accepteSuppression) t.nomServeur,
       });
-      expect(serveurAccepte, {'unites_hebergement', 'vehicules'});
+      // Registre FERMÉ : la purge (unités, véhicules) et — depuis le 03/11/2026 — la
+      // suppression logique d'un compte (`utilisateurs`, par le login).
+      expect(serveurAccepte, {
+        'unites_hebergement',
+        'vehicules',
+        'utilisateurs',
+      });
     });
 
     test('les mots de la purge sont ceux du serveur', () {
@@ -598,7 +604,7 @@ void main() {
     });
 
     test('REGISTRE FERMÉ : la file refuse une suppression ailleurs que sur ces '
-        'deux tables, ou sans libellé', () async {
+        'trois tables, ou sans libellé', () async {
       final f = OperationsSyncDao(db);
       Future<void> enfiler(TableSynchronisee t, Map<String, Object?> p) =>
           db.transaction(
@@ -626,7 +632,7 @@ void main() {
           for (final t in TableSynchronisee.values)
             if (t.accepteSuppression) t.nomServeur,
         },
-        {'unites_hebergement', 'vehicules'},
+        {'unites_hebergement', 'vehicules', 'utilisateurs'},
       );
     });
   });

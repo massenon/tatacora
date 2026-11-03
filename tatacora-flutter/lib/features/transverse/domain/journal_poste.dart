@@ -51,6 +51,11 @@ enum ActionJournalPoste {
   codeSecoursRefuse('code_secours_refuse', 'Code de secours refusé'),
   codeSecoursBloque('code_secours_bloque', 'Code de secours bloqué'),
 
+  // Supprimer un compte (03/11/2026) : consigné en LOCAL, comme les autres gestes sur
+  // les comptes — le libellé est celui de `JournalAudit::ACTIONS['compte_supprime']`
+  // du serveur. Jamais un secret : qui, quel login, quand, depuis quel poste.
+  compteSupprime('compte_supprime', 'Compte supprimé'),
+
   // L'adresse du serveur changée à l'écran (29/10/2026) : une action PROPRE AU
   // POSTE (le serveur n'en a pas, il ne connaît pas la configuration d'un
   // poste). Le détail « ancienne → nouvelle » est l'ENREGISTREMENT visé ; jamais

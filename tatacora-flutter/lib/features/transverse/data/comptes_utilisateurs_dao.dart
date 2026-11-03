@@ -6,6 +6,8 @@ import '../../../core/format/adresse_email_facultative.dart';
 import '../../../core/rbac/regle_archivage.dart';
 import '../../auth/data/verificateur_hors_ligne.dart';
 import '../../auth/domain/mot_de_passe_perdu.dart';
+import '../../synchronisation/data/operations_sync_dao.dart';
+import '../../synchronisation/domain/operation_sync.dart';
 import '../domain/comptes_utilisateurs.dart';
 import '../domain/journal_poste.dart';
 import 'journal_securite_dao.dart';
@@ -19,7 +21,8 @@ import 'journal_securite_dao.dart';
 /// | `SessionRepositoryLocal.creerCompte` | le PREMIER compte (poste vierge) |
 /// | `SessionRepositoryLocal.changerMotDePasse` | le mot de passe de la session (« Mon profil ») |
 /// | `RolesDao` | `droitsJson` des comptes d'un rôle modifié |
-/// | **ce DAO** | création d'un compte, `actif`, mot de passe TEMPORAIRE posé par un administrateur (v46), `email` (v45 : à la création, et par son titulaire depuis « Mon profil ») |
+/// | **ce DAO** | création d'un compte, `actif`, mot de passe TEMPORAIRE posé par un administrateur (v46), `email` (v45 : à la création, et par son titulaire depuis « Mon profil »), SUPPRESSION logique `supprime_le` (v48) |
+/// | `AligneurCatalogue` | `supprime_le` ET `actif` d'un compte supprimé AU SERVEUR (apparié par le login, jamais créé) |
 /// | `SessionRepositoryLocal.definirNouveauMotDePasse` | le mot de passe choisi après une réinitialisation (v46), qui lève « changement obligatoire » |
 /// | `CodeSecoursLocal` | le code de secours de l'administrateur et son compteur d'essais (v46) |
 ///
@@ -36,10 +39,18 @@ import 'journal_securite_dao.dart';
 /// d'un des deux rôles d'administration (par leur CODE). Une session ouverte
 /// avant qu'on lui retire ce rôle n'administre plus rien.
 ///
-/// Aucune suppression n'est exposée (RG-15), et rien ne part nulle part : le
-/// poste est zéro réseau.
+/// ## Supprimer un compte (03/11/2026, décision du PO)
 ///
-/// @see RG-15 Traçabilité — un compte désactivé reste en base
+/// [supprimerCompte] lève pour la seule suppression la règle « un compte ne se
+/// supprime jamais » : suppression LOGIQUE (`supprime_le`, plus `actif` faux — le
+/// compte ne se connecte plus par les mêmes gardes que s'il était désactivé),
+/// jamais une suppression physique. Auteur : un SUPER ADMINISTRATEUR ([peutSupprimerDesComptes]) ;
+/// cible : un compte non administrateur ([compteSupprimable]) ; jamais soi-même.
+/// Le geste, sa trace au journal de sécurité et son opération de file
+/// (`suppression` de la table `utilisateurs`, clé = le LOGIN, jamais un mot de passe
+/// ni un dérivé) partagent UNE transaction.
+///
+/// @see RG-15 Traçabilité — un compte désactivé ou supprimé reste en base
 /// @see RG-16 Contrôle d'accès basé sur les rôles
 /// Le résultat d'une réinitialisation : le mot de passe TEMPORAIRE, rendu une
 /// seule fois à l'administrateur, et son échéance.
@@ -60,23 +71,26 @@ class ComptesUtilisateursDao {
 
   static const _uuid = Uuid();
 
-  /// Tous les comptes, désactivés compris, par nom puis identifiant. Ne lit
+  /// Tous les comptes, désactivés compris (les SUPPRIMÉS non), par nom puis identifiant. Ne lit
   /// JAMAIS le sel ni l'empreinte.
   Future<List<CompteUtilisateur>> comptes() async {
     final t = _base.utilisateursLocal;
+    // Un compte SUPPRIMÉ disparaît de la liste (la ligne reste en base).
     final lignes =
-        await (_base.selectOnly(t)..addColumns([
-              t.id,
-              t.login,
-              t.nom,
-              t.role,
-              t.actif,
-              t.dateCreation,
-              t.dateMotDePasse,
-              t.email,
-              t.changementObligatoire,
-              t.mdpTemporaireExpireLe,
-            ]))
+        await (_base.selectOnly(t)
+              ..addColumns([
+                t.id,
+                t.login,
+                t.nom,
+                t.role,
+                t.actif,
+                t.dateCreation,
+                t.dateMotDePasse,
+                t.email,
+                t.changementObligatoire,
+                t.mdpTemporaireExpireLe,
+              ])
+              ..where(t.supprimeLe.isNull()))
             .get();
     final comptes = [
       for (final l in lignes)
@@ -307,6 +321,81 @@ class ComptesUtilisateursDao {
     return (login: compte.login, motDePasse: temporaire, expireLe: expireLe);
   }
 
+  /// « Supprimer » (03/11/2026, décision du PO) : suppression LOGIQUE d'un compte.
+  ///
+  /// Refus, dans cet ordre : droit (l'auteur, relu en base, doit être un SUPER
+  /// ADMINISTRATEUR actif), SOI-MÊME, compte inconnu ou déjà supprimé, cible
+  /// ADMINISTRATRICE (un administrateur ou un super administrateur se désactive, il
+  /// ne se supprime pas — ce qui exclut aussi le « dernier administrateur »). Les
+  /// phrases sont celles de `pwa.comptes.*` du serveur.
+  ///
+  /// Le compte reçoit `supprime_le` ET `actif` faux : il ne se connecte plus (les
+  /// gardes de connexion lisent `actif`), sa session restaurée est refusée, il
+  /// disparaît des listes. Sa ligne reste, avec son `login` — l'identifiant n'est
+  /// PAS réutilisable. Dans la même transaction : la trace « Compte supprimé » (qui,
+  /// quel login, quand, depuis quel poste — jamais un secret) et l'opération de file
+  /// `suppression` de la table `utilisateurs`, dont la charge ne porte QUE le login
+  /// du compte et celui de l'auteur. Le serveur vérifie l'autorité du jeton
+  /// d'appairage ; un refus s'affiche dans « À traiter », le compte reste supprimé
+  /// ici.
+  Future<void> supprimerCompte({
+    required String auteurId,
+    required String compteId,
+  }) async {
+    final auteur = await (_base.select(
+      _base.utilisateursLocal,
+    )..where((u) => u.id.equals(auteurId))).getSingleOrNull();
+    if (auteur == null || !auteur.actif || auteur.supprimeLe != null) {
+      throw RefusComptes.message('droit', MessagesComptes.refusDroit);
+    }
+    if (!peutSupprimerDesComptes(auteur.role)) {
+      throw RefusComptes.message(
+        'droit',
+        MessagesComptes.refusSuppressionDroit,
+      );
+    }
+    if (auteur.id == compteId) {
+      throw RefusComptes.message(
+        'compte',
+        MessagesComptes.refusSuppressionSoiMeme,
+      );
+    }
+    await _base.transaction(() async {
+      final compte = await _compte(compteId);
+      if (!compteSupprimable(compte.role)) {
+        throw RefusComptes.message(
+          'compte',
+          MessagesComptes.refusSuppressionAdministrateur,
+        );
+      }
+      final maintenant = _horloge();
+      await (_base.update(
+        _base.utilisateursLocal,
+      )..where((u) => u.id.equals(compte.id))).write(
+        UtilisateursLocalCompanion(
+          supprimeLe: Value(maintenant),
+          actif: const Value(false),
+        ),
+      );
+      await _journal.tracer(
+        action: ActionJournalPoste.compteSupprime,
+        auteurLogin: auteur.login,
+        cibleId: compte.id,
+        cibleLogin: compte.login,
+      );
+      // La charge : le LOGIN (clé d'appariement, les identifiants diffèrent entre
+      // le web et les postes) et l'auteur local. JAMAIS un mot de passe, un dérivé,
+      // un rôle ni un e-mail.
+      await OperationsSyncDao(_base).enfiler(
+        table: TableSynchronisee.utilisateurs,
+        entiteId: compte.id,
+        type: TypeOperationSync.suppression,
+        payload: {'login': compte.login, 'supprime_par': auteur.login},
+        horodatage: maintenant,
+      );
+    });
+  }
+
   /// « Enregistrer les informations » de « Mon profil » : l'e-mail FACULTATIF du
   /// compte [utilisateurId] — celui de la SESSION, jamais celui d'un tiers (le
   /// geste ne prend pas d'auteur distinct : un compte n'écrit que le sien, sans
@@ -356,7 +445,8 @@ class ComptesUtilisateursDao {
     final compte = await (_base.select(
       _base.utilisateursLocal,
     )..where((u) => u.id.equals(compteId))).getSingleOrNull();
-    if (compte == null) {
+    // Un compte SUPPRIMÉ est introuvable pour tout geste (désactiver, réinitialiser…).
+    if (compte == null || compte.supprimeLe != null) {
       throw RefusComptes.message('compte', MessagesComptes.compteIntrouvable);
     }
     return compte;

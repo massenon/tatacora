@@ -1,3 +1,4 @@
+import '../../../core/format/auteur_compte.dart';
 import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
@@ -819,7 +820,7 @@ class ComptabiliteDao extends DatabaseAccessor<AppDatabase> {
               ? null
               : await _numeroDePiece(r.readTable(e).ecritureContrepasseeId!),
           saisieLe: r.readTable(e).creeLe,
-          saisiePar: r.readTableOrNull(u)?.login,
+          saisiePar: _auteur(r.readTableOrNull(u)),
         ),
     ];
   }
@@ -1218,3 +1219,8 @@ final class LigneDArchive {
   /// Le login de qui l'a passée.
   final String? saisiePar;
 }
+
+/// L'auteur d'une saisie, par son login — « (compte supprimé) » quand le compte l'est.
+String? _auteur(UtilisateurLocal? compte) => compte == null
+    ? null
+    : libelleAuteurCompte(compte.login, supprimeLe: compte.supprimeLe);

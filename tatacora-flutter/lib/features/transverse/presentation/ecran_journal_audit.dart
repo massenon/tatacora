@@ -244,6 +244,7 @@ class _EtatEcranJournalAudit extends ConsumerState<EcranJournalAudit> {
       ),
       // `JournalAudit::ACTIONS['suppression']` : #FDECEC / #C62828.
       ActionJournalPoste.suppression ||
+      ActionJournalPoste.compteSupprime ||
       ActionJournalPoste.codeSecoursRefuse ||
       ActionJournalPoste.codeSecoursBloque => (
         AppColors.badgeRougeFond,

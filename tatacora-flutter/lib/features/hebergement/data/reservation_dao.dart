@@ -1,3 +1,4 @@
+import '../../../core/format/auteur_compte.dart';
 import 'package:drift/drift.dart';
 
 import '../../../core/database/app_database.dart';
@@ -251,7 +252,10 @@ class ReservationDao extends DatabaseAccessor<AppDatabase>
     if (ids.isEmpty) return const {};
     final u = attachedDatabase.utilisateursLocal;
     final lignes = await (select(u)..where((x) => x.id.isIn(ids))).get();
-    return {for (final l in lignes) l.id: l.login};
+    return {
+      for (final l in lignes)
+        l.id: libelleAuteurCompte(l.login, supprimeLe: l.supprimeLe),
+    };
   }
 
   /// Réservations actives qui touchent la période, sur toutes les unités.

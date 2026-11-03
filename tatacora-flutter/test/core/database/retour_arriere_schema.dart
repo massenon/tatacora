@@ -131,6 +131,15 @@ const tablesAjouteesEnV44 = <String>{'pieces_saisie_local'};
 const tablesAjouteesEnV46 = <String>{'journal_securite_local'};
 
 const _ajoutsParVersion = <int, List<String>>{
+  // La v48 (03/11/2026, supprimer un compte) ajoute UNE colonne nullable a
+  // `utilisateurs_local`, ni indexee ni referencee, aucune table. Le retour arriere
+  // CONSERVE la colonne (comme la v46 conserve ses colonnes de comptes) : les DAO
+  // d'aujourd'hui qui JOIGNENT `utilisateurs_local` (auteur d'un mouvement, d'une
+  // ecriture) lisent toutes ses colonnes, et une fixture « ancienne » qui semerait
+  // par eux echouerait sur « no such column ». La migration, elle, est eprouvee en
+  // RETIRANT la colonne a la main (`migration_v48_compte_supprime_test`).
+  48: <String>[],
+
   // La v47 (30/10/2026, la description facultative d'un plat) ajoute UNE colonne nullable,
   // ni indexee ni referencee, aucune table : retour arriere symetrique.
   47: <String>['ALTER TABLE plats_local DROP COLUMN description'],

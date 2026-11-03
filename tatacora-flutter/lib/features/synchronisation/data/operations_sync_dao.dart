@@ -96,7 +96,7 @@ class OperationsSyncDao extends DatabaseAccessor<AppDatabase> {
       );
     }
     if (type == TypeOperationSync.suppression) {
-      // Registre FERMÉ (A5) : deux tables, jamais une de plus. Le serveur exige
+      // Registre FERMÉ (A5, puis les comptes le 03/11/2026) : trois tables, jamais une de plus. Le serveur exige
       // un corps non vide : le libellé de l'élément purgé.
       if (!table.accepteSuppression) {
         throw ArgumentError.value(

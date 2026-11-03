@@ -408,13 +408,16 @@ void main() {
       expect(methode, isNot(contains('select(_base.utilisateursLocal')));
     });
 
-    test('aucun geste ne SUPPRIME : le DAO n’a aucun delete', () {
-      final source = File(
-        'lib/features/transverse/data/comptes_utilisateurs_dao.dart',
-      ).readAsStringSync();
-      expect(source, contains('_base.update('), reason: 'source relu');
-      expect(source, isNot(contains('.delete(')));
-      expect(source, isNot(contains('DELETE')));
-    });
+    test(
+      'aucun geste ne SUPPRIME PHYSIQUEMENT : le DAO n’a aucun delete (la suppression d’un compte est logique)',
+      () {
+        final source = File(
+          'lib/features/transverse/data/comptes_utilisateurs_dao.dart',
+        ).readAsStringSync();
+        expect(source, contains('_base.update('), reason: 'source relu');
+        expect(source, isNot(contains('.delete(')));
+        expect(source, isNot(contains('DELETE')));
+      },
+    );
   });
 }

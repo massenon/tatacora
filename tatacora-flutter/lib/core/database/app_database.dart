@@ -527,8 +527,16 @@ class AppDatabase extends _$AppDatabase {
   /// les plats d'avant n'ont pas de description. Elle part au serveur avec le plat
   /// (charge `plats`) et redescend. Le curseur de descente est oublié : les
   /// descriptions des plats déjà au serveur redescendent.
+  ///
+  /// v48 (03/11/2026) — SUPPRIMER UN COMPTE UTILISATEUR (décision du PO, qui lève pour
+  /// la seule suppression la règle « un compte ne se supprime jamais ») : UNE colonne
+  /// NULLABLE, `utilisateurs_local.supprime_le`, aucune table. Suppression LOGIQUE :
+  /// rien n'est supprimé par la migration, aucune date n'est fabriquée. Le compte
+  /// supprimé voyage par le LOGIN, jamais avec un mot de passe ni un dérivé. Le
+  /// curseur de descente est oublié : les comptes déjà supprimés au serveur
+  /// redescendent.
   @override
-  int get schemaVersion => 47;
+  int get schemaVersion => 48;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1591,6 +1599,28 @@ class AppDatabase extends _$AppDatabase {
         if (!tables.contains('journal_securite_local')) {
           await m.createTable(journalSecuriteLocal);
         }
+      }
+      if (from < 48) {
+        // SUPPRIMER UN COMPTE (03/11/2026) : UNE colonne NULLABLE, aucune table, aucun
+        // compte supprimé par la migration. Ajout CONDITIONNEL (piège 3) : une fixture
+        // ramenée en arrière depuis la définition courante la porte déjà
+        // (`retour_arriere_schema.dart`), et un fichier à la forme v48 marqué v47 doit se
+        // rejouer. Une table absente (jeu de colonnes vide) n'est pas touchée ici : la
+        // réconciliation finale la complète. Le curseur est oublié : les comptes déjà
+        // supprimés au serveur redescendent.
+        final comptes = {
+          for (final c
+              in await m.database
+                  .customSelect('PRAGMA table_info(utilisateurs_local)')
+                  .get())
+            c.data['name'] as String,
+        };
+        if (comptes.isNotEmpty && !comptes.contains('supprime_le')) {
+          await m.addColumn(utilisateursLocal, utilisateursLocal.supprimeLe);
+        }
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
       }
       if (from < 47) {
         // LA DESCRIPTION FACULTATIVE d'un plat (30/10/2026) : UNE colonne NULLABLE, aucune

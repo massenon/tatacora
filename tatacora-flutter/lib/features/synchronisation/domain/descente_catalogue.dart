@@ -157,7 +157,17 @@ enum TableDescendue {
 
   /// 21/10/2026 : les inventaires physiques clôturés de tous les postes, avec
   /// leurs lignes comptées (elles descendent AVEC l'inventaire).
-  inventaires('inventaires', TableSynchronisee.inventaires);
+  inventaires('inventaires', TableSynchronisee.inventaires),
+
+  /// 03/11/2026 (décision du PO : supprimer un compte, avec synchronisation) : les
+  /// comptes SUPPRIMÉS au serveur, et eux seuls — `login` et `supprime_le`, jamais un
+  /// mot de passe, un dérivé, un rôle ni un e-mail. Le LOGIN est la clé d'appariement
+  /// (les identifiants diffèrent entre le web et les postes) : l'aligneur marque
+  /// `supprime_le` sur le compte local de même login, ne CRÉE jamais de compte et
+  /// n'écrase jamais autre chose. Descendue sans être « synchronisable » au sens du
+  /// catalogue : la file d'envoi n'a, pour les comptes, que la suppression
+  /// ([TableSynchronisee.utilisateurs]).
+  utilisateurs('utilisateurs', null);
 
   const TableDescendue(this.nomServeur, this.tableSynchronisee);
 
@@ -228,6 +238,8 @@ String libelleTableServeur(String nom) => switch (nom) {
   'pieces_saisie' => 'Pièces comptables saisies',
   'canaux_reservation' => 'Canaux de réservation',
   'inventaires' => 'Inventaires physiques',
+  // 03/11/2026 : les comptes supprimés au serveur (le login seul).
+  'utilisateurs' => 'Comptes supprimés',
   'demandes_cloture_exercice' => 'Demandes de clôture d’exercice',
   _ => nom,
 };

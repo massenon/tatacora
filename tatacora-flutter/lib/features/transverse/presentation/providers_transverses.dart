@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/di/providers.dart';
+import '../../synchronisation/domain/operation_sync.dart';
 import '../../synchronisation/presentation/providers_synchronisation.dart';
 import '../data/comptes_utilisateurs_dao.dart';
 import '../data/journal_securite_dao.dart';
@@ -83,23 +84,26 @@ final comptesEtRolesProvider = FutureProvider.autoDispose<ComptesEtRoles>((
 /// Le Journal d'Audit de ce poste : la file d'envoi, relue à chaque visite
 /// (aucun cache). Lecture seule, par `OperationsSyncDao` — le seul qui lise la
 /// file.
-final journalDuPosteProvider =
-    FutureProvider.autoDispose<List<EntreeJournalPoste>>((ref) async {
-      final operations = await ref
-          .watch(operationsSyncDaoProvider)
-          .operations();
-      // Les gestes sur les comptes (v46) : journal LOCAL, jamais dans la file.
-      final securite = await ref.watch(journalSecuriteDaoProvider).entrees();
-      return [
-        for (final o in operations) EntreeJournalPoste.depuisOperation(o),
-        for (final e in securite)
-          ?entreeDepuisSecurite(
-            action: e.action,
-            creeLe: e.creeLe,
-            auteurLogin: e.auteurLogin,
-            posteNom: e.posteNom,
-            cibleId: e.cibleId,
-            cibleLogin: e.cibleLogin,
-          ),
-      ];
-    });
+final journalDuPosteProvider = FutureProvider.autoDispose<List<EntreeJournalPoste>>((
+  ref,
+) async {
+  final operations = await ref.watch(operationsSyncDaoProvider).operations();
+  // Les gestes sur les comptes (v46) : journal LOCAL, jamais dans la file.
+  final securite = await ref.watch(journalSecuriteDaoProvider).entrees();
+  return [
+    // La suppression d'un compte est consignée au journal de SÉCURITÉ (« Compte
+    // supprimé ») : son opération de file ne s'y ajoute pas une seconde fois.
+    for (final o in operations)
+      if (o.table != TableSynchronisee.utilisateurs)
+        EntreeJournalPoste.depuisOperation(o),
+    for (final e in securite)
+      ?entreeDepuisSecurite(
+        action: e.action,
+        creeLe: e.creeLe,
+        auteurLogin: e.auteurLogin,
+        posteNom: e.posteNom,
+        cibleId: e.cibleId,
+        cibleLogin: e.cibleLogin,
+      ),
+  ];
+});

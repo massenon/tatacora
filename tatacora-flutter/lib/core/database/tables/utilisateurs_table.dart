@@ -113,6 +113,25 @@ class UtilisateursLocal extends Table {
   IntColumn get codeSecoursEchecs => integer().withDefault(const Constant(0))();
   DateTimeColumn get codeSecoursDernierEchecLe => dateTime().nullable()();
 
+  // --------------------------------------------------------------------------
+  // v48 (03/11/2026) — SUPPRIMER UN COMPTE (décision du PO, qui lève pour la seule
+  // suppression la règle « un compte ne se supprime jamais, il se désactive »).
+  // UNE colonne NULLABLE, additive : aucun compte existant n'est supprimé.
+  // --------------------------------------------------------------------------
+
+  /// L'instant où le compte a été SUPPRIMÉ (suppression LOGIQUE : la ligne reste,
+  /// jamais un DELETE — les ventes, dépenses et écritures gardent leur auteur,
+  /// affiché « nom (compte supprimé) »). Nul : compte vivant. Un compte supprimé
+  /// est AUSSI désactivé ([actif] faux) : il ne se connecte plus, par les mêmes
+  /// gardes que les comptes désactivés. Son identifiant n'est pas réutilisable
+  /// (la ligne garde son `login` sous l'index unique).
+  ///
+  /// Posée par DEUX auteurs seulement : `ComptesUtilisateursDao.supprimerCompte`
+  /// (le geste, super administrateur) et `AligneurCatalogue` (le compte supprimé
+  /// au serveur, apparié par le LOGIN). Elle voyage dans les deux sens, SANS jamais
+  /// un mot de passe ni un dérivé.
+  DateTimeColumn get supprimeLe => dateTime().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 }

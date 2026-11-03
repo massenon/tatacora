@@ -68,6 +68,12 @@ abstract final class TextesModalesComptes {
       'Le compte ne pourra plus se connecter. Il reste en base, avec tout ce '
       "qu'il a saisi (traçabilité), et peut être réactivé à tout moment.";
   static const String desactiver = 'Désactiver';
+  // « Supprimer » (03/11/2026) — les phrases de `pwa.comptes.*` du serveur.
+  static String supprimerTitre(String identifiant) =>
+      'Supprimer le compte « $identifiant » ?';
+  static const String supprimerTexte =
+      "Il ne pourra plus se connecter. Ce qu'il a saisi garde son nom.";
+  static const String supprimerConfirmer = 'Supprimer le compte';
   static const String annuler = 'Annuler';
   static const String enregistrer = 'Enregistrer';
   static const String creer = 'Créer le compte';
@@ -491,6 +497,82 @@ class _ModaleDesactiverState extends State<_ModaleDesactiver> {
         action: BoutonStandard(
           key: const Key('comptes-desactiver-confirmer'),
           libelle: TextesModalesComptes.desactiver,
+          variante: VarianteBouton.erreur,
+          taillePolice: Tailles.t13,
+          onPressed: _enCours ? null : _valider,
+        ),
+      ),
+    );
+  }
+}
+
+/// Confirme la SUPPRESSION de [compte] (03/11/2026, décision du PO) : « Supprimer
+/// le compte (son login) ? Il ne pourra plus se connecter. Ce qu'il a saisi garde
+/// son nom. » [supprimer] écrit (et lève [RefusComptes], affiché dans la modale).
+Future<bool?> ouvrirModaleSupprimer(
+  BuildContext context, {
+  required CompteUtilisateur compte,
+  required Future<void> Function() supprimer,
+}) => showDialog<bool>(
+  context: context,
+  builder: (_) => _ModaleSupprimer(compte: compte, supprimer: supprimer),
+);
+
+class _ModaleSupprimer extends StatefulWidget {
+  const _ModaleSupprimer({required this.compte, required this.supprimer});
+
+  final CompteUtilisateur compte;
+  final Future<void> Function() supprimer;
+
+  @override
+  State<_ModaleSupprimer> createState() => _ModaleSupprimerState();
+}
+
+class _ModaleSupprimerState extends State<_ModaleSupprimer> {
+  String? _refus;
+  bool _enCours = false;
+
+  Future<void> _valider() async {
+    setState(() {
+      _enCours = true;
+      _refus = null;
+    });
+    try {
+      await widget.supprimer();
+      if (mounted) Navigator.of(context).pop(true);
+    } on RefusComptes catch (refus) {
+      if (mounted) {
+        setState(() {
+          _enCours = false;
+          _refus = refus.message;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CoquilleModaleRestaurant(
+      cle: const Key('comptes-modale-supprimer'),
+      titre: TextesModalesComptes.supprimerTitre(widget.compte.identifiant),
+      largeur: MesuresTransverses.modaleCompte,
+      refus: _refus,
+      cleRefus: const Key('comptes-modale-refus'),
+      corps: const Text(
+        TextesModalesComptes.supprimerTexte,
+        style: TextStyle(
+          fontFamily: AppTextStyles.police,
+          fontSize: Tailles.t13,
+          color: Ardoise.c600,
+        ),
+      ),
+      actions: _pied(
+        context,
+        cleAnnuler: 'comptes-modale-annuler',
+        enCours: _enCours,
+        action: BoutonStandard(
+          key: const Key('comptes-supprimer-confirmer'),
+          libelle: TextesModalesComptes.supprimerConfirmer,
           variante: VarianteBouton.erreur,
           taillePolice: Tailles.t13,
           onPressed: _enCours ? null : _valider,

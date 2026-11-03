@@ -183,20 +183,74 @@ class SyncManager {
       await _etat.retenirAnnoncesServeur(issue.entetes);
       final data = issue.corps?['data'];
       final demande = data is Map ? data['demandee_le'] : null;
-      if (demande is! String || demande == _demandeSuivie) return false;
-      _demandeSuivie = demande;
-      await _descente?.leverRepli();
-      await synchroniserMaintenant();
-      return true;
+      final epoque = data is Map && data['epoque'] is String
+          ? data['epoque'] as String
+          : null;
+      if (demande is String && demande != _demandeSuivie) {
+        _demandeSuivie = demande;
+        await _descente?.leverRepli();
+        await synchroniserMaintenant();
+        // Le passage complet vient de descendre tout ce que le serveur détenait :
+        // l'époque lue avec cette demande est vue (si l'envoi et la descente ont
+        // abouti, la prochaine variation sera une vraie nouveauté).
+        if (epoque != null) _epoqueVue = epoque;
+        return true;
+      }
+      return await _suivreEpoque(epoque);
     } on Object {
       return false;
     }
   }
 
-  Future<BilanSynchronisation> _executerSansLever() async {
+  /// La dernière ÉPOQUE du serveur dont ce poste a descendu les changements (en
+  /// mémoire : au redémarrage, la première lue déclenche une descente — « une de
+  /// plus, jamais une de moins », comme pour la demande).
+  String? _epoqueVue;
+
+  /// L'ÉPOQUE (décision du PO du 03/11/2026 : « les données envoyées par un poste
+  /// reviennent aux autres postes », sans WebSocket). Le serveur tient un compteur
+  /// de changements, incrémenté quand l'opération d'un poste est ACCEPTÉE, et le
+  /// rend dans la réponse du battement léger de 30 s. Différente de la dernière
+  /// époque vue, ce poste lance une DESCENTE — pas un envoi superflu, pas un
+  /// passage complet — puis ne retient l'époque QUE si la descente a abouti
+  /// (« à jour ») : un échec, un repli non échu ou une synchronisation déjà en
+  /// cours la laissent à rejouer au battement suivant.
+  ///
+  /// L'époque n'est jamais bloquante : absente de la réponse (serveur d'avant),
+  /// elle ne fait rien ; le poste fonctionne sans elle, et le cycle de 5 minutes
+  /// reste le filet. L'interrupteur, l'appairage, le refus et la génération ont
+  /// déjà été contrôlés par l'appelant. Le repli de la descente n'est PAS levé ici
+  /// (contrairement à une demande « Synchroniser » explicite) : un serveur en
+  /// difficulté n'est pas martelé toutes les 30 s.
+  Future<bool> _suivreEpoque(String? epoque) async {
+    if (epoque == null || epoque == _epoqueVue) return false;
+    if (_enCours != null) return false;
+    final bilan = await synchroniserDescenteSeule();
+    if (bilan.descente?.etat == EtatDescente.aJour) {
+      _epoqueVue = epoque;
+    }
+    return true;
+  }
+
+  /// Une DESCENTE seule — ni envoi de la file, ni reçus : les contrôles du passage
+  /// complet (interrupteur, appairage, refus, génération), puis la descente depuis
+  /// le curseur du poste. Même exclusion que [synchroniserMaintenant] : jamais deux
+  /// passages en même temps. Ne lève jamais.
+  Future<BilanSynchronisation> synchroniserDescenteSeule() {
+    final enCours = _enCours;
+    if (enCours != null) return enCours;
+    final nouveau = _executerSansLever(descenteSeule: true);
+    _enCours = nouveau;
+    nouveau.whenComplete(() => _enCours = null).ignore();
+    return nouveau;
+  }
+
+  Future<BilanSynchronisation> _executerSansLever({
+    bool descenteSeule = false,
+  }) async {
     BilanSynchronisation bilan;
     try {
-      bilan = await _executer();
+      bilan = await _executer(descenteSeule: descenteSeule);
     } on Object catch (e) {
       // Une base fermée pendant l'arrêt, un fichier verrouillé : rien ne
       // remonte jusqu'à un geste. Les opérations réclamées retrouveront la
@@ -214,7 +268,7 @@ class SyncManager {
     return bilan;
   }
 
-  Future<BilanSynchronisation> _executer() async {
+  Future<BilanSynchronisation> _executer({bool descenteSeule = false}) async {
     final url = _url;
     if (_demonstration || url == null) {
       return const BilanSynchronisation(
@@ -255,12 +309,16 @@ class SyncManager {
       );
     }
 
-    await _dao.libererBauxExpires();
-    var envoi = await _envoyerFile(appairage);
+    // Une descente SEULE (l'époque du serveur a changé) ne touche ni aux baux ni à
+    // la file : le passage complet, lui, envoie d'abord.
+    if (!descenteSeule) await _dao.libererBauxExpires();
+    var envoi = descenteSeule
+        ? const BilanSynchronisation(etat: EtatSynchronisation.termine)
+        : await _envoyerFile(appairage);
 
     // Les REÇUS en image des dépenses acceptées (lot L4) : après la file, avant
     // la descente. Un refus du jeton ou du poste vaut pour tout le passage.
-    final recus = _recus;
+    final recus = descenteSeule ? null : _recus;
     if (recus != null &&
         (envoi.etat == EtatSynchronisation.termine ||
             envoi.etat == EtatSynchronisation.alerte)) {
