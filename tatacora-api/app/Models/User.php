@@ -10,6 +10,7 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -35,6 +36,7 @@ use Laravel\Sanctum\HasApiTokens;
  * @property string|null $previous_password_hash
  * @property string|null $recovery_code_hash
  * @property \Illuminate\Support\Carbon|null $recovery_code_generated_at
+ * @property \Illuminate\Support\Carbon|null $supprime_le
  * @property-read Role|null $role
  */
 class User extends Authenticatable
@@ -46,6 +48,16 @@ class User extends Authenticatable
 
     use HasUuids;
     use Notifiable;
+
+    /**
+     * SUPPRESSION LOGIQUE d'un compte (décision du PO du 03/11/2026) : la colonne
+     * `supprime_le` tient lieu de `deleted_at`. La portée globale écarte les comptes
+     * supprimés de TOUTE requête (connexion, listes, jetons) ; l'auteur d'une
+     * saisie se relit par `withTrashed()` (relations `belongsTo` des modèles).
+     */
+    use SoftDeletes;
+
+    public const DELETED_AT = 'supprime_le';
 
     protected $table = 'utilisateurs';
 
@@ -73,6 +85,7 @@ class User extends Authenticatable
             'must_change_password' => 'boolean',
             'temp_expires_at' => 'datetime',
             'recovery_code_generated_at' => 'datetime',
+            'supprime_le' => 'datetime',
         ];
     }
 
@@ -175,5 +188,52 @@ class User extends Authenticatable
     public function estAdministrateur(): bool
     {
         return in_array((string) $this->role?->libelle, self::ROLES_ADMINISTRATION, true);
+    }
+
+    /**
+     * Le module dont l'écriture (`C`) est exigée EN PLUS du rôle pour supprimer
+     * un compte : celui de l'écran « Comptes utilisateurs » (menu `ROLES`).
+     */
+    public const MODULE_SUPPRESSION_COMPTES = 'ROLES';
+
+    /**
+     * QUI peut supprimer un compte (décision du PO du 03/11/2026) : un SUPER
+     * ADMINISTRATEUR actif, avec l'écriture sur ROLES. Auteur unique de la règle :
+     * l'écran, le service et la synchronisation la demandent ici, aucun ne la
+     * recopie. Un simple administrateur désactive, il ne supprime pas.
+     */
+    public function peutSupprimerDesComptes(): bool
+    {
+        return $this->estActif()
+            && $this->estSuperAdmin()
+            && $this->niveauSurModule(self::MODULE_SUPPRESSION_COMPTES) === 'C';
+    }
+
+    /**
+     * QUI peut être supprimé : un compte dont le rôle n'administre PAS. Un
+     * administrateur ou un super administrateur se désactive, il ne se supprime
+     * pas — ce qui garantit aussi qu'on ne supprime jamais le dernier
+     * administrateur (ce n'est jamais un administrateur qui part).
+     */
+    public function estSupprimable(): bool
+    {
+        return $this->supprime_le === null && ! $this->estAdministrateur();
+    }
+
+    /** Le compte a-t-il été supprimé (suppression logique) ? */
+    public function estSupprime(): bool
+    {
+        return $this->supprime_le !== null;
+    }
+
+    /**
+     * Le nom d'un auteur tel que les listes l'affichent : son login, suivi de
+     * « (compte supprimé) » quand le compte l'est. Ce qu'il a saisi garde son nom.
+     */
+    public function libelleAuteur(): string
+    {
+        return $this->estSupprime()
+            ? __('pwa.comptes.auteur_supprime', ['login' => $this->login])
+            : $this->login;
     }
 }

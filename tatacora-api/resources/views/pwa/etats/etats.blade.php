@@ -132,7 +132,7 @@
                        un auteur nul avant toute écriture. Une édition sans
                        émetteur ne peut pas exister ; un repli serait du code
                        que rien n'exerce (même défaut que PA-150). --}}
-                  <td class="px-5 py-3 text-slate-500">{{ $edition->utilisateur->login }}</td>
+                  <td class="px-5 py-3 text-slate-500">{{ $edition->utilisateur->libelleAuteur() }}</td>
                   <td class="px-5 py-3 text-slate-500">{{ $edition->date_edition->format('d/m/Y H:i') }}</td>
                   <td class="px-5 py-3 text-slate-500">{{ strtoupper($edition->format) }}</td>
                   {{-- L'action « Retélécharger » du maître n'est pas rendue :

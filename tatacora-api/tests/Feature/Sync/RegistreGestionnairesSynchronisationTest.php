@@ -109,6 +109,8 @@ final class RegistreGestionnairesSynchronisationTest extends TestCase
             'inventaires',
             // 26/10/2026 : la demande de clôture d'exercice d'un poste (M10).
             'demandes_cloture_exercice',
+            // 03/11/2026 : les comptes — la SUPPRESSION seule (par le login).
+            'utilisateurs',
         ], array_keys($gestionnaires));
 
         foreach ($gestionnaires as $table => $gestionnaire) {

@@ -38,8 +38,8 @@ use App\Shared\Sync\Gestionnaires\GestionnairePlannings;
 use App\Shared\Sync\Gestionnaires\GestionnairePlats;
 use App\Shared\Sync\Gestionnaires\GestionnairePointsStockage;
 use App\Shared\Sync\Gestionnaires\GestionnaireRecettes;
-use App\Shared\Sync\Gestionnaires\GestionnaireRelancesClients;
 use App\Shared\Sync\Gestionnaires\GestionnaireReglementsFournisseur;
+use App\Shared\Sync\Gestionnaires\GestionnaireRelancesClients;
 use App\Shared\Sync\Gestionnaires\GestionnaireReservations;
 use App\Shared\Sync\Gestionnaires\GestionnaireReservationsTour;
 use App\Shared\Sync\Gestionnaires\GestionnaireRoles;
@@ -47,6 +47,7 @@ use App\Shared\Sync\Gestionnaires\GestionnaireSejours;
 use App\Shared\Sync\Gestionnaires\GestionnaireSessionsCaisse;
 use App\Shared\Sync\Gestionnaires\GestionnaireTablesSalle;
 use App\Shared\Sync\Gestionnaires\GestionnaireUnitesHebergement;
+use App\Shared\Sync\Gestionnaires\GestionnaireUtilisateurs;
 use App\Shared\Sync\Gestionnaires\GestionnaireVehicules;
 use App\Shared\Sync\Gestionnaires\GestionnaireVentes;
 use LogicException;
@@ -188,6 +189,9 @@ class RegistreSynchronisation
         // 26/10/2026 : la DEMANDE de clôture ou de réouverture d'un exercice
         // (M10), document source : le serveur rejoue ses règles de clôture.
         'demandes_cloture_exercice' => GestionnaireDemandesCloture::class,
+        // 03/11/2026 : les comptes — la SUPPRESSION seule (par le login), jamais une
+        // création ni un mot de passe. L'autorité est vérifiée par le moteur.
+        'utilisateurs' => GestionnaireUtilisateurs::class,
     ];
 
     /** @var array<string, GestionnaireSynchronisation> */

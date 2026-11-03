@@ -318,7 +318,7 @@
                     <div class="px-5 py-3">
                       <p class="text-[15px] font-semibold text-slate-700">{{ \App\Shared\ImportExport\Data\ReferentielsImport::parCle($entree->module_cle)?->nom ?? $entree->module_cle }}</p>
                       <p class="text-[13px] text-slate-500">{{ __('pwa.import_export.historique_lignes', ['nombre' => $entree->nombre_lignes]) }}</p>
-                      <p class="text-[12px] text-slate-400 mt-0.5">{{ $entree->date_heure->format('d/m/Y H:i') }} · {{ $entree->utilisateur?->login ?? '—' }}</p>
+                      <p class="text-[12px] text-slate-400 mt-0.5">{{ $entree->date_heure->format('d/m/Y H:i') }} · {{ $entree->utilisateur?->libelleAuteur() ?? '—' }}</p>
                     </div>
                   @empty
                     <p class="px-5 py-8 text-center text-[13px] text-slate-400">{{ __('pwa.import_export.historique_vide') }}</p>

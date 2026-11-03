@@ -180,7 +180,7 @@
                       <td class="px-3 py-2.5 text-right">
                         <span class="text-[11px] px-1.5 py-0.5 rounded font-semibold {{ $classeStatut($c->statut_validation) }}">{{ __('rh_conges_pwa.statut_'.$c->statut_validation) }}</span>
                       </td>
-                      <td class="px-3 py-2.5 text-right text-slate-500 text-[12px]">{{ $c->validateur?->login ?? '—' }}</td>
+                      <td class="px-3 py-2.5 text-right text-slate-500 text-[12px]">{{ $c->validateur?->libelleAuteur() ?? '—' }}</td>
                       <td class="px-3 py-2.5 text-right whitespace-nowrap">
                         @if ($peutEcrire && $c->statut_validation === 'en_attente')
                           <button type="button" wire:click="validerConge('{{ $c->id }}')"

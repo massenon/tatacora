@@ -316,7 +316,7 @@
                       <td class="px-4 py-2.5 text-right font-mono-tatacora" style="color:#8C1D1D">{{ $ligne->montant_commission_annulation === null ? $tiret : MontantFcfa::format((string) $ligne->montant_commission_annulation) }}</td>
                       <td class="px-4 py-2.5 text-right font-mono-tatacora text-emerald-700">{{ $ligne->montant_rembourse_annulation === null ? $tiret : MontantFcfa::format((string) $ligne->montant_rembourse_annulation) }}</td>
                       <td class="px-4 py-2.5 whitespace-nowrap text-slate-500">{{ $ligne->date_annulation?->format('d/m/Y H:i') ?? $tiret }}</td>
-                      <td class="px-4 py-2.5 text-slate-500">{{ $ligne->utilisateurAnnulation?->login ?? $tiret }}</td>
+                      <td class="px-4 py-2.5 text-slate-500">{{ $ligne->utilisateurAnnulation?->libelleAuteur() ?? $tiret }}</td>
                     </tr>
                   @endforeach
                 </tbody>

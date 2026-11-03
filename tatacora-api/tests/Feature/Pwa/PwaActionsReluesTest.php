@@ -156,7 +156,7 @@ final class PwaActionsReluesTest extends TestCase
         CodeSecours::class => ['render', 'reinitialiserParCodeDeSecours'],
         // La liste des comptes et « Réinitialiser le mot de passe » : l\'écriture
         // exige `C` sur ROLES (`exigerEcriture`) ET un rôle d\'administration.
-        ComptesUtilisateurs::class => ['render', 'ouvrirReinitialisation', 'fermerModales', 'reinitialiserMotDePasse'],
+        ComptesUtilisateurs::class => ['render', 'ouvrirReinitialisation', 'fermerModales', 'reinitialiserMotDePasse', 'ouvrirSuppression', 'supprimerCompte'],
 
         // ⚠ M11 — LE TABLEAU DE BORD PORTE CINQ GESTES RAPIDES (31/08/2026).
         //

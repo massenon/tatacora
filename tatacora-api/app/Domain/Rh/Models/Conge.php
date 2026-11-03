@@ -103,6 +103,6 @@ class Conge extends Model
      */
     public function validateur(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'validateur_id');
+        return $this->belongsTo(User::class, 'validateur_id')->withTrashed();
     }
 }

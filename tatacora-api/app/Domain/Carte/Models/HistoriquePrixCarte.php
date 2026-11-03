@@ -83,6 +83,6 @@ class HistoriquePrixCarte extends Model
      */
     public function utilisateurCreation(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'utilisateur_creation_id');
+        return $this->belongsTo(User::class, 'utilisateur_creation_id')->withTrashed();
     }
 }

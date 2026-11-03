@@ -59,7 +59,7 @@
                            entrée sans utilisateur vient d'un job planifié ou
                            d'une commande console : inventer un compte serait
                            pire que de le dire. --}}
-                      {{ $entree->utilisateur?->login ?? '—' }}
+                      {{ $entree->utilisateur?->libelleAuteur() ?? '—' }}
                     </td>
                     <td class="px-5 py-3">
                       @if ($habillage !== null)

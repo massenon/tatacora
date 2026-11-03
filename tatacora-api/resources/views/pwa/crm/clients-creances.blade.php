@@ -461,7 +461,7 @@
                         <td class="px-3 py-2.5 text-slate-600">{{ $libelleCanal($relance->canal) }}</td>
                         <td class="px-3 py-2.5 text-right text-slate-700">{{ MontantFcfa::format($relance->montant_reclame) }}</td>
                         <td class="px-3 py-2.5 text-slate-600">{{ $relance->promesse?->format('d/m/Y') ?? MontantFcfa::TIRET }}</td>
-                        <td class="px-3 py-2.5 text-slate-500 text-[12px]">{{ $relance->utilisateurCreation?->login ?? MontantFcfa::TIRET }}</td>
+                        <td class="px-3 py-2.5 text-slate-500 text-[12px]">{{ $relance->utilisateurCreation?->libelleAuteur() ?? MontantFcfa::TIRET }}</td>
                       </tr>
                     @empty
                       {!! $ligneVide('historique_relances', __('pwa.clients.relances_historique_vide')) !!}
@@ -511,7 +511,7 @@
                         <td class="px-3 py-2.5 text-slate-600">{{ $libelleMode($paiement->mode_paiement) }}</td>
                         <td class="px-3 py-2.5 text-slate-500 text-[12px]">{{ Str::limit($paiement->id, 8, '') }}</td>
                         <td class="px-3 py-2.5 text-right font-semibold text-emerald-600">{{ MontantFcfa::format($paiement->montant) }}</td>
-                        <td class="px-3 py-2.5 text-slate-500 text-[12px]">{{ $paiement->utilisateurCreation?->login ?? MontantFcfa::TIRET }}</td>
+                        <td class="px-3 py-2.5 text-slate-500 text-[12px]">{{ $paiement->utilisateurCreation?->libelleAuteur() ?? MontantFcfa::TIRET }}</td>
                       </tr>
                     @empty
                       {!! $ligneVide('recouvrements', __('pwa.clients.recouvrements_vide')) !!}

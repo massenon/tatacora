@@ -2766,6 +2766,16 @@ return [
         'refus_introuvable' => 'Ce compte est introuvable.',
         'refus_super_admin' => 'Seul un super administrateur peut réinitialiser le mot de passe d\'un super '
             . 'administrateur.',
+        // SUPPRIMER un compte (décision du PO du 03/11/2026) — mêmes phrases sur le poste.
+        'supprimer' => 'Supprimer',
+        'supprimer_titre' => 'Supprimer le compte « :login » ?',
+        'supprimer_texte' => 'Il ne pourra plus se connecter. Ce qu\'il a saisi garde son nom.',
+        'supprimer_confirmer' => 'Supprimer le compte',
+        'auteur_supprime' => ':login (compte supprimé)',
+        'refus_suppression_droit' => 'Seul un super administrateur peut supprimer un compte.',
+        'refus_suppression_soi_meme' => 'Vous ne pouvez pas supprimer votre propre compte.',
+        'refus_suppression_administrateur' => 'Un compte administrateur ne se supprime pas : désactivez-le.',
+        'supprime_succes' => 'Le compte « :login » est supprimé.',
     ],
 
     'changement_mdp' => [

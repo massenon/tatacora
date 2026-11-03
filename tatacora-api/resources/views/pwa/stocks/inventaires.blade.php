@@ -656,7 +656,7 @@
                         <td class="px-4 py-2.5 text-right text-slate-300">{{ MontantFcfa::TIRET }}</td>
                         <td class="px-4 py-2.5 text-right text-slate-300">{{ MontantFcfa::TIRET }}</td>
                         <td class="px-4 py-2.5 text-right text-slate-300">{{ MontantFcfa::TIRET }}</td>
-                        <td class="px-4 py-2.5 text-slate-400 text-[12px]">{{ $inventaire->utilisateur?->login ?? MontantFcfa::TIRET }}</td>
+                        <td class="px-4 py-2.5 text-slate-400 text-[12px]">{{ $inventaire->utilisateur?->libelleAuteur() ?? MontantFcfa::TIRET }}</td>
                       </tr>
                     @endforeach
                   </tbody>

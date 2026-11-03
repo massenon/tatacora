@@ -10,10 +10,12 @@ use App\Domain\Facturation\Exceptions\FactureImmuableException;
 use App\Domain\Restaurant\Exceptions\RecetteManquanteException;
 use App\Domain\Stocks\Exceptions\RuptureStockException;
 use App\Models\User;
+use App\Shared\Auth\Services\SuppressionCompteService;
 use App\Shared\Integrite\Exceptions\ChevauchementDetecteException;
 use App\Shared\Rbac\Models\JournalSecurite;
 use App\Shared\Sync\Contracts\GestionnaireSynchronisation;
 use App\Shared\Sync\Exceptions\DonneesSynchroniseesInvalidesException;
+use App\Shared\Sync\Gestionnaires\GestionnaireUtilisateurs;
 use App\Shared\Sync\Models\ConflitSynchronisation;
 use App\Shared\Sync\Models\DeduplicationSynchronisation;
 use App\Shared\Sync\Models\SessionSynchronisation;
@@ -89,6 +91,8 @@ class SynchronisationService
         private readonly ResolveurCorrespondances $correspondances,
         private readonly OrigineDocuments $origines,
         private readonly JournalReceptionService $journal,
+        private readonly SuppressionCompteService $comptes,
+        private readonly EpoqueSynchronisation $epoque,
     ) {
     }
 
@@ -187,6 +191,18 @@ class SynchronisationService
 
         if ($journaliser) {
             $this->journal->enregistrer($operation, $posteId, $utilisateurId, $sessionId, $resultat, $this->extras);
+        }
+
+        // L'ÉPOQUE (03/11/2026) : une opération ACCEPTÉE — et pas un rejeu, ni un
+        // refus — change ce que les AUTRES postes ont à descendre ; le battement de
+        // 30 s le leur dit. Elle n'est jamais bloquante : un cache en panne ne fait
+        // pas échouer une opération déjà écrite.
+        if (($resultat['statut'] ?? null) === 'synchronise' && ! isset($resultat['rejeu_idempotent'])) {
+            try {
+                $this->epoque->incrementer();
+            } catch (Throwable) {
+                // Le cycle de 5 minutes rattrape.
+            }
         }
 
         return $resultat;
@@ -352,6 +368,13 @@ class SynchronisationService
             return $this->memoriser($operation, $posteId, $utilisateurId, $this->rejet($operation, __('auth.module_refuse'), 'compte_inactif'));
         }
 
+        // 03/11/2026 : la suppression d'un COMPTE a sa propre autorité (le jeton
+        // d'appairage du poste doit être un super administrateur) et sa propre
+        // clé (le LOGIN).
+        if ($gestionnaire instanceof GestionnaireUtilisateurs) {
+            return $this->traiterSuppressionDeCompte($operation, $posteId, $utilisateur);
+        }
+
         // Dans l'ordre de l'écran : super administrateur d'abord, puis l'écriture du module.
         if (! $utilisateur->estSuperAdmin() || $utilisateur->niveauSurModule(self::MODULE_PURGE) !== 'C') {
             JournalSecurite::create([
@@ -389,6 +412,66 @@ class SynchronisationService
         }
 
         return $this->memoriser($operation, $posteId, $utilisateurId, $resultat);
+    }
+
+    /**
+     * Rejoue la SUPPRESSION d'un COMPTE annoncée par un poste (03/11/2026).
+     *
+     * L'AUTORITÉ d'abord : le compte du jeton d'appairage de ce poste doit être
+     * un super administrateur actif (`User::peutSupprimerDesComptes`). Sinon
+     * rejet DÉFINITIF `droit_manquant`, lisible dans « À traiter » du poste et
+     * dans le journal de réception — le compte local reste supprimé chez lui, le
+     * serveur n'en sait rien. Puis le service : cible non administratrice, jamais
+     * le compte du jeton lui-même, compte inconnu ou déjà supprimé = no-op
+     * journalisé (idempotence). Le payload ne porte que le `login` (et le login
+     * local de l'auteur, pour l'audit) : jamais un mot de passe ni un hash.
+     *
+     * @param  array<string, mixed>  $operation
+     * @return array<string, mixed>
+     */
+    private function traiterSuppressionDeCompte(array $operation, string $posteId, User $auteur): array
+    {
+        $payload = is_array($operation['payload'] ?? null) ? $operation['payload'] : [];
+        $login = is_string($payload['login'] ?? null) ? trim($payload['login']) : '';
+
+        if (! $auteur->peutSupprimerDesComptes()) {
+            JournalSecurite::create([
+                'type_evenement' => 'acces_refuse_rbac',
+                'utilisateur_id' => $auteur->id,
+                'adresse_ip' => request()->ip(),
+                'module_concerne' => User::MODULE_SUPPRESSION_COMPTES,
+            ]);
+            $this->extras['module'] = User::MODULE_SUPPRESSION_COMPTES;
+
+            return $this->memoriser($operation, $posteId, (string) $auteur->id, $this->rejet(
+                $operation,
+                __('sync.comptes.suppression_reservee'),
+                'droit_manquant',
+            ));
+        }
+
+        if ($login === '') {
+            return $this->memoriser($operation, $posteId, (string) $auteur->id, $this->rejet(
+                $operation,
+                __('sync.comptes.login_manquant'),
+                'donnees_invalides',
+            ));
+        }
+
+        $local = is_string($payload['supprime_par'] ?? null) ? mb_substr(trim($payload['supprime_par']), 0, 100) : null;
+
+        try {
+            $supprime = DB::transaction(fn (): ?User => $this->comptes->supprimerPourUnPoste($auteur, $login, $posteId, $local));
+            $resultat = $this->succes($operation, new EcritureSynchronisee(
+                (string) $operation['entite_id'],
+                complements: $supprime === null ? ['deja_supprime' => true] : [],
+            ));
+        } catch (RuntimeException $e) {
+            $this->extras['exception'] = $e::class;
+            $resultat = $this->rejet($operation, $e->getMessage(), $this->codeDeLException($e));
+        }
+
+        return $this->memoriser($operation, $posteId, (string) $auteur->id, $resultat);
     }
 
     /**

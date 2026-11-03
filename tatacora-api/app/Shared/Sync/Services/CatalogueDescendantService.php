@@ -250,6 +250,12 @@ class CatalogueDescendantService
         // lignes descendent AVEC eux (`ENFANTS`). L'auteur (`utilisateur_id`) ne
         // descend pas : le poste n'a pas les comptes du serveur.
         'inventaires' => ['point_id', 'date_inventaire'],
+        // 03/11/2026 (décision du PO : supprimer un compte, avec synchronisation) :
+        // les COMPTES SUPPRIMÉS, et eux seuls (`NON_NULS`). Le LOGIN est la clé
+        // d'appariement (les identifiants diffèrent entre le web et les postes) ;
+        // jamais un mot de passe, un hash, un rôle ni un e-mail. Un poste marque
+        // `supprime_le` sur son compte local de même login — il n'en crée jamais.
+        'utilisateurs' => ['login', 'supprime_le'],
     ];
 
     /**
@@ -264,7 +270,7 @@ class CatalogueDescendantService
      *
      * @var list<string>
      */
-    public const LECTURE_LIBRE = ['parametres_systeme', 'roles', 'exercices_comptables', 'canaux_reservation'];
+    public const LECTURE_LIBRE = ['parametres_systeme', 'roles', 'exercices_comptables', 'canaux_reservation', 'utilisateurs'];
 
     /**
      * Tables descendues sans être synchronisables — leur module est déclaré
@@ -306,6 +312,8 @@ class CatalogueDescendantService
      */
     public const NON_NULS = [
         'paniers' => 'table_id',
+        // Seuls les comptes SUPPRIMÉS descendent (jamais la liste des comptes).
+        'utilisateurs' => 'supprime_le',
     ];
 
     /**
@@ -788,6 +796,8 @@ class CatalogueDescendantService
             $actif = match ($table) {
                 'articles', 'fournisseurs', 'clients', 'tables_salle', 'modeles_notification', 'canaux_reservation' => (bool) $donnees['actif'],
                 'unites_hebergement', 'vehicules' => $donnees['statut'] !== 'hors_service',
+                // Un compte qui descend est un compte SUPPRIMÉ : jamais actif.
+                'utilisateurs' => false,
                 default => true,
             };
             unset($donnees['actif']);

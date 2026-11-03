@@ -902,7 +902,7 @@
                   <td class="px-3 py-2 text-slate-700">{{ $libelleChampPrix($trace->champ) }}</td>
                   <td class="px-3 py-2 text-right text-slate-500">{{ $valeurAffichee($trace->ancien_prix, $trace->champ) }}</td>
                   <td class="px-3 py-2 text-right font-semibold" style="color:var(--navy)">{{ $valeurAffichee($trace->nouveau_prix, $trace->champ) }}</td>
-                  <td class="px-3 py-2 text-slate-500 text-[12px]">{{ $trace->utilisateurCreation?->login ?? MontantFcfa::TIRET }}</td>
+                  <td class="px-3 py-2 text-slate-500 text-[12px]">{{ $trace->utilisateurCreation?->libelleAuteur() ?? MontantFcfa::TIRET }}</td>
                 </tr>
               @endforeach
             </tbody>

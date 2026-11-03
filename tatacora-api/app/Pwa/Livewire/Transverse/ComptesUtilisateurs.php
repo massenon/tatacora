@@ -7,6 +7,7 @@ namespace App\Pwa\Livewire\Transverse;
 use App\Models\User;
 use App\Pwa\Support\AutoriseEcriture;
 use App\Shared\Auth\Services\MotDePassePerduService;
+use App\Shared\Auth\Services\SuppressionCompteService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 use Livewire\Attributes\Title;
@@ -39,6 +40,15 @@ use RuntimeException;
  * relit). Un administrateur ne réinitialise pas son propre compte ici : il
  * passe par « Mon profil », avec l'ancien mot de passe.
  *
+ * ## Supprimer un compte (décision du PO du 03/11/2026)
+ *
+ * « Supprimer » est une suppression LOGIQUE, réservée au super administrateur et
+ * aux comptes non administrateurs (`User::peutSupprimerDesComptes`,
+ * `User::estSupprimable`, appliqués par `SuppressionCompteService`). Le bouton
+ * n'apparaît que si l'auteur le peut ET que la cible l'est ; la confirmation
+ * s'ouvre derrière `@if`. La suppression est ensuite publiée vers les postes
+ * (descente `utilisateurs`).
+ *
  * @see RG-15 Traçabilité des actions sensibles
  * @see RG-16 Contrôle d'accès basé sur les rôles
  */
@@ -57,6 +67,9 @@ class ComptesUtilisateurs extends PageTransverse
 
     public ?string $refus = null;
 
+    /** Le compte dont la SUPPRESSION attend confirmation. */
+    public ?string $compteASupprimer = null;
+
     /** Ouvre la confirmation ; n'écrit rien. */
     public function ouvrirReinitialisation(string $compteId): void
     {
@@ -70,8 +83,45 @@ class ComptesUtilisateurs extends PageTransverse
         }
     }
 
+    /** Ouvre la confirmation de suppression ; n'écrit rien. */
+    public function ouvrirSuppression(string $compteId): void
+    {
+        $this->resultat = null;
+        $this->refus = null;
+        $this->compteACibler = null;
+        $this->compteASupprimer = $compteId;
+
+        if ($compteId === Auth::id()) {
+            $this->refus = __('pwa.comptes.refus_suppression_soi_meme');
+            $this->compteASupprimer = null;
+        }
+    }
+
+    public function supprimerCompte(SuppressionCompteService $service): void
+    {
+        $auteur = $this->exigerEcriture(self::MODULE);
+        $compteId = $this->compteASupprimer;
+        $this->compteASupprimer = null;
+        $this->refus = null;
+
+        if ($compteId === null) {
+            return;
+        }
+
+        try {
+            $supprime = $service->supprimer($auteur, $compteId, request()->ip());
+        } catch (RuntimeException $refus) {
+            $this->refus = $refus->getMessage();
+
+            return;
+        }
+
+        session()->flash('compte-supprime', __('pwa.comptes.supprime_succes', ['login' => $supprime->login]));
+    }
+
     public function fermerModales(): void
     {
+        $this->compteASupprimer = null;
         $this->compteACibler = null;
         $this->resultat = null;
         $this->refus = null;
@@ -114,12 +164,15 @@ class ComptesUtilisateurs extends PageTransverse
             ->get();
 
         $cible = $this->compteACibler === null ? null : $comptes->firstWhere('id', $this->compteACibler);
+        $aSupprimer = $this->compteASupprimer === null ? null : $comptes->firstWhere('id', $this->compteASupprimer);
 
         return view('pwa.transverse.comptes-utilisateurs', array_merge($this->socle(), [
             'comptes' => $comptes,
             'compteCourantId' => $courant?->id,
             'peutReinitialiser' => $courant?->estAdministrateur() ?? false,
             'cible' => $cible,
+            'aSupprimer' => $aSupprimer,
+            'peutSupprimer' => $courant?->peutSupprimerDesComptes() ?? false,
             'roles' => RolesPermissions::ROLES,
             'statuts' => MonProfil::STATUTS,
         ]))->layout('layouts.pwa', ['title' => __('pwa.comptes.titre_page')]);

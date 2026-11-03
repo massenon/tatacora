@@ -57,7 +57,7 @@ class Avoir extends Model
      */
     public function validateur(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'utilisateur_validation_id');
+        return $this->belongsTo(User::class, 'utilisateur_validation_id')->withTrashed();
     }
 
     /** Lot F5c : `AV-AAAA-NNNNN`, alloué à la création (voir `Facture`). */

@@ -99,7 +99,9 @@ final class ReferentielsDescendantsTest extends TestCase
         $this->assertSame(
             array_values(array_filter(
                 array_keys(CatalogueDescendantService::COLONNES),
-                static fn (string $t): bool => DB::table($t)->exists(),
+                static fn (string $t): bool => DB::table($t)
+                    ->when(isset(CatalogueDescendantService::NON_NULS[$t]), static fn ($q) => $q->whereNotNull(CatalogueDescendantService::NON_NULS[$t]))
+                    ->exists(),
             )),
             $tables,
         );
@@ -440,7 +442,14 @@ final class ReferentielsDescendantsTest extends TestCase
         $tous = [];
 
         foreach (array_keys(CatalogueDescendantService::COLONNES) as $table) {
-            foreach (DB::table($table)->pluck('id') as $id) {
+            $requete = DB::table($table);
+
+            // Les comptes : seuls les SUPPRIMÉS descendent (03/11/2026).
+            if (isset(CatalogueDescendantService::NON_NULS[$table])) {
+                $requete->whereNotNull(CatalogueDescendantService::NON_NULS[$table]);
+            }
+
+            foreach ($requete->pluck('id') as $id) {
                 $tous[] = $table . ':' . $id;
             }
         }

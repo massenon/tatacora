@@ -557,10 +557,12 @@ final class SynchronisationOfflineTest extends TestCase
     {
         $reponse = $this->synchroniser([[
             'uuid_operation' => (string) Str::uuid(),
-            'table' => 'utilisateurs',
+            // 03/11/2026 : `utilisateurs` est au registre (la SUPPRESSION seule, par le
+            // login) ; l'exemple d'une table jamais synchronisable devient les jetons.
+            'table' => 'personal_access_tokens',
             'type' => 'modification',
             'entite_id' => $this->utilisateur->id,
-            'payload' => ['statut' => 'actif'],
+            'payload' => ['name' => 'poste'],
             'horodatage_client' => now()->toIso8601String(),
         ]]);
 

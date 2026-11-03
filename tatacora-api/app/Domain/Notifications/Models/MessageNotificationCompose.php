@@ -105,7 +105,7 @@ class MessageNotificationCompose extends Model
      */
     public function traitePar(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'utilisateur_modification_id');
+        return $this->belongsTo(User::class, 'utilisateur_modification_id')->withTrashed();
     }
 
     public function enAttente(): bool

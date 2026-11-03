@@ -318,6 +318,6 @@ class Reservation extends Model
      */
     public function utilisateurAnnulation(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\User::class, 'utilisateur_annulation_id');
+        return $this->belongsTo(\App\Models\User::class, 'utilisateur_annulation_id')->withTrashed();
     }
 }

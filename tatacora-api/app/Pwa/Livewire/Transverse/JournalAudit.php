@@ -138,6 +138,10 @@ class JournalAudit extends PageTransverse
         'code_secours_utilise' => ['libelle' => 'Réinitialisation par code de secours', 'fond' => '#FDF3E0', 'texte' => '#B8891E'],
         'code_secours_refuse' => ['libelle' => 'Code de secours refusé', 'fond' => '#FDECEC', 'texte' => '#C62828'],
         'code_secours_bloque' => ['libelle' => 'Code de secours bloqué', 'fond' => '#FDECEC', 'texte' => '#C62828'],
+        // Supprimer un compte (03/11/2026) : écrits par `SuppressionCompteService` —
+        // qui, quel login, depuis quel poste ; jamais un secret.
+        'compte_supprime' => ['libelle' => 'Compte supprimé', 'fond' => '#FDECEC', 'texte' => '#C62828'],
+        'compte_supprime_inconnu' => ['libelle' => 'Compte supprimé (inconnu du serveur)', 'fond' => '#F3F4F6', 'texte' => '#6B7280'],
     ];
 
     /**

@@ -6,6 +6,10 @@
 
     Ni création ni désactivation de compte ici : le geste de ce lot est la
     réinitialisation par un administrateur (voir `MotDePassePerduService`).
+
+    SUPPRIMER (décision du PO du 03/11/2026) : suppression LOGIQUE, réservée au
+    super administrateur, sur un compte non administrateur ; le bouton est
+    ABSENT (pas grisé) quand l'un ou l'autre manque.
 --}}
 <div class="contents">
 
@@ -20,6 +24,10 @@
           <h1 class="text-lg lg:text-xl font-bold" style="color:var(--navy)">{{ __('pwa.comptes.titre') }}</h1>
           <p class="text-[15px] text-slate-500 mt-1.5">{{ __('pwa.comptes.sous_titre') }}</p>
         </div>
+
+        @if (session('compte-supprime'))
+          <div id="succes-comptes" role="status" class="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{{ session('compte-supprime') }}</div>
+        @endif
 
         @if ($refus)
           <div id="refus-comptes" role="alert" class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ $refus }}</div>
@@ -69,6 +77,10 @@
                         <button type="button" wire:click="ouvrirReinitialisation('{{ $compte->id }}')"
                                 class="text-[13px] px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50 font-semibold">{{ __('pwa.comptes.reinitialiser') }}</button>
                       @endif
+                      @if ($peutSupprimer && $compte->id !== $compteCourantId && $compte->estSupprimable())
+                        <button type="button" wire:click="ouvrirSuppression('{{ $compte->id }}')"
+                                class="text-[13px] px-3 py-1.5 rounded-lg border border-red-300 text-red-700 hover:bg-red-50 font-semibold">{{ __('pwa.comptes.supprimer') }}</button>
+                      @endif
                     </td>
                   </tr>
                 @empty
@@ -90,6 +102,17 @@
       <x-slot:pied>
         <button type="button" wire:click="fermerModales" class="text-[13px] px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50">{{ __('pwa.modale.annuler') }}</button>
         <button id="confirmer-reinitialisation" type="button" wire:click="reinitialiserMotDePasse" class="text-[13px] px-4 py-2 rounded-lg text-white font-semibold" style="background:var(--navy)">{{ __('pwa.comptes.reinitialiser_confirmer') }}</button>
+      </x-slot:pied>
+    </x-pwa.modale>
+  @endif
+
+  {{-- Supprimer : confirmation derrière `@if`, jamais `wire:confirm`. --}}
+  @if ($aSupprimer !== null)
+    <x-pwa.modale :titre="__('pwa.comptes.supprimer_titre', ['login' => $aSupprimer->login])" largeur="480px">
+      <p class="text-sm text-slate-600">{{ __('pwa.comptes.supprimer_texte') }}</p>
+      <x-slot:pied>
+        <button type="button" wire:click="fermerModales" class="text-[13px] px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50">{{ __('pwa.modale.annuler') }}</button>
+        <button id="confirmer-suppression" type="button" wire:click="supprimerCompte" class="text-[13px] px-4 py-2 rounded-lg text-white font-semibold" style="background:var(--erreur)">{{ __('pwa.comptes.supprimer_confirmer') }}</button>
       </x-slot:pied>
     </x-pwa.modale>
   @endif

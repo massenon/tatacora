@@ -166,6 +166,16 @@ return [
         'modification_non_declaree' => 'La table « :table » ne synchronise aucune modification : le moteur n\'aurait pas dû appeler modifier().',
     ],
 
+    // Suppression d'un COMPTE annoncée par un poste (décision du PO du 03/11/2026).
+    // Les phrases sont reprises à l'identique par le poste (`MessagesComptes`).
+    'comptes' => [
+        'suppression_reservee' => 'Suppression de compte refusée : seul un super administrateur supprime un compte, '
+            . 'et le compte qui a appairé ce poste n\'en est pas un. Le compte reste supprimé ici, sur le poste.',
+        'creation_non_synchronisable' => 'Un compte ne se crée pas par la synchronisation : aucun mot de passe ne '
+            . 'quitte un poste. Créez le compte sur le serveur.',
+        'login_manquant' => 'Suppression de compte impossible : l\'identifiant du compte est absent.',
+    ],
+
     // Révocation de l'appairage d'un poste (19/10/2026).
     'postes' => [
         'revocation_reservee' => 'Seul un Administrateur peut révoquer l\'appairage d\'un poste.',

@@ -96,13 +96,13 @@ class JournalReceptionSynchronisation extends Model
     /** @return BelongsTo<User, $this> */
     public function utilisateur(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'utilisateur_id');
+        return $this->belongsTo(User::class, 'utilisateur_id')->withTrashed();
     }
 
     /** @return BelongsTo<User, $this> */
     public function traitePar(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'traite_par');
+        return $this->belongsTo(User::class, 'traite_par')->withTrashed();
     }
 
     /** Une issue qui attend un humain et n'a pas encore été prise en charge. */

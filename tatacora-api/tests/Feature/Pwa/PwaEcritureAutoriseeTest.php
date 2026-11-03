@@ -272,6 +272,8 @@ final class PwaEcritureAutoriseeTest extends TestCase
         //    `ECRITURES_HORS_MODULE` (même schéma que `changerMotDePasse`).
         'ouvrirFormulaireCodeSecours',
         'ouvrirReinitialisation',
+        // Supprimer un compte (03/11/2026) : ouvre la confirmation, n\'écrit rien ; `supprimerCompte` appelle `exigerEcriture`.
+        'ouvrirSuppression',
         'genererCodeSecours',
         'definirNouveauMotDePasse',
         'reinitialiserParCodeDeSecours',

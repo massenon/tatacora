@@ -475,7 +475,7 @@
                         @endif
                       </td>
                       <td class="px-3 py-2.5 text-right"><span class="text-[11px] px-2 py-0.5 rounded" style="background:#FEF2F2;color:#7F1D1D">non</span></td>
-                      <td class="px-3 py-2.5 text-right text-[12px] text-slate-500">{{ $traite->traitePar?->login ?? '—' }}</td>
+                      <td class="px-3 py-2.5 text-right text-[12px] text-slate-500">{{ $traite->traitePar?->libelleAuteur() ?? '—' }}</td>
                       <td class="px-3 py-2.5 text-right text-[12px] text-slate-500">{{ $traite->commentaire ?? $traite->motif_abandon ?? '—' }}</td>
                     </tr>
                   @endforeach

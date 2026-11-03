@@ -98,7 +98,7 @@
               <tr class="border-t border-slate-100 align-top" wire:key="reception-{{ $l->id }}">
                 <td class="px-4 py-3 text-slate-600 whitespace-nowrap">{{ $l->recu_le->format('d/m/Y H:i:s') }}</td>
                 <td class="px-4 py-3 font-medium text-slate-700">{{ $l->poste_id }}</td>
-                <td class="px-4 py-3 text-slate-600">{{ $l->utilisateur?->login ?? '—' }}</td>
+                <td class="px-4 py-3 text-slate-600">{{ $l->utilisateur?->libelleAuteur() ?? '—' }}</td>
                 <td class="px-4 py-3 text-slate-700">{{ $journal->libelleTable($l->table_concernee) }}</td>
                 <td class="px-4 py-3 text-slate-600">{{ __('synchronisation_journal.types.' . $l->type_operation) }}</td>
                 <td class="px-4 py-3">
@@ -191,7 +191,7 @@
           @if ($detail->traitement && $detail->traite_par)
             <div class="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-[13px] text-slate-700">
               <div class="font-semibold">{{ $t('detail_traitement') }} : {{ __('synchronisation_journal.traitements.' . $detail->traitement) }}</div>
-              <div>{{ $t('detail_traite_par', ['nom' => $detail->traitePar?->login ?? '—', 'date' => $detail->traite_le?->format('d/m/Y H:i:s') ?? '—']) }}</div>
+              <div>{{ $t('detail_traite_par', ['nom' => $detail->traitePar?->libelleAuteur() ?? '—', 'date' => $detail->traite_le?->format('d/m/Y H:i:s') ?? '—']) }}</div>
               @if ($detail->motif_traitement)
                 <div>{{ $t('detail_motif_traitement', ['motif' => $detail->motif_traitement]) }}</div>
               @endif
