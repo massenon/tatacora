@@ -8,6 +8,7 @@ use App\Domain\Crm\Models\Client;
 use App\Domain\Facturation\Models\Avoir;
 use App\Domain\Facturation\Models\Facture;
 use App\Domain\Facturation\Services\EmissionFactureService;
+use App\Domain\Facturation\Services\StatutNormalisation;
 use App\Domain\Hebergement\Models\Reservation;
 use App\Domain\Ventes\Models\Vente;
 use App\Shared\Sync\Services\ResolveurCorrespondances;
@@ -112,6 +113,7 @@ final class GestionnaireFactures extends GestionnaireDocumentAbstrait
             'numero' => $facture->numero,
             'montant_ttc' => (string) $facture->montant_ttc,
             'numero_avoir' => $avoir?->numero,
+            'normalisation_statut' => $facture->normalisation_statut,
         ], static fn (?string $v): bool => $v !== null));
     }
 
@@ -174,14 +176,23 @@ final class GestionnaireFactures extends GestionnaireDocumentAbstrait
         $motif = trim((string) ($payload['motif'] ?? ''));
         $montant = $payload['montant'] ?? null;
         $avoirId = $payload['avoir_id'] ?? null;
-        unset($payload['statut'], $payload['motif'], $payload['montant'], $payload['avoir_id']);
+        $normalisation = $payload['normalisation'] ?? null;
+        unset($payload['statut'], $payload['motif'], $payload['montant'], $payload['avoir_id'], $payload['normalisation']);
 
         if ($payload !== []) {
             throw new RuntimeException(__('sync.modification_non_synchronisable'));
         }
 
-        if ($statut === 'annulee' && $montant === null && $avoirId === null) {
-            return $this->annuler($entiteId, $motif, $contexte);
+        // Facturation normalisée (07/11/2026) : le POSTE a normalisé (boîtier CC300) ;
+        // le serveur RANGE le résultat, sans re-certifier et sans appeler le boîtier.
+        if ($normalisation !== null && $statut === null && $montant === null && $motif === '') {
+            return $this->normaliser($entiteId, $normalisation, $avoirId);
+        }
+
+        if ($statut === 'annulee' && $montant === null) {
+            // L'avoir de l'annulation naît sous l'identifiant du poste quand il le
+            // donne : la normalisation qui suit le retrouve, la descente le reconnaît.
+            return $this->annuler($entiteId, $motif, $contexte, is_string($avoirId) && \Illuminate\Support\Str::isUuid($avoirId) ? $avoirId : null);
         }
 
         if ($statut === null && $montant !== null) {
@@ -191,7 +202,42 @@ final class GestionnaireFactures extends GestionnaireDocumentAbstrait
         throw new RuntimeException(__('sync.modification_non_synchronisable'));
     }
 
-    private function annuler(string $entiteId, string $motif, ContexteSynchronisation $contexte): EcritureSynchronisee
+    /**
+     * Range une normalisation faite par le boîtier d'un poste — sur la facture, ou
+     * sur son avoir quand `avoir_id` est donné. Le serveur ne certifie RIEN ici.
+     */
+    private function normaliser(string $entiteId, mixed $normalisation, mixed $avoirId): EcritureSynchronisee
+    {
+        $donnees = $this->validerForme(is_array($normalisation) ? $normalisation : [], [
+            'statut' => ['required', 'in:' . implode(',', StatutNormalisation::valeurs())],
+            'mode' => ['required', 'in:boitier,emecef'],
+            'motif' => ['nullable', 'string', 'max:500'],
+            'numero_mecef' => ['nullable', 'string', 'max:60'],
+            'qr_code' => ['nullable', 'string', 'max:255'],
+            'code_mecef' => ['nullable', 'string', 'max:64'],
+            'compteur' => ['nullable', 'string', 'max:30'],
+            'date' => ['nullable', 'date'],
+        ]);
+
+        $facture = Facture::query()->findOrFail($entiteId);
+        $document = $facture;
+
+        if ($avoirId !== null) {
+            $document = Avoir::query()->where('facture_id', $entiteId)->find((string) $avoirId);
+
+            if ($document === null) {
+                throw new RuntimeException(__('sync.factures.avoir_inconnu'));
+            }
+        }
+
+        $this->emission->enregistrerNormalisation($document, $donnees);
+
+        return $document instanceof Avoir
+            ? $this->resultatAvoir($entiteId, $document->refresh())
+            : $this->resultat($entiteId);
+    }
+
+    private function annuler(string $entiteId, string $motif, ContexteSynchronisation $contexte, ?string $avoirId = null): EcritureSynchronisee
     {
         $facture = Facture::query()->findOrFail($entiteId);
 
@@ -203,7 +249,7 @@ final class GestionnaireFactures extends GestionnaireDocumentAbstrait
             // Q3 (lot F6) : la facture d'un autre poste, par l'administration
             // ou le comptable seulement.
             $this->autresPostes->verifierAnnulation('factures', $entiteId, $contexte);
-            $avoir = $this->emission->emettreAvoir($facture, (string) $facture->montant_ttc, $motif === '' ? __('sync.factures.motif_absent') : $motif);
+            $avoir = $this->emission->emettreAvoir($facture, (string) $facture->montant_ttc, $motif === '' ? __('sync.factures.motif_absent') : $motif, $avoirId);
 
             return $this->resultatAvoir($entiteId, $avoir);
         }

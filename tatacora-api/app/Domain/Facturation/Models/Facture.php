@@ -6,6 +6,7 @@ namespace App\Domain\Facturation\Models;
 
 use App\Domain\Crm\Models\Client;
 use App\Domain\Facturation\Observers\FactureObserver;
+use App\Domain\Facturation\Services\StatutNormalisation;
 use App\Domain\Numerotation\Services\SequenceDocumentService;
 use App\Shared\Audit\Traits\Auditable;
 use Illuminate\Database\Eloquent\Attributes\ObservedBy;
@@ -55,6 +56,16 @@ class Facture extends Model
         'montant_ttc',
         'statut',
         'qr_code_fiscal',
+        // Facturation normalisée (07/11/2026) : le résultat de la normalisation.
+        'normalisation_statut',
+        'normalisation_motif',
+        'normalisation_mode',
+        'normalisation_compteur',
+        'code_mecef',
+        'normalisee_le',
+        'emecef_uid',
+        'emecef_uid_le',
+        'emecef_prochain_essai_le',
     ];
 
     protected function casts(): array
@@ -68,6 +79,9 @@ class Facture extends Model
             'montant_ttc' => 'decimal:2',
             'date_creation' => 'datetime',
             'date_modification' => 'datetime',
+            'normalisee_le' => 'datetime',
+            'emecef_uid_le' => 'datetime',
+            'emecef_prochain_essai_le' => 'datetime',
         ];
     }
 
@@ -104,6 +118,19 @@ class Facture extends Model
     public function estFigee(): bool
     {
         return $this->statut === 'certifiee';
+    }
+
+    /**
+     * La facture est-elle RÉELLEMENT normalisée (boîtier ou e-MECeF) ? Le statut
+     * de normalisation ET un numéro fiscal qui n'est pas de démonstration : un
+     * indicateur se dérive de ce qui est en place, jamais d'une intention.
+     */
+    public function estNormalisee(): bool
+    {
+        return $this->normalisation_statut === StatutNormalisation::Normalisee->value
+            && filled($this->numero_mecef)
+            && ! $this->estCertificationDemonstration()
+            && filled($this->qr_code_fiscal);
     }
 
     /**

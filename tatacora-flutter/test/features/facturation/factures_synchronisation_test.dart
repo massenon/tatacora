@@ -93,9 +93,12 @@ void main() {
       final ops = await file(TableSynchronisee.factures);
       expect(ops, hasLength(2));
       expect(ops.last.type, TypeOperationSync.modification);
+      // Depuis le 07/11/2026 l'avoir de l'annulation naît sous l'identifiant du
+      // poste : sa normalisation par le boîtier le retrouve au serveur.
       expect(charge(ops.last), {
         'statut': 'annulee',
         'motif': 'Erreur de chambre',
+        'avoir_id': r.avoir.id,
       });
     });
 

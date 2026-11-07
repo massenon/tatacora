@@ -19,6 +19,7 @@ import '../impression/etat_registre_factures.dart';
 import '../impression/ticket_facture.dart';
 import 'providers_facturation.dart';
 import 'widgets/dialogue_avoir.dart';
+import 'widgets/normalisation_piece.dart';
 import 'widgets/vue_ticket.dart';
 
 // L'annulation par avoir vit dans son fichier de modale (`Tailles` déclarées,
@@ -500,9 +501,7 @@ class _Compteurs extends StatelessWidget {
   Widget build(BuildContext context) {
     final avoirs = pieces.where((p) => p.estAvoir).length;
     final montant = pieces.fold<int>(0, (t, p) => t + p.montantTotal);
-    final certifiees = pieces
-        .where((p) => CertificationMecef.estReelle(p.numeroMecef))
-        .length;
+    final certifiees = pieces.where((p) => p.estNormalisee).length;
 
     // Le libellé et sa valeur sont deux textes distincts, comme les deux
     // nœuds de la vue (`Pièces <strong>0</strong>`).
@@ -788,6 +787,13 @@ class _Registre extends ConsumerWidget {
         runSpacing: AppSpacing.unit,
         children: [
           statut,
+          // AJOUT de ce poste (07/11/2026, facturation normalisée) : l'état de la
+          // normalisation, dérivé du statut réellement rangé sur la pièce.
+          if (piece.normalisationStatut != null)
+            IndicateurNormalisation(
+              key: Key('facturation-normalisation-${piece.id}'),
+              piece: piece,
+            ),
           if (avoirs > 0)
             PastilleStatut.neutre(
               '$avoirs avoir(s)',
@@ -805,6 +811,13 @@ class _Registre extends ConsumerWidget {
             libelle: 'Facture A4',
             onTap: () => imprimerLaFactureA4Depuis(context, ref, piece),
           ),
+          // AJOUT de ce poste (07/11/2026) : « Normaliser » / « Réessayer » /
+          // « Vérifier », seulement quand ce poste certifie par son boîtier.
+          if (peutEcrire && !piece.estNormalisee)
+            BoutonNormaliser(
+              cle: Key('facturation-ligne-normaliser-${piece.id}'),
+              piece: piece,
+            ),
           if (peutEcrire && !piece.estAnnulee && piece.avoirDe == null)
             _BoutonLigne(
               cle: Key('facturation-ligne-avoir-${piece.id}'),

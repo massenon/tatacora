@@ -29,6 +29,7 @@
 library;
 
 import '../certification_mecef.dart';
+import '../statut_normalisation.dart';
 
 /// D'où vient la pièce — **registre fermé**, jamais une chaîne libre.
 ///
@@ -268,6 +269,14 @@ final class PieceFacturation {
     this.motifAvoir,
     this.motifAnnulation,
     this.dateAnnulation,
+    this.normalisationStatut,
+    this.normalisationMotif,
+    this.normalisationMode,
+    this.normalisationCompteur,
+    this.normalisationCompteurAvant,
+    this.codeMecef,
+    this.qrCodeFiscal,
+    this.normaliseeLe,
   });
 
   final String id;
@@ -307,6 +316,29 @@ final class PieceFacturation {
   final String? motifAnnulation;
   final DateTime? dateAnnulation;
 
+  /// La NORMALISATION fiscale (v50, 07/11/2026) : `null` = non concernée
+  /// (démonstration, mode désactivé, pièce d'avant).
+  final StatutNormalisation? normalisationStatut;
+
+  /// Le motif, en français, d'une pièce en attente, refusée ou à vérifier.
+  final String? normalisationMotif;
+
+  /// La voie qui a normalisé (ou tenté de) : boîtier ou e-MECeF.
+  final VoieNormalisation? normalisationMode;
+
+  /// « TC », le compteur de la pièce au boîtier.
+  final String? normalisationCompteur;
+
+  /// Le compteur noté AVANT l'envoi d'une tentative dont l'issue n'est pas
+  /// tranchée : le rejeu le compare avant de reposter.
+  final String? normalisationCompteurAvant;
+
+  final String? codeMecef;
+
+  /// Le contenu du QR code fiscal (`F;NIM;code;IFU;date`).
+  final String? qrCodeFiscal;
+  final DateTime? normaliseeLe;
+
   /// Montant total, en francs CFA — **calculé depuis les lignes figées**.
   ///
   /// Il est stable parce que les lignes le sont : aucune écriture du registre
@@ -340,10 +372,23 @@ final class PieceFacturation {
   /// Toujours `false` aujourd'hui. La règle vit dans un seul fichier —
   /// `../certification_mecef.dart` — pour qu'elle reste trouvable le jour de
   /// l'inscription DGI (PA-17).
-  bool get estCertifiee => CertificationMecef.estReelle(numeroMecef);
+  ///
+  /// Depuis le 07/11/2026 : le statut de normalisation ET un numéro réel ET le QR
+  /// fiscal — jamais l'un sans les autres (un indicateur se dérive de ce qui est
+  /// en place). [estNormalisee] dit la même chose, sous le mot du lot 2.
+  bool get estCertifiee => estNormalisee;
+
+  /// La pièce est RÉELLEMENT normalisée : QR et mentions fiscales sur le papier
+  /// seulement dans ce cas ; sinon le bandeau DEMO reste.
+  bool get estNormalisee =>
+      normalisationStatut == StatutNormalisation.normalisee &&
+      CertificationMecef.estReelle(numeroMecef) &&
+      (qrCodeFiscal ?? '').trim().isNotEmpty;
 
   /// Le libellé à afficher, qui **dit la vérité** plutôt que de la supposer.
-  String get libelleCertification => CertificationMecef.libelle(numeroMecef);
+  String get libelleCertification => estNormalisee
+      ? CertificationMecef.libelle(numeroMecef)
+      : CertificationMecef.libelleDemonstration;
 
   @override
   bool operator ==(Object other) => other is PieceFacturation && other.id == id;

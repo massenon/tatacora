@@ -21,6 +21,13 @@ return [
     'avoir_montant_excessif' => 'Le montant de l\'avoir ne peut pas dépasser celui de la facture.',
     'libelle_avoir' => 'Avoir sur facture :numero',
 
+    // Facturation normalisée (07/11/2026) — le serveur range le résultat d'un poste, sans re-certifier.
+    'normalisation_deja_faite' => 'Cette pièce est déjà normalisée : une normalisation ne s\'écrase jamais.',
+    'normalisation_identite_invalide' => 'Le numéro fiscal reçu n\'a pas la forme « NIM-compteur ».',
+    'normalisation_qr_invalide' => 'Le code QR fiscal reçu est vide ou n\'a pas la forme attendue (F;NIM;code;IFU;date).',
+    'normalisation_statut_inconnu' => 'Le statut de normalisation « :statut » est inconnu.',
+    'normalisation_mode_inconnu' => 'La voie de normalisation « :mode » est inconnue.',
+
     // Encaissement (PA-165) — quatre refus locaux, tous corrigibles sur place.
     'encaissement_facture_non_figee' => 'Cette facture n\'est pas encore figée : émettez-la avant d\'encaisser.',
     'encaissement_mode_inconnu' => 'Le mode de paiement « :mode » n\'existe pas au registre.',

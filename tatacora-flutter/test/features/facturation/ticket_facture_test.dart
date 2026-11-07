@@ -3,6 +3,7 @@ import 'package:tatacora_flutter/core/impression/entete_etablissement.dart';
 import 'package:tatacora_flutter/core/impression/texte_ticket.dart';
 import 'package:tatacora_flutter/features/facturation/domain/certification_mecef.dart';
 import 'package:tatacora_flutter/features/facturation/domain/entities/piece_facturation.dart';
+import 'package:tatacora_flutter/features/facturation/domain/statut_normalisation.dart';
 import 'package:tatacora_flutter/features/facturation/impression/ticket_facture.dart';
 
 /// **Le ticket, et le garde-fou qui évite de découvrir l'amputation sur le
@@ -30,6 +31,7 @@ void main() {
     bool avoir = false,
     bool annulee = false,
     String? numeroMecef,
+    bool normalisee = false,
     String clientNom = 'KORA — l’addition « soldée »',
     List<LigneFacture>? lignes,
   }) => PieceFacturation(
@@ -39,7 +41,14 @@ void main() {
     dateEmission: DateTime(2026, 8, 20, 14, 30),
     clientNom: clientNom,
     statut: annulee ? StatutPiece.annulee : StatutPiece.emise,
-    numeroMecef: numeroMecef,
+    numeroMecef: normalisee ? 'ED04000623-41' : numeroMecef,
+    // « Normalisée » : le statut, un numéro réel ET le QR du boîtier (07/11/2026).
+    normalisationStatut: normalisee ? StatutNormalisation.normalisee : null,
+    qrCodeFiscal: normalisee
+        ? 'F;ED04000623;NW34NID6ZHANFNMZ2IU7LL3H;3201910768821;20261107100000'
+        : null,
+    codeMecef: normalisee ? 'NW34NID6ZHANFNMZ2IU7LL3H' : null,
+    normaliseeLe: normalisee ? DateTime(2026, 8, 20, 14, 31) : null,
     avoirDe: avoir ? 'F-2026-00041' : null,
     motifAvoir: avoir ? 'Erreur de saisie — chambre déjà réglée' : null,
     motifAnnulation: annulee ? 'Erreur de saisie' : null,
@@ -212,19 +221,35 @@ void main() {
       );
     });
 
-    test('un VRAI numéro retire le filigrane — et lui seul', () {
-      // La branche que personne n'a encore empruntée, et c'est précisément
-      // pourquoi elle est éprouvée : PA-61 vivait dans une branche `active`
-      // qu'aucun test ne visitait.
-      final ticket = TicketFacture.composer(
-        piece(numeroMecef: 'MECEF-2026-00187'),
-      );
+    test('une pièce NORMALISÉE retire le filigrane et porte ses mentions et '
+        'son QR — elle seule', () {
+      // La branche que personne n'avait empruntée, et c'est précisément pourquoi
+      // elle est éprouvée : PA-61 vivait dans une branche `active` qu'aucun test
+      // ne visitait.
+      final p = piece(normalisee: true);
+      final ticket = TicketFacture.composer(p);
 
       expect(
         ticket.texteBrut,
         isNot(contains(CertificationMecef.filigraneDemonstration)),
       );
-      expect(ticket.texteBrut, contains('MECeF MECEF-2026-00187'));
+      expect(ticket.texteBrut, contains('FACTURE NORMALISÉE MECeF'));
+      expect(ticket.texteBrut, contains('NIM-TC : ED04000623-41'));
+      expect(
+        ticket.texteBrut,
+        contains('Code MECeF : NW34NID6ZHANFNMZ2IU7LL3H'),
+      );
+      expect(ticket.qrCode, p.qrCodeFiscal, reason: 'QR copié du boîtier');
+
+      // Un numéro réel SEUL : bandeau DEMO conservé, aucun QR.
+      final seul = TicketFacture.composer(
+        piece(numeroMecef: 'MECEF-2026-00187'),
+      );
+      expect(
+        seul.texteBrut,
+        contains(CertificationMecef.filigraneDemonstration),
+      );
+      expect(seul.qrCode, isNull);
     });
   });
 

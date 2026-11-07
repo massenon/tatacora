@@ -36,6 +36,7 @@ import '../../facturation/data/paiements_facture_dao.dart';
 import '../../facturation/domain/entities/paiement_facture.dart';
 import '../../facturation/domain/entities/piece_facturation.dart';
 import '../../facturation/domain/repositories/facture_repository.dart';
+import '../../facturation/domain/statut_normalisation.dart';
 import '../../restaurant/domain/calcul_restaurant.dart' show typesDeMenu;
 import '../../rh/domain/entities/conge_planning.dart';
 import '../../stocks/domain/calcul_stock.dart' show echelleQuantite;

@@ -13,6 +13,10 @@ import '../../hebergement/presentation/providers_hebergement.dart';
 import '../../pos/domain/entities/panier.dart';
 import '../data/facture_dao.dart';
 import '../data/facture_repository_local.dart';
+import '../data/lecteur_mode_facturation.dart';
+import '../data/service_normalisation.dart';
+import '../../synchronisation/presentation/providers_synchronisation.dart';
+import '../../transverse/data/configuration_poste.dart';
 import '../domain/entities/piece_facturation.dart';
 import '../impression/etat_registre_factures.dart';
 import '../domain/repositories/facture_repository.dart';
@@ -30,6 +34,26 @@ import '../impression/facture_a4.dart';
 
 final factureDaoProvider = Provider<FactureDao>(
   (ref) => FactureDao(ref.watch(baseLocaleProvider)),
+);
+
+/// La normalisation par le boîtier CC300 de CE poste (07/11/2026). Aucune requête
+/// tant que le mode effectif du poste n'est pas « boîtier ». Remplaçable par un
+/// test (faux pilote).
+final serviceNormalisationProvider = Provider<ServiceNormalisation>(
+  (ref) => ServiceNormalisation(
+    ref.watch(baseLocaleProvider),
+    lecteur: LecteurModeFacturation(
+      ref.watch(baseLocaleProvider),
+      lecteur: LecteurConfigurationPoste(
+        chemin: ref.watch(cheminConfigurationPosteProvider),
+      ),
+    ),
+  ),
+);
+
+/// Ce poste certifie-t-il par son boîtier ? Relu à chaque affichage du registre.
+final boitierActifProvider = FutureProvider.autoDispose<bool>(
+  (ref) => ref.watch(serviceNormalisationProvider).boitierActif(),
 );
 
 final depotFactureProvider = Provider<FactureRepository>(

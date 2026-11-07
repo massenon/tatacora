@@ -363,6 +363,36 @@ extension _AlignementDocuments on AligneurCatalogue {
     return d;
   }
 
+  /// La NORMALISATION d'une facture ou d'un avoir, telle que le serveur la rend
+  /// (boîtier d'un autre poste, ou e-MECeF au serveur) : adoptée seulement si ce
+  /// poste n'a pas déjà normalisé la pièce, et jamais renvoyée. Un statut absent
+  /// ou inconnu n'adopte rien. Jamais un secret : le serveur ne descend que le
+  /// résultat (numéro fiscal, QR, statut, voie, compteur).
+  Future<void> _adopterNormalisation(String pieceId, Map<String, Object?> d) {
+    final statut = StatutNormalisation.depuisCode(
+      AligneurCatalogue._texte(d['normalisation_statut']),
+    );
+    if (statut == null) return Future.value();
+    DateTime? date;
+    final brute = AligneurCatalogue._texte(d['normalisee_le']);
+    if (brute != null) {
+      date = DateTime.tryParse(brute.replaceFirst(' ', 'T'));
+    }
+    return FactureDao(_db).adopterNormalisationDescendue(
+      pieceId,
+      statut: statut,
+      voie: VoieNormalisation.depuisCode(
+        AligneurCatalogue._texte(d['normalisation_mode']),
+      ),
+      motif: AligneurCatalogue._texte(d['normalisation_motif']),
+      numeroMecef: AligneurCatalogue._texte(d['numero_mecef']),
+      qrCode: AligneurCatalogue._texte(d['qr_code_fiscal']),
+      codeMecef: AligneurCatalogue._texte(d['code_mecef']),
+      compteur: AligneurCatalogue._texte(d['normalisation_compteur']),
+      date: date,
+    );
+  }
+
   /// Minuit LOCAL d'une date du serveur — la convention des dépenses, des
   /// circuits et des commandes de ce poste.
   static DateTime _jourLocal(Object? v) {
@@ -1509,6 +1539,8 @@ extension _AlignementDocuments on AligneurCatalogue {
           return RefuseParLePoste(err.message);
         }
       }
+      // Normalisée ailleurs (autre poste, e-MECeF) : adoptée, jamais écrasée.
+      await _adopterNormalisation(id, d);
       return const Aligne();
     }
     final DateTime date;
@@ -1606,6 +1638,7 @@ extension _AlignementDocuments on AligneurCatalogue {
       panierId: panierId,
       lignes: converties,
     );
+    await _adopterNormalisation(id, d);
     await _retenirOrigine(e, id);
     return const Aligne();
   }
@@ -1627,6 +1660,7 @@ extension _AlignementDocuments on AligneurCatalogue {
           return RefuseParLePoste(err.message);
         }
       }
+      await _adopterNormalisation(id, d);
       return const Aligne();
     }
     final montant = entierDepuisDecimal(d['montant'], 0);
@@ -1657,6 +1691,7 @@ extension _AlignementDocuments on AligneurCatalogue {
           return RefuseParLePoste(err.message);
         }
       }
+      await _adopterNormalisation(provisoire, d);
       return const Aligne();
     }
     await factures.inscrireAvoirDescendu(
@@ -1667,6 +1702,7 @@ extension _AlignementDocuments on AligneurCatalogue {
       montant: montant,
       dateEmission: date,
     );
+    await _adopterNormalisation(id, d);
     await _retenirOrigine(e, id);
     return const Aligne();
   }

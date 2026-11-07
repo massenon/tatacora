@@ -208,6 +208,10 @@ void main() {
     // (29/10/2026) : portées par l'onglet ci-dessus, dans `<main>` — échelle
     // EFFECTIVE.
     'lib/features/parametres/presentation/widgets/cartes_adresse_serveur.dart',
+    // L'indicateur d'état et le bouton « Normaliser / Réessayer » du registre des
+    // factures (07/11/2026) : dans la cellule « Statut » et la colonne d'actions de
+    // la vue de la facturation, dans `<main>` — échelle EFFECTIVE.
+    'lib/features/facturation/presentation/widgets/normalisation_piece.dart',
     // La section « Facturation normalisée (MECeF) » (07/11/2026) : le jeton (mention),
     // le réglage local et la carte du boîtier, dans la carte du panneau
     // `@if ($onglet === 'identite')` de la vue de Paramètres, dans `<main>` —

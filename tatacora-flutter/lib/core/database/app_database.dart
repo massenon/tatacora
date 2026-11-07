@@ -544,8 +544,16 @@ class AppDatabase extends _$AppDatabase {
   /// pose dans `roles_local.droits_json` et `utilisateurs_local.droits_json` SEULEMENT
   /// là où la clé manque (nom et téléphone : tous ; intitulé : rôles d'administration),
   /// et ne réécrit JAMAIS un réglage déjà fait.
+  ///
+  /// v50 (07/11/2026) — FACTURATION NORMALISÉE (boîtier CC300, e-MECeF ; décision du PO) :
+  /// HUIT colonnes NULLABLES sur `pieces_facturation_local` (statut, motif, mode,
+  /// compteur, compteur avant l'envoi, code MECeF, QR code fiscal, date de
+  /// normalisation), aucune table. Rien n'est déduit : une pièce d'avant n'est ni
+  /// « normalisée » ni « en attente » (NULL), aucune pièce n'est rejouée. Une pièce
+  /// déjà NORMALISÉE n'est jamais écrasée (garde du DAO). Le curseur de descente est
+  /// oublié : les normalisations déjà faites au serveur redescendent.
   @override
-  int get schemaVersion => 49;
+  int get schemaVersion => 50;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1608,6 +1616,50 @@ class AppDatabase extends _$AppDatabase {
         if (!tables.contains('journal_securite_local')) {
           await m.createTable(journalSecuriteLocal);
         }
+      }
+      if (from < 50) {
+        // FACTURATION NORMALISÉE (07/11/2026) : huit colonnes NULLABLES, aucune table,
+        // aucune valeur fabriquée. Ajout CONDITIONNEL (piège 3) : une fixture ramenée en
+        // arrière depuis la définition courante les porte déjà, et un fichier à la
+        // forme v50 marqué v49 doit se rejouer. Une table absente (jeu de colonnes
+        // vide) n'est pas touchée ici : la réconciliation finale la complète. Le
+        // curseur est oublié : les normalisations déjà faites au serveur redescendent.
+        final pieces = {
+          for (final c
+              in await m.database
+                  .customSelect('PRAGMA table_info(pieces_facturation_local)')
+                  .get())
+            c.data['name'] as String,
+        };
+        if (pieces.isNotEmpty) {
+          final ajouts = <(String, GeneratedColumn<Object>)>[
+            (
+              'normalisation_statut',
+              piecesFacturationLocal.normalisationStatut,
+            ),
+            ('normalisation_motif', piecesFacturationLocal.normalisationMotif),
+            ('normalisation_mode', piecesFacturationLocal.normalisationMode),
+            (
+              'normalisation_compteur',
+              piecesFacturationLocal.normalisationCompteur,
+            ),
+            (
+              'normalisation_compteur_avant',
+              piecesFacturationLocal.normalisationCompteurAvant,
+            ),
+            ('code_mecef', piecesFacturationLocal.codeMecef),
+            ('qr_code_fiscal', piecesFacturationLocal.qrCodeFiscal),
+            ('normalisee_le', piecesFacturationLocal.normaliseeLe),
+          ];
+          for (final (nom, colonne) in ajouts) {
+            if (!pieces.contains(nom)) {
+              await m.addColumn(piecesFacturationLocal, colonne);
+            }
+          }
+        }
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
       }
       if (from < 49) {
         // « MON PROFIL » SOUS DROIT (03/11/2026) : deux colonnes NULLABLES, aucune

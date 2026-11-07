@@ -639,10 +639,46 @@ Map<String, Object?> chargeFacture({
 
 /// `factures`, ANNULATION (la seule modification) : le serveur émet l'avoir
 /// du TTC entier et rend son numéro (`AV-AAAA-NNNNN`).
-Map<String, Object?> chargeAnnulationFacture({required String motif}) => {
+Map<String, Object?> chargeAnnulationFacture({
+  required String motif,
+  String? avoirId,
+}) => {
   // Le mot du serveur est celui du registre local (`StatutPiece`).
   'statut': StatutPiece.annulee.code,
   'motif': motif,
+  // 07/11/2026 : l'avoir de l'annulation naît sous l'identifiant du poste, pour
+  // que sa NORMALISATION (boîtier) le retrouve au serveur. Absent : le serveur
+  // lui donne le sien (poste d'avant).
+  'avoir_id': ?avoirId,
+};
+
+/// `factures` (modification) — la NORMALISATION faite par le boîtier de CE poste
+/// (07/11/2026) : le serveur RANGE le résultat (`GestionnaireFactures::normaliser`),
+/// il ne re-certifie rien et n'appelle jamais le boîtier. [avoirId] : le résultat
+/// est celui de l'avoir de ce poste, pas celui de la facture. Jamais un secret ;
+/// `numero_mecef` n'est donné que pour une pièce normalisée.
+Map<String, Object?> chargeNormalisationFacture({
+  required String statut,
+  required String mode,
+  String? motif,
+  String? numeroMecef,
+  String? qrCode,
+  String? codeMecef,
+  String? compteur,
+  DateTime? date,
+  String? avoirId,
+}) => {
+  'avoir_id': ?avoirId,
+  'normalisation': {
+    'statut': statut,
+    'mode': mode,
+    'motif': ?motif,
+    'numero_mecef': ?numeroMecef,
+    'qr_code': ?qrCode,
+    'code_mecef': ?codeMecef,
+    'compteur': ?compteur,
+    if (date != null) 'date': instantLocal(date),
+  },
 };
 
 /// `factures`, AVOIR PARTIEL (modification, sans `statut`) —

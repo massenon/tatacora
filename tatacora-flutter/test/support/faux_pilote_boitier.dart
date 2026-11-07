@@ -8,9 +8,13 @@ import 'dart:io';
 /// client le confrontent à de vraies requêtes TCP, pas à une simulation de
 /// `HttpClient`.
 class FauxPilote {
-  FauxPilote._(this._serveur);
+  FauxPilote._(this._serveur) : _port = _serveur.port;
 
   final HttpServer _serveur;
+
+  /// Le port, retenu au démarrage : l'adresse reste lisible une fois le faux
+  /// pilote ARRÊTÉ (cas « pilote éteint »).
+  final int _port;
 
   /// Les requêtes reçues, dans l'ordre : `GET /check`, `POST /bill`…
   final List<String> requetes = [];
@@ -54,7 +58,7 @@ class FauxPilote {
     return faux;
   }
 
-  String get racine => 'http://127.0.0.1:${_serveur.port}';
+  String get racine => 'http://127.0.0.1:$_port';
 
   Future<void> arreter() => _serveur.close(force: true);
 

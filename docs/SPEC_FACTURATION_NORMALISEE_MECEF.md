@@ -91,9 +91,12 @@ Conversion TATACORA → pilote : voir le code (`conversion_boitier.dart`). Vente
 de l'opérateur tronqué à 30. Modes de paiement : espèces `E`, mobile money `M`, carte `C`,
 chèque `D`, virement `V`, autre `A` ; crédit jamais accepté (facture non réglée refusée).
 Groupes de taxe : TVA active → `B`, sinon `A` ; une ligne « Taxe de séjour » → groupe `F` et
-libellé exactement `TAXE DE SEJOUR`. Libellés : accents conservés, `< > & CR LF` et caractères de
-contrôle remplacés, apostrophes droites, coupure sur un caractère entier (jamais au milieu d'un
-mot si une espace précède dans les 15 derniers caractères). Prix = prix TTC unitaire, `items` = quantité entière.
+libellé exactement `TAXE DE SEJOUR`. Libellés rendus en ASCII (le protocole série du boîtier n'a pas de
+table de caractères documentée : accents transcrits, apostrophes et guillemets redressés) ; `< > & CR LF`,
+virgule, point-virgule, `*`, tabulation et caractères de contrôle (séparateurs du protocole, ou remplacés
+par le pilote en entités qui rallongent le texte) deviennent des espaces ; coupure à 60/30/24 caractères
+sans couper un mot si une espace précède dans les 15 derniers caractères. Prix = prix TTC unitaire,
+`items` = quantité entière ; convention de prix HT refusée (le boîtier exige des TTC).
 Contrôle AVANT envoi : Σ lignes = total TATACORA = Σ paiements, sinon refus.
 
 ## 5. Contrat e-MECeF (serveur)

@@ -97,10 +97,14 @@ final class LigneTicket {
 
 /// Un ticket composé : la liste exacte des textes qui seront imprimés.
 final class TicketCompose {
-  const TicketCompose(this.lignes, {required this.piece});
+  const TicketCompose(this.lignes, {required this.piece, this.qrCode});
 
   final List<LigneTicket> lignes;
   final PieceFacturation piece;
+
+  /// Le QR code fiscal (`F;NIM;code;IFU;date`) — SEULEMENT quand la pièce est
+  /// réellement normalisée ; `null` sinon (jamais un QR de démonstration).
+  final String? qrCode;
 
   /// **Tous** les textes du document, gauche et droite confondus.
   ///
@@ -135,7 +139,20 @@ final class TicketCompose {
         pageFormat: formatRouleau80mm,
         build: (context) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-          children: [for (final l in lignes) _rendre(l)],
+          children: [
+            for (final l in lignes) _rendre(l),
+            if (qrCode != null) ...[
+              pw.SizedBox(height: 6),
+              pw.Center(
+                child: pw.BarcodeWidget(
+                  barcode: pw.Barcode.qrCode(),
+                  data: qrCode!,
+                  width: 90,
+                  height: 90,
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );
@@ -300,15 +317,43 @@ final class TicketFacture {
       const LigneTicket.separateur(),
 
       // Dérivée de la pièce, jamais d'une configuration : c'est PA-61.
-      LigneTicket(piece.libelleCertification, style: StyleLigneTicket.mention),
-
-      if (!piece.estCertifiee)
+      // Une pièce RÉELLEMENT normalisée porte ses mentions fiscales et son QR
+      // (facturation normalisée, 07/11/2026) ; toute autre garde le bandeau DEMO.
+      if (piece.estNormalisee) ...[
+        LigneTicket(
+          'FACTURE NORMALISÉE MECeF',
+          style: StyleLigneTicket.mention,
+        ),
+        LigneTicket(
+          'NIM-TC : ${piece.numeroMecef}',
+          style: StyleLigneTicket.sousTitre,
+        ),
+        if ((piece.codeMecef ?? '').isNotEmpty)
+          LigneTicket(
+            'Code MECeF : ${piece.codeMecef}',
+            style: StyleLigneTicket.sousTitre,
+          ),
+        if (piece.normaliseeLe != null)
+          LigneTicket(
+            'Normalisée le ${_horodatage(piece.normaliseeLe!)}',
+            style: StyleLigneTicket.sousTitre,
+          ),
+      ] else ...[
+        LigneTicket(
+          piece.libelleCertification,
+          style: StyleLigneTicket.mention,
+        ),
         LigneTicket(
           CertificationMecef.filigraneDemonstration,
           style: StyleLigneTicket.filigrane,
         ),
+      ],
     ];
 
-    return TicketCompose(List.unmodifiable(lignes), piece: piece);
+    return TicketCompose(
+      List.unmodifiable(lignes),
+      piece: piece,
+      qrCode: piece.estNormalisee ? piece.qrCodeFiscal : null,
+    );
   }
 }

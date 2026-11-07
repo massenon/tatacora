@@ -224,6 +224,73 @@ class EmissionFactureService
     }
 
     /**
+     * Range le résultat d'une normalisation faite AILLEURS — le boîtier CC300 d'un
+     * poste, rendu par la synchronisation — SANS re-certifier : le serveur
+     * n'appelle ni le boîtier ni la DGI ici (docs/SPEC_FACTURATION_NORMALISEE_MECEF.md).
+     *
+     * Une pièce déjà normalisée n'est jamais écrasée : le rejeu du même résultat
+     * est un no-op, un résultat DIFFÉRENT est refusé.
+     *
+     * @param  array{statut: string, mode: string, motif?: ?string, numero_mecef?: ?string, qr_code?: ?string, code_mecef?: ?string, compteur?: ?string, date?: ?string}  $resultat
+     */
+    public function enregistrerNormalisation(Facture|Avoir $document, array $resultat): Facture|Avoir
+    {
+        $statut = StatutNormalisation::depuis($resultat['statut']);
+
+        if ($statut === null) {
+            throw new \RuntimeException(__('facturation.normalisation_statut_inconnu', ['statut' => $resultat['statut']]));
+        }
+
+        if (! in_array($resultat['mode'], ['boitier', 'emecef'], true)) {
+            throw new \RuntimeException(__('facturation.normalisation_mode_inconnu', ['mode' => $resultat['mode']]));
+        }
+
+        if ($document->normalisation_statut === StatutNormalisation::Normalisee->value) {
+            if ($statut === StatutNormalisation::Normalisee && ($resultat['numero_mecef'] ?? null) === $document->numero_mecef) {
+                return $document;
+            }
+
+            throw new \RuntimeException(__('facturation.normalisation_deja_faite'));
+        }
+
+        $champs = [
+            'normalisation_statut' => $statut->value,
+            'normalisation_motif' => $statut === StatutNormalisation::Normalisee ? null : mb_substr((string) ($resultat['motif'] ?? ''), 0, 500),
+            'normalisation_mode' => $resultat['mode'],
+        ];
+
+        if ($statut === StatutNormalisation::Normalisee) {
+            $identite = (string) ($resultat['numero_mecef'] ?? '');
+            $qr = (string) ($resultat['qr_code'] ?? '');
+
+            if (preg_match('/^[A-Za-z0-9]+-[0-9]+$/', $identite) !== 1) {
+                throw new \RuntimeException(__('facturation.normalisation_identite_invalide'));
+            }
+
+            if (! str_starts_with($qr, 'F;') || count(explode(';', $qr)) !== 5) {
+                throw new \RuntimeException(__('facturation.normalisation_qr_invalide'));
+            }
+
+            $champs += [
+                'numero_mecef' => $identite,
+                'qr_code_fiscal' => $qr,
+                'code_mecef' => $resultat['code_mecef'] ?? null,
+                'normalisation_compteur' => $resultat['compteur'] ?? null,
+                'normalisee_le' => $resultat['date'] ?? now(),
+            ];
+
+            // Une facture normalisée est figée ; un avoir n'a pas de cycle MECeF.
+            if ($document instanceof Facture) {
+                $champs['statut'] = 'certifiee';
+            }
+        }
+
+        $document->update($champs);
+
+        return $document->refresh();
+    }
+
+    /**
      * Émission d'un avoir — RG-03, unique chemin de correction.
      *
      * La facture d'origine reste rigoureusement inchangée : c'est le point de

@@ -31,7 +31,13 @@ class FactureObserver
      *
      * @var list<string>
      */
-    private const CHAMPS_DE_CERTIFICATION = ['numero_mecef', 'qr_code_fiscal', 'statut'];
+    private const CHAMPS_DE_CERTIFICATION = [
+        'numero_mecef', 'qr_code_fiscal', 'statut',
+        // Facturation normalisée (07/11/2026) : écrits par la normalisation elle-même.
+        'normalisation_statut', 'normalisation_motif', 'normalisation_mode',
+        'normalisation_compteur', 'code_mecef', 'normalisee_le',
+        'emecef_uid', 'emecef_uid_le', 'emecef_prochain_essai_le',
+    ];
 
     public function updating(Facture $facture): void
     {
@@ -49,8 +55,22 @@ class FactureObserver
         // Même sur les champs de certification : une facture déjà certifiée ne
         // se re-certifie pas. Autoriser un second passage permettrait d'écraser
         // un NIM réel par un NIM de démonstration.
+        //
+        // Une seule exception, et dans le SENS qui ne trompe personne : un numéro de
+        // DÉMONSTRATION (`MECEF-DEMO-`, sans valeur fiscale) peut être remplacé par
+        // une vraie normalisation — le mode a changé depuis. Jamais l'inverse, et
+        // jamais un numéro réel remplacé.
         if (in_array('numero_mecef', $champsModifies, true)) {
-            throw new FactureImmuableException($facture->id, ['numero_mecef']);
+            $etaitDemo = str_starts_with((string) $facture->getOriginal('numero_mecef'), 'MECEF-DEMO-');
+            // « Réel » = écrit PAR une normalisation (statut posé dans la même écriture) et de la
+            // forme « NIM-compteur » : une valeur quelconque ne remplace jamais une démonstration.
+            $devientReel = $facture->normalisation_statut === 'normalisee'
+                && in_array('normalisation_statut', $champsModifies, true)
+                && preg_match('/^[A-Za-z0-9]+-[0-9]+$/', (string) $facture->numero_mecef) === 1;
+
+            if (! ($etaitDemo && $devientReel)) {
+                throw new FactureImmuableException($facture->id, ['numero_mecef']);
+            }
         }
     }
 

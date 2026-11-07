@@ -53,7 +53,8 @@ final class ReglagesMecef
 
     public static function ifuValide(string $ifu): bool
     {
-        return preg_match(self::FORMAT_IFU, $ifu) === 1;
+        // `strlen` : `$` accepte un retour à la ligne final, jamais une IFU de 13 chiffres.
+        return strlen($ifu) === 13 && preg_match(self::FORMAT_IFU, $ifu) === 1;
     }
 
     /** L'adresse saisie, sinon celle de la DGI — sans barre finale. */

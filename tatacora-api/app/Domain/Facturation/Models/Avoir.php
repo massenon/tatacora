@@ -34,6 +34,10 @@ class Avoir extends Model
 
     protected $fillable = [
         'id', 'numero', 'facture_id', 'motif', 'montant', 'date_emission', 'utilisateur_validation_id',
+        // Facturation normalisée (07/11/2026).
+        'numero_mecef', 'qr_code_fiscal', 'normalisation_statut', 'normalisation_motif',
+        'normalisation_mode', 'normalisation_compteur', 'code_mecef', 'normalisee_le',
+        'emecef_uid', 'emecef_uid_le', 'emecef_prochain_essai_le',
     ];
 
     protected function casts(): array
@@ -41,6 +45,9 @@ class Avoir extends Model
         return [
             'montant' => 'decimal:2',
             'date_emission' => 'date',
+            'normalisee_le' => 'datetime',
+            'emecef_uid_le' => 'datetime',
+            'emecef_prochain_essai_le' => 'datetime',
         ];
     }
 

@@ -131,6 +131,21 @@ const tablesAjouteesEnV44 = <String>{'pieces_saisie_local'};
 const tablesAjouteesEnV46 = <String>{'journal_securite_local'};
 
 const _ajoutsParVersion = <int, List<String>>{
+  // La v50 (07/11/2026, facturation normalisee) ajoute HUIT colonnes nullables a
+  // `pieces_facturation_local`, ni indexees ni referencees, aucune table : retour
+  // arriere symetrique (les DAO d'aujourd'hui qui lisent la table entiere ne
+  // sont pas utilises par les fixtures anciennes, qui semment en SQL).
+  50: <String>[
+    'ALTER TABLE pieces_facturation_local DROP COLUMN normalisee_le',
+    'ALTER TABLE pieces_facturation_local DROP COLUMN qr_code_fiscal',
+    'ALTER TABLE pieces_facturation_local DROP COLUMN code_mecef',
+    'ALTER TABLE pieces_facturation_local DROP COLUMN normalisation_compteur_avant',
+    'ALTER TABLE pieces_facturation_local DROP COLUMN normalisation_compteur',
+    'ALTER TABLE pieces_facturation_local DROP COLUMN normalisation_mode',
+    'ALTER TABLE pieces_facturation_local DROP COLUMN normalisation_motif',
+    'ALTER TABLE pieces_facturation_local DROP COLUMN normalisation_statut',
+  ],
+
   // La v49 (03/11/2026, « Mon profil » sous droit) ajoute DEUX colonnes nullables a
   // `utilisateurs_local` (`telephone`, `intitule_de_poste`), ni indexees ni
   // referencees, aucune table. Le retour arriere CONSERVE les colonnes, comme pour la

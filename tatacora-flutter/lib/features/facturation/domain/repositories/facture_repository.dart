@@ -188,6 +188,19 @@ final class FactureDejaAnnulee implements Exception {
       'fois le même montant en négatif.';
 }
 
+/// Une facture NORMALISÉE est figée : sa normalisation ne se refait ni ne
+/// s'écrase jamais (07/11/2026). Sa correction est un AVOIR, qui passe aussi par
+/// le boîtier (`rt = FA`, `rn = NIM-TC`).
+final class FactureDejaNormalisee implements Exception {
+  const FactureDejaNormalisee(this.numero);
+  final String numero;
+
+  @override
+  String toString() =>
+      'La facture $numero est déjà normalisée : elle ne se modifie ni ne se '
+      'renormalise. Pour la corriger, émettez un avoir.';
+}
+
 /// Un avoir ne s'annule pas — il est déjà la correction.
 final class AvoirNonAnnulable implements Exception {
   const AvoirNonAnnulable(this.numero);

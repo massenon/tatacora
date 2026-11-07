@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tatacora_flutter/core/impression/texte_ticket.dart';
 import 'package:tatacora_flutter/features/facturation/domain/certification_mecef.dart';
 import 'package:tatacora_flutter/features/facturation/domain/entities/piece_facturation.dart';
+import 'package:tatacora_flutter/features/facturation/domain/statut_normalisation.dart';
 import 'package:tatacora_flutter/features/facturation/impression/etat_registre_factures.dart';
 
 /// L'état « Registre des factures » — `m2-facturation.html`.
@@ -23,6 +24,7 @@ void main() {
     StatutPiece statut = StatutPiece.emise,
     String? avoirDe,
     String? numeroMecef,
+    bool normalisee = false,
   }) => PieceFacturation(
     id: id,
     numero: numero,
@@ -32,6 +34,10 @@ void main() {
     statut: statut,
     avoirDe: avoirDe,
     numeroMecef: numeroMecef,
+    normalisationStatut: normalisee ? StatutNormalisation.normalisee : null,
+    qrCodeFiscal: normalisee
+        ? 'F;ED04000623;NW34NID6ZHANFNMZ2IU7LL3H;3201910768821;20261107100000'
+        : null,
     lignes: [
       LigneFacture(
         id: 'l-$id',
@@ -68,11 +74,13 @@ void main() {
       // « non certifiées » deviendrait fausse le jour de l'inscription DGI,
       // et personne ne penserait à rouvrir ce fichier.
       final e = etat([
-        piece(numeroMecef: 'ABC123XYZ'),
+        piece(numeroMecef: 'ED04000623-41', normalisee: true),
         piece(id: 'p-2', numero: 'FAC-2026-0002'),
+        // Un numéro réel SEUL ne compte pas : il faut le statut et le QR.
+        piece(id: 'p-3', numero: 'FAC-2026-0003', numeroMecef: 'ABC123XYZ'),
       ]);
       expect(e.nombreCertifiees, 1);
-      expect(e.mentionCertification, '1 certifiée(s) sur 2');
+      expect(e.mentionCertification, '1 certifiée(s) sur 3');
     });
   });
 

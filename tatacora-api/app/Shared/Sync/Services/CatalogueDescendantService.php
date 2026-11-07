@@ -195,8 +195,18 @@ class CatalogueDescendantService
         'paniers' => ['point_vente', 'table_id', 'statut', 'cloture_at'],
         // Lot F5c : les factures (numérotées par le serveur) et leurs avoirs,
         // après les ventes et les réservations qu'elles portent.
-        'factures' => ['numero', 'origine', 'client_id', 'date_emission', 'montant_ht', 'montant_tva', 'montant_ttc', 'statut'],
-        'avoirs' => ['facture_id', 'numero', 'motif', 'montant', 'date_emission'],
+        // Facturation normalisée (07/11/2026) : le résultat de la normalisation descend avec la
+        // pièce (numéro fiscal, QR, statut, voie, compteur, code MECeF) — jamais un secret.
+        'factures' => [
+            'numero', 'origine', 'client_id', 'date_emission', 'montant_ht', 'montant_tva', 'montant_ttc', 'statut',
+            'numero_mecef', 'qr_code_fiscal', 'code_mecef', 'normalisation_statut', 'normalisation_motif',
+            'normalisation_mode', 'normalisation_compteur', 'normalisee_le',
+        ],
+        'avoirs' => [
+            'facture_id', 'numero', 'motif', 'montant', 'date_emission',
+            'numero_mecef', 'qr_code_fiscal', 'code_mecef', 'normalisation_statut', 'normalisation_motif',
+            'normalisation_mode', 'normalisation_compteur', 'normalisee_le',
+        ],
         // Lot F5d : les encaissements, après leur facture et leur caisse.
         'paiements' => ['facture_id', 'session_id', 'mode_paiement', 'montant', 'date_paiement', 'statut', 'motif_annulation', 'date_annulation'],
         'commandes_achat' => ['fournisseur_id', 'date_commande', 'statut', 'montant_total', 'date_creation'],

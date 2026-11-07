@@ -64,6 +64,7 @@ return [
         'motif_absent' => 'Annulation saisie sur un poste',
         'avoir_motif_absent' => 'Avoir saisi sur un poste',
         'avoir_montant_invalide' => 'Avoir refusé : le montant doit être un nombre entier de francs supérieur à zéro.',
+        'avoir_inconnu' => 'Normalisation refusée : l\'avoir n\'est pas connu du serveur (pas encore reçu, ou refusé).',
     ],
     'crm' => [
         'client_inconnu_relance' => 'Relance refusée : le client n\'est pas connu du serveur (pas encore reçu, ou refusé).',
