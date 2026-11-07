@@ -1,4 +1,3 @@
-import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tatacora_flutter/features/facturation/data/proforma_dao.dart';
 import 'package:tatacora_flutter/features/synchronisation/data/descente_catalogue_dao.dart';

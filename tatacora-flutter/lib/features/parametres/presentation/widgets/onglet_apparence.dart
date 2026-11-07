@@ -1,4 +1,5 @@
 // Vue Blade maîtresse (PA-183) : pwa/transverse/parametres.blade.php
+import '../../../facturation/data/images_document_poste.dart';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -19,6 +20,12 @@ import '../../data/apparence_poste.dart';
 /// Les mots de l'onglet « Logo & Apparence » — `lang/fr/pwa.php`,
 /// `parametres.apparence_*` et `parametres.charte_*`, au mot.
 abstract final class TextesOngletApparence {
+  /// Signature et cachet des factures et proformas (PO, 07/11/2026) : DÉPOSÉS au serveur, reçus ici
+  /// en LECTURE (`pwa.parametres.apparence_signature_titre`, `_cachet_titre`, `_image_absente`).
+  static const signatureTitre = 'Signature du signataire';
+  static const cachetTitre = "Cachet de l'entreprise";
+  static const imageAbsente = 'Aucune image déposée.';
+
   static const logoTitre = "Logo de l'entreprise";
   static const logoBouton = 'Changer le logo';
   static const logoAide =
@@ -121,6 +128,19 @@ class OngletApparence extends ConsumerWidget {
       ),
     );
 
+    final signature = ref.watch(signatureDocumentProvider).value;
+    final cachet = ref.watch(cachetDocumentProvider).value;
+    final colonneSignature = _BlocImageRecue(
+      cle: 'apparence-signature',
+      titre: TextesOngletApparence.signatureTitre,
+      octets: signature,
+    );
+    final colonneCachet = _BlocImageRecue(
+      cle: 'apparence-cachet',
+      titre: TextesOngletApparence.cachetTitre,
+      octets: cachet,
+    );
+
     final large = MediaQuery.sizeOf(context).width >= AppBreakpoints.sm;
 
     return Padding(
@@ -141,6 +161,21 @@ class OngletApparence extends ConsumerWidget {
             colonneLogo,
             const SizedBox(height: AppSpacing.lg),
             colonneFavicon,
+          ],
+          const SizedBox(height: AppSpacing.lg),
+          if (large)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: colonneSignature),
+                const SizedBox(width: AppSpacing.lg),
+                Expanded(child: colonneCachet),
+              ],
+            )
+          else ...[
+            colonneSignature,
+            const SizedBox(height: AppSpacing.lg),
+            colonneCachet,
           ],
           const SizedBox(height: AppSpacing.lg),
           const _Charte(),
@@ -173,6 +208,47 @@ class OngletApparence extends ConsumerWidget {
         );
     }
   }
+}
+
+/// La signature ou le cachet des documents A4, REÇUS du serveur (jamais déposés ici) : l'image,
+/// ou « Aucune image déposée. ».
+class _BlocImageRecue extends StatelessWidget {
+  const _BlocImageRecue({
+    required this.cle,
+    required this.titre,
+    required this.octets,
+  });
+
+  final String cle;
+  final String titre;
+  final Uint8List? octets;
+
+  @override
+  Widget build(BuildContext context) => _Bloc(
+    titre: titre,
+    enfant: octets == null
+        ? Text(
+            TextesOngletApparence.imageAbsente,
+            key: Key('$cle-absente'),
+            style: styleContenuCarte(TaillesContenu.t13, couleur: Ardoise.c400),
+          )
+        : Container(
+            key: Key('$cle-apercu'),
+            width: AppLayout.apercuLogo,
+            height: AppLayout.apercuLogo,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.roundedLg),
+              border: Border.all(
+                color: Ardoise.c100,
+                width: AppLayout.anneauLogo,
+              ),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadius.roundedLg),
+              child: Image.memory(octets!, fit: BoxFit.contain),
+            ),
+          ),
+  );
 }
 
 class _Bloc extends StatelessWidget {

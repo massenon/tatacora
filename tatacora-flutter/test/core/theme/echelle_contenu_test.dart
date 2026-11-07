@@ -273,6 +273,9 @@ void main() {
     // écran n° 5) : corps de page ; le ticket ouvert depuis une ligne est une
     // fenêtre (`vue_ticket.dart`), hors de ce classement.
     'lib/features/facturation/presentation/ecran_facturation.dart',
+    // Factures proforma (07/11/2026) : l'écran et le bouton des modules sont dans le `<main>`.
+    'lib/features/facturation/presentation/ecran_proformas.dart',
+    'lib/features/facturation/presentation/widgets/bouton_creer_proforma.dart',
     // Carte du bar, reprise sur la vue le 08/10/2026 (Phase 2) : corps de
     // page (en-tête, indicateurs, onglets, filtres, bandeaux). Ses modales
     // vivent dans `widgets/modale_*.dart`, classées dans l'autre camp.
@@ -422,6 +425,8 @@ void main() {
         'Modale — ouverte par `showDialog` dans `afficherTicket`.',
     'lib/features/facturation/presentation/widgets/dialogue_avoir.dart':
         'Modale — `AlertDialog` d annulation par avoir, hors `<main>`.',
+    'lib/features/facturation/presentation/widgets/dialogues_proforma.dart':
+        'Modales — saisie du brouillon et motif d annulation d une proforma, hors `<main>`.',
     'lib/features/restaurant/presentation/widgets/textes_modale_restaurant.dart':
         'Modales. Celles de `restaurant/restauration.blade.php` et de '
         '`carte/corps.blade.php` sont posées après `</main>` : le remappage '

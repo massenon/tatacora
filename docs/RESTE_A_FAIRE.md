@@ -56,9 +56,10 @@
 - Limitation d'essais sur la connexion par mot de passe du POSTE (le web limite à 5 par identifiant et adresse) : à décider.
 - IP de l'ordinateur dans le journal d'audit du poste (le nom de la machine est la norme retenue).
 
-## G. Facture proforma — poste (lot 3 inachevé, 07/11/2026)
+## G. Facture proforma — poste (livré le 07/11/2026)
 
-- [ ] **G1** Descente des proformas (et de leurs lignes) vers le poste : `descente_catalogue.dart`, écrivain de réception, régularisation du numéro à l'accusé (`ProformaDao.regulariserNumero` existe, il manque l'appelant dans `SyncManager`).
-- [ ] **G2** Descente de la signature et du cachet (`GET /api/v1/sync/apparence-documents`, déjà servi) vers `…/TATACORA/apparence/`.
-- [ ] **G3** Écran « Proformas » du poste, PDF A4 par le paquet `pdf` (jumeau de `pdf.proforma`), impression, boutons « Créer une proforma » dans location, tourisme, hébergement, restauration.
-- [ ] **G4** Bloc signature sur la facture A4 du poste (interrupteur déjà descendu : `blocSignature()`), puis garde `pdf_directive_test` et comparateur Blade.
+- [x] **G1** Régularisation du numéro à l'accusé (`SyncManager`), descente des proformas (`TableDescendue.proformas`, `AligneurCatalogue._proforma`) et des images signature/cachet (`TelechargementImagesDocument`, `GET /api/v1/sync/apparence-documents`, dossier d'apparence du poste).
+- [x] **G2** Écran « Proformas » du poste (`ecran_proformas.dart`, route `/facturation/proformas`, lien depuis Facturation) : liste, filtre par statut, recherche, brouillon à lignes libres, émission, annulation avec motif, conversion confirmée, état « expirée », droits M2, libellés du web relus du serveur.
+- [x] **G3** PDF A4 du poste (`proforma_a4.dart`, vert = `PaletteMaitre.vert700`), impression par `Printing.layoutPdf`, classé dans `pdf_directive_test`.
+- [x] **G4** Boutons « Créer une proforma » (location, tourisme, hébergement, restauration pour événement : proforma vide, aucun module événement n'existe) avec le même préremplissage que le web ; signature et cachet sur la facture A4 du poste selon l'interrupteur.
+- [ ] **G5** Essai terrain D7 (une proforma réelle sur un vrai poste, comparée au modèle papier).

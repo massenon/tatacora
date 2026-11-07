@@ -125,7 +125,10 @@
       "shared_widgets/modale_export.dart",
       "shared_widgets/tableau_tatacora.dart"
     ],
-    "facturation/proformas": [],
+    "facturation/proformas": [
+      "features/facturation/domain/textes_proforma.dart",
+      "features/facturation/presentation/ecran_proformas.dart"
+    ],
     "hebergement/hebergement": [
       "features/hebergement/data/parc_dao.dart",
       "features/hebergement/domain/entities/categorie_hebergement.dart",

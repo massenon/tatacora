@@ -1,3 +1,4 @@
+// Vue Blade maîtresse : pwa/facturation/proformas.blade.php (les libellés de la vue ET de ses modales, au mot près).
 /// Les LIBELLÉS de la facture proforma — ceux du web (`lang/fr/proforma.php`), repris au mot près (PO,
 /// 07/11/2026 : « le poste fait ce que le web fait »). `proforma_textes_test.dart` relit le fichier
 /// du serveur et confronte chaque clé : un libellé modifié d'un seul côté fait rougir le test.

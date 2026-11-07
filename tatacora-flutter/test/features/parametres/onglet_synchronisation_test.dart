@@ -324,7 +324,8 @@ void main() {
     expect(t.lots, isEmpty);
     expect(
       [for (final r in t.requetes.skip(avant)) '${r.methode} ${r.url.path}'],
-      ['GET /api/v1/referentiels'],
+      // + les images signature/cachet des documents A4 (07/11/2026), jamais bloquantes.
+      ['GET /api/v1/referentiels', 'GET /api/v1/sync/apparence-documents'],
     );
 
     await tester.ensureVisible(find.byKey(const Key('sync-dissocier')));

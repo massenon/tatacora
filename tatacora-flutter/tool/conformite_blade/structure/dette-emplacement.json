@@ -174,5 +174,11 @@
     "blade": 11,
     "ordonnes": 5,
     "ongletsNonCliquables": 0
+  },
+  "facturation/proformas": {
+    "blade": 0,
+    "ordonnes": 0,
+    "ongletsNonCliquables": 0,
+    "nonMesure": "capture navigateur de la vue web indisponible (07/11/2026) : emplacement à mesurer, voir RESTE_A_FAIRE"
   }
 }
