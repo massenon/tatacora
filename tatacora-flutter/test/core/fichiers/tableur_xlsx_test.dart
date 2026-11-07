@@ -173,7 +173,7 @@ void main() {
         .singleWhere((i) => i.cle == cle);
 
     test(
-      'm6 → m5 → m4 : 9 articles, 9 boissons, 86 plats, aucun mouvement',
+      'm6 → m5 → m4 : 9 articles, 9 boissons, 81 plats, aucun mouvement',
       () async {
         final tableaux = {
           for (final c in ['m6-stocks', 'm5-bar', 'm4-restaurant'])
@@ -181,7 +181,7 @@ void main() {
         };
         expect(tableaux['m6-stocks']!.length - 1, 9);
         expect(tableaux['m5-bar']!.length - 1, 9);
-        expect(tableaux['m4-restaurant']!.length - 1, 86);
+        expect(tableaux['m4-restaurant']!.length - 1, 81);
 
         // m5 avant m6 : refusé, la boisson se lie à un article existant.
         final tropTot = await moteur.controler(
@@ -216,7 +216,7 @@ void main() {
           await compter('cartes_boisson_local'),
           avant['cartes_boisson_local']! + 9,
         );
-        expect(await compter('plats_local'), avant['plats_local']! + 86);
+        expect(await compter('plats_local'), avant['plats_local']! + 81);
         expect(
           await compter('mouvements_stock_local'),
           avant['mouvements_stock_local'],
@@ -241,7 +241,6 @@ void main() {
           contains('2000'),
         );
         expect(await prix('plats_local', 'Salade du Chef'), contains('4000'));
-        expect(await prix('plats_local', 'Wassa wassa'), '0');
 
         // 30/10/2026 : les descriptions de l'affiche sont importées (9 plats), les
         // autres plats n'en ont aucune.
@@ -260,7 +259,7 @@ void main() {
           'Sauce tomate, bœuf hachée, saucisse, fromage peuilh, fromage mozza',
         );
         expect(await description('Chawarma mixte'), 'Viande de bœuf, saucisse');
-        expect(await description('Wassa wassa'), isNull);
+        expect(await description('Piron'), isNull);
       },
     );
   });

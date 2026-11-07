@@ -478,40 +478,12 @@
           "description": "Café/thé/tisane locale (citronnelle, passiflore), lait, confiture, sucre, beurre, miel, pain, bouillie locale (aklou/mille), doko, omelette, jus de fruits/salade de fruits"
         }
       ]
-    },
-    {
-      "affiche": 7,
-      "rubrique": "Sur commande",
-      "type": "restaurant",
-      "_note": "Décision PO 30/10/2026 : prix VIDE pour l'instant (le PO le renseignera). Si un nom existe déjà dans une autre rubrique (Panini, Igname pilé), suffixer « (sur commande) » plutôt que fusionner.",
-      "articles": [
-        {
-          "nom": "Hamburger",
-          "prix": null
-        },
-        {
-          "nom": "Panini",
-          "prix": null
-        },
-        {
-          "nom": "TCHEP",
-          "prix": null
-        },
-        {
-          "nom": "Wassa wassa",
-          "prix": null
-        },
-        {
-          "nom": "Igname pilé",
-          "prix": null
-        }
-      ]
     }
   ],
   "_decisions_po_30_10_2026": [
     "Panini jambon et Panini : deux articles",
     "Orthographe corrigée : Pommes sautées, Attiéké + plantain, Akassa",
     "Pas de « Jus de banane » sous Nos cafés",
-    "Articles sur commande : prix vide"
+    "07/11/2026 : la rubrique « Sur commande » (sans prix) est SUPPRIMÉE de la carte"
   ]
 }

@@ -259,18 +259,15 @@ final class ImportXlsxTest extends TestCase
         );
         $this->assertSame(2, CarteBoisson::where('libelle', 'like', 'Jus de banane%')->count());
 
-        // m4 — 86 plats ; menu et fiches créés vides, prix vide = 0 provisoire.
-        $this->assertSame(86, Plat::count());
+        // m4 — 81 plats (la rubrique « Sur commande » a été retirée le 07/11/2026) ; menu et fiches créés vides.
+        $this->assertSame(81, Plat::count());
         $this->assertSame(1, Menu::count());
-        $this->assertSame(86, Recette::count());
+        $this->assertSame(81, Recette::count());
         $this->assertSame('4000.00', (string) Plat::where('libelle', 'Salade du Chef')->firstOrFail()->prix_vente);
         $this->assertSame('pizzas', Plat::where('libelle', 'Pizza du gîte (grande)')->firstOrFail()->categorie);
         $this->assertSame(1, Plat::where('libelle', 'Piron')->count());
-        $this->assertSame(3, Plat::where('libelle', 'like', 'Panini%')->count());
-        $surCommande = Plat::where('libelle', 'Wassa wassa')->firstOrFail();
-        $this->assertSame('0.00', (string) $surCommande->prix_vente);
-        $this->assertTrue($surCommande->prix_provisoire);
-        $this->assertTrue(Recette::where('libelle', 'Wassa wassa')->firstOrFail()->composition_provisoire);
+        $this->assertSame(2, Plat::where('libelle', 'like', 'Panini%')->count());
+        $this->assertSame(0, Plat::where('libelle', 'Wassa wassa')->count(), 'plus de rubrique « Sur commande »');
         $this->assertSame(0, MouvementStock::count());
 
         // Les descriptions de l'affiche (colonne facultative « Description ») sont importées ;
@@ -278,7 +275,7 @@ final class ImportXlsxTest extends TestCase
         $this->assertSame(9, Plat::whereNotNull('description')->count());
         $this->assertSame('Sauce tomate, bœuf hachée, saucisse, fromage peuilh, fromage mozza', Plat::where('libelle', 'Pizza du gîte (grande)')->firstOrFail()->description);
         $this->assertSame('Viande de bœuf, saucisse', Plat::where('libelle', 'Chawarma mixte')->firstOrFail()->description);
-        $this->assertNull($surCommande->description);
+        $this->assertNull(Plat::where('libelle', 'Piron')->firstOrFail()->description);
     }
 
     #[Test]
@@ -295,8 +292,8 @@ final class ImportXlsxTest extends TestCase
         $this->assertSame($noms, array_values(array_unique($noms)), 'Aucun nom en double dans le fichier.');
         $this->assertContains('Panini jambon', $noms);
         $this->assertContains('Panini', $noms);
-        $this->assertContains('Panini (sur commande)', $noms);
-        $this->assertContains('Igname pilé (sur commande)', $noms);
+        $this->assertNotContains('Panini (sur commande)', $noms);
+        $this->assertNotContains('Igname pilé (sur commande)', $noms);
         $this->assertNotContains('Jus de banane', array_column($carte->lignes('m5-bar'), 'libelle'));
         $this->assertContains('Pommes sautées', $noms);
     }

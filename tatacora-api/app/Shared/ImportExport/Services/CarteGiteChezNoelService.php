@@ -33,12 +33,10 @@ use RuntimeException;
  *
  *  - Deux prix « a/b » : DEUX lignes — « Jus d'ananas (moyen) » 1500 et
  *    « Jus d'ananas (grand) » 2000 ; « Café simple » 500 et « Café double » 1000.
- *  - « Sur commande » : prix VIDE (m4 l'admet : plat entré à 0, prix provisoire).
  *  - Les descriptions (pizzas, chawarma, petits déjeuners) ne sont PAS importées :
  *    ni `plats` ni `cartes_boisson` n'ont de colonne « description ».
  *  - Doublon exact (Piron, affiches 4 et 6) : une seule ligne, listé par
  *    `doublonsEcartes()`. « Panini » et « Panini jambon » : DEUX lignes (PO).
- *    « Panini » et « Igname pilé » de « Sur commande » : suffixés « (sur commande) ».
  */
 class CarteGiteChezNoelService
 {
@@ -60,14 +58,7 @@ class CarteGiteChezNoelService
         'Pizzas' => 'pizzas',
         'Hamburger frites' => 'sandwicherie',
         'Petits déjeuners' => 'formules',
-        'Sur commande' => 'plats',
     ];
-
-    /** Un article « sur commande » qui n'est pas un plat. */
-    private const CATEGORIE_ARTICLE = ['hamburger' => 'sandwicherie'];
-
-    /** Rubrique dont les noms déjà pris ailleurs reçoivent ce suffixe (le contrôle refuse deux fois le même nom). */
-    private const SUFFIXE_SUR_COMMANDE = ' (sur commande)';
 
     /** @var list<array{nom: string, rubrique: string, retenu: string, groupe: string}> */
     private array $doublons = [];
@@ -140,12 +131,6 @@ class CarteGiteChezNoelService
             foreach ($rubrique['articles'] as $article) {
                 $nom = (string) $article['nom'];
 
-                // « Sur commande » : un nom déjà pris ailleurs (Panini, Igname pilé)
-                // est un autre article — suffixé plutôt qu'écarté (PO, 30/10/2026).
-                if ($rubrique['rubrique'] === 'Sur commande' && isset($vus[$this->cle($nom)])) {
-                    $nom .= self::SUFFIXE_SUR_COMMANDE;
-                }
-
                 $cle = $this->cle($nom);
 
                 if (isset($vus[$cle])) {
@@ -155,8 +140,7 @@ class CarteGiteChezNoelService
                 }
 
                 $vus[$cle] = $nom;
-                $categorie = self::CATEGORIE_ARTICLE[$this->cle((string) $article['nom'])]
-                    ?? self::CATEGORIES_RESTAURANT[(string) $rubrique['rubrique']]
+                $categorie = self::CATEGORIES_RESTAURANT[(string) $rubrique['rubrique']]
                     ?? throw new RuntimeException(__('imports.carte.rubrique_sans_categorie', ['rubrique' => $rubrique['rubrique']]));
 
                 $lignes[] = [
