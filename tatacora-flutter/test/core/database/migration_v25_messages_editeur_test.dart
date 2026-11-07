@@ -94,7 +94,13 @@ void main() {
         .getSingle();
     expect(
       (u.data['login'], u.data['role'], u.data['droits_json']),
-      ('admin', 'administrateur', '{"PARAM":"C"}'),
+      // v49 (03/11/2026) : la migration accorde AUSSI les trois droits du
+      // profil à l'administrateur, sans toucher à son réglage existant.
+      (
+        'admin',
+        'administrateur',
+        '{"PARAM":"C","PROFIL_NOM":"C","PROFIL_TELEPHONE":"C","PROFIL_INTITULE":"C"}',
+      ),
     );
     final c = await db
         .customSelect('SELECT nom, telephone FROM clients_local')

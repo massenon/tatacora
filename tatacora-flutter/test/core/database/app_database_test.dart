@@ -160,8 +160,11 @@ void main() {
     //
     // v47 (30/10/2026) : une colonne (`description` d'un plat), AUCUNE table —
     // le compte reste 78.
+    //
+    // v48 (03/11/2026, suppression de compte), v49 (profil) et v50
+    // (normalisation MECeF) : des COLONNES seulement, AUCUNE table — 78.
     expect(base.allTables.length, 78);
-    expect(base.schemaVersion, 49);
+    expect(base.schemaVersion, 50);
     expect(
       base.allTables.map((t) => t.actualTableName).toSet().containsAll({
         'origines_documents_local',
