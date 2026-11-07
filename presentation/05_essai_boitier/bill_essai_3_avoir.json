@@ -1,0 +1,22 @@
+{
+  "seller_id": "ESSAI01",
+  "seller_name": "RECEPTION ESSAI",
+  "buyer_name": "Client Exemple",
+  "aib": "N/A",
+  "payments": [
+    {
+      "mode": "E",
+      "amount": 100
+    }
+  ],
+  "products": [
+    {
+      "label": "Essai article taxable",
+      "tax": "B",
+      "price": 100,
+      "items": 1
+    }
+  ],
+  "rt": "FA",
+  "rn": "NIM_A_REMPLACER-TC_A_REMPLACER"
+}
