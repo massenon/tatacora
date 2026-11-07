@@ -27,6 +27,7 @@ import 'widgets/onglet_apparence.dart';
 import 'widgets/onglet_canaux.dart';
 import 'widgets/onglet_espaces_tables.dart';
 import 'widgets/onglet_synchronisation.dart';
+import 'widgets/section_facturation_normalisee.dart';
 
 // Les refus de la vue, DITS dans le code plutôt qu'affichés (la vue n'a plus de
 // section de refus à l'écran — directive du 31/08/2026). Ce sont des champs ou
@@ -51,6 +52,15 @@ import 'widgets/onglet_synchronisation.dart';
 //    réservation qui lit la table. Plus aucun jeton de refus pour cet onglet.)
 //
 
+// Facturation normalisée (07/11/2026) — refus DÉCLARÉS : le JETON e-MECeF se saisit,
+// s'efface et se teste AU SERVEUR (il est chiffré en base et ne descend jamais à un
+// poste, décision du PO) ; ce poste n'a ni client e-MECeF ni jeton à saisir. Il porte à
+// la place « Mentionner le jeton » (voir `MentionJetonMecef`) et ce qui n'existe que
+// sur le poste (réglage local, boîtier).
+//  - blade-refuse:transverse/parametres#mecef-jeton
+//  - blade-refuse:transverse/parametres#modale:parametres.mecef_jeton_libelle
+//  - blade-refuse:transverse/parametres#modale:parametres.mecef_jeton_effacer_titre
+//
 // Les libellés des champs viennent du serveur (registre `RegistreParametres`) :
 //  libelles-du-serveur:transverse/parametres
 
@@ -237,7 +247,9 @@ class _PageState extends ConsumerState<_Page> {
     Widget ligne(DefinitionParametre d) => _LigneParametre(
       key: Key('param-ligne-${d.cle}'),
       definition: d,
-      peutEcrire: peutEcrire,
+      // Le mode de facturation, l'adresse de l'API et l'opérateur se règlent au
+      // SERVEUR : ce poste les reçoit en lecture seule (pas de « Modifier »).
+      peutEcrire: peutEcrire && d.groupe != 'mecef',
       onModifier: () => _modifier(d),
     );
 
@@ -249,6 +261,7 @@ class _PageState extends ConsumerState<_Page> {
         final legal = de(
           (d) => _clesLegales.contains(d.cle) || d.groupe == 'fiscalite',
         );
+        final mecef = de((d) => d.groupe == 'mecef');
         return _Grille(
           enfants: [
             // Apostrophe DROITE, comme la vue (le panneau supprimé le 09/10/2026 la portait
@@ -258,6 +271,16 @@ class _PageState extends ConsumerState<_Page> {
               _Cellule(pleine: d.cle == _cleAdresse, enfant: ligne(d)),
             const _TitreSection('Informations légales & fiscales', filet: true),
             for (final d in legal) _Cellule(enfant: ligne(d)),
+            // FACTURATION NORMALISÉE (07/11/2026) : le mode et les réglages non
+            // secrets (reçus du serveur, en lecture), le jeton (jamais reçu), puis
+            // ce qui n'existe que sur ce poste : le réglage local et le boîtier.
+            const _TitreSection(
+              TextesFacturationPoste.titreSection,
+              filet: true,
+            ),
+            for (final d in mecef) _Cellule(enfant: ligne(d)),
+            const _Cellule(pleine: true, enfant: MentionJetonMecef()),
+            const _Cellule(pleine: true, enfant: CarteBoitierPoste()),
           ],
         );
       case 'communication':

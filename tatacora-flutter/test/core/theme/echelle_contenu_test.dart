@@ -208,6 +208,11 @@ void main() {
     // (29/10/2026) : portées par l'onglet ci-dessus, dans `<main>` — échelle
     // EFFECTIVE.
     'lib/features/parametres/presentation/widgets/cartes_adresse_serveur.dart',
+    // La section « Facturation normalisée (MECeF) » (07/11/2026) : le jeton (mention),
+    // le réglage local et la carte du boîtier, dans la carte du panneau
+    // `@if ($onglet === 'identite')` de la vue de Paramètres, dans `<main>` —
+    // échelle EFFECTIVE.
+    'lib/features/parametres/presentation/widgets/section_facturation_normalisee.dart',
     // L'onglet « Logo & Apparence » (21/10/2026) : le panneau
     // `@elseif ($onglet === 'apparence')` de la vue de Paramètres, dans
     // `<main>` — échelle EFFECTIVE. Sa modale n'emploie que les styles de

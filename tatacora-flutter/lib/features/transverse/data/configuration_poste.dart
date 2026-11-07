@@ -208,6 +208,24 @@ class LecteurConfigurationPoste {
     return v is int ? v : null;
   }
 
+  /// L'adresse du pilote du boîtier choisie sur ce poste, ou `null` (le défaut
+  /// `http://localhost:38917` s'applique).
+  Future<String?> adresseBoitier() async {
+    final contenu = await _lireObjet(await _chemin());
+    final v = contenu?[cleFacturationBoitierAdresse];
+    return v is String && v.trim().isNotEmpty ? v.trim() : null;
+  }
+
+  /// La surcharge locale du mode de facturation : `serveur`, `boitier`, `rien`,
+  /// ou `null` (suivre le serveur). Une valeur inconnue se lit `null`.
+  Future<String?> surchargeFacturation() async {
+    final contenu = await _lireObjet(await _chemin());
+    final v = contenu?[cleFacturationSurcharge];
+    return v is String && const ['serveur', 'boitier', 'rien'].contains(v)
+        ? v
+        : null;
+  }
+
   /// Qui a désactivé la synchronisation, et quand (`null` : activée, ou
   /// désactivée avant que l'on consigne qui).
   Future<({String? par, DateTime? le})> desactivation() async {
@@ -239,6 +257,14 @@ const String cleServeurModifiePar = 'serveur_modifie_par';
 /// La fréquence du réveil périodique, en minutes (`0` : manuelle seulement).
 /// Absente : 5 minutes. Par poste, comme l'interrupteur.
 const String cleFrequenceSynchronisation = 'synchronisation_frequence_minutes';
+
+/// Facturation normalisée (07/11/2026) : l'adresse du PILOTE du boîtier CC300
+/// (`http://localhost:38917` quand la clé est absente), modifiable sans
+/// recompiler comme l'adresse du serveur ; et la SURCHARGE LOCALE « ce poste
+/// certifie par » (`serveur` / `boitier` / `rien`, absente : le mode du
+/// serveur). Par poste : le boîtier n'existe que sur ce poste. Jamais de secret.
+const String cleFacturationBoitierAdresse = 'facturation_boitier_adresse';
+const String cleFacturationSurcharge = 'facturation_surcharge';
 
 /// Le contenu de `poste.json`, ou `null` s'il est absent ou n'est pas un objet
 /// JSON.
@@ -443,6 +469,28 @@ class EcrivainConfigurationPoste {
           contenu.remove(cleFrequenceSynchronisation);
         } else {
           contenu[cleFrequenceSynchronisation] = minutes;
+        }
+      });
+
+  /// Enregistre l'adresse du pilote du boîtier (déjà validée) ; `null` retire
+  /// la clé : le défaut s'applique.
+  Future<void> enregistrerAdresseBoitier(String? adresse) =>
+      _modifier((contenu) {
+        if (adresse == null) {
+          contenu.remove(cleFacturationBoitierAdresse);
+        } else {
+          contenu[cleFacturationBoitierAdresse] = adresse;
+        }
+      });
+
+  /// Enregistre la surcharge locale du mode (`serveur`, `boitier`, `rien`) ;
+  /// `null` retire la clé : le poste suit le serveur.
+  Future<void> enregistrerSurchargeFacturation(String? surcharge) =>
+      _modifier((contenu) {
+        if (surcharge == null) {
+          contenu.remove(cleFacturationSurcharge);
+        } else {
+          contenu[cleFacturationSurcharge] = surcharge;
         }
       });
 

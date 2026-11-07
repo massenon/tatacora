@@ -92,6 +92,46 @@
                 "valeur": null
             },
             {
+                "cle": "facturation_mode",
+                "groupe": "mecef",
+                "libelle": "Mode",
+                "type": "choix",
+                "choix": [
+                    "desactive",
+                    "emecef",
+                    "boitier"
+                ],
+                "aide": "Désactivé : factures de démonstration, sans valeur fiscale. e-MECeF : le serveur certifie par l’API de la DGI (réseau exigé). Boîtier CC300 : le poste de la réception certifie par le boîtier branché en USB, même hors ligne. Réservé aux Administrateurs.",
+                "valeur": null
+            },
+            {
+                "cle": "mecef_api_url",
+                "groupe": "mecef",
+                "libelle": "Adresse de l’API de la DGI",
+                "type": "texte",
+                "choix": [],
+                "aide": "https:// exigé. Vide : developper.impots.bj/sygmef-emcf/api (adresse de la DGI).",
+                "valeur": null
+            },
+            {
+                "cle": "mecef_operateur_id",
+                "groupe": "mecef",
+                "libelle": "Identifiant de l’opérateur",
+                "type": "texte",
+                "choix": [],
+                "aide": null,
+                "valeur": null
+            },
+            {
+                "cle": "mecef_operateur_nom",
+                "groupe": "mecef",
+                "libelle": "Nom de l’opérateur",
+                "type": "texte",
+                "choix": [],
+                "aide": "30 caractères au plus (limite du boîtier).",
+                "valeur": null
+            },
+            {
                 "cle": "tva_active",
                 "groupe": "fiscalite",
                 "libelle": "Assujettissement à la TVA",

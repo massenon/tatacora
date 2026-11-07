@@ -88,13 +88,15 @@ void main() {
   final serveur = RegistreServeur.charger();
   final locales = RegistreParametresLocal.definitions;
 
-  test('le balayage n’est pas vide : 46 définitions côté serveur', () {
-    // 46 = 10 identité + 4 fiscalité + 5 social + 5 exploitation + 4 email
-    // + 3 activation + 15 correspondance des comptes (26/10/2026, une clé
-    // `compte_<rôle>` par rôle). Le compte est écrit pour que le test échoue
-    // si la lecture de PHP rendait une liste vide ou tronquée.
-    expect(serveur.definitions.length, 46);
-    expect(locales.length, 46);
+  test('le balayage n’est pas vide : 50 définitions côté serveur', () {
+    // 50 = 10 identité + 4 facturation normalisée (07/11/2026 : mode, adresse
+    // de l'API, deux champs de l'opérateur) + 4 fiscalité + 5 social + 5
+    // exploitation + 4 email + 3 activation + 15 correspondance des comptes
+    // (26/10/2026, une clé `compte_<rôle>` par rôle). Le compte est écrit
+    // pour que le test échoue si la lecture de PHP rendait une liste vide ou
+    // tronquée.
+    expect(serveur.definitions.length, 50);
+    expect(locales.length, 50);
     expect(
       serveur.definitions.where((d) => d['groupe'] == 'comptes'),
       hasLength(15),
@@ -151,6 +153,10 @@ void main() {
         // celle de `RegleNumeroCompte` : une seule règle des deux côtés.
         regles.contains('regex:/${RegleNumeroCompte.format.pattern}/')
             ? FormatTexte.numeroCompte
+            : regles.contains(r'regex:/^[0-9]{13}$/')
+            ? FormatTexte.ifu
+            : regles.any((r) => r.startsWith(r'regex:/^https:'))
+            ? FormatTexte.urlHttps
             : regles.any((r) => r.startsWith('regex:'))
             ? FormatTexte.telephone
             : regles.any((r) => r.startsWith('email'))
@@ -285,7 +291,7 @@ void main() {
       // 2 = 29.
       // 13 + 10 + 4 + 2 = 29, plus les DOUZE rôles de la correspondance des
       // comptes que le moteur de ce poste lit (26/10/2026) : 41.
-      expect(verifies, 41);
+      expect(verifies, 44);
     });
 
     test('5 clés n’ont AUCUN lecteur sur ce poste, et c’est dit', () {
@@ -304,6 +310,9 @@ void main() {
       // écran le dit (`TextesCorrespondancePoste.serveurSeul`).
       expect(sansLecteur, [
         'entreprise_numero_mecef',
+        // Seul le SERVEUR appelle l'API de la DGI (07/11/2026) : aucun module de
+        // ce poste ne lit son adresse.
+        'mecef_api_url',
         'duree_retention_audit_jours',
         'compte_tva_recuperable_achats',
         'compte_resultat_benefice',
@@ -356,7 +365,7 @@ void main() {
         );
         balayees++;
       }
-      expect(balayees, 41, reason: 'balayage non vide');
+      expect(balayees, 44, reason: 'balayage non vide');
     });
 
     test('chaque exemption NOMME réellement sa clé : une exemption périmée '

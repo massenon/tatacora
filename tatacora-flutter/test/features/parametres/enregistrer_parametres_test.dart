@@ -76,7 +76,7 @@ void main() {
 
   group('refus — et RIEN n’est écrit', () {
     test('sans le droit PARAM en écriture : refus, aucune ligne', () async {
-      final r = await ecrire({'entreprise_ifu': '123'}, droit: false);
+      final r = await ecrire({'entreprise_promoteur': '123'}, droit: false);
       expect(refus(r), refusDroitParametres);
       expect(
         refusDroitParametres,
@@ -101,7 +101,10 @@ void main() {
 
     test('une clé inconnue dans un lot refuse le lot ENTIER : la clé valide '
         'voisine n’est pas écrite', () async {
-      final r = await ecrire({'entreprise_ifu': '123', 'cle_fantome': 'x'});
+      final r = await ecrire({
+        'entreprise_promoteur': '123',
+        'cle_fantome': 'x',
+      });
       expect((r as EcritureRefusee).parCle.keys, ['cle_fantome']);
       expect(await ordinaires(), isEmpty);
     });
@@ -153,10 +156,10 @@ void main() {
     test(
       'qui et quand : modifiePar et modifieLe sont ceux de la saisie',
       () async {
-        await ecrire({'entreprise_ifu': '3202612345678'});
+        await ecrire({'entreprise_promoteur': '3202612345678'});
 
         final l = await db.select(db.parametresSystemeLocal).getSingle();
-        expect(l.cle, 'entreprise_ifu');
+        expect(l.cle, 'entreprise_promoteur');
         expect(l.modifiePar, 'u-1');
         expect(l.modifieLe, DateTime(2026, 10, 9, 8));
       },
@@ -164,10 +167,10 @@ void main() {
 
     test('une clé inchangée n’est PAS réécrite : son horodatage et son auteur '
         'restent ceux de la dernière vraie modification', () async {
-      await ecrire({'entreprise_ifu': '111'});
+      await ecrire({'entreprise_promoteur': '111'});
       horloge = DateTime(2026, 10, 9, 17);
 
-      final r = await ecrire({'entreprise_ifu': '111'});
+      final r = await ecrire({'entreprise_promoteur': '111'});
 
       expect(modifiees(r), isEmpty);
       expect((r as EcritureAcceptee).message, 'Aucune valeur modifiée.');
@@ -177,17 +180,20 @@ void main() {
 
     test('un lot ne touche QUE ses clés : une autre clé, déjà saisie, est '
         'intacte (aucun renvoi du formulaire entier)', () async {
-      await ecrire({'entreprise_ifu': '111', 'entreprise_rccm': 'RB/1'});
+      await ecrire({'entreprise_promoteur': '111', 'entreprise_rccm': 'RB/1'});
       horloge = DateTime(2026, 10, 9, 17);
 
-      await ecrire({'entreprise_ifu': '222'});
+      await ecrire({'entreprise_promoteur': '222'});
 
       final lignes = {
         for (final l in await db.select(db.parametresSystemeLocal).get())
           l.cle: l,
       };
-      expect(lignes['entreprise_ifu']!.valeur, '222');
-      expect(lignes['entreprise_ifu']!.modifieLe, DateTime(2026, 10, 9, 17));
+      expect(lignes['entreprise_promoteur']!.valeur, '222');
+      expect(
+        lignes['entreprise_promoteur']!.modifieLe,
+        DateTime(2026, 10, 9, 17),
+      );
       expect(lignes['entreprise_rccm']!.valeur, 'RB/1');
       expect(lignes['entreprise_rccm']!.modifieLe, DateTime(2026, 10, 9, 8));
     });
@@ -195,22 +201,24 @@ void main() {
     test(
       'vider SUPPRIME la ligne : la clé redevient « non renseignée »',
       () async {
-        await ecrire({'entreprise_ifu': '111'});
+        await ecrire({'entreprise_promoteur': '111'});
 
-        final r = await ecrire({'entreprise_ifu': ''});
+        final r = await ecrire({'entreprise_promoteur': ''});
 
-        expect(modifiees(r), ['entreprise_ifu']);
+        expect(modifiees(r), ['entreprise_promoteur']);
         expect(await ordinaires(), isEmpty);
         final lu = await cas.lire();
         expect(
-          lu.definitions.firstWhere((d) => d.cle == 'entreprise_ifu').valeur,
+          lu.definitions
+              .firstWhere((d) => d.cle == 'entreprise_promoteur')
+              .valeur,
           isNull,
         );
       },
     );
 
     test('vider une clé déjà vide n’écrit rien', () async {
-      final r = await ecrire({'entreprise_ifu': ''});
+      final r = await ecrire({'entreprise_promoteur': ''});
       expect(modifiees(r), isEmpty);
     });
   });
@@ -218,10 +226,10 @@ void main() {
   group('routage — un taux de la paie a UN auteur, taux_paie_local', () {
     test('un taux social part dans taux_paie_local, jamais dans '
         'parametres_systeme_local', () async {
-      final r = await ecrire({'taux_vps': '5', 'entreprise_ifu': '111'});
+      final r = await ecrire({'taux_vps': '5', 'entreprise_promoteur': '111'});
 
-      expect(modifiees(r)..sort(), ['entreprise_ifu', 'taux_vps']);
-      expect(await ordinaires(), {'entreprise_ifu': '111'});
+      expect(modifiees(r)..sort(), ['entreprise_promoteur', 'taux_vps']);
+      expect(await ordinaires(), {'entreprise_promoteur': '111'});
       expect((await tauxPaie())['taux_vps'], '5');
     });
 
@@ -297,7 +305,10 @@ void main() {
       // Un auteur inconnu viole la clé étrangère de `modifie_par` APRÈS que le
       // taux de la paie ait été écrit (le dépôt écrit la paie d'abord).
       await expectLater(
-        ecrire({'taux_vps': '6', 'entreprise_ifu': '111'}, auteur: 'u-inconnu'),
+        ecrire({
+          'taux_vps': '6',
+          'entreprise_promoteur': '111',
+        }, auteur: 'u-inconnu'),
         throwsA(anything),
       );
 
@@ -308,11 +319,11 @@ void main() {
 
   group('lecture — ce que l’écran affiche', () {
     test(
-      'base vide : 46 définitions, AUCUNE valeur, rien de plausible',
+      'base vide : 50 définitions, AUCUNE valeur, rien de plausible',
       () async {
         final lu = await cas.lire();
 
-        expect(lu.definitions.length, 46);
+        expect(lu.definitions.length, 50);
         expect(lu.definitions.where((d) => d.valeur != null), isEmpty);
       },
     );
@@ -386,7 +397,7 @@ void main() {
         lu.definitions.map((d) => d.cle),
         isNot(contains('cle_posee_a_la_main')),
       );
-      expect(lu.definitions.length, 46);
+      expect(lu.definitions.length, 50);
       // Le dépôt lui-même ne la remonte pas : c'est lui qui nourrit la
       // cohérence et les badges, pas seulement l'écran.
       expect(
@@ -398,11 +409,11 @@ void main() {
 
   group('le cas d’usage n’envoie au stockage QUE les clés qui changent', () {
     test('un lot mixte : la clé inchangée n’atteint pas le stockage', () async {
-      final espion = _Espion({'entreprise_ifu': '111'});
+      final espion = _Espion({'entreprise_promoteur': '111'});
       final cas = EnregistrerParametres(espion);
 
       final r = await cas.executer(
-        {'entreprise_ifu': '111', 'entreprise_rccm': 'RB/1'},
+        {'entreprise_promoteur': '111', 'entreprise_rccm': 'RB/1'},
         peutEcrire: true,
         auteurId: null,
       );
@@ -414,11 +425,11 @@ void main() {
     });
 
     test('un lot sans aucun changement n’appelle PAS le stockage', () async {
-      final espion = _Espion({'entreprise_ifu': '111'});
+      final espion = _Espion({'entreprise_promoteur': '111'});
       final cas = EnregistrerParametres(espion);
 
       final r = await cas.executer(
-        {'entreprise_ifu': ' 111 '},
+        {'entreprise_promoteur': ' 111 '},
         peutEcrire: true,
         auteurId: null,
       );
@@ -429,9 +440,11 @@ void main() {
 
     test('vider une clé absente n’appelle pas le stockage non plus', () async {
       final espion = _Espion({});
-      await EnregistrerParametres(
-        espion,
-      ).executer({'entreprise_ifu': ''}, peutEcrire: true, auteurId: null);
+      await EnregistrerParametres(espion).executer(
+        {'entreprise_promoteur': ''},
+        peutEcrire: true,
+        auteurId: null,
+      );
       expect(espion.ecritures, isEmpty);
     });
   });

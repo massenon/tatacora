@@ -28,6 +28,14 @@ abstract interface class StockageParametres {
 const String refusDroitParametres =
     'Vous n’avez pas le droit de modifier les paramètres du système.';
 
+/// Le mode de la facturation normalisée, l'adresse de l'API de la DGI et
+/// l'opérateur se règlent au SERVEUR : ce poste les reçoit en lecture seule
+/// (le serveur écarte d'ailleurs ces clés d'un envoi de poste).
+String refusReglageDuServeur(String libelle) =>
+    '« $libelle » se règle au serveur, par un Administrateur : ce poste le '
+    'reçoit en lecture seule. Pour que CE poste certifie autrement, utilisez '
+    '« Ce poste certifie par ».';
+
 String refusCleInconnue(String cle) =>
     'Le paramètre « $cle » n’existe pas. Aucun paramètre n’est créé depuis '
     'cet écran : une clé que rien ne lit donnerait l’illusion d’un réglage '
@@ -101,6 +109,10 @@ class EnregistrerParametres {
       final spec = RegistreParametresLocal.parCle(e.key);
       if (spec == null) {
         erreurs[e.key] = refusCleInconnue(e.key);
+        continue;
+      }
+      if (spec.serveurSeulement) {
+        erreurs[e.key] = refusReglageDuServeur(spec.libelle);
         continue;
       }
       switch (normaliser(spec, e.value)) {

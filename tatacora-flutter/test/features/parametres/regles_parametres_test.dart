@@ -136,12 +136,24 @@ void main() {
         valeur(normaliser(spec('entreprise_email'), 'gite@exemple.bj')),
         'gite@exemple.bj',
       );
-      expect(valeur(normaliser(spec('entreprise_ifu'), 'A' * 30)), 'A' * 30);
+      expect(valeur(normaliser(spec('entreprise_rccm'), 'A' * 30)), 'A' * 30);
       expect(
-        valeur(normaliser(spec('entreprise_ifu'), 'A' * 31)),
-        'REFUS: « IFU (Identifiant Fiscal Unique) » ne peut pas dépasser 30 '
-        'caractères.',
+        valeur(normaliser(spec('entreprise_rccm'), 'A' * 31)),
+        'REFUS: « RCCM » ne peut pas dépasser 30 caractères.',
       );
+      // L'IFU compte 13 chiffres (facturation normalisée, 07/11/2026) : ni 12,
+      // ni 14, ni une lettre.
+      expect(
+        valeur(normaliser(spec('entreprise_ifu'), '3202612345678')),
+        '3202612345678',
+      );
+      for (final faux in ['320261234567', '32026123456789', '32026123456A8']) {
+        expect(
+          valeur(normaliser(spec('entreprise_ifu'), faux)),
+          'REFUS: L’IFU doit compter exactement 13 chiffres.',
+          reason: faux,
+        );
+      }
     });
 
     test('vider : « non renseigné », jamais une chaîne vide ni un défaut', () {

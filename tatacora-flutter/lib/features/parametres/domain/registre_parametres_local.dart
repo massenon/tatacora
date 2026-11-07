@@ -55,6 +55,14 @@ enum FormatTexte {
   /// validation complète (existence au plan, classe du rôle, compte imputable)
   /// est celle de la correspondance des comptes, pas celle d'un texte.
   numeroCompte,
+
+  /// `regex:/^[0-9]{13}$/` du serveur (`ReglagesMecef::FORMAT_IFU`) — l'IFU
+  /// béninois : 13 chiffres. Le même IFU sert le boîtier et e-MECeF.
+  ifu,
+
+  /// `regex:/^https:\/\/[^\s]+$/i` du serveur — l'adresse de l'API de la DGI :
+  /// `https://` exigé.
+  urlHttps,
 }
 
 /// Pourquoi un taux confirmé de la paie ne peut pas être vidé.
@@ -83,6 +91,7 @@ final class SpecParametre {
     this.format = FormatTexte.libre,
     this.videRefuse,
     this.lecteur,
+    this.serveurSeulement = false,
   });
 
   final String cle;
@@ -108,6 +117,12 @@ final class SpecParametre {
 
   /// Le fichier qui LIT cette clé sur ce poste, ou `null` si personne.
   final String? lecteur;
+
+  /// Réglé au SERVEUR par un administrateur et reçu ici en LECTURE : ce poste
+  /// n'écrit jamais cette clé (le mode de facturation normalisée, l'adresse de
+  /// l'API de la DGI, l'opérateur). Le serveur écarte d'ailleurs ces clés d'un
+  /// envoi de poste (`GestionnaireParametres`).
+  final bool serveurSeulement;
 }
 
 /// Le registre fermé.
@@ -208,7 +223,8 @@ abstract final class RegistreParametresLocal {
       type: TypeParametre.texte,
       aide:
           'L’IFU est obligatoire pour la facturation MECeF. Laissé vide, la mention n’apparaît sur aucun document : imprimer un exemple de format serait un faux identifiant fiscal.',
-      longueurMax: 30,
+      // 13 chiffres depuis le 07/11/2026 (facturation normalisée), comme le serveur.
+      format: FormatTexte.ifu,
       lecteur: 'lib/core/impression/entete_etablissement.dart',
     ),
     SpecParametre(
@@ -228,6 +244,50 @@ abstract final class RegistreParametresLocal {
       aide:
           'Fourni par la DGI. Identifiant, donc paramétrable — la CLÉ D’API MECeF, elle, vit en configuration serveur et n’apparaîtra jamais ici.',
       longueurMax: 30,
+    ),
+    // --- Facturation normalisée (MECeF), 07/11/2026 : réglée au SERVEUR, reçue ici
+    // en lecture. Le JETON e-MECeF n'est PAS au registre et ne descend jamais.
+    SpecParametre(
+      cle: 'facturation_mode',
+      groupe: 'mecef',
+      libelle: 'Mode',
+      type: TypeParametre.choix,
+      choix: ['desactive', 'emecef', 'boitier'],
+      aide:
+          'Désactivé : factures de démonstration, sans valeur fiscale. e-MECeF : le serveur certifie par l’API de la DGI (réseau exigé). Boîtier CC300 : le poste de la réception certifie par le boîtier branché en USB, même hors ligne. Réservé aux Administrateurs.',
+      lecteur: 'lib/features/facturation/domain/mode_facturation.dart',
+      serveurSeulement: true,
+    ),
+    SpecParametre(
+      cle: 'mecef_api_url',
+      groupe: 'mecef',
+      libelle: 'Adresse de l’API de la DGI',
+      type: TypeParametre.texte,
+      aide:
+          'https:// exigé. Vide : developper.impots.bj/sygmef-emcf/api (adresse de la DGI).',
+      longueurMax: 255,
+      format: FormatTexte.urlHttps,
+      // Aucun lecteur sur ce poste : seul le SERVEUR appelle l'API de la DGI.
+      serveurSeulement: true,
+    ),
+    SpecParametre(
+      cle: 'mecef_operateur_id',
+      groupe: 'mecef',
+      libelle: 'Identifiant de l’opérateur',
+      type: TypeParametre.texte,
+      longueurMax: 30,
+      lecteur: 'lib/features/facturation/data/service_normalisation.dart',
+      serveurSeulement: true,
+    ),
+    SpecParametre(
+      cle: 'mecef_operateur_nom',
+      groupe: 'mecef',
+      libelle: 'Nom de l’opérateur',
+      type: TypeParametre.texte,
+      aide: '30 caractères au plus (limite du boîtier).',
+      longueurMax: 30,
+      lecteur: 'lib/features/facturation/data/service_normalisation.dart',
+      serveurSeulement: true,
     ),
     SpecParametre(
       cle: 'tva_active',

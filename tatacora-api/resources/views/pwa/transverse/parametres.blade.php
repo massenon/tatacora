@@ -192,7 +192,7 @@
                 @include('pwa.transverse._parametre_ligne', ['ligne' => $ligne, 'colspan' => false, 'peutEcrire' => $peutSaisirSecret])
               @endforeach
 
-              <div class="groupe-champ sm:col-span-2" id="mecef-jeton">
+              <div class="groupe-champ sm:col-span-2" id="mecef-jeton" data-panneau="mecef-jeton">
                 <p class="block text-[15px] font-semibold text-slate-700 mb-1.5">{{ __('pwa.parametres.mecef_jeton_libelle') }}</p>
                 {{-- La SAISIE du jeton vit dans une modale (aucun champ au premier GET,
                      Article 6) ; l'écran ne montre que l'ÉTAT. --}}

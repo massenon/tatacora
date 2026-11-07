@@ -198,6 +198,74 @@
             {
                 "type": "p",
                 "texte": "Imprimé avec l’IFU et le RCCM dans les mentions légales des états quand il est renseigné."
+            },
+            {
+                "type": "h3",
+                "texte": "Facturation normalisée (MECeF)"
+            },
+            {
+                "type": "p",
+                "texte": "Mode"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "p",
+                "texte": "Désactivé : factures de démonstration, sans valeur fiscale. e-MECeF : le serveur certifie par l’API de la DGI (réseau exigé). Boîtier CC300 : le poste de la réception certifie par le boîtier branché en USB, même hors ligne. Réservé aux Administrateurs."
+            },
+            {
+                "type": "p",
+                "texte": "Adresse de l’API de la DGI"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "p",
+                "texte": "https:// exigé. Vide : developper.impots.bj/sygmef-emcf/api (adresse de la DGI)."
+            },
+            {
+                "type": "p",
+                "texte": "Identifiant de l’opérateur"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "p",
+                "texte": "Nom de l’opérateur"
+            },
+            {
+                "type": "button",
+                "texte": "Modifier"
+            },
+            {
+                "type": "p",
+                "texte": "30 caractères au plus (limite du boîtier)."
+            },
+            {
+                "type": "p",
+                "texte": "Jeton JWT e-MECeF"
+            },
+            {
+                "type": "button",
+                "texte": "Saisir un nouveau jeton"
+            },
+            {
+                "type": "p",
+                "texte": "Aucun jeton enregistré."
+            },
+            {
+                "type": "p",
+                "texte": "Le jeton est rangé chiffré sur le serveur : il n’est jamais réaffiché ni envoyé aux postes. Pour le remplacer, saisissez-en un nouveau."
+            },
+            {
+                "type": "button",
+                "texte": "Tester la connexion"
             }
         ],
         "communication": [

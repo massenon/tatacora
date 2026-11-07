@@ -151,14 +151,18 @@ void main() {
 
   testWidgets('vider un IFU erroné est POSSIBLE : la ligne disparaît, le champ '
       'redevient « — »', (tester) async {
+    // Un IFU d'AVANT la règle des 13 chiffres (07/11/2026) : il ne peut plus être
+    // saisi, mais il peut être vidé.
+    await db
+        .into(db.parametresSystemeLocal)
+        .insert(
+          ParametresSystemeLocalCompanion.insert(
+            cle: 'entreprise_ifu',
+            valeur: 'FAUX',
+            modifieLe: DateTime(2026, 10, 9),
+          ),
+        );
     await monter(tester);
-    await modifier(tester, 'entreprise_ifu');
-    await tester.enterText(
-      find.byKey(const Key('param-champ-entreprise_ifu')),
-      'FAUX',
-    );
-    await tester.pump();
-    await enregistrer(tester);
     expect(texteDans('entreprise_ifu', 'FAUX'), findsOneWidget);
 
     await modifier(tester, 'entreprise_ifu');

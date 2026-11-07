@@ -13,6 +13,7 @@ library;
 
 import '../../comptabilite/domain/messages_comptables.dart';
 import '../../comptabilite/domain/regle_numero_compte.dart';
+import '../../facturation/domain/mode_facturation.dart';
 import 'entities/parametre.dart';
 import 'registre_parametres_local.dart';
 
@@ -152,6 +153,21 @@ Normalisation normaliser(SpecParametre spec, Object? brut) {
           '« ${spec.libelle} » n’est pas une adresse électronique valide.',
         );
       }
+      // L'IFU : 13 chiffres (`ReglagesMecef::FORMAT_IFU` du serveur).
+      if (spec.format == FormatTexte.ifu &&
+          !RegExp(r'^[0-9]{13}$').hasMatch(texte)) {
+        return const ValeurRefusee(
+          'L’IFU doit compter exactement 13 chiffres.',
+        );
+      }
+      // L'adresse de l'API de la DGI : https:// exigé.
+      if (spec.format == FormatTexte.urlHttps &&
+          !RegExp(r'^https://[^\s]+$', caseSensitive: false).hasMatch(texte)) {
+        return ValeurRefusee(
+          '« ${spec.libelle} » doit commencer par https:// et ne contenir '
+          'aucun espace.',
+        );
+      }
       // Le numéro d'un compte de la correspondance : LA règle du plan
       // (`RegleNumeroCompte`, `PlanComptableService::NUMERO_COMPTE_FORMAT`), et
       // la phrase du serveur, mot pour mot.
@@ -279,6 +295,9 @@ abstract final class CodesEtat {
   // MECeF.
   static const String mecefNonConfiguree = 'non_configuree';
   static const String mecefEnAttente = 'en_attente_implementation';
+  // Facturation normalisée (07/11/2026) : l'état dérive du MODE reçu du serveur.
+  static const String mecefBoitierAuPoste = 'boitier_au_poste';
+  static const String mecefEmecefAuServeur = 'emecef_au_serveur';
 }
 
 const Map<String, String> libellesEtat = {
@@ -304,6 +323,16 @@ const Map<String, String> libellesEtat = {
       'Configuration complète, mais le client MECeF réel n’est pas encore '
       'implémenté : les factures mentionnent l’attente d’inscription auprès '
       'de la DGI.',
+  // Les mêmes mots que le serveur (`parametres.etats.mecef.boitier_au_poste`).
+  CodesEtat.mecefBoitierAuPoste:
+      'Mode boîtier CC300 : la normalisation se fait sur le poste de la '
+      'réception ; le serveur ne certifie pas.',
+  // ÉCART NOMMÉ : le serveur dit « emecef_actif / emecef_incomplet » parce qu'il
+  // connaît son jeton ; ce poste ne le reçoit jamais et ne peut donc pas
+  // affirmer que la configuration est complète.
+  CodesEtat.mecefEmecefAuServeur:
+      'Mode e-MECeF : le serveur certifie par l’API de la DGI ; ce poste n’en '
+      'vérifie pas la configuration (le jeton ne lui est jamais envoyé).',
 };
 
 EtatDerive _etat(String code) =>
@@ -334,7 +363,17 @@ EtatDerive etatTva(Map<String, String> valeurs) {
 /// L'état de MECeF. Il n'est JAMAIS « actif » sur ce poste : aucun client
 /// MECeF n'est implémenté (PA-17, l'inscription DGI n'est pas faite). Renseigner
 /// le numéro contribuable ne certifie rien.
-EtatDerive etatMecef(Map<String, String> valeurs) =>
-    _vide(valeurs[ClesFiscales.numeroMecef])
-    ? _etat(CodesEtat.mecefNonConfiguree)
-    : _etat(CodesEtat.mecefEnAttente);
+EtatDerive etatMecef(Map<String, String> valeurs) {
+  // Un mode RÉEL choisi au serveur prime sur l'état historique.
+  switch (modeDesParametres(valeurs)) {
+    case ModeFacturation.boitier:
+      return _etat(CodesEtat.mecefBoitierAuPoste);
+    case ModeFacturation.emecef:
+      return _etat(CodesEtat.mecefEmecefAuServeur);
+    case ModeFacturation.desactive:
+      break;
+  }
+  return _vide(valeurs[ClesFiscales.numeroMecef])
+      ? _etat(CodesEtat.mecefNonConfiguree)
+      : _etat(CodesEtat.mecefEnAttente);
+}
