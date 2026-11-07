@@ -455,6 +455,11 @@
                         <td class="px-3 py-2 text-right text-slate-400">{{ MontantFcfa::TIRET }}</td>
                         <td class="px-3 py-2 text-right text-slate-400">{{ MontantFcfa::TIRET }}</td>
                         <td class="px-3 py-2 text-right">
+                          {{-- Proforma prérempli depuis la réservation de circuit (PO, 07/11/2026). --}}
+                          @if (auth()->user()?->niveauSurModule('M2') === 'C' && ! $estAnnulee)
+                            <a href="{{ route('pwa.facturation.proformas', ['flux' => 'tourisme', 'source' => $r->id]) }}" wire:navigate
+                               class="text-[11px] px-2 py-0.5 rounded border border-slate-300 hover:bg-white">{{ __('proforma.ui.creer_depuis_module') }}</a>
+                          @endif
                           @if ($peutEcrire && ! $estAnnulee)
                             <button type="button" wire:click="confirmerArchivage('reservation', '{{ $r->id }}')"
                                     class="text-[11px] px-2 py-0.5 rounded border border-slate-300 hover:bg-white">{{ __('tourisme.pwa.annuler') }}</button>

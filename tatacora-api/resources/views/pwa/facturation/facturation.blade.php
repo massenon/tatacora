@@ -100,6 +100,9 @@
                      `App\Pwa\Support\DerogationsMaquette`
                      (export_bouton_unique).
                      Jeton : maitre-refuse:m2-facturation.html#page --}}
+                {{-- Factures proforma (PO, 07/11/2026) : écran propre, document non fiscal. --}}
+                <a href="{{ route('pwa.facturation.proformas') }}" wire:navigate
+                   class="text-[13px] px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50">{{ __('proforma.ui.proformas_lien') }}</a>
                 <button type="button" wire:click="ouvrirExport"
                         class="text-[13px] px-3 py-1.5 rounded-lg border border-slate-300 hover:bg-slate-50">{{ __('pwa.export.bouton') }}</button>
               </div>

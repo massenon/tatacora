@@ -31,6 +31,7 @@ use App\Pwa\Livewire\Depenses\Depenses;
 use App\Pwa\Livewire\Etats\Etats;
 use App\Pwa\Livewire\Etats\EtatsStudio;
 use App\Pwa\Livewire\Facturation\Facturation;
+use App\Pwa\Livewire\Facturation\Proformas;
 use App\Pwa\Livewire\Hebergement\Hebergement as PwaHebergement;
 use App\Pwa\Livewire\Hebergement\Reservations as PwaReservations;
 use App\Pwa\Livewire\Notifications\Hub as NotificationsHub;
@@ -518,6 +519,14 @@ final class PwaActionsReluesTest extends TestCase
 
         // M2 — l'avoir est le SEUL geste d'ecriture de la facturation :
         // RG-03 fige une facture emise, la correction passe par contre-piece.
+        // Proformas (07/11/2026) : document non fiscal, toutes les écritures exigent M2 = C.
+        Proformas::class => [
+            'render', 'mount',
+            'ouvrirCreation', 'ouvrirModification', 'ajouterLigne', 'retirerLigne', 'enregistrer', 'emettre',
+            'ouvrirAnnulation', 'confirmerAnnulation', 'ouvrirConversion', 'confirmerConversion',
+            'imprimer', 'fermerModales',
+        ],
+
         Facturation::class => [
             'render',
             'ouvrirFormulaireAvoir', 'enregistrerAvoir',

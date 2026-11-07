@@ -393,6 +393,11 @@
                                annulé compris (le document porte alors « ANNULÉ »). --}}
                           <button type="button" wire:click="imprimerRecu('{{ $c->id }}')"
                                   class="text-[11px] px-2 py-0.5 rounded border border-slate-300 hover:bg-white">{{ __('vehicules.pwa.recu') }}</button>
+                          {{-- Proforma prérempli depuis le contrat (PO, 07/11/2026) : écran Facturation > Proformas, droit M2 = C. --}}
+                          @if (auth()->user()?->niveauSurModule('M2') === 'C' && ! $estAnnule)
+                            <a href="{{ route('pwa.facturation.proformas', ['flux' => 'location', 'source' => $c->id]) }}" wire:navigate
+                               class="text-[11px] px-2 py-0.5 rounded border border-slate-300 hover:bg-white">{{ __('proforma.ui.creer_depuis_module') }}</a>
+                          @endif
                           @if ($peutEcrire && ! $estAnnule)
                             <button type="button" wire:click="confirmerArchivage('contrat', '{{ $c->id }}')"
                                     class="text-[11px] px-2 py-0.5 rounded border border-slate-300 hover:bg-white">{{ __('vehicules.pwa.annuler_contrat') }}</button>

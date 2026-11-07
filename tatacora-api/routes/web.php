@@ -27,6 +27,7 @@ use App\Pwa\Livewire\Crm\ClientsCreances;
 use App\Pwa\Livewire\Etats\Etats;
 use App\Pwa\Livewire\Etats\EtatsStudio;
 use App\Pwa\Livewire\Facturation\Facturation;
+use App\Pwa\Livewire\Facturation\Proformas;
 use App\Pwa\Livewire\Hebergement\Hebergement as PwaHebergement;
 use App\Pwa\Livewire\Hebergement\Reservations as PwaReservations;
 use App\Pwa\Livewire\Notifications\Hub as NotificationsHub;
@@ -222,6 +223,10 @@ Route::prefix('pwa')
                 // FACTURATION (M2)
                 Route::middleware('module:M2,L')
                     ->get('/facturation', Facturation::class)->name('pwa.facturation');
+
+                // FACTURES PROFORMA (M2, PO 07/11/2026) — document non fiscal ; création libre ou depuis un module.
+                Route::middleware('module:M2,L')
+                    ->get('/facturation/proformas', Proformas::class)->name('pwa.facturation.proformas');
 
                 // RESSOURCES HUMAINES & PAIE (M13)
                 //

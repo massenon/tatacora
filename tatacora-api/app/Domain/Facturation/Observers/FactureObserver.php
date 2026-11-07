@@ -55,6 +55,12 @@ class FactureObserver
             $tolerees = [...$tolerees, 'acheteur_ifu', 'acheteur_nom'];
         }
 
+        // Le LIEN vers la proforma dont la facture est issue (07/11/2026) : métadonnée de rattachement, posée UNE
+        // fois (jamais réécrite), qui ne change rien au document fiscal — la conversion au poste lie une facture déjà figée.
+        if ($facture->getOriginal('proforma_id') === null) {
+            $tolerees = [...$tolerees, 'proforma_id'];
+        }
+
         // `date_modification` et `utilisateur_modification_id` : le bornage d'audit que `Auditable`
         // pose à CHAQUE mise à jour. Sans eux, toute écriture sur une facture figée est refusée dès
         // que l'horloge a avancé (les tests figeaient l'heure : le défaut ne se voyait pas, et une

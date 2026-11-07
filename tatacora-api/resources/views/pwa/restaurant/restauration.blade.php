@@ -122,6 +122,12 @@
                bouts de l'écran. C'est ce conteneur que le comparateur voit :
                structure-ajout:m4-restauration.html#div-b458e26c --}}
           <div class="flex flex-wrap items-center gap-2">
+            {{-- Restauration pour événement (atelier, réception) : aucun module événement n'existe ;
+                 la proforma s'ouvre vide, à remplir (PO, 07/11/2026). --}}
+            @if (auth()->user()?->niveauSurModule('M2') === 'C')
+              <a href="{{ route('pwa.facturation.proformas', ['flux' => 'evenement']) }}" wire:navigate
+                 class="text-[13px] px-4 py-2 rounded-lg border border-slate-300 hover:bg-white font-semibold" style="color:var(--navy)">{{ __('proforma.ui.creer_depuis_module') }}</a>
+            @endif
             <button type="button" wire:click="ouvrirCreationMenu"
                     class="text-[13px] px-4 py-2 rounded-lg border border-slate-300 hover:bg-white font-semibold" style="color:var(--navy)">{{ __('carte_pwa.restauration.bouton_nouveau_menu') }}</button>
             <button type="button" wire:click="ouvrirCreationRecette"

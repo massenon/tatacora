@@ -117,10 +117,14 @@ class ProformaService
     /**
      * Émet : attribue le numéro, la date, la ville, et la validité si le réglage est sur Oui (calculée ICI,
      * enregistrée). Idempotent. `$dateEmission` : la date du poste (synchronisation) ; sinon aujourd'hui.
+     * `$validiteDuPoste` : la synchronisation fournit la validité DÉJÀ décidée au poste (`[valide_jusqu_au => ?date]`,
+     * y compris `null` = pas de validité) ; le serveur ne la recalcule alors pas avec SON réglage.
+     *
+     * @param  array{valide_jusqu_au: ?string}|null  $validiteDuPoste
      */
-    public function emettre(Proforma $proforma, ?string $dateEmission = null): Proforma
+    public function emettre(Proforma $proforma, ?string $dateEmission = null, ?array $validiteDuPoste = null): Proforma
     {
-        return DB::transaction(function () use ($proforma, $dateEmission): Proforma {
+        return DB::transaction(function () use ($proforma, $dateEmission, $validiteDuPoste): Proforma {
             $proforma = Proforma::query()->lockForUpdate()->findOrFail($proforma->id);
 
             if ($proforma->numero !== null) {
@@ -145,9 +149,11 @@ class ProformaService
                 'statut' => Proforma::EMISE,
                 'date_emission' => $date->toDateString(),
                 'ville' => $this->reglages->texte(ReglagesDocuments::CLE_VILLE_EMISSION) ?: null,
-                'valide_jusqu_au' => $this->reglages->validiteAffichee()
-                    ? $date->copy()->addDays($this->reglages->validiteJours())->toDateString()
-                    : null,
+                'valide_jusqu_au' => $validiteDuPoste !== null
+                    ? $validiteDuPoste['valide_jusqu_au']
+                    : ($this->reglages->validiteAffichee()
+                        ? $date->copy()->addDays($this->reglages->validiteJours())->toDateString()
+                        : null),
             ]);
 
             return $proforma->refresh();
@@ -223,6 +229,39 @@ class ProformaService
             $proforma->update(['statut' => Proforma::CONVERTIE, 'facture_id' => $facture->id]);
 
             return $facture->refresh();
+        });
+    }
+
+    /**
+     * Range une conversion FAITE AU POSTE : la facture existe déjà (synchronisée sous l'identifiant du poste), le
+     * serveur ne la recrée pas — il lie les deux et passe la proforma à « convertie ». Idempotent : une proforma
+     * déjà liée à cette facture est rendue telle quelle ; liée à une AUTRE facture, c'est un refus (une seule conversion).
+     */
+    public function lier(Proforma $proforma, Facture $facture): Proforma
+    {
+        return DB::transaction(function () use ($proforma, $facture): Proforma {
+            $proforma = Proforma::query()->lockForUpdate()->findOrFail($proforma->id);
+
+            if ($proforma->statut === Proforma::CONVERTIE) {
+                if ($proforma->facture_id === $facture->id) {
+                    return $proforma;
+                }
+                throw new RuntimeException(__('proforma.deja_convertie'));
+            }
+            if ($proforma->statut === Proforma::ANNULEE) {
+                throw new RuntimeException(__('proforma.annulee'));
+            }
+            if ($proforma->statut === Proforma::BROUILLON) {
+                throw new RuntimeException(__('proforma.brouillon_a_convertir'));
+            }
+            if ($facture->proforma_id !== null && $facture->proforma_id !== $proforma->id) {
+                throw new RuntimeException(__('proforma.deja_convertie'));
+            }
+
+            $facture->update(['proforma_id' => $proforma->id]);
+            $proforma->update(['statut' => Proforma::CONVERTIE, 'facture_id' => $facture->id]);
+
+            return $proforma->refresh();
         });
     }
 

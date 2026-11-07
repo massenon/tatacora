@@ -196,6 +196,11 @@
                               class="btn p-1.5 rounded hover:bg-slate-100 text-slate-500" title="{{ __('pwa.reservations.action_modifier') }}">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path stroke-linecap="round" stroke-linejoin="round" d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                       </button>
+                      {{-- Proforma prérempli depuis la réservation (PO, 07/11/2026). --}}
+                      @if (auth()->user()?->niveauSurModule('M2') === 'C')
+                        <a href="{{ route('pwa.facturation.proformas', ['flux' => 'hebergement', 'source' => $reservation->id]) }}" wire:navigate
+                           class="btn p-1.5 rounded hover:bg-slate-100 text-slate-500 text-[11px] font-semibold" title="{{ __('proforma.ui.creer_depuis_module') }}">{{ __('proforma.ui.creer_court') }}</a>
+                      @endif
                       <button wire:click="imprimerConfirmation('{{ $reservation->id }}')"
                               class="btn p-1.5 rounded hover:bg-slate-100 text-slate-500" title="{{ __('hebergement_pwa.reservations.confirmation_titre') }}">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6v-8z"/></svg>

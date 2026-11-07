@@ -204,6 +204,11 @@ class CatalogueDescendantService
             'normalisation_mode', 'normalisation_compteur', 'normalisee_le',
             'acheteur_ifu', 'acheteur_nom',
         ],
+        // Facture PROFORMA (07/11/2026) : numéro du serveur, statut, validité ENREGISTRÉE, lien vers la facture.
+        'proformas' => [
+            'numero', 'annee', 'rang', 'reference', 'statut', 'client_id', 'client_nom', 'client_telephone', 'client_ifu',
+            'objet', 'date_emission', 'ville', 'valide_jusqu_au', 'total', 'facture_id', 'motif_annulation', 'source_module',
+        ],
         'avoirs' => [
             'facture_id', 'numero', 'motif', 'montant', 'date_emission',
             'numero_mecef', 'qr_code_fiscal', 'code_mecef', 'normalisation_statut', 'normalisation_motif',
@@ -366,6 +371,7 @@ class CatalogueDescendantService
         'ventes' => ['table' => 'lignes_vente', 'cle' => 'vente_id', 'colonnes' => ['code', 'nom', 'categorie', 'module', 'prix_unitaire', 'quantite', 'montant'], 'ordre' => 'created_at'],
         'depenses' => ['table' => 'lignes_depense', 'cle' => 'depense_id', 'colonnes' => ['libelle', 'compte_charge', 'nature', 'famille', 'montant'], 'ordre' => 'created_at'],
         'factures' => ['table' => 'lignes_facture', 'cle' => 'facture_id', 'colonnes' => ['source_module', 'source_id', 'libelle', 'quantite', 'prix_unitaire', 'prix_catalogue', 'montant'], 'ordre' => 'created_at'],
+        'proformas' => ['table' => 'lignes_proforma', 'cle' => 'proforma_id', 'colonnes' => ['position', 'designation', 'quantite', 'prix_unitaire', 'montant'], 'ordre' => 'position'],
         'commandes_achat' => ['table' => 'lignes_commande_achat', 'cle' => 'commande_id', 'colonnes' => ['article_id', 'quantite_commandee', 'prix_unitaire'], 'ordre' => 'created_at'],
         // 21/10/2026 : les lignes comptées d'un inventaire (théorique figé au
         // comptage, constaté, écart) descendent avec leur inventaire.
@@ -376,7 +382,7 @@ class CatalogueDescendantService
     private const BOOLEENS = ['actif', 'prix_provisoire', 'prix_corrige_main', 'composition_provisoire', 'encaisse'];
 
     /** @var list<string> */
-    private const ENTIERS = ['capacite_max', 'nb_participants', 'recu_taille'];
+    private const ENTIERS = ['capacite_max', 'nb_participants', 'recu_taille', 'annee', 'rang', 'total'];
 
     /** Les colonnes ENTIÈRES des lignes (les autres restent des chaînes). */
     private const ENTIERS_ENFANTS = ['quantite'];
