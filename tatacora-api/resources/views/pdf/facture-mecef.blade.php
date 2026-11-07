@@ -353,5 +353,8 @@
     </div>
   @endif
 
+  {{-- Signature et cachet (PO, 07/11/2026) : l'interrupteur des Paramètres, factures comme proformas. --}}
+  @include('pdf.partials.bloc-signature', ['entete' => $entete])
+
 </body>
 </html>

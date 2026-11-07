@@ -219,6 +219,14 @@ class Parametres extends PageTransverse
     /** @var \Livewire\Features\SupportFileUploads\TemporaryUploadedFile|null */
     public $faviconTeleverse = null;
 
+    // ---- Signature et cachet des documents commerciaux (PO, 07/11/2026) --
+
+    /** @var \Livewire\Features\SupportFileUploads\TemporaryUploadedFile|null */
+    public $signatureTeleversee = null;
+
+    /** @var \Livewire\Features\SupportFileUploads\TemporaryUploadedFile|null */
+    public $cachetTeleverse = null;
+
     // ---- Espaces & tables (02/09/2026) ----------------------------------
 
     /** Vide : la modale ouvre en création ; renseigné : en renumérotation. */
@@ -277,6 +285,8 @@ class Parametres extends PageTransverse
             'canal' => ['canalCleEditee', 'canalNom'],
             'logo' => ['logoTeleverse'],
             'favicon' => ['faviconTeleverse'],
+            'signature' => ['signatureTeleversee'],
+            'cachet' => ['cachetTeleverse'],
             'table' => ['tableIdEditee', 'tableEspace', 'tableNumero', 'tablePlaces'],
         ];
     }
@@ -688,6 +698,45 @@ class Parametres extends PageTransverse
         $this->terminerFormulaire(__('pwa.parametres.apparence_logo_enregistre'));
     }
 
+    public function ouvrirChangementSignature(): void
+    {
+        $this->ouvrirFormulaire('signature');
+    }
+
+    public function ouvrirChangementCachet(): void
+    {
+        $this->ouvrirFormulaire('cachet');
+    }
+
+    /**
+     * Signature : une image, jamais refusée pour son poids — réduite à 400 Ko par la règle des
+     * reçus de dépense. Seul un fichier qui n'est pas une image est refusé (mêmes phrases).
+     */
+    public function enregistrerSignature(ApparenceEtablissementService $apparence): void
+    {
+        $this->validerEcriture(['signatureTeleversee' => ['required', 'file']]);
+        $this->deposerImageDocument('signature', 'signatureTeleversee', $apparence);
+    }
+
+    public function enregistrerCachet(ApparenceEtablissementService $apparence): void
+    {
+        $this->validerEcriture(['cachetTeleverse' => ['required', 'file']]);
+        $this->deposerImageDocument('cachet', 'cachetTeleverse', $apparence);
+    }
+
+    private function deposerImageDocument(string $type, string $champ, ApparenceEtablissementService $apparence): void
+    {
+        try {
+            $apparence->enregistrerImageDocument($type, (string) file_get_contents($this->{$champ}->getRealPath()));
+        } catch (\App\Domain\Depenses\Exceptions\RefusRecuDepense $refus) {
+            $this->addError($champ, $refus->getMessage());
+
+            return;
+        }
+
+        $this->terminerFormulaire(__('pwa.parametres.apparence_'.$type.'_enregistre'));
+    }
+
     /** « .ico ou .png 32×32px » au maître — 512 Ko suffisent largement. */
     public function enregistrerFavicon(ApparenceEtablissementService $apparence): void
     {
@@ -880,6 +929,8 @@ class Parametres extends PageTransverse
             // téléversé s'il existe, l'actif livré sinon (même service).
             'urlLogo' => $apparence->urlLogo(),
             'urlFavicon' => $apparence->urlFavicon(),
+            'apercuSignature' => $apparence->dataUriImageDocument('signature'),
+            'apercuCachet' => $apparence->dataUriImageDocument('cachet'),
             // Email (SMTP) : l'ÉTAT du mot de passe (renseigné, quand, par
             // qui), jamais sa valeur ; la saisie n'est offerte qu'aux deux
             // rôles d'administration.

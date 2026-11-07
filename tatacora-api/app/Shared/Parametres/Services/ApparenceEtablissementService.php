@@ -72,6 +72,63 @@ class ApparenceEtablissementService
         $this->remplacer('favicon', $fichier);
     }
 
+    /** Les images des documents commerciaux : signature et cachet (PO, 07/11/2026). */
+    public const IMAGES_DOCUMENT = ['signature', 'cachet'];
+
+    /**
+     * Dépose la SIGNATURE ou le CACHET : l'image est PRÉPARÉE par la règle des reçus de dépense
+     * (`RecuDepenseService::preparer`) — gardée telle quelle jusqu'à 400 Ko, sinon réduite en
+     * JPEG de 400 Ko au plus, jamais refusée pour son poids. Refus : fichier vide ou pas une image.
+     *
+     * @throws \App\Domain\Depenses\Exceptions\RefusRecuDepense
+     */
+    public function enregistrerImageDocument(string $type, string $octets): void
+    {
+        if (! in_array($type, self::IMAGES_DOCUMENT, true)) {
+            throw new \InvalidArgumentException('Type d’image inconnu.');
+        }
+
+        $prepare = app(\App\Domain\Depenses\Services\RecuDepenseService::class)->preparer($octets);
+        $disque = Storage::disk(self::DISQUE);
+        $existant = $this->fichierDe($type);
+
+        if ($existant !== null) {
+            $disque->delete($existant);
+        }
+
+        $disque->put(self::REPERTOIRE . '/' . $type . '.' . $prepare['extension'], $prepare['octets']);
+    }
+
+    /** Octets de l'image de document, ou `null` — pour dompdf (`data:` URI) et la descente au poste. */
+    public function octetsImageDocument(string $type): ?string
+    {
+        $fichier = in_array($type, self::IMAGES_DOCUMENT, true) ? $this->fichierDe($type) : null;
+
+        return $fichier === null ? null : Storage::disk(self::DISQUE)->get($fichier);
+    }
+
+    /** `data:` URI de l'image de document — le seul moyen sûr pour dompdf, quel que soit le disque. */
+    public function dataUriImageDocument(string $type): ?string
+    {
+        $octets = $this->octetsImageDocument($type);
+
+        if ($octets === null) {
+            return null;
+        }
+
+        $mime = (string) (new \finfo(FILEINFO_MIME_TYPE))->buffer($octets);
+
+        return 'data:' . $mime . ';base64,' . base64_encode($octets);
+    }
+
+    /** Empreinte courte de l'image (null : aucune) — le poste sait ainsi s'il doit la retélécharger. */
+    public function empreinteImageDocument(string $type): ?string
+    {
+        $octets = $this->octetsImageDocument($type);
+
+        return $octets === null ? null : substr(hash('sha256', $octets), 0, 16);
+    }
+
     /** Chemin ABSOLU du logo téléversé, ou `null` — pour dompdf (états). */
     public function cheminLogo(): ?string
     {

@@ -343,6 +343,24 @@
                   @endif
                 </div>
               </div>
+              {{-- Signature et cachet des factures et proformas (PO, 07/11/2026) : images déposées ici,
+                   réduites à 400 Ko ; l'interrupteur d'affichage est dans Identité & Légal. --}}
+              @foreach (['signature' => $apercuSignature, 'cachet' => $apercuCachet] as $typeImage => $apercuImage)
+                <div>
+                  <p class="block text-[15px] font-semibold text-slate-700 mb-2">{{ __('pwa.parametres.apparence_'.$typeImage.'_titre') }}</p>
+                  <div class="flex items-center gap-4">
+                    @if ($apercuImage !== null)
+                      <img src="{{ $apercuImage }}" class="w-20 h-20 rounded-xl object-contain ring-2 ring-slate-100" alt="{{ __('pwa.parametres.apparence_'.$typeImage.'_titre') }}">
+                    @else
+                      <p class="text-[13px] text-slate-400">{{ __('pwa.parametres.apparence_image_absente') }}</p>
+                    @endif
+                    @if ($peutEcrire)
+                      <button type="button" wire:click="ouvrirChangement{{ ucfirst($typeImage) }}"
+                              class="btn px-3.5 py-2 rounded-lg border border-slate-200 text-[15px] font-semibold">{{ __('pwa.parametres.apparence_'.$typeImage.'_bouton') }}</button>
+                    @endif
+                  </div>
+                </div>
+              @endforeach
               {{-- maquette l.121-130 — la charte, DÉJÀ en lecture seule au
                    maître, couleurs en dur comme chez lui (chap. 9.3.1). --}}
               <div class="sm:col-span-2 pt-2">
@@ -646,6 +664,27 @@
 
   {{-- MODALE LOGO / FAVICON — le téléversement RÉEL (02/09/2026). Le champ
        `type="file"` ne vit QUE derrière ce `@if` (`RefuseLaSaisie`). --}}
+  @if (in_array($etatFormulaire, ['signature', 'cachet'], true))
+    @php($champImage = $etatFormulaire === 'signature' ? 'signatureTeleversee' : 'cachetTeleverse')
+    <x-pwa.modale
+        :titre="__('pwa.parametres.apparence_'.$etatFormulaire.'_bouton')"
+        :sousTitre="__('pwa.parametres.apparence_champ_image')"
+        largeur="440px">
+      <form wire:submit.prevent="{{ $etatFormulaire === 'signature' ? 'enregistrerSignature' : 'enregistrerCachet' }}" class="space-y-4">
+        <div>
+          <input type="file" wire:model="{{ $champImage }}" accept="image/png,image/jpeg"
+                 class="champ w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm">
+          <div wire:loading wire:target="{{ $champImage }}" class="text-[12px] text-slate-400 mt-1">{{ __('pwa.parametres.apparence_televersement') }}</div>
+          @error($champImage) <p class="text-[12px] text-red-600 mt-1">{{ $message }}</p> @enderror
+        </div>
+        <div class="flex justify-end gap-3 pt-2">
+          <button type="button" wire:click="fermerModales" class="text-[13px] px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50">{{ __('pwa.modale.annuler') }}</button>
+          <button type="submit" class="text-[13px] px-4 py-2 rounded-lg bg-[var(--navy)] text-white font-semibold">{{ __('parametres_pwa.enregistrer') }}</button>
+        </div>
+      </form>
+    </x-pwa.modale>
+  @endif
+
   @if ($etatFormulaire === 'logo' || $etatFormulaire === 'favicon')
     @php($estLogo = $etatFormulaire === 'logo')
     <x-pwa.modale

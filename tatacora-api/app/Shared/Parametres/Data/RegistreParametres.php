@@ -10,6 +10,7 @@ use App\Domain\Comptabilite\Services\CorrespondanceComptesService;
 use App\Domain\Comptabilite\Services\PlanComptableService;
 use App\Domain\Comptabilite\Support\RolesCorrespondance;
 use App\Domain\Facturation\Services\ModeFacturation;
+use App\Domain\Facturation\Services\ReglagesDocuments;
 use App\Domain\Facturation\Services\ReglagesMecef;
 use App\Domain\Hebergement\Services\AnnulationReservationService;
 use App\Domain\Rh\Services\CalculPaieService;
@@ -246,6 +247,78 @@ final class RegistreParametres
                 aide: 'Fourni par la DGI. Identifiant, donc paramétrable — la '
                     . 'CLÉ D’API MECeF, elle, vit en configuration serveur et '
                     . 'n’apparaîtra jamais ici.',
+            ),
+
+            // --- Documents commerciaux (factures A4, proformas) — décisions du PO du 07/11/2026.
+            new DefinitionParametre(
+                cle: ReglagesDocuments::CLE_ACTIVITES,
+                groupe: self::GROUPE_ENTREPRISE,
+                libelle: 'Activités (en-tête des factures)',
+                type: 'texte',
+                regles: ['string', 'max:255'],
+                aide: 'Ligne en gras souligné de l’en-tête, ex. « Tourisme, Hébergement, Restauration ». Vide : absente.',
+            ),
+            new DefinitionParametre(
+                cle: ReglagesDocuments::CLE_FACEBOOK,
+                groupe: self::GROUPE_ENTREPRISE,
+                libelle: 'Page Facebook',
+                type: 'texte',
+                regles: ['string', 'max:150'],
+            ),
+            new DefinitionParametre(
+                cle: ReglagesDocuments::CLE_VILLE_EMISSION,
+                groupe: self::GROUPE_ENTREPRISE,
+                libelle: 'Ville du lieu d’émission',
+                type: 'texte',
+                regles: ['string', 'max:80'],
+                aide: 'Imprimée avant la date, ex. « Natitingou, le 02 Novembre 2026 ».',
+            ),
+            new DefinitionParametre(
+                cle: ReglagesDocuments::CLE_REFERENCE_FACTURE,
+                groupe: self::GROUPE_ENTREPRISE,
+                libelle: 'Référence facture',
+                type: 'texte',
+                regles: ['nullable', 'string', 'max:10', 'regex:/^[A-Za-z0-9]+$/'],
+                aide: 'Porte le numéro des proformas : N°0045 FP-GCN/2026. Vide : GCN. '
+                    . 'Ne renumérote jamais une proforma déjà émise.',
+            ),
+            new DefinitionParametre(
+                cle: ReglagesDocuments::CLE_SIGNATAIRE_NOM,
+                groupe: self::GROUPE_ENTREPRISE,
+                libelle: 'Signataire — nom',
+                type: 'texte',
+                regles: ['string', 'max:100'],
+            ),
+            new DefinitionParametre(
+                cle: ReglagesDocuments::CLE_SIGNATAIRE_FONCTION,
+                groupe: self::GROUPE_ENTREPRISE,
+                libelle: 'Signataire — fonction',
+                type: 'texte',
+                regles: ['string', 'max:100'],
+            ),
+            new DefinitionParametre(
+                cle: ReglagesDocuments::CLE_SIGNATURE_AFFICHEE,
+                groupe: self::GROUPE_ENTREPRISE,
+                libelle: 'Afficher la signature et le cachet sur les factures',
+                type: 'booleen',
+                aide: 'Vaut pour les proformas ET les factures (PDF A4 ; le ticket n’en porte jamais). '
+                    . 'Non : aucun bloc signature. Oui sans image déposée : nom et fonction seulement.',
+            ),
+            new DefinitionParametre(
+                cle: ReglagesDocuments::CLE_VALIDITE_AFFICHEE,
+                groupe: self::GROUPE_ENTREPRISE,
+                libelle: 'Afficher la date de validité sur les proformas',
+                type: 'booleen',
+                aide: 'Défaut Non. Calculée à l’émission et enregistrée sur la proforma : '
+                    . 'changer ce réglage ne modifie pas les proformas déjà émises.',
+            ),
+            new DefinitionParametre(
+                cle: ReglagesDocuments::CLE_VALIDITE_JOURS,
+                groupe: self::GROUPE_ENTREPRISE,
+                libelle: 'Durée de validité d’une proforma (jours)',
+                type: 'entier',
+                regles: ['nullable', 'integer', 'min:1', 'max:365'],
+                aide: 'Défaut 30 jours.',
             ),
 
             // --- Facturation normalisée (MECeF) — mode et réglages non secrets.

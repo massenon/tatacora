@@ -63,6 +63,7 @@ return [
 
     'document_action' => 'Facture A4',
     'document_titre' => 'Facture',
+    'signature_pour' => 'Pour :entreprise',
     'document_fichier' => 'facture',
 
     'document_numero' => 'N° MECeF',

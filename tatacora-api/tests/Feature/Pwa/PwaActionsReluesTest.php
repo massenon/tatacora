@@ -401,7 +401,7 @@ final class PwaActionsReluesTest extends TestCase
             // (fichiers remplaces, jamais accumules ; servis par la route
             // `pwa.apparence`, sans storage:link).
             'ouvrirChangementLogo', 'enregistrerLogo',
-            'ouvrirChangementFavicon', 'enregistrerFavicon',
+            'ouvrirChangementFavicon', 'enregistrerFavicon', 'ouvrirChangementSignature', 'enregistrerSignature', 'ouvrirChangementCachet', 'enregistrerCachet',
             // Espaces & tables — CRUD reel du referentiel `tables_salle`
             // (`TableSalleService`, l'unique auteur des regles du maitre :
             // unicite du numero, libelle qui suit le numero, refus de

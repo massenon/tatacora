@@ -114,6 +114,11 @@ Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
         ->where('depense', '[0-9a-fA-F-]{36}')
         ->name('api.sync.recu_depense.telecharger');
 
+    // Signature et cachet des documents commerciaux (PO, 07/11/2026) : descente à la demande.
+    Route::get('/sync/apparence-documents', \App\Shared\Sync\Http\Controllers\ImagesDocumentController::class)
+        ->middleware(GenerationDesDonnees::class)
+        ->name('api.sync.apparence_documents');
+
     // Facturation EN LIGNE depuis un poste (décisions du PO du 07/11/2026) : l'avoir d'une
     // facture (seule porte pour une facture NORMALISÉE) et la demande immédiate de
     // normalisation e-MECeF. Droits et poste du jeton contrôlés dans le contrôleur.
