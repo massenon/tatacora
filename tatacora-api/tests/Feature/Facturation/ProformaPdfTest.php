@@ -149,4 +149,28 @@ final class ProformaPdfTest extends TestCase
         $this->assertSame('01 Août 2027', MiseEnPageProforma::dateLongue(Carbon::parse('2027-08-01')));
         $this->assertSame("1\u{00A0}234\u{00A0}567", MiseEnPageProforma::montant(1234567));
     }
+
+    #[Test]
+    public function la_table_d_une_proforma_ne_peut_porter_aucune_identite_fiscale(): void
+    {
+        foreach (\Illuminate\Support\Facades\Schema::getColumnListing('proformas') as $colonne) {
+            foreach (['mecef', 'qr', 'nim', 'normalis', 'emecef', 'code_'] as $interdit) {
+                $this->assertStringNotContainsString($interdit, $colonne, $colonne);
+            }
+        }
+    }
+
+    #[Test]
+    public function un_qr_ou_un_numero_mecef_pose_sur_la_proforma_rougirait_le_document(): void
+    {
+        // Mutation éprouvée : un attribut fiscal injecté sur le modèle (comme le ferait une régression) ne doit
+        // JAMAIS atteindre le document — la vue ne lit que les champs de la proforma.
+        $p = $this->emise();
+        $p->setAttribute('numero_mecef', 'MECEF-DEMO-ABC');
+        $p->setAttribute('qr_code_fiscal', 'DONNEES-QR');
+        $html = $this->html($p);
+
+        $this->assertStringNotContainsString('MECEF', strtoupper($html));
+        $this->assertStringNotContainsString('DONNEES-QR', $html);
+    }
 }
