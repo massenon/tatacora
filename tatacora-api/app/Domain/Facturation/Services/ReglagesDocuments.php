@@ -37,6 +37,18 @@ class ReglagesDocuments
 
     public const CLE_VALIDITE_JOURS = 'proforma_validite_jours';
 
+    /**
+     * Les neuf clés : réglées au SERVEUR (Paramètres > Identité & Légal), reçues en lecture par les postes.
+     * Un poste ne les écrit jamais (`GestionnaireParametres` les écarte d'un envoi).
+     *
+     * @var list<string>
+     */
+    public const CLES = [
+        self::CLE_ACTIVITES, self::CLE_FACEBOOK, self::CLE_VILLE_EMISSION, self::CLE_REFERENCE_FACTURE,
+        self::CLE_SIGNATAIRE_NOM, self::CLE_SIGNATAIRE_FONCTION, self::CLE_SIGNATURE_AFFICHEE,
+        self::CLE_VALIDITE_AFFICHEE, self::CLE_VALIDITE_JOURS,
+    ];
+
     public const REFERENCE_PAR_DEFAUT = 'GCN';
 
     public const VALIDITE_PAR_DEFAUT = 30;

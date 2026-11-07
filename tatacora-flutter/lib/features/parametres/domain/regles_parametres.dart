@@ -160,6 +160,13 @@ Normalisation normaliser(SpecParametre spec, Object? brut) {
           'L’IFU doit compter exactement 13 chiffres.',
         );
       }
+      // La RÉFÉRENCE FACTURE (`GCN`) : lettres et chiffres seulement.
+      if (spec.format == FormatTexte.alphanumerique &&
+          !RegExp(r'^[A-Za-z0-9]+$').hasMatch(texte)) {
+        return ValeurRefusee(
+          '« ${spec.libelle} » n’accepte que des lettres et des chiffres.',
+        );
+      }
       // L'adresse de l'API de la DGI : https:// exigé.
       if (spec.format == FormatTexte.urlHttps &&
           !RegExp(r'^https://[^\s]+$', caseSensitive: false).hasMatch(texte)) {

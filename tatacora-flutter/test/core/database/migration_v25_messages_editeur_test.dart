@@ -144,6 +144,7 @@ void main() {
       ...tablesAjouteesEnV40,
       ...tablesAjouteesEnV44,
       ...tablesAjouteesEnV46,
+      ...tablesAjouteesEnV52,
     });
     expect(
       await compte(apres, 'messages_editeur_local'),

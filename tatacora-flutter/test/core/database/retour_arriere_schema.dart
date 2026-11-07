@@ -130,7 +130,22 @@ const tablesAjouteesEnV44 = <String>{'pieces_saisie_local'};
 /// La table que la v46 AJOUTE (journal de securite du poste, 29/10/2026).
 const tablesAjouteesEnV46 = <String>{'journal_securite_local'};
 
+/// Les tables que la v52 AJOUTE (facture proforma, 07/11/2026).
+const tablesAjouteesEnV52 = <String>{
+  'proformas_local',
+  'lignes_proforma_local',
+  'sequences_proforma_local',
+};
+
 const _ajoutsParVersion = <int, List<String>>{
+  // La v52 (07/11/2026, facture proforma) ajoute TROIS tables neuves, aucune colonne.
+  // L'ordre est celui de l'annulation : les lignes (cle etrangere) avant leur en-tete.
+  52: <String>[
+    'DROP TABLE lignes_proforma_local',
+    'DROP TABLE proformas_local',
+    'DROP TABLE sequences_proforma_local',
+  ],
+
   // La v51 (07/11/2026, IFU du client) ajoute TROIS colonnes nullables, ni indexees ni
   // referencees, aucune table : `pieces_facturation_local.acheteur_ifu` / `.acheteur_nom`
   // et `clients_local.ifu`. Retour arriere symetrique : les trois colonnes sont retirees.

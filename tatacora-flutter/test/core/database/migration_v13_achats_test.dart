@@ -451,6 +451,7 @@ void main() {
         ...tablesAjouteesEnV40,
         ...tablesAjouteesEnV44,
         ...tablesAjouteesEnV46,
+        ...tablesAjouteesEnV52,
         'menus_local',
         'recettes_local',
         'ingredients_recette_local',

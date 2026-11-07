@@ -165,6 +165,20 @@ final class ProformasSynchronisationTest extends TestCase
     }
 
     #[Test]
+    public function un_poste_n_ecrit_jamais_les_reglages_des_documents(): void
+    {
+        $admin = $this->creerUtilisateur('administrateur');
+        ParametreSysteme::create(['cle' => ReglagesDocuments::CLE_REFERENCE_FACTURE, 'valeur' => 'GCN']);
+
+        $this->pousser([$this->operationDatee('parametres_systeme', 'creation', $this->uuid(), [
+            'valeurs' => [ReglagesDocuments::CLE_REFERENCE_FACTURE => 'ZZZ', ReglagesDocuments::CLE_SIGNATURE_AFFICHEE => 'true'],
+        ], '2026-11-07T09:00:00+00:00')], $admin);
+
+        $this->assertSame('GCN', ParametreSysteme::query()->where('cle', ReglagesDocuments::CLE_REFERENCE_FACTURE)->value('valeur'));
+        $this->assertNull(ParametreSysteme::query()->where('cle', ReglagesDocuments::CLE_SIGNATURE_AFFICHEE)->value('valeur'));
+    }
+
+    #[Test]
     public function un_compte_sans_ecriture_sur_m2_est_refuse(): void
     {
         $sans = $this->creerUtilisateur('comptable'); // M2 = L : lecture seule

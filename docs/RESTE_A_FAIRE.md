@@ -35,6 +35,7 @@
 - [ ] **D3** Essai à plusieurs postes avec coupures réseau, puis synchronisation désactivée.
 - [ ] **D4** Déposer le reçu d'une dépense et le revoir sur un second poste.
 - [ ] **D6** Mot de passe perdu : réinitialiser un compte (temporaire affiché une fois, 24 h), se connecter avec lui (écran « Définissez votre nouveau mot de passe »), puis perdre le mot de passe administrateur et le retrouver avec le code de secours — au web et sur le poste Windows (impression du code comprise).
+- [ ] **D7** Facture proforma : émettre UNE proforma réelle sur un vrai poste (hors ligne), l'imprimer en A4 et la comparer au modèle papier (en-tête, ligne des activités, date longue, tableau vert, montant en lettres, bloc signature/cachet) ; rebrancher le réseau, vérifier le numéro `N°… FP-GCN/…` régularisé, puis la convertir en facture.
 - [ ] **D5** Désinstaller : l'avertissement Oui/Non s'affiche ; Non annule ; Oui supprime `%LOCALAPPDATA%\TATACORA` et `%APPDATA%\TATACORA` ; une mise à jour (même AppId) garde les données.
 
 ## E. Démarrage résilient (PRD `PRD_REINSTALLATION_ET_DEMARRAGE_RESILIENT.md`)
@@ -54,3 +55,10 @@
 - Réduction automatique de l'image d'un reçu (au-delà de 400 Ko : refus, comme au web).
 - Limitation d'essais sur la connexion par mot de passe du POSTE (le web limite à 5 par identifiant et adresse) : à décider.
 - IP de l'ordinateur dans le journal d'audit du poste (le nom de la machine est la norme retenue).
+
+## G. Facture proforma — poste (lot 3 inachevé, 07/11/2026)
+
+- [ ] **G1** Descente des proformas (et de leurs lignes) vers le poste : `descente_catalogue.dart`, écrivain de réception, régularisation du numéro à l'accusé (`ProformaDao.regulariserNumero` existe, il manque l'appelant dans `SyncManager`).
+- [ ] **G2** Descente de la signature et du cachet (`GET /api/v1/sync/apparence-documents`, déjà servi) vers `…/TATACORA/apparence/`.
+- [ ] **G3** Écran « Proformas » du poste, PDF A4 par le paquet `pdf` (jumeau de `pdf.proforma`), impression, boutons « Créer une proforma » dans location, tourisme, hébergement, restauration.
+- [ ] **G4** Bloc signature sur la facture A4 du poste (interrupteur déjà descendu : `blocSignature()`), puis garde `pdf_directive_test` et comparateur Blade.

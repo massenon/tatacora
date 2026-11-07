@@ -310,7 +310,8 @@ void main() {
         // v50 (07/11/2026) : facturation normalisée — huit colonnes nullables sur les pièces.
         // v51 (07/11/2026) : IFU du client — trois colonnes nullables (pièces : acheteur ; fiches : ifu).
         // 29/10/2026).
-        expect(db.select('PRAGMA user_version').first.values.first, 51);
+        // v52 (07/11/2026) : facture proforma — trois tables neuves.
+        expect(db.select('PRAGMA user_version').first.values.first, 52);
         db.close();
       },
       timeout: const Timeout(Duration(minutes: 2)),

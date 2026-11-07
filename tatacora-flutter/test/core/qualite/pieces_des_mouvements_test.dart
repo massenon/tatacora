@@ -53,7 +53,9 @@ import 'package:flutter_test/flutter_test.dart';
 /// d'un paramètre) ou un `copyWith(statut: X.cloture)` sur une entité de domaine
 /// ne sont pas dénoncés ; l'alias `X.cloture.code` qui alimente ce `s` l'est, lui.
 const _etrangersCloture = 'StatutExercice';
-const _etrangersAnnulation = 'StatutPiece|StatutBulletin|StatutReservationTour';
+// `StatutProforma` (07/11/2026) : la facture proforma, document non fiscal, s'annule par son propre écrivain.
+const _etrangersAnnulation =
+    'StatutPiece|StatutBulletin|StatutReservationTour|StatutProforma';
 
 /// Un guillemet simple ou double, éventuellement échappé par un antislash.
 const _guillemet = r'\\?[\x27\x22]';

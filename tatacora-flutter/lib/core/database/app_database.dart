@@ -44,6 +44,7 @@ import 'tables/operations_sync_tables.dart';
 import 'tables/paiements_facture_tables.dart';
 import 'tables/panier_tables.dart';
 import 'tables/parametres_tables.dart';
+import 'tables/proformas_tables.dart';
 import 'tables/registre_facturation_tables.dart';
 import 'tables/reglements_fournisseur_tables.dart';
 import 'tables/restaurant_tables.dart';
@@ -108,6 +109,10 @@ part 'app_database.g.dart';
     PiecesFacturationLocal,
     LignesPieceFacturationLocal,
     SequencesFactureLocal,
+    // v52 (07/11/2026) : la facture proforma (non fiscale), hors ligne.
+    ProformasLocal,
+    LignesProformaLocal,
+    SequencesProformaLocal,
     TablesLocal,
 
     // Les quatre modules d'exploitation portés en LOCAL PUR le 14/09/2026
@@ -552,8 +557,15 @@ class AppDatabase extends _$AppDatabase {
   /// « normalisée » ni « en attente » (NULL), aucune pièce n'est rejouée. Une pièce
   /// déjà NORMALISÉE n'est jamais écrasée (garde du DAO). Le curseur de descente est
   /// oublié : les normalisations déjà faites au serveur redescendent.
+  ///
+  /// v52 (07/11/2026) — FACTURE PROFORMA (document non fiscal, décision du PO) : TROIS
+  /// tables NEUVES (`proformas_local`, `lignes_proforma_local`, `sequences_proforma_local`),
+  /// aucune colonne ajoutée à une table existante, aucune ligne fabriquée. Ajout
+  /// CONDITIONNEL (piège 3) : une fixture ramenée en arrière depuis la définition courante
+  /// peut les porter déjà. Le curseur de descente est oublié : les proformas déjà au serveur
+  /// (autres postes, web) redescendent.
   @override
-  int get schemaVersion => 51;
+  int get schemaVersion => 52;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1616,6 +1628,28 @@ class AppDatabase extends _$AppDatabase {
         if (!tables.contains('journal_securite_local')) {
           await m.createTable(journalSecuriteLocal);
         }
+      }
+      if (from < 52) {
+        Future<bool> tableExiste(String nom) async =>
+            (await m.database
+                    .customSelect(
+                      "SELECT name FROM sqlite_master WHERE type = 'table' "
+                      "AND name = '$nom'",
+                    )
+                    .get())
+                .isNotEmpty;
+        if (!await tableExiste('proformas_local')) {
+          await m.createTable(proformasLocal);
+        }
+        if (!await tableExiste('lignes_proforma_local')) {
+          await m.createTable(lignesProformaLocal);
+        }
+        if (!await tableExiste('sequences_proforma_local')) {
+          await m.createTable(sequencesProformaLocal);
+        }
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
       }
       if (from < 51) {
         // IFU DU CLIENT (07/11/2026) : TROIS colonnes NULLABLES, aucune table, aucune valeur

@@ -126,6 +126,7 @@ void main() {
       ...tablesAjouteesEnV40,
       ...tablesAjouteesEnV44,
       ...tablesAjouteesEnV46,
+      ...tablesAjouteesEnV52,
     });
 
     final r = await apres

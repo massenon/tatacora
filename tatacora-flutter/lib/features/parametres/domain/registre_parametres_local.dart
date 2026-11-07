@@ -60,6 +60,9 @@ enum FormatTexte {
   /// béninois : 13 chiffres. Le même IFU sert le boîtier et e-MECeF.
   ifu,
 
+  /// `regex:/^[A-Za-z0-9]+$/` du serveur — la RÉFÉRENCE FACTURE (`GCN`) : lettres et chiffres.
+  alphanumerique,
+
   /// `regex:/^https:\/\/[^\s]+$/i` du serveur — l'adresse de l'API de la DGI :
   /// `https://` exigé.
   urlHttps,
@@ -244,6 +247,98 @@ abstract final class RegistreParametresLocal {
       aide:
           'Fourni par la DGI. Identifiant, donc paramétrable — la CLÉ D’API MECeF, elle, vit en configuration serveur et n’apparaîtra jamais ici.',
       longueurMax: 30,
+    ),
+    // --- Documents commerciaux (factures A4, proformas), PO 07/11/2026 : réglés au SERVEUR, reçus ici en lecture.
+    SpecParametre(
+      cle: 'entreprise_activites',
+      groupe: 'entreprise',
+      libelle: 'Activités (en-tête des factures)',
+      type: TypeParametre.texte,
+      aide:
+          'Ligne en gras souligné de l’en-tête, ex. « Tourisme, Hébergement, Restauration ». Vide : absente.',
+      longueurMax: 255,
+      lecteur: 'lib/features/facturation/domain/reglages_documents.dart',
+      serveurSeulement: true,
+    ),
+    SpecParametre(
+      cle: 'entreprise_facebook',
+      groupe: 'entreprise',
+      libelle: 'Page Facebook',
+      type: TypeParametre.texte,
+      longueurMax: 150,
+      lecteur: 'lib/features/facturation/domain/reglages_documents.dart',
+      serveurSeulement: true,
+    ),
+    SpecParametre(
+      cle: 'entreprise_ville_emission',
+      groupe: 'entreprise',
+      libelle: 'Ville du lieu d’émission',
+      type: TypeParametre.texte,
+      aide: 'Imprimée avant la date, ex. « Natitingou, le 02 Novembre 2026 ».',
+      longueurMax: 80,
+      lecteur: 'lib/features/facturation/domain/reglages_documents.dart',
+      serveurSeulement: true,
+    ),
+    SpecParametre(
+      cle: 'facture_reference',
+      groupe: 'entreprise',
+      libelle: 'Référence facture',
+      type: TypeParametre.texte,
+      aide:
+          'Porte le numéro des proformas : N°0045 FP-GCN/2026. Vide : GCN. Ne renumérote jamais une proforma déjà émise.',
+      longueurMax: 10,
+      format: FormatTexte.alphanumerique,
+      lecteur: 'lib/features/facturation/domain/reglages_documents.dart',
+      serveurSeulement: true,
+    ),
+    SpecParametre(
+      cle: 'signataire_nom',
+      groupe: 'entreprise',
+      libelle: 'Signataire — nom',
+      type: TypeParametre.texte,
+      longueurMax: 100,
+      lecteur: 'lib/features/facturation/domain/reglages_documents.dart',
+      serveurSeulement: true,
+    ),
+    SpecParametre(
+      cle: 'signataire_fonction',
+      groupe: 'entreprise',
+      libelle: 'Signataire — fonction',
+      type: TypeParametre.texte,
+      longueurMax: 100,
+      lecteur: 'lib/features/facturation/domain/reglages_documents.dart',
+      serveurSeulement: true,
+    ),
+    SpecParametre(
+      cle: 'facture_signature_affichee',
+      groupe: 'entreprise',
+      libelle: 'Afficher la signature et le cachet sur les factures',
+      type: TypeParametre.booleen,
+      aide:
+          'Vaut pour les proformas ET les factures (PDF A4 ; le ticket n’en porte jamais). Non : aucun bloc signature. Oui sans image déposée : nom et fonction seulement.',
+      lecteur: 'lib/features/facturation/domain/reglages_documents.dart',
+      serveurSeulement: true,
+    ),
+    SpecParametre(
+      cle: 'proforma_validite_affichee',
+      groupe: 'entreprise',
+      libelle: 'Afficher la date de validité sur les proformas',
+      type: TypeParametre.booleen,
+      aide:
+          'Défaut Non. Calculée à l’émission et enregistrée sur la proforma : changer ce réglage ne modifie pas les proformas déjà émises.',
+      lecteur: 'lib/features/facturation/domain/reglages_documents.dart',
+      serveurSeulement: true,
+    ),
+    SpecParametre(
+      cle: 'proforma_validite_jours',
+      groupe: 'entreprise',
+      libelle: 'Durée de validité d’une proforma (jours)',
+      type: TypeParametre.entier,
+      aide: 'Défaut 30 jours.',
+      minimum: '1',
+      maximum: '365',
+      lecteur: 'lib/features/facturation/domain/reglages_documents.dart',
+      serveurSeulement: true,
     ),
     // --- Facturation normalisée (MECeF), 07/11/2026 : réglée au SERVEUR, reçue ici
     // en lecture. Le JETON e-MECeF n'est PAS au registre et ne descend jamais.

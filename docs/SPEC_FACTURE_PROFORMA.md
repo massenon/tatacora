@@ -46,7 +46,7 @@ IFU, lignes et montants ; `proformas.facture_id` et `factures.proforma_id` se r�
 (désactivé : facture simple ; e-MECeF / boîtier : « en attente de normalisation » + bouton Normaliser, jamais auto).
 
 ## 7. Montant en lettres
-`App\Pwa\Support\MontantEnLettres::francsCfa(int)` (PHP) et `montant_en_lettres.dart` (Dart), mêmes règles :
+`App\Domain\Facturation\Support\MontantEnLettres::francsCfa(int)` (PHP) et `montant_en_lettres.dart` (Dart), mêmes règles :
 « quatre-vingts » (s) seulement s'il termine le nombre ; « cent » prend un s s'il est multiplié et terminal ;
 « mille » invariable ; « un million ». Majuscules, suffixe « FRANCS CFA » (« FRANC CFA » pour 0 ou 1).
 Table de cas partagée `tool/proforma/cas_montant_en_lettres.json`, rejouée par `rejouer_proforma.php`.

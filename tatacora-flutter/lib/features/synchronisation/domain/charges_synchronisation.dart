@@ -1185,3 +1185,79 @@ Map<String, Object?> chargeDemandeCloture({
 Map<String, Object?> chargeArchivageArticle({required bool actif}) => {
   'actif': actif,
 };
+
+/// `proformas`, CRÉATION (07/11/2026) : une facture proforma née au poste, hors ligne.
+///
+/// Le numéro provisoire ne part pas (il n'a de sens qu'ici) : à l'émission le serveur attribue
+/// `N°0045 FP-GCN/2026` et le rend. [emettre] : la proforma est émise (sinon brouillon). La validité
+/// est celle DÉCIDÉE au poste ([valideJusquAu], `null` = aucune) : le serveur la range telle quelle.
+Map<String, Object?> chargeProforma({
+  required String clientNom,
+  required List<({String designation, int quantite, int prixUnitaire})> lignes,
+  String? clientId,
+  String? clientTelephone,
+  String? clientIfu,
+  String? objet,
+  String sourceModule = 'libre',
+  bool emettre = false,
+  DateTime? dateEmission,
+  DateTime? valideJusquAu,
+}) => {
+  'client_nom': clientNom,
+  'client_id': ?clientId,
+  'client_telephone': ?clientTelephone,
+  'client_ifu': ?clientIfu,
+  'objet': ?objet,
+  'source_module': sourceModule,
+  if (emettre) 'emettre': true,
+  if (emettre && dateEmission != null) 'date_emission': jourIso(dateEmission),
+  // La clé est TOUJOURS présente à l'émission (même `null`) : c'est ce qui dit au serveur que la
+  // validité est déjà décidée, et qu'il ne la recalcule pas avec son réglage du moment.
+  if (emettre)
+    'valide_jusqu_au': valideJusquAu == null ? null : jourIso(valideJusquAu),
+  'lignes': [
+    for (final l in lignes)
+      {
+        'designation': l.designation,
+        'quantite': l.quantite,
+        'prix_unitaire': l.prixUnitaire,
+      },
+  ],
+};
+
+/// `proformas`, MODIFICATION (07/11/2026) : les SEULS champs changés — le client, l'objet, les lignes
+/// (remplacées en bloc), l'émission d'un brouillon (`statut: emise`), l'annulation (`annulee` + motif)
+/// ou le lien vers la facture née de la conversion (`convertie` + `facture_id`).
+Map<String, Object?> chargeProformaModification({
+  String? clientNom,
+  String? clientTelephone,
+  String? clientIfu,
+  String? objet,
+  List<({String designation, int quantite, int prixUnitaire})>? lignes,
+  String? statut,
+  String? motif,
+  String? factureId,
+  DateTime? dateEmission,
+  bool avecValidite = false,
+  DateTime? valideJusquAu,
+}) => {
+  'client_nom': ?clientNom,
+  'client_telephone': ?clientTelephone,
+  'client_ifu': ?clientIfu,
+  'objet': ?objet,
+  'statut': ?statut,
+  'motif': ?motif,
+  'facture_id': ?factureId,
+  if (dateEmission != null) 'date_emission': jourIso(dateEmission),
+  if (avecValidite)
+    'valide_jusqu_au': valideJusquAu == null ? null : jourIso(valideJusquAu),
+  if (lignes != null)
+    'lignes': [
+      for (final l in lignes)
+        {
+          'designation': l.designation,
+          'quantite': l.quantite,
+          'prix_unitaire': l.prixUnitaire,
+        },
+    ],
+};

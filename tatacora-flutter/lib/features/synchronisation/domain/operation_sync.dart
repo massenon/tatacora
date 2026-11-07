@@ -74,6 +74,11 @@ enum TableSynchronisee {
   /// l'encaissement après sa facture ; l'ANNULATION est leur seule
   /// modification (avoir, contre-passation).
   factures('factures', accepteModification: true),
+
+  /// Facture PROFORMA (07/11/2026, document non fiscal) : APRÈS la facture qu'elle
+  /// peut avoir produite (conversion hors ligne) ; création (brouillon ou émise),
+  /// modification (lignes, émission, annulation, lien vers la facture).
+  proformas('proformas', accepteModification: true),
   paiements('paiements', accepteModification: true),
 
   /// Tourisme (lot F4, 17/10/2026) : les définitions (dernier écrit gagnant)

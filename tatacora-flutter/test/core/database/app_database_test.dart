@@ -163,8 +163,12 @@ void main() {
     //
     // v48 (03/11/2026, suppression de compte), v49 (profil) et v50
     // (normalisation MECeF) : des COLONNES seulement, AUCUNE table — 78.
-    expect(base.allTables.length, 78);
-    expect(base.schemaVersion, 50);
+    //
+    // v51 (07/11/2026, IFU du client) : des COLONNES seulement — 78.
+    // v52 (07/11/2026, facture proforma) : TROIS tables neuves (`proformas_local`,
+    // `lignes_proforma_local`, `sequences_proforma_local`) — 81.
+    expect(base.allTables.length, 81);
+    expect(base.schemaVersion, 52);
     expect(
       base.allTables.map((t) => t.actualTableName).toSet().containsAll({
         'origines_documents_local',

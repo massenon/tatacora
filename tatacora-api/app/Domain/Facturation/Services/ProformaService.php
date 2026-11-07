@@ -29,8 +29,11 @@ use RuntimeException;
  */
 class ProformaService
 {
-    /** Le module de la LIGNE de facture selon le flux d'origine. */
-    public const MODULE_LIGNE = ['libre' => 'M2', 'hebergement' => 'M1', 'evenement' => 'M4', 'location' => 'M8', 'tourisme' => 'M9'];
+    /**
+     * Le module de la LIGNE de facture selon le flux d'origine. `libre` : M9 (Tourisme, première activité de
+     * l'entreprise) — le registre des lignes de facture est fermé à M1/M4/M5/M8/M9, comme au poste.
+     */
+    public const MODULE_LIGNE = ['libre' => 'M9', 'hebergement' => 'M1', 'evenement' => 'M4', 'location' => 'M8', 'tourisme' => 'M9'];
 
     public const TOTAL_MAX = 99_999_999_999;
 
