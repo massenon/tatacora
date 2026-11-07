@@ -13,6 +13,7 @@ import '../domain/client_mecef.dart';
 import '../domain/conversion_boitier.dart';
 import '../domain/entities/piece_facturation.dart';
 import '../domain/erreur_boitier.dart';
+import '../domain/ifu_client.dart';
 import '../domain/mode_facturation.dart';
 import '../domain/repositories/facture_repository.dart';
 import '../domain/statut_normalisation.dart';
@@ -171,6 +172,7 @@ class ServiceNormalisation {
       return 'L’IFU de l’entreprise doit compter 13 chiffres (Paramètres → '
           'Identité & Légal) : il est exigé pour normaliser.';
     }
+    if (!IfuClient.valide(piece.acheteurIfu)) return TextesIfuClient.invalide;
     if (piece.estAnnulee && !piece.estAvoir) {
       return 'Cette facture est annulée : une facture annulée ne se normalise '
           'pas (sa correction est son avoir).';
@@ -243,7 +245,13 @@ class ServiceNormalisation {
       numero: piece.numero,
       lignes: lignes,
       paiements: paiements,
-      clientNom: piece.clientNom,
+      // L'ACHETEUR saisi (07/11/2026) : nom saisi, sinon celui de la pièce, sinon « Client
+      // divers » ; IFU facultatif (vide = client sans IFU, la clé n'est pas envoyée).
+      clientNom: IfuClient.nomPourNormalisation(
+        piece.acheteurNom,
+        repli: piece.clientNom,
+      ),
+      clientIfu: IfuClient.nettoyer(piece.acheteurIfu),
       operateurId: operateur.id,
       operateurNom: operateur.nom,
       referenceAvoir: reference,

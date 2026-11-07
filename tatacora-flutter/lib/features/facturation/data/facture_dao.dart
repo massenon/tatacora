@@ -9,6 +9,7 @@ import '../../../core/database/app_database.dart';
 import '../../../core/database/tables/registre_facturation_tables.dart';
 import '../domain/client_mecef.dart';
 import '../domain/entities/piece_facturation.dart';
+import '../domain/ifu_client.dart';
 import '../domain/repositories/facture_repository.dart';
 import '../domain/statut_normalisation.dart';
 import '../../synchronisation/data/documents_autres_postes.dart';
@@ -232,6 +233,14 @@ class FactureDao extends DatabaseAccessor<AppDatabase> with _$FactureDaoMixin {
   /// change demain, cette pièce ne bouge pas.
   Future<PieceFacturation> emettre(BrouillonFacture brouillon) async {
     if (brouillon.lignes.isEmpty) throw const FactureSansLigne();
+    // L'IFU du client : facultatif, 13 chiffres s'il est rempli — la règle du serveur.
+    if (!IfuClient.valide(brouillon.acheteurIfu)) {
+      throw const IfuClientInvalide();
+    }
+    final acheteurIfu = IfuClient.nettoyer(brouillon.acheteurIfu);
+    final acheteurNom = (brouillon.acheteurNom ?? '').trim().isEmpty
+        ? null
+        : brouillon.acheteurNom!.trim();
 
     final id = _uuid.v4();
 
@@ -250,6 +259,8 @@ class FactureDao extends DatabaseAccessor<AppDatabase> with _$FactureDaoMixin {
           panierId: Value(brouillon.panierId),
           modePaiement: Value(brouillon.modePaiement),
           pointVente: Value(brouillon.pointVente),
+          acheteurIfu: Value(acheteurIfu),
+          acheteurNom: Value(acheteurNom),
           statut: Value(StatutPiece.emise.code),
           // Identité FISCALE : nulle à l'émission, toujours. La certification
           // n'a pas lieu (PA-17 / PA-61).
@@ -286,6 +297,9 @@ class FactureDao extends DatabaseAccessor<AppDatabase> with _$FactureDaoMixin {
                 quantite: l.quantite,
               ),
           ],
+          acheteurIfu: acheteurIfu,
+          acheteurNom: acheteurNom,
+          retenirIfu: brouillon.retenirIfu,
         ),
       );
     });
@@ -333,6 +347,9 @@ class FactureDao extends DatabaseAccessor<AppDatabase> with _$FactureDaoMixin {
       if (StatutPiece.depuisCode(entete.statut) == StatutPiece.annulee) {
         throw FactureDejaAnnulee(entete.numero);
       }
+      // Un avoir sur une facture NORMALISÉE se fait EN LIGNE (décision du PO du 07/11/2026,
+      // point 4) : RIEN n'est écrit ici — ni avoir, ni statut, ni file.
+      _exigerNonNormalisee(entete);
 
       final maintenant = _maintenant();
 
@@ -373,8 +390,6 @@ class FactureDao extends DatabaseAccessor<AppDatabase> with _$FactureDaoMixin {
                 ? StatutTransmissionPiece.nonTransmissible.code
                 : StatutTransmissionPiece.enAttente.code,
           ),
-          normalisationStatut: _statutAvoir(entete),
-          normalisationMotif: _motifAvoir(entete),
         ),
       );
 
@@ -386,7 +401,7 @@ class FactureDao extends DatabaseAccessor<AppDatabase> with _$FactureDaoMixin {
           table: TableSynchronisee.factures,
           entiteId: pieceId,
           type: TypeOperationSync.modification,
-          payload: chargeAnnulationFacture(motif: motifNet, avoirId: idAvoir),
+          payload: chargeAnnulationFacture(motif: motifNet),
         );
       }
 
@@ -452,6 +467,7 @@ class FactureDao extends DatabaseAccessor<AppDatabase> with _$FactureDaoMixin {
       if (StatutPiece.depuisCode(entete.statut) == StatutPiece.annulee) {
         throw FactureDejaAnnulee(entete.numero);
       }
+      _exigerNonNormalisee(entete);
 
       final lignes = await _lignesDe(pieceId);
       final ttc = lignes.fold<int>(
@@ -484,8 +500,6 @@ class FactureDao extends DatabaseAccessor<AppDatabase> with _$FactureDaoMixin {
                 ? StatutTransmissionPiece.nonTransmissible.code
                 : StatutTransmissionPiece.enAttente.code,
           ),
-          normalisationStatut: _statutAvoir(entete),
-          normalisationMotif: _motifAvoir(entete),
         ),
       );
       await _copierLignes([
@@ -526,21 +540,14 @@ class FactureDao extends DatabaseAccessor<AppDatabase> with _$FactureDaoMixin {
   /* Normalisation fiscale — boîtier CC300 (07/11/2026, schéma v50)       */
   /* ================================================================== */
 
-  /// L'avoir d'une facture NORMALISÉE doit l'être aussi (`rt = FA`, `rn = NIM-TC`
-  /// de la facture d'origine) : il naît « en attente de normalisation ». L'avoir
-  /// d'une facture qui ne l'est pas n'a aucune normalisation à faire (`null`).
-  Value<String?> _statutAvoir(PiecesFacturationLocalData facture) => Value(
-    facture.normalisationStatut == StatutNormalisation.normalisee.code
-        ? StatutNormalisation.enAttente.code
-        : null,
-  );
-
-  Value<String?> _motifAvoir(PiecesFacturationLocalData facture) => Value(
-    facture.normalisationStatut == StatutNormalisation.normalisee.code
-        ? 'Avoir d\u2019une facture normalisée : à normaliser par le boîtier '
-              '(correction par avoir).'
-        : null,
-  );
+  /// Une facture NORMALISÉE n'a d'avoir qu'EN LIGNE (décision du PO du 07/11/2026) : l'avoir
+  /// naît au serveur, sous l'identifiant du serveur, puis descend ici (`inscrireAvoirDescendu`).
+  /// Lever AVANT toute écriture : rien de local n'est jamais écrit hors ligne.
+  void _exigerNonNormalisee(PiecesFacturationLocalData facture) {
+    if (facture.normalisationStatut == StatutNormalisation.normalisee.code) {
+      throw const AvoirEnLigneRequis();
+    }
+  }
 
   /// Note, AVANT l'envoi d'une requête de facturation, le compteur du boîtier
   /// lu à l'instant : si l'application s'arrête brutalement, le rejeu sait qu'une
@@ -747,6 +754,59 @@ class FactureDao extends DatabaseAccessor<AppDatabase> with _$FactureDaoMixin {
     );
   }
 
+  /// Le RÉSULTAT d'une normalisation e-MECeF demandée AU SERVEUR depuis ce poste, rendu dans la
+  /// réponse (07/11/2026). Écrit sur la pièce, JAMAIS renvoyé au serveur (il le détient déjà),
+  /// jamais d'écrasement d'une pièce normalisée. Un « normalisée » sans numéro fiscal réel ET
+  /// sans QR de la forme `F;NIM;code;IFU;date` n'est PAS écrit comme tel : la pièce reste en
+  /// attente, avec la phrase qui le dit (un indicateur se dérive de ce qui est en place).
+  Future<PieceFacturation> adopterResultatServeur(
+    String pieceId, {
+    required StatutNormalisation statut,
+    String? motif,
+    String? numeroMecef,
+    String? qrCode,
+    String? codeMecef,
+    String? compteur,
+    DateTime? date,
+  }) => transaction(() async {
+    final entete = await _enteteOuLeve(pieceId);
+    if (entete.normalisationStatut == StatutNormalisation.normalisee.code) {
+      return (await parId(pieceId))!;
+    }
+    var effectif = statut;
+    var motifEffectif = motif;
+    if (statut == StatutNormalisation.normalisee) {
+      final qr = (qrCode ?? '').trim();
+      final valide =
+          RegExp(r'^[A-Za-z0-9]+-[0-9]+$').hasMatch(numeroMecef ?? '') &&
+          qr.startsWith('F;') &&
+          qr.split(';').length == 5;
+      if (!valide) {
+        effectif = StatutNormalisation.enAttente;
+        motifEffectif =
+            'Le serveur a répondu sans numéro fiscal ni QR valides : la '
+            'facture n’est pas normalisée.';
+      }
+    }
+    final normalisee = effectif == StatutNormalisation.normalisee;
+    await (update(
+      piecesFacturationLocal,
+    )..where((p) => p.id.equals(pieceId))).write(
+      PiecesFacturationLocalCompanion(
+        normalisationStatut: Value(effectif.code),
+        normalisationMotif: Value(normalisee ? null : motifEffectif),
+        normalisationMode: Value(VoieNormalisation.emecef.code),
+        normalisationCompteur: Value(normalisee ? compteur : null),
+        normalisationCompteurAvant: const Value(null),
+        numeroMecef: normalisee ? Value(numeroMecef) : const Value.absent(),
+        qrCodeFiscal: normalisee ? Value(qrCode) : const Value.absent(),
+        codeMecef: normalisee ? Value(codeMecef) : const Value.absent(),
+        normaliseeLe: normalisee ? Value(date) : const Value.absent(),
+      ),
+    );
+    return (await parId(pieceId))!;
+  });
+
   Future<PiecesFacturationLocalData> _enteteOuLeve(String pieceId) async {
     final entete = await (select(
       piecesFacturationLocal,
@@ -839,6 +899,8 @@ class FactureDao extends DatabaseAccessor<AppDatabase> with _$FactureDaoMixin {
     required String? reservationId,
     required String? panierId,
     required List<LigneBrouillon> lignes,
+    String? acheteurIfu,
+    String? acheteurNom,
   }) => transaction(() async {
     await into(piecesFacturationLocal).insert(
       PiecesFacturationLocalCompanion.insert(
@@ -850,6 +912,10 @@ class FactureDao extends DatabaseAccessor<AppDatabase> with _$FactureDaoMixin {
         clientId: Value(clientId),
         reservationId: Value(reservationId),
         panierId: Value(panierId),
+        acheteurIfu: Value(IfuClient.nettoyer(acheteurIfu)),
+        acheteurNom: Value(
+          (acheteurNom ?? '').trim().isEmpty ? null : acheteurNom!.trim(),
+        ),
         statut: Value(StatutPiece.emise.code),
         numeroMecef: const Value(null),
         statutTransmission: Value(StatutTransmissionPiece.recue.code),
@@ -1095,6 +1161,8 @@ class FactureDao extends DatabaseAccessor<AppDatabase> with _$FactureDaoMixin {
       codeMecef: entete.codeMecef,
       qrCodeFiscal: entete.qrCodeFiscal,
       normaliseeLe: entete.normaliseeLe,
+      acheteurIfu: entete.acheteurIfu,
+      acheteurNom: entete.acheteurNom,
     );
   }
 

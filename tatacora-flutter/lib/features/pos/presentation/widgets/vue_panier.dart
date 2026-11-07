@@ -18,7 +18,10 @@ import '../../../facturation/domain/entities/piece_facturation.dart'
     show PieceFacturation;
 import '../../../facturation/presentation/ecran_facturation.dart'
     show afficherTicket;
+import '../../../facturation/domain/acheteur_facture.dart';
 import '../../../facturation/presentation/providers_facturation.dart';
+import '../../../facturation/presentation/widgets/champs_acheteur_facture.dart'
+    show ModaleAcheteurFacture;
 import '../../../comptabilite/domain/calcul_tva.dart' show RefusTva;
 import '../../../comptabilite/domain/refus_comptable.dart' show RefusComptable;
 import '../../domain/entities/mode_reglement.dart';
@@ -434,6 +437,10 @@ class _Pied extends ConsumerWidget {
                 ),
               ],
             ),
+            // « IFU du client » (décision du PO du 07/11/2026, point 2) : facultatif, ouvre le
+            // dialogue « Facture » ; l'encaissement n'en dépend jamais.
+            if (panier.typeVente == TypeVente.comptant)
+              const BoutonAcheteurComptant(),
             const SizedBox(height: AppSpacing.sm),
           ],
           if (panier.estOuvert)
@@ -592,15 +599,30 @@ Future<void> facturerPanier(
   WidgetRef ref,
   Panier cloture, {
   bool payerSeparement = false,
+  AcheteurFacture? acheteur,
 }) async {
   PieceFacturation? emise;
+  // L'ACHETEUR (décision du PO du 07/11/2026) : celui de la modale de clôture d'un séjour, ou
+  // celui saisi au comptoir (« IFU du client »), remis à zéro après l'émission.
+  final AcheteurFacture saisi = acheteur ?? ref.read(acheteurFactureProvider);
   try {
     // « Payer séparément » (séjour seulement) : la facture ne porte que les
     // consommations, l'hébergement reste dû sur la fiche du client.
     emise = payerSeparement && cloture.typeVente == TypeVente.surSejour
-        ? await ref.read(emettreConsommationsPourPanierProvider)(cloture)
-        : await ref.read(emettrePourPanierProvider)(cloture);
+        ? await ref.read(emettreConsommationsPourPanierProvider)(
+            cloture,
+            acheteur: saisi,
+          )
+        : await ref.read(emettrePourPanierProvider)(cloture, acheteur: saisi);
+    ref.read(acheteurFactureProvider.notifier).reinitialiser();
     rafraichirFacturation(ref);
+    // « Normaliser maintenant » : jamais automatique, jamais bloquant — la facture reste
+    // émise, « en attente », rejouable ; la phrase dit où en est la normalisation.
+    if (saisi.normaliserMaintenant) {
+      final phrase = await normaliserMaintenant(ref, emise);
+      rafraichirFacturation(ref);
+      if (phrase != null && context.mounted) _signaler(context, phrase);
+    }
     // Un séjour présente le ticket de sa facture de départ ; le comptoir, lui,
     // ouvre « Vente encaissée » ci-dessous.
     if (cloture.typeVente != TypeVente.comptant && context.mounted) {
@@ -1346,3 +1368,48 @@ final ButtonStyle styleBoutonEncaisser = FilledButton.styleFrom(
   ),
   textStyle: styleContenuCarte(TaillesContenu.t14, poids: FontWeight.bold),
 );
+
+/// « IFU du client » au comptoir (décision du PO du 07/11/2026, point 2) : FACULTATIF, il ouvre
+/// le dialogue « Facture » (IFU de 13 chiffres s'il est rempli, nom, « Retenir pour ce
+/// client », « Normaliser maintenant » quand ce poste normalise). Le choix est gardé pour le
+/// PROCHAIN encaissement, qui n'en dépend jamais : vide, c'est un client sans IFU.
+class BoutonAcheteurComptant extends ConsumerWidget {
+  const BoutonAcheteurComptant({super.key});
+
+  static const String libelle = 'IFU du client';
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final acheteur = ref.watch(acheteurFactureProvider);
+    final resume = acheteur.ifuNet;
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: TextButton(
+        key: const Key('pos-ifu-client'),
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.unit),
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        onPressed: () async {
+          final choisi = await showDialog<AcheteurFacture>(
+            context: context,
+            barrierColor: AppColors.voileModale,
+            builder: (_) => ModaleAcheteurFacture(initial: acheteur),
+          );
+          if (choisi != null) {
+            ref.read(acheteurFactureProvider.notifier).poser(choisi);
+          }
+        },
+        child: Text(
+          resume == null ? libelle : '$libelle : $resume',
+          style: styleContenuCarte(
+            TaillesContenu.t12,
+            couleur: AppColors.navy,
+            poids: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+}

@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tatacora_flutter/core/impression/texte_ticket.dart';
-import 'package:tatacora_flutter/features/facturation/domain/certification_mecef.dart';
 import 'package:tatacora_flutter/features/facturation/domain/entities/piece_facturation.dart';
 import 'package:tatacora_flutter/features/facturation/domain/statut_normalisation.dart';
 import 'package:tatacora_flutter/features/facturation/impression/etat_registre_factures.dart';
@@ -53,17 +52,37 @@ void main() {
   EtatRegistreFactures etat(
     List<PieceFacturation> pieces, {
     String filtre = 'Toutes origines',
-  }) => EtatRegistreFactures(pieces: pieces, filtre: filtre);
+    bool normalisable = true,
+  }) => EtatRegistreFactures(
+    pieces: pieces,
+    filtre: filtre,
+    normalisable: normalisable,
+  );
 
   /* ================================================================== */
   group('La ligne de certification ne ment pas', () {
-    test('aucune pièce certifiée : la phrase du maître, mot pour mot', () {
-      final e = etat([piece(numeroMecef: 'MECEF-DEMO-AB12CD34')]);
-      expect(e.mentionCertification, CertificationMecef.libelleDemonstration);
-      expect(e.mentionCertification.toLowerCase(), contains('démonstration'));
-      // Jamais « certifiées : 1 » sur un numéro de démonstration.
-      expect(e.nombreCertifiees, 0);
-    });
+    test(
+      'aucune pièce normalisée : la phrase le dit, jamais « démonstration »',
+      () {
+        final e = etat([piece(numeroMecef: 'MECEF-DEMO-AB12CD34')]);
+        expect(e.mentionCertification, 'Aucune pièce normalisée');
+        expect(
+          e.mentionCertification.toLowerCase(),
+          isNot(contains('démonstration')),
+        );
+        // Jamais « certifiées : 1 » sur un numéro de démonstration.
+        expect(e.nombreCertifiees, 0);
+      },
+    );
+
+    test(
+      'mode désactivé (facture simple) : AUCUNE mention de certification',
+      () {
+        final e = etat([piece()], normalisable: false);
+        expect(e.mentionCertification, isEmpty);
+        expect(e.indicateurs.containsKey('Certification MECeF'), isFalse);
+      },
+    );
 
     test('une pièce sans numéro MECeF n’est pas certifiée non plus', () {
       expect(etat([piece()]).nombreCertifiees, 0);

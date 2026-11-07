@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tatacora_flutter/features/facturation/domain/ifu_client.dart';
+import 'package:tatacora_flutter/features/pos/presentation/widgets/modale_cloture_sejour.dart';
 import 'package:tatacora_flutter/features/facturation/domain/mode_facturation.dart';
 import 'package:tatacora_flutter/features/facturation/domain/statut_normalisation.dart';
 import 'package:tatacora_flutter/features/parametres/domain/regles_parametres.dart';
@@ -113,5 +115,34 @@ void main() {
       ]..sort(),
       ([...cles]..sort()),
     );
+  });
+
+  test('l’IFU du CLIENT : facultatif, 13 chiffres s’il est rempli, séparateurs '
+      'ôtés — comme le serveur', () {
+    final valide = serveur['ifu_client_valide'] as Map<String, dynamic>;
+    final nettoye = serveur['ifu_client_nettoye'] as Map<String, dynamic>;
+    expect(valide.length, greaterThanOrEqualTo(12), reason: 'balayage vide');
+    valide.forEach((brut, attendu) {
+      expect(IfuClient.valide(brut), attendu, reason: 'valide « $brut »');
+    });
+    nettoye.forEach((brut, attendu) {
+      expect(IfuClient.nettoyer(brut), attendu, reason: 'nettoyé « $brut »');
+    });
+  });
+
+  test('les phrases du champ et de l’avoir en ligne sont celles du serveur, '
+      'au mot près', () {
+    final p = serveur['phrases'] as Map<String, dynamic>;
+    expect(TextesIfuClient.label, p['ifu_label']);
+    expect(TextesIfuClient.nomLabel, p['ifu_nom_label']);
+    expect(TextesIfuClient.aide, p['ifu_aide']);
+    expect(TextesIfuClient.invalide, p['ifu_invalide']);
+    expect(TextesIfuClient.retenir, p['ifu_retenir']);
+    expect(TextesIfuClient.nomDivers, p['ifu_nom_divers']);
+    expect(TextesIfuClient.normaliserMaintenant, p['normaliser_maintenant']);
+    expect(TextesFacturationModes.avoirEnLigne, p['avoir_en_ligne']);
+    // Les mots écrits dans la modale de clôture (lus par le comparateur Blade) sont ceux du serveur.
+    expect(ModaleClotureSejour.acheteurNom, p['ifu_nom_label']);
+    expect(ModaleClotureSejour.acheteurAide, p['ifu_aide']);
   });
 }

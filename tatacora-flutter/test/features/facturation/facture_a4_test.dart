@@ -5,7 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tatacora_flutter/core/impression/entete_etablissement.dart';
 import 'package:tatacora_flutter/core/impression/texte_ticket.dart';
 import 'package:tatacora_flutter/core/theme/app_assets.dart';
-import 'package:tatacora_flutter/features/facturation/domain/certification_mecef.dart';
 import 'package:tatacora_flutter/features/facturation/domain/entities/piece_facturation.dart';
 import 'package:tatacora_flutter/features/facturation/domain/statut_normalisation.dart';
 import 'package:tatacora_flutter/features/facturation/impression/facture_a4.dart';
@@ -93,11 +92,13 @@ void main() {
     PieceFacturation? p,
     EnteteEtablissement entete = const EnteteEtablissement(),
     AuteurEdition qui = auteur,
+    bool normalisable = false,
   }) => FactureA4.composer(
     p ?? piece(),
     auteur: qui,
     dateEdition: dateEdition,
     entete: entete,
+    normalisable: normalisable,
   );
 
   /* ================================================================== */
@@ -132,10 +133,6 @@ void main() {
         caracteresNonImprimables(const EnteteEtablissement().sousTitre),
         isNotEmpty,
         reason: 'l’en-tête officielle porte elle-même un tiret cadratin',
-      );
-      expect(
-        caracteresNonImprimables(CertificationMecef.libelleDemonstration),
-        isNotEmpty,
       );
     });
 
@@ -266,23 +263,31 @@ void main() {
 
   /* ================================================================== */
   group('⚠ Le cachet fiscal — réservé et NOMMÉ, jamais inventé', () {
-    test('l’emplacement est réservé et dit ce qu’il est', () {
-      final a4 = composer();
+    test(
+      'décision du PO du 07/11/2026 : une facture SIMPLE ne porte AUCUN cachet '
+      'réservé, AUCUNE mention, AUCUN filigrane',
+      () {
+        final a4 = composer();
 
-      expect(a4.cachetFiscal.first, contains('Cachet fiscal MECeF'));
-      expect(a4.texteBrut, contains('Emplacement réservé'));
-      expect(a4.texteBrut, contains('aucun cachet n\'est apposé'));
-      // Aucune référence interne sur un document (consigne du PO, 14/10/2026) :
-      // la raison est dite en clair, jamais par un numéro de point ouvert.
-      expect(a4.texteBrut, isNot(contains('PA-17')));
-      expect(
-        a4.texteBrut,
-        contains('n\'est pas public'),
-        reason:
-            'le document doit dire POURQUOI le cachet manque, sans quoi il '
-            'passera pour un oubli et quelqu’un le « complétera »',
-      );
-    });
+        expect(a4.cachetFiscal, isEmpty);
+        expect(a4.filigrane, isNull);
+        expect(a4.qrCode, isNull);
+        for (final mention in const [
+          'Cachet fiscal',
+          'Emplacement réservé',
+          'cachet n\'est apposé',
+          'DÉMONSTRATION',
+          'démonstration',
+          'non certifiée',
+          'non normalisé',
+          'normalisation',
+          'sans valeur fiscale',
+          'PA-17',
+        ]) {
+          expect(a4.texteBrut, isNot(contains(mention)), reason: mention);
+        }
+      },
+    );
 
     test('un numéro MECeF SEUL ne remplit pas le cachet : il faut la '
         'normalisation et le QR rendu par le boîtier', () {
@@ -290,12 +295,12 @@ void main() {
       // copié tel quel, jamais dérivé du numéro (le format est communiqué par la
       // DGI, MECEF_INTEGRATION_SPEC.md §5/§6).
       final numeroSeul = composer(p: piece(numeroMecef: 'MECEF-2026-00187'));
-      final demonstration = composer();
+      final simple = composer();
 
-      expect(numeroSeul.cachetFiscal, demonstration.cachetFiscal);
+      expect(numeroSeul.cachetFiscal, simple.cachetFiscal);
+      expect(numeroSeul.cachetFiscal, isEmpty);
       expect(numeroSeul.qrCode, isNull);
-      expect(numeroSeul.filigrane, CertificationMecef.filigraneDemonstration);
-      expect(numeroSeul.texteBrut, contains('Emplacement réservé'));
+      expect(numeroSeul.filigrane, isNull);
     });
 
     test('une pièce NORMALISÉE porte son cachet, ses mentions et le QR copié '
@@ -313,6 +318,7 @@ void main() {
       expect(a4.texteBrut, contains('Code MECeF : NW34NID6ZHANFNMZ2IU7LL3H'));
       expect(a4.texteBrut, isNot(contains('Emplacement réservé')));
       expect(a4.filigrane, isNull);
+      expect(a4.texteBrut, isNot(contains('attente de normalisation')));
     });
 
     test('GARDE STRUCTURELLE — le seul QR du module A4 est celui de la pièce, '
@@ -339,59 +345,72 @@ void main() {
   });
 
   /* ================================================================== */
-  group('MECeF — le filigrane est DÉRIVÉ de la pièce (PA-61)', () {
-    test('pièce non certifiée : filigrane ET mention', () {
-      final a4 = composer();
+  group(
+    'MECeF — la mention est DÉRIVÉE de la pièce et du MODE (PA-61, 07/11/2026)',
+    () {
+      test(
+        'mode désactivé : la facture simple ne dit RIEN (ni filigrane ni mention)',
+        () {
+          final a4 = composer();
 
-      expect(a4.filigrane, CertificationMecef.filigraneDemonstration);
-      expect(
-        a4.texteBrut,
-        contains(texteTicket(CertificationMecef.libelleDemonstration)),
+          expect(a4.filigrane, isNull);
+          expect(a4.texteBrut, isNot(contains('DÉMONSTRATION')));
+          expect(a4.texteBrut, isNot(contains('attente de normalisation')));
+          expect(a4.texteBrut, isNot(contains('certifiée MECeF')));
+        },
       );
-      expect(a4.texteBrut, isNot(contains('certifiée MECeF')));
-    });
 
-    test('un numéro de DÉMONSTRATION ne retire pas le filigrane', () {
-      // `MecefClientFake` produit `MECEF-DEMO-…`. Un document A4 qui
-      // l'afficherait comme une certification serait PA-61 sur le seul
-      // document que le client emporte.
-      final a4 = composer(p: piece(numeroMecef: 'MECEF-DEMO-A1B2C3D4'));
+      test(
+        'mode e-MECeF ou boîtier : une facture non normalisée dit « en attente '
+        'de normalisation », jamais « certifiée »',
+        () {
+          final a4 = composer(normalisable: true);
 
-      expect(a4.filigrane, CertificationMecef.filigraneDemonstration);
-      expect(
-        a4.texteBrut,
-        contains(texteTicket(CertificationMecef.libelleDemonstration)),
+          expect(
+            a4.filigrane,
+            isNull,
+            reason: 'aucun filigrane, dans aucun mode',
+          );
+          expect(a4.texteBrut, contains('Facture en attente de normalisation'));
+          expect(a4.qrCode, isNull, reason: 'pas de QR avant la normalisation');
+          expect(a4.texteBrut, isNot(contains('certifiée MECeF')));
+        },
       );
-    });
 
-    test('une pièce NORMALISÉE retire le filigrane — et elle seule', () {
-      final a4 = composer(p: piece(normalisee: true));
+      test(
+        'un numéro réel SANS statut ni QR ne fait pas une pièce normalisée',
+        () {
+          final a4 = composer(
+            p: piece(numeroMecef: 'MECEF-DEMO-A1B2C3D4'),
+            normalisable: true,
+          );
 
-      expect(a4.filigrane, isNull);
-      expect(
-        a4.texteBrut,
-        isNot(contains(CertificationMecef.filigraneDemonstration)),
+          expect(a4.qrCode, isNull);
+          expect(a4.texteBrut, contains('Facture en attente de normalisation'));
+          expect(a4.texteBrut, isNot(contains('MECEF-DEMO-A1B2C3D4 —')));
+        },
       );
-      expect(a4.texteBrut, contains('MECeF ED04000623-41'));
 
-      // Un numéro réel SEUL, sans statut ni QR : le filigrane reste.
-      expect(
-        composer(p: piece(numeroMecef: 'MECEF-2026-00187')).filigrane,
-        CertificationMecef.filigraneDemonstration,
-      );
-    });
+      test('une pièce NORMALISÉE porte ses mentions, plus aucune attente', () {
+        final a4 = composer(p: piece(normalisee: true), normalisable: true);
 
-    test('la TVA n’est PAS ventilée, et le document dit pourquoi', () {
-      // PA-62 : `taux_tva` n'est pas configuré. Écrire « TVA : 0 F » sur une
-      // pièce immuable affirmerait un fait fiscal que rien n'a vérifié.
-      final a4 = composer();
+        expect(a4.filigrane, isNull);
+        expect(a4.texteBrut, contains('MECeF ED04000623-41'));
+        expect(a4.texteBrut, isNot(contains('attente de normalisation')));
+      });
 
-      expect(a4.texteBrut, contains('francs CFA'));
-      expect(a4.texteBrut, contains('aucune ventilation HT/TVA'));
-      expect(a4.texteBrut, isNot(contains('Montant HT')));
-      expect(a4.texteBrut, isNot(contains('TVA 18')));
-    });
-  });
+      test('la TVA n’est PAS ventilée, et le document dit pourquoi', () {
+        // PA-62 : `taux_tva` n'est pas configuré. Écrire « TVA : 0 F » sur une
+        // pièce immuable affirmerait un fait fiscal que rien n'a vérifié.
+        final a4 = composer();
+
+        expect(a4.texteBrut, contains('francs CFA'));
+        expect(a4.texteBrut, contains('aucune ventilation HT/TVA'));
+        expect(a4.texteBrut, isNot(contains('Montant HT')));
+        expect(a4.texteBrut, isNot(contains('TVA 18')));
+      });
+    },
+  );
 
   /* ================================================================== */
   group('⚠ Q3 — hébergement et consommations restent NOMMÉS séparément', () {

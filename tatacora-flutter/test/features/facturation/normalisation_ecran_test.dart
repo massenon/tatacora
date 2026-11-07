@@ -18,6 +18,8 @@ import 'package:tatacora_flutter/features/facturation/domain/repositories/factur
 import 'package:tatacora_flutter/features/facturation/presentation/ecran_facturation.dart';
 import 'package:tatacora_flutter/features/facturation/presentation/providers_facturation.dart';
 import 'package:tatacora_flutter/features/parametres/data/parametres_depot_local.dart';
+import 'package:tatacora_flutter/features/synchronisation/presentation/providers_synchronisation.dart'
+    show cheminConfigurationPosteProvider;
 import 'package:tatacora_flutter/features/transverse/data/configuration_poste.dart';
 
 import '../../support/faux_pilote_boitier.dart';
@@ -117,6 +119,10 @@ void main() {
           ),
           droitsProvider.overrideWithValue(droits),
           logoEtablissementProvider.overrideWith((ref) async => null),
+          // Le mode effectif du poste se lit de CE poste.json d'essai.
+          cheminConfigurationPosteProvider.overrideWithValue(
+            () async => cheminPoste,
+          ),
           serviceNormalisationProvider.overrideWithValue(
             ServiceNormalisation(
               db,
@@ -146,7 +152,15 @@ void main() {
     final bouton = find.byKey(Key('facturation-ligne-normaliser-${p.id}'));
     expect(bouton, findsOneWidget);
     expect(find.text('Normaliser'), findsOneWidget);
-    expect(find.byKey(Key('facturation-normalisation-${p.id}')), findsNothing);
+    // Boîtier : la facture émise dit qu'elle ATTEND sa normalisation (jamais automatique).
+    expect(
+      find.descendant(
+        of: find.byKey(Key('facturation-normalisation-${p.id}')),
+        matching: find.text('en attente de normalisation'),
+      ),
+      findsOneWidget,
+    );
+    expect(faux.corpsPost, isEmpty, reason: 'rien n\'est parti à l\'émission');
 
     await tester.tap(bouton);
     await laisserTourner(tester);
@@ -220,17 +234,55 @@ void main() {
     expect(faux.corpsPost, hasLength(1), reason: 'jamais un second POST');
   });
 
-  testWidgets('hors mode « boîtier » : aucun bouton, aucune requête', (
-    tester,
-  ) async {
+  testWidgets('mode désactivé (facture simple) : aucun bouton, aucune mention, '
+      'aucune requête', (tester) async {
     await ParametresDepotLocal(
       db,
-    ).inscrireDescendue('facturation_mode', 'emecef');
+    ).inscrireDescendue('facturation_mode', 'desactive');
     await vente();
     await monter(tester);
     expect(find.text('Normaliser'), findsNothing);
+    expect(find.text('Réessayer'), findsNothing);
+    expect(find.textContaining('attente de normalisation'), findsNothing);
     expect(faux.requetes, isEmpty);
   });
+
+  testWidgets(
+    'mode e-MECeF : « Normaliser » est offert, mais hors ligne il est '
+    'REFUSÉ avec la phrase, sans appeler le boîtier ni rien écrire',
+    (tester) async {
+      await ParametresDepotLocal(
+        db,
+      ).inscrireDescendue('facturation_mode', 'emecef');
+      final p = await vente();
+      await monter(tester);
+
+      final bouton = find.byKey(Key('facturation-ligne-normaliser-${p.id}'));
+      expect(bouton, findsOneWidget);
+      await tester.tap(bouton);
+      await laisserTourner(tester);
+
+      expect(
+        find.text(
+          'La normalisation e-MECeF se fait en ligne : reconnectez le poste au '
+          'serveur.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        faux.requetes,
+        isEmpty,
+        reason: 'le poste n\'appelle jamais le boîtier',
+      );
+      final apres = (await factureDaoSur(db).parId(p.id))!;
+      expect(
+        apres.normalisationStatut,
+        isNull,
+        reason: 'rien d\'écrit de faux',
+      );
+      expect(apres.numeroMecef, isNull);
+    },
+  );
 
   testWidgets('en lecture seule (M2 = L) : pas de bouton ; une facture '
       'normalisée n’en a plus', (tester) async {

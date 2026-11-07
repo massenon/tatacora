@@ -65,10 +65,6 @@
                 "texte": "Montant"
             },
             {
-                "type": "span",
-                "texte": "MECeF —"
-            },
-            {
                 "type": "th",
                 "texte": "Date"
             },

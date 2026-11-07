@@ -26,6 +26,7 @@ require $api . '/vendor/autoload.php';
 use App\Domain\Facturation\Services\ModeFacturation;
 use App\Domain\Facturation\Services\ReglagesMecef;
 use App\Domain\Facturation\Services\StatutNormalisation;
+use App\Domain\Facturation\Support\IfuClient;
 
 $echantillonsMode = ['boitier', 'BOITIER', ' emecef ', 'desactive', '', 'nimportequoi', 'e-mecef', 'Boîtier'];
 $echantillonsIfu = [
@@ -33,7 +34,34 @@ $echantillonsIfu = [
     '', ' 3202612345678', '3202612345678 ', '３２０２６１２３４５６７８', "3202612345678\n",
 ];
 
+// IFU du CLIENT (07/11/2026) : facultatif, 13 chiffres s'il est rempli ; nettoyage des séparateurs.
+$echantillonsIfuClient = [
+    '', '   ', '3201910768821', '3201 9107 68821', '3201.9107.68821', '3201-9107-68821', '320191076882',
+    '32019107688211', '32019107688AB', '３２０１９１０７６８８２１', "3201910768821\n", '3201910768821x',
+];
+
+// Les phrases communes au web et au poste (lang/fr/facturation.php), résolues par le vrai PHP.
+$phrases = require $api . '/lang/fr/facturation.php';
+
 echo json_encode([
+    'ifu_client_valide' => array_combine(
+        $echantillonsIfuClient,
+        array_map(static fn (string $v): bool => IfuClient::valide($v), $echantillonsIfuClient),
+    ),
+    'ifu_client_nettoye' => array_combine(
+        $echantillonsIfuClient,
+        array_map(static fn (string $v): ?string => IfuClient::nettoyer($v), $echantillonsIfuClient),
+    ),
+    'phrases' => [
+        'ifu_label' => $phrases['ifu_client']['label'],
+        'ifu_nom_label' => $phrases['ifu_client']['nom_label'],
+        'ifu_aide' => $phrases['ifu_client']['aide'],
+        'ifu_invalide' => $phrases['ifu_client']['invalide'],
+        'ifu_retenir' => $phrases['ifu_client']['retenir'],
+        'ifu_nom_divers' => $phrases['ifu_client']['nom_divers'],
+        'normaliser_maintenant' => $phrases['mode']['normaliser_maintenant'],
+        'avoir_en_ligne' => $phrases['avoir_en_ligne'],
+    ],
     'cle_mode' => ModeFacturation::CLE,
     'modes' => array_map(
         static fn (ModeFacturation $m): array => ['valeur' => $m->value, 'libelle' => $m->libelle()],

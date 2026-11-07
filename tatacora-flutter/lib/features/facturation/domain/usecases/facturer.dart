@@ -3,6 +3,7 @@ import '../../../pos/domain/entities/panier.dart';
 import '../../../pos/domain/messages_ventes.dart';
 import '../../../pos/domain/remise_panier.dart';
 import '../../../pos/domain/place_hebergement.dart';
+import '../acheteur_facture.dart';
 import '../entities/piece_facturation.dart';
 import '../repositories/facture_repository.dart';
 
@@ -36,7 +37,10 @@ final class Facturer {
   /// Le panier doit être clôturé : facturer un panier encore ouvert
   /// produirait une pièce que la ligne suivante rendrait fausse, sans que rien
   /// ne la corrige — une facture est immuable, le panier ne l'est plus.
-  Future<PieceFacturation> emettreAuComptant(Panier panier) async {
+  Future<PieceFacturation> emettreAuComptant(
+    Panier panier, {
+    AcheteurFacture acheteur = AcheteurFacture.aucun,
+  }) async {
     if (panier.typeVente != TypeVente.comptant) {
       throw PanierIncompatible(
         'Ce panier est un panier de séjour : il se facture au départ, '
@@ -54,6 +58,9 @@ final class Facturer {
         modePaiement: panier.modePaiement,
         pointVente: panier.pointVente,
         lignes: _lignesDuPanier(panier),
+        acheteurIfu: acheteur.ifuNet,
+        acheteurNom: acheteur.nomNet,
+        retenirIfu: acheteur.retenir,
       ),
     );
   }
@@ -86,6 +93,7 @@ final class Facturer {
     required Panier panier,
     required Reservation reservation,
     PlaceHebergement place = placeHebergementRetenue,
+    AcheteurFacture acheteur = AcheteurFacture.aucun,
   }) async {
     if (panier.typeVente != TypeVente.surSejour) {
       throw PanierIncompatible(
@@ -151,6 +159,9 @@ final class Facturer {
         modePaiement: panier.modePaiement,
         pointVente: panier.pointVente,
         lignes: lignes,
+        acheteurIfu: acheteur.ifuNet,
+        acheteurNom: acheteur.nomNet,
+        retenirIfu: acheteur.retenir,
       ),
     );
   }
@@ -169,6 +180,7 @@ final class Facturer {
   Future<PieceFacturation> emettreConsommationsDuSejour({
     required Panier panier,
     required Reservation reservation,
+    AcheteurFacture acheteur = AcheteurFacture.aucun,
   }) async {
     if (panier.typeVente != TypeVente.surSejour) {
       throw PanierIncompatible(
@@ -193,6 +205,9 @@ final class Facturer {
         modePaiement: panier.modePaiement,
         pointVente: panier.pointVente,
         lignes: _lignesDuPanier(panier),
+        acheteurIfu: acheteur.ifuNet,
+        acheteurNom: acheteur.nomNet,
+        retenirIfu: acheteur.retenir,
       ),
     );
   }

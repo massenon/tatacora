@@ -14,8 +14,12 @@ import '../../pos/domain/entities/panier.dart';
 import '../data/facture_dao.dart';
 import '../data/facture_repository_local.dart';
 import '../data/lecteur_mode_facturation.dart';
+import '../data/service_facturation_en_ligne.dart';
 import '../data/service_normalisation.dart';
+import '../domain/acheteur_facture.dart';
+import '../domain/mode_facturation.dart';
 import '../../synchronisation/presentation/providers_synchronisation.dart';
+import 'package:drift/drift.dart' show Variable;
 import '../../transverse/data/configuration_poste.dart';
 import '../domain/entities/piece_facturation.dart';
 import '../impression/etat_registre_factures.dart';
@@ -51,6 +55,115 @@ final serviceNormalisationProvider = Provider<ServiceNormalisation>(
   ),
 );
 
+/// Les gestes qui ne se font QU'EN LIGNE (07/11/2026) : l'avoir d'une facture normalisée, et la
+/// normalisation e-MECeF demandée au serveur. Remplaçable par un test (faux serveur).
+final serviceFacturationEnLigneProvider = Provider<ServiceFacturationEnLigne>(
+  (ref) => ServiceFacturationEnLigne(
+    transport: ref.watch(transportSynchronisationProvider),
+    url: ref.watch(urlServeurSynchronisationProvider),
+    base: ref.watch(baseLocaleProvider),
+    demonstration: ref.watch(synchronisationInterditeProvider),
+    lecteur: LecteurConfigurationPoste(
+      chemin: ref.watch(cheminConfigurationPosteProvider),
+    ),
+    envoyerLaFile: () async {
+      await ref.read(syncManagerProvider).synchroniserMaintenant();
+    },
+    descendre: () async {
+      await ref.read(syncManagerProvider).synchroniserDescenteSeule();
+    },
+  ),
+);
+
+/// L'ACHETEUR saisi pour la PROCHAINE facture du POS au comptoir (décision du PO du 07/11/2026) :
+/// posé par le dialogue « IFU du client », lu par l'encaissement, remis à zéro après l'émission.
+final acheteurFactureProvider =
+    NotifierProvider<AcheteurFactureNotifier, AcheteurFacture>(
+      AcheteurFactureNotifier.new,
+    );
+
+final class AcheteurFactureNotifier extends Notifier<AcheteurFacture> {
+  @override
+  AcheteurFacture build() => AcheteurFacture.aucun;
+
+  void poser(AcheteurFacture acheteur) => state = acheteur;
+
+  void reinitialiser() => state = AcheteurFacture.aucun;
+}
+
+/// Ce que ce poste FAIT pour normaliser : le boîtier, le serveur (e-MECeF, en ligne), ou rien
+/// (mode désactivé = facture simple, sans bouton). Relu à chaque affichage.
+final certifieParProvider = FutureProvider.autoDispose<CertifiePar>((
+  ref,
+) async {
+  final etat = await LecteurModeFacturation(
+    ref.watch(baseLocaleProvider),
+    lecteur: LecteurConfigurationPoste(
+      chemin: ref.watch(cheminConfigurationPosteProvider),
+    ),
+  ).lire();
+  return etat.certifiePar;
+});
+
+/// L'IFU retenu sur la fiche d'un client (descendu du serveur), `null` si aucun : il préremplit
+/// l'IFU de la facture.
+Future<String?> ifuDeLaFiche(WidgetRef ref, String? clientId) async {
+  if (clientId == null) return null;
+  final base = ref.read(baseLocaleProvider);
+  final ligne = await base
+      .customSelect(
+        'SELECT ifu FROM clients_local WHERE id = ?',
+        variables: [Variable<String>(clientId)],
+      )
+      .getSingleOrNull();
+  final ifu = ligne?.data['ifu'];
+  return ifu is String && ifu.trim().isNotEmpty ? ifu.trim() : null;
+}
+
+/// « Normaliser maintenant », APRÈS l'émission : le boîtier de ce poste, ou le serveur (e-MECeF)
+/// quand le poste est en ligne. JAMAIS bloquant : toute issue, échec compris, devient une phrase ;
+/// la facture reste émise, « en attente », rejouable par le bouton « Normaliser ».
+Future<String?> normaliserMaintenant(
+  WidgetRef ref,
+  PieceFacturation piece,
+) async {
+  try {
+    final par = await ref.read(certifieParProvider.future);
+    switch (par) {
+      case CertifiePar.rien:
+        return null;
+      case CertifiePar.boitier:
+        final r = await ref
+            .read(serviceNormalisationProvider)
+            .normaliser(piece.id);
+        return switch (r) {
+          NormalisationFaite(:final piece) when piece.estNormalisee =>
+            'Facture ${piece.numero} normalisée.',
+          NormalisationFaite(:final piece) =>
+            'Facture émise, normalisation en attente : '
+                '${piece.normalisationMotif ?? 'à relancer avec « Normaliser »'}',
+          DejaNormalisee() => null,
+          NormalisationIgnoree() => null,
+        };
+      case CertifiePar.serveur:
+        final r = await ref
+            .read(serviceFacturationEnLigneProvider)
+            .normaliserParLeServeur(piece.id);
+        return switch (r) {
+          NormalisationServeur(:final piece) when piece.estNormalisee =>
+            'Facture ${piece.numero} normalisée.',
+          NormalisationServeur(:final motif) =>
+            'Facture émise, normalisation en attente : ${motif ?? 'à relancer'}',
+          RefusEnLigne(:final phrase) =>
+            'Facture émise, normalisation en attente : $phrase',
+          AvoirCree() => null,
+        };
+    }
+  } on Object catch (e) {
+    return 'Facture émise, normalisation en attente : $e';
+  }
+}
+
 /// Ce poste certifie-t-il par son boîtier ? Relu à chaque affichage du registre.
 final boitierActifProvider = FutureProvider.autoDispose<bool>(
   (ref) => ref.watch(serviceNormalisationProvider).boitierActif(),
@@ -77,12 +190,14 @@ final facturerProvider = Provider<Facturer>(
 /// L'aiguillage repose sur `typeVente`, **le même attribut** qui distingue les
 /// deux POS. Il n'y a donc aucune information nouvelle à tenir à jour.
 final emettrePourPanierProvider =
-    Provider<Future<PieceFacturation> Function(Panier)>(
-      (ref) => (panier) async {
+    Provider<
+      Future<PieceFacturation> Function(Panier, {AcheteurFacture acheteur})
+    >(
+      (ref) => (panier, {acheteur = AcheteurFacture.aucun}) async {
         final facturer = ref.read(facturerProvider);
 
         if (panier.typeVente == TypeVente.comptant) {
-          return facturer.emettreAuComptant(panier);
+          return facturer.emettreAuComptant(panier, acheteur: acheteur);
         }
 
         final reservationId = panier.reservationId;
@@ -109,6 +224,7 @@ final emettrePourPanierProvider =
         return facturer.emettrePourSejour(
           panier: panier,
           reservation: reservation,
+          acheteur: acheteur,
         );
       },
     );
@@ -117,8 +233,10 @@ final emettrePourPanierProvider =
 /// séjour (`Facturer.emettreConsommationsDuSejour`). Le même aiguillage que
 /// [emettrePourPanierProvider], pour un panier de séjour uniquement.
 final emettreConsommationsPourPanierProvider =
-    Provider<Future<PieceFacturation> Function(Panier)>(
-      (ref) => (panier) async {
+    Provider<
+      Future<PieceFacturation> Function(Panier, {AcheteurFacture acheteur})
+    >(
+      (ref) => (panier, {acheteur = AcheteurFacture.aucun}) async {
         final reservationId = panier.reservationId;
         if (panier.typeVente != TypeVente.surSejour || reservationId == null) {
           throw StateError(
@@ -139,6 +257,7 @@ final emettreConsommationsPourPanierProvider =
             .emettreConsommationsDuSejour(
               panier: panier,
               reservation: reservation,
+              acheteur: acheteur,
             );
       },
     );

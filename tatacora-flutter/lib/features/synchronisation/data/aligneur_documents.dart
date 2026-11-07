@@ -1637,6 +1637,8 @@ extension _AlignementDocuments on AligneurCatalogue {
       reservationId: reservationId,
       panierId: panierId,
       lignes: converties,
+      acheteurIfu: AligneurCatalogue._texte(d['acheteur_ifu']),
+      acheteurNom: AligneurCatalogue._texte(d['acheteur_nom']),
     );
     await _adopterNormalisation(id, d);
     await _retenirOrigine(e, id);

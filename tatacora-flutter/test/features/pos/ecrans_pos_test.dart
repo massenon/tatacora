@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tatacora_flutter/core/database/app_database.dart';
 import 'package:tatacora_flutter/core/di/providers.dart';
@@ -9,6 +10,12 @@ import 'package:tatacora_flutter/core/theme/app_colors.dart';
 import 'package:tatacora_flutter/core/theme/app_theme.dart';
 import 'package:tatacora_flutter/features/auth/domain/session.dart';
 import 'package:tatacora_flutter/features/caisse/domain/messages_caisse.dart';
+import 'package:tatacora_flutter/features/facturation/data/service_normalisation.dart';
+import 'package:tatacora_flutter/features/facturation/domain/mode_facturation.dart';
+import 'package:tatacora_flutter/features/facturation/presentation/providers_facturation.dart'
+    show certifieParProvider, serviceNormalisationProvider;
+import 'package:tatacora_flutter/features/facturation/presentation/widgets/champs_acheteur_facture.dart'
+    show ChampsAcheteurFacture;
 import 'package:tatacora_flutter/features/hebergement/data/reservation_dao.dart';
 import 'package:tatacora_flutter/features/hebergement/data/reservation_repository_local.dart';
 import 'package:tatacora_flutter/features/hebergement/presentation/providers_hebergement.dart';
@@ -132,6 +139,9 @@ void main() {
     WidgetTester tester,
     Widget ecran, {
     GardeAcces? droits,
+    // Ce que CE poste fait pour normaliser : « rien » = facture SIMPLE (07/11/2026).
+    CertifiePar par = CertifiePar.rien,
+    List<Override> surcharges = const [],
   }) async {
     tester.view
       ..physicalSize = const Size(1600, 1000)
@@ -142,6 +152,8 @@ void main() {
       ProviderScope(
         overrides: [
           baseLocaleProvider.overrideWithValue(db),
+          certifieParProvider.overrideWith((ref) async => par),
+          ...surcharges,
           // Celui qui encaisse : la clôture nomme son auteur (RG-15).
           sessionProvider.overrideWithBuild(
             (ref, notifier) => Session(
@@ -1202,6 +1214,198 @@ void main() {
       ]);
     });
 
+    /* ---------------- IFU du client, décision du PO du 07/11/2026 ---------------- */
+
+    Future<void> ouvrirLaCloture(WidgetTester tester) async {
+      await selectionner(tester);
+      await ajouterBiere(tester);
+      await tester.tap(find.byKey(const Key('pos-cloturer')));
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> confirmerLaCloture(WidgetTester tester) async {
+      await tester.tap(
+        find.byKey(const Key('pos-confirmer-cloture-anticipee')),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('la modale de clôture demande l’IFU du client : facultatif, '
+        'décoché par défaut, SANS « Normaliser maintenant » en mode désactivé', (
+      tester,
+    ) async {
+      await monter(tester, const EcranPosHeberges());
+      await ouvrirLaCloture(tester);
+
+      expect(find.byKey(ChampsAcheteurFacture.cleIfu), findsOneWidget);
+      expect(find.byKey(ChampsAcheteurFacture.cleNom), findsOneWidget);
+      expect(find.text('IFU du client'), findsOneWidget);
+      expect(find.text('Retenir pour ce client'), findsOneWidget);
+      expect(
+        find.text(
+          'Facultatif : 13 chiffres. Laissez vide pour un client sans IFU.',
+        ),
+        findsOneWidget,
+      );
+      // Le nom du client de la réservation préremplit le nom.
+      expect(
+        tester
+            .widget<TextField>(find.byKey(ChampsAcheteurFacture.cleNom))
+            .controller!
+            .text,
+        'KORA',
+      );
+      // Cases décochées ; pas de « Normaliser maintenant » (facture simple).
+      for (final c in tester.widgetList<Checkbox>(find.byType(Checkbox))) {
+        if (c.value == true) {
+          // seule la case « Payer séparément » pourrait l'être : elle ne l'est pas.
+          fail('une case est cochée d’office');
+        }
+      }
+      expect(find.byKey(ChampsAcheteurFacture.cleNormaliser), findsNothing);
+      expect(find.text('Normaliser maintenant'), findsNothing);
+    });
+
+    testWidgets('vide, la facture part SANS IFU : client sans IFU, la clôture '
+        'n’en dépend jamais', (tester) async {
+      await monter(tester, const EcranPosHeberges());
+      await ouvrirLaCloture(tester);
+      await confirmerLaCloture(tester);
+
+      final piece = (await db.select(db.piecesFacturationLocal).get()).single;
+      expect(piece.acheteurIfu, isNull);
+      expect(
+        piece.numeroMecef,
+        isNull,
+        reason: 'facture simple : aucun numéro',
+      );
+      expect(piece.normalisationStatut, isNull);
+    });
+
+    testWidgets('un IFU de 12 chiffres se CORRIGE : la phrase sous le champ, '
+        '« Facture » grisé, rien n’est clôturé', (tester) async {
+      await monter(tester, const EcranPosHeberges());
+      await ouvrirLaCloture(tester);
+
+      await tester.enterText(
+        find.byKey(ChampsAcheteurFacture.cleIfu),
+        '320191076882',
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(
+          'L\'IFU du client doit compter exactement 13 chiffres (laissez vide '
+          'pour un client sans IFU).',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        tester
+            .widget<FilledButton>(
+              find.byKey(const Key('pos-confirmer-cloture-anticipee')),
+            )
+            .onPressed,
+        isNull,
+      );
+      expect(await db.select(db.piecesFacturationLocal).get(), isEmpty);
+      expect((await depotPanier.paniers()).single.statut, StatutPanier.ouvert);
+    });
+
+    testWidgets('13 chiffres + nom + « Retenir » : rangés sur la pièce et '
+        'envoyés au serveur', (tester) async {
+      await monter(tester, const EcranPosHeberges());
+      await ouvrirLaCloture(tester);
+
+      await tester.enterText(
+        find.byKey(ChampsAcheteurFacture.cleIfu),
+        '3201910768821',
+      );
+      await tester.enterText(
+        find.byKey(ChampsAcheteurFacture.cleNom),
+        'SARL Atacora',
+      );
+      await tester.tap(find.byKey(ChampsAcheteurFacture.cleRetenir));
+      await tester.pumpAndSettle();
+      await confirmerLaCloture(tester);
+
+      final piece = (await db.select(db.piecesFacturationLocal).get()).single;
+      expect(piece.acheteurIfu, '3201910768821');
+      expect(piece.acheteurNom, 'SARL Atacora');
+      final ops = await (db.select(db.operationsSyncLocal)).get();
+      final facture = ops.firstWhere((o) => o.tableServeur == 'factures');
+      expect(facture.payload, contains('"acheteur_ifu":"3201910768821"'));
+      expect(facture.payload, contains('"retenir_ifu":true'));
+    });
+
+    testWidgets('la fiche du client préremplit l’IFU retenu', (tester) async {
+      await db.customStatement(
+        "UPDATE clients_local SET ifu = '0202011344660' WHERE id = 'cli-1'",
+      );
+      await monter(tester, const EcranPosHeberges());
+      await ouvrirLaCloture(tester);
+
+      expect(
+        tester
+            .widget<TextField>(find.byKey(ChampsAcheteurFacture.cleIfu))
+            .controller!
+            .text,
+        '0202011344660',
+      );
+    });
+
+    testWidgets('boîtier : « Normaliser maintenant » est offert, décoché par '
+        'défaut ; la facture n’est PAS normalisée d’office (mutation b)', (
+      tester,
+    ) async {
+      final espion = _ServiceEspion(db);
+      await monter(
+        tester,
+        const EcranPosHeberges(),
+        par: CertifiePar.boitier,
+        surcharges: [serviceNormalisationProvider.overrideWithValue(espion)],
+      );
+      await ouvrirLaCloture(tester);
+
+      expect(find.byKey(ChampsAcheteurFacture.cleNormaliser), findsOneWidget);
+      expect(find.text('Normaliser maintenant'), findsOneWidget);
+      await confirmerLaCloture(tester);
+
+      // Jamais automatique : le boîtier n'est PAS appelé, ni tentative ni statut.
+      expect(
+        espion.appels,
+        isEmpty,
+        reason: 'aucune normalisation à l’émission',
+      );
+      final piece = (await db.select(db.piecesFacturationLocal).get()).single;
+      expect(piece.normalisationStatut, isNull);
+      expect(piece.normalisationCompteurAvant, isNull);
+    });
+
+    testWidgets('un ÉCHEC de normalisation ne bloque NI la facture NI la '
+        'clôture (mutation c)', (tester) async {
+      await monter(
+        tester,
+        const EcranPosHeberges(),
+        par: CertifiePar.boitier,
+        surcharges: [
+          serviceNormalisationProvider.overrideWithValue(_ServiceQuiPlante(db)),
+        ],
+      );
+      await ouvrirLaCloture(tester);
+      await tester.tap(find.byKey(ChampsAcheteurFacture.cleNormaliser));
+      await tester.pumpAndSettle();
+      await confirmerLaCloture(tester);
+
+      // La vente est clôturée, la facture existe, « en attente » : rien n'a bloqué.
+      expect((await depotPanier.paniers()).single.statut, StatutPanier.cloture);
+      final piece = (await db.select(db.piecesFacturationLocal).get()).single;
+      expect(piece.statut, 'emise');
+      expect(piece.numeroMecef, isNull);
+      expect(find.byType(SnackBar), findsWidgets);
+      expect(find.textContaining('normalisation en attente'), findsWidgets);
+    });
+
     testWidgets('la phrase du panier dit « enregistré sur ce poste »', (
       tester,
     ) async {
@@ -1243,4 +1447,27 @@ void main() {
       expect(await depotPanier.paniers(), isEmpty);
     });
   });
+}
+
+/// Un service de normalisation qui PLANTE : l'échec ne doit jamais bloquer une vente.
+class _ServiceQuiPlante extends ServiceNormalisation {
+  _ServiceQuiPlante(super.base);
+
+  @override
+  Future<ResultatNormalisationPiece> normaliser(String pieceId) async =>
+      throw StateError('le boîtier a explosé');
+}
+
+/// Un espion : compte les demandes de normalisation. Une normalisation AUTOMATIQUE à
+/// l'émission (mutation b) le ferait rougir.
+class _ServiceEspion extends ServiceNormalisation {
+  _ServiceEspion(super.base);
+
+  final List<String> appels = [];
+
+  @override
+  Future<ResultatNormalisationPiece> normaliser(String pieceId) async {
+    appels.add(pieceId);
+    return NormalisationIgnoree(CertifiePar.boitier);
+  }
 }

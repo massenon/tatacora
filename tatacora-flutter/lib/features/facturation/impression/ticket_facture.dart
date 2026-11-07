@@ -37,8 +37,8 @@ import 'package:pdf/widgets.dart' as pw;
 
 import '../../../core/impression/entete_etablissement.dart';
 import '../../../core/impression/texte_ticket.dart';
-import '../domain/certification_mecef.dart';
 import '../domain/entities/piece_facturation.dart';
+import '../domain/ifu_client.dart';
 
 /// Format d'un rouleau thermique courant : 80 mm de large, hauteur libre.
 ///
@@ -242,19 +242,21 @@ final class TicketFacture {
   ///
   /// ## Ce que le ticket dit toujours, et qu'il ne peut pas taire
   ///
-  ///  - **la mention MECeF réelle** — `« MECeF — non certifiée, démonstration »`
-  ///    tant qu'aucun vrai numéro n'est porté. Elle se dérive de la pièce, pas
-  ///    d'un drapeau (PA-61) ;
-  ///  - **le filigrane « DOCUMENT DE DÉMONSTRATION »**, obligation ouverte du
-  ///    dépôt, sur toute pièce non certifiée. Il disparaîtra de lui-même le
-  ///    jour où une certification réelle aura lieu — parce qu'il est dérivé,
-  ///    et non posé à la main ;
+  ///  - **la mention MECeF réelle**, dérivée de la pièce (PA-61) : les mentions
+  ///    normalisées et le QR SEULEMENT pour une pièce réellement normalisée. Depuis la
+  ///    décision du PO du 07/11/2026, plus de filigrane ni de mention de démonstration :
+  ///    une facture simple (mode désactivé) ne porte AUCUNE mention, une facture
+  ///    normalisable pas encore normalisée dit « en attente de normalisation » ;
   ///  - **la nature de la pièce** : un avoir s'annonce comme tel, avec le
   ///    numéro de la facture qu'il neutralise. Un document à montant négatif
   ///    qui ne dirait pas ce qu'il est serait pris pour une facture fausse.
   static TicketCompose composer(
     PieceFacturation piece, {
     EnteteEtablissement entete = const EnteteEtablissement(),
+
+    /// Ce poste normalise (boîtier ou e-MECeF) : une facture pas encore normalisée dit
+    /// « en attente de normalisation ». En mode désactivé (facture SIMPLE) : AUCUNE mention.
+    bool normalisable = false,
   }) {
     final lignes = <LigneTicket>[
       LigneTicket(entete.etablissement, style: StyleLigneTicket.titre),
@@ -338,16 +340,11 @@ final class TicketFacture {
             'Normalisée le ${_horodatage(piece.normaliseeLe!)}',
             style: StyleLigneTicket.sousTitre,
           ),
-      ] else ...[
+      ] else if (normalisable && !piece.estAvoir)
         LigneTicket(
-          piece.libelleCertification,
+          TextesFacturationModes.enAttenteDeNormalisation,
           style: StyleLigneTicket.mention,
         ),
-        LigneTicket(
-          CertificationMecef.filigraneDemonstration,
-          style: StyleLigneTicket.filigrane,
-        ),
-      ],
     ];
 
     return TicketCompose(

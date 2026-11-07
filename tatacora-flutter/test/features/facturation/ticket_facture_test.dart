@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tatacora_flutter/core/impression/entete_etablissement.dart';
 import 'package:tatacora_flutter/core/impression/texte_ticket.dart';
-import 'package:tatacora_flutter/features/facturation/domain/certification_mecef.dart';
 import 'package:tatacora_flutter/features/facturation/domain/entities/piece_facturation.dart';
 import 'package:tatacora_flutter/features/facturation/domain/statut_normalisation.dart';
 import 'package:tatacora_flutter/features/facturation/impression/ticket_facture.dart';
@@ -127,7 +126,7 @@ void main() {
       expect(ticket.texteBrut, contains('GÎTE CHEZ NOËL'));
       expect(ticket.texteBrut, contains('Béninoise 33cl'));
       expect(ticket.texteBrut, contains('Poulet braisé'));
-      expect(ticket.texteBrut, contains('DOCUMENT DE DÉMONSTRATION'));
+      expect(ticket.texteBrut, isNot(contains('DOCUMENT DE DÉMONSTRATION')));
     });
 
     test('le tiret cadratin est substitué, jamais supprimé', () {
@@ -180,78 +179,75 @@ void main() {
   });
 
   /* ================================================================== */
-  group('MECeF — le ticket dit la vérité (PA-61)', () {
-    test('non certifiée : la mention ET le filigrane', () {
-      final ticket = TicketFacture.composer(piece());
+  group(
+    'MECeF — le ticket dit la vérité (PA-61, décision du PO du 07/11/2026)',
+    () {
+      test(
+        'mode désactivé : la facture simple ne porte AUCUNE mention ni filigrane',
+        () {
+          final ticket = TicketFacture.composer(piece());
 
-      // La comparaison passe par `texteTicket` : la mention elle-même contient
-      // un tiret cadratin, et l'attendre brut ferait échouer un ticket
-      // pourtant correct. C'est le meilleur rappel qu'AUCUN texte n'échappe à
-      // la normalisation, pas même celui du garde-fou MECeF.
-      expect(
-        ticket.texteBrut,
-        contains(texteTicket(CertificationMecef.libelleDemonstration)),
-      );
-      expect(
-        ticket.texteBrut,
-        contains(CertificationMecef.filigraneDemonstration),
-        reason:
-            'obligation ouverte du dépôt : une pièce non certifiée remise à un '
-            'client doit le dire sur le DOCUMENT, pas seulement à l’écran',
-      );
-      expect(ticket.texteBrut, isNot(contains('certifiée MECeF')));
-      expect(ticket.texteBrut, isNot(contains('MECeF F-')));
-    });
-
-    test('un numéro de DÉMONSTRATION ne retire pas le filigrane', () {
-      // Le piège : `MecefClientFake` produit `MECEF-DEMO-…`. Un ticket qui
-      // afficherait ce numéro comme une certification serait exactement PA-61,
-      // sur le seul document que le client emporte.
-      final ticket = TicketFacture.composer(
-        piece(numeroMecef: 'MECEF-DEMO-A1B2C3D4'),
+          for (final mention in const [
+            'DÉMONSTRATION',
+            'démonstration',
+            'non certifiée',
+            'non normalisé',
+            'attente de normalisation',
+            'FACTURE NORMALISÉE',
+            'certifiée MECeF',
+          ]) {
+            expect(ticket.texteBrut, isNot(contains(mention)), reason: mention);
+          }
+          expect(ticket.texteBrut, isNot(contains('MECeF F-')));
+          expect(ticket.qrCode, isNull);
+        },
       );
 
-      expect(
-        ticket.texteBrut,
-        contains(CertificationMecef.filigraneDemonstration),
-      );
-      expect(
-        ticket.texteBrut,
-        contains(texteTicket(CertificationMecef.libelleDemonstration)),
-      );
-    });
+      test(
+        'mode e-MECeF ou boîtier : « en attente de normalisation » tant que la '
+        'pièce ne l\'est pas, sans filigrane ni QR',
+        () {
+          final ticket = TicketFacture.composer(piece(), normalisable: true);
 
-    test('une pièce NORMALISÉE retire le filigrane et porte ses mentions et '
-        'son QR — elle seule', () {
-      // La branche que personne n'avait empruntée, et c'est précisément pourquoi
-      // elle est éprouvée : PA-61 vivait dans une branche `active` qu'aucun test
-      // ne visitait.
-      final p = piece(normalisee: true);
-      final ticket = TicketFacture.composer(p);
+          expect(
+            ticket.texteBrut,
+            contains('Facture en attente de normalisation'),
+          );
+          expect(ticket.texteBrut, isNot(contains('DÉMONSTRATION')));
+          expect(ticket.qrCode, isNull);
+        },
+      );
 
-      expect(
-        ticket.texteBrut,
-        isNot(contains(CertificationMecef.filigraneDemonstration)),
-      );
-      expect(ticket.texteBrut, contains('FACTURE NORMALISÉE MECeF'));
-      expect(ticket.texteBrut, contains('NIM-TC : ED04000623-41'));
-      expect(
-        ticket.texteBrut,
-        contains('Code MECeF : NW34NID6ZHANFNMZ2IU7LL3H'),
-      );
-      expect(ticket.qrCode, p.qrCodeFiscal, reason: 'QR copié du boîtier');
+      test('un numéro réel SEUL (sans statut ni QR) ne fait pas une pièce '
+          'normalisée', () {
+        final seul = TicketFacture.composer(
+          piece(numeroMecef: 'MECEF-2026-00187'),
+          normalisable: true,
+        );
 
-      // Un numéro réel SEUL : bandeau DEMO conservé, aucun QR.
-      final seul = TicketFacture.composer(
-        piece(numeroMecef: 'MECEF-2026-00187'),
+        expect(seul.qrCode, isNull);
+        expect(seul.texteBrut, isNot(contains('FACTURE NORMALISÉE')));
+        expect(seul.texteBrut, contains('attente de normalisation'));
+      });
+
+      test(
+        'une pièce NORMALISÉE porte ses mentions et son QR — elle seule',
+        () {
+          final p = piece(normalisee: true);
+          final ticket = TicketFacture.composer(p, normalisable: true);
+
+          expect(ticket.texteBrut, contains('FACTURE NORMALISÉE MECeF'));
+          expect(ticket.texteBrut, contains('NIM-TC : ED04000623-41'));
+          expect(
+            ticket.texteBrut,
+            contains('Code MECeF : NW34NID6ZHANFNMZ2IU7LL3H'),
+          );
+          expect(ticket.texteBrut, isNot(contains('attente de normalisation')));
+          expect(ticket.qrCode, p.qrCodeFiscal, reason: 'QR copié du boîtier');
+        },
       );
-      expect(
-        seul.texteBrut,
-        contains(CertificationMecef.filigraneDemonstration),
-      );
-      expect(seul.qrCode, isNull);
-    });
-  });
+    },
+  );
 
   /* ================================================================== */
   group('Le montant', () {

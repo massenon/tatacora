@@ -553,7 +553,7 @@ class AppDatabase extends _$AppDatabase {
   /// déjà NORMALISÉE n'est jamais écrasée (garde du DAO). Le curseur de descente est
   /// oublié : les normalisations déjà faites au serveur redescendent.
   @override
-  int get schemaVersion => 50;
+  int get schemaVersion => 51;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1616,6 +1616,42 @@ class AppDatabase extends _$AppDatabase {
         if (!tables.contains('journal_securite_local')) {
           await m.createTable(journalSecuriteLocal);
         }
+      }
+      if (from < 51) {
+        // IFU DU CLIENT (07/11/2026) : TROIS colonnes NULLABLES, aucune table, aucune valeur
+        // fabriquée — `pieces_facturation_local.acheteur_ifu` et `.acheteur_nom` (ce qui a été
+        // saisi pour la facture), `clients_local.ifu` (descendu du serveur). Ajout CONDITIONNEL
+        // (piège 3). Le curseur de descente est oublié : les IFU des fiches déjà au serveur
+        // redescendent. Une table absente n'est pas touchée (réconciliation finale).
+        Future<Set<String>> colonnes(String table) async => {
+          for (final c
+              in await m.database
+                  .customSelect('PRAGMA table_info($table)')
+                  .get())
+            c.data['name'] as String,
+        };
+        final pieces51 = await colonnes('pieces_facturation_local');
+        if (pieces51.isNotEmpty) {
+          if (!pieces51.contains('acheteur_ifu')) {
+            await m.addColumn(
+              piecesFacturationLocal,
+              piecesFacturationLocal.acheteurIfu,
+            );
+          }
+          if (!pieces51.contains('acheteur_nom')) {
+            await m.addColumn(
+              piecesFacturationLocal,
+              piecesFacturationLocal.acheteurNom,
+            );
+          }
+        }
+        final clients51 = await colonnes('clients_local');
+        if (clients51.isNotEmpty && !clients51.contains('ifu')) {
+          await m.addColumn(clientsLocal, clientsLocal.ifu);
+        }
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
       }
       if (from < 50) {
         // FACTURATION NORMALISÉE (07/11/2026) : huit colonnes NULLABLES, aucune table,

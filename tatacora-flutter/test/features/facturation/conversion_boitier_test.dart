@@ -56,7 +56,7 @@ void main() {
       expect(j['seller_id'], 'RECEPTION01');
       expect(j['seller_name'], 'Reception');
       expect(j['aib'], 'N/A');
-      expect(j['buyer_ifu'], '');
+      expect(j.containsKey('buyer_ifu'), isFalse, reason: 'client sans IFU');
       final p = (j['products'] as List).single as Map<String, dynamic>;
       expect(p['tax'], 'B');
       expect(p['price'], 15000);

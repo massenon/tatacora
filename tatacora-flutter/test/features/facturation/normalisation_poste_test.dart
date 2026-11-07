@@ -8,6 +8,7 @@ import 'package:tatacora_flutter/features/facturation/data/pilote_boitier.dart';
 import 'package:tatacora_flutter/features/facturation/data/service_normalisation.dart';
 import 'package:tatacora_flutter/features/facturation/domain/client_mecef.dart';
 import 'package:tatacora_flutter/features/facturation/domain/entities/piece_facturation.dart';
+import 'package:tatacora_flutter/features/facturation/domain/ifu_client.dart';
 import 'package:tatacora_flutter/features/facturation/domain/repositories/facture_repository.dart';
 import 'package:tatacora_flutter/features/facturation/domain/statut_normalisation.dart';
 import 'package:tatacora_flutter/features/facturation/impression/ticket_facture.dart';
@@ -272,11 +273,19 @@ void main() {
       expect(ticket.texteBrut, contains('NIM-TC : ED04000623-41'));
       expect((await ticket.pdf()).length, greaterThan(500));
 
-      // Une pièce NON normalisée : bandeau DEMO, aucun QR.
+      // Une pièce NON normalisée : aucun QR, aucune mention de démonstration (facture
+      // simple), « en attente de normalisation » seulement si le poste normalise.
       final autre = await venteComptant();
-      final demo = TicketFacture.composer(autre);
-      expect(demo.qrCode, isNull);
-      expect(demo.texteBrut, contains('DOCUMENT DE DÉMONSTRATION'));
+      final simple = TicketFacture.composer(autre);
+      expect(simple.qrCode, isNull);
+      expect(simple.texteBrut, isNot(contains('DÉMONSTRATION')));
+      expect(simple.texteBrut, isNot(contains('attente de normalisation')));
+      final attente = TicketFacture.composer(autre, normalisable: true);
+      expect(attente.qrCode, isNull);
+      expect(
+        attente.texteBrut,
+        contains('Facture en attente de normalisation'),
+      );
     });
   });
 
@@ -621,65 +630,120 @@ void main() {
   });
 
   group('un avoir : correction d’une facture normalisée', () {
-    test(
-      'l’avoir d’une facture normalisée naît « en attente » ; il passe '
-      'par le boîtier (rt = FA, rn = NIM-TC) ; la facture ne bouge pas',
-      () async {
-        final f = await venteComptant();
-        await service().normaliser(f.id);
-        final facture = await relire(f);
+    test('DÉCISION DU PO (07/11/2026) : l’annulation ET l’avoir partiel d’une '
+        'facture normalisée sont REFUSÉS au DAO, avec la phrase, et RIEN n’est '
+        'écrit localement', () async {
+      final f = await venteComptant();
+      await service().normaliser(f.id);
+      final apres = await relire(f);
+      expect(apres.estNormalisee, isTrue);
 
-        final annulation = await factureDaoSur(db).annuler(f.id, 'Erreur');
-        final avoir = annulation.avoir;
-        expect(avoir.normalisationStatut, StatutNormalisation.enAttente);
-        expect(
-          avoir.normalisationMotif,
-          contains('à normaliser par le boîtier'),
-        );
+      final piecesAvant = await factureDaoSur(db).pieces();
+      final fileAvant = await OperationsSyncDao(
+        db,
+      ).operations(table: TableSynchronisee.factures);
 
-        final r = await service().normaliser(avoir.id) as NormalisationFaite;
-        expect(r.issue, isA<Certifiee>());
-        final corps = jsonDecode(faux.corpsPost.last) as Map<String, dynamic>;
-        expect(corps['rt'], 'FA');
-        expect(corps['rn'], 'ED04000623-41');
-        expect(corps.containsKey('vt'), isFalse);
-        // Positifs : le sens se dit par rt/rn, pas par un montant négatif.
-        expect(((corps['products'] as List).single as Map)['price'], 10000);
-        expect(corps['payments'], [
-          {'mode': 'E', 'amount': 30000},
-        ]);
+      await expectLater(
+        factureDaoSur(db).annuler(f.id, 'Erreur'),
+        throwsA(
+          isA<AvoirEnLigneRequis>().having(
+            (e) => '$e',
+            'phrase',
+            'Un avoir sur une facture normalisée se fait en ligne : '
+                'reconnectez le poste au serveur.',
+          ),
+        ),
+      );
+      await expectLater(
+        factureDaoSur(db).emettreAvoirPartiel(f.id, 1000, 'Geste'),
+        throwsA(isA<AvoirEnLigneRequis>()),
+      );
 
-        final apres = await relire(avoir);
-        expect(apres.estNormalisee, isTrue);
-        expect(
-          apres.numeroMecef,
-          'ED04000623-1',
-          reason: 'compteur des AVOIRS',
-        );
-        // La facture d'origine est intacte (RG-03).
-        final f2 = await relire(f);
-        expect(f2.numeroMecef, facture.numeroMecef);
-        expect(f2.qrCodeFiscal, facture.qrCodeFiscal);
+      // RIEN d'écrit : ni avoir, ni statut annulée, ni opération en file.
+      final piecesApres = await factureDaoSur(db).pieces();
+      expect(piecesApres, hasLength(piecesAvant.length));
+      expect(piecesApres.where((p) => p.estAvoir), isEmpty);
+      final relue = await relire(f);
+      expect(relue.estAnnulee, isFalse);
+      expect(relue.estNormalisee, isTrue);
+      final fileApres = await OperationsSyncDao(
+        db,
+      ).operations(table: TableSynchronisee.factures);
+      expect(fileApres, hasLength(fileAvant.length));
+    });
 
-        // Vers le serveur : sur la FACTURE, avec l'identifiant de l'AVOIR.
-        final ops = await OperationsSyncDao(
-          db,
-        ).operations(table: TableSynchronisee.factures);
-        final derniere = ops.last;
-        expect(derniere.entiteId, f.id);
-        final charge = jsonDecode(derniere.payload) as Map<String, Object?>;
-        expect(charge['avoir_id'], avoir.id);
-        expect(
-          (charge['normalisation'] as Map)['numero_mecef'],
-          'ED04000623-1',
-        );
-        // L'annulation, elle, annonce son avoir sous le même identifiant.
-        final annul = ops.firstWhere(
-          (o) => (jsonDecode(o.payload) as Map).containsKey('statut'),
-        );
-        expect((jsonDecode(annul.payload) as Map)['avoir_id'], avoir.id);
-      },
-    );
+    test('l’avoir créé AU SERVEUR descend (identifiant serveur), naît « en attente » '
+        'quand le serveur le dit, et passe par le boîtier (rt = FA, rn = NIM-TC) ; '
+        'la facture ne bouge pas', () async {
+      final f = await venteComptant();
+      await service().normaliser(f.id);
+      final facture = await relire(f);
+      final dao = factureDaoSur(db);
+
+      // Ce que la descente fait d'un avoir créé au serveur (mode boîtier : en attente).
+      const idServeur = 'avoir-serveur-0001';
+      await dao.inscrireAvoirDescendu(
+        id: idServeur,
+        factureId: f.id,
+        numero: 'AV-2026-00007',
+        motif: 'Erreur',
+        montant: facture.montantTotal,
+        dateEmission: DateTime(2026, 11, 7, 10),
+      );
+      await dao.adopterNormalisationDescendue(
+        idServeur,
+        statut: StatutNormalisation.enAttente,
+        voie: VoieNormalisation.boitier,
+        motif:
+            'En attente de normalisation par le poste de la réception (boîtier CC300).',
+      );
+      final avoir = (await dao.parId(idServeur))!;
+      expect(avoir.normalisationStatut, StatutNormalisation.enAttente);
+      expect(
+        (await relire(f)).estAnnulee,
+        isTrue,
+        reason: 'avoir du TTC entier',
+      );
+
+      final r = await service().normaliser(avoir.id) as NormalisationFaite;
+      expect(r.issue, isA<Certifiee>());
+      final corps = jsonDecode(faux.corpsPost.last) as Map<String, dynamic>;
+      expect(corps['rt'], 'FA');
+      expect(corps['rn'], 'ED04000623-41');
+      expect(corps.containsKey('vt'), isFalse);
+      // Positifs : le sens se dit par rt/rn, pas par un montant négatif.
+      expect(((corps['products'] as List).single as Map)['price'], 10000);
+      expect(corps['payments'], [
+        {'mode': 'E', 'amount': 30000},
+      ]);
+
+      final apres = await relire(avoir);
+      expect(apres.estNormalisee, isTrue);
+      expect(apres.numeroMecef, 'ED04000623-1', reason: 'compteur des AVOIRS');
+      // La facture d'origine est intacte (RG-03).
+      final f2 = await relire(f);
+      expect(f2.numeroMecef, facture.numeroMecef);
+      expect(f2.qrCodeFiscal, facture.qrCodeFiscal);
+
+      // Vers le serveur : sur la FACTURE, avec l'identifiant SERVEUR de l'avoir.
+      final ops = await OperationsSyncDao(
+        db,
+      ).operations(table: TableSynchronisee.factures);
+      final derniere = ops.last;
+      expect(derniere.entiteId, f.id);
+      final charge = jsonDecode(derniere.payload) as Map<String, Object?>;
+      expect(charge['avoir_id'], idServeur);
+      expect((charge['normalisation'] as Map)['numero_mecef'], 'ED04000623-1');
+      // Aucune annulation ne part par la file : l'avoir est né au serveur.
+      expect(
+        ops.where(
+          (o) =>
+              (jsonDecode(o.payload) as Map).containsKey('statut') &&
+              (jsonDecode(o.payload) as Map)['statut'] == 'annulee',
+        ),
+        isEmpty,
+      );
+    });
 
     test('l’avoir d’une facture NON normalisée n’a rien à normaliser ; le '
         'normaliser est refusé sans requête', () async {
@@ -703,6 +767,141 @@ void main() {
       expect(r.issue, isA<EnAttente>());
       expect((await relire(f)).normalisationMotif, contains('est annulée'));
       expect(faux.requetes, isEmpty);
+    });
+  });
+
+  /* ================================================================== */
+  group('l’IFU du CLIENT (décision du PO du 07/11/2026)', () {
+    Future<PieceFacturation> venteAvec({
+      String? ifu,
+      String? nom,
+      String clientNom = 'Client de passage',
+      bool retenir = false,
+    }) => factureDaoSur(db).emettre(
+      BrouillonFacture(
+        origine: OrigineFacture.posComptant,
+        clientNom: clientNom,
+        modePaiement: 'especes',
+        acheteurIfu: ifu,
+        acheteurNom: nom,
+        retenirIfu: retenir,
+        lignes: [
+          LigneBrouillon(
+            module: ModuleFacturable.m5Bar,
+            libelle: 'Béninoise 33cl',
+            prixUnitaire: 1000,
+            quantite: 3,
+          ),
+        ],
+      ),
+    );
+
+    test('IFU renseigné : rangé sur la pièce, parti au serveur avec le nom et '
+        '« Retenir pour ce client »', () async {
+      final p = await venteAvec(
+        ifu: '3201 9107 68821',
+        nom: ' SARL Atacora ',
+        retenir: true,
+      );
+
+      expect(p.acheteurIfu, '3201910768821', reason: 'séparateurs ôtés');
+      expect(p.acheteurNom, 'SARL Atacora');
+      final charge = (await chargesEnFile()).single;
+      expect(charge['acheteur_ifu'], '3201910768821');
+      expect(charge['acheteur_nom'], 'SARL Atacora');
+      expect(charge['retenir_ifu'], isTrue);
+    });
+
+    test(
+      'vide : client SANS IFU — aucune clé envoyée, « Retenir » sans objet',
+      () async {
+        final p = await venteAvec(ifu: '  ', retenir: true);
+
+        expect(p.acheteurIfu, isNull);
+        final charge = (await chargesEnFile()).single;
+        expect(charge.containsKey('acheteur_ifu'), isFalse);
+        expect(charge.containsKey('acheteur_nom'), isFalse);
+        expect(charge.containsKey('retenir_ifu'), isFalse);
+      },
+    );
+
+    test(
+      '« Retenir pour ce client » est décoché par défaut : jamais envoyé',
+      () async {
+        await venteAvec(ifu: '3201910768821');
+        expect(
+          (await chargesEnFile()).single.containsKey('retenir_ifu'),
+          isFalse,
+        );
+      },
+    );
+
+    test(
+      '12, 14 chiffres, lettres : refusé avec LA phrase, RIEN n’est écrit',
+      () async {
+        for (final mauvais in [
+          '320191076882',
+          '32019107688211',
+          '32019107688AB',
+        ]) {
+          await expectLater(
+            venteAvec(ifu: mauvais),
+            throwsA(
+              isA<IfuClientInvalide>().having(
+                (e) => '$e',
+                'phrase',
+                'L\'IFU du client doit compter exactement 13 chiffres (laissez '
+                    'vide pour un client sans IFU).',
+              ),
+            ),
+            reason: mauvais,
+          );
+        }
+        expect(await factureDaoSur(db).pieces(), isEmpty);
+        expect(await chargesEnFile(), isEmpty);
+      },
+    );
+
+    test('le boîtier reçoit buyer_ifu et buyer_name saisis ; sans IFU la clé '
+        'buyer_ifu est ABSENTE (facultative) et le nom reste', () async {
+      final avec = await venteAvec(ifu: '3201910768821', nom: 'SARL Atacora');
+      await service().normaliser(avec.id);
+      var corps = jsonDecode(faux.corpsPost.last) as Map<String, dynamic>;
+      expect(corps['buyer_ifu'], '3201910768821');
+      expect(corps['buyer_name'], 'SARL Atacora');
+
+      final sans = await venteAvec();
+      await service().normaliser(sans.id);
+      corps = jsonDecode(faux.corpsPost.last) as Map<String, dynamic>;
+      expect(corps.containsKey('buyer_ifu'), isFalse);
+      expect(corps['buyer_name'], 'Client de passage');
+    });
+
+    test(
+      '« Client divers » : seulement quand ni nom saisi ni nom de pièce',
+      () {
+        expect(IfuClient.nomPourNormalisation('SARL Atacora'), 'SARL Atacora');
+        expect(
+          IfuClient.nomPourNormalisation('  ', repli: 'KORA Jean'),
+          'KORA Jean',
+        );
+        expect(IfuClient.nomPourNormalisation(null), 'Client divers');
+        expect(
+          IfuClient.nomPourNormalisation(' ', repli: ' '),
+          'Client divers',
+        );
+      },
+    );
+
+    test('un IFU invalide déjà rangé n’est jamais envoyé au boîtier', () async {
+      final p = await venteAvec();
+      await db.customStatement(
+        "UPDATE pieces_facturation_local SET acheteur_ifu = '123' WHERE id = '${p.id}'",
+      );
+      final r = await service().normaliser(p.id) as NormalisationFaite;
+      expect(r.issue, isA<EnAttente>());
+      expect(faux.corpsPost, isEmpty);
+      expect((await relire(p)).normalisationMotif, TextesIfuClient.invalide);
     });
   });
 }

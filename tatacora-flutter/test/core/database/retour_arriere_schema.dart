@@ -131,6 +131,15 @@ const tablesAjouteesEnV44 = <String>{'pieces_saisie_local'};
 const tablesAjouteesEnV46 = <String>{'journal_securite_local'};
 
 const _ajoutsParVersion = <int, List<String>>{
+  // La v51 (07/11/2026, IFU du client) ajoute TROIS colonnes nullables, ni indexees ni
+  // referencees, aucune table : `pieces_facturation_local.acheteur_ifu` / `.acheteur_nom`
+  // et `clients_local.ifu`. Retour arriere symetrique : les trois colonnes sont retirees.
+  51: <String>[
+    'ALTER TABLE clients_local DROP COLUMN ifu',
+    'ALTER TABLE pieces_facturation_local DROP COLUMN acheteur_nom',
+    'ALTER TABLE pieces_facturation_local DROP COLUMN acheteur_ifu',
+  ],
+
   // La v50 (07/11/2026, facturation normalisee) ajoute HUIT colonnes nullables a
   // `pieces_facturation_local`, ni indexees ni referencees, aucune table : retour
   // arriere symetrique (les DAO d'aujourd'hui qui lisent la table entiere ne

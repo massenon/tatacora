@@ -17,6 +17,7 @@ import 'package:tatacora_flutter/features/facturation/impression/ticket_facture.
 import 'package:tatacora_flutter/features/facturation/impression/etat_registre_factures.dart';
 import 'package:tatacora_flutter/features/facturation/presentation/ecran_facturation.dart';
 import 'package:tatacora_flutter/features/facturation/presentation/providers_facturation.dart';
+import 'package:tatacora_flutter/features/facturation/domain/mode_facturation.dart';
 import 'package:tatacora_flutter/features/facturation/presentation/widgets/vue_ticket.dart';
 import 'package:tatacora_flutter/shared_widgets/tableau_tatacora.dart'
     show PastilleStatut;
@@ -111,6 +112,8 @@ void main() {
       nom: 'Céline AGBODJAN',
       role: 'Comptable',
     ),
+    // Ce que CE poste fait pour normaliser : « rien » = facture SIMPLE, sans mention.
+    CertifiePar par = CertifiePar.rien,
   }) async {
     imprimes = [];
     editees = [];
@@ -141,6 +144,7 @@ void main() {
                   }),
             ),
           ),
+          certifieParProvider.overrideWith((ref) async => par),
           depotFactureProvider.overrideWithValue(depotFacture),
           depotPanierProvider.overrideWithValue(depotPanier),
           depotReservationProvider.overrideWithValue(
@@ -261,32 +265,31 @@ void main() {
       );
     });
 
-    testWidgets('⚠ PA-61 — le bandeau annonce la démonstration', (
-      tester,
-    ) async {
-      await monter(tester, const EcranFacturation());
-
-      final bandeau = tester.widget<Text>(
-        find.byKey(const Key('facturation-bandeau-mecef')),
-      );
-      expect(bandeau.data, contains('non certifiées, démonstration'));
-      expect(bandeau.data, isNot(contains('certifiée MECeF')));
-    });
-
-    testWidgets('⚠ PA-61 — aucune pièce n’est annoncée certifiée', (
-      tester,
-    ) async {
+    testWidgets('décision du PO du 07/11/2026 — mode désactivé : AUCUN bandeau '
+        'de certification ni de démonstration', (tester) async {
       await emettreComptant();
       await monter(tester, const EcranFacturation());
 
-      // La mention est DÉRIVÉE des pièces : tant qu'aucune ne porte un vrai
-      // numéro MECeF, elle dit « démonstration », pas « N pièce(s)
-      // certifiée(s) ».
+      expect(find.byKey(const Key('facturation-bandeau-mecef')), findsNothing);
+      expect(find.textContaining('démonstration'), findsNothing);
+      // Facture simple : aucun bouton « Normaliser ».
+      expect(find.text('Normaliser'), findsNothing);
+    });
+
+    testWidgets('⚠ PA-61 — boîtier / e-MECeF : aucune pièce n’est annoncée '
+        'certifiée tant qu’aucune n’est normalisée', (tester) async {
+      await emettreComptant();
+      await monter(tester, const EcranFacturation(), par: CertifiePar.boitier);
+
       final mention = tester.widget<Text>(
         find.byKey(const Key('facturation-bandeau-mecef')),
       );
-      expect(mention.data, contains('démonstration'));
+      expect(mention.data, contains('aucune pièce normalisée'));
       expect(mention.data, isNot(contains('pièce(s) certifiée(s)')));
+      expect(mention.data, isNot(contains('démonstration')));
+      // La facture dit qu'elle ATTEND sa normalisation, et offre le bouton.
+      expect(find.text('en attente de normalisation'), findsOneWidget);
+      expect(find.text('Normaliser'), findsOneWidget);
     });
 
     testWidgets('le filtre d’origine est une COLONNE, pas un entrepôt', (
@@ -391,22 +394,24 @@ void main() {
       }
     });
 
-    testWidgets('le ticket affiché contient le filigrane de démonstration', (
-      tester,
-    ) async {
-      final f = await emettreComptant(clientNom: 'KORA — l’addition');
-      await monter(tester, const EcranFacturation());
+    testWidgets(
+      'le ticket affiché ne porte ni filigrane ni mention (facture simple)',
+      (tester) async {
+        final f = await emettreComptant(clientNom: 'KORA — l’addition');
+        await monter(tester, const EcranFacturation());
 
-      await tester.tap(find.byKey(Key('facturation-piece-${f.id}')));
-      await tester.pumpAndSettle();
+        await tester.tap(find.byKey(Key('facturation-piece-${f.id}')));
+        await tester.pumpAndSettle();
 
-      final texte = tester.widget<Text>(
-        find.byKey(const Key('facturation-ticket-texte')),
-      );
-      expect(texte.data, contains('DOCUMENT DE DÉMONSTRATION'));
-      // Et l'apostrophe typographique du nom a bien été normalisée.
-      expect(texte.data, contains("KORA - l'addition"));
-    });
+        final texte = tester.widget<Text>(
+          find.byKey(const Key('facturation-ticket-texte')),
+        );
+        expect(texte.data, isNot(contains('DÉMONSTRATION')));
+        expect(texte.data, isNot(contains('démonstration')));
+        // Et l'apostrophe typographique du nom a bien été normalisée.
+        expect(texte.data, contains("KORA - l'addition"));
+      },
+    );
   });
 
   /* ================================================================== */
@@ -443,6 +448,60 @@ void main() {
         findsOneWidget,
       );
       expect(find.byKey(const Key('vente-encaissee-facture')), findsOneWidget);
+    });
+
+    testWidgets('POS au comptant : « IFU du client » est FACULTATIF — saisi, il '
+        'part sur la facture de CETTE vente seulement', (tester) async {
+      await monter(tester, const EcranPosComptant());
+      await tester.tap(find.byKey(const Key('pos-comptant-ouvrir')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('pos-article-M5:bsn-33')));
+      await tester.pumpAndSettle();
+
+      // Le lien est offert sous le client ; sans saisie, l'encaissement l'ignore.
+      await tester.tap(find.byKey(const Key('pos-ifu-client')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('modale-acheteur-facture')), findsOneWidget);
+      expect(find.text('IFU du client'), findsWidgets);
+
+      // 12 chiffres : « Valider » refusé, la phrase est là.
+      await tester.enterText(find.byKey(const Key('acheteur-ifu')), '12345');
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<FilledButton>(find.byKey(const Key('acheteur-valider')))
+            .onPressed,
+        isNull,
+      );
+      await tester.enterText(
+        find.byKey(const Key('acheteur-ifu')),
+        '3201910768821',
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('acheteur-valider')));
+      await tester.pumpAndSettle();
+      expect(find.text('IFU du client : 3201910768821'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('pos-cloturer')));
+      await tester.pumpAndSettle();
+
+      final p = (await depotFacture.pieces()).single;
+      expect(p.acheteurIfu, '3201910768821');
+      expect(p.numeroMecef, isNull, reason: 'facture simple : aucun numéro');
+      expect(p.normalisationStatut, isNull);
+    });
+
+    testWidgets('POS au comptant sans saisie : la facture part SANS IFU et la '
+        'vente n’en dépend jamais', (tester) async {
+      await monter(tester, const EcranPosComptant());
+      await tester.tap(find.byKey(const Key('pos-comptant-ouvrir')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('pos-article-M5:bsn-33')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('pos-cloturer')));
+      await tester.pumpAndSettle();
+
+      expect((await depotFacture.pieces()).single.acheteurIfu, isNull);
     });
 
     testWidgets(
@@ -727,10 +786,8 @@ void main() {
 
       final etat = registresImprimes.single;
       expect(etat.nombreCertifiees, 0);
-      expect(
-        etat.indicateurs['Certification MECeF']!.toLowerCase(),
-        contains('démonstration'),
-      );
+      // Mode désactivé (facture simple) : aucune mention de certification.
+      expect(etat.indicateurs.containsKey('Certification MECeF'), isFalse);
     });
   });
 

@@ -620,12 +620,20 @@ Map<String, Object?> chargeFacture({
     ({String module, String libelle, int prixUnitaire, int quantite})
   >
   lignes,
+  String? acheteurIfu,
+  String? acheteurNom,
+  bool retenirIfu = false,
 }) => {
   'origine': origine,
   'date_emission': jourIso(dateEmission),
   'client_id': clientId,
   'reservation_id': reservationId,
   'panier_id': panierId,
+  // L'ACHETEUR (07/11/2026) : IFU facultatif de 13 chiffres (jamais envoyé vide), nom, et
+  // « Retenir pour ce client » (le serveur range l'IFU sur la fiche du client).
+  'acheteur_ifu': ?acheteurIfu,
+  'acheteur_nom': ?acheteurNom,
+  if (retenirIfu && acheteurIfu != null) 'retenir_ifu': true,
   'lignes': [
     for (final l in lignes)
       {
@@ -639,17 +647,15 @@ Map<String, Object?> chargeFacture({
 
 /// `factures`, ANNULATION (la seule modification) : le serveur émet l'avoir
 /// du TTC entier et rend son numéro (`AV-AAAA-NNNNN`).
-Map<String, Object?> chargeAnnulationFacture({
-  required String motif,
-  String? avoirId,
-}) => {
+///
+/// 07/11/2026 (décision du PO, point 4) : l'avoir de l'annulation naît AU SERVEUR, sous
+/// l'identifiant du serveur — la charge ne porte plus d'`avoir_id` (le poste reconnaît son
+/// avoir provisoire par le numéro rendu). Et l'annulation d'une facture NORMALISÉE ne passe
+/// JAMAIS par cette file : elle se fait EN LIGNE (`ServiceAvoirEnLigne`).
+Map<String, Object?> chargeAnnulationFacture({required String motif}) => {
   // Le mot du serveur est celui du registre local (`StatutPiece`).
   'statut': StatutPiece.annulee.code,
   'motif': motif,
-  // 07/11/2026 : l'avoir de l'annulation naît sous l'identifiant du poste, pour
-  // que sa NORMALISATION (boîtier) le retrouve au serveur. Absent : le serveur
-  // lui donne le sien (poste d'avant).
-  'avoir_id': ?avoirId,
 };
 
 /// `factures` (modification) — la NORMALISATION faite par le boîtier de CE poste

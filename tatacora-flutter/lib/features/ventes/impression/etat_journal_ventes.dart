@@ -53,7 +53,6 @@ import '../../../core/impression/entete_a4.dart';
 import '../../../core/impression/entete_etablissement.dart';
 import '../../../core/impression/texte_ticket.dart';
 import '../../../core/impression/visas.dart';
-import '../../facturation/domain/certification_mecef.dart';
 import '../domain/entities/vente.dart';
 import '../domain/journal_ventes.dart';
 
@@ -72,8 +71,9 @@ String mentionPiecesFiscales({required int ventes, required int avecFacture}) {
     // attend son cachet.
     return 'Aucune facture émise pour ces ventes';
   }
-  return '$avecFacture vente(s) sur $ventes avec facture — '
-      '${CertificationMecef.libelleDemonstration}';
+  // Décision du PO du 07/11/2026 : plus aucune mention de démonstration — une facture simple
+  // est une facture ordinaire.
+  return '$avecFacture vente(s) sur $ventes avec facture';
 }
 
 /// L'état **« Historique des ventes »** — la liste filtrée.

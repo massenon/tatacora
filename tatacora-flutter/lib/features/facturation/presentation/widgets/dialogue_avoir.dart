@@ -10,6 +10,7 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../../caisse/presentation/widgets/modale_ouverture_caisse.dart'
     show BoutonActionCaisse, BoutonAnnulerCaisse, ChampMontantCaisse;
 import '../../../restaurant/presentation/widgets/coquille_modale_restaurant.dart';
+import '../../data/service_facturation_en_ligne.dart';
 import '../../domain/entities/piece_facturation.dart';
 import '../providers_facturation.dart';
 
@@ -158,7 +159,36 @@ class _EtatModaleAvoir extends ConsumerState<ModaleAvoir> {
     try {
       final facturer = ref.read(facturerProvider);
       final montant = int.parse(_montant.text.trim());
-      if (montant == widget.piece.montantTotal) {
+      if (widget.piece.estNormalisee) {
+        // Un avoir sur une facture NORMALISÉE se fait EN LIGNE (décision du PO du 07/11/2026) :
+        // créé AU SERVEUR (identifiant serveur), puis descendu ici. Hors ligne, interrupteur
+        // éteint ou serveur injoignable : refusé avec la phrase, et RIEN n'est écrit localement.
+        final issue = await ref
+            .read(serviceFacturationEnLigneProvider)
+            .avoir(
+              widget.piece.id,
+              motif: _motif.text.trim(),
+              montantFrancs: montant == widget.piece.montantTotal
+                  ? null
+                  : montant,
+            );
+        switch (issue) {
+          case RefusEnLigne(:final phrase):
+            if (mounted) setState(() => _refus = phrase);
+            return;
+          case AvoirCree():
+            break;
+          default:
+            if (mounted) {
+              setState(
+                () => _refus =
+                    'Réponse inattendue du serveur : rien n’a été '
+                    'écrit sur ce poste.',
+              );
+            }
+            return;
+        }
+      } else if (montant == widget.piece.montantTotal) {
         // Le TTC entier ANNULE la facture (RG-03).
         await facturer.annuler(
           widget.piece.id,

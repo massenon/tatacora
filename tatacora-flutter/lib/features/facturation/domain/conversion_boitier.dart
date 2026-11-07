@@ -302,7 +302,8 @@ String construireJsonPilote(DemandeNormalisation d) {
   final json = <String, Object?>{
     'seller_id': operateurId,
     'seller_name': operateurNom,
-    'buyer_ifu': (d.clientIfu ?? '').trim(),
+    // IFU du client : FACULTATIF (`bill.spec.json`) — un client sans IFU part sans la clé.
+    if ((d.clientIfu ?? '').trim().isNotEmpty) 'buyer_ifu': d.clientIfu!.trim(),
     'buyer_name': nettoyerTexte(d.clientNom, 60),
     'aib': 'N/A',
     'payments': [

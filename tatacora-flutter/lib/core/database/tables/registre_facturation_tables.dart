@@ -173,6 +173,15 @@ class PiecesFacturationLocal extends Table {
   /// Quand la normalisation a eu lieu.
   DateTimeColumn get normaliseeLe => dateTime().nullable()();
 
+  /* ----------------------------------------------------- acheteur (v51) -- */
+  /// L'IFU du CLIENT saisi pour CETTE facture (07/11/2026, schéma v51) : facultatif, 13
+  /// chiffres s'il est rempli (`ifu_client.dart`), `null` = client sans IFU. Figé avec la
+  /// facture, comme `client_nom`. Le nom saisi pour la normalisation est `acheteur_nom`
+  /// (à défaut, `client_nom`).
+  TextColumn get acheteurIfu => text().nullable()();
+
+  TextColumn get acheteurNom => text().nullable()();
+
   /* -------------------------------------------------------------- état -- */
   /// `emise` | `annulee`.
   ///

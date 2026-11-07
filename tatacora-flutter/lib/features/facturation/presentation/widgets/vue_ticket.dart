@@ -9,6 +9,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../domain/entities/piece_facturation.dart';
+import '../../domain/mode_facturation.dart';
 import '../../impression/facture_a4.dart';
 import '../../impression/ticket_facture.dart';
 import '../ecran_facturation.dart';
@@ -73,7 +74,12 @@ class VueTicket extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final ticket = TicketFacture.composer(piece);
+    // Mode désactivé = facture SIMPLE, aucune mention ; boîtier / e-MECeF : « en attente de
+    // normalisation » tant que la pièce ne l'est pas (décision du PO du 07/11/2026).
+    final normalisable =
+        (ref.watch(certifieParProvider).value ?? CertifiePar.rien) !=
+        CertifiePar.rien;
+    final ticket = TicketFacture.composer(piece, normalisable: normalisable);
     final auteur = ref.watch(auteurEditionProvider);
     final peutAnnuler = ref
         .watch(droitsProvider)
@@ -221,11 +227,13 @@ class VueTicket extends ConsumerWidget {
       // L'en-tête est lu des paramètres du poste (directive du PO du
       // 14/10/2026), le logo y est greffé.
       final entete = await ref.read(lireEnteteEtablissementProvider)();
+      final par = await ref.read(certifieParProvider.future);
       final facture = FactureA4.composer(
         piece,
         auteur: auteur,
         dateEdition: DateTime.now(),
         entete: entete.avecLogo(logo),
+        normalisable: par != CertifiePar.rien,
       );
       await ref.read(imprimerFactureA4Provider)(facture);
     } on Object catch (e) {

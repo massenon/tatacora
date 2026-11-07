@@ -277,6 +277,8 @@ final class PieceFacturation {
     this.codeMecef,
     this.qrCodeFiscal,
     this.normaliseeLe,
+    this.acheteurIfu,
+    this.acheteurNom,
   });
 
   final String id;
@@ -339,6 +341,11 @@ final class PieceFacturation {
   final String? qrCodeFiscal;
   final DateTime? normaliseeLe;
 
+  /// L'ACHETEUR saisi pour cette facture (v51, 07/11/2026) : l'IFU du client (13 chiffres,
+  /// facultatif, `null` = client sans IFU) et son nom. Figés avec la pièce.
+  final String? acheteurIfu;
+  final String? acheteurNom;
+
   /// Montant total, en francs CFA — **calculé depuis les lignes figées**.
   ///
   /// Il est stable parce que les lignes le sont : aucune écriture du registre
@@ -385,10 +392,12 @@ final class PieceFacturation {
       CertificationMecef.estReelle(numeroMecef) &&
       (qrCodeFiscal ?? '').trim().isNotEmpty;
 
-  /// Le libellé à afficher, qui **dit la vérité** plutôt que de la supposer.
-  String get libelleCertification => estNormalisee
-      ? CertificationMecef.libelle(numeroMecef)
-      : CertificationMecef.libelleDemonstration;
+  /// Le libellé fiscal à afficher : celui d'une pièce RÉELLEMENT normalisée, sinon `null` —
+  /// décision du PO du 07/11/2026 : une facture SIMPLE (mode désactivé) ne porte AUCUNE mention
+  /// (ni démonstration, ni « non normalisé »), et une facture normalisable pas encore normalisée
+  /// dit seulement « en attente de normalisation » (voir `TextesFacturationModes`).
+  String? get libelleCertification =>
+      estNormalisee ? CertificationMecef.libelle(numeroMecef) : null;
 
   @override
   bool operator ==(Object other) => other is PieceFacturation && other.id == id;

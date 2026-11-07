@@ -9,12 +9,16 @@ import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../comptabilite/domain/calcul_tva.dart' show RefusTva;
 import '../../../comptabilite/domain/refus_comptable.dart' show RefusComptable;
+import '../../../facturation/domain/acheteur_facture.dart';
+import '../../../facturation/presentation/widgets/champs_acheteur_facture.dart';
 import '../../../hebergement/domain/entities/reservation.dart';
 import '../../../restaurant/presentation/widgets/coquille_modale_restaurant.dart';
 import '../../domain/entities/panier.dart';
 import '../../domain/messages_ventes.dart' show RefusVente;
 import '../../domain/place_hebergement.dart';
 import '../../domain/repositories/panier_repository.dart';
+import '../../../facturation/presentation/providers_facturation.dart'
+    show ifuDeLaFiche;
 import '../providers_pos.dart';
 import 'vue_panier.dart' show facturerPanier;
 
@@ -62,6 +66,8 @@ class ModaleClotureSejour extends StatefulWidget {
     required this.reservation,
     required this.panier,
     this.payerSeparement,
+    this.acheteur,
+    this.ifuInitial,
     super.key,
   });
 
@@ -71,6 +77,12 @@ class ModaleClotureSejour extends StatefulWidget {
   /// Lu par l'appelant après la confirmation : le choix de la case « Payer
   /// séparément ». Absent, la case existe quand même (état de la modale).
   final ValueNotifier<bool>? payerSeparement;
+
+  /// L'ACHETEUR saisi (décision du PO du 07/11/2026) : IFU du client facultatif, nom,
+  /// « Retenir pour ce client », « Normaliser maintenant » — lu par l'appelant après la
+  /// confirmation. [ifuInitial] : l'IFU retenu sur la fiche du client, qui préremplit.
+  final ValueNotifier<AcheteurFacture>? acheteur;
+  final String? ifuInitial;
 
   /// `pos_pwa.heberges.cloture_titre`.
   static const String titre = 'Clôturer avant le départ ?';
@@ -82,6 +94,12 @@ class ModaleClotureSejour extends StatefulWidget {
   /// `pos_pwa.heberges.cloture_detail`, au mot.
   static const String detail =
       'Le panier est clôturé, une vente en note de chambre est enregistrée au journal, et la facture du séjour est émise : nuitées d’abord, consommations ensuite, un seul document.';
+
+  /// Le bloc « acheteur » de la modale (décision du PO du 07/11/2026) : les mots de
+  /// `facturation.ifu_client.*`, égaux à `TextesIfuClient` (parité rejouée contre le vrai PHP).
+  static const String acheteurNom = 'Nom du client';
+  static const String acheteurAide =
+      'Facultatif : 13 chiffres. Laissez vide pour un client sans IFU.';
 
   /// `pos_pwa.heberges.cloture_payer_separement`.
   static const String payerSeparementLibelle =
@@ -144,6 +162,8 @@ class ModaleClotureSejour extends StatefulWidget {
 class _EtatModaleClotureSejour extends State<ModaleClotureSejour> {
   late final ValueNotifier<bool> _separement =
       widget.payerSeparement ?? ValueNotifier<bool>(false);
+  late final ValueNotifier<AcheteurFacture> _acheteur =
+      widget.acheteur ?? ValueNotifier<AcheteurFacture>(AcheteurFacture.aucun);
 
   Reservation get reservation => widget.reservation;
   Panier get panier => widget.panier;
@@ -278,6 +298,13 @@ class _EtatModaleClotureSejour extends State<ModaleClotureSejour> {
               ),
           ]),
           const SizedBox(height: AppSpacing.md),
+          // L'ACHETEUR (décision du PO du 07/11/2026) : le même bloc que `heberges.blade.php`.
+          ChampsAcheteurFacture(
+            saisie: _acheteur,
+            ifuInitial: widget.ifuInitial,
+            nomInitial: reservation.clientNom,
+          ),
+          const SizedBox(height: AppSpacing.md),
           Container(
             padding: const EdgeInsets.only(top: AppSpacing.sm),
             decoration: const BoxDecoration(
@@ -331,22 +358,28 @@ class _EtatModaleClotureSejour extends State<ModaleClotureSejour> {
           child: const Text(ModaleClotureSejour.annuler),
         ),
         // « Facture » — le bouton qui exécute (l.365).
-        FilledButton(
-          key: const Key('pos-confirmer-cloture-anticipee'),
-          onPressed: () => Navigator.of(context).pop(true),
-          style: FilledButton.styleFrom(
-            backgroundColor: AppColors.navy,
-            foregroundColor: AppColors.neutre0,
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.xs,
+        ValueListenableBuilder<AcheteurFacture>(
+          valueListenable: _acheteur,
+          builder: (context, acheteur, _) => FilledButton(
+            key: const Key('pos-confirmer-cloture-anticipee'),
+            // Un IFU mal formé se CORRIGE (message sous le champ) : rien n'est clôturé.
+            onPressed: acheteur.ifuValide
+                ? () => Navigator.of(context).pop(true)
+                : null,
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.navy,
+              foregroundColor: AppColors.neutre0,
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.xs,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadius.roundedLg),
+              ),
+              textStyle: _bouton,
             ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppRadius.roundedLg),
-            ),
-            textStyle: _bouton,
+            child: const Text(ModaleClotureSejour.facture),
           ),
-          child: const Text(ModaleClotureSejour.facture),
         ),
       ],
     );
@@ -376,6 +409,10 @@ Future<void> ouvrirModaleClotureSejour(
   required Panier panier,
 }) async {
   final payerSeparement = ValueNotifier<bool>(false);
+  final acheteur = ValueNotifier<AcheteurFacture>(AcheteurFacture.aucun);
+  // L'IFU retenu sur la fiche du client préremplit la saisie.
+  final ifuFiche = await ifuDeLaFiche(ref, reservation.clientId);
+  if (!context.mounted) return;
   final confirme = await showDialog<bool>(
     context: context,
     barrierColor: AppColors.voileModale,
@@ -383,6 +420,8 @@ Future<void> ouvrirModaleClotureSejour(
       reservation: reservation,
       panier: panier,
       payerSeparement: payerSeparement,
+      acheteur: acheteur,
+      ifuInitial: ifuFiche,
     ),
   );
   if (confirme != true || !context.mounted) return;
@@ -407,6 +446,7 @@ Future<void> ouvrirModaleClotureSejour(
         ref,
         cloture,
         payerSeparement: payerSeparement.value,
+        acheteur: acheteur.value,
       );
     }
   } on PanierVide catch (e) {

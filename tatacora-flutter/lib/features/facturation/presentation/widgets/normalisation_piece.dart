@@ -5,9 +5,11 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../shared_widgets/tableau_tatacora.dart';
+import '../../data/service_facturation_en_ligne.dart';
 import '../../data/service_normalisation.dart';
 import '../../domain/client_mecef.dart';
 import '../../domain/entities/piece_facturation.dart';
+import '../../domain/ifu_client.dart';
 import '../../domain/mode_facturation.dart';
 import '../../domain/statut_normalisation.dart';
 import '../providers_facturation.dart';
@@ -24,9 +26,7 @@ abstract final class TextesNormalisationEcran {
     CertifiePar.rien =>
       'Ce poste ne certifie pas : réglez « Ce poste certifie par » dans '
           'Paramètres.',
-    CertifiePar.serveur =>
-      'Ce poste laisse le serveur certifier : la normalisation arrive après la '
-          'synchronisation.',
+    CertifiePar.serveur => TextesFacturationModes.normalisationEnLigne,
     CertifiePar.boitier => 'Normalisation impossible.',
   };
   static const dejaNormalisee = 'Cette facture est déjà normalisée.';
@@ -34,16 +34,28 @@ abstract final class TextesNormalisationEcran {
 
 /// L'état de la normalisation d'une pièce, dérivé de ce qui est RÉELLEMENT
 /// rangé sur elle : « normalisée » exige un numéro fiscal réel ET le QR.
-class IndicateurNormalisation extends StatelessWidget {
+class IndicateurNormalisation extends ConsumerWidget {
   const IndicateurNormalisation({required Key key, required this.piece})
     : super(key: key);
 
   final PieceFacturation piece;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final statut = piece.normalisationStatut;
-    if (statut == null) return const SizedBox.shrink();
+    if (statut == null) {
+      // Une facture SIMPLE (mode désactivé) ne porte AUCUNE mention. Dans les modes boîtier et
+      // e-MECeF, une facture émise pas encore normalisée dit qu'elle ATTEND (décision du PO du
+      // 07/11/2026) ; un avoir ou une facture annulée n'a rien à normaliser ici.
+      final par = ref.watch(certifieParProvider).value ?? CertifiePar.rien;
+      if (par == CertifiePar.rien || piece.estAvoir || piece.estAnnulee) {
+        return const SizedBox.shrink();
+      }
+      return Tooltip(
+        message: TextesFacturationModes.enAttenteDeNormalisation,
+        child: PastilleStatut.alerte('en attente de normalisation'),
+      );
+    }
 
     final PastilleStatut pastille;
     String? motif = piece.normalisationMotif;
@@ -103,6 +115,41 @@ class _BoutonNormaliserState extends ConsumerState<BoutonNormaliser> {
     String message;
     var erreur = false;
     try {
+      // e-MECeF depuis le poste (décision du PO du 07/11/2026) : EN LIGNE seulement — le serveur
+      // normalise avec SON jeton (qui ne descend jamais ici) et rend le résultat. Hors ligne :
+      // refusé avec la phrase, rien d'écrit de faux, la facture reste « en attente ».
+      if (await ref.read(certifieParProvider.future) == CertifiePar.serveur) {
+        final en = await ref
+            .read(serviceFacturationEnLigneProvider)
+            .normaliserParLeServeur(widget.piece.id);
+        switch (en) {
+          case NormalisationServeur(:final piece) when piece.estNormalisee:
+            message = TextesNormalisationEcran.normalisee(
+              piece.numeroMecef ?? piece.numero,
+            );
+          case NormalisationServeur(:final motif):
+            message = motif ?? TextesFacturationModes.enAttenteDeNormalisation;
+            erreur = true;
+          case RefusEnLigne(:final phrase):
+            message = phrase;
+            erreur = true;
+          case AvoirCree():
+            message = TextesNormalisationEcran.dejaNormalisee;
+        }
+        ref
+          ..invalidate(registreProvider)
+          ..invalidate(certifieParProvider);
+        if (mounted) setState(() => _occupe = false);
+        messages.showSnackBar(
+          SnackBar(
+            key: const Key('facturation-normalisation-message'),
+            content: Text(message),
+            backgroundColor: erreur ? AppColors.erreur : AppColors.succes,
+            duration: const Duration(seconds: 8),
+          ),
+        );
+        return;
+      }
       final r = await ref
           .read(serviceNormalisationProvider)
           .normaliser(widget.piece.id);
@@ -151,8 +198,14 @@ class _BoutonNormaliserState extends ConsumerState<BoutonNormaliser> {
   Widget build(BuildContext context) {
     final piece = widget.piece;
     if (piece.estAnnulee && !piece.estAvoir) return const SizedBox.shrink();
-    final actif = ref.watch(boitierActifProvider).value ?? false;
-    if (!actif) return const SizedBox.shrink();
+    // Mode désactivé = facture SIMPLE : AUCUN bouton. Boîtier ou e-MECeF : « Normaliser ».
+    final par = ref.watch(certifieParProvider).value ?? CertifiePar.rien;
+    if (par == CertifiePar.rien) return const SizedBox.shrink();
+    // Un avoir d'une facture normalisée se normalise par le boîtier OU par le serveur à sa
+    // création : le bouton n'a de sens que pour le boîtier (voie e-MECeF : déjà faite).
+    if (piece.estAvoir && par == CertifiePar.serveur) {
+      return const SizedBox.shrink();
+    }
 
     return Material(
       color: Colors.transparent,

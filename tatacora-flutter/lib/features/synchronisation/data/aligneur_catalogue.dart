@@ -1232,6 +1232,9 @@ class AligneurCatalogue {
             typeClient: type!,
             statutSync: const Value('synchronise'),
             actif: Value(e.actif),
+            // L'IFU de la fiche (07/11/2026, « Retenir pour ce client ») : LECTURE SEULE ici,
+            // il préremplit l'IFU du client à la facturation ; jamais renvoyé au serveur.
+            ifu: Value(_texte(d['ifu'])),
           ),
         );
     // Le serveur détient ce client (un geste qui le cite ou le modifie peut

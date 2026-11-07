@@ -1,4 +1,5 @@
 import '../entities/piece_facturation.dart';
+import '../ifu_client.dart';
 
 /// Contrat d'accès au registre de facturation.
 ///
@@ -100,6 +101,9 @@ final class BrouillonFacture {
     this.panierId,
     this.modePaiement,
     this.pointVente,
+    this.acheteurIfu,
+    this.acheteurNom,
+    this.retenirIfu = false,
   });
 
   final OrigineFacture origine;
@@ -113,6 +117,13 @@ final class BrouillonFacture {
   final String? panierId;
   final String? modePaiement;
   final String? pointVente;
+
+  /// L'ACHETEUR (décision du PO du 07/11/2026) : IFU du client — facultatif, 13 chiffres
+  /// s'il est rempli (`IfuClient`), vide = client sans IFU —, son nom, et « Retenir pour ce
+  /// client » (décoché par défaut) : le serveur range l'IFU sur la fiche.
+  final String? acheteurIfu;
+  final String? acheteurNom;
+  final bool retenirIfu;
 
   int get montantTotal => lignes.fold(0, (t, l) => t + l.montant);
 }
@@ -199,6 +210,25 @@ final class FactureDejaNormalisee implements Exception {
   String toString() =>
       'La facture $numero est déjà normalisée : elle ne se modifie ni ne se '
       'renormalise. Pour la corriger, émettez un avoir.';
+}
+
+/// Un avoir sur une facture NORMALISÉE se fait EN LIGNE (décision du PO du 07/11/2026) : hors
+/// ligne, interrupteur « Synchronisation activée » éteint ou serveur injoignable, le geste est
+/// REFUSÉ avec cette phrase — la même qu'au serveur (`facturation.avoir_en_ligne`) — et RIEN
+/// n'est écrit localement.
+final class AvoirEnLigneRequis implements Exception {
+  const AvoirEnLigneRequis();
+
+  @override
+  String toString() => TextesFacturationModes.avoirEnLigne;
+}
+
+/// L'IFU du client saisi n'a pas 13 chiffres (il est facultatif : vide est valide).
+final class IfuClientInvalide implements Exception {
+  const IfuClientInvalide();
+
+  @override
+  String toString() => TextesIfuClient.invalide;
 }
 
 /// Un avoir ne s'annule pas — il est déjà la correction.

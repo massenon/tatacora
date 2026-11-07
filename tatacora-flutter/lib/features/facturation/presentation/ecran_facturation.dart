@@ -19,6 +19,7 @@ import '../impression/etat_registre_factures.dart';
 import '../impression/ticket_facture.dart';
 import 'providers_facturation.dart';
 import 'widgets/dialogue_avoir.dart';
+import '../domain/mode_facturation.dart';
 import 'widgets/normalisation_piece.dart';
 import 'widgets/vue_ticket.dart';
 
@@ -364,6 +365,8 @@ class _BarreRegistreState extends ConsumerState<_BarreRegistre> {
       nombreSelectionnees: selection.isEmpty ? null : pieces.length,
     );
 
+    final par = await ref.read(certifieParProvider.future);
+    if (!context.mounted) return;
     final format = await choisirFormatExport(
       context,
       titre: 'Exporter — Registre des factures',
@@ -377,6 +380,7 @@ class _BarreRegistreState extends ConsumerState<_BarreRegistre> {
       // lirait comme un registre complet, et c'est sur un registre qu'on
       // rapproche une caisse.
       filtre: perimetre,
+      normalisable: par != CertifiePar.rien,
     );
     if (etat.estVide) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -490,15 +494,19 @@ class _Bouton extends StatelessWidget {
 
 /// La rangée de compteurs (`px-4 py-2.5 border-b bg-slate-50`) : pièces,
 /// avoirs, montant, et la mention de certification — **dérivée des pièces**
-/// (PA-119/PA-61), jamais figée : elle dit « non certifiées, démonstration »
-/// tant qu'aucune pièce ne porte un vrai numéro MECeF.
-class _Compteurs extends StatelessWidget {
+/// (PA-119/PA-61), jamais figée. Décision du PO du 07/11/2026 : en mode DÉSACTIVÉ (facture
+/// simple), AUCUNE mention ; en boîtier / e-MECeF, « aucune pièce normalisée » tant qu'aucune
+/// pièce ne porte un vrai numéro MECeF, puis le décompte.
+class _Compteurs extends ConsumerWidget {
   const _Compteurs({required this.pieces});
 
   final List<PieceFacturation> pieces;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final normalise =
+        (ref.watch(certifieParProvider).value ?? CertifiePar.rien) !=
+        CertifiePar.rien;
     final avoirs = pieces.where((p) => p.estAvoir).length;
     final montant = pieces.fold<int>(0, (t, p) => t + p.montantTotal);
     final certifiees = pieces.where((p) => p.estNormalisee).length;
@@ -550,21 +558,22 @@ class _Compteurs extends StatelessWidget {
             'Montant',
             TicketFacture.montant(montant),
           ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('MECeF — ', style: styleMecef),
-              Text(
-                certifiees == 0
-                    ? 'non certifiées, démonstration'
-                    : '$certifiees pièce(s) certifiée(s)',
-                key: const Key('facturation-bandeau-mecef'),
-                style: styleMecef.copyWith(fontWeight: FontWeight.bold),
-              ),
-              if (certifiees > 0)
-                Text(' sur ${pieces.length} affichée(s)', style: styleMecef),
-            ],
-          ),
+          if (normalise)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('MECeF — ', style: styleMecef),
+                Text(
+                  certifiees == 0
+                      ? 'aucune pièce normalisée'
+                      : '$certifiees pièce(s) certifiée(s)',
+                  key: const Key('facturation-bandeau-mecef'),
+                  style: styleMecef.copyWith(fontWeight: FontWeight.bold),
+                ),
+                if (certifiees > 0)
+                  Text(' sur ${pieces.length} affichée(s)', style: styleMecef),
+              ],
+            ),
         ],
       ),
     );
@@ -789,11 +798,10 @@ class _Registre extends ConsumerWidget {
           statut,
           // AJOUT de ce poste (07/11/2026, facturation normalisée) : l'état de la
           // normalisation, dérivé du statut réellement rangé sur la pièce.
-          if (piece.normalisationStatut != null)
-            IndicateurNormalisation(
-              key: Key('facturation-normalisation-${piece.id}'),
-              piece: piece,
-            ),
+          IndicateurNormalisation(
+            key: Key('facturation-normalisation-${piece.id}'),
+            piece: piece,
+          ),
           if (avoirs > 0)
             PastilleStatut.neutre(
               '$avoirs avoir(s)',
