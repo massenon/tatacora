@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Shared\Secrets\Services;
 
+use App\Domain\Facturation\Services\ModeFacturation;
+use App\Domain\Facturation\Services\TraceReglageFacturation;
 use App\Models\User;
 use App\Shared\Audit\Models\JournalAudit;
 use App\Shared\Secrets\Models\SecretConfiguration;
@@ -32,17 +34,36 @@ class SecretsConfigurationService
 {
     public const SMTP_MOT_DE_PASSE = 'smtp_mot_de_passe';
 
+    /**
+     * Le JETON JWT de l'API e-MECeF de la DGI (13/11/2026). Lu par le seul
+     * `MecefClientEmecef` ; ne descend JAMAIS au poste (la descente lit
+     * `parametres_systeme`, jamais cette table).
+     */
+    public const MECEF_JETON = 'mecef_jeton_api';
+
     /** @var list<string> */
-    public const CLES = [self::SMTP_MOT_DE_PASSE];
+    public const CLES = [self::SMTP_MOT_DE_PASSE, self::MECEF_JETON];
 
     public const LONGUEUR_MAX = 255;
+
+    /** Un JWT dépasse facilement 255 caractères. */
+    public const LONGUEUR_MAX_JETON = 4096;
 
     public function enregistrer(string $cle, string $valeur, User $auteur): void
     {
         $this->exiger($cle, $auteur);
 
-        if ($valeur === '' || mb_strlen($valeur) > self::LONGUEUR_MAX) {
-            throw new RuntimeException(__('pwa.parametres.secret_invalide', ['max' => self::LONGUEUR_MAX]));
+        $max = $cle === self::MECEF_JETON ? self::LONGUEUR_MAX_JETON : self::LONGUEUR_MAX;
+
+        if ($valeur === '' || mb_strlen($valeur) > $max) {
+            throw new RuntimeException(__('pwa.parametres.secret_invalide', ['max' => $max]));
+        }
+
+        // Un jeton e-MECeF est un JWT : trois segments base64url séparés par
+        // des points, sans espace. Une saisie d'une autre forme est refusée
+        // avant d'être rangée (sans jamais citer la valeur).
+        if ($cle === self::MECEF_JETON && preg_match('/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]*$/', $valeur) !== 1) {
+            throw new RuntimeException(__('parametres.mecef_jeton_illisible'));
         }
 
         DB::transaction(function () use ($cle, $valeur, $auteur): void {
@@ -51,6 +72,10 @@ class SecretsConfigurationService
                 ['valeur' => $valeur, 'utilisateur_id' => $auteur->id],
             );
             $this->tracer('secret_enregistre', $cle, $auteur);
+
+            if ($cle === self::MECEF_JETON) {
+                TraceReglageFacturation::tracer($auteur->id, ['geste' => 'jeton_enregistre']);
+            }
         });
     }
 
@@ -58,9 +83,19 @@ class SecretsConfigurationService
     {
         $this->exiger($cle, $auteur);
 
+        // Effacer le jeton pendant que le mode e-MECeF est actif laisserait
+        // chaque facture partir en échec : refusé, il faut changer de mode d'abord.
+        if ($cle === self::MECEF_JETON && ModeFacturation::courant() === ModeFacturation::Emecef) {
+            throw new RuntimeException(__('parametres.mecef_jeton_requis'));
+        }
+
         DB::transaction(function () use ($cle, $auteur): void {
             SecretConfiguration::query()->where('cle', $cle)->delete();
             $this->tracer('secret_efface', $cle, $auteur);
+
+            if ($cle === self::MECEF_JETON) {
+                TraceReglageFacturation::tracer($auteur->id, ['geste' => 'jeton_efface']);
+            }
         });
     }
 

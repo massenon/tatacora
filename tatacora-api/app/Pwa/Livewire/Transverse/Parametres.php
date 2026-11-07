@@ -6,6 +6,7 @@ namespace App\Pwa\Livewire\Transverse;
 
 use App\Domain\Comptabilite\Services\CalculTvaService;
 use App\Domain\Facturation\Providers\MecefServiceProvider;
+use App\Domain\Facturation\Services\TesteurConnexionEmecef;
 use App\Domain\Hebergement\Models\CanalReservation;
 use App\Domain\Hebergement\Services\CanalReservationService;
 use App\Domain\Ventes\Models\TableSalle;
@@ -180,6 +181,8 @@ class Parametres extends PageTransverse
      */
     public const GROUPES_IDENTITE = [
         RegistreParametres::GROUPE_ENTREPRISE,
+        // Facturation normalisée (07/11/2026) : déclaré après l'identité, avant la fiscalité.
+        RegistreParametres::GROUPE_MECEF,
         RegistreParametres::GROUPE_FISCALITE,
         RegistreParametres::GROUPE_SOCIAL,
         RegistreParametres::GROUPE_EXPLOITATION,
@@ -247,6 +250,22 @@ class Parametres extends PageTransverse
      * connaît que l'état du secret, jamais sa valeur.
      */
     public string $motDePasseSmtp = '';
+
+    /**
+     * Le jeton JWT e-MECeF en cours de SAISIE (07/11/2026) : vidé dès
+     * l'enregistrement, jamais rechargé ni rendu — l'écran ne connaît que
+     * l'état du secret (renseigné, quand), jamais sa valeur.
+     */
+    public string $jetonMecef = '';
+
+    /** La modale de saisie du jeton (aucun champ au premier GET). */
+    public bool $saisieJetonMecef = false;
+
+    /** « Effacer le jeton ? » attend une confirmation — modale du dépôt. */
+    public bool $confirmationEffacerJetonMecef = false;
+
+    /** Résultat RÉEL du dernier « Tester la connexion » (jamais le jeton). @var array{succes: bool, detail: string}|null */
+    public ?array $resultatTestMecef = null;
 
     /**
      * @return array<string, list<string>>
@@ -319,6 +338,9 @@ class Parametres extends PageTransverse
     {
         $this->etatFormulaire = null;
         $this->confirmationRetablirTables = false;
+        $this->confirmationEffacerJetonMecef = false;
+        $this->saisieJetonMecef = false;
+        $this->jetonMecef = '';
         $this->resetValidation();
     }
 
@@ -549,6 +571,77 @@ class Parametres extends PageTransverse
         $secrets->effacer(SecretsConfigurationService::SMTP_MOT_DE_PASSE, $this->utilisateur());
         $this->motDePasseSmtp = '';
         session()->flash('pwa-succes', __('pwa.parametres.email_motdepasse_efface'));
+    }
+
+    // =====================================================================
+    // Facturation normalisée (MECeF) — le jeton e-MECeF, chiffré, jamais rendu
+    // =====================================================================
+
+    public function ouvrirSaisieJetonMecef(): void
+    {
+        $this->exigerEcriture(self::MODULE);
+        $this->exigerAdministration();
+
+        $this->jetonMecef = '';
+        $this->resetErrorBag('jetonMecef');
+        $this->saisieJetonMecef = true;
+    }
+
+    public function enregistrerJetonMecef(SecretsConfigurationService $secrets): void
+    {
+        $this->exigerEcriture(self::MODULE);
+        $this->exigerAdministration();
+
+        try {
+            $secrets->enregistrer(SecretsConfigurationService::MECEF_JETON, trim($this->jetonMecef), $this->utilisateur());
+        } catch (RuntimeException $refus) {
+            $this->addError('jetonMecef', $refus->getMessage());
+
+            return;
+        }
+
+        $this->jetonMecef = '';
+        $this->saisieJetonMecef = false;
+        $this->resultatTestMecef = null;
+        $this->resetErrorBag('jetonMecef');
+        session()->flash('pwa-succes', __('pwa.parametres.mecef_jeton_enregistre'));
+    }
+
+    public function demanderEffacementJetonMecef(): void
+    {
+        $this->exigerEcriture(self::MODULE);
+        $this->exigerAdministration();
+
+        $this->confirmationEffacerJetonMecef = true;
+    }
+
+    public function effacerJetonMecef(SecretsConfigurationService $secrets): void
+    {
+        $this->exigerEcriture(self::MODULE);
+        $this->exigerAdministration();
+
+        $this->confirmationEffacerJetonMecef = false;
+
+        try {
+            $secrets->effacer(SecretsConfigurationService::MECEF_JETON, $this->utilisateur());
+        } catch (RuntimeException $refus) {
+            $this->addError('jetonMecef', $refus->getMessage());
+
+            return;
+        }
+
+        $this->jetonMecef = '';
+        $this->resultatTestMecef = null;
+        session()->flash('pwa-succes', __('pwa.parametres.mecef_jeton_efface'));
+    }
+
+    /** GET /info/status avec le jeton : le résultat est une phrase, jamais le jeton. */
+    public function testerConnexionMecef(TesteurConnexionEmecef $testeur): void
+    {
+        $this->exigerEcriture(self::MODULE);
+        $this->exigerAdministration();
+
+        $this->resultatTestMecef = $testeur->tester();
     }
 
     private function exigerAdministration(): void
@@ -791,6 +884,8 @@ class Parametres extends PageTransverse
             // qui), jamais sa valeur ; la saisie n'est offerte qu'aux deux
             // rôles d'administration.
             'etatMotDePasseSmtp' => $secrets->etat(SecretsConfigurationService::SMTP_MOT_DE_PASSE),
+            // Facturation normalisée : l'ÉTAT du jeton (renseigné, quand, par qui), jamais sa valeur.
+            'etatJetonMecef' => $secrets->etat(SecretsConfigurationService::MECEF_JETON),
             'peutSaisirSecret' => $this->peutEcrire() && (auth()->user()?->estAdministrateur() ?? false),
         ]))->layout('layouts.pwa', ['title' => __('pwa.parametres.titre_page')]);
     }

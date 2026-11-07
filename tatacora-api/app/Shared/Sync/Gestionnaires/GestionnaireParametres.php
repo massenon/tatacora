@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Shared\Sync\Gestionnaires;
 
+use App\Domain\Facturation\Services\ReglagesMecef;
 use App\Pwa\Livewire\Transverse\Parametres;
 use App\Shared\Parametres\Models\ParametreSysteme;
 use App\Shared\Parametres\Services\EnregistrerParametreService;
@@ -78,6 +79,14 @@ final class GestionnaireParametres extends GestionnaireAbstrait
         $conservees = [];
 
         foreach ($valeurs as $cle => $valeur) {
+            // Le MODE, l'adresse de l'API et l'opérateur se règlent au SERVEUR par un
+            // administrateur : un poste ne les écrit jamais (il les reçoit en lecture).
+            if (in_array((string) $cle, ReglagesMecef::CLES_ADMINISTRATEUR, true)) {
+                $conservees[] = (string) $cle;
+
+                continue;
+            }
+
             $stocke = ParametreSysteme::query()->where('cle', (string) $cle)->first();
 
             if ($stocke !== null && $this->plusRecentAuServeur($stocke, $contexte->horodatageClient)) {

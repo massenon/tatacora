@@ -180,6 +180,55 @@
               @foreach (($groupesOnglet['fiscalite'] ?? []) as $ligne)
                 @include('pwa.transverse._parametre_ligne', ['ligne' => $ligne, 'colspan' => false])
               @endforeach
+
+              {{-- FACTURATION NORMALISÉE (MECeF) — section ajoutée le 07/11/2026
+                   (décision du PO : trois modes, un réglage au serveur, descendu
+                   aux postes en lecture). Le mode et les réglages non secrets sont
+                   des lignes du registre ; le JETON e-MECeF, lui, est un secret :
+                   chiffré, jamais rendu, jamais descendu. Modification réservée aux
+                   Administrateurs. structure-ajout:parametres.html#mecef --}}
+              <div class="sm:col-span-2 pt-3 mt-1 border-t border-slate-100"><h3 class="text-sm font-bold text-slate-700 mb-1">{{ __('pwa.parametres.section_mecef') }}</h3></div>
+              @foreach (($groupesOnglet['mecef'] ?? []) as $ligne)
+                @include('pwa.transverse._parametre_ligne', ['ligne' => $ligne, 'colspan' => false, 'peutEcrire' => $peutSaisirSecret])
+              @endforeach
+
+              <div class="groupe-champ sm:col-span-2" id="mecef-jeton">
+                <p class="block text-[15px] font-semibold text-slate-700 mb-1.5">{{ __('pwa.parametres.mecef_jeton_libelle') }}</p>
+                {{-- La SAISIE du jeton vit dans une modale (aucun champ au premier GET,
+                     Article 6) ; l'écran ne montre que l'ÉTAT. --}}
+                @if ($peutSaisirSecret)
+                  <div class="flex flex-wrap items-center gap-2">
+                    <button type="button" wire:click="ouvrirSaisieJetonMecef" wire:loading.attr="disabled"
+                            class="btn px-3 py-2.5 rounded-lg bg-[var(--navy)] text-white text-[13px] font-semibold">{{ __('pwa.parametres.mecef_jeton_invite') }}</button>
+                    @if ($etatJetonMecef['renseigne'])
+                      <button type="button" wire:click="demanderEffacementJetonMecef" wire:loading.attr="disabled"
+                              class="btn px-3 py-2.5 rounded-lg border border-slate-200 text-[13px] font-semibold text-slate-600">{{ __('pwa.parametres.mecef_jeton_effacer') }}</button>
+                    @endif
+                  </div>
+                @endif
+                @error('jetonMecef') <p class="text-[12px] text-red-600 mt-1">{{ $message }}</p> @enderror
+                <p class="text-[13px] text-slate-600 mt-1.5">
+                  @if ($etatJetonMecef['renseigne'])
+                    {{ __('pwa.parametres.mecef_jeton_renseigne', ['date' => $etatJetonMecef['modifie_le']?->format('d/m/Y H:i') ?? '—']) }}
+                  @else
+                    {{ __('pwa.parametres.mecef_jeton_absent') }}
+                  @endif
+                </p>
+                @unless ($peutSaisirSecret)
+                  <p class="text-[12px] text-slate-400 mt-1">{{ __('pwa.parametres.mecef_jeton_reserve') }}</p>
+                @endunless
+                <p class="text-[12px] text-slate-400 mt-1.5">{{ __('pwa.parametres.mecef_jeton_mention') }}</p>
+              </div>
+
+              <div class="sm:col-span-2">
+                @if ($peutSaisirSecret)
+                  <button type="button" wire:click="testerConnexionMecef" wire:loading.attr="disabled"
+                          class="btn px-4 py-2.5 rounded-lg border border-slate-200 text-[15px] font-semibold text-slate-600">{{ __('pwa.parametres.mecef_test_bouton') }}</button>
+                @endif
+                @if ($resultatTestMecef !== null)
+                  <p class="text-[13px] mt-2 font-semibold" style="color:{{ $resultatTestMecef['succes'] ? '#1B5E20' : '#8C1D1D' }}">{{ $resultatTestMecef['detail'] }}</p>
+                @endif
+              </div>
             </div>
 
         @elseif ($onglet === 'communication')
@@ -678,6 +727,37 @@
                 class="text-[13px] px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50">{{ __('pwa.modale.annuler') }}</button>
         <button type="button" wire:click="retablirTables"
                 class="text-[13px] px-4 py-2 rounded-lg bg-[var(--navy)] text-white font-semibold">{{ __('pwa.parametres.tables_retablir_confirmer') }}</button>
+      </div>
+    </x-pwa.modale>
+  @endif
+
+  {{-- SAISIE du jeton e-MECeF — modale ; le champ est vidé dès l'enregistrement. --}}
+  @if ($saisieJetonMecef)
+    <x-pwa.modale :titre="__('pwa.parametres.mecef_jeton_libelle')" largeur="460px">
+      <form wire:submit="enregistrerJetonMecef" class="space-y-4">
+        <div>
+          <label for="jeton-mecef" class="block text-[15px] font-semibold text-slate-700 mb-1.5">{{ __('pwa.parametres.mecef_jeton_invite') }}</label>
+          <input id="jeton-mecef" type="password" autocomplete="new-password" wire:model="jetonMecef"
+                 class="champ w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm">
+          @error('jetonMecef') <p class="text-[12px] text-red-600 mt-1">{{ $message }}</p> @enderror
+        </div>
+        <div class="flex justify-end gap-3 pt-2">
+          <button type="button" wire:click="fermerModales" class="text-[13px] px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50">{{ __('pwa.modale.annuler') }}</button>
+          <button type="submit" class="text-[13px] px-4 py-2 rounded-lg bg-[var(--navy)] text-white font-semibold">{{ __('pwa.parametres.mecef_jeton_enregistrer') }}</button>
+        </div>
+      </form>
+    </x-pwa.modale>
+  @endif
+
+  {{-- CONFIRMATION « Effacer le jeton e-MECeF ? » — modale du dépôt, jamais `wire:confirm`. --}}
+  @if ($confirmationEffacerJetonMecef)
+    <x-pwa.modale :titre="__('pwa.parametres.mecef_jeton_effacer_titre')" largeur="420px">
+      <p class="text-sm text-slate-600">{{ __('pwa.parametres.mecef_jeton_effacer_message') }}</p>
+      <div class="flex justify-end gap-3 pt-4">
+        <button type="button" wire:click="$set('confirmationEffacerJetonMecef', false)"
+                class="text-[13px] px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50">{{ __('pwa.modale.annuler') }}</button>
+        <button type="button" wire:click="effacerJetonMecef"
+                class="text-[13px] px-4 py-2 rounded-lg bg-[var(--navy)] text-white font-semibold">{{ __('pwa.parametres.mecef_jeton_effacer_confirmer') }}</button>
       </div>
     </x-pwa.modale>
   @endif

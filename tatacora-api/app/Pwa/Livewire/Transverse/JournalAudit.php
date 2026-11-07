@@ -144,6 +144,9 @@ class JournalAudit extends PageTransverse
         // « Mon profil » (03/11/2026) : écrit par `MonProfil::enregistrerInformations` —
         // les champs changés, ancien → nouveau ; jamais un secret.
         'profil_modifie' => ['libelle' => 'Profil modifié', 'fond' => '#FDF3E0', 'texte' => '#B8891E'],
+        // Facturation normalisée (07/11/2026) : écrit par `TraceReglageFacturation` — les clés
+        // modifiées et le mode avant → après ; jamais le jeton.
+        'reglage_facturation_normalisee_modifie' => ['libelle' => 'Réglage de la facturation normalisée modifié', 'fond' => '#FDF3E0', 'texte' => '#B8891E'],
         'compte_supprime_inconnu' => ['libelle' => 'Compte supprimé (inconnu du serveur)', 'fond' => '#F3F4F6', 'texte' => '#6B7280'],
     ];
 

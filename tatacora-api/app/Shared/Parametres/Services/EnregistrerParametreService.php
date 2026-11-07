@@ -6,9 +6,14 @@ namespace App\Shared\Parametres\Services;
 
 use App\Domain\Comptabilite\Services\CalculTvaService;
 use App\Domain\Comptabilite\Services\CorrespondanceComptesService;
+use App\Domain\Facturation\Services\ModeFacturation;
+use App\Domain\Facturation\Services\ReglagesMecef;
+use App\Domain\Facturation\Services\TraceReglageFacturation;
 use App\Shared\Parametres\Data\DefinitionParametre;
 use App\Shared\Parametres\Data\RegistreParametres;
 use App\Shared\Parametres\Models\ParametreSysteme;
+use App\Shared\ReportEngine\Services\ReportHeaderService;
+use App\Shared\Secrets\Services\SecretsConfigurationService;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -75,9 +80,12 @@ class EnregistrerParametreService
         }
 
         $this->verifierComptes($normalisees);
+        $this->exigerAdministrateurPourFacturation($normalisees);
+        $this->verifierFacturationNormalisee($normalisees);
         $this->verifierCoherence($normalisees);
 
         $modifiees = [];
+        $avantFacturation = $this->etatFacturation();
 
         DB::transaction(function () use ($normalisees, &$modifiees): void {
             foreach ($normalisees as $cle => $valeur) {
@@ -103,7 +111,120 @@ class EnregistrerParametreService
             }
         });
 
+        $this->tracerFacturation($modifiees, $avantFacturation);
+
         return $modifiees;
+    }
+
+    /**
+     * Le mode et l'adresse/opérateur se règlent par un administrateur seulement
+     * (décision du PO). Un appel sans utilisateur (seeder, commande) passe ; un
+     * poste n'arrive jamais ici avec ces clés (`GestionnaireParametres` les écarte).
+     *
+     * @param  array<string, string>  $soumis
+     */
+    private function exigerAdministrateurPourFacturation(array $soumis): void
+    {
+        if (array_intersect(array_keys($soumis), ReglagesMecef::CLES_ADMINISTRATEUR) === []) {
+            return;
+        }
+
+        $utilisateur = auth()->user();
+
+        if ($utilisateur !== null && ! $utilisateur->estAdministrateur()) {
+            throw new RuntimeException(__('parametres.mecef_reserve_administrateur'));
+        }
+    }
+
+    /**
+     * La cohérence du réglage RÉSULTANT : un mode réel n'est accepté que si ce
+     * qu'il exige est là — sinon la première facture partirait en échec devant
+     * le client. Aucune valeur secrète n'est citée.
+     *
+     * @param  array<string, string>  $soumis
+     */
+    private function verifierFacturationNormalisee(array $soumis): void
+    {
+        $concerne = array_intersect(array_keys($soumis), [
+            ModeFacturation::CLE, ReportHeaderService::CLE_IFU, ReglagesMecef::CLE_API_URL,
+            ReglagesMecef::CLE_OPERATEUR_ID, ReglagesMecef::CLE_OPERATEUR_NOM,
+        ]);
+
+        if ($concerne === []) {
+            return;
+        }
+
+        // L'IFU saisi (par un écran, l'API ou un poste) compte 13 chiffres ; vide est permis.
+        $ifuSaisi = trim($soumis[ReportHeaderService::CLE_IFU] ?? '');
+
+        if ($ifuSaisi !== '' && ! ReglagesMecef::ifuValide($ifuSaisi)) {
+            throw new RuntimeException(__('parametres.mecef_ifu_invalide'));
+        }
+
+        $resultat = fn (string $cle): string => trim($soumis[$cle] ?? (string) ($this->lecture->get($cle) ?? ''));
+        $mode = ModeFacturation::depuis($resultat(ModeFacturation::CLE));
+
+        if ($mode === ModeFacturation::Desactive) {
+            return;
+        }
+
+        $manques = [];
+
+        if (! ReglagesMecef::ifuValide($resultat(ReportHeaderService::CLE_IFU))) {
+            $manques[] = __('parametres.mecef_manque_ifu');
+        }
+        if ($resultat(ReglagesMecef::CLE_OPERATEUR_ID) === '' || $resultat(ReglagesMecef::CLE_OPERATEUR_NOM) === '') {
+            $manques[] = __('parametres.mecef_manque_operateur');
+        }
+        if ($mode === ModeFacturation::Emecef) {
+            if (! app(SecretsConfigurationService::class)->etat(SecretsConfigurationService::MECEF_JETON)['renseigne']) {
+                $manques[] = __('parametres.mecef_manque_jeton');
+            }
+        }
+
+        if ($manques !== []) {
+            throw new RuntimeException(__('parametres.mecef_mode_refuse', [
+                'mode' => $mode->libelle(),
+                'manques' => implode(' ', $manques),
+            ]));
+        }
+    }
+
+    /** @return array<string, string> */
+    private function etatFacturation(): array
+    {
+        $etat = [];
+
+        foreach ([ModeFacturation::CLE, ReglagesMecef::CLE_API_URL, ReglagesMecef::CLE_OPERATEUR_ID, ReglagesMecef::CLE_OPERATEUR_NOM] as $cle) {
+            $etat[$cle] = (string) ($this->lecture->get($cle) ?? '');
+        }
+
+        return $etat;
+    }
+
+    /**
+     * « Réglage de la facturation normalisée modifié » : les CLÉS modifiées et
+     * le mode avant → après, jamais un secret (le jeton n'est pas un paramètre).
+     *
+     * @param  list<string>  $modifiees
+     * @param  array<string, string>  $avant
+     */
+    private function tracerFacturation(array $modifiees, array $avant): void
+    {
+        $cles = array_values(array_intersect($modifiees, [
+            ModeFacturation::CLE, ReglagesMecef::CLE_API_URL, ReglagesMecef::CLE_OPERATEUR_ID,
+            ReglagesMecef::CLE_OPERATEUR_NOM, ReportHeaderService::CLE_IFU,
+        ]));
+
+        if ($cles === []) {
+            return;
+        }
+
+        TraceReglageFacturation::tracer(auth()->id() === null ? null : (string) auth()->id(), [
+            'cles' => $cles,
+            'mode_avant' => ModeFacturation::depuis($avant[ModeFacturation::CLE] ?? '')->value,
+            'mode_apres' => ModeFacturation::courant()->value,
+        ]);
     }
 
     /**

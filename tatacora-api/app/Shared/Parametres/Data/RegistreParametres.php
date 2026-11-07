@@ -9,6 +9,8 @@ use App\Domain\Comptabilite\Services\CalculTvaService;
 use App\Domain\Comptabilite\Services\CorrespondanceComptesService;
 use App\Domain\Comptabilite\Services\PlanComptableService;
 use App\Domain\Comptabilite\Support\RolesCorrespondance;
+use App\Domain\Facturation\Services\ModeFacturation;
+use App\Domain\Facturation\Services\ReglagesMecef;
 use App\Domain\Hebergement\Services\AnnulationReservationService;
 use App\Domain\Rh\Services\CalculPaieService;
 use App\Domain\Rh\Services\CongeService;
@@ -76,6 +78,13 @@ final class RegistreParametres
     public const GROUPE_EMAIL = 'email';
 
     public const GROUPE_ACTIVATION = 'activation';
+
+    /**
+     * La facturation normalisée du Bénin (07/11/2026) : le MODE et les réglages
+     * non secrets de la voie e-MECeF. Le JETON n'est PAS ici : il vit chiffré
+     * dans `secrets_configuration` ({@see \App\Shared\Secrets\Services\SecretsConfigurationService}).
+     */
+    public const GROUPE_MECEF = 'mecef';
 
     /**
      * La correspondance rôle -> compte comptable (26/10/2026). Ses clés
@@ -206,7 +215,9 @@ final class RegistreParametres
                 groupe: self::GROUPE_ENTREPRISE,
                 libelle: 'IFU (Identifiant Fiscal Unique)',
                 type: 'texte',
-                regles: ['string', 'max:30'],
+                // 13 chiffres depuis le 07/11/2026 (facturation normalisée : le
+                // même IFU sert aux deux voies, boîtier et e-MECeF) ; vide reste permis.
+                regles: ['nullable', 'string', 'regex:' . ReglagesMecef::FORMAT_IFU],
                 // Première phrase : l'aide du maître (`data-regle-requis`,
                 // parametres.html l.57). La clé reste effaçable malgré tout —
                 // MECeF est `en_attente_implementation`, et interdire de vider
@@ -235,6 +246,47 @@ final class RegistreParametres
                 aide: 'Fourni par la DGI. Identifiant, donc paramétrable — la '
                     . 'CLÉ D’API MECeF, elle, vit en configuration serveur et '
                     . 'n’apparaîtra jamais ici.',
+            ),
+
+            // --- Facturation normalisée (MECeF) — mode et réglages non secrets.
+            new DefinitionParametre(
+                cle: ModeFacturation::CLE,
+                groupe: self::GROUPE_MECEF,
+                libelle: 'Mode',
+                type: 'choix',
+                choix: ModeFacturation::valeurs(),
+                choixLibelles: [
+                    ModeFacturation::Desactive->value => 'Désactivé',
+                    ModeFacturation::Emecef->value => 'e-MECeF (en ligne)',
+                    ModeFacturation::Boitier->value => 'Boîtier CC300 (poste)',
+                ],
+                aide: 'Désactivé : factures de démonstration, sans valeur fiscale. '
+                    . 'e-MECeF : le serveur certifie par l’API de la DGI (réseau exigé). '
+                    . 'Boîtier CC300 : le poste de la réception certifie par le boîtier branché en USB, '
+                    . 'même hors ligne. Réservé aux Administrateurs.',
+            ),
+            new DefinitionParametre(
+                cle: ReglagesMecef::CLE_API_URL,
+                groupe: self::GROUPE_MECEF,
+                libelle: 'Adresse de l’API de la DGI',
+                type: 'texte',
+                regles: ['nullable', 'string', 'max:255', 'regex:/^https:\/\/[^\s]+$/i'],
+                aide: 'https:// exigé. Vide : ' . preg_replace('#^https://#', '', ReglagesMecef::URL_API_PAR_DEFAUT) . ' (adresse de la DGI).',
+            ),
+            new DefinitionParametre(
+                cle: ReglagesMecef::CLE_OPERATEUR_ID,
+                groupe: self::GROUPE_MECEF,
+                libelle: 'Identifiant de l’opérateur',
+                type: 'texte',
+                regles: ['nullable', 'string', 'max:30'],
+            ),
+            new DefinitionParametre(
+                cle: ReglagesMecef::CLE_OPERATEUR_NOM,
+                groupe: self::GROUPE_MECEF,
+                libelle: 'Nom de l’opérateur',
+                type: 'texte',
+                regles: ['nullable', 'string', 'max:30'],
+                aide: '30 caractères au plus (limite du boîtier).',
             ),
 
             // --- Fiscalité.

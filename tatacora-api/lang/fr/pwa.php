@@ -1416,6 +1416,24 @@ return [
         // (l.40 et l.51), à leurs titres.
         'section_identite' => 'Identité de l\'entreprise',
         'section_legal' => 'Informations légales & fiscales',
+        // Facturation normalisée (MECeF) — 07/11/2026 ; reprise telle quelle par le poste.
+        'section_mecef' => 'Facturation normalisée (MECeF)',
+        'mecef_jeton_libelle' => 'Jeton JWT e-MECeF',
+        'mecef_jeton_invite' => 'Saisir un nouveau jeton',
+        'mecef_jeton_enregistrer' => 'Enregistrer le jeton',
+        'mecef_jeton_effacer' => 'Effacer le jeton',
+        'mecef_jeton_renseigne' => '••• enregistré le :date — jamais réaffiché.',
+        'mecef_jeton_absent' => 'Aucun jeton enregistré.',
+        'mecef_jeton_reserve' => 'Seul un Administrateur peut saisir ou effacer le jeton.',
+        'mecef_jeton_mention' => 'Le jeton est rangé chiffré sur le serveur : il n’est jamais réaffiché ni envoyé aux postes. '
+            . 'Pour le remplacer, saisissez-en un nouveau.',
+        'mecef_jeton_enregistre' => 'Jeton e-MECeF enregistré (chiffré).',
+        'mecef_jeton_efface' => 'Jeton e-MECeF effacé.',
+        'mecef_jeton_effacer_titre' => 'Effacer le jeton e-MECeF ?',
+        'mecef_jeton_effacer_message' => 'Sans jeton, aucune facture ne peut être transmise à la DGI par le serveur. '
+            . 'Vous devrez en saisir un nouveau.',
+        'mecef_jeton_effacer_confirmer' => 'Effacer le jeton',
+        'mecef_test_bouton' => 'Tester la connexion',
         // Le titre de l'onglet « Communication » (l.70) et « Email (SMTP) »
         // (l.83) du maître.
         'section_communication' => 'Canaux de notification',

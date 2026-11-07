@@ -6,6 +6,8 @@ namespace App\Domain\Facturation\Providers;
 
 use App\Domain\Facturation\Services\MecefClientFake;
 use App\Domain\Facturation\Services\MecefClientInterface;
+use App\Domain\Facturation\Services\ModeFacturation;
+use App\Domain\Facturation\Services\ReglagesMecef;
 use App\Shared\Parametres\Services\ParametreSystemeService;
 use Illuminate\Support\ServiceProvider;
 
@@ -83,10 +85,24 @@ final class MecefServiceProvider extends ServiceProvider
      * qui dit « tout va bien » pendant que rien n'a lieu — mais sur une matière
      * fiscale, et sur un document remis au client.
      *
-     * @return 'non_configuree'|'configuration_partielle'|'en_attente_implementation'|'active'
+     * @return 'non_configuree'|'configuration_partielle'|'en_attente_implementation'|'active'|'emecef_incomplet'|'emecef_actif'|'boitier_au_poste'
      */
     public static function etatConfiguration(): string
     {
+        // Facturation normalisée (07/11/2026) : dès qu'un mode réel est CHOISI,
+        // l'état dérive du mode et du client réellement lié.
+        $mode = ModeFacturation::courant();
+
+        if ($mode === ModeFacturation::Boitier) {
+            return 'boitier_au_poste';
+        }
+
+        if ($mode === ModeFacturation::Emecef) {
+            return app(ReglagesMecef::class)->manquantsEmecef() === [] && app(MecefClientInterface::class)->estModeReel()
+                ? 'emecef_actif'
+                : 'emecef_incomplet';
+        }
+
         $numero = app(ParametreSystemeService::class)->get('entreprise_numero_mecef');
 
         if (blank($numero)) {

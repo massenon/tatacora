@@ -392,6 +392,11 @@ final class PwaActionsReluesTest extends TestCase
             // du PO) : `exigerEcriture(self::MODULE)` ET rôle
             // d'administration ; la valeur n'est jamais rechargee.
             'enregistrerMotDePasseSmtp', 'effacerMotDePasseSmtp',
+            // Facturation normalisee (07/11/2026) : le jeton e-MECeF, chiffre,
+            // jamais rendu — `exigerEcriture(self::MODULE)` ET role
+            // d'administration ; « Tester la connexion » n'ecrit rien mais
+            // appelle la DGI avec le jeton : meme garde.
+            'ouvrirSaisieJetonMecef', 'enregistrerJetonMecef', 'demanderEffacementJetonMecef', 'effacerJetonMecef', 'testerConnexionMecef',
             // Logo & Apparence — televersement reel via `WithFileUploads`
             // (fichiers remplaces, jamais accumules ; servis par la route
             // `pwa.apparence`, sans storage:link).
