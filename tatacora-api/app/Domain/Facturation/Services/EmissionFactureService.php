@@ -6,9 +6,11 @@ namespace App\Domain\Facturation\Services;
 
 use App\Domain\Comptabilite\Services\CalculTvaService;
 use App\Domain\Facturation\Exceptions\EmecefErreur;
+use App\Domain\Facturation\Exceptions\FactureImmuableException;
 use App\Domain\Facturation\Models\Avoir;
 use App\Domain\Facturation\Models\Facture;
 use App\Domain\Facturation\Models\LigneFacture;
+use App\Domain\Facturation\Support\IfuClient;
 use App\Domain\Hebergement\Models\Reservation;
 use Illuminate\Support\Facades\DB;
 
@@ -35,9 +37,11 @@ class EmissionFactureService
      * RG-04 sera complétée au fil des modules (M4, M5, M8, M9) sans changer la
      * structure : chaque module ajoutera ses lignes au même document.
      */
-    public function emettrePourReservation(Reservation $reservation, string $prixUnitaire): Facture
+    public function emettrePourReservation(Reservation $reservation, string $prixUnitaire, ?string $acheteurIfu = null, ?string $acheteurNom = null): Facture
     {
-        return DB::transaction(function () use ($reservation, $prixUnitaire) {
+        $this->exigerIfuValide($acheteurIfu);
+
+        return DB::transaction(function () use ($reservation, $prixUnitaire, $acheteurIfu, $acheteurNom) {
             $nuitees = (string) $reservation->nombreNuitees();
             $montantCatalogue = bcmul($nuitees, $prixUnitaire, self::PRECISION);
 
@@ -52,6 +56,8 @@ class EmissionFactureService
                 'montant_ht' => $montantHt,
                 'montant_tva' => $ventilation['tva'],
                 'montant_ttc' => $ventilation['ttc'],
+                'acheteur_ifu' => IfuClient::nettoyer($acheteurIfu),
+                'acheteur_nom' => $this->nomAcheteur($acheteurNom),
                 // La facture existe AVANT la certification : la DGI peut être
                 // indisponible, le client ne doit pas attendre pour être servi
                 // (MECEF_INTEGRATION_SPEC.md §2).
@@ -100,9 +106,9 @@ class EmissionFactureService
      * {@see ajouterLigne()}, qui recalcule les totaux — jamais une seconde
      * arithmétique ici.
      */
-    public function emettrePourConsommations(Reservation $reservation): Facture
+    public function emettrePourConsommations(Reservation $reservation, ?string $acheteurIfu = null, ?string $acheteurNom = null): Facture
     {
-        return $this->emettreVide((string) $reservation->client_id);
+        return $this->emettreVide((string) $reservation->client_id, null, null, $acheteurIfu, $acheteurNom);
     }
 
     /**
@@ -112,9 +118,13 @@ class EmissionFactureService
      * poste) ; en ligne : un nouvel identifiant, aujourd'hui. Dans une
      * transaction : le numéro `F-` y est alloué sous verrou.
      */
-    public function emettreVide(string $clientId, ?string $id = null, ?string $dateEmission = null): Facture
+    public function emettreVide(string $clientId, ?string $id = null, ?string $dateEmission = null, ?string $acheteurIfu = null, ?string $acheteurNom = null): Facture
     {
+        $this->exigerIfuValide($acheteurIfu);
+
         return DB::transaction(fn (): Facture => Facture::create([
+            'acheteur_ifu' => IfuClient::nettoyer($acheteurIfu),
+            'acheteur_nom' => $this->nomAcheteur($acheteurNom),
             ...($id !== null ? ['id' => $id] : []),
             'client_id' => $clientId,
             'date_emission' => $dateEmission ?? now()->toDateString(),
@@ -200,6 +210,124 @@ class EmissionFactureService
         return $facture->refresh();
     }
 
+    /** L'IFU du client : facultatif, 13 chiffres s'il est renseigné (une règle, web et poste). */
+    private function exigerIfuValide(?string $ifu): void
+    {
+        if (! IfuClient::valide($ifu)) {
+            throw new \InvalidArgumentException(__('facturation.ifu_client.invalide'));
+        }
+    }
+
+    private function nomAcheteur(?string $nom): ?string
+    {
+        $net = trim((string) $nom);
+
+        return $net === '' ? null : mb_substr($net, 0, 100);
+    }
+
+    /**
+     * Range l'ACHETEUR de la facture (IFU facultatif, nom) ; « Retenir pour ce client »
+     * le range aussi sur la fiche du client (jamais pour la fiche « Client de passage »,
+     * partagée par tous les clients sans fiche). Refusé sur une facture NORMALISÉE.
+     */
+    public function definirAcheteur(Facture $facture, ?string $ifu, ?string $nom, bool $retenir = false): Facture
+    {
+        $this->exigerIfuValide($ifu);
+
+        if ($facture->normalisation_statut === StatutNormalisation::Normalisee->value) {
+            throw new FactureImmuableException($facture->id, ['acheteur']);
+        }
+
+        $facture->update([
+            'acheteur_ifu' => IfuClient::nettoyer($ifu),
+            'acheteur_nom' => $this->nomAcheteur($nom),
+        ]);
+
+        $this->retenirSurLaFiche($facture, $ifu, $retenir);
+
+        return $facture->refresh();
+    }
+
+    /** « Retenir pour ce client » : l'IFU saisi va sur la fiche (si le client en a une, et que ce n'est pas le client de passage). */
+    public function retenirSurLaFiche(Facture $facture, ?string $ifu, bool $retenir): void
+    {
+        $propre = IfuClient::nettoyer($ifu);
+
+        if (! $retenir || $propre === null) {
+            return;
+        }
+
+        $client = $facture->client()->first();
+
+        if ($client === null || $client->nom === \App\Shared\Sync\Gestionnaires\GestionnaireFactures::CLIENT_DE_PASSAGE['nom']) {
+            return;
+        }
+
+        $client->update(['ifu' => $propre]);
+    }
+
+    /**
+     * L'acheteur tel qu'il part à la normalisation : (IFU ou null, nom). Sans nom saisi,
+     * le nom de la fiche ; sans fiche, « Client divers ». Un client sans IFU part sans IFU.
+     *
+     * @return array{0: ?string, 1: string}
+     */
+    public static function acheteurPourNormalisation(Facture $facture): array
+    {
+        $facture->loadMissing('client');
+
+        return [
+            IfuClient::nettoyer($facture->acheteur_ifu),
+            IfuClient::nomPourNormalisation($facture->acheteur_nom, $facture->client?->nomComplet()),
+        ];
+    }
+
+    /**
+     * ÉMISSION d'une facture SIMPLE (07/11/2026) : la facture est ÉMISE et figée (`statut`
+     * `certifiee` = émise, nom hérité), sans numéro MECeF ni QR ni mention : une facture
+     * ordinaire. La normalisation, elle, ne vient que par le bouton « Normaliser ».
+     */
+    public function figerEmission(Facture $facture): Facture
+    {
+        if ($facture->statut === 'en_attente_certification' || $facture->statut === 'brouillon') {
+            $facture->update(['statut' => 'certifiee']);
+        }
+
+        return $facture->refresh();
+    }
+
+    /**
+     * Le BOUTON « Normaliser » du web : e-MECeF seulement. Désactivé : facture simple, rien à
+     * normaliser. Boîtier : le web n'appelle jamais le boîtier (le poste le fait). Une erreur
+     * classée de la DGI se range sur la facture (en attente / refusée / à vérifier) sans lever :
+     * la facture reste émise, rejouable.
+     */
+    public function normaliserLaFacture(Facture $facture): Facture
+    {
+        $mode = ModeFacturation::courant();
+
+        if ($mode === ModeFacturation::Desactive) {
+            throw new \RuntimeException(__('facturation.mode.normaliser_desactive'));
+        }
+
+        if ($mode === ModeFacturation::Boitier) {
+            throw new \RuntimeException(__('facturation.mode.normaliser_poste'));
+        }
+
+        if ($facture->normalisation_statut === StatutNormalisation::Normalisee->value) {
+            return $facture;
+        }
+
+        $facture = $this->figerEmission($facture);
+
+        if ($facture->normalisation_statut === StatutNormalisation::AVerifier->value) {
+            // Jamais retransmise automatiquement ; la relance par bouton passe par la vérification, pas ici.
+            return $facture;
+        }
+
+        return $this->certifierEnLigne($facture);
+    }
+
     /**
      * Certification MECeF — selon le MODE de la facturation normalisée
      * (docs/SPEC_FACTURATION_NORMALISEE_MECEF.md §1) :
@@ -217,17 +345,20 @@ class EmissionFactureService
     {
         $mode = ModeFacturation::courant();
 
-        // Idempotence : une facture deja passee par la certification ne la
-        // rejoue pas, y compris en demonstration — sinon chaque passage
-        // consommerait un nouveau numero pour la meme piece. Seule exception :
-        // une DEMONSTRATION peut etre remplacee par une vraie normalisation
-        // quand un mode reel est choisi depuis.
+        // Idempotence : une facture deja normalisee ne l'est jamais deux fois.
         if ($facture->normalisation_statut === StatutNormalisation::Normalisee->value) {
             return $facture;
         }
 
-        if ($facture->estFigee() && ! ($mode !== ModeFacturation::Desactive && $facture->estCertificationDemonstration())) {
+        // Une facture portant deja un numero reel n'est pas retouchee.
+        if ($facture->estFigee() && filled($facture->numero_mecef) && ! $facture->estCertificationDemonstration()) {
             return $facture;
+        }
+
+        // DESACTIVE = FACTURATION SIMPLE (decision du PO du 07/11/2026) : la facture est emise,
+        // sans numero MECeF fictif, sans QR, sans mention. Plus aucun faux client.
+        if ($mode === ModeFacturation::Desactive) {
+            return $this->figerEmission($facture);
         }
 
         if ($mode === ModeFacturation::Boitier) {
@@ -238,15 +369,7 @@ class EmissionFactureService
             return $this->certifierEnLigne($facture);
         }
 
-        $resultat = $this->mecef->certifier($facture);
-
-        $facture->update([
-            'numero_mecef' => $resultat->nim,
-            'qr_code_fiscal' => $resultat->cachetFiscal,
-            'statut' => 'certifiee',
-        ]);
-
-        return $facture->refresh();
+        return $facture;
     }
 
     /** Boîtier : le serveur ne certifie pas ; il le DIT sur la facture (sans écraser le poste). */

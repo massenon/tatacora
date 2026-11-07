@@ -164,7 +164,8 @@ class CatalogueDescendantService
         // canal non plus (`canal_id` désigne un canal du serveur, le poste ne
         // connaît que des codes) ; ni les colonnes d'audit, ni l'écriture du
         // remboursement (le poste ne tient pas les pièces du serveur).
-        'clients' => ['nom', 'prenom', 'telephone', 'email', 'type_client', 'actif'],
+        // `ifu` (07/11/2026) : l'IFU de la fiche, pour préremplir la facture au poste (lecture seule).
+        'clients' => ['nom', 'prenom', 'telephone', 'email', 'type_client', 'actif', 'ifu'],
         // 21/10/2026 : les relances de TOUS les postes, après le client qu'elles citent.
         'relances_clients' => ['client_id', 'date_relance', 'canal', 'montant_reclame', 'promesse', 'commentaire'],
         'reservations' => [
@@ -201,6 +202,7 @@ class CatalogueDescendantService
             'numero', 'origine', 'client_id', 'date_emission', 'montant_ht', 'montant_tva', 'montant_ttc', 'statut',
             'numero_mecef', 'qr_code_fiscal', 'code_mecef', 'normalisation_statut', 'normalisation_motif',
             'normalisation_mode', 'normalisation_compteur', 'normalisee_le',
+            'acheteur_ifu', 'acheteur_nom',
         ],
         'avoirs' => [
             'facture_id', 'numero', 'motif', 'montant', 'date_emission',

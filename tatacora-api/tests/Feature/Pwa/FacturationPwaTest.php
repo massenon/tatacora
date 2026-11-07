@@ -142,58 +142,79 @@ final class FacturationPwaTest extends TestCase
         $this->assertStringNotContainsString('id="crud-modales-zone"', $html);
     }
 
+    private function modeFacturation(string $mode): void
+    {
+        \App\Shared\Parametres\Models\ParametreSysteme::updateOrCreate(
+            ['cle' => \App\Domain\Facturation\Services\ModeFacturation::CLE],
+            ['valeur' => $mode],
+        );
+    }
+
     /**
-     * PA-119 — la mention MECeF est DERIVEE, et elle rend aujourd'hui
-     * exactement la phrase du maitre parce que c'est la verite.
-     *
-     * Le jeu contient une facture « certifiee » dont le numero est
-     * `MECEF-DEMO-…` : c'est une certification de DEMONSTRATION, qui n'a
-     * aucune valeur fiscale. La compter la ferait annoncer une inscription DGI
-     * qui n'a pas eu lieu (PA-61, PA-100).
+     * Décision du PO du 07/11/2026 : en mode DÉSACTIVÉ (facturation simple), l'écran ne porte AUCUNE
+     * mention de certification ni de démonstration — ni « non certifiées, démonstration », ni
+     * « pièce(s) certifiée(s) », ni « normalisée ».
      */
     #[Test]
-    public function la_mention_mecef_ne_compte_pas_une_certification_de_demonstration(): void
+    public function en_mode_desactive_l_ecran_ne_porte_aucune_mention_de_certification_ni_de_demonstration(): void
     {
         $this->jeuDeDonnees();
+        $this->modeFacturation('desactive');
         $this->actingAs($this->utilisateur('administrateur'));
 
         $html = (string) $this->get('/pwa/facturation')->assertOk()->getContent();
 
-        $this->assertStringContainsString(e('non certifiées, démonstration'), $html);
+        $this->assertStringNotContainsString(e('non certifiées, démonstration'), $html);
         $this->assertStringNotContainsString(e('pièce(s) certifiée(s)'), $html);
-
-        // Le predicat du domaine dit la meme chose — verifie, pas suppose.
-        $demo = Facture::where('numero_mecef', 'like', 'MECEF-DEMO-%')->firstOrFail();
-        $this->assertTrue($demo->estFigee(), 'La piece de demonstration doit bien etre figee (RG-03).');
-        $this->assertFalse($demo->estCertifiee(), 'Une certification de demonstration n a aucune valeur fiscale.');
+        $this->assertStringNotContainsString('aucune pièce normalisée', $html);
+        $this->assertStringNotContainsString('en attente de normalisation', $html);
+        // Pas de bouton « Normaliser » : rien à normaliser.
+        $this->assertStringNotContainsString('wire:click="normaliser(', $html);
     }
 
-    /**
-     * Et la mention BASCULE des qu'une piece porte un vrai numero.
-     *
-     * C'est ce que la constante du maitre ne saurait pas faire : elle
-     * resterait « non certifiées » le jour de l'inscription DGI.
-     */
+    /** Et dans les modes normalisables, le décompte dit ce qui est RÉELLEMENT normalisé. */
     #[Test]
-    public function la_mention_mecef_bascule_sur_une_certification_reelle(): void
+    public function en_mode_emecef_la_mention_compte_les_pieces_reellement_normalisees_et_le_bouton_apparait(): void
     {
         $this->jeuDeDonnees();
+        $this->modeFacturation('emecef');
+        $this->actingAs($this->utilisateur('administrateur'));
+
+        $html = (string) $this->get('/pwa/facturation')->assertOk()->getContent();
+        $this->assertStringContainsString('aucune pièce normalisée', $html);
+        $this->assertStringContainsString('wire:click="normaliser(', $html);
+        $this->assertStringContainsString('en attente de normalisation', $html);
 
         Facture::create([
-            'numero_mecef' => 'MECEF-2026-000042',
+            'numero_mecef' => 'ED04000999-42',
             'client_id' => $this->client->id,
             'date_emission' => now()->toDateString(),
             'montant_ht' => '10000.00',
             'montant_tva' => '1800.00',
             'montant_ttc' => '11800.00',
             'statut' => 'certifiee',
+            'normalisation_statut' => 'normalisee',
+            'normalisation_mode' => 'emecef',
+            'qr_code_fiscal' => 'F;ED04000999;ABCD;3201910768821;20261107101500',
         ]);
 
+        $html = (string) $this->get('/pwa/facturation')->assertOk()->getContent();
+        $this->assertStringContainsString(e('1 pièce(s) certifiée(s)'), $html);
+        $this->assertStringNotContainsString('aucune pièce normalisée', $html);
+    }
+
+    /** Boîtier : le web n'appelle jamais le boîtier, donc pas de bouton « Normaliser ». */
+    #[Test]
+    public function en_mode_boitier_le_web_n_offre_pas_le_bouton_normaliser(): void
+    {
+        $this->jeuDeDonnees();
+        $this->modeFacturation('boitier');
         $this->actingAs($this->utilisateur('administrateur'));
+
         $html = (string) $this->get('/pwa/facturation')->assertOk()->getContent();
 
-        $this->assertStringContainsString(e('1 pièce(s) certifiée(s)'), $html);
-        $this->assertStringNotContainsString(e('non certifiées, démonstration'), $html);
+        $this->assertStringNotContainsString('wire:click="normaliser(', $html);
+        $this->assertStringContainsString('en attente de normalisation', $html);
     }
 
     /**

@@ -24,6 +24,7 @@ use App\Shared\Auth\Http\Controllers\AuthController;
 use App\Shared\Parametres\Http\Controllers\ParametreController;
 use App\Shared\Sync\Http\Controllers\CoherenceController;
 use App\Shared\Sync\Http\Controllers\DemandeSynchronisationController;
+use App\Shared\Sync\Http\Controllers\FacturesEnLigneController;
 use App\Shared\Sync\Http\Controllers\RecuDepenseController;
 use App\Shared\Sync\Http\Controllers\ReferentielsController;
 use App\Shared\Sync\Http\Controllers\SuiviPostesController;
@@ -112,6 +113,18 @@ Route::middleware(['auth:sanctum'])->prefix('v1')->group(function () {
         ->middleware(GenerationDesDonnees::class)
         ->where('depense', '[0-9a-fA-F-]{36}')
         ->name('api.sync.recu_depense.telecharger');
+
+    // Facturation EN LIGNE depuis un poste (décisions du PO du 07/11/2026) : l'avoir d'une
+    // facture (seule porte pour une facture NORMALISÉE) et la demande immédiate de
+    // normalisation e-MECeF. Droits et poste du jeton contrôlés dans le contrôleur.
+    Route::post('/sync/factures/{facture}/avoir', [FacturesEnLigneController::class, 'avoir'])
+        ->middleware(GenerationDesDonnees::class)
+        ->where('facture', '[0-9a-fA-F-]{36}')
+        ->name('api.sync.factures.avoir');
+    Route::post('/sync/factures/{facture}/normalisation', [FacturesEnLigneController::class, 'normaliser'])
+        ->middleware(GenerationDesDonnees::class)
+        ->where('facture', '[0-9a-fA-F-]{36}')
+        ->name('api.sync.factures.normalisation');
 
     Route::prefix('hebergement')->group(function () {
         // Le PARC entier — referentiel descendant du client Flutter (PA-128).

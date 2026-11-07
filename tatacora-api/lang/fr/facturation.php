@@ -46,6 +46,37 @@ return [
     'normalisation_statut_inconnu' => 'Le statut de normalisation « :statut » est inconnu.',
     'normalisation_mode_inconnu' => 'La voie de normalisation « :mode » est inconnue.',
 
+    // Facturation normalisée — décisions du PO du 07/11/2026.
+    // IFU du CLIENT (point 2) : un seul champ, mêmes règles et mêmes phrases au web et au poste.
+    'ifu_client' => [
+        'label' => 'IFU du client',
+        'nom_label' => 'Nom du client',
+        'aide' => 'Facultatif : 13 chiffres. Laissez vide pour un client sans IFU.',
+        'invalide' => 'L\'IFU du client doit compter exactement 13 chiffres (laissez vide pour un client sans IFU).',
+        'retenir' => 'Retenir pour ce client',
+        'nom_divers' => 'Client divers',
+    ],
+
+    // Comportement par MODE (point 3).
+    'mode' => [
+        'en_attente' => 'Facture en attente de normalisation',
+        'normaliser_maintenant' => 'Normaliser maintenant',
+        'normaliser' => 'Normaliser',
+        'normaliser_desactive' => 'La facturation normalisée est désactivée : cette facture reste un document non normalisé.',
+        'normaliser_poste' => 'En mode boîtier, la normalisation se fait au poste de la réception (boîtier CC300) : elle ne se fait pas depuis le web.',
+        'normalisee' => 'Facture :numero normalisée.',
+        'normalisation_en_attente' => 'La facture est émise, mais la normalisation n\'a pas abouti : :motif. Vous pourrez la relancer avec « Normaliser ».',
+        'facture_emise_normalisation_en_attente' => 'Facture émise. La normalisation n\'a pas abouti (:motif) : la facture reste en attente, rejouable.',
+    ],
+
+    'en_ligne' => [
+        'facture_inconnue' => 'Cette facture n\'est pas encore connue du serveur : envoyez d\'abord les opérations en attente du poste (synchronisation), puis recommencez.',
+    ],
+
+    // Avoir d'une facture NORMALISÉE (point 4) : EN LIGNE seulement.
+    'avoir_en_ligne' => 'Un avoir sur une facture normalisée se fait en ligne : reconnectez le poste au serveur.',
+    'avoir_en_ligne_refuse_file' => 'Un avoir sur une facture normalisée se fait en ligne : il ne passe pas par la file d\'envoi du poste. Reconnectez le poste au serveur et émettez l\'avoir depuis l\'écran Facturation.',
+
     // Encaissement (PA-165) — quatre refus locaux, tous corrigibles sur place.
     'encaissement_facture_non_figee' => 'Cette facture n\'est pas encore figée : émettez-la avant d\'encaisser.',
     'encaissement_mode_inconnu' => 'Le mode de paiement « :mode » n\'existe pas au registre.',

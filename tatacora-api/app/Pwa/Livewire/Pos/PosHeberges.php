@@ -6,6 +6,8 @@ namespace App\Pwa\Livewire\Pos;
 
 use App\Domain\Facturation\Models\LigneFacture;
 use App\Domain\Facturation\Services\EmissionFactureService;
+use App\Domain\Facturation\Services\ModeFacturation;
+use App\Domain\Facturation\Support\IfuClient;
 use App\Domain\Hebergement\Models\Reservation;
 use App\Domain\Ventes\Models\Panier;
 use App\Domain\Ventes\Services\PanierService;
@@ -138,6 +140,23 @@ class PosHeberges extends PageMetier
      * de la regle, c'est sa levee explicite, datee.
      */
     public bool $payerSeparement = false;
+
+    /**
+     * L'ACHETEUR de la facture (décision du PO du 07/11/2026, point 2) : IFU du client
+     * (facultatif, 13 chiffres s'il est rempli), son nom, et « Retenir pour ce client »
+     * (décoché par défaut). Préremplis depuis la fiche du client du séjour.
+     */
+    public string $acheteurIfu = '';
+
+    public string $acheteurNom = '';
+
+    public bool $retenirIfu = false;
+
+    /**
+     * « Normaliser maintenant » (mode e-MECeF seulement) : décoché par défaut, JAMAIS automatique
+     * (point 1). Un échec de normalisation ne bloque jamais la facture ni le séjour.
+     */
+    public bool $normaliserMaintenant = false;
 
     /** L'hebergement entre-t-il dans la facture de cette cloture ? */
     private function payerHebergement(): bool
@@ -388,6 +407,14 @@ class PosHeberges extends PageMetier
         // separement est un choix EXPLICITE, jamais un reste de la modale
         // precedente (directive PO 02/09/2026).
         $this->payerSeparement = false;
+        $this->retenirIfu = false;
+        $this->normaliserMaintenant = false;
+
+        // L'acheteur : la fiche du client du séjour (IFU retenu, nom) préremplit la saisie.
+        $reservationCloture = Reservation::with('client')->find($this->selectedReservationId);
+        $this->acheteurIfu = (string) ($reservationCloture?->client?->ifu ?? '');
+        $this->acheteurNom = $reservationCloture?->client?->nomComplet() ?? '';
+
         $this->etatFormulaire = 'cloture';
     }
 
@@ -400,6 +427,8 @@ class PosHeberges extends PageMetier
         // Emettre une facture est une ecriture sur M2 : n'exiger que M5
         // donnerait par le navigateur ce que l'API M2 refuse.
         $this->exigerEcriture(self::MODULE_FACTURATION);
+        // Une saisie corrigée ne garde pas l'erreur de la tentative précédente.
+        $this->resetValidation();
 
         if ($this->selectedReservationId === null) {
             $this->notifier(__('pos_pwa.heberges.refus_aucun_sejour'), 'error');
@@ -443,6 +472,14 @@ class PosHeberges extends PageMetier
          */
         $tarifNuit = (string) $reservation->unite->categorie->tarif_base;
 
+        // L'IFU du client : facultatif, 13 chiffres s'il est rempli. Même règle et même phrase
+        // qu'au poste (`IfuClient`) ; une saisie invalide se corrige, elle ne bloque pas autrement.
+        if (! IfuClient::valide($this->acheteurIfu)) {
+            $this->addError('acheteurIfu', __('facturation.ifu_client.invalide'));
+
+            return;
+        }
+
         if ($this->payerHebergement()) {
             if (bccomp($tarifNuit, '0.00', self::PRECISION_MONTANT) <= 0) {
                 // Aucun tarif de repli : facturer un chiffre que personne n'a
@@ -459,8 +496,11 @@ class PosHeberges extends PageMetier
             }
         }
 
+        $factureEmise = null;
+
         try {
             DB::transaction(function () use (
+                &$factureEmise,
                 $ventes,
                 $facturation,
                 $paniers,
@@ -509,8 +549,9 @@ class PosHeberges extends PageMetier
                  *   (`Facture::SQL_ACOMPTES_LIES` ne lie que par M1).
                  */
                 $facture = $this->payerHebergement()
-                    ? $facturation->emettrePourReservation($reservation, $tarifNuit)
-                    : $facturation->emettrePourConsommations($reservation);
+                    ? $facturation->emettrePourReservation($reservation, $tarifNuit, $this->acheteurIfu, $this->acheteurNom)
+                    : $facturation->emettrePourConsommations($reservation, $this->acheteurIfu, $this->acheteurNom);
+                $factureEmise = $facture;
 
                 foreach ($vente->lignes()->get() as $ligne) {
                     $facturation->ajouterLigne(
@@ -536,6 +577,11 @@ class PosHeberges extends PageMetier
                 if (bccomp($remiseVente, '0.00', self::PRECISION_MONTANT) > 0) {
                     $this->ajouterLignesRemise($facturation, $facture, $vente);
                 }
+
+                // Une facture ÉMISE : figée, simple (sans numéro MECeF ni mention) ; la fiche du
+                // client retient l'IFU si la case est cochée.
+                $facturation->figerEmission($facture);
+                $facturation->retenirSurLaFiche($facture, $this->acheteurIfu, $this->retenirIfu);
             });
         } catch (RuntimeException $refus) {
             // Refus du domaine : son message est ecrit pour l'operateur.
@@ -553,6 +599,24 @@ class PosHeberges extends PageMetier
             $this->notifier(__('pos_pwa.heberges.refus_facturation'), 'error');
 
             return;
+        }
+
+        // « Normaliser maintenant » (e-MECeF, case cochée) : APRÈS l'émission, hors transaction.
+        // Un échec ne bloque RIEN : la facture reste émise, « en attente », rejouable par le
+        // bouton « Normaliser » de l'écran Facturation (et par le rejeu).
+        if ($this->normaliserMaintenant && $factureEmise !== null && ModeFacturation::courant() === ModeFacturation::Emecef) {
+            try {
+                $resultat = $facturation->normaliserLaFacture($factureEmise);
+
+                if (! $resultat->estNormalisee()) {
+                    $this->notifier(__('facturation.mode.facture_emise_normalisation_en_attente', [
+                        'motif' => (string) $resultat->normalisation_motif,
+                    ]), 'error');
+                }
+            } catch (\Throwable $erreur) {
+                report($erreur);
+                $this->notifier(__('facturation.mode.facture_emise_normalisation_en_attente', ['motif' => $erreur->getMessage()]), 'error');
+            }
         }
 
         // Le message DIT ce qui a ete facture : une facture de consommations

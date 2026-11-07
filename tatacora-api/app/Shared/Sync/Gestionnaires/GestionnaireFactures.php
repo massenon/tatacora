@@ -123,6 +123,10 @@ final class GestionnaireFactures extends GestionnaireDocumentAbstrait
             'origine' => ['required', 'in:' . implode(',', self::ORIGINES)],
             'date_emission' => ['required', 'date_format:Y-m-d'],
             'client_id' => ['nullable', 'string'],
+            // Acheteur (07/11/2026) : IFU facultatif (13 chiffres), nom, « Retenir pour ce client ».
+            'acheteur_ifu' => ['nullable', 'string', 'regex:/^[0-9]{13}$/'],
+            'acheteur_nom' => ['nullable', 'string', 'max:100'],
+            'retenir_ifu' => ['nullable', 'boolean'],
             'reservation_id' => ['nullable', 'string'],
             'panier_id' => ['nullable', 'string'],
             'lignes' => ['required', 'array', 'min:1'],
@@ -130,7 +134,7 @@ final class GestionnaireFactures extends GestionnaireDocumentAbstrait
             'lignes.*.libelle' => ['required', 'string', 'max:255'],
             'lignes.*.prix_unitaire' => ['required', 'integer'],
             'lignes.*.quantite' => ['required', 'integer', 'min:1'],
-        ]);
+        ], ['acheteur_ifu.regex' => __('facturation.ifu_client.invalide')]);
 
         $reservation = null;
 
@@ -145,7 +149,13 @@ final class GestionnaireFactures extends GestionnaireDocumentAbstrait
         $vente = empty($donnees['panier_id']) ? null : Vente::find($this->resoudre('ventes', $donnees['panier_id']));
 
         DB::transaction(function () use ($entiteId, $donnees, $reservation, $vente): void {
-            $facture = $this->emission->emettreVide($this->client($donnees, $reservation), $entiteId, (string) $donnees['date_emission']);
+            $facture = $this->emission->emettreVide(
+                $this->client($donnees, $reservation),
+                $entiteId,
+                (string) $donnees['date_emission'],
+                $donnees['acheteur_ifu'] ?? null,
+                $donnees['acheteur_nom'] ?? null,
+            );
             $facture->update(['origine' => $donnees['origine']]);
 
             foreach (array_values($donnees['lignes']) as $ligne) {
@@ -165,6 +175,10 @@ final class GestionnaireFactures extends GestionnaireDocumentAbstrait
                     prixUnitaire: $this->francs((int) $ligne['prix_unitaire']),
                 );
             }
+
+            // La facture du poste est ÉMISE (simple) ; la normalisation ne vient que par le bouton.
+            $this->emission->figerEmission($facture);
+            $this->emission->retenirSurLaFiche($facture, $donnees['acheteur_ifu'] ?? null, (bool) ($donnees['retenir_ifu'] ?? false));
         });
 
         return $this->resultat($entiteId);
@@ -190,9 +204,10 @@ final class GestionnaireFactures extends GestionnaireDocumentAbstrait
         }
 
         if ($statut === 'annulee' && $montant === null) {
-            // L'avoir de l'annulation naît sous l'identifiant du poste quand il le
-            // donne : la normalisation qui suit le retrouve, la descente le reconnaît.
-            return $this->annuler($entiteId, $motif, $contexte, is_string($avoirId) && \Illuminate\Support\Str::isUuid($avoirId) ? $avoirId : null);
+            // L'avoir d'une ANNULATION naît au SERVEUR, sous l'identifiant du serveur (décision du
+            // PO du 07/11/2026, qui revient sur « l'avoir naît sous l'identifiant du poste ») :
+            // `avoir_id` est ignoré ici, le poste reconnaît son avoir provisoire par le numéro rendu.
+            return $this->annuler($entiteId, $motif, $contexte);
         }
 
         if ($statut === null && $montant !== null) {
@@ -237,9 +252,10 @@ final class GestionnaireFactures extends GestionnaireDocumentAbstrait
             : $this->resultat($entiteId);
     }
 
-    private function annuler(string $entiteId, string $motif, ContexteSynchronisation $contexte, ?string $avoirId = null): EcritureSynchronisee
+    private function annuler(string $entiteId, string $motif, ContexteSynchronisation $contexte): EcritureSynchronisee
     {
         $facture = Facture::query()->findOrFail($entiteId);
+        $this->refuserSiNormalisee($facture);
 
         // Rejeu : un avoir du TTC entier existe déjà — il est rendu, jamais
         // doublé. (Un avoir PARTIEL antérieur n'annule pas la facture.)
@@ -249,7 +265,7 @@ final class GestionnaireFactures extends GestionnaireDocumentAbstrait
             // Q3 (lot F6) : la facture d'un autre poste, par l'administration
             // ou le comptable seulement.
             $this->autresPostes->verifierAnnulation('factures', $entiteId, $contexte);
-            $avoir = $this->emission->emettreAvoir($facture, (string) $facture->montant_ttc, $motif === '' ? __('sync.factures.motif_absent') : $motif, $avoirId);
+            $avoir = $this->emission->emettreAvoir($facture, (string) $facture->montant_ttc, $motif === '' ? __('sync.factures.motif_absent') : $motif);
 
             return $this->resultatAvoir($entiteId, $avoir);
         }
@@ -276,6 +292,8 @@ final class GestionnaireFactures extends GestionnaireDocumentAbstrait
             }
         }
 
+        $this->refuserSiNormalisee($facture);
+
         try {
             $avoir = $this->emission->emettreAvoir(
                 $facture,
@@ -289,6 +307,18 @@ final class GestionnaireFactures extends GestionnaireDocumentAbstrait
         }
 
         return $this->resultatAvoir($entiteId, $avoir);
+    }
+
+    /**
+     * Un avoir sur une facture NORMALISÉE ne passe JAMAIS par la file du poste : il se fait EN
+     * LIGNE (`FacturesEnLigneController`), créé au serveur sous son identifiant. Refus lisible
+     * dans « À traiter » ; rien n'est écrit au serveur.
+     */
+    private function refuserSiNormalisee(Facture $facture): void
+    {
+        if ($facture->estNormalisee()) {
+            throw new RuntimeException(__('facturation.avoir_en_ligne_refuse_file'));
+        }
     }
 
     private function resultatAvoir(string $entiteId, Avoir $avoir): EcritureSynchronisee

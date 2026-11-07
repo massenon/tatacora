@@ -82,7 +82,9 @@ final class PaiementsSynchronisationTest extends TestCase
 
         $this->pousser([$this->paiement($id)], $this->receptionniste, 'poste-a')
             ->assertJsonPath('resultats.0.statut', 'synchronise')
-            ->assertJsonPath('resultats.0.anomalies', [AnomalieSynchronisation::PAIEMENT_FACTURE_NON_CERTIFIEE]);
+            // 07/11/2026 : une facture du poste est ÉMISE (figée, simple) à sa réception — plus d'anomalie
+            // « facture non certifiée » : la normalisation est une affaire à part, par bouton.
+            ->assertJsonPath('resultats.0.anomalies', null);
 
         $paiement = Paiement::findOrFail($id);
         $this->assertSame('10000.00', (string) $paiement->montant);

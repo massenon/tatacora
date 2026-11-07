@@ -336,6 +336,34 @@
         </div>
       </div>
 
+      {{-- ACHETEUR (décision du PO du 07/11/2026) : IFU du client FACULTATIF (13 chiffres s'il
+           est rempli), son nom, « Retenir pour ce client » ; « Normaliser maintenant » seulement
+           en mode e-MECeF, jamais coché d'office. --}}
+      <div class="border border-slate-200 rounded-lg p-3 space-y-2">
+        <div>
+          <label class="block text-[12px] font-semibold text-slate-600 mb-1">{{ __('facturation.ifu_client.nom_label') }}</label>
+          <input type="text" wire:model="acheteurNom" maxlength="100"
+                 class="w-full text-[13px] border border-slate-300 rounded-lg px-3 py-2">
+        </div>
+        <div>
+          <label class="block text-[12px] font-semibold text-slate-600 mb-1">{{ __('facturation.ifu_client.label') }}</label>
+          <input type="text" wire:model="acheteurIfu" inputmode="numeric" maxlength="13"
+                 class="w-full text-[13px] border border-slate-300 rounded-lg px-3 py-2 font-mono-tatacora">
+          <p class="text-[11px] text-slate-500 mt-1">{{ __('facturation.ifu_client.aide') }}</p>
+          @error('acheteurIfu')<p class="text-[12px] text-red-700 mt-1">{{ $message }}</p>@enderror
+        </div>
+        <label class="flex items-center gap-2 text-[12px] text-slate-600 cursor-pointer">
+          <input type="checkbox" wire:model="retenirIfu" class="rounded border-slate-300">
+          <span>{{ __('facturation.ifu_client.retenir') }}</span>
+        </label>
+        @if (\App\Domain\Facturation\Services\ModeFacturation::courant() === \App\Domain\Facturation\Services\ModeFacturation::Emecef)
+          <label class="flex items-center gap-2 text-[12px] text-slate-600 cursor-pointer">
+            <input type="checkbox" wire:model="normaliserMaintenant" class="rounded border-slate-300">
+            <span>{{ __('facturation.mode.normaliser_maintenant') }}</span>
+          </label>
+        @endif
+      </div>
+
       {{-- TOTAL FACTURE — depend du toggle : la modale affiche EXACTEMENT ce
            que la facture portera. bcmath, jamais une addition flottante. --}}
       <div class="flex items-baseline justify-between border-t border-slate-100 pt-3">

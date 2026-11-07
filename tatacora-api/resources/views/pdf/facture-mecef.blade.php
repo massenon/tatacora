@@ -178,10 +178,12 @@
   @include('pdf.partials.entete-etablissement', [
       'entete' => $entete,
       'titreDocument' => __('facturation_pwa.document_titre'),
-      'numeroLabel' => __('facturation_pwa.document_numero'),
-      'numero' => $facture->estCertifiee()
+      // Facture normalisée : son NIM-TC. Sinon (facture SIMPLE, ou en attente de normalisation) :
+      // le numéro continu de la facture — jamais un numéro MECeF, jamais une référence inventée.
+      'numeroLabel' => $facture->estNormalisee() ? __('facturation_pwa.document_numero') : __('facturation_pwa.document_numero_simple'),
+      'numero' => $facture->estNormalisee()
           ? $facture->numero_mecef
-          : 'FAC-'.$facture->date_emission->format('Y').'-'.strtoupper(substr((string) $facture->id, 0, 8)),
+          : (filled($facture->numero) ? $facture->numero : 'FAC-'.$facture->date_emission->format('Y').'-'.strtoupper(substr((string) $facture->id, 0, 8))),
       'dateLabel' => __('facturation_pwa.document_date'),
       'date' => $facture->date_emission->format('d/m/Y'),
       'auteurLabel' => __('facturation_pwa.document_etabli_par'),
@@ -190,9 +192,14 @@
 
   <div class="bloc-client">
     <strong>{{ __('facturation_pwa.document_client') }} :</strong>
-    {{ $client === null
-        ? \App\Pwa\Support\MontantFcfa::TIRET
-        : trim(($client->prenom ?? '').' '.($client->nom ?? '')) }}
+    {{ filled($facture->acheteur_nom)
+        ? $facture->acheteur_nom
+        : ($client === null
+            ? \App\Pwa\Support\MontantFcfa::TIRET
+            : trim(($client->prenom ?? '').' '.($client->nom ?? ''))) }}
+    @if (filled($facture->acheteur_ifu))
+      <br><strong>{{ __('facturation_pwa.document_acheteur_ifu') }} :</strong> {{ $facture->acheteur_ifu }}
+    @endif
   </div>
 
   <table class="data-table">
@@ -329,22 +336,17 @@
         <br>{{ __('facturation_pwa.document_normalisee_le', ['date' => $facture->normalisee_le->format('d/m/Y H:i')]) }}
       @endif
     </div>
-  @elseif (\App\Domain\Facturation\Providers\MecefServiceProvider::etatConfiguration() === 'active')
-    <div class="cachet">
-      <strong>{{ __('facturation_pwa.document_cachet_reserve') }}</strong><br>
-      {{ __('facturation_pwa.document_cachet_absent') }}
-    </div>
   @endif
 
-  @unless ($facture->estCertifiee())
-    {{-- Mention DÉRIVÉE, discrète — plus jamais le pavé « démonstration »
-         (passage au réel, 01/09/2026). Se taire tout à fait laisserait
-         croire à une certification qui n'a pas eu lieu (PA-61). --}}
-    <div class="mention">{{ __('facturation_pwa.document_mention_attente') }}</div>
-  @endunless
+  {{-- Décision du PO du 07/11/2026 : en mode DÉSACTIVÉ, la facture simple ne porte AUCUNE mention
+       (ni démonstration, ni « non normalisé », ni cachet réservé). Dans les modes e-MECeF et boîtier,
+       une facture pas encore normalisée dit seulement « en attente de normalisation ». --}}
+  @if (! $facture->estNormalisee() && \App\Domain\Facturation\Services\ModeFacturation::courant() !== \App\Domain\Facturation\Services\ModeFacturation::Desactive)
+    <div class="mention">{{ __('facturation_pwa.document_en_attente_normalisation') }}</div>
+  @endif
 
   {{-- Une facture en attente, refusée ou à vérifier DIT son état et son motif. --}}
-  @if ($facture->normalisation_statut !== null && ! $facture->estNormalisee())
+  @if ($facture->normalisation_statut !== null && ! $facture->estNormalisee() && \App\Domain\Facturation\Services\ModeFacturation::courant() !== \App\Domain\Facturation\Services\ModeFacturation::Desactive)
     <div class="mention">
       {{ __('facturation_pwa.document_normalisation_etat', ['statut' => \App\Domain\Facturation\Services\StatutNormalisation::tryFrom((string) $facture->normalisation_statut)?->libelle() ?? $facture->normalisation_statut]) }}
       @if (filled($facture->normalisation_motif)) — {{ $facture->normalisation_motif }} @endif

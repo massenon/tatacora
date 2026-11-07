@@ -8,6 +8,7 @@ use App\Domain\Crm\Models\Client;
 use App\Domain\Facturation\Models\Avoir;
 use App\Domain\Facturation\Models\Facture;
 use App\Domain\Facturation\Services\EmissionFactureService;
+use App\Domain\Facturation\Services\ModeFacturation;
 use App\Domain\Ventes\Services\VenteService;
 use App\Exports\FacturationExport;
 use App\Pwa\Livewire\Concerns\FormulaireModal;
@@ -385,8 +386,43 @@ class Facturation extends PageMetier
 
         $this->terminerFormulaire(__('facturation_pwa.avoir_emis', [
             'montant' => MontantFcfa::format($montant),
-            'numero' => (string) ($facture->numero_mecef ?? MontantFcfa::TIRET),
+            'numero' => (string) ($facture->numero ?? MontantFcfa::TIRET),
         ]));
+    }
+
+    /**
+     * Le BOUTON « Normaliser » (e-MECeF) : demande immédiate au serveur, qui normalise par l'API
+     * de la DGI. JAMAIS automatique à l'émission (point 1). Un échec ne perd rien : la facture
+     * reste émise, « en attente » avec son motif, rejouable. Boîtier : le web n'appelle jamais le
+     * boîtier (le poste le fait) ; désactivé : rien à normaliser.
+     */
+    public function normaliser(string $facture, EmissionFactureService $emission): void
+    {
+        $this->exigerEcriture(self::MODULE);
+
+        $piece = Facture::query()->find($facture);
+
+        if ($piece === null) {
+            $this->notifier(__('facturation_pwa.avoir_introuvable'), 'error');
+
+            return;
+        }
+
+        try {
+            $resultat = $emission->normaliserLaFacture($piece);
+        } catch (\RuntimeException $refus) {
+            $this->notifier($refus->getMessage(), 'error');
+
+            return;
+        }
+
+        if ($resultat->estNormalisee()) {
+            $this->notifier(__('facturation.mode.normalisee', ['numero' => (string) $resultat->numero]), 'success');
+
+            return;
+        }
+
+        $this->notifier(__('facturation.mode.normalisation_en_attente', ['motif' => (string) $resultat->normalisation_motif]), 'error');
     }
 
     /**
@@ -667,7 +703,8 @@ class Facturation extends PageMetier
             // ferait croire que le filtre n'a rien ecarte (PA-119).
             'avoirs' => Avoir::query()->whereIn('facture_id', $factures->getCollection()->pluck('id')->all())->count(),
             // DERIVE des pieces, jamais fige (PA-119, PA-61, PA-100).
-            'certifiees' => $factures->getCollection()->filter(fn (Facture $f): bool => $f->estCertifiee())->count(),
+            'certifiees' => $factures->getCollection()->filter(fn (Facture $f): bool => $f->estNormalisee())->count(),
+            'modeFacturation' => ModeFacturation::courant(),
             'activiteAppliquee' => $activite,
             // La facture visee par la modale d'avoir : son TTC est le plafond
             // annonce a l'ecran AVANT la saisie. `null` tant qu'aucune modale

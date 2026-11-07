@@ -27,6 +27,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $telephone
  * @property string|null $email
  * @property string|null $piece_identite
+ * @property string|null $ifu
  * @property string $type_client
  * @property string $solde
  * @property bool $actif l'ARCHIVE du referentiel (03/09/2026) — hors `$fillable` : seul `ReferentielClientService` la bascule
@@ -49,6 +50,8 @@ class Client extends Model
         'telephone',
         'email',
         'piece_identite',
+        // IFU du client (13 chiffres, facultatif) — « Retenir pour ce client » (07/11/2026).
+        'ifu',
         'type_client',
         'solde',
     ];

@@ -50,20 +50,27 @@ class RejouerCertificationsMecefEnEchecJob implements ShouldQueue
     {
         $mode = ModeFacturation::courant();
 
-        // Boîtier : le serveur ne certifie PAS — le poste de la réception reprend ses
-        // factures « en attente de normalisation » à son passage.
-        if ($mode === ModeFacturation::Boitier) {
+        // 1. EMISSION (sans réseau, tous modes) : une facture restée « en attente » est ÉMISE
+        // (figée, simple). Jamais de numéro fictif : le mode désactivé n'invente rien.
+        Facture::query()
+            ->where('statut', 'en_attente_certification')
+            ->orderBy('date_emission')
+            ->limit(self::MAX_PAR_PASSAGE * 4)
+            ->get()
+            ->each(static fn (Facture $f) => $emission->figerEmission($f));
+
+        // Désactivé et boîtier : le serveur ne normalise PAS (le poste reprend ses factures
+        // « en attente de normalisation » à son passage, par bouton).
+        if ($mode !== ModeFacturation::Emecef) {
             return ['tentees' => 0, 'certifiees' => 0, 'echecs' => 0, 'avoirs' => 0];
         }
 
+        // 2. e-MECeF : le rejeu ne REPREND que ce qu'un utilisateur a déjà demandé par le
+        // bouton « Normaliser » (statut posé : en attente ou refusée). La normalisation n'est
+        // JAMAIS automatique à l'émission (décision du PO du 07/11/2026). Une facture « à
+        // vérifier » n'est jamais retransmise ; une normalisée ne l'est jamais non plus.
         $factures = Facture::query()
-            ->whereIn('statut', ['echec_certification', 'en_attente_certification'])
-            // e-MECeF : une facture « à vérifier » (confirmation sans réponse) n'est JAMAIS
-            // retransmise automatiquement ; une normalisée ne l'est jamais non plus.
-            ->when($mode === ModeFacturation::Emecef, static fn ($q) => $q->where(static function ($w): void {
-                $w->whereNull('normalisation_statut')
-                    ->orWhereIn('normalisation_statut', [StatutNormalisation::EnAttente->value, StatutNormalisation::Refusee->value]);
-            }))
+            ->whereIn('normalisation_statut', [StatutNormalisation::EnAttente->value, StatutNormalisation::Refusee->value])
             // Retry-After et réseau tombé : pas avant l'heure dite.
             ->where(static function ($q): void {
                 $q->whereNull('emecef_prochain_essai_le')->orWhere('emecef_prochain_essai_le', '<=', now());
@@ -77,10 +84,9 @@ class RejouerCertificationsMecefEnEchecJob implements ShouldQueue
 
         foreach ($factures as $facture) {
             try {
-                $resultat = $emission->certifier($facture);
+                $resultat = $emission->normaliserLaFacture($facture);
 
-                // e-MECeF : une erreur classée est CONSIGNÉE sur la facture, sans exception.
-                if ($mode === ModeFacturation::Emecef && ! $resultat->estNormalisee()) {
+                if (! $resultat->estNormalisee()) {
                     $echecs++;
 
                     Log::warning('Normalisation e-MECeF en attente', [
@@ -95,13 +101,7 @@ class RejouerCertificationsMecefEnEchecJob implements ShouldQueue
             } catch (Throwable $e) {
                 $echecs++;
 
-                // Le statut est ramené à `echec_certification` pour que la
-                // facture reste visible comme non conforme, plutôt que de
-                // rester en « attente » indéfiniment — l'attente laisse croire
-                // que le traitement suit son cours.
-                $facture->update(['statut' => 'echec_certification']);
-
-                Log::warning('Certification MECeF en échec', [
+                Log::warning('Normalisation e-MECeF en échec', [
                     'facture_id' => $facture->id,
                     'motif' => $e->getMessage(),
                 ]);

@@ -56,6 +56,9 @@ class Facture extends Model
         'montant_ttc',
         'statut',
         'qr_code_fiscal',
+        // Acheteur saisi pour CETTE facture (IFU 13 chiffres ou NULL, nom) — figé avec elle.
+        'acheteur_ifu',
+        'acheteur_nom',
         // Facturation normalisée (07/11/2026) : le résultat de la normalisation.
         'normalisation_statut',
         'normalisation_motif',
@@ -155,7 +158,19 @@ class Facture extends Model
      */
     public function estCertifiee(): bool
     {
-        return $this->estFigee() && ! $this->estCertificationDemonstration();
+        // Facture SIMPLE (mode désactivé, 07/11/2026) : figée, mais sans numéro MECeF
+        // — elle n'est PAS certifiée. Un numéro réel est exigé.
+        return $this->estFigee() && filled($this->numero_mecef) && ! $this->estCertificationDemonstration();
+    }
+
+    /**
+     * Facture SIMPLE : émise (figée), sans numéro MECeF ni QR — le résultat du mode
+     * « désactivé », ou d'une facture normalisable pas encore normalisée. Elle ne porte
+     * aucune valeur fiscale et ne l'affirme jamais.
+     */
+    public function estSimple(): bool
+    {
+        return ! $this->estNormalisee() && ! $this->estCertificationDemonstration();
     }
 
     /**

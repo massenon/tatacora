@@ -1335,6 +1335,202 @@ final class PosPwaTest extends TestCase
     }
 
     // =====================================================================
+    // Facturation normalisée (07/11/2026) : l'acheteur et le comportement par mode
+    // =====================================================================
+
+    private function modeFacturation(string $mode): void
+    {
+        ParametreSysteme::updateOrCreate(
+            ['cle' => \App\Domain\Facturation\Services\ModeFacturation::CLE],
+            ['valeur' => $mode],
+        );
+    }
+
+    /** Un séjour avec une consommation, prêt à clôturer. */
+    private function sejourPretACloturer(): \Livewire\Features\SupportTesting\Testable
+    {
+        $reservation = $this->reservationEnCours();
+        $this->actingAs($this->gerant);
+
+        return Livewire::test(PosHeberges::class)
+            ->set('selectedReservationId', $reservation->id)
+            ->call('ajouterAuPanier', 'M5', $this->biere->id)
+            ->call('ouvrirClotureSejour');
+    }
+
+    #[Test]
+    public function l_ifu_du_client_est_facultatif_et_la_facture_simple_n_a_ni_numero_mecef_ni_demo(): void
+    {
+        $this->modeFacturation('desactive');
+
+        $this->sejourPretACloturer()
+            ->assertSet('acheteurIfu', '')
+            ->call('cloturerEtFacturer')
+            ->assertHasNoErrors()
+            ->assertSet('toastType', 'success');
+
+        $facture = Facture::firstOrFail();
+        $this->assertSame('certifiee', $facture->statut, 'la facture est ÉMISE (figée)');
+        $this->assertNull($facture->acheteur_ifu, 'vide = client sans IFU');
+        $this->assertNull($facture->numero_mecef, 'aucun numéro fictif');
+        $this->assertNull($facture->qr_code_fiscal);
+        $this->assertNull($facture->normalisation_statut, 'mode désactivé : rien à normaliser');
+        $this->assertTrue($facture->estSimple());
+    }
+
+    #[Test]
+    public function un_ifu_client_de_13_chiffres_est_rangé_sur_la_facture_et_un_ifu_invalide_ne_cree_rien(): void
+    {
+        $this->modeFacturation('desactive');
+
+        $composant = $this->sejourPretACloturer()
+            ->set('acheteurIfu', '12345')
+            ->call('cloturerEtFacturer')
+            ->assertHasErrors('acheteurIfu');
+
+        // Rien n'est émis ni clôturé : la saisie se corrige.
+        $this->assertSame(0, Facture::count());
+        $this->assertSame(0, Vente::count());
+        $this->assertSame(__('facturation.ifu_client.invalide'), $composant->errors()->first('acheteurIfu'));
+
+        $composant
+            ->set('acheteurIfu', '3201910768821')
+            ->set('acheteurNom', 'SARL Atacora')
+            ->call('cloturerEtFacturer')
+            ->assertHasNoErrors();
+
+        $facture = Facture::firstOrFail();
+        $this->assertSame('3201910768821', $facture->acheteur_ifu);
+        $this->assertSame('SARL Atacora', $facture->acheteur_nom);
+    }
+
+    #[Test]
+    public function retenir_pour_ce_client_range_l_ifu_sur_la_fiche_seulement_si_la_case_est_cochee(): void
+    {
+        $this->modeFacturation('desactive');
+
+        // Case décochée (défaut) : la fiche ne bouge pas.
+        $this->sejourPretACloturer()
+            ->assertSet('retenirIfu', false)
+            ->set('acheteurIfu', '3201910768821')
+            ->call('cloturerEtFacturer')
+            ->assertHasNoErrors();
+        $this->assertNull($this->client->refresh()->ifu);
+    }
+
+    #[Test]
+    public function la_fiche_client_prerempli_l_ifu_et_la_case_retenir_la_range(): void
+    {
+        $this->modeFacturation('desactive');
+        $this->client->update(['ifu' => '0202011344660']);
+
+        $composant = $this->sejourPretACloturer()->assertSet('acheteurIfu', '0202011344660');
+
+        $composant->set('acheteurIfu', '3201910768821')->set('retenirIfu', true)
+            ->call('cloturerEtFacturer')->assertHasNoErrors();
+
+        $this->assertSame('3201910768821', $this->client->refresh()->ifu);
+        $this->assertSame('3201910768821', Facture::firstOrFail()->acheteur_ifu);
+    }
+
+    #[Test]
+    public function la_normalisation_n_est_jamais_automatique_a_l_emission(): void
+    {
+        $this->configurerEmecef();
+        \Illuminate\Support\Facades\Http::fake();
+
+        $this->sejourPretACloturer()
+            ->assertSet('normaliserMaintenant', false)
+            ->call('cloturerEtFacturer')
+            ->assertHasNoErrors();
+
+        $facture = Facture::firstOrFail();
+        $this->assertNull($facture->normalisation_statut, 'ni tentée ni en attente : le bouton la déclenchera');
+        $this->assertNull($facture->numero_mecef);
+        \Illuminate\Support\Facades\Http::assertNothingSent();
+    }
+
+    #[Test]
+    public function un_echec_de_normalisation_ne_bloque_ni_la_facture_ni_le_sejour(): void
+    {
+        $this->configurerEmecef();
+        \Illuminate\Support\Facades\Http::fake([
+            '*' => \Illuminate\Support\Facades\Http::response(['errorDesc' => 'Jeton invalide'], 401),
+        ]);
+
+        $this->sejourPretACloturer()
+            ->set('normaliserMaintenant', true)
+            ->call('cloturerEtFacturer');
+
+        // La vente et la facture existent, le séjour est clos : la normalisation a échoué sans rien bloquer.
+        $this->assertSame(1, Vente::count());
+        $facture = Facture::firstOrFail();
+        $this->assertSame('certifiee', $facture->statut, 'la facture reste émise');
+        $this->assertFalse($facture->estNormalisee());
+        // Le jeton refusé (401) se range sur la facture, en français : elle reste rejouable.
+        $this->assertContains($facture->normalisation_statut, ['en_attente', 'refusee']);
+        $this->assertNotEmpty($facture->normalisation_motif);
+        $this->assertTrue(Panier::firstOrFail()->estCloture());
+    }
+
+    #[Test]
+    public function normaliser_maintenant_normalise_la_facture_en_mode_emecef(): void
+    {
+        $this->configurerEmecef();
+        \Illuminate\Support\Facades\Http::fake([
+            '*/invoice' => \Illuminate\Support\Facades\Http::response(['uid' => 'u1'], 200),
+            '*/invoice/u1/confirm' => \Illuminate\Support\Facades\Http::response([
+                'codeMECeFDGI' => 'ABCD-EFGH', 'qrCode' => 'F;ED04000999;ABCD-EFGH;0202011344660;20261107100000',
+                'dateTime' => '2026-11-07T10:00:03+01:00', 'counters' => '12/45 FV', 'nim' => 'ED04000999',
+            ], 200),
+        ]);
+
+        $this->sejourPretACloturer()
+            ->set('acheteurIfu', '3201910768821')
+            ->set('normaliserMaintenant', true)
+            ->call('cloturerEtFacturer');
+
+        $facture = Facture::firstOrFail();
+        $this->assertTrue($facture->estNormalisee());
+        $this->assertSame('ED04000999-12', $facture->numero_mecef);
+
+        // L'IFU du client part à la DGI, avec le nom.
+        $creation = \Illuminate\Support\Facades\Http::recorded()[0][0]->data();
+        $this->assertSame('3201910768821', $creation['client']['ifu']);
+    }
+
+    #[Test]
+    public function la_case_normaliser_maintenant_n_existe_qu_en_mode_emecef(): void
+    {
+        $this->modeFacturation('desactive');
+        $this->assertStringNotContainsString('normaliserMaintenant', $this->sejourPretACloturer()->html());
+
+        $this->modeFacturation('boitier');
+        $this->assertStringNotContainsString('normaliserMaintenant', $this->sejourPretACloturer()->html());
+
+        $this->configurerEmecef();
+        $this->assertStringContainsString('normaliserMaintenant', $this->sejourPretACloturer()->html());
+    }
+
+    private function configurerEmecef(): void
+    {
+        foreach ([
+            'entreprise_ifu' => '0202011344660',
+            'mecef_operateur_id' => 'RECEPTION01',
+            'mecef_operateur_nom' => 'Réception',
+            'mecef_api_url' => 'https://developper.impots.bj/sygmef-emcf/api',
+            \App\Domain\Facturation\Services\ModeFacturation::CLE => 'emecef',
+        ] as $cle => $valeur) {
+            ParametreSysteme::updateOrCreate(['cle' => $cle], ['valeur' => $valeur]);
+        }
+        app(\App\Shared\Secrets\Services\SecretsConfigurationService::class)->enregistrer(
+            \App\Shared\Secrets\Services\SecretsConfigurationService::MECEF_JETON,
+            'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0In0.c2ln',
+            $this->utilisateur('administrateur'),
+        );
+    }
+
+    // =====================================================================
     // Fixtures
     // =====================================================================
 
@@ -1476,7 +1672,15 @@ final class PosPwaTest extends TestCase
             ->assertOk()
             ->assertSee('M. HOUNSOU')
             ->assertDontSee('Emplacement réservé au cachet fiscal MECeF')
+            // Décision du PO du 07/11/2026 : mode désactivé (défaut) = AUCUNE mention MECeF sur le papier.
+            ->assertDontSee('en attente d');
+
+        $this->modeFacturation('boitier');
+        $this->actingAs($this->gerant)
+            ->get(route('pwa.pos.ticket-thermique', $vente->id))
+            ->assertOk()
             ->assertSee('en attente d');
+        $this->modeFacturation('desactive');
 
         // La facture A4 de la vente — la MEME vue que `imprimerTicketA4()`,
         // rendue avec exactement les variables que le composant lui passe.

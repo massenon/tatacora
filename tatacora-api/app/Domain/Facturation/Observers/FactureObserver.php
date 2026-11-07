@@ -46,7 +46,20 @@ class FactureObserver
         }
 
         $champsModifies = array_keys($facture->getDirty());
-        $interdits = array_diff($champsModifies, self::CHAMPS_DE_CERTIFICATION, ['updated_at']);
+        $tolerees = self::CHAMPS_DE_CERTIFICATION;
+
+        // L'ACHETEUR (IFU et nom saisis, 07/11/2026) reste complétable tant que la facture
+        // n'est PAS normalisée : la facture simple attend sa normalisation. Une facture
+        // normalisée est figée, acheteur compris.
+        if ($facture->getOriginal('normalisation_statut') !== 'normalisee') {
+            $tolerees = [...$tolerees, 'acheteur_ifu', 'acheteur_nom'];
+        }
+
+        // `date_modification` et `utilisateur_modification_id` : le bornage d'audit que `Auditable`
+        // pose à CHAQUE mise à jour. Sans eux, toute écriture sur une facture figée est refusée dès
+        // que l'horloge a avancé (les tests figeaient l'heure : le défaut ne se voyait pas, et une
+        // facture SIMPLE, figée à l'émission, n'aurait jamais pu être normalisée ensuite).
+        $interdits = array_diff($champsModifies, $tolerees, ['updated_at', 'date_modification', 'utilisateur_modification_id']);
 
         if ($interdits !== []) {
             throw new FactureImmuableException($facture->id, $interdits);
@@ -61,7 +74,10 @@ class FactureObserver
         // une vraie normalisation — le mode a changé depuis. Jamais l'inverse, et
         // jamais un numéro réel remplacé.
         if (in_array('numero_mecef', $champsModifies, true)) {
-            $etaitDemo = str_starts_with((string) $facture->getOriginal('numero_mecef'), 'MECEF-DEMO-');
+            // Sans numéro (facture SIMPLE, 07/11/2026) ou de démonstration (sans valeur fiscale) :
+            // seule une vraie normalisation prend la place.
+            $avant = (string) $facture->getOriginal('numero_mecef');
+            $etaitDemo = $avant === '' || str_starts_with($avant, 'MECEF-DEMO-');
             // « Réel » = écrit PAR une normalisation (statut posé dans la même écriture) et de la
             // forme « NIM-compteur » : une valeur quelconque ne remplace jamais une démonstration.
             $devientReel = $facture->normalisation_statut === 'normalisee'

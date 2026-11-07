@@ -480,30 +480,44 @@ final class EmecefServeurTest extends TestCase
     }
 
     #[Test]
-    public function en_mode_desactive_la_demonstration_reste_et_aucune_requete_ne_part(): void
+    public function en_mode_desactive_la_facture_est_simple_sans_numero_fictif_ni_demo_et_aucune_requete_ne_part(): void
     {
         $this->configurer('desactive');
         $facture = $this->emission()->certifier($this->facture());
 
-        $this->assertStringStartsWith('MECEF-DEMO-', (string) $facture->numero_mecef);
+        // Facturation SIMPLE : émise (figée), ni numéro MECeF, ni QR, ni « DEMO ».
+        $this->assertSame('certifiee', $facture->statut);
+        $this->assertNull($facture->numero_mecef);
+        $this->assertNull($facture->qr_code_fiscal);
         $this->assertNull($facture->normalisation_statut);
         $this->assertFalse($facture->estNormalisee());
+        $this->assertFalse($facture->estCertifiee());
+        $this->assertTrue($facture->estSimple());
+        Http::assertNothingSent();
+
+        // Pas de bouton de normalisation : refus en français, rien ne part.
+        try {
+            $this->emission()->normaliserLaFacture($facture);
+            $this->fail('la normalisation doit être refusée en mode désactivé');
+        } catch (\RuntimeException $refus) {
+            $this->assertSame(__('facturation.mode.normaliser_desactive'), $refus->getMessage());
+        }
         Http::assertNothingSent();
     }
 
     #[Test]
-    public function une_demonstration_est_remplacee_par_la_vraie_normalisation_quand_un_mode_reel_est_choisi(): void
+    public function une_facture_simple_devient_normalisee_par_le_bouton_quand_un_mode_reel_est_choisi(): void
     {
         $this->configurer('desactive');
         $facture = $this->emission()->certifier($this->facture());
-        $this->assertStringStartsWith('MECEF-DEMO-', (string) $facture->numero_mecef);
+        $this->assertNull($facture->numero_mecef);
 
         $this->configurer('emecef');
         $this->faux([
             self::BASE . '/invoice' => Http::response(['uid' => 'uid-d'], 200),
             self::BASE . '/invoice/uid-d/confirm' => Http::response($this->confirmation(), 200),
         ]);
-        $facture = $this->emission()->certifier($facture->refresh());
+        $facture = $this->emission()->normaliserLaFacture($facture->refresh());
 
         $this->assertTrue($facture->estNormalisee());
         $this->assertSame('ED04000999-12', $facture->numero_mecef);

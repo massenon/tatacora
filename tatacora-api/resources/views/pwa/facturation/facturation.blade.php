@@ -123,9 +123,13 @@
                   Aujourd'hui elle rend exactement la phrase du maître, parce
                   que c'est la vérité.
               --}}
-              @if ($certifiees === 0)
+              {{-- Décision du PO du 07/11/2026 : en mode DÉSACTIVÉ (facturation simple), AUCUNE mention
+                   de certification ni de démonstration. Dans les modes e-MECeF et boîtier, le décompte
+                   dit ce qui est réellement normalisé. --}}
+              @if ($modeFacturation === \App\Domain\Facturation\Services\ModeFacturation::Desactive)
+              @elseif ($certifiees === 0)
                 <span class="text-amber-700">
-                  {!! __('pwa.facturation.mecef_aucune') !!}
+                  {!! __('facturation_pwa.mecef_aucune_normalisee') !!}
                 </span>
               @else
                 <span class="text-emerald-700">
@@ -166,7 +170,7 @@
                 </tr></thead>
                 <tbody id="corps-fac">
                   @forelse ($factures as $facture)
-                    @php($habillage = Facturation::STATUTS[$facture->statut] ?? null)
+                    @php($habillage = \App\Pwa\Support\EtiquetteFacture::pour($facture, $modeFacturation))
                     @php($activites = $facture->lignes->pluck('source_module')->unique()->map(fn (string $m): string => Facturation::ACTIVITES[$m] ?? $m)->implode(', '))
                     <tr class="border-t border-slate-100" wire:key="facture-{{ $facture->id }}">
                       <td class="px-4 py-2.5 no-print">
@@ -214,6 +218,12 @@
                           class="text-[11px] font-semibold px-2 py-0.5 rounded border border-slate-300 text-slate-600 hover:bg-slate-50">{{ __('facturation_pwa.document_action') }}</button>
                         <button type="button" wire:click="ouvrirFormulaireAvoir('{{ $facture->id }}')"
                           class="text-[11px] font-semibold px-2 py-0.5 rounded bg-[var(--navy)] text-white ml-1">{{ __('facturation_pwa.avoir_action') }}</button>
+                        {{-- « Normaliser » : e-MECeF seulement, jamais automatique. Le boîtier se pilote
+                             depuis le poste de la réception ; désactivé, il n'y a rien à normaliser. --}}
+                        @if ($modeFacturation === \App\Domain\Facturation\Services\ModeFacturation::Emecef && ! $facture->estNormalisee())
+                          <button type="button" wire:click="normaliser('{{ $facture->id }}')"
+                            class="text-[11px] font-semibold px-2 py-0.5 rounded border border-[var(--navy)] text-[var(--navy)] ml-1">{{ __('facturation_pwa.normaliser_action') }}</button>
+                        @endif
                       </td>
                     </tr>
                   @empty
@@ -263,7 +273,7 @@
                 </thead>
                 <tbody>
                   @forelse ($factures as $facture)
-                    @php($habillageDoc = Facturation::STATUTS[$facture->statut] ?? null)
+                    @php($habillageDoc = \App\Pwa\Support\EtiquetteFacture::pour($facture, $modeFacturation))
                     @php($activitesDoc = $facture->lignes->pluck('source_module')->unique()->map(fn (string $m): string => Facturation::ACTIVITES[$m] ?? $m)->implode(', '))
                     @php($clientDoc = $clients->get($facture->client_id))
                     <tr class="border-b border-slate-200" wire:key="doc-facture-{{ $facture->id }}">

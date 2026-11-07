@@ -521,6 +521,8 @@ final class PwaActionsReluesTest extends TestCase
         Facturation::class => [
             'render',
             'ouvrirFormulaireAvoir', 'enregistrerAvoir',
+            // « Normaliser » (e-MECeF, 07/11/2026) : jamais automatique, exige l'écriture sur M2.
+            'normaliser',
             'imprimerFacture', 'fermerModales',
             // Selection + pagination du tableau generique (G6, 01/09/2026) —
             // memes crochets de cadre que `Achats`.

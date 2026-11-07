@@ -43,6 +43,10 @@ return [
 
     'avoir_introuvable' => "Cette facture n'existe plus au registre : l'avoir n'a pas été émis.",
 
+    // Facturation normalisée (07/11/2026) — mode e-MECeF seulement.
+    'normaliser_action' => 'Normaliser',
+    'mecef_aucune_normalisee' => 'MECeF — <strong>aucune pièce normalisée</strong>',
+
     // --- Registre imprimé (forme document du moteur du maître) ------------
     //
     // Les trois libellés que le maître n'écrit QUE dans la configuration de
@@ -62,6 +66,10 @@ return [
     'document_fichier' => 'facture',
 
     'document_numero' => 'N° MECeF',
+    // Facture SIMPLE ou non encore normalisée : le numéro de la facture, jamais un numéro MECeF.
+    'document_numero_simple' => 'N°',
+    'document_en_attente_normalisation' => 'Facture en attente de normalisation',
+    'document_acheteur_ifu' => 'IFU du client',
     'document_date' => "Date d'émission",
     'document_client' => 'Client',
     'document_etabli_par' => 'Établie par',

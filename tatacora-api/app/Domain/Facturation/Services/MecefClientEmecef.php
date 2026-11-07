@@ -70,6 +70,7 @@ final class MecefClientEmecef implements CertifieLesAvoirsInterface, MecefClient
     public function certifier(Facture $facture): CertificationMecefResultat
     {
         $facture->loadMissing('lignes', 'client');
+        [$ifuClient, $nomClient] = EmissionFactureService::acheteurPourNormalisation($facture);
 
         return $this->normaliser(
             $facture,
@@ -77,7 +78,8 @@ final class MecefClientEmecef implements CertifieLesAvoirsInterface, MecefClient
             $this->articlesDe($facture),
             $this->paiementsDe($facture),
             null,
-            $facture->client?->nomComplet() ?? __('facturation.emecef.client_de_passage'),
+            $nomClient,
+            $ifuClient,
         );
     }
 
@@ -106,7 +108,8 @@ final class MecefClientEmecef implements CertifieLesAvoirsInterface, MecefClient
             $articles,
             [['name' => $this->modePrincipal($facture), 'amount' => $montant]],
             (string) $facture->code_mecef,
-            $facture->client?->nomComplet() ?? __('facturation.emecef.client_de_passage'),
+            EmissionFactureService::acheteurPourNormalisation($facture)[1],
+            EmissionFactureService::acheteurPourNormalisation($facture)[0],
         );
     }
 
@@ -121,6 +124,7 @@ final class MecefClientEmecef implements CertifieLesAvoirsInterface, MecefClient
         array $paiements,
         ?string $reference,
         string $clientNom,
+        ?string $clientIfu = null,
     ): CertificationMecefResultat {
         $manques = $this->reglages->manquantsEmecef();
 
@@ -144,7 +148,8 @@ final class MecefClientEmecef implements CertifieLesAvoirsInterface, MecefClient
             return $this->executer($document, $jeton, [
                 'ifu' => $this->reglages->ifu(),
                 'type' => $type,
-                'client' => ['name' => mb_substr($clientNom, 0, 100)],
+                // IFU du client : facultatif (13 chiffres) ; vide = client sans IFU, la clé n'est pas envoyée.
+                'client' => ['name' => mb_substr($clientNom, 0, 100), ...($clientIfu !== null ? ['ifu' => $clientIfu] : [])],
                 'operator' => ['id' => $this->reglages->operateurId(), 'name' => $this->reglages->operateurNom()],
                 'items' => $articles,
                 'payment' => $paiements,

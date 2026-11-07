@@ -118,7 +118,7 @@ final class NormalisationFactureSynchronisationTest extends TestCase
             $this->assertSame($statut, $f->normalisation_statut);
             $this->assertSame($motif, $f->normalisation_motif);
             $this->assertNull($f->numero_mecef);
-            $this->assertSame('en_attente_certification', $f->statut, 'jamais figée tant que non normalisée');
+            $this->assertSame('certifiee', $f->statut, 'la facture est ÉMISE (figée, simple) : la normalisation ne vient que par le bouton');
             $this->assertFalse($f->estNormalisee());
         }
 
@@ -153,30 +153,65 @@ final class NormalisationFactureSynchronisationTest extends TestCase
     }
 
     #[Test]
-    public function l_annulation_porte_l_identifiant_de_l_avoir_et_la_normalisation_de_l_avoir_le_retrouve(): void
+    public function l_annulation_d_une_facture_normalisee_ne_passe_jamais_par_la_file_du_poste(): void
     {
         $facture = $this->factureDe10000();
         $this->pousser([$this->operation('factures', 'modification', $facture, ['normalisation' => $this->normalisee()])], $this->receptionniste, 'poste-a');
 
-        $avoir = $this->uuid();
+        // Avoir d'annulation ET avoir partiel : refusés, rien n'est écrit au serveur.
         $this->pousser([$this->operation('factures', 'modification', $facture, [
-            'statut' => 'annulee', 'motif' => 'Erreur de saisie', 'avoir_id' => $avoir,
+            'statut' => 'annulee', 'motif' => 'Erreur de saisie', 'avoir_id' => $this->uuid(),
         ])], $this->receptionniste, 'poste-a')
-            ->assertJsonPath('resultats.0.statut', 'synchronise')
-            ->assertJsonPath('resultats.0.avoir_id', $avoir);
+            ->assertJsonPath('resultats.0.statut', 'rejete')
+            ->assertJsonPath('resultats.0.motif', __('facturation.avoir_en_ligne_refuse_file'));
 
         $this->pousser([$this->operation('factures', 'modification', $facture, [
-            'avoir_id' => $avoir,
+            'montant' => 2000, 'motif' => 'Geste commercial', 'avoir_id' => $this->uuid(),
+        ])], $this->receptionniste, 'poste-a')
+            ->assertJsonPath('resultats.0.statut', 'rejete')
+            ->assertJsonPath('resultats.0.motif', __('facturation.avoir_en_ligne_refuse_file'));
+
+        $this->assertSame(0, Avoir::query()->where('facture_id', $facture)->count());
+        $this->assertSame('ED04000623-41', Facture::findOrFail($facture)->numero_mecef, 'la facture normalisée reste figée');
+    }
+
+    #[Test]
+    public function l_annulation_d_une_facture_simple_reste_possible_et_l_avoir_naît_sous_l_identifiant_du_serveur(): void
+    {
+        $facture = $this->factureDe10000();
+        $local = $this->uuid();
+
+        $this->pousser([$this->operation('factures', 'modification', $facture, [
+            'statut' => 'annulee', 'motif' => 'Erreur de saisie', 'avoir_id' => $local,
+        ])], $this->receptionniste, 'poste-a')
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+
+        $avoir = Avoir::query()->where('facture_id', $facture)->firstOrFail();
+        $this->assertNotSame($local, (string) $avoir->id, 'l\'identifiant du poste est ignoré : l\'avoir naît au serveur');
+        $this->assertNull($avoir->normalisation_statut, 'avoir d\'une facture simple = avoir simple');
+    }
+
+    #[Test]
+    public function la_normalisation_d_un_avoir_cree_au_serveur_le_retrouve_par_son_identifiant_serveur(): void
+    {
+        $facture = $this->factureDe10000();
+        $this->pousser([$this->operation('factures', 'modification', $facture, ['normalisation' => $this->normalisee()])], $this->receptionniste, 'poste-a');
+
+        // L'avoir est créé AU SERVEUR (porte en ligne, identifiant serveur), puis normalisé par le poste.
+        $avoir = app(\App\Domain\Facturation\Services\EmissionFactureService::class)
+            ->emettreAvoir(Facture::findOrFail($facture), '10000.00', 'Erreur de saisie');
+
+        $this->pousser([$this->operation('factures', 'modification', $facture, [
+            'avoir_id' => (string) $avoir->id,
             'normalisation' => [
                 'statut' => 'normalisee', 'mode' => 'boitier', 'numero_mecef' => 'ED04000623-3', 'qr_code' => self::QR,
                 'code_mecef' => 'ZZZZ', 'compteur' => '3',
             ],
         ])], $this->receptionniste, 'poste-a')->assertJsonPath('resultats.0.statut', 'synchronise');
 
-        $a = Avoir::findOrFail($avoir);
+        $a = Avoir::findOrFail($avoir->id);
         $this->assertSame('ED04000623-3', $a->numero_mecef);
         $this->assertSame('normalisee', $a->normalisation_statut);
-        // La facture d'origine n'a pas bougé (RG-03).
         $this->assertSame('ED04000623-41', Facture::findOrFail($facture)->numero_mecef);
 
         // Un avoir inconnu est refusé, jamais deviné.
@@ -191,7 +226,8 @@ final class NormalisationFactureSynchronisationTest extends TestCase
     public function une_demonstration_peut_etre_remplacee_par_une_vraie_normalisation_jamais_l_inverse(): void
     {
         $facture = $this->factureDe10000();
-        Facture::findOrFail($facture)->update(['numero_mecef' => 'MECEF-DEMO-ABCD1234', 'qr_code_fiscal' => 'DONNEES-NON-CERTIFIEES-DEMO', 'statut' => 'certifiee']);
+        // Une ligne HÉRITÉE d'avant le 07/11/2026 (le faux client écrivait un numéro DEMO) : posée en SQL.
+        \Illuminate\Support\Facades\DB::table('factures')->where('id', $facture)->update(['numero_mecef' => 'MECEF-DEMO-ABCD1234', 'qr_code_fiscal' => 'DONNEES-NON-CERTIFIEES-DEMO', 'statut' => 'certifiee']);
 
         $this->pousser([$this->operation('factures', 'modification', $facture, ['normalisation' => $this->normalisee()])], $this->receptionniste, 'poste-a')
             ->assertJsonPath('resultats.0.statut', 'synchronise');

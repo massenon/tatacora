@@ -170,7 +170,7 @@ final class ReferentielsDescendantsTest extends TestCase
 
         // Lot F3 : un client archivé descend marqué, son solde (calcul) non.
         $client = $elements[$this->ids['client']];
-        $this->assertSame(['nom', 'prenom', 'telephone', 'email', 'type_client'], array_keys($client['donnees']));
+        $this->assertSame(['nom', 'prenom', 'telephone', 'email', 'type_client', 'ifu'], array_keys($client['donnees']));
         $this->assertTrue($client['actif']);
         $this->assertFalse($elements[$this->ids['client_archive']]['actif']);
 
