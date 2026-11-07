@@ -21,6 +21,14 @@ php artisan up
 php artisan tatacora:verifier-production
 ```
 
+> **`composer install --no-dev --optimize-autoloader` est OBLIGATOIRE à chaque mise à jour du
+> code** (07/11/2026) : il installe la bibliothèque `bacon/bacon-qr-code`, qui DESSINE le QR code
+> des factures normalisées (MECeF) dans le PDF A4. Sans elle, le PDF d'une facture normalisée
+> échoue. Vérification : `ls vendor/bacon/bacon-qr-code` doit répondre ; sinon relancer
+> la commande. Hébergement mutualisé : si `composer` n'est pas disponible, lancer la commande en
+> local puis envoyer le dossier `vendor/` avec le code. Extensions PHP requises : `gd` et
+> `xmlwriter` (déjà exigées par DomPDF).
+
 - [ ] `tatacora:verifier-production` se termine **sans ÉCHEC** (code de
       sortie 0). Chaque ligne « ATTENTION » est lue et acceptée en conscience.
 
