@@ -71,6 +71,7 @@ import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
+import '../../../core/impression/bloc_signature_a4.dart';
 import '../../../core/impression/entete_etablissement.dart';
 import '../../../core/impression/texte_ticket.dart';
 import '../../pos/domain/place_hebergement.dart';
@@ -131,6 +132,7 @@ final class FactureA4Composee {
     required this.gabaritPagination,
     this.filigrane,
     this.qrCode,
+    this.signature,
   });
 
   final PieceFacturation piece;
@@ -174,6 +176,10 @@ final class FactureA4Composee {
   /// Le QR code fiscal, SEULEMENT pour une pièce réellement normalisée.
   final String? qrCode;
 
+  /// Le bloc signature (PO, 07/11/2026) : `null` quand l'interrupteur des Paramètres est sur Non.
+  /// Aucune image fiscale : la signature et le cachet de l'entreprise, rien de plus.
+  final BlocSignatureA4? signature;
+
   /// **Tous** les textes du document.
   List<String> get textes => [
     ...lignesEntete,
@@ -189,6 +195,7 @@ final class FactureA4Composee {
     ...piedDePage,
     gabaritPagination,
     ?filigrane,
+    ...?signature?.textes,
   ];
 
   /// Le document en une seule chaîne — pour un test, une trace, un aperçu.
@@ -227,6 +234,10 @@ final class FactureA4Composee {
           _recapitulatif(),
           pw.SizedBox(height: 16),
           _cachetEtMentions(),
+          if (signature != null) ...[
+            pw.SizedBox(height: 18),
+            signature!.widget(),
+          ],
         ],
       ),
     );
@@ -560,6 +571,7 @@ final class FactureA4 {
     /// Ce poste normalise (boîtier ou e-MECeF) : une facture pas encore normalisée dit
     /// « en attente de normalisation ». Mode désactivé (facture SIMPLE) : AUCUNE mention.
     bool normalisable = false,
+    BlocSignatureA4? signature,
   }) {
     final estAvoir = piece.estAvoir;
 
@@ -658,6 +670,7 @@ final class FactureA4 {
       // sans que personne modifie une chaîne (PA-61).
       // Plus de filigrane de démonstration (décision du PO du 07/11/2026).
       qrCode: piece.estNormalisee ? piece.qrCodeFiscal : null,
+      signature: signature,
     );
   }
 

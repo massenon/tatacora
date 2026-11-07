@@ -145,6 +145,9 @@ void main() {
       'crm/impression/releve_client.dart',
       'facturation/impression/essai_qr_thermique.dart',
       'facturation/impression/facture_a4.dart',
+      // La facture PROFORMA A4 (`pdf/proforma.blade.php`, 07/11/2026) : remise au client, NON fiscale, ni
+      // visa ni pied de rapport.
+      'facturation/impression/proforma_a4.dart',
       'facturation/impression/ticket_facture.dart',
       'hebergement/impression/confirmation_reservation.dart',
       // Le bulletin de paie A4 (`pdf/paie-bulletin.blade.php`, lot A3 du

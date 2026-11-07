@@ -112,10 +112,10 @@ final imagesDocumentPosteProvider = Provider<ImagesDocumentPoste>(
 );
 
 /// Les octets de la signature descendue (`null` : aucune). Relu après chaque descente.
-final signatureDocumentProvider = FutureProvider<Uint8List?>(
+final signatureDocumentProvider = FutureProvider.autoDispose<Uint8List?>(
   (ref) => ref.watch(imagesDocumentPosteProvider).lire(ImageDocument.signature),
 );
 
-final cachetDocumentProvider = FutureProvider<Uint8List?>(
+final cachetDocumentProvider = FutureProvider.autoDispose<Uint8List?>(
   (ref) => ref.watch(imagesDocumentPosteProvider).lire(ImageDocument.cachet),
 );

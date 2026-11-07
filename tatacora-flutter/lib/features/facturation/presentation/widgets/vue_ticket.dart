@@ -234,6 +234,12 @@ class VueTicket extends ConsumerWidget {
         dateEdition: DateTime.now(),
         entete: entete.avecLogo(logo),
         normalisable: par != CertifiePar.rien,
+        // Signature et cachet selon l'interrupteur des Paramètres (PO, 07/11/2026) ; le ticket
+        // n'en porte jamais.
+        signature: await composerBlocSignature(
+          ref.read,
+          raisonSociale: entete.raisonSociale,
+        ),
       );
       await ref.read(imprimerFactureA4Provider)(facture);
     } on Object catch (e) {

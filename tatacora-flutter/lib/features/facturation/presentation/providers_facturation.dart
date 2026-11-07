@@ -2,11 +2,16 @@ import 'dart:typed_data';
 
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show ProviderListenable;
 
 import '../../comptabilite/presentation/exercice_consulte.dart';
 import '../../../core/di/providers.dart';
 import '../../../core/fichiers/enregistrement_export.dart';
+import '../../../core/impression/bloc_signature_a4.dart';
 import '../../../core/impression/entete_parametree.dart';
+import '../../parametres/data/parametres_dao.dart';
+import '../data/images_document_poste.dart';
+import '../domain/reglages_documents.dart';
 import '../../../core/theme/app_assets.dart';
 import '../../auth/domain/session.dart';
 import '../../hebergement/presentation/providers_hebergement.dart';
@@ -317,6 +322,36 @@ final logoEtablissementProvider = FutureProvider<Uint8List?>((ref) async {
     return null;
   }
 });
+
+/// Les réglages des documents (activités, ville, référence, signataire, interrupteurs), descendus du
+/// serveur en lecture — relus à CHAQUE édition (autoDispose) : un réglage changé au serveur figure
+/// sur le document suivant, sans redémarrer le poste.
+final reglagesDocumentsProvider = FutureProvider.autoDispose<ReglagesDocuments>(
+  (ref) async => ReglagesDocuments.depuis(
+    Map<String, String?>.of(
+      await ParametresDao(ref.read(baseLocaleProvider)).lireTout(),
+    ),
+  ),
+);
+
+/// Le bloc signature d'un document A4 : `null` quand l'interrupteur est sur Non (ni nom, ni
+/// images) ; sinon nom, fonction et les images descendues, s'il y en a (PO, 07/11/2026).
+Future<BlocSignatureA4?> composerBlocSignature(
+  T Function<T>(ProviderListenable<T>) lire, {
+  required String? raisonSociale,
+  ReglagesDocuments? reglages,
+}) async {
+  final r =
+      reglages ??
+      await lire<Future<ReglagesDocuments>>(reglagesDocumentsProvider.future);
+  if (!r.signatureAffichee) return null;
+  return BlocSignatureA4.depuis(
+    r,
+    raisonSociale: raisonSociale ?? 'TATACORA AFRIQUE',
+    signature: await lire(signatureDocumentProvider.future),
+    cachet: await lire(cachetDocumentProvider.future),
+  );
+}
 
 /* ====================================================================== */
 /* Filtres — des COLONNES, jamais des entrepôts                            */
