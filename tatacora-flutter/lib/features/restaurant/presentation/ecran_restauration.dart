@@ -1,4 +1,5 @@
 // Vue Blade maîtresse (PA-183) : pwa/restaurant/restauration.blade.php
+import '../../facturation/presentation/widgets/bouton_creer_proforma.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -133,6 +134,9 @@ class _EnTete extends ConsumerWidget {
             'Gestion des menus, fiches de recette et prise de commande, avec '
             'déduction automatique du stock cuisine',
         actions: [
+          // Restauration pour événement (atelier, réception) : aucun module événement n'existe,
+          // la proforma s'ouvre VIDE, à remplir (PO, 07/11/2026). Droit M2 exigé.
+          const BoutonCreerProforma(flux: 'evenement'),
           _BoutonEntete(
             cle: const Key('restauration-nouveau-menu'),
             libelle: 'Nouveau menu',

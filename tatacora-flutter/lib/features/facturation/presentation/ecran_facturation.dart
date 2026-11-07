@@ -1,6 +1,7 @@
 // Vue Blade maîtresse (PA-183) : pwa/facturation/facturation.blade.php
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/di/providers.dart' show droitsProvider;
 import '../../../core/rbac/garde_acces.dart';
@@ -14,6 +15,7 @@ import '../../../shared_widgets/modale_export.dart';
 import '../../../shared_widgets/tableau_tatacora.dart';
 import '../../../shared_widgets/toast_export.dart';
 import '../domain/certification_mecef.dart';
+import '../domain/textes_proforma.dart';
 import '../domain/entities/piece_facturation.dart';
 import '../impression/etat_registre_factures.dart';
 import '../impression/ticket_facture.dart';
@@ -290,6 +292,12 @@ class _BarreRegistreState extends ConsumerState<_BarreRegistre> {
                 ],
                 onChanged: (m) =>
                     ref.read(moduleFiltreProvider.notifier).definir(m),
+              ),
+              // Factures proforma (PO, 07/11/2026) : écran propre, document non fiscal.
+              _Bouton(
+                cle: const Key('facturation-proformas'),
+                libelle: TextesProforma.ui['proformas_lien']!,
+                onTap: () => context.go('/facturation/proformas'),
               ),
               _Bouton(
                 cle: const Key('facturation-exporter'),

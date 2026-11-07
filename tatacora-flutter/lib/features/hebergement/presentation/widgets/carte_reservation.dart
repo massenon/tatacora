@@ -1,4 +1,5 @@
 // Vue Blade maîtresse (PA-183) : pwa/hebergement/reservations.blade.php
+import '../../../facturation/presentation/widgets/bouton_creer_proforma.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -188,6 +189,13 @@ class VueCarteReservation extends ConsumerWidget {
               ),
               icon: const Icon(Icons.visibility_outlined, size: 16),
             ),
+            // « Créer une proforma » (PO, 07/11/2026) : droit M2, jamais sur une réservation annulée.
+            if (!annulee)
+              BoutonCreerProforma(
+                flux: 'hebergement',
+                source: _r.id,
+                court: true,
+              ),
             if (modifiable)
               IconButton(
                 key: Key('modifier-${_r.id}'),

@@ -1,4 +1,5 @@
 // Vue Blade maîtresse (PA-183) : pwa/tourisme/departs.blade.php
+import '../../../facturation/presentation/widgets/bouton_creer_proforma.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -225,18 +226,28 @@ class _ActionAnnuler extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     if (reservation.estAnnulee) return const SizedBox.shrink();
 
-    // `@if ($peutEcrire && ! $estAnnulee)` de la vue (l.458).
-    if (!ref.watch(peutEcrireTourismeProvider)) return const SizedBox.shrink();
+    // `@if ($peutEcrire && ! $estAnnulee)` de la vue (l.458) pour « Annuler » ; « Créer une proforma »
+    // exige, lui, le droit d'écriture sur M2 (PO, 07/11/2026) — le bouton se masque lui-même.
+    final peutAnnuler = ref.watch(peutEcrireTourismeProvider);
 
     return Align(
       alignment: Alignment.centerRight,
-      child: ActionLigneTourisme(
-        cle: Key('tourisme-annuler-resa-${reservation.id}'),
-        libelle: 'Annuler',
-        onPresse: () => ouvrirModaleAnnulationReservation(
-          context,
-          reservation: reservation,
-        ),
+      child: Wrap(
+        spacing: AppSpacing.xs,
+        runSpacing: AppSpacing.xs,
+        alignment: WrapAlignment.end,
+        children: [
+          BoutonCreerProforma(flux: 'tourisme', source: reservation.id),
+          if (peutAnnuler)
+            ActionLigneTourisme(
+              cle: Key('tourisme-annuler-resa-${reservation.id}'),
+              libelle: 'Annuler',
+              onPresse: () => ouvrirModaleAnnulationReservation(
+                context,
+                reservation: reservation,
+              ),
+            ),
+        ],
       ),
     );
   }

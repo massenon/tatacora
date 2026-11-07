@@ -21,6 +21,7 @@ import '../../features/transverse/presentation/ecran_journal_audit.dart';
 import '../../features/transverse/presentation/ecran_mon_profil.dart';
 import '../../features/transverse/presentation/ecran_roles_permissions.dart';
 import '../../features/etats/presentation/ecran_etats.dart';
+import '../../features/facturation/presentation/ecran_proformas.dart';
 import '../../features/vehicules/presentation/ecran_vehicules.dart';
 import '../../features/crm/presentation/ecran_clients.dart';
 import '../../features/depenses/presentation/ecran_depenses.dart';
@@ -442,6 +443,17 @@ final routeurProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/facturation',
             builder: (context, state) => const EcranFacturation(),
+            routes: [
+              // Factures PROFORMA (07/11/2026) : création libre ou depuis un module
+              // (`?flux=location|tourisme|hebergement|evenement&source=<id>`).
+              GoRoute(
+                path: 'proformas',
+                builder: (context, state) => EcranProformas(
+                  flux: state.uri.queryParameters['flux'] ?? '',
+                  source: state.uri.queryParameters['source'] ?? '',
+                ),
+              ),
+            ],
           ),
 
           // Le JOURNAL des ventes — a ne pas confondre avec /facturation, qui

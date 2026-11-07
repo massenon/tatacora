@@ -22,6 +22,10 @@ final class RefusProforma implements Exception {
 
   final String message;
 
+  /// La phrase du serveur (`proforma.ligne_invalide`), partagée avec l'écran.
+  static const ligneInvalide =
+      'Chaque ligne exige une désignation, une quantité entière et un prix unitaire en francs entiers.';
+
   @override
   String toString() => message;
 }
@@ -99,6 +103,12 @@ class ProformaDao extends DatabaseAccessor<AppDatabase>
             (p) => OrderingTerm.desc(p.id),
           ]))
           .get();
+
+  /// Un signal à chaque écriture des proformas (saisie locale OU descente du serveur) : l'écran
+  /// relit. Le signal de tables de Drift, jamais un `.watch()` qui laisse un minuteur au banc.
+  Stream<void> surveiller() => attachedDatabase.tableUpdates(
+    TableUpdateQuery.onAllTables([proformasLocal, lignesProformaLocal]),
+  );
 
   Future<ProformasLocalData?> parId(String id) =>
       (select(proformasLocal)..where((p) => p.id.equals(id))).getSingleOrNull();
@@ -496,9 +506,7 @@ class ProformaDao extends DatabaseAccessor<AppDatabase>
       if (l.designation.trim().isEmpty ||
           l.quantite < 1 ||
           l.prixUnitaire < 0) {
-        throw const RefusProforma(
-          'Chaque ligne exige une désignation, une quantité entière et un prix unitaire en francs entiers.',
-        );
+        throw const RefusProforma(RefusProforma.ligneInvalide);
       }
       total += l.quantite * l.prixUnitaire;
     }

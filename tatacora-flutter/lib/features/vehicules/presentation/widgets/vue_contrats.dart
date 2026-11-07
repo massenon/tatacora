@@ -1,4 +1,5 @@
 // Vue Blade maîtresse (PA-183) : pwa/vehicules/locations.blade.php
+import '../../../facturation/presentation/widgets/bouton_creer_proforma.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -202,6 +203,8 @@ class _Corps extends StatelessWidget {
                         runSpacing: AppSpacing.xs,
                         children: [
                           _ActionRecu(contrat: c),
+                          if (!c.annule)
+                            BoutonCreerProforma(flux: 'location', source: c.id),
                           _ActionAnnuler(contrat: c, peutEcrire: peutEcrire),
                         ],
                       ),
