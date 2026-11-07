@@ -20,7 +20,9 @@ import '../data/envoi_recus_depenses.dart';
 import '../data/operations_sync_dao.dart';
 import '../data/service_adresse_serveur.dart';
 import '../data/service_appairage.dart';
+import '../../facturation/data/images_document_poste.dart';
 import '../data/sync_manager.dart';
+import '../data/telechargement_images_document.dart';
 import '../data/transport_synchronisation.dart';
 import '../domain/bilan_synchronisation.dart';
 import '../domain/descente_catalogue.dart';
@@ -258,6 +260,10 @@ final syncManagerProvider = Provider<SyncManager>((ref) {
         ref.read(dernierBilanSynchronisationProvider.notifier).poser(bilan),
     descente: ref.watch(descenteCatalogueProvider),
     recus: ref.watch(envoiRecusDepensesProvider),
+    images: TelechargementImagesDocument(
+      ref.watch(transportSynchronisationProvider),
+      ref.watch(imagesDocumentPosteProvider),
+    ),
   );
 });
 

@@ -37,6 +37,7 @@ extension _AlignementDocuments on AligneurCatalogue {
         TableDescendue.tablesSalle => _tableSalle(id, e),
         TableDescendue.paniers => _occupation(id, e),
         TableDescendue.factures => _facture(id, e),
+        TableDescendue.proformas => _proforma(id, e),
         TableDescendue.avoirs => _avoir(id, e),
         TableDescendue.paiements => _paiement(id, e),
         TableDescendue.commandesAchat => _commande(id, e),
@@ -1518,6 +1519,86 @@ extension _AlignementDocuments on AligneurCatalogue {
   /* ================================================================== */
   /* Factures, avoirs, encaissements — lots F5c et F5d                   */
   /* ================================================================== */
+
+  /// Une facture PROFORMA d'un autre poste ou de la PWA (07/11/2026). DÉTENUE : si le poste n'a
+  /// aucune opération en suspens sur elle, l'état du serveur (numéro définitif, statut, validité,
+  /// lien vers la facture, lignes) est adopté ; sinon rien n'est écrasé (la saisie locale part
+  /// d'abord). NOUVELLE : inscrite sous son numéro, sans file (elle vient du serveur).
+  Future<IssueAlignement> _proforma(String id, ElementCatalogue e) async {
+    final d = e.donnees;
+    final statut = AligneurCatalogue._texte(d['statut']);
+    final clientNom = AligneurCatalogue._texte(d['client_nom']);
+    final total = entierDepuisDecimal(d['total'], 0);
+    final lignes = _lignes(d);
+    final converties = <LigneProformaSaisie>[];
+    for (final l in lignes ?? const <Map<String, Object?>>[]) {
+      final quantite = entierDepuisDecimal(l['quantite'], 0);
+      final prix = entierDepuisDecimal(l['prix_unitaire'], 0);
+      final designation = AligneurCatalogue._texte(l['designation']);
+      if (quantite == null || prix == null || designation == null) {
+        return const RefuseParLePoste('ligne de proforma illisible');
+      }
+      converties.add((
+        designation: designation,
+        quantite: quantite,
+        prixUnitaire: prix,
+      ));
+    }
+    if (!StatutProforma.values.any((s) => s.code == statut) ||
+        clientNom == null ||
+        total == null ||
+        converties.isEmpty) {
+      return const RefuseParLePoste('proforma incomplète');
+    }
+    final DateTime? emission;
+    final DateTime? validite;
+    try {
+      emission = d['date_emission'] == null
+          ? null
+          : _jourLocal(d['date_emission']);
+      validite = d['valide_jusqu_au'] == null
+          ? null
+          : _jourLocal(d['valide_jusqu_au']);
+    } on FormatException {
+      return const RefuseParLePoste('date de proforma illisible');
+    }
+    final clientServeur = AligneurCatalogue._texte(d['client_id']);
+    final clientId = clientServeur == null
+        ? null
+        : await _cite(TableDescendue.clients, clientServeur, _db.clientsLocal);
+    if (clientServeur != null && clientId == null) {
+      return const EnAttenteDeDependance('client pas encore reçu');
+    }
+    if (await OperationsSyncDao(
+      _db,
+    ).enSuspens(TableSynchronisee.proformas.nomServeur, id)) {
+      return const Aligne();
+    }
+    try {
+      await ProformaDao(_db).adopterDescendue(
+        id: id,
+        numero: AligneurCatalogue._texte(d['numero']),
+        reference: AligneurCatalogue._texte(d['reference']),
+        statut: statut!,
+        clientId: clientId,
+        clientNom: clientNom,
+        clientTelephone: AligneurCatalogue._texte(d['client_telephone']),
+        clientIfu: AligneurCatalogue._texte(d['client_ifu']),
+        objet: AligneurCatalogue._texte(d['objet']),
+        dateEmission: emission,
+        ville: AligneurCatalogue._texte(d['ville']),
+        valideJusquAu: validite,
+        total: total,
+        factureId: AligneurCatalogue._texte(d['facture_id']),
+        motifAnnulation: AligneurCatalogue._texte(d['motif_annulation']),
+        sourceModule: AligneurCatalogue._texte(d['source_module']) ?? 'libre',
+        lignes: converties,
+      );
+    } on StateError catch (err) {
+      return RefuseParLePoste(err.message);
+    }
+    return const Aligne();
+  }
 
   /// Une facture du serveur. DÉTENUE (celle de ce poste revient par le
   /// flux) : seul son numéro suit — c'est la seconde voie de la

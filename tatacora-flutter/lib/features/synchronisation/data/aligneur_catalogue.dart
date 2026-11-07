@@ -15,6 +15,7 @@ import '../../comptabilite/data/moteur_comptable.dart';
 import '../../comptabilite/domain/entities/comptabilite.dart'
     show StatutExercice;
 import '../../facturation/data/facture_dao.dart';
+import '../../facturation/data/proforma_dao.dart';
 import '../../hebergement/data/canaux_reservation_dao.dart';
 import '../../hebergement/data/parc_dao.dart';
 import '../../vehicules/data/vehicule_dao.dart';
@@ -139,6 +140,7 @@ class AligneurCatalogue {
       TableDescendue.tablesSalle ||
       TableDescendue.paniers ||
       TableDescendue.factures ||
+      TableDescendue.proformas ||
       TableDescendue.avoirs ||
       TableDescendue.paiements ||
       TableDescendue.commandesAchat ||

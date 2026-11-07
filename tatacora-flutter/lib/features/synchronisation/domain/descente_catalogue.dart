@@ -90,6 +90,9 @@ enum TableDescendue {
   /// avoirs, puis les encaissements — le reste dû d'une facture est le même
   /// sur tous les postes.
   factures('factures', TableSynchronisee.factures),
+
+  /// 07/11/2026 : les proformas de TOUS les postes et de la PWA (numéro du serveur, lignes avec elles).
+  proformas('proformas', TableSynchronisee.proformas),
   avoirs('avoirs', null),
   paiements('paiements', TableSynchronisee.paiements),
   commandesAchat('commandes_achat', TableSynchronisee.commandesAchat),
@@ -211,6 +214,7 @@ String libelleTableServeur(String nom) => switch (nom) {
   'tables_salle' => 'Tables de salle',
   'paniers' => 'Tables occupées (additions ouvertes)',
   'factures' => 'Factures',
+  'proformas' => 'Factures proforma',
   'avoirs' => 'Avoirs',
   'paiements' => 'Encaissements de factures',
   'centres_cout' => 'Centres de coût',

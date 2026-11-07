@@ -405,6 +405,70 @@ class ProformaDao extends DatabaseAccessor<AppDatabase>
     });
   }
 
+  /// Inscrit (ou met à jour) une proforma REÇUE du serveur — autre poste ou PWA —, SANS file :
+  /// elle vient du serveur. Le numéro est celui du serveur ; un numéro déjà porté par une AUTRE
+  /// proforma du poste lève `StateError` (jamais deux définitifs identiques), rien n'est écrit.
+  Future<void> adopterDescendue({
+    required String id,
+    required String? numero,
+    required String? reference,
+    required String statut,
+    required String? clientId,
+    required String clientNom,
+    required String? clientTelephone,
+    required String? clientIfu,
+    required String? objet,
+    required DateTime? dateEmission,
+    required String? ville,
+    required DateTime? valideJusquAu,
+    required int total,
+    required String? factureId,
+    required String? motifAnnulation,
+    required String sourceModule,
+    required List<LigneProformaSaisie> lignes,
+  }) => transaction(() async {
+    if (numero != null) {
+      final autre =
+          await (select(proformasLocal)
+                ..where((t) => t.numero.equals(numero) & t.id.isNotValue(id)))
+              .getSingleOrNull();
+      if (autre != null) {
+        throw StateError(
+          'Le numéro $numero est déjà porté par une autre proforma du poste.',
+        );
+      }
+    }
+    final existe = await parId(id) != null;
+    final companion = ProformasLocalCompanion(
+      numero: Value(numero),
+      reference: Value(reference),
+      statut: Value(statut),
+      clientId: Value(clientId),
+      clientNom: Value(clientNom),
+      clientTelephone: Value(clientTelephone),
+      clientIfu: Value(clientIfu),
+      objet: Value(objet),
+      dateEmission: Value(dateEmission),
+      ville: Value(ville),
+      valideJusquAu: Value(valideJusquAu),
+      total: Value(total),
+      factureId: Value(factureId),
+      motifAnnulation: Value(motifAnnulation),
+      sourceModule: Value(sourceModule),
+    );
+    if (existe) {
+      await (update(
+        proformasLocal,
+      )..where((t) => t.id.equals(id))).write(companion);
+      await (delete(
+        lignesProformaLocal,
+      )..where((l) => l.proformaId.equals(id))).go();
+    } else {
+      await into(proformasLocal).insert(companion.copyWith(id: Value(id)));
+    }
+    await _ecrireLignes(id, lignes);
+  });
+
   /* ------------------------------------------------------------------ interne */
 
   Future<ProformasLocalData> _exiger(String id) async =>

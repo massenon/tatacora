@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import '../../comptabilite/data/immobilisations_dao.dart';
 import '../../facturation/data/facture_dao.dart';
+import '../../facturation/data/proforma_dao.dart';
 import '../../pos/data/panier_dao.dart';
 import '../../rh/data/employe_dao.dart';
 import '../../rh/data/paie_dao.dart';
@@ -13,6 +14,7 @@ import '../domain/operation_sync.dart';
 import 'descente_catalogue.dart';
 import 'descente_catalogue_dao.dart';
 import 'envoi_recus_depenses.dart';
+import 'telechargement_images_document.dart';
 import 'operations_sync_dao.dart';
 import 'transport_synchronisation.dart';
 
@@ -83,6 +85,7 @@ class SyncManager {
     this._surBilan,
     this._descente,
     this._recus,
+    this._images,
   }) : _url = urlServeur,
        _lecteur = lecteur ?? LecteurConfigurationPoste(),
        _ecrivain = ecrivain ?? EcrivainConfigurationPoste(),
@@ -105,6 +108,10 @@ class SyncManager {
   /// et précède la descente ; il passe par le MÊME interrupteur, la même
   /// génération et les mêmes refus 401/403.
   final EnvoiRecusDepenses? _recus;
+
+  /// La descente de la signature et du cachet des documents A4 (07/11/2026) ; `null` : aucune.
+  /// Après la descente du catalogue, jamais bloquante.
+  final TelechargementImagesDocument? _images;
 
   /// La taille d'un lot — 50, le plafond de `SynchroniserRequest`.
   final int tailleLot;
@@ -379,6 +386,19 @@ class SyncManager {
         codeHttp: bilanDescente.codeHttp,
         descente: bilanDescente,
       );
+    }
+    final images = _images;
+    if (images != null) {
+      try {
+        await images.rafraichir(
+          serveur: appairage.serveur,
+          posteId: appairage.posteId,
+          jeton: appairage.jetonApi,
+          generation: await _etat.generation(),
+        );
+      } on Object {
+        // Jamais bloquant : les images actuelles restent, le prochain passage reprend.
+      }
     }
     return envoi.copierAvec(descente: bilanDescente);
   }
@@ -658,6 +678,21 @@ class SyncManager {
       await VehiculeDao(
         _dao.attachedDatabase,
       ).regulariserNumero(o.entiteId, numeroContrat);
+    }
+    // 07/11/2026 : le numéro `N°0045 FP-GCN/2026` d'une proforma est celui du serveur (séquence
+    // continue par année), rendu à l'émission (création OU modification) : il remplace le
+    // provisoire `PROV-FP-…`. Un doublon définitif est une incohérence : la descente reprend.
+    final numeroProforma = resultat['numero'];
+    if (statut == 'synchronise' &&
+        o.table == TableSynchronisee.proformas &&
+        numeroProforma is String) {
+      try {
+        await ProformaDao(
+          _dao.attachedDatabase,
+        ).regulariserNumero(o.entiteId, numeroProforma);
+      } on StateError {
+        // Voir la doc de `regulariserNumero` : la descente de la proforma reprend.
+      }
     }
     final numeroBulletin = resultat['numero'];
     if (statut == 'synchronise' &&
