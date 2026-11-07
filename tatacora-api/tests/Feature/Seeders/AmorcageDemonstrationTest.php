@@ -921,10 +921,10 @@ final class AmorcageDemonstrationTest extends TestCase
             bccomp((string) $facture->montant_ttc, bcadd((string) $facture->montant_ht, (string) $facture->montant_tva, 2), 2),
         );
 
-        // La certification est de DÉMONSTRATION et se dit comme telle : le
-        // prédicat la reconnaît, et `estCertifiee()` ne la prend jamais pour
-        // une vraie certification fiscale (PA-61/PA-100).
-        $this->assertTrue($facture->estCertificationDemonstration());
+        // Facture SIMPLE (mode desactive, decision du PO du 07/11/2026) : aucun numero
+        // fictif, jamais prise pour une certification fiscale (PA-61/PA-100).
+        $this->assertFalse($facture->estCertificationDemonstration());
+        $this->assertNull($facture->numero_mecef);
         $this->assertFalse($facture->estCertifiee());
         $this->assertTrue($facture->estFigee());
     }

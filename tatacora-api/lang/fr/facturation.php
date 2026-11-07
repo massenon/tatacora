@@ -88,4 +88,7 @@ return [
     'paiement_deja_annule' => 'Cet encaissement est déjà annulé.',
     'paiement_motif_requis' => 'Un motif est obligatoire pour annuler un encaissement.',
     'paiement_piece_introuvable' => 'La pièce comptable de cet encaissement est introuvable ou déséquilibrée (:libelle) : l\'annulation est refusée plutôt que de contre-passer à moitié.',
+    // Génération d'échantillons (présentation)
+    'echantillons_interdits_en_production' => 'La génération d\'échantillons est interdite en production.',
+    'echantillons_dossier_impossible' => 'Dossier impossible à créer : :dossier',
 ];

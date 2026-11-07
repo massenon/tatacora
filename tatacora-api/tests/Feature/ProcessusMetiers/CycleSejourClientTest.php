@@ -154,7 +154,10 @@ final class CycleSejourClientTest extends TestCase
 
         // --- 5. Certification puis immutabilité (RG-03)
         $certifiee = $emission->certifier($facture);
-        $this->assertTrue($certifiee->estCertificationDemonstration());
+        // Mode desactive : facture simple, figee, sans numero fictif ni normalisation.
+        $this->assertTrue($certifiee->estFigee());
+        $this->assertNull($certifiee->numero_mecef);
+        $this->assertFalse($certifiee->estNormalisee());
 
         $this->assertThrows(
             fn () => $certifiee->update(['montant_ttc' => '1.00']),

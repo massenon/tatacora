@@ -137,16 +137,18 @@ final class TachesPlanifieesTest extends TestCase
             'client_id' => Client::factory()->create()->id,
             'date_emission' => '2026-08-01',
             'montant_ht' => '100000.00', 'montant_tva' => '0.00', 'montant_ttc' => '100000.00',
-            'statut' => 'echec_certification',
+            'statut' => 'en_attente_certification',
         ]);
 
-        $bilan = (new RejouerCertificationsMecefEnEchecJob())->handle(
+        // Mode par defaut (desactive) : facture SIMPLE. Le job la fige sans reseau et sans
+        // numero fictif (decision du PO du 07/11/2026 : plus de certification de demonstration).
+        (new RejouerCertificationsMecefEnEchecJob())->handle(
             app(\App\Domain\Facturation\Services\EmissionFactureService::class),
         );
 
-        $this->assertSame(1, $bilan['certifiees']);
         $this->assertSame('certifiee', $facture->fresh()->statut);
-        $this->assertNotNull($facture->fresh()->numero_mecef);
+        $this->assertNull($facture->fresh()->numero_mecef);
+        $this->assertFalse($facture->fresh()->estNormalisee());
     }
 
     #[Test]

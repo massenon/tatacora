@@ -61,11 +61,11 @@ final class GenerateurEchantillons
     public function generer(string $dossier): array
     {
         if (app()->isProduction()) {
-            throw new RuntimeException('La génération d\'échantillons est interdite en production.');
+            throw new RuntimeException(__('facturation.echantillons_interdits_en_production'));
         }
 
         if (! is_dir($dossier) && ! mkdir($dossier, 0775, true) && ! is_dir($dossier)) {
-            throw new RuntimeException('Dossier impossible à créer : '.$dossier);
+            throw new RuntimeException(__('facturation.echantillons_dossier_impossible', ['dossier' => $dossier]));
         }
 
         $dossier = rtrim($dossier, '/');
