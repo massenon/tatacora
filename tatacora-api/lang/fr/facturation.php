@@ -21,6 +21,24 @@ return [
     'avoir_montant_excessif' => 'Le montant de l\'avoir ne peut pas dépasser celui de la facture.',
     'libelle_avoir' => 'Avoir sur facture :numero',
 
+    // e-MECeF (07/11/2026, lot 3) — erreurs de l'API de la DGI, classées ; aucune ne cite le jeton.
+    'emecef' => [
+        'jeton_refuse' => 'La DGI a refusé le jeton e-MECeF : vérifiez-le dans Paramètres, ou remplacez-le.',
+        'limite' => 'La DGI limite les envois : nouvel essai dans :secondes s.',
+        'injoignable' => 'La DGI est injoignable (réseau ou délai) : nouvel essai automatique.',
+        'erreur_serveur' => 'La DGI a rencontré une erreur (code :code) : nouvel essai automatique.',
+        'refus' => 'La DGI a refusé la facture : :detail',
+        'refus_sans_detail' => 'aucun détail fourni.',
+        'reponse_invalide' => 'La DGI a répondu sans les éléments attendus : la facture n\'est pas normalisée, nouvel essai automatique.',
+        'reponse_invalide_apres_confirmation' => 'La confirmation a été envoyée à la DGI mais sa réponse est inutilisable : '
+            . 'ne retransmettez pas, vérifiez la facture auprès de la DGI.',
+        'configuration_incomplete' => 'Facturation e-MECeF incomplète : :manques',
+        'totaux_incoherents' => 'Les totaux de la facture ne concordent pas avec ses lignes (écart de :ecart FCFA) : corrigez avant de normaliser.',
+        'avoir_sans_origine' => 'L\'avoir ne peut pas être normalisé : la facture d\'origine n\'est pas normalisée.',
+        'client_de_passage' => 'Client de passage',
+        'attente_poste' => 'En attente de normalisation par le poste de la réception (boîtier CC300).',
+    ],
+
     // Facturation normalisée (07/11/2026) — le serveur range le résultat d'un poste, sans re-certifier.
     'normalisation_deja_faite' => 'Cette pièce est déjà normalisée : une normalisation ne s\'écrase jamais.',
     'normalisation_identite_invalide' => 'Le numéro fiscal reçu n\'a pas la forme « NIM-compteur ».',

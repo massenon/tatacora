@@ -4,11 +4,15 @@ declare(strict_types=1);
 
 namespace App\Domain\Facturation\Providers;
 
+use App\Domain\Comptabilite\Services\CalculTvaService;
+use App\Domain\Facturation\Services\MecefClientEmecef;
 use App\Domain\Facturation\Services\MecefClientFake;
 use App\Domain\Facturation\Services\MecefClientInterface;
+use App\Domain\Facturation\Services\MecefClientRefus;
 use App\Domain\Facturation\Services\ModeFacturation;
 use App\Domain\Facturation\Services\ReglagesMecef;
 use App\Shared\Parametres\Services\ParametreSystemeService;
+use App\Shared\Secrets\Services\SecretsConfigurationService;
 use Illuminate\Support\ServiceProvider;
 
 /**
@@ -33,20 +37,30 @@ final class MecefServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $this->app->bind(MecefClientInterface::class, function () {
-            // PA-17 : `MecefClient` (implémentation réelle) n'existe pas encore
-            // — la documentation technique DGI n'a pas été reçue. Le contrat
-            // interne est figé (`MecefClientInterface`), seule l'implémentation
-            // manque.
-            //
-            // Il n'y a donc RIEN à arbitrer ici : le jour où le client réel
-            // existera, la condition de bascule reviendra, mais l'écrire
-            // aujourd'hui produirait un `if` dont les deux branches rendent le
-            // même objet — c'est-à-dire du code qui a l'apparence d'un choix
-            // sans en être un. `estModeRelDisponible()` porte la condition,
-            // seule et testable.
-            return new MecefClientFake();
+        $this->app->bind(MecefClientInterface::class, function (): MecefClientInterface {
+            // Le MODE de la facturation normalisée choisit l'implémentation
+            // (docs/SPEC_FACTURATION_NORMALISEE_MECEF.md §1) :
+            //  - désactivé : le faux client, factures DEMO sans valeur fiscale ;
+            //  - e-MECeF : le client réel SI IFU, adresse https, opérateur et jeton sont
+            //    là — sinon un refus clair, en français, jamais un repli sur la démo ;
+            //  - boîtier : le serveur ne certifie PAS (la facture attend le poste) ; le
+            //    faux client n'est lié que pour que le contrat reste satisfait, et
+            //    `EmissionFactureService::certifier` ne l'appelle pas dans ce mode.
+            return match (ModeFacturation::courant()) {
+                ModeFacturation::Emecef => $this->clientEmecef(),
+                default => new MecefClientFake(),
+            };
         });
+    }
+
+    private function clientEmecef(): MecefClientInterface
+    {
+        $reglages = app(ReglagesMecef::class);
+        $manques = $reglages->manquantsEmecef();
+
+        return $manques === []
+            ? new MecefClientEmecef($reglages, app(SecretsConfigurationService::class), app(CalculTvaService::class))
+            : new MecefClientRefus($manques);
     }
 
     /**

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Facturation\Services;
 
 use App\Domain\Comptabilite\Services\CalculTvaService;
+use App\Domain\Facturation\Exceptions\EmecefErreur;
 use App\Domain\Facturation\Models\Avoir;
 use App\Domain\Facturation\Models\Facture;
 use App\Domain\Facturation\Models\LigneFacture;
@@ -200,16 +201,41 @@ class EmissionFactureService
     }
 
     /**
-     * Certification MECeF. En mode démonstration (PA-17 non résolue), produit
-     * un NIM explicitement marqué DEMO, sans valeur fiscale.
+     * Certification MECeF — selon le MODE de la facturation normalisée
+     * (docs/SPEC_FACTURATION_NORMALISEE_MECEF.md §1) :
+     *
+     *  - **Désactivé** : démonstration, `MECEF-DEMO-…`, sans valeur fiscale (inchangé) ;
+     *  - **e-MECeF** : le SERVEUR certifie par l'API de la DGI. Une erreur classée
+     *    (jeton refusé, limite, réseau, refus) laisse la facture « en attente » avec son
+     *    motif, rejouable par le job — jamais une exception à l'émission ;
+     *  - **Boîtier** : le serveur NE certifie PAS. La facture reste « en attente de
+     *    normalisation par le poste » ; un poste avec boîtier la reprend à son passage.
+     *
+     * Une facture déjà NORMALISÉE n'est jamais retransmise (idempotence par facture).
      */
     public function certifier(Facture $facture): Facture
     {
+        $mode = ModeFacturation::courant();
+
         // Idempotence : une facture deja passee par la certification ne la
         // rejoue pas, y compris en demonstration — sinon chaque passage
-        // consommerait un nouveau numero pour la meme piece.
-        if ($facture->estFigee()) {
+        // consommerait un nouveau numero pour la meme piece. Seule exception :
+        // une DEMONSTRATION peut etre remplacee par une vraie normalisation
+        // quand un mode reel est choisi depuis.
+        if ($facture->normalisation_statut === StatutNormalisation::Normalisee->value) {
             return $facture;
+        }
+
+        if ($facture->estFigee() && ! ($mode !== ModeFacturation::Desactive && $facture->estCertificationDemonstration())) {
+            return $facture;
+        }
+
+        if ($mode === ModeFacturation::Boitier) {
+            return $this->attendreLePoste($facture);
+        }
+
+        if ($mode === ModeFacturation::Emecef) {
+            return $this->certifierEnLigne($facture);
         }
 
         $resultat = $this->mecef->certifier($facture);
@@ -221,6 +247,137 @@ class EmissionFactureService
         ]);
 
         return $facture->refresh();
+    }
+
+    /** Boîtier : le serveur ne certifie pas ; il le DIT sur la facture (sans écraser le poste). */
+    private function attendreLePoste(Facture|Avoir $document): Facture|Avoir
+    {
+        $actuel = StatutNormalisation::depuis($document->normalisation_statut);
+
+        // Le poste a peut-être déjà dit « refusée » ou « à vérifier » : on ne l'écrase pas.
+        if ($actuel === null || $actuel === StatutNormalisation::EnAttente) {
+            $document->update([
+                'normalisation_statut' => StatutNormalisation::EnAttente->value,
+                'normalisation_mode' => 'boitier',
+                'normalisation_motif' => __('facturation.emecef.attente_poste'),
+            ]);
+        }
+
+        return $document->refresh();
+    }
+
+    private function certifierEnLigne(Facture $facture): Facture
+    {
+        // Retry-After et réseau tombé : on n'insiste pas avant l'heure dite.
+        if ($facture->emecef_prochain_essai_le !== null && $facture->emecef_prochain_essai_le->isFuture()) {
+            return $facture;
+        }
+
+        try {
+            $resultat = $this->mecef->certifier($facture);
+        } catch (EmecefErreur $erreur) {
+            $this->consignerEchec($facture, $erreur);
+
+            return $facture->refresh();
+        }
+
+        $facture->update([
+            'numero_mecef' => $resultat->nim,
+            'qr_code_fiscal' => $resultat->cachetFiscal,
+            'code_mecef' => $resultat->codeMecef,
+            'statut' => 'certifiee',
+            ...$this->champsNormalisee($resultat),
+        ]);
+
+        return $facture->refresh();
+    }
+
+    /** @return array<string, mixed> */
+    private function champsNormalisee(CertificationMecefResultat $resultat): array
+    {
+        return [
+            'normalisation_statut' => StatutNormalisation::Normalisee->value,
+            'normalisation_mode' => 'emecef',
+            'normalisation_motif' => null,
+            'normalisation_compteur' => $resultat->compteur,
+            'normalisee_le' => $resultat->dateCertification,
+            'emecef_uid' => null,
+            'emecef_uid_le' => null,
+            'emecef_prochain_essai_le' => null,
+        ];
+    }
+
+    /**
+     * Une erreur CLASSÉE de la DGI : le statut et le motif (en français, jamais le jeton)
+     * se rangent sur la pièce, le prochain essai respecte le délai demandé.
+     */
+    private function consignerEchec(Facture|Avoir $document, EmecefErreur $erreur): void
+    {
+        $secondes = $erreur->secondesAvantRejeu();
+
+        $champs = [
+            'normalisation_statut' => $erreur->statut()->value,
+            'normalisation_mode' => 'emecef',
+            'normalisation_motif' => mb_substr($erreur->getMessage(), 0, 500),
+            'emecef_prochain_essai_le' => $secondes === null ? null : now()->addSeconds($secondes),
+        ];
+
+        // La facture reste VISIBLE comme non conforme (jamais « en attente » à perpétuité).
+        if ($document instanceof Facture && ! $document->estFigee()) {
+            $champs['statut'] = 'echec_certification';
+        }
+
+        $document->update($champs);
+    }
+
+    /**
+     * Normalise l'avoir d'une facture NORMALISÉE : e-MECeF au serveur (type `FA`,
+     * référence = code MECeF de la facture d'origine), boîtier : « en attente du poste ».
+     * Ne lève jamais : un avoir créé n'est pas annulé parce que la DGI est injoignable.
+     */
+    public function certifierAvoir(Avoir $avoir): Avoir
+    {
+        $mode = ModeFacturation::courant();
+        $facture = $avoir->facture()->first();
+
+        if ($mode === ModeFacturation::Desactive || $facture === null || ! $facture->estNormalisee()) {
+            return $avoir;
+        }
+
+        if ($avoir->normalisation_statut === StatutNormalisation::Normalisee->value) {
+            return $avoir;
+        }
+
+        if ($mode === ModeFacturation::Boitier) {
+            $this->attendreLePoste($avoir);
+
+            return $avoir->refresh();
+        }
+
+        if ($avoir->emecef_prochain_essai_le !== null && $avoir->emecef_prochain_essai_le->isFuture()) {
+            return $avoir;
+        }
+
+        if (! $this->mecef instanceof CertifieLesAvoirsInterface) {
+            return $avoir;
+        }
+
+        try {
+            $resultat = $this->mecef->certifierAvoir($avoir);
+        } catch (EmecefErreur $erreur) {
+            $this->consignerEchec($avoir, $erreur);
+
+            return $avoir->refresh();
+        }
+
+        $avoir->update([
+            'numero_mecef' => $resultat->nim,
+            'qr_code_fiscal' => $resultat->cachetFiscal,
+            'code_mecef' => $resultat->codeMecef,
+            ...$this->champsNormalisee($resultat),
+        ]);
+
+        return $avoir->refresh();
     }
 
     /**
@@ -306,7 +463,7 @@ class EmissionFactureService
         // `$id` : l'identifiant né sur un poste hors connexion (avoir partiel
         // synchronisé) — il rend le rejeu idempotent et permet au poste de
         // reconnaître son avoir à la descente.
-        return DB::transaction(fn (): Avoir => Avoir::create([
+        $avoir = DB::transaction(fn (): Avoir => Avoir::create([
             ...($id !== null ? ['id' => $id] : []),
             'facture_id' => $facture->id,
             'motif' => $motif,
@@ -314,6 +471,11 @@ class EmissionFactureService
             'date_emission' => now()->toDateString(),
             'utilisateur_validation_id' => auth()->id(),
         ])->refresh());
+
+        // Facturation normalisée : l'avoir d'une facture NORMALISÉE l'est aussi (e-MECeF
+        // au serveur ; boîtier : en attente du poste). Hors transaction, sans jamais
+        // faire échouer l'émission de l'avoir.
+        return $this->certifierAvoir($avoir);
     }
 
     public function modeDemonstration(): bool

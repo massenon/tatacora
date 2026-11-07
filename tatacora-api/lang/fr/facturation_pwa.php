@@ -100,6 +100,13 @@ return [
     // DÉRIVÉE de l'état réel de certification, jamais figée (PA-61).
     'document_mention_attente' => 'Certification électronique MECeF : en attente d\'inscription '
         .'auprès de la Direction Générale des Impôts du Bénin.',
+    // Facturation normalisée (07/11/2026) : imprimées SEULEMENT pour une facture normalisée.
+    'document_normalisee_titre' => 'Facture normalisée MECeF',
+    'document_normalisee_nim' => 'NIM-TC',
+    'document_normalisee_code' => 'Code MECeF',
+    'document_normalisee_qr' => 'Contenu du code QR fiscal',
+    'document_normalisee_le' => 'Normalisée le :date',
+    'document_normalisation_etat' => 'Normalisation : :statut',
     'document_cachet_reserve' => 'Emplacement réservé au cachet fiscal MECeF',
     'document_cachet_absent' => "Aucun cachet n'est imprimé : le format du code fiscal n'est pas "
         .'public, et en dessiner un exemple sur un document remis à un client produirait un faux.',

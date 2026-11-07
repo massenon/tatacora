@@ -117,8 +117,9 @@ final class CorrespondanceComptesTest extends TestCase
             $this->assertSame($role, CorrespondanceComptesService::roleDeCle($definition->cle));
         }
 
-        // 31 clés d'avant + une par rôle.
-        $this->assertCount(31 + count(RolesCorrespondance::ROLES), RegistreParametres::cles());
+        // 31 clés d'avant + les 4 de la facturation normalisée (mode, adresse de l'API, opérateur ×2 :
+        // 07/11/2026) + une par rôle.
+        $this->assertCount(31 + 4 + count(RolesCorrespondance::ROLES), RegistreParametres::cles());
     }
 
     // ------------------------------------------------------------ Validation

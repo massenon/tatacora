@@ -109,7 +109,11 @@ Une facture non confirmée EXPIRE après 2 minutes : créer puis confirmer dans 
 Paiements : `ESPECES, VIREMENT, CARTEBANCAIRE, MOBILEMONEY, CHEQUES, CREDIT, AUTRE`. Avoir : `reference` =
 `codeMECeFDGI` de la facture d'origine.
 Idempotence : une facture déjà `normalisee` n'est JAMAIS retransmise ; l'`uid` d'une création réussie
-dont la confirmation a échoué est conservé et la confirmation seule est rejouée avant l'expiration.
+dont la confirmation a été REFUSÉE (limite, jeton) est conservé et la confirmation seule est rejouée avant
+l'expiration (100 s). Une confirmation SANS réponse exploitable (réseau coupé, 5xx, corps illisible) rend
+l'issue incertaine : « à vérifier », jamais retransmise (même règle que le boîtier). PDF A4 du serveur : mentions
+et contenu du QR en TEXTE (aucune bibliothèque de dessin de QR n'est installée : décision du PO) ; le dessin du QR
+se fait au poste.
 
 ## 6. Statuts et colonnes
 
@@ -148,6 +152,8 @@ automatique. » ; configuration · « Facturation e-MECeF incomplète : renseign
 7. Perte de réponse avec compteur avancé : aucun moyen de retrouver le QR par le pilote — saisie manuelle à prévoir ?
 8. Clients assujettis (`buyer_ifu`) : le poste n'a pas d'IFU client ; envoyé vide.
 9. Quel mode pour un poste sans boîtier quand le serveur est en `boitier` ? Aujourd'hui : « en attente ».
+10. `bacon/bacon-qr-code` (pur PHP) pour dessiner le QR sur le PDF A4 du serveur ? Non ajouté (dépendance).
+11. Une confirmation e-MECeF sans réponse peut-elle être rejouée sans risque (la DGI est-elle idempotente sur `confirm`) ?
 
 ## 9. Plan
 

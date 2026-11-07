@@ -306,7 +306,28 @@
       client réellement lié (PA-61), jamais une constante. La mention
       d'attente ci-dessous, elle, RESTE : elle est honnête.
   --}}
-  @if (\App\Domain\Facturation\Providers\MecefServiceProvider::etatConfiguration() === 'active')
+  {{--
+      FACTURATION NORMALISÉE (07/11/2026) : les mentions fiscales ne s'impriment QUE pour
+      une facture RÉELLEMENT normalisée (`estNormalisee()` : statut ET numéro réel ET QR) —
+      jamais pour une démonstration. Le contenu du QR est celui que le boîtier ou la DGI a
+      RENDU, copié tel quel, jamais composé ici. ⚠ Aucune bibliothèque de dessin de QR n'est
+      installée côté serveur : le contenu s'imprime en TEXTE ; le dessin du QR est tracé par
+      le poste (ticket, A4). Question ouverte consignée dans
+      docs/SPEC_FACTURATION_NORMALISEE_MECEF.md.
+  --}}
+  @if ($facture->estNormalisee())
+    <div class="cachet">
+      <strong>{{ __('facturation_pwa.document_normalisee_titre') }}</strong><br>
+      {{ __('facturation_pwa.document_normalisee_nim') }} : {{ $facture->numero_mecef }}<br>
+      @if (filled($facture->code_mecef))
+        {{ __('facturation_pwa.document_normalisee_code') }} : {{ $facture->code_mecef }}<br>
+      @endif
+      {{ __('facturation_pwa.document_normalisee_qr') }} : {{ $facture->qr_code_fiscal }}
+      @if ($facture->normalisee_le !== null)
+        <br>{{ __('facturation_pwa.document_normalisee_le', ['date' => $facture->normalisee_le->format('d/m/Y H:i')]) }}
+      @endif
+    </div>
+  @elseif (\App\Domain\Facturation\Providers\MecefServiceProvider::etatConfiguration() === 'active')
     <div class="cachet">
       <strong>{{ __('facturation_pwa.document_cachet_reserve') }}</strong><br>
       {{ __('facturation_pwa.document_cachet_absent') }}
@@ -319,6 +340,14 @@
          croire à une certification qui n'a pas eu lieu (PA-61). --}}
     <div class="mention">{{ __('facturation_pwa.document_mention_attente') }}</div>
   @endunless
+
+  {{-- Une facture en attente, refusée ou à vérifier DIT son état et son motif. --}}
+  @if ($facture->normalisation_statut !== null && ! $facture->estNormalisee())
+    <div class="mention">
+      {{ __('facturation_pwa.document_normalisation_etat', ['statut' => \App\Domain\Facturation\Services\StatutNormalisation::tryFrom((string) $facture->normalisation_statut)?->libelle() ?? $facture->normalisation_statut]) }}
+      @if (filled($facture->normalisation_motif)) — {{ $facture->normalisation_motif }} @endif
+    </div>
+  @endif
 
 </body>
 </html>
