@@ -310,10 +310,8 @@
       FACTURATION NORMALISÉE (07/11/2026) : les mentions fiscales ne s'impriment QUE pour
       une facture RÉELLEMENT normalisée (`estNormalisee()` : statut ET numéro réel ET QR) —
       jamais pour une démonstration. Le contenu du QR est celui que le boîtier ou la DGI a
-      RENDU, copié tel quel, jamais composé ici. ⚠ Aucune bibliothèque de dessin de QR n'est
-      installée côté serveur : le contenu s'imprime en TEXTE ; le dessin du QR est tracé par
-      le poste (ticket, A4). Question ouverte consignée dans
-      docs/SPEC_FACTURATION_NORMALISEE_MECEF.md.
+      RENDU, copié tel quel, jamais composé ici. Le QR est DESSINÉ (SVG, bacon/bacon-qr-code,
+      `DessinQrCode`) et son contenu reste imprimé en texte en dessous (secours de lecture).
   --}}
   @if ($facture->estNormalisee())
     <div class="cachet">
@@ -321,6 +319,10 @@
       {{ __('facturation_pwa.document_normalisee_nim') }} : {{ $facture->numero_mecef }}<br>
       @if (filled($facture->code_mecef))
         {{ __('facturation_pwa.document_normalisee_code') }} : {{ $facture->code_mecef }}<br>
+      @endif
+      @php($dessinQr = \App\Domain\Facturation\Support\DessinQrCode::enDataUri($facture->qr_code_fiscal))
+      @if ($dessinQr !== null)
+        <img src="{{ $dessinQr }}" width="110" height="110" alt="QR"><br>
       @endif
       {{ __('facturation_pwa.document_normalisee_qr') }} : {{ $facture->qr_code_fiscal }}
       @if ($facture->normalisee_le !== null)

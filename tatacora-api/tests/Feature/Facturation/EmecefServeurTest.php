@@ -633,12 +633,17 @@ final class EmecefServeurTest extends TestCase
         $this->assertStringContainsString('ABCD-EFGH-IJKL-MNOP-QRST-UVWX', $html);
         $this->assertStringContainsString('F;ED04000999;', $html);
         $this->assertStringNotContainsString('en attente d\'inscription', $html);
+        // Le QR est DESSINÉ (SVG intégré), et le PDF se génère avec lui.
+        $this->assertStringContainsString('data:image/svg+xml;base64,', $html);
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html)->output();
+        $this->assertStringStartsWith('%PDF', $pdf);
 
         // En attente (jeton refusé) : l'état et le motif, aucune mention fiscale.
         $this->faux([self::BASE . '/invoice' => Http::response([], 401)]);
         $attente = $this->emission()->certifier($this->facture());
         $htmlAttente = $this->documentDe($attente);
         $this->assertStringNotContainsString('Facture normalisée MECeF', $htmlAttente);
+        $this->assertStringNotContainsString('data:image/svg+xml', $htmlAttente, 'jamais de QR sans normalisation');
         $this->assertStringContainsString('Normalisation : En attente de normalisation', $htmlAttente);
         $this->assertStringContainsString('a refusé le jeton', $htmlAttente);
         $this->assertStringNotContainsString(self::JETON, $htmlAttente);
@@ -648,6 +653,7 @@ final class EmecefServeurTest extends TestCase
         $demo = $this->emission()->certifier($this->facture());
         $htmlDemo = $this->documentDe($demo);
         $this->assertStringNotContainsString('Facture normalisée MECeF', $htmlDemo);
+        $this->assertStringNotContainsString('data:image/svg+xml', $htmlDemo, 'jamais de QR en démonstration');
         $this->assertStringNotContainsString('MECEF-DEMO-', $htmlDemo, 'un numéro de démonstration n\'apparaît jamais');
     }
 
