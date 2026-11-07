@@ -71,6 +71,8 @@ final class PdfExportConformiteTest extends TestCase
         // Reçu de location (M8) remis au client, 28/10/2026 : ni visa ni pied de rapport.
         'location-recu',
         'paie-bulletin',
+        // Facture proforma (PO, 07/11/2026) : document remis au client, NON FISCAL, structure du modèle papier.
+        'proforma',
         'releve-client',
     ];
 

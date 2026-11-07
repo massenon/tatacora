@@ -69,6 +69,8 @@ class Facture extends Model
         'emecef_uid',
         'emecef_uid_le',
         'emecef_prochain_essai_le',
+        // Proforma convertie en cette facture (PO, 07/11/2026).
+        'proforma_id',
     ];
 
     protected function casts(): array
