@@ -368,7 +368,7 @@
 | **Long-polling court** | `GET /sync/signal?depuis=<marqueur>` : le serveur garde la requête ≤ 20-25 s et répond dès qu'un changement survient (ou « rien ») ; le poste relance aussitôt | Aucun nouveau protocole, aucune nouvelle dépendance Flutter, **fonctionne derrière les proxys, sur un hébergement PHP classique**, dégrade en simple sondage | Un worker occupé par poste pendant l'attente (5 postes : acceptable) ; latence ≤ quelques secondes plutôt que 0 | **Bonne par défaut** |
 | **FCM (Firebase Cloud Messaging)** | Notification push du fabricant | Réveille un appareil éteint | **Pas de support Flutter Windows de bureau** ; dépendance Google ; inutile pour un poste de comptoir toujours allumé ; secrets Firebase à gérer | Écartée |
 
-**Recommandation (à confirmer, Q-1).** Livrer en deux temps : **(1) long-polling court** (`GET /sync/signal`), qui remplace le sondage de 30 s et cible un p95 ≤ 15 s sans changer l'hébergement ; **(2) migrer vers WebSocket (Reverb)** **seulement si** l'hébergeur autorise un processus persistant et que la mesure montre que le long-polling ne suffit pas (charge ou latence). Dans les deux cas, `periodeSynchronisation = 5 min` (`providers_synchronisation.dart:314`) **est conservée** et relue par l'interrupteur D1.
+**Décision (PO, 08/11/2026, Q-1 tranchée).** Hébergement **cPanel mutualisé avec tâches cron, sans budget Pusher** : Reverb (processus permanent) est **impossible**, Pusher est **exclu**, SSE et long-polling sont **écartés** (chaque attente occupe un processus PHP d'un hébergement mutualisé, aux limites strictes de processus et de durée d'exécution : risque de saturer le site pour tous). **Aucun nouveau transport, aucune dépendance ajoutée.** On garde l'**interrogation courte** déjà livrée : battement de 30 s (`GET /sync/demande`) qui rend l'**époque** du serveur ; si elle change, le poste lance une descente seule (`SyncManager.synchroniserDescenteSeule`) ; le passage complet reste toutes les 5 min (`periodeSynchronisation`), relu par l'interrupteur D1. Latence réelle : au plus ~30 s (au lieu de 5 min). Seul réglage éventuel, SANS nouvelle architecture : ramener le battement à 15 s si la mesure le justifie (requête minuscule, une lecture de compteur en cache) ; WebSocket seulement le jour où l'hébergement passe à un VPS (nouvelle décision du PO).
 
 **Critères d'acceptation**
 - *Nominal.* **Étant donné** deux postes en ligne, **quand** A clôture une caisse (ou qu'un administrateur clique « Synchroniser » sur le web), **alors** B lance un passage dans les 15 s (p95), reçoit le flux depuis **son** curseur, sans rejouer ce qui est déjà descendu.
@@ -418,7 +418,7 @@
 | **4** | Table `postes`, en-têtes de version, expiration glissante et rotation, supervision web | EX-3 | **M/L** | Lot 2 (sauvegarde avant schéma), Q-4 | Fondation d'EX-2 et d'EX-1 |
 | **5** | Code d'appairage créé sur le web, saisi au poste | EX-2 | **M** | Lot 4, Q-12 | Dépend de l'identité stable et de l'expiration |
 | **6** | Suppression synchronisée par règles de table, tombstones, rétention, redescente automatique | EX-5 | **L** | Lots 2 et 4, Q-3 | Touche au schéma poste et à l'immuabilité comptable : après sauvegardes et supervision |
-| **7** | Signal quasi instantané : long-polling court (puis WebSocket si justifié) | EX-1 | **M** (long-polling) / **L** (WebSocket) | Lot 4, Q-1 | Confort, pas de risque de perte ; dernier |
+| **7** | Signal quasi instantané : DÉJÀ COUVERT par le battement de 30 s + époque (Q-1 tranchée : ni WebSocket, ni Pusher, ni long-polling sur mutualisé) ; reste une mesure de latence et, au besoin, battement à 15 s | EX-1 | **M** (long-polling) / **L** (WebSocket) | Lot 4, Q-1 | Confort, pas de risque de perte ; dernier |
 
 Lots 1 et 2 sont indépendants des lots serveur 3 à 7 et peuvent se dérouler en parallèle du lot 3.
 
@@ -430,7 +430,7 @@ Lots 1 et 2 sont indépendants des lots serveur 3 à 7 et peuvent se dérouler e
 
 | # | Question | Qui répond | Bloque | Recommandation |
 |---|---|---|---|---|
-| **Q-1** | **Quel transport temps réel ?** L'hébergement actuel (cron cPanel, `LISTE_DES_CRON_JOBS_CPANEL.md`) autorise-t-il un processus persistant (Reverb) ou seulement PHP classique ? Quel budget (Pusher) ? | PO + hébergeur / administrateur serveur | Lot 7 | Long-polling court d'abord ; WebSocket seulement après réponse de l'hébergeur |
+| **Q-1** | **TRANCHÉE (08/11/2026)** : hébergement cPanel mutualisé avec cron, pas de budget Pusher → interrogation courte conservée (battement 30 s + époque), pas de WebSocket/Pusher/long-polling | PO | Lot 7 | Réponse du PO |
 | **Q-2** | **Qui tranche les conflits financiers ?** Administrateurs seuls, Administrateurs + Comptable, Comptable seul ? Un arbitre peut-il trancher son propre document ? | PO, avec le comptable | Lot 3 | Administrateurs + Comptable, jamais son propre document |
 | **Q-3** | **Politique de rétention des suppressions** (tombstones) : combien de jours ? que faire d'un poste absent plus longtemps ? | PO (+ comptable pour les tables financières) | Lot 6 | 90 jours ; redescente automatique au retour |
 | **Q-8** | **Emplacement de la sortie de l'installateur** : `installer\Output` (recommandé) ou `build\installer` (actuel) ? | PO | Lot 1 | `installer\Output`, car `flutter clean` détruit `build\` |
@@ -458,3 +458,8 @@ Lots 1 et 2 sont indépendants des lots serveur 3 à 7 et peuvent se dérouler e
 - **Gardes à mettre à jour** : `PwaActionsReluesTest`, `PwaEcritureAutoriseeTest`, `SessionSansDonneeMetierTest`, `ListeCronDocumenteeTest`, test de relecture du registre PHP par le poste ; chaque garde nouvelle est prouvée par **mutation**.
 - **Honnêteté des affirmations** (piège n°1 et n°13) : la phrase « Rien d'autre à installer » de `README_DEPLOY.md:89` et le chemin `C:\Program Files\TATACORA` sont à corriger dans le lot 1 ; un écran ne dit « sauvegarde faite » que si la copie a été vérifiée.
 - **Ce que cette spec n'a pas pu vérifier** : le comportement de l'hébergeur (Q-1), la possibilité de redistribuer les DLL (Q-9) et l'effet réel de `flutter analyze` sur le dépôt (nombre de `warning` actuels) — à mesurer avant le lot 1.
+
+
+## Décisions du PO du 08/11/2026 sur les questions Q-1 à Q-12
+
+Q-1 : voir EX-1 (hébergement mutualisé, pas de Pusher). Q-2 à Q-12 : **les recommandations de la colonne « Recommandation » sont adoptées telles quelles** (Q-2 administrateurs + comptable, jamais son propre document ; Q-3 90 jours ; Q-4 jeton 90 j glissants, rotation 60 j, code 15 min ; Q-5 3 copies, échec bloquant ; Q-6 inclure `poste.json` avec avertissement ; Q-7 seuil paramétrable par l'administrateur ; Q-8 `installer\Output` ; Q-9 copie app-local des DLL, plan B documenté ; Q-10 `--sans-tests` interdit en production ; Q-11 chemin sans migration du poste, à trancher en conception ; Q-12 compte choisi à la création du code).
