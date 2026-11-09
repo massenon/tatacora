@@ -46,6 +46,9 @@
     'prix',
     'articles',
     'apercu' => null,
+    // L'état vide quand AUCUN article n'existe (aucune recherche en cours).
+    'messageVide' => null,
+    'recherche' => '',
 ])
 <x-pwa.modale :titre="__('carte_pwa.modale_lien.titre')"
               :sousTitre="__('carte_pwa.modale_lien.sous_titre', ['article' => $nom, 'prix' => $prix])"
@@ -74,7 +77,7 @@
         @if ($articles->isEmpty())
             {{-- Une liste vide se DIT : un `<select>` sans option laisserait
                  croire à un écran cassé plutôt qu'à une recherche trop étroite. --}}
-            <p class="text-[11px] text-amber-700 mt-1">{{ __('carte_pwa.modale_lien.aucun_article_stock') }}</p>
+            <p class="text-[11px] text-amber-700 mt-1">{{ $messageVide !== null && trim((string) $recherche) === '' ? $messageVide : __('carte_pwa.modale_lien.aucun_article_stock') }}</p>
         @endif
 
         <p class="text-[11px] text-slate-400 mt-1">{!! __('carte_pwa.modale_lien.aide_article') !!}</p>

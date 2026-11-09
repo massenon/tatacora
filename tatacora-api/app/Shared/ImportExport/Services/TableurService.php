@@ -301,7 +301,9 @@ class TableurService
     /** Casse, accents, espaces et signes de ponctuation neutralisés — le SENS, jamais. */
     public function normaliser(string $texte): string
     {
-        $texte = mb_strtolower(trim($texte));
+        // Excel « corrige » l'apostrophe droite en apostrophe typographique à la saisie
+        // d'un en-tête (« Valeur d’achat ») : les deux se valent (09/11/2026).
+        $texte = mb_strtolower(trim(str_replace(["\u{2019}", "\u{2018}", "\u{02BC}"], "'", $texte)));
         $translit = transliterator_transliterate('NFD; [:Nonspacing Mark:] Remove; NFC', $texte);
         $texte = is_string($translit) ? $translit : $texte;
 

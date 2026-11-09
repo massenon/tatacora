@@ -173,7 +173,9 @@ void main() {
     // v54 (09/11/2026, trois droits transverses ouverts à tous) : AUCUNE table — 82.
     // v56 (09/11/2026, le coût des entrées de stock descend) : AUCUNE table — 82.
     expect(base.allTables.length, 82);
-    expect(base.schemaVersion, 56);
+    // v57 (09/11/2026, valeur d'achat de référence) : UNE colonne nullable
+    // (`articles_local.prix_achat_reference`), AUCUNE table — 82.
+    expect(base.schemaVersion, 57);
     expect(
       base.allTables.map((t) => t.actualTableName).toSet().containsAll({
         'origines_documents_local',

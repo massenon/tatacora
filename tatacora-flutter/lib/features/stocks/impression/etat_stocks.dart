@@ -167,7 +167,7 @@ final class EtatStocks {
       l.suivi.libelle,
       journalier ? 'non suivi' : l.stock,
       journalier ? _tiret : l.seuilAlerte,
-      montant(l.prixAchat),
+      montant(l.prixAchatAffiche),
       l.cmpInconnu ? _tiret : montant(l.coutMoyenPondere),
       (journalier || l.valeurInconnue) ? _tiret : montant(l.valeurStock),
     ];

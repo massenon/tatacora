@@ -312,7 +312,8 @@ void main() {
       // v53 (09/11/2026) : affectations du résultat reçues — une table neuve.
       // v54 (09/11/2026) : trois droits transverses ouverts à tous — aucune table ni colonne.
       // v56 (09/11/2026) : le coût des entrées de stock descend — aucune table ni colonne.
-      expect(db.select('PRAGMA user_version').first.values.first, 56);
+      // v57 (09/11/2026) : valeur d'achat de référence — une colonne nullable.
+      expect(db.select('PRAGMA user_version').first.values.first, 57);
       db.close();
     }, timeout: const Timeout(Duration(minutes: 2)));
   }

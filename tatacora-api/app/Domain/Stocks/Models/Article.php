@@ -157,6 +157,13 @@ class Article extends Model
             return null;
         }
 
+        // Aucune entrée valorisée (CMP à 0, valeur de départ du calcul) : un prix d'achat
+        // de RÉFÉRENCE posé par un import n'a rien à comparer — « -100 % » serait une
+        // dérive inventée (09/11/2026).
+        if (bccomp((string) $this->cout_moyen_pondere, '0', 4) <= 0) {
+            return null;
+        }
+
         $ecart = bcsub((string) $this->cout_moyen_pondere, $achat, 4);
 
         return (int) round((float) bcmul(bcdiv($ecart, $achat, 6), '100', 4));

@@ -569,6 +569,13 @@ class AppDatabase extends _$AppDatabase {
   /// peut les porter déjà. Le curseur de descente est oublié : les proformas déjà au serveur
   /// (autres postes, web) redescendent.
   ///
+  /// v57 (09/11/2026) — LA VALEUR D'ACHAT DE RÉFÉRENCE D'UN ARTICLE (PO : colonnes « Point
+  /// Stock », « Seuil », « Valeur d'achat » des modèles d'import m4/m5/m6) : UNE colonne
+  /// NULLABLE, `articles_local.prix_achat_reference` (dix-millièmes), aucune table, aucune
+  /// valeur fabriquée (`null` = « — »). Ajout CONDITIONNEL (piège 3). Le curseur de descente
+  /// est oublié : la valeur d'achat que le serveur porte déjà redescend (sans jamais effacer
+  /// une valeur locale). Elle n'est NI un mouvement NI le CMP.
+  ///
   /// v56 (09/11/2026) — LE COÛT DES ENTRÉES DE STOCK DESCEND (bug du PO : un second poste
   /// voyait « — » en Valeur d'achat, CMP et Valeur stock) : AUCUNE table, AUCUNE colonne
   /// (`mouvements_stock_local.cout_unitaire_dix_milliemes` existe depuis la v12). Seule la
@@ -591,7 +598,7 @@ class AppDatabase extends _$AppDatabase {
   /// affectations déjà passées au serveur (web, autres postes) redescendent. Voir
   /// `tables/affectations_resultat_tables.dart`.
   @override
-  int get schemaVersion => 56;
+  int get schemaVersion => 57;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1892,6 +1899,24 @@ class AppDatabase extends _$AppDatabase {
         // aucune ligne fabriquée. Les mouvements déjà reçus sans coût (curseur passé) ne
         // redescendraient jamais : le curseur est oublié, l'aligneur — idempotent —
         // complète le coût de chaque ligne déjà présente.
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
+      }
+      if (from < 57) {
+        // VALEUR D'ACHAT DE RÉFÉRENCE (09/11/2026) : UNE colonne nullable, aucune valeur
+        // fabriquée. Conditionnel (piège 3) ; une table absente n'est pas touchée.
+        final articles57 = {
+          for (final c
+              in await m.database
+                  .customSelect('PRAGMA table_info(articles_local)')
+                  .get())
+            c.data['name'] as String,
+        };
+        if (articles57.isNotEmpty &&
+            !articles57.contains('prix_achat_reference')) {
+          await m.addColumn(articlesLocal, articlesLocal.prixAchatReference);
+        }
         await customStatement(
           "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
         );

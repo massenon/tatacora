@@ -1021,6 +1021,9 @@ trait EcranDeCarte
 
         return Article::query()
             ->where('suivi', ConsultationStockService::SUIVI_AVEC_STOCK)
+            // Un article ARCHIVÉ ne se lie pas (09/11/2026) : le poste le filtrait
+            // déjà (`actif`), la PWA le proposait — deux listes pour une règle.
+            ->where('actif', true)
             ->when($terme !== '', fn ($requete) => $requete->where('libelle', 'like', '%'.$terme.'%'))
             ->orderBy('libelle')
             ->limit(200)

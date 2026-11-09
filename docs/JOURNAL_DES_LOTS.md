@@ -1986,6 +1986,28 @@ Quatre demandes du PO, un seul lot. **(1)** « La page Synchronisation du sideba
 
 **À documenter au manuel d'utilisation (non édité ici)** : ce qui crée une facture (clôture de séjour, encaissement du point de vente, conversion d'une proforma) et ce qui n'en crée pas (une réservation) ; le bouton « Proforma » de la carte de réservation et la page « Proformas » ; le message « factures en dehors de l'exercice consulté » et le sélecteur d'exercice ; la pagination des proformas.
 
+## 09/11/2026 — « Lier au stock » vide, « Stock vendable : non suivi » sur les 81 plats importés : l'import relie enfin le restaurant au stock de la cuisine (web ET poste, schéma poste v57)
+
+**Le bug (PO, capture de la carte du restaurant).** Après l'import des trois modèles sans prix ni quantités, les 81 plats affichaient « Article de stock » vide, « Stock vendable : non suivi », « Réserve — », et « Lier au stock » ne proposait aucun article utile.
+
+**Cause PROUVÉE (test rouge `RapprochementPlatsStockTest` / `rapprochement_plats_stock_test`).** Le PO avait raison : rien pour la cuisine. (1) m6 ne créait que les NEUF articles de boisson, tous sans point de stockage ; (2) m4 créait 81 plats + 81 fiches VIDES et ne posait aucun lien (`plats.article_id` n'est obligatoire nulle part, contrairement à `cartes_boisson.article_id` NOT NULL, qui explique que le bar soit « rapproché ») ; (3) le modèle m6 avait bien une colonne « Point de stockage » mais aucun exemple « Cuisine » ; (4) la modale ne proposait que des boissons (suivi permanent, tous points) et, avec zéro article, aucun mot sur la marche à suivre. Le web proposait aussi des articles ARCHIVÉS (le poste les filtrait).
+
+**Corrections (mêmes mots web / poste).**
+- m6 (`CarteGiteChezNoelService`) : 9 boissons + 81 articles de cuisine (même nom que le plat, « Denrées », « unité », seuil 0, point « Cuisine », sans prix ni quantité). Le point « Cuisine » est créé par l'import s'il manque (`POINT_CUISINE_A_CREER`).
+- m4 relie chaque plat à l'article de même nom (créé s'il manque) : « N plats rapprochés du stock », conversion 1, solde 0 tant qu'aucune entrée. `RapprochementPlatsStockService` (web) / `RapprochementPlatsStock` (poste). Un plat à fiche composée n'est jamais relié, un lien existant jamais remplacé.
+- Demande du 09/11 « templates d'import » : colonnes facultatives « Point de stockage » (lu aussi « Point Stock »), « Seuil d'alerte » (« Seuil »), « Valeur d'achat » sur m4, m5 et m6 ; m5 : « Article de stock lié » devient facultatif (rapprochement par nom, création sinon, au Bar par défaut). La valeur d'achat est une valeur de RÉFÉRENCE (`articles.prix_achat`, posée seulement si vide ; poste : `articles_local.prix_achat_reference`, **v57**), jamais un mouvement ; vide = « — ». Le CMP et la valeur de stock restent calculés des entrées valorisées ; la dérive n'est plus calculée sans CMP (« -100 % » inventé).
+- Ré-import idempotent : m4/m5/m6 IGNORENT une ligne existante (le poste le faisait déjà ; le web ajoutait en doublon), un fichier déjà importé répond « Aucune ligne ajoutée ».
+- « Lier au stock » : web sans article archivé, état vide « Aucun article de stock en cuisine : importez le modèle Stocks (point Cuisine) ou créez l'article dans Stocks. ».
+- Rattrapage : bouton « Rapprocher les plats du stock » (Carte du restaurant, web et poste) et `php artisan restaurant:rapprocher-plats-stock [--simuler]`.
+- Apostrophes typographiques d'Excel tolérées dans les en-têtes (PHP `TableurService::normaliser`, Dart `normaliserImport`).
+- Schéma poste **v57** : UNE colonne nullable `articles_local.prix_achat_reference` (dix-millièmes), curseur de descente oublié, `retour_arriere_schema` entrée 57, `migration_v57_valeur_achat_test`. La descente du web porte `prix_achat` (jamais d'écrasement d'une valeur locale).
+
+**Preuves et mutations.** PHP `RapprochementPlatsStockTest` (15 cas), `ImportXlsxTest`, `ValeursDeStockDescendantesTest` ; Dart `rapprochement_plats_stock_test`, `lier_au_stock_plat_test`, `tableur_xlsx_test`, `migration_v57_valeur_achat_test`, gardes `importeurs_locaux_test` / `ecran_import_export_test` / `import_categorie_plat_test` (en-têtes). Mutations (voir le compte rendu du lot) : retirer les lignes de cuisine de m6, retirer le rapprochement de m4, retirer le filtre « ignorer l'existant », retirer le garde « jamais écraser », retirer `prix_achat` de la descente, retirer la colonne v57 — chacune fait rougir au moins un test.
+
+**Limites.** (1) **Chaque plat lié à 0 se vend en RUPTURE** (RG-06) tant qu'une entrée n'est pas saisie : la décision du PO du 30/10 « le plat se vend sans stock » ne tient plus pour un plat relié — saisir les entrées, ou délier le plat. (2) La valeur d'achat importée AU POSTE ne remonte pas au serveur (la fiche d'article créée au poste n'en porte pas la colonne). (3) Deux points « Cuisine » créés chacun de leur côté (web et poste hors ligne) seraient deux points : lancer le rattrapage d'un seul côté d'abord. (4) Les articles du bar importés restent sans point si la colonne est vide et si aucun point « Bar » n'existe.
+
+**À documenter au manuel d'utilisation (non édité ici)** : chapitre Import — ordre m6 → m5 → m4, les trois colonnes de stock (« Point Stock », « Seuil », « Valeur d'achat »), « N plats rapprochés du stock », l'idempotence (« Aucune ligne ajoutée »), le bouton « Rapprocher les plats du stock » ; chapitre Restaurant — « Stock vendable » à zéro = rupture tant qu'aucune entrée, « Lier au stock » (état vide) ; chapitre Stocks — « Valeur d'achat » de référence vs dernière entrée valorisée, CMP « — » sans entrée.
+
 ---
 
 ## 09/11/2026 — « Droit manquant » sur les tables de salle : le barman qui prend une table (bug du PO, poste A)

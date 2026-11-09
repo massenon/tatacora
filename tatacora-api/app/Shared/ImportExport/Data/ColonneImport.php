@@ -25,6 +25,7 @@ final class ColonneImport
      * @param  string|null  $reference  type `reference` : `table.colonne` du
      *                                  référentiel visé — vraie clé étrangère résolue par libellé
      *                                  EXACT, jamais du texte libre conservé tel quel
+     * @param  list<string>  $alias  en-têtes équivalents ACCEPTÉS à la lecture (09/11/2026) ; le modèle écrit toujours `libelle`
      * @param  int|null  $longueurMax  type `texte` : nombre de caractères au plus (30/10/2026,
      *                                 la description d'un plat : 500) ; `null` = pas de borne propre
      */
@@ -37,6 +38,8 @@ final class ColonneImport
         public readonly ?string $reference = null,
         public readonly string $exemple = '',
         public readonly ?int $longueurMax = null,
+        /** @var list<string> autres en-têtes reconnus à la lecture (« Point Stock », « Seuil »…) — jamais écrits au modèle */
+        public readonly array $alias = [],
     ) {
     }
 }

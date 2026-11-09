@@ -30,6 +30,8 @@ import '../../bar/data/boissons_api.dart'
 import '../../bar/domain/entities/trace_prix.dart';
 import '../../pos/data/dto/catalogue_dto.dart' show IndisponibiliteDistante;
 import '../../stocks/presentation/providers_stocks.dart';
+import '../../stocks/data/articles_de_carte.dart';
+import '../data/rapprochement_plats_stock.dart';
 import '../data/restaurant_api.dart';
 import '../data/retraits_plats.dart';
 import '../data/restaurant_dao.dart';
@@ -43,6 +45,55 @@ import '../impression/etat_carte_restaurant.dart';
 /// Le retrait et la remise d'un plat (v31, 21/10/2026).
 final retraitsPlatsProvider = Provider<RetraitsPlats>(
   (ref) => RetraitsPlats(ref.watch(baseLocaleProvider)),
+);
+
+/// Le rapprochement plats ↔ stock de la cuisine (09/11/2026) : l'import m4 et
+/// le bouton « Rapprocher les plats du stock » de la carte.
+/// L'article de stock d'une ligne de carte importée (reprise, création,
+/// complément sans écrasement) — partagé par m4 et m5.
+final articlesDeCarteProvider = Provider<ArticlesDeCarte>(
+  (ref) => ArticlesDeCarte(
+    ref.watch(baseLocaleProvider),
+    ref.watch(stocksApiProvider),
+  ),
+);
+
+final rapprochementPlatsStockProvider = Provider<RapprochementPlatsStock>(
+  (ref) => RapprochementPlatsStock(
+    ref.watch(baseLocaleProvider),
+    restaurant: ref.watch(restaurantDaoProvider),
+    stocks: ref.watch(stocksApiProvider),
+    articles: ref.watch(articlesDeCarteProvider),
+  ),
+);
+
+/// « Rapprocher les plats du stock » (rattrapage, 09/11/2026) : rend la PHRASE à
+/// dire — le bilan, ou le refus. Droit : écriture sur M4 ET sur M6 (les
+/// articles créés), comme au serveur. Relit tout ce que M4 montre.
+final rapprocherLesPlatsProvider = Provider<Future<String> Function()>(
+  (ref) => () async {
+    final droits = ref.read(droitsProvider);
+    if (!droits.peutEcrire(ModuleTatacora.m4Restaurant) ||
+        !droits.peutEcrire(ModuleTatacora.m6Stocks)) {
+      return TextesRapprochement.droitManquant;
+    }
+    try {
+      final bilan = await ref
+          .read(rapprochementPlatsStockProvider)
+          .rapprocher(auteurId: ref.read(sessionProvider)?.utilisateurId);
+      ref
+        ..invalidate(carteRestaurantProvider)
+        ..invalidate(platsProvider)
+        ..invalidate(articlesLiensProvider)
+        ..invalidate(articlesFichesProvider)
+        ..invalidate(etatStockProvider);
+      return TextesRapprochement.fait(bilan.phrase);
+    } on StateError catch (e) {
+      return e.message;
+    } on RefusRestaurant catch (e) {
+      return e.motif;
+    }
+  },
 );
 
 final restaurantDaoProvider = Provider<RestaurantDao>(

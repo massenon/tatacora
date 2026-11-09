@@ -8,6 +8,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../shared_widgets/modale_export.dart';
 import '../../../shared_widgets/toast_export.dart';
+import '../data/rapprochement_plats_stock.dart' show TextesRapprochement;
 import '../data/restaurant_api.dart';
 import '../domain/entities/carte_restaurant.dart';
 import '../domain/entities/plat.dart' show CategorieCarte;
@@ -436,6 +437,20 @@ class _EnTete extends ConsumerWidget {
           libelle: TextesCorpsCarte.lienCatalogue,
           style: StyleBoutonEntete.plein,
           onPressed: () => context.go('/restaurant/plats'),
+        ),
+        // « Rapprocher les plats du stock » (corps l.139-152, ajout du PO du
+        // 09/11/2026) : le rattrapage des plats importés sans lien. Relie
+        // chaque plat à l'article de stock de même nom au point Cuisine, crée
+        // les articles manquants, n'écrit ni prix ni quantité.
+        BoutonEnteteCarte(
+          key: const Key('carte-restaurant-rapprocher'),
+          libelle: TextesRapprochement.bouton,
+          style: StyleBoutonEntete.or,
+          onPressed: () async {
+            final phrase = await ref.read(rapprocherLesPlatsProvider)();
+            if (!context.mounted) return;
+            _dire(context, phrase, 'carte-restaurant-rapprocher-fait');
+          },
         ),
       ],
     );

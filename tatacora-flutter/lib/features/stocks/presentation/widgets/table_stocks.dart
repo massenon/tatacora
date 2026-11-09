@@ -173,7 +173,7 @@ class TableStocks extends StatelessWidget {
 
   List<Widget> _cellules(LigneStock l) {
     final journalier = l.estJournalier;
-    final prix = l.prixAchat;
+    final prix = l.prixAchatAffiche;
 
     return [
       // `font-medium`, puis la pastille « Archivé » : un article archivé RESTE

@@ -317,6 +317,112 @@ void main() {
     expect(find.byKey(Key('carte-restaurant-lier-$plat')), findsNothing);
   });
 
+  /// Un plat importé : fiche VIDE du même nom, comme l'import m4.
+  Future<String> platImporte(String libelle) async {
+    final container = ProviderContainer(overrides: surcharges());
+    addTearDown(container.dispose);
+    final api = container.read(restaurantApiProvider);
+    final menu =
+        (await api.enregistrerMenu(
+                  const SaisieMenu(
+                    libelle: 'Carte du restaurant',
+                    type: 'local',
+                  ),
+                )
+                as RestaurantRecu<MenuRestaurant>)
+            .donnees;
+    final fiche =
+        (await api.enregistrerRecette(
+                  SaisieFiche(libelle: libelle, lignes: const []),
+                )
+                as RestaurantRecu<Recette>)
+            .donnees;
+    return (await api.enregistrerPlat(
+              SaisiePlat(
+                libelle: libelle,
+                menuId: menu.id,
+                recetteId: fiche.id,
+                prixVente: '0',
+                prixProvisoire: true,
+              ),
+              modification: false,
+            )
+            as RestaurantRecu<Plat>)
+        .donnees
+        .id;
+  }
+
+  testWidgets('sans aucun article de stock, « Lier au stock » dit comment en '
+      'avoir ; avec une recherche vide de résultat, il garde sa phrase', (
+    tester,
+  ) async {
+    final plat = await platImporte('Aileron');
+    await db.customStatement('PRAGMA foreign_keys = OFF');
+    await db.customStatement('DELETE FROM mouvements_stock_local');
+    await db.customStatement('DELETE FROM articles_local');
+    await monter(tester);
+
+    await toucher(tester, Key('carte-restaurant-lier-$plat'));
+    expect(
+      find.text(
+        'Aucun article de stock en cuisine : importez le modèle Stocks (point '
+        "Cuisine) ou créez l'article dans Stocks.",
+      ),
+      findsOneWidget,
+    );
+    await saisir(tester, const Key('lien-plat-recherche'), 'zzz');
+    expect(
+      find.text(
+        'Aucun article en suivi permanent ne correspond à cette recherche.',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('« Rapprocher les plats du stock » relie le plat à un article '
+      'de cuisine de même nom, et « Stock vendable » passe de « non suivi » à '
+      '0', (tester) async {
+    final plat = await platImporte('Aileron');
+    await monter(tester);
+
+    expect(find.byKey(Key('carte-restaurant-delier-$plat')), findsNothing);
+    await toucher(tester, const Key('carte-restaurant-rapprocher'));
+
+    expect(
+      find.byKey(const Key('carte-restaurant-rapprocher-fait')),
+      findsOneWidget,
+    );
+    final ligne = await (db.select(
+      db.platsLocal,
+    )..where((p) => p.id.equals(plat))).getSingle();
+    expect(ligne.articleId, isNotNull);
+    expect(double.parse(ligne.unitesVendables!), 1.0);
+    expect(
+      (await db.select(db.articlesLocal).get())
+          .where((a) => a.libelle == 'Aileron')
+          .single
+          .pointStockageId,
+      'p-cui',
+    );
+    // Solde 0 : la colonne « Stock vendable » ne dit plus « non suivi », elle
+    // dit « rupture » (le point cuisine ne détient aucune unité).
+    expect(find.byKey(Key('carte-restaurant-rupture-$plat')), findsOneWidget);
+    expect(find.byKey(Key('carte-restaurant-delier-$plat')), findsOneWidget);
+  });
+
+  testWidgets('sans le droit d’écrire le stock, le rattrapage refuse et '
+      'n’écrit rien', (tester) async {
+    final plat = await platImporte('Aileron');
+    await monter(tester, m4: 'L');
+    await toucher(tester, const Key('carte-restaurant-rapprocher'));
+    expect(
+      (await (db.select(
+        db.platsLocal,
+      )..where((p) => p.id.equals(plat))).getSingle()).articleId,
+      isNull,
+    );
+  });
+
   test('un article LIÉ à un plat ne s’archive plus : le verrou « vendu à la '
       'carte » du serveur est rejoué (écart v35 levé)', () async {
     final plat = await platDuMenu();

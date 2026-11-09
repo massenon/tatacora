@@ -53,18 +53,23 @@ import '../../crm/data/client_dao.dart';
 import '../../crm/domain/entities/client.dart';
 import '../../hebergement/data/parc_dao.dart';
 import '../../hebergement/domain/refus_parc.dart';
+import '../../restaurant/data/rapprochement_plats_stock.dart';
 import '../../restaurant/data/restaurant_dao.dart';
 import '../../restaurant/domain/calcul_restaurant.dart' show descriptionPlatMax;
 import '../../restaurant/domain/entities/plat.dart';
+import '../../stocks/data/articles_de_carte.dart';
 import '../../stocks/data/service_import_articles.dart';
 import '../../stocks/data/stocks_api.dart';
 import '../../stocks/data/stocks_dao.dart';
+import '../../stocks/domain/calcul_stock.dart' show lireCout;
+import '../../stocks/domain/entities/etat_stock.dart' show TypePoint;
 import '../../stocks/domain/import_articles.dart';
 import '../../tourisme/data/tourisme_dao.dart';
 import '../../tourisme/domain/departs.dart';
 import '../../vehicules/data/vehicule_dao.dart';
 import '../../vehicules/domain/entities/vehicule.dart';
 import '../../vehicules/domain/regles_vehicules.dart';
+import '../../../core/format/cle_comparaison.dart';
 import '../domain/import_referentiels.dart';
 
 /// Le refus d'UNE ligne par le module qui l'écrit.
@@ -129,6 +134,18 @@ abstract base class ImporteurLocal {
 
   /// Lu avant chaque contrôle et chaque import (référentiels du moment).
   Future<void> preparer() async {}
+
+  /// Appelé UNE fois, juste avant l'écriture réelle du lot (après la
+  /// simulation du contrôle) : remet à zéro ce que la simulation a compté.
+  void avantEcriture() {}
+
+  /// Appelé UNE fois, DANS la transaction du lot, après la dernière ligne :
+  /// un rapprochement de fin de lot (m4 : plats ↔ stock de la cuisine).
+  Future<void> apresEcriture() async {}
+
+  /// La phrase de bilan du dernier lot écrit (« 81 plats rapprochés du
+  /// stock… »), `null` quand le module n'en a pas.
+  String? bilanDuLot() => null;
 
   /// Écrit UNE ligne contrôlée par le chemin du module. LÈVE pour refuser ;
   /// rend une réserve à dire (ligne écrite, mais avec un manque), ou `null`.
@@ -202,23 +219,26 @@ final class ImporteurArticles extends ImporteurLocal {
       requis: true,
       exemple: 'sac',
     ),
+    // 09/11/2026 (PO) : « Valeur d'achat » (l'ancien `prix_achat` reste reconnu).
+    // Posée comme valeur de RÉFÉRENCE (jamais une quantité) : vide = « — ».
     ColonneImport(
       champ: 'prix_achat',
-      libelle: 'prix_achat',
+      libelle: "Valeur d'achat",
+      alias: ['prix_achat', 'valeur_achat', 'Valeur achat'],
       requis: false,
       exemple: '18500',
     ),
     ColonneImport(
       champ: 'seuil_alerte',
       libelle: 'seuil_alerte',
-      alias: ["Seuil d'alerte"],
+      alias: ["Seuil d'alerte", 'Seuil'],
       requis: false,
       exemple: '5',
     ),
     ColonneImport(
       champ: 'point_stockage',
       libelle: 'point_stockage',
-      alias: ['Point de stockage'],
+      alias: ['Point de stockage', 'Point Stock', 'Point de stock', 'Point'],
       requis: false,
       exemple: 'Magasin général',
     ),
@@ -248,15 +268,61 @@ final class ImporteurArticles extends ImporteurLocal {
 
   @override
   Future<String?> ecrire(LigneImport ligne) async {
+    final points = Map<String, String>.of(_points);
+    final demande = (ligne['point_stockage'] ?? '').trim();
+    if (demande.isNotEmpty &&
+        !points.containsKey(demande) &&
+        cleDeComparaison(demande) ==
+            cleDeComparaison(RapprochementPlatsStock.libellePoint)) {
+      // 09/11/2026 : le point « Cuisine » du modèle Stocks de la carte. Relu
+      // À CHAQUE LIGNE (jamais mis en cache : la simulation du contrôle le crée
+      // dans une transaction annulée), créé s'il n'existe pas.
+      points[demande] = await _pointCuisine();
+    }
+    final cellules = [for (final c in colonnesImportArticles) ligne[c] ?? ''];
+    // 09/11/2026 (PO) : « Seuil » facultatif — vide = 0, comme le serveur
+    // (jamais un seuil inventé).
+    final rangSeuil = colonnesImportArticles.indexOf('seuil_alerte');
+    if (cellules[rangSeuil].trim().isEmpty) cellules[rangSeuil] = '0';
     final lue = lireLigneArticle(
-      [for (final c in colonnesImportArticles) ligne[c] ?? ''],
-      pointsParLibelle: _points,
+      cellules,
+      pointsParLibelle: points,
       nouvelId: _uuid.v4,
     );
     final r = await enregistrerArticleImporte(api, lue.saisie);
     if (r is LigneRefusee) throw RefusLigneImport(r.motif);
+    await api.poserValeurAchatReference(
+      lue.saisie.id,
+      lireCout(cellules[colonnesImportArticles.indexOf('prix_achat')].trim()) ??
+          0,
+    );
     final reserve = lue.reserve;
     return reserve == null ? null : "créé sans stock d'ouverture ($reserve)";
+  }
+}
+
+extension on ImporteurArticles {
+  /// Le point cuisine existant (type `cuisine`), sinon un point « Cuisine »
+  /// créé par `StocksApi.creerPoint`.
+  Future<String> _pointCuisine() async {
+    final existants =
+        [
+          for (final p in await api.points())
+            if (p.type == 'cuisine') p,
+        ]..sort(
+          (a, b) => cleDeComparaison(
+            a.libelle,
+          ).compareTo(cleDeComparaison(b.libelle)),
+        );
+    if (existants.isNotEmpty) return existants.first.id;
+    final r = await api.creerPoint(
+      libelle: RapprochementPlatsStock.libellePoint,
+      type: TypePoint.cuisine,
+    );
+    return switch (r) {
+      PointEnregistre(:final point) => point.id,
+      PointRefuse(:final motif) => throw RefusLigneImport(motif),
+    };
   }
 }
 
@@ -401,9 +467,10 @@ final class ImporteurUnites extends ImporteurLocal {
 /* ====================================================================== */
 
 final class ImporteurCarteBar extends ImporteurLocal {
-  ImporteurCarteBar(super.base, {required this.api});
+  ImporteurCarteBar(super.base, {required this.api, required this.articles});
 
   final BoissonsApi api;
+  final ArticlesDeCarte articles;
 
   @override
   String get cle => 'm5-bar';
@@ -440,13 +507,17 @@ final class ImporteurCarteBar extends ImporteurLocal {
       type: TypeColonneImport.montant,
       exemple: '1200',
     ),
+    // 09/11/2026 (PO) : `article` devient FACULTATIF — vide, la boisson est
+    // rapprochée par son NOM de l'article de stock (créé s'il manque) ; renseigné,
+    // il doit exister (vraie clé étrangère, comme avant).
     const ColonneImport(
       champ: 'article',
       libelle: 'Article de stock lié',
-      requis: true,
+      requis: false,
       type: TypeColonneImport.reference,
       exemple: 'Béninoise 66 cl',
     ),
+    ...colonnesDeStockFacultatives(exemplePoint: 'Bar', exempleValeur: '650'),
   ];
 
   @override
@@ -460,16 +531,39 @@ final class ImporteurCarteBar extends ImporteurLocal {
       for (final a in await base.select(base.articlesLocal).get())
         a.libelle: a.id,
     },
+    'point_stockage': await articles.referencesDesPoints(),
   };
 
   @override
   Future<String?> ecrire(LigneImport ligne) async {
+    final voulu = (
+      pointId: await articles.resoudrePoint(ligne['point_stockage']),
+      seuil: ligne['seuil_alerte'],
+      valeur: ligne['valeur_achat'],
+    );
+    final String articleId;
+    final choisi = ligne['article'];
+    if (choisi != null) {
+      final existant = await (base.select(
+        base.articlesLocal,
+      )..where((a) => a.id.equals(choisi))).getSingle();
+      await articles.completer(existant, voulu);
+      articleId = choisi;
+    } else {
+      // Vide : l'article de MÊME NOM, créé au point de la colonne, sinon au Bar.
+      articleId = await articles.trouverOuCreer(
+        libelle: ligne.exiger('libelle'),
+        categorie: 'Boissons',
+        voulu: voulu,
+        pointParDefaut: await articles.pointBar(),
+      );
+    }
     final r = await api.enregistrer(
       SaisieBoisson(
         libelle: ligne.exiger('libelle'),
         categorie: CategorieBoisson.depuisCode(ligne['categorie'])!,
         prixVente: '${ImporteurLocal.francs(ligne.exiger('prix_vente'))}',
-        articleId: ligne.exiger('article'),
+        articleId: articleId,
       ),
     );
     switch (r) {
@@ -494,10 +588,46 @@ final class ImporteurCarteRestaurant extends ImporteurLocal {
     super.base, {
     required this.dao,
     required this.auteurId,
+    required this.rapprochement,
+    required this.articles,
   });
 
   final RestaurantDao dao;
   final String? Function() auteurId;
+  final RapprochementPlatsStock rapprochement;
+  final ArticlesDeCarte articles;
+
+  /// Les colonnes de stock de chaque plat créé par le lot (point, seuil, valeur).
+  final Map<String, ParametresArticle> _parametres = {};
+
+  /// Les plats créés par le lot en cours (09/11/2026) — remis à zéro avant
+  /// l'écriture réelle, puisque la simulation du contrôle les compte aussi.
+  final List<String> _platsCrees = [];
+  String? _bilan;
+
+  @override
+  void avantEcriture() {
+    _platsCrees.clear();
+    _parametres.clear();
+    _bilan = null;
+  }
+
+  /// Comme au serveur : chaque plat se relie à l'article de stock de même nom
+  /// (point de la colonne, Cuisine par défaut) ; l'article est CRÉÉ s'il manque
+  /// (09/11/2026, PO : « rendre le plat vendable du stock »), sans jamais
+  /// écraser un point, une valeur d'achat ou un seuil déjà posés.
+  @override
+  Future<void> apresEcriture() async {
+    final bilan = await rapprochement.rapprocher(
+      platIds: List.of(_platsCrees),
+      auteurId: auteurId(),
+      parametres: Map.of(_parametres),
+    );
+    _bilan = bilan.phrase;
+  }
+
+  @override
+  String? bilanDuLot() => _bilan;
 
   @override
   String get cle => 'm4-restaurant';
@@ -567,6 +697,12 @@ final class ImporteurCarteRestaurant extends ImporteurLocal {
       exemple: 'Poulet, plantain mûr, poivron, tomate',
       longueurMax: descriptionPlatMax,
     ),
+    // 09/11/2026 (PO) : pour que le plat soit VENDABLE du stock — l'article de
+    // même nom est repris ou créé (point Cuisine par défaut), sans écraser.
+    ...colonnesDeStockFacultatives(
+      exemplePoint: 'Cuisine',
+      exempleValeur: '2500',
+    ),
   ];
 
   @override
@@ -583,6 +719,7 @@ final class ImporteurCarteRestaurant extends ImporteurLocal {
       for (final r in await base.select(base.recettesLocal).get())
         r.libelle: r.id,
     },
+    'point_stockage': await articles.referencesDesPoints(),
   };
 
   @override
@@ -610,7 +747,7 @@ final class ImporteurCarteRestaurant extends ImporteurLocal {
       auteurId: auteur,
     )).id;
 
-    await dao.enregistrerPlat(
+    final plat = await dao.enregistrerPlat(
       SaisiePlat(
         libelle: libelle,
         menuId: menuId,
@@ -622,6 +759,12 @@ final class ImporteurCarteRestaurant extends ImporteurLocal {
       ),
       modification: false,
       auteurId: auteur,
+    );
+    _platsCrees.add(plat.id);
+    _parametres[plat.id] = (
+      pointId: await articles.resoudrePoint(ligne['point_stockage']),
+      seuil: ligne['seuil_alerte'],
+      valeur: ligne['valeur_achat'],
     );
     return null;
   }
@@ -903,6 +1046,40 @@ final class ImporteurCircuits extends ImporteurLocal {
 /* Le moteur : contrôle (simulé) puis import (une transaction)             */
 /* ====================================================================== */
 
+/// Les trois colonnes de STOCK facultatives des modèles m4 et m5 (09/11/2026,
+/// PO) — mêmes libellés et mêmes en-têtes équivalents que le serveur
+/// (`ReferentielsImport::colonnesDeStockFacultatives`). Un ancien fichier sans
+/// elles reste valide.
+List<ColonneImport> colonnesDeStockFacultatives({
+  required String exemplePoint,
+  required String exempleValeur,
+}) => [
+  ColonneImport(
+    champ: 'point_stockage',
+    libelle: 'Point de stockage',
+    requis: false,
+    type: TypeColonneImport.reference,
+    exemple: exemplePoint,
+    alias: const ['Point Stock', 'Point de stock', 'Point'],
+  ),
+  const ColonneImport(
+    champ: 'seuil_alerte',
+    libelle: "Seuil d'alerte",
+    requis: false,
+    type: TypeColonneImport.nombre,
+    exemple: '5',
+    alias: ['Seuil'],
+  ),
+  ColonneImport(
+    champ: 'valeur_achat',
+    libelle: "Valeur d'achat",
+    requis: false,
+    type: TypeColonneImport.montant,
+    exemple: exempleValeur,
+    alias: const ['Valeur achat'],
+  ),
+];
+
 /// L'issue d'un import.
 sealed class ResultatImport {
   const ResultatImport();
@@ -910,10 +1087,17 @@ sealed class ResultatImport {
 
 /// Tout le lot est écrit.
 final class ImportFait extends ResultatImport {
-  const ImportFait({required this.importees, required this.ignorees});
+  const ImportFait({
+    required this.importees,
+    required this.ignorees,
+    this.bilan,
+  });
 
   final int importees;
   final int ignorees;
+
+  /// Le bilan propre au module (« 81 plats rapprochés du stock… »), ou `null`.
+  final String? bilan;
 }
 
 /// Le fichier n'est plus conforme (la base a pu bouger depuis le contrôle) :
@@ -1018,6 +1202,7 @@ final class MoteurImportLocal {
           : const ImportAnnule(TextesControleImport.aucuneLigne);
     }
 
+    importeur.avantEcriture();
     try {
       await base.transaction(() async {
         for (final ligne in rapport.lignes) {
@@ -1033,13 +1218,17 @@ final class MoteurImportLocal {
             );
           }
         }
+        await importeur.apresEcriture();
       });
     } on RefusLigneImport catch (e) {
+      return ImportAnnule(e.message);
+    } on StateError catch (e) {
       return ImportAnnule(e.message);
     }
     return ImportFait(
       importees: rapport.lignes.length,
       ignorees: rapport.ignorees,
+      bilan: importeur.bilanDuLot(),
     );
   }
 }

@@ -169,6 +169,9 @@ void main() {
         'reference',
         'reference',
         'texte',
+        'reference',
+        'nombre',
+        'montant',
       ]);
     });
 
@@ -354,7 +357,12 @@ void main() {
 
     test('le modèle téléchargeable porte la colonne « Catégorie » à sa place, '
         'avec son exemple', () {
-      expect(lireTableur(importeur().modeleOctets()).first, entete);
+      expect(lireTableur(importeur().modeleOctets()).first, [
+        ...entete,
+        'Point de stockage',
+        "Seuil d'alerte",
+        "Valeur d'achat",
+      ]);
     });
   });
 }

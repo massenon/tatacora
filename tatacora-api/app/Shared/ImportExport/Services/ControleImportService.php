@@ -7,6 +7,7 @@ namespace App\Shared\ImportExport\Services;
 use App\Shared\ImportExport\Data\ColonneImport;
 use App\Shared\ImportExport\Data\ModuleImport;
 use App\Shared\ImportExport\Data\RapportControle;
+use App\Domain\Restaurant\Services\RapprochementPlatsStockService;
 use Illuminate\Support\Facades\DB;
 
 /**
@@ -87,6 +88,7 @@ class ControleImportService
         $vusDansFichier = [];
         $lignesValides = [];
         $lignesEnErreur = [];
+        $ignorees = 0;
 
         foreach ($corps as $numero => $brute) {
             $objet = [];
@@ -121,6 +123,13 @@ class ControleImportService
                     if ($module->doublonExistantBloquant) {
                         $erreurs[] = ['ligne' => $numero, 'colonne' => $libelleIdentifiant, 'message' => __('imports.controle.doublon_existant_bloquant', ['valeur' => (string) $objet[$module->identifiant]])];
                         $lignesEnErreur[$numero] = true;
+                    } elseif ($module->doublonExistantIgnore && ! isset($lignesEnErreur[$numero])) {
+                        // La CARTE (09/11/2026) : un import ne crée jamais de doublon
+                        // et n'écrase rien — la ligne est ignorée, et on le dit.
+                        $avertissements[] = ['ligne' => $numero, 'colonne' => $libelleIdentifiant, 'message' => __('imports.controle.doublon_existant_ignore', ['valeur' => (string) $objet[$module->identifiant]])];
+                        $ignorees++;
+
+                        continue;
                     } else {
                         // Doublon avec l'EXISTANT : avertissement — souvent un
                         // rechargement volontaire, bloquer interdirait de
@@ -146,6 +155,7 @@ class ControleImportService
                 'valides' => count($lignesValides),
                 'en_erreur' => count($lignesEnErreur),
             ],
+            ignorees: $ignorees,
         );
     }
 
@@ -196,7 +206,8 @@ class ControleImportService
 
             $trouvee = null;
             foreach ($module->colonnes as $colonne) {
-                if ($this->normaliser($colonne->libelle) === $normalise || $this->normaliser($colonne->champ) === $normalise) {
+                if ($this->normaliser($colonne->libelle) === $normalise || $this->normaliser($colonne->champ) === $normalise
+                    || in_array($normalise, array_map(fn (string $a): string => $this->normaliser($a), $colonne->alias), true)) {
                     $trouvee = $colonne;
                     break;
                 }
@@ -328,8 +339,27 @@ class ControleImportService
 
         $identifiant = DB::table($table)->where($champ, $libelle)->value('id');
 
-        return is_string($identifiant) ? $identifiant : null;
+        if (is_string($identifiant)) {
+            return $identifiant;
+        }
+
+        // Le point « Cuisine » (09/11/2026, PO) : le modèle Stocks de la carte y
+        // range les articles de la cuisine. S'il n'existe pas encore, le
+        // contrôle l'ACCEPTE (jamais d'écriture ici) et l'import le crée par le
+        // chemin du domaine — refuser « Cuisine » rendrait le modèle inimportable
+        // sur une base neuve, et c'est l'unique point qu'on crée ainsi : toute
+        // autre référence inconnue reste une erreur (faute de frappe ≠ doublon).
+        if ($table === 'points_stockage' && $this->normaliser($libelle) === $this->normaliser(RapprochementPlatsStockService::LIBELLE_POINT)) {
+            $cuisine = DB::table('points_stockage')->whereIn('type', [RapprochementPlatsStockService::TYPE_POINT, 'restaurant'])->orderBy('libelle')->value('id');
+
+            return is_string($cuisine) ? $cuisine : self::POINT_CUISINE_A_CREER;
+        }
+
+        return null;
     }
+
+    /** Valeur convertie d'un point « Cuisine » qui n'existe pas encore — créé à l'import. */
+    public const POINT_CUISINE_A_CREER = '@cuisine-a-creer';
 
     /**
      * @return list<string> identifiants existants, normalisés

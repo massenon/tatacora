@@ -147,6 +147,36 @@ class ReferentielArticleService
     }
 
     /**
+     * Complète un article REPRIS par un import de la carte (09/11/2026) : le point
+     * de rattachement s'il est vide, la valeur d'achat de RÉFÉRENCE si elle l'est.
+     * JAMAIS un écrasement — ni un point, ni un prix déjà posé (par une entrée de
+     * stock ou à la main), ni le seuil.
+     *
+     * ⚠ `prix_achat` reste le DERNIER prix d'achat connu : une entrée de stock
+     * valorisée l'écrasera légitimement (`MouvementStockService::entree`, qui
+     * reste l'écrivain de la valeur d'usage) ; ici il n'est posé que tant qu'il
+     * est NUL, et jamais déduit d'un CMP. Une valeur vide ou non positive ne
+     * pose RIEN (« — » : pas de valeur d'achat, jamais « 0 provisoire »).
+     */
+    public function completer(Article $article, ?string $pointId, ?string $valeurAchat): void
+    {
+        $changements = [];
+
+        if ($pointId !== null && $article->point_stockage_id === null) {
+            $changements['point_stockage_id'] = $pointId;
+        }
+
+        if ($valeurAchat !== null && is_numeric($valeurAchat) && bccomp($valeurAchat, '0', 2) > 0 && $article->prix_achat === null) {
+            $changements['prix_achat'] = $valeurAchat;
+        }
+
+        if ($changements !== []) {
+            // `forceFill` : `prix_achat` n'est délibérément pas `fillable`.
+            $article->forceFill($changements)->save();
+        }
+    }
+
+    /**
      * @param  array<string, mixed>  $donnees
      */
     public function modifier(Article $article, array $donnees): Article

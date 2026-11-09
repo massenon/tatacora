@@ -850,10 +850,13 @@ class _BlocCalcule extends StatelessWidget {
           _ligne(
             context,
             "Valeur d'achat (dernière entrée)",
-            article.prixAchat == null
+            article.prixAchatAffiche == null
                 ? 'aucune entrée valorisée'
-                : (formaterMontantDecimal(article.prixAchat, suffixe: 'FCFA') ??
-                      article.prixAchat!),
+                : (formaterMontantDecimal(
+                        article.prixAchatAffiche,
+                        suffixe: 'FCFA',
+                      ) ??
+                      article.prixAchatAffiche!),
           ),
           _ligne(
             context,

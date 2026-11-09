@@ -141,6 +141,11 @@ const tablesAjouteesEnV52 = <String>{
 const tablesAjouteesEnV53 = <String>{'affectations_resultat_local'};
 
 const _ajoutsParVersion = <int, List<String>>{
+  // La v57 (09/11/2026, valeur d'achat de reference) AJOUTE une colonne nullable,
+  // `articles_local.prix_achat_reference`, ni indexee ni referencee : retour arriere
+  // symetrique.
+  57: <String>['ALTER TABLE articles_local DROP COLUMN prix_achat_reference'],
+
   // La v56 (09/11/2026, le cout des entrees de stock descend) ne change AUCUN schema : elle
   // n'oublie que le curseur de descente. L'entree doit exister.
   56: <String>[],

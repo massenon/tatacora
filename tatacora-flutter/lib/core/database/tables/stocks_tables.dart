@@ -82,6 +82,16 @@ class ArticlesLocal extends Table {
   TextColumn get pointStockageId =>
       text().nullable().references(PointsStockageLocal, #id)();
 
+  /// v57 (09/11/2026) — la VALEUR D'ACHAT DE RÉFÉRENCE posée par l'import (colonne
+  /// « Valeur d'achat » des modèles m4/m5/m6), en dix-millièmes de franc ; `null`
+  /// = aucune (« — », jamais « 0 provisoire »). Ce n'est NI un mouvement NI le
+  /// CMP : elle ne sert qu'à l'AFFICHAGE de « Valeur d'achat » tant qu'aucune
+  /// entrée valorisée n'existe — une entrée valorisée la remplace à l'affichage,
+  /// le CMP reste calculé des entrées. Posée seulement si vide
+  /// (`StocksDao.poserValeurAchatReference`), descendue du serveur sans jamais
+  /// effacer une valeur locale.
+  IntColumn get prixAchatReference => integer().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 

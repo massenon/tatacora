@@ -242,7 +242,12 @@ String normaliserImport(String texte) {
     'ô': 'o', 'ö': 'o', 'õ': 'o', 'ú': 'u', 'ù': 'u', 'û': 'u', //
     'ü': 'u', 'ý': 'y', 'ÿ': 'y', 'œ': 'oe', 'æ': 'ae',
   };
+  // Excel « corrige » l'apostrophe droite en apostrophe typographique à la saisie
+  // d'un en-tête (« Valeur d’achat ») : les deux se valent (09/11/2026).
   return texte
+      .replaceAll('\u2019', "'")
+      .replaceAll('\u2018', "'")
+      .replaceAll('\u02BC', "'")
       .trim()
       .toLowerCase()
       .split('')

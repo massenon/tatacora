@@ -242,8 +242,11 @@ final class ImportXlsxTest extends TestCase
         $import('m5-bar');
         $import('m4-restaurant');
 
-        // m6 — neuf articles de boisson, tous à seuil 0, AUCUN mouvement.
-        $this->assertSame(9, Article::count());
+        // m6 — neuf articles de boisson + un article de CUISINE par plat (09/11/2026,
+        // point « Cuisine »), tous à seuil 0, AUCUN mouvement ni prix.
+        $this->assertSame(9 + 81, Article::count());
+        $this->assertSame(81, Article::whereHas('pointStockage', fn ($q) => $q->where('type', 'cuisine'))->count());
+        $this->assertSame(81, Plat::whereNotNull('article_id')->count(), 'm4 relie chaque plat à l\'article de cuisine de même nom.');
         $this->assertSame(0, MouvementStock::count(), 'Le stock s\'ajoute après : aucune quantité importée.');
         $this->assertSame('Boissons', Article::where('libelle', 'Café double')->firstOrFail()->categorie);
 

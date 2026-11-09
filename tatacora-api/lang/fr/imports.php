@@ -43,11 +43,14 @@ return [
         'montant_negatif' => 'montant négatif (:valeur)',
         'reference_inconnue' => 'aucun enregistrement « :valeur » au référentiel :referentiel — la fiche se crée depuis son propre écran, jamais en silence depuis un import',
         'doublon_fichier' => 'Doublon dans le fichier : « :valeur » apparaît plusieurs fois.',
+        'doublon_existant_ignore' => '« :valeur » existe déjà — la ligne est ignorée : un import de la carte ne crée jamais de doublon et n\'écrase rien.',
         'doublon_existant' => '« :valeur » existe déjà — la ligne sera ajoutée en doublon si vous poursuivez.',
         'doublon_existant_bloquant' => '« :valeur » existe déjà, et cette colonne est unique en base : la ligne serait refusée à l\'import.',
         'aucune_ligne' => 'Aucune ligne à importer.',
         'refus_service' => 'Ligne :ligne (« :element ») refusée par le module : :raison',
         'import_fait' => ':nombre ligne(s) importée(s) dans :module.',
+        'dont_ignorees' => ':nombre ligne(s) déjà présente(s) ignorée(s).',
+        'rien_a_ajouter' => 'Aucune ligne ajoutée dans :module : les :nombre ligne(s) du fichier existent déjà (ignorées, rien n\'est écrasé).',
     ],
 
     // Lecture des fichiers déposés (`TableurService`) — un message par cause.
@@ -113,18 +116,21 @@ return [
     'm5_bar' => [
         'nom' => 'Carte du bar',
         // Article 8 (02/09/2026) : la reference RG-05 vit ici, jamais a l'ecran.
-        'description' => 'Boissons proposées au bar et au point de vente. Chaque boisson se rattache à un article de stock existant.',
+        'description' => 'Boissons proposées au bar et au point de vente. Chaque boisson se rattache à un article de stock : celui de la colonne « Article de stock lié », sinon l\'article de même nom (créé s\'il manque, point, seuil et valeur d\'achat facultatifs). Aucun prix, seuil ni stock déjà saisi n\'est écrasé.',
         'colonnes' => [
             'libelle' => ['libelle' => 'Nom de la boisson', 'exemple' => 'Bière Béninoise 66 cl'],
             'categorie' => ['libelle' => 'Catégorie', 'exemple' => 'locale'],
             'prix_vente' => ['libelle' => 'Prix de vente (FCFA)', 'exemple' => '1200'],
             'article' => ['libelle' => 'Article de stock lié', 'exemple' => 'Béninoise 66 cl'],
+            'point_stockage' => ['libelle' => 'Point de stockage', 'exemple' => 'Bar'],
+            'seuil_alerte' => ['libelle' => 'Seuil d\'alerte', 'exemple' => '5'],
+            'valeur_achat' => ['libelle' => 'Valeur d\'achat', 'exemple' => '650'],
         ],
     ],
 
     'm4_restaurant' => [
         'nom' => 'Carte du restaurant',
-        'description' => 'Plats proposés au restaurant. Menu et fiche recette sont facultatifs : un plat sans menu entre dans « Carte du restaurant », un plat sans fiche reçoit une fiche vide du même nom (le stock consommé s\'y ajoute ensuite) et se vend sans mouvement de stock tant qu\'elle est vide. La description est facultative (500 caractères au plus). Un prix vide donne un plat « sur commande » à 0 FCFA, prix provisoire.',
+        'description' => 'Plats proposés au restaurant. Menu et fiche recette sont facultatifs : un plat sans menu entre dans « Carte du restaurant », un plat sans fiche reçoit une fiche vide du même nom (le stock consommé s\'y ajoute ensuite) et se vend sans mouvement de stock tant qu\'elle est vide. La description est facultative (500 caractères au plus). Un prix vide donne un plat « sur commande » à 0 FCFA, prix provisoire. Chaque plat est relié à l\'article de stock de même nom au point de stockage de la colonne (Cuisine par défaut), créé s\'il manque : le plat devient vendable du stock, à zéro tant qu\'aucune entrée n\'est saisie.',
         'colonnes' => [
             'libelle' => ['libelle' => 'Nom du plat', 'exemple' => 'Poulet DG'],
             'categorie' => ['libelle' => 'Catégorie', 'exemple' => 'plats'],
@@ -132,18 +138,22 @@ return [
             'menu' => ['libelle' => 'Menu', 'exemple' => 'Menu local'],
             'recette' => ['libelle' => 'Fiche recette', 'exemple' => 'Poulet DG'],
             'description' => ['libelle' => 'Description', 'exemple' => 'Poulet, plantain mûr, poivron, tomate'],
+            'point_stockage' => ['libelle' => 'Point de stockage', 'exemple' => 'Cuisine'],
+            'seuil_alerte' => ['libelle' => 'Seuil d\'alerte', 'exemple' => '5'],
+            'valeur_achat' => ['libelle' => 'Valeur d\'achat', 'exemple' => '2500'],
         ],
     ],
 
     'm6_stocks' => [
         'nom' => 'Articles de stock',
-        'description' => 'Articles suivis en stock, avec leur seuil d\'alerte. Le stock initial se saisit ensuite par un mouvement d\'entrée, jamais par l\'import.',
+        'description' => 'Articles suivis en stock : point de stockage (Bar, Cuisine, Magasin général…), seuil d\'alerte et valeur d\'achat, tous facultatifs. Le stock initial se saisit ensuite par un mouvement d\'entrée, jamais par l\'import ; une valeur d\'achat vide reste « — ».',
         'colonnes' => [
             'libelle' => ['libelle' => 'Désignation de l\'article', 'exemple' => 'Riz local (sac 25 kg)'],
             'categorie' => ['libelle' => 'Catégorie', 'exemple' => 'Denrées'],
             'unite_mesure' => ['libelle' => 'Unité de mesure', 'exemple' => 'sac'],
             'seuil_alerte' => ['libelle' => 'Seuil d\'alerte', 'exemple' => '5'],
             'point_stockage' => ['libelle' => 'Point de stockage', 'exemple' => 'Magasin général'],
+            'valeur_achat' => ['libelle' => 'Valeur d\'achat', 'exemple' => '18500'],
         ],
     ],
 
@@ -184,4 +194,17 @@ return [
             'capacite_max' => ['libelle' => 'Capacité maximale', 'exemple' => '12'],
         ],
     ],
+
+    // Rapprochement des plats et du stock de la cuisine (PO, 09/11/2026).
+    'rapprochement' => [
+        'rapproches' => '{0} Aucun plat rapproché du stock.|{1} 1 plat rapproché du stock.|[2,*] :nombre plats rapprochés du stock.',
+        'crees' => '{1} 1 article de stock créé au point Cuisine.|[2,*] :nombre articles de stock créés au point Cuisine.',
+        'deja_lies' => ':nombre déjà relié(s), laissé(s) tel(s) quel(s).',
+        'avec_fiche' => ':nombre plat(s) décomposé(s) en ingrédients, laissé(s) à leur fiche technique.',
+        'sans_article' => '{1} 1 plat sans article de même nom : importez le modèle Stocks (point Cuisine) ou utilisez « Rapprocher les plats du stock ».|[2,*] :nombre plats sans article de même nom : importez le modèle Stocks (point Cuisine) ou utilisez « Rapprocher les plats du stock ».',
+        'bouton' => 'Rapprocher les plats du stock',
+        'bouton_aide' => 'Relie chaque plat sans lien à l\'article de stock de même nom au point Cuisine (créé s\'il manque). Aucun prix ni aucune quantité n\'est écrit.',
+        'fait' => 'Rapprochement terminé. :bilan',
+    ],
+
 ];

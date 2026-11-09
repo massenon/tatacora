@@ -129,6 +129,7 @@ class StocksDao extends DatabaseAccessor<AppDatabase> {
     // registre fermé — un inconnu ne peut venir que d'un fichier corrompu.
     suivi: SuiviArticle.depuisCode(a.suivi) ?? SuiviArticle.permanent,
     pointStockageId: a.pointStockageId,
+    prixAchatReference: a.prixAchatReference,
     // v35 : `null` (fichier ramené d'avant la colonne) ou `true` = actif ; seul
     // `false` archive. Jamais l'inverse : un `null` archiverait tout le parc.
     actif: a.actif != false,
@@ -428,6 +429,31 @@ class StocksDao extends DatabaseAccessor<AppDatabase> {
   /// MÊME transaction : si l'entrée est refusée, l'article n'est pas créé — un
   /// article sans son stock d'ouverture, alors que l'exploitant en a saisi un,
   /// serait un stock faux que rien ne signale.
+  /// Pose la VALEUR D'ACHAT DE RÉFÉRENCE d'un article (v57, 09/11/2026 : colonne
+  /// « Valeur d'achat » des modèles d'import), en dix-millièmes de franc.
+  ///
+  /// SEULEMENT si elle est vide : un import ne remplace JAMAIS une valeur déjà
+  /// posée. Une valeur nulle ou négative ne pose RIEN (« — » : pas de valeur
+  /// d'achat, jamais « 0 provisoire »). Ce n'est ni un mouvement ni le CMP.
+  /// Elle ne part pas au serveur (la fiche d'un article créé au poste n'en
+  /// porte pas la colonne) : le web la reçoit de SES propres imports.
+  ///
+  /// @return `true` si elle a été posée
+  Future<bool> poserValeurAchatReference(
+    String articleId,
+    int dixMilliemes,
+  ) async {
+    if (dixMilliemes <= 0) return false;
+    final posees =
+        await (update(attachedDatabase.articlesLocal)..where(
+              (a) => a.id.equals(articleId) & a.prixAchatReference.isNull(),
+            ))
+            .write(
+              ArticlesLocalCompanion(prixAchatReference: Value(dixMilliemes)),
+            );
+    return posees > 0;
+  }
+
   Future<void> creerArticle({
     required String id,
     required String libelle,

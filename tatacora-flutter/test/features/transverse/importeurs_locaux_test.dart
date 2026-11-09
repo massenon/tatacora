@@ -256,7 +256,7 @@ void main() {
         expect(i.nomModele, endsWith('.xlsx'));
 
         final tableau = lireTableur(modele);
-        expect(tableau.first, cas.entete.split(';'));
+        expect(tableau.first, (cas.enteteModele ?? cas.entete).split(';'));
         expect(tableau, hasLength(2), reason: 'en-têtes + UNE ligne d’exemple');
 
         // L'exemple laissé tel quel n'est jamais importé.

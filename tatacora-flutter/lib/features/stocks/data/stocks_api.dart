@@ -412,6 +412,15 @@ final class StocksApi {
     }
   }
 
+  /// Pose la valeur d'achat de RÉFÉRENCE d'un article (v57) — seulement si elle
+  /// est vide ; `false` sans droit d'écriture, ou si rien n'a été posé.
+  Future<bool> poserValeurAchatReference(
+    String articleId,
+    int dixMilliemes,
+  ) async =>
+      _peutEcrire() &&
+      await _dao.poserValeurAchatReference(articleId, dixMilliemes);
+
   Future<ResultatEcritureArticle> enregistrerArticle(
     SaisieArticle saisie, {
     bool modification = false,

@@ -620,6 +620,15 @@ class AligneurCatalogue {
         );
       }
     }
+    // v57 : la valeur d'achat du serveur n'est reprise que lisible, positive, et
+    // SEULEMENT si ce poste n'en porte pas déjà une.
+    final luAchat = d['prix_achat'] == null
+        ? null
+        : entierDepuisDecimal(d['prix_achat'], 4);
+    final valeurAchat =
+        (luAchat != null && luAchat > 0 && existant?.prixAchatReference == null)
+        ? luAchat
+        : null;
     await _db
         .into(t)
         .insertOnConflictUpdate(
@@ -640,6 +649,12 @@ class AligneurCatalogue {
             // gardée en amont (`aligner` : `ConserveLocalement`), donc ceci
             // n'écrase jamais un archivage non poussé.
             actif: Value(e.actif),
+            // v57 : la valeur d'achat de référence du serveur (`prix_achat`) —
+            // posée seulement si elle est lisible ET si ce poste n'en porte pas
+            // déjà une : jamais d'effacement ni d'écrasement d'une valeur locale.
+            prixAchatReference: valeurAchat == null
+                ? const Value.absent()
+                : Value(valeurAchat),
           ),
         );
     return const Aligne();

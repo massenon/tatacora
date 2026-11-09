@@ -33,6 +33,7 @@ final class LigneStock {
     required this.pointLibelle,
     required this.prixAchat,
     required this.deriveCmp,
+    this.valeurAchatReference,
     this.actif = true,
   });
 
@@ -78,6 +79,17 @@ final class LigneStock {
   /// `null` si l'article n'a jamais été réceptionné. Ce n'est pas le coût
   /// moyen pondéré.
   final String? prixAchat;
+
+  /// La VALEUR D'ACHAT DE RÉFÉRENCE posée par un import (v57, 09/11/2026), ou
+  /// `null` (« — »). Elle n'est NI un mouvement NI un coût : elle ne sert qu'à
+  /// l'AFFICHAGE de « Valeur d'achat » ([prixAchatAffiche]) tant qu'aucune entrée
+  /// valorisée n'existe. [cmpInconnu] et [valeurInconnue] continuent de ne lire
+  /// que [prixAchat] : le CMP et la valeur de stock restent calculés des entrées.
+  final String? valeurAchatReference;
+
+  /// Ce que la colonne « Valeur d'achat » affiche : le dernier prix d'une entrée
+  /// valorisée, à défaut la valeur de référence, à défaut rien.
+  String? get prixAchatAffiche => prixAchat ?? valeurAchatReference;
 
   /// La dérive du coût moyen pondéré contre [prixAchat], en pourcentage
   /// entier. `null` quand elle n'est pas mesurable — jamais zéro.

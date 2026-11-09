@@ -160,7 +160,10 @@ void main() {
         expect(f.type, TypeFichierEnregistre.xlsx);
         expect(f.dossierInitial, SelecteurEssai.dossierDocuments);
         expect(f.octets.sublist(0, 4), [0x50, 0x4B, 3, 4]);
-        expect(lireTableur(f.octets).first, cas.entete.split(';'));
+        expect(
+          lireTableur(f.octets).first,
+          (cas.enteteModele ?? cas.entete).split(';'),
+        );
         expect(find.byKey(const Key('ie-modele-enregistre')), findsOneWidget);
       });
     }

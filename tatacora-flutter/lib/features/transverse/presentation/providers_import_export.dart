@@ -24,11 +24,17 @@ final importeursLocauxProvider = Provider<List<ImporteurLocal>>((ref) {
   return [
     ImporteurClients(base, dao: ref.watch(clientDaoProvider)),
     ImporteurUnites(base, dao: ref.watch(parcDaoProvider)),
-    ImporteurCarteBar(base, api: ref.watch(boissonsApiProvider)),
+    ImporteurCarteBar(
+      base,
+      api: ref.watch(boissonsApiProvider),
+      articles: ref.watch(articlesDeCarteProvider),
+    ),
     ImporteurCarteRestaurant(
       base,
       dao: ref.watch(restaurantDaoProvider),
       auteurId: auteur,
+      rapprochement: ref.watch(rapprochementPlatsStockProvider),
+      articles: ref.watch(articlesDeCarteProvider),
     ),
     ImporteurArticles(base, api: ref.watch(stocksApiProvider)),
     ImporteurFournisseurs(
@@ -113,6 +119,8 @@ void relireApresImport(WidgetRef ref, String cle) {
       ref.invalidate(parcProvider);
     case 'm9-tourisme':
       ref.invalidate(circuitsProvider);
+    case 'm4-restaurant':
+      invaliderRestaurant(ref);
     case 'm6-stocks':
       ref.invalidate(etatStockProvider);
   }

@@ -504,7 +504,7 @@ class _PanneauImporterState extends ConsumerState<_PanneauImporter> {
           .appliquer(importeur, fichier.octets);
       if (!mounted) return;
       switch (issue) {
-        case ImportFait(:final importees, :final ignorees):
+        case ImportFait(:final importees, :final ignorees, :final bilan):
           relireApresImport(ref, importeur.cle);
           ref
               .read(historiqueImportsProvider.notifier)
@@ -527,13 +527,16 @@ class _PanneauImporterState extends ConsumerState<_PanneauImporter> {
                 behavior: SnackBarBehavior.floating,
                 backgroundColor: AppColors.succes,
                 content: Text(
-                  importees == 0
-                      ? TextesImportExport.importAucuneNouvelle
-                      : TextesImportExport.importFait(
-                          importees,
-                          importeur.nom,
-                          ignorees,
-                        ),
+                  [
+                    importees == 0
+                        ? TextesImportExport.importAucuneNouvelle
+                        : TextesImportExport.importFait(
+                            importees,
+                            importeur.nom,
+                            ignorees,
+                          ),
+                    ?bilan,
+                  ].join(' '),
                   key: const Key('ie-import-fait'),
                 ),
               ),

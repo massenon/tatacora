@@ -339,6 +339,9 @@ return [
         'bouton_enregistrer' => 'Enregistrer le lien',
 
         'aucun_article_stock' => 'Aucun article en suivi permanent ne correspond à cette recherche.',
+
+        // 09/11/2026 (PO) — l'état vide du RESTAURANT : aucun article, aucune recherche.
+        'aucun_article_cuisine' => 'Aucun article de stock en cuisine : importez le modèle Stocks (point Cuisine) ou créez l\'article dans Stocks.',
     ],
 
     'modale_dispo' => [

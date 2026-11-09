@@ -132,7 +132,9 @@ class CatalogueDescendantService
      */
     public const COLONNES = [
         'points_stockage' => ['libelle', 'type'],
-        'articles' => ['libelle', 'categorie', 'unite_mesure', 'point_stockage_id', 'suivi', 'seuil_alerte', 'seuil_reappro', 'actif'],
+        // 09/11/2026 (poste v57) : `prix_achat` descend — la valeur d'achat de référence qu'un
+        // import web a posée s'affiche aussi sur les postes (jamais écrasée localement).
+        'articles' => ['libelle', 'categorie', 'unite_mesure', 'point_stockage_id', 'suivi', 'seuil_alerte', 'seuil_reappro', 'actif', 'prix_achat'],
         'cartes_boisson' => ['article_id', 'libelle', 'categorie', 'prix_vente', 'unites_vendables_par_unite_stock', 'prix_provisoire', 'prix_corrige_main'],
         'menus' => ['libelle', 'type', 'date_debut', 'date_fin'],
         'recettes' => ['libelle', 'composition_provisoire'],

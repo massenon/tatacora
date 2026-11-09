@@ -132,4 +132,37 @@ final class ValeursDeStockDescendantesTest extends TestCase
 
         $this->assertSame('500.0000', (string) MouvementStock::findOrFail($id)->cout_unitaire);
     }
+
+    #[Test]
+    public function la_valeur_d_achat_de_reference_importee_au_web_descend_avec_l_article(): void
+    {
+        // Import « Valeur d'achat » (modèles m4/m5/m6, poste v57) : posée par
+        // `ReferentielArticleService::completer`, jamais par un mouvement.
+        app(ReferentielArticleService::class)->completer($this->cafe, null, '650');
+        $this->assertSame('650.00', (string) $this->cafe->fresh()->prix_achat);
+
+        Sanctum::actingAs($this->gerant);
+        $this->travel(CatalogueDescendantService::HORIZON_SECONDES + 1)->seconds();
+        $reponse = $this->getJson('/api/v1/referentiels?'.http_build_query(['poste_id' => 'poste-b', 'limite' => 500]))->assertOk();
+        $article = collect($reponse->json('data.elements'))->first(static fn (array $e): bool => $e['table'] === 'articles' && ($e['donnees']['libelle'] ?? null) === 'Café double');
+
+        $this->assertNotNull($article);
+        $this->assertSame('650.00', (string) $article['donnees']['prix_achat'], 'la valeur d\'achat de référence descend avec l\'article');
+    }
+
+    #[Test]
+    public function une_valeur_d_achat_deja_posee_n_est_jamais_ecrasee_et_vide_ne_pose_rien(): void
+    {
+        $service = app(ReferentielArticleService::class);
+
+        $service->completer($this->cafe, null, null);
+        $service->completer($this->cafe, null, '');
+        $service->completer($this->cafe, null, '0');
+        $this->assertNull($this->cafe->fresh()->prix_achat, 'vide ou nulle : « — », jamais 0 provisoire');
+
+        $service->completer($this->cafe, null, '650');
+        $service->completer($this->cafe->fresh(), null, '900');
+        $this->assertSame('650.00', (string) $this->cafe->fresh()->prix_achat);
+        $this->assertNull($this->cafe->fresh()->deriveCoutMoyenPondere(), 'aucune entrée valorisée : pas de dérive inventée');
+    }
 }

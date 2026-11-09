@@ -28,6 +28,12 @@ abstract final class TextesLienPlat {
   static const String inviteArticle = 'Rechercher un article de stock…';
   static const String aucunArticle =
       'Aucun article en suivi permanent ne correspond à cette recherche.';
+
+  /// `modale_lien.aucun_article_cuisine` (09/11/2026, PO) : aucun article ET
+  /// aucune recherche — l'état vide dit COMMENT en avoir.
+  static const String aucunArticleCuisine =
+      // ignore: prefer_single_quotes
+      "Aucun article de stock en cuisine : importez le modèle Stocks (point Cuisine) ou créez l'article dans Stocks.";
   static String champConversion(String plat) =>
       'Combien de « $plat » dans une unité de stock ?';
   static const String apercuStock = 'Stock actuel';
@@ -237,11 +243,13 @@ class _ModaleLienPlatState extends ConsumerState<_ModaleLienPlat> {
               },
             ),
           if (choix != null && proposes.isEmpty)
-            const Padding(
-              padding: EdgeInsets.only(top: AppSpacing.unit),
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.unit),
               child: Text(
-                TextesLienPlat.aucunArticle,
-                key: Key('lien-plat-aucun-article'),
+                terme.isEmpty
+                    ? TextesLienPlat.aucunArticleCuisine
+                    : TextesLienPlat.aucunArticle,
+                key: const Key('lien-plat-aucun-article'),
                 style: TextesModaleRestaurant.aide,
               ),
             ),

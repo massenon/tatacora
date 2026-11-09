@@ -172,95 +172,114 @@ void main() {
         .read(importeursLocauxProvider)
         .singleWhere((i) => i.cle == cle);
 
-    test(
-      'm6 → m5 → m4 : 9 articles, 9 boissons, 81 plats, aucun mouvement',
-      () async {
-        final tableaux = {
-          for (final c in ['m6-stocks', 'm5-bar', 'm4-restaurant'])
-            c: lireTableur(fichier(c)),
-        };
-        expect(tableaux['m6-stocks']!.length - 1, 9);
-        expect(tableaux['m5-bar']!.length - 1, 9);
-        expect(tableaux['m4-restaurant']!.length - 1, 81);
+    test('m6 → m5 → m4 : 90 articles (9 boissons + 81 de cuisine), 9 boissons, '
+        '81 plats tous reliés, aucun mouvement', () async {
+      final tableaux = {
+        for (final c in ['m6-stocks', 'm5-bar', 'm4-restaurant'])
+          c: lireTableur(fichier(c)),
+      };
+      expect(tableaux['m6-stocks']!.length - 1, 9 + 81);
+      expect(tableaux['m5-bar']!.length - 1, 9);
+      expect(tableaux['m4-restaurant']!.length - 1, 81);
 
-        // m5 avant m6 : refusé, la boisson se lie à un article existant.
-        final tropTot = await moteur.controler(
-          importeur('m5-bar'),
-          fichier('m5-bar'),
-        );
-        expect(tropTot.ok, isFalse);
+      // m5 avant m6 : refusé, la boisson se lie à un article existant.
+      final tropTot = await moteur.controler(
+        importeur('m5-bar'),
+        fichier('m5-bar'),
+      );
+      expect(tropTot.ok, isFalse);
 
-        Future<int> compter(String table) async =>
-            (await db
-                    .customSelect('SELECT COUNT(*) AS n FROM $table')
-                    .getSingle())
-                .read<int>('n');
-        final avant = {
-          for (final t in [
-            'articles_local',
-            'cartes_boisson_local',
-            'plats_local',
-            'mouvements_stock_local',
-          ])
-            t: await compter(t),
-        };
+      Future<int> compter(String table) async =>
+          (await db
+                  .customSelect('SELECT COUNT(*) AS n FROM $table')
+                  .getSingle())
+              .read<int>('n');
+      final avant = {
+        for (final t in [
+          'articles_local',
+          'cartes_boisson_local',
+          'plats_local',
+          'mouvements_stock_local',
+        ])
+          t: await compter(t),
+      };
 
-        for (final cle in ['m6-stocks', 'm5-bar', 'm4-restaurant']) {
-          final issue = await moteur.appliquer(importeur(cle), fichier(cle));
-          expect(issue, isA<ImportFait>(), reason: '$cle : $issue');
-          expect((issue as ImportFait).importees, tableaux[cle]!.length - 1);
-        }
+      for (final cle in ['m6-stocks', 'm5-bar', 'm4-restaurant']) {
+        final issue = await moteur.appliquer(importeur(cle), fichier(cle));
+        expect(issue, isA<ImportFait>(), reason: '$cle : $issue');
+        expect((issue as ImportFait).importees, tableaux[cle]!.length - 1);
+      }
 
-        expect(await compter('articles_local'), avant['articles_local']! + 9);
-        expect(
-          await compter('cartes_boisson_local'),
-          avant['cartes_boisson_local']! + 9,
-        );
-        expect(await compter('plats_local'), avant['plats_local']! + 81);
-        expect(
-          await compter('mouvements_stock_local'),
-          avant['mouvements_stock_local'],
-          reason: 'le stock s’ajoute après : aucune quantité importée',
-        );
+      expect(await compter('articles_local'), avant['articles_local']! + 90);
+      // 09/11/2026 (PO) : un article de CUISINE par plat, au point Cuisine,
+      // et chaque plat relié à l'article de même nom — « Stock vendable »
+      // n'est plus « non suivi ».
+      expect(
+        await compter(
+          'articles_local WHERE point_stockage_id IN '
+          "(SELECT id FROM points_stockage_local WHERE type = 'cuisine')",
+        ),
+        81,
+      );
+      expect(await compter('plats_local WHERE article_id IS NOT NULL'), 81);
+      expect(
+        await compter('cartes_boisson_local'),
+        avant['cartes_boisson_local']! + 9,
+      );
+      expect(await compter('plats_local'), avant['plats_local']! + 81);
+      expect(
+        await compter('mouvements_stock_local'),
+        avant['mouvements_stock_local'],
+        reason: 'le stock s’ajoute après : aucune quantité importée',
+      );
 
-        Future<String> prix(String table, String libelle) async =>
-            (await db
-                    .customSelect(
-                      'SELECT prix_vente AS p FROM $table WHERE libelle = ?',
-                      variables: [Variable.withString(libelle)],
-                    )
-                    .getSingle())
-                .data['p']
-                .toString();
-        expect(
-          await prix('cartes_boisson_local', "Jus d'ananas (moyen)"),
-          contains('1500'),
-        );
-        expect(
-          await prix('cartes_boisson_local', "Jus d'ananas (grand)"),
-          contains('2000'),
-        );
-        expect(await prix('plats_local', 'Salade du Chef'), contains('4000'));
+      Future<String> prix(String table, String libelle) async =>
+          (await db
+                  .customSelect(
+                    'SELECT prix_vente AS p FROM $table WHERE libelle = ?',
+                    variables: [Variable.withString(libelle)],
+                  )
+                  .getSingle())
+              .data['p']
+              .toString();
+      expect(
+        await prix('cartes_boisson_local', "Jus d'ananas (moyen)"),
+        contains('1500'),
+      );
+      expect(
+        await prix('cartes_boisson_local', "Jus d'ananas (grand)"),
+        contains('2000'),
+      );
+      expect(await prix('plats_local', 'Salade du Chef'), contains('4000'));
 
-        // 30/10/2026 : les descriptions de l'affiche sont importées (9 plats), les
-        // autres plats n'en ont aucune.
-        Future<Object?> description(String libelle) async =>
-            (await db
-                    .customSelect(
-                      'SELECT description AS d FROM plats_local '
-                      'WHERE libelle = ?',
-                      variables: [Variable.withString(libelle)],
-                    )
-                    .getSingle())
-                .data['d'];
-        expect(await compter('plats_local WHERE description IS NOT NULL'), 9);
-        expect(
-          await description('Pizza du gîte (grande)'),
-          'Sauce tomate, bœuf hachée, saucisse, fromage peuilh, fromage mozza',
-        );
-        expect(await description('Chawarma mixte'), 'Viande de bœuf, saucisse');
-        expect(await description('Piron'), isNull);
-      },
-    );
+      // 30/10/2026 : les descriptions de l'affiche sont importées (9 plats), les
+      // autres plats n'en ont aucune.
+      Future<Object?> description(String libelle) async =>
+          (await db
+                  .customSelect(
+                    'SELECT description AS d FROM plats_local '
+                    'WHERE libelle = ?',
+                    variables: [Variable.withString(libelle)],
+                  )
+                  .getSingle())
+              .data['d'];
+      expect(await compter('plats_local WHERE description IS NOT NULL'), 9);
+      expect(
+        await description('Pizza du gîte (grande)'),
+        'Sauce tomate, bœuf hachée, saucisse, fromage peuilh, fromage mozza',
+      );
+      expect(await description('Chawarma mixte'), 'Viande de bœuf, saucisse');
+      expect(await description('Piron'), isNull);
+
+      // Idempotence : le même lot rejoué n'ajoute rien, n'écrase rien.
+      for (final cle in ['m6-stocks', 'm5-bar', 'm4-restaurant']) {
+        final issue = await moteur.appliquer(importeur(cle), fichier(cle));
+        expect(issue, isA<ImportFait>(), reason: '$cle : $issue');
+        expect((issue as ImportFait).importees, 0, reason: cle);
+      }
+      expect(await compter('articles_local'), avant['articles_local']! + 90);
+      expect(await compter('plats_local'), avant['plats_local']! + 81);
+      expect(await compter('plats_local WHERE article_id IS NOT NULL'), 81);
+    });
   });
 }

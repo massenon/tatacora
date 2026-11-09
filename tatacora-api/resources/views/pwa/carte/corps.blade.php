@@ -140,6 +140,19 @@
               <a href="{{ route('pwa.restaurant.plats') }}"
                  class="text-[13px] px-4 py-2 rounded-lg bg-[var(--navy)] text-white font-semibold hover:opacity-90">{{ __('carte_pwa.restaurant.bouton_catalogue') }}</a>
             @endif
+
+            {{-- « Rapprocher les plats du stock » — AJOUT (PO 09/11/2026) : le
+                 RATTRAPAGE des plats importés sans lien (« Stock vendable : non
+                 suivi »). Relie chaque plat à l'article de stock de même nom au
+                 point Cuisine, crée les articles manquants, n'écrit ni prix ni
+                 quantité, n'écrase aucun lien. Propre au restaurant : au bar,
+                 `article_id` est NOT NULL, rien n'est jamais sans lien.
+                 structure-ajout:m4-restaurant-carte.html#bouton-rapprocher --}}
+            @if ($page['rapprocher'] ?? false)
+              <button type="button" wire:click="rapprocherLesPlatsDuStock" wire:loading.attr="disabled"
+                      title="{{ $page['rapprocher_aide'] }}"
+                      class="text-[13px] px-4 py-2 rounded-lg border border-[var(--gold)] text-[var(--gold)] hover:bg-amber-50 font-semibold">{{ $page['rapprocher_libelle'] }}</button>
+            @endif
           </div>
         </div>
 
@@ -718,6 +731,8 @@
     <x-pwa.modal-lieraustock :nom="$articleCible->libelle"
                              :prix="MontantFcfa::format((string) $articleCible->prix_vente)"
                              :articles="$articlesDeStock"
+                             :messageVide="$page['aucun_article'] ?? null"
+                             :recherche="$rechercheArticleStock"
                              :apercu="$apercuDuLien" />
   @endif
 

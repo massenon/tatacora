@@ -285,6 +285,14 @@ class ImportExport extends PageTransverse
             return;
         }
 
+        if ($rapport->lignes === [] && $rapport->ignorees > 0) {
+            // Ré-import d'un fichier déjà importé : rien à ajouter, rien d'écrasé.
+            $this->reset(['fichierImport', 'rapportControle']);
+            session()->flash('pwa-succes', __('imports.controle.rien_a_ajouter', ['nombre' => (string) $rapport->ignorees, 'module' => $module->nom]));
+
+            return;
+        }
+
         try {
             $nombre = $import->appliquer($module, $rapport->lignes);
         } catch (RuntimeException $refus) {
@@ -294,10 +302,10 @@ class ImportExport extends PageTransverse
         }
 
         $this->reset(['fichierImport', 'rapportControle']);
-        session()->flash('pwa-succes', __('imports.controle.import_fait', [
+        session()->flash('pwa-succes', trim(__('imports.controle.import_fait', [
             'nombre' => (string) $nombre,
             'module' => $module->nom,
-        ]));
+        ]).($rapport->ignorees > 0 ? ' '.__('imports.controle.dont_ignorees', ['nombre' => (string) $rapport->ignorees]) : '').' '.($import->bilanRapprochement ?? '')));
     }
 
     // =====================================================================

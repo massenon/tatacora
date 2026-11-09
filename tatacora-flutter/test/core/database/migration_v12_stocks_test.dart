@@ -163,6 +163,8 @@ void main() {
         'point_stockage_id',
         // v35 : l'archivage d'un article (ajoutée en dernier).
         'actif',
+        // v57 (09/11/2026) : la valeur d'achat de référence (ajoutée en dernier).
+        'prix_achat_reference',
       ]);
       expect(await colonnes(apres, 'mouvements_stock_local'), [
         'id',

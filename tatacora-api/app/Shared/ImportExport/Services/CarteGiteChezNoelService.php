@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Shared\ImportExport\Services;
 
+use App\Domain\Restaurant\Services\RapprochementPlatsStockService;
 use App\Shared\ImportExport\Data\ReferentielsImport;
 use RuntimeException;
 
@@ -18,11 +19,16 @@ use RuntimeException;
  *
  * ## Ce que chaque fichier crée — et dans quel ordre l'importer
  *
- *  1. **m6-stocks** — les articles de stock des BOISSONS : catégorie
+ *  1. **m6-stocks** — les articles de stock : (a) ceux des BOISSONS, catégorie
  *     « Boissons », unité « unité », seuil 0, AUCUN mouvement : le stock
- *     s'ajoute après, par une entrée. Raison d'être : `cartes_boisson.article_id`
- *     est NOT NULL (RG-05) — une boisson du bar ne peut pas exister sans
- *     fiche d'article.
+ *     s'ajoute après, par une entrée (`cartes_boisson.article_id` est NOT NULL,
+ *     RG-05 : une boisson ne peut pas exister sans fiche d'article) ; (b) ceux
+ *     de la CUISINE (09/11/2026, PO) : UN article par plat, du MÊME NOM,
+ *     catégorie « Denrées », unité « unité », seuil 0, au point « Cuisine » —
+ *     sans prix ni quantité. Pas d'ingrédients inventés : le plat se vend en
+ *     l'état, et `m4-restaurant` le relie à cet article (« N plats rapprochés
+ *     du stock », stock vendable à 0 tant qu'aucune entrée). Le point
+ *     « Cuisine » est créé par l'import s'il n'existe pas.
  *  2. **m5-bar** — les boissons de la carte du bar, liées par leur nom à
  *     l'article du même nom (importer m6 d'abord, sinon « référence inconnue »).
  *  3. **m4-restaurant** — les plats, desserts, petits déjeuners… de la carte du
@@ -90,13 +96,24 @@ class CarteGiteChezNoelService
                 'prix_vente' => $b['prix'],
                 'article' => $b['libelle'],
             ], $this->boissons()),
-            'm6-stocks' => array_map(static fn (array $b): array => [
-                'libelle' => $b['libelle'],
-                'categorie' => 'Boissons',
-                'unite_mesure' => 'unité',
-                'seuil_alerte' => 0,
-                'point_stockage' => null,
-            ], $this->boissons()),
+            'm6-stocks' => array_merge(
+                array_map(static fn (array $b): array => [
+                    'libelle' => $b['libelle'],
+                    'categorie' => 'Boissons',
+                    'unite_mesure' => 'unité',
+                    'seuil_alerte' => 0,
+                    'point_stockage' => null,
+                ], $this->boissons()),
+                // 09/11/2026 — la CUISINE : un article de stock par plat, du
+                // même nom, au point « Cuisine » ; sans prix ni quantité.
+                array_map(static fn (array $p): array => [
+                    'libelle' => $p['libelle'],
+                    'categorie' => 'Denrées',
+                    'unite_mesure' => 'unité',
+                    'seuil_alerte' => 0,
+                    'point_stockage' => RapprochementPlatsStockService::LIBELLE_POINT,
+                ], $this->lignesRestaurant()),
+            ),
             default => throw new RuntimeException(__('imports.controle.module_inconnu')),
         };
     }

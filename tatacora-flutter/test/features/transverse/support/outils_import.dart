@@ -38,6 +38,7 @@ final class CasImport {
     required this.fautive,
     required this.colonneFautive,
     required this.debutMessageFautif,
+    this.enteteModele,
   });
 
   /// La clé fermée du serveur (`m3-clients`…).
@@ -64,6 +65,11 @@ final class CasImport {
   final String fautive;
   final String colonneFautive;
   final String debutMessageFautif;
+
+  /// L'en-tête du MODÈLE téléchargé quand il porte plus de colonnes que le
+  /// fichier d'essai (09/11/2026 : « Point de stockage », « Seuil d'alerte »,
+  /// « Valeur d'achat » facultatifs de m4 et m5) ; `null` = [entete].
+  final String? enteteModele;
 
   /// Les clés naturelles des lignes valides (premier champ).
   List<String> get cles => [for (final l in valides) l.split(';').first];
@@ -121,6 +127,9 @@ const List<CasImport> casImport = [
     colonne: 'libelle',
     entete:
         'Nom de la boisson;Catégorie;Prix de vente (FCFA);Article de stock lié',
+    enteteModele:
+        'Nom de la boisson;Catégorie;Prix de vente (FCFA);Article de stock lié;'
+        "Point de stockage;Seuil d'alerte;Valeur d'achat",
     valides: [
       'Bière Béninoise 66 cl;locale;1200;Béninoise 66 cl',
       'Béninoise bien fraîche;maison;1300;Béninoise 66 cl',
@@ -138,6 +147,9 @@ const List<CasImport> casImport = [
     entete:
         'Nom du plat;Catégorie;Prix de vente (FCFA);Menu;Fiche recette;'
         'Description',
+    enteteModele:
+        'Nom du plat;Catégorie;Prix de vente (FCFA);Menu;Fiche recette;'
+        "Description;Point de stockage;Seuil d'alerte;Valeur d'achat",
     valides: [
       'Poulet DG;plats;4500;Menu local;Poulet DG;Poulet, plantain mûr',
       'Poulet braisé;plats;4000;Menu local;Poulet DG;',

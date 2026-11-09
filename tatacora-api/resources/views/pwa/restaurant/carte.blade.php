@@ -45,6 +45,11 @@
         // 04/09/2026 — le lien vers l'ecran du catalogue (plats, fiches
         // techniques, menus), qui n'etait atteignable par aucun clic.
         'lien_catalogue' => true,
+        // 09/11/2026 (PO) : le rattrapage « plats sans lien » et l'état vide de « Lier au stock ».
+        'rapprocher' => true,
+        'rapprocher_libelle' => __('imports.rapprochement.bouton'),
+        'rapprocher_aide' => __('imports.rapprochement.bouton_aide'),
+        'aucun_article' => __('carte_pwa.modale_lien.aucun_article_cuisine'),
         'delier' => true,
         'point_absent' => __('carte_pwa.restaurant.point_absent'),
         'export_titre' => __('carte_pwa.restaurant.export_titre'),

@@ -303,11 +303,15 @@ final class ArticleCalcul {
     required this.seuilCentiemes,
     required this.suivi,
     this.pointStockageId,
+    this.prixAchatReference,
     this.actif = true,
   });
 
   final String id;
   final String libelle;
+
+  /// La valeur d'achat de référence (v57), en dix-millièmes — `null` : aucune.
+  final int? prixAchatReference;
 
   /// `null` = non renseignée (jamais la chaîne vide).
   final String? categorie;
@@ -411,6 +415,9 @@ EtatStock calculerEtat({
             : (libellesPoints[rattache] ?? rattache),
         prixAchat: prix == null ? null : ecrireCout(prix),
         deriveCmp: deriveCoutMoyenPondere(cmp: cmp, prixAchat: prix),
+        valeurAchatReference: a.prixAchatReference == null
+            ? null
+            : ecrireCout(a.prixAchatReference!),
         actif: a.actif,
       ),
     );
