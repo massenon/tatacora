@@ -32,6 +32,13 @@ namespace App\Domain\Comptabilite\ReadModels;
  * continuera de tenir sans modification de code — la charge d'impot entre au
  * resultat et la dette d'impot au passif circulant, et les deux se compensent.
  *
+ * ## « dont dividendes a payer » (10/11/2026)
+ *
+ * Le compte 465 (associes, dividendes a payer) est une dette du PASSIF
+ * CIRCULANT (« autres dettes »). `dividendesAPayer` est le « dont » affiche sous
+ * le poste : il est DEJA compris dans le montant du poste `passif_circulant`,
+ * donc jamais additionne une seconde fois aux totaux.
+ *
  * ## `comptesHorsRubrique` — la garde que la repartition par prefixe EXIGE
  *
  * L'onglet du hub repartit par `type` : tout compte porte un type, donc la
@@ -76,6 +83,7 @@ final readonly class Bilan
         public string $ecart,
         public string $resultatExercice,
         public string $resultatReporte,
+        public string $dividendesAPayer,
         public bool $impotNonComptabilise,
         public ?string $motifResultatAvantImpot,
         public RepartitionStatuts $statuts,

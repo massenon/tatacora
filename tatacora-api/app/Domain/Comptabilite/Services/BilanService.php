@@ -118,11 +118,34 @@ class BilanService
         // resultat de N-1 a fait du 131/139 (09/11/2026).
         $reserves = $this->sommeCreditrice($lignes, RubriquesSyscohada::RESERVES);
         $reportANouveau = $this->sommeCreditrice($lignes, RubriquesSyscohada::REPORT_A_NOUVEAU);
+        // Subventions d'investissement (14, nettes de la quote-part virée au
+        // résultat) et provisions réglementées (15) : capitaux propres, comme le
+        // compte de l'exploitant (104, dans `CAPITAL`) d'une entreprise
+        // individuelle (10/11/2026).
+        $subventions = $this->sommeCreditrice($lignes, RubriquesSyscohada::SUBVENTIONS_INVESTISSEMENT);
+        $provisionsReglementees = $this->sommeCreditrice($lignes, RubriquesSyscohada::PROVISIONS_REGLEMENTEES);
         $capitauxPropres = bcadd(
-            bcadd($capital, bcadd($reserves, $reportANouveau, self::PRECISION), self::PRECISION),
+            bcadd(
+                bcadd($capital, bcadd($subventions, $provisionsReglementees, self::PRECISION), self::PRECISION),
+                bcadd($reserves, $reportANouveau, self::PRECISION),
+                self::PRECISION,
+            ),
             bcadd($resultatReporte, $resultat->resultatNet, self::PRECISION),
             self::PRECISION,
         );
+        // Dettes financières et ressources assimilées : emprunts (16), location-
+        // acquisition (17), dettes liées à des participations (18) et PROVISIONS
+        // pour risques et charges (19, une provision financière, pas un emprunt).
+        $prefixesDettesFinancieres = [
+            ...RubriquesSyscohada::DETTES_FINANCIERES,
+            ...RubriquesSyscohada::DETTES_PARTICIPATIONS,
+            ...RubriquesSyscohada::PROVISIONS_FINANCIERES,
+        ];
+        $dettesFinancieres = $this->sommeCreditrice($lignes, $prefixesDettesFinancieres);
+        // Le 465 (dividendes à payer) est une dette du PASSIF CIRCULANT, en
+        // « autres dettes » : il est dans le montant du poste ci-dessous et
+        // `dividendesAPayer` n'en est que le « dont ».
+        $dividendesAPayer = $this->sommeCreditrice($lignes, RubriquesSyscohada::DETTES_ASSOCIES);
         $prefixesPassifCirculant = [...RubriquesSyscohada::DETTES_CIRCULANTES, ...RubriquesSyscohada::DETTES_ASSOCIES];
         $passifCirculant = $this->sommeCreditrice($lignes, $prefixesPassifCirculant);
         $tresoreriePassif = $this->sommeCreditrice($lignes, RubriquesSyscohada::TRESORERIE_PASSIF);
@@ -133,7 +156,21 @@ class BilanService
                 'capitaux_propres',
                 'Capitaux propres',
                 $capitauxPropres,
-                [...RubriquesSyscohada::CAPITAL, ...RubriquesSyscohada::RESERVES, ...RubriquesSyscohada::REPORT_A_NOUVEAU, ...RubriquesSyscohada::RESULTAT_REPORTE],
+                [
+                    ...RubriquesSyscohada::CAPITAL,
+                    ...RubriquesSyscohada::SUBVENTIONS_INVESTISSEMENT,
+                    ...RubriquesSyscohada::PROVISIONS_REGLEMENTEES,
+                    ...RubriquesSyscohada::RESERVES,
+                    ...RubriquesSyscohada::REPORT_A_NOUVEAU,
+                    ...RubriquesSyscohada::RESULTAT_REPORTE,
+                ],
+            ),
+            $this->posteSansAmortissement(
+                PosteBilan::SECTION_PASSIF,
+                'dettes_financieres',
+                'Dettes financières et ressources assimilées',
+                $dettesFinancieres,
+                $prefixesDettesFinancieres,
             ),
             $this->posteSansAmortissement(
                 PosteBilan::SECTION_PASSIF,
@@ -172,6 +209,7 @@ class BilanService
             ecart: bcsub($totalActif, $totalPassif, self::PRECISION),
             resultatExercice: $resultat->resultatNet,
             resultatReporte: $resultatReporte,
+            dividendesAPayer: $dividendesAPayer,
             impotNonComptabilise: $resultat->impotNonComptabilise,
             motifResultatAvantImpot: $resultat->motifResultatAvantImpot,
             statuts: $balance->statuts,

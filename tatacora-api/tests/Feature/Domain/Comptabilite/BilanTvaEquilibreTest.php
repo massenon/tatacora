@@ -168,6 +168,65 @@ final class BilanTvaEquilibreTest extends TestCase
         }
     }
 
+    #[Test]
+    public function les_comptes_de_l_avis_de_l_expert_comptable_trouvent_leur_rubrique_et_equilibrent_le_bilan(): void
+    {
+        // Avis du 10/11/2026 (le Gite est une entreprise individuelle) : le compte
+        // de l'exploitant (104), les subventions d'investissement (14), les
+        // provisions reglementees (15), les emprunts (16, 17), les dettes liees a
+        // des participations (18), les provisions pour risques et charges (19, une
+        // provision FINANCIERE) sont des ressources du bilan ; le 465 (dividendes
+        // a payer) est une dette du PASSIF CIRCULANT.
+        $attendus = [
+            '1042' => 'capitaux_propres', '1416' => 'capitaux_propres', '151' => 'capitaux_propres',
+            '162' => 'dettes_financieres', '172' => 'dettes_financieres', '1811' => 'dettes_financieres',
+            '1988' => 'dettes_financieres',
+            '465' => 'passif_circulant',
+        ];
+
+        foreach ($attendus as $numero => $poste) {
+            $numero = $this->imputable((string) $numero);
+            $this->piece($numero, '1000.00');
+            $bilan = $this->bilan();
+
+            $this->assertSame([], $bilan->comptesHorsRubrique, "Le compte {$numero} est hors nomenclature.");
+            $this->assertTrue($bilan->equilibre, "Le compte {$numero} desequilibre le bilan (ecart {$bilan->ecart}).");
+
+            $trouve = collect([...$bilan->actif, ...$bilan->passif])
+                ->first(fn ($p): bool => $p->code === $poste && \App\Domain\Comptabilite\Support\RubriquesSyscohada::releveDe($numero, $p->prefixes));
+            $this->assertNotNull($trouve, "Le compte {$numero} devrait figurer au poste {$poste}.");
+            $this->soldeDeNouveau();
+        }
+    }
+
+    #[Test]
+    public function le_465_est_une_dette_du_passif_circulant_avec_son_dont_au_bilan(): void
+    {
+        $centre = (string) CentreCout::query()->firstOrFail()->id;
+        app(PasserEcritureService::class)->passerEtValider([
+            'journal' => 'OD', 'date' => now()->format('Y').'-03-01', 'libelle' => 'Dividendes decides',
+            'lignes' => [
+                ['compte' => '131', 'centre_id' => $centre, 'debit' => '40000.00', 'credit' => '0'],
+                ['compte' => '465', 'centre_id' => $centre, 'debit' => '0', 'credit' => '40000.00'],
+            ],
+        ]);
+        $this->piece('5711', '40000.00'); // un depot de 40 000 contre le capital, pour que le resultat reporte soit couvert
+
+        $bilan = $this->bilan();
+        $circulant = collect($bilan->passif)->firstWhere('code', 'passif_circulant');
+
+        $this->assertSame('40000.00', $circulant->net, 'le 465 est dans le montant du passif circulant');
+        $this->assertContains('465', $circulant->prefixes);
+        $this->assertSame('40000.00', $bilan->dividendesAPayer, 'le « dont dividendes a payer »');
+        // Le « dont » n'est jamais additionne : le total du passif ne le compte qu'une fois.
+        $this->assertSame(
+            $bilan->totalPassif,
+            bcadd(bcadd(collect($bilan->passif)->firstWhere('code', 'capitaux_propres')->net, $circulant->net, 2), '0.00', 2),
+        );
+        $this->assertSame([], $bilan->comptesHorsRubrique);
+        $this->assertTrue($bilan->equilibre, 'ecart '.$bilan->ecart);
+    }
+
     // ----------------------------------------------------------------- aides
 
     private function bilan(): \App\Domain\Comptabilite\ReadModels\Bilan

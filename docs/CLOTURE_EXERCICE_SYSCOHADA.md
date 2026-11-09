@@ -209,6 +209,29 @@ serveur. (5) Les comptes qui reçoivent le résultat suivent la correspondance d
 comptes (`compte_resultat_benefice` / `compte_resultat_perte`, 131 et 139 par
 défaut) sur le poste comme au serveur.
 
+## 5 bis. Les états financiers après l'avis de l'expert-comptable (10/11/2026)
+
+Le Gîte est une **entreprise individuelle**. Avis de l'expert-comptable SYSCOHADA révisé, appliqué **au web et au poste, au mot et au centime près** (`TafireService`, `BilanService`, `RubriquesSyscohada`, `RubriquesTafire` ; leurs miroirs Dart `tafire_notes.dart`, `etats_financiers.dart`, relus du serveur par des tests qui EXÉCUTENT le vrai PHP).
+
+**Le TAFIRE, définition finale** (aussi en tête de `TafireService`) :
+
+| | |
+|---|---|
+| **CAFG** | résultat net de N seul **+ dotations** (681, 687, 691, 697, 85) **− reprises** (781, 787, 791, 797, 798, 86) + valeur comptable des cessions (81) − produits des cessions (82) **− quote-part des subventions d'investissement virée au résultat** (799, produit non encaissé) |
+| **Exploitation** | CAFG − variation du BFR (stocks + créances − dettes circulantes ; le 465 n'y est pas) |
+| **Investissement** | produits des cessions − acquisitions ; acquisitions = variation des immobilisations nettes + dotations aux **amortissements** (681, 852) + VNC cédées − reprises sur immobilisations (781, 787, 798, 862) |
+| **Financement** | apports (101, 102, 103, 105, 106, 109, et les subventions d'investissement **reçues** : variation du 14 + quote-part 799) + **emprunts = comptes 16 et 17** + dettes liées à des participations et comptes de liaison (18, ligne distincte, non affichée quand elle est nulle) − dividendes versés et prélèvements de l'exploitant |
+| **Contrôle** | variation de trésorerie par les flux = variation constatée aux comptes de classe 5 |
+
+- **Le compte 19 est une provision financière pour risques et charges, pas un emprunt** : il n'entre dans aucun flux de financement ; sa variation passe par les dotations et reprises de la CAFG. Même règle pour le 15 (provisions réglementées : 851 / 861). Une dotation aux **provisions** est réintégrée à la CAFG mais n'entre pas dans les acquisitions (elle n'a pas de contrepartie d'actif) ; seules les dotations aux amortissements et les reprises sur immobilisations s'y compensent. Un mouvement de 19 qui ne passerait par aucune dotation ni reprise laisse un **écart** que le contrôle de cohérence signale.
+- **Le compte de l'exploitant (104)** est un compte de capitaux propres (bilan, PHP et Dart). Un bénéfice affecté au 104 (D 131 / C 104) se compense : rien ne sort. Un prélèvement personnel (D 104 / C 5xx) est lu avec les dividendes : la ligne s'appelle « Dividendes versés et prélèvements de l'exploitant ». Un apport en compte (D 5xx / C 104) la fait baisser (le 104 n'est plus un « apport de capital »).
+- **Le compte 465 (dividendes à payer) est au passif circulant du bilan**, en « autres dettes », avec une ligne « dont dividendes à payer » (web : page du bilan, onglet Bilan du hub, états financiers ; poste : onglet Bilan). Le « dont » est déjà compté dans le poste : il ne s'additionne jamais. Le TAFIRE, lui, garde le 465 **hors du BFR** : les dividendes versés = dividendes décidés − variation du 465, comme avant. La note annexe 4 le porte une seule fois et son total égale le passif circulant du bilan.
+- **Le bilan range maintenant** : capital 101 à 109 (104 compris), subventions d'investissement (14) et provisions réglementées (15) en capitaux propres ; un poste « **Dettes financières et ressources assimilées** » (16, 17, 18, 19) entre les capitaux propres et le passif circulant. Avant, ces comptes étaient « hors nomenclature » et déséquilibraient le bilan.
+- **Le compte de résultat** (cascade des SIG) capte désormais 687 (dotations aux amortissements à caractère financier, rubrique RN), 797 (reprises financières, nouvelle rubrique TL) et 799 (reprises de subventions d'investissement, rubrique TJ) : ils manquaient au résultat.
+- **Comparatif N / N-1, archive légale, état de clôture** : le comparatif reprend le poste par son code (le « dont » et le nouveau poste y suivent). Une archive déjà générée n'est jamais régénérée ; une nouvelle archive porte le nouveau poste du passif.
+
+**Ce que le plan comptable du dépôt dit, et ce que l'avis supposait** : le **777** est « Gains sur cessions de titres de placement » (un produit encaissé), pas la quote-part des subventions : celle-ci est le **799** « Reprises de subventions d'investissement ». Les reprises d'amortissements sont au **798** (absent de l'avis, ajouté : sans lui une reprise d'amortissement déséquilibre le tableau). Le **781** et le **787** sont des « transferts de charges » ; ils sont rangés avec les reprises comme l'avis le demande, en supposant que leur contrepartie est une immobilisation (un transfert dont la contrepartie serait une créance fausserait le tableau : à confirmer avec le comptable). **Écart nommé** : le TAFIRE n'a pas de ligne « subventions d'investissement reçues » : elles restent dans « Augmentation de capital ».
+
 ## 6. Après `git pull` sur le serveur
 
 ```bash

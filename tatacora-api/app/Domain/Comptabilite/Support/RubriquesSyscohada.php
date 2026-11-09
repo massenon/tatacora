@@ -90,8 +90,60 @@ final class RubriquesSyscohada
     /** @var list<string> */
     public const TRESORERIE_ACTIF = ['521', '522', '55', '571', '572', '573'];
 
-    /** @var list<string> */
-    public const CAPITAL = ['101'];
+    /**
+     * Capital (groupe 10, ecrit compte par compte : le plan n'a pas de compte
+     * `10`) : 101 capital social, 102 capital par dotation, 103 capital
+     * personnel, 104 COMPTE DE L'EXPLOITANT (entreprise individuelle : ses
+     * apports crediteurs, ses prelevements debiteurs — un compte de CAPITAUX
+     * PROPRES, jamais une dette), 105 primes, 106 ecarts de reevaluation, 109
+     * capital souscrit non appele (debiteur, il diminue). 107 et 108 n'existent
+     * pas au plan.
+     *
+     * @var list<string>
+     */
+    public const CAPITAL = ['101', '102', '103', '104', '105', '106', '109'];
+
+    /**
+     * Subventions d'investissement (14) : capitaux propres, nettes de la
+     * quote-part virée au resultat (D 14 / C 799).
+     *
+     * @var list<string>
+     */
+    public const SUBVENTIONS_INVESTISSEMENT = ['14'];
+
+    /**
+     * Provisions reglementees et fonds assimiles (15) : capitaux propres, sans
+     * flux de tresorerie (amortissements derogatoires : D 851 / C 151).
+     *
+     * @var list<string>
+     */
+    public const PROVISIONS_REGLEMENTEES = ['15'];
+
+    /**
+     * Emprunts et dettes assimilees (16) et dettes de location-acquisition (17) :
+     * les « emprunts » du TAFIRE.
+     *
+     * @var list<string>
+     */
+    public const DETTES_FINANCIERES = ['16', '17'];
+
+    /**
+     * Dettes liees a des participations et comptes de liaison des etablissements
+     * (18) : ressources stables a part, nulles sans groupe ni etablissement
+     * (le Gite est une entreprise individuelle).
+     *
+     * @var list<string>
+     */
+    public const DETTES_PARTICIPATIONS = ['18'];
+
+    /**
+     * Provisions pour risques et charges (19) : PROVISION FINANCIERE, pas un
+     * emprunt. Ressource assimilee du bilan ; AUCUN flux de financement : sa
+     * variation vient des dotations (69, 85) et des reprises (79, 86) de la CAFG.
+     *
+     * @var list<string>
+     */
+    public const PROVISIONS_FINANCIERES = ['19'];
 
     /**
      * Reserves (groupe 11 : 111 legale, 112 statutaires, 113 reglementees, 118
@@ -147,9 +199,12 @@ final class RubriquesSyscohada
     /**
      * `465` — associes, dividendes a payer : une dette envers les associes,
      * creditee par l'affectation d'un benefice aux dividendes (09/11/2026).
-     * Rubrique A PART des dettes circulantes : le TAFIRE lit la variation de
-     * `DETTES_CIRCULANTES` (BFR) et traite les dividendes comme un mouvement
-     * des capitaux propres ; la meler au BFR le fausserait.
+     * Au BILAN (10/11/2026) c'est une dette du PASSIF CIRCULANT (« autres
+     * dettes », avec une ligne « dont dividendes a payer »), comme toutes les
+     * dettes a moins d'un an. Mais rubrique A PART de `DETTES_CIRCULANTES` pour
+     * le TAFIRE : il lit la variation de `DETTES_CIRCULANTES` (BFR) et traite les
+     * dividendes comme un mouvement des capitaux propres ; la meler au BFR le
+     * fausserait (l'identite du TAFIRE ne change pas).
      *
      * @var list<string>
      */
@@ -163,14 +218,6 @@ final class RubriquesSyscohada
      * @var list<string>
      */
     public const TRESORERIE_PASSIF = ['561', '564', '565', '566'];
-
-    /**
-     * La DOTATION aux amortissements de l'exercice — charge non decaissee,
-     * reintegree a la CAFG (PART3 §2.2).
-     *
-     * @var list<string>
-     */
-    public const DOTATIONS_AMORTISSEMENTS = ['681'];
 
     /**
      * TOUS les prefixes qui trouvent une place au Bilan.
@@ -191,9 +238,14 @@ final class RubriquesSyscohada
             ...self::CREANCES,
             ...self::TRESORERIE_ACTIF,
             ...self::CAPITAL,
+            ...self::SUBVENTIONS_INVESTISSEMENT,
+            ...self::PROVISIONS_REGLEMENTEES,
             ...self::RESERVES,
             ...self::REPORT_A_NOUVEAU,
             ...self::RESULTAT_REPORTE,
+            ...self::DETTES_FINANCIERES,
+            ...self::DETTES_PARTICIPATIONS,
+            ...self::PROVISIONS_FINANCIERES,
             ...self::DETTES_CIRCULANTES,
             ...self::DETTES_ASSOCIES,
             ...self::TRESORERIE_PASSIF,

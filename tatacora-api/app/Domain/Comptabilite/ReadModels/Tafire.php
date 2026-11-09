@@ -29,6 +29,15 @@ namespace App\Domain\Comptabilite\ReadModels;
  * d'un arrondi. C'est ce qui autorise a l'afficher comme une anomalie, et non
  * comme une tolerance.
  *
+ * ## Champs nommes « amortissements » qui portent plus (10/11/2026)
+ *
+ * `dotationsAmortissements` et `reprisesAmortissements` gardent leur nom (et la
+ * cle `dotations_amortissements` / `reprises_amortissements` de l'API) mais
+ * portent TOUTES les dotations et reprises de la CAFG : amortissements,
+ * provisions et depreciations, HAO (voir `RubriquesTafire::DOTATIONS` et
+ * `REPRISES`). `variationEmprunts` ne porte plus que les comptes 16 et 17 ; le
+ * 18 a sa ligne (`variationDettesParticipations`) et le 19 aucune.
+ *
  * ## La CAFG part du resultat REELLEMENT comptabilise
  *
  * Elle reprend `Bilan::resultatExercice` (resultat net de N SEUL depuis le
@@ -50,10 +59,12 @@ final readonly class Tafire
         public string $dotationsAmortissements,
         public string $reprisesAmortissements,
         public string $valeurComptableCessions,
+        public string $quotePartSubventions,
         public string $capaciteAutofinancementGlobale,
         public string $produitsCessions,
         public string $augmentationCapital,
         public string $variationEmprunts,
+        public string $variationDettesParticipations,
         public string $totalRessources,
         public string $acquisitionsImmobilisations,
         public string $variationAutresCapitauxPropres,

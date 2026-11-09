@@ -229,5 +229,16 @@ return [
 
     'flux_produits_cessions' => "Produits des cessions d'immobilisations",
     'flux_variation_emprunts' => 'Emprunts (variation nette)',
-    'flux_dividendes_verses' => 'Dividendes versés (affectation du résultat N-1)',
+    // Les dividendes ET les prélèvements de l'exploitant (compte 104) : une
+    // entreprise individuelle ne verse pas de dividendes, elle prélève
+    // (avis de l'expert-comptable, 10/11/2026).
+    'flux_dividendes_verses' => "Dividendes versés et prélèvements de l'exploitant",
+    // Ligne du financement NON AFFICHÉE quand elle est nulle (sans groupe).
+    'flux_variation_dettes_participations' => 'Dettes liées à des participations et comptes de liaison (variation nette)',
+
+    // --- Bilan : le compte 465 dans le passif circulant (10/11/2026) ---
+    //
+    // Mot LU par le poste (`TextesEtatsFinanciers`). Sous-ligne du poste
+    // « Passif circulant », qui compte déjà ce montant : jamais additionnée.
+    'bilan_dont_dividendes_a_payer' => 'dont dividendes à payer',
 ];

@@ -37,10 +37,12 @@ class TafireResource extends JsonResource
                 'dotations_amortissements' => $this->resource->dotationsAmortissements,
                 'reprises_amortissements' => $this->resource->reprisesAmortissements,
                 'valeur_comptable_cessions' => $this->resource->valeurComptableCessions,
+                'quote_part_subventions' => $this->resource->quotePartSubventions,
                 'capacite_autofinancement_globale' => $this->resource->capaciteAutofinancementGlobale,
                 'produits_cessions' => $this->resource->produitsCessions,
                 'augmentation_capital' => $this->resource->augmentationCapital,
                 'variation_emprunts' => $this->resource->variationEmprunts,
+                'variation_dettes_participations' => $this->resource->variationDettesParticipations,
                 'total' => $this->resource->totalRessources,
             ],
             'emplois' => [

@@ -172,4 +172,34 @@ final class NoteAnnexeCreancesDettesTest extends TestCase
         $this->assertSame($this->passifCirculantDuBilan()->net, $total, 'total des dettes de la note 4 ≠ passif circulant du bilan');
         $this->assertNotSame('0.00', $total);
     }
+
+    #[Test]
+    public function la_note_4_ne_compte_le_465_qu_une_fois_et_son_total_egale_le_passif_circulant_du_bilan(): void
+    {
+        // Avis du 10/11/2026 : le 465 est au passif circulant du bilan (« autres
+        // dettes », « dont dividendes a payer »). La note le porte une seule fois,
+        // sans le doubler par un second balayage (DETTES_CIRCULANTES puis
+        // DETTES_ASSOCIES), et le total des dettes de la note est celui du bilan.
+        $this->crediter('465', '40000.00');
+        $this->crediter('4011', '1000.00');
+
+        $lignes465 = array_values(array_filter(
+            $this->note4()->postes,
+            static fn (array $p): bool => $p['prefixes'] === ['465'],
+        ));
+        $this->assertCount(1, $lignes465, 'le 465 ne figure qu\'une fois dans la note 4');
+
+        $total = '0.00';
+        foreach ($this->note4()->postes as $poste) {
+            if (RubriquesSyscohada::releveDe($poste['prefixes'][0], $this->passifCirculantDuBilan()->prefixes)) {
+                $total = bcadd($total, $poste['montant'], 2);
+            }
+        }
+
+        $this->assertSame('41000.00', $total);
+        $this->assertSame('41000.00', $this->passifCirculantDuBilan()->net);
+
+        $bilan = app(BilanService::class)->genererPourExercice($this->exercice->id, ['validee'], 'validee');
+        $this->assertSame('40000.00', $bilan->dividendesAPayer);
+    }
 }

@@ -111,6 +111,7 @@ final class FluxTresorerieLignesTest extends TestCase
             'cessions' => __('comptabilite_pwa.flux_produits_cessions'),
             'emprunts' => __('comptabilite_pwa.flux_variation_emprunts'),
             'dividendes' => __('comptabilite_pwa.flux_dividendes_verses'),
+            'participations' => __('comptabilite_pwa.flux_variation_dettes_participations'),
         ];
     }
 
@@ -122,8 +123,11 @@ final class FluxTresorerieLignesTest extends TestCase
         $cafg = $this->montant($html, "Capacité d'Autofinancement Globale (CAFG)");
         $capital = $this->montant($html, 'Augmentation de capital');
         $totalRessources = $this->montant($html, 'TOTAL RESSOURCES');
+        // La ligne des dettes liees a des participations n'est ecrite que si elle
+        // n'est pas nulle : absente, elle vaut zero dans la somme.
+        $participations = str_contains($html, e($l['participations'])) ? $this->montant($html, $l['participations']) : 0;
         $this->assertSame(
-            $cafg + $this->montant($html, $l['cessions']) + $capital + $this->montant($html, $l['emprunts']),
+            $cafg + $this->montant($html, $l['cessions']) + $capital + $this->montant($html, $l['emprunts']) + $participations,
             $totalRessources,
             'les lignes de RESSOURCES ne somment pas TOTAL RESSOURCES',
         );
@@ -160,7 +164,7 @@ final class FluxTresorerieLignesTest extends TestCase
         $this->assertSame(50000, $this->montant($html, $l['cessions']));
         $this->assertSame(1000000, $this->montant($html, $l['emprunts']));
         $this->assertSame(25000, $this->montant($html, $l['dividendes']));
-        $this->assertSame('Dividendes versés (affectation du résultat N-1)', $l['dividendes']);
+        $this->assertSame("Dividendes versés et prélèvements de l'exploitant", $l['dividendes']);
         $this->assertStringContainsString('Contrôle de cohérence réussi', $html);
 
         $this->assertLesTotauxSAdditionnent($html);
@@ -186,12 +190,47 @@ final class FluxTresorerieLignesTest extends TestCase
         $source = (string) file_get_contents(resource_path('views/pwa/comptabilite/flux-tresorerie.blade.php'));
         $sansCommentaires = (string) preg_replace('/\{\{--.*?--\}\}/s', '', $source);
 
-        foreach (['flux_produits_cessions', 'flux_variation_emprunts', 'flux_dividendes_verses'] as $cle) {
+        foreach (['flux_produits_cessions', 'flux_variation_emprunts', 'flux_dividendes_verses', 'flux_variation_dettes_participations'] as $cle) {
             $this->assertStringContainsString("__('comptabilite_pwa.{$cle}')", $source);
             $this->assertNotSame("comptabilite_pwa.{$cle}", __("comptabilite_pwa.{$cle}"), "clé de langue absente : {$cle}");
         }
         foreach ($this->libelles() as $libelle) {
             $this->assertStringNotContainsString($libelle, $sansCommentaires, 'libellé écrit en dur dans la vue');
         }
+    }
+
+    #[Test]
+    public function la_ligne_des_dettes_liees_a_des_participations_n_est_ecrite_que_si_elle_n_est_pas_nulle(): void
+    {
+        $this->exploiter();
+        $l = $this->libelles();
+
+        // Sans groupe (le Gite est une entreprise individuelle) : pas de ligne.
+        $this->assertStringNotContainsString(e($l['participations']), $this->page());
+
+        $this->piece('2026-08-01', 'Dette de participation', [['5711', '300000.00', '0.00'], ['1811', '0.00', '300000.00']]);
+        $html = $this->page();
+        $this->assertSame(300000, $this->montant($html, $l['participations']));
+        $this->assertStringContainsString('Contrôle de cohérence réussi', $html);
+        $this->assertLesTotauxSAdditionnent($html);
+    }
+
+    #[Test]
+    public function une_provision_financiere_et_un_prelevement_de_l_exploitant_ne_cassent_ni_le_controle_ni_les_additions(): void
+    {
+        $this->exploiter();
+        // Une provision financiere (19) dotee puis un prelevement personnel (104).
+        $this->piece('2026-09-01', 'Provision financière', [['6971', '30000.00', '0.00'], ['1988', '0.00', '30000.00']]);
+        $this->piece('2026-09-05', 'Apport en compte', [['5711', '90000.00', '0.00'], ['1041', '0.00', '90000.00']]);
+        $this->piece('2026-09-10', 'Prélèvement', [['1043', '25000.00', '0.00'], ['5711', '0.00', '25000.00']]);
+        $html = $this->page();
+        $l = $this->libelles();
+
+        $this->assertStringContainsString('Contrôle de cohérence réussi', $html);
+        // Le 19 n'est pas un emprunt : la ligne des emprunts reste a zero.
+        $this->assertSame(0, $this->montant($html, $l['emprunts']));
+        // Apport 90 000 − prelevement 25 000 : les capitaux propres montent de 65 000, lus avec les dividendes.
+        $this->assertSame(-65000, $this->montant($html, $l['dividendes']));
+        $this->assertLesTotauxSAdditionnent($html);
     }
 }

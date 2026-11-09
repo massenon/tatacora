@@ -355,6 +355,15 @@ final class ApiEtatsFinanciersTest extends TestCase
         // Trésorerie-Passif : rubrique à `0.00`, jamais supprimée du modèle
         // (`MODULE_COMPTABILITE_COMPLET_PART2.md` §2.3).
         $this->assertSame('0.00', $passif['tresorerie_passif']['net']);
+
+        // 10/11/2026 : le poste des ressources assimilees (16 a 19) existe, a zero,
+        // et le « dont dividendes a payer » (465, deja dans le passif circulant)
+        // descend avec le bilan sans jamais s'ajouter aux totaux.
+        $this->assertSame('0.00', $passif['dettes_financieres']['net']);
+        $this->assertContains('19', $passif['dettes_financieres']['prefixes']);
+        $this->assertSame('0.00', $bilan['dividendes_a_payer']);
+        $this->assertContains('465', $passif['passif_circulant']['prefixes']);
+        $this->assertContains('104', $passif['capitaux_propres']['prefixes']);
     }
 
     /**
@@ -424,6 +433,8 @@ final class ApiEtatsFinanciersTest extends TestCase
         // est la variation de tresorerie ; ni cession, ni emprunt, ni dividende ici.
         $this->assertSame('0.00', $tafire['emplois']['dividendes_verses']);
         $this->assertSame('0.00', $tafire['ressources']['variation_emprunts']);
+        $this->assertSame('0.00', $tafire['ressources']['variation_dettes_participations']);
+        $this->assertSame('0.00', $tafire['ressources']['quote_part_subventions']);
         $this->assertSame(
             '734000.00',
             bcadd(bcadd($tafire['flux']['exploitation'], $tafire['flux']['investissement'], 2), $tafire['flux']['financement'], 2),

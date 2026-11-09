@@ -149,6 +149,19 @@
                   <td class="px-3 py-2 text-right text-slate-500">{{ MontantFcfa::formatOuTiret($netsPrecedents[$poste->section.'|'.$poste->code] ?? '0.00') }}</td>
                 @endif
               </tr>
+              @if ($poste->code === 'passif_circulant')
+                {{-- Le compte 465 (associés, dividendes à payer) est une dette du
+                     passif circulant, « autres dettes » : son montant est DÉJÀ dans
+                     la ligne ci-dessus, ce « dont » ne s'additionne pas. --}}
+                <tr class="border-t border-slate-100">
+                  <td class="px-3 py-1.5"></td>
+                  <td class="px-3 py-1.5 text-left text-[12px] text-slate-500">{{ __('comptabilite_pwa.bilan_dont_dividendes_a_payer') }}</td>
+                  <td class="px-3 py-1.5 text-right text-[12px] text-slate-500">{{ MontantFcfa::formatOuTiret($bilan->dividendesAPayer) }}</td>
+                  @if ($bilanPrecedent !== null)
+                    <td class="px-3 py-1.5 text-right text-[12px] text-slate-500">{{ MontantFcfa::formatOuTiret($bilanPrecedent->dividendesAPayer) }}</td>
+                  @endif
+                </tr>
+              @endif
             @endforeach
             <tr style="{{ $styleSoldeFinal }}">
               <td class="px-3 py-2.5" colspan="2">TOTAL PASSIF</td>
