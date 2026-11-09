@@ -87,7 +87,7 @@ Exploitation) ; `m10-comptabilite.png` et `m10-syscohada.png` sont prises en ple
 | `x-parametres-mecef.png` | fait (rubrique « Facturation normalisée (MECeF) », mode par défaut — non réglé = désactivé —, aucun jeton). Variante en mode e-MECeF : `pwa-parametres-mecef-emecef.png`. |
 | `x-sauvegardes.png` | fait (bandeau « Sauvegarde en attente de téléchargement », quatre indicateurs, liste). |
 | `x-reinitialiser.png` | fait ; fenêtre de confirmation (saisie de « VIDER » **non** effectuée) : `x-reinitialiser-modale.png`. |
-| `x-poste-comptage-inventaire.png`, `x-poste-compta-bandeaux.png` | **poste Windows : à prendre par le PO** (non capturable depuis la PWA). |
+| `x-poste-comptage-inventaire.png`, `x-poste-compta-bandeaux.png` | **rendu Flutter, à confirmer par le PO sur Windows** (09/11/2026, `tool/capturer_poste_test.dart`, pas une photo d'écran Windows) : la phrase « Le comptage n'est écrit qu'à la clôture… » sous la feuille (deux articles comptés), et, au Compte de résultat, les bandeaux « 2 pièces saisies à la main … comptées » et « Pièce refusée par le serveur … ». Données fictives. |
 
 ### C. Autres écrans PWA nouveaux, pris sans demande préalable (noms `pwa-*`)
 

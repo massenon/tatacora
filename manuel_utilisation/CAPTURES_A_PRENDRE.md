@@ -79,13 +79,47 @@ La figure 16.1 utilise `captures/parametres.png`, déjà dans le dépôt : elle 
 2. Si l'écran capturé diffère de ce que décrit le texte (libellé, bouton absent), **corriger le texte**, pas la capture : le manuel décrit l'interface telle qu'elle est.
 3. Régénérer le PDF : `PPTR_DIR=~/outils-pdf node generer.js` (le sommaire se renumérote seul).
 
-## Statut au 09/11/2026 — poste Windows : à prendre par le PO
+## Statut au 09/11/2026 (mise à jour) — poste Windows : rendus Flutter produits, installateur et boîtes Windows à prendre par le PO
 
-Les dix-neuf captures ci-dessus (`c15-…` à `c19-…`) décrivent le **poste Windows** (Flutter) : elles ne sont **pas
-capturables** depuis la PWA du serveur et n'ont donc **pas été prises ni inventées** — **poste Windows : à prendre par le PO**.
-Aucun fichier `c1x-*.png` n'a été produit : les cadres `emplacement` restent en place.
+**Méthode.** Le conteneur est Linux : le poste Windows ne s'y lance pas. Les figures ci-dessous sont des **rendus du poste
+par le moteur Flutter lui-même** (outil `tatacora-flutter/tool/capturer_poste_test.dart`, lancé avec
+`CAPTURES_POSTE_DIR=../manuel_utilisation/captures flutter test --dart-define=ENV=production tool/capturer_poste_test.dart`) :
+les **vrais écrans** de `lib/features/**`, la vraie base Drift (en mémoire) alimentée de données **fictives** par les vrais
+écrivains du poste, le thème et la police Inter réels, fenêtre de 1 440 px, facteur 2 (PNG de 2 880 px). Ce **ne sont pas des
+photos d'écran Windows** : ni cadre de fenêtre ni barre de titre, rendu des polices du moteur Linux (pas ClearType), pictogrammes
+Material tirés du SDK, monospace de repli (DejaVu Sans Mono, JetBrains Mono n'étant pas livrée), les caractères « ← » et « → »
+sont rendus en carré par la police Inter livrée (Windows les tire d'une police de secours), et le jeu de données est fictif
+(horodatages du jour de génération). **Statut de chaque figure : « rendu Flutter, à confirmer par le PO sur Windows »**, sauf les
+deux marquées « à prendre par le PO ».
 
-Des écrans PWA voisins ont été pris, sous d'autres noms, pour qui voudrait un repère visuel **sans les substituer** (l'interface
+| # | Fichier | Statut | Remarque (ce que l'image montre réellement) |
+|---|---|---|---|
+| 1 | `c15-installateur-assistant.png` | **à prendre par le PO** | Assistant Inno Setup : fenêtre Windows, non rendable par Flutter. |
+| 2 | `c15-premier-demarrage.png` | rendu Flutter, à confirmer par le PO sur Windows | Écran « Premier démarrage » (champs vides), tailles de police de la connexion du 09/11/2026. |
+| 3 | `c15-desinstallation-avertissement.png` | **à prendre par le PO** | Boîte d'avertissement de la désinstallation : fenêtre du désinstalleur, non rendable. |
+| 4 | `c15-sauvegardes-poste.png` | rendu Flutter, à confirmer par le PO sur Windows | Sauvegarde réellement générée (copie SQLite, bandeau vert « Sauvegarde générée », ligne « non téléchargée »). « Rythme automatique » reste à « — » (pas de planificateur dans ce rendu). |
+| 5 | `c15-ecran-panne.png` | rendu Flutter, à confirmer par le PO sur Windows | Vrai chemin de panne (fichier qui n'est pas une base SQLite). La ligne « Journal » montre un chemin Linux temporaire ; sur Windows : `…\TATACORA\donnees\demarrage.log`. |
+| 6 | `c16-parametres-synchronisation.png` | rendu Flutter, à confirmer par le PO sur Windows | Poste appairé (compte fictif « gerant », poste « COMPTOIR-1 », adresse publique du serveur, jeton jamais affiché). |
+| 7 | `c16-bouton-barre.png` | rendu Flutter, à confirmer par le PO sur Windows | Fenêtre du bouton « Synchronisation » : 57 envoyées, 3 en attente, 0 à traiter. |
+| 8 | `c16-ecran-synchronisation-envoi.png` | rendu Flutter, à confirmer par le PO sur Windows | Une ligne « À traiter » : réservation rejetée, « Chevauchement avec un autre enregistrement » (refus injecté dans la file, pas obtenu par deux postes réels). |
+| 9 | `c16-postes-appairage.png` | rendu Flutter, à confirmer par le PO sur Windows | Deux postes fictifs (état « Actif » et « Sans nouvelles »). Le serveur est simulé ; la colonne « État » est coupée à droite à 1 440 px, comme l'écran réel. |
+| 10 | `c17-parametres-facturation-normalisee.png` | rendu Flutter, à confirmer par le PO sur Windows | Mode reçu du serveur (boîtier), « Ce poste certifie par », adresse du pilote, « Enregistrer », « Adresse par défaut », « Tester le boîtier ». Aucun jeton. Le mode s'affiche en code brut (« boitier ») : c'est l'écran actuel. |
+| 11 | `c17-modale-ifu-client.png` | rendu Flutter, à confirmer par le PO sur Windows | Fenêtre de clôture d'un séjour : IFU fictif `1234567890123`, « Client Exemple », « Retenir pour ce client », « Normaliser maintenant » (poste en mode boîtier). |
+| 12 | `c17-facture-normalisee-a4.png` | rendu Flutter (PDF du poste rastérisé), à confirmer par le PO | Première page de l'échantillon fictif `04_facture_A4_poste_normalisee`, filigrane « ÉCHANTILLON — SANS VALEUR FISCALE » visible. L'en-tête garde le téléphone de l'échantillon du dépôt. |
+| 13 | `c18-proformas-liste.png` | rendu Flutter, à confirmer par le PO sur Windows | Une émise, un brouillon, une annulée (motif « Essai »). Numéros provisoires `PROV-FP-…`. |
+| 14 | `c18-proforma-formulaire.png` | rendu Flutter, à confirmer par le PO sur Windows | Fenêtre « Nouvelle facture proforma » saisie, non validée. |
+| 15 | `c18-proforma-a4.png` | rendu Flutter (PDF du poste rastérisé), à confirmer par le PO | Identité de l'établissement **fictive** (IFU, RCCM, téléphone et e-mail d'exemple), signature en texte seul (sans image de signature ni cachet). |
+| 16 | `c19-mon-profil-poste.png` | rendu Flutter, à confirmer par le PO sur Windows | Compte administrateur fictif, bloc « Code de secours » (code posé, valeur jamais affichée). « Dernière connexion », « Adresse IP » et « Statut du compte » sont vides à gauche dans ce rendu (pas de connexion réelle). |
+| 17 | `c19-comptes-utilisateurs.png` | rendu Flutter, à confirmer par le PO sur Windows | Un compte « Changement requis », un « Désactivé ». La colonne des boutons est coupée à droite à 1 440 px, comme l'écran réel. |
+| 18 | `c19-temporaire-affiche.png` | rendu Flutter, à confirmer par le PO sur Windows | Mot de passe temporaire jetable d'un compte fictif (valeur aléatoire, sans valeur). |
+| 19 | `c19-code-secours-connexion.png` | rendu Flutter, à confirmer par le PO sur Windows | Trois champs vides. Le libellé du bouton et « Retour à la connexion » n'ont pas de police propre dans le code : sous `flutter test` ils sortent en carrés ; sur cette figure seule, Inter leur a été appliquée dans une copie de travail (le dépôt est inchangé). Sur Windows, ces textes prennent la police système. |
+
+Annexes du poste (`CAPTURES_A_PRENDRE_CHAP7-14.md`) : `x-poste-comptage-inventaire.png` et `x-poste-compta-bandeaux.png` —
+rendu Flutter, à confirmer par le PO sur Windows (voir ce fichier).
+
+Les cadres `emplacement` de `part-10.html` à `part-14.html` ne sont **pas** modifiés ici (un autre flux intègre les images).
+
+Des écrans PWA voisins avaient été pris, sous d'autres noms, pour qui voudrait un repère visuel **sans les substituer** (l'interface
 du poste diffère : libellés, boutons) : `pwa-postes-appairage` et `pwa-synchronisation-reception` / `-envoi` (figures 8 et 9),
 `pwa-synchronisation-fenetre` (7), `x-parametres-mecef` et `pwa-parametres-mecef-emecef` (10), `pwa-facture-normaliser` (11),
 `pwa-proformas-liste` et `pwa-proforma-formulaire` (13 et 14), `pwa-comptes-utilisateurs`, `pwa-comptes-reinitialisation`,
