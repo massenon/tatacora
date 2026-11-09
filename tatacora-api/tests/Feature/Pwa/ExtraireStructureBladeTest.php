@@ -302,7 +302,6 @@ final class ExtraireStructureBladeTest extends TestCase
                 'importer' => '?onglet=importer',
                 'sauvegardes' => '?onglet=sauvegardes',
                 'restaurer' => '?onglet=restaurer',
-                'seeders' => '?onglet=seeders',
             ],
             'jeu' => 'parc',
         ],
@@ -314,6 +313,12 @@ final class ExtraireStructureBladeTest extends TestCase
         // Décision PO du 18/10/2026 : le bouton « Synchroniser » du serveur.
         'transverse/synchronisation-postes' => [
             'url' => '/pwa/synchronisation-postes',
+            'variantes' => ['principal' => ''],
+            'jeu' => 'parc',
+        ],
+        // Décision PO du 09/11/2026 : la page « Synchronisation » (journaux ex-onglets de la page des postes).
+        'transverse/synchronisation' => [
+            'url' => '/pwa/synchronisation',
             'variantes' => ['principal' => ''],
             'jeu' => 'parc',
         ],

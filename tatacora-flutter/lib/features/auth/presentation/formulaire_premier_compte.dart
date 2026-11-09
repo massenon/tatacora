@@ -74,7 +74,7 @@ class _EtatFormulairePremierCompte
     super.dispose();
   }
 
-  /// `C` sur les seize modules — écrits un par un, volontairement.
+  /// `C` sur les seize modules et les trois droits transverses — écrits un par un, volontairement.
   static const Map<String, String> _droitsAdministrateur = {
     'M1': 'C',
     'M2': 'C',
@@ -92,6 +92,10 @@ class _EtatFormulairePremierCompte
     'M14': 'C',
     'ROLES': 'C',
     'PARAM': 'C',
+    // Les trois entrées de menu ouvertes à tous (09/11/2026) : `C` pour l'administrateur.
+    'SYNCHRO': 'C',
+    'APPAIRAGE': 'C',
+    'IMPORT_EXPORT': 'C',
   };
 
   Future<void> _creer() async {

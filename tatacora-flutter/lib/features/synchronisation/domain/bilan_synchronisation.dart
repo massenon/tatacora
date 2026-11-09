@@ -36,7 +36,7 @@ enum EtatSynchronisation {
   /// 409 `generation_perimee` (19/10/2026) : le serveur a été réinitialisé
   /// depuis la dernière synchronisation de ce poste. Le lot est rendu
   /// INTACT ; plus rien ne part ni n'arrive avant la réinitialisation de CE
-  /// poste (Import & Export → Réinitialiser comme neuf).
+  /// poste (Paramètres › Activation & Sécurité → Réinitialiser les données de test).
   serveurReinitialise,
 
   /// Un refus que le moteur ne sait pas rejouer (4xx inattendu, réponse

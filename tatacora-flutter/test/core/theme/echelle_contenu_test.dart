@@ -200,14 +200,18 @@ void main() {
     // `@elseif ($onglet === 'tables')` de `transverse/parametres.blade.php`
     // (l.322), dans `<main>` (fermé l.507) — échelle EFFECTIVE.
     'lib/features/parametres/presentation/widgets/onglet_espaces_tables.dart',
-    // L'onglet « Appairage Postes » (ex-« Synchronisation », 09/11/2026) (lot F2a, 15/10/2026) : un AJOUT du poste,
-    // rendu dans la carte du formulaire de Paramètres comme les autres
-    // onglets, donc dans `<main>` — échelle EFFECTIVE.
+    // La section « Appairage du poste » (ex-onglet des Paramètres, déplacée le 09/11/2026 dans l'écran
+    // « Appairage Postes » du menu) (lot F2a, 15/10/2026) : un AJOUT du poste, rendue dans la carte de
+    // l'écran, donc dans `<main>` — échelle EFFECTIVE.
     'lib/features/parametres/presentation/widgets/onglet_synchronisation.dart',
     // Les cartes « Adresse du serveur » et « Synchronisation automatique »
     // (29/10/2026) : portées par l'onglet ci-dessus, dans `<main>` — échelle
     // EFFECTIVE.
     'lib/features/parametres/presentation/widgets/cartes_adresse_serveur.dart',
+    // La section « Réinitialiser les données de test » (09/11/2026, revenue d'Import & Export) :
+    // dans l'onglet « Activation & Sécurité » de Paramètres, donc dans `<main>` — échelle
+    // EFFECTIVE (sa modale vivait déjà dans le fichier d'Import & Export, classé dans ce camp).
+    'lib/features/parametres/presentation/widgets/section_reinitialisation.dart',
     // L'indicateur d'état et le bouton « Normaliser / Réessayer » du registre des
     // factures (07/11/2026) : dans la cellule « Statut » et la colonne d'actions de
     // la vue de la facturation, dans `<main>` — échelle EFFECTIVE.

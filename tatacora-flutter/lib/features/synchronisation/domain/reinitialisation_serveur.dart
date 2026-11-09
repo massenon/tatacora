@@ -13,8 +13,8 @@ abstract final class TextesReinitialisationServeur {
     final l = le.toLocal();
     return 'Le serveur a été réinitialisé le ${deux(l.day)}/${deux(l.month)}/'
         '${l.year} à ${deux(l.hour)}:${deux(l.minute)} : ce poste ne '
-        'synchronise plus. Réinitialisez-le (Import & Export → Réinitialiser '
-        'comme neuf) ; ses opérations non envoyées sont des essais et seront '
+        'synchronise plus. Réinitialisez-le (Paramètres › Activation & Sécurité → '
+        'Réinitialiser les données de test) ; ses opérations non envoyées sont des essais et seront '
         'abandonnées.';
   }
 }

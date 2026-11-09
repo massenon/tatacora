@@ -12,6 +12,7 @@ import '../../transverse/domain/comptes_utilisateurs.dart';
 import '../../transverse/presentation/widgets/briques_transverses.dart';
 import '../../transverse/data/configuration_poste.dart';
 import '../data/service_suivi_postes.dart';
+import '../../parametres/presentation/widgets/onglet_synchronisation.dart';
 import 'providers_synchronisation.dart';
 
 /// Le service de l'écran — un test pose le sien.
@@ -311,6 +312,18 @@ class _EtatEcranSynchronisationPostes
           TextesSynchronisationPostes.note,
           style: styleTransverse(TaillesContenu.t13, couleur: Ardoise.c500),
         ),
+        // L'appairage de CE poste (ex-onglet « Appairage Postes » des Paramètres, déplacé
+        // au menu latéral le 09/11/2026 sur demande du PO) : adresse du serveur,
+        // interrupteur « Synchronisation activée », fréquence, appairer, dissocier,
+        // tester la connexion. AJOUT du poste (le serveur ne s'appaire pas à
+        // lui-même) : la vue des postes n'en dit rien. Tout rôle voit l'écran ; les
+        // gestes (appairer, dissocier, changer l'adresse) restent réservés aux
+        // Administrateurs, la section le vérifie elle-même.
+        const SizedBox(height: AppSpacing.xl),
+        const CarteTransverse(
+          key: Key('appairage-de-ce-poste'),
+          child: OngletSynchronisation(),
+        ),
       ],
     );
   }
@@ -375,7 +388,7 @@ abstract final class TextesSynchronisationPostes {
   static String revocationTitre(String poste) =>
       "Révoquer l'appairage du poste « $poste » ?";
   static const String revocationTexte =
-      "Le poste ne pourra plus envoyer ni recevoir tant qu'un Administrateur ne l'aura pas réappairé (Paramètres → Appairage Postes, sur le poste). Ce qu'il a enregistré reste dans sa file : rien n'est perdu.";
+      "Le poste ne pourra plus envoyer ni recevoir tant qu'un Administrateur ne l'aura pas réappairé (menu Appairage Postes, sur le poste). Ce qu'il a enregistré reste dans sa file : rien n'est perdu.";
   static const String revocationConfirmer = "Révoquer l'appairage";
   static const String annuler = 'Annuler';
 }

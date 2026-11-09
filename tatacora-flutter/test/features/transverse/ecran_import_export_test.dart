@@ -117,6 +117,7 @@ void main() {
         tester,
         droits: const {
           'PARAM': 'C',
+          'IMPORT_EXPORT': 'L',
           'M3': 'C',
           'M8': 'C',
           'M6': 'L',
@@ -132,7 +133,10 @@ void main() {
 
     testWidgets('aucun module en écriture : la liste est vide et l’écran le '
         'dit', (tester) async {
-      await monter(tester, droits: const {'PARAM': 'C', 'M3': 'L'});
+      await monter(
+        tester,
+        droits: const {'PARAM': 'C', 'IMPORT_EXPORT': 'L', 'M3': 'L'},
+      );
       expect(optionsModule(tester), isEmpty);
       expect(find.byKey(const Key('ie-aucun-module')), findsOneWidget);
     });
@@ -261,7 +265,7 @@ void main() {
   ) async {
     await monter(tester, moduleInitial: 'm1-hebergement');
     final motif = RegExp('aucun moteur d.import', caseSensitive: false);
-    for (final onglet in ['importer', 'sauvegardes', 'restaurer', 'seeders']) {
+    for (final onglet in ['importer', 'sauvegardes', 'restaurer']) {
       await cliquer(tester, find.byKey(Key('ie-onglet-$onglet')));
       expect(
         find.textContaining(motif, skipOffstage: false),
@@ -269,6 +273,37 @@ void main() {
         reason: onglet,
       );
     }
+  });
+
+  testWidgets(
+    '« Réinitialiser les données de test » n’est PLUS un onglet d’Import & '
+    'Export : elle est revenue dans Paramètres (09/11/2026)',
+    (tester) async {
+      await monter(tester);
+      expect(find.byKey(const Key('ie-onglet-seeders')), findsNothing);
+      expect(find.text('Réinitialiser les données de test'), findsNothing);
+      expect(find.byKey(const Key('ie-onglet-importer')), findsOneWidget);
+      expect(find.byKey(const Key('ie-onglet-sauvegardes')), findsOneWidget);
+      expect(find.byKey(const Key('ie-onglet-restaurer')), findsOneWidget);
+    },
+  );
+
+  testWidgets('un rôle qui ne fait que VOIR la page (IMPORT_EXPORT en L, PARAM '
+      'fermé) n’a que « Importer » : ni sauvegarde, ni restauration', (
+    tester,
+  ) async {
+    await monter(tester, droits: const {'IMPORT_EXPORT': 'L', 'M3': 'L'});
+    expect(find.byKey(const Key('ie-onglet-importer')), findsOneWidget);
+    expect(find.byKey(const Key('ie-onglet-sauvegardes')), findsNothing);
+    expect(find.byKey(const Key('ie-onglet-restaurer')), findsNothing);
+    expect(find.text('Sauvegardes de la base'), findsNothing);
+    expect(find.text('Restaurer'), findsNothing);
+  });
+
+  testWidgets('sans le droit IMPORT_EXPORT, la page est refusée (la visibilité '
+      'est commandée par ce droit)', (tester) async {
+    await monter(tester, droits: const {'PARAM': 'C'});
+    expect(find.byKey(const Key('ie-onglet-importer')), findsNothing);
   });
 
   test('« aucun moteur d’import » n’est écrit dans AUCUNE chaîne de lib/ '

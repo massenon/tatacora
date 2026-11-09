@@ -544,6 +544,8 @@
               </div>
             </div>
 
+            @include('pwa.transverse.partials.reinitialisation-donnees-test')
+
             {{-- maquette l.194-202 — le rappel du maître, avec son lien réel. --}}
             <div class="mt-5 pt-4 border-t border-slate-100">
               <h3 class="text-sm font-bold text-slate-700 mb-1">{{ __('pwa.parametres.section_activation_suppression') }}</h3>
@@ -581,6 +583,10 @@
       </div>
     </main>
   </div>
+
+  @if ($etatFormulaire === 'reinitialisation')
+    @include('pwa.transverse.partials.reinitialisation-modale')
+  @endif
 
   {{-- MODALE D'ÉDITION — derrière `@if`, jamais rendue au premier GET. --}}
   @if ($etatFormulaire === 'parametre' && $definitionEditee !== null)

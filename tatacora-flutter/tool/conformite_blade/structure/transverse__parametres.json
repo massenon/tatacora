@@ -1035,6 +1035,18 @@
             },
             {
                 "type": "h3",
+                "texte": "Réinitialiser les données de test"
+            },
+            {
+                "type": "p",
+                "texte": "Réinitialisation désactivée"
+            },
+            {
+                "type": "p",
+                "texte": "Cette fonction vide les jeux de données de démonstration. Elle reste fermée par défaut : laissée ouverte sur une base d'exploitation réelle, elle détruirait le travail de l'entreprise."
+            },
+            {
+                "type": "h3",
                 "texte": "Rappel sur la suppression"
             },
             {

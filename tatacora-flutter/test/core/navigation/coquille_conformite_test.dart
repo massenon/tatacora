@@ -152,16 +152,18 @@ void main() {
       expect(destinationsEpinglees.where(estAjout), isEmpty);
     });
 
-    test('vingt-sept destinations de la PWA, plus les ajouts déclarés', () {
+    test('vingt-huit destinations de la PWA, plus les ajouts déclarés', () {
       final pwa =
           registre.epinglees.length +
           registre.groupes.fold<int>(0, (s, g) => s + g.items.length);
       expect(destinationsDeLaVue(), hasLength(pwa));
       // 26 → 27 le 29/10/2026 : « Comptes utilisateurs », portée par la PWA
       // (mot de passe perdu SANS e-mail) — ce n'est plus un ajout du poste.
-      expect(destinationsDeLaVue(), hasLength(27));
+      // 27 → 28 le 09/11/2026 : « Synchronisation » (page des journaux, décision du PO :
+      // au menu de tous les rôles) — portée par la PWA ET par le poste.
+      expect(destinationsDeLaVue(), hasLength(28));
       // Le total Flutter : la vue, plus chaque ajout déclaré — et aucun autre.
-      expect(toutesLesDestinations, hasLength(27 + ajoutsMenuPoste.length));
+      expect(toutesLesDestinations, hasLength(28 + ajoutsMenuPoste.length));
     });
 
     test('chaque ajout du poste est daté, motivé, et ABSENT de la PWA', () {
@@ -451,7 +453,7 @@ void main() {
       }
     });
 
-    test('les vingt-sept destinations ont un écran (D424)', () {
+    test('les vingt-huit destinations ont un écran (D424)', () {
       final avec = destinationsDeLaVue().where((d) => d.aUnEcran).toList();
       // Les ajouts du poste ont le leur (le routeur le sert : voir « toute
       // route annoncée au menu EXISTE au routeur »).
@@ -474,11 +476,13 @@ void main() {
       // la PWA et reprise par le poste le même jour.
       // 26 → 27 le 29/10/2026 : « Comptes utilisateurs », créée à la PWA (mot de
       // passe perdu SANS e-mail) — le poste l'avait déjà (Lot J2).
+      // 27 → 28 le 09/11/2026 : « Synchronisation », créée à la PWA (page des journaux) et
+      // portée par l'écran de synchronisation du poste, désormais au menu.
       expect(
         avec,
-        hasLength(27),
+        hasLength(28),
         reason:
-            'couverture du MENU : ${avec.length}/27 — mettre à jour '
+            'couverture du MENU : ${avec.length}/28 — mettre à jour '
             'AUDIT_CONFORMITE_ECRANS_FLUTTER.md §3 en même temps que ce chiffre',
       );
 

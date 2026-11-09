@@ -25,6 +25,7 @@ import 'package:tatacora_flutter/features/parametres/presentation/ecran_parametr
 import 'package:tatacora_flutter/features/restaurant/presentation/ecran_carte_restaurant.dart';
 import 'package:tatacora_flutter/features/synchronisation/data/service_suivi_postes.dart';
 import 'package:tatacora_flutter/features/synchronisation/data/transport_synchronisation.dart';
+import 'package:tatacora_flutter/features/synchronisation/presentation/ecran_synchronisation.dart';
 import 'package:tatacora_flutter/features/synchronisation/presentation/ecran_synchronisation_postes.dart';
 import 'package:tatacora_flutter/features/crm/domain/entities/client.dart';
 import 'package:tatacora_flutter/features/crm/presentation/ecran_clients.dart';
@@ -429,6 +430,16 @@ final casEcrans = <CasEcran>[
       serviceSuiviPostesProvider.overrideWithValue(_SuiviPostesVierge()),
     ],
   ),
+  // 09/11/2026 (PO) : la page « Synchronisation » du web (journaux de réception et d'envoi)
+  // est portée par l'écran de synchronisation du poste — `/synchronisation`, au menu de tous
+  // les rôles. Le jeu `parc` : aucun échec, la file vide.
+  CasEcran(
+    vue: 'transverse/synchronisation',
+    jeu: JeuEcran.parc,
+    droits: _droitsAdministrateur,
+    ecran: () => const EcranSynchronisation(),
+    surcharges: _sessionAdministrateur,
+  ),
   CasEcran(
     vue: 'transverse/mon-profil',
     jeu: JeuEcran.parc,
@@ -458,6 +469,8 @@ const _droitsAdministrateur = {
   'M1': 'C', 'M2': 'C', 'M3': 'C', 'M4': 'C', 'M5': 'C', 'M6': 'C', //
   'M7': 'C', 'M8': 'C', 'M9': 'C', 'M10': 'C', 'M11': 'C', 'M12': 'C',
   'M13': 'C', 'M14': 'C', 'ROLES': 'C', 'PARAM': 'C',
+  // Les trois droits ouverts à tous (09/11/2026).
+  'SYNCHRO': 'C', 'APPAIRAGE': 'C', 'IMPORT_EXPORT': 'C',
 };
 
 /// La session du relevé Blade : `compte.structure`, administrateur

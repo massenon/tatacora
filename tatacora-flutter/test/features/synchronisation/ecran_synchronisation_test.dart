@@ -333,8 +333,8 @@ void main() {
   });
 
   group('ancrages extérieurs', () {
-    test('la route /synchronisation sert l’écran de synchronisation, gardée '
-        'par le module Paramètres', () {
+    test('la route /synchronisation sert l’écran de synchronisation, entrée '
+        'du menu de TOUS les rôles, gardée par le droit transverse SYNCHRO', () {
       final routeur = File(
         'lib/core/router/app_router.dart',
       ).readAsStringSync();
@@ -346,9 +346,13 @@ void main() {
         isTrue,
       );
       expect(routeur, isNot(contains('seulementEnSuspens')));
+      // 09/11/2026 (PO) : une entrée du menu (« Synchronisation »), plus une route hors menu.
+      expect(modulesDesRoutesHorsMenu['/synchronisation'], isNull);
       expect(
-        modulesDesRoutesHorsMenu['/synchronisation'],
-        ModuleTatacora.parametres,
+        toutesLesDestinations
+            .singleWhere((d) => d.route == '/synchronisation')
+            .module,
+        ModuleTatacora.synchro,
       );
     });
 
@@ -368,9 +372,7 @@ void main() {
     });
   });
 
-  testWidgets('le lien de Paramètres → Appairage Postes OUVRE l’écran', (
-    tester,
-  ) async {
+  testWidgets('le lien de menu Appairage Postes OUVRE l’écran', (tester) async {
     tester.view
       ..physicalSize = const Size(1800, 3000)
       ..devicePixelRatio = 1.0;

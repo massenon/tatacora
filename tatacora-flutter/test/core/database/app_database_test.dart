@@ -170,8 +170,9 @@ void main() {
     //
     // v53 (09/11/2026, affectations du résultat reçues) : UNE table neuve
     // (`affectations_resultat_local`) — 82.
+    // v54 (09/11/2026, trois droits transverses ouverts à tous) : AUCUNE table — 82.
     expect(base.allTables.length, 82);
-    expect(base.schemaVersion, 53);
+    expect(base.schemaVersion, 54);
     expect(
       base.allTables.map((t) => t.actualTableName).toSet().containsAll({
         'origines_documents_local',

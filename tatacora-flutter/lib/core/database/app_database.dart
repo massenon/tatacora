@@ -16,6 +16,7 @@ import 'tables/boite_envoi_emails_tables.dart';
 import 'tables/caisse_tables.dart';
 import 'auteur_ecriture.dart';
 import 'declencheurs_comptables.dart';
+import 'droits_ouverts_a_tous_migration.dart';
 import 'droits_profil_migration.dart';
 import 'reconcilier_schema.dart';
 import 'emplacement_base.dart';
@@ -568,6 +569,13 @@ class AppDatabase extends _$AppDatabase {
   /// peut les porter déjà. Le curseur de descente est oublié : les proformas déjà au serveur
   /// (autres postes, web) redescendent.
   ///
+  /// v54 (09/11/2026) — TROIS DROITS TRANSVERSES OUVERTS À TOUS (PO : « Synchronisation »,
+  /// « Appairage Postes » et « Import & Export » au menu de TOUS les rôles par défaut) :
+  /// AUCUNE table, AUCUNE colonne — la migration pose `SYNCHRO`, `APPAIRAGE` et
+  /// `IMPORT_EXPORT` dans `roles_local.droits_json` et `utilisateurs_local.droits_json`
+  /// SEULEMENT là où la clé manque (`L` ; `C` pour l'administration), sans jamais
+  /// réécrire un réglage ni retirer un droit. Voir `droits_ouverts_a_tous_migration.dart`.
+  ///
   /// v53 (09/11/2026) — AFFECTATIONS DU RÉSULTAT REÇUES du serveur (PO : « une affectation
   /// passée au web DOIT apparaître sur le poste ») : UNE table NEUVE
   /// (`affectations_resultat_local`, 81 -> 82), aucune colonne ajoutée, aucune ligne
@@ -575,7 +583,7 @@ class AppDatabase extends _$AppDatabase {
   /// affectations déjà passées au serveur (web, autres postes) redescendent. Voir
   /// `tables/affectations_resultat_tables.dart`.
   @override
-  int get schemaVersion => 53;
+  int get schemaVersion => 54;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1865,6 +1873,12 @@ class AppDatabase extends _$AppDatabase {
         );
       }
 
+      if (from < 54) {
+        // TROIS DROITS OUVERTS À TOUS (09/11/2026) : `SYNCHRO`, `APPAIRAGE`, `IMPORT_EXPORT`,
+        // posés dans les matrices DÉJÀ stockées là où la clé manque (`L` ; `C` pour
+        // l'administration), jamais réécrits, jamais retirés. Aucune table, aucune colonne.
+        await poserDroitsOuvertsATous(m.database);
+      }
       // Filet final (PRD réinstallation R2) : ce que les paliers n'ont pas posé
       // (palier sauté, branche parallèle) est complété, jamais retiré.
       await reconcilierSchema(this);

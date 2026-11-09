@@ -141,6 +141,11 @@ const tablesAjouteesEnV52 = <String>{
 const tablesAjouteesEnV53 = <String>{'affectations_resultat_local'};
 
 const _ajoutsParVersion = <int, List<String>>{
+  // La v54 (09/11/2026, trois droits transverses ouverts a tous) ne change AUCUN schema :
+  // elle ne pose que des cles dans `droits_json`. Le retour arriere n'a donc aucun ordre
+  // (les cles posees restent, additives) — mais l'entree doit exister.
+  54: <String>[],
+
   // La v53 (09/11/2026, affectations du resultat recues du serveur) ajoute UNE table neuve,
   // aucune colonne : le retour arriere la supprime (elle n'a ni cle etrangere ni dependant).
   53: <String>['DROP TABLE affectations_resultat_local'],

@@ -13,6 +13,7 @@ use App\Domain\Ventes\Models\TableSalle;
 use App\Domain\Ventes\Services\TableSalleService;
 use App\Models\User;
 use App\Pwa\Livewire\Concerns\FormulaireModal;
+use App\Shared\Backup\Services\ReinitialisationDonneesTestService;
 use App\Shared\Mail\Services\ConfigurationMailService;
 use App\Shared\Parametres\Data\DefinitionParametre;
 use App\Shared\Parametres\Data\RegistreParametres;
@@ -267,6 +268,9 @@ class Parametres extends PageTransverse
      */
     public string $jetonMecef = '';
 
+    /** La phrase retapée pour confirmer « Réinitialiser les données de test » (09/11/2026). */
+    public string $phraseConfirmationReset = '';
+
     /** La modale de saisie du jeton (aucun champ au premier GET). */
     public bool $saisieJetonMecef = false;
 
@@ -289,7 +293,81 @@ class Parametres extends PageTransverse
             'signature' => ['signatureTeleversee'],
             'cachet' => ['cachetTeleverse'],
             'table' => ['tableIdEditee', 'tableEspace', 'tableNumero', 'tablePlaces'],
+            'reinitialisation' => ['phraseConfirmationReset'],
         ];
+    }
+
+    /**
+     * « Réinitialiser les données de test » — revenue dans Paramètres, onglet
+     * « Activation & Sécurité » (PO, 09/11/2026 ; elle vivait dans Import &
+     * Export depuis le 14/10/2026). LOGIQUE INCHANGÉE : réservée aux rôles
+     * d'administration, revérifiée à l'ouverture ET à l'exécution ; deux
+     * verrous (environnement jamais en Production sauf phase d'essais, bascule
+     * `reinitialisation_seeders`) ; phrase à retaper ; sauvegarde automatique
+     * AVANT ; journal d'audit ; chaque poste se réinitialise ensuite à son tour.
+     */
+    public function ouvrirReinitialisation(ReinitialisationDonneesTestService $service): void
+    {
+        $this->exigerAdministrationReinitialisation($service);
+        $this->ouvrirFormulaire('reinitialisation');
+    }
+
+    public function reinitialiserDonneesTest(ReinitialisationDonneesTestService $service): void
+    {
+        $this->exigerAdministrationReinitialisation($service);
+
+        $donnees = $this->validerEcriture([
+            'phraseConfirmationReset' => ['required', 'string'],
+        ]);
+
+        $attendue = __('pwa.import_export.seeders_phrase_confirmation');
+
+        // La casse est tolérée (le maître compare en majuscules, l.865) — le
+        // MOT, jamais : une saisie plutôt qu'un simple clic est « la seule
+        // barrière qui résiste à un double-clic distrait ».
+        if (mb_strtoupper(trim((string) $donnees['phraseConfirmationReset'])) !== $attendue) {
+            $this->addError('phraseConfirmationReset', __('pwa.import_export.seeders_phrase_invalide', [
+                'phrase' => $attendue,
+            ]));
+
+            return;
+        }
+
+        try {
+            /** @var \App\Models\User|null $auteur */
+            $auteur = auth()->user();
+            // La session de l'administrateur qui agit est épargnée : il reste
+            // connecté (pilote de session `database` ; sans effet sinon).
+            $resultat = $service->executer($auteur, session()->getId());
+        } catch (RuntimeException $refus) {
+            $this->addError('phraseConfirmationReset', $refus->getMessage());
+
+            return;
+        }
+
+        // Le compte et la session SURVIVENT : les tables préservées portent
+        // l'identité. Rien n'est semé à nouveau : le système est neuf.
+        $this->terminerFormulaire(__('pwa.import_export.seeders_fait', [
+            'nombre' => (string) $resultat['videes'],
+            'lignes' => (string) $resultat['lignes'],
+            'sauvegarde' => $resultat['sauvegarde'],
+        ]));
+    }
+
+    private function exigerAdministrationReinitialisation(ReinitialisationDonneesTestService $service): void
+    {
+        /** @var \App\Models\User|null $utilisateur */
+        $utilisateur = auth()->user();
+
+        if (! $service->estPermisA($utilisateur)) {
+            abort(403, __('pwa.import_export.reset_refuse_role'));
+        }
+    }
+
+    public function fermerReinitialisation(): void
+    {
+        $this->etatFormulaire = null;
+        $this->resetValidation();
     }
 
     /**
@@ -882,6 +960,7 @@ class Parametres extends PageTransverse
         OptionsSystemeService $options,
         ApparenceEtablissementService $apparence,
         SecretsConfigurationService $secrets,
+        ReinitialisationDonneesTestService $reinitialisation,
     ): View {
         $groupes = [];
         $groupesParOnglet = [];
@@ -948,6 +1027,14 @@ class Parametres extends PageTransverse
             'etatMotDePasseSmtp' => $secrets->etat(SecretsConfigurationService::SMTP_MOT_DE_PASSE),
             // Facturation normalisée : l'ÉTAT du jeton (renseigné, quand, par qui), jamais sa valeur.
             'etatJetonMecef' => $secrets->etat(SecretsConfigurationService::MECEF_JETON),
+            // Réinitialiser les données de test (09/11/2026) : l'état des verrous, lu à
+            // l'ouverture de l'onglet « Activation & Sécurité » seulement.
+            'reinitialisationAutorisee' => $this->onglet === 'activation' ? $reinitialisation->estAutorisee() : false,
+            'reinitialisationPhaseEssais' => $this->onglet === 'activation' ? $reinitialisation->enPhaseEssais() : false,
+            'reinitialisationOuverte' => $this->onglet === 'activation' ? $reinitialisation->estOuverte() : false,
+            'reinitialisationPermise' => $reinitialisation->estPermisA(auth()->user()),
+            'tablesEffacables' => $this->onglet === 'activation' ? $reinitialisation->tablesEffacables() : [],
+            'tablesPreservees' => $this->onglet === 'activation' ? $reinitialisation->tablesPreservees() : [],
             'peutSaisirSecret' => $this->peutEcrire() && (auth()->user()?->estAdministrateur() ?? false),
         ]))->layout('layouts.pwa', ['title' => __('pwa.parametres.titre_page')]);
     }

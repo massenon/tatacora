@@ -218,6 +218,8 @@ const List<CasImport> casImport = [
 /// Les droits d'écriture sur les huit modules et sur l'écran Import & Export.
 const Map<String, String> droitsImportComplets = {
   'PARAM': 'C',
+  // Le droit transverse qui ouvre la page (09/11/2026) : lecture pour tous par défaut.
+  'IMPORT_EXPORT': 'C',
   'M1': 'C',
   'M3': 'C',
   'M4': 'C',

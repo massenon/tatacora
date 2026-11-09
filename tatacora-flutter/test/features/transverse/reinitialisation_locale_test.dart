@@ -16,7 +16,7 @@ import 'package:tatacora_flutter/features/parametres/domain/options_systeme.dart
 import 'package:tatacora_flutter/features/transverse/data/reinitialisation_locale.dart';
 import 'package:tatacora_flutter/features/transverse/data/roles_dao.dart';
 import 'package:tatacora_flutter/features/transverse/data/sauvegardes_poste.dart';
-import 'package:tatacora_flutter/features/transverse/presentation/ecran_import_export.dart';
+import 'package:tatacora_flutter/features/parametres/presentation/ecran_parametres.dart';
 
 import '../comptabilite/support/outils_comptabilite.dart';
 
@@ -206,28 +206,32 @@ void main() {
         ],
         child: MaterialApp(
           theme: AppTheme.clair,
-          home: const Scaffold(body: EcranImportExport()),
+          home: const Scaffold(body: EcranParametres()),
         ),
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('ie-onglet-seeders')));
+    // Paramètres › Activation & Sécurité (09/11/2026, PO : le bouton y est revenu).
+    await tester.tap(find.byKey(const Key('param-onglet-activation')));
     await tester.pumpAndSettle();
     await tester.runAsync(() => Future<void>.delayed(Duration.zero));
     await tester.pumpAndSettle();
 
-    final bouton = find.byKey(const Key('ie-seeders-bouton'));
+    final bouton = find.byKey(const Key('param-reinit-bouton'));
     await tester.ensureVisible(bouton);
     await tester.tap(bouton);
     await tester.pumpAndSettle();
-    expect(find.byKey(const Key('ie-seeders-modale')), findsOneWidget);
+    expect(find.byKey(const Key('param-reinit-modale')), findsOneWidget);
 
-    await tester.enterText(find.byKey(const Key('ie-seeders-saisie')), 'VIDE');
+    await tester.enterText(
+      find.byKey(const Key('param-reinit-saisie')),
+      'VIDE',
+    );
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('ie-seeders-confirmer')));
+    await tester.tap(find.byKey(const Key('param-reinit-confirmer')));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('ie-seeders-modale')), findsOneWidget);
+    expect(find.byKey(const Key('param-reinit-modale')), findsOneWidget);
     final clients = await tester.runAsync(() => compter('clients_local'));
     expect(clients, 1);
   });

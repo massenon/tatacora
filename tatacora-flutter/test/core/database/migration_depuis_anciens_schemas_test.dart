@@ -312,7 +312,8 @@ void main() {
         // 29/10/2026).
         // v52 (07/11/2026) : facture proforma — trois tables neuves.
         // v53 (09/11/2026) : affectations du résultat reçues — une table neuve.
-        expect(db.select('PRAGMA user_version').first.values.first, 53);
+        // v54 (09/11/2026) : trois droits transverses ouverts à tous — aucune table ni colonne.
+        expect(db.select('PRAGMA user_version').first.values.first, 54);
         db.close();
       },
       timeout: const Timeout(Duration(minutes: 2)),

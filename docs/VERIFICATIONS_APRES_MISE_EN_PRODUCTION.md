@@ -75,7 +75,7 @@ php artisan tatacora:verifier-production
 - [ ] Connexion avec un compte du poste.
 - [ ] La base est au bon endroit :
       `%LOCALAPPDATA%\TATACORA\donnees\tatacora.sqlite` (pas dans Documents).
-- [ ] Paramètres → Appairage Postes → **Tester la connexion** : « Connexion
+- [ ] menu Appairage Postes → **Tester la connexion** : « Connexion
       établie ».
 - [ ] Bouton de synchronisation (barre du haut) → **Synchroniser
       maintenant** : voyant **vert**, aucune opération « À traiter ».

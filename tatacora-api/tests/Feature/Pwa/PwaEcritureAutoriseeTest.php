@@ -187,6 +187,8 @@ final class PwaEcritureAutoriseeTest extends TestCase
         // Tourisme / Départs (26/10/2026) : referme la modale « Ajouter Guide
         // Touristisme » ; état d'interface, aucune table touchée.
         'fermerAjoutGuide',
+        // Paramètres › Activation & Sécurité (09/11/2026) : referme la modale de réinitialisation.
+        'fermerReinitialisation',
         'changerOnglet',
 
         // 6. UNE LECTURE SEULE explicitement nommée — PA-165 (02/09/2026).

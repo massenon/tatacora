@@ -233,7 +233,7 @@ void main() {
       // (`ajouts_menu_poste.dart`) : « Comptes utilisateurs » (PO, 14/10/2026),
       // atteint ici parce que la session est `administrateur` — l'entrée est
       // réservée aux rôles d'administration (`rolesExiges`).
-      expect(visitees, 27 + ajoutsMenuPoste.length);
+      expect(visitees, 28 + ajoutsMenuPoste.length);
     });
 
     testWidgets('plus AUCUNE entrée sans écran (D424) : les trois anciennes ne '
@@ -669,7 +669,9 @@ void main() {
     ) async {
       expect(droitsParRole['barman']!['PARAM'], '-');
       await ouvrir(tester, 'barman');
-      expect(find.byTooltip(LibellesCoquille.sansDroit), findsNWidgets(2));
+      // « Import & Export » n'y figure plus (09/11/2026, PO : ouverte à tous par `IMPORT_EXPORT`) :
+      // seul « Paramètres du compte » dit encore « Votre profil n'a pas accès à cet écran ».
+      expect(find.byTooltip(LibellesCoquille.sansDroit), findsNWidgets(1));
       await tester.tap(find.text(LibellesCoquille.parametresCompte));
       await tester.pump();
       expect(find.text(LibellesCoquille.sansDroit), findsOneWidget);

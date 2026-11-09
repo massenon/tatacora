@@ -10,7 +10,7 @@ corrigé, et ce qui reste impossible hors ligne avec sa raison.
 
 ## 1. L'interrupteur « Synchronisation activée »
 
-- **Où** : Paramètres du poste, onglet « Appairage Postes » (Administrateurs
+- **Où** : menu latéral « Appairage Postes » du poste, section « Appairage du poste » (Administrateurs
   seulement). Le voyant de la barre supérieure le dit : « Synchronisation
   désactivée » (gris, avec le nombre d'opérations en attente).
 - **Stockage : `poste.json`** (clé `synchronisation_activee`, absente = activée),

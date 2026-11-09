@@ -667,7 +667,7 @@ void main() {
     test('« Super Admin » (casse de la session) purge ; sans l’écriture sur '
         'Paramètres, non', () async {
       expect(
-        await purgerEn('super_admin', const {'PARAM': 'L'}),
+        await purgerEn('super_admin', const {'PARAM': 'L', 'IMPORT_EXPORT': 'L'}),
         MessagesArchives.droitManquant,
       );
       expect(await existe('U-OK'), isTrue);
@@ -804,7 +804,7 @@ void main() {
 
     testWidgets('sans le droit d’écrire sur Paramètres, la purge est refusée '
         'au geste (le serveur répond 403)', (tester) async {
-      await monter(tester, droits: const {'PARAM': 'L'});
+      await monter(tester, droits: const {'PARAM': 'L', 'IMPORT_EXPORT': 'L'});
       await tester.tap(find.byKey(purger('U-OK')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('ie-purge-confirmer')));

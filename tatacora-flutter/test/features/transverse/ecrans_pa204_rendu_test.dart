@@ -71,6 +71,8 @@ void main() {
     'M1': 'C', 'M2': 'C', 'M3': 'C', 'M4': 'C', 'M5': 'C', 'M6': 'C', //
     'M7': 'C', 'M8': 'C', 'M9': 'C', 'M10': 'C', 'M11': 'C', 'M12': 'C',
     'M13': 'C', 'M14': 'C', 'ROLES': 'C', 'PARAM': 'C',
+    // Les trois droits ouverts à tous (09/11/2026) : sans `IMPORT_EXPORT`, l'écran est refusé.
+    'SYNCHRO': 'C', 'APPAIRAGE': 'C', 'IMPORT_EXPORT': 'C',
   };
 
   /// Tous les textes RENDUS (Text, RichText, champs), jamais le code source.

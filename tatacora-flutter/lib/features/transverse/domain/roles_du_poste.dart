@@ -191,6 +191,9 @@ const Map<String, Map<String, String>> socleRbacCdcf = {
     'PROFIL_NOM': 'C',
     'PROFIL_TELEPHONE': 'C',
     'PROFIL_INTITULE': 'C',
+    'SYNCHRO': 'C',
+    'APPAIRAGE': 'C',
+    'IMPORT_EXPORT': 'C',
   },
   'administrateur': {
     'M1': 'C',
@@ -213,6 +216,9 @@ const Map<String, Map<String, String>> socleRbacCdcf = {
     'PROFIL_NOM': 'C',
     'PROFIL_TELEPHONE': 'C',
     'PROFIL_INTITULE': 'C',
+    'SYNCHRO': 'C',
+    'APPAIRAGE': 'C',
+    'IMPORT_EXPORT': 'C',
   },
   'gerant': {
     'M1': 'C',
@@ -235,6 +241,9 @@ const Map<String, Map<String, String>> socleRbacCdcf = {
     'PROFIL_NOM': 'C',
     'PROFIL_TELEPHONE': 'C',
     'PROFIL_INTITULE': '-',
+    'SYNCHRO': 'L',
+    'APPAIRAGE': 'L',
+    'IMPORT_EXPORT': 'L',
   },
   'receptionniste': {
     'M1': 'C',
@@ -257,6 +266,9 @@ const Map<String, Map<String, String>> socleRbacCdcf = {
     'PROFIL_NOM': 'C',
     'PROFIL_TELEPHONE': 'C',
     'PROFIL_INTITULE': '-',
+    'SYNCHRO': 'L',
+    'APPAIRAGE': 'L',
+    'IMPORT_EXPORT': 'L',
   },
   'cuisine': {
     'M1': '-',
@@ -279,6 +291,9 @@ const Map<String, Map<String, String>> socleRbacCdcf = {
     'PROFIL_NOM': 'C',
     'PROFIL_TELEPHONE': 'C',
     'PROFIL_INTITULE': '-',
+    'SYNCHRO': 'L',
+    'APPAIRAGE': 'L',
+    'IMPORT_EXPORT': 'L',
   },
   'barman': {
     'M1': '-',
@@ -301,6 +316,9 @@ const Map<String, Map<String, String>> socleRbacCdcf = {
     'PROFIL_NOM': 'C',
     'PROFIL_TELEPHONE': 'C',
     'PROFIL_INTITULE': '-',
+    'SYNCHRO': 'L',
+    'APPAIRAGE': 'L',
+    'IMPORT_EXPORT': 'L',
   },
   'magasinier': {
     'M1': '-',
@@ -323,6 +341,9 @@ const Map<String, Map<String, String>> socleRbacCdcf = {
     'PROFIL_NOM': 'C',
     'PROFIL_TELEPHONE': 'C',
     'PROFIL_INTITULE': '-',
+    'SYNCHRO': 'L',
+    'APPAIRAGE': 'L',
+    'IMPORT_EXPORT': 'L',
   },
   'achats': {
     'M1': '-',
@@ -345,6 +366,9 @@ const Map<String, Map<String, String>> socleRbacCdcf = {
     'PROFIL_NOM': 'C',
     'PROFIL_TELEPHONE': 'C',
     'PROFIL_INTITULE': '-',
+    'SYNCHRO': 'L',
+    'APPAIRAGE': 'L',
+    'IMPORT_EXPORT': 'L',
   },
   'vehicules': {
     'M1': '-',
@@ -367,6 +391,9 @@ const Map<String, Map<String, String>> socleRbacCdcf = {
     'PROFIL_NOM': 'C',
     'PROFIL_TELEPHONE': 'C',
     'PROFIL_INTITULE': '-',
+    'SYNCHRO': 'L',
+    'APPAIRAGE': 'L',
+    'IMPORT_EXPORT': 'L',
   },
   'guide': {
     'M1': '-',
@@ -389,6 +416,9 @@ const Map<String, Map<String, String>> socleRbacCdcf = {
     'PROFIL_NOM': 'C',
     'PROFIL_TELEPHONE': 'C',
     'PROFIL_INTITULE': '-',
+    'SYNCHRO': 'L',
+    'APPAIRAGE': 'L',
+    'IMPORT_EXPORT': 'L',
   },
   'rh': {
     'M1': '-',
@@ -411,6 +441,9 @@ const Map<String, Map<String, String>> socleRbacCdcf = {
     'PROFIL_NOM': 'C',
     'PROFIL_TELEPHONE': 'C',
     'PROFIL_INTITULE': '-',
+    'SYNCHRO': 'L',
+    'APPAIRAGE': 'L',
+    'IMPORT_EXPORT': 'L',
   },
   'comptable': {
     'M1': 'L',
@@ -433,6 +466,9 @@ const Map<String, Map<String, String>> socleRbacCdcf = {
     'PROFIL_NOM': 'C',
     'PROFIL_TELEPHONE': 'C',
     'PROFIL_INTITULE': '-',
+    'SYNCHRO': 'L',
+    'APPAIRAGE': 'L',
+    'IMPORT_EXPORT': 'L',
   },
 };
 

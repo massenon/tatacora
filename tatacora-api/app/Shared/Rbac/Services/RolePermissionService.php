@@ -95,6 +95,12 @@ class RolePermissionService
                 $this->synchroniserSansGarde($role, $module, 'C');
             }
 
+            // Les trois entrées de menu ouvertes à tous (09/11/2026) : la
+            // LECTURE, y compris pour un rôle ajouté.
+            foreach (RolePermissionSeeder::DROITS_OUVERTS_A_TOUS as $module) {
+                $this->synchroniserSansGarde($role, $module, 'L');
+            }
+
             return $role->refresh();
         });
     }

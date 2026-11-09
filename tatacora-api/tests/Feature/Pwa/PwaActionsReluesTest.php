@@ -57,6 +57,7 @@ use App\Pwa\Livewire\Transverse\PageTransverse;
 use App\Pwa\Livewire\Transverse\Parametres;
 use App\Pwa\Livewire\Transverse\ReceptionSynchronisation;
 use App\Pwa\Livewire\Transverse\RolesPermissions;
+use App\Pwa\Livewire\Transverse\Synchronisation;
 use App\Pwa\Livewire\Transverse\SynchronisationPostes;
 use App\Pwa\Livewire\Transverse\VerrouSession;
 use App\Pwa\Livewire\Vehicules\Locations;
@@ -291,7 +292,6 @@ final class PwaActionsReluesTest extends TestCase
             'retirerSauvegarde', 'confirmerRetraitSauvegarde',
             'ouvrirExport', 'exporterTable',
             'restaurerArchive', 'ouvrirPurge', 'purgerArchive',
-            'ouvrirReinitialisation', 'reinitialiserDonneesTest',
             'fermerModales',
             // Livewire\WithFileUploads
             '_startUpload', '_finishUpload', '_removeUpload', '_uploadErrored',
@@ -305,7 +305,11 @@ final class PwaActionsReluesTest extends TestCase
         // Révocation d'appairage (19/10/2026) : réservée aux Administrateurs,
         // confirmée par la modale ; `demanderRevocation`/`annulerRevocation`
         // n'écrivent rien.
-        SynchronisationPostes::class => ['render', 'actualiser', 'synchroniser', 'demanderRevocation', 'annulerRevocation', 'revoquer', 'changerOnglet'],
+        SynchronisationPostes::class => ['render', 'actualiser', 'synchroniser', 'demanderRevocation', 'annulerRevocation', 'revoquer'],
+
+        // Page « Synchronisation » (09/11/2026) : les journaux ex-onglets de la page des postes ;
+        // `changerOnglet` ne change que la vue.
+        Synchronisation::class => ['render', 'actualiser', 'changerOnglet'],
 
         // Onglets « Réception » et « Envoi » de « Postes & Appairage »
         // (26/10/2026, composants imbriqués). Lecture réservée aux
@@ -382,6 +386,11 @@ final class PwaActionsReluesTest extends TestCase
         Parametres::class => [
             'render',
             'ouvrirEditionParametre', 'enregistrerParametre', 'fermerModales',
+            // « Réinitialiser les données de test » revenue dans Paramètres (09/11/2026) :
+            // ouvrir et fermer la modale n'écrivent rien ; l'exécution est gardée par
+            // `ReinitialisationDonneesTestService::estPermisA` (administrateurs) ET
+            // `validerEcriture` (`exigerEcriture(static::MODULE)`).
+            'ouvrirReinitialisation', 'reinitialiserDonneesTest', 'fermerReinitialisation',
             'ouvrirAjoutCanal', 'ouvrirRenommageCanal', 'enregistrerCanal', 'basculerCanal',
             // Confirmation de desactivation par la MODALE du depot — jamais
             // wire:confirm (boite native, MotifsInterditsPwaTest). Pose un

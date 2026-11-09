@@ -10,7 +10,7 @@
             },
             {
                 "type": "p",
-                "texte": "Chargement de données par module, sauvegardes de la base, restauration des éléments archivés et réinitialisation des jeux de test."
+                "texte": "Chargement de données par module, sauvegardes de la base, restauration des éléments archivés."
             },
             {
                 "type": "onglet",
@@ -26,11 +26,6 @@
                 "type": "onglet",
                 "texte": "Restaurer",
                 "cle": "restaurer"
-            },
-            {
-                "type": "onglet",
-                "texte": "Réinitialiser les données de test",
-                "cle": "seeders"
             },
             {
                 "type": "h2",
@@ -152,7 +147,7 @@
             },
             {
                 "type": "p",
-                "texte": "Chargement de données par module, sauvegardes de la base, restauration des éléments archivés et réinitialisation des jeux de test."
+                "texte": "Chargement de données par module, sauvegardes de la base, restauration des éléments archivés."
             },
             {
                 "type": "onglet",
@@ -168,11 +163,6 @@
                 "type": "onglet",
                 "texte": "Restaurer",
                 "cle": "restaurer"
-            },
-            {
-                "type": "onglet",
-                "texte": "Réinitialiser les données de test",
-                "cle": "seeders"
             },
             {
                 "type": "p",
@@ -242,7 +232,7 @@
             },
             {
                 "type": "p",
-                "texte": "Chargement de données par module, sauvegardes de la base, restauration des éléments archivés et réinitialisation des jeux de test."
+                "texte": "Chargement de données par module, sauvegardes de la base, restauration des éléments archivés."
             },
             {
                 "type": "onglet",
@@ -258,11 +248,6 @@
                 "type": "onglet",
                 "texte": "Restaurer",
                 "cle": "restaurer"
-            },
-            {
-                "type": "onglet",
-                "texte": "Réinitialiser les données de test",
-                "cle": "seeders"
             },
             {
                 "type": "p",
@@ -311,52 +296,6 @@
             {
                 "type": "td",
                 "texte": "Aucun élément archivé ne correspond."
-            }
-        ],
-        "seeders": [
-            {
-                "type": "h1",
-                "texte": "Import & Export"
-            },
-            {
-                "type": "p",
-                "texte": "Chargement de données par module, sauvegardes de la base, restauration des éléments archivés et réinitialisation des jeux de test."
-            },
-            {
-                "type": "onglet",
-                "texte": "Importer les données",
-                "cle": "importer"
-            },
-            {
-                "type": "onglet",
-                "texte": "Sauvegardes de la base",
-                "cle": "sauvegardes"
-            },
-            {
-                "type": "onglet",
-                "texte": "Restaurer",
-                "cle": "restaurer"
-            },
-            {
-                "type": "onglet",
-                "texte": "Réinitialiser les données de test",
-                "cle": "seeders"
-            },
-            {
-                "type": "p",
-                "texte": "Réinitialisation désactivée"
-            },
-            {
-                "type": "p",
-                "texte": "Cette fonction vide les jeux de données de démonstration. Elle reste fermée par défaut : laissée ouverte sur une base d'exploitation réelle, elle détruirait le travail de l'entreprise."
-            },
-            {
-                "type": "p",
-                "texte": "Un administrateur peut l'ouvrir dans ."
-            },
-            {
-                "type": "a",
-                "texte": "Paramètres › Activation & Sécurité"
             }
         ]
     }

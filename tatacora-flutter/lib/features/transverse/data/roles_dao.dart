@@ -186,6 +186,8 @@ class RolesDao {
   static Map<String, String> _droitsRoleNeuf() => {
     for (final code in codesModulesSocle) code: NiveauAcces.aucun.code,
     for (final code in droitsProfilPourTous) code: NiveauAcces.complet.code,
+    // Les trois entrées de menu ouvertes à tous (09/11/2026) : la LECTURE.
+    for (final code in droitsOuvertsATous) code: NiveauAcces.lecture.code,
   };
 
   /// « Modifier les droits » — `RolesPermissions::enregistrerDroits()` puis

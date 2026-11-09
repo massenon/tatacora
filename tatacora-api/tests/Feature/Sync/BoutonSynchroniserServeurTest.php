@@ -116,15 +116,15 @@ final class BoutonSynchroniserServeurTest extends TestCase
     }
 
     #[Test]
-    public function l_entree_de_menu_appairage_postes_suit_le_droit_sur_parametres_et_le_menu_de_compte_reste(): void
+    public function l_entree_de_menu_appairage_postes_suit_le_droit_appairage_et_est_ouverte_a_tous_les_roles_par_defaut(): void
     {
-        $admin = $this->creerUtilisateur('administrateur');
-
-        $this->actingAs($admin)->get('/pwa')->assertOk()
-            ->assertSee('Appairage Postes')
-            ->assertSee('href="'.route('pwa.synchronisation-postes').'"', false);
-        $this->actingAs($this->creerUtilisateur('gerant'))->get('/pwa')->assertOk()
-            ->assertDontSee('>Appairage Postes<', false);
+        // 09/11/2026 (PO) : « Appairage Postes » est au menu de TOUS les rôles par
+        // défaut (droit transverse `APPAIRAGE`, lecture). Elle suivait Paramètres.
+        foreach (['administrateur', 'gerant', 'receptionniste', 'guide'] as $role) {
+            $this->actingAs($this->creerUtilisateur($role))->get('/pwa')->assertOk()
+                ->assertSee('Appairage Postes')
+                ->assertSee('href="'.route('pwa.synchronisation-postes').'"', false);
+        }
     }
 
     #[Test]

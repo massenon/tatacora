@@ -67,6 +67,22 @@ Map<String, String> droitsProfilParDefaut(String role) => {
   'PROFIL_INTITULE': rolesAdministrationProfil.contains(role) ? 'C' : '-',
 };
 
+/// Les trois droits TRANSVERSES des entrées de menu ouvertes à tous (09/11/2026,
+/// décision du PO) : `RolePermissionSeeder::DROITS_OUVERTS_A_TOUS`. Lecture (`L`)
+/// pour tout rôle, y compris un rôle créé à l'écran ; `C` pour les rôles
+/// d'administration. Ils ne commandent que la VISIBILITÉ.
+const List<String> droitsOuvertsATous = [
+  'SYNCHRO',
+  'APPAIRAGE',
+  'IMPORT_EXPORT',
+];
+
+/// Les valeurs par défaut de ces trois droits pour un rôle de libellé [role].
+Map<String, String> droitsOuvertsATousParDefaut(String role) => {
+  for (final code in droitsOuvertsATous)
+    code: rolesAdministrationProfil.contains(role) ? 'C' : 'L',
+};
+
 /// Les règles de saisie — `ChampsProfil` du serveur.
 abstract final class ReglesProfil {
   static const int nomMax = 120;

@@ -71,7 +71,10 @@ final class TransversePwaTest extends TestCase
         'journal-audit' => ['url' => '/pwa/journal-audit', 'module' => 'M14', 'titre' => 'Journal d&#039;Audit'],
         'roles-permissions' => ['url' => '/pwa/roles-permissions', 'module' => 'ROLES', 'titre' => 'Rôles &amp; Permissions'],
         'parametres' => ['url' => '/pwa/parametres', 'module' => 'PARAM', 'titre' => 'Paramètres'],
-        'import-export' => ['url' => '/pwa/import-export', 'module' => 'PARAM', 'titre' => 'Import &amp; Export'],
+        // 09/11/2026 : ouverte à tous les rôles (droit transverse `IMPORT_EXPORT` en lecture pour
+        // tous : `RolePermissionSeeder::DROITS_OUVERTS_A_TOUS`) — le test du droit lui-même est
+        // `EntreesMenuOuvertesATousTest`.
+        'import-export' => ['url' => '/pwa/import-export', 'module' => null, 'titre' => 'Import &amp; Export'],
     ];
 
     protected function setUp(): void
@@ -156,7 +159,9 @@ final class TransversePwaTest extends TestCase
         $this->get('/pwa/journal-audit')->assertOk();
         $this->get('/pwa/roles-permissions')->assertForbidden();
         $this->get('/pwa/parametres')->assertForbidden();
-        $this->get('/pwa/import-export')->assertForbidden();
+        // « Import & Export » est ouverte à tous les rôles depuis le 09/11/2026 (droit
+        // transverse `IMPORT_EXPORT`, lecture) : le barman la lit, sans onglet de sauvegarde.
+        $this->get('/pwa/import-export')->assertOk();
     }
 
     /**

@@ -24,17 +24,6 @@
           </div>
         </div>
 
-        {{-- Onglets : même style partout (`Onglets`). --}}
-        @if ($peutVoirJournaux)
-          <div id="onglets-synchronisation" class="mb-4 flex flex-wrap gap-2">
-            @foreach (['postes' => 'synchronisation_journal.ecran.onglet_postes', 'reception' => 'synchronisation_journal.ecran.onglet_reception', 'envoi' => 'synchronisation_journal.ecran.onglet_envoi'] as $cleOnglet => $libelleOnglet)
-              <button type="button" id="onglet-{{ $cleOnglet }}" wire:click="changerOnglet('{{ $cleOnglet }}')"
-                      class="{{ \App\Pwa\Support\Onglets::classes($ongletActif === $cleOnglet) }}">{{ __($libelleOnglet) }}</button>
-            @endforeach
-          </div>
-        @endif
-
-        @if ($ongletActif === 'postes')
         @if ($refusRevocation)
           <div id="refus-revocation" class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{{ $refusRevocation }}</div>
         @endif
@@ -111,11 +100,6 @@
         </div>
 
         <p class="mt-4 text-[13px] text-slate-500">{{ __('pwa.synchronisation_postes.note') }}</p>
-        @elseif ($ongletActif === 'reception')
-          <livewire:pwa.reception-synchronisation />
-        @else
-          <livewire:pwa.envoi-synchronisation />
-        @endif
       </div>
     </main>
   </div>

@@ -318,7 +318,9 @@ void main() {
         // `/` est l'accueil, le tableau de bord du poste.
         m.group(1) == '/' ? repli : m.group(1)!,
     };
-    expect(serveur, hasLength(5));
+    // QUATRE depuis le 09/11/2026 : `/synchronisation-postes` (« Appairage Postes ») suit le
+    // droit transverse `APPAIRAGE` au serveur comme au poste — elle n'est plus ouverte à tout compte.
+    expect(serveur, hasLength(4));
     expect(routesOuvertesATousLesComptes, serveur);
 
     final contexte = await monterMessager(tester);

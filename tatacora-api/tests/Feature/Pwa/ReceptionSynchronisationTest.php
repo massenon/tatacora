@@ -10,7 +10,7 @@ use App\Domain\Ventes\Models\Vente;
 use App\Models\User;
 use App\Pwa\Livewire\Transverse\EnvoiSynchronisation;
 use App\Pwa\Livewire\Transverse\ReceptionSynchronisation;
-use App\Pwa\Livewire\Transverse\SynchronisationPostes;
+use App\Pwa\Livewire\Transverse\Synchronisation;
 use App\Shared\Audit\Models\JournalAudit;
 use App\Shared\Sync\Models\EtatPosteSynchronisation;
 use App\Shared\Sync\Models\JournalReceptionSynchronisation as Journal;
@@ -249,27 +249,29 @@ final class ReceptionSynchronisationTest extends TestCase
     }
 
     #[Test]
-    public function l_onglet_se_choisit_dans_la_page_et_retombe_sur_postes_sans_le_droit(): void
+    public function l_onglet_se_choisit_dans_la_page_synchronisation_et_retombe_sur_reception_sans_le_droit(): void
     {
+        // 09/11/2026 : les journaux sont la page « Synchronisation » (ex-onglets de la
+        // page des postes appairés).
         $this->actingAs($this->admin);
-        Livewire::test(SynchronisationPostes::class)
+        Livewire::test(Synchronisation::class)
             ->assertSee('Réception')->assertSee('Envoi')
-            ->assertSet('onglet', 'postes')
-            ->call('changerOnglet', 'reception')
             ->assertSet('onglet', 'reception')
             ->assertSeeLivewire(ReceptionSynchronisation::class)
             ->call('changerOnglet', 'envoi')
+            ->assertSet('onglet', 'envoi')
             ->assertSeeLivewire(EnvoiSynchronisation::class)
             ->call('changerOnglet', 'nimportequoi')
-            ->assertSet('onglet', 'postes');
+            ->assertSet('onglet', 'reception');
 
         $this->app['auth']->forgetGuards();
         $this->actingAs($this->creerUtilisateur('gerant'));
-        Livewire::test(SynchronisationPostes::class)
+        Livewire::test(Synchronisation::class)
             ->assertDontSee('onglets-synchronisation', false)
-            ->call('changerOnglet', 'reception')
-            ->assertSet('onglet', 'postes')
-            ->assertDontSeeLivewire(ReceptionSynchronisation::class);
+            ->call('changerOnglet', 'envoi')
+            ->assertSet('onglet', 'reception')
+            ->assertDontSeeLivewire(ReceptionSynchronisation::class)
+            ->assertDontSeeLivewire(EnvoiSynchronisation::class);
     }
 
     #[Test]

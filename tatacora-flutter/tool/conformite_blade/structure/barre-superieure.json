@@ -122,12 +122,8 @@
                     "texte": "Votre profil n'a pas accès à cet écran"
                 },
                 {
-                    "type": "span",
+                    "type": "a",
                     "texte": "Import & Export"
-                },
-                {
-                    "type": "info-bulle",
-                    "texte": "Votre profil n'a pas accès à cet écran"
                 },
                 {
                     "type": "a",
@@ -622,12 +618,8 @@
                     "texte": "Votre profil n'a pas accès à cet écran"
                 },
                 {
-                    "type": "span",
+                    "type": "a",
                     "texte": "Import & Export"
-                },
-                {
-                    "type": "info-bulle",
-                    "texte": "Votre profil n'a pas accès à cet écran"
                 },
                 {
                     "type": "a",
@@ -882,12 +874,8 @@
                     "texte": "Votre profil n'a pas accès à cet écran"
                 },
                 {
-                    "type": "span",
+                    "type": "a",
                     "texte": "Import & Export"
-                },
-                {
-                    "type": "info-bulle",
-                    "texte": "Votre profil n'a pas accès à cet écran"
                 },
                 {
                     "type": "a",
@@ -1118,12 +1106,8 @@
                     "texte": "Votre profil n'a pas accès à cet écran"
                 },
                 {
-                    "type": "span",
+                    "type": "a",
                     "texte": "Import & Export"
-                },
-                {
-                    "type": "info-bulle",
-                    "texte": "Votre profil n'a pas accès à cet écran"
                 },
                 {
                     "type": "a",
@@ -1594,12 +1578,8 @@
                     "texte": "Votre profil n'a pas accès à cet écran"
                 },
                 {
-                    "type": "span",
+                    "type": "a",
                     "texte": "Import & Export"
-                },
-                {
-                    "type": "info-bulle",
-                    "texte": "Votre profil n'a pas accès à cet écran"
                 },
                 {
                     "type": "span",
@@ -1842,12 +1822,8 @@
                     "texte": "Votre profil n'a pas accès à cet écran"
                 },
                 {
-                    "type": "span",
+                    "type": "a",
                     "texte": "Import & Export"
-                },
-                {
-                    "type": "info-bulle",
-                    "texte": "Votre profil n'a pas accès à cet écran"
                 },
                 {
                     "type": "a",
@@ -2102,12 +2078,8 @@
                     "texte": "Votre profil n'a pas accès à cet écran"
                 },
                 {
-                    "type": "span",
+                    "type": "a",
                     "texte": "Import & Export"
-                },
-                {
-                    "type": "info-bulle",
-                    "texte": "Votre profil n'a pas accès à cet écran"
                 },
                 {
                     "type": "a",
@@ -2326,12 +2298,8 @@
                     "texte": "Votre profil n'a pas accès à cet écran"
                 },
                 {
-                    "type": "span",
+                    "type": "a",
                     "texte": "Import & Export"
-                },
-                {
-                    "type": "info-bulle",
-                    "texte": "Votre profil n'a pas accès à cet écran"
                 },
                 {
                     "type": "a",
@@ -2798,12 +2766,8 @@
                     "texte": "Votre profil n'a pas accès à cet écran"
                 },
                 {
-                    "type": "span",
+                    "type": "a",
                     "texte": "Import & Export"
-                },
-                {
-                    "type": "info-bulle",
-                    "texte": "Votre profil n'a pas accès à cet écran"
                 },
                 {
                     "type": "a",

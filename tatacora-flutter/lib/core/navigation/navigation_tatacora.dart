@@ -426,7 +426,7 @@ const List<GroupeMenu> groupesMenu = [
       DestinationMenu(
         nom: 'Import & Export',
         icone: IconeModule.importExport,
-        module: ModuleTatacora.parametres,
+        module: ModuleTatacora.importExport,
         page: 'import-export.html',
         route: '/import-export',
       ),
@@ -466,10 +466,22 @@ const List<GroupeMenu> groupesMenu = [
       // ouverte à tout compte ; l'entrée suit le droit sur Paramètres. L'écran
       // de la FILE locale reste atteint par Paramètres → Synchronisation et par
       // « Voir le détail » du bouton de la barre supérieure.
+      // 09/11/2026 (PO) : « Synchronisation » (l'état : file, envoi, réception,
+      // échecs — au web, la page des journaux), « Import & Export » et
+      // « Appairage Postes » sont au menu de TOUS les rôles par défaut. Trois droits
+      // transverses (`synchro`, `importExport`, `appairage`), `L` pour tous : ils ne
+      // commandent que la VISIBILITÉ ; les gestes sensibles gardent leurs gardes.
+      DestinationMenu(
+        nom: 'Synchronisation',
+        icone: IconeModule.importExport,
+        module: ModuleTatacora.synchro,
+        page: 'synchronisation.html',
+        route: '/synchronisation',
+      ),
       DestinationMenu(
         nom: 'Appairage Postes',
         icone: IconeModule.importExport,
-        module: ModuleTatacora.parametres,
+        module: ModuleTatacora.appairage,
         page: 'synchronisation-postes.html',
         route: '/synchronisation-postes',
       ),
@@ -498,6 +510,10 @@ List<DestinationMenu> get toutesLesDestinations => [
 /// entrée inerte aux yeux de l'utilisateur (Article 3.3). La liste est celle
 /// du serveur, vérifiée par `barre_laterale_blade_test.dart` contre la barre
 /// que la vue rend à chaque rôle : si le serveur change, ce test rougit.
+///
+/// 09/11/2026 (PO) : « Import & Export », « Appairage Postes » et « Synchronisation »
+/// n'y figurent PLUS — visibles de TOUS les rôles par défaut (le gérant les voit),
+/// comme au serveur (`ROUTES_MASQUEES_PAR_ROLE` ne les porte plus).
 const Map<String, Set<String>> nomsMasquesParRole = {
   'gerant': {
     'Tourisme',
@@ -506,10 +522,8 @@ const Map<String, Set<String>> nomsMasquesParRole = {
     'Personnel & Paie',
     'États & Rapports',
     'Notifications',
-    'Import & Export',
     'Rôles & Permissions',
     'Paramètres',
-    'Appairage Postes',
     'Clients & Créances',
     'Facturation',
   },
@@ -564,7 +578,6 @@ const Set<String> routesOuvertesATousLesComptes = {
   '/mon-profil',
   '/aide-a-propos',
   '/contact-editeur',
-  '/synchronisation-postes',
 };
 
 /// Les routes servies HORS de la barre latérale, et leur module — le
@@ -575,12 +588,6 @@ const Set<String> routesOuvertesATousLesComptes = {
 const Map<String, ModuleTatacora> modulesDesRoutesHorsMenu = {
   // `pwa.journal-audit` : `module:M14,L`.
   '/journal-audit': ModuleTatacora.m14Etats,
-  // L'écran de synchronisation (lot F2b, 15/10/2026) : un AJOUT du poste,
-  // atteint par le lien de Paramètres → Synchronisation — gardé par le
-  // module de l'écran qui y mène (il était gardé par M1 quand la route
-  // servait les réservations « en suspens »). Les gestes qui changent la file
-  // restent réservés aux Administrateurs, à l'écran.
-  '/synchronisation': ModuleTatacora.parametres,
 };
 
 /// Le verdict de la garde du routeur sur un chemin.

@@ -96,12 +96,12 @@
     "ongletsNonCliquables": 0
   },
   "bar/carte": {
-    "blade": 63,
+    "blade": 62,
     "ordonnes": 48,
     "ongletsNonCliquables": 0
   },
   "restaurant/carte": {
-    "blade": 84,
+    "blade": 83,
     "ordonnes": 52,
     "ongletsNonCliquables": 0
   },
@@ -111,8 +111,8 @@
     "ongletsNonCliquables": 0
   },
   "transverse/parametres": {
-    "blade": 161,
-    "ordonnes": 115,
+    "blade": 164,
+    "ordonnes": 118,
     "ongletsNonCliquables": 1
   },
   "livewire/accueil": {
@@ -136,8 +136,8 @@
     "ongletsNonCliquables": 0
   },
   "transverse/import-export": {
-    "blade": 65,
-    "ordonnes": 38,
+    "blade": 60,
+    "ordonnes": 34,
     "ongletsNonCliquables": 0
   },
   "transverse/journal-audit": {
@@ -156,7 +156,7 @@
     "ongletsNonCliquables": 0
   },
   "transverse/synchronisation-postes": {
-    "blade": 19,
+    "blade": 16,
     "ordonnes": 13,
     "ongletsNonCliquables": 0
   },
@@ -180,5 +180,10 @@
     "ordonnes": 0,
     "ongletsNonCliquables": 0,
     "nonMesure": "capture navigateur de la vue web indisponible (07/11/2026) : emplacement à mesurer, voir RESTE_A_FAIRE"
+  },
+  "transverse/synchronisation": {
+    "blade": 39,
+    "ordonnes": 5,
+    "ongletsNonCliquables": 0
   }
 }

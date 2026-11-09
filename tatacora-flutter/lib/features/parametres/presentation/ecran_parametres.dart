@@ -27,8 +27,8 @@ import 'widgets/champ_mot_de_passe_smtp.dart';
 import 'widgets/champ_parametre.dart';
 import 'widgets/onglet_apparence.dart';
 import 'widgets/onglet_canaux.dart';
+import 'widgets/section_reinitialisation.dart';
 import 'widgets/onglet_espaces_tables.dart';
-import 'widgets/onglet_synchronisation.dart';
 import 'widgets/section_facturation_normalisee.dart';
 
 // Les refus de la vue, DITS dans le code plutôt qu'affichés (la vue n'a plus de
@@ -116,11 +116,9 @@ const _onglets = <(String, String)>[
   ('activation', 'Activation & Sécurité'),
 ];
 
-/// L'onglet AJOUTÉ par le poste (lot F2a, 15/10/2026, décision du PO) :
-/// l'appairage au serveur. La vue n'en a pas — le serveur ne s'appaire pas à
-/// lui-même. Affiché aux seuls Administrateurs (`rolesAdministration`, la
-/// règle de « Comptes utilisateurs »).
-const _ongletSynchronisation = ('synchronisation', 'Appairage Postes');
+// L'onglet « Appairage Postes » (lot F2a, 15/10/2026) A QUITTÉ les Paramètres le
+// 09/11/2026 (décision du PO) : son contenu est un écran du menu latéral, au même nom
+// que l'entrée du web (`EcranSynchronisationPostes`, route `/synchronisation-postes`).
 
 /// Les clés que le maître loge sous « Informations légales & fiscales ».
 const _clesLegales = {
@@ -221,11 +219,7 @@ class _PageState extends ConsumerState<_Page> {
             children: [
               const _EnTete(),
               _BarreOnglets(
-                onglets: [
-                  ..._onglets,
-                  if (peutAdministrerComptes(ref.watch(sessionProvider)?.role))
-                    _ongletSynchronisation,
-                ],
+                onglets: _onglets,
                 actif: _onglet,
                 onChoisir: (o) => setState(() => _onglet = o),
               ),
@@ -373,6 +367,7 @@ class _PageState extends ConsumerState<_Page> {
             ),
           ],
           versRestauration: () => GoRouter.of(context).go('/import-export'),
+          role: ref.watch(sessionProvider)?.role,
         );
       case 'tables':
         // Le référentiel des tables de salle du poste (`tables_local`, seul
@@ -381,9 +376,6 @@ class _PageState extends ConsumerState<_Page> {
       case 'apparence':
         // Logo et favicon téléversés, charte en lecture seule (21/10/2026).
         return OngletApparence(peutEcrire: peutEcrire);
-      case 'synchronisation':
-        // L'onglet refait lui-même la vérification du rôle.
-        return const OngletSynchronisation();
       case 'canaux':
         // Le référentiel `canaux_reservation_local` : ajout, renommage,
         // désactivation et réactivation, synchronisés (21/10/2026).
@@ -1175,6 +1167,7 @@ class _OngletActivation extends StatelessWidget {
     required this.onBasculer,
     required this.groupes,
     required this.versRestauration,
+    required this.role,
   });
 
   final List<DefinitionParametre> bascules;
@@ -1182,6 +1175,9 @@ class _OngletActivation extends StatelessWidget {
   final Future<void> Function(DefinitionParametre) onBasculer;
   final List<(String, List<Widget>)> groupes;
   final VoidCallback versRestauration;
+
+  /// Le rôle de la session — la réinitialisation est réservée à l'administration.
+  final String? role;
 
   @override
   Widget build(BuildContext context) {
@@ -1281,6 +1277,18 @@ class _OngletActivation extends StatelessWidget {
               ],
             ),
           ),
+        // « Réinitialiser les données de test » — revenue ici le 09/11/2026 (PO : « Ramène le
+        // bouton … dans PARAMÈTRES »), même place que dans la vue (avant le rappel de la
+        // suppression). Réservée à l'administration, verrous et modale inchangés.
+        separe(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const _TitreSection(TextesReinitialisation.ongletSeeders),
+              SectionReinitialisation(peutEcrire: peutEcrire, role: role),
+            ],
+          ),
+        ),
         separe(
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,

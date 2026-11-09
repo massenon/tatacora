@@ -60,6 +60,8 @@ final class AuthController extends Controller
         // (`C` autorisé, `-` refusé) — le poste les relit pour rendre ses
         // champs modifiables.
         'PROFIL_NOM', 'PROFIL_TELEPHONE', 'PROFIL_INTITULE',
+        // Trois entrées de menu ouvertes à tous (09/11/2026), hors écran.
+        'SYNCHRO', 'APPAIRAGE', 'IMPORT_EXPORT',
     ];
 
     /**

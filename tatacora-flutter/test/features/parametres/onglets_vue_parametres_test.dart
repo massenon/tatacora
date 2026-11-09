@@ -119,6 +119,17 @@ void main() {
   };
 
   group('Activation & Sécurité', () {
+    testWidgets('« Réinitialiser les données de test » est revenue ICI (PO, '
+        '09/11/2026) : titre de section, état verrouillé par défaut, aucun '
+        'bouton tant que la bascule est fermée', (tester) async {
+      await monter(tester);
+      await ouvrirOnglet(tester, 'activation');
+      expect(find.text('Réinitialiser les données de test'), findsOneWidget);
+      expect(find.text('Réinitialisation désactivée'), findsOneWidget);
+      expect(find.byKey(const Key('param-reinit-verrouille')), findsOneWidget);
+      expect(find.byKey(const Key('param-reinit-bouton')), findsNothing);
+    });
+
     testWidgets('les phrases de la vue, une rangée à bascule par option, la '
         'pastille de risque du maître', (tester) async {
       await monter(tester);

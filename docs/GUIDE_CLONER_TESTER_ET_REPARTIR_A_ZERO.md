@@ -193,7 +193,7 @@ La mise à jour du 20/10/2026 ajoute, via `migrate` :
 | Situation | Commande / geste | Ce qui est effacé |
 |---|---|---|
 | **PC de test** | `php artisan migrate:fresh --seed`, puis `php artisan db:seed --class=ComptesReelsSeeder` | **Tout**, comptes compris (recréés par le seeder). Supprimer aussi `storage/app/private/archives/` s'il existe. |
-| **Production pendant les essais** | PWA : Paramètres → Activation & Sécurité → ouvrir « Réinitialisation des données de test », puis Import & Export → onglet « Réinitialiser les données de test » → « Réinitialiser comme neuf », taper `VIDER`. Une sauvegarde est faite juste avant. | Toutes les opérations (clients, ventes, factures, écritures…). Les **comptes, paramètres, chambres, cartes, plan comptable sont gardés**. Les exercices clôturés pendant les essais redeviennent ouverts, et les archives d'essai sont effacées. |
+| **Production pendant les essais** | PWA : Paramètres → Activation & Sécurité → ouvrir « Réinitialisation des données de test », puis, juste en dessous, « Réinitialiser les données de test » → « Réinitialiser comme neuf », taper `VIDER`. Une sauvegarde est faite juste avant. | Toutes les opérations (clients, ventes, factures, écritures…). Les **comptes, paramètres, chambres, cartes, plan comptable sont gardés**. Les exercices clôturés pendant les essais redeviennent ouverts, et les archives d'essai sont effacées. |
 | **Production après les essais** | Impossible, par conception. | — |
 
 ⚠ **Ne lancez jamais `migrate:fresh` sur la production.** Il efface tout, y
@@ -284,7 +284,7 @@ Exemple de ce que cette mise à jour apporte au poste :
 
 | Situation | Geste |
 |---|---|
-| **Après la réinitialisation du serveur (essais)** | (1) « Synchroniser maintenant » : le voyant passe au **rouge** (« Le serveur a été réinitialisé… »). (2) En administrateur du poste : Import & Export → onglet « Réinitialiser les données de test » → « Réinitialiser comme neuf », taper `VIDER`. (3) « Synchroniser maintenant » : le catalogue remis à neuf descend, le voyant passe au **vert**. Les comptes et l'appairage du poste sont gardés. |
+| **Après la réinitialisation du serveur (essais)** | (1) « Synchroniser maintenant » : le voyant passe au **rouge** (« Le serveur a été réinitialisé… »). (2) En administrateur du poste : Paramètres → Activation & Sécurité → « Réinitialiser les données de test » → « Réinitialiser comme neuf », taper `VIDER`. (3) « Synchroniser maintenant » : le catalogue remis à neuf descend, le voyant passe au **vert**. Les comptes et l'appairage du poste sont gardés. |
 | **PC de test : tout effacer, comme une première installation** | Fermer TATACORA, puis supprimer les fichiers du tableau ci-dessous. Au lancement suivant, le poste repart vierge : il faut recréer le compte administrateur et réappairer. |
 
 Fichiers à supprimer pour tout effacer sur un PC de test (Windows + R, puis

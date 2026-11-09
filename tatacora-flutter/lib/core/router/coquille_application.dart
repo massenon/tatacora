@@ -800,7 +800,11 @@ class _MenuProfil extends ConsumerWidget {
 
   /// Le module exigé par chaque lien — `liensChassis()`, `$exigences`.
   static ModuleTatacora? _moduleExige(String cle) => switch (cle) {
-    'parametres_compte' || 'import_export' => ModuleTatacora.parametres,
+    'parametres_compte' => ModuleTatacora.parametres,
+    // 09/11/2026 (PO) : ouvertes à tous les rôles par défaut — droits transverses
+    // (`liensChassis()` du serveur : `IMPORT_EXPORT`, `APPAIRAGE`).
+    'import_export' => ModuleTatacora.importExport,
+    'synchronisation_postes' => ModuleTatacora.appairage,
     'journal_audit' => ModuleTatacora.m14Etats,
     _ => null,
   };

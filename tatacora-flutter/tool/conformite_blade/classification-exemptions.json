@@ -48,11 +48,5 @@
       "motif": "Ecran sans vue Blade : a rattacher a une vue, declarer comme ecart ou retirer."
     }
   },
-  "ajouts": {
-    "features/synchronisation/presentation/ecran_synchronisation.dart": {
-      "classe": "d",
-      "motif": "Synchronisation (lot F2b) : decision du Product Owner du 15/10/2026 (offline-first total, la synchronisation est une tache de fond du poste). La PWA parle au serveur en direct et n'a ni file d'envoi ni catalogue descendu : aucune vue ne porte cet ecran. Il montre la file (compteurs par statut), la derniere descente du catalogue, les operations rejetees, en conflit ou bloquees (Renvoyer et Debloquer reserves aux Administrateurs) et les signalements du serveur. Hors menu : atteint par le lien de Parametres > Synchronisation, route gardee par le module Parametres.",
-      "date": "2026-10-15"
-    }
-  }
+  "ajouts": {}
 }

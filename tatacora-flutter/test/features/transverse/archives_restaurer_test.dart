@@ -467,7 +467,7 @@ void main() {
 
     testWidgets('sans le droit d\'écrire sur Paramètres : le registre se lit, '
         'AUCUN bouton « Restaurer »', (tester) async {
-      await monter(tester, droits: const {'PARAM': 'L'});
+      await monter(tester, droits: const {'PARAM': 'L', 'IMPORT_EXPORT': 'L'});
       expect(find.text('U1'), findsOneWidget);
       expect(find.text('Restaurer'), findsOneWidget, reason: 'seul l\'onglet');
       expect(

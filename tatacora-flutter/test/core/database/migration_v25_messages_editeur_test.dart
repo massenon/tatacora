@@ -99,7 +99,8 @@ void main() {
       (
         'admin',
         'administrateur',
-        '{"PARAM":"C","PROFIL_NOM":"C","PROFIL_TELEPHONE":"C","PROFIL_INTITULE":"C"}',
+        // v54 (09/11/2026) : puis les trois droits ouverts à tous (`C` : administration).
+        '{"PARAM":"C","PROFIL_NOM":"C","PROFIL_TELEPHONE":"C","PROFIL_INTITULE":"C","SYNCHRO":"C","APPAIRAGE":"C","IMPORT_EXPORT":"C"}',
       ),
     );
     final c = await db

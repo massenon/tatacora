@@ -54,11 +54,9 @@ final class MenuLateral
             'pwa.paie',
             'pwa.etats.studio',
             'pwa.notifications',
-            'pwa.import-export',
             'pwa.roles-permissions',
             'pwa.comptes-utilisateurs',
             'pwa.parametres',
-            'pwa.synchronisation-postes',
             'pwa.clients',
             'pwa.facturation',
         ],
@@ -131,7 +129,13 @@ final class MenuLateral
             // (l.144). Sa garde de droit vit dans
             // `liensChassis()['journal_audit']`, qui déclare son module M14 —
             // retirer l'entrée du menu ne retire donc aucun contrôle.
-            ['nom' => 'Import & Export', 'icone' => 'import', 'module' => 'PARAM', 'route' => 'pwa.import-export'],
+            // 09/11/2026 (PO) : « Synchronisation », « Import & Export » et « Appairage Postes »
+            // sont visibles de TOUS les rôles par défaut. Trois droits transverses
+            // (`SYNCHRO`, `IMPORT_EXPORT`, `APPAIRAGE`, `L` pour tous — voir
+            // `RolePermissionSeeder::DROITS_OUVERTS_A_TOUS`) ne commandent que la
+            // VISIBILITÉ ; les gestes sensibles gardent leurs gardes. Le gérant les
+            // voit aussi : elles ne sont plus dans `ROUTES_MASQUEES_PAR_ROLE`.
+            ['nom' => 'Import & Export', 'icone' => 'import', 'module' => 'IMPORT_EXPORT', 'route' => 'pwa.import-export'],
             ['nom' => 'Rôles & Permissions', 'icone' => 'roles', 'module' => 'ROLES', 'route' => 'pwa.roles-permissions'],
             // 29/10/2026 (PO, option A du « mot de passe perdu ») : la liste des comptes et
             // « Réinitialiser le mot de passe ». Même entrée, même icône (les
@@ -139,10 +143,11 @@ final class MenuLateral
             ['nom' => 'Comptes utilisateurs', 'icone' => 'crm', 'module' => 'ROLES', 'route' => 'pwa.comptes-utilisateurs'],
             ['nom' => 'Paramètres', 'icone' => 'parametres', 'module' => 'PARAM', 'route' => 'pwa.parametres'],
             // 21/10/2026 (demande du PO) : « Postes & Appairage » a son entrée de menu,
-            // en plus de celle du menu de compte (qui reste, ouverte à tout
-            // compte). L'entrée de menu suit le droit sur Paramètres ; la route
-            // elle-même n'exige aucun module.
-            ['nom' => 'Appairage Postes', 'icone' => 'import', 'module' => 'PARAM', 'route' => 'pwa.synchronisation-postes'],
+            // en plus de celle du menu de compte. Depuis le 09/11/2026, l'entrée
+            // et la route suivent le droit transverse `APPAIRAGE` (lecture pour
+            // tous les rôles par défaut), plus le droit sur Paramètres.
+            ['nom' => 'Synchronisation', 'icone' => 'import', 'module' => 'SYNCHRO', 'route' => 'pwa.synchronisation'],
+            ['nom' => 'Appairage Postes', 'icone' => 'import', 'module' => 'APPAIRAGE', 'route' => 'pwa.synchronisation-postes'],
         ]],
     ];
 
@@ -404,10 +409,10 @@ final class MenuLateral
             'journal_audit' => ['pwa.journal-audit', 'M14'],
             // Décision PO du 18/10/2026 : tout compte qui enregistre au
             // serveur peut faire passer les postes tout de suite.
-            'synchronisation_postes' => ['pwa.synchronisation-postes', null],
+            'synchronisation_postes' => ['pwa.synchronisation-postes', 'APPAIRAGE'],
             'mon_profil' => ['pwa.mon-profil', null],
             'parametres_compte' => ['pwa.parametres', 'PARAM'],
-            'import_export' => ['pwa.import-export', 'PARAM'],
+            'import_export' => ['pwa.import-export', 'IMPORT_EXPORT'],
             'aide_a_propos' => ['pwa.aide-a-propos', null],
             'contact_editeur' => ['pwa.contact-editeur', null],
         ];

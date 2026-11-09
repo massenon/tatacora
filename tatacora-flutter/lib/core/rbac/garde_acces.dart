@@ -19,7 +19,7 @@
 /// backend d'abord.
 library;
 
-/// Modules du CdCF, plus les deux transverses.
+/// Modules du CdCF, plus les deux transverses et les trois droits ouverts à tous.
 enum ModuleTatacora {
   m1Hebergement('M1'),
   m2Facturation('M2'),
@@ -36,7 +36,17 @@ enum ModuleTatacora {
   m13Rh('M13'),
   m14Etats('M14'),
   roles('ROLES'),
-  parametres('PARAM');
+  parametres('PARAM'),
+
+  /// Trois droits TRANSVERSES, hors écran de la matrice (09/11/2026, décision du
+  /// PO : « Synchronisation », « Import & Export » et « Appairage Postes » sont au
+  /// menu de TOUS les rôles par défaut). Lecture pour tous, écriture pour les
+  /// rôles d'administration — mêmes valeurs que `RolePermissionSeeder::MATRICE`.
+  /// Ils ne commandent que la VISIBILITÉ de l'entrée et de l'écran : chaque
+  /// action sensible garde sa garde (rôle, ou écriture sur `PARAM`).
+  synchro('SYNCHRO'),
+  appairage('APPAIRAGE'),
+  importExport('IMPORT_EXPORT');
 
   const ModuleTatacora(this.code);
 

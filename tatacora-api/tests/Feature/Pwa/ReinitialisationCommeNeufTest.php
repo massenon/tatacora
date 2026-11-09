@@ -6,7 +6,7 @@ namespace Tests\Feature\Pwa;
 
 use App\Domain\Crm\Models\Client;
 use App\Models\User;
-use App\Pwa\Livewire\Transverse\ImportExport;
+use App\Pwa\Livewire\Transverse\Parametres;
 use App\Shared\Backup\Services\ReinitialisationDonneesTestService;
 use App\Shared\Parametres\Models\ParametreSysteme;
 use App\Shared\Rbac\Models\Role;
@@ -84,7 +84,7 @@ final class ReinitialisationCommeNeufTest extends TestCase
 
         $this->actingAs($administrateur);
 
-        Livewire::test(ImportExport::class, ['onglet' => 'seeders'])
+        Livewire::test(Parametres::class, ['onglet' => 'activation'])
             ->call('ouvrirReinitialisation')
             ->set('phraseConfirmationReset', 'vider')
             ->call('reinitialiserDonneesTest')
@@ -170,10 +170,10 @@ final class ReinitialisationCommeNeufTest extends TestCase
 
         // …et l'écran refuse d'ouvrir la modale comme d'exécuter.
         $this->actingAs($gerant);
-        Livewire::test(ImportExport::class, ['onglet' => 'seeders'])
+        Livewire::test(Parametres::class, ['onglet' => 'activation'])
             ->call('ouvrirReinitialisation')
             ->assertForbidden();
-        Livewire::test(ImportExport::class, ['onglet' => 'seeders'])
+        Livewire::test(Parametres::class, ['onglet' => 'activation'])
             ->set('phraseConfirmationReset', 'VIDER')
             ->call('reinitialiserDonneesTest')
             ->assertForbidden();
@@ -193,7 +193,7 @@ final class ReinitialisationCommeNeufTest extends TestCase
         $this->assertTrue(app()->isProduction());
 
         $this->actingAs($administrateur);
-        Livewire::test(ImportExport::class, ['onglet' => 'seeders'])
+        Livewire::test(Parametres::class, ['onglet' => 'activation'])
             ->set('phraseConfirmationReset', 'VIDER')
             ->call('reinitialiserDonneesTest')
             ->assertHasErrors('phraseConfirmationReset');
@@ -215,7 +215,7 @@ final class ReinitialisationCommeNeufTest extends TestCase
         $this->actingAs($this->utilisateur('administrateur'));
 
         foreach (['', 'OUI', 'VIDE'] as $saisie) {
-            Livewire::test(ImportExport::class, ['onglet' => 'seeders'])
+            Livewire::test(Parametres::class, ['onglet' => 'activation'])
                 ->call('ouvrirReinitialisation')
                 ->set('phraseConfirmationReset', $saisie)
                 ->call('reinitialiserDonneesTest')

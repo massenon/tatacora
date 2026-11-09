@@ -43,7 +43,7 @@ réinitialisation.
    d'essai certifiée par la DGI ne s'efface pas avec la base. Le contrôle
    « mecef » de `verifier-production` doit dire autre chose que « actif ».
 4. Installer **la version courante** sur chaque poste (`build_windows.bat`),
-   puis l'appairer (Paramètres → Appairage Postes). ⚠ Un poste resté sur une
+   puis l'appairer (menu Appairage Postes). ⚠ Un poste resté sur une
    version d'avant le 19/10/2026 ne connaît pas la génération des données :
    mettez-le à jour AVANT la réinitialisation du serveur.
 
@@ -67,7 +67,7 @@ réinitialisation.
 
 1. Connecté en **Administrateur** : Paramètres → **Activation & Sécurité** →
    ouvrir « Réinitialisation des données de test ».
-2. **Import & Export → onglet « Réinitialiser les données de test »** : le bandeau jaune « Phase d'essais
+2. **Paramètres → Activation & Sécurité → « Réinitialiser les données de test »** : le bandeau jaune « Phase d'essais
    en Production » est affiché. Vérifier les deux listes (vidé / conservé),
    cliquer **Réinitialiser comme neuf**, taper `VIDER`, confirmer.
    Une sauvegarde complète est faite juste avant
@@ -79,7 +79,7 @@ réinitialisation.
 1. Ouvrir TATACORA, cliquer le bouton de synchronisation (barre du haut) →
    « Synchroniser maintenant ». Le voyant passe au **rouge** : « Le serveur a
    été réinitialisé… ». Rien n'est parti.
-2. Connecté en **Administrateur** du poste : **Import & Export → onglet
+2. Connecté en **Administrateur** du poste : **Paramètres → Activation & Sécurité →
    « Réinitialiser les données de test »**. Le bandeau rouge rappelle la date de la réinitialisation
    du serveur ; le bouton est disponible même sur la version de production
    et sans ouvrir la bascule locale. **Réinitialiser comme neuf**, taper

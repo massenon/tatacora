@@ -48,6 +48,7 @@ use App\Pwa\Livewire\Transverse\JournalAudit;
 use App\Pwa\Livewire\Transverse\MonProfil;
 use App\Pwa\Livewire\Transverse\Parametres;
 use App\Pwa\Livewire\Transverse\RolesPermissions;
+use App\Pwa\Livewire\Transverse\Synchronisation;
 use App\Pwa\Livewire\Transverse\SynchronisationPostes;
 use App\Pwa\Livewire\Vehicules\Locations;
 use App\Pwa\Middleware\ExigerChangementMotDePasse;
@@ -114,7 +115,15 @@ Route::prefix('pwa')
                 Route::get('/contact-editeur', ContactEditeur::class)->name('pwa.contact-editeur');
                 Route::get('/mon-profil', MonProfil::class)->name('pwa.mon-profil');
                 // Décision PO du 18/10/2026 : le bouton « Synchroniser » du serveur.
-                Route::get('/synchronisation-postes', SynchronisationPostes::class)->name('pwa.synchronisation-postes');
+                // Décision PO du 09/11/2026 : « Appairage Postes » et « Synchronisation »
+                // sont au menu de TOUS les rôles par défaut — deux droits transverses
+                // (`APPAIRAGE`, `SYNCHRO`, lecture), qui ne gouvernent que la VISIBILITÉ :
+                // chaque action garde sa garde (révocation, redescente : administrateurs ;
+                // corrections et relances : administrateurs et comptable).
+                Route::middleware('module:APPAIRAGE,L')
+                    ->get('/synchronisation-postes', SynchronisationPostes::class)->name('pwa.synchronisation-postes');
+                Route::middleware('module:SYNCHRO,L')
+                    ->get('/synchronisation', Synchronisation::class)->name('pwa.synchronisation');
 
                 Route::middleware('module:M14,L')
                     ->get('/journal-audit', JournalAudit::class)->name('pwa.journal-audit');
@@ -127,8 +136,13 @@ Route::prefix('pwa')
 
                 Route::middleware('module:PARAM,L')->group(function () {
                     Route::get('/parametres', Parametres::class)->name('pwa.parametres');
-                    Route::get('/import-export', ImportExport::class)->name('pwa.import-export');
                 });
+
+                // Import & Export : au menu de TOUS les rôles par défaut (09/11/2026) — le
+                // droit `IMPORT_EXPORT` ne commande que la visibilité de la page ; chaque
+                // geste a sa garde (voir `ImportExport`).
+                Route::middleware('module:IMPORT_EXPORT,L')
+                    ->get('/import-export', ImportExport::class)->name('pwa.import-export');
 
                 // HISTORIQUE DES VENTES (JOURNAL DE CAISSE - M5/M4)
                 Route::get('/historique-ventes', \App\Pwa\Livewire\Pos\HistoriqueVentes::class)->name('pwa.historique-ventes');

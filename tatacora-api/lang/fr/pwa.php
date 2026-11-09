@@ -1050,6 +1050,21 @@ return [
     // Décision PO du 18/10/2026 : « le serveur doit avoir aussi le bouton
     // synchroniser, pour envoyer les données en local si le serveur a été
     // utilisé pour enregistrer des données ».
+    // « Synchronisation » (09/11/2026) : l'état de la synchronisation, page de TOUS les rôles.
+    'synchronisation_page' => [
+        'titre_page' => 'Synchronisation — LogiReStock — TATACORA AFRIQUE',
+        'titre' => 'Synchronisation',
+        'sous_titre' => 'Ce que le poste envoie au serveur, ce qu\'il en reçoit, et ce qui reste à traiter.',
+        'a_traiter' => 'À traiter',
+        // Les en-têtes de l'écran de synchronisation du poste (mêmes mots).
+        'col_date' => 'Date',
+        'col_poste' => 'Poste',
+        'col_donnee' => 'Table',
+        'col_issue' => 'Statut',
+        'col_cause' => 'Motif',
+        'aucun_echec' => 'Aucune opération rejetée, en conflit ou bloquée.',
+    ],
+
     'synchronisation_postes' => [
         'titre_page' => 'Appairage Postes — LogiReStock — TATACORA AFRIQUE',
         'titre' => 'Appairage Postes',
@@ -1094,7 +1109,7 @@ return [
         'bouton_revoquer' => 'Révoquer',
         'revocation_titre' => 'Révoquer l\'appairage du poste « :poste » ?',
         'revocation_texte' => 'Le poste ne pourra plus envoyer ni recevoir tant qu\'un Administrateur ne l\'aura pas '
-            . 'réappairé (Paramètres → Appairage Postes, sur le poste). Ce qu\'il a enregistré reste dans sa file : '
+            . 'réappairé (menu Appairage Postes, sur le poste). Ce qu\'il a enregistré reste dans sa file : '
             . 'rien n\'est perdu.',
         'revocation_confirmer' => 'Révoquer l\'appairage',
         'revocation_faite' => 'Appairage du poste « :poste » révoqué.',
@@ -1653,7 +1668,7 @@ return [
         // maquette — l.23-25
         'titre' => 'Import & Export',
         'sous_titre' => 'Chargement de données par module, sauvegardes de la base, restauration des éléments '
-            . 'archivés et réinitialisation des jeux de test.',
+            . 'archivés.',
 
         // -------------------------------------------------------------- onglets (maquette l.28-32)
         'onglet_importer' => 'Importer les données',

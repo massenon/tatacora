@@ -1,5 +1,5 @@
 {
-    "_lisez-moi": "PRODUIT par ExtraireBarreLateraleTest, jamais ecrit a la main. Par role : droits (16 modules) et barre laterale rendue. `actif` : pour chaque entree visitee par l'administrateur, les entrees allumees.",
+    "_lisez-moi": "PRODUIT par ExtraireBarreLateraleTest, jamais ecrit a la main. Par role : droits (16 modules + 3 droits transverses) et barre laterale rendue. `actif` : pour chaque entree visitee par l'administrateur, les entrees allumees.",
     "roles": {
         "achats": {
             "droits": {
@@ -18,7 +18,10 @@
                 "M13": "-",
                 "M14": "L",
                 "ROLES": "-",
-                "PARAM": "-"
+                "PARAM": "-",
+                "SYNCHRO": "L",
+                "APPAIRAGE": "L",
+                "IMPORT_EXPORT": "L"
             },
             "barre": {
                 "entrees": [
@@ -91,6 +94,36 @@
                         "cliquable": true,
                         "href": "/pwa/etats",
                         "icone": "9aa42aad"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Import & Export",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/import-export",
+                        "icone": "a4e5b27c"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Synchronisation",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/synchronisation",
+                        "icone": "a4e5b27c"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Appairage Postes",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/synchronisation-postes",
+                        "icone": "a4e5b27c"
                     }
                 ],
                 "pied": {
@@ -120,7 +153,10 @@
                 "M13": "C",
                 "M14": "C",
                 "ROLES": "C",
-                "PARAM": "C"
+                "PARAM": "C",
+                "SYNCHRO": "C",
+                "APPAIRAGE": "C",
+                "IMPORT_EXPORT": "C"
             },
             "barre": {
                 "entrees": [
@@ -413,6 +449,16 @@
                         "cliquable": true,
                         "href": "/pwa/parametres",
                         "icone": "cf62b51c"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Synchronisation",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/synchronisation",
+                        "icone": "a4e5b27c"
                     },
                     {
                         "type": "entree",
@@ -452,7 +498,10 @@
                 "M13": "-",
                 "M14": "L",
                 "ROLES": "-",
-                "PARAM": "-"
+                "PARAM": "-",
+                "SYNCHRO": "L",
+                "APPAIRAGE": "L",
+                "IMPORT_EXPORT": "L"
             },
             "barre": {
                 "entrees": [
@@ -555,6 +604,36 @@
                         "cliquable": true,
                         "href": "/pwa/etats",
                         "icone": "9aa42aad"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Import & Export",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/import-export",
+                        "icone": "a4e5b27c"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Synchronisation",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/synchronisation",
+                        "icone": "a4e5b27c"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Appairage Postes",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/synchronisation-postes",
+                        "icone": "a4e5b27c"
                     }
                 ],
                 "pied": {
@@ -584,7 +663,10 @@
                 "M13": "L",
                 "M14": "C",
                 "ROLES": "-",
-                "PARAM": "-"
+                "PARAM": "-",
+                "SYNCHRO": "L",
+                "APPAIRAGE": "L",
+                "IMPORT_EXPORT": "L"
             },
             "barre": {
                 "entrees": [
@@ -837,6 +919,36 @@
                         "cliquable": true,
                         "href": "/pwa/etats",
                         "icone": "9aa42aad"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Import & Export",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/import-export",
+                        "icone": "a4e5b27c"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Synchronisation",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/synchronisation",
+                        "icone": "a4e5b27c"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Appairage Postes",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/synchronisation-postes",
+                        "icone": "a4e5b27c"
                     }
                 ],
                 "pied": {
@@ -866,7 +978,10 @@
                 "M13": "-",
                 "M14": "L",
                 "ROLES": "-",
-                "PARAM": "-"
+                "PARAM": "-",
+                "SYNCHRO": "L",
+                "APPAIRAGE": "L",
+                "IMPORT_EXPORT": "L"
             },
             "barre": {
                 "entrees": [
@@ -949,6 +1064,36 @@
                         "cliquable": true,
                         "href": "/pwa/etats",
                         "icone": "9aa42aad"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Import & Export",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/import-export",
+                        "icone": "a4e5b27c"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Synchronisation",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/synchronisation",
+                        "icone": "a4e5b27c"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Appairage Postes",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/synchronisation-postes",
+                        "icone": "a4e5b27c"
                     }
                 ],
                 "pied": {
@@ -978,7 +1123,10 @@
                 "M13": "C",
                 "M14": "C",
                 "ROLES": "L",
-                "PARAM": "L"
+                "PARAM": "L",
+                "SYNCHRO": "L",
+                "APPAIRAGE": "L",
+                "IMPORT_EXPORT": "L"
             },
             "barre": {
                 "entrees": [
@@ -1141,6 +1289,41 @@
                         "cliquable": true,
                         "href": "/pwa/rh/conges-plannings",
                         "icone": "4be7147d"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "PILOTAGE & ADMINISTRATION",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Import & Export",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/import-export",
+                        "icone": "a4e5b27c"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Synchronisation",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/synchronisation",
+                        "icone": "a4e5b27c"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Appairage Postes",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/synchronisation-postes",
+                        "icone": "a4e5b27c"
                     }
                 ],
                 "pied": {
@@ -1170,7 +1353,10 @@
                 "M13": "-",
                 "M14": "-",
                 "ROLES": "-",
-                "PARAM": "-"
+                "PARAM": "-",
+                "SYNCHRO": "L",
+                "APPAIRAGE": "L",
+                "IMPORT_EXPORT": "L"
             },
             "barre": {
                 "entrees": [
@@ -1213,6 +1399,41 @@
                         "cliquable": true,
                         "href": "/pwa/vehicules",
                         "icone": "dc1e0eb1"
+                    },
+                    {
+                        "type": "groupe",
+                        "nom": "PILOTAGE & ADMINISTRATION",
+                        "actif": false
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Import & Export",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/import-export",
+                        "icone": "a4e5b27c"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Synchronisation",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/synchronisation",
+                        "icone": "a4e5b27c"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Appairage Postes",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/synchronisation-postes",
+                        "icone": "a4e5b27c"
                     }
                 ],
                 "pied": {
@@ -1242,7 +1463,10 @@
                 "M13": "-",
                 "M14": "L",
                 "ROLES": "-",
-                "PARAM": "-"
+                "PARAM": "-",
+                "SYNCHRO": "L",
+                "APPAIRAGE": "L",
+                "IMPORT_EXPORT": "L"
             },
             "barre": {
                 "entrees": [
@@ -1360,6 +1584,36 @@
                         "cliquable": true,
                         "href": "/pwa/etats",
                         "icone": "9aa42aad"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Import & Export",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/import-export",
+                        "icone": "a4e5b27c"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Synchronisation",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/synchronisation",
+                        "icone": "a4e5b27c"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Appairage Postes",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/synchronisation-postes",
+                        "icone": "a4e5b27c"
                     }
                 ],
                 "pied": {
@@ -1389,7 +1643,10 @@
                 "M13": "-",
                 "M14": "L",
                 "ROLES": "-",
-                "PARAM": "-"
+                "PARAM": "-",
+                "SYNCHRO": "L",
+                "APPAIRAGE": "L",
+                "IMPORT_EXPORT": "L"
             },
             "barre": {
                 "entrees": [
@@ -1582,6 +1839,36 @@
                         "cliquable": true,
                         "href": "/pwa/notifications",
                         "icone": "7c1e5d16"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Import & Export",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/import-export",
+                        "icone": "a4e5b27c"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Synchronisation",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/synchronisation",
+                        "icone": "a4e5b27c"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Appairage Postes",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/synchronisation-postes",
+                        "icone": "a4e5b27c"
                     }
                 ],
                 "pied": {
@@ -1611,7 +1898,10 @@
                 "M13": "C",
                 "M14": "L",
                 "ROLES": "-",
-                "PARAM": "-"
+                "PARAM": "-",
+                "SYNCHRO": "L",
+                "APPAIRAGE": "L",
+                "IMPORT_EXPORT": "L"
             },
             "barre": {
                 "entrees": [
@@ -1689,6 +1979,36 @@
                         "cliquable": true,
                         "href": "/pwa/etats",
                         "icone": "9aa42aad"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Import & Export",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/import-export",
+                        "icone": "a4e5b27c"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Synchronisation",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/synchronisation",
+                        "icone": "a4e5b27c"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Appairage Postes",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/synchronisation-postes",
+                        "icone": "a4e5b27c"
                     }
                 ],
                 "pied": {
@@ -1718,7 +2038,10 @@
                 "M13": "C",
                 "M14": "C",
                 "ROLES": "C",
-                "PARAM": "C"
+                "PARAM": "C",
+                "SYNCHRO": "C",
+                "APPAIRAGE": "C",
+                "IMPORT_EXPORT": "C"
             },
             "barre": {
                 "entrees": [
@@ -2015,6 +2338,16 @@
                     {
                         "type": "entree",
                         "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Synchronisation",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/synchronisation",
+                        "icone": "a4e5b27c"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
                         "nom": "Appairage Postes",
                         "badge": null,
                         "actif": false,
@@ -2050,7 +2383,10 @@
                 "M13": "-",
                 "M14": "L",
                 "ROLES": "-",
-                "PARAM": "-"
+                "PARAM": "-",
+                "SYNCHRO": "L",
+                "APPAIRAGE": "L",
+                "IMPORT_EXPORT": "L"
             },
             "barre": {
                 "entrees": [
@@ -2118,6 +2454,36 @@
                         "cliquable": true,
                         "href": "/pwa/etats",
                         "icone": "9aa42aad"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Import & Export",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/import-export",
+                        "icone": "a4e5b27c"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Synchronisation",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/synchronisation",
+                        "icone": "a4e5b27c"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Appairage Postes",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/synchronisation-postes",
+                        "icone": "a4e5b27c"
                     }
                 ],
                 "pied": {
@@ -2206,6 +2572,9 @@
         ],
         "Paramètres": [
             "Paramètres"
+        ],
+        "Synchronisation": [
+            "Synchronisation"
         ],
         "Appairage Postes": [
             "Appairage Postes"

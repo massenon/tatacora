@@ -47,8 +47,9 @@ void main() {
   const droitsAvant = '{"M5":"C","M6":"L"}';
   // La v49 (03/11/2026) AJOUTE les trois droits de « Mon profil » aux matrices déjà
   // stockées (additif : les clés d'avant sont intactes).
+  // La v54 (09/11/2026) AJOUTE ensuite les trois droits ouverts à tous (`L` hors administration).
   const droitsApres =
-      '{"M5":"C","M6":"L","PROFIL_NOM":"C","PROFIL_TELEPHONE":"C","PROFIL_INTITULE":"-"}';
+      '{"M5":"C","M6":"L","PROFIL_NOM":"C","PROFIL_TELEPHONE":"C","PROFIL_INTITULE":"-","SYNCHRO":"L","APPAIRAGE":"L","IMPORT_EXPORT":"L"}';
 
   test('v23 -> v24 : la table APPARAÎT vide, le compte d’avant est INTACT ; '
       'le socle se pose ensuite au geste, sans toucher le compte', () async {
