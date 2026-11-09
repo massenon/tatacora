@@ -46,7 +46,18 @@ use App\Shared\ReportEngine\Data\EnTeteRapport;
  */
 class ReportHeaderService
 {
-    // Clés de paramétrage — surchargent les valeurs par défaut ci-dessous.
+    /**
+     * Largeur du logo sur une FACTURE / un AVOIR / une PROFORMA A4, en px CSS (dompdf).
+     * Demande PO 09/11/2026 : le logo (PNG paysage 735 x 403, très aéré) était illisible à
+     * 60 px. Hauteur automatique (proportions gardées). Équivalent poste, en points (x 0,75) :
+     * `AppAssets.logoFactureA4LargeurPt` (108 pt).
+     */
+    public const LOGO_FACTURE_A4_LARGEUR_PX = 144;
+
+    /** Largeur du logo sur le TICKET de facture (gabarit plus resserré), en px CSS. */
+    public const LOGO_FACTURE_TICKET_LARGEUR_PX = 100;
+
+    // Clés de paramétrage — surchargent les valeurs par défaut ci-dessous. — surchargent les valeurs par défaut ci-dessous.
     public const CLE_RAISON_SOCIALE = 'entreprise_raison_sociale';
 
     public const CLE_ADRESSE = 'entreprise_adresse';

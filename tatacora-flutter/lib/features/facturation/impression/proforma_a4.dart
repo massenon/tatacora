@@ -20,6 +20,7 @@ import '../../../core/database/app_database.dart';
 import '../../../core/impression/bloc_signature_a4.dart';
 import '../../../core/impression/entete_etablissement.dart';
 import '../../../core/impression/texte_ticket.dart';
+import '../../../core/theme/app_assets.dart';
 import '../../../core/theme/app_colors.dart';
 import '../domain/mise_en_page_proforma.dart';
 import '../domain/montant_en_lettres.dart';
@@ -175,8 +176,8 @@ final class ProformaA4Composee {
             : pw.Align(
                 alignment: pw.Alignment.centerLeft,
                 child: pw.SizedBox(
-                  height: 62,
-                  width: 170,
+                  width: AppAssets.logoFactureA4LargeurPt,
+                  height: AppAssets.logoFactureA4HauteurPt,
                   child: pw.Image(
                     pw.MemoryImage(logo!),
                     fit: pw.BoxFit.contain,

@@ -45,7 +45,7 @@
   <table class="entete">
     <tr>
       <td style="width: 38%;">
-        @if ($e->logo !== null)<img src="{{ $e->logo }}" alt="" style="max-height: 70px; max-width: 200px;">@endif
+        @if ($e->logo !== null)<img src="{{ $e->logo }}" alt="" style="width: {{ \App\Shared\ReportEngine\Services\ReportHeaderService::LOGO_FACTURE_A4_LARGEUR_PX }}px; height: auto;">@endif
       </td>
       <td class="droite">
         @if (filled($activites))<div class="activites">{{ $activites }}</div>@endif

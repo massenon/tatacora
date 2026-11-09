@@ -60,8 +60,8 @@
 
   {{-- En-tête établissement — markup partagé, `pdf.partials.entete-etablissement`. --}}
   .tc-entete { margin-bottom: 14px; border-bottom: 3px solid #14213D; padding-bottom: 10px; }
-  .tc-logo-cell { width: 70px; vertical-align: top; }
-  .tc-logo-cell img { width: 60px; height: auto; }
+  .tc-logo-cell { width: {{ \App\Shared\ReportEngine\Services\ReportHeaderService::LOGO_FACTURE_A4_LARGEUR_PX + 12 }}px; vertical-align: top; }
+  .tc-logo-cell img { width: {{ \App\Shared\ReportEngine\Services\ReportHeaderService::LOGO_FACTURE_A4_LARGEUR_PX }}px; height: auto; }
   .tc-identite-cell { vertical-align: top; font-size: 8pt; color: #475569; line-height: 1.35; }
   .tc-raison-sociale { font-size: 11pt; font-weight: bold; color: #14213D; }
   .tc-enseigne { color: #64748b; font-size: 8.5pt; }

@@ -74,6 +74,7 @@ import 'package:pdf/widgets.dart' as pw;
 import '../../../core/impression/bloc_signature_a4.dart';
 import '../../../core/impression/entete_etablissement.dart';
 import '../../../core/impression/texte_ticket.dart';
+import '../../../core/theme/app_assets.dart';
 import '../../pos/domain/place_hebergement.dart';
 import '../domain/entities/piece_facturation.dart';
 import '../domain/ifu_client.dart';
@@ -281,8 +282,8 @@ final class FactureA4Composee {
         children: [
           if (logo != null) ...[
             pw.SizedBox(
-              width: 48,
-              height: 48,
+              width: AppAssets.logoFactureA4LargeurPt,
+              height: AppAssets.logoFactureA4HauteurPt,
               child: pw.Image(pw.MemoryImage(logo), fit: pw.BoxFit.contain),
             ),
             pw.SizedBox(width: 12),
