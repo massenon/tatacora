@@ -31,6 +31,7 @@ declare(strict_types=1);
 |        "ventilation": {"reserve_legale": "7000.00", "report_a_nouveau": "63000.00"}},
 |       {"t": "contrepasser_affectation", "annee": 2030, "motif": "...", "role": "..."},
 |       {"t": "etat_affectation", "annee": 2030},
+|       {"t": "flux_affectations", "role": "comptable|administrateur"},   // ce que le serveur DESCEND
 |       {"t": "bilan", "annee": 2031}, {"t": "balance", "annee": 2031},
 |       {"t": "etat", "annee": 2031}, {"t": "instantane"} ] }
 | Sortie (stdout, JSON) :
@@ -88,6 +89,7 @@ use App\Domain\Comptabilite\Services\EtatClotureService;
 use App\Domain\Comptabilite\Services\PasserEcritureService;
 use App\Models\User;
 use App\Shared\Rbac\Models\Role;
+use App\Shared\Sync\Services\CatalogueDescendantService;
 use Database\Seeders\ComptabiliteReferentielSeeder;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Support\Carbon;
@@ -303,6 +305,35 @@ try {
                     $exercice = ExerciceComptable::where('annee', (int) $ev['annee'])->firstOrFail();
                     $a = $affectations->contrepasser($exercice, $auteur, (string) ($ev['motif'] ?? ''));
                     $resultats[] = ['ok' => true, 'piece' => $a->piece_affectation, 'motif' => $a->motif_contrepassation];
+                    break;
+
+                case 'flux_affectations':
+                    // CE QUE LE SERVEUR DESCEND aux postes (09/11/2026, « une affectation passee au
+                    // web DOIT apparaitre sur le poste ») : le VRAI `CatalogueDescendantService`,
+                    // lu depuis le debut pour le compte indique, les elements de la table
+                    // `affectations_resultat` seuls. L'horizon de 5 s du flux est franchi par
+                    // l'horloge de l'essai, jamais par un contournement du service.
+                    $lecteur = ($ev['role'] ?? 'comptable') === 'comptable' ? $comptable : $autre;
+                    $avant = Carbon::now();
+                    Carbon::setTestNow($avant->copy()->addSeconds(CatalogueDescendantService::HORIZON_SECONDES + 5));
+                    $catalogue = $app->make(CatalogueDescendantService::class);
+                    $curseur = null;
+                    $elements = [];
+                    do {
+                        $page = $catalogue->page($lecteur, 'poste-essai-affectation', $curseur, 500);
+                        foreach ($page['elements'] as $element) {
+                            if ($element['table'] === 'affectations_resultat') {
+                                $elements[] = $element;
+                            }
+                        }
+                        $curseur = $page['curseur'];
+                    } while (! $page['complet']);
+                    Carbon::setTestNow($avant);
+                    $resultats[] = [
+                        'ok' => true,
+                        'elements' => $elements,
+                        'non_lisibles' => in_array('affectations_resultat', $page['non_lisibles'], true),
+                    ];
                     break;
 
                 case 'etat_affectation':

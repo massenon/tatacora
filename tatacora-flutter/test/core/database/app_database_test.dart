@@ -167,8 +167,11 @@ void main() {
     // v51 (07/11/2026, IFU du client) : des COLONNES seulement — 78.
     // v52 (07/11/2026, facture proforma) : TROIS tables neuves (`proformas_local`,
     // `lignes_proforma_local`, `sequences_proforma_local`) — 81.
-    expect(base.allTables.length, 81);
-    expect(base.schemaVersion, 52);
+    //
+    // v53 (09/11/2026, affectations du résultat reçues) : UNE table neuve
+    // (`affectations_resultat_local`) — 82.
+    expect(base.allTables.length, 82);
+    expect(base.schemaVersion, 53);
     expect(
       base.allTables.map((t) => t.actualTableName).toSet().containsAll({
         'origines_documents_local',

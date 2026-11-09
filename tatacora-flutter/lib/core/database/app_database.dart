@@ -44,6 +44,7 @@ import 'tables/operations_sync_tables.dart';
 import 'tables/paiements_facture_tables.dart';
 import 'tables/panier_tables.dart';
 import 'tables/parametres_tables.dart';
+import 'tables/affectations_resultat_tables.dart';
 import 'tables/proformas_tables.dart';
 import 'tables/registre_facturation_tables.dart';
 import 'tables/reglements_fournisseur_tables.dart';
@@ -113,6 +114,8 @@ part 'app_database.g.dart';
     ProformasLocal,
     LignesProformaLocal,
     SequencesProformaLocal,
+    // v53 (09/11/2026) : les affectations du résultat reçues du serveur (lecture).
+    AffectationsResultatLocal,
     TablesLocal,
 
     // Les quatre modules d'exploitation portés en LOCAL PUR le 14/09/2026
@@ -564,8 +567,15 @@ class AppDatabase extends _$AppDatabase {
   /// CONDITIONNEL (piège 3) : une fixture ramenée en arrière depuis la définition courante
   /// peut les porter déjà. Le curseur de descente est oublié : les proformas déjà au serveur
   /// (autres postes, web) redescendent.
+  ///
+  /// v53 (09/11/2026) — AFFECTATIONS DU RÉSULTAT REÇUES du serveur (PO : « une affectation
+  /// passée au web DOIT apparaître sur le poste ») : UNE table NEUVE
+  /// (`affectations_resultat_local`, 81 -> 82), aucune colonne ajoutée, aucune ligne
+  /// fabriquée. Ajout CONDITIONNEL (piège 3). Le curseur de descente est oublié : les
+  /// affectations déjà passées au serveur (web, autres postes) redescendent. Voir
+  /// `tables/affectations_resultat_tables.dart`.
   @override
-  int get schemaVersion => 52;
+  int get schemaVersion => 53;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1628,6 +1638,24 @@ class AppDatabase extends _$AppDatabase {
         if (!tables.contains('journal_securite_local')) {
           await m.createTable(journalSecuriteLocal);
         }
+      }
+      if (from < 53) {
+        // AFFECTATIONS DU RÉSULTAT REÇUES (09/11/2026) : UNE table neuve, aucune colonne,
+        // aucune ligne. Conditionnelle : une fixture ramenée en arrière depuis la définition
+        // courante peut la porter déjà (piège 3). Le curseur est oublié : les affectations
+        // déjà au serveur redescendent.
+        final deja53 = await m.database
+            .customSelect(
+              "SELECT name FROM sqlite_master WHERE type = 'table' "
+              "AND name = 'affectations_resultat_local'",
+            )
+            .get();
+        if (deja53.isEmpty) {
+          await m.createTable(affectationsResultatLocal);
+        }
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
       }
       if (from < 52) {
         Future<bool> tableExiste(String nom) async =>

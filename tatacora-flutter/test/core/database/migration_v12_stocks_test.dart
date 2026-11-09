@@ -190,7 +190,8 @@ void main() {
       // poste), 60 à la v27 (descente du catalogue). Les 35 premières sont
       // celles que cette migration a laissées.
       // 81 à la v52 (facture proforma : trois tables neuves, 07/11/2026).
-      expect(apres.allTables.length, 81);
+      // 82 à la v53 (affectations du résultat reçues : une table neuve, 09/11/2026).
+      expect(apres.allTables.length, 82);
       await apres.close();
     });
 

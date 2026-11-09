@@ -260,6 +260,18 @@ class CatalogueDescendantService
         // `annee`, `code_journal`, `numero_compte`, `libelle_compte` et `classe`
         // sont ajoutés à la sérialisation (voir `ecrituresDeLaPage`).
         'ecritures_comptables' => ['exercice_id', 'date_ecriture', 'libelle', 'debit', 'credit', 'numero_piece', 'ecriture_contrepassee_id', 'journal_id', 'compte_id', 'piece_origine_id'],
+        // 09/11/2026 (PO : « une affectation passée au web DOIT apparaître au poste ») :
+        // les AFFECTATIONS DU RÉSULTAT, actives ET contre-passées (`contrepassee_le`), après
+        // leurs exercices et les écritures qu'elles citent. `exercice_id` n'est lu que pour
+        // être rendu en ANNÉE (le poste garde ses propres identifiants d'exercice) ;
+        // `piece_origine_id` est l'identifiant de la pièce du poste d'où elle vient, par
+        // lequel un poste reconnaît SA affectation sans l'afficher deux fois. L'auteur
+        // descend en LOGIN (`AUTEURS`), jamais l'identifiant du compte.
+        'affectations_resultat' => [
+            'exercice_id', 'date_approbation', 'resultat', 'reserve_legale', 'autres_reserves', 'dividendes',
+            'report_a_nouveau_crediteur', 'report_a_nouveau_debiteur', 'piece_affectation', 'piece_origine_id',
+            'affectee_le', 'contrepassee_le',
+        ],
         // 21/10/2026 : les immobilisations (M10), de tous les postes. Le plan
         // d'amortissement ne descend pas : il se CALCULE depuis ces colonnes.
         'immobilisations' => ['code', 'libelle', 'compte_immobilisation', 'valeur_origine', 'date_mise_service', 'duree_annees'],
@@ -309,6 +321,9 @@ class CatalogueDescendantService
         'exercices_comptables' => 'M10',
         // 21/10/2026 : les écritures validées se lisent sous M10.
         'ecritures_comptables' => 'M10',
+        // 09/11/2026 : l'affectation du résultat est une opération comptable, lue sous M10
+        // (le droit de lecture de la comptabilité, comme les écritures qu'elle a passées).
+        'affectations_resultat' => 'M10',
     ];
 
     /**
@@ -356,6 +371,7 @@ class CatalogueDescendantService
     public const AUTEURS = [
         'historique_prix_carte' => 'utilisateur_creation_id',
         'ventes' => 'utilisateur_id',
+        'affectations_resultat' => 'affectee_par',
     ];
 
     /**
@@ -786,6 +802,12 @@ class CatalogueDescendantService
         $droits = $table === 'roles' ? $this->droitsDesRoles($ids) : [];
         $canaux = $table === 'reservations' ? DB::table('canaux_reservation')->pluck('nom', 'id')->all() : [];
         $ecritures = $table === 'ecritures_comptables' ? $this->ecrituresDeLaPage($lignes) : [];
+        $anneesAffectations = $table === 'affectations_resultat'
+            ? DB::table('exercices_comptables')
+                ->whereIn('id', array_values(array_unique(array_map(static fn (object $l): string => (string) $l->exercice_id, $lignes))))
+                ->pluck('annee', 'id')
+                ->all()
+            : [];
         $logins = $this->loginsDesAuteurs($table, $lignes);
         $origines = DB::table('origines_synchronisation')
             ->where('table_concernee', $table)
@@ -857,6 +879,12 @@ class CatalogueDescendantService
 
             if ($table === 'ecritures_comptables') {
                 $donnees = [...$donnees, ...($ecritures[(string) $ligne->id] ?? [])];
+            }
+
+            // L'exercice affecté, rendu en ANNÉE (le poste n'a pas nos identifiants).
+            if ($table === 'affectations_resultat') {
+                $donnees['annee'] = (int) ($anneesAffectations[(string) $donnees['exercice_id']] ?? 0);
+                unset($donnees['exercice_id']);
             }
 
             // L'auteur, en LOGIN (`null` : saisi sans compte — une tâche

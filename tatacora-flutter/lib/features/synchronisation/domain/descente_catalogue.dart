@@ -154,6 +154,13 @@ enum TableDescendue {
   /// poste. Le poste ne les pousse pas.
   ecrituresComptables('ecritures_comptables', null),
 
+  /// 09/11/2026 (PO : « une affectation passée au web DOIT apparaître sur le poste ») :
+  /// les AFFECTATIONS DU RÉSULTAT du serveur, actives et contre-passées, après les
+  /// écritures qu'elles citent. Un miroir de LECTURE pour la carte « Affectation du
+  /// résultat » : le poste ne les pousse pas (les siennes partent comme des pièces
+  /// saisies, `pieces_saisie`), l'aligneur ne fait que les inscrire.
+  affectationsResultat('affectations_resultat', null),
+
   /// 21/10/2026 : les immobilisations de tous les postes (M10) ; le plan
   /// d'amortissement ne descend pas, il se calcule.
   immobilisations('immobilisations', TableSynchronisee.immobilisations),
@@ -237,6 +244,7 @@ String libelleTableServeur(String nom) => switch (nom) {
   'modeles_notification' => 'Modèles de notification',
   'exercices_comptables' => 'Exercices comptables',
   'ecritures_comptables' => 'Écritures comptables validées',
+  'affectations_resultat' => 'Affectations du résultat',
   'immobilisations' => 'Immobilisations',
   'plan_comptable' => 'Plan comptable',
   'pieces_saisie' => 'Pièces comptables saisies',

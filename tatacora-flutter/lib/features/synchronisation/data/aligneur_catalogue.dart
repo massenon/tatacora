@@ -10,6 +10,7 @@ import '../../comptabilite/data/comptabilite_dao.dart';
 import '../../crm/domain/entities/relance.dart' show CanalRelance;
 import '../../depenses/data/depense_dao.dart';
 import '../../depenses/domain/recu_depense.dart' show StatutRecu;
+import '../../comptabilite/data/affectations_recues_dao.dart';
 import '../../comptabilite/data/ecritures_serveur_dao.dart';
 import '../../comptabilite/data/moteur_comptable.dart';
 import '../../comptabilite/domain/entities/comptabilite.dart'
@@ -166,6 +167,7 @@ class AligneurCatalogue {
       TableDescendue.exercicesComptables => _exercice(e),
       TableDescendue.planComptable => _compteDuPlan(e),
       TableDescendue.ecrituresComptables => _ecritureServeur(e),
+      TableDescendue.affectationsResultat => _affectationRecue(e),
       TableDescendue.immobilisations => alignerDocument(idLocal, e),
       TableDescendue.inventaires => alignerDocument(idLocal, e),
       // Déjà traité plus haut (par le login) ; ce cas ne s'atteint pas.
@@ -1775,6 +1777,86 @@ class AligneurCatalogue {
       pieceOrigineId: _texte(d['piece_origine_id']),
     );
     return const Aligne();
+  }
+
+  /// Une AFFECTATION DU RÉSULTAT du serveur (09/11/2026, v53) : passée au web, par un
+  /// autre poste ou par celui-ci, ACTIVE ou CONTRE-PASSÉE. Inscrite (ou mise à jour —
+  /// c'est ainsi qu'une contre-passation faite ailleurs arrive) dans le miroir de
+  /// lecture ; jamais enfilée, jamais une écriture du poste touchée. Un montant à
+  /// fraction de centime, une année ou une date illisible la refuse, pas deviné.
+  Future<IssueAlignement> _affectationRecue(ElementCatalogue e) async {
+    final d = e.donnees;
+    final annee = d['annee'] is int
+        ? d['annee']! as int
+        : int.tryParse('${d['annee']}');
+    final resultat = entierDepuisDecimal(d['resultat'], 2);
+    final reserve = entierDepuisDecimal(d['reserve_legale'], 2);
+    final autres = entierDepuisDecimal(d['autres_reserves'], 2);
+    final dividendes = entierDepuisDecimal(d['dividendes'], 2);
+    final reportCrediteur = entierDepuisDecimal(
+      d['report_a_nouveau_crediteur'],
+      2,
+    );
+    final reportDebiteur = entierDepuisDecimal(
+      d['report_a_nouveau_debiteur'],
+      2,
+    );
+    final piece = _texte(d['piece_affectation']);
+    String? approbation;
+    try {
+      approbation = _jour(d['date_approbation']);
+    } on FormatException {
+      approbation = null;
+    }
+    final affectee = _instantServeur(d['affectee_le']);
+    final brutContrepassee = _texte(d['contrepassee_le']);
+    final contrepassee = brutContrepassee == null
+        ? null
+        : _instantServeur(brutContrepassee);
+    if (annee == null ||
+        annee <= 0 ||
+        resultat == null ||
+        reserve == null ||
+        autres == null ||
+        dividendes == null ||
+        reportCrediteur == null ||
+        reportDebiteur == null ||
+        piece == null ||
+        approbation == null ||
+        affectee == null ||
+        (brutContrepassee != null && contrepassee == null)) {
+      return const RefuseParLePoste('affectation du résultat illisible');
+    }
+    await AffectationsRecuesDao(_db).inscrire(
+      AffectationRecueDuServeur(
+        id: e.id,
+        annee: annee,
+        resultatCentimes: resultat,
+        dateApprobation: approbation,
+        reserveLegaleCentimes: reserve,
+        autresReservesCentimes: autres,
+        dividendesCentimes: dividendes,
+        reportCrediteurCentimes: reportCrediteur,
+        reportDebiteurCentimes: reportDebiteur,
+        numeroPiece: piece,
+        pieceOrigineId: _texte(d['piece_origine_id']),
+        auteurLogin: _texte(d['par']),
+        affecteeLe: affectee,
+        contrepasseeLe: contrepassee,
+      ),
+    );
+    return const Aligne();
+  }
+
+  /// Un horodatage du serveur (`2026-11-09 10:00:00`, sans fuseau) lu à l'HEURE
+  /// D'HORLOGE du serveur, sans conversion : Drift le garde et le relit en heure
+  /// locale, la carte affiche donc la même heure que la vue web, et deux horodatages du
+  /// serveur (la clôture d'un exercice, une affectation) se comparent entre eux.
+  /// `null` si illisible.
+  static DateTime? _instantServeur(Object? v) {
+    final brut = _texte(v);
+    if (brut == null) return null;
+    return DateTime.tryParse(brut.replaceFirst(' ', 'T'));
   }
 
   /// Un rôle du serveur et sa matrice, recopiée sur les comptes qui le

@@ -137,7 +137,14 @@ const tablesAjouteesEnV52 = <String>{
   'sequences_proforma_local',
 };
 
+/// La table que la v53 AJOUTE (affectations du résultat reçues du serveur, 09/11/2026).
+const tablesAjouteesEnV53 = <String>{'affectations_resultat_local'};
+
 const _ajoutsParVersion = <int, List<String>>{
+  // La v53 (09/11/2026, affectations du resultat recues du serveur) ajoute UNE table neuve,
+  // aucune colonne : le retour arriere la supprime (elle n'a ni cle etrangere ni dependant).
+  53: <String>['DROP TABLE affectations_resultat_local'],
+
   // La v52 (07/11/2026, facture proforma) ajoute TROIS tables neuves, aucune colonne.
   // L'ordre est celui de l'annulation : les lignes (cle etrangere) avant leur en-tete.
   52: <String>[

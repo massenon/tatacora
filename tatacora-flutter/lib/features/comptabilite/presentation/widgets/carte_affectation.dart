@@ -24,6 +24,11 @@ abstract final class TextesCarteAffectation {
       "Votre profil n'a pas le droit de modifier la comptabilité.";
   static const String echecInattendu =
       "L'affectation n'a pas pu être menée : rien n'a été modifié.";
+
+  /// Une affectation passée au web ou sur un autre poste (v53) : ce poste la connaît,
+  /// il n'en détient pas la pièce. Phrase propre au poste — la vue web n'a pas ce cas.
+  static const String passeeAilleurs =
+      'Cette affectation a été passée depuis le serveur ou depuis un autre poste : elle se contre-passe au même endroit, puis redescend ici à la synchronisation.';
 }
 
 String _t(String cle, [Map<String, String> v = const {}]) =>
@@ -338,18 +343,28 @@ class _CarteAffectationResultatState
                 ),
               ),
           const SizedBox(height: AppSpacing.sm),
-          Text(
-            _t('affectation_contrepasser'),
-            style: styleTransverse(
-              TaillesContenu.t13,
-              poids: FontWeight.bold,
-              couleur: AppColors.navy,
+          if (active.parAilleurs)
+            Text(
+              TextesCarteAffectation.passeeAilleurs,
+              key: const Key('compta-affectation-ailleurs'),
+              style: note,
+            )
+          else ...[
+            Text(
+              _t('affectation_contrepasser'),
+              style: styleTransverse(
+                TaillesContenu.t13,
+                poids: FontWeight.bold,
+                couleur: AppColors.navy,
+              ),
             ),
-          ),
-          const SizedBox(height: AppSpacing.xxs),
-          Text(_t('affectation_contrepasser_note'), style: note),
-          const SizedBox(height: AppSpacing.xs),
-          if (_estComptable) ...[
+            const SizedBox(height: AppSpacing.xxs),
+            Text(_t('affectation_contrepasser_note'), style: note),
+            const SizedBox(height: AppSpacing.xs),
+          ],
+          if (active.parAilleurs)
+            const SizedBox.shrink()
+          else if (_estComptable) ...[
             Text(_t('affectation_contrepasser_motif'), style: etiquette),
             const SizedBox(height: AppSpacing.xxs),
             TextField(

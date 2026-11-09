@@ -151,6 +151,7 @@ void main() {
       ...tablesAjouteesEnV44,
       ...tablesAjouteesEnV46,
       ...tablesAjouteesEnV52,
+      ...tablesAjouteesEnV53,
     });
     for (final t in tablesAjouteesEnV27) {
       expect(await compte(apres, t), 0, reason: '$t : rien n’est semé');
