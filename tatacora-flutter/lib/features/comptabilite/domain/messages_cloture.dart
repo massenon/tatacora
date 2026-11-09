@@ -48,6 +48,8 @@ abstract final class MessagesCloture {
         "Le motif de la réouverture est obligatoire (:min caractères au moins) : il est écrit au journal d'audit et sur les contre-passations.",
     'comptabilite.reouverture_suivant_clos':
         "L'exercice :annee ne peut pas être rouvert : l'exercice :suivant, qui porte ses à-nouveaux, est déjà clôturé. Rouvrez d'abord :suivant.",
+    'comptabilite.reouverture_affectation_active':
+        "L'exercice :annee ne peut pas être rouvert : son résultat est affecté (pièce :piece). Contre-passez d'abord l'affectation du résultat.",
     'comptabilite.archive_cloture_rouverte':
         "Cette clôture a été rouverte : son archive n'est plus celle de l'exercice.",
     'comptabilite.archive_sans_cloture':

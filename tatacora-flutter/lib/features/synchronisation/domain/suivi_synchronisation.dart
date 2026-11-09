@@ -13,6 +13,7 @@ library;
 
 import 'dart:convert';
 
+import '../../comptabilite/domain/messages_affectation.dart';
 import '../../comptabilite/domain/messages_cloture.dart';
 
 import 'descente_catalogue.dart';
@@ -167,6 +168,10 @@ String? libelleDocument(OperationSync o) {
         'comptabilite_pwa.reouvrir',
         {'annee': '$a'},
       ),
+      // 09/11/2026 : la contre-passation de l'affectation du résultat.
+      (final int a, 'annuler_affectation') =>
+        '${MessagesAffectation.dire('comptabilite_pwa.affectation_contrepasser')} '
+            '($a)',
       _ => null,
     },
     _ => t('libelle'),

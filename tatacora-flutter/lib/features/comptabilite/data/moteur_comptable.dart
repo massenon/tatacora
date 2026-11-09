@@ -354,10 +354,16 @@ class MoteurComptable {
   /// exercice, compte imputable, RG-12 — et passe sa pièce, sous son numéro.
   /// Interrupteur « Synchronisation activée » éteint : rien n'est enfilé, la pièce
   /// reste locale (`enfiler` ne dépose rien).
+  ///
+  /// [affectation] (09/11/2026) : la pièce est l'AFFECTATION DU RÉSULTAT d'un
+  /// exercice clôturé (`AffectationResultatLocale`, seule appelante) ; le bloc
+  /// `{annee, ventilation}` part avec la pièce, et le serveur la passe par
+  /// `AffectationResultatService` au lieu de la rejouer comme une pièce libre.
   Future<List<EcritureComptable>> saisirPiece(
     DemandePiece demande, {
     required String auteurId,
     required bool valider,
+    ({int annee, Map<String, int> ventilation})? affectation,
   }) async {
     _exigerAuteur(auteurId);
     for (final l in demande.lignes) {
@@ -395,6 +401,12 @@ class MoteurComptable {
           date: demande.date,
           libelle: demande.libelle,
           statut: valider ? 'validee' : 'brouillon',
+          affectation: affectation == null
+              ? null
+              : chargeAffectationResultat(
+                  annee: affectation.annee,
+                  ventilation: affectation.ventilation,
+                ),
           lignes: [
             for (final l in demande.lignes)
               (

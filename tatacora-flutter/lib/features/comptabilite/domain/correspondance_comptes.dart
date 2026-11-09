@@ -194,6 +194,44 @@ abstract final class RolesCorrespondance {
       aide: 'Débité par la clôture d’un exercice qui dégage une perte.',
       prefixes: ['13'],
     ),
+    RoleCompte(
+      code: 'RESERVE_LEGALE',
+      groupe: groupeResultat,
+      libelle: 'Réserve légale',
+      aide: 'Créditée par l’affectation d’un bénéfice à la réserve légale.',
+      prefixes: ['111'],
+    ),
+    RoleCompte(
+      code: 'AUTRES_RESERVES',
+      groupe: groupeResultat,
+      libelle: 'Autres réserves',
+      aide:
+          'Créditée par l’affectation d’un bénéfice aux autres réserves, débitée par l’imputation d’une perte.',
+      prefixes: ['118'],
+    ),
+    RoleCompte(
+      code: 'DIVIDENDES_A_PAYER',
+      groupe: groupeResultat,
+      libelle: 'Associés : dividendes à payer',
+      aide:
+          'Créditée par l’affectation d’un bénéfice aux dividendes à verser aux associés.',
+      prefixes: ['465'],
+    ),
+    RoleCompte(
+      code: 'REPORT_A_NOUVEAU_CREDITEUR',
+      groupe: groupeResultat,
+      libelle: 'Report à nouveau créditeur',
+      aide:
+          'Crédité par l’affectation d’un bénéfice reporté, débité par l’imputation d’une perte.',
+      prefixes: ['121'],
+    ),
+    RoleCompte(
+      code: 'REPORT_A_NOUVEAU_DEBITEUR',
+      groupe: groupeResultat,
+      libelle: 'Report à nouveau débiteur',
+      aide: 'Débité par l’affectation d’une perte reportée à nouveau.',
+      prefixes: ['129'],
+    ),
   ];
 
   /// La clé du paramètre d'un rôle : `compte_produit_locations`.

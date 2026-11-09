@@ -65,6 +65,16 @@ abstract final class ComptesSyscohada {
   static const resultatBenefice = '131';
   static const resultatPerte = '139';
 
+  /// Affectation du résultat (09/11/2026) : les cinq comptes où se ventile le
+  /// résultat d'un exercice clôturé. ⚠ 1181 et 1291, PAS 118 ni 129 : au plan du
+  /// PO, 118 et 129 sont des DIVISIONS (1181/1188, 1291/1292), que le moteur
+  /// refuse d'imputer ; 111, 121 et 465 sont des feuilles.
+  static const reserveLegale = '111';
+  static const autresReserves = '1181';
+  static const dividendesAPayer = '465';
+  static const reportANouveauCrediteur = '121';
+  static const reportANouveauDebiteur = '1291';
+
   /// Les rôles, sous le NOM DE LA CONSTANTE DU SERVEUR (`CLIENTS`,
   /// `AVANCES_CLIENTS`…) : c'est ce nom que le test confronte à la réflexion
   /// PHP, jamais une traduction.
@@ -89,6 +99,11 @@ abstract final class ComptesSyscohada {
     'TELEPHONE_INTERNET': telephoneInternet,
     'RESULTAT_BENEFICE': resultatBenefice,
     'RESULTAT_PERTE': resultatPerte,
+    'RESERVE_LEGALE': reserveLegale,
+    'AUTRES_RESERVES': autresReserves,
+    'DIVIDENDES_A_PAYER': dividendesAPayer,
+    'REPORT_A_NOUVEAU_CREDITEUR': reportANouveauCrediteur,
+    'REPORT_A_NOUVEAU_DEBITEUR': reportANouveauDebiteur,
   };
 
   /// Les sept centres de coût actés au CdCF : libellé -> type

@@ -792,6 +792,56 @@ abstract final class RegistreParametresLocal {
       aide:
           'Débité par la clôture d’un exercice qui dégage une perte. Vide : le compte par défaut (139). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
     ),
+    SpecParametre(
+      cle: 'compte_reserve_legale',
+      groupe: 'comptes',
+      libelle: 'Compte — Réserve légale',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Créditée par l’affectation d’un bénéfice à la réserve légale. Vide : le compte par défaut (111). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+      lecteur: _lecteurDesComptes,
+    ),
+    SpecParametre(
+      cle: 'compte_autres_reserves',
+      groupe: 'comptes',
+      libelle: 'Compte — Autres réserves',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Créditée par l’affectation d’un bénéfice aux autres réserves, débitée par l’imputation d’une perte. Vide : le compte par défaut (1181). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+      lecteur: _lecteurDesComptes,
+    ),
+    SpecParametre(
+      cle: 'compte_dividendes_a_payer',
+      groupe: 'comptes',
+      libelle: 'Compte — Associés : dividendes à payer',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Créditée par l’affectation d’un bénéfice aux dividendes à verser aux associés. Vide : le compte par défaut (465). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+      lecteur: _lecteurDesComptes,
+    ),
+    SpecParametre(
+      cle: 'compte_report_a_nouveau_crediteur',
+      groupe: 'comptes',
+      libelle: 'Compte — Report à nouveau créditeur',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Crédité par l’affectation d’un bénéfice reporté, débité par l’imputation d’une perte. Vide : le compte par défaut (121). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+      lecteur: _lecteurDesComptes,
+    ),
+    SpecParametre(
+      cle: 'compte_report_a_nouveau_debiteur',
+      groupe: 'comptes',
+      libelle: 'Compte — Report à nouveau débiteur',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Débité par l’affectation d’une perte reportée à nouveau. Vide : le compte par défaut (1291). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+      lecteur: _lecteurDesComptes,
+    ),
   ];
 
   /// Le lecteur des quinze clés `compte_<rôle>` : le DAO qui les lit au moment

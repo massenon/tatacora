@@ -64,6 +64,19 @@ enum MotifRefus {
   archiveAlteree(false),
   archiveClotureRouverte(false),
 
+  /// L'affectation du résultat (09/11/2026) — les refus d'`AffectationResultatService`.
+  affectationReservee(false),
+  affectationExigeCloture(false),
+  affectationResultatNul(false),
+  affectationDejaPassee(false),
+  affectationDate(false),
+  affectationVentilation(false),
+  affectationCentreAbsent(false),
+  affectationMotif(false),
+  affectationAucune(false),
+  affectationExerciceClos(false),
+  reouvertureAffectationActive(false),
+
   /// RG-11 — les cinq refus que le serveur porte par `EcritureImmuableException`.
   ecritureImmuable(true),
   suppressionInterdite(true),

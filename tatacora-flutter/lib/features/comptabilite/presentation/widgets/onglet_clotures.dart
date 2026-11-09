@@ -17,6 +17,7 @@ import '../../domain/montant_comptable.dart';
 import '../../domain/refus_comptable.dart';
 import '../exercice_consulte.dart' show exerciceChoisiProvider;
 import '../providers_cloture.dart';
+import 'carte_affectation.dart';
 import 'modales_hub_comptabilite.dart';
 
 /// Les mots de l'onglet « Clôtures » — `onglets/clotures.blade.php` de la vue,
@@ -181,6 +182,36 @@ class _OngletCloturesState extends ConsumerState<OngletClotures> {
     if (succes != null) direTransverse(context, succes, cle: cleSucces);
   }
 
+  /// La carte « Affectation du résultat » : l'exercice consulté s'il est
+  /// clôturé, sinon son précédent clôturé (la carte se lit aussi depuis N).
+  List<Widget> _carteAffectation(ExerciceComptable consulte) {
+    ExerciceComptable? cible;
+    if (consulte.statut == StatutExercice.cloture) {
+      cible = consulte;
+    } else {
+      for (final e in widget.exercices) {
+        if (e.annee == consulte.annee - 1 &&
+            e.statut == StatutExercice.cloture) {
+          cible = e;
+        }
+      }
+    }
+    if (cible == null) return const [];
+    final etat = ref.watch(etatAffectationProvider(cible.id)).value;
+    if (etat == null) return const [];
+    return [
+      const SizedBox(height: AppSpacing.sm),
+      CarteAffectationResultat(
+        key: ValueKey(
+          'affectation-${cible.id}-${etat.resultatCentimes}-'
+          '${etat.active?.numeroPiece}-${etat.affectable}',
+        ),
+        exercice: cible,
+        etat: etat,
+      ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final exercice = widget.exercice;
@@ -255,6 +286,9 @@ class _OngletCloturesState extends ConsumerState<OngletClotures> {
                   : TextesOngletClotures.archiveEnregistree(chemin);
             }, cleSucces: const Key('compta-archive-telechargee')),
           ),
+          // L'affectation du résultat (09/11/2026) : la carte de l'exercice
+          // clôturé — le consulté, sinon son précédent.
+          ..._carteAffectation(exercice),
         ],
       ],
     );

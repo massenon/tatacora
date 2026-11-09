@@ -794,7 +794,10 @@ void main() {
         }..removeWhere(
           (k) =>
               k.startsWith('comptabilite_pwa.alerte_postes') ||
-              k.startsWith('comptabilite_pwa.exercice_ouvr'),
+              k.startsWith('comptabilite_pwa.exercice_ouvr') ||
+              // La carte d'affectation (09/11/2026) a ses phrases à elle,
+              // relues du serveur par `affectation_contre_serveur_test.dart`.
+              k.startsWith('comptabilite_pwa.affectation_'),
         );
     expect(cleVues, isNotEmpty);
     expect(cleVues.difference(MessagesCloture.gabarits.keys.toSet()), isEmpty);

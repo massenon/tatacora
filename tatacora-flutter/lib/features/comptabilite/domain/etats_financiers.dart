@@ -335,6 +335,12 @@ abstract final class RubriquesBilan {
   static const creances = ['411', '4449', '445'];
   static const tresorerieActif = ['521', '522', '55', '571', '572', '573'];
   static const capital = ['101'];
+  // Réserves (groupe 11) et report à nouveau (groupe 12) : capitaux propres,
+  // nets (un 129 débiteur diminue). Sans eux, l'AFFECTATION DU RÉSULTAT
+  // (09/11/2026) créditait un compte hors nomenclature et le bilan de
+  // l'exercice qui la porte se disait déséquilibré du montant affecté.
+  static const reserves = ['11'];
+  static const reportANouveau = ['12'];
   // Tout le groupe 13 (`RESULTAT_REPORTE`) : la correspondance des comptes
   // (26/10/2026) peut rattacher le résultat à un autre compte de la classe 13.
   static const resultatReporte = ['13'];
@@ -351,6 +357,11 @@ abstract final class RubriquesBilan {
     '4441',
     '447',
   ];
+  // `465` : dividendes à payer aux associés, dette créditée par l'affectation
+  // d'un bénéfice. À PART des dettes circulantes (comme le serveur) : le TAFIRE
+  // lit la variation de `dettesCirculantes` et traite les dividendes comme un
+  // mouvement des capitaux propres.
+  static const dettesAssocies = ['465'];
   static const tresoreriePassif = ['561', '564', '565', '566'];
 
   static List<String> get tous => [
@@ -360,8 +371,11 @@ abstract final class RubriquesBilan {
     ...creances,
     ...tresorerieActif,
     ...capital,
+    ...reserves,
+    ...reportANouveau,
     ...resultatReporte,
     ...dettesCirculantes,
+    ...dettesAssocies,
     ...tresoreriePassif,
   ];
 }
@@ -685,20 +699,38 @@ BilanEtat bilanDe(int annee, DonneesEtats d) {
 
   final capital = _sommeCreditrice(lignes, RubriquesBilan.capital);
   final reporte = _sommeCreditrice(lignes, RubriquesBilan.resultatReporte);
+  final reserves = _sommeCreditrice(lignes, RubriquesBilan.reserves);
+  final reportANouveau = _sommeCreditrice(
+    lignes,
+    RubriquesBilan.reportANouveau,
+  );
+  final prefixesPassifCirculant = [
+    ...RubriquesBilan.dettesCirculantes,
+    ...RubriquesBilan.dettesAssocies,
+  ];
   final passif = [
     sans(
       SectionBilan.passif,
       'capitaux_propres',
       'Capitaux propres',
-      capital + reporte + resultat.resultatNetCentimes,
-      [...RubriquesBilan.capital, ...RubriquesBilan.resultatReporte],
+      capital +
+          reserves +
+          reportANouveau +
+          reporte +
+          resultat.resultatNetCentimes,
+      [
+        ...RubriquesBilan.capital,
+        ...RubriquesBilan.reserves,
+        ...RubriquesBilan.reportANouveau,
+        ...RubriquesBilan.resultatReporte,
+      ],
     ),
     sans(
       SectionBilan.passif,
       'passif_circulant',
       'Passif circulant',
-      _sommeCreditrice(lignes, RubriquesBilan.dettesCirculantes),
-      RubriquesBilan.dettesCirculantes,
+      _sommeCreditrice(lignes, prefixesPassifCirculant),
+      prefixesPassifCirculant,
     ),
     sans(
       SectionBilan.passif,

@@ -1080,6 +1080,12 @@ Map<String, Object?> chargeCompte({
 /// LIBELLÉ, jamais par l'identifiant du poste (le poste et le serveur ne
 /// partagent pas leurs identifiants de centre). Le numéro de pièce ne part pas :
 /// c'est celui du serveur.
+///
+/// [affectation] (09/11/2026) : la pièce est l'AFFECTATION DU RÉSULTAT d'un
+/// exercice clôturé — `{annee, ventilation}`, ventilation en CENTIMES par poste
+/// (`chargeAffectationResultat`). Le serveur ne la rejoue pas comme une pièce
+/// libre : il la passe par `AffectationResultatService` (mêmes règles, mêmes
+/// phrases) et confronte les lignes.
 Map<String, Object?> chargePieceSaisie({
   required String journal,
   required String date,
@@ -1095,11 +1101,13 @@ Map<String, Object?> chargePieceSaisie({
     })
   >
   lignes,
+  Map<String, Object?>? affectation,
 }) => {
   'journal': journal,
   'date': date,
   'libelle': libelle,
   'statut': statut,
+  'affectation': ?affectation,
   'lignes': [
     for (final l in lignes)
       {
@@ -1111,6 +1119,15 @@ Map<String, Object?> chargePieceSaisie({
       },
   ],
 };
+
+/// Le bloc `affectation` d'une pièce saisie (09/11/2026) : l'année de l'exercice
+/// clôturé dont le résultat est affecté et la ventilation, en CENTIMES entiers,
+/// par poste (`reserve_legale`, `autres_reserves`, `dividendes`,
+/// `report_a_nouveau`, `imputation_report_crediteur`).
+Map<String, Object?> chargeAffectationResultat({
+  required int annee,
+  required Map<String, int> ventilation,
+}) => {'annee': annee, 'ventilation': ventilation};
 
 /// `immobilisations` (création seule, 21/10/2026) —
 /// `GestionnaireImmobilisations` : le bien, sa valeur d'origine en CENTIMES
@@ -1169,8 +1186,10 @@ Map<String, Object?> chargeInventaire({
 
 /// `demandes_cloture_exercice` (création seule, 26/10/2026) —
 /// `GestionnaireDemandesCloture` : l'ANNÉE de l'exercice, l'ACTION
-/// (`demarrer`, `reprendre_saisie`, `cloturer`, `rouvrir`) et, pour une
-/// réouverture, le motif. Une demande, jamais une pièce (D246) : le serveur
+/// (`demarrer`, `reprendre_saisie`, `cloturer`, `rouvrir`, et depuis le
+/// 09/11/2026 `annuler_affectation` : la contre-passation de l'affectation du
+/// résultat de l'exercice `annee`) et, pour une réouverture ou une
+/// contre-passation, le motif. Une demande, jamais une pièce (D246) : le serveur
 /// rejoue `ClotureExerciceService` et passe ses propres pièces CL et AN.
 Map<String, Object?> chargeDemandeCloture({
   required int annee,

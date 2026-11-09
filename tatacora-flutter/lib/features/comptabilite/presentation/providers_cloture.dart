@@ -8,10 +8,13 @@ import '../../../core/di/providers.dart';
 import '../../../core/fichiers/enregistrement_export.dart';
 import '../../../core/impression/entete_parametree.dart';
 import '../../synchronisation/presentation/providers_synchronisation.dart';
+import '../data/affectation_resultat_locale.dart';
 import '../data/archive_cloture_locale.dart';
 import '../data/cloture_exercice_locale.dart';
 import '../domain/cloture_exercice.dart';
 import '../domain/entities/comptabilite.dart';
+import '../domain/affectation_resultat.dart';
+import '../domain/messages_affectation.dart';
 import '../domain/messages_cloture.dart';
 import 'exercice_consulte.dart';
 import 'providers_comptabilite.dart';
@@ -49,6 +52,22 @@ final archiveClotureLocaleProvider = FutureProvider<ArchiveClotureLocale>((
   );
 });
 
+/// Le service de l'affectation du résultat (09/11/2026) — comme la clôture,
+/// jamais servi avant le moteur comptable.
+final affectationResultatLocaleProvider =
+    FutureProvider<AffectationResultatLocale>((ref) async {
+      final moteur = await ref.watch(moteurComptableProvider.future);
+      return AffectationResultatLocale(ref.watch(baseLocaleProvider), moteur);
+    });
+
+/// La carte « Affectation du résultat » de [exerciceId] (un exercice CLÔTURÉ) ;
+/// `null` tant qu'il n'a pas de clôture active.
+final etatAffectationProvider = FutureProvider.autoDispose
+    .family<EtatAffectation?, String>((ref, exerciceId) async {
+      final service = await ref.watch(affectationResultatLocaleProvider.future);
+      return service.etat(exerciceId);
+    });
+
 /// La liste de contrôle de [exerciceId] (aucun brouillon, balance et bilan
 /// équilibrés…), le résultat à reporter, les avertissements.
 final etatClotureProvider = FutureProvider.autoDispose
@@ -76,6 +95,7 @@ void invaliderApresCloture(WidgetRef ref) {
     ..invalidate(donneesEtatsDuPosteProvider)
     ..invalidate(provenanceEtatsFinanciersProvider)
     ..invalidate(etatClotureProvider)
+    ..invalidate(etatAffectationProvider)
     ..invalidate(cloturesDuPosteProvider);
 }
 
@@ -175,5 +195,50 @@ final class GestesCloture {
     await (await _ref.read(
       archiveClotureLocaleProvider.future,
     )).archiver(clotureId, entete: entete);
+  }
+}
+
+/// Les gestes de la carte « Affectation du résultat », avec le compte connecté.
+/// Chaque geste rend la PHRASE de succès (celle de la vue) ou LÈVE un
+/// `RefusComptable` aux mots du serveur.
+final class GestesAffectation {
+  const GestesAffectation(this._ref);
+
+  final WidgetRef _ref;
+
+  String get _auteur => _ref.read(sessionProvider)?.utilisateurId ?? '';
+
+  Future<AffectationResultatLocale> get _service =>
+      _ref.read(affectationResultatLocaleProvider.future);
+
+  /// Passe l'affectation de [exerciceId] (N-1) ; [saisie] : un champ décimal par
+  /// poste, [date] : `AAAA-MM-JJ`.
+  Future<String> affecter(
+    ExerciceComptable exercice, {
+    required Map<String, String> saisie,
+    required String date,
+  }) async {
+    final piece = await (await _service).affecter(
+      exercice.id,
+      ventilation: ventilationDepuisSaisie(saisie),
+      date: date,
+      auteurId: _auteur,
+    );
+    return MessagesAffectation.dire('comptabilite_pwa.affectation_faite', {
+      'annee': '${exercice.annee}',
+      'piece': piece,
+    });
+  }
+
+  Future<String> contrepasser(ExerciceComptable exercice, String motif) async {
+    await (await _service).contrepasser(
+      exercice.id,
+      auteurId: _auteur,
+      motif: motif,
+    );
+    return MessagesAffectation.dire(
+      'comptabilite_pwa.affectation_contrepassee',
+      {'annee': '${exercice.annee}'},
+    );
   }
 }

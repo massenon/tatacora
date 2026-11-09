@@ -12,6 +12,7 @@ import '../domain/etats_financiers.dart';
 import '../domain/messages_cloture.dart';
 import '../domain/messages_comptables.dart' show PhrasesDuPoste;
 import '../domain/refus_comptable.dart';
+import 'affectation_resultat_locale.dart';
 import 'comptabilite_dao.dart';
 import 'moteur_comptable.dart';
 
@@ -357,6 +358,22 @@ class ClotureExerciceLocale {
           MotifRefus.reouvertureMotif,
           'comptabilite.reouverture_motif',
           {'min': '$longueurMinMotifReouverture'},
+        );
+      }
+      // L'affectation du résultat (09/11/2026) solde le 131/139 que l'à-nouveau
+      // a reporté dans N+1 : contre-passer cet à-nouveau sous elle laisserait
+      // 131/139 débiteur (ou créditeur) de tout le résultat.
+      final affectation = await AffectationResultatLocale(
+        _db,
+        _moteur,
+      ).active(exercice.id);
+      if (affectation != null) {
+        throw RefusComptable(
+          MotifRefus.reouvertureAffectationActive,
+          MessagesCloture.dire('comptabilite.reouverture_affectation_active', {
+            'annee': '${exercice.annee}',
+            'piece': affectation.numeroPiece,
+          }),
         );
       }
       final suivant = await _dao.exerciceDeLAnnee(exercice.annee + 1);

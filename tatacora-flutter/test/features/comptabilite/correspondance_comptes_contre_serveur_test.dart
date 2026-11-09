@@ -40,10 +40,10 @@ void main() {
   });
 
   group('Les rôles et les phrases sont ceux du serveur', () {
-    test('quinze rôles relus du serveur — un export tronqué échouerait', () {
+    test('vingt rôles relus du serveur — un export tronqué échouerait', () {
       final roles = (export['roles'] as List).cast<Map<String, dynamic>>();
-      expect(roles, hasLength(15));
-      expect(RolesCorrespondance.roles, hasLength(15));
+      expect(roles, hasLength(20));
+      expect(RolesCorrespondance.roles, hasLength(20));
       expect(export['groupes'], RolesCorrespondance.groupes);
     });
 
