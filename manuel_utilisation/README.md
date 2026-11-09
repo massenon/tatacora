@@ -83,9 +83,11 @@ en-tête ni pied.
 
 ## 6. Mise à jour du texte
 
-Le manuel décrit l'interface **telle qu'elle est**, y compris ce qu'elle refuse de faire :
-l'envoi des notifications (RG-20, aucun canal contracté), la certification MECeF (inscription
-DGI non effectuée), la clôture comptable (taux d'IS non arrêté) et le coût employeur (taux CNSS
-risques professionnels non confirmé). Ces mentions ne sont pas des réserves de rédaction : elles
-sont écrites à l'écran et le manuel les reprend. Si l'une d'elles disparaît de l'application,
-elle doit disparaître du manuel — et inversement.
+Le manuel décrit l'interface **telle qu'elle est**, y compris ce qu'elle refuse de faire ou ne
+fait pas encore (état de novembre 2026) : l'e-mail est le seul canal de notification qui part
+(adresse connue et SMTP configuré ; WhatsApp et SMS : aucun contrat) ; la facturation normalisée
+(e-MECeF, boîtier CC300) existe mais le mode livré est « Désactivé » et rien n'est éprouvé sur le
+terrain ; le résultat comptable est « avant impôt » tant que la classe 89 est vide ; le coût
+employeur dépend du taux CNSS « risques professionnels » saisi dans Paramètres. Ces mentions ne
+sont pas des réserves de rédaction : elles sont écrites à l'écran et le manuel les reprend. Si
+l'une d'elles disparaît de l'application, elle doit disparaître du manuel — et inversement.
