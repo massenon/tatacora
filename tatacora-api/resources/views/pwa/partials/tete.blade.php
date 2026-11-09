@@ -6,6 +6,16 @@
 <link rel="icon" href="{{ app(\App\Shared\Parametres\Services\ApparenceEtablissementService::class)->urlFavicon() }}">
 <link rel="manifest" href="{{ asset('manifest.json') }}">
 <meta name="theme-color" content="#14213D">
+{{-- Apercu social (partage d'un lien : WhatsApp, Facebook, LinkedIn, Messages) : image 1280x640 versee dans public/assets/img. --}}
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="{{ __('pwa.marque') }}">
+<meta property="og:title" content="{{ $titre ?? __('pwa.marque') }}">
+<meta property="og:description" content="{{ __('pwa.apercu_social_description') }}">
+<meta property="og:image" content="{{ asset('assets/img/social-preview.png') }}">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="{{ asset('assets/img/social-preview.png') }}">
 <script src="{{ asset('assets/js/vendor/tailwind-play-cdn.js') }}"></script>
 <script>tailwind.config = { theme: { extend: { colors: { navy:'#14213D', gold:'#B8891E' } } } };</script>
 <link rel="stylesheet" href="{{ asset('assets/css/app.css') }}">

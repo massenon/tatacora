@@ -34,4 +34,8 @@ abstract final class AppAssets {
   /// seuil des 400 Ko : livrée telle quelle, copie octet pour octet de celle de
   /// la PWA). EMBARQUÉE : le poste est hors ligne.
   static const String couvertureConnexion = 'assets/img/gite-cover.jpg';
+
+  /// L'aperçu social (1280 × 640), même fichier que la PWA
+  /// (`tatacora-api/public/assets/img/social-preview.png`). Embarqué, jamais téléchargé.
+  static const String apercuSocial = 'assets/img/social-preview.png';
 }

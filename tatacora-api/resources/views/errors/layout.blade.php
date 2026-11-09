@@ -70,6 +70,7 @@
 @endisset
 <title>{{ __('erreurs.titre_page', ['titre' => $titre]) }}</title>
 <link rel="icon" href="{{ asset('assets/img/logo.png') }}">
+<meta property="og:image" content="{{ asset('assets/img/social-preview.png') }}">
 <link rel="stylesheet" href="{{ asset('assets/css/vendor/fonts.css') }}">
 <style>
   :root {

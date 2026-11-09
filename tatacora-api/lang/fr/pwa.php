@@ -70,6 +70,7 @@ return [
     // maquette — badge de la barre supérieure (shell.js, construireTopBar)
     'enseigne_courte' => 'Gîte Chez Noël',
     'alt_logo' => 'Logo TATACORA AFRIQUE',
+    'apercu_social_description' => 'Le logiciel de gestion intégrée du gîte, du restaurant et du tourisme — TATACORA AFRIQUE, Gîte Chez Noël, Natitingou (Bénin).',
     // maquette — mention de bas de page de login.html
     'pied_de_page' => 'TATACORA AFRIQUE © 2026 — PAEB / FAGUEZ SARL',
     // maquette — pied du menu latéral (shell.js, construireSidebar)

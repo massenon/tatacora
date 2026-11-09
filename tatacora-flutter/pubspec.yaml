@@ -136,6 +136,8 @@ flutter:
     # (`prototype_v2/pages/login.html` l.15). Embarquee pour la meme raison que
     # le logo : la connexion doit s'afficher entiere hors reseau.
     - assets/img/gite-cover.jpg
+    # L'apercu social (1280x640) : meme fichier que la PWA (`tatacora-api/public/assets/img/social-preview.png`).
+    - assets/img/social-preview.png
 
     # Le plan comptable du Product Owner (SYSCOHADA revise, 1 332 comptes), COPIE
     # OCTET POUR OCTET du fichier du serveur
