@@ -27,7 +27,8 @@ const BASE = process.env.TATACORA_URL || 'http://127.0.0.1:8000';
 const LOGIN = process.env.TATACORA_LOGIN;
 const MDP = process.env.TATACORA_MDP;
 const SORTIE = path.join(__dirname, 'captures');
-const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
+// Chemin du navigateur : variable CHROME_PATH, sinon le Chromium pré-installé (Linux), sinon Chrome sous Windows.
+const CHROME = process.env.CHROME_PATH || (fs.existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : 'C:/Program Files/Google/Chrome/Application/chrome.exe');
 
 if (!LOGIN || !MDP) {
   console.error('TATACORA_LOGIN et TATACORA_MDP sont obligatoires.');
@@ -92,7 +93,7 @@ const FIGURES = [
     fichier: 'a-caisse',
     url: '/pwa/pos/comptant',
     reperes: [
-      { n: 1, sel: '[wire\\:click="ouvrirJournalDuJour"]', monte: 3, pos: 'bas' },
+      { n: 1, sel: '[wire\\:click="ouvrirJournalDuJour"]', monte: 2, pos: 'bas' },
       { n: 2, sel: '[wire\\:click="ouvrirJournalDuJour"]', pos: 'bas' },
     ],
   },
@@ -100,7 +101,7 @@ const FIGURES = [
     fichier: 'a-pos-heberges',
     url: '/pwa/pos/heberges',
     reperes: [
-      { n: 1, sel: '[wire\\:click^="$set(\'selectedReservationId\'"]', monte: 2, pos: 'droite' },
+      { n: 1, sel: '[wire\\:click^="$set(\'selectedReservationId\'"]', monte: 1, pos: 'haut' },
       { n: 2, sel: '[wire\\:click^="ajouterAuPanier"]', monte: 2, pos: 'haut' },
       { n: 3, sel: '#remise-type-sejour', monte: 3 },
     ],
@@ -117,8 +118,8 @@ const FIGURES = [
     fichier: 'a-etats',
     url: '/pwa/etats',
     reperes: [
-      { n: 1, sel: '[wire\\:model\\.live\\.debounce\\.300ms="recherche"]', pos: 'bas' },
-      { n: 2, sel: '[wire\\:click="$set(\'module\', \'\')"]', monte: 1, pos: 'bas' },
+      { n: 1, sel: '[wire\\:model\\.live\\.debounce\\.300ms="recherche"]', pos: 'droite' },
+      { n: 2, sel: '[wire\\:click="$set(\'module\', \'\')"]', monte: 1, pos: 'droite' },
       { n: 3, sel: '[wire\\:click="$set(\'etat\', \'stocks\')"]', monte: 1, pos: 'droite' },
       { n: 4, texte: 'Choisissez un état dans le catalogue', monte: 1, pos: 'haut' },
     ],
@@ -128,7 +129,7 @@ const FIGURES = [
     url: '/pwa/import-export',
     reperes: [
       { n: 1, sel: '[wire\\:model\\.live="moduleImport"]' },
-      { n: 2, sel: '[wire\\:click="telechargerModeleCsv"]', pos: 'bas' },
+      { n: 2, sel: '[wire\\:click="telechargerModele"]', pos: 'bas' },
       { n: 3, texte: 'Glissez votre fichier ici', monte: 1 },
     ],
   },
@@ -290,10 +291,13 @@ function poser(reperes) {
   const navigateur = await puppeteer.launch({
     executablePath: CHROME,
     headless: 'new',
-    args: ['--no-sandbox', '--disable-dev-shm-usage', '--hide-scrollbars'],
+    // Chromium lit sa langue dans LANGUAGE : sans elle, les champs date affichent mm/jj/aaaa.
+    env: { ...process.env, LANGUAGE: 'fr', LANG: 'fr_FR.UTF-8' },
+    args: ['--no-sandbox', '--disable-dev-shm-usage', '--hide-scrollbars', '--lang=fr'],
     defaultViewport: { width: 1440, height: 900, deviceScaleFactor: 2 },
   });
   const page = await navigateur.newPage();
+  await page.setExtraHTTPHeaders({ 'Accept-Language': 'fr-FR,fr;q=0.9' }); // dates jj/mm/aaaa dans les champs
 
   const congedier = async () => {
     for (let i = 0; i < 6; i++) {
@@ -431,9 +435,38 @@ function poser(reperes) {
         }
         return bas;
       });
-      const hauteur = Math.min(Math.max(hauteurUtile, 700), f.hauteurMax || 1500);
+      let hauteur = Math.min(Math.max(hauteurUtile, 700), f.hauteurMax || 1500);
       await page.setViewport({ width: 1440, height: hauteur, deviceScaleFactor: 2 });
       await attendre(500);
+
+      // ⚠ Une fenêtre est plafonnée à une fraction de la hauteur d'écran
+      // (`max-h-[90vh]`) : agrandir le cliché agrandit le plafond, pas son
+      // contenu, et le pied de la fenêtre (le bouton « Enregistrer… ») restait
+      // dans la zone qui DÉFILE, à moitié coupé — constaté le 09/11/2026 à
+      // l'œil sur la figure « Nouvelle réservation ». On mesure ce qui déborde
+      // encore et on agrandit jusqu'à ce que plus rien ne défile.
+      for (let tour = 0; tour < 5; tour++) {
+        const deborde = await page.evaluate(() => {
+          let pire = 0;
+          for (const n of document.querySelectorAll('div, form, section')) {
+            const s = getComputedStyle(n);
+            if (s.position !== 'fixed' || s.visibility === 'hidden') continue;
+            const r = n.getBoundingClientRect();
+            if (r.width <= 300 || r.height <= 200) continue;
+            for (const interne of n.querySelectorAll('*')) {
+              const ri = interne.getBoundingClientRect();
+              if (ri.width > 200 && interne.scrollHeight > interne.clientHeight + 8) {
+                pire = Math.max(pire, interne.scrollHeight - interne.clientHeight);
+              }
+            }
+          }
+          return pire;
+        });
+        if (deborde <= 8 || hauteur >= (f.hauteurMax || 1500)) break;
+        hauteur = Math.min(hauteur + Math.ceil(deborde / 0.85) + 8, f.hauteurMax || 1500);
+        await page.setViewport({ width: 1440, height: hauteur, deviceScaleFactor: 2 });
+        await attendre(500);
+      }
 
       const manquants = await page.evaluate(poser, f.reperes);
       await attendre(250);

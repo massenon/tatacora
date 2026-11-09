@@ -21,3 +21,26 @@ Fichiers attendus dans `captures/` (PNG, 1440 px, facteur 2), session administra
 | `m2-facturation.png` | 5.2 | Facturation, registre | Menu Facturation | Titre « Facturation & Caisse MECeF », case de sélection, boutons Facture A4 / Avoir / Normaliser, lien Proformas, bandeau MECeF selon le mode (aucun en mode désactivé) |
 | `historique-ventes.png` | 5.3 | Historique des ventes | Menu Historique des ventes | Bouton unique Exporter, pastilles encaissée / en note / annulée / stock ✕ |
 | `m3-clients-creances.png` | 5.1 | Clients & Créances | Menu Clients & Créances | Cases de sélection, badge Archivé, boutons Historique / Recouvrement / Relancer |
+
+## Statut au 09/11/2026 — captures reprises sur la PWA (fait)
+
+Les seize figures ci-dessus ont été **reprises** avec `capturer.js` et `annoter.js` (session administrateur sur une base de
+capture jetable, jeu de démonstration, 1440 px, facteur 2), puis **regardées une à une**. Mêmes noms de fichier.
+
+| Fichier | Statut | Remarque pour les rédacteurs (ce que l'écran montre réellement) |
+|---|---|---|
+| `a-connexion.png`, `login.png` | fait | Carte LogiReStock refaite ; sur `a-connexion.png`, trois repères (identifiant, mot de passe, SE CONNECTER). |
+| `splash.png` | fait | Écran de démarrage à 100 % (« Prêt. »), ligne « Natitingou, Bénin — Système de gestion Intégré ». |
+| `a-navigation.png` | fait | Sélecteur d'exercice, icône Synchronisation, bouton Vente, menu complet. |
+| `mon-profil.png` | fait | Le compte de capture n'a pas de fiche employé : Nom complet, e-mail, téléphone et intitulé restent vides (« Aucune fiche employé rattachée »). Bloc Code de secours visible. |
+| `a-tableau-de-bord.png` | fait | Annotée (3 repères). |
+| `m11-pilotage.png` | fait | L'onglet **Pilotage consolidé** est maintenant cliqué (la version précédente montrait la Vue d'exploitation). |
+| `reservations.png`, `a-reservation-modale.png` | fait | La fenêtre est photographiée en entier, bouton « Enregistrer la réservation » compris (repère 6) ; aucun service coché au-delà d'Hébergement. |
+| `m1-hebergement.png` | fait | |
+| `a-caisse.png`, `a-pos.png` | fait | Caisse bar ouverte, **aucune vente** : « 0 vente(s), CA 0 FCFA », panier vide (la figure ne montre pas « deux articles »). |
+| `a-pos-heberges.png` | fait | Séjour sélectionné, panier ouvert **sans consommation** (« 0 FCFA ») ; catalogue Bar et Restauration seulement. |
+| `a-fiche-prix.png` | fait | Trois onglets, bouton « Imprimer la fiche des prix » ; le bouton « Rapprocher automatiquement » n'est pas affiché sur la carte du jour. |
+| `m2-facturation.png` | fait | Mode « désactivé » : pas de bouton Normaliser ni de bandeau MECeF. Pour le bouton **Normaliser** : `pwa-facture-normaliser.png` (mode e-MECeF, bandeau « aucune pièce normalisée »). |
+| `historique-ventes.png`, `m3-clients-creances.png` | fait | |
+
+Nouveautés PWA prises dans le même passage : voir `capturer-nouveautes.js` et la section « Statut » des deux autres fichiers.

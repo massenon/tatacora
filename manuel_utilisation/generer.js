@@ -25,8 +25,10 @@ const puppeteer = require(path.join(MODULES, 'node_modules', 'puppeteer-core'));
 const { PDFDocument, StandardFonts, rgb } = require(path.join(MODULES, 'node_modules', 'pdf-lib'));
 
 const SRC = path.join(__dirname, 'src');
-const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
-const SORTIE = path.join(__dirname, 'MANUEL_UTILISATION_LOGIRESTOCK.pdf');
+// Navigateur : CHROME_PATH, sinon le Chromium pré-installé (Linux), sinon Chrome sous Windows.
+const CHROME = process.env.CHROME_PATH || (fs.existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : 'C:/Program Files/Google/Chrome/Application/chrome.exe');
+// PDF_SORTIE : écrire ailleurs (essai de rendu) sans toucher au PDF livré.
+const SORTIE = process.env.PDF_SORTIE || path.join(__dirname, 'MANUEL_UTILISATION_LOGIRESTOCK.pdf');
 
 const MARGES = { top: '22mm', bottom: '20mm', left: '16mm', right: '16mm' };
 const MARINE = rgb(0.078, 0.129, 0.239);   // #14213D

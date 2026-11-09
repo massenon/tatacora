@@ -53,3 +53,48 @@ Colonne « État » : **périmée** = l'écran a changé, la capture contredit l
 | `x-reinitialiser.png` | §13.4 | Import & Export ➔ Réinitialiser les données de test | Sur une installation en phase d'essais : les deux listes (vidé / conservé) et la fenêtre où l'on saisit « VIDER ». |
 | `x-poste-comptage-inventaire.png` | §7.3 | Poste Windows ➔ Inventaire physique | La phrase « Le comptage n'est écrit qu'à la clôture… » sous la feuille de comptage. |
 | `x-poste-compta-bandeaux.png` | §9.3 | Poste Windows ➔ Comptabilité ➔ Compte de résultat | Les bandeaux « pièce(s) saisie(s) à la main comptée(s) en attendant que le serveur la reprenne » et, si possible, « Pièce refusée par le serveur… ». |
+
+## Statut au 09/11/2026 — prise de vues PWA (capturer.js, annoter.js, capturer-nouveautes.js)
+
+### A. Captures existantes : les vingt sont reprises (fait)
+
+`a-inventaire-ouvrir`, `a-inventaire-compter`, `m6-inventaires`, `m7-approvisionnement`, `m8-locations`, `m9-tourisme-departs`,
+`a-depense-modale`, `depenses`, `m10-syscohada`, `m10-comptabilite`, `m10-cloture`, `m13-paie`, `a-etats`, `m14-etats`,
+`m12-notifications-hub`, `roles-permissions`, `parametres`, `a-import`, `journal-audit`, `aide-a-propos` : **fait**, même nom.
+Précisions : `parametres.png` montre désormais l'onglet **Activation & Sécurité** (trois bascules, Charges sociales,
+Exploitation) ; `m10-comptabilite.png` et `m10-syscohada.png` sont prises en pleine hauteur (les onze tuiles) ;
+`a-inventaire-ouvrir.png` montre « Aucun inventaire en cours » et le cycle par magasin ; `a-inventaire-compter.png` la fenêtre
+« Enregistrer le comptage ». `m12-notifications-hub.png` : file **vide** (voir `x-notifications-envoyer` plus bas).
+`m9-tourisme-departs.png` : un départ planifié, bouton « + Réservation » (pas de « + Prestation » à l'écran).
+
+### B. Nouvelles captures
+
+| Nom | Statut |
+|---|---|
+| `x-selecteur-exercice.png` | fait (barre supérieure sur « 2025 — clôturé », pastille « Vous consultez 2025 » et lien « Revenir à 2026 » ; la liste déroulante native ne se photographie pas). `x-selecteur-exercice-page.png` : même état sur l'onglet Clôtures. |
+| `x-compta-clotures.png` | fait (exercice 2026 : contrôles, avertissement « Des postes n'ont peut-être pas tout envoyé »). Exercice **clôturé** avec empreinte SHA-256 et « Télécharger l'archive (ZIP) » : `x-selecteur-exercice-page.png`. |
+| `x-compta-immobilisations.png` | fait (tableau vide — aucune immobilisation de démonstration) ; fenêtre « Nouvelle immobilisation » : `x-compta-immobilisations-nouvelle.png`. La fenêtre « Plan » n'est **pas prise** : elle exige une immobilisation existante. |
+| `x-compta-correspondance.png` | fait ; fenêtre : `x-compta-correspondance-modale.png`. |
+| `x-compta-bilan-n1.png` | fait (colonne « Exercice 2025 », bandeau d'équilibre). |
+| `x-appro-reception.png` | fait (Commandé / Reçu maintenant, point de stockage « Cuisine »). |
+| `x-appro-reglement.png` | fait (fenêtre « Régler », montant, trésorerie). |
+| `x-location-contrat.png` | fait (aperçu « jours × tarif », remise, acompte, reste à payer). |
+| `x-location-recu.png` | **non prise** : le reçu est un PDF dont l'en-tête reprend l'identité de l'établissement (e-mail, téléphone) ; à faire par le PO sur le serveur réel, ou après relecture de l'en-tête. |
+| `x-tourisme-reservation.png` | fait. |
+| `x-conges-plannings.png` | fait (onglet Congés, deux demandes en attente, Valider / Refuser) ; fenêtre « Planifier un créneau » : `x-conges-creneau.png`. |
+| `x-notifications-envoyer.png` | **non prise** : la base de démonstration ne produit aucun événement à notifier (« Détecter maintenant » répond « Aucun nouvel événement à notifier »), donc aucune file à photographier. À prendre par le PO sur une installation qui a des événements. |
+| `x-parametres-email.png` | fait (mot de passe SMTP non renseigné, jamais réaffiché). |
+| `x-parametres-mecef.png` | fait (rubrique « Facturation normalisée (MECeF) », mode par défaut — non réglé = désactivé —, aucun jeton). Variante en mode e-MECeF : `pwa-parametres-mecef-emecef.png`. |
+| `x-sauvegardes.png` | fait (bandeau « Sauvegarde en attente de téléchargement », quatre indicateurs, liste). |
+| `x-reinitialiser.png` | fait ; fenêtre de confirmation (saisie de « VIDER » **non** effectuée) : `x-reinitialiser-modale.png`. |
+| `x-poste-comptage-inventaire.png`, `x-poste-compta-bandeaux.png` | **poste Windows : à prendre par le PO** (non capturable depuis la PWA). |
+
+### C. Autres écrans PWA nouveaux, pris sans demande préalable (noms `pwa-*`)
+
+`pwa-proformas-liste`, `pwa-proforma-formulaire` (saisie de démonstration, non enregistrée), `pwa-facture-normaliser`,
+`pwa-parametres-mecef-emecef`, `pwa-postes-appairage`, `pwa-synchronisation-reception` (ligne « À traiter » :
+chevauchement), `pwa-synchronisation-envoi`, `pwa-synchronisation-fenetre` (fenêtre du bouton de la barre),
+`pwa-mon-profil-mot-de-passe`, `pwa-mon-profil-code-secours`, `pwa-comptes-utilisateurs`, `pwa-comptes-reinitialisation`,
+`pwa-comptes-suppression` (super administrateur), `pwa-changement-mot-de-passe-obligatoire`, `pwa-mot-de-passe-oublie`,
+`pwa-code-secours-connexion`, `pwa-import-modeles`, `pwa-hors-connexion`.
+Le jeton e-MECeF n'est jamais saisi ni affiché ; « Normaliser » et « Tester la connexion » ne sont pas cliqués.

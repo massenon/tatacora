@@ -78,3 +78,16 @@ La figure 16.1 utilise `captures/parametres.png`, déjà dans le dépôt : elle 
 1. Remplacer chaque cadre `emplacement` par son `<img>` (règle ci-dessus).
 2. Si l'écran capturé diffère de ce que décrit le texte (libellé, bouton absent), **corriger le texte**, pas la capture : le manuel décrit l'interface telle qu'elle est.
 3. Régénérer le PDF : `PPTR_DIR=~/outils-pdf node generer.js` (le sommaire se renumérote seul).
+
+## Statut au 09/11/2026 — poste Windows : à prendre par le PO
+
+Les dix-neuf captures ci-dessus (`c15-…` à `c19-…`) décrivent le **poste Windows** (Flutter) : elles ne sont **pas
+capturables** depuis la PWA du serveur et n'ont donc **pas été prises ni inventées** — **poste Windows : à prendre par le PO**.
+Aucun fichier `c1x-*.png` n'a été produit : les cadres `emplacement` restent en place.
+
+Des écrans PWA voisins ont été pris, sous d'autres noms, pour qui voudrait un repère visuel **sans les substituer** (l'interface
+du poste diffère : libellés, boutons) : `pwa-postes-appairage` et `pwa-synchronisation-reception` / `-envoi` (figures 8 et 9),
+`pwa-synchronisation-fenetre` (7), `x-parametres-mecef` et `pwa-parametres-mecef-emecef` (10), `pwa-facture-normaliser` (11),
+`pwa-proformas-liste` et `pwa-proforma-formulaire` (13 et 14), `pwa-comptes-utilisateurs`, `pwa-comptes-reinitialisation`,
+`pwa-code-secours-connexion` (17, 18 et 19), `x-sauvegardes` (4). La proforma A4 imprimée (15) n'a pas été photographiée : le
+PDF produit par le serveur reprend l'identité réelle de l'établissement (e-mail, téléphone) dans son en-tête.

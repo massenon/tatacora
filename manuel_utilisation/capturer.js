@@ -18,6 +18,15 @@
  * en entrer : un mot de passe posé dans le dépôt est connu de quiconque le
  * lit. Le script refuse de démarrer sans ces deux variables.
  *
+ * Base de capture (09/11/2026) : JAMAIS la base de développement ni `tatacora_test`.
+ * Une base `tatacora_capt` à soi, un `.env.local` hors commit (APP_ENV=local,
+ * APP_KEY générée localement, mots de passe COMPTE_* JETABLES inventés pour
+ * l'occasion), puis : migrate:fresh --force · db:seed · db:seed
+ * --class=DemonstrationSeeder · db:seed --class=ComptesReelsSeeder · serve.
+ * Le navigateur est celui de CHROME_PATH, sinon le Chromium de
+ * /opt/pw-browsers/chromium, sinon Chrome sous Windows. Les écrans nouveaux
+ * (proformas, MECeF, postes, comptes, clôture…) sont dans capturer-nouveautes.js.
+ *
  * Exécution :
  *   TATACORA_LOGIN=admin TATACORA_MDP=... PPTR_DIR=~/outils-pdf node capturer.js
  * ------------------------------------------------------------------------- */
@@ -31,7 +40,8 @@ const BASE = process.env.TATACORA_URL || 'http://127.0.0.1:8000';
 const LOGIN = process.env.TATACORA_LOGIN;
 const MDP = process.env.TATACORA_MDP;
 const SORTIE = path.join(__dirname, 'captures');
-const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
+// Chemin du navigateur : variable CHROME_PATH, sinon le Chromium pré-installé (Linux), sinon Chrome sous Windows.
+const CHROME = process.env.CHROME_PATH || (fs.existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : 'C:/Program Files/Google/Chrome/Application/chrome.exe');
 
 if (!LOGIN || !MDP) {
   console.error(
@@ -49,11 +59,11 @@ if (!LOGIN || !MDP) {
  * source. Plusieurs entrées partagent une même adresse quand le manuel montre
  * le même écran sous deux angles — c'était déjà le cas au prototype. */
 const ECRANS = [
-  { fichier: 'splash', url: '/pwa/demarrage', attente: 900 },
   { fichier: 'tableau-de-bord', url: '/pwa' },
   { fichier: 'a-tableau-de-bord', url: '/pwa' },
   { fichier: 'a-navigation', url: '/pwa' },
-  { fichier: 'm11-pilotage', url: '/pwa' },
+  // L'onglet « Pilotage consolidé » : sans ce clic, la figure montrait la Vue d'exploitation (doublon du tableau de bord).
+  { fichier: 'm11-pilotage', url: '/pwa', etapes: [{ bouton: 'Pilotage consolidé', attente: 2200 }] },
   { fichier: 'reservations', url: '/pwa/reservations' },
   { fichier: 'm1-hebergement', url: '/pwa/hebergement' },
   { fichier: 'm3-clients-creances', url: '/pwa/clients' },
@@ -98,7 +108,8 @@ const ECRANS = [
   { fichier: 'a-etats', url: '/pwa/etats' },
   { fichier: 'm14-etats', url: '/pwa/etats/bibliotheque' },
   { fichier: 'roles-permissions', url: '/pwa/roles-permissions' },
-  { fichier: 'parametres', url: '/pwa/parametres' },
+  // L'onglet « Activation & Sécurité » : trois bascules, rubriques Charges sociales et Exploitation (demande des rédacteurs du 09/11/2026).
+  { fichier: 'parametres', url: '/pwa/parametres', etapes: [{ bouton: 'Activation & Sécurité', attente: 1500 }] },
   { fichier: 'import-export', url: '/pwa/import-export' },
   { fichier: 'a-import', url: '/pwa/import-export' },
   { fichier: 'journal-audit', url: '/pwa/journal-audit' },
@@ -166,15 +177,61 @@ const retenu = (fichier) => FILTRE.length === 0 || FILTRE.includes(fichier);
   const navigateur = await puppeteer.launch({
     executablePath: CHROME,
     headless: 'new',
-    args: ['--no-sandbox', '--disable-dev-shm-usage', '--hide-scrollbars'],
+    // Chromium lit sa langue dans LANGUAGE : sans elle, les champs date affichent mm/jj/aaaa.
+    env: { ...process.env, LANGUAGE: 'fr', LANG: 'fr_FR.UTF-8' },
+    args: ['--no-sandbox', '--disable-dev-shm-usage', '--hide-scrollbars', '--lang=fr'],
     defaultViewport: { width: 1440, height: 900, deviceScaleFactor: 2 },
   });
   const page = await navigateur.newPage();
+  await page.setExtraHTTPHeaders({ 'Accept-Language': 'fr-FR,fr;q=0.9' }); // dates jj/mm/aaaa dans les champs
   page.on('pageerror', (e) => console.log('  [erreur page]', String(e).slice(0, 120)));
 
+  /* ⚠ La PWA est une coquille à hauteur d'écran : le contenu défile DANS
+   * `<main>`, pas dans le document. `document.scrollHeight` rendait donc 900
+   * partout, et tout écran long (hub comptable, paramètres, journal) était
+   * coupé au premier tiers — constaté à l'œil le 09/11/2026. On mesure le
+   * bas de ce qui défile, et le bas des fenêtres (`position: fixed`, plafonnées
+   * à 90 vh : on agrandit tant que leur corps défile). Plafond : 1500 px. */
+  const mesurerHauteur = () =>
+    page.evaluate(() => {
+      let bas = document.documentElement.scrollHeight;
+      for (const n of document.querySelectorAll('main, [class*="overflow-y-auto"]')) {
+        const r = n.getBoundingClientRect();
+        if (r.width < 600) continue; // le menu latéral n'est pas le contenu
+        bas = Math.max(bas, Math.ceil(r.top + n.scrollHeight));
+      }
+      return bas;
+    });
+  const deborde = () =>
+    page.evaluate(() => {
+      let pire = 0;
+      for (const n of document.querySelectorAll('div, form, section')) {
+        const st = getComputedStyle(n);
+        if (st.position !== 'fixed' || st.visibility === 'hidden') continue;
+        const r = n.getBoundingClientRect();
+        if (r.width <= 300 || r.height <= 200 || r.width > 1300) continue;
+        for (const interne of n.querySelectorAll('*')) {
+          const ri = interne.getBoundingClientRect();
+          if (ri.width > 200 && interne.scrollHeight > interne.clientHeight + 8) {
+            pire = Math.max(pire, interne.scrollHeight - interne.clientHeight);
+          }
+        }
+      }
+      return pire;
+    });
+
   const photographier = async (fichier) => {
-    const hauteurUtile = await page.evaluate(() => document.documentElement.scrollHeight);
-    const hauteur = Math.min(Math.max(hauteurUtile, 700), 1500);
+    const hauteurUtile = await mesurerHauteur();
+    let hauteur = Math.min(Math.max(hauteurUtile, 700), 1500);
+    await page.setViewport({ width: 1440, height: hauteur, deviceScaleFactor: 2 });
+    await attendre(500);
+    for (let tour = 0; tour < 5; tour++) {
+      const d = await deborde();
+      if (d <= 8 || hauteur >= 1500) break;
+      hauteur = Math.min(hauteur + Math.ceil(d / 0.85) + 8, 1500);
+      await page.setViewport({ width: 1440, height: hauteur, deviceScaleFactor: 2 });
+      await attendre(500);
+    }
     await page.setViewport({ width: 1440, height: hauteur, deviceScaleFactor: 2 });
     await attendre(400);
     await page.screenshot({
@@ -185,6 +242,24 @@ const retenu = (fichier) => FILTRE.length === 0 || FILTRE.includes(fichier);
   };
 
   const rapport = [];
+
+  // 0. L'écran de démarrage, AVANT la connexion : une fois connecté, il redirige
+  //    aussitôt vers le tableau de bord et la navigation détruit la page.
+  if (retenu('splash')) {
+    // La page redirige d'elle-même 300 ms après 100 % : une page à part, dont la
+    // redirection est neutralisée, pour photographier l'état final (« Prêt. »).
+    const ps = await navigateur.newPage();
+    await ps.setExtraHTTPHeaders({ 'Accept-Language': 'fr-FR,fr;q=0.9' });
+    await ps.evaluateOnNewDocument(() => {
+      const st = window.setTimeout.bind(window);
+      window.setTimeout = (fn, ms, ...a) => (String(fn).includes('location.href') ? 0 : st(fn, ms, ...a));
+    });
+    await ps.goto(BASE + '/pwa/demarrage', { waitUntil: 'domcontentloaded' });
+    await attendre(2600);
+    await ps.screenshot({ path: path.join(SORTIE, 'splash.png'), clip: { x: 0, y: 0, width: 1440, height: 900 } });
+    await ps.close();
+    rapport.push('splash\t/pwa/demarrage');
+  }
 
   // 1. L'écran de connexion, AVANT de se connecter.
   await page.goto(BASE + '/pwa/connexion', { waitUntil: 'networkidle0' });
@@ -243,6 +318,21 @@ const retenu = (fichier) => FILTRE.length === 0 || FILTRE.includes(fichier);
       await page.goto(BASE + e.url, { waitUntil: 'networkidle0', timeout: 45000 });
       await attendre(e.attente || 1600);
       await congedierAlertes();
+      for (const etape of e.etapes || []) {
+        const fait = await page.evaluate((et) => {
+          const visible = (n) => n.offsetParent !== null && n.getBoundingClientRect().width > 8;
+          const cible = et.selecteur
+            ? document.querySelector(et.selecteur)
+            : [...document.querySelectorAll('button, a, [role="tab"]')].filter(visible).find((b) =>
+                (b.innerText || '').trim().toLowerCase().includes(et.bouton.toLowerCase()),
+              );
+          if (!cible) return false;
+          cible.click();
+          return true;
+        }, etape);
+        if (!fait) throw new Error('CIBLE INTROUVABLE ' + (etape.selecteur || etape.bouton));
+        await attendre(etape.attente || 1500);
+      }
       const etat = await page.evaluate(() => ({
         titre: (document.querySelector('h1') || {}).textContent || document.title,
         texte: document.body.innerText.length,

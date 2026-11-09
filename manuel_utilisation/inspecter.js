@@ -15,6 +15,7 @@
  *   TATACORA_LOGIN=... TATACORA_MDP=... PPTR_DIR=~/outils-pdf node inspecter.js
  * ------------------------------------------------------------------------- */
 
+const fs = require('fs');
 const path = require('path');
 const MODULES = process.env.PPTR_DIR || path.join(__dirname, 'node_modules');
 const puppeteer = require(path.join(MODULES, 'node_modules', 'puppeteer-core'));
@@ -22,7 +23,8 @@ const puppeteer = require(path.join(MODULES, 'node_modules', 'puppeteer-core'));
 const BASE = process.env.TATACORA_URL || 'http://127.0.0.1:8000';
 const LOGIN = process.env.TATACORA_LOGIN;
 const MDP = process.env.TATACORA_MDP;
-const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
+// Chemin du navigateur : variable CHROME_PATH, sinon le Chromium pré-installé (Linux), sinon Chrome sous Windows.
+const CHROME = process.env.CHROME_PATH || (fs.existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : 'C:/Program Files/Google/Chrome/Application/chrome.exe');
 
 if (!LOGIN || !MDP) {
   console.error('TATACORA_LOGIN et TATACORA_MDP sont obligatoires.');
@@ -73,10 +75,13 @@ const attendre = (ms) => new Promise((r) => setTimeout(r, ms));
   const navigateur = await puppeteer.launch({
     executablePath: CHROME,
     headless: 'new',
-    args: ['--no-sandbox', '--hide-scrollbars'],
+    // Chromium lit sa langue dans LANGUAGE : sans elle, les champs date affichent mm/jj/aaaa.
+    env: { ...process.env, LANGUAGE: 'fr', LANG: 'fr_FR.UTF-8' },
+    args: ['--no-sandbox', '--hide-scrollbars', '--lang=fr'],
     defaultViewport: { width: 1440, height: 1000, deviceScaleFactor: 1 },
   });
   const page = await navigateur.newPage();
+  await page.setExtraHTTPHeaders({ 'Accept-Language': 'fr-FR,fr;q=0.9' }); // dates jj/mm/aaaa dans les champs
 
   await page.goto(BASE + '/pwa/connexion', { waitUntil: 'networkidle0' });
   await page.type('#champ-identifiant', LOGIN, { delay: 10 });
