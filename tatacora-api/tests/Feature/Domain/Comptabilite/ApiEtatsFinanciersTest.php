@@ -420,6 +420,15 @@ final class ApiEtatsFinanciersTest extends TestCase
 
         $this->assertSame('300000.00', $tafire['emplois']['total']);
 
+        // 10/11/2026 : TAFIRE sur le resultat de N seul, trois flux dont la somme
+        // est la variation de tresorerie ; ni cession, ni emprunt, ni dividende ici.
+        $this->assertSame('0.00', $tafire['emplois']['dividendes_verses']);
+        $this->assertSame('0.00', $tafire['ressources']['variation_emprunts']);
+        $this->assertSame(
+            '734000.00',
+            bcadd(bcadd($tafire['flux']['exploitation'], $tafire['flux']['investissement'], 2), $tafire['flux']['financement'], 2),
+        );
+
         $this->assertSame('30000.00', $tafire['besoin_fonds_roulement']['variation_creances']);
         // 401 + 4191 + 431 : les TROIS. PART3 §2.3 ne compte que 401.
         $this->assertSame('522000.00', $tafire['besoin_fonds_roulement']['variation_dettes']);

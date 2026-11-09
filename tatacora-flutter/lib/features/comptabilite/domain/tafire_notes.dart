@@ -3,9 +3,22 @@
 /// `TafireService` et `NotesAnnexesService` (confrontées au serveur par
 /// `tafire_notes_contre_serveur_test.dart`) : MÊMES rubriques, MÊMES signes.
 ///
-/// Ils lisent la balance de l'exercice (`balanceDe`) et le bilan — jamais une
-/// seconde agrégation (PA-121) : le résultat qui ouvre la CAFG est celui qui
-/// équilibre le bilan.
+/// DÉFINITION du TAFIRE (10/11/2026, miroir exact de `TafireService`) : le
+/// résultat est celui de N SEUL (`bilan.resultatExerciceCentimes`, jamais le
+/// 131/139 reporté de N-1), et tout montant de bilan est une VARIATION
+/// (solde de clôture − solde d'ouverture, `reportOuverture`).
+///
+///   CAFG = résultat de N + dotations (681) − reprises (781) + VNC cédées (81)
+///          − produits des cessions (82)
+///   Exploitation = CAFG − variation du BFR
+///   Investissement = produits des cessions − acquisitions
+///   Financement = augmentation de capital (10, 14) + variation des emprunts
+///          (16 à 19) − dividendes versés, dividendes versés = −(variation des
+///          capitaux propres 11, 12, 13, 15 + variation des dividendes à payer 465)
+///   Variation de trésorerie = les trois flux = variation constatée aux classes 5.
+///
+/// L'affectation du résultat de N-1 est un mouvement de capitaux propres lu PAR
+/// COMPTES (classe 1), pas du résultat de N.
 library;
 
 import 'etats_financiers.dart';
@@ -14,16 +27,37 @@ import 'grand_livre_analytique.dart';
 /// `RubriquesSyscohada::DOTATIONS_AMORTISSEMENTS` — relu du serveur par un test.
 const List<String> rubriqueDotations = ['681'];
 
+/// `RubriquesTafire` du serveur — relus de `RubriquesTafire.php` par un test.
+abstract final class RubriquesTafire {
+  static const reprises = ['781'];
+  static const valeurComptableCessions = ['81'];
+  static const produitsCessions = ['82'];
+  static const apportsCapital = ['10', '14'];
+  static const autresCapitauxPropres = ['11', '12', '13', '15'];
+  static const dettesFinancieres = ['16', '17', '18', '19'];
+  static const dividendesAPayer = ['465'];
+}
+
 /// Le TAFIRE d'un exercice.
 final class TafireEtat {
   const TafireEtat({
     required this.resultatExerciceCentimes,
     required this.dotationsCentimes,
+    required this.reprisesCentimes,
+    required this.valeurComptableCessionsCentimes,
     required this.cafgCentimes,
+    required this.produitsCessionsCentimes,
     required this.augmentationCapitalCentimes,
+    required this.variationEmpruntsCentimes,
     required this.totalRessourcesCentimes,
     required this.acquisitionsCentimes,
+    required this.variationAutresCapitauxPropresCentimes,
+    required this.variationDividendesAPayerCentimes,
+    required this.dividendesVersesCentimes,
     required this.totalEmploisCentimes,
+    required this.fluxExploitationCentimes,
+    required this.fluxInvestissementCentimes,
+    required this.fluxFinancementCentimes,
     required this.variationStocksCentimes,
     required this.variationCreancesCentimes,
     required this.variationDettesCentimes,
@@ -34,11 +68,21 @@ final class TafireEtat {
 
   final int resultatExerciceCentimes;
   final int dotationsCentimes;
+  final int reprisesCentimes;
+  final int valeurComptableCessionsCentimes;
   final int cafgCentimes;
+  final int produitsCessionsCentimes;
   final int augmentationCapitalCentimes;
+  final int variationEmpruntsCentimes;
   final int totalRessourcesCentimes;
   final int acquisitionsCentimes;
+  final int variationAutresCapitauxPropresCentimes;
+  final int variationDividendesAPayerCentimes;
+  final int dividendesVersesCentimes;
   final int totalEmploisCentimes;
+  final int fluxExploitationCentimes;
+  final int fluxInvestissementCentimes;
+  final int fluxFinancementCentimes;
   final int variationStocksCentimes;
   final int variationCreancesCentimes;
   final int variationDettesCentimes;
@@ -62,40 +106,71 @@ int _debitrice(List<LigneBalanceEtat> lignes, List<String> prefixes) => lignes
 int _crediteur(List<LigneBalanceEtat> lignes, List<String> prefixes) =>
     -_debitrice(lignes, prefixes);
 
-/// `TafireService::genererPourExercice` : ressources (CAFG, augmentation de
-/// capital), emplois (acquisitions), variation du BFR (stocks + créances −
-/// dettes circulantes) et variation de trésorerie, calculée puis comparée à la
-/// variation réelle des comptes de trésorerie NETTE (actif moins passif).
+/// `TafireService::genererPourExercice` : voir la définition en tête de fichier.
 TafireEtat tafireDe(int annee, DonneesEtats d) {
   final lignes = balanceDe(annee, d).lignes;
   final bilan = bilanDe(annee, d);
-  // Résultat CUMULÉ des capitaux propres (131/139 : N-1 déjà reporté + résultat
-  // net de N), comme `TafireService` : le TAFIRE raisonne sur des niveaux de
-  // comptes, son identité exige les capitaux propres entiers. Le résultat de N
-  // seul est `bilan.resultatExerciceCentimes`.
-  final resultat =
-      bilan.resultatReporteCentimes + bilan.resultatExerciceCentimes;
+  // Les à-nouveaux (AN ou provisoires) sont déjà dans la balance : on ne
+  // retient que les VARIATIONS. Le poste ne lit que des écritures validées.
+  final ouverture = reportOuverture(annee, d).soldes;
+
+  int variationDebitrice(List<String> prefixes) {
+    var total = _debitrice(lignes, prefixes);
+    for (final e in ouverture.entries) {
+      if (_releve(e.key, prefixes)) total -= e.value;
+    }
+    return total;
+  }
+
+  int variationCrediteur(List<String> prefixes) =>
+      -variationDebitrice(prefixes);
+
+  // Le résultat de N SEUL, jamais le 131/139 reporté de N-1.
+  final resultat = bilan.resultatExerciceCentimes;
   final dotations = _debitrice(lignes, rubriqueDotations);
-  final cafg = resultat + dotations;
-  final capital = _crediteur(lignes, RubriquesBilan.capital);
-  final ressources = cafg + capital;
-  final acquisitions = _debitrice(lignes, RubriquesBilan.immobilisationsBrutes);
-  final stocks = _debitrice(lignes, RubriquesBilan.stocks);
-  final creances = _debitrice(lignes, RubriquesBilan.creances);
-  final dettes = _crediteur(lignes, RubriquesBilan.dettesCirculantes);
+  final reprises = _crediteur(lignes, RubriquesTafire.reprises);
+  final vnc = _debitrice(lignes, RubriquesTafire.valeurComptableCessions);
+  final cessions = _crediteur(lignes, RubriquesTafire.produitsCessions);
+  final cafg = resultat + dotations - reprises + vnc - cessions;
+  final capital = variationCrediteur(RubriquesTafire.apportsCapital);
+  final emprunts = variationCrediteur(RubriquesTafire.dettesFinancieres);
+  final ressources = cafg + cessions + capital + emprunts;
+  final variationBrut = variationDebitrice(
+    RubriquesBilan.immobilisationsBrutes,
+  );
+  final variationAmort = variationCrediteur(RubriquesBilan.amortissements);
+  final acquisitions =
+      variationBrut - variationAmort + dotations + vnc - reprises;
+  final autres = variationCrediteur(RubriquesTafire.autresCapitauxPropres);
+  final dividendesAPayer = variationCrediteur(RubriquesTafire.dividendesAPayer);
+  final dividendesVerses = -(autres + dividendesAPayer);
+  final emplois = acquisitions + dividendesVerses;
+  final stocks = variationDebitrice(RubriquesBilan.stocks);
+  final creances = variationDebitrice(RubriquesBilan.creances);
+  final dettes = variationCrediteur(RubriquesBilan.dettesCirculantes);
   final bfr = stocks + creances - dettes;
-  final calculee = ressources - acquisitions - bfr;
+  final calculee = ressources - emplois - bfr;
   final reelle =
-      _debitrice(lignes, RubriquesBilan.tresorerieActif) -
-      _crediteur(lignes, RubriquesBilan.tresoreriePassif);
+      variationDebitrice(RubriquesBilan.tresorerieActif) -
+      variationCrediteur(RubriquesBilan.tresoreriePassif);
   return TafireEtat(
     resultatExerciceCentimes: resultat,
     dotationsCentimes: dotations,
+    reprisesCentimes: reprises,
+    valeurComptableCessionsCentimes: vnc,
     cafgCentimes: cafg,
+    produitsCessionsCentimes: cessions,
     augmentationCapitalCentimes: capital,
+    variationEmpruntsCentimes: emprunts,
     totalRessourcesCentimes: ressources,
     acquisitionsCentimes: acquisitions,
-    totalEmploisCentimes: acquisitions,
+    variationAutresCapitauxPropresCentimes: autres,
+    variationDividendesAPayerCentimes: dividendesAPayer,
+    dividendesVersesCentimes: dividendesVerses,
+    totalEmploisCentimes: emplois,
+    fluxExploitationCentimes: cafg - bfr,
+    fluxInvestissementCentimes: cessions - acquisitions,
+    fluxFinancementCentimes: capital + emprunts - dividendesVerses,
     variationStocksCentimes: stocks,
     variationCreancesCentimes: creances,
     variationDettesCentimes: dettes,

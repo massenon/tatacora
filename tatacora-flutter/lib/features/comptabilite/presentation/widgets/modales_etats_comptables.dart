@@ -39,6 +39,16 @@ abstract final class TextesEtatsComptables {
   static const String emplois = 'EMPLOIS';
   static const String cafg = "Capacité d'Autofinancement Globale (CAFG)";
   static const String augmentationCapital = 'Augmentation de capital';
+  // ÉCART NOMMÉ (10/11/2026) : trois lignes que la vue du flux de trésorerie du
+  // web ne rend pas encore (cessions, emprunts, dividendes versés). Elles sont
+  // nulles hors cession, emprunt ou affectation du résultat ; les omettre
+  // ferait des totaux qui ne s'additionnent plus à l'écran. Ajouter ces lignes
+  // à la vue web fait baisser le taux STRICT du comparateur (vue non portée).
+  static const String produitsCessions =
+      "Produits des cessions d'immobilisations";
+  static const String variationEmprunts = 'Emprunts (variation nette)';
+  static const String dividendesVerses =
+      'Dividendes versés (affectation du résultat N-1)';
   static const String totalRessources = 'TOTAL RESSOURCES';
   static const String acquisitions = "Acquisitions d'immobilisations";
   static const String totalEmplois = 'TOTAL EMPLOIS';
@@ -344,8 +354,16 @@ class ContenuFlux extends ConsumerWidget {
               cle: const Key('flux-cafg'),
             ),
             _Ligne(
+              TextesEtatsComptables.produitsCessions,
+              _montantSigne(t.produitsCessionsCentimes),
+            ),
+            _Ligne(
               TextesEtatsComptables.augmentationCapital,
               _montantSigne(t.augmentationCapitalCentimes),
+            ),
+            _Ligne(
+              TextesEtatsComptables.variationEmprunts,
+              _montantSigne(t.variationEmpruntsCentimes),
             ),
             _Ligne(
               TextesEtatsComptables.totalRessources,
@@ -361,6 +379,10 @@ class ContenuFlux extends ConsumerWidget {
             _Ligne(
               TextesEtatsComptables.acquisitions,
               _montantSigne(t.acquisitionsCentimes),
+            ),
+            _Ligne(
+              TextesEtatsComptables.dividendesVerses,
+              _montantSigne(t.dividendesVersesCentimes),
             ),
             _Ligne(
               TextesEtatsComptables.totalEmplois,

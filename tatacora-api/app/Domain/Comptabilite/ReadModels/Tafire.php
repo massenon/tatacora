@@ -20,7 +20,9 @@ namespace App\Domain\Comptabilite\ReadModels;
  * L'egalite n'a rien d'empirique, elle se demontre par la partie double :
  *
  *     Somme(solde de tous les comptes) = 0
- *     => T = R + K + dotations - immobilisations brutes - stocks - creances + dettes
+ *     => variation de T = resultat de N + variation des capitaux propres + dotations
+ *                      - variation des immobilisations nettes - variation du BFR
+ *                      (voir l'en-tete de `TafireService`)
  *
  * et c'est terme pour terme `Ressources - Emplois - Variation du BFR`. Un ecart
  * ne peut donc venir que d'un compte mal classe ou absent d'une rubrique — pas
@@ -29,7 +31,9 @@ namespace App\Domain\Comptabilite\ReadModels;
  *
  * ## La CAFG part du resultat REELLEMENT comptabilise
  *
- * Elle reprend `Bilan::resultatExercice`, jamais une seconde formule (PA-121).
+ * Elle reprend `Bilan::resultatExercice` (resultat net de N SEUL depuis le
+ * 10/11/2026 ; le 131/139 reporte de N-1 est un capital propre), jamais une
+ * seconde formule (PA-121). Definition complete : en-tete de `TafireService`.
  * Tant qu'aucun impot n'est comptabilise en classe 89, ce resultat est un
  * resultat AVANT impot et `impotNonComptabilise` le dit — la CAFG est alors
  * surevaluee du montant de l'impot qui sera du. Ne pas le signaler laisserait
@@ -44,11 +48,21 @@ final readonly class Tafire
         public string $exerciceId,
         public string $resultatExercice,
         public string $dotationsAmortissements,
+        public string $reprisesAmortissements,
+        public string $valeurComptableCessions,
         public string $capaciteAutofinancementGlobale,
+        public string $produitsCessions,
         public string $augmentationCapital,
+        public string $variationEmprunts,
         public string $totalRessources,
         public string $acquisitionsImmobilisations,
+        public string $variationAutresCapitauxPropres,
+        public string $variationDividendesAPayer,
+        public string $dividendesVerses,
         public string $totalEmplois,
+        public string $fluxExploitation,
+        public string $fluxInvestissement,
+        public string $fluxFinancement,
         public string $variationStocks,
         public string $variationCreances,
         public string $variationDettes,

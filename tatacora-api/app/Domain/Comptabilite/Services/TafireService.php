@@ -8,9 +8,47 @@ use App\Domain\Comptabilite\Models\EcritureComptable;
 use App\Domain\Comptabilite\ReadModels\LigneBalance;
 use App\Domain\Comptabilite\ReadModels\Tafire;
 use App\Domain\Comptabilite\Support\RubriquesSyscohada;
+use App\Domain\Comptabilite\Support\RubriquesTafire;
 
 /**
  * TAFIRE — `MODULE_COMPTABILITE_COMPLET_PART3.md` §2, `m10-flux-tresorerie.html`.
+ *
+ * ## DEFINITION (10/11/2026) — resultat net de N SEUL, flux = VARIATIONS
+ *
+ * Tout montant de bilan est une VARIATION : solde de cloture (balance, a-nouveaux
+ * compris) moins solde d'ouverture (`BalanceGeneraleService::soldesOuverture` :
+ * journal AN, ou a-nouveaux provisoires). Il n'y a plus de « niveau » dans le
+ * tableau, donc plus de report de N-1 recompte.
+ *
+ *   CAFG        = resultat net de N (`Bilan::resultatExercice`, jamais le 131/139
+ *                 reporte) + dotations (681) - reprises (781)
+ *                 + valeur comptable des cessions (81) - produits des cessions (82)
+ *   Exploitation  = CAFG - variation du BFR (stocks + creances - dettes circulantes)
+ *   Investissement = produits des cessions (82) - acquisitions, avec
+ *                 acquisitions = variation des immobilisations NETTES + dotations
+ *                 + VNC cedees - reprises
+ *   Financement = augmentation de capital (comptes 10 et 14) + variation des
+ *                 emprunts (16 a 19) - dividendes verses, avec
+ *                 dividendes verses = -(variation des capitaux propres 11, 12, 13,
+ *                 15 + variation des dividendes a payer 465)
+ *   Variation de tresorerie = Exploitation + Investissement + Financement
+ *                           = variation constatee aux comptes de classe 5.
+ *
+ * L'AFFECTATION du resultat de N-1 (D 131 / C 121, 111, 118, 465 ; perte D 129 /
+ * C 139) n'est PAS du resultat de N : c'est un mouvement des capitaux propres,
+ * lu PAR COMPTES (classe 1) et non par une liste de pieces. Le 131/139 qui
+ * baisse se compense avec les reserves/report qui montent ; la part mise en
+ * distribution passe en 465 (dette de financement, hors BFR) ; ne sort de
+ * tresorerie que ce qui est REGLE (D 465 / C 5xx) : le TAFIRE reste equilibre
+ * avant comme apres chaque reglement. Un a-nouveau reporte sans affectation ne
+ * varie pas (variation nulle).
+ *
+ * Preuve : la somme des soldes de tous les comptes est nulle a l'ouverture et a
+ * la cloture, donc la somme des variations des classes 1 a 5 vaut le resultat
+ * net de N (classes 6 a 8). Un ecart ne peut venir que d'un compte de classe 1 a
+ * 5 qu'aucune rubrique ne capte (le Bilan le nomme dans `comptesHorsRubrique`).
+ *
+ * Les prefixes propres au TAFIRE sont dans `RubriquesTafire`.
  *
  * @see EF-M10-06 Edition des etats reglementaires SYSCOHADA
  *
@@ -65,37 +103,71 @@ class TafireService
         $bilan = $this->bilan->genererPourExercice($exerciceId, $statuts, $filtreStatut);
         $lignes = $balance->lignes;
 
-        // --- RESSOURCES ---
-        //
-        // Le resultat vient du Bilan, jamais d'une seconde agregation : c'est la
-        // MEME grandeur qui equilibre le bilan et qui ouvre la CAFG. Deux
-        // formules finiraient par diverger et les deux etats afficheraient deux
-        // resultats sur le meme exercice (PA-121).
-        //
-        // Cette grandeur est le resultat CUMULE des capitaux propres (131/139 :
-        // resultat de N-1 deja reporte + resultat net de N), pas le seul
-        // resultat de N (`Bilan::resultatExercice`) : le TAFIRE ci-dessous
-        // raisonne sur des NIVEAUX de comptes (stocks, creances, dettes,
-        // tresorerie), et son identite ne tient qu'avec les capitaux propres
-        // entiers. Le resultat de N seul se lit au Bilan.
-        $resultatExercice = bcadd($bilan->resultatReporte, $bilan->resultatExercice, self::PRECISION);
+        // Soldes d'OUVERTURE (a-nouveaux ecrits au journal AN, ou provisoires),
+        // deja compris dans la balance : on ne retient que les VARIATIONS.
+        // Les a-nouveaux ne sont dans la balance que pour les ecritures
+        // validees ; sans elles, rien a retrancher.
+        $ouverture = in_array('validee', $statuts, true)
+            ? $this->balance->soldesOuverture($exerciceId)['soldes']
+            : [];
 
-        // Charge NON DECAISSEE : elle a diminue le resultat sans sortir de
-        // tresorerie, on la reintegre. Debitrice par nature (compte 681).
+        // --- CAFG : part du resultat de N SEUL ---
+        //
+        // `Bilan::resultatExercice` = produits - charges des classes 6 a 8 de
+        // CET exercice (jamais le 131/139 reporte de N-1, qui est un capital
+        // propre, voir `Bilan::resultatReporte`).
+        $resultatExercice = $bilan->resultatExercice;
+
+        // Charge NON DECAISSEE : reintegree. Debitrice par nature (681).
         $dotations = $this->sommeDebitrice($lignes, RubriquesSyscohada::DOTATIONS_AMORTISSEMENTS);
-        $cafg = bcadd($resultatExercice, $dotations, self::PRECISION);
+        $reprises = $this->sommeCreditrice($lignes, RubriquesTafire::REPRISES);
+        $vncCessions = $this->sommeDebitrice($lignes, RubriquesTafire::VALEUR_COMPTABLE_CESSIONS);
+        $produitsCessions = $this->sommeCreditrice($lignes, RubriquesTafire::PRODUITS_CESSIONS);
 
-        $augmentationCapital = $this->sommeCreditrice($lignes, RubriquesSyscohada::CAPITAL);
-        $totalRessources = bcadd($cafg, $augmentationCapital, self::PRECISION);
+        $cafg = bcsub(
+            bcadd(bcsub(bcadd($resultatExercice, $dotations, self::PRECISION), $reprises, self::PRECISION), $vncCessions, self::PRECISION),
+            $produitsCessions,
+            self::PRECISION,
+        );
 
-        // --- EMPLOIS ---
-        $acquisitions = $this->sommeDebitrice($lignes, RubriquesSyscohada::IMMOBILISATIONS_BRUTES);
-        $totalEmplois = $acquisitions;
+        // --- RESSOURCES : CAFG, cessions, apports de capital, emprunts ---
+        $augmentationCapital = $this->variationCreditrice($lignes, $ouverture, RubriquesTafire::APPORTS_CAPITAL);
+        $variationEmprunts = $this->variationCreditrice($lignes, $ouverture, RubriquesTafire::DETTES_FINANCIERES);
+        $totalRessources = bcadd(
+            bcadd(bcadd($cafg, $produitsCessions, self::PRECISION), $augmentationCapital, self::PRECISION),
+            $variationEmprunts,
+            self::PRECISION,
+        );
 
-        // --- BESOIN EN FONDS DE ROULEMENT ---
-        $variationStocks = $this->sommeDebitrice($lignes, RubriquesSyscohada::STOCKS);
-        $variationCreances = $this->sommeDebitrice($lignes, RubriquesSyscohada::CREANCES);
-        $variationDettes = $this->sommeCreditrice($lignes, RubriquesSyscohada::DETTES_CIRCULANTES);
+        // --- EMPLOIS : investissements et dividendes ---
+        //
+        // Acquisitions = variation des immobilisations NETTES + dotations + VNC
+        // cedees - reprises (une sortie d'actif amorti ne diminue pas les
+        // acquisitions).
+        $variationBrut = $this->variationDebitrice($lignes, $ouverture, RubriquesSyscohada::IMMOBILISATIONS_BRUTES);
+        $variationAmort = $this->variationCreditrice($lignes, $ouverture, RubriquesSyscohada::AMORTISSEMENTS);
+        $acquisitions = bcsub(
+            bcadd(bcadd(bcsub($variationBrut, $variationAmort, self::PRECISION), $dotations, self::PRECISION), $vncCessions, self::PRECISION),
+            $reprises,
+            self::PRECISION,
+        );
+
+        // Affectation du resultat de N-1 : mouvement des capitaux propres lu
+        // PAR COMPTES (11, 12, 13, 15), jamais du resultat de N. Ses
+        // contreparties sont, pour la part non distribuee, d'autres comptes de
+        // capitaux propres (qui se compensent) et, pour la part distribuee, les
+        // dividendes a payer (465). Le decaissement est donc la variation des
+        // capitaux propres + la variation des 465 (nul tant que rien n'est
+        // paye ; chaque reglement D 465 / C 5xx le creuse).
+        $variationAutres = $this->variationCreditrice($lignes, $ouverture, RubriquesTafire::AUTRES_CAPITAUX_PROPRES);
+        $variationDividendes = $this->variationCreditrice($lignes, $ouverture, RubriquesTafire::DIVIDENDES_A_PAYER);
+        $dividendesVerses = bcsub('0.00', bcadd($variationAutres, $variationDividendes, self::PRECISION), self::PRECISION);
+        $totalEmplois = bcadd($acquisitions, $dividendesVerses, self::PRECISION);
+
+        // --- BESOIN EN FONDS DE ROULEMENT (variations) ---
+        $variationStocks = $this->variationDebitrice($lignes, $ouverture, RubriquesSyscohada::STOCKS);
+        $variationCreances = $this->variationDebitrice($lignes, $ouverture, RubriquesSyscohada::CREANCES);
+        $variationDettes = $this->variationCreditrice($lignes, $ouverture, RubriquesSyscohada::DETTES_CIRCULANTES);
 
         $variationBfr = bcsub(
             bcadd($variationStocks, $variationCreances, self::PRECISION),
@@ -110,12 +182,17 @@ class TafireService
             self::PRECISION,
         );
 
+        $fluxExploitation = bcsub($cafg, $variationBfr, self::PRECISION);
+        $fluxInvestissement = bcsub($produitsCessions, $acquisitions, self::PRECISION);
+        $fluxFinancement = bcsub(bcadd($augmentationCapital, $variationEmprunts, self::PRECISION), $dividendesVerses, self::PRECISION);
+
         // La tresorerie NETTE : l'actif moins le passif de tresorerie. Ne
         // retenir que l'actif ferait apparaitre un decouvert bancaire comme une
-        // ressource, le jour ou un compte 56 sera ouvert.
+        // ressource, le jour ou un compte 56 sera ouvert. C'est la VARIATION
+        // constatee aux classes 5 (cloture - ouverture).
         $variationReelle = bcsub(
-            $this->sommeDebitrice($lignes, RubriquesSyscohada::TRESORERIE_ACTIF),
-            $this->sommeCreditrice($lignes, RubriquesSyscohada::TRESORERIE_PASSIF),
+            $this->variationDebitrice($lignes, $ouverture, RubriquesSyscohada::TRESORERIE_ACTIF),
+            $this->variationCreditrice($lignes, $ouverture, RubriquesSyscohada::TRESORERIE_PASSIF),
             self::PRECISION,
         );
 
@@ -125,11 +202,21 @@ class TafireService
             exerciceId: $exerciceId,
             resultatExercice: $resultatExercice,
             dotationsAmortissements: $dotations,
+            reprisesAmortissements: $reprises,
+            valeurComptableCessions: $vncCessions,
             capaciteAutofinancementGlobale: $cafg,
+            produitsCessions: $produitsCessions,
             augmentationCapital: $augmentationCapital,
+            variationEmprunts: $variationEmprunts,
             totalRessources: $totalRessources,
             acquisitionsImmobilisations: $acquisitions,
+            variationAutresCapitauxPropres: $variationAutres,
+            variationDividendesAPayer: $variationDividendes,
+            dividendesVerses: $dividendesVerses,
             totalEmplois: $totalEmplois,
+            fluxExploitation: $fluxExploitation,
+            fluxInvestissement: $fluxInvestissement,
+            fluxFinancement: $fluxFinancement,
             variationStocks: $variationStocks,
             variationCreances: $variationCreances,
             variationDettes: $variationDettes,
@@ -177,5 +264,36 @@ class TafireService
         }
 
         return $total;
+    }
+
+    /**
+     * Variation d'une rubrique debitrice : solde de cloture (balance, a-nouveaux
+     * compris) moins solde d'ouverture.
+     *
+     * @param  list<LigneBalance>  $lignes
+     * @param  array<string, string>  $ouverture  debit - credit par compte
+     * @param  list<string>  $prefixes
+     */
+    private function variationDebitrice(array $lignes, array $ouverture, array $prefixes): string
+    {
+        $total = $this->sommeDebitrice($lignes, $prefixes);
+
+        foreach ($ouverture as $numero => $net) {
+            if (RubriquesSyscohada::releveDe((string) $numero, $prefixes)) {
+                $total = bcsub($total, $net, self::PRECISION);
+            }
+        }
+
+        return $total;
+    }
+
+    /**
+     * @param  list<LigneBalance>  $lignes
+     * @param  array<string, string>  $ouverture
+     * @param  list<string>  $prefixes
+     */
+    private function variationCreditrice(array $lignes, array $ouverture, array $prefixes): string
+    {
+        return bcsub('0.00', $this->variationDebitrice($lignes, $ouverture, $prefixes), self::PRECISION);
     }
 }
