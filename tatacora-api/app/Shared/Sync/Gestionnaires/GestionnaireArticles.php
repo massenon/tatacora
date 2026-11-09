@@ -123,6 +123,37 @@ final class GestionnaireArticles extends GestionnaireReferentielAbstrait
         $this->referentiel->modifier($element, $donnees);
     }
 
+    /**
+     * 09/11/2026 (PO) : la valeur d'achat de référence saisie au poste (colonne « Valeur
+     * d'achat » des imports, v57) REMONTE sous `valeur_achat_reference` (décimal texte). Ce
+     * n'est pas le champ `prix_achat` de la requête d'API (interdit : valeur calculée) : elle
+     * est posée ici, SEULEMENT si l'article n'en porte pas déjà une, et descend ensuite à
+     * tous les postes avec `prix_achat`.
+     */
+    protected function extraireComplements(array &$payload): array
+    {
+        $valeur = $payload['valeur_achat_reference'] ?? null;
+        unset($payload['valeur_achat_reference']);
+
+        if (! is_string($valeur) && ! is_int($valeur) && ! is_float($valeur)) {
+            return [];
+        }
+
+        if (! is_numeric($valeur) || bccomp(number_format((float) $valeur, 2, '.', ''), '0', 2) <= 0) {
+            return [];
+        }
+
+        return ['prix_achat' => number_format((float) $valeur, 2, '.', '')];
+    }
+
+    protected function appliquerComplements(Model $element, array $complements): void
+    {
+        /** @var Article $element */
+        if ($element->prix_achat === null && isset($complements['prix_achat'])) {
+            $element->forceFill(['prix_achat' => $complements['prix_achat']])->save();
+        }
+    }
+
     protected function archivable(): bool
     {
         return true;

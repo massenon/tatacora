@@ -132,6 +132,7 @@ Map<String, Object?> chargeArticle({
   required int seuilCentiemes,
   required String suivi,
   required String? pointStockageId,
+  int? valeurAchatDixMilliemes,
 }) => {
   'libelle': libelle,
   'categorie': categorie.trim().isEmpty
@@ -141,6 +142,10 @@ Map<String, Object?> chargeArticle({
   'seuil_alerte': decimalExact(seuilCentiemes, 2),
   'suivi': suivi,
   'point_stockage_id': pointStockageId,
+  // 09/11/2026 (PO) : la valeur d'achat de référence (v57) REMONTE — le serveur la pose
+  // si l'article n'en porte pas, puis la descend à tous les postes. Clé absente : rien.
+  if (valeurAchatDixMilliemes != null && valeurAchatDixMilliemes > 0)
+    'valeur_achat_reference': decimalExact(valeurAchatDixMilliemes, 4),
 };
 
 /// `cartes_boisson` — `EnregistrerBoissonRequest`. [articleId] nul : le

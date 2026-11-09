@@ -442,6 +442,15 @@ class _StockVendable extends StatelessWidget {
       );
     }
 
+    // 09/11/2026 (PO) : un plat n'est jamais en rupture ; zéro portion comptée = illimité.
+    if (portions == 0) {
+      return Text(
+        'illimité',
+        key: Key('carte-restaurant-illimite-${ligne.id}'),
+        style: TextesRestaurant.mention,
+      );
+    }
+
     if (ligne.rupture) {
       return PastilleRestaurant(
         cle: Key('carte-restaurant-rupture-${ligne.id}'),

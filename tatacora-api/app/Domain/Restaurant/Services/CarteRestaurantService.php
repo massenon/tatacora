@@ -313,7 +313,7 @@ class CarteRestaurantService
             // Une rupture ne se déclare que si le chiffre existe : sans point
             // cuisine, `0` se lirait comme « plus rien en réserve » alors que
             // personne n'a rien consulté (Article 7 de la directive).
-            rupture: $portions !== null && $portions === 0,
+            rupture: false, // 09/11/2026 (PO) : un plat n'est JAMAIS en rupture (stock illimité par défaut)
             sousSeuil: $sousSeuil,
             coutMatiere: $recette !== null
                 ? $this->compositions->coutMatiere($recette)

@@ -473,7 +473,7 @@ final class ApiRestaurantTest extends TestCase
         $ligne = $this->lignePouletDg();
 
         $this->assertSame(0, $ligne['portions_vendables']);
-        $this->assertTrue($ligne['rupture']);
+        $this->assertFalse($ligne['rupture']); // 09/11/2026 (PO) : un plat n'est JAMAIS en rupture
         $this->assertNull($ligne['motif_sans_stock']);
     }
 

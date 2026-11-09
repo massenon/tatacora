@@ -197,6 +197,7 @@ return [
         // maître — carte-module.js l.89-93 et l.110-114
         'badge_non_suivi' => 'non suivi',
         'badge_rupture' => 'rupture',
+        'badge_illimite' => 'illimité',
         'bouton_rendre_indispo' => 'Rendre indispo.',
         'bouton_remettre' => 'Remettre',
         'bouton_lier' => 'Lier au stock',

@@ -365,7 +365,8 @@ void main() {
 
         // Le balayage n'est pas vert à vide : chaque état a été atteint.
         expect(plats, greaterThan(300), reason: 'assez de plats');
-        expect(ruptures, greaterThan(10), reason: 'des ruptures');
+        // 09/11/2026 (PO) : un plat n'est JAMAIS en rupture — ni ici ni au serveur.
+        expect(ruptures, 0, reason: 'aucune rupture de plat');
         expect(sousSeuil, greaterThan(10), reason: 'des sous seuil');
         expect(vides, greaterThan(10), reason: 'des fiches vides');
         expect(coutsConnus, greaterThan(20), reason: 'des coûts connus');
@@ -433,7 +434,10 @@ void main() {
         // Le SERVEUR : zéro portion, rupture, sous seuil — pour un article dont
         // personne ne tient le stock.
         expect(ligneServeur['portions'], 0);
-        expect(ligneServeur['rupture'], isTrue);
+        expect(
+          ligneServeur['rupture'],
+          isFalse,
+        ); // PO 09/11/2026 : plat jamais en rupture
         expect(ligneServeur['sous_seuil'], isTrue);
 
         // CE POSTE : aucun chiffre, et la raison.
@@ -522,7 +526,10 @@ void main() {
             (serveur['lignes'] as List<dynamic>).single as Map<String, dynamic>;
         // 10 kg de poulet à 0,3 kg la portion = 33 portions. Le serveur dit 0.
         expect(ligneServeur['portions'], 0);
-        expect(ligneServeur['rupture'], isTrue);
+        expect(
+          ligneServeur['rupture'],
+          isFalse,
+        ); // PO 09/11/2026 : plat jamais en rupture
 
         final locale =
             ((await m.api.carte()) as RestaurantRecu<CarteRestaurant>)

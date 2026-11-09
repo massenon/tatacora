@@ -830,7 +830,8 @@ LigneCarteRestaurant _ligne(PlatCalcule p, {required bool pointCuisine}) {
     // Une rupture ne se déclare que si le chiffre existe : sans point cuisine,
     // « 0 » se lirait « plus rien en réserve » alors que personne n'a rien
     // consulté.
-    rupture: portions.portions != null && portions.portions == 0,
+    // 09/11/2026 (PO) : un plat n'est JAMAIS en rupture — vendable, stock illimité par défaut.
+    rupture: false,
     sousSeuil: portions.sousSeuil,
     coutMatiere: cout.montant,
     coutMatiereIncomplet: cout.incomplet,

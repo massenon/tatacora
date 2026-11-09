@@ -435,8 +435,9 @@ class StocksDao extends DatabaseAccessor<AppDatabase> {
   /// SEULEMENT si elle est vide : un import ne remplace JAMAIS une valeur déjà
   /// posée. Une valeur nulle ou négative ne pose RIEN (« — » : pas de valeur
   /// d'achat, jamais « 0 provisoire »). Ce n'est ni un mouvement ni le CMP.
-  /// Elle ne part pas au serveur (la fiche d'un article créé au poste n'en
-  /// porte pas la colonne) : le web la reçoit de SES propres imports.
+  /// Elle REMONTE au serveur (décision du PO du 09/11/2026) : une modification
+  /// `valeur_achat_reference` est mise en file, le serveur la pose si l'article n'en
+  /// porte pas, et la redescend à tous les postes.
   ///
   /// @return `true` si elle a été posée
   Future<bool> poserValeurAchatReference(
@@ -444,14 +445,25 @@ class StocksDao extends DatabaseAccessor<AppDatabase> {
     int dixMilliemes,
   ) async {
     if (dixMilliemes <= 0) return false;
-    final posees =
-        await (update(attachedDatabase.articlesLocal)..where(
-              (a) => a.id.equals(articleId) & a.prixAchatReference.isNull(),
-            ))
-            .write(
-              ArticlesLocalCompanion(prixAchatReference: Value(dixMilliemes)),
-            );
-    return posees > 0;
+    return transaction(() async {
+      final posees =
+          await (update(attachedDatabase.articlesLocal)..where(
+                (a) => a.id.equals(articleId) & a.prixAchatReference.isNull(),
+              ))
+              .write(
+                ArticlesLocalCompanion(prixAchatReference: Value(dixMilliemes)),
+              );
+      if (posees > 0) {
+        await _file.enfiler(
+          table: TableSynchronisee.articles,
+          entiteId: articleId,
+          type: TypeOperationSync.modification,
+          payload: {'valeur_achat_reference': decimalExact(dixMilliemes, 4)},
+          horodatage: _maintenant(),
+        );
+      }
+      return posees > 0;
+    });
   }
 
   Future<void> creerArticle({
@@ -614,6 +626,7 @@ class StocksDao extends DatabaseAccessor<AppDatabase> {
     seuilCentiemes: (a.seuilAlerte * echelleQuantite).round(),
     suivi: a.suivi,
     pointStockageId: a.pointStockageId,
+    valeurAchatDixMilliemes: a.prixAchatReference,
   );
 
   /// La file d'envoi (lot F1). Son propre générateur d'UUID : celui de ce DAO

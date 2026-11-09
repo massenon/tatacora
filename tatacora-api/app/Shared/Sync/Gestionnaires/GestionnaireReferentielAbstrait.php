@@ -126,6 +126,7 @@ abstract class GestionnaireReferentielAbstrait extends GestionnaireAbstrait
             unset($payload[$champ]);
         }
 
+        $complements = $this->extraireComplements($payload);
         $payload = $this->resoudreReferences($payload);
 
         if ($payload !== []) {
@@ -134,6 +135,10 @@ abstract class GestionnaireReferentielAbstrait extends GestionnaireAbstrait
             if ($donnees !== []) {
                 $this->ecrireModification($element, $donnees, $contexte);
             }
+        }
+
+        if ($complements !== []) {
+            $this->appliquerComplements($element->refresh(), $complements);
         }
 
         if ($actif !== null) {
@@ -227,12 +232,17 @@ abstract class GestionnaireReferentielAbstrait extends GestionnaireAbstrait
             unset($payload[$champ]);
         }
 
+        $complements = $this->extraireComplements($payload);
         $payload = $this->resoudreReferences($payload);
         $donnees = $this->validerCreation($payload);
         $equivalent = $this->equivalent($donnees);
 
         if ($equivalent !== null) {
             $idServeur = (string) $equivalent->getKey();
+
+            if ($complements !== []) {
+                $this->appliquerComplements($equivalent, $complements);
+            }
 
             return new EcritureSynchronisee(
                 $idServeur,
@@ -245,7 +255,33 @@ abstract class GestionnaireReferentielAbstrait extends GestionnaireAbstrait
 
         $this->ecrire($entiteId, $donnees, $contexte);
 
+        if ($complements !== []) {
+            $this->appliquerComplements($this->trouver($entiteId), $complements);
+        }
+
         return new EcritureSynchronisee($entiteId);
+    }
+
+    /**
+     * Champs du payload qui ne sont PAS des champs de la requête d'API (donc jamais
+     * validés par elle) et que le gestionnaire sait poser lui-même. Ils sont RETIRÉS du
+     * payload avant la validation. Par défaut : aucun.
+     *
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    protected function extraireComplements(array &$payload): array
+    {
+        return [];
+    }
+
+    /**
+     * Pose les compléments extraits par `extraireComplements()`, une fois l'élément écrit.
+     *
+     * @param  array<string, mixed>  $complements
+     */
+    protected function appliquerComplements(Model $element, array $complements): void
+    {
     }
 
     /**

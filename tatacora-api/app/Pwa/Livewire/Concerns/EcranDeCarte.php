@@ -790,7 +790,7 @@ trait EcranDeCarte
 
             // Trois états, jamais deux, et la réserve (colonne du maître,
             // `carte-module.js` l.408) : voir `StockDeCarteService::etat()`.
-            ['stock' => $stock, 'reserve' => $reserve] = $stocks->etat($articleStock, $conversion, $point);
+            ['stock' => $stock, 'reserve' => $reserve] = $stocks->etat($articleStock, $conversion, $point, $this->rayon() === 'plat');
 
             $lignes[] = [
                 'modele' => $article,
@@ -1063,6 +1063,7 @@ trait EcranDeCarte
             $article,
             $this->unitesVendablesParUniteStock,
             $this->pointDeStockage(),
+            $this->rayon() === 'plat',
         );
         $chiffre = is_array($stock) && ($stock['non_consulte'] ?? true) === false;
 

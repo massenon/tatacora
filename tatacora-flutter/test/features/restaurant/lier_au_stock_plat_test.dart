@@ -404,9 +404,10 @@ void main() {
           .pointStockageId,
       'p-cui',
     );
-    // Solde 0 : la colonne « Stock vendable » ne dit plus « non suivi », elle
-    // dit « rupture » (le point cuisine ne détient aucune unité).
-    expect(find.byKey(Key('carte-restaurant-rupture-$plat')), findsOneWidget);
+    // Solde 0 : la colonne « Stock vendable » ne dit plus « non suivi » ; un plat n'est
+    // JAMAIS en rupture (PO 09/11/2026) : elle dit « illimité ».
+    expect(find.byKey(Key('carte-restaurant-rupture-$plat')), findsNothing);
+    expect(find.byKey(Key('carte-restaurant-illimite-$plat')), findsOneWidget);
     expect(find.byKey(Key('carte-restaurant-delier-$plat')), findsOneWidget);
   });
 

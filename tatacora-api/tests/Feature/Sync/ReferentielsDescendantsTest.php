@@ -156,7 +156,7 @@ final class ReferentielsDescendantsTest extends TestCase
 
         $riz = $elements[$this->ids['riz']];
         $this->assertSame(
-            ['libelle', 'categorie', 'unite_mesure', 'point_stockage_id', 'suivi', 'seuil_alerte', 'seuil_reappro'],
+            ['libelle', 'categorie', 'unite_mesure', 'point_stockage_id', 'suivi', 'seuil_alerte', 'seuil_reappro', 'prix_achat'],
             array_keys($riz['donnees']),
         );
         $this->assertTrue($riz['actif']);
@@ -192,7 +192,7 @@ final class ReferentielsDescendantsTest extends TestCase
         $this->assertSame([['article_id' => $this->ids['riz'], 'quantite_unitaire' => '0.150']], $recette['lignes']);
 
         foreach ($elements as $element) {
-            foreach (['cout_moyen_pondere', 'prix_achat', 'stock', 'cout_matiere_calcule', 'utilisateur_creation_id', 'solde', 'utilisateur_annulation_id'] as $interdit) {
+            foreach (['cout_moyen_pondere', 'stock', 'cout_matiere_calcule', 'utilisateur_creation_id', 'solde', 'utilisateur_annulation_id'] as $interdit) {
                 $this->assertArrayNotHasKey($interdit, $element['donnees'], $element['table']);
             }
         }

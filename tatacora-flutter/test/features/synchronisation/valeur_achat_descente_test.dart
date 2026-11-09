@@ -76,4 +76,22 @@ void main() {
     expect(await dao.poserValeurAchatReference('a-1', 900000), isFalse);
     expect(await reference(), 700000);
   });
+
+  test(
+    'la valeur posée au poste REMONTE : une modification est mise en file, une seule fois',
+    () async {
+      await descendre({});
+      final dao = StocksDao(db);
+      expect(await dao.poserValeurAchatReference('a-1', 8500000), isTrue);
+      // Déjà posée : rien de plus ne part.
+      expect(await dao.poserValeurAchatReference('a-1', 9900000), isFalse);
+
+      final ops = await db.select(db.operationsSyncLocal).get();
+      final envoyees = ops
+          .where((o) => o.payload.contains('valeur_achat_reference'))
+          .toList();
+      expect(envoyees, hasLength(1));
+      expect(envoyees.single.payload, contains('850.0000'));
+    },
+  );
 }

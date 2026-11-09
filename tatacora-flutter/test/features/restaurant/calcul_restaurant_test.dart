@@ -681,8 +681,8 @@ void main() {
       expect(k.plats, 4);
       expect(k.lies, 3);
       expect(k.sansLien, 1);
-      // p-3 : stock 0 de a-x -> 0 portion, rupture ; sous seuil (0 <= 0).
-      expect(k.enRupture, 1);
+      // p-3 : stock 0 de a-x -> 0 portion ; JAMAIS « rupture » pour un plat (PO 09/11/2026).
+      expect(k.enRupture, 0);
       expect(k.sousSeuil, 1);
       // Coût inconnu : p-2 (fiche vide), p-3 (a-x jamais réceptionné).
       expect(k.coutMatiereInconnu, 2);
@@ -724,7 +724,7 @@ void main() {
       ];
       expect(ids(EtatArticleCarte.liesAuStock), ['p-3', 'p-1', 'p-4']);
       expect(ids(EtatArticleCarte.sansLienDeStock), ['p-2']);
-      expect(ids(EtatArticleCarte.enRuptureDeStock), ['p-3']);
+      expect(ids(EtatArticleCarte.enRuptureDeStock), isEmpty);
       expect(ids(EtatArticleCarte.prixProvisoire), ['p-2', 'p-4']);
       expect(ids(EtatArticleCarte.tous), hasLength(4));
     });
