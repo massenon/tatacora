@@ -165,7 +165,7 @@ final class ProformasSynchronisationTest extends TestCase
     }
 
     #[Test]
-    public function un_poste_n_ecrit_jamais_les_reglages_des_documents(): void
+    public function un_poste_ecrit_les_reglages_des_documents_dernier_ecrit_gagnant(): void
     {
         $admin = $this->creerUtilisateur('administrateur');
         ParametreSysteme::create(['cle' => ReglagesDocuments::CLE_REFERENCE_FACTURE, 'valeur' => 'GCN']);
@@ -174,8 +174,12 @@ final class ProformasSynchronisationTest extends TestCase
             'valeurs' => [ReglagesDocuments::CLE_REFERENCE_FACTURE => 'ZZZ', ReglagesDocuments::CLE_SIGNATURE_AFFICHEE => 'true'],
         ], '2026-11-07T09:00:00+00:00')], $admin);
 
+        // Décision du PO du 09/11/2026 : les réglages des documents se modifient AU POSTE
+        // (droit Paramètres) et se synchronisent. Dernier écrit gagnant, clé par clé : la
+        // référence déjà posée plus récemment au serveur n'est pas écrasée par une
+        // opération plus ancienne ; la signature, absente, est écrite.
         $this->assertSame('GCN', ParametreSysteme::query()->where('cle', ReglagesDocuments::CLE_REFERENCE_FACTURE)->value('valeur'));
-        $this->assertNull(ParametreSysteme::query()->where('cle', ReglagesDocuments::CLE_SIGNATURE_AFFICHEE)->value('valeur'));
+        $this->assertSame('true', ParametreSysteme::query()->where('cle', ReglagesDocuments::CLE_SIGNATURE_AFFICHEE)->value('valeur'));
     }
 
     #[Test]
