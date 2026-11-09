@@ -39,11 +39,10 @@ abstract final class TextesEtatsComptables {
   static const String emplois = 'EMPLOIS';
   static const String cafg = "Capacité d'Autofinancement Globale (CAFG)";
   static const String augmentationCapital = 'Augmentation de capital';
-  // ÉCART NOMMÉ (10/11/2026) : trois lignes que la vue du flux de trésorerie du
-  // web ne rend pas encore (cessions, emprunts, dividendes versés). Elles sont
-  // nulles hors cession, emprunt ou affectation du résultat ; les omettre
-  // ferait des totaux qui ne s'additionnent plus à l'écran. Ajouter ces lignes
-  // à la vue web fait baisser le taux STRICT du comparateur (vue non portée).
+  // Trois lignes (cessions, emprunts, dividendes versés) que la vue du flux de
+  // trésorerie du web rend désormais (10/11/2026) : sans elles les totaux ne
+  // s'additionnaient plus à l'écran. Mêmes mots des deux côtés, relus de
+  // `lang/fr/comptabilite_pwa.php` (`flux_*`) par `tafire_libelles_du_web_test`.
   static const String produitsCessions =
       "Produits des cessions d'immobilisations";
   static const String variationEmprunts = 'Emprunts (variation nette)';

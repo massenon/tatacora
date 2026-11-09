@@ -9,6 +9,12 @@
     de Roulement (BFR) » (l.48-51) et « Variation de trésorerie nette »
     (l.53-56).
 
+    Les trois lignes que le maître ne portait pas (produits des cessions,
+    emprunts, dividendes versés — 10/11/2026) sont là pour que les totaux
+    S'ADDITIONNENT à l'écran : CAFG + cessions + capital + emprunts = TOTAL
+    RESSOURCES ; acquisitions + dividendes = TOTAL EMPLOIS. Leurs libellés
+    viennent de `lang/fr/comptabilite_pwa.php`, et le poste écrit les mêmes mots.
+
     Les écarts — les deux notes de jeu d'essai retirées, et la ligne des dettes
     renommée pour dire ce qu'elle contient réellement — sont motivés au complet
     dans `App\Pwa\Livewire\Comptabilite\FluxTresorerie`.
@@ -70,8 +76,16 @@
                   <span class="font-mono-tatacora text-slate-600">{{ MontantFcfa::format($tafire->capaciteAutofinancementGlobale) }}</span>
                 </div>
                 <div class="flex justify-between">
+                  <span class="text-slate-600">{{ __('comptabilite_pwa.flux_produits_cessions') }}</span>
+                  <span class="font-mono-tatacora text-slate-600">{{ MontantFcfa::format($tafire->produitsCessions) }}</span>
+                </div>
+                <div class="flex justify-between">
                   <span class="text-slate-600">Augmentation de capital</span>
                   <span class="font-mono-tatacora text-slate-600">{{ MontantFcfa::format($tafire->augmentationCapital) }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-slate-600">{{ __('comptabilite_pwa.flux_variation_emprunts') }}</span>
+                  <span class="font-mono-tatacora text-slate-600">{{ MontantFcfa::format($tafire->variationEmprunts) }}</span>
                 </div>
                 <div class="flex justify-between font-bold pt-2 border-t border-slate-100">
                   <span class="text-slate-800">TOTAL RESSOURCES</span>
@@ -85,6 +99,10 @@
                 <div class="flex justify-between">
                   <span class="text-slate-600">Acquisitions d'immobilisations</span>
                   <span class="font-mono-tatacora text-slate-600">{{ MontantFcfa::format($tafire->acquisitionsImmobilisations) }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-slate-600">{{ __('comptabilite_pwa.flux_dividendes_verses') }}</span>
+                  <span class="font-mono-tatacora text-slate-600">{{ MontantFcfa::format($tafire->dividendesVerses) }}</span>
                 </div>
                 <div class="flex justify-between font-bold pt-2 border-t border-slate-100">
                   <span class="text-slate-800">TOTAL EMPLOIS</span>

@@ -32,7 +32,16 @@ abstract final class RubriquesTafire {
   static const reprises = ['781'];
   static const valeurComptableCessions = ['81'];
   static const produitsCessions = ['82'];
-  static const apportsCapital = ['101', '102', '103', '104', '105', '106', '109', '14'];
+  static const apportsCapital = [
+    '101',
+    '102',
+    '103',
+    '104',
+    '105',
+    '106',
+    '109',
+    '14',
+  ];
   static const autresCapitauxPropres = ['11', '12', '13', '15'];
   static const dettesFinancieres = ['16', '17', '18', '19'];
   static const dividendesAPayer = ['465'];
@@ -315,7 +324,12 @@ List<NoteAnnexe> notesDe(int annee, DonneesEtats d) {
       etat: EtatNote.disponible,
       postes: [
         ...postes(RubriquesBilan.creances, debitrice: true),
-        ...postes(RubriquesBilan.dettesCirculantes, debitrice: false),
+        // Les dettes de la note sont celles du Bilan, 465 (dividendes à payer)
+        // compris : miroir de `NotesAnnexesService` (10/11/2026).
+        ...postes([
+          ...RubriquesBilan.dettesCirculantes,
+          ...RubriquesBilan.dettesAssocies,
+        ], debitrice: false),
       ],
       motif: 'lettrage_par_anciennete_non_arbitre',
     ),

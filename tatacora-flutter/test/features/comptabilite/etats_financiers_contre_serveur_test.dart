@@ -76,6 +76,12 @@ void main() {
     (2031, 'OD', '4441', '0.00', '4000.00', '2031-07-02'),
     (2031, 'OD', '4449', '2500.00', '0.00', '2031-07-02'),
     (2031, 'OD', '521', '0.00', '7500.00', '2031-07-02'),
+    // Dividendes à payer (465) : décidés puis réglés en partie — la note 4
+    // les porte comme le bilan (10/11/2026).
+    (2031, 'OD', '111', '40000.00', '0.00', '2031-08-01'),
+    (2031, 'OD', '465', '0.00', '40000.00', '2031-08-01'),
+    (2031, 'OD', '465', '15000.00', '0.00', '2031-08-20'),
+    (2031, 'OD', '521', '0.00', '15000.00', '2031-08-20'),
     // 2032 — ouvert, une seule écriture : tout le reste est reporté.
     (2032, 'VTE', '5711', '10000.00', '0.00', '2032-01-05'),
     (2032, 'VTE', '706', '0.00', '10000.00', '2032-01-05'),
@@ -171,9 +177,85 @@ void main() {
     expect(RubriquesBilan.capital, rub['capital']);
     expect(RubriquesBilan.resultatReporte, rub['resultat_reporte']);
     expect(RubriquesBilan.dettesCirculantes, rub['dettes_circulantes']);
+    expect(RubriquesBilan.dettesAssocies, rub['dettes_associes']);
     expect(RubriquesBilan.tresoreriePassif, rub['tresorerie_passif']);
     expect(rubriqueDotations, rub['dotations_amortissements']);
   });
+
+  // Note annexe 4 (10/11/2026) : le 465 est une ligne de la note, au libellé du
+  // PLAN (le même que celui du web), et le total des dettes de la note est le
+  // passif circulant du bilan (465 compris). Les écritures portent ici le
+  // libellé du plan, pas le numéro : c'est ce qui rend le libellé comparable.
+  for (final annee in [2031, 2032]) {
+    test('note 4 $annee : le 465 figure, libellé du serveur, total des dettes '
+        '= passif circulant du bilan', () {
+      final plan = serveur['libelles_plan'] as Map<String, dynamic>;
+      String libelle(String compte) => plan[compte] as String;
+      final avecLibelles = DonneesEtats(
+        ecrituresParAnnee: {
+          for (final e in donnees.ecrituresParAnnee.entries)
+            e.key: [
+              for (final x in e.value)
+                EcritureServeur(
+                  annee: x.annee,
+                  codeJournal: x.codeJournal,
+                  numeroCompte: x.numeroCompte,
+                  libelleCompte: libelle(x.numeroCompte),
+                  classe: x.classe,
+                  debitCentimes: x.debitCentimes,
+                  creditCentimes: x.creditCentimes,
+                ),
+            ],
+        },
+        statutParAnnee: donnees.statutParAnnee,
+        plan: donnees.plan,
+      );
+      final attendues =
+          ((serveur['etats'] as Map<String, dynamic>)['$annee']
+                  as Map<String, dynamic>)['notes']
+              as List;
+      final serveur4 =
+          ((attendues.cast<Map<String, dynamic>>().firstWhere(
+                    (n) => n['numero'] == 4,
+                  ))['postes']
+                  as List)
+              .cast<Map<String, dynamic>>();
+      final poste4 = notesDe(
+        annee,
+        avecLibelles,
+      ).firstWhere((n) => n.numero == 4).postes;
+
+      // Les libellés, au mot près, comme le web les écrit.
+      expect(
+        [for (final p in poste4) p.libelle],
+        [for (final p in serveur4) p['libelle']],
+      );
+      final ligne465 = poste4.where((p) => p.libelle.endsWith('(465)'));
+      expect(ligne465, hasLength(1), reason: 'le 465 doit être une ligne');
+      expect(ligne465.single.libelle, '${libelle('465')} (465)');
+      if (annee == 2031) {
+        expect(ligne465.single.montantCentimes, cts('25000.00'));
+      }
+
+      // Cohérence avec le bilan : toutes les dettes du bilan sont dans la note.
+      final prefixesDettes = [
+        ...RubriquesBilan.dettesCirculantes,
+        ...RubriquesBilan.dettesAssocies,
+      ];
+      final totalNote = poste4
+          .where(
+            (p) => prefixesDettes.any(
+              RegExp(r'\((\d+)\)$').firstMatch(p.libelle)![1]!.startsWith,
+            ),
+          )
+          .fold(0, (t, p) => t + p.montantCentimes);
+      final passifCirculant = bilanDe(
+        annee,
+        avecLibelles,
+      ).passif.firstWhere((p) => p.code == 'passif_circulant');
+      expect(totalNote, passifCirculant.netCentimes);
+    });
+  }
 
   for (final annee in annees) {
     group('exercice $annee', () {

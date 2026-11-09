@@ -221,4 +221,13 @@ return [
     'affectation_non_affectable' => 'L’affectation se passe dans l’exercice :suivant, qui doit exister et être ouvert.',
     'affectation_faite' => 'Affectation du résultat de l’exercice :annee passée (pièce :piece).',
     'affectation_contrepassee' => 'Affectation du résultat de l’exercice :annee contre-passée.',
+
+    // --- Tableau des flux de trésorerie : les trois lignes du financement et des cessions (10/11/2026) ---
+    //
+    // Mots LUS par le poste (`TextesEtatsComptables`) : un test relit ce fichier
+    // et exige les mêmes mots des deux côtés.
+
+    'flux_produits_cessions' => "Produits des cessions d'immobilisations",
+    'flux_variation_emprunts' => 'Emprunts (variation nette)',
+    'flux_dividendes_verses' => 'Dividendes versés (affectation du résultat N-1)',
 ];

@@ -238,6 +238,7 @@ try {
             'resultat_reporte' => RubriquesSyscohada::RESULTAT_REPORTE,
             'dotations_amortissements' => RubriquesSyscohada::DOTATIONS_AMORTISSEMENTS,
             'dettes_circulantes' => RubriquesSyscohada::DETTES_CIRCULANTES,
+            'dettes_associes' => RubriquesSyscohada::DETTES_ASSOCIES,
             'tresorerie_passif' => RubriquesSyscohada::TRESORERIE_PASSIF,
         ],
         'plan' => CompteComptable::query()
@@ -246,6 +247,16 @@ try {
             ->mapWithKeys(static fn ($c): array => [(string) $c->numero_compte => [
                 'libelle' => (string) $c->libelle, 'classe' => (string) $c->classe,
             ]])->all(),
+        // Le libelle du PLAN de chaque compte du jeu : la note annexe 4 ecrit
+        // « libelle (numero) », et le poste doit ecrire le meme (10/11/2026).
+        'libelles_plan' => CompteComptable::query()
+            ->whereIn('numero_compte', array_values(array_unique(array_map(
+                static fn (array $e): string => (string) $e['compte'],
+                $jeu['ecritures'],
+            ))))
+            ->pluck('libelle', 'numero_compte')
+            ->map(static fn ($l): string => (string) $l)
+            ->all(),
         'etats' => $etats,
     ];
 } finally {

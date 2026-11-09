@@ -104,7 +104,12 @@ class NotesAnnexesService
                 etat: NotesAnnexes::ETAT_DISPONIBLE,
                 postes: [
                     ...$this->postesParPrefixe($lignes, RubriquesSyscohada::CREANCES, debitrice: true),
-                    ...$this->postesParPrefixe($lignes, RubriquesSyscohada::DETTES_CIRCULANTES, debitrice: false),
+                    // Les dettes de la note sont celles du Bilan, 465 compris : le
+                    // « passif circulant » du Bilan est DETTES_CIRCULANTES +
+                    // DETTES_ASSOCIES (dividendes a payer). Sans le 465, la note
+                    // restait en deca du bilan du montant des dividendes
+                    // affectes et non encore regles (10/11/2026).
+                    ...$this->postesParPrefixe($lignes, [...RubriquesSyscohada::DETTES_CIRCULANTES, ...RubriquesSyscohada::DETTES_ASSOCIES], debitrice: false),
                 ],
                 // PA-20 : la ventilation 30/60/90 jours n'existe dans aucun
                 // document de la collection. La note rend les soldes, pas leur
