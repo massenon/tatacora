@@ -1,6 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:tatacora_flutter/features/hebergement/presentation/ecran_reservations.dart'
-    show TextesAnnulations;
 import 'package:tatacora_flutter/core/format/decimal_bc.dart';
 import 'package:tatacora_flutter/features/hebergement/domain/annulation_reservation.dart';
 import 'package:tatacora_flutter/features/hebergement/domain/entities/annulation_enregistree.dart';
@@ -201,18 +199,6 @@ void main() {
       expect(r.commissionCentimes, 1600000);
       expect(r.rembourseCentimes, 2400000);
       expect(r.rembourseCentimes, lessThanOrEqualTo(4000000));
-    });
-
-    test('la phrase d’aide de l’onglet dit cette règle, au mot de la vue', () {
-      expect(TextesAnnulations.regle, contains('Remboursé'));
-      expect(
-        TextesAnnulations.regle,
-        contains('jamais plus que l\'acompte versé'),
-      );
-      expect(
-        TextesAnnulations.regle,
-        contains('acompte versé − commission retenue'),
-      );
     });
   });
 

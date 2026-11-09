@@ -328,7 +328,6 @@
               </table>
             </div>
           @endif
-          <p class="text-[11px] text-slate-400 mt-3" data-annulations-regle>{{ __('hebergement_pwa.reservations.annulations_regle') }}</p>
         @endif {{-- fin de la condition d'onglet ouverte plus haut --}}
 
         {{--

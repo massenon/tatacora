@@ -543,17 +543,6 @@ class _ChampRechercheState extends ConsumerState<_ChampRecherche> {
   }
 }
 
-/// Les mots de l'onglet Annulations qui ne sont pas des libellés de colonne — au mot près, ceux de
-/// la vue (`hebergement_pwa.reservations.annulations_regle`).
-abstract final class TextesAnnulations {
-  static const String regle =
-      'Commission retenue = total × taux. Remboursé = ce qui a été rendu au '
-      'client sur son acompte, saisi à l\'annulation (en % de l\'acompte ou en '
-      'FCFA), jamais plus que l\'acompte versé. Valeur proposée : acompte versé '
-      '− commission retenue, ou 0 si l\'acompte ne couvre pas la commission '
-      '(un acompte de 0 ne rembourse rien).';
-}
-
 /// L'onglet **Annulations** : recherche, filtre par canal, puis la table.
 class _OngletAnnulations extends ConsumerStatefulWidget {
   const _OngletAnnulations();
@@ -693,17 +682,6 @@ class _EtatOngletAnnulations extends ConsumerState<_OngletAnnulations> {
               ),
             );
           },
-        ),
-        // La RÈGLE du « Remboursé », dite sous la table (`annulations_regle` de la vue ; 09/11/2026,
-        // constat du PO : « le remboursé n'est pas calculé (total − commission) ») : il n'est PAS
-        // total − commission, c'est ce que l'opérateur a rendu sur l'acompte, plafonné à l'acompte.
-        Padding(
-          padding: const EdgeInsets.only(top: AppSpacing.sm),
-          child: Text(
-            TextesAnnulations.regle,
-            key: const Key('annulations-regle'),
-            style: _t(TaillesContenu.t11, couleur: AppColors.neutre400),
-          ),
         ),
       ],
     );

@@ -1479,25 +1479,10 @@ void main() {
         find.byWidgetPredicate(
           (w) =>
               w is Text &&
-              w.key != const Key('annulations-regle') &&
               (w.data ?? '').contains('FCFA'),
         ),
         findsNothing,
       );
-    });
-
-    testWidgets('l’onglet Annulations DIT la règle du « Remboursé » (acompte − '
-        'commission, plafonné à l’acompte), même vide', (tester) async {
-      await monter(tester, const EcranReservations());
-      await tester.tap(
-        find.byKey(const Key('reservations-onglet-annulations')),
-      );
-      await tester.pumpAndSettle();
-      final regle = tester.widget<Text>(
-        find.byKey(const Key('annulations-regle')),
-      );
-      expect(regle.data, TextesAnnulations.regle);
-      expect(regle.data, contains('jamais plus que l\'acompte versé'));
     });
 
     testWidgets('l’onglet Annulations vide le dit', (tester) async {

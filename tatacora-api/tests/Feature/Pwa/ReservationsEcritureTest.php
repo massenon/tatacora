@@ -773,11 +773,10 @@ final class ReservationsEcritureTest extends TestCase
             ->assertHasErrors(['aRembourseValeur']);
         $this->assertSame('en_attente', $trop->refresh()->statut);
 
-        // L'onglet Annulations DIT la règle, et montre les mêmes montants.
+        // L'onglet Annulations montre les mêmes montants.
         $rendu = Livewire::test(Reservations::class)->set('ongletActif', 'annulations');
-        $rendu->assertSee(__('hebergement_pwa.reservations.annulations_regle'));
         $html = (string) $rendu->html();
-        $this->assertStringContainsString('data-annulations-regle', $html);
+        $this->assertStringNotContainsString('data-annulations-regle', $html);
         foreach (['40000', '18000', '24000'] as $montant) {
             $this->assertStringContainsString(\App\Pwa\Support\MontantFcfa::format($montant), $html);
         }
