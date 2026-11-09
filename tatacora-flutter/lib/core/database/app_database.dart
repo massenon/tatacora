@@ -569,6 +569,14 @@ class AppDatabase extends _$AppDatabase {
   /// peut les porter déjà. Le curseur de descente est oublié : les proformas déjà au serveur
   /// (autres postes, web) redescendent.
   ///
+  /// v56 (09/11/2026) — LE COÛT DES ENTRÉES DE STOCK DESCEND (bug du PO : un second poste
+  /// voyait « — » en Valeur d'achat, CMP et Valeur stock) : AUCUNE table, AUCUNE colonne
+  /// (`mouvements_stock_local.cout_unitaire_dix_milliemes` existe depuis la v12). Seule la
+  /// DESCENTE change : `mouvements_stock` porte désormais `cout_unitaire`, que l'aligneur écrit
+  /// (et qu'il complète sur une ligne déjà reçue sans coût). Le curseur de descente est OUBLIÉ :
+  /// les mouvements déjà passés par un curseur redescendent une fois, avec leur coût. (v55 est
+  /// réservée à un autre chantier.)
+  ///
   /// v54 (09/11/2026) — TROIS DROITS TRANSVERSES OUVERTS À TOUS (PO : « Synchronisation »,
   /// « Appairage Postes » et « Import & Export » au menu de TOUS les rôles par défaut) :
   /// AUCUNE table, AUCUNE colonne — la migration pose `SYNCHRO`, `APPAIRAGE` et
@@ -583,7 +591,7 @@ class AppDatabase extends _$AppDatabase {
   /// affectations déjà passées au serveur (web, autres postes) redescendent. Voir
   /// `tables/affectations_resultat_tables.dart`.
   @override
-  int get schemaVersion => 54;
+  int get schemaVersion => 56;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1878,6 +1886,15 @@ class AppDatabase extends _$AppDatabase {
         // posés dans les matrices DÉJÀ stockées là où la clé manque (`L` ; `C` pour
         // l'administration), jamais réécrits, jamais retirés. Aucune table, aucune colonne.
         await poserDroitsOuvertsATous(m.database);
+      }
+      if (from < 56) {
+        // LE COÛT DES ENTRÉES DE STOCK DESCEND (09/11/2026) : aucune table, aucune colonne,
+        // aucune ligne fabriquée. Les mouvements déjà reçus sans coût (curseur passé) ne
+        // redescendraient jamais : le curseur est oublié, l'aligneur — idempotent —
+        // complète le coût de chaque ligne déjà présente.
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
       }
       // Filet final (PRD réinstallation R2) : ce que les paliers n'ont pas posé
       // (palier sauté, branche parallèle) est complété, jamais retiré.

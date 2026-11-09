@@ -24,6 +24,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $point_id
  * @property string $type_mouvement
  * @property string $quantite
+ * @property string|null $cout_unitaire coût d'achat de l'entrée VALORISÉE (null sinon) — rejoué par les postes pour recalculer le CMP
  * @property string|null $motif
  * @property string|null $utilisateur_id
  * @property \Illuminate\Support\Carbon $date_mouvement
@@ -37,13 +38,14 @@ class MouvementStock extends Model
 
     protected $fillable = [
         'id', 'article_id', 'point_id', 'type_mouvement',
-        'quantite', 'motif', 'utilisateur_id', 'date_mouvement',
+        'quantite', 'cout_unitaire', 'motif', 'utilisateur_id', 'date_mouvement',
     ];
 
     protected function casts(): array
     {
         return [
             'quantite' => 'decimal:2',
+            'cout_unitaire' => 'decimal:4',
             'date_mouvement' => 'datetime',
         ];
     }

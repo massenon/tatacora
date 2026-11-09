@@ -258,66 +258,63 @@ void main() {
   });
 
   for (final version in (dumps.keys.toList()..sort())) {
-    test(
-      'v$version (base réelle) -> courante : écart zéro, aucune ligne perdue',
-      () async {
-        final fichier = construire(version);
-        final avant = semer(fichier);
+    test('v$version (base réelle) -> courante : écart zéro, aucune ligne perdue', () async {
+      final fichier = construire(version);
+      final avant = semer(fichier);
+      expect(
+        avant.values.where((n) => n > 0).length,
+        greaterThanOrEqualTo(10),
+        reason: 'trop peu de tables garnies : le test serait presque à vide',
+      );
+      await ouvrirAvecLeCodeCourant(fichier);
+
+      final apres = compter(fichier);
+      for (final e in avant.entries) {
+        if (lignesRetireesVoulues.containsKey(e.key)) continue;
         expect(
-          avant.values.where((n) => n > 0).length,
-          greaterThanOrEqualTo(10),
-          reason: 'trop peu de tables garnies : le test serait presque à vide',
+          apres[e.key] ?? 0,
+          greaterThanOrEqualTo(e.value),
+          reason: 'v$version : lignes perdues dans ${e.key}',
         );
-        await ouvrirAvecLeCodeCourant(fichier);
-
-        final apres = compter(fichier);
-        for (final e in avant.entries) {
-          if (lignesRetireesVoulues.containsKey(e.key)) continue;
-          expect(
-            apres[e.key] ?? 0,
-            greaterThanOrEqualTo(e.value),
-            reason: 'v$version : lignes perdues dans ${e.key}',
-          );
-        }
-        if (avant.containsKey('operations_sync_local')) {
-          final db = sql.sqlite3.open(fichier.path);
-          expect(
-            db
-                .select(
-                  'SELECT seq, type, statut FROM operations_sync_local '
-                  'WHERE seq IN (5, 9) ORDER BY seq',
-                )
-                .map((r) => '${r['seq']} ${r['type']} ${r['statut']}')
-                .toList(),
-            ['5 creation en_attente', '9 modification rejete'],
-            reason: 'v$version : la file d envoi doit garder ses opérations',
-          );
-          // La v43 élargit le CHECK du type : `suppression` est admis.
-          db.execute(
-            'INSERT INTO operations_sync_local (uuid_operation, '
-            'table_serveur, entite_id, type, payload, horodatage_client, '
-            "cree_le) VALUES ('us', 'vehicules', 'v', 'suppression', '{}', "
-            "'h', 1)",
-          );
-          db.close();
-        }
-        final diff = ecarts(empreinte(await baseNeuve()), empreinte(fichier));
-        expect(diff, isEmpty, reason: 'v$version :\n${diff.join('\n')}');
-
-        final db = sql.sqlite3.open(fichier.path, mode: sql.OpenMode.readOnly);
-        // La version COURANTE (47 depuis la description d'un plat, 30/10/2026 ; 46 depuis le mot de passe perdu sans e-mail,
-        // v49 (03/11/2026) : « Mon profil » sous droit — deux colonnes nullables sur les comptes.
-        // v50 (07/11/2026) : facturation normalisée — huit colonnes nullables sur les pièces.
-        // v51 (07/11/2026) : IFU du client — trois colonnes nullables (pièces : acheteur ; fiches : ifu).
-        // 29/10/2026).
-        // v52 (07/11/2026) : facture proforma — trois tables neuves.
-        // v53 (09/11/2026) : affectations du résultat reçues — une table neuve.
-        // v54 (09/11/2026) : trois droits transverses ouverts à tous — aucune table ni colonne.
-        expect(db.select('PRAGMA user_version').first.values.first, 54);
+      }
+      if (avant.containsKey('operations_sync_local')) {
+        final db = sql.sqlite3.open(fichier.path);
+        expect(
+          db
+              .select(
+                'SELECT seq, type, statut FROM operations_sync_local '
+                'WHERE seq IN (5, 9) ORDER BY seq',
+              )
+              .map((r) => '${r['seq']} ${r['type']} ${r['statut']}')
+              .toList(),
+          ['5 creation en_attente', '9 modification rejete'],
+          reason: 'v$version : la file d envoi doit garder ses opérations',
+        );
+        // La v43 élargit le CHECK du type : `suppression` est admis.
+        db.execute(
+          'INSERT INTO operations_sync_local (uuid_operation, '
+          'table_serveur, entite_id, type, payload, horodatage_client, '
+          "cree_le) VALUES ('us', 'vehicules', 'v', 'suppression', '{}', "
+          "'h', 1)",
+        );
         db.close();
-      },
-      timeout: const Timeout(Duration(minutes: 2)),
-    );
+      }
+      final diff = ecarts(empreinte(await baseNeuve()), empreinte(fichier));
+      expect(diff, isEmpty, reason: 'v$version :\n${diff.join('\n')}');
+
+      final db = sql.sqlite3.open(fichier.path, mode: sql.OpenMode.readOnly);
+      // La version COURANTE (47 depuis la description d'un plat, 30/10/2026 ; 46 depuis le mot de passe perdu sans e-mail,
+      // v49 (03/11/2026) : « Mon profil » sous droit — deux colonnes nullables sur les comptes.
+      // v50 (07/11/2026) : facturation normalisée — huit colonnes nullables sur les pièces.
+      // v51 (07/11/2026) : IFU du client — trois colonnes nullables (pièces : acheteur ; fiches : ifu).
+      // 29/10/2026).
+      // v52 (07/11/2026) : facture proforma — trois tables neuves.
+      // v53 (09/11/2026) : affectations du résultat reçues — une table neuve.
+      // v54 (09/11/2026) : trois droits transverses ouverts à tous — aucune table ni colonne.
+      // v56 (09/11/2026) : le coût des entrées de stock descend — aucune table ni colonne.
+      expect(db.select('PRAGMA user_version').first.values.first, 56);
+      db.close();
+    }, timeout: const Timeout(Duration(minutes: 2)));
   }
 }
 

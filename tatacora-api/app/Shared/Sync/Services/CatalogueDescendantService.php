@@ -123,7 +123,8 @@ class CatalogueDescendantService
      * Les colonnes de DÉFINITION descendues, table par table, dans l'ordre où
      * un poste doit les écrire (un élément cité avant celui qui le cite).
      *
-     * Écartées délibérément : `articles.prix_achat` et `cout_moyen_pondere`,
+     * Écartées délibérément : `articles.prix_achat` et `cout_moyen_pondere` (le poste les RECALCULE
+     * du coût des mouvements, `mouvements_stock.cout_unitaire`, qui descend),
      * `recettes.cout_matiere_calcule` (calculs), les colonnes
      * d'audit (le poste n'a pas les utilisateurs du serveur).
      *
@@ -219,7 +220,9 @@ class CatalogueDescendantService
         'commandes_achat' => ['fournisseur_id', 'date_commande', 'statut', 'montant_total', 'date_creation'],
         'bons_reception' => ['commande_id', 'date_reception', 'conformite', 'created_at'],
         'reglements_fournisseur' => ['commande_id', 'montant', 'tresorerie', 'date_reglement', 'statut', 'motif_annulation', 'date_annulation'],
-        'mouvements_stock' => ['article_id', 'point_id', 'type_mouvement', 'quantite', 'motif', 'date_mouvement'],
+        // 09/11/2026 : `cout_unitaire` (coût de l'entrée VALORISÉE, null sinon) descend avec le
+        // mouvement — le poste recalcule CMP, valeur d'achat et valeur de stock en le rejouant.
+        'mouvements_stock' => ['article_id', 'point_id', 'type_mouvement', 'quantite', 'cout_unitaire', 'motif', 'date_mouvement'],
         'circuits' => ['nom', 'theme', 'zone', 'duree', 'prix', 'capacite_max'],
         'guides' => ['nom', 'certification', 'zone_competence', 'tarif_jour'],
         'reservations_tour' => ['circuit_id', 'client_id', 'guide_id', 'date_circuit', 'nb_participants', 'statut'],

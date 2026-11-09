@@ -95,7 +95,7 @@ class MouvementStockService
                 $article->forceFill(['prix_achat' => $coutUnitaire])->save();
             }
 
-            return $this->enregistrer($articleId, $pointId, 'entree', $quantite, $motif, $dateMouvement, $id);
+            return $this->enregistrer($articleId, $pointId, 'entree', $quantite, $motif, $dateMouvement, $id, $coutUnitaire);
         });
     }
 
@@ -194,6 +194,7 @@ class MouvementStockService
         string $motif,
         ?CarbonInterface $dateMouvement = null,
         ?string $id = null,
+        ?string $coutUnitaire = null,
     ): MouvementStock {
         $mouvement = MouvementStock::create([
             // L'UUID du poste quand le mouvement y est né (synchronisation).
@@ -202,6 +203,9 @@ class MouvementStockService
             'point_id' => $pointId,
             'type_mouvement' => $type,
             'quantite' => $quantite,
+            // Le coût de l'entrée valorisée, écrit SUR le mouvement : c'est ce que rejoue
+            // un poste pour recalculer CMP et valeur (il ne reçoit aucune valeur calculée).
+            'cout_unitaire' => $coutUnitaire === null ? null : bcadd($coutUnitaire, '0', ValorisationStockService::PRECISION_COUT),
             'motif' => $motif,
             'utilisateur_id' => auth()->id(),
             'date_mouvement' => $dateMouvement ?? now(),

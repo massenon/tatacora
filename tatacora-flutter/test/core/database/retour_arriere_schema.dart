@@ -141,6 +141,15 @@ const tablesAjouteesEnV52 = <String>{
 const tablesAjouteesEnV53 = <String>{'affectations_resultat_local'};
 
 const _ajoutsParVersion = <int, List<String>>{
+  // La v56 (09/11/2026, le cout des entrees de stock descend) ne change AUCUN schema : elle
+  // n'oublie que le curseur de descente. L'entree doit exister.
+  56: <String>[],
+
+  // La v55 est RESERVEE a un autre chantier (client au panier du poste) : tant qu'il n'a pas
+  // livre sa migration, l'entree est VIDE (aucun ordre) pour que les fixtures franchissent
+  // la version. Celui qui livre la v55 REMPLACE cette entree par ses annulations.
+  55: <String>[],
+
   // La v54 (09/11/2026, trois droits transverses ouverts a tous) ne change AUCUN schema :
   // elle ne pose que des cles dans `droits_json`. Le retour arriere n'a donc aucun ordre
   // (les cles posees restent, additives) — mais l'entree doit exister.

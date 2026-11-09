@@ -2189,7 +2189,29 @@ extension _AlignementDocuments on AligneurCatalogue {
   Future<IssueAlignement> _mouvement(String id, ElementCatalogue e) async {
     final d = e.donnees;
     final t = _db.mouvementsStockLocal;
-    if (await _existe(t, id)) return const Aligne();
+    // Le COÛT de l'entrée valorisée (`cout_unitaire`, décimal à quatre chiffres) : le poste
+    // recalcule CMP, valeur d'achat et valeur de stock en rejouant les mouvements, il ne
+    // reçoit aucune valeur calculée. Absent ou nul = entrée non valorisée, sortie, perte.
+    final coutDixMilliemes = entierDepuisDecimal(d['cout_unitaire'], 4);
+    if (d['cout_unitaire'] != null && coutDixMilliemes == null) {
+      return RefuseParLePoste('coût « ${d['cout_unitaire']} » illisible');
+    }
+    if (await _existe(t, id)) {
+      // Une ligne déjà reçue AVANT que le coût ne descende (ou saisie ici sans coût) : le
+      // coût du serveur la complète. Jamais l'inverse — un coût local figé ne se corrige pas
+      // (un mouvement est en ajout seul) — et jamais sur une ligne qui en porte déjà un.
+      if (coutDixMilliemes != null) {
+        await (_db.update(t)..where(
+              (r) => r.id.equals(id) & r.coutUnitaireDixMilliemes.isNull(),
+            ))
+            .write(
+              MouvementsStockLocalCompanion(
+                coutUnitaireDixMilliemes: Value(coutDixMilliemes),
+              ),
+            );
+      }
+      return const Aligne();
+    }
     final type = AligneurCatalogue._texte(d['type_mouvement']);
     if (!_typesMouvement.contains(type)) {
       return RefuseParLePoste('type de mouvement inconnu « $type »');
@@ -2238,6 +2260,7 @@ extension _AlignementDocuments on AligneurCatalogue {
             quantite: centiemes / echelleQuantite,
             motif: AligneurCatalogue._texte(d['motif']) ?? '',
             dateMouvement: le,
+            coutUnitaireDixMilliemes: Value(coutDixMilliemes),
             statutSync: const Value('synchronise'),
             ordre: Value((dernier ?? 0) + 1),
           ),
