@@ -7,6 +7,7 @@ namespace App\Shared\Sync\Gestionnaires;
 use App\Domain\Comptabilite\Models\ClotureExercice;
 use App\Domain\Comptabilite\Models\DemandeClotureExercice;
 use App\Domain\Comptabilite\Models\ExerciceComptable;
+use App\Domain\Comptabilite\Services\AffectationResultatService;
 use App\Domain\Comptabilite\Services\ArchiveClotureService;
 use App\Domain\Comptabilite\Services\ClotureExerciceService;
 use App\Models\User;
@@ -35,7 +36,10 @@ use Throwable;
  *
  * Quatre actions, les quatre gestes du service : `demarrer`, `reprendre_saisie`,
  * `cloturer` (l'archive légale suit, hors de la clôture : un PDF qui échoue ne
- * la défait pas), `rouvrir` (`motif`).
+ * la défait pas), `rouvrir` (`motif`). Une cinquième depuis le 09/11/2026 :
+ * `annuler_affectation` (`motif`) — la CONTRE-PASSATION de l'affectation du
+ * résultat de l'exercice `annee` (`AffectationResultatService::contrepasser`) ;
+ * l'affectation elle-même part comme une pièce saisie (`GestionnairePiecesSaisie`).
  *
  * ## Une demande déjà satisfaite est ACCEPTÉE, sans rien réécrire
  *
@@ -51,11 +55,12 @@ use Throwable;
  */
 final class GestionnaireDemandesCloture extends GestionnaireDocumentAbstrait
 {
-    public const ACTIONS = ['demarrer', 'reprendre_saisie', 'cloturer', 'rouvrir'];
+    public const ACTIONS = ['demarrer', 'reprendre_saisie', 'cloturer', 'rouvrir', 'annuler_affectation'];
 
     public function __construct(
         private readonly ClotureExerciceService $clotures,
         private readonly ArchiveClotureService $archives,
+        private readonly AffectationResultatService $affectations,
         ResolveurCorrespondances $correspondances,
         SignalementAnomalies $anomalies,
     ) {
@@ -127,7 +132,7 @@ final class GestionnaireDemandesCloture extends GestionnaireDocumentAbstrait
         $cloture = null;
         $empreinte = null;
 
-        if ($this->dejaSatisfaite($action, $exercice->statut)) {
+        if ($this->dejaSatisfaite($action, $exercice->statut, $exercice->id)) {
             $issue = DemandeClotureExercice::ISSUE_DEJA_DANS_CET_ETAT;
         } else {
             switch ($action) {
@@ -143,6 +148,10 @@ final class GestionnaireDemandesCloture extends GestionnaireDocumentAbstrait
                     break;
                 case 'rouvrir':
                     $this->clotures->rouvrir($exercice, $auteur, $motif);
+                    break;
+                case 'annuler_affectation':
+                    // `annee` est l'exercice dont le résultat a été affecté (N-1).
+                    $this->affectations->contrepasser($exercice, $auteur, $motif);
                     break;
             }
         }
@@ -170,9 +179,10 @@ final class GestionnaireDemandesCloture extends GestionnaireDocumentAbstrait
     }
 
     /** La demande amène-t-elle l'exercice là où il est déjà ? */
-    private function dejaSatisfaite(string $action, string $statut): bool
+    private function dejaSatisfaite(string $action, string $statut, string $exerciceId): bool
     {
         return match ($action) {
+            'annuler_affectation' => $this->affectations->active($exerciceId) === null,
             'demarrer' => in_array($statut, ['en_cloture', 'cloture'], true),
             'reprendre_saisie' => $statut === 'ouvert',
             'cloturer' => $statut === 'cloture',

@@ -135,7 +135,7 @@ final class DemandesClotureSynchronisationTest extends TestCase
             ->assertJsonPath('resultats.0.statut', 'rejete')
             ->assertJsonPath('resultats.0.motif', __('comptabilite.demande_cloture_action_inconnue', [
                 'action' => 'supprimer',
-                'admises' => 'demarrer, reprendre_saisie, cloturer, rouvrir',
+                'admises' => 'demarrer, reprendre_saisie, cloturer, rouvrir, annuler_affectation',
             ]));
         $this->pousser([$this->demande('demarrer', ['annee' => 1850])], $this->comptable)
             ->assertJsonPath('resultats.0.statut', 'rejete');

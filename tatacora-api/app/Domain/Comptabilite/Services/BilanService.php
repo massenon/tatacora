@@ -114,8 +114,17 @@ class BilanService
         // comme « resultat a reporter » (N-1 compte deux fois).
         $capital = $this->sommeCreditrice($lignes, RubriquesSyscohada::CAPITAL);
         $resultatReporte = $this->sommeCreditrice($lignes, RubriquesSyscohada::RESULTAT_REPORTE);
-        $capitauxPropres = bcadd($capital, bcadd($resultatReporte, $resultat->resultatNet, self::PRECISION), self::PRECISION);
-        $passifCirculant = $this->sommeCreditrice($lignes, RubriquesSyscohada::DETTES_CIRCULANTES);
+        // Reserves (11) et report a nouveau (12) : ce que l'affectation du
+        // resultat de N-1 a fait du 131/139 (09/11/2026).
+        $reserves = $this->sommeCreditrice($lignes, RubriquesSyscohada::RESERVES);
+        $reportANouveau = $this->sommeCreditrice($lignes, RubriquesSyscohada::REPORT_A_NOUVEAU);
+        $capitauxPropres = bcadd(
+            bcadd($capital, bcadd($reserves, $reportANouveau, self::PRECISION), self::PRECISION),
+            bcadd($resultatReporte, $resultat->resultatNet, self::PRECISION),
+            self::PRECISION,
+        );
+        $prefixesPassifCirculant = [...RubriquesSyscohada::DETTES_CIRCULANTES, ...RubriquesSyscohada::DETTES_ASSOCIES];
+        $passifCirculant = $this->sommeCreditrice($lignes, $prefixesPassifCirculant);
         $tresoreriePassif = $this->sommeCreditrice($lignes, RubriquesSyscohada::TRESORERIE_PASSIF);
 
         $passif = [
@@ -124,14 +133,14 @@ class BilanService
                 'capitaux_propres',
                 'Capitaux propres',
                 $capitauxPropres,
-                [...RubriquesSyscohada::CAPITAL, ...RubriquesSyscohada::RESULTAT_REPORTE],
+                [...RubriquesSyscohada::CAPITAL, ...RubriquesSyscohada::RESERVES, ...RubriquesSyscohada::REPORT_A_NOUVEAU, ...RubriquesSyscohada::RESULTAT_REPORTE],
             ),
             $this->posteSansAmortissement(
                 PosteBilan::SECTION_PASSIF,
                 'passif_circulant',
                 'Passif circulant',
                 $passifCirculant,
-                RubriquesSyscohada::DETTES_CIRCULANTES,
+                $prefixesPassifCirculant,
             ),
             $this->posteSansAmortissement(
                 PosteBilan::SECTION_PASSIF,

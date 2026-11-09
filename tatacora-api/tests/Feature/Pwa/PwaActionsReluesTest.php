@@ -217,6 +217,13 @@ final class PwaActionsReluesTest extends TestCase
             'demarrerCloture', 'reprendreSaisie', 'rouvrirExercice',
             // Lot 4 : l'archive légale — générer (écriture M10), télécharger.
             'genererArchive', 'telechargerArchive',
+            // Affectation du résultat de l'exercice clôturé (09/11/2026) : trois
+            // gestes gardés par `exigerEcriture(M10)` ; le droit du COMPTABLE est
+            // porté par `AffectationResultatService`.
+            'demanderAffectation', 'passerAffectation', 'contrepasserAffectation',
+            // Crochet Livewire : recalcule le report à nouveau (le reste) dans
+            // l'état du composant, aucune table touchée.
+            'updatedAffectation',
             'fermerModales',
         ],
         // Correspondance des comptes (26/10/2026, decision du PO : les comptes se

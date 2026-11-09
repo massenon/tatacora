@@ -141,6 +141,16 @@ exercice **clôturé**, le résultat que sa clôture a écrit en 131/139 (lu sur
 clôturé porte son résultat calculé ; les autres, un tiret. Une clôture rouverte
 n'est plus « active » : son exercice retrouve le tiret.
 
+## 4 ter. L'affectation du résultat (09/11/2026)
+
+La clôture de N-1 laisse son résultat en 131 (bénéfice) ou 139 (perte), reporté dans N par l'à-nouveau. L'assemblée qui approuve les comptes le ventile ; la **carte « Affectation du résultat de l'exercice N-1 »** de l'onglet « Clôtures » (web et poste) passe cette décision.
+
+- **La pièce** : journal OD, datée de la date d'approbation, dans l'exercice N **ouvert**, validée donc immuable ; on la corrige par **contre-passation** (comptable seul, motif de 10 caractères au moins).
+- **Bénéfice** : débit 131 ; crédit réserve légale (111), autres réserves (1181), dividendes à payer (465), report à nouveau créditeur (121). **Perte** : crédit 139 ; débit report à nouveau débiteur (1291), ou imputation sur les autres réserves (1181) / le report à nouveau créditeur (121), dans la limite de leur solde. Les comptes sont ceux de la correspondance des comptes (modifiables), pas des numéros figés.
+- **Contrôles** : exercice N-1 clôturé ; résultat non nul, lu sur la clôture active (jamais recalculé) ; **une seule affectation active** ; date dans N ; aucun montant négatif ; **somme des ventilations = résultat exactement** ; pas de dividende ni de réserve légale sur une perte. Réserve légale **proposée** à 10 % du bénéfice tant qu'elle n'atteint pas 20 % du capital (compte 101x) ; modifiable ; rien n'est proposé si le capital n'est pas déterminable.
+- **Effets** : 131/139 de N soldé, « Résultat reporté » du bilan de N à zéro, bilan équilibré (réserves, report à nouveau et dividendes à payer sont rangés au bilan). La clôture de N reporte ensuite réserves et report à nouveau. **Rouvrir N-1 est refusé tant que l'affectation est active.**
+- **Poste** : la pièce part comme une pièce saisie à la main avec sa ventilation ; le serveur la passe par son service (mêmes refus, mêmes phrases) et refuse une pièce qui ne correspond pas à la sienne. La contre-passation part comme une demande `annuler_affectation`.
+
 ## 5. Le poste clôture aussi — et le contrat de synchronisation d'exercice
 
 Décision du Product Owner du 26/10/2026 : « la clôture annuelle SYSCOHADA DOIT

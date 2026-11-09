@@ -108,4 +108,25 @@ final class ComptesSyscohada
     public const RESULTAT_BENEFICE = '131';
 
     public const RESULTAT_PERTE = '139';
+
+    /**
+     * Affectation du résultat (SYSCOHADA révisé, 09/11/2026) — les cinq comptes
+     * où se ventile le résultat d'un exercice clôturé.
+     *
+     * ⚠ 1181 et 1291, PAS 118 ni 129 : le plan du PO porte 1181 « Réserves
+     * facultatives » / 1188 sous 118, et 1291 « Perte nette à reporter » / 1292
+     * sous 129. 118 et 129 sont donc des DIVISIONS, que `PasserEcritureService`
+     * refuse d'imputer (« compte de division »). 111, 121 et 465 sont des
+     * feuilles du plan. Le comptable peut rattacher un rôle à 1188 ou 1292 à
+     * l'écran « Correspondance des comptes ».
+     */
+    public const RESERVE_LEGALE = '111';
+
+    public const AUTRES_RESERVES = '1181';
+
+    public const DIVIDENDES_A_PAYER = '465';
+
+    public const REPORT_A_NOUVEAU_CREDITEUR = '121';
+
+    public const REPORT_A_NOUVEAU_DEBITEUR = '1291';
 }

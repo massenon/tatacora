@@ -149,4 +149,35 @@ return [
     // --- Demandes de clôture envoyées par un poste (26/10/2026) ---------------
     'demande_cloture_exercice_inconnu' => "L'exercice :annee n'existe pas sur le serveur : la demande de clôture ne peut pas être exécutée.",
     'demande_cloture_action_inconnue' => 'Action de clôture inconnue : « :action ». Valeurs admises : :admises.',
+
+    // --- Affectation du résultat d'un exercice clôturé (09/11/2026) ------------
+    // `AffectationResultatService`. Le poste Windows reprend ces phrases AU MOT
+    // (`messages_affectation.dart`), confrontées au vrai PHP par un test.
+    'affectation_reservee' => "Seul le comptable peut passer ou contre-passer l'affectation du résultat.",
+    'affectation_exige_cloture' => "L'exercice :annee n'est pas clôturé : son résultat ne peut pas être affecté avant sa clôture.",
+    'affectation_resultat_nul' => "Le résultat de l'exercice :annee est nul : il n'y a rien à affecter.",
+    'affectation_deja_passee' => "Le résultat de l'exercice :annee est déjà affecté (pièce :piece). Contre-passez cette affectation avant d'en passer une autre.",
+    'affectation_date_invalide' => "La date d'approbation des comptes « :date » n'est pas une date valide.",
+    'affectation_date_hors_exercice' => "La date d'approbation des comptes (:date) doit tomber dans l'exercice :annee, celui qui suit l'exercice clôturé.",
+    'affectation_exercice_non_ouvert' => "L'exercice :annee est :statut : l'affectation du résultat ne peut être passée que dans un exercice ouvert.",
+    'affectation_montant_illisible' => "Le montant de « :poste » n'est pas lisible (« :valeur ») : saisissez un nombre positif, deux décimales au plus.",
+    'affectation_montant_negatif' => "Le montant de « :poste » ne peut pas être négatif.",
+    'affectation_dividende_sur_perte' => "Aucun dividende ne se verse sur une perte : le résultat à affecter est une perte.",
+    'affectation_reserve_legale_sur_perte' => "Une perte ne s'affecte pas à la réserve légale : elle se reporte à nouveau ou s'impute sur les réserves.",
+    'affectation_imputation_sur_benefice' => "L'imputation sur le report à nouveau créditeur ne vaut que pour une perte.",
+    'affectation_somme_differente' => "La ventilation totalise :somme alors que le résultat à affecter est de :resultat (écart :ecart) : elle doit l'égaler exactement.",
+    'affectation_imputation_excessive' => "L'imputation sur « :poste » (:montant) dépasse son solde créditeur (:solde).",
+    'affectation_centre_absent' => "Le centre de coût « :centre » est introuvable : l'affectation du résultat ne peut pas être passée.",
+    'affectation_motif' => "Le motif de la contre-passation est obligatoire (:min caractères au moins) : il est écrit au journal d'audit et sur les contre-passations.",
+    'affectation_aucune' => "Le résultat de l'exercice :annee n'a aucune affectation active : il n'y a rien à contre-passer.",
+    'affectation_contrepassation_exercice_clos' => "L'affectation du résultat de l'exercice :annee ne peut pas être contre-passée : l'exercice :suivant, qui la porte, est clôturé. Rouvrez d'abord :suivant.",
+    'affectation_piece_divergente' => "La pièce d'affectation envoyée par le poste ne correspond pas à celle que le serveur passerait pour cette ventilation : vérifiez la correspondance des comptes des deux côtés.",
+    'affectation_poste_reserve_legale' => 'Réserve légale',
+    'affectation_poste_autres_reserves' => 'Autres réserves',
+    'affectation_poste_dividendes' => 'Dividendes',
+    'affectation_poste_report_a_nouveau' => 'Report à nouveau',
+    'affectation_poste_imputation_report_crediteur' => 'Imputation sur le report à nouveau créditeur',
+    'libelle_affectation_resultat' => "Affectation du résultat de l'exercice :annee",
+    'libelle_contrepassation_affectation' => "Contre-passation de l'affectation du résultat :annee — :motif",
+    'reouverture_affectation_active' => "L'exercice :annee ne peut pas être rouvert : son résultat est affecté (pièce :piece). Contre-passez d'abord l'affectation du résultat.",
 ];

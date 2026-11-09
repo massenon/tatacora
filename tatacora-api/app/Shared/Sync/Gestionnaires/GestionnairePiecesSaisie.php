@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Shared\Sync\Gestionnaires;
 
 use App\Domain\Comptabilite\Models\CentreCout;
+use App\Domain\Comptabilite\Models\ExerciceComptable;
+use App\Domain\Comptabilite\Services\AffectationResultatService;
 use App\Domain\Comptabilite\Services\ClotureExerciceService;
 use App\Domain\Comptabilite\Services\EcritureComptableService;
 use App\Domain\Comptabilite\Services\PasserEcritureService;
@@ -48,6 +50,7 @@ final class GestionnairePiecesSaisie extends GestionnaireDocumentAbstrait
     public function __construct(
         private readonly PasserEcritureService $saisie,
         private readonly EcritureComptableService $ecritures,
+        private readonly AffectationResultatService $affectations,
         ResolveurCorrespondances $correspondances,
         SignalementAnomalies $anomalies,
     ) {
@@ -84,6 +87,74 @@ final class GestionnairePiecesSaisie extends GestionnaireDocumentAbstrait
         ]);
     }
 
+    /**
+     * L'AFFECTATION DU RÉSULTAT d'un exercice clôturé, saisie au poste (09/11/2026) :
+     * le serveur ne se contente pas de la rejouer comme une pièce libre, il la
+     * passe par `AffectationResultatService` — exercice clôturé, une seule
+     * affectation active, somme exacte, comptable seul — et refuse avec SES
+     * phrases. La pièce du poste (journal OD, validée) est confrontée à celle
+     * que le service passerait pour cette ventilation.
+     *
+     * @param  array<string, mixed>  $forme
+     */
+    private function creerAffectation(string $entiteId, array $forme, ContexteSynchronisation $contexte): EcritureSynchronisee
+    {
+        if (($forme['journal'] ?? null) !== AffectationResultatService::JOURNAL || ($forme['statut'] ?? null) !== 'validee') {
+            throw new \RuntimeException(__('comptabilite.affectation_piece_divergente'));
+        }
+
+        $annee = (int) $forme['affectation']['annee'];
+        $exercice = ExerciceComptable::query()->where('annee', $annee)->first();
+
+        if ($exercice === null) {
+            throw new \RuntimeException(__('comptabilite.affectation_exige_cloture', ['annee' => (string) $annee]));
+        }
+
+        $ventilation = [];
+
+        foreach ((array) $forme['affectation']['ventilation'] as $poste => $centimes) {
+            $ventilation[(string) $poste] = $this->centiemes((int) $centimes);
+        }
+
+        $lignesDuPoste = [];
+
+        foreach ((array) ($forme['lignes'] ?? []) as $ligne) {
+            $lignesDuPoste[] = [
+                'compte' => (string) ($ligne['compte'] ?? ''),
+                'debit' => $this->centiemes((int) ($ligne['debit'] ?? 0)),
+                'credit' => $this->centiemes((int) ($ligne['credit'] ?? 0)),
+            ];
+        }
+
+        DB::transaction(function () use ($exercice, $ventilation, $forme, $entiteId, $contexte, $lignesDuPoste): void {
+            $affectation = $this->affectations->affecter(
+                $exercice,
+                $ventilation,
+                (string) $forme['date'],
+                $contexte->utilisateur,
+                null,
+                $entiteId,
+                $lignesDuPoste,
+            );
+
+            DB::table('pieces_saisie')->insert([
+                'id' => $entiteId,
+                'journal' => AffectationResultatService::JOURNAL,
+                'date_piece' => (string) $forme['date'],
+                'libelle' => (string) __('comptabilite.libelle_affectation_resultat', ['annee' => (string) $exercice->annee]),
+                'statut' => 'validee',
+                'numero_piece' => $affectation->piece_affectation,
+                'nombre_lignes' => count($lignesDuPoste),
+                'poste_id' => $contexte->posteId,
+                'auteur_id' => $contexte->utilisateur->id,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        });
+
+        return $this->resultat($entiteId);
+    }
+
     public function creer(string $entiteId, array $payload, ContexteSynchronisation $contexte): EcritureSynchronisee
     {
         $forme = $this->validerForme($payload, [
@@ -97,7 +168,17 @@ final class GestionnairePiecesSaisie extends GestionnaireDocumentAbstrait
             'lignes.*.centre' => ['nullable', 'string'],
             'lignes.*.debit' => ['nullable', 'integer', 'min:0'],
             'lignes.*.credit' => ['nullable', 'integer', 'min:0'],
+            // Affectation du résultat (09/11/2026) : la pièce du poste porte la
+            // ventilation d'où elle vient ; `ventilation.*` en CENTIMES entiers.
+            'affectation' => ['nullable', 'array'],
+            'affectation.annee' => ['required_with:affectation', 'integer', 'between:2000,2100'],
+            'affectation.ventilation' => ['required_with:affectation', 'array'],
+            'affectation.ventilation.*' => ['nullable', 'integer', 'min:0'],
         ]);
+
+        if (! empty($forme['affectation'])) {
+            return $this->creerAffectation($entiteId, $forme, $contexte);
+        }
 
         // Les mêmes règles de FORME que `Hub::enregistrerPiece`, aux mêmes
         // noms de champ : le refus porte donc la même phrase que l'écran web.

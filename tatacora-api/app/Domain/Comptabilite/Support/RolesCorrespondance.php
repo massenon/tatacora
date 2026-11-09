@@ -154,6 +154,37 @@ final class RolesCorrespondance
             'aide' => 'Débité par la clôture d’un exercice qui dégage une perte.',
             'prefixes' => ['13'],
         ],
+        // Affectation du résultat (09/11/2026) — `AffectationResultatService`.
+        'RESERVE_LEGALE' => [
+            'groupe' => self::GROUPE_RESULTAT,
+            'libelle' => 'Réserve légale',
+            'aide' => 'Créditée par l’affectation d’un bénéfice à la réserve légale.',
+            'prefixes' => ['111'],
+        ],
+        'AUTRES_RESERVES' => [
+            'groupe' => self::GROUPE_RESULTAT,
+            'libelle' => 'Autres réserves',
+            'aide' => 'Créditée par l’affectation d’un bénéfice aux autres réserves, débitée par l’imputation d’une perte.',
+            'prefixes' => ['118'],
+        ],
+        'DIVIDENDES_A_PAYER' => [
+            'groupe' => self::GROUPE_RESULTAT,
+            'libelle' => 'Associés : dividendes à payer',
+            'aide' => 'Créditée par l’affectation d’un bénéfice aux dividendes à verser aux associés.',
+            'prefixes' => ['465'],
+        ],
+        'REPORT_A_NOUVEAU_CREDITEUR' => [
+            'groupe' => self::GROUPE_RESULTAT,
+            'libelle' => 'Report à nouveau créditeur',
+            'aide' => 'Crédité par l’affectation d’un bénéfice reporté, débité par l’imputation d’une perte.',
+            'prefixes' => ['121'],
+        ],
+        'REPORT_A_NOUVEAU_DEBITEUR' => [
+            'groupe' => self::GROUPE_RESULTAT,
+            'libelle' => 'Report à nouveau débiteur',
+            'aide' => 'Débité par l’affectation d’une perte reportée à nouveau.',
+            'prefixes' => ['129'],
+        ],
     ];
 
     public static function existe(string $role): bool

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Comptabilite\Services;
 
+use App\Domain\Comptabilite\Models\AffectationResultat;
 use App\Domain\Comptabilite\Models\CentreCout;
 use App\Domain\Comptabilite\Models\ClotureExercice;
 use App\Domain\Comptabilite\Models\EcritureComptable;
@@ -247,6 +248,21 @@ class ClotureExerciceService
 
         if (mb_strlen($motif) < self::MOTIF_LONGUEUR_MIN) {
             throw new RuntimeException(__('comptabilite.reouverture_motif', ['min' => self::MOTIF_LONGUEUR_MIN]));
+        }
+
+        // L'affectation du résultat (09/11/2026) solde le 131/139 que
+        // l'à-nouveau a reporté dans N+1 : contre-passer cet à-nouveau sous elle
+        // laisserait 131/139 débiteur (ou créditeur) de tout le résultat.
+        $affectation = AffectationResultat::query()
+            ->where('exercice_id', $exercice->id)
+            ->whereNull('contrepassee_le')
+            ->first();
+
+        if ($affectation !== null) {
+            throw new RuntimeException(__('comptabilite.reouverture_affectation_active', [
+                'annee' => (string) $exercice->annee,
+                'piece' => $affectation->piece_affectation,
+            ]));
         }
 
         $suivant = ExerciceComptable::query()->where('annee', $exercice->annee + 1)->first();

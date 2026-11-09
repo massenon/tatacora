@@ -287,5 +287,127 @@
       @endif
     </div>
   @endif
+  {{--
+      « Affectation du résultat de l'exercice N-1 » (09/11/2026, demande du PO
+      « ajoute l'affectation du résultat ») — `AffectationResultatService`.
+      Visible quand l'exercice consulté (ou son précédent) est clôturé : son
+      résultat (lu sur la clôture, lecture seule) est ventilé par une pièce OD
+      datée de l'approbation des comptes, dans l'exercice suivant. Extension
+      TATACORA : le maître n'a pas ce bloc.
+  --}}
+  @if ($carteAffectation !== null)
+    @php($aff = $carteAffectation)
+    @php($postesAff = $aff['postes'])
+    @php($resultatAbsolu = $aff['resultatAbsolu'])
+    @php($totalVentile = $aff['totalVentile'])
+    @php($ecartAff = $aff['ecart'])
+    @php($sommeJuste = $aff['sommeJuste'])
+    <div id="affectation-resultat" class="bg-white rounded-xl border border-slate-200 p-4 mt-3">
+      <h3 class="text-[14px] font-bold mb-1" style="color:var(--navy)">{{ __('comptabilite_pwa.affectation_titre', ['annee' => $aff['annee']]) }}</h3>
+      <p class="text-[12px] text-slate-500 mb-3">{{ __('comptabilite_pwa.affectation_note', ['compte' => $aff['compteResultat'], 'suivant' => $aff['anneeAffectation']]) }}</p>
+
+      @error('affectation')
+        <div class="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
+          <p class="text-[13px] text-red-800">{{ $message }}</p>
+        </div>
+      @enderror
+
+      <div class="border border-slate-200 rounded-lg p-3 mb-3 inline-block min-w-[220px]">
+        <div class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">{{ __('comptabilite_pwa.affectation_resultat') }}</div>
+        <div class="text-lg font-bold mt-1 {{ MontantFcfa::estNegatif($aff['resultat']) ? 'text-red-600' : '' }}"
+             @if (! MontantFcfa::estNegatif($aff['resultat'])) style="color:var(--navy)" @endif>{{ MontantFcfa::format($aff['resultat']) }}</div>
+        <div class="text-[11px] text-slate-400 mt-0.5">{{ __($aff['estBenefice'] ? 'comptabilite_pwa.affectation_resultat_benefice' : 'comptabilite_pwa.affectation_resultat_perte', ['compte' => $aff['compteResultat']]) }}</div>
+      </div>
+
+      @if ($aff['active'] !== null)
+        <p class="text-[13px] text-slate-600 mb-2">{{ __('comptabilite_pwa.affectation_passee', [
+            'date' => $aff['active']->affectee_le->format('d/m/Y H:i'),
+            'auteur' => $aff['active']->auteur?->login ?? '—',
+            'piece' => $aff['active']->piece_affectation,
+        ]) }}</p>
+        <ul class="list-disc pl-5 mb-3">
+          @foreach ([
+              'reserve_legale' => $aff['active']->reserve_legale,
+              'autres_reserves' => $aff['active']->autres_reserves,
+              'dividendes' => $aff['active']->dividendes,
+              'imputation_report_crediteur' => $aff['estBenefice'] ? '0.00' : $aff['active']->report_a_nouveau_crediteur,
+              'report_a_nouveau' => $aff['estBenefice'] ? $aff['active']->report_a_nouveau_crediteur : $aff['active']->report_a_nouveau_debiteur,
+          ] as $posteAff => $montantAff)
+            @if (bccomp((string) $montantAff, '0', 2) > 0)
+              <li class="text-[12px] text-slate-600">{{ __('comptabilite_pwa.affectation_passee_ventilation', ['poste' => __('comptabilite.affectation_poste_' . $posteAff), 'montant' => MontantFcfa::format((string) $montantAff)]) }}</li>
+            @endif
+          @endforeach
+        </ul>
+        <h4 class="text-[13px] font-bold mb-1" style="color:var(--navy)">{{ __('comptabilite_pwa.affectation_contrepasser') }}</h4>
+        <p class="text-[12px] text-slate-500 mb-2">{{ __('comptabilite_pwa.affectation_contrepasser_note') }}</p>
+        @if ($aff['peutAffecter'])
+          <label for="motif-contrepassation-affectation" class="block text-[13px] font-semibold text-slate-700 mb-1">{{ __('comptabilite_pwa.affectation_contrepasser_motif') }}</label>
+          <textarea id="motif-contrepassation-affectation" wire:model="motifContrepassationAffectation" rows="2"
+                    class="champ w-full border border-slate-200 rounded-lg px-3 py-2 text-sm mb-2"></textarea>
+          <button type="button" wire:click="contrepasserAffectation"
+                  class="text-[13px] px-4 py-2.5 rounded-lg border border-red-200 text-red-700 hover:bg-red-50 font-semibold">
+            {{ __('comptabilite_pwa.affectation_contrepasser') }}
+          </button>
+        @else
+          <p class="text-[12px] text-slate-400">{{ __('comptabilite_pwa.affectation_reserve_comptable') }}</p>
+        @endif
+      @elseif (! $aff['affectable'])
+        <p class="text-[12px] text-slate-500">{{ __('comptabilite_pwa.affectation_non_affectable', ['suivant' => $aff['anneeAffectation']]) }}</p>
+      @else
+        <div class="mb-3">
+          <label for="date-affectation" class="block text-[13px] font-semibold text-slate-700 mb-1">{{ __('comptabilite_pwa.affectation_date') }}</label>
+          <input id="date-affectation" type="date" wire:model="dateAffectation"
+                 class="champ border border-slate-200 rounded-lg px-3 py-2 text-sm">
+        </div>
+        <h4 class="text-[13px] font-bold mb-2" style="color:var(--navy)">{{ __($aff['estBenefice'] ? 'comptabilite_pwa.affectation_ventilation' : 'comptabilite_pwa.affectation_ventilation_perte') }}</h4>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+          @foreach ($postesAff as $posteAff)
+            <div>
+              <label for="affectation-{{ $posteAff }}" class="block text-[13px] text-slate-700 mb-1">{{ __('comptabilite.affectation_poste_' . $posteAff) }}</label>
+              <input id="affectation-{{ $posteAff }}" type="text" inputmode="decimal" wire:model.live.debounce.400ms="affectation.{{ $posteAff }}"
+                     class="champ w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-right">
+            </div>
+          @endforeach
+        </div>
+        <div id="affectation-controle" class="text-[13px] mb-3">
+          <span class="text-slate-600">{{ __('comptabilite_pwa.affectation_total') }} : <strong>{{ MontantFcfa::format($totalVentile) }}</strong></span>
+          <span class="ml-3 text-slate-600">{{ __('comptabilite_pwa.affectation_reste') }} : <strong>{{ MontantFcfa::format($ecartAff) }}</strong></span>
+          <p class="mt-1 {{ $sommeJuste ? 'text-emerald-700' : 'text-red-600' }}">
+            {{ $sommeJuste ? __('comptabilite_pwa.affectation_somme_ok') : __('comptabilite_pwa.affectation_somme_ecart', ['ecart' => MontantFcfa::format($ecartAff)]) }}
+          </p>
+        </div>
+        @if ($aff['estBenefice'])
+          <p class="text-[12px] text-slate-500 mb-3">
+            @if ($aff['plafondReserveLegaleAtteint'])
+              {{ __('comptabilite_pwa.affectation_reserve_plafond') }}
+            @elseif ($aff['reserveLegalePropose'])
+              {{ __('comptabilite_pwa.affectation_reserve_proposee') }}
+            @else
+              {{ __('comptabilite_pwa.affectation_reserve_indeterminee') }}
+            @endif
+          </p>
+        @endif
+        @if ($aff['peutAffecter'])
+          <button type="button" wire:click="demanderAffectation"
+                  class="text-[13px] px-4 py-2.5 rounded-lg font-semibold bg-[var(--navy)] text-white hover:opacity-90">
+            {{ __('comptabilite_pwa.affectation_passer') }}
+          </button>
+        @else
+          <p class="text-[12px] text-slate-400">{{ __('comptabilite_pwa.affectation_reserve_comptable') }}</p>
+        @endif
+
+        {{-- Confirmation derrière `@if`, jamais `wire:confirm`. --}}
+        @if ($confirmationAffectation)
+          <x-pwa.modale :titre="__('comptabilite_pwa.affectation_confirmer_titre', ['annee' => $aff['annee']])" largeur="520px" fermer="fermerModales">
+            <p class="text-sm text-slate-600">{{ __('comptabilite_pwa.affectation_confirmer_texte', ['montant' => MontantFcfa::format($resultatAbsolu), 'date' => $dateAffectation]) }}</p>
+            <x-slot:pied>
+              <button type="button" wire:click="fermerModales" class="text-[13px] px-4 py-2 rounded-lg border border-slate-300 hover:bg-slate-50">{{ __('comptabilite_pwa.affectation_annuler') }}</button>
+              <button type="button" wire:click="passerAffectation" class="text-[13px] px-4 py-2 rounded-lg font-semibold bg-[var(--navy)] text-white hover:opacity-90">{{ __('comptabilite_pwa.affectation_confirmer') }}</button>
+            </x-slot:pied>
+          </x-pwa.modale>
+        @endif
+      @endif
+    </div>
+  @endif
 @endif
 @endif

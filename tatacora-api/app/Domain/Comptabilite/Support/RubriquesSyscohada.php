@@ -94,6 +94,21 @@ final class RubriquesSyscohada
     public const CAPITAL = ['101'];
 
     /**
+     * Reserves (groupe 11 : 111 legale, 112 statutaires, 113 reglementees, 118
+     * autres) et report a nouveau (groupe 12 : 121 crediteur, 129 debiteur) —
+     * capitaux propres, nets (un 129 debiteur diminue). Sans eux, l'AFFECTATION
+     * DU RESULTAT (09/11/2026) creditait un compte hors nomenclature et le
+     * bilan de l'exercice qui la porte se disait desequilibre du montant
+     * affecte.
+     *
+     * @var list<string>
+     */
+    public const RESERVES = ['11'];
+
+    /** @var list<string> */
+    public const REPORT_A_NOUVEAU = ['12'];
+
+    /**
      * Comptes de resultat de CLOTURE — tout le groupe 13 : 131 (benefice) et
      * 139 (perte) par defaut, mais l'administrateur peut rattacher les roles
      * `RESULTAT_BENEFICE` et `RESULTAT_PERTE` a un autre compte de la classe 13
@@ -128,6 +143,17 @@ final class RubriquesSyscohada
      * @var list<string>
      */
     public const DETTES_CIRCULANTES = ['401', '4191', '421', '422', '431', '443', '4441', '447'];
+
+    /**
+     * `465` — associes, dividendes a payer : une dette envers les associes,
+     * creditee par l'affectation d'un benefice aux dividendes (09/11/2026).
+     * Rubrique A PART des dettes circulantes : le TAFIRE lit la variation de
+     * `DETTES_CIRCULANTES` (BFR) et traite les dividendes comme un mouvement
+     * des capitaux propres ; la meler au BFR le fausserait.
+     *
+     * @var list<string>
+     */
+    public const DETTES_ASSOCIES = ['465'];
 
     /**
      * Neant dans le profil TATACORA (PART2 §2.3) — aucun decouvert bancaire ni
@@ -165,8 +191,11 @@ final class RubriquesSyscohada
             ...self::CREANCES,
             ...self::TRESORERIE_ACTIF,
             ...self::CAPITAL,
+            ...self::RESERVES,
+            ...self::REPORT_A_NOUVEAU,
             ...self::RESULTAT_REPORTE,
             ...self::DETTES_CIRCULANTES,
+            ...self::DETTES_ASSOCIES,
             ...self::TRESORERIE_PASSIF,
         ];
     }
