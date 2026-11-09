@@ -72,12 +72,11 @@ abstract final class MessagesAchats {
   /// positif (l'API accepte zéro). Ce poste suit la vue (PA-182) : le prix
   /// sert au montant de la commande et à la dette du fournisseur.
   ///
-  /// ÉCART NOMMÉ (D276) — la phrase du serveur (`achats_pwa.appro.
-  /// prix_obligatoire`, vue d'approvisionnement, modale de commande) se termine par « , ni aucun coût moyen pondéré mis à jour à la
-  /// réception ». FAUX : le serveur exécuté ne met aucun coût à jour à la
-  /// réception (D265). Cette fin est RETIRÉE, le reste est au mot ; le test
-  /// `calcul_achats_contre_serveur_test.dart` épingle l'écart (il rougit si le
-  /// serveur change la phrase). Vue à faire corriger par l'Architecte.
+  /// Identique, au mot, à la phrase du serveur. Avant le 09/11/2026 celle-ci
+  /// se terminait par « , ni aucun coût moyen pondéré mis à jour à la
+  /// réception » : FAUX (le serveur exécuté ne met aucun coût à jour à la
+  /// réception, D265), retiré côté serveur comme ici (D276 soldé). Le test
+  /// `calcul_achats_contre_serveur_test.dart` exige l'égalité exacte.
   static const String prixObligatoire =
       'Le prix unitaire est obligatoire et strictement positif : sans lui '
       'aucun montant de commande ne peut être calculé.';
@@ -114,12 +113,11 @@ abstract final class MessagesAchats {
       'Bon de commande créé pour $fournisseur.';
 
   // `achats_pwa.appro.reception_enregistree` (« Réception enregistrée (:conformite)
-  // — stock et coût moyen pondéré mis à jour. ») n'est PAS portée (D276) : le
-  // poste n'a aucun toast de réception (la modale se ferme et rend le bon), et
-  // la phrase du serveur est FAUSSE sur le coût moyen pondéré. Un gabarit sans
-  // appelant de production, de surcroît faux, serait une affirmation prête à
-  // être branchée. Le test `reception_valorisation_contre_serveur_test.dart`
-  // épingle l'absence.
+  // — stock mis à jour. », corrigée le 09/11/2026 : elle ajoutait « et coût
+  // moyen pondéré », faux) n'est PAS portée : le poste n'a aucun toast de
+  // réception (la modale se ferme et rend le bon). Un gabarit sans appelant de
+  // production serait une affirmation prête à être branchée. Le test
+  // `reception_valorisation_contre_serveur_test.dart` épingle l'absence.
 
   /// `achats_pwa.achats.cree` / `modifie`.
   static String fournisseurCree(String nom) =>

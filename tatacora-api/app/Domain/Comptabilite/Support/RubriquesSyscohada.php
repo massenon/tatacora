@@ -76,8 +76,16 @@ final class RubriquesSyscohada
     /** @var list<string> */
     public const STOCKS = ['31', '32'];
 
-    /** @var list<string> */
-    public const CREANCES = ['411'];
+    /**
+     * Creances — clients (411) et creances sur l'Etat au titre de la TVA :
+     * `445` (TVA recuperable sur immobilisations, achats, transport, services
+     * exterieurs... — debitrice par nature) et `4449` (credit de TVA a
+     * reporter). Sans elles, une TVA deductible comptabilisee tombait hors
+     * nomenclature et le bilan se disait desequilibre (09/11/2026).
+     *
+     * @var list<string>
+     */
+    public const CREANCES = ['411', '4449', '445'];
 
     /** @var list<string> */
     public const TRESORERIE_ACTIF = ['521', '522', '55', '571', '572', '573'];
@@ -110,9 +118,16 @@ final class RubriquesSyscohada
      * circulant. Voir `TafireService` pour la contradiction de PART3 sur ce
      * meme compte, et sa preuve.
      *
+     * `443` (TVA facturee — 4431 sur ventes, 4432 sur prestations...) et
+     * `4441` (Etat, TVA due) sont des dettes envers l'Etat, creditrices par
+     * nature : une vente avec TVA credite 4431/4432, et sans `443` ici ce
+     * credit n'etait dans aucune rubrique — le bilan affichait un ecart egal
+     * au solde de TVA collectee (09/11/2026). `4449` (credit de TVA a
+     * reporter) est, lui, une creance : voir {@see self::CREANCES}.
+     *
      * @var list<string>
      */
-    public const DETTES_CIRCULANTES = ['401', '4191', '421', '422', '431', '447'];
+    public const DETTES_CIRCULANTES = ['401', '4191', '421', '422', '431', '443', '4441', '447'];
 
     /**
      * Neant dans le profil TATACORA (PART2 §2.3) — aucun decouvert bancaire ni

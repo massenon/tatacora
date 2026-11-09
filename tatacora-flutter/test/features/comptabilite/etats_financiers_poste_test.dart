@@ -170,12 +170,14 @@ void main() {
   testWidgets('un compte hors nomenclature est listé, jamais avalé', (
     tester,
   ) async {
-    await recevoir(annee, 'OD', '4431', credit: 100000);
+    // 4811 : aucun préfixe du bilan ni de la cascade ne le capte (4431, lui,
+    // est une dette depuis le 09/11/2026).
+    await recevoir(annee, 'OD', '4811', credit: 100000);
     await recevoir(annee, 'OD', '5711', debit: 100000);
     await monter(tester, 'bilan');
 
     expect(find.byKey(const Key('compta-bilan-hors-rubrique')), findsOneWidget);
-    expect(find.textContaining('4431'), findsWidgets);
+    expect(find.textContaining('4811'), findsWidgets);
     expect(find.text(TextesEtatsFinanciers.horsRubriqueTitre), findsOneWidget);
   });
 }

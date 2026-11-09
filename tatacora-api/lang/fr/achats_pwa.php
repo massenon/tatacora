@@ -130,13 +130,17 @@ return [
         'form_deja_recu' => 'Déjà reçu',
         'form_recu_maintenant' => 'Reçu maintenant',
         'form_valider_reception' => 'Valider la réception',
-        'form_avertissement_double' => 'La réception génère l\'entrée de stock et met à jour le coût '
-            . 'moyen pondéré au prix de cette commande. Ne saisissez pas le stock une seconde fois '
-            . 'dans l\'écran Stocks : la quantité serait comptée deux fois.',
+        // Corrigé le 09/11/2026 (D265/D276) : l'ancienne phrase annonçait une mise à jour du coût
+        // moyen pondéré. `ReceptionService` appelle
+        // `MouvementStockService::entree()` SANS coût : le coût moyen pondéré et le dernier
+        // prix d'achat de l'article restent ceux d'avant la réception.
+        'form_avertissement_double' => 'La réception génère l\'entrée de stock ; le coût moyen '
+            . 'pondéré n\'est pas recalculé à la réception. Ne saisissez pas le stock une seconde '
+            . 'fois dans l\'écran Stocks : la quantité serait comptée deux fois.',
 
         'commande_creee' => 'Bon de commande créé pour :fournisseur.',
-        'reception_enregistree' => 'Réception enregistrée (:conformite) — stock et coût moyen pondéré '
-            . 'mis à jour.',
+        // Corrigé le 09/11/2026 : la mention du coût moyen pondéré est retirée (la réception n'y touche pas).
+        'reception_enregistree' => 'Réception enregistrée (:conformite) — stock mis à jour.',
 
         'aucune_selection' => 'Sélectionnez au moins un article à commander.',
         'aucun_fournisseur' => 'Aucun fournisseur n\'est enregistré : une commande d\'achat porte une '
@@ -144,9 +148,10 @@ return [
             . '« Fournisseurs & Achats » d\'abord.',
         'aucun_point' => 'Aucun point de stockage n\'est enregistré : une réception doit dire OÙ la '
             . 'marchandise entre, sans quoi aucun mouvement de stock ne peut être écrit.',
+        // Corrigé le 09/11/2026 : la fin de phrase sur le coût moyen pondéré est retirée
+        // (la réception ne met aucun coût à jour).
         'prix_obligatoire' => 'Le prix unitaire est obligatoire et strictement positif : sans lui aucun '
-            . 'montant de commande ne peut être calculé, ni aucun coût moyen pondéré mis à jour à la '
-            . 'réception.',
+            . 'montant de commande ne peut être calculé.',
         'quantite_obligatoire' => 'La quantité doit être strictement positive : une saisie à zéro n\'est '
             . 'pas une ligne de commande.',
 

@@ -76,7 +76,7 @@ Exploitation) ; `m10-comptabilite.png` et `m10-syscohada.png` sont prises en ple
 | `x-compta-immobilisations.png` | fait (tableau vide — aucune immobilisation de démonstration) ; fenêtre « Nouvelle immobilisation » : `x-compta-immobilisations-nouvelle.png`. La fenêtre « Plan » n'est **pas prise** : elle exige une immobilisation existante. |
 | `x-compta-correspondance.png` | fait ; fenêtre : `x-compta-correspondance-modale.png`. |
 | `x-compta-bilan-n1.png` | fait (colonne « Exercice 2025 », bandeau d'équilibre). |
-| `x-appro-reception.png` | fait (Commandé / Reçu maintenant, point de stockage « Cuisine »). |
+| `x-appro-reception.png` | fait le 09/11/2026, **À REFAIRE** : la capture montre l'ANCIENNE phrase d'aide (« … met à jour le coût moyen pondéré au prix de cette commande »), corrigée côté web le 09/11/2026 en « La réception génère l'entrée de stock ; le coût moyen pondéré n'est pas recalculé à la réception. Ne saisissez pas le stock une seconde fois… ». Reprendre la figure 7.5 (§7.4) ; sa légende est déjà alignée sur la phrase vraie. Capture non régénérée ici. |
 | `x-appro-reglement.png` | fait (fenêtre « Régler », montant, trésorerie). |
 | `x-location-contrat.png` | fait (aperçu « jours × tarif », remise, acompte, reste à payer). |
 | `x-location-recu.png` | **non prise** : le reçu est un PDF dont l'en-tête reprend l'identité de l'établissement (e-mail, téléphone) ; à faire par le PO sur le serveur réel, ou après relecture de l'en-tête. |

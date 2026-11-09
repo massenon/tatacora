@@ -395,21 +395,12 @@ void main() {
       expect(MessagesAchats.articleEnDouble, p['article_en_double']);
       expect(MessagesAchats.quantitePositive, p['quantite_positive']);
       expect(MessagesAchats.pointInexistant, p['point_inexistant']);
-      // ÉCART NOMMÉ (D276) : la fin « , ni aucun coût moyen pondéré mis à jour
-      // à la réception » est FAUSSE (le serveur exécuté ne valorise pas à la
-      // réception, D265) et le poste la retire. Le reste est au mot. Si le
-      // serveur corrige sa phrase, l'une des deux lignes ci-dessous rougit.
-      const finFausse =
-          ', ni aucun coût moyen pondéré mis à jour à la réception.';
-      expect(
-        p['prix_obligatoire'],
-        endsWith(finFausse),
-        reason: 'le serveur a changé la phrase : retirer l’écart D276',
-      );
-      expect(
-        MessagesAchats.prixObligatoire,
-        '${(p['prix_obligatoire'] as String).replaceFirst(finFausse, '')}.',
-      );
+      // D276 soldé (09/11/2026) : la fin « , ni aucun coût moyen pondéré mis à
+      // jour à la réception » était FAUSSE (le serveur exécuté ne valorise pas
+      // à la réception, D265) ; le serveur l'a retirée, le poste dit EXACTEMENT
+      // la même phrase.
+      expect(MessagesAchats.prixObligatoire, p['prix_obligatoire']);
+      expect(p['prix_obligatoire'], isNot(contains('coût moyen pondéré')));
       expect(MessagesAchats.aucunPoint, p['aucun_point']);
       expect(MessagesAchats.aucunFournisseur, p['aucun_fournisseur']);
       expect(MessagesAchats.pointIntrouvable, p['point_introuvable']);
@@ -421,10 +412,9 @@ void main() {
         p['motif_reception'],
       );
       expect(MessagesAchats.commandeCreee(':fournisseur'), p['commande_creee']);
-      // `reception_enregistree` n'est pas portée (D276) : le poste n'a aucun
-      // toast de réception et la phrase du serveur est fausse sur le coût
-      // moyen pondéré. Le serveur la porte toujours (sinon l'épinglage de
-      // `reception_valorisation_contre_serveur_test.dart` n'a plus d'objet).
+      // `reception_enregistree` n'est pas portée : le poste n'a aucun toast de
+      // réception. Le serveur la porte toujours, désormais vraie (« stock mis
+      // à jour », sans le coût moyen pondéré, 09/11/2026).
       expect(p['reception_enregistree'], contains(':conformite'));
       expect(MessagesAchats.fournisseurCree(':nom'), p['fournisseur_cree']);
       expect(

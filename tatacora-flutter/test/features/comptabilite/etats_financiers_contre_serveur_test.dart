@@ -46,6 +46,10 @@ void main() {
     (2030, 'OD', '281', '0.00', '120000.00', '2030-12-31'),
     (2030, 'OD', '671', '15000.00', '0.00', '2030-12-31'),
     (2030, 'OD', '561', '0.00', '15000.00', '2030-12-31'),
+    // Un compte que AUCUNE rubrique ne capte (4811) : le cas « hors
+    // nomenclature » ; 4431 n'en est plus un depuis le 09/11/2026.
+    (2030, 'OD', '4811', '0.00', '30000.00', '2030-09-01'),
+    (2030, 'OD', '5711', '30000.00', '0.00', '2030-09-01'),
     (2030, 'CL', '706', '200000.00', '0.00', '2030-12-31'),
     (2030, 'CL', '131', '0.00', '200000.00', '2030-12-31'),
     // 2031 — ouvert : bénéfice, hors activités ordinaires et impôt.
@@ -64,6 +68,14 @@ void main() {
     (2031, 'OD', '447', '0.00', '30000.00', '2031-06-10'),
     (2031, 'OD', '622', '45000.00', '0.00', '2031-06-12'),
     (2031, 'OD', '521', '0.00', '45000.00', '2031-06-12'),
+    // TVA : collectée (443), due (4441), récupérable (445), crédit à reporter (4449).
+    (2031, 'VTE', '5711', '118000.00', '0.00', '2031-07-01'),
+    (2031, 'VTE', '706', '0.00', '100000.00', '2031-07-01'),
+    (2031, 'VTE', '4432', '0.00', '18000.00', '2031-07-01'),
+    (2031, 'OD', '4452', '9000.00', '0.00', '2031-07-02'),
+    (2031, 'OD', '4441', '0.00', '4000.00', '2031-07-02'),
+    (2031, 'OD', '4449', '2500.00', '0.00', '2031-07-02'),
+    (2031, 'OD', '521', '0.00', '7500.00', '2031-07-02'),
     // 2032 — ouvert, une seule écriture : tout le reste est reporté.
     (2032, 'VTE', '5711', '10000.00', '0.00', '2032-01-05'),
     (2032, 'VTE', '706', '0.00', '10000.00', '2032-01-05'),
@@ -323,6 +335,14 @@ void main() {
     expect(compteResultatDe(2031, donnees).impotNonComptabilise, isFalse);
     expect(compteResultatDe(2030, donnees).impotNonComptabilise, isTrue);
     expect(bilanDe(2030, donnees).comptesHorsRubrique, isNotEmpty);
+    // 09/11/2026 : la TVA collectée (443/4432), due (4441), récupérable (445)
+    // et à reporter (4449) ont une rubrique : le bilan 2031, qui en porte, ne
+    // liste en « hors nomenclature » que le 4811 reporté de 2030 (mutation :
+    // retirer '443' ou '445' fait apparaître 4432 / 4452 ici).
+    expect(
+      bilanDe(2031, donnees).comptesHorsRubrique.map((c) => c.numeroCompte),
+      ['4811'],
+    );
     expect(balanceDe(2031, donnees).aNouveauxProvisoiresDe, 2030);
     expect(balanceDe(2032, donnees).aNouveauxProvisoiresDe, 2031);
     expect(balanceDe(2030, donnees).aNouveauxProvisoiresDe, isNull);

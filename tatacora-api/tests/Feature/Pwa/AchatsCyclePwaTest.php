@@ -172,9 +172,9 @@ final class AchatsCyclePwaTest extends TestCase
     /**
      * Un prix unitaire à zéro est refusé — et le refus est LISIBLE.
      *
-     * Sans prix, aucun montant de commande ne peut être calculé ni aucun coût
-     * moyen pondéré mis à jour à la réception : l'article entrerait en stock
-     * valorisé à rien, et la valeur du stock deviendrait fausse en silence.
+     * Sans prix, aucun montant de commande ne peut être calculé : la dette du
+     * fournisseur serait fausse en silence. (Corrigé le 09/11/2026 : la réception
+     * ne met aucun coût moyen pondéré à jour, D265 ; l'ancien commentaire le disait.)
      */
     #[Test]
     public function un_prix_unitaire_nul_est_refuse(): void

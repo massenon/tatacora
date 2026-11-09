@@ -329,13 +329,28 @@ abstract final class RubriquesBilan {
   static const immobilisationsBrutes = ['231', '234', '244', '245'];
   static const amortissements = ['28'];
   static const stocks = ['31', '32'];
-  static const creances = ['411'];
+  // Clients, plus les créances sur l'État au titre de la TVA : `445` (TVA
+  // récupérable) et `4449` (crédit de TVA à reporter). Même règle que le serveur
+  // (09/11/2026) : sans elles, une TVA déductible tombait « hors nomenclature ».
+  static const creances = ['411', '4449', '445'];
   static const tresorerieActif = ['521', '522', '55', '571', '572', '573'];
   static const capital = ['101'];
   // Tout le groupe 13 (`RESULTAT_REPORTE`) : la correspondance des comptes
   // (26/10/2026) peut rattacher le résultat à un autre compte de la classe 13.
   static const resultatReporte = ['13'];
-  static const dettesCirculantes = ['401', '4191', '421', '422', '431', '447'];
+  // `443` (TVA facturée : 4431, 4432…) et `4441` (État, TVA due) sont des dettes
+  // envers l'État : sans `443`, une vente avec TVA laissait le bilan déséquilibré
+  // de la TVA collectée (09/11/2026, même règle que le serveur).
+  static const dettesCirculantes = [
+    '401',
+    '4191',
+    '421',
+    '422',
+    '431',
+    '443',
+    '4441',
+    '447',
+  ];
   static const tresoreriePassif = ['561', '564', '565', '566'];
 
   static List<String> get tous => [

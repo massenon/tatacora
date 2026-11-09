@@ -148,7 +148,14 @@ fidélité littérale à la vue. On met la phrase VRAIE, avec le maximum des mot
 la vue ; l'écart est NOMMÉ au code (fichier de la vue, ce qu'elle dit, pourquoi
 on s'en écarte) ; un test épingle la fausseté à la source (il rougit le jour où
 la vue est corrigée) et un autre refuse la phrase fausse dans le code RENDU ;
-l'Architecte est saisi. Corollaire de mesure : écrire le chemin
+l'Architecte est saisi. **Soldé le 09/11/2026 (PO : « corrige les deux »)** : le
+web a été corrigé à la source (`achats_pwa.appro.form_avertissement_double`,
+`reception_enregistree`, `prix_obligatoire`, `pwa.appro.receptions_detail`) et
+dit désormais, au mot, la phrase VRAIE du poste ; l'écart n'existe plus, les
+tests (`conformite_achats_test`, `reception_valorisation_contre_serveur_test`,
+`calcul_achats_contre_serveur_test`) épinglent la même phrase des deux côtés et
+refusent la fausse DANS les deux — il rougit le jour où le web la réintroduit.
+Corollaire de mesure : écrire le chemin
 `pwa/….blade.php` dans un commentaire fait du fichier un PORTEUR de la vue —
 l'écart commenté avait fait baisser la dette (« Point de stockage ») sans qu'un
 pixel change. Écrire « la vue d'approvisionnement ».

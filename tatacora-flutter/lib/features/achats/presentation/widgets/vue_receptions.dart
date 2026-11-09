@@ -128,21 +128,17 @@ class _VueReceptionsState extends ConsumerState<VueReceptions> {
       children: [
         CadreListeAchats(
           titre: 'Bons de réception',
-          // ÉCART NOMMÉ (D276) — la vue dit, onglet Réceptions de la vue
-          // d'approvisionnement (`appro.receptions_detail`) :
-          // « Chaque réception a généré une entrée de stock valorisée au prix de la commande, qui a recalculé le coût moyen pondéré de l'article. »
-          // C'est FAUX, et le serveur EXÉCUTÉ le
-          // prouve (`tool/achats/rejouer_receptions.php`) : `ReceptionService`
-          // appelle `entree()` sans coût, le coût moyen pondéré et le dernier prix
-          // d'achat de l'article sont INCHANGÉS après une réception. Décision du
-          // Lead (12/10/2026) : un poste n'affiche pas une affirmation fausse sur
-          // de l'argent, la règle d'honnêteté prévaut sur la fidélité littérale.
-          // Phrase VRAIE, au plus près des mots de la vue ; la vue Blade est à
-          // faire corriger par l'Architecte (ticket D276).
+          // Phrase VRAIE, identique à celle de l'onglet Réceptions de la vue
+          // d'approvisionnement (`appro.receptions_detail`). Avant le 09/11/2026
+          // la vue disait « valorisée au prix de la commande, qui a recalculé le
+          // coût moyen pondéré » : FAUX, et le serveur EXÉCUTÉ le prouve
+          // (`tool/achats/rejouer_receptions.php`) : `ReceptionService` appelle
+          // `entree()` sans coût, le coût moyen pondéré et le dernier prix
+          // d'achat de l'article sont INCHANGÉS après une réception. La vue a
+          // été corrigée (D276 soldé) ; le poste la suivait déjà.
           sousTitre:
-              'Chaque réception a généré une entrée de stock, non valorisée : '
-              "le coût moyen pondéré de l'article n'est pas recalculé à la "
-              'réception.',
+              "Chaque réception a généré une entrée de stock, non valorisée : le coût moyen pondéré de l'"
+              "article n'est pas recalculé à la réception.",
           outils: BarreOutilsAchats(
             cle: const Key('outils-receptions'),
             prefixeCle: 'rec',

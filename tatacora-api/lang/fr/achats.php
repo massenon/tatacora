@@ -47,7 +47,7 @@ return [
         'quantite_positive' => 'La quantité doit être strictement positive : une saisie à zéro n\'est pas '
             . 'une ligne de commande.',
         'prix_obligatoire' => 'Le prix unitaire est obligatoire : sans lui aucun montant de commande ne '
-            . 'peut être calculé, ni aucun coût moyen pondéré mis à jour à la réception.',
+            . 'peut être calculé.',
         'statut_non_saisissable' => 'Ce statut ne se saisit pas à la création. Réceptionnée, réceptionnée '
             . 'partiellement et clôturée sont produits par une réception réelle, qui seule génère '
             . 'l\'entrée de stock correspondante.',

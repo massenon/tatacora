@@ -2190,8 +2190,10 @@ return [
 
         // maquette — l.404-410, l.418-422
         'receptions_titre' => 'Bons de réception',
-        'receptions_detail' => 'Chaque réception a généré une entrée de stock valorisée au prix de la '
-            . 'commande, qui a recalculé le coût moyen pondéré de l\'article.',
+        // Corrigé le 09/11/2026 (D265/D276) : l'ancienne phrase affirmait un recalcul du coût
+        // moyen pondéré ; la réception écrit une entrée SANS coût.
+        'receptions_detail' => 'Chaque réception a généré une entrée de stock, non valorisée : le coût '
+            . 'moyen pondéré de l\'article n\'est pas recalculé à la réception.',
         'recherche_reception' => 'N°, commande, fournisseur…',
         'toutes_receptions' => 'Toutes les réceptions',
         'receptions_conformes' => 'Conformes',
