@@ -158,3 +158,17 @@ final droitsProvider = Provider<GardeAcces>((ref) {
   final session = ref.watch(sessionProvider);
   return session?.droits ?? const GardeAcces.deconnecte();
 });
+
+/// Qui peut ANNULER un document de [module] sur ce poste (09/11/2026, décision du PO) : l'écriture
+/// sur le module ET le droit local `ANNULATIONS` de l'utilisateur CONNECTÉ. C'est le SEUL contrôle
+/// de « qui annule » : la règle « le document d'un autre poste ne s'annule que par l'administration
+/// ou le comptable » a disparu du poste comme du serveur, et le serveur ne juge plus le compte
+/// d'appairage. Réservations (M1), ventes (M5), factures (M2) passent toutes par ici.
+final peutAnnulerProvider = Provider.family<bool, ModuleTatacora>((
+  ref,
+  module,
+) {
+  final droits = ref.watch(droitsProvider);
+  return droits.peutEcrire(module) &&
+      droits.peutEcrire(ModuleTatacora.annulations);
+});

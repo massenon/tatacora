@@ -66,12 +66,14 @@ use RuntimeException;
  * TATACORA AFRIQUE confirme un barème à plusieurs paliers, il se branche ICI,
  * à un seul endroit.
  *
- * ## Commission sur le MONTANT GLOBAL — jamais sur l'acompte (§4.3, non négociable)
+ * ## Commission sur le MONTANT TOTAL, retenue sur ce qui a été payé (PO, 09/11/2026)
  *
- * `montant_commission_annulation = montant_total × taux / 100`. Si ce
- * montant dépasse l'acompte réellement détenu, le remboursement est
- * simplement nul (on ne peut pas restituer un argent qui n'a jamais été
- * encaissé) — le service ne fabrique jamais un remboursement négatif.
+ * `montant_commission_annulation = montant_total × taux / 100` (§4.3, le « montant initial »
+ * est le TOTAL de la réservation). Le taux dépend du délai avant l'arrivée (grille
+ * paramétrable : seuil d'heures, taux sous le seuil — 50 % de référence —, taux au-delà).
+ * Remboursé = max(0, payé − commission), jamais plus que le payé : réservation payée en
+ * totalité → total − commission ; acompte partiel → payé − commission (si le payé ne couvre
+ * pas la commission, remboursé = 0 et le client ne doit rien de plus).
  *
  * ## Remboursement : deux façons de saisir le MÊME nombre
  *
@@ -112,8 +114,16 @@ class AnnulationReservationService
      */
     public const TAUX_REFERENCE_PAR_DEFAUT = '50.00';
 
-    /** Le seuil validé en séance — « moins de 24 heures avant la prestation ». */
+    /** Le seuil validé en séance — « moins de 24 heures avant la prestation » (repli du paramètre). */
     public const SEUIL_HEURES = 24;
+
+    /** Seuil d'heures de la grille d'annulation — PARAMÉTRABLE (décision du PO du 09/11/2026). */
+    public const CLE_SEUIL_HEURES = 'hebergement_annulation_seuil_heures';
+
+    /** Taux d'une annulation faite AVANT le seuil — PARAMÉTRABLE, 0 % par défaut. */
+    public const CLE_TAUX_AU_DELA = 'hebergement_annulation_taux_au_dela';
+
+    public const TAUX_AU_DELA_PAR_DEFAUT = '0.00';
 
     /**
      * 4191 « Clients — avances et acomptes reçus (arrhes de réservation,
@@ -145,6 +155,29 @@ class AnnulationReservationService
         return (string) $this->parametres->get(self::CLE_TAUX_MOINS_24H, self::TAUX_REFERENCE_PAR_DEFAUT);
     }
 
+    /** Le seuil d'heures de la grille : le paramètre, ou 24 à défaut. */
+    public function seuilHeures(): int
+    {
+        $v = $this->parametres->get(self::CLE_SEUIL_HEURES, (string) self::SEUIL_HEURES);
+
+        return is_numeric($v) && (int) $v >= 0 ? (int) $v : self::SEUIL_HEURES;
+    }
+
+    /**
+     * Le taux à APPLIQUER selon le délai entre l'annulation et l'arrivée (grille par
+     * délai) : sous le seuil, le taux « moins de 24h » (référence 50 %) ; au-delà, le
+     * taux « au-delà du seuil » (0 % par défaut). Pré-remplit le formulaire, que
+     * l'opérateur peut encore corriger.
+     */
+    public function tauxPourReservation(Reservation $reservation, ?Carbon $maintenant = null): string
+    {
+        if ($this->estSousLeSeuil($reservation, $maintenant)) {
+            return $this->tauxParDefaut();
+        }
+
+        return (string) $this->parametres->get(self::CLE_TAUX_AU_DELA, self::TAUX_AU_DELA_PAR_DEFAUT);
+    }
+
     /**
      * Délai, en heures, entre MAINTENANT et le début de la journée d'arrivée.
      *
@@ -169,7 +202,7 @@ class AnnulationReservationService
     /** Le cas de référence validé en séance : moins de 24h avant la prestation. */
     public function estSousLeSeuil(Reservation $reservation, ?Carbon $maintenant = null): bool
     {
-        return $this->delaiHeuresAvantArrivee($reservation, $maintenant) < self::SEUIL_HEURES;
+        return $this->delaiHeuresAvantArrivee($reservation, $maintenant) < $this->seuilHeures();
     }
 
     /**

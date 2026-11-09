@@ -12,7 +12,6 @@ import '../domain/entities/piece_facturation.dart';
 import '../domain/ifu_client.dart';
 import '../domain/repositories/facture_repository.dart';
 import '../domain/statut_normalisation.dart';
-import '../../synchronisation/data/documents_autres_postes.dart';
 import '../../synchronisation/data/operations_sync_dao.dart';
 import '../../synchronisation/domain/charges_synchronisation.dart';
 import '../../synchronisation/domain/operation_sync.dart';
@@ -327,13 +326,10 @@ class FactureDao extends DatabaseAccessor<AppDatabase> with _$FactureDaoMixin {
   }) async {
     final motifNet = motif.trim();
     if (motifNet.isEmpty) throw const MotifAnnulationRequis();
-    // Q3 (lot F6) : la facture d'un autre poste (ou du serveur), par
-    // l'administration ou le comptable seulement.
-    if (!await DocumentsAutresPostes(
-      attachedDatabase,
-    ).peutAnnuler('factures', pieceId, auteurId)) {
-      throw const AnnulationAutrePosteRefusee();
-    }
+    // 09/11/2026 (décision du PO) : plus de règle « facture d'un autre poste » ici ni au
+    // serveur ; qui peut annuler est jugé par l'ÉCRAN (droit ANNULATIONS + M2 en écriture de
+    // l'utilisateur connecté). Ce geste exécute, et garde la cohérence : une facture NORMALISÉE
+    // est figée et se corrige par avoir, un avoir total déjà émis refuse, déjà annulée = refusée.
 
     final idAvoir = _uuid.v4();
 

@@ -388,7 +388,7 @@ void main() {
       'au journal',
       (tester) async {
         final p = await vente();
-        await monter(tester, droits: const {'M5': 'C'});
+        await monter(tester, droits: const {'M5': 'C', 'ANNULATIONS': 'C'});
 
         await tester.tap(find.byKey(Key('vente-ligne-${p.id}')));
         await tester.pumpAndSettle();

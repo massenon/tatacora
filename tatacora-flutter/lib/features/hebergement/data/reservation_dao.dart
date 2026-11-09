@@ -13,6 +13,7 @@ import '../../../core/database/tables/hebergement_tables.dart';
 import '../../comptabilite/data/moteur_comptable.dart';
 import '../../synchronisation/data/documents_autres_postes.dart';
 import '../../synchronisation/data/operations_sync_dao.dart';
+import '../../synchronisation/data/relance_anciens_refus.dart';
 import '../../synchronisation/domain/charges_synchronisation.dart';
 import '../../synchronisation/domain/operation_sync.dart';
 import '../domain/annulation_reservation.dart';
@@ -551,57 +552,13 @@ class ReservationDao extends DatabaseAccessor<AppDatabase>
     }
   });
 
-  /// Une annulation REFUSÉE avant le 09/11/2026 par la règle « la réservation d'un autre poste ne
-  /// s'annule que par l'administration ou le comptable » (`DocumentsAutresPostes.refus`, retirée du
-  /// serveur) est RENVOYÉE d'elle-même, une fois : le serveur l'accepte désormais, et personne n'a à
-  /// cliquer « Relancer » (décision du PO : « aucune opération ne doit bloquer la synchronisation »).
-  /// La charge renvoyée porte l'auteur local (login de l'opération) que l'ancienne ne portait pas.
-  /// Le refus reste dans l'historique de la file, marqué remplacé.
-  Future<void> _relancerLesRefusDeLAncienneRegle(String id) async {
-    final file = OperationsSyncDao(attachedDatabase);
-    final remplacees = await file.remplacees();
-    for (final o in await file.operations(
-      table: TableSynchronisee.reservations,
-      entiteId: id,
-    )) {
-      if (o.statut != StatutOperationSync.rejete ||
-          remplacees.containsKey(o.uuidOperation)) {
-        continue;
-      }
-      final motif = _motifDuRefus(o.resultatJson);
-      if (motif == null || !motif.startsWith(_debutDuRefus)) continue;
-      final charge = jsonDecode(o.payload);
-      if (charge is! Map<String, Object?> || charge['statut'] != 'annulee') {
-        continue;
-      }
-      final login = o.auteurLogin;
-      await file.renvoyer(
-        o.uuidOperation,
-        chargeCorrigee: {
-          ...charge,
-          if (login != null && login.isNotEmpty && charge['auteur'] == null)
-            'auteur': login,
-        },
-      );
-    }
-  }
-
-  /// Les premiers mots de la phrase retirée, assez longs pour ne pas se tromper de refus.
-  static final String _debutDuRefus = DocumentsAutresPostes.refus.substring(
-    0,
-    DocumentsAutresPostes.refus.indexOf(' ('),
-  );
-
-  static String? _motifDuRefus(String? resultatJson) {
-    if (resultatJson == null) return null;
-    try {
-      final r = jsonDecode(resultatJson);
-      final m = r is Map ? r['motif'] : null;
-      return m is String ? m : null;
-    } on FormatException {
-      return null;
-    }
-  }
+  /// Une annulation REFUSÉE avant le 09/11/2026 par l'ancienne règle « d'un autre poste » est
+  /// RENVOYÉE d'elle-même, une fois (`RelanceDesAnciensRefus`, qui sert aussi aux ventes, factures,
+  /// paiements et règlements fournisseur). L'auteur local est ajouté à la charge renvoyée.
+  Future<void> _relancerLesRefusDeLAncienneRegle(String id) =>
+      RelanceDesAnciensRefus(
+        attachedDatabase,
+      ).relancer(tables: {TableSynchronisee.reservations}, entiteId: id);
 
   Future<void> _rattraper(ReservationsLocalData l) async {
     final file = OperationsSyncDao(attachedDatabase);

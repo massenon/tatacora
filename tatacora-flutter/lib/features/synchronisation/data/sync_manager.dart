@@ -17,6 +17,7 @@ import 'descente_catalogue_dao.dart';
 import 'envoi_recus_depenses.dart';
 import 'telechargement_images_document.dart';
 import 'operations_sync_dao.dart';
+import 'relance_anciens_refus.dart';
 import 'transport_synchronisation.dart';
 
 /// Le MOTEUR D'ENVOI de la file (lot F2a, 15/10/2026) — `POST /api/v1/sync`.
@@ -329,6 +330,21 @@ class SyncManager {
     // Les badges de réservation d'aplomb avec la file, et le rattrapage des lignes
     // modifiées par une version qui n'enfilait que le déplacement (jamais bloquant).
     if (!descenteSeule) {
+      try {
+        // Les annulations refusées avant le 09/11/2026 par l'ancienne règle « document d'un autre
+        // poste » (ventes, factures, paiements, règlements fournisseur) repartent d'elles-mêmes ;
+        // les réservations sont reprises par `reconcilierTout`.
+        await RelanceDesAnciensRefus(_dao.attachedDatabase).relancer(
+          tables: {
+            TableSynchronisee.ventes,
+            TableSynchronisee.factures,
+            TableSynchronisee.paiements,
+            TableSynchronisee.reglementsFournisseur,
+          },
+        );
+      } on Object {
+        // Jamais bloquant : la file passe d'abord.
+      }
       try {
         await ReservationDao(_dao.attachedDatabase).reconcilierTout();
       } on Object {

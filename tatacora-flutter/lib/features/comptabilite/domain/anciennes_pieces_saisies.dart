@@ -24,8 +24,7 @@ const List<String> journauxDesModulesEtDeCloture = [
   'AN',
 ];
 
-/// Les rôles admis au geste : l'administration et le comptable
-/// (`DocumentsAutresPostes.rolesAdmis`).
+/// Les rôles admis au geste : l'administration et le comptable.
 const Set<String> rolesEnvoiAnciennesPieces = {
   'administrateur',
   'super_admin',

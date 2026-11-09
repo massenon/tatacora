@@ -283,7 +283,7 @@ void main() {
     final rejetee = (await b.dao.operations()).single;
     expect(rejetee.statut, StatutOperationSync.rejete);
     expect(rejetee.derniereErreur, phrase);
-    expect(causeDe(rejetee, motif: phrase).titre, 'Droit manquant');
+    expect(causeDe(rejetee, motif: phrase).titre, 'Opération réservée');
     // La valeur reste modifiée localement : le poste fonctionne sans le serveur.
     expect(
       (await ParametresDao(b.db).lireTout())['facturation_mode'],

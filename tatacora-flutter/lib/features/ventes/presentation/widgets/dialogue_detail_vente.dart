@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/di/providers.dart' show droitsProvider;
+import '../../../../core/di/providers.dart' show peutAnnulerProvider;
 import '../../../../core/format/formats.dart';
 import '../../../../core/rbac/garde_acces.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -473,9 +473,9 @@ class _EtatBlocAnnulation extends ConsumerState<_BlocAnnulation> {
 
   @override
   Widget build(BuildContext context) {
-    final peutEcrire = ref
-        .watch(droitsProvider)
-        .peutEcrire(ModuleTatacora.m5Bar);
+    // 09/11/2026 : M5 en écriture ET droit local ANNULATIONS de l'utilisateur connecté (le seul
+    // contrôle de « qui annule » : plus de règle « vente d'un autre poste », ni ici ni au serveur).
+    final peutEcrire = ref.watch(peutAnnulerProvider(ModuleTatacora.m5Bar));
     if (!peutEcrire) return const SizedBox.shrink();
 
     const etiquette = TextStyle(

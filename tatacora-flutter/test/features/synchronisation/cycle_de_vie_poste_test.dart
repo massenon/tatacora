@@ -7,7 +7,6 @@ import 'package:tatacora_flutter/features/facturation/data/facture_dao.dart';
 import 'package:tatacora_flutter/features/hebergement/data/reservation_dao.dart';
 import 'package:tatacora_flutter/features/hebergement/domain/entities/reservation.dart';
 import 'package:tatacora_flutter/features/stocks/data/stocks_dao.dart';
-import 'package:tatacora_flutter/features/synchronisation/data/documents_autres_postes.dart';
 import 'package:tatacora_flutter/features/synchronisation/data/operations_sync_dao.dart';
 import 'package:tatacora_flutter/features/synchronisation/domain/operation_sync.dart';
 
@@ -194,8 +193,8 @@ void main() {
     expect(jsonDecode(ops.single.payload), {'statut': 'envoyee'});
   });
 
-  test('Facture : celle d’un autre poste ne s’annule pas sans auteur '
-      'd’administration ou comptable', () async {
+  test('Facture : celle d’un autre poste s’annule comme les autres — le droit '
+      'se juge à l’écran, plus dans l’écrivain (PO, 09/11/2026)', () async {
     await db.customStatement(
       'INSERT INTO pieces_facturation_local (id, numero, origine, '
       'date_emission, client_nom, statut, statut_transmission) VALUES '
@@ -210,11 +209,7 @@ void main() {
     await descendu('factures', 'f-srv');
     final factures = FactureDao(db);
 
-    await expectLater(
-      factures.annuler('f-srv', 'Erreur', auteurId: 'u-recep'),
-      throwsA(isA<AnnulationAutrePosteRefusee>()),
-    );
-    await factures.annuler('f-srv', 'Erreur', auteurId: auteurEssai);
+    await factures.annuler('f-srv', 'Erreur', auteurId: 'u-recep');
     expect((await factures.parId('f-srv'))!.estAnnulee, isTrue);
   });
 }

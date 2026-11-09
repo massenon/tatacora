@@ -848,9 +848,9 @@ class PanierDao extends DatabaseAccessor<AppDatabase> with _$PanierDaoMixin {
   ///
   /// Le motif d'abord (`PosComptant::annulerVente` : « le journal doit dire
   /// pourquoi »), puis la vente (absente : un panier ouvert n'est pas une vente),
-  /// puis « déjà annulée ». S'y ajoute la règle Q3 de ce poste : la vente d'un
-  /// AUTRE poste ne s'annule que par l'administration ou le comptable, comme le
-  /// serveur le refuserait à la synchronisation.
+  /// puis « déjà annulée ». La règle Q3 (la vente d'un AUTRE poste ne
+  /// s'annule que par l'administration ou le comptable) est RETIRÉE depuis le 09/11/2026 : le
+  /// droit ANNULATIONS se juge à l'écran.
   ///
   /// ## Ce que l'annulation écrit, dans UNE transaction
   ///
@@ -894,11 +894,9 @@ class PanierDao extends DatabaseAccessor<AppDatabase> with _$PanierDaoMixin {
       if (statut == StatutPanier.annule) {
         throw RefusVente(MessagesVentes.dejaAnnulee(_numero(panierId)));
       }
-      if (!await DocumentsAutresPostes(
-        attachedDatabase,
-      ).peutAnnuler(TableSynchronisee.ventes.nomServeur, panierId, auteurId)) {
-        throw const RefusVente(DocumentsAutresPostes.refus);
-      }
+      // 09/11/2026 (décision du PO) : plus de règle « vente d'un autre poste » ici ni au serveur ;
+      // qui peut annuler est jugé par l'ÉCRAN (droit ANNULATIONS + M5 en écriture de l'utilisateur
+      // connecté). Ce geste exécute, et garde la cohérence : motif, vente absente, déjà annulée.
 
       final lignes = await ComptabiliteDao(
         attachedDatabase,

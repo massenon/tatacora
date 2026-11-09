@@ -1291,6 +1291,26 @@ void main() {
       expect(find.byKey(Key('annuler-${r.id}')), findsNothing);
     });
 
+    testWidgets(
+      '« Annuler » à moins de 24 h de l’arrivée : le taux de 50 % est '
+      'appliqué automatiquement (grille par délai)',
+      (tester) async {
+        final r = await creerEnBase(p: periode(0, 2));
+        await monter(tester, const EcranReservations());
+
+        await tester.tap(find.byKey(Key('annuler-${r.id}')));
+        await tester.pumpAndSettle();
+
+        expect(
+          tester
+              .widget<TextField>(find.byKey(const Key('annulation-taux')))
+              .controller!
+              .text,
+          '50.00',
+        );
+      },
+    );
+
     testWidgets('« Annuler » ouvre la modale du serveur : taux pré-rempli, '
         'refus aux mots du serveur, commission sur le montant GLOBAL', (
       tester,
@@ -1306,13 +1326,14 @@ void main() {
         find.byKey(const Key('modale-annulation-reservation')),
         findsOneWidget,
       );
-      // Le taux de référence du client, jamais imposé.
+      // Arrivée dans 10 jours : au-delà du seuil de 24 h, le taux « au-delà » (0 % par
+      // défaut) est appliqué automatiquement — modifiable, jamais imposé.
       expect(
         tester
             .widget<TextField>(find.byKey(const Key('annulation-taux')))
             .controller!
             .text,
-        '50.00',
+        '0.00',
       );
       expect(
         tester.widget<Text>(find.byKey(const Key('annulation-total'))).data,
@@ -1371,7 +1392,7 @@ void main() {
           clientId: 'cli-dossou',
           clientNom: 'DOSSOU Marie',
           uniteId: uniteId,
-          periode: periode(10, 12),
+          periode: periode(0, 2),
           tarifNuit: 28000,
           statut: StatutReservation.confirmee,
           statutSynchronisation: StatutSynchronisation.local,
@@ -1477,9 +1498,7 @@ void main() {
       // Aucun MONTANT : la phrase d'aide de l'onglet (qui nomme « FCFA ») n'en est pas un.
       expect(
         find.byWidgetPredicate(
-          (w) =>
-              w is Text &&
-              (w.data ?? '').contains('FCFA'),
+          (w) => w is Text && (w.data ?? '').contains('FCFA'),
         ),
         findsNothing,
       );

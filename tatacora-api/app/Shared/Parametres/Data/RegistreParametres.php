@@ -509,6 +509,26 @@ final class RegistreParametres
                     . 'annulation déjà enregistrée.',
             ),
             new DefinitionParametre(
+                cle: AnnulationReservationService::CLE_SEUIL_HEURES,
+                groupe: self::GROUPE_EXPLOITATION,
+                libelle: 'Annulation — seuil du délai avant l’arrivée (heures)',
+                type: 'entier',
+                regles: ['integer', 'min:0', 'max:8760'],
+                aide: 'Grille d’annulation : une annulation faite à moins de ce nombre d’heures '
+                    . 'avant la date d’arrivée prend le taux « moins de 24h » ; au-delà, le taux '
+                    . '« au-delà du seuil ». Appliqué automatiquement à l’ouverture du formulaire '
+                    . '(reste corrigeable). Référence : 24 h.',
+            ),
+            new DefinitionParametre(
+                cle: AnnulationReservationService::CLE_TAUX_AU_DELA,
+                groupe: self::GROUPE_EXPLOITATION,
+                libelle: 'Annulation — taux au-delà du seuil (%)',
+                type: 'decimal',
+                regles: ['numeric', 'min:0', 'max:100'],
+                aide: 'Taux de commission d’une annulation faite avant le seuil d’heures (0 % par '
+                    . 'défaut). La commission se retient sur le montant déjà payé.',
+            ),
+            new DefinitionParametre(
                 cle: CongeService::CLE_PREAVIS,
                 groupe: self::GROUPE_EXPLOITATION,
                 libelle: 'Préavis de congé (jours)',

@@ -56,7 +56,13 @@ Future<bool> ouvrirModaleAnnulationReservation(
     return false;
   }
 
-  final tauxInitial = await ref.read(tauxAnnulationParDefautProvider.future);
+  final grille = await ref.read(grilleAnnulationProvider.future);
+  final maintenant = ref.read(horlogeAnnulationProvider)();
+  // Le taux est APPLIQUÉ automatiquement selon le délai avant l'arrivée
+  // (grille paramétrable) ; l'opérateur peut encore le corriger au cas par cas.
+  final tauxInitial = grille.tauxPour(
+    delaiHeuresAvantArrivee(reservation.periode.arrivee, maintenant),
+  );
   final client = await ref.read(clientDaoProvider).parId(reservation.clientId);
   if (!context.mounted) return false;
 
@@ -73,7 +79,8 @@ Future<bool> ouvrirModaleAnnulationReservation(
       reservation: reservation,
       nomClient: nom,
       tauxInitial: tauxInitial,
-      maintenant: ref.read(horlogeAnnulationProvider)(),
+      maintenant: maintenant,
+      seuilHeures: grille.seuilHeures,
     ),
   );
   if (annulee != true) return false;
@@ -99,6 +106,7 @@ class ModaleAnnulationReservation extends ConsumerStatefulWidget {
     required this.reservation,
     required this.tauxInitial,
     required this.maintenant,
+    this.seuilHeures = ReglesAnnulation.seuilHeures,
     this.nomClient,
     super.key,
   });
@@ -114,6 +122,9 @@ class ModaleAnnulationReservation extends ConsumerStatefulWidget {
 
   /// L'instant de l'ouverture : le délai avant l'arrivée en dépend.
   final DateTime maintenant;
+
+  /// Le seuil d'heures de la grille (paramètre), 24 à défaut.
+  final int seuilHeures;
 
   @override
   ConsumerState<ModaleAnnulationReservation> createState() =>
@@ -213,7 +224,7 @@ class _EtatModaleAnnulation extends ConsumerState<ModaleAnnulationReservation> {
   Widget build(BuildContext context) {
     final r = widget.reservation;
     final delai = delaiHeuresAvantArrivee(r.periode.arrivee, widget.maintenant);
-    final sousSeuil = delai < ReglesAnnulation.seuilHeures;
+    final sousSeuil = delai < widget.seuilHeures;
     final aUnAcompte = _acompteCentimes > 0;
 
     return CoquilleModaleRestaurant(

@@ -117,6 +117,15 @@ final tauxAnnulationParDefautProvider = FutureProvider.autoDispose<String>((
   return tauxParDefaut(valeurs);
 });
 
+/// La grille d'annulation par délai (seuil d'heures, taux sous le seuil, taux
+/// au-delà) — paramétrable, lue à chaque ouverture sans cache.
+final grilleAnnulationProvider = FutureProvider.autoDispose<GrilleAnnulation>((
+  ref,
+) async {
+  final valeurs = await ParametresDao(ref.watch(baseLocaleProvider)).lireTout();
+  return grilleAnnulation(valeurs);
+});
+
 /// Le dépôt réellement utilisé par l'application — **local, et seul**.
 ///
 /// Exposé sous le type du **contrat**, comme avant : un écran ne doit pas
@@ -370,11 +379,9 @@ final peutEcrireHebergementProvider = Provider<bool>(
 /// le compte d'appairage sur les opérations d'un poste (décision du PO : « aucune opération ne doit
 /// bloquer la synchronisation »), et la règle « la réservation d'un autre poste ne s'annule que par
 /// l'administration ou le comptable » a disparu du poste comme du serveur.
-final peutAnnulerReservationProvider = Provider<bool>((ref) {
-  final droits = ref.watch(droitsProvider);
-  return droits.peutEcrire(ModuleTatacora.m1Hebergement) &&
-      droits.peutEcrire(ModuleTatacora.annulations);
-});
+final peutAnnulerReservationProvider = Provider<bool>(
+  (ref) => ref.watch(peutAnnulerProvider(ModuleTatacora.m1Hebergement)),
+);
 
 /// Le terme de recherche de la barre d'outils du plan.
 final rechercheParcProvider = NotifierProvider<_RechercheParcNotifier, String>(

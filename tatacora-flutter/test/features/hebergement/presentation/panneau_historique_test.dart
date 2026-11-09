@@ -429,9 +429,9 @@ void main() {
 
     final relue = await depot.parId(r.id);
     expect(relue!.statut, StatutReservation.annulee);
-    // 2 nuits à 28 000 F, taux de référence de 50 %.
+    // 2 nuits à 28 000 F ; arrivée dans 10 jours, au-delà du seuil : taux 0 % (grille par délai).
     expect(relue.annulation!.totalCentimes, 5600000);
-    expect(relue.annulation!.commissionCentimes, 2800000);
+    expect(relue.annulation!.commissionCentimes, 0);
     // Conservée : elle passe en annulée, elle n'est pas effacée (RG-02).
     expect(await depot.reservations(), hasLength(1));
   });

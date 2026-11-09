@@ -749,9 +749,7 @@ class _Table extends StatelessWidget {
               // l.303-311) : sans cette marge, une colonne alignée à droite
               // (« Remboursé ») touchait la suivante (« Annulée le »).
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
                 child: Text(
                   cellules[i],
                   textAlign: droite.contains(i) ? TextAlign.right : null,

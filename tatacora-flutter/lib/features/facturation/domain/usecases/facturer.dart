@@ -240,8 +240,8 @@ final class Facturer {
 
   /// Annule une facture **par avoir**. Rien n'est effacé.
   ///
-  /// [auteurId] : le compte qui annule — une facture d'un AUTRE poste ne
-  /// s'annule que par l'administration ou le comptable (Q3, lot F6).
+  /// [auteurId] : le compte qui annule (contre-passation). Plus de règle « facture d'un AUTRE
+  /// poste » depuis le 09/11/2026 : le droit ANNULATIONS se juge à l'écran.
   Future<AnnulationParAvoir> annuler(
     String pieceId,
     String motif, {

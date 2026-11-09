@@ -373,13 +373,10 @@ class ReglementsFournisseurDao extends DatabaseAccessor<AppDatabase> {
     if (estVideAuSensDePhp(motif)) {
       throw const RefusReglement(MessagesReglement.motifRequis);
     }
-    // Q3 : le règlement d'un autre poste, par l'administration ou le
-    // comptable seulement.
-    if (!await DocumentsAutresPostes(
-      attachedDatabase,
-    ).peutAnnuler('reglements_fournisseur', reglementId, auteurId)) {
-      throw const RefusReglement(DocumentsAutresPostes.refus);
-    }
+    // 09/11/2026 (décision du PO) : plus de règle « règlement d'un autre poste » ici ni au
+    // serveur ; qui peut annuler est jugé par l'ÉCRAN (droit ANNULATIONS + module de
+    // l'utilisateur connecté). Ce geste exécute, et garde la cohérence ci-dessus (déjà annulé,
+    // motif, pièce retrouvée équilibrée).
 
     final moteurComptable = await _moteurObligatoire();
 

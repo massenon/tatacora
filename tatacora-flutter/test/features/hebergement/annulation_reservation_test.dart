@@ -186,6 +186,35 @@ void main() {
       );
     });
 
+    test('payé en totalité (40 000 sur 40 000), 50 % : remboursé = payé − '
+        'commission = total − commission', () {
+      final r = applique(total: 40000, acompte: 40000, taux: '50');
+      expect(r.commissionCentimes, 2000000);
+      // Le remboursé SAISI (ici la valeur proposée : payé − commission).
+      final propose = pourcentageRembourseSuggere(
+        acompteCentimes: 4000000,
+        totalCentimes: 4000000,
+        taux: '50.00',
+      );
+      expect(propose, '50.00'); // 50 % du payé = 20 000 = 40 000 − 20 000
+    });
+
+    test('la GRILLE par délai : sous le seuil le taux de 50 %, au-delà 0 % ; '
+        'seuil et taux paramétrables', () {
+      final defaut = grilleAnnulation(const {});
+      expect(defaut.seuilHeures, 24);
+      expect(defaut.tauxPour(10), '50.00');
+      expect(defaut.tauxPour(24), '0.00');
+      expect(defaut.tauxPour(-5), '50.00'); // arrivée déjà passée
+      final reglee = grilleAnnulation(const {
+        'hebergement_annulation_seuil_heures': '72',
+        'hebergement_annulation_taux_au_dela': '10',
+        'hebergement_taux_annulation_moins_24h': '40',
+      });
+      expect(reglee.tauxPour(48), '40');
+      expect(reglee.tauxPour(100), '10');
+    });
+
     test('Pierre : 90 000, 20 %, acompte 0 -> commission 18 000, remboursé 0 '
         '(on ne rend pas un acompte jamais encaissé)', () {
       final r = applique(total: 90000, acompte: 0, taux: '20');

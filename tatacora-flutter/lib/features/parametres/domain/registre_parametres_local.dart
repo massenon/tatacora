@@ -552,6 +552,28 @@ abstract final class RegistreParametresLocal {
       lecteur: 'lib/features/hebergement/domain/annulation_reservation.dart',
     ),
     SpecParametre(
+      cle: 'hebergement_annulation_seuil_heures',
+      groupe: 'exploitation',
+      libelle: 'Annulation — seuil du délai avant l’arrivée (heures)',
+      type: TypeParametre.entier,
+      aide:
+          'Grille d’annulation : une annulation faite à moins de ce nombre d’heures avant la date d’arrivée prend le taux « moins de 24h » ; au-delà, le taux « au-delà du seuil ». Appliqué automatiquement à l’ouverture du formulaire (reste corrigeable). Référence : 24 h.',
+      minimum: '0',
+      maximum: '8760',
+      lecteur: 'lib/features/hebergement/domain/annulation_reservation.dart',
+    ),
+    SpecParametre(
+      cle: 'hebergement_annulation_taux_au_dela',
+      groupe: 'exploitation',
+      libelle: 'Annulation — taux au-delà du seuil (%)',
+      type: TypeParametre.decimal,
+      aide:
+          'Taux de commission d’une annulation faite avant le seuil d’heures (0 % par défaut). La commission se retient sur le montant déjà payé.',
+      minimum: '0',
+      maximum: '100',
+      lecteur: 'lib/features/hebergement/domain/annulation_reservation.dart',
+    ),
+    SpecParametre(
       cle: 'delai_preavis_conge_jours',
       groupe: 'exploitation',
       libelle: 'Préavis de congé (jours)',

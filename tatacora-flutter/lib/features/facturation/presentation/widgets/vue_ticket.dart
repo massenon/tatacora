@@ -81,10 +81,11 @@ class VueTicket extends ConsumerWidget {
         CertifiePar.rien;
     final ticket = TicketFacture.composer(piece, normalisable: normalisable);
     final auteur = ref.watch(auteurEditionProvider);
-    final peutAnnuler = ref
-        .watch(droitsProvider)
-        .niveau(ModuleTatacora.m2Facturation)
-        .peutEcrire;
+    // 09/11/2026 : M2 en écriture ET droit local ANNULATIONS de l'utilisateur connecté (le seul
+    // contrôle de « qui annule » : plus de règle « facture d'un autre poste », ni ici ni au serveur).
+    final peutAnnuler = ref.watch(
+      peutAnnulerProvider(ModuleTatacora.m2Facturation),
+    );
 
     return AlertDialog(
       key: const Key('facturation-ticket'),

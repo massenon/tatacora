@@ -520,7 +520,7 @@ final class Reservations extends PageMetier
         $this->ouvrirFormulaire('annulation');
 
         $this->reservationAAnnuler = $reservation->id;
-        $this->aTaux = $annulations->tauxParDefaut();
+        $this->aTaux = $annulations->tauxPourReservation($reservation);
         $this->aModeRemboursement = 'pourcentage';
         $this->aDelaiHeures = $annulations->delaiHeuresAvantArrivee($reservation);
         $this->aSousLeSeuil = $annulations->estSousLeSeuil($reservation);
@@ -583,7 +583,7 @@ final class Reservations extends PageMetier
 
     /**
      * Le pourcentage de l'ACOMPTE proposé par défaut dans le formulaire :
-     * ce qu'il resterait de l'acompte après la commission théorique
+     * ce qu'il resterait de l'acompte après la commission
      * (taux × montant total), jamais négatif. Un simple point de départ —
      * `annulerReservation()` ne relit jamais cette suggestion, seule la
      * valeur effectivement soumise compte.

@@ -809,7 +809,10 @@ Future<List<Map<String, Object?>>> _jouerLocalement(
             resultats.add({'banniere': MessagesAnnulation.montantTotalInconnu});
             continue;
           }
-          final taux = tauxParDefaut(await parametres.lireTout());
+          final grille = grilleAnnulation(await parametres.lireTout());
+          final taux = grille.tauxPour(
+            delaiHeuresAvantArrivee(r.periode.arrivee, maintenant),
+          );
           sortie['ouverture'] = {
             'taux': taux,
             'mode': ModesRemboursement.pourcentage,
@@ -821,7 +824,9 @@ Future<List<Map<String, Object?>>> _jouerLocalement(
             'delai': formaterHeures(
               delaiHeuresAvantArrivee(r.periode.arrivee, maintenant),
             ),
-            'sous_seuil': estSousLeSeuil(r.periode.arrivee, maintenant),
+            'sous_seuil': grille.estSousLeSeuil(
+              delaiHeuresAvantArrivee(r.periode.arrivee, maintenant),
+            ),
           };
         }
 

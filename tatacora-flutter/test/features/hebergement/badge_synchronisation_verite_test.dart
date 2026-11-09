@@ -253,7 +253,7 @@ void main() {
     await accuser(
       ancienne.uuidOperation,
       'rejete',
-      motif: DocumentsAutresPostes.refus,
+      motif: DocumentsAutresPostes.ancienRefus,
     );
     await dao.reconcilierStatutSync('res-1');
     expect(await badge(), StatutSynchronisation.rejete);

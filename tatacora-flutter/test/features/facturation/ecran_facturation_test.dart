@@ -141,6 +141,7 @@ void main() {
                     'M2': 'C',
                     'M5': 'C',
                     'M1': 'C',
+                    'ANNULATIONS': 'C',
                   }),
             ),
           ),
@@ -172,7 +173,12 @@ void main() {
           logoEtablissementProvider.overrideWith((ref) async => null),
           droitsProvider.overrideWithValue(
             droits ??
-                GardeAcces.depuisJson(const {'M2': 'C', 'M5': 'C', 'M1': 'C'}),
+                GardeAcces.depuisJson(const {
+                  'M2': 'C',
+                  'M5': 'C',
+                  'M1': 'C',
+                  'ANNULATIONS': 'C',
+                }),
           ),
         ],
         child: MaterialApp(
