@@ -200,6 +200,7 @@ class _EtatEcranChangementMotDePasse
             style: TextButton.styleFrom(
               foregroundColor: AppColors.navy,
               textStyle: const TextStyle(
+                fontFamily: AppTextStyles.police,
                 fontSize: MesuresConnexion.tailleBouton,
                 fontWeight: MesuresConnexion.poidsBouton,
               ),

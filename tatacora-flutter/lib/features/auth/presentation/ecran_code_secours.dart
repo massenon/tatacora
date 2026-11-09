@@ -149,6 +149,7 @@ class _EtatEcranCodeSecours extends ConsumerState<EcranCodeSecours> {
         style: TextButton.styleFrom(
           foregroundColor: AppColors.navy,
           textStyle: const TextStyle(
+            fontFamily: AppTextStyles.police,
             fontSize: MesuresConnexion.tailleBouton,
             fontWeight: MesuresConnexion.poidsBouton,
           ),

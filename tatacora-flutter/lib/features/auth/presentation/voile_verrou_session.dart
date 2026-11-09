@@ -345,6 +345,7 @@ class _EtatContenuVoile extends ConsumerState<_ContenuVoile> {
               borderRadius: BorderRadius.circular(AppRadius.roundedLg),
             ),
             textStyle: const TextStyle(
+              fontFamily: AppTextStyles.police,
               fontSize: Tailles.t14,
               fontWeight: FontWeight.w600,
             ),

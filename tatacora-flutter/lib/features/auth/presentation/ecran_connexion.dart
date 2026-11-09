@@ -395,6 +395,7 @@ class _EtatEcranConnexion extends ConsumerState<EcranConnexion> {
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 textStyle: const TextStyle(
+                  fontFamily: AppTextStyles.police,
                   fontSize: MesuresConnexion.tailleBouton,
                   fontWeight: MesuresConnexion.poidsBouton,
                 ),
@@ -1323,6 +1324,7 @@ class BoutonPleinConnexion extends StatelessWidget {
               ),
               textStyle: WidgetStatePropertyAll(
                 TextStyle(
+                  fontFamily: AppTextStyles.police,
                   fontSize: MesuresConnexion.tailleBouton,
                   fontWeight: MesuresConnexion.poidsBouton,
                 ),
