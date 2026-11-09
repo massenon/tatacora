@@ -32,7 +32,7 @@ abstract final class TextesEcranSynchronisation {
   static const desactivee =
       'Synchronisation désactivée : ce poste travaille seul, sans aucune '
       'connexion au serveur. Les opérations restent en attente et partiront, '
-      'dans l’ordre, à la réactivation (Paramètres, onglet Synchronisation).';
+      'dans l’ordre, à la réactivation (Paramètres, onglet Appairage Postes).';
 
   /// Le contrôle de cohérence (P1-1, 18/10/2026).
   static const String sectionCoherence = 'Contrôle de cohérence';
@@ -103,7 +103,7 @@ abstract final class TextesEcranSynchronisation {
       'Synchronisation en cours… Vous pouvez quitter cet écran : elle continue.';
   static const nonAppaire =
       'Ce poste n\'est pas appairé au serveur : rien ne part, rien ne descend. '
-      'L\'appairage se fait dans Paramètres → Synchronisation (Administrateurs).';
+      'L\'appairage se fait dans Paramètres → Appairage Postes (Administrateurs).';
   static const demonstration =
       'La démonstration ne se synchronise jamais : rien ne part, rien ne '
       'descend.';

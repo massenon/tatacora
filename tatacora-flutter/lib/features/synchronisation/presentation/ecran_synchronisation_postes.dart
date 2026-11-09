@@ -329,7 +329,7 @@ class _EtatEcranSynchronisationPostes
 
 /// Les textes de la vue (`pwa.synchronisation_postes.*`), au mot.
 abstract final class TextesSynchronisationPostes {
-  static const String titre = 'Postes & Appairage';
+  static const String titre = 'Appairage Postes';
   static const String sousTitre =
       "Postes Windows appairés au serveur : leur état, leur dernier contact, l'expiration de leur jeton et leur dernier contrôle de cohérence. Ce qui a été enregistré ici part vers eux à leur prochain passage ; la demande les fait passer tout de suite (moins d'une minute) : chacun envoie sa file, puis reçoit tout ce que le serveur détient, tous modules.";
   static const String bouton = 'Demander la synchronisation des postes';
@@ -375,7 +375,7 @@ abstract final class TextesSynchronisationPostes {
   static String revocationTitre(String poste) =>
       "Révoquer l'appairage du poste « $poste » ?";
   static const String revocationTexte =
-      "Le poste ne pourra plus envoyer ni recevoir tant qu'un Administrateur ne l'aura pas réappairé (Paramètres → Synchronisation, sur le poste). Ce qu'il a enregistré reste dans sa file : rien n'est perdu.";
+      "Le poste ne pourra plus envoyer ni recevoir tant qu'un Administrateur ne l'aura pas réappairé (Paramètres → Appairage Postes, sur le poste). Ce qu'il a enregistré reste dans sa file : rien n'est perdu.";
   static const String revocationConfirmer = "Révoquer l'appairage";
   static const String annuler = 'Annuler';
 }

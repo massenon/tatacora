@@ -116,15 +116,15 @@ final class BoutonSynchroniserServeurTest extends TestCase
     }
 
     #[Test]
-    public function l_entree_de_menu_synchronisation_suit_le_droit_sur_parametres_et_le_menu_de_compte_reste(): void
+    public function l_entree_de_menu_appairage_postes_suit_le_droit_sur_parametres_et_le_menu_de_compte_reste(): void
     {
         $admin = $this->creerUtilisateur('administrateur');
 
         $this->actingAs($admin)->get('/pwa')->assertOk()
-            ->assertSee('Synchronisation')
+            ->assertSee('Appairage Postes')
             ->assertSee('href="'.route('pwa.synchronisation-postes').'"', false);
         $this->actingAs($this->creerUtilisateur('gerant'))->get('/pwa')->assertOk()
-            ->assertDontSee('>Synchronisation<', false);
+            ->assertDontSee('>Appairage Postes<', false);
     }
 
     #[Test]
@@ -144,7 +144,7 @@ final class BoutonSynchroniserServeurTest extends TestCase
 
         $this->actingAs($guide)->get(route('pwa.synchronisation-postes'))->assertOk()
             ->assertSee('Demander la synchronisation des postes')
-            ->assertSee('Postes &amp; Appairage', false)
+            ->assertSee('Appairage Postes', false)
             ->assertSee('Actualiser')
             ->assertSee('Aucun poste ne s');
         $this->actingAs($guide)->get('/pwa')->assertOk()

@@ -230,7 +230,7 @@ envoyer, et juste après chaque clôture de caisse. Pour cela, il doit être
 
 Sur chaque poste, connecté avec un compte **Administrateur** du poste :
 
-1. Ouvrir **Paramètres → onglet « Synchronisation »** (l'onglet n'apparaît
+1. Ouvrir **Paramètres → onglet « Appairage Postes »** (l'onglet n'apparaît
    qu'aux Administrateurs).
 2. Saisir l'**identifiant** et le **mot de passe d'un compte du serveur**
    (compte gérant ou administrateur créé sur le serveur — pas un compte du

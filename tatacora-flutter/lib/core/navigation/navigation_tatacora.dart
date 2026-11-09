@@ -467,7 +467,7 @@ const List<GroupeMenu> groupesMenu = [
       // de la FILE locale reste atteint par Paramètres → Synchronisation et par
       // « Voir le détail » du bouton de la barre supérieure.
       DestinationMenu(
-        nom: 'Synchronisation',
+        nom: 'Appairage Postes',
         icone: IconeModule.importExport,
         module: ModuleTatacora.parametres,
         page: 'synchronisation-postes.html',
@@ -509,7 +509,7 @@ const Map<String, Set<String>> nomsMasquesParRole = {
     'Import & Export',
     'Rôles & Permissions',
     'Paramètres',
-    'Synchronisation',
+    'Appairage Postes',
     'Clients & Créances',
     'Facturation',
   },

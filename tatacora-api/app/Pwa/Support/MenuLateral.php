@@ -142,7 +142,7 @@ final class MenuLateral
             // en plus de celle du menu de compte (qui reste, ouverte à tout
             // compte). L'entrée de menu suit le droit sur Paramètres ; la route
             // elle-même n'exige aucun module.
-            ['nom' => 'Synchronisation', 'icone' => 'import', 'module' => 'PARAM', 'route' => 'pwa.synchronisation-postes'],
+            ['nom' => 'Appairage Postes', 'icone' => 'import', 'module' => 'PARAM', 'route' => 'pwa.synchronisation-postes'],
         ]],
     ];
 

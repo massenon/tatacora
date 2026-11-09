@@ -1051,8 +1051,8 @@ return [
     // synchroniser, pour envoyer les données en local si le serveur a été
     // utilisé pour enregistrer des données ».
     'synchronisation_postes' => [
-        'titre_page' => 'Postes & Appairage — LogiReStock — TATACORA AFRIQUE',
-        'titre' => 'Postes & Appairage',
+        'titre_page' => 'Appairage Postes — LogiReStock — TATACORA AFRIQUE',
+        'titre' => 'Appairage Postes',
         'sous_titre' => 'Postes Windows appairés au serveur : leur état, leur dernier contact, l\'expiration de '
             . 'leur jeton et leur dernier contrôle de cohérence. Ce qui a été enregistré ici part vers eux à leur '
             . 'prochain passage ; la demande les fait passer tout de suite (moins d\'une minute) : chacun envoie '
@@ -1094,7 +1094,7 @@ return [
         'bouton_revoquer' => 'Révoquer',
         'revocation_titre' => 'Révoquer l\'appairage du poste « :poste » ?',
         'revocation_texte' => 'Le poste ne pourra plus envoyer ni recevoir tant qu\'un Administrateur ne l\'aura pas '
-            . 'réappairé (Paramètres → Synchronisation, sur le poste). Ce qu\'il a enregistré reste dans sa file : '
+            . 'réappairé (Paramètres → Appairage Postes, sur le poste). Ce qu\'il a enregistré reste dans sa file : '
             . 'rien n\'est perdu.',
         'revocation_confirmer' => 'Révoquer l\'appairage',
         'revocation_faite' => 'Appairage du poste « :poste » révoqué.',
@@ -1113,7 +1113,7 @@ return [
         'en_retard' => 'En retard',
         'revoque' => 'Appairage révoqué',
         'regle' => 'Un poste appairé est « en retard » après plus de :minutes minutes sans contact avec le serveur (un poste allumé et connecté le contacte toutes les 30 secondes).',
-        'voir_detail' => 'Voir Postes & Appairage',
+        'voir_detail' => 'Voir Appairage Postes',
     ],
 
     'journal_audit' => [

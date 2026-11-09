@@ -47,7 +47,7 @@ abstract final class TextesCartesAdresseServeur {
   static const texteEffacer =
       'Le poste ne sera plus appairé : il n’enverra rien avant un nouvel '
       'appairage. Le jeton reste valide sur l’ancien serveur jusqu’à sa '
-      'révocation dans « Postes & Appairage ». La file d’envoi est conservée.';
+      'révocation dans « Appairage Postes ». La file d’envoi est conservée.';
   static const confirmerEffacer = 'Effacer le jeton';
 
   static const titreFrequence = 'SYNCHRONISATION AUTOMATIQUE';

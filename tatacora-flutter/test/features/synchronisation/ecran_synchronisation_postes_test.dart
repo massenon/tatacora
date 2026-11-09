@@ -112,7 +112,7 @@ void main() {
       ),
     );
 
-    expect(find.text('Postes & Appairage'), findsOneWidget);
+    expect(find.text('Appairage Postes'), findsOneWidget);
     expect(find.text('Dernière demande : 18/10/2026 10:00:00'), findsOneWidget);
     expect(find.text('COMPTOIR'), findsOneWidget);
     expect(
@@ -124,7 +124,7 @@ void main() {
     expect(find.textContaining('· Pas encore reçue'), findsOneWidget);
   });
 
-  testWidgets('les neuf colonnes de « Postes & Appairage », leurs dates et '
+  testWidgets('les neuf colonnes de « Appairage Postes », leurs dates et '
       'l’état de chaque poste', (tester) async {
     await monter(
       tester,

@@ -368,7 +368,7 @@ void main() {
     });
   });
 
-  testWidgets('le lien de Paramètres → Synchronisation OUVRE l’écran', (
+  testWidgets('le lien de Paramètres → Appairage Postes OUVRE l’écran', (
     tester,
   ) async {
     tester.view

@@ -183,7 +183,7 @@ return [
         'revocation_reservee' => 'Seul un Administrateur peut révoquer l\'appairage d\'un poste.',
         'poste_non_appaire' => 'Le poste « :poste » n\'a aucun appairage actif sur le serveur.',
         'revocation_soi_meme' => 'Ce poste ne révoque pas son propre appairage : utilisez « Dissocier » '
-            . '(Paramètres → Synchronisation).',
+            . '(Paramètres → Appairage Postes).',
     ],
 
     // Génération des données (19/10/2026).

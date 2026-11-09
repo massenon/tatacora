@@ -207,7 +207,7 @@ sequenceDiagram
   Note over P,F: le mot de passe n'est écrit nulle part
 ```
 
-- **Qui peut appairer** : l'onglet Paramètres → Synchronisation, **Administrateurs seulement** (`SYNC/data/service_appairage.dart:1-12`, `docs/JOURNAL_DES_LOTS.md` « Moteur d'envoi et appairage »).
+- **Qui peut appairer** : l'onglet Paramètres → Appairage Postes, **Administrateurs seulement** (`SYNC/data/service_appairage.dart:1-12`, `docs/JOURNAL_DES_LOTS.md` « Moteur d'envoi et appairage »).
 - **Où est l'adresse du serveur** : celle du **build** (`Environnement.actuel.baseUrl`), jamais une saisie : un build de production ne peut pas pointer ailleurs (`service_appairage.dart:26-29`). Un appairage fait vers une autre adresse que celle du build donne l'état `autreServeur` et rien ne part (`sync_manager.dart:243`).
 - **Nom du poste par défaut** : le nom Windows (`COMPUTERNAME`) proposé à l'écran (`FL/features/parametres/presentation/widgets/onglet_synchronisation.dart:77`), mais **modifiable** : c'est le nom saisi qui devient `poste_id`.
 - **Côté serveur** : `AuthController::connexion` (`tatacora-api/app/Shared/Auth/Http/Controllers/AuthController.php:75`) — limitation de débit `:84`, refus compte suspendu, refus si mot de passe temporaire non changé (`:127`), **suppression du jeton antérieur de ce poste pour ce compte** (`:141`), puis `createToken($poste)` (`:143`). Le commentaire d'origine : « un appareil perdu ne doit pas conserver un accès parce que son propriétaire s'est reconnecté depuis le même poste ».

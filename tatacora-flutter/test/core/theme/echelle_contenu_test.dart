@@ -200,7 +200,7 @@ void main() {
     // `@elseif ($onglet === 'tables')` de `transverse/parametres.blade.php`
     // (l.322), dans `<main>` (fermé l.507) — échelle EFFECTIVE.
     'lib/features/parametres/presentation/widgets/onglet_espaces_tables.dart',
-    // L'onglet « Synchronisation » (lot F2a, 15/10/2026) : un AJOUT du poste,
+    // L'onglet « Appairage Postes » (ex-« Synchronisation », 09/11/2026) (lot F2a, 15/10/2026) : un AJOUT du poste,
     // rendu dans la carte du formulaire de Paramètres comme les autres
     // onglets, donc dans `<main>` — échelle EFFECTIVE.
     'lib/features/parametres/presentation/widgets/onglet_synchronisation.dart',

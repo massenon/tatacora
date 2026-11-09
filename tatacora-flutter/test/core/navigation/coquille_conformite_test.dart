@@ -470,7 +470,7 @@ void main() {
       // Export et Rôles & Permissions sont portés et branchés.
       // 24 → 25 le 21/10/2026 : « Congés & Plannings », créé à la PWA et repris
       // par le poste le même jour.
-      // 25 → 26 le 21/10/2026 : « Synchronisation » (Postes & Appairage), créée à
+      // 25 → 26 le 21/10/2026 : « Appairage Postes » (ex-« Synchronisation », renommée le 09/11/2026), créée à
       // la PWA et reprise par le poste le même jour.
       // 26 → 27 le 29/10/2026 : « Comptes utilisateurs », créée à la PWA (mot de
       // passe perdu SANS e-mail) — le poste l'avait déjà (Lot J2).

@@ -417,7 +417,7 @@
                     {
                         "type": "entree",
                         "groupe": "PILOTAGE & ADMINISTRATION",
-                        "nom": "Synchronisation",
+                        "nom": "Appairage Postes",
                         "badge": null,
                         "actif": false,
                         "cliquable": true,
@@ -2015,7 +2015,7 @@
                     {
                         "type": "entree",
                         "groupe": "PILOTAGE & ADMINISTRATION",
-                        "nom": "Synchronisation",
+                        "nom": "Appairage Postes",
                         "badge": null,
                         "actif": false,
                         "cliquable": true,
@@ -2207,8 +2207,8 @@
         "Paramètres": [
             "Paramètres"
         ],
-        "Synchronisation": [
-            "Synchronisation"
+        "Appairage Postes": [
+            "Appairage Postes"
         ]
     }
 }

@@ -43,7 +43,7 @@ réinitialisation.
    d'essai certifiée par la DGI ne s'efface pas avec la base. Le contrôle
    « mecef » de `verifier-production` doit dire autre chose que « actif ».
 4. Installer **la version courante** sur chaque poste (`build_windows.bat`),
-   puis l'appairer (Paramètres → Synchronisation). ⚠ Un poste resté sur une
+   puis l'appairer (Paramètres → Appairage Postes). ⚠ Un poste resté sur une
    version d'avant le 19/10/2026 ne connaît pas la génération des données :
    mettez-le à jour AVANT la réinitialisation du serveur.
 

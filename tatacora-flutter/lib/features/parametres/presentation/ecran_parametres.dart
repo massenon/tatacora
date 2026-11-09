@@ -120,7 +120,7 @@ const _onglets = <(String, String)>[
 /// l'appairage au serveur. La vue n'en a pas — le serveur ne s'appaire pas à
 /// lui-même. Affiché aux seuls Administrateurs (`rolesAdministration`, la
 /// règle de « Comptes utilisateurs »).
-const _ongletSynchronisation = ('synchronisation', 'Synchronisation');
+const _ongletSynchronisation = ('synchronisation', 'Appairage Postes');
 
 /// Les clés que le maître loge sous « Informations légales & fiscales ».
 const _clesLegales = {

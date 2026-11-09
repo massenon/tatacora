@@ -51,7 +51,7 @@ abstract final class TextesRecuDistant {
       'Démonstration : aucun reçu ne se télécharge.';
   static const String desactivee =
       'La synchronisation est désactivée sur ce poste : le reçu ne peut pas '
-      'être téléchargé. Réactivez-la dans Paramètres, onglet Synchronisation.';
+      'être téléchargé. Réactivez-la dans Paramètres, onglet Appairage Postes.';
   static const String nonAppaire =
       'Ce poste n’est pas appairé au serveur : le reçu ne peut pas être '
       'téléchargé.';
