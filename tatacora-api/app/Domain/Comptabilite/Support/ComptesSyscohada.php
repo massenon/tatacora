@@ -129,4 +129,18 @@ final class ComptesSyscohada
     public const REPORT_A_NOUVEAU_CREDITEUR = '121';
 
     public const REPORT_A_NOUVEAU_DEBITEUR = '1291';
+
+    /**
+     * Le COMPTE DE L'EXPLOITANT d'une entreprise individuelle (09/11/2026) : il
+     * reçoit le bénéfice (crédit) ou porte la perte (débit) que l'exploitant
+     * retire ou supporte.
+     *
+     * ⚠ 1041, PAS 104 : le plan du PO porte 104 « Compte de l'exploitant » avec
+     * ses sous-comptes 1041 « Apports temporaires », 1042 « Opérations courantes »,
+     * 1043, 1047, 1048 — 104 est donc une DIVISION, que `PasserEcritureService`
+     * refuse d'imputer. 1041 est le sous-compte proposé par le Product Owner ;
+     * le comptable peut rattacher le rôle à 1042 à l'écran « Correspondance des
+     * comptes » (à faire confirmer par l'expert-comptable).
+     */
+    public const COMPTE_EXPLOITANT = '1041';
 }

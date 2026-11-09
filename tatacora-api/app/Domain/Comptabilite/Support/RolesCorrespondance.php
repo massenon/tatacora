@@ -185,6 +185,13 @@ final class RolesCorrespondance
             'aide' => 'Débité par l’affectation d’une perte reportée à nouveau.',
             'prefixes' => ['129'],
         ],
+        // Entreprise individuelle (09/11/2026) — compte de l'exploitant (104x).
+        'COMPTE_EXPLOITANT' => [
+            'groupe' => self::GROUPE_RESULTAT,
+            'libelle' => 'Compte de l’exploitant',
+            'aide' => 'Crédité par l’affectation d’un bénéfice à l’exploitant d’une entreprise individuelle, débité par l’affectation d’une perte.',
+            'prefixes' => ['104'],
+        ],
     ];
 
     public static function existe(string $role): bool

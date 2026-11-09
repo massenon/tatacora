@@ -37,7 +37,7 @@ use Throwable;
  * Quatre actions, les quatre gestes du service : `demarrer`, `reprendre_saisie`,
  * `cloturer` (l'archive légale suit, hors de la clôture : un PDF qui échoue ne
  * la défait pas), `rouvrir` (`motif`). Une cinquième depuis le 09/11/2026 :
- * `annuler_affectation` (`motif`) — la CONTRE-PASSATION de l'affectation du
+ * `annuler_affectation` (`motif`, `reference_decision` facultative) — la CONTRE-PASSATION de l'affectation du
  * résultat de l'exercice `annee` (`AffectationResultatService::contrepasser`) ;
  * l'affectation elle-même part comme une pièce saisie (`GestionnairePiecesSaisie`).
  *
@@ -106,6 +106,9 @@ final class GestionnaireDemandesCloture extends GestionnaireDocumentAbstrait
             'annee' => ['required', 'integer', 'between:2000,2100'],
             'action' => ['required', 'string'],
             'motif' => ['nullable', 'string'],
+            // Référence FACULTATIVE de la décision (PV d'assemblée / décision de l'exploitant)
+            // d'une contre-passation d'affectation — tracée à l'audit, jamais exigée.
+            'reference_decision' => ['nullable', 'string'],
         ], [
             'annee.between' => __('comptabilite.exercice_annee_invalide'),
         ]);
@@ -151,7 +154,12 @@ final class GestionnaireDemandesCloture extends GestionnaireDocumentAbstrait
                     break;
                 case 'annuler_affectation':
                     // `annee` est l'exercice dont le résultat a été affecté (N-1).
-                    $this->affectations->contrepasser($exercice, $auteur, $motif);
+                    $this->affectations->contrepasser(
+                        $exercice,
+                        $auteur,
+                        $motif,
+                        isset($donnees['reference_decision']) ? (string) $donnees['reference_decision'] : null,
+                    );
                     break;
             }
         }

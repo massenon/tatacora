@@ -248,6 +248,18 @@ abstract final class RegistreParametresLocal {
           'Fourni par la DGI. Identifiant, donc paramétrable — la CLÉ D’API MECeF, elle, vit en configuration serveur et n’apparaîtra jamais ici.',
       longueurMax: 30,
     ),
+    // --- Forme juridique (09/11/2026) : réglée au SERVEUR (administrateur), reçue ici en lecture.
+    SpecParametre(
+      cle: 'forme_juridique',
+      groupe: 'entreprise',
+      libelle: 'Forme juridique',
+      type: TypeParametre.choix,
+      choix: ['entreprise_individuelle', 'sarl', 'sa'],
+      aide:
+          'Commande l’affectation du résultat. Entreprise individuelle (défaut du Gîte) : ni réserve légale, ni dividendes, ni procès-verbal d’assemblée ; le bénéfice revient à l’exploitant, au report à nouveau ou aux réserves. SARL et SA : réserve légale obligatoire, dividendes encadrés. Réservé aux Administrateurs ; refusé tant qu’une affectation du résultat est active.',
+      lecteur: 'lib/features/comptabilite/domain/forme_juridique.dart',
+      serveurSeulement: true,
+    ),
     // --- Documents commerciaux (factures A4, proformas), PO 07/11/2026 : réglés au SERVEUR, reçus ici en lecture.
     SpecParametre(
       cle: 'entreprise_activites',
@@ -840,6 +852,16 @@ abstract final class RegistreParametresLocal {
       format: FormatTexte.numeroCompte,
       aide:
           'Débité par l’affectation d’une perte reportée à nouveau. Vide : le compte par défaut (1291). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
+      lecteur: _lecteurDesComptes,
+    ),
+    SpecParametre(
+      cle: 'compte_compte_exploitant',
+      groupe: 'comptes',
+      libelle: 'Compte — Compte de l’exploitant',
+      type: TypeParametre.texte,
+      format: FormatTexte.numeroCompte,
+      aide:
+          'Crédité par l’affectation d’un bénéfice à l’exploitant d’une entreprise individuelle, débité par l’affectation d’une perte. Vide : le compte par défaut (1041). Vaut pour les pièces futures, jamais pour une pièce déjà passée.',
       lecteur: _lecteurDesComptes,
     ),
   ];

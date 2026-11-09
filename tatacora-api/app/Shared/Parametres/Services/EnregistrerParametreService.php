@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Shared\Parametres\Services;
 
+use App\Domain\Comptabilite\Models\AffectationResultat;
 use App\Domain\Comptabilite\Services\CalculTvaService;
 use App\Domain\Comptabilite\Services\CorrespondanceComptesService;
+use App\Domain\Comptabilite\Support\FormeJuridique;
 use App\Domain\Facturation\Services\ModeFacturation;
 use App\Domain\Facturation\Services\ReglagesMecef;
 use App\Domain\Facturation\Services\TraceReglageFacturation;
@@ -81,6 +83,7 @@ class EnregistrerParametreService
 
         $this->verifierComptes($normalisees);
         $this->exigerAdministrateurPourFacturation($normalisees);
+        $this->verifierFormeJuridique($normalisees);
         $this->verifierFacturationNormalisee($normalisees);
         $this->verifierCoherence($normalisees);
 
@@ -114,6 +117,48 @@ class EnregistrerParametreService
         $this->tracerFacturation($modifiees, $avantFacturation);
 
         return $modifiees;
+    }
+
+    /**
+     * La FORME JURIDIQUE (09/11/2026) : réservée aux administrateurs, de l'une des
+     * trois valeurs, et refusée TANT QU'UNE AFFECTATION DU RÉSULTAT EST ACTIVE — la
+     * pièce passée l'a été sous les règles de l'ancienne forme (réserve légale,
+     * dividendes, compte de l'exploitant) : la changer dessous la rendrait
+     * incohérente. Un appel sans utilisateur (seeder, commande) passe ; un poste
+     * n'arrive jamais ici avec cette clé (`GestionnaireParametres` l'écarte).
+     *
+     * Une valeur identique à l'actuelle n'est pas un changement.
+     *
+     * @param  array<string, string>  $soumis
+     */
+    private function verifierFormeJuridique(array $soumis): void
+    {
+        if (! array_key_exists(FormeJuridique::CLE, $soumis)) {
+            return;
+        }
+
+        $nouvelle = $soumis[FormeJuridique::CLE];
+
+        if (! in_array($nouvelle, FormeJuridique::valeurs(), true)) {
+            throw new RuntimeException(__('parametres.forme_juridique_inconnue', [
+                'valeur' => $nouvelle,
+                'admises' => implode(', ', FormeJuridique::valeurs()),
+            ]));
+        }
+
+        if (FormeJuridique::courante()->value === $nouvelle) {
+            return;
+        }
+
+        $utilisateur = auth()->user();
+
+        if ($utilisateur !== null && ! $utilisateur->estAdministrateur()) {
+            throw new RuntimeException(__('parametres.forme_juridique_reservee_administrateur'));
+        }
+
+        if (AffectationResultat::query()->whereNull('contrepassee_le')->exists()) {
+            throw new RuntimeException(__('parametres.forme_juridique_affectation_active'));
+        }
     }
 
     /**

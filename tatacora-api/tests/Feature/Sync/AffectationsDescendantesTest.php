@@ -10,7 +10,9 @@ use App\Domain\Comptabilite\Models\ExerciceComptable;
 use App\Domain\Comptabilite\Services\AffectationResultatService;
 use App\Domain\Comptabilite\Services\ClotureExerciceService;
 use App\Domain\Comptabilite\Services\PasserEcritureService;
+use App\Domain\Comptabilite\Support\FormeJuridique;
 use App\Models\User;
+use App\Shared\Parametres\Models\ParametreSysteme;
 use App\Shared\Sync\Services\CatalogueDescendantService;
 use Database\Seeders\ComptabiliteReferentielSeeder;
 use Database\Seeders\RolePermissionSeeder;
@@ -45,6 +47,9 @@ final class AffectationsDescendantesTest extends TestCase
         $this->travelTo('2026-10-26 10:00:00');
         $this->seed(RolePermissionSeeder::class);
         $this->seed(ComptabiliteReferentielSeeder::class);
+        // Ce fichier éprouve une SOCIÉTÉ (réserve légale, dividendes) ; l'entreprise
+        // individuelle, forme par défaut du Gîte, a ses tests dans `AffectationFormeJuridiqueTest`.
+        ParametreSysteme::query()->updateOrCreate(['cle' => FormeJuridique::CLE], ['valeur' => 'sarl']);
         $this->comptable = $this->creerUtilisateur('comptable');
         $this->actingAs($this->comptable);
 
@@ -148,6 +153,7 @@ final class AffectationsDescendantesTest extends TestCase
         $this->assertSame([], $rien);
 
         $this->travel(5)->minutes();
+        $this->travelTo('2027-05-10 10:00:00');
         app(AffectationResultatService::class)->contrepasser($this->exercice(), $this->comptable, 'Reprise de la ventilation');
 
         [$apres] = $this->flux($this->comptable, $curseur);

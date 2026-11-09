@@ -339,6 +339,9 @@ class Hub extends PageComptabilite
 
     public string $motifContrepassationAffectation = '';
 
+    /** La référence FACULTATIVE de la décision (PV d'assemblée / décision de l'exploitant) qui motive la contre-passation. */
+    public string $referenceContrepassationAffectation = '';
+
     // --- Modale d'export unifiée (`pwa.partials.modale-export`) ----------
 
     public string $formatExport = 'pdf';
@@ -830,7 +833,12 @@ class Hub extends PageComptabilite
         }
 
         try {
-            $service->contrepasser($exercice, $utilisateur, $this->motifContrepassationAffectation);
+            $service->contrepasser(
+                $exercice,
+                $utilisateur,
+                $this->motifContrepassationAffectation,
+                $this->referenceContrepassationAffectation,
+            );
         } catch (RuntimeException $refus) {
             $this->addError('affectation', $refus->getMessage());
 
@@ -839,34 +847,37 @@ class Hub extends PageComptabilite
 
         $this->resetErrorBag('affectation');
         $this->motifContrepassationAffectation = '';
+        $this->referenceContrepassationAffectation = '';
         $this->affectationAmorcee = '';
         session()->flash('pwa-succes', __('comptabilite_pwa.affectation_contrepassee', ['annee' => (string) $exercice->annee]));
     }
 
     /**
-     * Le report à nouveau reçoit LE RESTE : changer un autre poste le recalcule
-     * (jamais en dessous de zéro). Une saisie directe du report à nouveau se garde.
+     * Le poste du RESTE reçoit ce qui n'est pas ventilé : le compte de l'exploitant
+     * (entreprise individuelle) ou le report à nouveau (société) ; changer un autre
+     * poste le recalcule (jamais en dessous de zéro). Une saisie directe de ce poste
+     * se garde.
      */
     public function updatedAffectation(mixed $valeur, string $poste): void
     {
         $exercice = $this->exerciceAffecte();
         $etat = $exercice === null ? null : app(AffectationResultatService::class)->etat($exercice);
 
-        if ($etat === null || $poste === 'report_a_nouveau') {
+        if ($etat === null || $poste === $etat['posteDuReste']) {
             return;
         }
 
         $autres = '0.00';
 
-        foreach ($this->affectation as $cle => $montant) {
-            if ($cle !== 'report_a_nouveau' && is_numeric($montant)) {
-                $autres = bcadd($autres, bcadd((string) $montant, '0', 2), 2);
+        foreach ($etat['postes'] as $cle) {
+            if ($cle !== $etat['posteDuReste'] && is_numeric($this->affectation[$cle] ?? null)) {
+                $autres = bcadd($autres, bcadd((string) $this->affectation[$cle], '0', 2), 2);
             }
         }
 
         $absolu = ltrim($etat['resultat'], '-');
         $reste = bcsub($absolu, $autres, 2);
-        $this->affectation['report_a_nouveau'] = bccomp($reste, '0.00', 2) > 0 ? $reste : '0.00';
+        $this->affectation[$etat['posteDuReste']] = bccomp($reste, '0.00', 2) > 0 ? $reste : '0.00';
     }
 
     /**
@@ -910,19 +921,21 @@ class Hub extends PageComptabilite
             return null;
         }
 
-        if ($this->affectationAmorcee !== $exercice->id) {
+        // L'amorçage vaut pour UN exercice sous UNE forme juridique : changer la forme
+        // (entreprise individuelle, SARL, SA) réamorce la proposition.
+        $amorce = $exercice->id . '|' . $etat['forme'];
+
+        if ($this->affectationAmorcee !== $amorce) {
             $this->affectation = $etat['proposition'];
             $this->dateAffectation = $etat['dateParDefaut'];
-            $this->affectationAmorcee = $exercice->id;
+            $this->affectationAmorcee = $amorce;
             $this->confirmationAffectation = false;
         }
 
         // Le contrôle EN DIRECT : le total saisi (un poste illisible compte pour
         // zéro) face au résultat, recalculé à chaque frappe. Il ne fait pas foi :
         // le service revérifie la somme exacte au passage.
-        $postes = $etat['estBenefice']
-            ? ['reserve_legale', 'autres_reserves', 'dividendes', 'report_a_nouveau']
-            : ['autres_reserves', 'imputation_report_crediteur', 'report_a_nouveau'];
+        $postes = $etat['postes'];
         $total = '0.00';
 
         foreach ($postes as $poste) {

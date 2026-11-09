@@ -5,22 +5,19 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tatacora_flutter/core/database/app_database.dart';
-import 'package:tatacora_flutter/features/comptabilite/data/affectation_resultat_locale.dart';
-import 'package:tatacora_flutter/features/comptabilite/data/cloture_exercice_locale.dart';
 import 'package:tatacora_flutter/features/comptabilite/data/comptabilite_dao.dart';
-import 'package:tatacora_flutter/features/comptabilite/data/moteur_comptable.dart';
 import 'package:tatacora_flutter/features/comptabilite/domain/affectation_resultat.dart';
 import 'package:tatacora_flutter/features/comptabilite/domain/cloture_exercice.dart';
 import 'package:tatacora_flutter/features/comptabilite/domain/comptes_syscohada.dart';
 import 'package:tatacora_flutter/features/comptabilite/domain/correspondance_comptes.dart';
 import 'package:tatacora_flutter/features/comptabilite/domain/etats_financiers.dart';
+import 'package:tatacora_flutter/features/comptabilite/domain/forme_juridique.dart';
 import 'package:tatacora_flutter/features/comptabilite/domain/messages_affectation.dart';
-import 'package:tatacora_flutter/features/comptabilite/domain/montant_comptable.dart';
-import 'package:tatacora_flutter/features/comptabilite/domain/refus_comptable.dart';
 import 'package:tatacora_flutter/features/synchronisation/data/operations_sync_dao.dart';
 import 'package:tatacora_flutter/features/synchronisation/domain/operation_sync.dart';
 
 import 'support/outils_comptabilite.dart';
+import 'support/rejeu_affectation.dart';
 
 /// L'AFFECTATION DU RÉSULTAT du poste, CONFRONTÉE au vrai serveur (09/11/2026) :
 /// le même scénario — bénéfice affecté, refus de chaque règle, double
@@ -44,178 +41,128 @@ import 'support/outils_comptabilite.dart';
 ///
 /// Les phrases (`MessagesAffectation`) sont relues du serveur, des deux côtés ;
 /// les constantes (journal, rôle, postes, taux) aussi.
-typedef _Ev = Map<String, Object?>;
-
-_Ev _piece(
-  String journal,
-  String date,
-  String libelle,
-  List<(String, String?, String?, String?)> lignes,
-) => {
-  't': 'piece',
-  'journal': journal,
-  'date': date,
-  'libelle': libelle,
-  'valide': true,
-  'lignes': [
-    for (final (compte, debit, credit, centre) in lignes)
-      {'compte': compte, 'debit': ?debit, 'credit': ?credit, 'centre': ?centre},
-  ],
-};
-
-_Ev _geste(String action, int annee, {String? motif, String? role}) => {
-  't': 'geste',
-  'action': action,
-  'annee': annee,
-  'motif': ?motif,
-  'role': ?role,
-};
-
-_Ev _affecter(
-  int annee,
-  String date,
-  Map<String, String> ventilation, {
-  String? role,
-}) => {
-  't': 'affecter',
-  'annee': annee,
-  'date': date,
-  'ventilation': ventilation,
-  'role': ?role,
-};
-
-_Ev _contrepasser(int annee, String motif, {String? role}) => {
-  't': 'contrepasser_affectation',
-  'annee': annee,
-  'motif': motif,
-  'role': ?role,
-};
-
-_Ev _carte(int annee, {String? role}) => {
-  't': 'etat_affectation',
-  'annee': annee,
-  'role': ?role,
-};
-
 void main() {
-  final scenario = <_Ev>[
+  final scenario = <Ev>[
+    // Ce scénario éprouve une SOCIÉTÉ (réserve légale, dividendes) ; l'entreprise
+    // individuelle, forme par défaut du Gîte, a le sien (`affectation_forme_contre_serveur_test`).
+    evForme('sarl'),
     // --- 2030 : bénéfice de 110 000, capital de 5 000 000 -------------------
-    _piece('OD', '2030-01-02', 'Capital', [
+    evPiece('OD', '2030-01-02', 'Capital', [
       ('5711', '5000000.00', null, 'Structure'),
       ('1011', null, '5000000.00', 'Structure'),
     ]),
-    _piece('CAI', '2030-03-10', 'Ventes bar', [
+    evPiece('CAI', '2030-03-10', 'Ventes bar', [
       ('5711', '100000.00', null, 'Bar'),
       ('7011', null, '100000.00', 'Bar'),
     ]),
-    _piece('CAI', '2030-03-11', 'Ventes restaurant', [
+    evPiece('CAI', '2030-03-11', 'Ventes restaurant', [
       ('5711', '80000.00', null, 'Restaurant'),
       ('7011', null, '80000.00', 'Restaurant'),
     ]),
-    _piece('ACH', '2030-04-02', 'Achats du bar', [
+    evPiece('ACH', '2030-04-02', 'Achats du bar', [
       ('6011', '30000.00', null, 'Bar'),
       ('4011', null, '30000.00', 'Structure'),
     ]),
-    _piece('OD', '2030-05-31', 'Salaires', [
+    evPiece('OD', '2030-05-31', 'Salaires', [
       ('6611', '40000.00', null, 'RH'),
       ('5711', null, '40000.00', 'RH'),
     ]),
     // --- 2031 : déficitaire, perte de 70 000 --------------------------------
-    _piece('CAI', '2031-02-01', 'Ventes 2031', [
+    evPiece('CAI', '2031-02-01', 'Ventes 2031', [
       ('5711', '50000.00', null, 'Bar'),
       ('7011', null, '50000.00', 'Bar'),
     ]),
-    _piece('ACH', '2031-03-01', 'Gros achats', [
+    evPiece('ACH', '2031-03-01', 'Gros achats', [
       ('6011', '120000.00', null, 'Bar'),
       ('4011', null, '120000.00', 'Structure'),
     ]),
     // --- 2029 : un exercice VIDE, clôturé : résultat nul --------------------
-    _geste('demarrer', 2029),
-    _geste('cloturer', 2029),
-    _carte(2029),
-    _affecter(2029, '2030-04-30', {'report_a_nouveau': '0.00'}),
+    evGeste('demarrer', 2029),
+    evGeste('cloturer', 2029),
+    evCarte(2029),
+    evAffecter(2029, '2030-04-30', {'report_a_nouveau': '0.00'}),
     // --- avant la clôture : aucune carte, un refus --------------------------
-    _carte(2030),
-    _affecter(2030, '2031-04-30', {'report_a_nouveau': '110000.00'}),
-    _geste('demarrer', 2030),
-    _affecter(2030, '2031-04-30', {'report_a_nouveau': '110000.00'}),
-    _geste('cloturer', 2030),
+    evCarte(2030),
+    evAffecter(2030, '2031-04-30', {'report_a_nouveau': '110000.00'}),
+    evGeste('demarrer', 2030),
+    evAffecter(2030, '2031-04-30', {'report_a_nouveau': '110000.00'}),
+    evGeste('cloturer', 2030),
     // --- la carte : proposition 10 % (11 000), plafond 1 000 000 ------------
-    _carte(2030),
-    _carte(2030, role: 'administrateur'),
+    evCarte(2030),
+    evCarte(2030, role: 'administrateur'),
     // --- les refus de la ventilation et de la date --------------------------
-    _affecter(2030, '2031-04-30', {'report_a_nouveau': '109999.99'}),
-    _affecter(2030, '2031-04-30', {'report_a_nouveau': '110001.00'}),
-    _affecter(2030, '2031-04-30', {
+    evAffecter(2030, '2031-04-30', {'report_a_nouveau': '109999.99'}),
+    evAffecter(2030, '2031-04-30', {'report_a_nouveau': '110001.00'}),
+    evAffecter(2030, '2031-04-30', {
       'reserve_legale': '-1000.00',
       'report_a_nouveau': '111000.00',
     }),
-    _affecter(2030, '2031-04-30', {'report_a_nouveau': '11o'}),
-    _affecter(2030, '2031-04-30', {
+    evAffecter(2030, '2031-04-30', {'report_a_nouveau': '11o'}),
+    evAffecter(2030, '2031-04-30', {
       'imputation_report_crediteur': '1000.00',
       'report_a_nouveau': '109000.00',
     }),
-    _affecter(2030, '2030-12-31', {'report_a_nouveau': '110000.00'}),
-    _affecter(2030, '2031-02-30', {'report_a_nouveau': '110000.00'}),
-    _affecter(2030, '2031-04-30', {
+    evAffecter(2030, '2030-12-31', {'report_a_nouveau': '110000.00'}),
+    evAffecter(2030, '2031-02-30', {'report_a_nouveau': '110000.00'}),
+    evAffecter(2030, '2031-04-30', {
       'report_a_nouveau': '110000.00',
     }, role: 'administrateur'),
     {'t': 'instantane'},
     // --- l'affectation : réserve légale, autres réserves, dividendes, RAN ----
-    _affecter(2030, '2031-04-30', {
+    evAffecter(2030, '2031-04-30', {
       'reserve_legale': '11000.00',
       'autres_reserves': '4000.00',
       'dividendes': '30000.00',
       'report_a_nouveau': '65000.00',
     }),
-    _affecter(2030, '2031-05-02', {'report_a_nouveau': '110000.00'}),
-    _carte(2030),
+    evAffecter(2030, '2031-05-02', {'report_a_nouveau': '110000.00'}),
+    evCarte(2030),
     {'t': 'bilan', 'annee': 2031},
     {'t': 'balance', 'annee': 2031},
     {'t': 'etat', 'annee': 2031},
     // --- la réouverture de N-1 est refusée sous une affectation active ------
-    _geste('rouvrir', 2030, motif: 'Correction d’un compte de 2030'),
+    evGeste('rouvrir', 2030, motif: 'Correction d’un compte de 2030'),
     // --- la contre-passation : motif, comptable seul, une seule fois --------
-    _contrepasser(2030, 'court'),
-    _contrepasser(
+    evContrepasser(2030, 'court'),
+    evContrepasser(
       2030,
       'Ventilation rejetée en assemblée',
       role: 'administrateur',
     ),
-    _contrepasser(2030, '  Ventilation rejetée en assemblée  '),
-    _contrepasser(2030, 'Une seconde fois, motif long'),
-    _carte(2030),
+    evContrepasser(2030, '  Ventilation rejetée en assemblée  '),
+    evContrepasser(2030, 'Une seconde fois, motif long'),
+    evCarte(2030),
     {'t': 'bilan', 'annee': 2031},
     {'t': 'instantane'},
     // --- une affectation contre-passée se refait ----------------------------
-    _affecter(2030, '2031-05-02', {
+    evAffecter(2030, '2031-05-02', {
       'reserve_legale': '11000.00',
       'report_a_nouveau': '99000.00',
     }),
-    _carte(2030),
+    evCarte(2030),
     {'t': 'bilan', 'annee': 2031},
     // --- 2031 : clôture (perte), puis N est clôturé ------------------------
-    _geste('demarrer', 2031),
+    evGeste('demarrer', 2031),
     {'t': 'etat', 'annee': 2031},
-    _geste('cloturer', 2031),
-    _contrepasser(2030, 'Trop tard pour corriger'),
+    evGeste('cloturer', 2031),
+    evContrepasser(2030, 'Trop tard pour corriger'),
     {'t': 'bilan', 'annee': 2031},
     {'t': 'bilan', 'annee': 2032},
     {'t': 'balance', 'annee': 2032},
     // --- la perte de 2031 (139) dans 2032 -----------------------------------
-    _carte(2031),
-    _affecter(2031, '2032-03-31', {'dividendes': '70000.00'}),
-    _affecter(2031, '2032-03-31', {'reserve_legale': '70000.00'}),
-    _affecter(2031, '2032-03-31', {'autres_reserves': '70000.00'}),
-    _affecter(2031, '2032-03-31', {'imputation_report_crediteur': '99000.00'}),
-    _affecter(2031, '2032-03-31', {
+    evCarte(2031),
+    evAffecter(2031, '2032-03-31', {'dividendes': '70000.00'}),
+    evAffecter(2031, '2032-03-31', {'reserve_legale': '70000.00'}),
+    evAffecter(2031, '2032-03-31', {'autres_reserves': '70000.00'}),
+    evAffecter(2031, '2032-03-31', {'imputation_report_crediteur': '99000.00'}),
+    evAffecter(2031, '2032-03-31', {
       'imputation_report_crediteur': '30000.00',
       'report_a_nouveau': '40000.00',
     }),
-    _carte(2031),
+    evCarte(2031),
     {'t': 'bilan', 'annee': 2032},
     {'t': 'balance', 'annee': 2032},
-    _geste('rouvrir', 2031, motif: 'Correction d’un compte de 2031'),
+    evGeste('rouvrir', 2031, motif: 'Correction d’un compte de 2031'),
     {'t': 'instantane'},
   ];
 
@@ -249,256 +196,20 @@ void main() {
 
   late AppDatabase db;
   late List<Map<String, Object?>> poste;
-  late AffectationResultatLocale affectation;
-  late ClotureExerciceLocale service;
   late ComptabiliteDao dao;
 
-  Future<List<Map<String, Object?>>> rejouerSurLePoste() async {
-    db = await baseInstallee(maintenant: DateTime(2031, 6, 15));
-    dao = ComptabiliteDao(db);
-    await dao.insererExercice(
-      annee: 2029,
-      dateDebut: '2029-01-01',
-      dateFin: '2029-12-31',
-    );
-    await dao.insererExercice(
-      annee: 2030,
-      dateDebut: '2030-01-01',
-      dateFin: '2030-12-31',
-    );
-    await db
-        .into(db.utilisateursLocal)
-        .insert(
-          UtilisateursLocalCompanion.insert(
-            id: 'u-admin',
-            login: 'admin-essai',
-            nom: 'Administrateur',
-            role: 'administrateur',
-            droitsJson: '{}',
-            sel: 's',
-            empreinte: 'e',
-            iterations: 1,
-            dateCreation: DateTime(2026, 10, 1),
-            dateMotDePasse: DateTime(2026, 10, 1),
-          ),
-        );
-    final maintenant = DateTime(2031, 6, 15, 10);
-    final moteur = MoteurComptable(dao, maintenant: () => maintenant);
-    service = ClotureExerciceLocale(db, moteur, maintenant: () => maintenant);
-    affectation = AffectationResultatLocale(
-      db,
-      moteur,
-      maintenant: () => maintenant,
-    );
-
-    final centres = {for (final c in await dao.centres()) c.libelle: c.id};
-    Future<String> exerciceDe(int annee) async =>
-        (await dao.exerciceDeLAnnee(annee))!.id;
-    Future<Map<String, String>> statuts() async => {
-      for (final e in await dao.exercices()) '${e.annee}': e.statut.valeur,
-    };
-    String auteurDe(Object? role) =>
-        (role ?? 'comptable') == 'comptable' ? auteurEssai : 'u-admin';
-
-    final sortie = <Map<String, Object?>>[];
-    for (final ev in scenario) {
-      try {
-        switch (ev['t']) {
-          case 'piece':
-            await moteur.passerEtValider(
-              DemandePiece(
-                journal: ev['journal']! as String,
-                date: ev['date']! as String,
-                libelle: ev['libelle']! as String,
-                lignes: [
-                  for (final l in ev['lignes']! as List)
-                    LigneDemandee(
-                      compte: (l as Map)['compte'] as String,
-                      debitCentimes: centimesDepuisChaine(
-                        (l['debit'] as String?) ?? '',
-                      ),
-                      creditCentimes: centimesDepuisChaine(
-                        (l['credit'] as String?) ?? '',
-                      ),
-                      centreId: centres[l['centre']],
-                    ),
-                ],
-              ),
-              auteurId: auteurEssai,
-            );
-            sortie.add({'ok': true});
-          case 'geste':
-            final id = await exerciceDe(ev['annee']! as int);
-            final auteur = auteurDe(ev['role']);
-            final apres = switch (ev['action']) {
-              'demarrer' => await service.demarrer(id, auteurId: auteur),
-              'cloturer' => (await dao.exercice(
-                (await service.cloturer(id, auteurId: auteur)).exerciceId,
-              ))!,
-              'rouvrir' => await service.rouvrir(
-                id,
-                auteurId: auteur,
-                motif: (ev['motif'] as String?) ?? '',
-              ),
-              _ => throw StateError('geste inconnu'),
-            };
-            final c = await service.clotureActive(apres.id);
-            sortie.add({
-              'ok': true,
-              'statut': apres.statut.valeur,
-              'cloture': c == null
-                  ? null
-                  : {
-                      'piece_cloture': c.pieceCloture,
-                      'piece_a_nouveaux': c.pieceANouveaux,
-                      'resultat': chaineDepuisCentimes(c.resultatCentimes),
-                    },
-              'statuts': await statuts(),
-            });
-          case 'affecter':
-            final annee = ev['annee']! as int;
-            final piece = await affectation.affecter(
-              await exerciceDe(annee),
-              ventilation: ventilationDepuisSaisie({
-                for (final e in (ev['ventilation']! as Map).entries)
-                  '${e.key}': '${e.value}',
-              }),
-              date: ev['date']! as String,
-              auteurId: auteurDe(ev['role']),
-            );
-            sortie.add({'ok': true, 'piece': piece});
-          case 'contrepasser_affectation':
-            await affectation.contrepasser(
-              await exerciceDe(ev['annee']! as int),
-              auteurId: auteurDe(ev['role']),
-              motif: (ev['motif'] as String?) ?? '',
-            );
-            sortie.add({'ok': true});
-          case 'etat_affectation':
-            final e = await affectation.etat(
-              await exerciceDe(ev['annee']! as int),
-            );
-            final estComptable = auteurDe(ev['role']) == auteurEssai;
-            sortie.add(
-              e == null
-                  ? {'ok': true, 'carte': false}
-                  : {
-                      'ok': true,
-                      'carte': true,
-                      'annee': e.annee,
-                      'annee_affectation': e.anneeAffectation,
-                      'resultat': chaineDepuisCentimes(e.resultatCentimes),
-                      'est_benefice': e.estBenefice,
-                      'compte_resultat': e.compteResultat,
-                      'affectable': e.affectable,
-                      'active_piece': e.active?.numeroPiece,
-                      'date_par_defaut': e.dateParDefaut,
-                      'proposition': {
-                        for (final p in postesAffectation)
-                          p: chaineDepuisCentimes(e.proposition[p] ?? 0),
-                      },
-                      'reserve_legale_proposee': e.reserveLegalePropose,
-                      'plafond_atteint': e.plafondReserveLegaleAtteint,
-                      'peut_affecter': estComptable,
-                    },
-            );
-          case 'etat':
-            final e = await service.etat(await exerciceDe(ev['annee']! as int));
-            sortie.add({
-              'ok': true,
-              'blocages': [for (final b in e.blocages) b.code],
-              'avertissements': [for (final a in e.avertissements) a.code],
-              'conditions_reunies': e.conditionsReunies,
-              'resultat_a_reporter': chaineDepuisCentimes(
-                e.resultatAReporterCentimes,
-              ),
-              'compte_destination': e.compteDeDestination,
-              'statut': e.statut,
-            });
-          case 'bilan':
-            final annee = ev['annee']! as int;
-            final b = bilanDe(annee, await service.donneesDesEtats());
-            sortie.add({
-              'ok': true,
-              'equilibre': b.equilibre,
-              'ecart': chaineDepuisCentimes(b.ecartCentimes),
-              'total_actif': chaineDepuisCentimes(b.totalActifCentimes),
-              'total_passif': chaineDepuisCentimes(b.totalPassifCentimes),
-              'resultat_exercice': chaineDepuisCentimes(
-                b.resultatExerciceCentimes,
-              ),
-              'resultat_reporte': chaineDepuisCentimes(
-                b.resultatReporteCentimes,
-              ),
-              'hors_rubrique': [
-                for (final c in b.comptesHorsRubrique) c.numeroCompte,
-              ],
-              'passif': [
-                for (final p in b.passif)
-                  {'code': p.code, 'net': chaineDepuisCentimes(p.netCentimes)},
-              ],
-            });
-          case 'balance':
-            final annee = ev['annee']! as int;
-            final b = balanceDe(annee, await service.donneesDesEtats());
-            sortie.add({
-              'ok': true,
-              'a_nouveaux_provisoires_de': b.aNouveauxProvisoiresDe,
-              'lignes': [
-                for (final l in b.lignes)
-                  {
-                    'numero_compte': l.numeroCompte,
-                    'libelle': l.libelle,
-                    'classe': l.classe,
-                    'debit': chaineDepuisCentimes(l.debitCentimes),
-                    'credit': chaineDepuisCentimes(l.creditCentimes),
-                  },
-              ],
-            });
-          case 'instantane':
-            final lignes = <String, List<Map<String, Object?>>>{};
-            for (final e in await dao.exercices()) {
-              lignes['${e.annee}'] = [
-                for (final l in await dao.lignesPourArchive(e.id))
-                  {
-                    'journal': l.codeJournal,
-                    'numero_piece': l.numeroPiece,
-                    'date': l.dateEcriture,
-                    'compte': l.numeroCompte,
-                    'centre': l.libelleCentre,
-                    'libelle': l.libelle,
-                    'debit': chaineDepuisCentimes(l.debitCentimes),
-                    'credit': chaineDepuisCentimes(l.creditCentimes),
-                    'statut': l.statut,
-                    'contrepasse': l.pieceContrepassee != null,
-                  },
-              ];
-            }
-            sortie.add({
-              'ok': true,
-              'statuts': await statuts(),
-              'lignes': lignes,
-            });
-        }
-      } on RefusComptable catch (e) {
-        sortie.add({'refus': true, 'message': e.message});
-      }
-    }
-    return sortie;
-  }
-
   setUpAll(() async {
-    poste = await rejouerSurLePoste();
+    final rejeu = await rejouerSurLePoste(scenario);
+    db = rejeu.db;
+    dao = rejeu.dao;
+    poste = rejeu.sortie;
   });
 
   tearDownAll(() async {
     await db.close();
   });
 
-  String cle(Map<String, Object?> l) =>
-      '${l['journal']}|${l['numero_piece'] ?? ''}|${l['date']}|${l['compte']}|'
-      '${l['centre']}|${l['debit']}|${l['credit']}|${l['statut']}|'
-      '${l['contrepasse']}|${l['libelle']}';
+  String cle(Map<String, Object?> l) => cleLigne(l);
 
   /* ================================================================== */
   /* Les constats                                                        */
@@ -689,13 +400,24 @@ void main() {
     expect(postesAffectation, c['postes']);
     expect(postesBenefice, c['postes_benefice']);
     expect(postesPerte, c['postes_perte']);
+    expect(postesBeneficeEi, c['postes_benefice_ei']);
+    expect(postesPerteEi, c['postes_perte_ei']);
+    expect(prefixesCapitauxPropres, c['prefixes_capitaux_propres']);
+    expect(prefixesPertesAnterieures, c['prefixes_pertes_anterieures']);
+    expect(
+      prefixesReservesNonDistribuables,
+      c['prefixes_reserves_non_distribuables'],
+    );
+    expect(longueurMaxReferenceDecision, c['reference_longueur_max']);
+    expect([for (final f in FormeJuridique.values) f.code], c['formes']);
     expect(centreDeCloture, c['centre']);
     // Les taux de la réserve légale : 10 % du bénéfice, 20 % du capital.
     expect(c['taux_reserve_legale'], '0.10');
     expect(c['plafond_reserve_legale'], '0.20');
     final r = serveur['rubriques'] as Map<String, dynamic>;
+    // Le capital SOCIAL de l'affectation (101 seul) ; le capital du bilan, lui, couvre
+    // tout le groupe 10 (compte de l'exploitant compris) : il a ses propres tests.
     expect(prefixesCapital, r['capital']);
-    expect(RubriquesBilan.capital, r['capital']);
     expect(RubriquesBilan.reserves, r['reserves']);
     expect(RubriquesBilan.reportANouveau, r['report_a_nouveau']);
     expect(RubriquesBilan.resultatReporte, r['resultat_reporte']);
@@ -703,7 +425,7 @@ void main() {
     expect(RubriquesBilan.dettesAssocies, r['dettes_associes']);
   });
 
-  test('les cinq rôles de la correspondance existent au plan du poste et '
+  test('les six rôles de la correspondance existent au plan du poste et '
       'sont imputables (aucune division)', () async {
     for (final role in const [
       'RESERVE_LEGALE',
@@ -711,6 +433,7 @@ void main() {
       'DIVIDENDES_A_PAYER',
       'REPORT_A_NOUVEAU_CREDITEUR',
       'REPORT_A_NOUVEAU_DEBITEUR',
+      'COMPTE_EXPLOITANT',
     ]) {
       final defaut = ComptesSyscohada.tous[role]!;
       expect(await dao.compteParNumero(defaut), isNotNull, reason: role);

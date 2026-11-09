@@ -319,11 +319,11 @@ void main() {
 
   group('lecture — ce que l’écran affiche', () {
     test(
-      'base vide : 64 définitions, AUCUNE valeur, rien de plausible',
+      'base vide : 66 définitions, AUCUNE valeur, rien de plausible',
       () async {
         final lu = await cas.lire();
 
-        expect(lu.definitions.length, 64);
+        expect(lu.definitions.length, 66);
         expect(lu.definitions.where((d) => d.valeur != null), isEmpty);
       },
     );
@@ -397,7 +397,7 @@ void main() {
         lu.definitions.map((d) => d.cle),
         isNot(contains('cle_posee_a_la_main')),
       );
-      expect(lu.definitions.length, 64);
+      expect(lu.definitions.length, 66);
       // Le dépôt lui-même ne la remonte pas : c'est lui qui nourrit la
       // cohérence et les badges, pas seulement l'écran.
       expect(

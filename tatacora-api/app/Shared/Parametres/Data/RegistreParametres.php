@@ -8,6 +8,7 @@ use App\Domain\Achats\Services\ReceptionService;
 use App\Domain\Comptabilite\Services\CalculTvaService;
 use App\Domain\Comptabilite\Services\CorrespondanceComptesService;
 use App\Domain\Comptabilite\Services\PlanComptableService;
+use App\Domain\Comptabilite\Support\FormeJuridique;
 use App\Domain\Comptabilite\Support\RolesCorrespondance;
 use App\Domain\Facturation\Services\ModeFacturation;
 use App\Domain\Facturation\Services\ReglagesDocuments;
@@ -247,6 +248,22 @@ final class RegistreParametres
                 aide: 'Fourni par la DGI. Identifiant, donc paramétrable — la '
                     . 'CLÉ D’API MECeF, elle, vit en configuration serveur et '
                     . 'n’apparaîtra jamais ici.',
+            ),
+            new DefinitionParametre(
+                cle: FormeJuridique::CLE,
+                groupe: self::GROUPE_ENTREPRISE,
+                libelle: 'Forme juridique',
+                type: 'choix',
+                choix: FormeJuridique::valeurs(),
+                choixLibelles: [
+                    FormeJuridique::EntrepriseIndividuelle->value => 'Entreprise individuelle',
+                    FormeJuridique::Sarl->value => 'SARL',
+                    FormeJuridique::Sa->value => 'SA',
+                ],
+                aide: 'Commande l’affectation du résultat. Entreprise individuelle (défaut du Gîte) : ni réserve légale, '
+                    . 'ni dividendes, ni procès-verbal d’assemblée ; le bénéfice revient à l’exploitant, au report à nouveau '
+                    . 'ou aux réserves. SARL et SA : réserve légale obligatoire, dividendes encadrés. '
+                    . 'Réservé aux Administrateurs ; refusé tant qu’une affectation du résultat est active.',
             ),
 
             // --- Documents commerciaux (factures A4, proformas) — décisions du PO du 07/11/2026.

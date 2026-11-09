@@ -101,6 +101,9 @@ void main() {
     final sortie = await executerPhp(
       'rejouer_affectation.php',
       entree: {
+        // Une SOCIÉTÉ : réserve légale et dividendes (l'entreprise individuelle, défaut du
+        // Gîte, a ses propres tests).
+        'forme_juridique': 'sarl',
         'aujourdhui': '2031-06-15',
         'exercices': [
           {'annee': 2030, 'statut': 'ouvert'},
@@ -127,6 +130,7 @@ void main() {
     await b.semerAuteur();
     await semerAuteur(b.db);
     await baseInstalleeSur(b.db, DateTime(2031, 6, 15));
+    await poserFormeJuridique(b.db, 'sarl');
     dao = ComptabiliteDao(b.db);
     // Un poste qui n'a PAS fait cette clôture : le serveur lui a donné le statut et la date.
     await dao.alignerExerciceDescendu(

@@ -11,7 +11,9 @@ use App\Domain\Comptabilite\Models\EcritureComptable;
 use App\Domain\Comptabilite\Models\ExerciceComptable;
 use App\Domain\Comptabilite\Services\ClotureExerciceService;
 use App\Domain\Comptabilite\Services\PasserEcritureService;
+use App\Domain\Comptabilite\Support\FormeJuridique;
 use App\Models\User;
+use App\Shared\Parametres\Models\ParametreSysteme;
 use Database\Seeders\ComptabiliteReferentielSeeder;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -41,6 +43,9 @@ final class AffectationResultatSynchronisationTest extends TestCase
         $this->travelTo('2026-10-26 10:00:00');
         $this->seed(RolePermissionSeeder::class);
         $this->seed(ComptabiliteReferentielSeeder::class);
+        // Ce fichier éprouve une SOCIÉTÉ (réserve légale, dividendes) ; l'entreprise
+        // individuelle, forme par défaut du Gîte, a ses tests dans `AffectationFormeJuridiqueTest`.
+        ParametreSysteme::query()->updateOrCreate(['cle' => FormeJuridique::CLE], ['valeur' => 'sarl']);
         $this->comptable = $this->creerUtilisateur('comptable');
         $this->actingAs($this->comptable);
 
@@ -180,6 +185,8 @@ final class AffectationResultatSynchronisationTest extends TestCase
     {
         $this->cloturer();
         $this->pousser([$this->piece($this->uuid())], $this->comptable);
+        // La contre-passation se date du jour de la correction, dans N, jamais avant la pièce.
+        $this->travelTo('2027-05-10 10:00:00');
 
         $this->pousser([$this->demande('annuler_affectation', ['motif' => 'court'])], $this->comptable)
             ->assertJsonPath('resultats.0.statut', 'rejete')
@@ -202,5 +209,75 @@ final class AffectationResultatSynchronisationTest extends TestCase
         // Une affectation contre-passée peut être refaite.
         $this->pousser([$this->piece($this->uuid())], $this->comptable)->assertJsonPath('resultats.0.statut', 'synchronise');
         $this->assertSame(2, AffectationResultat::query()->count());
+    }
+
+    #[Test]
+    public function une_piece_de_poste_qui_porte_un_dividende_ou_une_reserve_legale_est_refusee_pour_une_entreprise_individuelle(): void
+    {
+        ParametreSysteme::query()->where('cle', FormeJuridique::CLE)->update(['valeur' => FormeJuridique::EntrepriseIndividuelle->value]);
+        $this->cloturer();
+
+        // La ventilation du poste porte 20 000 de dividendes (compte 465) : refus du serveur, sa phrase.
+        $this->pousser([$this->piece($this->uuid(), ['dividendes' => 2000000, 'compte_exploitant' => 5000000], [
+            ['compte' => '131', 'debit' => 7000000, 'credit' => 0, 'centre' => 'Structure'],
+            ['compte' => '465', 'debit' => 0, 'credit' => 2000000, 'centre' => 'Structure'],
+            ['compte' => '1041', 'debit' => 0, 'credit' => 5000000, 'centre' => 'Structure'],
+        ])], $this->comptable)
+            ->assertJsonPath('resultats.0.statut', 'rejete')
+            ->assertJsonPath('resultats.0.motif', __('comptabilite.affectation_ei_dividende'));
+
+        // La réserve légale du poste (SARL de l'ancienne version) : refusée aussi.
+        $this->pousser([$this->piece($this->uuid())], $this->comptable)
+            ->assertJsonPath('resultats.0.statut', 'rejete')
+            ->assertJsonPath('resultats.0.motif', __('comptabilite.affectation_ei_reserve_legale'));
+
+        // Une ligne 465 glissée dans la pièce sans la ventilation : la pièce diverge, refusée.
+        $this->pousser([$this->piece($this->uuid(), ['compte_exploitant' => 7000000], [
+            ['compte' => '131', 'debit' => 7000000, 'credit' => 0, 'centre' => 'Structure'],
+            ['compte' => '465', 'debit' => 0, 'credit' => 7000000, 'centre' => 'Structure'],
+        ])], $this->comptable)
+            ->assertJsonPath('resultats.0.statut', 'rejete')
+            ->assertJsonPath('resultats.0.motif', __('comptabilite.affectation_piece_divergente'));
+        $this->assertSame(0, AffectationResultat::query()->count());
+
+        // La pièce EI correcte (compte de l'exploitant 1041, report à nouveau) passe.
+        $this->pousser([$this->piece($this->uuid(), ['compte_exploitant' => 5000000, 'report_a_nouveau' => 2000000], [
+            ['compte' => '131', 'debit' => 7000000, 'credit' => 0, 'centre' => 'Structure'],
+            ['compte' => '1041', 'debit' => 0, 'credit' => 5000000, 'centre' => 'Structure'],
+            ['compte' => '121', 'debit' => 0, 'credit' => 2000000, 'centre' => 'Structure'],
+        ])], $this->comptable)->assertJsonPath('resultats.0.statut', 'synchronise');
+        $affectation = AffectationResultat::query()->firstOrFail();
+        $this->assertSame('50000.00', (string) $affectation->compte_exploitant);
+        $this->assertSame('entreprise_individuelle', $affectation->forme_juridique);
+    }
+
+    #[Test]
+    public function la_demande_de_contrepassation_du_poste_porte_la_reference_et_se_heurte_a_un_dividende_regle(): void
+    {
+        $this->cloturer();
+        $this->pousser([$this->piece($this->uuid(), ['reserve_legale' => 700000, 'dividendes' => 1000000, 'report_a_nouveau' => 5300000], [
+            ['compte' => '131', 'debit' => 7000000, 'credit' => 0, 'centre' => 'Structure'],
+            ['compte' => '111', 'debit' => 0, 'credit' => 700000, 'centre' => 'Structure'],
+            ['compte' => '465', 'debit' => 0, 'credit' => 1000000, 'centre' => 'Structure'],
+            ['compte' => '121', 'debit' => 0, 'credit' => 5300000, 'centre' => 'Structure'],
+        ])], $this->comptable)->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->travelTo('2027-05-10 10:00:00');
+
+        // Un règlement partiel du dividende (D 465 / C banque) : la demande est refusée.
+        $reglement = app(PasserEcritureService::class)->passerEtValider(['journal' => 'OD', 'date' => '2027-05-02', 'libelle' => 'Règlement partiel', 'lignes' => [
+            ['compte' => '465', 'debit' => '1000.00', 'centre_id' => (string) CentreCout::query()->where('libelle', 'Structure')->value('id')],
+            ['compte' => '5211', 'credit' => '1000.00'],
+        ]]);
+        $this->pousser([$this->demande('annuler_affectation', ['motif' => 'Ventilation à revoir en assemblée'])], $this->comptable)
+            ->assertJsonPath('resultats.0.statut', 'rejete')
+            ->assertJsonPath('resultats.0.motif', __('comptabilite.affectation_dividende_regle', ['annee' => '2026', 'regle' => '1000.00', 'dividendes' => '10000.00']));
+        $this->assertSame(1, AffectationResultat::query()->whereNull('contrepassee_le')->count());
+
+        // Le règlement annulé, la demande passe, avec la référence de la décision.
+        app(PasserEcritureService::class)->contrepasserPiece($reglement, 'Annulation du règlement');
+        $this->pousser([$this->demande('annuler_affectation', ['motif' => 'Ventilation à revoir en assemblée', 'reference_decision' => 'PV du 10/05/2027'])], $this->comptable)
+            ->assertJsonPath('resultats.0.statut', 'synchronise')
+            ->assertJsonPath('resultats.0.issue', 'executee');
+        $this->assertSame('PV du 10/05/2027', AffectationResultat::query()->firstOrFail()->reference_decision_contrepassation);
     }
 }

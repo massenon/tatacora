@@ -75,6 +75,10 @@ abstract final class ComptesSyscohada {
   static const reportANouveauCrediteur = '121';
   static const reportANouveauDebiteur = '1291';
 
+  /// Le compte de l'exploitant d'une entreprise individuelle (09/11/2026) : 1041,
+  /// PAS 104 (une division du plan, jamais imputée) — `ComptesSyscohada::COMPTE_EXPLOITANT`.
+  static const compteExploitant = '1041';
+
   /// Les rôles, sous le NOM DE LA CONSTANTE DU SERVEUR (`CLIENTS`,
   /// `AVANCES_CLIENTS`…) : c'est ce nom que le test confronte à la réflexion
   /// PHP, jamais une traduction.
@@ -104,6 +108,7 @@ abstract final class ComptesSyscohada {
     'DIVIDENDES_A_PAYER': dividendesAPayer,
     'REPORT_A_NOUVEAU_CREDITEUR': reportANouveauCrediteur,
     'REPORT_A_NOUVEAU_DEBITEUR': reportANouveauDebiteur,
+    'COMPTE_EXPLOITANT': compteExploitant,
   };
 
   /// Les sept centres de coût actés au CdCF : libellé -> type

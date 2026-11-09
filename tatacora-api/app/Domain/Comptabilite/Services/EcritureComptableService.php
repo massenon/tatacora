@@ -120,7 +120,7 @@ class EcritureComptableService
      *
      * @throws EcritureImmuableException si l'écriture n'est pas validée, ou déjà contre-passée
      */
-    public function contrepasser(EcritureComptable $ecriture, ?string $motif = null): EcritureComptable
+    public function contrepasser(EcritureComptable $ecriture, ?string $motif = null, ?string $date = null): EcritureComptable
     {
         if ($ecriture->statut !== 'validee') {
             // Une écriture en brouillon se corrige directement : la
@@ -142,12 +142,14 @@ class EcritureComptableService
             );
         }
 
+        $jour = $date ?? now()->toDateString();
+
         return DB::transaction(fn (): EcritureComptable => EcritureComptable::create([
             'exercice_id' => $ecriture->exercice_id,
             'journal_id' => $ecriture->journal_id,
             'compte_id' => $ecriture->compte_id,
             'centre_id' => $ecriture->centre_id,
-            'date_ecriture' => now()->toDateString(),
+            'date_ecriture' => $jour,
             'libelle' => $motif ?? __('comptabilite.libelle_contrepassation', [
                 'libelle' => $ecriture->libelle,
             ]),

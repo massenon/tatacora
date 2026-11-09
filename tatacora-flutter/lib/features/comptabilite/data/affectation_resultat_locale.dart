@@ -8,6 +8,7 @@ import '../../synchronisation/domain/operation_sync.dart';
 import '../domain/affectation_resultat.dart';
 import '../domain/cloture_exercice.dart';
 import '../domain/entities/comptabilite.dart';
+import '../domain/forme_juridique.dart';
 import '../domain/messages_affectation.dart';
 import '../domain/refus_comptable.dart';
 import 'affectations_recues_dao.dart';
@@ -57,6 +58,9 @@ final class EtatAffectation {
     required this.proposition,
     required this.reserveLegalePropose,
     required this.plafondReserveLegaleAtteint,
+    required this.forme,
+    this.alertes = const [],
+    this.avertissements = const [],
   });
 
   /// L'exercice clôturé dont le résultat s'affecte (N-1) et celui qui porte la
@@ -75,10 +79,22 @@ final class EtatAffectation {
   final bool reserveLegalePropose;
   final bool plafondReserveLegaleAtteint;
 
+  /// La forme juridique de l'établissement, lue du paramètre descendu du serveur.
+  final FormeJuridique forme;
+
+  /// L'alerte de l'article 664 (non bloquante) et les avertissements : à lire sur la carte.
+  final List<String> alertes;
+  final List<String> avertissements;
+
   bool get estBenefice => resultatCentimes >= 0;
   int get resultatAbsoluCentimes =>
       resultatCentimes >= 0 ? resultatCentimes : -resultatCentimes;
-  List<String> get postes => estBenefice ? postesBenefice : postesPerte;
+
+  /// Les postes OFFERTS : une entreprise individuelle n'offre ni réserve légale ni dividendes.
+  List<String> get postes => postesOfferts(forme, benefice: estBenefice);
+
+  /// Le poste qui reçoit LE RESTE (compte de l'exploitant, ou report à nouveau).
+  String get posteDuReste => posteDuResteDe(forme);
 }
 
 /// L'AFFECTATION DU RÉSULTAT d'un exercice clôturé, sur le poste — réplique
@@ -164,7 +180,40 @@ class AffectationResultatLocale {
     dividendes: await _dao.compteDuRole('DIVIDENDES_A_PAYER'),
     reportCrediteur: await _dao.compteDuRole('REPORT_A_NOUVEAU_CREDITEUR'),
     reportDebiteur: await _dao.compteDuRole('REPORT_A_NOUVEAU_DEBITEUR'),
+    exploitant: await _dao.compteDuRole('COMPTE_EXPLOITANT'),
   );
+
+  /// La forme juridique, lue du paramètre DESCENDU du serveur
+  /// (`parametres_systeme_local`) ; absente ou illisible : l'entreprise individuelle,
+  /// le défaut du Gîte (`FormeJuridique::courante`).
+  Future<FormeJuridique> forme() async {
+    final ligne = await (_db.select(
+      _db.parametresSystemeLocal,
+    )..where((p) => p.cle.equals(cleFormeJuridique))).getSingleOrNull();
+    return FormeJuridique.depuisCode(ligne?.valeur);
+  }
+
+  /// La SITUATION de N lue sur ses écritures validées (à-nouveaux compris) — voir
+  /// [SituationCapitaux] (`AffectationResultatService::situation`).
+  Future<SituationCapitaux> _situation(String exerciceId) async {
+    final comptes = await _comptes();
+    final solde = await _dao.soldesDeBilan(exerciceId);
+    int somme(bool Function(String numero) retenu) => solde
+        .where((s) => retenu(s.numero))
+        .fold<int>(0, (t, s) => t + s.creditCentimes - s.debitCentimes);
+    bool prefixe(String numero, List<String> prefixes) =>
+        prefixes.any(numero.startsWith);
+    final debitNet = somme((n) => prefixe(n, prefixesPertesAnterieures));
+    return (
+      capital: somme((n) => prefixe(n, prefixesCapital)),
+      reserveLegale: somme((n) => n == comptes.reserveLegale),
+      reservesNonDistribuables: somme(
+        (n) => prefixe(n, prefixesReservesNonDistribuables),
+      ),
+      pertesAnterieures: debitNet < 0 ? -debitNet : 0,
+      capitauxPropres: somme((n) => prefixe(n, prefixesCapitauxPropres)),
+    );
+  }
 
   /// L'affectation ACTIVE de l'exercice [exerciceId] (N-1), ou `null` : celle de ce
   /// poste (sa pièce, encore entière) ou celle que le serveur a descendue — voir
@@ -243,6 +292,12 @@ class AffectationResultatLocale {
       if (r.reportDebiteurCentimes > 0)
         'report_a_nouveau': r.reportDebiteurCentimes,
     };
+    // Le COMPTE DE L'EXPLOITANT (entreprise individuelle) : la descente ne porte pas
+    // cette colonne (aucun changement de schéma) ; la ventilation égalant le résultat
+    // EXACTEMENT, il est ce qui reste une fois les autres postes retirés.
+    final absolu = benefice ? r.resultatCentimes : -r.resultatCentimes;
+    final reste = absolu - ventilation.values.fold<int>(0, (t, m) => t + m);
+    if (reste > 0) ventilation['compte_exploitant'] = reste;
     return AffectationPassee(
       numeroPiece: r.numeroPiece,
       dateApprobation: r.dateApprobation,
@@ -262,6 +317,7 @@ class AffectationResultatLocale {
       comptes.autresReserves: 'autres_reserves',
       comptes.dividendes: 'dividendes',
       comptes.reportCrediteur: 'report_a_nouveau',
+      comptes.exploitant: 'compte_exploitant',
     };
     final ventilation = <String, int>{};
     var resultat = 0;
@@ -352,23 +408,32 @@ class AffectationResultatLocale {
     final suivant = await _dao.exerciceDeLAnnee(exercice.annee + 1);
     final active = await this.active(exercice.id);
     final comptes = await _comptes();
-    final proposition = suivant == null
-        ? proposerVentilation(
-            resultatCentimes: resultat,
-            capitalCentimes: 0,
-            reserveLegaleCentimes: 0,
-          )
-        : proposerVentilation(
-            resultatCentimes: resultat,
-            capitalCentimes: await _soldeCrediteur(
-              suivant.id,
-              prefixes: prefixesCapital,
-            ),
-            reserveLegaleCentimes: await _soldeCrediteur(
-              suivant.id,
-              exact: comptes.reserveLegale,
-            ),
-          );
+    final forme = await this.forme();
+    final situation = suivant == null ? null : await _situation(suivant.id);
+    final proposition = proposerVentilation(
+      forme: forme,
+      resultatCentimes: resultat,
+      situation: situation,
+      soldeReportCrediteur: suivant == null
+          ? 0
+          : await _soldeCrediteur(suivant.id, exact: comptes.reportCrediteur),
+      soldeAutresReserves: suivant == null
+          ? 0
+          : await _soldeCrediteur(suivant.id, exact: comptes.autresReserves),
+    );
+    final alertes = <String>[];
+    final avertissements = <String>[];
+    if (situation != null && forme.estSociete) {
+      final alerte = alerteMoitieCapital(situation, resultat);
+      if (alerte != null) alertes.add(alerte);
+      if (resultat >= 0 && situation.capital <= 0) {
+        avertissements.add(
+          MessagesAffectation.dire(
+            'comptabilite.affectation_avertissement_capital_indetermine',
+          ),
+        );
+      }
+    }
     return EtatAffectation(
       annee: exercice.annee,
       anneeAffectation: exercice.annee + 1,
@@ -385,6 +450,9 @@ class AffectationResultatLocale {
       proposition: proposition.ventilation,
       reserveLegalePropose: proposition.reserveLegalePropose,
       plafondReserveLegaleAtteint: proposition.plafondAtteint,
+      forme: forme,
+      alertes: alertes,
+      avertissements: avertissements,
     );
   }
 
@@ -478,11 +546,14 @@ class AffectationResultatLocale {
         );
       }
 
+      final forme = await this.forme();
       final suivant = await _exerciceDeLaDate(exercice, date);
       final comptes = await _comptes();
-      final montants = controlerVentilation(
+      final controle = controlerVentilation(
+        forme: forme,
         ventilation: ventilation,
         resultatCentimes: resultat,
+        situation: await _situation(suivant.id),
         soldesImputables: {
           'autres_reserves': await _soldeCrediteur(
             suivant.id,
@@ -494,6 +565,7 @@ class AffectationResultatLocale {
           ),
         },
       );
+      final montants = controle.montants;
 
       final structure = await _dao.centreParLibelle(centreDeCloture);
       if (structure == null) {
@@ -573,13 +645,24 @@ class AffectationResultatLocale {
   }
 
   /// La CONTRE-PASSATION de l'affectation active de [exerciceId] (N-1) : le
-  /// comptable seul, motif de dix caractères au moins. La pièce d'affectation
-  /// est inversée ligne à ligne (rien ne s'efface, RG-11) ; l'exercice peut
-  /// ensuite être affecté de nouveau. Enfile la demande `annuler_affectation`.
+  /// comptable seul, motif de dix caractères au moins, référence de la décision
+  /// ([reference] : PV d'assemblée / décision de l'exploitant) FACULTATIVE, transmise
+  /// au serveur pour son journal d'audit.
+  ///
+  /// La pièce d'affectation est inversée ligne à ligne (rien ne s'efface, RG-11) :
+  ///  - à la date du JOUR de la correction, qui doit tomber dans l'exercice N, OUVERT,
+  ///    et n'est jamais antérieure à la pièce d'origine ;
+  ///  - REFUSÉE si un dividende de l'affectation est déjà réglé en tout ou partie (le
+  ///    compte des dividendes à payer n'est plus au montant affecté) : « annulez
+  ///    d'abord le règlement ».
+  ///
+  /// L'exercice peut ensuite être affecté de nouveau. Enfile la demande
+  /// `annuler_affectation`.
   Future<void> contrepasser(
     String exerciceId, {
     required String auteurId,
     required String motif,
+    String? reference,
   }) async {
     await _exigerComptable(auteurId);
     final propre = motif.trim();
@@ -587,6 +670,18 @@ class AffectationResultatLocale {
       throw _refus(MotifRefus.affectationMotif, 'affectation_motif', {
         'min': '$longueurMinMotifAffectation',
       });
+    }
+    final reponse = reference?.trim();
+    final referenceDecision = reponse == null || reponse.isEmpty
+        ? null
+        : reponse;
+    if (referenceDecision != null &&
+        referenceDecision.runes.length > longueurMaxReferenceDecision) {
+      throw _refus(
+        MotifRefus.affectationReference,
+        'affectation_reference_trop_longue',
+        {'max': '$longueurMaxReferenceDecision'},
+      );
     }
     await _db.transaction(() async {
       final exercice = await _dao.exercice(exerciceId);
@@ -608,9 +703,64 @@ class AffectationResultatLocale {
           {'annee': '${exercice.annee}', 'suivant': '${suivant.annee}'},
         );
       }
+      if (suivant.statut != StatutExercice.ouvert) {
+        throw _refus(
+          MotifRefus.affectationExerciceClos,
+          'affectation_contrepassation_exercice_non_ouvert',
+          {
+            'annee': '${exercice.annee}',
+            'suivant': '${suivant.annee}',
+            'statut': suivant.statut.valeur,
+          },
+        );
+      }
+
+      // La date de la correction : AUJOURD'HUI, dans N, jamais avant la pièce d'origine.
+      final maintenant = _maintenant();
+      final jour = formaterDateIso(maintenant);
+      if (maintenant.year != suivant.annee) {
+        throw _refus(
+          MotifRefus.affectationDate,
+          'affectation_contrepassation_date_hors_exercice',
+          {'date': jour, 'suivant': '${suivant.annee}'},
+        );
+      }
+      final origine = lignes.first.dateEcriture;
+      if (jour.compareTo(origine) < 0) {
+        throw _refus(
+          MotifRefus.affectationDate,
+          'affectation_contrepassation_anterieure',
+          {'date': jour, 'origine': origine},
+        );
+      }
+
+      // Un dividende réglé (le compte des dividendes à payer a été débité) : on
+      // annule d'abord le règlement.
+      final dividendes = (await _passeeIci(lignes)).ventilation['dividendes'];
+      if (dividendes != null && dividendes > 0) {
+        final comptes = await _comptes();
+        final reste = await _soldeCrediteur(
+          suivant.id,
+          exact: comptes.dividendes,
+        );
+        final regle = dividendes - reste;
+        if (regle > 0) {
+          throw _refus(
+            MotifRefus.affectationDividendeRegle,
+            'affectation_dividende_regle',
+            {
+              'annee': '${exercice.annee}',
+              'regle': _decimal(regle),
+              'dividendes': _decimal(dividendes),
+            },
+          );
+        }
+      }
+
       await _moteur.contrepasserPiece(
         lignes,
         auteurId: auteurId,
+        date: jour,
         motif: MessagesAffectation.dire(
           'comptabilite.libelle_contrepassation_affectation',
           {'annee': '${exercice.annee}', 'motif': propre},
@@ -624,9 +774,17 @@ class AffectationResultatLocale {
           annee: exercice.annee,
           action: 'annuler_affectation',
           motif: propre,
+          referenceDecision: referenceDecision,
         ),
       );
     });
+  }
+
+  /// Les centimes en décimal à deux chiffres, comme `bcadd(.., '0', 2)`.
+  static String _decimal(int centimes) {
+    final negatif = centimes < 0;
+    final abs = negatif ? -centimes : centimes;
+    return '${negatif ? '-' : ''}${abs ~/ 100}.${(abs % 100).toString().padLeft(2, '0')}';
   }
 
   /// L'affectation active de l'exercice [annee] ou `null` — lue par la

@@ -17,10 +17,12 @@ use App\Domain\Comptabilite\Services\ClotureExerciceService;
 use App\Domain\Comptabilite\Services\CompteResultatService;
 use App\Domain\Comptabilite\Services\EtatClotureService;
 use App\Domain\Comptabilite\Services\PasserEcritureService;
+use App\Domain\Comptabilite\Support\FormeJuridique;
 use App\Domain\Comptabilite\Support\RolesCorrespondance;
 use App\Models\User;
 use App\Pwa\Livewire\Comptabilite\Hub;
 use App\Shared\Audit\Models\JournalAudit;
+use App\Shared\Parametres\Models\ParametreSysteme;
 use App\Shared\Parametres\Services\EnregistrerParametreService;
 use App\Shared\Rbac\Models\Role;
 use Database\Seeders\ComptabiliteReferentielSeeder;
@@ -58,9 +60,19 @@ final class AffectationResultatTest extends TestCase
         $this->travelTo('2026-10-20 10:00:00');
         $this->seed(RolePermissionSeeder::class);
         $this->seed(ComptabiliteReferentielSeeder::class);
+        // Ce fichier éprouve les règles d'une SOCIÉTÉ (réserve légale, dividendes) : la
+        // forme par défaut du Gîte, l'entreprise individuelle, a son propre fichier
+        // (`AffectationFormeJuridiqueTest`).
+        ParametreSysteme::query()->updateOrCreate(['cle' => FormeJuridique::CLE], ['valeur' => 'sarl']);
         $this->comptable = $this->utilisateur('comptable');
         $this->actingAs($this->comptable);
         $this->n1 = ExerciceComptable::query()->where('annee', 2026)->firstOrFail();
+    }
+
+    /** Le jour de la correction : une contre-passation se date d'AUJOURD'HUI, dans l'exercice qui porte l'affectation. */
+    private function aujourdhuiEn2027(): void
+    {
+        $this->travelTo('2027-05-10 10:00:00');
     }
 
     private function utilisateur(string $role): User
@@ -138,9 +150,9 @@ final class AffectationResultatTest extends TestCase
     }
 
     /** @return array<string, string> */
-    private function ventilation(string $rl = '0', string $ar = '0', string $div = '0', string $ran = '0', string $imp = '0'): array
+    private function ventilation(string $rl = '0', string $ar = '0', string $div = '0', string $ran = '0', string $imp = '0', string $ce = '0'): array
     {
-        return ['reserve_legale' => $rl, 'autres_reserves' => $ar, 'dividendes' => $div, 'report_a_nouveau' => $ran, 'imputation_report_crediteur' => $imp];
+        return ['reserve_legale' => $rl, 'autres_reserves' => $ar, 'dividendes' => $div, 'report_a_nouveau' => $ran, 'imputation_report_crediteur' => $imp, 'compte_exploitant' => $ce];
     }
 
     private function refus(callable $geste, string $attendu): void
@@ -284,6 +296,7 @@ final class AffectationResultatTest extends TestCase
     #[Test]
     public function la_reserve_legale_proposee_s_arrete_au_plafond_puis_disparait(): void
     {
+        $this->aujourdhuiEn2027();
         $this->capital('500000.00');
         // 99 500 déjà en réserve légale sur un plafond de 100 000 : il reste 500.
         app(PasserEcritureService::class)->passerEtValider(['journal' => 'OD', 'date' => '2026-01-06', 'libelle' => 'Réserve existante', 'lignes' => [
@@ -473,6 +486,7 @@ final class AffectationResultatTest extends TestCase
     #[Test]
     public function une_seconde_affectation_active_est_refusee_une_contrepassee_peut_etre_refaite(): void
     {
+        $this->aujourdhuiEn2027();
         $this->benefice();
         $premiere = $this->service()->affecter($this->n1->refresh(), $this->ventilation(ran: '70000'), '2027-04-30', $this->comptable);
 
@@ -495,6 +509,7 @@ final class AffectationResultatTest extends TestCase
     #[Test]
     public function seul_le_comptable_affecte_et_contrepasse(): void
     {
+        $this->aujourdhuiEn2027();
         $this->benefice();
         $gerant = $this->utilisateur('gerant');
         $this->actingAs($gerant);
@@ -519,6 +534,7 @@ final class AffectationResultatTest extends TestCase
     #[Test]
     public function la_contrepassation_exige_un_motif_inverse_la_piece_et_rouvre_le_131(): void
     {
+        $this->aujourdhuiEn2027();
         $this->benefice();
         $n = $this->n();
         $affectation = $this->service()->affecter($this->n1->refresh(), $this->ventilation(rl: '7000', ran: '63000'), '2027-04-30', $this->comptable);
@@ -546,6 +562,7 @@ final class AffectationResultatTest extends TestCase
     #[Test]
     public function rouvrir_n_moins_1_est_refuse_tant_que_l_affectation_est_active(): void
     {
+        $this->aujourdhuiEn2027();
         $this->benefice();
         $this->service()->affecter($this->n1->refresh(), $this->ventilation(ran: '70000'), '2027-04-30', $this->comptable);
         $clotures = app(ClotureExerciceService::class);
@@ -616,6 +633,7 @@ final class AffectationResultatTest extends TestCase
     #[Test]
     public function la_carte_web_propose_confirme_passe_et_contrepasse(): void
     {
+        $this->aujourdhuiEn2027();
         $this->capital('500000.00');
         $this->benefice();
 

@@ -232,6 +232,15 @@ abstract final class RolesCorrespondance {
       aide: 'Débité par l’affectation d’une perte reportée à nouveau.',
       prefixes: ['129'],
     ),
+    // Entreprise individuelle (09/11/2026) — compte de l'exploitant (104x).
+    RoleCompte(
+      code: 'COMPTE_EXPLOITANT',
+      groupe: groupeResultat,
+      libelle: 'Compte de l’exploitant',
+      aide:
+          'Crédité par l’affectation d’un bénéfice à l’exploitant d’une entreprise individuelle, débité par l’affectation d’une perte.',
+      prefixes: ['104'],
+    ),
   ];
 
   /// La clé du paramètre d'un rôle : `compte_produit_locations`.

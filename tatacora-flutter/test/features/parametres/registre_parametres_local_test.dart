@@ -88,19 +88,20 @@ void main() {
   final serveur = RegistreServeur.charger();
   final locales = RegistreParametresLocal.definitions;
 
-  test('le balayage n’est pas vide : 64 définitions côté serveur', () {
+  test('le balayage n’est pas vide : 66 définitions côté serveur', () {
     // 59 = (50 + 9 réglages des documents commerciaux, 07/11/2026) 10 identité + 4 facturation normalisée (07/11/2026 : mode, adresse
     // de l'API, deux champs de l'opérateur) + 4 fiscalité + 5 social + 5
     // exploitation + 4 email + 3 activation + 15 correspondance des comptes
     // (26/10/2026, une clé `compte_<rôle>` par rôle). Le compte est écrit
     // pour que le test échoue si la lecture de PHP rendait une liste vide ou
     // tronquée.
-    // + 5 rôles de l'affectation du résultat (09/11/2026) : 64.
-    expect(serveur.definitions.length, 64);
-    expect(locales.length, 64);
+    // + 5 rôles de l'affectation du résultat (09/11/2026) : 64 ; + la forme juridique
+    // et le rôle du compte de l'exploitant (09/11/2026) : 66.
+    expect(serveur.definitions.length, 66);
+    expect(locales.length, 66);
     expect(
       serveur.definitions.where((d) => d['groupe'] == 'comptes'),
-      hasLength(20),
+      hasLength(21),
     );
   });
 
@@ -297,7 +298,9 @@ void main() {
       // + les NEUF réglages des documents commerciaux (07/11/2026, lus par
       // `reglages_documents.dart`) : 53.
       // + les CINQ rôles de l'affectation du résultat (09/11/2026) : 58.
-      expect(verifies, 58);
+      // + la FORME JURIDIQUE (`forme_juridique.dart`) et le rôle du compte de
+      // l'exploitant (09/11/2026) : 60.
+      expect(verifies, 60);
     });
 
     test('5 clés n’ont AUCUN lecteur sur ce poste, et c’est dit', () {
@@ -371,7 +374,7 @@ void main() {
         );
         balayees++;
       }
-      expect(balayees, 58, reason: 'balayage non vide');
+      expect(balayees, 60, reason: 'balayage non vide');
     });
 
     test('chaque exemption NOMME réellement sa clé : une exemption périmée '

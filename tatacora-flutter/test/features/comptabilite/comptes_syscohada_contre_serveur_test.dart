@@ -25,9 +25,9 @@ void main() {
     plan = lirePlanComptable(lirePlanEmbarque()).map((c) => c.numero).toSet();
   });
 
-  test('25 rôles relus de la classe du serveur — export non vide', () {
-    expect(serveur['comptes'], hasLength(25));
-    expect(ComptesSyscohada.tous, hasLength(25));
+  test('26 rôles relus de la classe du serveur — export non vide', () {
+    expect(serveur['comptes'], hasLength(26));
+    expect(ComptesSyscohada.tous, hasLength(26));
   });
 
   test(
@@ -43,7 +43,7 @@ void main() {
   );
 
   test('les constantes Dart nommées sont celles de la table `tous`', () {
-    // Les 25 constantes sont lues UNE à UNE : `tous` pourrait en omettre une
+    // Les 26 constantes sont lues UNE à UNE : `tous` pourrait en omettre une
     // sans qu'aucun test précédent ne le voie.
     expect(ComptesSyscohada.tous.values.toSet(), {
       ComptesSyscohada.clients,
@@ -71,6 +71,8 @@ void main() {
       ComptesSyscohada.dividendesAPayer,
       ComptesSyscohada.reportANouveauCrediteur,
       ComptesSyscohada.reportANouveauDebiteur,
+      // Entreprise individuelle (09/11/2026).
+      ComptesSyscohada.compteExploitant,
     });
   });
 

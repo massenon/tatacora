@@ -22,6 +22,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $dividendes
  * @property string $report_a_nouveau_crediteur
  * @property string $report_a_nouveau_debiteur
+ * @property string $compte_exploitant part portée au compte de l'exploitant (entreprise individuelle)
+ * @property string|null $forme_juridique forme sous laquelle l'affectation a été passée
  * @property string $piece_affectation
  * @property \Illuminate\Support\Carbon $affectee_le
  * @property string|null $affectee_par
@@ -37,7 +39,7 @@ class AffectationResultat extends Model
         'exercice_id', 'cloture_id', 'resultat', 'date_approbation', 'reserve_legale', 'autres_reserves',
         'dividendes', 'report_a_nouveau_crediteur', 'report_a_nouveau_debiteur', 'piece_affectation',
         'piece_origine_id', 'motif', 'affectee_par', 'affectee_le', 'contrepassee_par', 'contrepassee_le',
-        'motif_contrepassation',
+        'motif_contrepassation', 'compte_exploitant', 'forme_juridique', 'reference_decision_contrepassation',
     ];
 
     protected function casts(): array
@@ -49,6 +51,7 @@ class AffectationResultat extends Model
             'dividendes' => 'decimal:2',
             'report_a_nouveau_crediteur' => 'decimal:2',
             'report_a_nouveau_debiteur' => 'decimal:2',
+            'compte_exploitant' => 'decimal:2',
             'date_approbation' => 'date',
             'affectee_le' => 'datetime',
             'contrepassee_le' => 'datetime',

@@ -1195,7 +1195,15 @@ Map<String, Object?> chargeDemandeCloture({
   required int annee,
   required String action,
   String? motif,
-}) => {'annee': annee, 'action': action, 'motif': ?motif};
+  String? referenceDecision,
+}) => {
+  'annee': annee,
+  'action': action,
+  'motif': ?motif,
+  // La référence FACULTATIVE de la décision (PV d'assemblée / décision de
+  // l'exploitant) d'une contre-passation d'affectation : tracée à l'audit du serveur.
+  'reference_decision': ?referenceDecision,
+};
 
 /// `articles` (modification) — l'archivage (`false`) ou la restauration
 /// (`true`) : le serveur l'applique par `ReferentielArticleService`, sous ses

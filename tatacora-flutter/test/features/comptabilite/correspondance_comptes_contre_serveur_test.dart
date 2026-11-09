@@ -40,12 +40,15 @@ void main() {
   });
 
   group('Les rôles et les phrases sont ceux du serveur', () {
-    test('vingt rôles relus du serveur — un export tronqué échouerait', () {
-      final roles = (export['roles'] as List).cast<Map<String, dynamic>>();
-      expect(roles, hasLength(20));
-      expect(RolesCorrespondance.roles, hasLength(20));
-      expect(export['groupes'], RolesCorrespondance.groupes);
-    });
+    test(
+      'vingt et un rôles relus du serveur — un export tronqué échouerait',
+      () {
+        final roles = (export['roles'] as List).cast<Map<String, dynamic>>();
+        expect(roles, hasLength(21));
+        expect(RolesCorrespondance.roles, hasLength(21));
+        expect(export['groupes'], RolesCorrespondance.groupes);
+      },
+    );
 
     test('chaque rôle : même groupe, libellé, aide, préfixes, clé et défaut, '
         'dans le même ordre', () {

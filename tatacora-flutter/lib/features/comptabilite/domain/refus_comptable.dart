@@ -75,6 +75,8 @@ enum MotifRefus {
   affectationMotif(false),
   affectationAucune(false),
   affectationExerciceClos(false),
+  affectationReference(false),
+  affectationDividendeRegle(false),
   reouvertureAffectationActive(false),
 
   /// RG-11 — les cinq refus que le serveur porte par `EcritureImmuableException`.

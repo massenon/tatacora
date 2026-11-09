@@ -182,7 +182,7 @@ class PasserEcritureService
      *
      * @throws \App\Domain\Comptabilite\Exceptions\EcritureImmuableException piece en brouillon, ou deja contre-passee
      */
-    public function contrepasserPiece(Collection $piece, ?string $motif = null): Collection
+    public function contrepasserPiece(Collection $piece, ?string $motif = null, ?string $date = null): Collection
     {
         if ($piece->isEmpty()) {
             // Une contre-passation qui ne trouve rien a inverser ne doit pas
@@ -191,11 +191,11 @@ class PasserEcritureService
             throw new RuntimeException(__('comptabilite.piece_vide'));
         }
 
-        return DB::transaction(function () use ($piece, $motif): Collection {
+        return DB::transaction(function () use ($piece, $motif, $date): Collection {
             $inverses = new Collection();
 
             foreach ($piece as $ecriture) {
-                $inverses->push($this->ecritures->contrepasser($ecriture, $motif));
+                $inverses->push($this->ecritures->contrepasser($ecriture, $motif, $date));
             }
 
             return $inverses;

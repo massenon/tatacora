@@ -41,6 +41,7 @@ void main() {
     await b.semerAuteur();
     await semerAuteur(b.db);
     await baseInstalleeSur(b.db, maintenant);
+    await poserFormeJuridique(b.db, 'sarl');
     dao = ComptabiliteDao(b.db);
   });
   tearDown(() => b.fermer());

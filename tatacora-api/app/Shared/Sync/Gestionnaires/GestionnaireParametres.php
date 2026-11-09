@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Shared\Sync\Gestionnaires;
 
+use App\Domain\Comptabilite\Support\FormeJuridique;
 use App\Domain\Facturation\Services\ReglagesDocuments;
 use App\Domain\Facturation\Services\ReglagesMecef;
 use App\Pwa\Livewire\Transverse\Parametres;
@@ -82,7 +83,9 @@ final class GestionnaireParametres extends GestionnaireAbstrait
         foreach ($valeurs as $cle => $valeur) {
             // Le MODE, l'adresse de l'API et l'opérateur se règlent au SERVEUR par un
             // administrateur : un poste ne les écrit jamais (il les reçoit en lecture).
-            if (in_array((string) $cle, [...ReglagesMecef::CLES_ADMINISTRATEUR, ...ReglagesDocuments::CLES], true)) {
+            // Même règle pour la FORME JURIDIQUE (09/11/2026) : elle commande des pièces
+            // déjà passées, et son changement est refusé tant qu'une affectation est active.
+            if (in_array((string) $cle, [...ReglagesMecef::CLES_ADMINISTRATEUR, ...ReglagesDocuments::CLES, FormeJuridique::CLE], true)) {
                 $conservees[] = (string) $cle;
 
                 continue;

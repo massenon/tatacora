@@ -470,6 +470,7 @@ class MoteurComptable {
     List<EcritureComptable> piece, {
     required String auteurId,
     String? motif,
+    String? date,
   }) async {
     _exigerAuteur(auteurId);
     // Une contre-passation qui ne trouve rien à inverser ne doit pas se taire :
@@ -479,7 +480,12 @@ class MoteurComptable {
       final inverses = <EcritureComptable>[];
       for (final ligne in piece) {
         inverses.add(
-          await contrepasserLigne(ligne, auteurId: auteurId, motif: motif),
+          await contrepasserLigne(
+            ligne,
+            auteurId: auteurId,
+            motif: motif,
+            date: date,
+          ),
         );
       }
       return inverses;
@@ -497,6 +503,7 @@ class MoteurComptable {
     EcritureComptable ecriture, {
     required String auteurId,
     String? motif,
+    String? date,
   }) async {
     _exigerAuteur(auteurId);
     return _dao.enTransaction(() async {
@@ -523,7 +530,9 @@ class MoteurComptable {
         journalId: origine.journalId,
         compteId: origine.compteId,
         centreId: origine.centreId,
-        dateEcriture: formaterDateIso(quand),
+        // [date] : l'affectation du résultat date SA contre-passation du jour de la
+        // correction, que le service lui impose dans N (`AffectationResultatService`).
+        dateEcriture: date ?? formaterDateIso(quand),
         libelle: motif ?? libelleContrepassation(origine.libelle),
         // Débit et crédit inversés : c'est toute la contre-passation.
         debitCentimes: origine.creditCentimes,

@@ -304,7 +304,20 @@
     @php($sommeJuste = $aff['sommeJuste'])
     <div id="affectation-resultat" class="bg-white rounded-xl border border-slate-200 p-4 mt-3">
       <h3 class="text-[14px] font-bold mb-1" style="color:var(--navy)">{{ __('comptabilite_pwa.affectation_titre', ['annee' => $aff['annee']]) }}</h3>
-      <p class="text-[12px] text-slate-500 mb-3">{{ __('comptabilite_pwa.affectation_note', ['compte' => $aff['compteResultat'], 'suivant' => $aff['anneeAffectation']]) }}</p>
+      <p class="text-[12px] text-slate-500 mb-1">{{ __($aff['estSociete'] ? 'comptabilite_pwa.affectation_note' : 'comptabilite_pwa.affectation_note_ei', ['compte' => $aff['compteResultat'], 'suivant' => $aff['anneeAffectation']]) }}</p>
+      <p class="text-[12px] text-slate-500 mb-3">{{ __('comptabilite_pwa.affectation_forme', ['forme' => __('comptabilite.forme_juridique_' . $aff['forme'])]) }}</p>
+
+      {{-- L'alerte de l'article 664 (non bloquante) et les avertissements : lisibles sur la carte. --}}
+      @foreach ($aff['alertes'] as $alerteAff)
+        <div id="affectation-alerte" class="bg-amber-50 border border-amber-300 rounded-lg p-3 mb-3">
+          <p class="text-[13px] text-amber-900">{{ $alerteAff }}</p>
+        </div>
+      @endforeach
+      @foreach ($aff['avertissements'] as $avertissementAff)
+        <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3">
+          <p class="text-[12px] text-amber-900">{{ $avertissementAff }}</p>
+        </div>
+      @endforeach
 
       @error('affectation')
         <div class="bg-red-50 border border-red-200 rounded-lg p-3 mb-3">
@@ -330,6 +343,7 @@
               'reserve_legale' => $aff['active']->reserve_legale,
               'autres_reserves' => $aff['active']->autres_reserves,
               'dividendes' => $aff['active']->dividendes,
+              'compte_exploitant' => $aff['active']->compte_exploitant,
               'imputation_report_crediteur' => $aff['estBenefice'] ? '0.00' : $aff['active']->report_a_nouveau_crediteur,
               'report_a_nouveau' => $aff['estBenefice'] ? $aff['active']->report_a_nouveau_crediteur : $aff['active']->report_a_nouveau_debiteur,
           ] as $posteAff => $montantAff)
@@ -344,6 +358,9 @@
           <label for="motif-contrepassation-affectation" class="block text-[13px] font-semibold text-slate-700 mb-1">{{ __('comptabilite_pwa.affectation_contrepasser_motif') }}</label>
           <textarea id="motif-contrepassation-affectation" wire:model="motifContrepassationAffectation" rows="2"
                     class="champ w-full border border-slate-200 rounded-lg px-3 py-2 text-sm mb-2"></textarea>
+          <label for="reference-contrepassation-affectation" class="block text-[13px] font-semibold text-slate-700 mb-1">{{ __('comptabilite_pwa.affectation_contrepasser_reference') }}</label>
+          <input id="reference-contrepassation-affectation" type="text" maxlength="255" wire:model="referenceContrepassationAffectation"
+                 class="champ w-full border border-slate-200 rounded-lg px-3 py-2 text-sm mb-2">
           <button type="button" wire:click="contrepasserAffectation"
                   class="text-[13px] px-4 py-2.5 rounded-lg border border-red-200 text-red-700 hover:bg-red-50 font-semibold">
             {{ __('comptabilite_pwa.affectation_contrepasser') }}
@@ -355,7 +372,7 @@
         <p class="text-[12px] text-slate-500">{{ __('comptabilite_pwa.affectation_non_affectable', ['suivant' => $aff['anneeAffectation']]) }}</p>
       @else
         <div class="mb-3">
-          <label for="date-affectation" class="block text-[13px] font-semibold text-slate-700 mb-1">{{ __('comptabilite_pwa.affectation_date') }}</label>
+          <label for="date-affectation" class="block text-[13px] font-semibold text-slate-700 mb-1">{{ __($aff['estSociete'] ? 'comptabilite_pwa.affectation_date' : 'comptabilite_pwa.affectation_date_ei') }}</label>
           <input id="date-affectation" type="date" wire:model="dateAffectation"
                  class="champ border border-slate-200 rounded-lg px-3 py-2 text-sm">
         </div>
@@ -376,14 +393,12 @@
             {{ $sommeJuste ? __('comptabilite_pwa.affectation_somme_ok') : __('comptabilite_pwa.affectation_somme_ecart', ['ecart' => MontantFcfa::format($ecartAff)]) }}
           </p>
         </div>
-        @if ($aff['estBenefice'])
+        @if ($aff['estBenefice'] && $aff['estSociete'])
           <p class="text-[12px] text-slate-500 mb-3">
             @if ($aff['plafondReserveLegaleAtteint'])
               {{ __('comptabilite_pwa.affectation_reserve_plafond') }}
-            @elseif ($aff['reserveLegalePropose'])
-              {{ __('comptabilite_pwa.affectation_reserve_proposee') }}
             @else
-              {{ __('comptabilite_pwa.affectation_reserve_indeterminee') }}
+              {{ __('comptabilite_pwa.affectation_reserve_proposee') }}
             @endif
           </p>
         @endif

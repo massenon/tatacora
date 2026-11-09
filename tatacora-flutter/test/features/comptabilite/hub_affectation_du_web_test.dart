@@ -50,6 +50,7 @@ void main() {
 
   setUp(() async {
     db = await baseInstallee(maintenant: DateTime.now());
+    await poserFormeJuridique(db, 'sarl');
     dao = ComptabiliteDao(db);
     archives = await Directory.systemTemp.createTemp('hub_affectation_web_');
     selecteur = SelecteurEssai();

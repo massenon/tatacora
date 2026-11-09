@@ -80,6 +80,7 @@ class _CarteAffectationResultatState
   late final Map<String, TextEditingController> _champs;
   late final TextEditingController _date;
   final _motif = TextEditingController();
+  final _reference = TextEditingController();
   String? _erreur;
   bool _envoi = false;
 
@@ -103,6 +104,7 @@ class _CarteAffectationResultatState
     }
     _date.dispose();
     _motif.dispose();
+    _reference.dispose();
     super.dispose();
   }
 
@@ -122,17 +124,18 @@ class _CarteAffectationResultatState
 
   int get _total => widget.etat.postes.fold<int>(0, (t, p) => t + _centimes(p));
 
-  /// Le report à nouveau reçoit LE RESTE : changer un autre poste le recalcule
-  /// (jamais en dessous de zéro). Une saisie directe du report se garde.
+  /// Le poste du RESTE reçoit ce qui n'est pas ventilé — le compte de l'exploitant
+  /// (entreprise individuelle) ou le report à nouveau (société) : changer un autre
+  /// poste le recalcule (jamais en dessous de zéro). Une saisie directe de ce poste
+  /// se garde.
   void _modifie(String poste) {
-    if (poste != 'report_a_nouveau') {
+    final reste = widget.etat.posteDuReste;
+    if (poste != reste) {
       final autres = widget.etat.postes
-          .where((p) => p != 'report_a_nouveau')
+          .where((p) => p != reste)
           .fold<int>(0, (t, p) => t + _centimes(p));
-      final reste = widget.etat.resultatAbsoluCentimes - autres;
-      _champs['report_a_nouveau']?.text = chaineDepuisCentimes(
-        reste > 0 ? reste : 0,
-      );
+      final libre = widget.etat.resultatAbsoluCentimes - autres;
+      _champs[reste]?.text = chaineDepuisCentimes(libre > 0 ? libre : 0);
     }
     setState(() {});
   }
@@ -377,11 +380,33 @@ class _CarteAffectationResultatState
               decoration: _decoration,
             ),
             const SizedBox(height: AppSpacing.xs),
+            Text(_t('affectation_contrepasser_reference'), style: etiquette),
+            const SizedBox(height: AppSpacing.xxs),
+            TextField(
+              key: const Key('compta-affectation-reference'),
+              controller: _reference,
+              enabled: !_envoi,
+              maxLength: longueurMaxReferenceDecision,
+              buildCounter:
+                  (
+                    _, {
+                    required currentLength,
+                    required isFocused,
+                    required maxLength,
+                  }) => null,
+              style: styleTransverse(TaillesContenu.t13),
+              decoration: _decoration,
+            ),
+            const SizedBox(height: AppSpacing.xs),
             bouton(
               const Key('compta-affectation-contrepasser'),
               _t('affectation_contrepasser'),
               () => _faire(
-                (g) => g.contrepasser(widget.exercice, _motif.text),
+                (g) => g.contrepasser(
+                  widget.exercice,
+                  _motif.text,
+                  reference: _reference.text,
+                ),
                 cleSucces: const Key('compta-affectation-contrepassee'),
               ),
               plein: false,
@@ -407,7 +432,10 @@ class _CarteAffectationResultatState
       corps = Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(_t('affectation_date'), style: etiquette),
+          Text(
+            _t(e.forme.estSociete ? 'affectation_date' : 'affectation_date_ei'),
+            style: etiquette,
+          ),
           const SizedBox(height: AppSpacing.xxs),
           SizedBox(
             width: 220,
@@ -496,14 +524,12 @@ class _CarteAffectationResultatState
               ),
             ],
           ),
-          if (e.estBenefice) ...[
+          if (e.estBenefice && e.forme.estSociete) ...[
             const SizedBox(height: AppSpacing.xs),
             Text(
               e.plafondReserveLegaleAtteint
                   ? _t('affectation_reserve_plafond')
-                  : e.reserveLegalePropose
-                  ? _t('affectation_reserve_proposee')
-                  : _t('affectation_reserve_indeterminee'),
+                  : _t('affectation_reserve_proposee'),
               key: const Key('compta-affectation-reserve-note'),
               style: note,
             ),
@@ -534,13 +560,56 @@ class _CarteAffectationResultatState
           Text(_t('affectation_titre', {'annee': '${e.annee}'}), style: titre),
           const SizedBox(height: AppSpacing.xxs),
           Text(
-            _t('affectation_note', {
-              'compte': e.compteResultat,
-              'suivant': '${e.anneeAffectation}',
+            _t(
+              e.forme.estSociete ? 'affectation_note' : 'affectation_note_ei',
+              {'compte': e.compteResultat, 'suivant': '${e.anneeAffectation}'},
+            ),
+            style: note,
+          ),
+          const SizedBox(height: AppSpacing.xxs),
+          Text(
+            _t('affectation_forme', {
+              'forme': MessagesAffectation.dire(
+                'comptabilite.forme_juridique_${e.forme.code}',
+              ),
             }),
+            key: const Key('compta-affectation-forme'),
             style: note,
           ),
           const SizedBox(height: AppSpacing.sm),
+          // L'alerte de l'article 664 (non bloquante) et les avertissements.
+          for (final alerte in e.alertes) ...[
+            EncadreTransverse(
+              fond: PaletteMaitre.ambre50,
+              bordure: PaletteMaitre.ambre300,
+              padding: const EdgeInsets.all(AppSpacing.smPlus),
+              child: Text(
+                alerte,
+                key: const Key('compta-affectation-alerte'),
+                style: styleTransverse(
+                  TaillesContenu.t13,
+                  couleur: PaletteMaitre.ambre900,
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+          for (final avertissement in e.avertissements) ...[
+            EncadreTransverse(
+              fond: PaletteMaitre.ambre50,
+              bordure: PaletteMaitre.ambre200,
+              padding: const EdgeInsets.all(AppSpacing.smPlus),
+              child: Text(
+                avertissement,
+                key: const Key('compta-affectation-avertissement'),
+                style: styleTransverse(
+                  TaillesContenu.t12,
+                  couleur: PaletteMaitre.ambre900,
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
           if (_erreur != null) ...[
             EncadreTransverse(
               fond: PaletteMaitre.rouge50,

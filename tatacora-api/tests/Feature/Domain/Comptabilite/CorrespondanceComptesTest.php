@@ -119,8 +119,9 @@ final class CorrespondanceComptesTest extends TestCase
 
         // 31 clés d'avant + les 4 de la facturation normalisée (mode, adresse de l'API, opérateur ×2 :
         // 07/11/2026) + les 9 des documents commerciaux (activités, Facebook, ville, référence facture,
-        // signataire ×2, interrupteur de signature, validité ×2 : proforma, 07/11/2026) + une par rôle.
-        $this->assertCount(31 + 4 + 9 + count(RolesCorrespondance::ROLES), RegistreParametres::cles());
+        // signataire ×2, interrupteur de signature, validité ×2 : proforma, 07/11/2026) + la forme juridique
+        // (09/11/2026) + une par rôle.
+        $this->assertCount(31 + 4 + 9 + 1 + count(RolesCorrespondance::ROLES), RegistreParametres::cles());
     }
 
     // ------------------------------------------------------------ Validation

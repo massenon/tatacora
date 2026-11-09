@@ -20,16 +20,20 @@ declare(strict_types=1);
 |
 | Entree (stdin, JSON) :
 |   { "aujourdhui": "2031-06-15",
+|     "forme_juridique": "sarl",            // facultatif : sans lui, l'entreprise individuelle (defaut)
 |     "exercices": [ {"annee": 2030, "statut": "ouvert"} ],
 |     "cles_messages": ["comptabilite.affectation_deja_passee", ...],
 |     "evenements": [
-|       {"t": "piece", "journal": "OD", "date": "2030-03-05", "valide": true,
+|       {"t": "piece", "journal": "OD", "date": "2030-03-05", "valide": true, "ref": "reglement",
 |        "libelle": "...", "lignes": [{"compte": "5711", "debit": "100.00", "centre": "Bar"}]},
+|       {"t": "contrepasser_piece", "ref": "reglement"},   // annule une piece posee plus haut
+|       {"t": "forme", "valeur": "entreprise_individuelle|sarl|sa"},   // le parametre `forme_juridique`
+|       {"t": "horloge", "date": "2031-05-10"},   // le « jour » de la suite (contre-passation)
 |       {"t": "geste", "action": "demarrer|reprendre|cloturer|rouvrir",
 |        "annee": 2030, "motif": "...", "role": "comptable|administrateur"},
 |       {"t": "affecter", "annee": 2030, "date": "2031-04-30", "role": "comptable",
 |        "ventilation": {"reserve_legale": "7000.00", "report_a_nouveau": "63000.00"}},
-|       {"t": "contrepasser_affectation", "annee": 2030, "motif": "...", "role": "..."},
+|       {"t": "contrepasser_affectation", "annee": 2030, "motif": "...", "reference": "...", "role": "..."},
 |       {"t": "etat_affectation", "annee": 2030},
 |       {"t": "flux_affectations", "role": "comptable|administrateur"},   // ce que le serveur DESCEND
 |       {"t": "bilan", "annee": 2031}, {"t": "balance", "annee": 2031},
@@ -81,7 +85,9 @@ use App\Domain\Comptabilite\Models\EcritureComptable;
 use App\Domain\Comptabilite\Models\ExerciceComptable;
 use App\Domain\Comptabilite\Services\AffectationResultatService;
 use App\Domain\Comptabilite\Services\BilanService;
+use App\Domain\Comptabilite\Support\FormeJuridique;
 use App\Domain\Comptabilite\Support\RubriquesSyscohada;
+use App\Shared\Parametres\Models\ParametreSysteme;
 use App\Domain\Comptabilite\Services\BalanceGeneraleService;
 use App\Domain\Comptabilite\Services\ClotureExerciceService;
 use App\Domain\Comptabilite\Services\EcritureComptableService;
@@ -119,6 +125,7 @@ $ecritures = $app->make(EcritureComptableService::class);
 
 $resultats = [];
 $sortie = [];
+$piecesPosees = [];
 
 DB::beginTransaction();
 
@@ -137,6 +144,12 @@ try {
     $comptable = $utilisateur('comptable');
     $autre = $utilisateur('administrateur');
     Auth::setUser($comptable);
+
+    // La FORME JURIDIQUE de depart (facultative) : sans elle, l'entreprise individuelle, le
+    // defaut du Gite. Les scenarios de societe la posent ici pour ne pas decaler leurs indices.
+    if (isset($scenario['forme_juridique'])) {
+        ParametreSysteme::query()->updateOrCreate(['cle' => FormeJuridique::CLE], ['valeur' => (string) $scenario['forme_juridique']]);
+    }
 
     foreach ($scenario['exercices'] as $e) {
         $annee = (int) $e['annee'];
@@ -198,7 +211,28 @@ try {
                         'lignes' => $ligneDemandees,
                         'statuts_exercice_admis' => $ev['statuts_admis'] ?? ['ouvert'],
                     ];
-                    ($ev['valide'] ?? true) ? $passer->passerEtValider($donnees) : $passer->passer($donnees);
+                    $posee = ($ev['valide'] ?? true) ? $passer->passerEtValider($donnees) : $passer->passer($donnees);
+                    if (isset($ev['ref'])) {
+                        $piecesPosees[(string) $ev['ref']] = $posee;
+                    }
+                    $resultats[] = ['ok' => true];
+                    break;
+
+                case 'contrepasser_piece':
+                    // Annule (contre-passe) une piece posee plus haut sous son `ref`.
+                    $passer->contrepasserPiece($piecesPosees[(string) $ev['ref']], (string) ($ev['motif'] ?? 'Annulation'));
+                    $resultats[] = ['ok' => true];
+                    break;
+
+                case 'forme':
+                    // Le parametre `forme_juridique`, pose tel quel (la garde « affectation active »
+                    // du changement de forme est celle du service d'enregistrement, testee cote PHP).
+                    ParametreSysteme::query()->updateOrCreate(['cle' => FormeJuridique::CLE], ['valeur' => (string) $ev['valeur']]);
+                    $resultats[] = ['ok' => true, 'forme' => FormeJuridique::courante()->value];
+                    break;
+
+                case 'horloge':
+                    Carbon::setTestNow($ev['date'] . ' 10:00:00');
                     $resultats[] = ['ok' => true];
                     break;
 
@@ -297,14 +331,22 @@ try {
                         'dividendes' => (string) $a->dividendes,
                         'report_crediteur' => (string) $a->report_a_nouveau_crediteur,
                         'report_debiteur' => (string) $a->report_a_nouveau_debiteur,
+                        'compte_exploitant' => (string) $a->compte_exploitant,
+                        'forme' => $a->forme_juridique,
                     ];
                     break;
 
                 case 'contrepasser_affectation':
                     $auteur = ($ev['role'] ?? 'comptable') === 'comptable' ? $comptable : $autre;
                     $exercice = ExerciceComptable::where('annee', (int) $ev['annee'])->firstOrFail();
-                    $a = $affectations->contrepasser($exercice, $auteur, (string) ($ev['motif'] ?? ''));
-                    $resultats[] = ['ok' => true, 'piece' => $a->piece_affectation, 'motif' => $a->motif_contrepassation];
+                    $a = $affectations->contrepasser($exercice, $auteur, (string) ($ev['motif'] ?? ''), $ev['reference'] ?? null);
+                    $resultats[] = [
+                        'ok' => true,
+                        'piece' => $a->piece_affectation,
+                        'motif' => $a->motif_contrepassation,
+                        'reference' => $a->reference_decision_contrepassation,
+                        'date' => Carbon::now()->toDateString(),
+                    ];
                     break;
 
                 case 'flux_affectations':
@@ -354,6 +396,12 @@ try {
                         'reserve_legale_proposee' => $e['reserveLegalePropose'],
                         'plafond_atteint' => $e['plafondReserveLegaleAtteint'],
                         'peut_affecter' => $e['peutAffecter'],
+                        'forme' => $e['forme'],
+                        'est_societe' => $e['estSociete'],
+                        'postes' => $e['postes'],
+                        'poste_du_reste' => $e['posteDuReste'],
+                        'alertes' => $e['alertes'],
+                        'avertissements' => $e['avertissements'],
                     ];
                     break;
 
@@ -410,12 +458,21 @@ try {
             'postes' => AffectationResultatService::POSTES,
             'postes_benefice' => AffectationResultatService::POSTES_BENEFICE,
             'postes_perte' => AffectationResultatService::POSTES_PERTE,
+            'postes_benefice_ei' => AffectationResultatService::POSTES_BENEFICE_EI,
+            'postes_perte_ei' => AffectationResultatService::POSTES_PERTE_EI,
+            'prefixes_capitaux_propres' => AffectationResultatService::PREFIXES_CAPITAUX_PROPRES,
+            'prefixes_pertes_anterieures' => AffectationResultatService::PREFIXES_PERTES_ANTERIEURES,
+            'prefixes_reserves_non_distribuables' => AffectationResultatService::PREFIXES_RESERVES_NON_DISTRIBUABLES,
+            'reference_longueur_max' => AffectationResultatService::REFERENCE_LONGUEUR_MAX,
+            'formes' => FormeJuridique::valeurs(),
             'taux_reserve_legale' => AffectationResultatService::TAUX_RESERVE_LEGALE,
             'plafond_reserve_legale' => AffectationResultatService::PLAFOND_RESERVE_LEGALE,
             'centre' => ClotureExerciceService::CENTRE_DE_CLOTURE,
         ],
         'rubriques' => [
-            'capital' => RubriquesSyscohada::CAPITAL,
+            // Le capital SOCIAL de l'affectation (101 seul) : `RubriquesSyscohada::CAPITAL` couvre
+            // desormais tout le groupe 10, compte de l'exploitant compris (bilan).
+            'capital' => AffectationResultatService::PREFIXES_CAPITAL_SOCIAL,
             'reserves' => RubriquesSyscohada::RESERVES,
             'report_a_nouveau' => RubriquesSyscohada::REPORT_A_NOUVEAU,
             'resultat_reporte' => RubriquesSyscohada::RESULTAT_REPORTE,

@@ -85,5 +85,5 @@ echo json_encode([
     ),
     'urls' => ['defaut' => ReglagesMecef::URL_API_PAR_DEFAUT],
     // Le mode, l'API, l'opérateur ET les neuf réglages des documents (07/11/2026) : réglés au serveur seul.
-    'cles_administrateur' => [...ReglagesMecef::CLES_ADMINISTRATEUR, ...\App\Domain\Facturation\Services\ReglagesDocuments::CLES],
+    'cles_administrateur' => [...ReglagesMecef::CLES_ADMINISTRATEUR, ...\App\Domain\Facturation\Services\ReglagesDocuments::CLES, \App\Domain\Comptabilite\Support\FormeJuridique::CLE],
 ], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);

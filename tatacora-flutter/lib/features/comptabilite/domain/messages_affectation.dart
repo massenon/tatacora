@@ -27,9 +27,9 @@ abstract final class MessagesAffectation {
     'comptabilite.affectation_deja_passee':
         "Le résultat de l'exercice :annee est déjà affecté (pièce :piece). Contre-passez cette affectation avant d'en passer une autre.",
     'comptabilite.affectation_date_invalide':
-        "La date d'approbation des comptes « :date » n'est pas une date valide.",
+        "La date de l'approbation des comptes ou de la décision de l'exploitant « :date » n'est pas une date valide.",
     'comptabilite.affectation_date_hors_exercice':
-        "La date d'approbation des comptes (:date) doit tomber dans l'exercice :annee, celui qui suit l'exercice clôturé.",
+        "La date de l'approbation des comptes ou de la décision de l'exploitant (:date) doit tomber dans l'exercice :annee, celui qui suit l'exercice clôturé.",
     'comptabilite.affectation_exercice_non_ouvert':
         "L'exercice :annee est :statut : l'affectation du résultat ne peut être passée que dans un exercice ouvert.",
     'comptabilite.affectation_montant_illisible':
@@ -66,6 +66,36 @@ abstract final class MessagesAffectation {
         "Affectation du résultat de l'exercice :annee",
     'comptabilite.libelle_contrepassation_affectation':
         "Contre-passation de l'affectation du résultat :annee — :motif",
+    'comptabilite.affectation_poste_compte_exploitant':
+        "Compte de l'exploitant",
+    'comptabilite.forme_juridique_entreprise_individuelle':
+        'Entreprise individuelle',
+    'comptabilite.forme_juridique_sarl': 'SARL',
+    'comptabilite.forme_juridique_sa': 'SA',
+    'comptabilite.affectation_ei_reserve_legale':
+        "Une entreprise individuelle n'a pas de réserve légale : le montant de la réserve légale doit être nul. Ventilez entre le compte de l'exploitant, le report à nouveau et les autres réserves.",
+    'comptabilite.affectation_ei_dividende':
+        "Une entreprise individuelle ne verse pas de dividendes (compte 465) : le bénéfice revient à l'exploitant. Portez-le au compte de l'exploitant, au report à nouveau ou aux autres réserves.",
+    'comptabilite.affectation_societe_compte_exploitant':
+        "Le compte de l'exploitant n'existe que dans une entreprise individuelle : la forme juridique de l'établissement est « :forme ». Ventilez entre les postes d'une société.",
+    'comptabilite.affectation_reserve_legale_insuffisante':
+        "La réserve légale est obligatoire : elle doit recevoir au moins :minimum (10 % de :base, le bénéfice net des pertes antérieures de :pertes), tant qu'elle n'atteint pas 20 % du capital (:capital) ; la ventilation en prévoit :saisi.",
+    'comptabilite.affectation_dividende_capitaux_propres':
+        'La distribution de :dividendes ferait passer les capitaux propres à :apres, sous le capital augmenté des réserves non distribuables (:plancher) : un dividende ne peut pas entamer le capital ni les réserves que la loi interdit de distribuer.',
+    'comptabilite.affectation_avertissement_capital_indetermine':
+        "Le capital n'est pas déterminable (aucun solde créditeur au compte 101) : la réserve légale obligatoire ne peut pas être contrôlée et aucune n'est proposée. À vérifier avec le comptable avant de passer l'affectation.",
+    'comptabilite.affectation_alerte_moitie_capital':
+        "ALERTE : après cette perte, les capitaux propres (:propres) sont inférieurs à la moitié du capital (:capital). L'assemblée doit se prononcer dans les quatre mois sur la poursuite de l'activité (Acte uniforme, art. 664 : à faire confirmer par le comptable).",
+    'comptabilite.affectation_contrepassation_exercice_non_ouvert':
+        "L'affectation du résultat de l'exercice :annee ne peut pas être contre-passée : l'exercice :suivant, qui la porte, est :statut. La contre-passation ne se passe que dans un exercice ouvert.",
+    'comptabilite.affectation_contrepassation_date_hors_exercice':
+        "La contre-passation se date du jour de la correction (:date) : elle doit tomber dans l'exercice :suivant, qui porte l'affectation.",
+    'comptabilite.affectation_contrepassation_anterieure':
+        "La contre-passation (:date) ne peut pas être datée avant la pièce d'affectation (:origine).",
+    'comptabilite.affectation_dividende_regle':
+        "L'affectation du résultat de l'exercice :annee ne peut pas être contre-passée : un dividende est déjà réglé en tout ou partie (:regle réglé sur :dividendes). Annulez d'abord le règlement du dividende, puis contre-passez l'affectation.",
+    'comptabilite.affectation_reference_trop_longue':
+        'La référence de la décision est limitée à :max caractères.',
     // lang/fr/comptabilite_pwa.php — la carte de l'onglet « Clôtures »
     'comptabilite_pwa.affectation_titre':
         'Affectation du résultat de l’exercice :annee',
@@ -85,11 +115,9 @@ abstract final class MessagesAffectation {
     'comptabilite_pwa.affectation_somme_ecart':
         'La ventilation diffère du résultat de :ecart.',
     'comptabilite_pwa.affectation_reserve_proposee':
-        'Proposition : 10 % du bénéfice en réserve légale, tant qu’elle n’atteint pas 20 % du capital. Modifiable, jamais bloquante ; le report à nouveau reçoit le reste.',
+        'Réserve légale obligatoire : au moins 10 % du bénéfice net des pertes antérieures, tant qu’elle n’atteint pas 20 % du capital. En dessous, l’affectation est refusée ; le report à nouveau reçoit le reste.',
     'comptabilite_pwa.affectation_reserve_plafond':
-        'La réserve légale a atteint 20 % du capital : aucune réserve légale n’est proposée.',
-    'comptabilite_pwa.affectation_reserve_indeterminee':
-        'Le capital n’est pas déterminable (aucun solde créditeur au compte 101) : aucune réserve légale n’est proposée.',
+        'La réserve légale a atteint 20 % du capital : aucune réserve légale n’est due.',
     'comptabilite_pwa.affectation_passer': 'Passer l’affectation',
     'comptabilite_pwa.affectation_confirmer_titre':
         'Passer l’affectation du résultat de l’exercice :annee ?',
@@ -111,6 +139,13 @@ abstract final class MessagesAffectation {
         'L’affectation se passe dans l’exercice :suivant, qui doit exister et être ouvert.',
     'comptabilite_pwa.affectation_faite':
         'Affectation du résultat de l’exercice :annee passée (pièce :piece).',
+    'comptabilite_pwa.affectation_note_ei':
+        'La clôture laisse le résultat en :compte ; l’exploitant en décide le sort (compte de l’exploitant, report à nouveau, réserves) : une entreprise individuelle n’a ni réserve légale, ni dividendes, ni assemblée. Une pièce du journal OD, datée de la décision de l’exploitant, est passée dans l’exercice :suivant ; elle est validée, donc immuable (on la corrige par contre-passation).',
+    'comptabilite_pwa.affectation_forme': 'Forme juridique : :forme',
+    'comptabilite_pwa.affectation_date_ei':
+        'Date de la décision de l’exploitant',
+    'comptabilite_pwa.affectation_contrepasser_reference':
+        'Référence de la décision (PV d’assemblée / décision de l’exploitant)',
     'comptabilite_pwa.affectation_contrepassee':
         'Affectation du résultat de l’exercice :annee contre-passée.',
   };

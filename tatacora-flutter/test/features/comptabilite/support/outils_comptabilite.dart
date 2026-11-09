@@ -2,12 +2,14 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tatacora_flutter/core/database/app_database.dart';
 import 'package:tatacora_flutter/features/comptabilite/data/comptabilite_dao.dart';
 import 'package:tatacora_flutter/features/comptabilite/data/installateur_referentiel.dart';
 import 'package:tatacora_flutter/features/comptabilite/data/moteur_comptable.dart';
+import 'package:tatacora_flutter/features/comptabilite/domain/forme_juridique.dart';
 import 'package:tatacora_flutter/features/synchronisation/presentation/providers_synchronisation.dart';
 
 /// Le plan du PO tel que l'application l'EMBARQUE (le même fichier que lit
@@ -266,4 +268,17 @@ Future<void> exerciceClos(AppDatabase db, int annee) async {
 Override sansFichierDePoste() =>
     cheminConfigurationPosteProvider.overrideWithValue(
       () async => '${Directory.systemTemp.path}/aucun-poste.json',
+    );
+
+/// Pose la FORME JURIDIQUE du poste (paramètre `forme_juridique`, descendu du
+/// serveur en production) : sans elle, c'est l'entreprise individuelle, le défaut
+/// du Gîte. Les tests d'une SOCIÉTÉ (réserve légale, dividendes) la posent.
+Future<void> poserFormeJuridique(AppDatabase db, String code) => db
+    .into(db.parametresSystemeLocal)
+    .insertOnConflictUpdate(
+      ParametresSystemeLocalCompanion(
+        cle: const Value(cleFormeJuridique),
+        valeur: Value(code),
+        modifieLe: Value(DateTime(2031, 6, 1)),
+      ),
     );

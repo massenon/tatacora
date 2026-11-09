@@ -46,6 +46,7 @@ void main() {
 
   setUp(() async {
     db = await baseInstallee(maintenant: DateTime.now());
+    await poserFormeJuridique(db, 'sarl');
     dao = ComptabiliteDao(db);
     archives = await Directory.systemTemp.createTemp('hub_affectation_');
     selecteur = SelecteurEssai();
@@ -121,6 +122,7 @@ void main() {
     WidgetTester tester, {
     String role = 'comptable',
     String droit = 'C',
+    DateTime? aujourdhui,
   }) async {
     tester.view
       ..physicalSize = const Size(1800, 4200)
@@ -136,6 +138,15 @@ void main() {
             (ref) async => moteurSur(db, maintenant: DateTime.now),
           ),
           droitsProvider.overrideWithValue(garde),
+          // Le JOUR de la correction (contre-passation) : posé, jamais l'horloge de la machine.
+          if (aujourdhui != null)
+            affectationResultatLocaleProvider.overrideWith(
+              (ref) async => AffectationResultatLocale(
+                db,
+                moteurSur(db, maintenant: () => aujourdhui),
+                maintenant: () => aujourdhui,
+              ),
+            ),
           sessionProvider.overrideWithBuild(
             (ref, notifier) => Session(
               utilisateurId: auteurEssai,
@@ -226,14 +237,19 @@ void main() {
         findsOneWidget,
       );
       expect(texte('Bénéfice, compte 131'), findsOneWidget);
-      // Pas de capital au plan : aucune réserve légale proposée, et on le dit.
+      // Pas de capital au plan : la réserve légale obligatoire ne peut pas être contrôlée,
+      // aucune n'est proposée, et on le dit (avertissement, non bloquant).
       expect(
         find.byKey(const Key('compta-affectation-reserve-note')),
         findsOneWidget,
       );
       expect(
+        find.byKey(const Key('compta-affectation-avertissement')),
+        findsOneWidget,
+      );
+      expect(
         texte(
-          'Le capital n’est pas déterminable (aucun solde créditeur au compte 101)',
+          'Le capital n\'est pas déterminable (aucun solde créditeur au compte 101)',
         ),
         findsOneWidget,
       );
@@ -327,6 +343,7 @@ void main() {
           'dividendes': 1000000,
           'report_a_nouveau': 6000000,
           'imputation_report_crediteur': 0,
+          'compte_exploitant': 0,
         },
       });
 
@@ -415,7 +432,8 @@ void main() {
         date: '${annee + 1}-04-30',
         auteurId: auteurEssai,
       );
-      await monter(tester);
+      // La contre-passation se date du jour de la correction, dans N, jamais avant la pièce.
+      await monter(tester, aujourdhui: DateTime(annee + 1, 6, 15, 10));
 
       await saisir(tester, 'compta-affectation-motif', 'court');
       await taper(tester, 'compta-affectation-contrepasser');
@@ -434,6 +452,11 @@ void main() {
         'compta-affectation-motif',
         'Ventilation à revoir en assemblée',
       );
+      await saisir(
+        tester,
+        'compta-affectation-reference',
+        'PV d’assemblée du 15/06/${annee + 1}',
+      );
       await taper(tester, 'compta-affectation-contrepasser');
 
       // Les lignes d'origine sont intactes ; trois inverses les compensent.
@@ -445,6 +468,11 @@ void main() {
             e,
       ];
       expect(inverses, hasLength(3));
+      // Le jour de la correction, pas celui de l'affectation.
+      expect(
+        {for (final i in inverses) i.dateEcriture},
+        {'${annee + 1}-06-15'},
+      );
       expect(
         inverses.first.libelle,
         "Contre-passation de l'affectation du résultat $annee — Ventilation à revoir en assemblée",
@@ -464,6 +492,11 @@ void main() {
       expect(annulation, hasLength(1));
       expect(annulation.single['annee'], annee);
       expect(annulation.single['motif'], 'Ventilation à revoir en assemblée');
+      // La référence de la décision part avec la demande (tracée à l'audit du serveur).
+      expect(
+        annulation.single['reference_decision'],
+        'PV d’assemblée du 15/06/${annee + 1}',
+      );
 
       // Refaite : une nouvelle pièce, de nouvelles lignes.
       await taper(tester, 'compta-affectation-passer');

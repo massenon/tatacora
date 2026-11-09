@@ -230,11 +230,16 @@ final class GestesAffectation {
     });
   }
 
-  Future<String> contrepasser(ExerciceComptable exercice, String motif) async {
+  Future<String> contrepasser(
+    ExerciceComptable exercice,
+    String motif, {
+    String? reference,
+  }) async {
     await (await _service).contrepasser(
       exercice.id,
       auteurId: _auteur,
       motif: motif,
+      reference: reference,
     );
     return MessagesAffectation.dire(
       'comptabilite_pwa.affectation_contrepassee',
