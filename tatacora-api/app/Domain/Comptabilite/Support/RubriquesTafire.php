@@ -27,7 +27,7 @@ final class RubriquesTafire
     public const PRODUITS_CESSIONS = ['82'];
 
     /** Capital, primes (10) et subventions d'investissement (14) : apports de l'exercice. @var list<string> */
-    public const APPORTS_CAPITAL = ['10', '14'];
+    public const APPORTS_CAPITAL = ['101', '102', '103', '104', '105', '106', '109', '14'];
 
     /** Reserves (11), report a nouveau (12), resultat reporte (13), provisions reglementees (15). @var list<string> */
     public const AUTRES_CAPITAUX_PROPRES = ['11', '12', '13', '15'];
