@@ -521,23 +521,7 @@ return [
             . 's\'affichera.',
     ],
 
-    /*
-     * Page d'erreur 404 (`resources/views/errors/404.blade.php`).
-     *
-     * Aucun équivalent au maître : `prototype_v2/` ne maquette pas d'écran
-     * d'erreur. Habillée aux couleurs de la coquille (navy/gold, logo,
-     * `assets/css/app.css`) plutôt que la page blanche par défaut de Laravel,
-     * qui ne dit ni où l'on est ni où revenir — et qui, servie par le même
-     * serveur mutualisé cPanel que le reste de l'application, ne doit
-     * charger aucune ressource distante (`DIRECTIVE_CONFORMITE_100.md`).
-     */
-    'erreur_404' => [
-        'titre_page' => 'Page introuvable — LogiReStock — TATACORA AFRIQUE',
-        'titre' => 'Page introuvable',
-        'explication' => 'Cette adresse ne correspond à aucune page de TATACORA AFRIQUE : elle a peut-être '
-            . 'été déplacée, ou son lien était incorrect.',
-        'retour' => 'Retour au tableau de bord',
-    ],
+    // Pages d'erreur (404 comprise) : `lang/fr/erreurs.php`.
 
     /*
      |--------------------------------------------------------------------------

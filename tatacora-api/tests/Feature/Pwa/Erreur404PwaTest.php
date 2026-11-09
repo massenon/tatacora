@@ -13,7 +13,7 @@ use Tests\TestCase;
  * servait sa page blanche par défaut, sans les couleurs de la coquille PWA.
  *
  * @see resources/views/errors/404.blade.php
- * @see lang/fr/pwa.php section `erreur_404`
+ * @see lang/fr/erreurs.php clé `404`
  */
 final class Erreur404PwaTest extends TestCase
 {
@@ -33,8 +33,8 @@ final class Erreur404PwaTest extends TestCase
             ->assertNotFound()
             ->getContent();
 
-        $this->assertStringContainsString(__('pwa.erreur_404.titre'), $html);
-        $this->assertStringContainsString(__('pwa.erreur_404.explication'), $html);
+        $this->assertStringContainsString(__('erreurs.404.titre'), $html);
+        $this->assertStringContainsString(__('erreurs.404.message'), $html);
         $this->assertStringContainsString('var(--navy)', $html);
         $this->assertStringContainsString(route('pwa.accueil'), $html);
     }

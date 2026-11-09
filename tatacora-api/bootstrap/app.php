@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Middleware\EnTetesSecurite;
+use App\Http\Support\PageErreur;
 use App\Shared\Rbac\Middleware\VerifierAccesModule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -52,6 +53,21 @@ return Application::configure(basePath: dirname(__DIR__))
         );
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // Pages d'erreur (`resources/views/errors/`, gabarit `errors/layout`).
+        // Laravel convertit DEJA les exceptions courantes en HttpException et
+        // choisit la vue `errors/<code>` (repli `4xx`/`5xx`) pour une requete
+        // HTML : TokenMismatchException -> 419, ThrottleRequestsException ->
+        // 429 (avec `Retry-After`), AuthorizationException -> 403,
+        // ModelNotFoundException -> 404, tout le reste -> 500. Les vues ne
+        // lisent jamais le message de l'exception : aucune fuite. Les requetes
+        // JSON (API `/api/v1`, `Accept: application/json`) gardent le rendu
+        // JSON de Laravel, et APP_DEBUG=true garde sa page de debogage native.
+        //
+        // L'identifiant d'incident affiche a l'ecran (`PageErreur::incident`)
+        // est verse au contexte du journal : le support retrouve l'entree
+        // sans que rien de technique ne soit montre.
+        $exceptions->context(fn (\Throwable $e): array => ['incident' => PageErreur::incident($e)]);
+
         // Jeton CSRF/session expire HORS Livewire (formulaire de repli, bouton
         // de deconnexion d'un onglet perime) : renvoi vers la connexion avec le
         // message « Votre session a expire », jamais la page « Page Expired ».
