@@ -30,12 +30,12 @@
 
 ## D. Recette sur un vrai poste (par le PO, à signaler ici)
 
-> 09/11/2026 : D1, D2, D3, D5, D6, D7 (et G5) FAITS ET VALIDÉS par le PO. Reste D4.
+> 09/11/2026 : D1, D2, D3, D5, D6, D7 (et G5) FAITS ET VALIDÉS par le PO. D4 validé le même jour : la section D est entièrement cochée.
 
 - [x] **D1** Installer `LogiReStock_Setup_<version>.exe` (`build_windows.bat`) sur un poste Windows.
 - [x] **D2** Envoyer un vrai e-mail par le relais SMTP du Gîte (notification d'un client).
 - [x] **D3** Essai à plusieurs postes avec coupures réseau, puis synchronisation désactivée.
-- [ ] **D4** Déposer le reçu d'une dépense et le revoir sur un second poste.
+- [x] **D4** Déposer le reçu d'une dépense et le revoir sur un second poste.
 - [x] **D6** Mot de passe perdu : réinitialiser un compte (temporaire affiché une fois, 24 h), se connecter avec lui (écran « Définissez votre nouveau mot de passe »), puis perdre le mot de passe administrateur et le retrouver avec le code de secours — au web et sur le poste Windows (impression du code comprise).
 - [x] **D7** Facture proforma : émettre UNE proforma réelle sur un vrai poste (hors ligne), l'imprimer en A4 et la comparer au modèle papier (en-tête, ligne des activités, date longue, tableau vert, montant en lettres, bloc signature/cachet) ; rebrancher le réseau, vérifier le numéro `N°… FP-GCN/…` régularisé, puis la convertir en facture.
 - [x] **D5** Désinstaller : l'avertissement Oui/Non s'affiche ; Non annule ; Oui supprime `%LOCALAPPDATA%\TATACORA` et `%APPDATA%\TATACORA` ; une mise à jour (même AppId) garde les données.
