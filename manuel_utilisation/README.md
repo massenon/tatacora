@@ -6,7 +6,7 @@
 | **Éditeur du logiciel** | Dr MASSENON Rhodes, Docteur en Génie Logiciel et Intelligence Artificielle |
 | **Maîtrise d'œuvre** | FAGUEZ SARL — accompagnement des PME dans le cadre du PAEB |
 | **Statut** | LogiRestock 1.0.0 — édition de novembre 2026 (mise à jour complète, chapitres 15 à 19 ajoutés) ; l'édition de septembre 2026 avait été approuvée en séance par le Promoteur et le Comptable, la présente édition ne l'a pas encore été |
-| **Livrable** | `MANUEL_UTILISATION_LOGIRESTOCK.pdf` (160 pages au 09/11/2026, couverture comprise — 159 numérotées ; `generer.js` affiche le nombre exact) |
+| **Livrable** | `MANUEL_UTILISATION_LOGIRESTOCK.pdf` (166 pages au 09/11/2026, couverture comprise — 165 numérotées ; `generer.js` affiche le nombre exact) |
 | **Source documentée** | ⚠ **La PWA de `tatacora-api`** depuis le 14/09/2026 — les écrans réellement servis, capturés en session sur le serveur. `prototype_v2/` était la source jusque-là : il est **archivé depuis le 10/09/2026** (PA-183) et le manuel montrait donc une interface qui ne fait plus foi. |
 
 ---
@@ -17,7 +17,7 @@
 |---|---|
 | `MANUEL_UTILISATION_LOGIRESTOCK.pdf` | Le livrable. |
 | `src/part-01.html` … `part-14.html` | Le texte du manuel (chapitres 1 à 19 et annexes A et B), découpé par lots de chapitres : `part-01` couverture et avant-propos, `part-02` sommaire, `part-03` à `part-09` chapitres 1 à 14 et annexes A et B, `part-10` à `part-14` chapitres 15 à 19 (poste Windows, synchronisation, facturation normalisée, proforma, comptes). |
-| `CAPTURES_A_PRENDRE.md` | Les 19 captures du poste Windows qui manquent aux chapitres 15 à 19 (figures `emplacement` en pointillés, **seules figures encore sans image**), avec le nom de fichier attendu et la façon de les prendre. `CAPTURES_A_PRENDRE_CHAP1-6.md` et `_CHAP7-14.md` portent le statut de chaque capture PWA (fait / non prise). |
+| `CAPTURES_A_PRENDRE.md` | Les 19 captures du poste Windows des chapitres 15 à 19 : 17 sont intégrées (rendus du poste par le moteur Flutter, à confirmer par le PO sur Windows) ; **2 restent en cadre pointillé, à prendre par le PO** (assistant d'installation et avertissement de désinstallation, fenêtres Inno Setup), avec le nom de fichier attendu et la façon de les prendre. `CAPTURES_A_PRENDRE_CHAP1-6.md` et `_CHAP7-14.md` portent le statut de chaque capture PWA (fait / non prise). |
 | `src/style.css` | La charte graphique appliquée au document (marine `#14213D`, or `#B8891E`, police Inter — les valeurs de `prototype_v2/assets/css/app.css`). |
 | `src/img/` | Les captures ré-encodées en JPEG à la génération. **Dérivé** : supprimez le dossier pour forcer sa reconstruction. |
 | `captures/*.png` | Les captures d'écran d'origine (1440 px, facteur 2), produites depuis le prototype. |
@@ -59,13 +59,15 @@ Les deux scripts démarrent un serveur local sur `prototype_v2/`, se connectent 
 le compte administrateur, laissent les jeux de démonstration s'amorcer, puis capturent chaque
 page. Une capture prise sans session afficherait l'écran de connexion à la place du module.
 
+**Procédure de prise de vues (09/11/2026).** Jamais sur la base de développement : une base `tatacora_capt` jetable, un utilisateur MySQL jetable, un `.env.local` hors dépôt (valeurs inventées, `APP_ENV=local`), `migrate:fresh` + `db:seed` + `DemonstrationSeeder` + `ComptesReelsSeeder`, `php artisan serve`, Chromium de `/opt/pw-browsers`, `PPTR_DIR=/tmp/outils-pdf` ; tout est supprimé ensuite (serveur, base, utilisateur, `.env.local`, archives de clôture générées). Pour la colonne N−1 du bilan (`x-compta-bilan-n1`), un exercice 2025 d'essai (trois pièces) est clôturé avant la prise de vues. **Piège** : `capturer.js` écrit aussi `a-connexion.png` en version non annotée ; relancer ensuite `FIGURES=a-connexion node annoter.js` pour retrouver les trois repères.
+
 ### Figures
 
 Une figure est `<figure><img src="../captures/NOM.png" alt="…"><figcaption><b>Figure N.M</b> — …</figcaption></figure>` ;
 `generer.js` remplace `../captures/NOM.png` par `img/NOM.jpg` (JPEG 1400 px, dans `src/img/`, versionné). Les captures plein écran
 des ajouts de novembre 2026 portent `class="compact"` (hauteur plafonnée à 88 mm, 70 mm avec `petit`) pour tenir deux par page.
 La numérotation « Figure N.M » suit l'ordre du chapitre ; elle a été recalculée aux chapitres 7 à 10 et 13 lors de l'ajout des
-figures `x-*` (les fichiers `CAPTURES_A_PRENDRE*.md` citent encore les anciens numéros). Restent en pointillés les 19 figures du poste Windows (chapitres 15 à 19).
+figures `x-*` (les fichiers `CAPTURES_A_PRENDRE*.md` citent encore les anciens numéros). Les figures du poste Windows (chapitres 15 à 19, plus 7.4 et 9.11) sont des **rendus Flutter** et le disent dans leur légende ; restent en pointillés `c15-installateur-assistant` (15.1) et `c15-desinstallation-avertissement` (15.3), à prendre par le PO sur Windows. Les captures PWA de connexion, de réception et de comptabilité ont été reprises le 09/11/2026 (bilan équilibré après la correction du compte 443).
 
 ## 4. Ordre des sections : les annexes ferment toujours le manuel
 

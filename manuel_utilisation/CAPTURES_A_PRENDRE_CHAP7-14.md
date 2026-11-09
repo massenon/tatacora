@@ -59,7 +59,7 @@ Colonne « État » : **périmée** = l'écran a changé, la capture contredit l
 ### A. Captures existantes : les vingt sont reprises (fait)
 
 `a-inventaire-ouvrir`, `a-inventaire-compter`, `m6-inventaires`, `m7-approvisionnement`, `m8-locations`, `m9-tourisme-departs`,
-`a-depense-modale`, `depenses`, `m10-syscohada`, `m10-comptabilite`, `m10-cloture`, `m13-paie`, `a-etats`, `m14-etats`,
+`a-depense-modale`, `depenses`, `m10-syscohada`, `m10-comptabilite`, `m10-cloture` (ces trois derniers **refaits le 09/11/2026** : bilan équilibré après correction du 443), `m13-paie`, `a-etats`, `m14-etats`,
 `m12-notifications-hub`, `roles-permissions`, `parametres`, `a-import`, `journal-audit`, `aide-a-propos` : **fait**, même nom.
 Précisions : `parametres.png` montre désormais l'onglet **Activation & Sécurité** (trois bascules, Charges sociales,
 Exploitation) ; `m10-comptabilite.png` et `m10-syscohada.png` sont prises en pleine hauteur (les onze tuiles) ;
@@ -72,11 +72,11 @@ Exploitation) ; `m10-comptabilite.png` et `m10-syscohada.png` sont prises en ple
 | Nom | Statut |
 |---|---|
 | `x-selecteur-exercice.png` | fait (barre supérieure sur « 2025 — clôturé », pastille « Vous consultez 2025 » et lien « Revenir à 2026 » ; la liste déroulante native ne se photographie pas). `x-selecteur-exercice-page.png` : même état sur l'onglet Clôtures. |
-| `x-compta-clotures.png` | fait (exercice 2026 : contrôles, avertissement « Des postes n'ont peut-être pas tout envoyé »). Exercice **clôturé** avec empreinte SHA-256 et « Télécharger l'archive (ZIP) » : `x-selecteur-exercice-page.png`. |
+| `x-compta-clotures.png` | **refait le 09/11/2026** après la correction du compte 443 (commit 2524606) : exercice 2026 ouvert, 2025 clôturé pour l'exemple, aucun blocage, avertissement « Aucun impôt sur le résultat n'est comptabilisé en classe 89 », indicateur « Équilibré ». Exercice **clôturé** avec empreinte SHA-256 et « Télécharger l'archive (ZIP) » : `x-selecteur-exercice-page.png`. |
 | `x-compta-immobilisations.png` | fait (tableau vide — aucune immobilisation de démonstration) ; fenêtre « Nouvelle immobilisation » : `x-compta-immobilisations-nouvelle.png`. La fenêtre « Plan » n'est **pas prise** : elle exige une immobilisation existante. |
 | `x-compta-correspondance.png` | fait ; fenêtre : `x-compta-correspondance-modale.png`. |
-| `x-compta-bilan-n1.png` | fait (colonne « Exercice 2025 », bandeau d'équilibre). |
-| `x-appro-reception.png` | fait le 09/11/2026, **À REFAIRE** : la capture montre l'ANCIENNE phrase d'aide (« … met à jour le coût moyen pondéré au prix de cette commande »), corrigée côté web le 09/11/2026 en « La réception génère l'entrée de stock ; le coût moyen pondéré n'est pas recalculé à la réception. Ne saisissez pas le stock une seconde fois… ». Reprendre la figure 7.5 (§7.4) ; sa légende est déjà alignée sur la phrase vraie. Capture non régénérée ici. |
+| `x-compta-bilan-n1.png` | **refait le 09/11/2026** : bilan ÉQUILIBRÉ (total actif = total passif = 1 547 400 FCFA), colonne « Exercice 2025 », plus de bandeau « déséquilibré » ni « hors nomenclature ». |
+| `x-appro-reception.png` | **refait le 09/11/2026** : la fenêtre montre la phrase vraie « La réception génère l'entrée de stock ; le coût moyen pondéré n'est pas recalculé à la réception. Ne saisissez pas le stock une seconde fois… » (figure 7.6 après l'ajout de la figure 7.4). |
 | `x-appro-reglement.png` | fait (fenêtre « Régler », montant, trésorerie). |
 | `x-location-contrat.png` | fait (aperçu « jours × tarif », remise, acompte, reste à payer). |
 | `x-location-recu.png` | **non prise** : le reçu est un PDF dont l'en-tête reprend l'identité de l'établissement (e-mail, téléphone) ; à faire par le PO sur le serveur réel, ou après relecture de l'en-tête. |
@@ -87,7 +87,7 @@ Exploitation) ; `m10-comptabilite.png` et `m10-syscohada.png` sont prises en ple
 | `x-parametres-mecef.png` | fait (rubrique « Facturation normalisée (MECeF) », mode par défaut — non réglé = désactivé —, aucun jeton). Variante en mode e-MECeF : `pwa-parametres-mecef-emecef.png`. |
 | `x-sauvegardes.png` | fait (bandeau « Sauvegarde en attente de téléchargement », quatre indicateurs, liste). |
 | `x-reinitialiser.png` | fait ; fenêtre de confirmation (saisie de « VIDER » **non** effectuée) : `x-reinitialiser-modale.png`. |
-| `x-poste-comptage-inventaire.png`, `x-poste-compta-bandeaux.png` | **rendu Flutter, à confirmer par le PO sur Windows** (09/11/2026, `tool/capturer_poste_test.dart`, pas une photo d'écran Windows) : la phrase « Le comptage n'est écrit qu'à la clôture… » sous la feuille (deux articles comptés), et, au Compte de résultat, les bandeaux « 2 pièces saisies à la main … comptées » et « Pièce refusée par le serveur … ». Données fictives. |
+| `x-poste-comptage-inventaire.png`, `x-poste-compta-bandeaux.png` | **rendu Flutter, à confirmer par le PO sur Windows** — **intégrés au manuel** (figures 7.4 et 9.11, légendes « rendu de l'écran du poste ») (09/11/2026, `tool/capturer_poste_test.dart`, pas une photo d'écran Windows) : la phrase « Le comptage n'est écrit qu'à la clôture… » sous la feuille (deux articles comptés), et, au Compte de résultat, les bandeaux « 2 pièces saisies à la main … comptées » et « Pièce refusée par le serveur … ». Données fictives. |
 
 ### C. Autres écrans PWA nouveaux, pris sans demande préalable (noms `pwa-*`)
 
@@ -96,5 +96,5 @@ Exploitation) ; `m10-comptabilite.png` et `m10-syscohada.png` sont prises en ple
 chevauchement), `pwa-synchronisation-envoi`, `pwa-synchronisation-fenetre` (fenêtre du bouton de la barre),
 `pwa-mon-profil-mot-de-passe`, `pwa-mon-profil-code-secours`, `pwa-comptes-utilisateurs`, `pwa-comptes-reinitialisation`,
 `pwa-comptes-suppression` (super administrateur), `pwa-changement-mot-de-passe-obligatoire`, `pwa-mot-de-passe-oublie`,
-`pwa-code-secours-connexion`, `pwa-import-modeles`, `pwa-hors-connexion`.
+`pwa-code-secours-connexion` (les trois écrans invités `pwa-changement-mot-de-passe-obligatoire`, `pwa-mot-de-passe-oublie` et `pwa-code-secours-connexion` **refaits le 09/11/2026**, tailles de police du commit 9666a35), `pwa-import-modeles`, `pwa-hors-connexion`.
 Le jeton e-MECeF n'est jamais saisi ni affiché ; « Normaliser » et « Tester la connexion » ne sont pas cliqués.

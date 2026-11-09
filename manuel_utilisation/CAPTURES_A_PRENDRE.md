@@ -117,7 +117,7 @@ deux marquées « à prendre par le PO ».
 Annexes du poste (`CAPTURES_A_PRENDRE_CHAP7-14.md`) : `x-poste-comptage-inventaire.png` et `x-poste-compta-bandeaux.png` —
 rendu Flutter, à confirmer par le PO sur Windows (voir ce fichier).
 
-Les cadres `emplacement` de `part-10.html` à `part-14.html` ne sont **pas** modifiés ici (un autre flux intègre les images).
+**Intégration (09/11/2026, deuxième passe).** Les 17 rendus Flutter sont maintenant dans `part-10.html` à `part-14.html`, avec une légende qui dit « rendu de l'écran du poste ». Les deux rendus des annexes sont intégrés aux figures 7.4 (comptage) et 9.11 (bandeaux). **Restent en cadre pointillé, à prendre par le PO sur Windows : `c15-installateur-assistant.png` (figure 15.1) et `c15-desinstallation-avertissement.png` (figure 15.3)** (fenêtres Inno Setup). Les 17 autres figures restent « à confirmer par le PO sur Windows ».
 
 Des écrans PWA voisins avaient été pris, sous d'autres noms, pour qui voudrait un repère visuel **sans les substituer** (l'interface
 du poste diffère : libellés, boutons) : `pwa-postes-appairage` et `pwa-synchronisation-reception` / `-envoi` (figures 8 et 9),

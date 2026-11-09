@@ -29,7 +29,7 @@ capture jetable, jeu de démonstration, 1440 px, facteur 2), puis **regardées u
 
 | Fichier | Statut | Remarque pour les rédacteurs (ce que l'écran montre réellement) |
 |---|---|---|
-| `a-connexion.png`, `login.png` | fait | Carte LogiReStock refaite ; sur `a-connexion.png`, trois repères (identifiant, mot de passe, SE CONNECTER). |
+| `a-connexion.png`, `login.png` | fait, **refaits le 09/11/2026** (tailles de police du commit 9666a35) ; Carte LogiReStock refaite ; sur `a-connexion.png`, trois repères (identifiant, mot de passe, SE CONNECTER). |
 | `splash.png` | fait | Écran de démarrage à 100 % (« Prêt. »), ligne « Natitingou, Bénin — Système de gestion Intégré ». |
 | `a-navigation.png` | fait | Sélecteur d'exercice, icône Synchronisation, bouton Vente, menu complet. |
 | `mon-profil.png` | fait | Le compte de capture n'a pas de fiche employé : Nom complet, e-mail, téléphone et intitulé restent vides (« Aucune fiche employé rattachée »). Bloc Code de secours visible. |
