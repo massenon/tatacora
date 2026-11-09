@@ -209,7 +209,7 @@ final class FacturationEnLigneTest extends TestCase
     }
 
     #[Test]
-    public function un_avoir_d_un_poste_hors_liste_ou_sans_droit_est_refuse_et_rien_n_est_ecrit(): void
+    public function un_avoir_d_un_poste_hors_liste_ou_sans_jeton_est_refuse_et_le_compte_sans_droit_m2_est_accepte(): void
     {
         $facture = $this->facture(true);
         $this->faux([]);
@@ -218,7 +218,9 @@ final class FacturationEnLigneTest extends TestCase
         $this->appeler('/api/v1/sync/factures/'.$facture->id.'/avoir', ['motif' => 'X'], $this->admin, 'poste-a', 'poste-intrus')
             ->assertForbidden();
 
-        // Un compte sans écriture sur M2.
+        // Décision du PO du 09/11/2026 : le serveur NE JUGE PLUS les droits de module du compte
+        // d'appairage. Un compte sans écriture sur M2 n'est plus refusé : le droit « Annulations »
+        // se juge AU POSTE, sur l'utilisateur connecté. Le poste concordant et le jeton restent exigés.
         $sansDroit = null;
         foreach (Role::all() as $role) {
             if ($role->niveauSurModule('M2') !== 'C') {
@@ -227,15 +229,15 @@ final class FacturationEnLigneTest extends TestCase
             }
         }
         $this->assertNotNull($sansDroit, 'aucun rôle sans écriture M2 : le cas ne prouverait rien');
-        $this->appeler('/api/v1/sync/factures/'.$facture->id.'/avoir', ['motif' => 'X'], $sansDroit)->assertForbidden();
+        $this->appeler('/api/v1/sync/factures/'.$facture->id.'/avoir', ['motif' => 'X'], $sansDroit)->assertOk();
 
         // Sans jeton : refusé (le jeton posé par `withToken` reste sur les requêtes suivantes).
         $this->app['auth']->forgetGuards();
         $this->flushHeaders();
         $this->postJson('/api/v1/sync/factures/'.$facture->id.'/avoir', ['poste_id' => 'poste-a', 'motif' => 'X'])->assertUnauthorized();
 
-        $this->assertSame(0, Avoir::count());
-        Http::assertNothingSent();
+        // Seul l'avoir du compte sans droit M2 a été écrit (le poste intrus et l'appel sans jeton : rien).
+        $this->assertSame(1, Avoir::count());
     }
 
     #[Test]
