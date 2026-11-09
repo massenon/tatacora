@@ -22,7 +22,9 @@ use RuntimeException;
 /**
  * Les choix PAR DÉFAUT d'un gestionnaire — tous du côté prudent.
  *
- * - Niveau `C` : toute opération synchronisée est une écriture (PA-65).
+ * - Niveau `C` : toute opération synchronisée est une écriture (PA-65) ; mais depuis
+ *   le 09/11/2026 le compte du jeton n'est plus jugé sur le module (`modulesRequis`
+ *   vide par défaut : le RBAC se juge au poste).
  * - Modification REFUSÉE : une table doit l'accepter explicitement, en la
  *   faisant passer par son service. Oublier de la déclarer donne un rejet
  *   lisible, jamais une écriture brute. (Le catalogue entier l'accepte depuis
@@ -40,12 +42,26 @@ abstract class GestionnaireAbstrait implements GestionnaireSynchronisation
         return 'C';
     }
 
+    /**
+     * Par défaut : AUCUN droit du compte d'appairage (décision du PO du 09/11/2026).
+     * Une opération sensible déclare ses modules ici, ET se range dans
+     * `OperationsSensibles` (le test d'architecture relit la liste fermée).
+     */
     public function modulesRequis(array $payload): array
+    {
+        return [];
+    }
+
+    /**
+     * Le RBAC du WEB pour corriger / relancer / ignorer une opération reçue : le module
+     * de la table, par défaut (une table qui en exige d'autres le redéclare).
+     */
+    public function modulesDeLaCorrection(array $payload): array
     {
         return [$this->module()];
     }
 
-    /** Par défaut : le droit du module suffit. */
+    /** Par défaut : aucun droit particulier — le RBAC se juge au poste, sur l'utilisateur connecté. */
     public function refusDeDroit(array $payload, User $utilisateur): ?string
     {
         return null;

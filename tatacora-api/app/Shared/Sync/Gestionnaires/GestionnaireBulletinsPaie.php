@@ -7,6 +7,7 @@ namespace App\Shared\Sync\Gestionnaires;
 use App\Domain\Rh\Models\BulletinPaie;
 use App\Domain\Rh\Models\Employe;
 use App\Domain\Rh\Services\BulletinPaieService;
+use App\Shared\Sync\Exceptions\DependanceManquanteException;
 use App\Shared\Sync\Models\AnomalieSynchronisation;
 use App\Shared\Sync\Services\ResolveurCorrespondances;
 use App\Shared\Sync\Services\SignalementAnomalies;
@@ -77,7 +78,7 @@ final class GestionnaireBulletinsPaie extends GestionnaireDocumentAbstrait
         $employe = Employe::find($this->resoudre('employes', $donnees['employe_id']));
 
         if ($employe === null) {
-            throw new RuntimeException(__('sync.rh.employe_inconnu'));
+            throw new DependanceManquanteException(__('sync.rh.employe_inconnu'));
         }
 
         $bulletin = $this->bulletins->etablirBulletin($employe, (string) $donnees['periode'], $entiteId);

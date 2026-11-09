@@ -123,12 +123,13 @@ final class RelancesEtArchivageClientsSynchronisationTest extends TestCase
     }
 
     #[Test]
-    public function le_droit_est_celui_de_m3_et_une_relance_ne_se_modifie_pas(): void
+    public function le_droit_ne_se_juge_pas_sur_le_compte_d_appairage_et_une_relance_ne_se_modifie_pas(): void
     {
+        // `cuisine` (M3 = '-') : accepté, le droit de relancer se juge au poste (PO, 09/11/2026).
         $sansDroit = $this->creerUtilisateur('cuisine');
         $this->pousser([$this->creation('relances_clients', $this->uuid(), $this->relance())], $sansDroit)
-            ->assertJsonPath('resultats.0.statut', 'rejete');
-        $this->assertSame(0, RelanceClient::query()->count());
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertSame(1, RelanceClient::query()->count());
 
         $id = $this->uuid();
         $this->pousser([$this->creation('relances_clients', $id, $this->relance())], $this->gerant);
@@ -182,14 +183,15 @@ final class RelancesEtArchivageClientsSynchronisationTest extends TestCase
     }
 
     #[Test]
-    public function un_role_sans_droit_d_archivage_ne_range_pas_un_client_mais_peut_le_restaurer(): void
+    public function l_archivage_d_un_client_ne_juge_pas_le_compte_d_appairage_et_se_restaure(): void
     {
+        // La règle d'archivage de l'écran (administration, ou bascule ouverte) reste celle du web et
+        // du poste ; le serveur ne la juge plus sur le compte du jeton (PO, 09/11/2026). Les quatre
+        // verrous d'engagement du service, eux, tiennent (test suivant).
         $this->pousser([$this->operation('clients', 'modification', $this->client->id, ['actif' => false])], $this->gerant)
-            ->assertJsonPath('resultats.0.statut', 'rejete')
-            ->assertJsonPath('resultats.0.motif', __('pwa.archivage.refus_bascule'));
-        $this->assertTrue((bool) $this->client->fresh()->actif);
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertFalse((bool) $this->client->fresh()->actif);
 
-        app(ReferentielClientService::class)->archiver($this->client);
         $this->pousser([$this->operation('clients', 'modification', $this->client->id, ['actif' => true])], $this->gerant)
             ->assertJsonPath('resultats.0.statut', 'synchronise');
         $this->assertTrue((bool) $this->client->fresh()->actif);

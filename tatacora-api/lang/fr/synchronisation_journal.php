@@ -102,10 +102,20 @@ return [
             'cause' => 'Le compte qui a saisi cette opération sur le poste est suspendu, désactivé ou supprimé. '
                 . 'Réactivez-le, puis relancez l\'opération.',
         ],
+        // 09/11/2026 : le serveur ne juge plus les modules du compte d'appairage ; ce code ne
+        // reste que pour les opérations SENSIBLES (clôture, affectation, comptes, réglages
+        // MECeF et forme juridique, purge).
         'droit_manquant' => [
-            'phrase' => 'Droit manquant',
-            'cause' => 'Le compte qui a saisi cette opération n\'a pas le droit d\'écrire dans le module « :module ». '
-                . 'Accordez ce droit à son rôle (Rôles & Permissions), puis relancez l\'opération.',
+            'phrase' => 'Opération réservée',
+            'cause' => 'Cette opération est réservée (module « :module ») et le compte d\'appairage du poste n\'a pas le droit '
+                . 'exigé : faites-la depuis le web avec un compte autorisé, ou appairez le poste avec un compte qui l\'a, '
+                . 'puis relancez l\'opération. Les autres opérations du poste ne sont pas bloquées.',
+        ],
+        'dependance_manquante' => [
+            'phrase' => 'Élément cité pas encore reçu',
+            'cause' => 'Cette opération cite un élément que le serveur ne connaît pas encore (:detail). Le poste la renvoie '
+                . 'automatiquement, dans l\'ordre, avec un délai croissant ; si l\'élément n\'arrive jamais, relancez-la '
+                . 'depuis « À traiter » après avoir traité l\'opération qui l\'a créé.',
         ],
         'modification_non_synchronisable' => [
             'phrase' => 'Modification impossible hors connexion',

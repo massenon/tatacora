@@ -100,17 +100,18 @@ final class CanauxReservationSynchronisationTest extends TestCase
     }
 
     #[Test]
-    public function les_refus_du_service_et_du_droit_sont_rendus(): void
+    public function les_refus_du_service_sont_rendus_et_le_droit_ne_se_juge_pas(): void
     {
         $this->pousser([$this->creation('canaux_reservation', $this->uuid(), ['nom' => '   '])], $this->admin)
             ->assertJsonPath('resultats.0.statut', 'rejete');
 
-        // Sans droit d'écriture sur Paramètres : refusé (le module PARAM).
+        // Sans droit d'écriture sur Paramètres : ACCEPTÉ — le droit se juge au poste, plus sur
+        // le compte du jeton (décision du PO du 09/11/2026).
         $receptionniste = $this->creerUtilisateur('receptionniste');
         $this->pousser([$this->creation('canaux_reservation', $this->uuid(), ['nom' => 'Salon'])], $receptionniste)
-            ->assertJsonPath('resultats.0.statut', 'rejete');
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
 
-        $this->assertSame(0, CanalReservation::count());
+        $this->assertSame(1, CanalReservation::count());
     }
 
     #[Test]

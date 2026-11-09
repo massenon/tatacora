@@ -99,7 +99,7 @@ final class ImmobilisationsSynchroniseesTest extends TestCase
     }
 
     #[Test]
-    public function une_modification_est_refusee_et_le_droit_est_celui_de_m10(): void
+    public function une_modification_est_refusee_et_le_droit_ne_se_juge_pas_sur_le_compte_d_appairage(): void
     {
         $id = $this->uuid();
         $this->pousser([$this->creation('immobilisations', $id, $this->charge())], $this->comptable)
@@ -108,11 +108,12 @@ final class ImmobilisationsSynchroniseesTest extends TestCase
         $this->pousser([$this->operation('immobilisations', 'modification', $id, ['libelle' => 'Autre'])], $this->comptable)
             ->assertJsonPath('resultats.0.statut', 'rejete');
 
+        // `cuisine` (M10 = '-') : accepté, le droit se juge au poste (décision du PO du 09/11/2026).
         $sansDroit = $this->creerUtilisateur('cuisine');
         $this->pousser([$this->creation('immobilisations', $this->uuid(), $this->charge())], $sansDroit)
-            ->assertJsonPath('resultats.0.statut', 'rejete');
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
 
-        $this->assertSame(1, Immobilisation::query()->count());
+        $this->assertSame(2, Immobilisation::query()->count());
         $this->assertSame('Toyota Land Cruiser Prado', Immobilisation::findOrFail($id)->libelle);
     }
 

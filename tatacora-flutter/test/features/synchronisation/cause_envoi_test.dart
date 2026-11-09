@@ -77,6 +77,12 @@ void main() {
         }
         depuis = fin;
       }
+      // Les codes des constantes du moteur (opération différée, erreur imprévue).
+      for (final m in RegExp(
+        r"const CODE_[A-Z_]+ = '([a-z_]+)'",
+      ).allMatches(php)) {
+        codes.add(m.group(1)!);
+      }
       final corps = RegExp(
         r'function codeDeLException[\s\S]*?\n    }',
       ).firstMatch(php)!.group(0)!;
@@ -125,36 +131,43 @@ void main() {
       'code_motif': code,
     };
 
-    test('seul un refus REJETÉ pour droit_manquant se renvoie sans être '
-        'administrateur', () {
-      expect(
-        renvoiOuvertATous(op({'a': 'b'}, resultat: refus('droit_manquant'))),
-        isTrue,
-      );
-      for (final autre in codesRefusServeur.where(
-        (c) => c != 'droit_manquant',
-      )) {
-        expect(
-          renvoiOuvertATous(op({'a': 'b'}, resultat: refus(autre))),
-          isFalse,
-          reason: autre,
-        );
-      }
-      expect(renvoiOuvertATous(op({'a': 'b'})), isFalse, reason: 'sans code');
-      for (final statut in [
-        StatutOperationSync.bloque,
-        StatutOperationSync.conflit,
-        StatutOperationSync.enAttente,
-      ]) {
-        expect(
-          renvoiOuvertATous(
-            op({'a': 'b'}, statut: statut, resultat: refus('droit_manquant')),
-          ),
-          isFalse,
-          reason: statut.code,
-        );
-      }
-    });
+    test(
+      'seul un refus REJETÉ pour droit_manquant (opération réservée) ou pour '
+      'une opération différée au bout de ses essais se renvoie sans être '
+      'administrateur',
+      () {
+        for (final ouvert in codesRenvoiOuvertATous) {
+          expect(
+            renvoiOuvertATous(op({'a': 'b'}, resultat: refus(ouvert))),
+            isTrue,
+            reason: ouvert,
+          );
+        }
+        for (final autre in codesRefusServeur.where(
+          (c) => !codesRenvoiOuvertATous.contains(c),
+        )) {
+          expect(
+            renvoiOuvertATous(op({'a': 'b'}, resultat: refus(autre))),
+            isFalse,
+            reason: autre,
+          );
+        }
+        expect(renvoiOuvertATous(op({'a': 'b'})), isFalse, reason: 'sans code');
+        for (final statut in [
+          StatutOperationSync.bloque,
+          StatutOperationSync.conflit,
+          StatutOperationSync.enAttente,
+        ]) {
+          expect(
+            renvoiOuvertATous(
+              op({'a': 'b'}, statut: statut, resultat: refus('droit_manquant')),
+            ),
+            isFalse,
+            reason: statut.code,
+          );
+        }
+      },
+    );
   });
 
   group('causeDe', () {

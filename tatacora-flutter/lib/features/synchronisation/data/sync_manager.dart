@@ -54,7 +54,13 @@ import 'transport_synchronisation.dart';
 ///  * tout autre 4xx → les opérations du lot sont `rejete` avec ce code, état
 ///    [EtatSynchronisation.alerte], arrêt ;
 ///  * 200 → chaque résultat est consigné tel quel
-///    ([OperationsSyncDao.marquerResultat]).
+///    ([OperationsSyncDao.marquerResultat]) — sauf un rejet que le serveur dit
+///    DIFFÉRÉ (`dependance_manquante` : l'élément cité n'est pas encore connu ;
+///    `erreur_serveur` : erreur imprévue sur CETTE opération) : l'opération
+///    redevient `en_attente` avec un repli et ne bloque RIEN d'autre, ni le lot
+///    ni la file (décision du PO du 09/11/2026), jusqu'à [maxTentativesDifferees]
+///    essais, après quoi elle est rejetée lisiblement (« À traiter »,
+///    renvoyable par tous).
 ///
 /// Rien n'est jamais supprimé de la file.
 ///
@@ -625,6 +631,38 @@ class SyncManager {
     Set<String> lot = const {},
   }) async {
     final statut = resultat['statut'];
+    if (statut == 'rejete' && estRejetDiffere(resultat, o.tentatives)) {
+      // L'opération n'est PAS refusée : elle attend. Les opérations suivantes du même
+      // élément, pas encore parties, attendent derrière elle (même ordre qu'un rejet,
+      // sans blocage) ; tout le reste de la file et du lot passe.
+      final suivantes = [
+        for (final s in c.reclames)
+          if (s.seq > o.seq &&
+              s.table == o.table &&
+              s.entiteId == o.entiteId &&
+              !c.traites.contains(s.uuidOperation) &&
+              !lot.contains(s.uuidOperation))
+            s.uuidOperation,
+      ];
+      await _dao.rendreEnAttente(suivantes);
+      c.traites.addAll(suivantes);
+      final motif = resultat['motif'];
+      final delai = delaiDeRepli(o.tentatives);
+      await _dao.marquerEchecTransitoire(
+        o.uuidOperation,
+        erreur: motif is String ? motif : 'Opération différée par le serveur.',
+        codeHttp: codeHttp,
+        delai: delai,
+      );
+      final echeance = _maintenant().add(delai);
+      final prochaine = c.prochaineTentative;
+      if (prochaine == null || echeance.isBefore(prochaine)) {
+        c.prochaineTentative = echeance;
+      }
+      c.traites.add(o.uuidOperation);
+      c.differees++;
+      return;
+    }
     if (statut == 'rejete') {
       final suivantes = [
         for (final s in c.reclames)
@@ -873,6 +911,10 @@ final class _Contexte {
   int synchronisees = 0;
   int rejetees = 0;
   int conflits = 0;
+
+  /// Les opérations que le serveur a DIFFÉRÉES (dépendance pas encore reçue, erreur
+  /// imprévue sur elles) : remises en file avec un repli, jamais rejetées.
+  int differees = 0;
   DateTime? prochaineTentative;
 
   /// Le lot réclamé en cours.
@@ -898,6 +940,7 @@ final class _Contexte {
     synchronisees: synchronisees,
     rejetees: rejetees,
     conflits: conflits,
+    differees: differees,
     codeHttp: codeHttp,
     detail: detail,
     prochaineTentative: prochaineTentative,

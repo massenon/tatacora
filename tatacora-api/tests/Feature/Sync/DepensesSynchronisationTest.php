@@ -132,16 +132,17 @@ final class DepensesSynchronisationTest extends TestCase
     }
 
     #[Test]
-    public function sans_ecriture_sur_m10_aucune_depense_n_est_synchronisee(): void
+    public function une_depense_n_est_pas_jugee_sur_le_module_du_compte_d_appairage(): void
     {
+        // Décision du PO du 09/11/2026 : `barman` (M10 = '-') a une dépense acceptée par le
+        // serveur ; le droit de saisir une dépense se juge au poste, sur l'utilisateur connecté.
         $barman = $this->creerUtilisateur('barman');
 
         $this->pousser([$this->depense($this->uuid())], $barman)
-            ->assertJsonPath('resultats.0.statut', 'rejete')
-            ->assertJsonPath('resultats.0.motif', __('auth.module_refuse'));
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
 
-        $this->assertDatabaseHas('journal_securite', ['utilisateur_id' => $barman->id, 'module_concerne' => 'M10']);
-        $this->assertSame(0, Depense::count());
+        $this->assertDatabaseMissing('journal_securite', ['utilisateur_id' => $barman->id, 'type_evenement' => 'acces_refuse_rbac']);
+        $this->assertSame(1, Depense::count());
     }
 
     #[Test]

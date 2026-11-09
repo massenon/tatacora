@@ -215,20 +215,20 @@ final class VentesSynchronisationTest extends TestCase
     }
 
     #[Test]
-    public function un_ticket_avec_des_plats_exige_aussi_l_ecriture_sur_m4(): void
+    public function un_ticket_avec_des_plats_n_est_pas_juge_sur_les_modules_du_compte_d_appairage(): void
     {
-        // `barman` : M5 = C, M4 = '-'.
+        // Décision du PO du 09/11/2026 : le barman (M5 = C, M4 = '-') pousse un ticket bar + plat,
+        // la réceptionniste (M5 = L) un ticket de bière : le serveur accepte, le RBAC se juge au poste.
         $this->pousser([$this->vente($this->uuid(), [$this->ligneBiere(1), $this->lignePlat(1)])], $this->barman)
-            ->assertJsonPath('resultats.0.statut', 'rejete')
-            ->assertJsonPath('resultats.0.motif', __('auth.module_refuse'));
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
 
-        $this->assertDatabaseHas('journal_securite', ['utilisateur_id' => $this->barman->id, 'module_concerne' => 'M4']);
-        $this->assertSame(0, Vente::count());
+        $this->assertDatabaseMissing('journal_securite', ['utilisateur_id' => $this->barman->id, 'type_evenement' => 'acces_refuse_rbac']);
+        $this->assertSame(1, Vente::count());
 
         $receptionniste = $this->creerUtilisateur('receptionniste');
         $this->pousser([$this->vente($this->uuid(), [$this->ligneBiere(1)])], $receptionniste)
-            ->assertJsonPath('resultats.0.motif', __('auth.module_refuse'));
-        $this->assertSame(0, Vente::count());
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertSame(2, Vente::count());
     }
 
     /**
@@ -254,11 +254,11 @@ final class VentesSynchronisationTest extends TestCase
             ['module_source' => 'M8', 'code_article' => $vehicule->id, 'libelle' => 'AB-123-CD', 'prix_unitaire' => 65000, 'quantite' => 1],
         ];
 
-        // Le barman (M5 seul) n'obtient pas par la synchronisation ce que M8/M9 lui refusent.
+        // Le barman (M5 seul) : plus jugé par le serveur (décision du PO du 09/11/2026), le droit de
+        // vendre location et tourisme se juge au poste. Le serveur écrit pareil.
         $this->pousser([$this->vente($this->uuid(), $lignes)], $this->barman)
-            ->assertJsonPath('resultats.0.statut', 'rejete')
-            ->assertJsonPath('resultats.0.motif', __('auth.module_refuse'));
-        $this->assertSame(0, Vente::count());
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertSame(1, Vente::count());
 
         $id = $this->uuid();
         $this->pousser([$this->vente($id, $lignes)], $this->gerant)
@@ -445,42 +445,48 @@ final class VentesSynchronisationTest extends TestCase
 
     /**
      * Lot F6 : l'annulation, par `VenteService::annuler` (contre-passation),
-     * une fois ; une vente d'un AUTRE poste ne s'annule que par
-     * l'administration ou le comptable (Q3).
+     * une fois. Depuis le 09/11/2026 (décision du PO) la règle Q3 — « une vente d'un
+     * AUTRE poste ne s'annule que par l'administration ou le comptable » — ne se juge plus
+     * sur le compte du jeton : le droit `ANNULATIONS` se juge AU POSTE, sur l'utilisateur
+     * connecté. Le serveur garde la cohérence (idempotence, une seule contre-passation).
      */
     #[Test]
-    public function l_annulation_passe_par_le_service_et_suit_la_regle_des_autres_postes(): void
+    public function l_annulation_passe_par_le_service_sans_juger_le_compte_d_appairage(): void
     {
         $id = $this->uuid();
         $this->pousser([$this->vente($id, [$this->ligneBiere(2)])], $this->barman, 'poste-a');
         $annulation = fn (): array => $this->operation('ventes', 'modification', $id, ['statut' => 'annulee', 'motif' => 'Erreur de table']);
 
+        // Un AUTRE poste annule : accepté (le poste B a jugé son utilisateur), contre-passée UNE fois.
         $this->pousser([$annulation()], $this->barman, 'poste-b')
-            ->assertJsonPath('resultats.0.statut', 'rejete')
-            ->assertJsonPath('resultats.0.motif', __('sync.annulation_autre_poste'));
-        $this->assertFalse(Vente::findOrFail($id)->estAnnulee());
-
-        $this->pousser([$annulation()], $this->barman, 'poste-a')->assertJsonPath('resultats.0.statut', 'synchronise');
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertTrue(Vente::findOrFail($id)->estAnnulee());
         $this->assertTrue(Vente::findOrFail($id)->estAnnulee());
         $lignes = EcritureComptable::count();
 
-        // Rejeu (autre uuid, plus tard) : rien n'est contre-passé deux fois.
+        // Rejeu (autre uuid, plus tard, même poste d'origine) : rien n'est contre-passé deux fois.
         $this->travel(1)->minutes();
         $this->pousser([$annulation()], $this->barman, 'poste-a')->assertJsonPath('resultats.0.statut', 'synchronise');
         $this->assertSame($lignes, EcritureComptable::count());
     }
 
     #[Test]
-    public function l_administration_annule_la_vente_d_un_autre_poste_le_gerant_non(): void
+    public function l_annulation_de_la_vente_d_un_autre_poste_ne_juge_ni_le_gerant_ni_l_administration(): void
     {
         $id = $this->uuid();
         $this->pousser([$this->vente($id, [$this->ligneBiere(1)])], $this->barman, 'poste-a');
 
+        // Le gérant n'est plus refusé (09/11/2026) ; la seconde annulation, par l'administration,
+        // est un rejeu : rendue sans second effet.
         $this->pousser([$this->operation('ventes', 'modification', $id, ['statut' => 'annulee', 'motif' => 'Doublon'])], $this->gerant, 'poste-b')
-            ->assertJsonPath('resultats.0.statut', 'rejete');
-        $this->pousser([$this->operation('ventes', 'modification', $id, ['statut' => 'annulee', 'motif' => 'Doublon'])], $this->creerUtilisateur('administrateur'), 'poste-b')
             ->assertJsonPath('resultats.0.statut', 'synchronise');
         $this->assertTrue(Vente::findOrFail($id)->estAnnulee());
+        $lignes = EcritureComptable::count();
+
+        $this->travel(1)->minutes();
+        $this->pousser([$this->operation('ventes', 'modification', $id, ['statut' => 'annulee', 'motif' => 'Doublon'])], $this->creerUtilisateur('administrateur'), 'poste-b')
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertSame($lignes, EcritureComptable::count());
     }
 
     // ------------------------------------------------------------- Helpers

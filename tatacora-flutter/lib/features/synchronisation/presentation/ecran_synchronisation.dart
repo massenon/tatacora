@@ -142,8 +142,10 @@ abstract final class TextesEcranSynchronisation {
   static const anomaliesVide = 'Aucun signalement du serveur.';
   static const reserveAdministrateurs =
       '« Renvoyer » et « Débloquer » sont réservés aux Administrateurs, '
-      'sauf « Renvoyer » d’un refus « Droit manquant » : ouvert à tous, '
-      'puisque le serveur rejuge avec le droit du compte d’appairage.';
+      'sauf « Renvoyer » d’une opération réservée, d’un élément cité pas '
+      'encore reçu ou d’une erreur imprévue du serveur : ouvert à tous, '
+      'puisque le serveur rejuge la même opération et que rien ne s’y '
+      'obtient par ce geste que le serveur n’accorde déjà.';
   static const renvoyer = 'Renvoyer';
   static const debloquer = 'Débloquer';
   static const renvoyee =
@@ -756,12 +758,12 @@ class _ATraiter extends ConsumerWidget {
     final o = l.operation;
     final uuid = o.uuidOperation;
     final cause = causeDe(o, motif: motifOperation(o));
-    // « Renvoyer » un refus `droit_manquant` n'est PAS un geste d'administration :
-    // c'est la même écriture, sous un nouvel uuid d'opération, que le serveur rejuge
-    // avec le droit du compte d'appairage. Rien ne s'obtient par ce renvoi qu'un
-    // droit accordé depuis (ou une règle assouplie au serveur) ne donne déjà ; le
-    // barman qui a pris des tables peut donc relancer SES refus sans administrateur.
-    // « Corriger » (modifier la charge) reste réservé aux administrateurs.
+    // « Renvoyer » un refus `droit_manquant` (opération réservée), `dependance_manquante`
+    // ou `erreur_serveur` n'est PAS un geste d'administration : c'est la même écriture,
+    // sous un nouvel uuid d'opération, que le serveur rejuge. Rien ne s'obtient par ce
+    // renvoi qu'un droit accordé depuis, un élément arrivé depuis ou une règle assouplie
+    // au serveur ne donne déjà ; l'utilisateur du poste peut donc relancer SES refus sans
+    // administrateur. « Corriger » (modifier la charge) reste réservé aux administrateurs.
     final peutRenvoyer = admin || renvoiOuvertATous(o);
     final Widget action = Wrap(
       alignment: WrapAlignment.end,

@@ -238,12 +238,13 @@ final class CatalogueStocksBarSynchronisationTest extends TestCase
     // ------------------------------------------------------------------- RBAC
 
     /**
-     * M6 en `C` est exigé pour points et articles, M5 en `C` pour la carte :
-     * `receptionniste` (M6 = L) et `magasinier` sur la carte (M5 = L) sont
-     * refusés, chaque refus tracé.
+     * Réécrit le 09/11/2026 (décision du PO) : le serveur ne juge plus le module du compte
+     * d'appairage. `receptionniste` (M6 = L) crée un point et un article, `magasinier` (M5 =
+     * L) crée une boisson à la carte : tout est accepté, aucun refus n'est tracé — le droit
+     * se juge au poste, sur l'utilisateur connecté.
      */
     #[Test]
-    public function sans_ecriture_sur_le_module_rien_n_est_cree_et_le_refus_est_trace(): void
+    public function le_stock_et_le_bar_ne_jugent_pas_le_module_du_compte_d_appairage(): void
     {
         $receptionniste = $this->creerUtilisateur('receptionniste');
         $article = $this->articleServeur('Coca 33cl', 'bouteille');
@@ -252,20 +253,18 @@ final class CatalogueStocksBarSynchronisationTest extends TestCase
             $this->creation('points_stockage', $this->uuid(), ['libelle' => 'Réserve']),
             $this->creation('articles', $this->uuid(), $this->article('Gaz', 'bouteille')),
         ], $receptionniste)
-            ->assertJsonPath('resultats.0.motif', __('auth.module_refuse'))
-            ->assertJsonPath('resultats.1.motif', __('auth.module_refuse'));
+            ->assertJsonPath('resultats.0.statut', 'synchronise')
+            ->assertJsonPath('resultats.1.statut', 'synchronise');
 
         $this->pousser([$this->creation('cartes_boisson', $this->uuid(), [
             'libelle' => 'Coca', 'article_id' => $article->id, 'categorie' => 'importee', 'prix_vente' => '800',
         ])], $this->magasinier)
-            ->assertJsonPath('resultats.0.statut', 'rejete')
-            ->assertJsonPath('resultats.0.motif', __('auth.module_refuse'));
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
 
-        $this->assertSame(0, PointStockage::count());
-        $this->assertSame(1, Article::count());
-        $this->assertSame(0, CarteBoisson::count());
-        $this->assertDatabaseHas('journal_securite', ['utilisateur_id' => $receptionniste->id, 'module_concerne' => 'M6']);
-        $this->assertDatabaseHas('journal_securite', ['utilisateur_id' => $this->magasinier->id, 'module_concerne' => 'M5']);
+        $this->assertSame(1, PointStockage::count());
+        $this->assertSame(2, Article::count());
+        $this->assertSame(1, CarteBoisson::count());
+        $this->assertDatabaseMissing('journal_securite', ['type_evenement' => 'acces_refuse_rbac']);
     }
 
     // ------------------------------------------------------------------ Carte du bar

@@ -12,11 +12,11 @@ use App\Domain\Ventes\Models\Panier;
 use App\Domain\Ventes\Models\Vente;
 use App\Domain\Ventes\Services\VenteService;
 use App\Pwa\Livewire\Pos\PosComptant;
+use App\Shared\Sync\Exceptions\DependanceManquanteException;
 use App\Shared\Sync\Models\AnomalieSynchronisation;
 use App\Shared\Sync\Services\ResolveurCorrespondances;
 use App\Shared\Sync\Services\SignalementAnomalies;
 use App\Shared\Sync\Support\ContexteSynchronisation;
-use App\Shared\Sync\Support\DocumentsDesAutresPostes;
 use App\Shared\Sync\Support\EcritureSynchronisee;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -119,7 +119,6 @@ final class GestionnaireVentes extends GestionnaireDocumentAbstrait
         private readonly VenteService $ventes,
         ResolveurCorrespondances $correspondances,
         SignalementAnomalies $anomalies,
-        private readonly DocumentsDesAutresPostes $autresPostes,
     ) {
         parent::__construct($correspondances, $anomalies);
     }
@@ -127,9 +126,10 @@ final class GestionnaireVentes extends GestionnaireDocumentAbstrait
     /**
      * Lot F6 (17/10/2026) : l'ANNULATION seulement (`statut: annulee` +
      * `motif`), par `VenteService::annuler` — contre-passation de la pièce et
-     * retour des boissons au stock, comme à la PWA. Une vente d'un autre
-     * poste ne s'annule que par l'administration ou le comptable (Q3). Tout
-     * autre champ : refusé.
+     * retour des boissons au stock, comme à la PWA. Le droit d'annuler (y compris
+     * la vente d'un autre poste, ex-règle Q3) se juge AU POSTE sur l'utilisateur
+     * connecté (droit `ANNULATIONS`), plus sur le compte du jeton (décision du PO du
+     * 09/11/2026). Tout autre champ : refusé.
      */
     public function accepteModification(): bool
     {
@@ -150,7 +150,6 @@ final class GestionnaireVentes extends GestionnaireDocumentAbstrait
 
         // Rejeu : déjà annulée — rendue, jamais contre-passée deux fois.
         if (! $vente->estAnnulee()) {
-            $this->autresPostes->verifierAnnulation('ventes', $entiteId, $contexte);
             $this->ventes->annuler($vente, $motif === '' ? __('sync.factures.motif_absent') : $motif);
         }
 
@@ -168,17 +167,16 @@ final class GestionnaireVentes extends GestionnaireDocumentAbstrait
     }
 
     /**
-     * M5 toujours ; M4 EN PLUS dès qu'une ligne est un plat — la règle de
-     * `PosComptant::encaissementReel` (PA-65) : un barman ne doit pas obtenir
-     * par la synchronisation ce que l'écran M4 lui refuse.
+     * Le RBAC du WEB pour corriger une vente reçue (page de réception) : M5 toujours ;
+     * M4 EN PLUS dès qu'une ligne est un plat, M8 (location) et M9 (tourisme) de même —
+     * la règle de `PosComptant::encaissementReel`. Le serveur ne l'applique PLUS au compte
+     * d'appairage d'un poste (décision du PO du 09/11/2026).
      */
-    public function modulesRequis(array $payload): array
+    public function modulesDeLaCorrection(array $payload): array
     {
         $lignes = is_array($payload['lignes'] ?? null) ? $payload['lignes'] : [];
         $requis = [PosComptant::MODULE];
 
-        // Plats (M4), location (M8) et tourisme (M9, 22/10/2026) : chacun EN
-        // PLUS de M5, comme l'écran du comptoir (`encaissementReel`).
         foreach (['M4', 'M8', 'M9'] as $module) {
             foreach ($lignes as $ligne) {
                 if (is_array($ligne) && ($ligne['module_source'] ?? null) === $module) {
@@ -221,7 +219,7 @@ final class GestionnaireVentes extends GestionnaireDocumentAbstrait
             $reservation = $reservationId === null ? null : Reservation::with('unite')->find($reservationId);
 
             if ($reservation === null) {
-                throw new RuntimeException(__('sync.ventes.reservation_inconnue'));
+                throw new DependanceManquanteException(__('sync.ventes.reservation_inconnue'));
             }
         }
 

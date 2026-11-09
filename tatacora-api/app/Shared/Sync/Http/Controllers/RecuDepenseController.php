@@ -8,7 +8,6 @@ use App\Domain\Depenses\Exceptions\RefusRecuDepense;
 use App\Domain\Depenses\Models\Depense;
 use App\Domain\Depenses\Services\RecuDepenseService;
 use App\Models\User;
-use App\Shared\Rbac\Models\JournalSecurite;
 use App\Shared\Sync\Services\JournalReceptionService;
 use App\Shared\Sync\Support\PosteDuJeton;
 use Illuminate\Http\JsonResponse;
@@ -35,11 +34,11 @@ use Throwable;
  *
  * ## Dépôt
  *
- * Les mêmes droits que la dépense (écriture sur M10 — le niveau que
- * `GestionnaireDepenses` exige) ET le même poste : la dépense doit avoir été
+ * Aucun droit du compte du jeton (décision du PO du 09/11/2026 : le droit se juge au
+ * poste, comme pour la dépense elle-même), mais le même poste : la dépense doit avoir été
  * poussée par CE poste (`origines_synchronisation`), ou, quand cette trace a
  * été purgée, par ce compte. Contrôles dans l'ordre : compte actif, poste du
- * jeton, droit, taille annoncée (413 avant de lire le corps), dépense connue
+ * jeton, taille annoncée (413 avant de lire le corps), dépense connue
  * (404 `depense_inconnue` : le poste réessaiera après elle), origine, puis le
  * contenu (`RecuDepenseService`, règles et phrases de l'écran web).
  *
@@ -52,8 +51,6 @@ use Throwable;
  */
 final class RecuDepenseController
 {
-    private const MODULE = 'M10';
-
     public function __construct(
         private readonly RecuDepenseService $recus,
         private readonly JournalReceptionService $journal,
@@ -79,21 +76,6 @@ final class RecuDepenseController
 
         if (! PosteDuJeton::concorde($request, $poste)) {
             return response()->json(['message' => __('sync.poste_non_reconnu')], 403);
-        }
-
-        if ($utilisateur->niveauSurModule(self::MODULE) !== 'C') {
-            JournalSecurite::create([
-                'type_evenement' => 'acces_refuse_rbac',
-                'utilisateur_id' => $utilisateur->id,
-                'adresse_ip' => $request->ip(),
-                'module_concerne' => self::MODULE,
-            ]);
-
-            return $this->refus($depense, $poste, $utilisateur, null, new RefusRecuDepense(
-                'droit_manquant',
-                __('auth.module_refuse'),
-                403,
-            ));
         }
 
         // La taille ANNONCÉE d'abord : un fichier démesuré n'est même pas lu.
@@ -181,11 +163,6 @@ final class RecuDepenseController
 
         if (! PosteDuJeton::concorde($request, $poste)) {
             return response()->json(['message' => __('sync.poste_non_reconnu')], 403);
-        }
-
-        // Lire une dépense, c'est lire M10 — le droit que la descente exige.
-        if ($utilisateur->niveauSurModule(self::MODULE) === '-') {
-            return response()->json(['message' => __('auth.module_refuse')], 403);
         }
 
         $document = Depense::query()->find($depense);

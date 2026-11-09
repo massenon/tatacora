@@ -67,9 +67,10 @@ final class TablesSalleSynchronisationTest extends TestCase
         $t = TableSalle::findOrFail($id);
         $this->assertSame(['J5', 8], [$t->libelle, (int) $t->places]);
 
-        // Un barman n'administre pas le plan.
+        // Qui administre le plan, c'est le RBAC LOCAL du poste (09/11/2026, décision du PO) : le
+        // serveur n'a plus à juger le compte du jeton, un barman voit sa table acceptée.
         $this->pousser([$this->creation('tables_salle', $this->uuid(), ['espace' => 'plage', 'numero' => 1])], $this->barman)
-            ->assertJsonPath('resultats.0.statut', 'rejete');
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
     }
 
     #[Test]

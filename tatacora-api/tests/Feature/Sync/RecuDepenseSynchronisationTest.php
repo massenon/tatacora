@@ -188,20 +188,21 @@ final class RecuDepenseSynchronisationTest extends TestCase
     }
 
     #[Test]
-    public function sans_ecriture_sur_m10_le_depot_est_refuse_et_trace(): void
+    public function le_depot_n_est_pas_juge_sur_le_module_du_compte_d_appairage(): void
     {
+        // Décision du PO du 09/11/2026 : le reçu d'une dépense du poste se dépose avec le compte du
+        // jeton quel que soit son droit sur M10 (`rh` : L, `barman` : '-') ; le droit de saisir la
+        // dépense s'est jugé au poste. Le jeton, le poste concordant, la taille et l'origine tiennent.
         $id = $this->depenseDuPoste();
+        $png = $this->png();
         $lecteur = $this->creerUtilisateur('rh');          // M10 = 'L'
         $sansDroit = $this->creerUtilisateur('barman');     // M10 = '-'
 
-        foreach ([$lecteur, $sansDroit] as $utilisateur) {
-            $this->deposer($id, $this->png(), 'image/png', null, $utilisateur)
-                ->assertForbidden()
-                ->assertJsonPath('code', 'droit_manquant');
-        }
+        $this->deposer($id, $png, 'image/png', null, $lecteur)->assertOk();
+        $this->deposer($id, $png, 'image/png', null, $sansDroit)->assertOk()->assertJsonPath('data.rejeu', true);
 
-        $this->assertNull(Depense::findOrFail($id)->recu_path);
-        $this->assertGreaterThanOrEqual(2, \App\Shared\Rbac\Models\JournalSecurite::query()->where('type_evenement', 'acces_refuse_rbac')->count());
+        $this->assertNotNull(Depense::findOrFail($id)->recu_path);
+        $this->assertSame(0, \App\Shared\Rbac\Models\JournalSecurite::query()->where('type_evenement', 'acces_refuse_rbac')->count());
     }
 
     #[Test]
@@ -257,9 +258,10 @@ final class RecuDepenseSynchronisationTest extends TestCase
         $this->assertSame($png, $reponse->getContent());
         $this->assertSame('nosniff', $reponse->headers->get('X-Content-Type-Options'));
 
-        // Lecture seule sur M10 suffit ; aucun droit sur M10 : refusé.
+        // Aucun droit du compte d'appairage n'est jugé (PO, 09/11/2026) : `rh` (M10 = L) et
+        // `barman` (M10 = '-') téléchargent le reçu du poste.
         $this->telecharger($id, $this->creerUtilisateur('rh'))->assertOk();
-        $this->telecharger($id, $this->creerUtilisateur('barman'))->assertForbidden();
+        $this->telecharger($id, $this->creerUtilisateur('barman'))->assertOk();
     }
 
     #[Test]

@@ -23,9 +23,16 @@ use RuntimeException;
  * postes FUSIONNE (`fusionne_avec`) au lieu de se doubler. Modification :
  * numéro (`renumeroter`), places (`changerPlaces`), activation (`basculer`,
  * qui refuse une table au panier ouvert). Module M5 (RG-16, le point de
- * vente) : citer une table qui existe déjà (usage) se fait avec M5 seul ; CONFIGURER
- * le plan (table nouvelle, numéro, places, activation) exige EN PLUS `PARAM`,
- * le droit de l'écran Paramètres.
+ * vente).
+ *
+ * ## Aucun droit du compte d'appairage (décision du PO du 09/11/2026)
+ *
+ * Citer une table, la créer, la renuméroter, changer ses places, l'activer ou la
+ * désactiver : le serveur ne juge PAS le compte du jeton (celui qui a appairé le
+ * poste), il rejoue les règles de COHÉRENCE du service (clé naturelle, table au
+ * panier ouvert…). Qui peut configurer le plan, c'est le RBAC LOCAL du poste, sur
+ * l'utilisateur connecté. Avant, `modulesRequis` exigeait M5 (usage) ou M5 + `PARAM`
+ * (configuration) du compte du jeton : le barman voyait « Droit manquant ».
  */
 final class GestionnaireTablesSalle extends GestionnaireAbstrait
 {
@@ -45,25 +52,12 @@ final class GestionnaireTablesSalle extends GestionnaireAbstrait
     }
 
     /**
-     * USAGE ou CONFIGURATION (09/11/2026, bogue du PO : le barman du poste A,
-     * trois « Droit manquant » sur les tables de salle).
-     *
-     * Le poste enfile une `creation` de table (`assurerConnueDuServeur`) au
-     * premier geste d'USAGE qui la cite — prendre une table au point de vente
-     * quand il ne l'a pas encore reçue du serveur. Si (espace, numéro) existe
-     * déjà, `creer()` ne fait que FUSIONNER (`fusionne_avec`) : rien n'est écrit,
-     * la salle ne change pas. Ce geste-là est un geste du POINT DE VENTE : M5
-     * en écriture suffit, comme l'ouverture du panier qui le suit (barman,
-     * gérant). Exiger `PARAM` le refusait à tout compte qui vend sans administrer
-     * (barman `-`, gérant `L`).
-     *
-     * La CONFIGURATION exige EN PLUS `PARAM`, le droit de l'écran Paramètres,
-     * comme à la PWA : une table NOUVELLE, ou toute `modification` (numéro,
-     * places, activation — jamais une clé `espace`, la modification la refuse).
-     * Le contrôle se fait AVANT l'opération (hors transaction, trace
-     * `journal_securite`), donc sur l'état du plan à cet instant.
+     * Le RBAC du WEB pour corriger une opération de salle reçue : M5 (le point de vente) ;
+     * CONFIGURER le plan (table nouvelle, numéro, places, activation) exige EN PLUS `PARAM`,
+     * le droit de l'écran Paramètres, comme à la PWA. Le serveur ne l'applique PLUS au
+     * compte d'appairage d'un poste (décision du PO du 09/11/2026).
      */
-    public function modulesRequis(array $payload): array
+    public function modulesDeLaCorrection(array $payload): array
     {
         return $this->citeUneTableExistante($payload)
             ? [PosComptant::MODULE]

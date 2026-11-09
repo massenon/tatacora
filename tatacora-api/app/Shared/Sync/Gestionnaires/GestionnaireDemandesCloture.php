@@ -77,6 +77,19 @@ final class GestionnaireDemandesCloture extends GestionnaireDocumentAbstrait
         return 'M10';
     }
 
+    /**
+     * OPÉRATION SENSIBLE (liste fermée `OperationsSensibles`, décision du PO du
+     * 09/11/2026) : clôturer un exercice engage la comptabilité de l'entreprise, et
+     * le serveur seul passe les pièces CL/AN. Le compte du jeton d'appairage doit
+     * écrire sur M10 — comme l'onglet « Clôtures » du web ; le rôle `comptable`
+     * (réouverture, affectation, contre-passation) est jugé par les services. Un refus
+     * est rendu SEUL (`droit_manquant`), il ne bloque aucune autre opération.
+     */
+    public function modulesRequis(array $payload): array
+    {
+        return [$this->module()];
+    }
+
     public function serviceDomaine(): string
     {
         return ClotureExerciceService::class;

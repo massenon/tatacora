@@ -67,6 +67,18 @@ final class GestionnairePiecesSaisie extends GestionnaireDocumentAbstrait
         return 'M10';
     }
 
+    /**
+     * Une pièce saisie à la main est une SAISIE COURANTE : aucun droit du compte
+     * d'appairage (décision du PO du 09/11/2026), le RBAC se juge au poste. Seule
+     * l'AFFECTATION DU RÉSULTAT d'un exercice est une opération sensible (liste fermée
+     * `OperationsSensibles`) : écriture sur M10 ici, rôle `comptable` dans
+     * `AffectationResultatService`.
+     */
+    public function modulesRequis(array $payload): array
+    {
+        return ! empty($payload['affectation']) ? [$this->module()] : [];
+    }
+
     public function serviceDomaine(): string
     {
         return PasserEcritureService::class;

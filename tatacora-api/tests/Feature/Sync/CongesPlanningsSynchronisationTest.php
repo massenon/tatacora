@@ -106,17 +106,18 @@ final class CongesPlanningsSynchronisationTest extends TestCase
     }
 
     #[Test]
-    public function un_creneau_invalide_ou_hors_droit_est_rejete(): void
+    public function un_creneau_invalide_est_rejete_et_le_droit_ne_se_juge_pas_sur_le_compte_d_appairage(): void
     {
         $this->pousser([$this->creneau($this->uuid(), '16:00', '08:00')], $this->rh)->assertJsonPath('resultats.0.statut', 'rejete');
         $this->pousser([$this->creation('plannings', $this->uuid(), [
             'employe_id' => $this->uuid(), 'service_id' => $this->cuisine->id,
             'date' => '2026-10-22', 'heure_debut' => '08:00', 'heure_fin' => '12:00',
         ])], $this->rh)->assertJsonPath('resultats.0.statut', 'rejete');
+        // `cuisine` (M13 = '-') : accepté — le droit se juge au poste (décision du PO du 09/11/2026).
         $this->pousser([$this->creneau($this->uuid(), '08:00', '12:00')], $this->creerUtilisateur('cuisine'))
-            ->assertJsonPath('resultats.0.statut', 'rejete');
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
 
-        $this->assertSame(0, Planning::query()->count());
+        $this->assertSame(1, Planning::query()->count());
     }
 
     #[Test]

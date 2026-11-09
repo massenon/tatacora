@@ -7,6 +7,7 @@ namespace App\Shared\Sync\Gestionnaires;
 use App\Domain\Facturation\Models\Facture;
 use App\Domain\Facturation\Models\Proforma;
 use App\Domain\Facturation\Services\ProformaService;
+use App\Shared\Sync\Exceptions\DependanceManquanteException;
 use App\Shared\Sync\Services\ResolveurCorrespondances;
 use App\Shared\Sync\Services\SignalementAnomalies;
 use App\Shared\Sync\Support\ContexteSynchronisation;
@@ -153,7 +154,7 @@ final class GestionnaireProformas extends GestionnaireDocumentAbstrait
             $facture = is_string($factureId) ? Facture::query()->find($factureId) : null;
 
             if ($facture === null) {
-                throw new RuntimeException(__('sync.factures.facture_inconnue'));
+                throw new DependanceManquanteException(__('sync.factures.facture_inconnue'));
             }
             $this->proformas->lier($proforma, $facture);
         } elseif ($statut !== null) {

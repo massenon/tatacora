@@ -10,8 +10,6 @@ use App\Domain\Facturation\Services\EmissionFactureService;
 use App\Domain\Facturation\Services\ModeFacturation;
 use App\Domain\Facturation\Services\StatutNormalisation;
 use App\Models\User;
-use App\Shared\Sync\Support\ContexteSynchronisation;
-use App\Shared\Sync\Support\DocumentsDesAutresPostes;
 use App\Shared\Sync\Support\PosteDuJeton;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -34,17 +32,14 @@ use RuntimeException;
  *    et le poste n'appelle jamais la DGI. Idempotent : une facture déjà normalisée n'est
  *    JAMAIS retransmise, sa normalisation est simplement rendue.
  *
- * Contrôles, dans l'ordre : compte actif (401), poste du jeton (403), droit d'ÉCRITURE sur M2
- * (403), facture connue (404 `facture_inconnue` : le poste la monte puis réessaie), règles.
- * Aucun secret dans aucune réponse.
+ * Contrôles, dans l'ordre : compte actif (401), poste du jeton (403), facture connue (404 `facture_inconnue` : le poste la monte puis réessaie), règles.
+ * Aucun secret dans aucune réponse. Aucun droit du compte du jeton n'est jugé (décision du PO
+ * du 09/11/2026) : l'utilisateur du poste a été jugé au poste, où le geste se fait.
  */
 final class FacturesEnLigneController
 {
-    private const MODULE = 'M2';
-
     public function __construct(
         private readonly EmissionFactureService $emission,
-        private readonly DocumentsDesAutresPostes $autresPostes,
     ) {
     }
 
@@ -100,13 +95,6 @@ final class FacturesEnLigneController
                 if ($dejaEntier !== null) {
                     return $this->reponseAvoir($document, $dejaEntier, true);
                 }
-
-                $this->autresPostes->verifierAnnulation('factures', $document->id, new ContexteSynchronisation(
-                    $poste,
-                    $utilisateur,
-                    now(),
-                    now(),
-                ));
             }
 
             $avoir = DB::transaction(function () use ($document, $donnees, $entier, $utilisateur): Avoir {
@@ -186,10 +174,6 @@ final class FacturesEnLigneController
 
         if (! PosteDuJeton::concorde($request, $poste)) {
             return response()->json(['message' => __('sync.poste_non_reconnu')], 403);
-        }
-
-        if ($utilisateur->niveauSurModule(self::MODULE) !== 'C') {
-            return response()->json(['message' => __('auth.module_refuse')], 403);
         }
 
         return [$utilisateur, $poste];

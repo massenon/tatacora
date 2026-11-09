@@ -8,11 +8,11 @@ use App\Domain\Rh\Models\Employe;
 use App\Domain\Rh\Models\Planning;
 use App\Domain\Rh\Models\Service;
 use App\Domain\Rh\Services\PlanningService;
+use App\Shared\Sync\Exceptions\DependanceManquanteException;
 use App\Shared\Sync\Services\ResolveurCorrespondances;
 use App\Shared\Sync\Services\SignalementAnomalies;
 use App\Shared\Sync\Support\ContexteSynchronisation;
 use App\Shared\Sync\Support\EcritureSynchronisee;
-use RuntimeException;
 
 /**
  * Les créneaux de planning (M13, EF-M13-02) saisis sur un poste — 21/10/2026.
@@ -75,7 +75,7 @@ final class GestionnairePlannings extends GestionnaireDocumentAbstrait
         $employe = Employe::find($this->resoudre('employes', $donnees['employe_id']));
 
         if ($employe === null) {
-            throw new RuntimeException(__('sync.rh.employe_inconnu_planning'));
+            throw new DependanceManquanteException(__('sync.rh.employe_inconnu_planning'));
         }
 
         $service = Service::find($this->resoudre('services', $donnees['service_id']));
@@ -85,7 +85,7 @@ final class GestionnairePlannings extends GestionnaireDocumentAbstrait
         }
 
         if ($service === null) {
-            throw new RuntimeException(__('sync.rh.service_inconnu_planning'));
+            throw new DependanceManquanteException(__('sync.rh.service_inconnu_planning'));
         }
 
         $this->plannings->planifier([

@@ -108,9 +108,12 @@ final class JournalReceptionSynchronisationTest extends TestCase
     }
 
     #[Test]
-    public function un_droit_manquant_est_un_rejet_dont_la_cause_nomme_le_module(): void
+    public function une_operation_reservee_est_un_rejet_dont_la_cause_nomme_le_module(): void
     {
-        $operation = $this->vente($this->uuid(), 1, plat: true);
+        // 09/11/2026 : une vente avec plat n'est plus refusée au compte d'appairage (le droit se
+        // juge au poste) ; `droit_manquant` ne reste que pour la liste fermée des opérations
+        // sensibles — ici la clôture d'exercice, qui exige l'écriture sur M10.
+        $operation = $this->operation('demandes_cloture_exercice', 'creation', $this->uuid(), ['annee' => 2026, 'action' => 'demarrer']);
 
         $this->pousser([$operation], $this->barman)
             ->assertJsonPath('resultats.0.statut', 'rejete')
@@ -120,9 +123,13 @@ final class JournalReceptionSynchronisationTest extends TestCase
         $ligne = Journal::where('uuid_operation', $operation['uuid_operation'])->sole();
         $this->assertSame(Journal::REJETEE, $ligne->issue);
         $this->assertSame('droit_manquant', $ligne->code_motif);
-        $this->assertSame('M4', $ligne->details['module']);
-        $this->assertStringContainsString('Restaurant', (string) $ligne->cause);
+        $this->assertSame('M10', $ligne->details['module']);
+        $this->assertStringContainsString('Comptabilité', (string) $ligne->cause);
         $this->assertSame(Journal::A_TRAITER, $ligne->traitement);
+
+        // Et la vente avec plat, elle, passe : aucun refus, aucun droit jugé.
+        $vente = $this->vente($this->uuid(), 1, plat: true);
+        $this->pousser([$vente], $this->barman)->assertJsonPath('resultats.0.statut', 'synchronise');
     }
 
     #[Test]

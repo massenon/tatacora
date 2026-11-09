@@ -187,12 +187,13 @@ final class InventairesSynchronisationTest extends TestCase
     }
 
     #[Test]
-    public function sans_droit_d_ecriture_sur_les_stocks_l_inventaire_est_rejete(): void
+    public function l_inventaire_ne_se_juge_pas_sur_le_module_du_compte_d_appairage(): void
     {
+        // `guide` (M6 = '-') : accepté, le droit d'inventorier se juge au poste (PO, 09/11/2026).
         $this->pousser([$this->inventaire($this->uuid(), [$this->ligne($this->riz, 1000, 1000)])], $this->creerUtilisateur('guide'))
-            ->assertJsonPath('resultats.0.statut', 'rejete');
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
 
-        $this->assertSame(0, Inventaire::count());
+        $this->assertSame(1, Inventaire::count());
     }
 
     #[Test]

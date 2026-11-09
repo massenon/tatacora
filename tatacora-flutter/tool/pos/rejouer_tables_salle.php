@@ -9,8 +9,9 @@ declare(strict_types=1);
 |
 | Le poste enfile une `creation` de table (`assurerConnueDuServeur`) au premier
 | geste d'USAGE qui la cite — prendre une table au point de vente avant d'avoir
-| reçu la salle du serveur. Le serveur juge chaque opération sur le compte du
-| JETON D'APPAIRAGE : ce script pousse des ETAPES, chacune sous le compte d'un
+| reçu la salle du serveur. DÉCISION DU PO du 09/11/2026 : le serveur ne juge PLUS
+| les modules du compte du JETON D'APPAIRAGE (le droit se juge au poste) ; ce script
+| pousse des ETAPES, chacune sous le compte d'un
 | RÔLE de la matrice (`RolePermissionSeeder::MATRICE`), au vrai
 | `SynchronisationService::traiterLot`, sur une salle SEMÉE PAR LE VRAI seeder
 | (`TablesSalleSeeder`, les treize tables du jeu initial) — le serveur qui a
@@ -18,7 +19,7 @@ declare(strict_types=1);
 |
 | Entrée (stdin, JSON) :
 |   { "poste_id": "poste-a",
-|     "etapes": [ { "role": "barman", "operations": [ {uuid_operation, table, type,
+|     "etapes": [ { "role": "barman", "compte_statut": "actif" (facultatif), "operations": [ {uuid_operation, table, type,
 |                                                      entite_id, payload,
 |                                                      horodatage_client}, ... ] } ] }
 | Sortie (stdout, JSON) :
@@ -111,11 +112,13 @@ try {
             exit(4);
         }
 
-        $compte = $comptes[$role] ??= User::create([
+        // `compte_statut` (facultatif, 09/11/2026) : `desactive` prouve qu'un compte inactif reste refusé.
+        $statut = (string) ($etape['compte_statut'] ?? 'actif');
+        $compte = $comptes[$role . '|' . $statut] ??= User::create([
             'login' => 'jeton.' . $role . '.' . Str::random(5),
             'mot_de_passe_hash' => Hash::make('mot-de-passe-de-test'),
             'role_id' => $roleModele->id,
-            'statut' => 'actif',
+            'statut' => $statut,
         ]);
         Auth::login($compte);
 

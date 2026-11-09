@@ -10,6 +10,7 @@ use App\Domain\Vehicules\Models\ContratLocation;
 use App\Domain\Vehicules\Models\Vehicule;
 use App\Domain\Vehicules\Services\ContratLocationService;
 use App\Pwa\Livewire\Vehicules\Locations;
+use App\Shared\Sync\Exceptions\DependanceManquanteException;
 use App\Shared\Sync\Services\ResolveurCorrespondances;
 use App\Shared\Sync\Services\SignalementAnomalies;
 use App\Shared\Sync\Support\ContexteSynchronisation;
@@ -113,13 +114,13 @@ final class GestionnaireContratsLocation extends GestionnaireDocumentAbstrait
         $vehicule = Vehicule::find($this->resoudre('vehicules', $donnees['vehicule_id']));
 
         if ($vehicule === null) {
-            throw new RuntimeException(__('sync.vehicules.inconnu'));
+            throw new DependanceManquanteException(__('sync.vehicules.inconnu'));
         }
 
         $client = Client::find($this->resoudre('clients', $donnees['client_id']));
 
         if ($client === null) {
-            throw new RuntimeException(__('sync.vehicules.client_inconnu'));
+            throw new DependanceManquanteException(__('sync.vehicules.client_inconnu'));
         }
 
         // Remise puis acompte, AVANT le service et dans l'ordre de la PWA

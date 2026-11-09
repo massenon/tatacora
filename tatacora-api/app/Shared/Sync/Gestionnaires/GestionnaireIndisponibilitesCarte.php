@@ -8,6 +8,7 @@ use App\Domain\Bar\Models\CarteBoisson;
 use App\Domain\Carte\Models\IndisponibiliteCarte;
 use App\Domain\Carte\Services\DisponibiliteCarteService;
 use App\Domain\Restaurant\Models\Plat;
+use App\Shared\Sync\Exceptions\DependanceManquanteException;
 use App\Shared\Sync\Support\ContexteSynchronisation;
 use App\Shared\Sync\Support\EcritureSynchronisee;
 use Carbon\CarbonImmutable;
@@ -41,13 +42,14 @@ final class GestionnaireIndisponibilitesCarte extends GestionnaireAbstrait
         return 'indisponibilites_carte';
     }
 
-    /** Par défaut le bar ; un plat exige M4 (`modulesRequis`). */
+    /** Par défaut le bar ; un plat relève de M4 (jamais jugé sur le compte d'appairage). */
     public function module(): string
     {
         return 'M5';
     }
 
-    public function modulesRequis(array $payload): array
+    /** Le RBAC du WEB (correction d'une opération reçue) : un plat relève de M4, le reste du bar. */
+    public function modulesDeLaCorrection(array $payload): array
     {
         return [isset($payload['plat_id']) ? 'M4' : 'M5'];
     }
@@ -134,7 +136,7 @@ final class GestionnaireIndisponibilitesCarte extends GestionnaireAbstrait
             ? CarteBoisson::query()->find((string) $boisson)
             : Plat::query()->find((string) $plat);
 
-        return $article ?? throw new RuntimeException(__('sync.carte.article_inconnu'));
+        return $article ?? throw new DependanceManquanteException(__('sync.carte.article_inconnu'));
     }
 
     /**

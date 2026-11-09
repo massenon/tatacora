@@ -9,6 +9,7 @@ use App\Domain\Ventes\Models\TableSalle;
 use App\Domain\Ventes\Models\Vente;
 use App\Domain\Ventes\Services\PanierService;
 use App\Pwa\Livewire\Pos\PosComptant;
+use App\Shared\Sync\Exceptions\DependanceManquanteException;
 use App\Shared\Sync\Services\ResolveurCorrespondances;
 use App\Shared\Sync\Support\ContexteSynchronisation;
 use App\Shared\Sync\Support\EcritureSynchronisee;
@@ -84,7 +85,7 @@ final class GestionnairePaniersTable extends GestionnaireAbstrait
         $table = TableSalle::find($tableId);
 
         if ($table === null) {
-            throw new RuntimeException(__('sync.tables.inconnue'));
+            throw new DependanceManquanteException(__('sync.tables.inconnue'));
         }
 
         DB::transaction(function () use ($entiteId, $payload, $table): void {

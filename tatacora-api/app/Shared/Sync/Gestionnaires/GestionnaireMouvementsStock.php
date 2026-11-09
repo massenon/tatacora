@@ -9,12 +9,12 @@ use App\Domain\Stocks\Models\MouvementStock;
 use App\Domain\Stocks\Models\PointStockage;
 use App\Domain\Stocks\Services\MouvementStockService;
 use App\Domain\Stocks\Services\StockTheoriqueService;
+use App\Shared\Sync\Exceptions\DependanceManquanteException;
 use App\Shared\Sync\Models\AnomalieSynchronisation;
 use App\Shared\Sync\Services\ResolveurCorrespondances;
 use App\Shared\Sync\Services\SignalementAnomalies;
 use App\Shared\Sync\Support\ContexteSynchronisation;
 use App\Shared\Sync\Support\EcritureSynchronisee;
-use RuntimeException;
 
 /**
  * Les mouvements de stock SAISIS sur un poste — entrée (stock d'ouverture,
@@ -83,7 +83,7 @@ final class GestionnaireMouvementsStock extends GestionnaireDocumentAbstrait
         $point = PointStockage::query()->find($this->resoudre('points_stockage', $d['point_id']));
 
         if ($article === null || $point === null) {
-            throw new RuntimeException(__('sync.stocks.reference_inconnue'));
+            throw new DependanceManquanteException(__('sync.stocks.reference_inconnue'));
         }
 
         $quantite = $this->centiemes((int) $d['quantite']);

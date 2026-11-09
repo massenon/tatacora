@@ -8,11 +8,11 @@ use App\Domain\Rh\Models\Employe;
 use App\Domain\Vehicules\Models\EntretienVehicule;
 use App\Domain\Vehicules\Models\Vehicule;
 use App\Domain\Vehicules\Services\ParcVehiculeService;
+use App\Shared\Sync\Exceptions\DependanceManquanteException;
 use App\Shared\Sync\Services\ResolveurCorrespondances;
 use App\Shared\Sync\Services\SignalementAnomalies;
 use App\Shared\Sync\Support\ContexteSynchronisation;
 use App\Shared\Sync\Support\EcritureSynchronisee;
-use RuntimeException;
 
 /**
  * Les entretiens et carburations d'un véhicule (M8, EF-M8-05) saisis sur un
@@ -73,7 +73,7 @@ final class GestionnaireEntretiensVehicule extends GestionnaireDocumentAbstrait
         $vehicule = Vehicule::find($this->resoudre('vehicules', $donnees['vehicule_id']));
 
         if ($vehicule === null) {
-            throw new RuntimeException(__('sync.vehicules.inconnu_entretien'));
+            throw new DependanceManquanteException(__('sync.vehicules.inconnu_entretien'));
         }
 
         $chauffeur = null;
@@ -82,7 +82,7 @@ final class GestionnaireEntretiensVehicule extends GestionnaireDocumentAbstrait
             $chauffeur = Employe::find($this->resoudre('employes', $donnees['chauffeur_id']));
 
             if ($chauffeur === null) {
-                throw new RuntimeException(__('sync.vehicules.chauffeur_inconnu'));
+                throw new DependanceManquanteException(__('sync.vehicules.chauffeur_inconnu'));
             }
         }
 

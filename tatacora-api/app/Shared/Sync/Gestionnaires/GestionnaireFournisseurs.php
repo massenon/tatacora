@@ -7,7 +7,6 @@ namespace App\Shared\Sync\Gestionnaires;
 use App\Domain\Achats\Http\Requests\EnregistrerFournisseurRequest;
 use App\Domain\Achats\Models\Fournisseur;
 use App\Domain\Achats\Services\ReferentielFournisseurService;
-use App\Shared\Rbac\Services\DroitArchivageService;
 use App\Shared\Sync\Support\CleNaturelle;
 use App\Shared\Sync\Support\ContexteSynchronisation;
 use App\Shared\Sync\Support\EcritureSynchronisee;
@@ -71,15 +70,15 @@ use RuntimeException;
  *
  * Une `modification` portant `actif` archive ou restaure — par le service
  * (verrou d'engagement : un fournisseur sous commande en cours ne s'archive
- * pas) et sous la règle d'archivage de la directive du 03/09/2026
- * (`DroitArchivageService`), la même que l'écran PWA. À la création, `actif`
+ * pas) sans juger le compte du jeton d'appairage (la
+ * règle d'archivage de la directive du 03/09/2026, `DroitArchivageService`, reste celle
+ * du WEB et du poste : décision du PO du 09/11/2026). À la création, `actif`
  * est ignoré : une fiche naît active, l'archiver est un geste à part.
  */
 final class GestionnaireFournisseurs extends GestionnaireAbstrait
 {
     public function __construct(
         private readonly ReferentielFournisseurService $referentiel,
-        private readonly DroitArchivageService $droitArchivage,
     ) {
     }
 
@@ -185,10 +184,6 @@ final class GestionnaireFournisseurs extends GestionnaireAbstrait
     {
         if ((bool) $fournisseur->actif === $actif) {
             return;
-        }
-
-        if (! $this->droitArchivage->peutArchiver($contexte->utilisateur, $this->module())) {
-            throw new RuntimeException(__('pwa.archivage.refus_bascule'));
         }
 
         $actif

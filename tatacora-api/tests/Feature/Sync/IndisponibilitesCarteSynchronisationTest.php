@@ -100,12 +100,13 @@ final class IndisponibilitesCarteSynchronisationTest extends TestCase
     }
 
     #[Test]
-    public function le_droit_est_celui_du_rayon_et_les_cas_invalides_sont_refuses(): void
+    public function le_droit_ne_se_juge_pas_sur_le_compte_d_appairage_et_les_cas_invalides_sont_refuses(): void
     {
-        // Le barman (M5) ne retire pas un plat (M4) ; le cuisinier (M4) si.
+        // Décision du PO du 09/11/2026 : le barman (M5, sans M4) retire un plat comme le
+        // cuisinier ; le droit de le faire se juge au poste.
         $this->pousser([$this->creation('indisponibilites_carte', $this->uuid(), [
             'plat_id' => $this->plat->id, 'motif' => 'rupture',
-        ])], $this->barman)->assertJsonPath('resultats.0.statut', 'rejete');
+        ])], $this->barman)->assertJsonPath('resultats.0.statut', 'synchronise');
 
         $this->pousser([$this->creation('indisponibilites_carte', $this->uuid(), [
             'plat_id' => $this->plat->id, 'motif' => 'rupture',

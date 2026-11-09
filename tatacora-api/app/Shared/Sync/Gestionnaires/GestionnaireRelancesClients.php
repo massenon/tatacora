@@ -7,11 +7,11 @@ namespace App\Shared\Sync\Gestionnaires;
 use App\Domain\Crm\Models\Client;
 use App\Domain\Crm\Models\RelanceClient;
 use App\Domain\Crm\Services\RelanceClientService;
+use App\Shared\Sync\Exceptions\DependanceManquanteException;
 use App\Shared\Sync\Services\ResolveurCorrespondances;
 use App\Shared\Sync\Services\SignalementAnomalies;
 use App\Shared\Sync\Support\ContexteSynchronisation;
 use App\Shared\Sync\Support\EcritureSynchronisee;
-use RuntimeException;
 
 /**
  * Les relances de clients débiteurs (M3, EF-M3-03) tracées sur un poste —
@@ -77,7 +77,7 @@ final class GestionnaireRelancesClients extends GestionnaireDocumentAbstrait
         $client = Client::find($this->resoudre('clients', $donnees['client_id']));
 
         if ($client === null) {
-            throw new RuntimeException(__('sync.crm.client_inconnu_relance'));
+            throw new DependanceManquanteException(__('sync.crm.client_inconnu_relance'));
         }
 
         $this->relances->enregistrer([

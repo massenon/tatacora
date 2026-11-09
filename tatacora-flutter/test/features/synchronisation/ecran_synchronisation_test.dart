@@ -241,7 +241,7 @@ void main() {
   });
 
   testWidgets(
-    '« Droit manquant » (09/11/2026, le barman du poste A) : « Renvoyer » est '
+    '« Opération réservée » (`droit_manquant`, 09/11/2026) : « Renvoyer » est '
     'OUVERT À TOUS pour ce code — nouvel uuid, même charge, l’ancienne reste '
     'l’historique ; « Corriger » et les autres refus restent aux '
     'Administrateurs',
@@ -274,7 +274,12 @@ void main() {
       });
       await monter(tester, role: 'barman');
 
-      expect(texteDe(tester, Key('sync-cause-${f!.droit}')), 'Droit manquant');
+      // Le titre ne dit plus « Droit manquant » : le serveur ne juge plus les modules du
+      // compte d'appairage, ce code ne reste que pour les opérations RÉSERVÉES.
+      expect(
+        texteDe(tester, Key('sync-cause-${f!.droit}')),
+        'Opération réservée',
+      );
       expect(find.byKey(Key('sync-renvoyer-${f.droit}')), findsOneWidget);
       expect(find.byKey(Key('sync-corriger-${f.droit}')), findsNothing);
       expect(find.byKey(Key('sync-renvoyer-${f.regle}')), findsNothing);

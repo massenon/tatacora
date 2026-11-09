@@ -143,21 +143,24 @@ final class ReceptionSynchronisationTest extends TestCase
     #[Test]
     public function un_droit_manquant_se_regle_puis_se_relance_sans_toucher_a_la_charge(): void
     {
-        $operation = $this->vente($this->uuid(), plat: true);
+        // 09/11/2026 : le serveur ne juge plus les modules du compte d'appairage pour une vente
+        // (avec plat ou non) ; `droit_manquant` ne reste que pour la liste fermée des opérations
+        // sensibles — ici la clôture d'exercice (écriture sur M10).
+        $operation = $this->operation('demandes_cloture_exercice', 'creation', $this->uuid(), ['annee' => (int) now()->year, 'action' => 'demarrer']);
         $this->pousser([$operation], $this->barman)->assertJsonPath('resultats.0.code_motif', 'droit_manquant');
         $ligne = Journal::where('uuid_operation', $operation['uuid_operation'])->sole();
 
-        // Le barman n'écrit pas sur le restaurant : la cause le dit. On
+        // Le compte du poste n'écrit pas sur la comptabilité : la cause le dit. On
         // l'accorde à son rôle, puis on relance.
         $this->actingAs($this->admin);
-        Livewire::test(ReceptionSynchronisation::class)->call('ouvrirOperation', $ligne->id)->assertSee('Restaurant');
+        Livewire::test(ReceptionSynchronisation::class)->call('ouvrirOperation', $ligne->id)->assertSee('Comptabilité');
         $role = $this->barman->role;
-        $role->permissions()->attach(\App\Shared\Rbac\Models\Permission::where('module', 'M4')->pluck('id')->all());
+        $role->permissions()->attach(\App\Shared\Rbac\Models\Permission::where('module', 'M10')->pluck('id')->all());
         $this->barman->unsetRelation('role');
         app()->forgetInstance(\App\Shared\Sync\Services\SynchronisationService::class);
 
         Livewire::test(ReceptionSynchronisation::class)->call('relancer', $ligne->id)->assertSee('Opération rejouée avec succès');
-        $this->assertSame(1, Vente::count());
+        $this->assertSame(Journal::ACCEPTEE, Journal::where('uuid_operation', $operation['uuid_operation'])->value('issue'));
     }
 
     #[Test]

@@ -8,11 +8,11 @@ use App\Domain\Caisse\Models\SessionCaisse;
 use App\Domain\Facturation\Models\Facture;
 use App\Domain\Facturation\Models\Paiement;
 use App\Domain\Facturation\Services\EncaissementFactureService;
+use App\Shared\Sync\Exceptions\DependanceManquanteException;
 use App\Shared\Sync\Models\AnomalieSynchronisation;
 use App\Shared\Sync\Services\ResolveurCorrespondances;
 use App\Shared\Sync\Services\SignalementAnomalies;
 use App\Shared\Sync\Support\ContexteSynchronisation;
-use App\Shared\Sync\Support\DocumentsDesAutresPostes;
 use App\Shared\Sync\Support\EcritureSynchronisee;
 use RuntimeException;
 
@@ -47,7 +47,6 @@ final class GestionnairePaiements extends GestionnaireDocumentAbstrait
         private readonly EncaissementFactureService $encaissement,
         ResolveurCorrespondances $correspondances,
         SignalementAnomalies $anomalies,
-        private readonly DocumentsDesAutresPostes $autresPostes,
     ) {
         parent::__construct($correspondances, $anomalies);
     }
@@ -101,7 +100,7 @@ final class GestionnairePaiements extends GestionnaireDocumentAbstrait
         $facture = Facture::find($this->resoudre('factures', $donnees['facture_id']));
 
         if ($facture === null) {
-            throw new RuntimeException(__('sync.paiements.facture_inconnue'));
+            throw new DependanceManquanteException(__('sync.paiements.facture_inconnue'));
         }
 
         $sessionCitee = empty($donnees['session_id']) ? null : (string) $this->resoudre('sessions_caisse', $donnees['session_id']);
@@ -147,9 +146,7 @@ final class GestionnairePaiements extends GestionnaireDocumentAbstrait
 
         // Rejeu : déjà annulé — rendu, jamais contre-passé deux fois.
         if ($paiement->statut !== 'annule') {
-            // Q3 (lot F6) : l'encaissement d'un autre poste, par
-            // l'administration ou le comptable seulement.
-            $this->autresPostes->verifierAnnulation('paiements', $entiteId, $contexte);
+            // Aucun droit du compte d'appairage (09/11/2026) : le poste a jugé son utilisateur.
             $this->encaissement->annuler($paiement, $motif === '' ? __('sync.factures.motif_absent') : $motif);
         }
 

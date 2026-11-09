@@ -47,8 +47,8 @@ use Illuminate\Database\Eloquent\Model;
  * que l'écran PWA emprunte aussi), règles d'`EnregistrerUniteHebergementRequest`
  * sur les seuls champs présents ; catégorie citée traduite. `statut` reste
  * ignoré (cycle de `SejourService`). `actif: false` ARCHIVE (`hors_service`,
- * verrou d'engagement du service), `actif: true` restaure — sous
- * `DroitArchivageService` (M1), comme l'écran.
+ * verrou d'engagement du service), `actif: true` restaure — par le
+ * service, sans juger le compte du jeton (09/11/2026).
  */
 final class GestionnaireUnitesHebergement extends GestionnaireReferentielAbstrait
 {

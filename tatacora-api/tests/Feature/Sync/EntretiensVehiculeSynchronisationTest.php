@@ -57,7 +57,7 @@ final class EntretiensVehiculeSynchronisationTest extends TestCase
     }
 
     #[Test]
-    public function les_cas_invalides_sont_refuses_et_le_droit_est_celui_de_m8(): void
+    public function les_cas_invalides_sont_refuses_et_le_droit_ne_se_juge_pas_sur_le_compte_d_appairage(): void
     {
         foreach ([
             ['vehicule_id' => $this->vehicule->id, 'type' => 'panne', 'date' => '2026-10-20', 'cout' => 1],
@@ -69,12 +69,13 @@ final class EntretiensVehiculeSynchronisationTest extends TestCase
                 ->assertJsonPath('resultats.0.statut', 'rejete');
         }
 
+        // `cuisine` (M8 = '-') : accepté, le droit se juge au poste (décision du PO du 09/11/2026).
         $sansDroit = $this->creerUtilisateur('cuisine');
         $this->pousser([$this->creation('entretiens_vehicule', $this->uuid(), [
             'vehicule_id' => $this->vehicule->id, 'type' => 'entretien', 'date' => '2026-10-20', 'cout' => 1,
-        ])], $sansDroit)->assertJsonPath('resultats.0.statut', 'rejete');
+        ])], $sansDroit)->assertJsonPath('resultats.0.statut', 'synchronise');
 
-        $this->assertSame(0, EntretienVehicule::query()->count());
+        $this->assertSame(1, EntretienVehicule::query()->count());
     }
 
     #[Test]

@@ -52,7 +52,7 @@ use Illuminate\Database\Eloquent\Model;
  * modification, plus ancienne, perd (`version_serveur_conservee`).
  *
  * `actif` archive / restaure par `ReferentielArticleService` (verrous :
- * stock, commandes) sous `DroitArchivageService` (M6).
+ * stock, commandes) sans juger le compte du jeton (09/11/2026).
  */
 final class GestionnaireArticles extends GestionnaireReferentielAbstrait
 {

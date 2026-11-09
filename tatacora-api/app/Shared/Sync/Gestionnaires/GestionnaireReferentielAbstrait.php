@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Shared\Sync\Gestionnaires;
 
-use App\Shared\Rbac\Services\DroitArchivageService;
 use App\Shared\Sync\Services\ResolveurCorrespondances;
 use App\Shared\Sync\Support\CleNaturelle;
 use App\Shared\Sync\Support\ContexteSynchronisation;
@@ -65,8 +64,8 @@ use RuntimeException;
  *    matière) restent refusées exactement comme la route les refuse ;
  * 4. l'écriture passe par la méthode de modification du SERVICE de domaine
  *    (audit RG-15 compris) ;
- * 5. `actif` archive ou restaure, par le service et sous la règle de droits
- *    de l'écran en ligne (`DroitArchivageService`) — pour les seules tables
+ * 5. `actif` archive ou restaure, par le service, sans juger le compte du jeton
+ *    (la règle `DroitArchivageService` reste celle du web et du poste) — pour les seules tables
  *    qui s'archivent (articles, unités d'hébergement ; fournisseurs à part).
  *    Ailleurs, demander l'archivage est refusé avec motif.
  *
@@ -200,8 +199,8 @@ abstract class GestionnaireReferentielAbstrait extends GestionnaireAbstrait
     }
 
     /**
-     * Archive ou restaure par le service, sous la règle de droits de l'écran
-     * en ligne — la même que `GestionnaireFournisseurs`.
+     * Archive ou restaure par le service (ses verrous d'engagement), sans juger le
+     * compte du jeton d'appairage — la même règle que `GestionnaireFournisseurs`.
      */
     private function basculerArchive(Model $element, bool $actif, ContexteSynchronisation $contexte): void
     {
@@ -217,10 +216,6 @@ abstract class GestionnaireReferentielAbstrait extends GestionnaireAbstrait
 
         if ($this->estArchive($element) === ! $actif) {
             return;
-        }
-
-        if (! app(DroitArchivageService::class)->peutArchiver($contexte->utilisateur, $this->module())) {
-            throw new RuntimeException(__('pwa.archivage.refus_bascule'));
         }
 
         $actif ? $this->restaurer($element) : $this->archiver($element);

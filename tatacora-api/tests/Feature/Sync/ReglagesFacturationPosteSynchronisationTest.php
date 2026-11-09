@@ -172,12 +172,14 @@ final class ReglagesFacturationPosteSynchronisationTest extends TestCase
     }
 
     #[Test]
-    public function un_barman_sans_param_est_refuse_comme_pour_toute_cle(): void
+    public function un_barman_sans_param_voit_un_reglage_de_document_accepte(): void
     {
+        // Décision du PO du 09/11/2026 : un réglage ordinaire n'est plus jugé sur PARAM du compte
+        // d'appairage (le RBAC local décide qui règle). Seules les clés RÉSERVÉES à l'administrateur
+        // restent jugées (voir plus haut), et rejetées seules.
         $this->pousser([$this->enregistrement([ReglagesDocuments::CLE_ACTIVITES => 'X'])], $this->creerUtilisateur('barman'))
-            ->assertJsonPath('resultats.0.statut', 'rejete')
-            ->assertJsonPath('resultats.0.code_motif', 'droit_manquant');
-        $this->assertNull($this->valeur(ReglagesDocuments::CLE_ACTIVITES));
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertSame('X', $this->valeur(ReglagesDocuments::CLE_ACTIVITES));
     }
 
     /**

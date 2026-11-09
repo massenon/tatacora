@@ -141,11 +141,15 @@ final class ParametresRolesSynchronisationTest extends TestCase
     }
 
     #[Test]
-    public function seul_un_compte_au_droit_param_enregistre(): void
+    public function un_reglage_ordinaire_n_est_pas_juge_sur_le_droit_param_du_compte_d_appairage(): void
     {
+        // Décision du PO du 09/11/2026 : `barman` (PARAM = '-') voit un réglage ordinaire accepté ;
+        // qui peut régler le poste, c'est le RBAC LOCAL. Seules les clés réservées à
+        // l'administrateur (MECeF, forme juridique) restent jugées, et elles sont rejetées seules
+        // (`ReglagesFacturationPosteSynchronisationTest`).
         $this->pousser([$this->enregistrement(['tolerance_reception_pct' => '9'])], $this->creerUtilisateur('barman'))
-            ->assertJsonPath('resultats.0.statut', 'rejete');
-        $this->assertNull(ParametreSysteme::where('cle', 'tolerance_reception_pct')->value('valeur'));
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertSame('9', ParametreSysteme::where('cle', 'tolerance_reception_pct')->value('valeur'));
     }
 
     #[Test]

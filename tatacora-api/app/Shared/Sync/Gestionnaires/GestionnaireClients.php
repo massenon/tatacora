@@ -8,7 +8,6 @@ use App\Domain\Crm\Http\Requests\EnregistrerClientRequest;
 use App\Domain\Crm\Models\Client;
 use App\Domain\Crm\Services\EnregistrementClientService;
 use App\Domain\Crm\Services\ReferentielClientService;
-use App\Shared\Rbac\Services\DroitArchivageService;
 use App\Shared\Sync\Support\ContexteSynchronisation;
 use App\Shared\Sync\Support\EcritureSynchronisee;
 use RuntimeException;
@@ -45,9 +44,9 @@ use RuntimeException;
  *
  * Une `modification` portant `actif` archive ou restaure — par
  * `ReferentielClientService` (les QUATRE verrous : séjour en cours ou à venir,
- * location non terminée, circuit à venir, facture non soldée) et sous la règle
- * d'archivage de la directive du 03/09/2026 (`DroitArchivageService`), la même
- * que l'écran PWA et que les fournisseurs. Un archivage refusé par un verrou est
+ * location non terminée, circuit à venir, facture non soldée) sans juger le
+ * compte du jeton d'appairage (la règle d'archivage de la directive du 03/09/2026,
+ * `DroitArchivageService`, reste celle du WEB et du poste : décision du PO du 09/11/2026). Un archivage refusé par un verrou est
  * REJETÉ avec les phrases du service ; restaurer ne se refuse jamais (le geste
  * n'est pas derrière la bascule, comme à la PWA). Un payload réduit à `actif`
  * est un archivage seul. À la création, `actif` est ignoré : une fiche naît
@@ -62,7 +61,6 @@ final class GestionnaireClients extends GestionnaireAbstrait
     public function __construct(
         private readonly EnregistrementClientService $enregistrement,
         private readonly ReferentielClientService $referentiel,
-        private readonly DroitArchivageService $droitArchivage,
     ) {
     }
 
@@ -145,10 +143,6 @@ final class GestionnaireClients extends GestionnaireAbstrait
             $this->referentiel->restaurer($client);
 
             return;
-        }
-
-        if (! $this->droitArchivage->peutArchiver($contexte->utilisateur, $this->module())) {
-            throw new RuntimeException(__('pwa.archivage.refus_bascule'));
         }
 
         $this->referentiel->archiver($client);

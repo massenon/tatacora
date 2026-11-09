@@ -100,14 +100,15 @@ final class MouvementsStockSynchronisationTest extends TestCase
     }
 
     #[Test]
-    public function refus_sans_reference_ou_sans_droit_cout_hors_entree(): void
+    public function refus_sans_reference_ou_cout_hors_entree_et_aucun_droit_juge(): void
     {
         $this->pousser([$this->mouvement($this->uuid(), 'entree', 100, ['article_id' => $this->uuid()])], $this->magasinier)
             ->assertJsonPath('resultats.0.statut', 'rejete');
         $this->pousser([$this->mouvement($this->uuid(), 'sortie', 100, ['cout_unitaire' => 1])], $this->magasinier)
             ->assertJsonPath('resultats.0.statut', 'rejete');
+        // `guide` (M6 = '-') : accepté, le droit se juge au poste (décision du PO du 09/11/2026).
         $this->pousser([$this->mouvement($this->uuid(), 'entree', 100)], $this->creerUtilisateur('guide'))
-            ->assertJsonPath('resultats.0.statut', 'rejete');
-        $this->assertSame(0, MouvementStock::count());
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertSame(1, MouvementStock::count());
     }
 }

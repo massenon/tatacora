@@ -185,21 +185,25 @@ final class RegistreGestionnairesSynchronisationTest extends TestCase
     /**
      * `clients` ACCEPTE la modification, par `EnregistrementClientService`:
      * l'audit RG-15 est tenu. `actif` n'est plus écrit EN BRUT : depuis le
-     * 21/10/2026 il archive par `ReferentielClientService` et sous la règle
-     * d'archivage — un rôle sans ce droit voit TOUTE l'opération rejetée
-     * (rien n'est écrit), et la fiche garde son nom.
+     * 21/10/2026 il archive par `ReferentielClientService` (les quatre verrous
+     * d'engagement). Depuis le 09/11/2026 (décision du PO) le serveur ne juge
+     * plus la règle d'archivage sur le compte du jeton : elle reste celle du
+     * web et du poste.
      */
     #[Test]
-    public function une_modification_client_passe_par_le_service_et_n_archive_pas_sans_le_droit(): void
+    public function une_modification_client_passe_par_le_service_et_archive_par_ses_verrous_pas_par_le_compte_d_appairage(): void
     {
         $this->synchroniser([$this->operation('clients', 'modification', $this->client->id, [
             'nom' => 'HOUNKPATIN-AGBO', 'actif' => false,
-        ])])->assertJsonPath('resultats.0.statut', 'rejete')
-            ->assertJsonPath('resultats.0.motif', __('pwa.archivage.refus_bascule'));
+        ])])->assertJsonPath('resultats.0.statut', 'synchronise');
 
         $fiche = $this->client->fresh();
-        $this->assertSame('HOUNKPATIN', $fiche->nom, 'Un archivage refusé n\'écrit rien, le nom compris.');
-        $this->assertTrue($fiche->actif, 'Le payload ne doit pas pouvoir archiver une fiche client sans le droit.');
+        $this->assertSame('HOUNKPATIN-AGBO', $fiche->nom);
+        $this->assertFalse($fiche->actif, 'Archivé par le service : le compte d\'appairage n\'est pas jugé.');
+
+        $this->synchroniser([$this->operation('clients', 'modification', $this->client->id, ['actif' => true])])
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertTrue($this->client->fresh()->actif);
 
         $this->synchroniser([$this->operation('clients', 'modification', $this->client->id, [
             'nom' => 'HOUNKPATIN-AGBO',

@@ -8,12 +8,12 @@ use App\Domain\Achats\Http\Requests\EnregistrerReceptionRequest;
 use App\Domain\Achats\Models\BonReception;
 use App\Domain\Achats\Models\CommandeAchat;
 use App\Domain\Achats\Services\ReceptionService;
+use App\Shared\Sync\Exceptions\DependanceManquanteException;
 use App\Shared\Sync\Models\AnomalieSynchronisation;
 use App\Shared\Sync\Services\ResolveurCorrespondances;
 use App\Shared\Sync\Services\SignalementAnomalies;
 use App\Shared\Sync\Support\ContexteSynchronisation;
 use App\Shared\Sync\Support\EcritureSynchronisee;
-use RuntimeException;
 
 /**
  * Bons de réception enregistrés hors connexion (M7, niveau C — celui de
@@ -107,7 +107,7 @@ final class GestionnaireBonsReception extends GestionnaireDocumentAbstrait
         $commande = CommandeAchat::query()->find($this->resoudre('commandes_achat', (string) $forme['commande_id']));
 
         if ($commande === null) {
-            throw new RuntimeException(__('sync.receptions.commande_inconnue'));
+            throw new DependanceManquanteException(__('sync.receptions.commande_inconnue'));
         }
 
         $lignes = [];

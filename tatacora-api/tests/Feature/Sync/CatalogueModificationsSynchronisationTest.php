@@ -212,12 +212,17 @@ final class CatalogueModificationsSynchronisationTest extends TestCase
     // ---------------------------------------------------------- Archivage
 
     #[Test]
-    public function l_archivage_par_la_synchronisation_suit_la_regle_de_droits_de_l_ecran(): void
+    public function l_archivage_par_la_synchronisation_ne_juge_pas_le_compte_d_appairage(): void
     {
-        // Hors administration, bascule fermée : refusé, l'article reste actif.
+        // Décision du PO du 09/11/2026 : la règle d'archivage de l'écran (administration, ou
+        // bascule `activation_suppression`) reste celle du WEB et du poste ; le serveur ne la
+        // juge plus sur le compte du jeton. Un magasinier, bascule fermée : l'archivage passe
+        // (les verrous d'engagement du service, eux, restent).
         $this->pousser([$this->a('articles', 'modification', $this->huile->id, '10:00', ['actif' => false])], $this->magasinier)
-            ->assertJsonPath('resultats.0.statut', 'rejete')
-            ->assertJsonPath('resultats.0.motif', __('pwa.archivage.refus_bascule'));
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertFalse((bool) $this->huile->fresh()->actif);
+        $this->pousser([$this->a('articles', 'modification', $this->huile->id, '10:02', ['actif' => true])], $this->magasinier)
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
         $this->assertTrue((bool) $this->huile->fresh()->actif);
 
         // L'administrateur archive puis restaure, par le service.

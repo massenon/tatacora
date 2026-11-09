@@ -227,10 +227,17 @@ final class SynchronisationOfflineTest extends TestCase
      * lui refuse — soit un contournement complet du 2e niveau RBAC, sur un
      * chemin d'ECRITURE ouvert a tous les postes.
      *
-     * Ces tests figent la fermeture.
+     * ## Réécrit le 09/11/2026 (décision du PO)
+     *
+     * « Le jeton du poste porte un seul compte. Tout ce qui sort d'un poste appairé
+     * par le barman est jugé sur les droits du barman : NON, ÇA NE DOIT PAS JUGER. »
+     * Le 2e niveau RBAC de ce chemin est passé AU POSTE (RBAC local, sur l'utilisateur
+     * connecté) ; le serveur ne garde que la liste fermée des opérations sensibles
+     * (`OperationsSensibles`). Le test ci-dessous fige la nouvelle règle : le barman
+     * (M1 = '-') voit sa réservation acceptée par le serveur.
      */
     #[Test]
-    public function rg16_un_role_sans_droit_ne_synchronise_pas_ce_module(): void
+    public function rg16_un_role_sans_droit_voit_sa_reservation_acceptee_le_droit_se_juge_au_poste(): void
     {
         Sanctum::actingAs($this->creerUtilisateur('barman'));
 
@@ -240,18 +247,18 @@ final class SynchronisationOfflineTest extends TestCase
         ]);
 
         $reponse->assertOk();
-        $this->assertSame('rejete', $reponse->json('resultats.0.statut'));
-        $this->assertSame(0, Reservation::count());
+        $this->assertSame('synchronise', $reponse->json('resultats.0.statut'));
+        $this->assertSame(1, Reservation::count());
     }
 
     /**
-     * Un droit de LECTURE ne suffit pas : toute operation de synchronisation
-     * est une ecriture.
+     * Un droit de LECTURE n'est plus un obstacle (09/11/2026) : le droit d'écrire se
+     * juge au poste, sur l'utilisateur connecté.
      */
     #[Test]
-    public function rg16_un_droit_de_lecture_ne_permet_pas_d_ecrire_par_la_synchronisation(): void
+    public function rg16_un_droit_de_lecture_n_est_plus_juge_par_la_synchronisation(): void
     {
-        // `cuisine` : M3 = 'L' — peut consulter les clients, pas les modifier.
+        // `cuisine` : M3 = 'L' — le serveur ne juge plus ce niveau, la modification passe.
         Sanctum::actingAs($this->creerUtilisateur('cuisine'));
 
         $reponse = $this->postJson('/api/v1/sync', [
@@ -260,8 +267,8 @@ final class SynchronisationOfflineTest extends TestCase
         ]);
 
         $reponse->assertOk();
-        $this->assertSame('rejete', $reponse->json('resultats.0.statut'));
-        $this->assertNotSame('NOM MODIFIE', $this->client->fresh()->nom);
+        $this->assertSame('synchronise', $reponse->json('resultats.0.statut'));
+        $this->assertSame('NOM MODIFIE', $this->client->fresh()->nom);
     }
 
     /**
@@ -300,17 +307,25 @@ final class SynchronisationOfflineTest extends TestCase
     #[Test]
     public function rg16_un_refus_de_synchronisation_est_trace_au_journal_de_securite(): void
     {
+        // Le refus d'une opération SENSIBLE (la clôture d'exercice, liste fermée) est tracé ;
+        // une opération d'usage n'est plus refusée, donc plus tracée comme telle.
         Sanctum::actingAs($barman = $this->creerUtilisateur('barman'));
 
         $this->postJson('/api/v1/sync', [
             'poste_id' => 'poste-bar',
             'operations' => [$this->operationReservation((string) Str::uuid(), '2026-11-01', '2026-11-03')],
         ]);
+        $this->assertDatabaseMissing('journal_securite', ['type_evenement' => 'acces_refuse_rbac', 'utilisateur_id' => $barman->id]);
+
+        $this->postJson('/api/v1/sync', [
+            'poste_id' => 'poste-bar',
+            'operations' => [$this->operationCloture()],
+        ]);
 
         $this->assertDatabaseHas('journal_securite', [
             'type_evenement' => 'acces_refuse_rbac',
             'utilisateur_id' => $barman->id,
-            'module_concerne' => 'M1',
+            'module_concerne' => 'M10',
         ]);
     }
 
@@ -322,17 +337,31 @@ final class SynchronisationOfflineTest extends TestCase
     #[Test]
     public function rg16_le_rejeu_d_une_operation_refusee_rend_le_meme_refus(): void
     {
+        // Une opération SENSIBLE refusée (clôture d'exercice) : le rejeu rend le même refus.
         Sanctum::actingAs($this->creerUtilisateur('barman'));
 
-        $operation = $this->operationReservation((string) Str::uuid(), '2026-11-01', '2026-11-03');
-        $lot = ['poste_id' => 'poste-bar', 'operations' => [$operation]];
+        $lot = ['poste_id' => 'poste-bar', 'operations' => [$this->operationCloture()]];
 
         $this->postJson('/api/v1/sync', $lot);
         $second = $this->postJson('/api/v1/sync', $lot);
 
         $second->assertOk();
         $this->assertSame('rejete', $second->json('resultats.0.statut'));
-        $this->assertSame(0, Reservation::count());
+        $this->assertSame('droit_manquant', $second->json('resultats.0.code_motif'));
+        $this->assertTrue($second->json('resultats.0.rejeu_idempotent'));
+    }
+
+    /** Une demande de clôture d'exercice : l'opération sensible type (liste fermée). */
+    private function operationCloture(): array
+    {
+        return [
+            'uuid_operation' => (string) Str::uuid(),
+            'table' => 'demandes_cloture_exercice',
+            'type' => 'creation',
+            'entite_id' => (string) Str::uuid(),
+            'payload' => ['annee' => 2026, 'action' => 'demarrer'],
+            'horodatage_client' => now()->toIso8601String(),
+        ];
     }
 
     /**

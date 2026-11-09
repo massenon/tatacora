@@ -24,6 +24,14 @@ return [
     'rejet_metier' => 'Opération refusée par une règle de gestion : :raison',
     'poste_non_reconnu' => 'Le poste déclaré ne correspond pas à celui de la session. Reconnectez-vous depuis ce poste.',
 
+    // 09/11/2026 : aucune opération ne bloque la synchronisation. Une opération qui cite un
+    // élément pas ENCORE reçu, ou qui rencontre une erreur imprévue, est DIFFÉRÉE : le poste
+    // la remet en file avec un repli, les autres opérations du lot passent.
+    'operation_differee' => 'En attente : une opération précédente du même élément n\'a pas encore abouti. '
+        . 'Elle repartira automatiquement, dans l\'ordre.',
+    'erreur_serveur_operation' => 'Le serveur a rencontré une erreur imprévue en traitant cette opération. '
+        . 'Elle n\'est pas perdue : le poste la renverra automatiquement, et les autres opérations ne sont pas bloquées.',
+
     // Registre de gestionnaires (décision PO du 15/10/2026) — le TYPE annoncé
     // doit correspondre à l'état serveur, et une table qui ne synchronise pas
     // ses modifications le dit, plutôt que d'écrire en brut.

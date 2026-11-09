@@ -289,30 +289,31 @@ final class CatalogueRestaurantSynchronisationTest extends TestCase
      * avec lui, la modification d'un menu est désormais appliquée.
      */
     #[Test]
-    public function sans_ecriture_sur_m4_rien_n_est_cree_ni_modifie(): void
+    public function le_restaurant_ne_juge_pas_le_module_du_compte_d_appairage(): void
     {
         $menu = app(CartePlatMenuService::class)->creerMenu(['libelle' => 'Carte', 'type' => 'local']);
 
-        // `barman` : M4 = '-' ; `receptionniste` : M4 = 'L'.
+        // `barman` : M4 = '-' ; `receptionniste` : M4 = 'L'. Décision du PO du 09/11/2026 : le
+        // droit se juge au poste, plus sur le compte du jeton — les trois opérations passent.
         foreach (['barman', 'receptionniste'] as $role) {
             $this->pousser([
                 $this->creation('menus', $this->uuid(), ['libelle' => 'Menu ' . $role, 'type' => 'local']),
                 $this->creation('recettes', $this->uuid(), ['libelle' => 'Fiche ' . $role]),
                 $this->operation('menus', 'modification', $menu->id, ['libelle' => 'Renommé ' . $role]),
             ], $this->creerUtilisateur($role))
-                ->assertJsonPath('resultats.0.motif', __('auth.module_refuse'))
-                ->assertJsonPath('resultats.1.motif', __('auth.module_refuse'))
-                ->assertJsonPath('resultats.2.motif', __('auth.module_refuse'));
+                ->assertJsonPath('resultats.0.statut', 'synchronise')
+                ->assertJsonPath('resultats.1.statut', 'synchronise')
+                ->assertJsonPath('resultats.2.statut', 'synchronise');
         }
 
-        $this->assertSame(['Carte'], Menu::pluck('libelle')->all());
-        $this->assertSame(0, Recette::count());
+        $this->assertContains('Menu barman', Menu::pluck('libelle')->all());
+        $this->assertSame(2, Recette::count());
 
         // Avec le droit : la modification est appliquée par le service.
         $this->pousser([$this->operation('menus', 'modification', $menu->id, ['libelle' => 'Renommé'])], $this->cuisinier)
             ->assertJsonPath('resultats.0.statut', 'synchronise');
 
-        $this->assertSame(['Renommé'], Menu::pluck('libelle')->all());
+        $this->assertSame('Renommé', $menu->fresh()->libelle);
         $this->assertSame('local', $menu->fresh()->type);
     }
 

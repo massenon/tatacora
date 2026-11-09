@@ -7,6 +7,7 @@ namespace App\Shared\Sync\Gestionnaires;
 use App\Domain\Rh\Models\Conge;
 use App\Domain\Rh\Models\Employe;
 use App\Domain\Rh\Services\CongeService;
+use App\Shared\Sync\Exceptions\DependanceManquanteException;
 use App\Shared\Sync\Services\ResolveurCorrespondances;
 use App\Shared\Sync\Services\SignalementAnomalies;
 use App\Shared\Sync\Support\ContexteSynchronisation;
@@ -77,7 +78,7 @@ final class GestionnaireConges extends GestionnaireDocumentAbstrait
         $employe = Employe::find($this->resoudre('employes', $donnees['employe_id']));
 
         if ($employe === null) {
-            throw new RuntimeException(__('sync.rh.employe_inconnu_conge'));
+            throw new DependanceManquanteException(__('sync.rh.employe_inconnu_conge'));
         }
 
         $this->conges->demander([

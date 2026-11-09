@@ -137,15 +137,17 @@ final class VehiculesSynchronisationTest extends TestCase
     }
 
     #[Test]
-    public function l_annulation_exige_le_droit_ecriture_de_la_location(): void
+    public function l_annulation_ne_se_juge_pas_sur_le_droit_du_compte_d_appairage(): void
     {
+        // Décision du PO du 09/11/2026 : `cuisine` (M8 = '-') voit l'annulation du contrat acceptée ;
+        // le droit d'annuler une location se juge au poste.
         $v = Vehicule::create(['immatriculation' => 'BJ-9X', 'categorie' => 'voiture', 'annee' => 2020, 'tarif_jour' => '25000', 'statut' => 'disponible']);
         $a = $this->uuid();
         $this->pousser([$this->contrat($a, $v->id, '2026-10-20', '2026-10-23')], $this->gerant, 'poste-a');
 
         $this->pousser([$this->operation('contrats_location', 'modification', $a, ['statut' => 'annule'])], $this->creerUtilisateur('cuisine'), 'poste-a')
-            ->assertJsonPath('resultats.0.statut', 'rejete');
-        $this->assertSame('actif', ContratLocation::findOrFail($a)->statut);
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertSame('annule', ContratLocation::findOrFail($a)->statut);
     }
 
     /**

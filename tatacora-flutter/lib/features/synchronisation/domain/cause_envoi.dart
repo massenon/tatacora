@@ -25,6 +25,7 @@ library;
 
 import 'dart:convert';
 
+import 'bilan_synchronisation.dart' show codesRejetDiffere;
 import 'operation_sync.dart';
 
 /// Une phrase du serveur sur un champ.
@@ -108,11 +109,35 @@ const Map<String, ({String titre, String conseil})> causesRefusServeur = {
         'Une pièce validée ne se modifie plus : faites passer une écriture '
         'corrective au serveur.',
   ),
+  // 09/11/2026 : le serveur ne juge plus les droits du compte d'appairage pour une opération
+  // d'USAGE (le droit se juge au poste, sur l'utilisateur connecté). `droit_manquant` ne
+  // reste que pour la liste fermée des opérations RÉSERVÉES : suppression d'un compte (super
+  // administrateur), réglages MECeF et forme juridique (administrateur), clôture d'exercice,
+  // affectation du résultat et contre-passation (droit comptable), purge définitive.
   'droit_manquant': (
-    titre: 'Droit manquant',
+    titre: 'Opération réservée',
     conseil:
-        'Le compte de ce poste n’a pas le droit d’écrire dans ce module au '
-        'serveur : demandez-le à un administrateur, puis renvoyez.',
+        'Cette opération est réservée (suppression de compte, réglages de '
+        'facturation ou forme juridique, clôture d’exercice, affectation du '
+        'résultat, purge) et le compte d’appairage de ce poste n’a pas le '
+        'droit exigé : faites-la depuis le web avec un compte autorisé, ou '
+        'appairez le poste avec un compte qui l’a, puis renvoyez. Les autres '
+        'opérations du poste ne sont pas bloquées.',
+  ),
+  'dependance_manquante': (
+    titre: 'Élément cité pas encore reçu',
+    conseil:
+        'Cette opération cite un élément que le serveur ne connaît pas '
+        '(encore) : le poste l’a renvoyée plusieurs fois, dans l’ordre. '
+        'Traitez d’abord l’opération qui crée cet élément dans cette liste '
+        '(ou attendez qu’un autre poste l’envoie), puis renvoyez celle-ci.',
+  ),
+  'erreur_serveur': (
+    titre: 'Erreur imprévue du serveur',
+    conseil:
+        'Le serveur a rencontré une erreur imprévue sur cette opération '
+        'seule : les autres ne sont pas bloquées. Renvoyez-la ; si elle '
+        'revient, signalez-la à l’éditeur (Contactez l’éditeur).',
   ),
   'compte_inactif': (
     titre: 'Compte désactivé',
@@ -162,16 +187,21 @@ String? codeMotifDe(OperationSync o) {
   return c is String && c.isNotEmpty ? c : null;
 }
 
-/// Le code d'un refus que tout compte peut RENVOYER (09/11/2026) : `droit_manquant`.
-/// Le serveur juge sur le compte du JETON D'APPAIRAGE ; le renvoi (même document,
-/// nouvel uuid d'opération) est rejugé à l'identique tant que le droit manque, et
-/// accepté dès qu'il existe — rien à escalader, donc rien à réserver.
-const String codeRenvoiOuvertATous = 'droit_manquant';
+/// Les codes d'un refus que tout compte peut RENVOYER (09/11/2026) : `droit_manquant`
+/// (opération réservée : le renvoi, même document et nouvel uuid, est rejugé à l'identique
+/// tant que le compte d'appairage n'a pas le droit, et accepté dès qu'il l'a — rien à
+/// escalader, donc rien à réserver), et les deux codes d'une opération DIFFÉRÉE
+/// ([codesRejetDiffere]) arrivée au bout de ses essais : un geste qui remet l'opération en
+/// file ne doit jamais attendre un administrateur.
+const Set<String> codesRenvoiOuvertATous = {
+  'droit_manquant',
+  ...codesRejetDiffere,
+};
 
 /// Cette opération REJETÉE se renvoie-t-elle sans être administrateur ?
 bool renvoiOuvertATous(OperationSync o) =>
     o.statut == StatutOperationSync.rejete &&
-    codeMotifDe(o) == codeRenvoiOuvertATous;
+    codesRenvoiOuvertATous.contains(codeMotifDe(o));
 
 /// Les phrases du serveur, champ par champ (`erreurs`).
 List<ErreurChamp> erreursChampsDe(OperationSync o) {

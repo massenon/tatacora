@@ -11,10 +11,10 @@ use App\Domain\Facturation\Services\EmissionFactureService;
 use App\Domain\Facturation\Services\StatutNormalisation;
 use App\Domain\Hebergement\Models\Reservation;
 use App\Domain\Ventes\Models\Vente;
+use App\Shared\Sync\Exceptions\DependanceManquanteException;
 use App\Shared\Sync\Services\ResolveurCorrespondances;
 use App\Shared\Sync\Services\SignalementAnomalies;
 use App\Shared\Sync\Support\ContexteSynchronisation;
-use App\Shared\Sync\Support\DocumentsDesAutresPostes;
 use App\Shared\Sync\Support\EcritureSynchronisee;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -58,9 +58,8 @@ use RuntimeException;
  * s'ajouter à d'autres (le service ne les cumule pas). `avoir_id` (facultatif)
  * est l'identifiant de l'avoir sur le poste : l'avoir naît sous cet UUID, un
  * rejeu ne le double pas, et le numéro rendu (`numero_avoir`, `avoir_id`) est
- * celui de CET avoir. La garde Q3 (facture d'un autre poste) ne vaut que pour
- * l'ANNULATION : un avoir partiel n'annule rien, et la PWA l'ouvre à tout compte
- * en écriture sur M2.
+ * celui de CET avoir. Le droit d'annuler (ex-garde Q3 : facture d'un autre poste) se
+ * juge AU POSTE, plus sur le compte du jeton (décision du PO du 09/11/2026).
  */
 final class GestionnaireFactures extends GestionnaireDocumentAbstrait
 {
@@ -74,7 +73,6 @@ final class GestionnaireFactures extends GestionnaireDocumentAbstrait
         private readonly EmissionFactureService $emission,
         ResolveurCorrespondances $correspondances,
         SignalementAnomalies $anomalies,
-        private readonly DocumentsDesAutresPostes $autresPostes,
     ) {
         parent::__construct($correspondances, $anomalies);
     }
@@ -142,7 +140,7 @@ final class GestionnaireFactures extends GestionnaireDocumentAbstrait
             $reservation = Reservation::find($this->resoudre('reservations', $donnees['reservation_id']));
 
             if ($reservation === null) {
-                throw new RuntimeException(__('sync.factures.reservation_inconnue'));
+                throw new DependanceManquanteException(__('sync.factures.reservation_inconnue'));
             }
         }
 
@@ -241,7 +239,7 @@ final class GestionnaireFactures extends GestionnaireDocumentAbstrait
             $document = Avoir::query()->where('facture_id', $entiteId)->find((string) $avoirId);
 
             if ($document === null) {
-                throw new RuntimeException(__('sync.factures.avoir_inconnu'));
+                throw new DependanceManquanteException(__('sync.factures.avoir_inconnu'));
             }
         }
 
@@ -262,9 +260,7 @@ final class GestionnaireFactures extends GestionnaireDocumentAbstrait
         $entier = Avoir::query()->where('facture_id', $entiteId)->where('montant', '>=', (string) $facture->montant_ttc)->exists();
 
         if (! $entier) {
-            // Q3 (lot F6) : la facture d'un autre poste, par l'administration
-            // ou le comptable seulement.
-            $this->autresPostes->verifierAnnulation('factures', $entiteId, $contexte);
+            // Aucun droit du compte d'appairage (09/11/2026) : le poste a jugé son utilisateur.
             $avoir = $this->emission->emettreAvoir($facture, (string) $facture->montant_ttc, $motif === '' ? __('sync.factures.motif_absent') : $motif);
 
             return $this->resultatAvoir($entiteId, $avoir);

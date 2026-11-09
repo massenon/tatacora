@@ -14,6 +14,7 @@ use App\Shared\Auth\Services\SuppressionCompteService;
 use App\Shared\Integrite\Exceptions\ChevauchementDetecteException;
 use App\Shared\Rbac\Models\JournalSecurite;
 use App\Shared\Sync\Contracts\GestionnaireSynchronisation;
+use App\Shared\Sync\Exceptions\DependanceManquanteException;
 use App\Shared\Sync\Exceptions\DonneesSynchroniseesInvalidesException;
 use App\Shared\Sync\Gestionnaires\GestionnaireUtilisateurs;
 use App\Shared\Sync\Models\ConflitSynchronisation;
@@ -131,8 +132,25 @@ class SynchronisationService
         $conflits = 0;
         $echecs = 0;
 
+        // Les éléments dont une opération vient d'être DIFFÉRÉE (dépendance pas encore
+        // reçue, erreur imprévue) : les opérations suivantes du MÊME élément dans ce lot
+        // attendent aussi (elles ne peuvent pas devancer la première), sans être
+        // rejetées — le poste les remet en file dans l'ordre. Toute AUTRE opération du
+        // lot, d'une autre table ou d'un autre élément, est traitée normalement.
+        $differes = [];
+
         foreach ($operations as $operation) {
-            $resultat = $this->traiterOperation($operation, $posteId, $utilisateurId, $session->id, $journaliser);
+            $cle = (string) ($operation['table'] ?? '') . '|' . (string) ($operation['entite_id'] ?? '');
+
+            if (isset($differes[$cle]) && ! $this->dejaTraitee((string) $operation['uuid_operation'])) {
+                $resultat = $this->rejet($operation, __('sync.operation_differee'), self::CODE_DEPENDANCE);
+            } else {
+                $resultat = $this->traiterSansBloquerLeLot($operation, $posteId, $utilisateurId, $session->id, $journaliser);
+            }
+
+            if ($this->estDifferee($resultat)) {
+                $differes[$cle] = true;
+            }
 
             $resultats[] = $resultat;
             $conflits += $resultat['statut'] === 'conflit' ? 1 : 0;
@@ -149,6 +167,60 @@ class SynchronisationService
         ]);
 
         return ['session_id' => $session->id, 'resultats' => $resultats];
+    }
+
+    /**
+     * Code rendu pour une opération DIFFÉRÉE : l'élément qu'elle cite n'est pas
+     * encore connu du serveur. Jamais mémorisé, jamais définitif : le poste la remet
+     * en file avec un repli (09/11/2026).
+     */
+    public const CODE_DEPENDANCE = 'dependance_manquante';
+
+    /**
+     * Code rendu pour une erreur IMPRÉVUE du serveur sur UNE opération : elle ne fait
+     * plus échouer le lot entier (500), elle est différée comme une dépendance.
+     */
+    public const CODE_ERREUR_SERVEUR = 'erreur_serveur';
+
+    /**
+     * Traite une opération du lot SANS qu'une erreur imprévue sur elle n'emporte le
+     * lot entier (décision du PO du 09/11/2026 : « aucune opération ne doit bloquer la
+     * synchronisation »). Avant, un bogue sur UNE opération levait un 500 : le poste
+     * renvoyait le même lot, le même 500, à chaque passage — une opération « poison »
+     * bloquait tout ce qui la suivait. Désormais l'erreur est journalisée (`report`, et
+     * le journal de réception par `traiterOperation`), l'opération est rendue DIFFÉRÉE
+     * (`erreur_serveur`, non mémorisée : rejouée pour de bon au prochain passage) et les
+     * autres opérations du lot passent.
+     *
+     * @param  array<string, mixed>  $operation
+     * @return array<string, mixed>
+     */
+    private function traiterSansBloquerLeLot(array $operation, string $posteId, string $utilisateurId, string $sessionId, bool $journaliser): array
+    {
+        if (! $journaliser) {
+            // La correction depuis la PWA veut l'exception telle quelle (elle la traduit).
+            return $this->traiterOperation($operation, $posteId, $utilisateurId, $sessionId, false);
+        }
+
+        try {
+            return $this->traiterOperation($operation, $posteId, $utilisateurId, $sessionId, true);
+        } catch (Throwable $e) {
+            report($e);
+
+            return $this->rejet($operation, __('sync.erreur_serveur_operation'), self::CODE_ERREUR_SERVEUR);
+        }
+    }
+
+    /** @param  array<string, mixed>  $resultat */
+    private function estDifferee(array $resultat): bool
+    {
+        return ($resultat['statut'] ?? null) === 'rejete'
+            && in_array($resultat['code_motif'] ?? null, [self::CODE_DEPENDANCE, self::CODE_ERREUR_SERVEUR], true);
+    }
+
+    private function dejaTraitee(string $uuidOperation): bool
+    {
+        return DeduplicationSynchronisation::where('uuid_operation', $uuidOperation)->exists();
     }
 
     /**
@@ -240,19 +312,19 @@ class SynchronisationService
             return $this->traiterSuppression($operation, $gestionnaire, $posteId, $utilisateurId);
         }
 
-        // RBAC par operation — 2e niveau, applique ici faute de pouvoir l'etre
-        // sur la route (PA-65). Un lot est multi-modules par nature : un seul
-        // `VerifierAccesModule` sur `/api/v1/sync` serait soit trop laxiste,
-        // soit bloquant pour un lot legitime.
+        // Le COMPTE du jeton : actif, et rien d'autre pour une opération d'usage.
         //
-        // Le refus porte sur l'OPERATION, pas sur le lot : echouer le lot
-        // entier ferait perdre a un utilisateur legitime les operations qu'il
-        // avait le droit de pousser, a cause d'une seule qu'il n'avait pas.
+        // Décision du PO du 09/11/2026 : « le jeton du poste porte un seul compte ;
+        // tout ce qui sort d'un poste appairé par le barman est jugé sur les droits du
+        // barman : NON, ÇA NE DOIT PAS JUGER ». Les droits par module se jugent AU
+        // POSTE, sur l'utilisateur connecté (RBAC local) ; le serveur reçoit les
+        // opérations d'un poste de confiance (appairé par un administrateur, jeton
+        // révocable) et ne garde que la liste fermée des opérations SENSIBLES
+        // (`OperationsSensibles`) : un gestionnaire n'exige un module que pour elles
+        // (`modulesRequis`), et leur refus est rendu SEUL.
         //
-        // Et il est DEFINITIF (`rejete`, jamais `conflit`) : rejouer n'accorde
-        // pas de droits. Le client le retire de sa file avec son motif, ce qui
-        // est le comportement voulu — au contraire d'un bogue serveur, qui doit
-        // remonter en 500 pour etre rejoue plus tard.
+        // Un refus porte sur l'OPERATION, pas sur le lot, et il est DEFINITIF
+        // (`rejete`, jamais `conflit`) : rejouer n'accorde pas de droits.
         $utilisateur = $this->utilisateurAutorise(
             $utilisateurId,
             $gestionnaire,
@@ -330,6 +402,13 @@ class SynchronisationService
             // Les phrases de l'API, champ par champ : le poste les affiche à
             // côté de la saisie, comme l'écran en ligne.
             $resultat = [...$this->rejet($operation, $e->getMessage(), 'donnees_invalides'), 'erreurs' => $e->erreurs];
+        } catch (DependanceManquanteException $e) {
+            // L'élément cité n'est pas ENCORE connu : ni définitif ni mémorisé (le même
+            // identifiant d'opération, rejoué plus tard, est jugé pour de bon). Le
+            // poste la remet en file avec un repli ; la trace reste au journal.
+            $this->extras['exception'] = $e::class;
+
+            return $this->rejet($operation, $e->getMessage(), self::CODE_DEPENDANCE);
         } catch (RuntimeException $e) {
             // UNIQUEMENT les refus métier. Le message est transmis au client :
             // §2.2 exige que l'application informe l'utilisateur clairement,
@@ -496,23 +575,16 @@ class SynchronisationService
     }
 
     /**
-     * L'utilisateur, s'il a le droit d'écrire dans le module du gestionnaire.
+     * Le compte du JETON D'APPAIRAGE, s'il est ACTIF — `null` sinon (compte suspendu,
+     * désactivé ou supprimé : refusé `compte_inactif`).
      *
-     * Toute operation de synchronisation est une ecriture (`creation` ou
-     * `modification`, seuls types acceptes par `SynchroniserRequest`) : le
-     * niveau requis, declare par le gestionnaire, est `C`, jamais `L`.
-     *
-     * Le niveau est lu par `User::niveauSurModule()`, la meme source que
-     * `VerifierAccesModule` — reecrire le calcul ici ferait diverger les deux
-     * chemins le jour ou la matrice changerait.
-     */
-    /**
-     * Depuis le 15/10/2026 (lot S3), un document peut exiger PLUSIEURS
-     * modules (`modulesRequis()`) : une vente qui porte des plats est une
-     * écriture sur M5 ET M4, exactement comme `PosComptant::encaissementReel`
-     * l'exige en ligne. Le contrôle reste ICI, hors de la transaction de
-     * l'opération : un refus levé dans le gestionnaire annulerait aussi la
-     * trace `journal_securite` qui doit lui survivre.
+     * Les modules NE SONT PLUS jugés pour une opération d'usage (décision du PO du
+     * 09/11/2026, voir plus haut) : `modulesRequis()` est vide par défaut. Il ne se
+     * remplit que pour la liste fermée `OperationsSensibles` (clôture d'exercice,
+     * affectation du résultat), où le compte doit écrire sur le module — lu par
+     * `User::niveauSurModule()`, la même source que `VerifierAccesModule`. Le contrôle
+     * reste ICI, hors de la transaction de l'opération : un refus levé dans le
+     * gestionnaire annulerait aussi la trace `journal_securite` qui doit lui survivre.
      *
      * @param  array<string, mixed>  $payload
      */

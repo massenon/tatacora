@@ -7,7 +7,6 @@ namespace Tests\Feature\Sync;
 use App\Domain\Ventes\Models\Panier;
 use App\Domain\Ventes\Models\TableSalle;
 use App\Models\User;
-use App\Shared\Rbac\Models\Role;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -19,22 +18,20 @@ use Tests\TestCase;
  * Bogue du PO (09/11/2026) : le barman du poste A prend des tables au point de
  * vente ; trois lignes « Tables de salle — Droit manquant » dans « À traiter ».
  *
- * CAUSE : `TableSalleService`/`GestionnaireTablesSalle` exigeait M5 ET `PARAM`
- * (écriture) pour TOUTE opération sur `tables_salle`. Or le poste enfile une
- * `creation` de la table (`assurerConnueDuServeur`) au premier geste d'USAGE
- * qui la cite (prendre une table au POS) quand il ne l'a pas encore reçue du
- * serveur : le serveur la FUSIONNE avec la sienne (même espace, même numéro),
- * c'est-à-dire n'écrit rien. Un compte jugé sur `PARAM` (barman : `-` ; gérant :
- * `L`) était donc refusé pour un geste qui ne change pas la salle.
+ * CAUSE : le serveur jugeait le compte du JETON D'APPAIRAGE (celui qui a appairé le
+ * poste), pas l'utilisateur connecté au poste. Un premier correctif (a85db45)
+ * distinguait l'USAGE (M5) de la CONFIGURATION (M5 + `PARAM`) ; la DÉCISION DU PO du
+ * 09/11/2026 le remplace : « Le jeton du poste porte un seul compte. Tout ce qui sort
+ * d'un poste appairé par le barman est jugé sur les droits du barman. NON, ÇA NE DOIT
+ * PAS JUGER. » Le serveur ne juge donc plus AUCUN module du compte du jeton pour la
+ * salle : prendre / libérer une table, en créer une, la renuméroter, changer ses places
+ * ou l'activer sont acceptés pour tout compte ACTIF ; qui peut configurer le plan, c'est
+ * le RBAC LOCAL du poste. Le serveur garde la cohérence (clé naturelle, table au panier
+ * ouvert, idempotence) et le compte désactivé reste refusé.
  *
- * RÈGLE : l'USAGE (prendre / libérer une table, ou citer une table qui existe
- * déjà) exige M5 en écriture, le droit du point de vente ; la CONFIGURATION
- * (créer une table nouvelle, renuméroter, changer les places, activer /
- * désactiver) exige EN PLUS `PARAM` en écriture.
- *
- * Le droit se juge sur le compte du JETON D'APPAIRAGE (`request()->user()`),
- * seul compte que le serveur connaisse d'un poste : les connexions locales du
- * poste ne sont pas des comptes serveur.
+ * Ce fichier tient ce que la règle a laissé : la matrice rôle × table n'est plus une
+ * présomption (tous les rôles passent), la fusion, l'idempotence, le compte désactivé, et
+ * le « Renvoyer » d'un lot déjà rejeté « Droit manquant » dans « À traiter ».
  */
 final class TablesSalleUsageDroitsTest extends TestCase
 {
@@ -98,46 +95,55 @@ final class TablesSalleUsageDroitsTest extends TestCase
 
     #[Test]
     #[DataProvider('rolesDeVente')]
-    public function la_configuration_du_plan_reste_reservee_au_droit_de_gestion(string $role): void
+    public function la_configuration_du_plan_n_est_pas_jugee_sur_le_compte_d_appairage(string $role): void
     {
         $compte = $this->creerUtilisateur($role);
-        $gere = in_array($role, ['administrateur', 'super_admin'], true);
-        $attendu = $gere ? 'synchronise' : 'rejete';
 
-        // Une table NOUVELLE (aucune de cet espace et de ce numéro) : c'est de la configuration.
+        // Une table NOUVELLE, renuméroter, changer les places, désactiver : acceptés pour tous.
         $nouvelle = $this->uuid();
         $this->pousser([$this->creation('tables_salle', $nouvelle, ['espace' => 'plage', 'numero' => 2, 'places' => 6])], $compte)
-            ->assertJsonPath('resultats.0.statut', $attendu)
-            ->assertJsonPath('resultats.0.code_motif', $gere ? null : 'droit_manquant');
-        $this->assertSame($gere, TableSalle::query()->where('id', $nouvelle)->exists());
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertTrue(TableSalle::query()->where('id', $nouvelle)->exists());
 
-        // Renuméroter, changer les places, désactiver : idem.
         foreach ([['numero' => 7], ['places' => 9], ['actif' => false]] as $champs) {
             $this->pousser([$this->operation('tables_salle', 'modification', $this->r1->id, $champs)], $compte)
-                ->assertJsonPath('resultats.0.statut', $attendu);
+                ->assertJsonPath('resultats.0.statut', 'synchronise');
         }
 
         $r1 = $this->r1->refresh();
-        $this->assertSame($gere ? [7, 9, false] : [1, 4, true], [(int) $r1->numero, (int) $r1->places, (bool) $r1->actif]);
+        $this->assertSame([7, 9, false], [(int) $r1->numero, (int) $r1->places, (bool) $r1->actif]);
     }
 
     #[Test]
     #[DataProvider('rolesSansVente')]
-    public function un_compte_qui_ne_vend_pas_n_obtient_rien_sur_la_salle(string $role): void
+    public function un_compte_qui_ne_vend_pas_est_jugee_au_poste_pas_au_serveur(string $role): void
     {
         $compte = $this->creerUtilisateur($role);
 
         $this->pousser([
-            $this->creation('tables_salle', $this->uuid(), ['espace' => 'restaurant', 'numero' => 1]),
             $this->creation('tables_salle', $this->uuid(), ['espace' => 'jardin', 'numero' => 1]),
             $this->creation('paniers', $this->uuid(), ['point_vente' => 'Bar', 'table_id' => $this->r1->id]),
         ], $compte)
-            ->assertJsonPath('resultats.0.code_motif', 'droit_manquant')
-            ->assertJsonPath('resultats.1.code_motif', 'droit_manquant')
-            ->assertJsonPath('resultats.2.code_motif', 'droit_manquant');
+            ->assertJsonPath('resultats.0.statut', 'synchronise')
+            ->assertJsonPath('resultats.1.statut', 'synchronise');
 
-        $this->assertSame(1, TableSalle::query()->count());
-        $this->assertSame(0, Panier::query()->count());
+        $this->assertSame(2, TableSalle::query()->count());
+        $this->assertSame(1, Panier::query()->count());
+    }
+
+    #[Test]
+    public function une_table_deja_prise_reste_refusee_par_coherence_pas_par_droit(): void
+    {
+        $barman = $this->creerUtilisateur('barman');
+
+        $this->pousser([$this->creation('paniers', $this->uuid(), ['point_vente' => 'Bar', 'table_id' => $this->r1->id])], $barman)
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+
+        // Une seconde ouverture de la MÊME table : règle de cohérence du service (verrou de plage).
+        $this->pousser([$this->creation('paniers', $this->uuid(), ['point_vente' => 'Bar', 'table_id' => $this->r1->id])], $barman)
+            ->assertJsonPath('resultats.0.statut', 'rejete')
+            ->assertJsonPath('resultats.0.code_motif', 'regle_metier');
+        $this->assertSame(1, Panier::query()->count());
     }
 
     #[Test]
@@ -165,29 +171,35 @@ final class TablesSalleUsageDroitsTest extends TestCase
     }
 
     #[Test]
-    public function une_operation_rejetee_pour_droit_manquant_se_relance_sous_un_nouvel_identifiant_et_passe_apres_le_droit(): void
+    public function un_lot_deja_rejete_droit_manquant_se_relance_sous_un_nouvel_identifiant_et_passe(): void
     {
-        // Le cas de la capture : le compte du jeton n'avait pas le droit (rôle sans M5),
-        // le rejet est DÉFINITIF et mémorisé sous l'ancien identifiant d'opération…
+        // Le cas de la capture : avant la décision du PO, le serveur avait rejeté DÉFINITIVEMENT
+        // (et mémorisé) l'opération sous l'ancien identifiant. On reconstitue ce refus mémorisé,
+        // tel qu'il dort dans « À traiter » du poste.
         $compte = $this->creerUtilisateur('receptionniste');
         $table = $this->uuid();
         $ancienne = $this->creation('tables_salle', $table, ['espace' => 'restaurant', 'numero' => 1]);
+        \App\Shared\Sync\Models\DeduplicationSynchronisation::create([
+            'uuid_operation' => $ancienne['uuid_operation'],
+            'utilisateur_id' => $compte->id,
+            'poste_id' => 'poste-windows-1',
+            'table_concernee' => 'tables_salle',
+            'entite_id' => $table,
+            'resultat' => [
+                'uuid_operation' => $ancienne['uuid_operation'], 'statut' => 'rejete', 'entite_id' => $table,
+                'motif' => __('auth.module_refuse'), 'code_motif' => 'droit_manquant',
+            ],
+            'horodatage_client' => $ancienne['horodatage_client'],
+            'date_traitement' => now(),
+        ]);
 
+        // Rejouée à l'identique, la mémoire d'idempotence rend le MÊME refus (c'est son rôle) …
         $this->pousser([$ancienne], $compte)->assertJsonPath('resultats.0.code_motif', 'droit_manquant');
-        // … rejouée à l'identique, elle est rejugée à l'identique (pas de boucle de re-jugement).
-        $this->pousser([$ancienne], $compte)->assertJsonPath('resultats.0.statut', 'rejete');
 
-        // Le droit est accordé ; « Renvoyer » (poste) = MÊME élément, MÊME document, NOUVEL uuid d'opération.
-        $compte->forceFill(['role_id' => Role::where('libelle', 'barman')->firstOrFail()->id])->save();
+        // … « Renvoyer » (poste) = MÊME élément, MÊME document, NOUVEL uuid d'opération : il passe,
+        // sans qu'aucun droit n'ait été accordé à quiconque.
         $relance = [...$ancienne, 'uuid_operation' => $this->uuid()];
-
-        // Le contrôleur est mémorisé par la route le temps du test : en production,
-        // chaque requête repart d'un service neuf, qui relit le compte.
-        foreach (app('router')->getRoutes() as $route) {
-            $route->flushController();
-        }
-
-        $this->pousser([$relance], $compte->refresh())
+        $this->pousser([$relance], $compte)
             ->assertJsonPath('resultats.0.statut', 'synchronise')
             ->assertJsonPath('resultats.0.fusionne_avec', $this->r1->id);
     }

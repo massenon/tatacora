@@ -183,12 +183,12 @@ final class ProformasSynchronisationTest extends TestCase
     }
 
     #[Test]
-    public function un_compte_sans_ecriture_sur_m2_est_refuse(): void
+    public function une_proforma_n_est_pas_jugee_sur_le_module_du_compte_d_appairage(): void
     {
-        $sans = $this->creerUtilisateur('comptable'); // M2 = L : lecture seule
+        $sans = $this->creerUtilisateur('comptable'); // M2 = L : lecture seule — accepté (PO, 09/11/2026)
 
-        $this->pousser([$this->proforma($this->uuid())], $sans)->assertJsonPath('resultats.0.statut', 'rejete');
-        $this->assertSame(0, Proforma::count());
+        $this->pousser([$this->proforma($this->uuid())], $sans)->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertSame(1, Proforma::count());
     }
 
     #[Test]

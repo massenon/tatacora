@@ -115,7 +115,8 @@
 | « NE PLUS LIMITER » : tous les documents de tous les postes descendent ; aucun plafond de postes | `docs/SPEC_SYNCHRONISATION_COMPLETE.md` §0 |
 | Q1 = A : le journal comptable du poste ne contient que **ses** pièces ; les documents des autres postes ne créent pas de pièce locale (puis D246 rouvert le 28/10/2026 pour les comptes du plan et les pièces saisies à la main) | `SPEC_SYNCHRONISATION_COMPLETE.md` §0 ; `tatacora-flutter/CLAUDE.md` (« Comptabilité ») |
 | Q2 = A : numéro de facture **provisoire** au poste, numéro continu attribué par le serveur, « régularisé » à l'accusé | `SPEC_SYNCHRONISATION_COMPLETE.md` §0 ; `SYNC/data/sync_manager.dart:626` |
-| Q3 : annuler un document saisi sur un **autre** poste = administration et comptable seulement | `API/Support/DocumentsDesAutresPostes.php:29` |
+| Q3 : annuler un document saisi sur un **autre** poste = administration et comptable seulement. **Ne se juge plus sur le compte du jeton le 09/11/2026** (ventes, factures, avoirs en ligne, encaissements, règlements fournisseur : le droit `ANNULATIONS` se juge AU POSTE ; les réservations suivent un autre chantier) | `API/Support/DocumentsDesAutresPostes.php:29` |
+| **Le serveur ne juge plus les modules du compte d'appairage (09/11/2026)** : « Le jeton du poste porte un seul compte. Tout ce qui sort d'un poste appairé par le barman est jugé sur les droits du barman : NON, ÇA NE DOIT PAS JUGER » ; « AUCUNE OPÉRATION NE DOIT BLOQUER LA SYNCHRONISATION ». Le droit se juge AU POSTE (RBAC local) ; la sécurité du serveur = appairage par un administrateur, jeton révocable, génération des données, compte actif, journal d'audit, et la **liste fermée** des opérations sensibles (§4.5) | `API/Support/OperationsSensibles.php`, `§4.5`, `§4.12` |
 | Désinstaller **supprime** les données, après avertissement Oui/Non (Non par défaut) | `docs/PRD_REINSTALLATION_ET_DEMARRAGE_RESILIENT.md` §5, `tatacora-flutter/installer/tatacora.iss:105-148` |
 
 ## 1.5 Ce qui N'EXISTE PAS dans le code (vérifié)
@@ -323,7 +324,7 @@ Preuves : `TESTS-FL/ecrivains_file_envoi_test.dart` (groupe « ATOMICITÉ », `:
 `reclamerLot(taille=50, bail)` (`operations_sync_dao.dart:160-225`), dans une transaction :
 
 1. liste les opérations non `synchronise`, par `seq` croissant ;
-2. **s'arrête** à la première `en_attente` dont `prochaine_tentative` n'est pas échue (« un document ne double jamais ce qu'il cite », `:154-156,204`) ;
+2. **laisse de côté** une `en_attente` dont `prochaine_tentative` n'est pas échue, avec les suivantes de SON élément, **mais ne retient plus la file entière** (09/11/2026 : avant, un `break` arrêtait la réclamation à la première opération en repli — une seule opération en erreur retardait tout le reste jusqu'à une heure ; une opération qui cite un élément encore en repli est rejugée par le serveur, `dependance_manquante`, et remise en file, §4.12) ;
 3. écarte une opération dont l'**élément** a une opération antérieure non aboutie (en cours, rejetée, en conflit, bloquée) — mais **plusieurs opérations du même élément peuvent partir dans un même lot** (ouverture puis clôture de caisse) ;
 4. ignore les opérations « remplacées » (historique d'un « Renvoyer ») ;
 5. les passe `en_cours` sous un `lot_id` avec un bail (`verrou_jusqua = maintenant + 5 min` par défaut du moteur, `sync_manager.dart:82`) et incrémente `tentatives`.
@@ -376,9 +377,12 @@ Réponse **200** (le lot a été traité ; le détail est **par opération**, pa
 1. déjà vue ?  → rendre le résultat d'origine + rejeu_idempotent=true            (:203)
 2. table hors registre ? → rejete « table_non_synchronisable »                    (:210-216)
 3. type = suppression ? → chemin propre (super admin + écriture PARAM)           (:223, traiterSuppression :337)
-4. RBAC PAR OPÉRATION : l'utilisateur du jeton doit pouvoir ÉCRIRE (niveau C)
-   dans TOUS les modules exigés par le payload                                    (utilisateurAutorise :415)
-     → sinon rejete « droit_manquant » ou « compte_inactif » (DÉFINITIF)
+4. COMPTE DU JETON : actif, et RIEN D'AUTRE pour une opération d'usage            (utilisateurAutorise)
+     → sinon rejete « compte_inactif » (DÉFINITIF). Décision du PO du 09/11/2026 : les modules du
+       compte d'appairage ne sont PLUS jugés (`modulesRequis()` vide par défaut). Seule la liste
+       fermée `OperationsSensibles` (clôture d'exercice / affectation du résultat : écriture M10 ;
+       réglages MECeF et forme juridique : `refusDeDroit` administrateur ; suppression de compte :
+       super_admin ; purge : super_admin + PARAM) rend « droit_manquant », SEULE.
 5. modification sur table qui la refuse → rejete « modification_non_synchronisable »
 6. date_metier illisible → rejete « date_metier_invalide »
 7. transaction { appliquer() }                                                   (:492)
@@ -387,13 +391,15 @@ Réponse **200** (le lot a été traité ; le détail est **par opération**, pa
      modif     : inconnu ? gestionnaire->modificationSurInconnu ou rejet « entite_inconnue »
                  sinon conflit ? traiterConflit : gestionnaire->modifier         (:492-560)
 8. exceptions métier (RuntimeException) → rejete + phrase + code_motif; chevauchement → code « chevauchement »;
-   TOUTE AUTRE exception (bug, panne) SE PROPAGE → HTTP 500 → le poste réessaie  (:300-320)
+   référence pas ENCORE connue (`DependanceManquanteException`) → rejete « dependance_manquante », NON mémorisé;
+   TOUTE AUTRE exception (bug, panne) : `traiterOperation` la journalise et la relance, `traiterLot` la
+   ATTRAPE par opération → rejete « erreur_serveur », NON mémorisé (09/11/2026 : avant, un 500 sur tout le lot)
 9. memoriser(résultat) dans deduplication_synchronisation                         (:971)
 ```
 
-Deux choix à retenir absolument (commentaires `:218-240` et `:300-320`) :
-- **Le refus de droit est définitif** (`rejete`, jamais `conflit`) : rejouer n'accorde pas de droits.
-- **Un bug serveur ne doit jamais devenir un « rejeté »** : « le client marquerait l'opération comme définitivement refusée et la retirerait de sa file. Une saisie hors connexion parfaitement valide serait perdue… Ce cas s'est produit pendant le développement. » → la requête échoue en 500, le client rejoue, l'idempotence protège les opérations déjà passées.
+Deux choix à retenir absolument (commentaires de `traiterOperationInterne`) :
+- **Le refus de droit (opérations sensibles) est définitif** (`rejete`, jamais `conflit`) : rejouer n'accorde pas de droits.
+- **Un bug serveur ne doit jamais devenir un « rejeté » DÉFINITIF** : « le client marquerait l'opération comme définitivement refusée et la retirerait de sa file. Une saisie hors connexion parfaitement valide serait perdue… Ce cas s'est produit pendant le développement. » → depuis le 09/11/2026 le bug est isolé à SON opération (`erreur_serveur`, jamais mémorisée) : le poste la remet en file avec un repli, les autres opérations du lot passent, et l'idempotence protège celles déjà passées.
 
 ## 4.6 Reprise après coupure réseau
 
@@ -446,20 +452,49 @@ Le poste ne choisit **aucun** numéro définitif de document : à l'accusé `syn
 ### Côté poste (file d'envoi) — écran `/synchronisation`, onglet Envoi
 
 - **Liste « À traiter »** (`OperationsSyncDao.aTraiter`, `:543`) : opérations `rejete`, `conflit` ou `bloque`, les plus récentes d'abord, sans les rejetées déjà renvoyées.
-- **Bloquée** : une opération dont une **antérieure sur le même élément** a été rejetée est `bloque` et **ne part pas** (elle s'appliquerait sur un état que le serveur n'a pas) (`marquerResultat`, `:255-310`). **Débloquer** : seulement quand toutes les antérieures sont abouties ou remplacées par une synchronisée (`debloquer`, `:518`).
-- **Cause lisible** : `SYNC/domain/cause_envoi.dart` — registre fermé de `code_motif` relu du PHP par un test (`TESTS-FL/cause_envoi_test.dart:89`). Codes : `donnees_invalides`, `chevauchement`, `entite_inconnue`, `suppression_non_synchronisable`, `entite_existante`, `stock_insuffisant`, `recette_manquante`, `refus_caisse`, `piece_immuable`, `droit_manquant`, `compte_inactif`, `table_non_synchronisable`, `modification_non_synchronisable`, `date_metier_invalide`, `regle_metier`. Chaque code a un **titre** et un **conseil** en français (« Enregistrez d'abord l'approvisionnement manquant, puis renvoyez », « Le compte de ce poste n'a pas le droit d'écrire dans ce module… »).
+- **Bloquée** : une opération dont une **antérieure sur le même élément** a été rejetée est `bloque` et **ne part pas** (elle s'appliquerait sur un état que le serveur n'a pas) (`marquerResultat`, `:255-310`). **Débloquer** : seulement quand toutes les antérieures sont abouties ou remplacées par une synchronisée (`debloquer`, `:518`) — **et depuis le 09/11/2026 le moteur le fait de lui-même** : quand une opération aboutit (typiquement la remplaçante d'un rejet renvoyé), les opérations bloquées derrière dont toutes les antérieures sont abouties repassent `en_attente` (`_debloquerSuivantes`), sans geste d'administrateur.
+- **Cause lisible** : `SYNC/domain/cause_envoi.dart` — registre fermé de `code_motif` relu du PHP par un test (`TESTS-FL/cause_envoi_test.dart:89`). Codes : `donnees_invalides`, `chevauchement`, `entite_inconnue`, `suppression_non_synchronisable`, `entite_existante`, `stock_insuffisant`, `recette_manquante`, `refus_caisse`, `piece_immuable`, `droit_manquant` (désormais : opération RÉSERVÉE seulement), `dependance_manquante`, `erreur_serveur`, `compte_inactif`, `table_non_synchronisable`, `modification_non_synchronisable`, `date_metier_invalide`, `regle_metier`. Chaque code a un **titre** et un **conseil** en français (« Enregistrez d'abord l'approvisionnement manquant, puis renvoyez », « Cette opération est réservée… faites-la depuis le web avec un compte autorisé »).
 - **Corriger** = formulaire généré de la charge **figée** (seuls les champs du registre : libellés, noms, montants, dates, quantités — jamais un identifiant, un statut ou une ligne de document), validé avant renvoi (`corrigerCharge`).
-- **Renvoyer** (Administrateurs) : `OperationsSyncDao.renvoyer` (`:401`) crée une opération **remplaçante** : même document (ou charge corrigée), **même horodatage de saisie**, **nouvel** `uuid_operation` (sinon le serveur rejouerait le rejet mémorisé). L'ancienne ligne reste, rejetée, marquée remplacée (`operation_remplacee:<uuid>`) : c'est l'historique.
+- **Renvoyer** (Administrateurs, **et tout compte pour `droit_manquant`, `dependance_manquante`, `erreur_serveur`**, `codesRenvoiOuvertATous`) : `OperationsSyncDao.renvoyer` (`:401`) crée une opération **remplaçante** : même document (ou charge corrigée), **même horodatage de saisie**, **nouvel** `uuid_operation` (sinon le serveur rejouerait le rejet mémorisé). L'ancienne ligne reste, rejetée, marquée remplacée (`operation_remplacee:<uuid>`) : c'est l'historique.
 
 ### Côté serveur (journal de réception) — onglet Réception de « Postes & Appairage »
 
 - Table `journal_reception_synchronisation` : une ligne par `uuid_operation` (issue, `code_motif`, motif, **cause en français**, détails, tentatives, charge reçue, charge corrigée, traitement `a_traiter|corrige|relance|ignore`, qui/quand) — migration `2026_10_26_100000_create_journaux_synchronisation.php:50-81`.
 - **Corriger / Relancer / Ignorer** : `CorrectionReceptionService` (`API/Services/CorrectionReceptionService.php:289,324,384`) :
-  - réservé aux **Administrateurs et au Comptable** (`estAutorise`, `:66`), et il faut l'écriture (`C`) sur **tous** les modules que l'opération aurait exigés de son auteur (`moduleRefuse`, `:118`) ;
+  - réservé aux **Administrateurs et au Comptable** (`estAutorise`, `:66`), et il faut l'écriture (`C`) sur **tous** les modules de la donnée (`modulesDeLaCorrection()` du gestionnaire — le RBAC du WEB, inchangé le 09/11/2026 ; distinct de `modulesRequis()`, qui ne juge plus le compte d'appairage) (`moduleRefuse`, `:118`) ;
   - `corriger` **rejoue pour de bon puis annule** (transaction annulée) : la correction n'est retenue que si le service de domaine l'accepterait ;
   - `relancer` rejoue par `SynchronisationService::traiterOperation` (donc mêmes règles, mêmes pièces, mêmes droits), garde l'**horodatage de saisie** d'origine (la date métier reste celle du poste), sous un **nouvel** `uuid_operation`, verrou sur la ligne : une opération prise en charge ne se relance pas deux fois ;
   - `ignorer` exige un **motif**, tracé au journal d'audit.
 - Côté poste, « Réception » (descente) a son propre journal `journal_reception_local` (v37) avec « Corriger » et « Relancer / Relancer tout » (`docs/JOURNAL_DES_LOTS.md` « Réception : journal, causes… »). Un élément refusé pour une donnée fausse **au serveur** ne change pas en le relançant : on corrige à la source, puis on reçoit la version corrigée.
+
+## 4.11 Le serveur ne juge plus les modules du compte d'appairage (décision du PO du 09/11/2026)
+
+**Le constat (capture du PO).** Le jeton d'un poste porte UN compte — celui qui a appairé le poste. Le serveur jugeait chaque opération sur les droits de ce compte, pas sur l'utilisateur connecté au poste : le barman de la configuration (Restaurant, Bar, Stock, Réservations, Hébergement, clients, Facturation en lecture, Tourisme, Véhicules, Import & Export) voyait ses opérations rejetées « Droit manquant — Vous n'avez pas accès à ce module ». **Décision** : « Le jeton du poste porte un seul compte. Tout ce qui sort d'un poste appairé par le barman est jugé sur les droits du barman. NON, ÇA NE DOIT PAS JUGER. » Le contrôle des droits se fait AU POSTE, sur l'utilisateur connecté (RBAC local, qui ne change pas) ; le serveur reçoit les opérations d'un poste de confiance.
+
+**Ce que le serveur garde.** Le jeton valide et non révoqué, le poste concordant (`PosteDuJeton`), la génération des données, le compte ACTIF (un compte désactivé reste refusé : `compte_inactif`), l'idempotence, la cohérence métier (référence inconnue, chevauchement, montant, statut incompatible, ordre), le journal (`journal_securite`, `journal_reception_synchronisation`, `origines_synchronisation` : poste d'origine ; l'auteur LOCAL de l'écriture n'est tracé que là où la charge le porte — suppression de compte — et dans le journal d'audit du poste). **Le WEB garde le RBAC par module et par action** ; la correction/relance d'une opération depuis la page de réception exige toujours le module de la donnée (`modulesDeLaCorrection`).
+
+**Où c'est écrit, une fois.** `GestionnaireAbstrait::modulesRequis()` rend `[]` : aucun module n'est exigé du compte d'appairage. La LISTE FERMÉE `App\Shared\Sync\Support\OperationsSensibles` nomme les seules exceptions, chacune une décision explicite du PO, rejetée SEULE (`droit_manquant`, phrase lisible, « À traiter », relançable), sans bloquer le reste du lot :
+
+| Opération | Droit exigé du compte du jeton | Décision |
+|---|---|---|
+| Suppression d'un compte (`utilisateurs`, `suppression`) | `super_admin` (`User::peutSupprimerDesComptes`) | 03/11/2026 |
+| Réglages MECeF (mode, API, opérateur ×2) et forme juridique (`parametres_systeme`) | administrateur (`GestionnaireParametres::refusDeDroit`) | 09/11/2026 (b5d2405) |
+| Clôture d'exercice : démarrer, reprendre, clôturer, rouvrir, contre-passer (`demandes_cloture_exercice`) | écriture M10 ; rouvrir / contre-passer : rôle `comptable` (`ClotureExerciceService`, `AffectationResultatService`) | 20/10/2026, 09/11/2026 |
+| Affectation du résultat (`pieces_saisie` portant `affectation`) | écriture M10 + rôle `comptable` | 09/11/2026 |
+| Purge définitive (unités d'hébergement, véhicules) | `super_admin` + écriture `PARAM` | A5, 28/10/2026 |
+
+Ne se juge plus : ventes, paniers, sessions de caisse, tables de salle (usage ET configuration), réservations (création, séjours, canaux ; la règle d'annulation des réservations suit un autre chantier), clients et archivage, factures et proformas, avoirs, règlements, dépenses (et leur reçu), achats et réceptions, mouvements de stock, inventaires, véhicules, tourisme, RH courantes, notifications, plan comptable et pièces ordinaires, immobilisations, rôles, réglages ordinaires, annulation d'un document d'un autre poste (ex-Q3), avoir et normalisation en ligne. Hors liste aussi, volontairement : la révocation d'un AUTRE poste et la redescente demandée (gestes d'administration, `SuiviPostesService`), et la DESCENTE, qui filtre encore par les modules LUS du compte du jeton (`CatalogueDescendantService::lisible`) — voir « Risques » ci-dessous.
+
+**Risques à connaître (le PO doit les connaître).** (1) La sécurité du serveur repose désormais sur l'appairage : qui détient un jeton valide écrit ce qu'il veut dans les limites de la cohérence (hors liste fermée). Un poste volé est neutralisé par la RÉVOCATION du jeton (§3.5). (2) Le journal du serveur trace le POSTE et le compte du jeton, pas l'utilisateur local, sauf là où la charge le porte. (3) Un poste peut écrire la matrice des RÔLES du serveur (le verrou de l'administrateur tient) : le droit d'éditer la matrice est jugé au poste. (4) La descente reste filtrée par les modules LUS du compte du jeton : un poste appairé par le barman ne reçoit pas la comptabilité même si un comptable s'y connecte ; décision à prendre.
+
+## 4.12 Aucune opération ne bloque la synchronisation (décision du PO du 09/11/2026)
+
+Une opération qui ne passe pas ne retient ni les suivantes de la file, ni les tables suivantes du lot, ni la descente ; ce qui dépend d'elle l'attend, dans l'ordre ; le poste ne reste pas en alerte permanente.
+
+- **Lot** : `traiterLot` traite TOUTES les opérations ; un rejet (cohérence, réservée, conflit) est consigné sans arrêter la boucle. Une erreur IMPRÉVUE sur une opération est attrapée PAR OPÉRATION (`erreur_serveur`, jamais mémorisée) — avant, un 500 sur tout le lot, le même 500 à chaque passage, la file derrière bloquée.
+- **Dépendance pas encore reçue** (`DependanceManquanteException`, ~22 gestionnaires : réservation, table, client, commande, véhicule, facture, employé, article…) : rejet `dependance_manquante`, NON mémorisé (rejugée pour de bon sous le même identifiant). Les opérations suivantes du MÊME élément dans le même lot attendent derrière (`operation_differee`), jamais « élément inconnu » définitif.
+- **Poste** : un rejet différé (`dependance_manquante`, `erreur_serveur`) remet l'opération `en_attente` avec le repli 30 s → 2 min → 5 min → 15 min → 1 h (`maxTentativesDifferees` = 8, environ cinq heures), compte `differees` au bilan, jamais en alerte ; passé le dernier essai, un rejet LISIBLE (« À traiter », « Renvoyer » ouvert à tous). `reclamerLot` ne s'arrête plus à une opération en repli (seul son élément attend). « Renvoyer » remet l'opération en file (même charge, nouvel uuid) et, une fois la remplaçante acceptée, les opérations bloquées derrière se débloquent d'elles-mêmes.
+- **Lots déjà rejetés « Droit manquant » dans « À traiter »** : « Renvoyer » (ouvert à tous pour ce code) les remet en file, le serveur actuel les accepte.
 
 ---
 

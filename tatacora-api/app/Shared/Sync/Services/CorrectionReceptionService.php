@@ -111,7 +111,7 @@ class CorrectionReceptionService
 
         $gestionnaire = $this->registre->pour($entree->table_concernee);
 
-        return array_values(array_unique($gestionnaire->modulesRequis($entree->payload_corrige ?? $entree->payload ?? [])));
+        return array_values(array_unique($gestionnaire->modulesDeLaCorrection($entree->payload_corrige ?? $entree->payload ?? [])));
     }
 
     /** Le premier module que l'auteur ne peut pas écrire, ou `null`. */

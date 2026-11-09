@@ -98,9 +98,13 @@ class JournalReceptionService
         if ($existant !== null) {
             $tentative = ['tentatives' => $existant->tentatives + 1, 'derniere_tentative_le' => $maintenant];
 
-            // Un renvoi après une ERREUR du serveur est un vrai second
-            // traitement : son issue remplace l'erreur.
-            if ($existant->issue === Journal::ERREUR && $erreur === null && ($resultat['rejeu_idempotent'] ?? false) !== true) {
+            // Un renvoi après une ERREUR du serveur, ou après une opération DIFFÉRÉE
+            // (dépendance pas encore reçue : jamais mémorisée) est un vrai second
+            // traitement : son issue remplace la précédente.
+            $differee = $existant->issue === Journal::ERREUR
+                || ($existant->issue === Journal::REJETEE && $existant->code_motif === 'dependance_manquante');
+
+            if ($differee && ($resultat['rejeu_idempotent'] ?? false) !== true) {
                 $analyse = $this->analyser($operation, $resultat, $extras, null);
                 $existant->fill([...$analyse, ...$this->traitementInitial($analyse['issue'], (string) $operation['table']), ...$tentative])->save();
 

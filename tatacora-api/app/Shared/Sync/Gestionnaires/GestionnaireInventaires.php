@@ -8,6 +8,7 @@ use App\Domain\Stocks\Models\Article;
 use App\Domain\Stocks\Models\Inventaire;
 use App\Domain\Stocks\Models\PointStockage;
 use App\Domain\Stocks\Services\InventaireService;
+use App\Shared\Sync\Exceptions\DependanceManquanteException;
 use App\Shared\Sync\Services\ResolveurCorrespondances;
 use App\Shared\Sync\Services\SignalementAnomalies;
 use App\Shared\Sync\Support\ContexteSynchronisation;
@@ -95,7 +96,7 @@ final class GestionnaireInventaires extends GestionnaireDocumentAbstrait
         $point = PointStockage::query()->find($this->resoudre('points_stockage', $d['point_id']));
 
         if ($point === null) {
-            throw new RuntimeException(__('sync.stocks.inventaire_point_inconnu'));
+            throw new DependanceManquanteException(__('sync.stocks.inventaire_point_inconnu'));
         }
 
         $lignes = [];
@@ -105,7 +106,7 @@ final class GestionnaireInventaires extends GestionnaireDocumentAbstrait
             $article = Article::query()->find($this->resoudre('articles', $ligne['article_id']));
 
             if ($article === null) {
-                throw new RuntimeException(__('sync.stocks.inventaire_article_inconnu', ['article' => $ligne['article_id']]));
+                throw new DependanceManquanteException(__('sync.stocks.inventaire_article_inconnu', ['article' => $ligne['article_id']]));
             }
 
             if (isset($vus[$article->id])) {
