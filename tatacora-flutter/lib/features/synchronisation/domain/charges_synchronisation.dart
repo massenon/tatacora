@@ -756,14 +756,21 @@ Map<String, Object?> chargeAnnulationPaiement({required String motif}) => {
 /// et le MONTANT qu'il a remboursé (mode `montant`) : les deux côtés
 /// remboursent la même somme au centime, même quand la saisie était en
 /// pourcentage (écart nommé : le serveur note alors le mode « montant »).
+///
+/// `auteur` (09/11/2026) : le LOGIN du compte de ce poste qui a annulé. Le serveur ne juge pas
+/// ce compte (le contrôle « qui peut annuler » est fait ici, par le droit local `ANNULATIONS`) ;
+/// il le garde pour que l'onglet « Annulations » nomme la même personne partout, et pour
+/// l'audit. L'instant de la saisie est celui de l'opération (`horodatage_client`).
 Map<String, Object?> chargeAnnulationReservation({
   required int tauxCentiemes,
   required int rembourseCentimes,
+  String? auteurLogin,
 }) => {
   'statut': 'annulee',
   'taux': decimalExact(tauxCentiemes, 2),
   'mode_remboursement': 'montant',
   'valeur_remboursement': decimalExact(rembourseCentimes, 2),
+  if (auteurLogin != null && auteurLogin.isNotEmpty) 'auteur': auteurLogin,
 };
 
 /// `reservations`, DÉPLACEMENT — les seuls champs CHANGÉS parmi la chambre

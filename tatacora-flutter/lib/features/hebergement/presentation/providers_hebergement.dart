@@ -365,6 +365,17 @@ final peutEcrireHebergementProvider = Provider<bool>(
   (ref) => ref.watch(droitsProvider).peutEcrire(ModuleTatacora.m1Hebergement),
 );
 
+/// Qui peut ANNULER une réservation sur ce poste (09/11/2026) : l'écriture sur M1 ET le droit
+/// local `ANNULATIONS` de l'utilisateur CONNECTÉ. C'est le SEUL contrôle : le serveur ne juge plus
+/// le compte d'appairage sur les opérations d'un poste (décision du PO : « aucune opération ne doit
+/// bloquer la synchronisation »), et la règle « la réservation d'un autre poste ne s'annule que par
+/// l'administration ou le comptable » a disparu du poste comme du serveur.
+final peutAnnulerReservationProvider = Provider<bool>((ref) {
+  final droits = ref.watch(droitsProvider);
+  return droits.peutEcrire(ModuleTatacora.m1Hebergement) &&
+      droits.peutEcrire(ModuleTatacora.annulations);
+});
+
 /// Le terme de recherche de la barre d'outils du plan.
 final rechercheParcProvider = NotifierProvider<_RechercheParcNotifier, String>(
   _RechercheParcNotifier.new,

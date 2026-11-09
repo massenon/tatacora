@@ -1,4 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tatacora_flutter/features/hebergement/presentation/ecran_reservations.dart'
+    show TextesAnnulations;
 import 'package:tatacora_flutter/core/format/decimal_bc.dart';
 import 'package:tatacora_flutter/features/hebergement/domain/annulation_reservation.dart';
 import 'package:tatacora_flutter/features/hebergement/domain/entities/annulation_enregistree.dart';
@@ -146,6 +148,70 @@ void main() {
           taux: '50',
         ),
         '0.00',
+      );
+    });
+  });
+
+  group('LA RÈGLE DU « REMBOURSÉ » — les deux annulations des captures du PO '
+      '(09/11/2026) : identique au web', () {
+    ResultatAnnulation applique({
+      required int total,
+      required int acompte,
+      required String taux,
+    }) {
+      // La valeur que la modale PROPOSE (la même fonction que l'écran), prise telle quelle.
+      final propose = pourcentageRembourseSuggere(
+        acompteCentimes: acompte * 100,
+        totalCentimes: total * 100,
+        taux: taux,
+      );
+      return calculerAnnulation(
+        dejaAnnulee: false,
+        totalCentimes: total * 100,
+        acompteCentimes: acompte * 100,
+        tauxSaisi: taux,
+        modeSaisi: 'pourcentage',
+        valeurSaisie: propose,
+      );
+    }
+
+    test('Robert : 80 000, 50 %, acompte 40 000 -> commission 40 000, '
+        'remboursé 0 (acompte − commission), PAS total − commission', () {
+      final r = applique(total: 80000, acompte: 40000, taux: '50');
+      expect(r.commissionCentimes, 4000000);
+      expect(r.rembourseCentimes, 0);
+      expect(
+        r.totalCentimes - r.commissionCentimes,
+        4000000,
+        reason:
+            'total − commission aurait donné 40 000 : ce n’est pas la règle',
+      );
+    });
+
+    test('Pierre : 90 000, 20 %, acompte 0 -> commission 18 000, remboursé 0 '
+        '(on ne rend pas un acompte jamais encaissé)', () {
+      final r = applique(total: 90000, acompte: 0, taux: '20');
+      expect(r.commissionCentimes, 1800000);
+      expect(r.rembourseCentimes, 0);
+    });
+
+    test('un acompte qui couvre la commission : remboursé = acompte − '
+        'commission, jamais plus que l’acompte', () {
+      final r = applique(total: 80000, acompte: 40000, taux: '20');
+      expect(r.commissionCentimes, 1600000);
+      expect(r.rembourseCentimes, 2400000);
+      expect(r.rembourseCentimes, lessThanOrEqualTo(4000000));
+    });
+
+    test('la phrase d’aide de l’onglet dit cette règle, au mot de la vue', () {
+      expect(TextesAnnulations.regle, contains('Remboursé'));
+      expect(
+        TextesAnnulations.regle,
+        contains('jamais plus que l\'acompte versé'),
+      );
+      expect(
+        TextesAnnulations.regle,
+        contains('acompte versé − commission retenue'),
       );
     });
   });

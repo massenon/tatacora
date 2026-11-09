@@ -46,7 +46,14 @@ enum ModuleTatacora {
   /// action sensible garde sa garde (rôle, ou écriture sur `PARAM`).
   synchro('SYNCHRO'),
   appairage('APPAIRAGE'),
-  importExport('IMPORT_EXPORT');
+  importExport('IMPORT_EXPORT'),
+
+  /// Le droit d'ANNULER (réservation, vente, facture…), hors écran de la matrice comme les trois
+  /// précédents (`RolePermissionSeeder::MATRICE`, `socleRbacCdcf`). Depuis le 09/11/2026 (décision du
+  /// PO : « le serveur ne juge plus les droits du compte d'appairage sur les opérations d'un poste »)
+  /// c'est CE droit, jugé sur l'utilisateur connecté, qui décide au poste de qui peut annuler une
+  /// réservation — y compris celle d'un autre poste ou du serveur.
+  annulations('ANNULATIONS');
 
   const ModuleTatacora(this.code);
 

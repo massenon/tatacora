@@ -73,6 +73,10 @@ class Reservation extends Model
         'mode_saisie_remboursement',
         'date_annulation',
         'utilisateur_annulation_id',
+        // Annulation envoyée par un POSTE : le login LOCAL de l'auteur et le poste
+        // (le compte d'appairage, lui, est `utilisateur_annulation_id`).
+        'annulee_par_login',
+        'annulee_depuis_poste',
         'ecriture_remboursement_id',
     ];
 

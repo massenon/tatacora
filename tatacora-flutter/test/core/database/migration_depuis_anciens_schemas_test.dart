@@ -313,7 +313,8 @@ void main() {
       // v54 (09/11/2026) : trois droits transverses ouverts à tous — aucune table ni colonne.
       // v56 (09/11/2026) : le coût des entrées de stock descend — aucune table ni colonne.
       // v57 (09/11/2026) : valeur d'achat de référence — une colonne nullable.
-      expect(db.select('PRAGMA user_version').first.values.first, 57);
+      // v58 (09/11/2026) : l'auteur d'une annulation reçue — une colonne nullable.
+      expect(db.select('PRAGMA user_version').first.values.first, 58);
       db.close();
     }, timeout: const Timeout(Duration(minutes: 2)));
   }

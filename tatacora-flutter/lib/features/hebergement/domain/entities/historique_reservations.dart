@@ -124,6 +124,7 @@ final class LigneHistorique {
     required this.etat,
     required this.nuits,
     required this.unites,
+    required this.unitesAffichees,
     required this.services,
     required this.totalAPayer,
     required this.resteAPayer,
@@ -137,6 +138,7 @@ final class LigneHistorique {
   factory LigneHistorique.deriver(
     Reservation r, {
     required DateTime maintenant,
+    Map<String, String> nomsUnites = const {},
   }) {
     final jour = _jour(maintenant);
     final arrivee = _jour(r.periode.arrivee);
@@ -162,11 +164,28 @@ final class LigneHistorique {
       // Le maître plancherait à une nuit : une arrivée et un départ le même
       // jour restent une nuitée facturée, jamais zéro.
       nuits: r.nuits < 1 ? 1 : r.nuits,
-      unites: [
+      // L'unité vient de la RÉSERVATION (`uniteId`, toujours posée), puis des lignes d'hébergement :
+      // une réservation REÇUE d'un autre poste sans service n'a aucune ligne, et sa colonne
+      // « Unités » restait « — » (constaté le 09/11/2026).
+      unites: {
+        r.uniteId,
         for (final l in r.lignes)
           if (l.service == ServiceReservation.hebergement) l.itemId,
+      }.where((u) => u.isNotEmpty).toList(growable: false),
+      unitesAffichees: [
+        for (final u in {
+          r.uniteId,
+          for (final l in r.lignes)
+            if (l.service == ServiceReservation.hebergement) l.itemId,
+        }.where((u) => u.isNotEmpty))
+          nomsUnites[u] ?? unitesInconnue,
       ],
-      services: {for (final l in r.lignes) l.service}.toList(growable: false),
+      // Toute réservation porte de l'HÉBERGEMENT : la ligne qui le dit n'existe pas sur une
+      // réservation reçue sans service, le service ne dépend donc pas des lignes.
+      services: {
+        ServiceReservation.hebergement,
+        for (final l in r.lignes) l.service,
+      }.toList(growable: false),
       totalAPayer: recap.total,
       resteAPayer: recap.reste,
     );
@@ -178,6 +197,14 @@ final class LigneHistorique {
 
   /// Les unités d'hébergement engagées, par leur identifiant.
   final List<String> unites;
+
+  /// Ces mêmes unités, par leur NOM (`numéro — catégorie`, la ligne « Unité » de la carte) : ce
+  /// que l'écran et les exports affichent, JAMAIS un identifiant. Une unité que ce poste ne
+  /// connaît pas (pas encore descendue) s'écrit [unitesInconnue].
+  final List<String> unitesAffichees;
+
+  /// La phrase d'une unité absente du parc de ce poste.
+  static const String unitesInconnue = 'Unité inconnue';
 
   final List<ServiceReservation> services;
 
@@ -200,6 +227,7 @@ List<LigneHistorique> filtrerHistorique(
   List<Reservation> reservations, {
   required FiltreHistorique filtre,
   required DateTime maintenant,
+  Map<String, String> nomsUnites = const {},
 }) {
   final terme = filtre.terme.trim().toLowerCase();
   final debut = filtre.debut == null ? null : _jour(filtre.debut!);
@@ -207,7 +235,13 @@ List<LigneHistorique> filtrerHistorique(
 
   final lignes =
       reservations
-          .map((r) => LigneHistorique.deriver(r, maintenant: maintenant))
+          .map(
+            (r) => LigneHistorique.deriver(
+              r,
+              maintenant: maintenant,
+              nomsUnites: nomsUnites,
+            ),
+          )
           .where((l) {
             if (terme.isNotEmpty) {
               final champs = [

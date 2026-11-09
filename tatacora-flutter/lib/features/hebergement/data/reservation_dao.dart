@@ -16,7 +16,6 @@ import '../../synchronisation/data/operations_sync_dao.dart';
 import '../../synchronisation/domain/charges_synchronisation.dart';
 import '../../synchronisation/domain/operation_sync.dart';
 import '../domain/annulation_reservation.dart';
-import '../domain/messages_annulation.dart' show RefusAnnulation;
 import '../domain/entities/annulation_enregistree.dart';
 import '../domain/entities/periode_sejour.dart';
 import '../domain/entities/fiche_reservation.dart';
@@ -239,6 +238,16 @@ class ReservationDao extends DatabaseAccessor<AppDatabase>
       lignes: (await _lignesDe([id]))[id] ?? const [],
       logins: await _loginsDe([ligne.readTable(reservationsLocal)]),
     );
+  }
+
+  /// Le login (brut) d'un compte de ce poste, ou `null` : ce que l'annulation envoie au serveur
+  /// pour que l'auteur soit LA PERSONNE qui a cliqué, pas le compte d'appairage.
+  Future<String?> _loginDe(String auteurId) async {
+    final u = attachedDatabase.utilisateursLocal;
+    final ligne = await (select(
+      u,
+    )..where((x) => x.id.equals(auteurId))).getSingleOrNull();
+    return ligne?.login;
   }
 
   /// Le `login` de ceux qui ont annulé — UNE requête pour toutes les lignes (un
@@ -534,12 +543,65 @@ class ReservationDao extends DatabaseAccessor<AppDatabase>
             ))
             .get();
     for (final l in lignes) {
+      await _relancerLesRefusDeLAncienneRegle(l.id);
       if (l.statutSync == 'local' && l.statut != 'annulee') {
         await _rattraper(l);
       }
       await reconcilierStatutSync(l.id);
     }
   });
+
+  /// Une annulation REFUSÉE avant le 09/11/2026 par la règle « la réservation d'un autre poste ne
+  /// s'annule que par l'administration ou le comptable » (`DocumentsAutresPostes.refus`, retirée du
+  /// serveur) est RENVOYÉE d'elle-même, une fois : le serveur l'accepte désormais, et personne n'a à
+  /// cliquer « Relancer » (décision du PO : « aucune opération ne doit bloquer la synchronisation »).
+  /// La charge renvoyée porte l'auteur local (login de l'opération) que l'ancienne ne portait pas.
+  /// Le refus reste dans l'historique de la file, marqué remplacé.
+  Future<void> _relancerLesRefusDeLAncienneRegle(String id) async {
+    final file = OperationsSyncDao(attachedDatabase);
+    final remplacees = await file.remplacees();
+    for (final o in await file.operations(
+      table: TableSynchronisee.reservations,
+      entiteId: id,
+    )) {
+      if (o.statut != StatutOperationSync.rejete ||
+          remplacees.containsKey(o.uuidOperation)) {
+        continue;
+      }
+      final motif = _motifDuRefus(o.resultatJson);
+      if (motif == null || !motif.startsWith(_debutDuRefus)) continue;
+      final charge = jsonDecode(o.payload);
+      if (charge is! Map<String, Object?> || charge['statut'] != 'annulee') {
+        continue;
+      }
+      final login = o.auteurLogin;
+      await file.renvoyer(
+        o.uuidOperation,
+        chargeCorrigee: {
+          ...charge,
+          if (login != null && login.isNotEmpty && charge['auteur'] == null)
+            'auteur': login,
+        },
+      );
+    }
+  }
+
+  /// Les premiers mots de la phrase retirée, assez longs pour ne pas se tromper de refus.
+  static final String _debutDuRefus = DocumentsAutresPostes.refus.substring(
+    0,
+    DocumentsAutresPostes.refus.indexOf(' ('),
+  );
+
+  static String? _motifDuRefus(String? resultatJson) {
+    if (resultatJson == null) return null;
+    try {
+      final r = jsonDecode(resultatJson);
+      final m = r is Map ? r['motif'] : null;
+      return m is String ? m : null;
+    } on FormatException {
+      return null;
+    }
+  }
 
   Future<void> _rattraper(ReservationsLocalData l) async {
     final file = OperationsSyncDao(attachedDatabase);
@@ -735,17 +797,11 @@ class ReservationDao extends DatabaseAccessor<AppDatabase>
     // la réservation porte un acompte. Sans résolveur, rien n'est exigé ici : le
     // refus de forme garde sa priorité et le `StateError` tombe à sa place.
     final apercu = await parId(id);
-    // Q3 (lot F6) : la réservation d'un autre poste ne s'annule que par
-    // l'administration ou le comptable — la règle du serveur.
-    if (apercu != null &&
-        !await DocumentsAutresPostes(
-          attachedDatabase,
-        ).peutAnnuler('reservations', id, auteurId)) {
-      throw const RefusAnnulation(
-        DocumentsAutresPostes.refus,
-        champ: 'annulation',
-      );
-    }
+    // 09/11/2026 (décision du PO : « aucune opération ne doit bloquer la synchronisation ») : la
+    // règle Q3 du lot F6 (« la réservation d'un autre poste ne s'annule que par l'administration
+    // ou le comptable ») N'EXISTE PLUS ICI, comme elle n'existe plus au serveur. Qui peut annuler
+    // est jugé par l'ÉCRAN, sur l'utilisateur connecté et son droit local ANNULATIONS (avec M1 en
+    // écriture) : ce geste, lui, exécute.
     final resolveur = moteur;
     final moteurPrealable =
         (apercu != null && apercu.acompte > 0 && resolveur != null)
@@ -842,6 +898,7 @@ class ReservationDao extends DatabaseAccessor<AppDatabase>
           payload: chargeAnnulationReservation(
             tauxCentiemes: resultat.tauxCentiemes,
             rembourseCentimes: resultat.rembourseCentimes,
+            auteurLogin: await _loginDe(auteurId),
           ),
         );
       }
@@ -1001,13 +1058,14 @@ class ReservationDao extends DatabaseAccessor<AppDatabase>
     final total = d.montantTotalAnnulationCentimes;
     final commission = d.montantCommissionAnnulationCentimes;
     final rembourse = d.montantRembourseAnnulationCentimes;
-    final mode = d.modeSaisieRemboursement;
     final date = d.dateAnnulation;
+    // Le MODE de saisie n'est lu par aucun écran : il ne conditionne pas l'annulation
+    // (09/11/2026 — il était exigé, et une annulation REÇUE, qui ne le portait pas, s'affichait
+    // avec des tirets partout). Ce qui compte : le taux, les montants et la date.
     if (taux == null ||
         total == null ||
         commission == null ||
         rembourse == null ||
-        mode == null ||
         date == null) {
       return null;
     }
@@ -1016,10 +1074,11 @@ class ReservationDao extends DatabaseAccessor<AppDatabase>
       totalCentimes: total,
       commissionCentimes: commission,
       rembourseCentimes: rembourse,
-      modeSaisie: mode,
+      modeSaisie: d.modeSaisieRemboursement,
       date: date,
       auteurId: d.utilisateurAnnulationId,
-      auteurLogin: logins[d.utilisateurAnnulationId],
+      // Le compte de CE poste, sinon le login que le serveur a rendu (annulation reçue).
+      auteurLogin: logins[d.utilisateurAnnulationId] ?? d.auteurAnnulationLogin,
       ecritureRemboursementId: d.ecritureRemboursementId,
     );
   }

@@ -10,7 +10,6 @@ use App\Domain\Hebergement\Services\AnnulationReservationService;
 use App\Domain\Hebergement\Services\ReservationService;
 use App\Shared\Sync\Services\ResolveurCorrespondances;
 use App\Shared\Sync\Support\ContexteSynchronisation;
-use App\Shared\Sync\Support\DocumentsDesAutresPostes;
 use App\Shared\Sync\Support\EcritureSynchronisee;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -31,9 +30,18 @@ use RuntimeException;
  *
  * - ANNULATION (`statut: annulee` + `taux`, `mode_remboursement`,
  *   `valeur_remboursement`) → `AnnulationReservationService` : commission,
- *   remboursement et sa pièce, comme à la PWA. Une réservation d'un autre
- *   poste ne s'annule que par l'administration ou le comptable (Q3,
- *   `DocumentsDesAutresPostes`). Rejeu : déjà annulée → rendue telle quelle.
+ *   remboursement et sa pièce, comme à la PWA. **Le serveur ne juge PAS qui
+ *   annule** (décision du PO du 09/11/2026 : « aucune opération ne doit bloquer la
+ *   synchronisation ») : une annulation envoyée par un poste appairé est ACCEPTÉE
+ *   quel que soit le poste d'origine de la réservation et le compte d'appairage ; le
+ *   contrôle « qui peut annuler » est fait AU POSTE, par le droit local `ANNULATIONS`.
+ *   Ce qui reste refusé est de COHÉRENCE métier (réservation inconnue, taux ou
+ *   remboursement invalides, montant total inconnu). La TRAÇABILITÉ est posée avec
+ *   l'annulation : le login LOCAL de l'auteur (`auteur`), le poste et le moment où il l'a
+ *   saisie (`horodatage_client`) — au lieu du seul compte d'appairage et de l'heure de
+ *   réception. (La règle Q3 du 17/10/2026, « l'administration et le comptable »,
+ *   `DocumentsDesAutresPostes`, est RETIRÉE pour les réservations ; elle subsiste, ailleurs,
+ *   pour les autres documents.) Rejeu : déjà annulée → rendue telle quelle.
  * - DÉPLACEMENT (`unite_id`, `date_arrivee`, `date_depart`) →
  *   `ReservationService::modifier`, sous le verrou de RG-01 : un
  *   chevauchement est refusé avec la phrase du service.
@@ -79,7 +87,6 @@ final class GestionnaireReservations extends GestionnaireAbstrait
         private readonly ReservationService $reservations,
         private readonly ResolveurCorrespondances $correspondances,
         private readonly AnnulationReservationService $annulation,
-        private readonly DocumentsDesAutresPostes $autresPostes,
     ) {
     }
 
@@ -98,7 +105,7 @@ final class GestionnaireReservations extends GestionnaireAbstrait
     ];
 
     /** Les champs d'une ANNULATION. */
-    public const CHAMPS_ANNULATION = ['statut', 'taux', 'mode_remboursement', 'valeur_remboursement'];
+    public const CHAMPS_ANNULATION = ['statut', 'taux', 'mode_remboursement', 'valeur_remboursement', 'auteur'];
 
     public function accepteModification(): bool
     {
@@ -116,17 +123,21 @@ final class GestionnaireReservations extends GestionnaireAbstrait
                 return new EcritureSynchronisee($entiteId);
             }
 
-            $this->autresPostes->verifierAnnulation('reservations', $entiteId, $contexte);
             $conditions = $this->validerGeste($payload, [
                 'taux' => ['required', 'numeric'],
                 'mode_remboursement' => ['required', 'string'],
                 'valeur_remboursement' => ['required', 'numeric'],
+                'auteur' => ['sometimes', 'nullable', 'string', 'max:150'],
             ]);
             try {
                 $this->annulation->annuler($reservation, [
                     'taux' => (string) $conditions['taux'],
                     'mode_remboursement' => (string) $conditions['mode_remboursement'],
                     'valeur_remboursement' => (string) $conditions['valeur_remboursement'],
+                    // Le moment et la personne de la SAISIE au poste, et le poste.
+                    'date' => $contexte->horodatageClient->copy()->utc(),
+                    'auteur_login' => ($conditions['auteur'] ?? '') === '' ? null : (string) $conditions['auteur'],
+                    'poste' => $contexte->posteId,
                 ], $contexte->utilisateur);
             } catch (InvalidArgumentException $e) {
                 // Un refus de SAISIE du service (taux, remboursement) : un rejet

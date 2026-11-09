@@ -20,9 +20,8 @@ use Tests\TestCase;
 /**
  * Le cycle de vie d'une réservation en synchronisation — lot F6, 17/10/2026.
  * Annulation par `AnnulationReservationService` (commission, remboursement et
- * sa pièce), déplacement par `ReservationService::modifier` (RG-01) ; la
- * réservation d'un autre poste ne s'annule que par l'administration ou le
- * comptable (Q3).
+ * sa pièce), déplacement par `ReservationService::modifier` (RG-01). Le serveur ne juge
+ * plus QUI annule (09/11/2026) : le contrôle est fait au poste (droit `ANNULATIONS`).
  */
 final class ReservationsCycleDeVieSynchronisationTest extends TestCase
 {
@@ -113,7 +112,7 @@ final class ReservationsCycleDeVieSynchronisationTest extends TestCase
     }
 
     #[Test]
-    public function les_refus_du_service_et_la_regle_des_autres_postes(): void
+    public function les_refus_du_service_portent_sur_la_coherence_jamais_sur_le_poste(): void
     {
         $id = $this->uuid();
         $this->reserver($id, $this->b1->id, '2026-10-25', '2026-10-27');
@@ -122,14 +121,69 @@ final class ReservationsCycleDeVieSynchronisationTest extends TestCase
             ->assertJsonPath('resultats.0.statut', 'rejete')
             ->assertJsonPath('resultats.0.motif', __('hebergement.annulation_remboursement_superieur_acompte'));
 
+        // 09/11/2026 (décision du PO : « aucune opération ne doit bloquer la synchronisation ») :
+        // la réservation saisie sur le poste A est annulée par un AUTRE poste, avec le compte
+        // d'un réceptionniste (ni administrateur ni comptable) : ACCEPTÉE. Le contrôle « qui peut
+        // annuler » est fait au poste.
         $this->pousser([$this->annulation($id)], $this->receptionniste, 'poste-b')
-            ->assertJsonPath('resultats.0.statut', 'rejete')
-            ->assertJsonPath('resultats.0.motif', __('sync.annulation_autre_poste'));
-        $this->assertSame('en_attente', Reservation::findOrFail($id)->statut);
-
-        $this->pousser([$this->annulation($id)], $this->creerUtilisateur('administrateur'), 'poste-b')
             ->assertJsonPath('resultats.0.statut', 'synchronise');
         $this->assertSame('annulee', Reservation::findOrFail($id)->statut);
+    }
+
+    #[Test]
+    public function une_reservation_saisie_au_serveur_s_annule_depuis_un_poste_sans_droit_d_administration(): void
+    {
+        $web = Reservation::create([
+            'id' => $this->uuid(), 'client_id' => $this->client->id, 'unite_id' => $this->b2->id,
+            'date_arrivee' => '2026-10-25', 'date_depart' => '2026-10-27', 'statut' => 'en_attente',
+            'acompte' => '0.00', 'tarif_nuit' => '25000.00',
+        ]);
+
+        $this->pousser([$this->annulation($web->id, valeur: '0')], $this->receptionniste, 'poste-b')
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+        $this->assertSame('annulee', $web->fresh()->statut);
+        $this->assertStringNotContainsString(
+            'saisi sur un autre poste',
+            (string) json_encode($this->getJson('/api/v1/referentiels?poste_id=poste-c&limite=500')->json()),
+        );
+    }
+
+    #[Test]
+    public function l_annulation_d_un_poste_garde_son_auteur_local_son_poste_et_sa_date_et_descend_complete(): void
+    {
+        $id = $this->uuid();
+        $this->reserver($id, $this->b1->id, '2026-10-25', '2026-10-27');
+        $this->travelTo('2026-10-19 11:30:00');
+
+        $operation = $this->annulation($id, valeur: '0');
+        $operation['payload']['auteur'] = 'barman.local';
+        $this->pousser([$operation], $this->receptionniste, 'poste-b')
+            ->assertJsonPath('resultats.0.statut', 'synchronise');
+
+        $r = Reservation::findOrFail($id);
+        $this->assertSame('barman.local', $r->annulee_par_login);
+        $this->assertSame('poste-b', $r->annulee_depuis_poste);
+        $this->assertSame($this->receptionniste->id, $r->utilisateur_annulation_id, 'le compte d\'appairage reste l\'auteur d\'enregistrement');
+        $this->assertSame('2026-10-19 11:30:00', $r->date_annulation->format('Y-m-d H:i:s'));
+        // La trace d'audit porte l'auteur local et le poste.
+        $audit = \App\Shared\Audit\Models\JournalAudit::query()
+            ->where('entite_concernee', 'reservations')->where('entite_id', $id)->latest('date_heure')->get()
+            ->first(fn ($j) => isset($j->valeur_apres['annulee_par_login']));
+        $this->assertNotNull($audit);
+        $this->assertSame('poste-b', $audit->valeur_apres['annulee_depuis_poste']);
+
+        // L'annulation DESCEND COMPLÈTE : taux, montants, date, mode, auteur local.
+        $this->travel(10)->seconds();
+        $element = collect($this->getJson('/api/v1/referentiels?poste_id=poste-c&limite=500')->assertOk()->json('data.elements'))
+            ->where('table', 'reservations')->keyBy('id')[$id];
+        $this->assertSame('barman.local', $element['donnees']['par']);
+        $this->assertSame('montant', $element['donnees']['mode_saisie_remboursement']);
+        $this->assertSame('20.00', $element['donnees']['taux_annulation']);
+        $this->assertSame('50000.00', $element['donnees']['montant_total_annulation']);
+        $this->assertSame('10000.00', $element['donnees']['montant_commission_annulation']);
+        $this->assertSame('0.00', $element['donnees']['montant_rembourse_annulation']);
+        $this->assertNotNull($element['donnees']['date_annulation']);
+        $this->assertArrayNotHasKey('annulee_par_login', $element['donnees']);
     }
 
     #[Test]

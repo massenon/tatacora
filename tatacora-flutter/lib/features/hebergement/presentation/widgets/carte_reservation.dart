@@ -56,6 +56,7 @@ class VueCarteReservation extends ConsumerWidget {
     required this.carte,
     required this.peutAnnuler,
     required this.onAnnuler,
+    this.annulationPermise = true,
     this.onFacture,
     super.key,
   });
@@ -63,6 +64,10 @@ class VueCarteReservation extends ConsumerWidget {
   final CarteReservation carte;
   final bool peutAnnuler;
   final VoidCallback onAnnuler;
+
+  /// Le droit local `ANNULATIONS` (avec M1) : sans lui, ni « Annuler » ni le pied du détail ne
+  /// le proposent (`peutAnnulerReservationProvider`).
+  final bool annulationPermise;
 
   /// Ouvre la facture du séjour. `null` quand aucune facture n'existe.
   final VoidCallback? onFacture;
@@ -117,7 +122,7 @@ class VueCarteReservation extends ConsumerWidget {
                 style: textes.labelSmall?.copyWith(color: AppColors.neutre500),
               ),
             ],
-            if (peutAnnuler && !annulee)
+            if (peutAnnuler && annulationPermise && !annulee)
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton.icon(
@@ -185,7 +190,7 @@ class VueCarteReservation extends ConsumerWidget {
                     ? () =>
                           ouvrirFicheReservation(context, reservationId: _r.id)
                     : null,
-                onAnnuler: modifiable ? onAnnuler : null,
+                onAnnuler: modifiable && annulationPermise ? onAnnuler : null,
               ),
               icon: const Icon(Icons.visibility_outlined, size: 16),
             ),

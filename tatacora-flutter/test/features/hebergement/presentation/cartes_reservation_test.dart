@@ -177,7 +177,8 @@ void main() {
         depotReservationProvider.overrideWithValue(depot),
         baseLocaleProvider.overrideWithValue(db),
         droitsProvider.overrideWithValue(
-          droits ?? GardeAcces.depuisJson(const {'M1': 'C'}),
+          droits ??
+              GardeAcces.depuisJson(const {'M1': 'C', 'ANNULATIONS': 'C'}),
         ),
       ],
     );
@@ -624,6 +625,40 @@ void main() {
     await monter(tester, droits: GardeAcces.depuisJson(const {'M1': 'L'}));
 
     expect(find.byKey(const Key('annuler-res-1')), findsNothing);
+  });
+
+  testWidgets(
+    'M1 en écriture MAIS sans le droit local ANNULATIONS : ni « Annuler » '
+    'sur la carte ni dans le pied du détail — « Modifier » reste (le '
+    'contrôle « qui annule » est au poste, sur l’utilisateur connecté)',
+    (tester) async {
+      await enBase();
+      await monter(
+        tester,
+        droits: GardeAcces.depuisJson(const {'M1': 'C', 'ANNULATIONS': '-'}),
+      );
+
+      expect(find.byKey(const Key('annuler-res-1')), findsNothing);
+      expect(find.byKey(const Key('modifier-res-1')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('voir-res-1')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('annuler-detail-reservation')), findsNothing);
+      expect(
+        find.byKey(const Key('modifier-detail-reservation')),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets('avec M1 ET ANNULATIONS en écriture, « Annuler » est offert '
+      'sur la carte', (tester) async {
+    await enBase();
+    await monter(
+      tester,
+      droits: GardeAcces.depuisJson(const {'M1': 'C', 'ANNULATIONS': 'C'}),
+    );
+    expect(find.byKey(const Key('annuler-res-1')), findsOneWidget);
   });
 
   testWidgets('une réservation d’avant la v8 garde son unité et son montant', (

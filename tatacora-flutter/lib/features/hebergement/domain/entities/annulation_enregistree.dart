@@ -23,8 +23,8 @@ final class AnnulationEnregistree {
     required this.totalCentimes,
     required this.commissionCentimes,
     required this.rembourseCentimes,
-    required this.modeSaisie,
     required this.date,
+    this.modeSaisie,
     this.auteurId,
     this.auteurLogin,
     this.ecritureRemboursementId,
@@ -40,8 +40,9 @@ final class AnnulationEnregistree {
   final int commissionCentimes;
   final int rembourseCentimes;
 
-  /// `pourcentage` ou `montant`. Écrite, lue par aucun écran (comme au serveur).
-  final String modeSaisie;
+  /// `pourcentage` ou `montant`. Écrite, lue par aucun écran (comme au serveur) ; `null` pour une
+  /// annulation reçue d'un serveur qui ne la portait pas : elle ne conditionne rien.
+  final String? modeSaisie;
 
   final DateTime date;
 

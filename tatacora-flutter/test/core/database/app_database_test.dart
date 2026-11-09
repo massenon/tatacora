@@ -175,7 +175,9 @@ void main() {
     expect(base.allTables.length, 82);
     // v57 (09/11/2026, valeur d'achat de référence) : UNE colonne nullable
     // (`articles_local.prix_achat_reference`), AUCUNE table — 82.
-    expect(base.schemaVersion, 57);
+    // v58 (09/11/2026, l'auteur d'une annulation reçue) : UNE colonne nullable
+    // (`reservations_local.auteur_annulation_login`), AUCUNE table — 82.
+    expect(base.schemaVersion, 58);
     expect(
       base.allTables.map((t) => t.actualTableName).toSet().containsAll({
         'origines_documents_local',

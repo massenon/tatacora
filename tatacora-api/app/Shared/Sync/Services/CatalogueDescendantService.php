@@ -175,6 +175,10 @@ class CatalogueDescendantService
             'client_id', 'unite_id', 'date_arrivee', 'date_depart', 'statut', 'acompte', 'tarif_nuit',
             'remise_type', 'remise_valeur', 'mode_paiement', 'taux_annulation', 'montant_total_annulation',
             'montant_commission_annulation', 'montant_rembourse_annulation', 'date_annulation',
+            // 09/11/2026 : l'annulation descend COMPLÈTE — la façon de saisir le remboursement,
+            // et l'auteur (`par`, voir `serialiser`) : sans eux le poste qui reçoit une
+            // annulation ne la montrait pas (« — » partout).
+            'mode_saisie_remboursement', 'annulee_par_login',
             // Lot 10f : remplacé par le NOM du canal (`serialiser`).
             'canal_id',
         ],
@@ -377,6 +381,9 @@ class CatalogueDescendantService
         'historique_prix_carte' => 'utilisateur_creation_id',
         'ventes' => 'utilisateur_id',
         'affectations_resultat' => 'affectee_par',
+        // L'auteur d'une ANNULATION (`annulee_par_login`, le login LOCAL quand elle vient
+        // d'un poste, sinon le compte du web).
+        'reservations' => 'utilisateur_annulation_id',
     ];
 
     /**
@@ -897,6 +904,13 @@ class CatalogueDescendantService
             if (isset(self::AUTEURS[$table])) {
                 $auteur = $ligne->{self::AUTEURS[$table]} ?? null;
                 $donnees['par'] = $auteur === null ? null : ($logins[(string) $auteur] ?? null);
+            }
+
+            // Une annulation envoyée par un POSTE : la personne qui l'a saisie, pas le compte
+            // d'appairage du jeton.
+            if ($table === 'reservations') {
+                $donnees['par'] = $donnees['annulee_par_login'] ?? $donnees['par'];
+                unset($donnees['annulee_par_login']);
             }
 
             $elements[] = [

@@ -175,7 +175,10 @@ class AnnulationReservationService
     /**
      * Annule la réservation en appliquant taux, commission et remboursement.
      *
-     * @param  array{taux: string, mode_remboursement: string, valeur_remboursement: string}  $conditions
+     * @param  array{taux: string, mode_remboursement: string, valeur_remboursement: string, date?: Carbon, auteur_login?: string, poste?: string}  $conditions
+     *         `date`, `auteur_login` et `poste` : une annulation reçue d'un POSTE garde le moment
+     *         où il l'a saisie, la personne qui l'a saisie et le poste (jamais le moment de la
+     *         réception ni le seul compte d'appairage). Absents : le web, maintenant.
      *
      * @throws InvalidArgumentException taux hors bornes, mode inconnu, ou
      *                                   remboursement supérieur à l'acompte
@@ -235,8 +238,10 @@ class AnnulationReservationService
                 'montant_commission_annulation' => $commission,
                 'montant_rembourse_annulation' => $montantRembourse,
                 'mode_saisie_remboursement' => (string) $conditions['mode_remboursement'],
-                'date_annulation' => Carbon::now(),
+                'date_annulation' => $conditions['date'] ?? Carbon::now(),
                 'utilisateur_annulation_id' => $auteur->id,
+                'annulee_par_login' => $conditions['auteur_login'] ?? null,
+                'annulee_depuis_poste' => $conditions['poste'] ?? null,
                 'ecriture_remboursement_id' => $ecritureId,
             ]);
 

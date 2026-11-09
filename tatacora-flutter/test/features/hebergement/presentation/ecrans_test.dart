@@ -166,13 +166,22 @@ void main() {
             login: 'caissier',
             nom: 'Caissier',
             role: 'gerant',
-            droits: GardeAcces.depuisJson(const {'M1': 'C', 'M3': 'C'}),
+            droits: GardeAcces.depuisJson(const {
+              'M1': 'C',
+              'M3': 'C',
+              'ANNULATIONS': 'C',
+            }),
           ),
         ),
         droitsProvider.overrideWithValue(
           // M3 en plus de M1 : la fiche de réservation retient un client du
           // référentiel, et l'ajouter est une écriture sur M3.
-          droits ?? GardeAcces.depuisJson(const {'M1': 'C', 'M3': 'C'}),
+          droits ??
+              GardeAcces.depuisJson(const {
+                'M1': 'C',
+                'M3': 'C',
+                'ANNULATIONS': 'C',
+              }),
         ),
         // L'impression est une ACTION injectée : un test de widget n'a pas de
         // greffon natif, et `Printing` y lèverait. C'est aussi ce qui permet
@@ -1465,7 +1474,30 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('—'), findsNWidgets(6));
-      expect(find.textContaining('FCFA'), findsNothing);
+      // Aucun MONTANT : la phrase d'aide de l'onglet (qui nomme « FCFA ») n'en est pas un.
+      expect(
+        find.byWidgetPredicate(
+          (w) =>
+              w is Text &&
+              w.key != const Key('annulations-regle') &&
+              (w.data ?? '').contains('FCFA'),
+        ),
+        findsNothing,
+      );
+    });
+
+    testWidgets('l’onglet Annulations DIT la règle du « Remboursé » (acompte − '
+        'commission, plafonné à l’acompte), même vide', (tester) async {
+      await monter(tester, const EcranReservations());
+      await tester.tap(
+        find.byKey(const Key('reservations-onglet-annulations')),
+      );
+      await tester.pumpAndSettle();
+      final regle = tester.widget<Text>(
+        find.byKey(const Key('annulations-regle')),
+      );
+      expect(regle.data, TextesAnnulations.regle);
+      expect(regle.data, contains('jamais plus que l\'acompte versé'));
     });
 
     testWidgets('l’onglet Annulations vide le dit', (tester) async {

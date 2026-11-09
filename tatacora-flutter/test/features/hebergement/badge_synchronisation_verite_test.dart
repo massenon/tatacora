@@ -6,6 +6,7 @@ import 'package:tatacora_flutter/features/hebergement/data/reservation_dao.dart'
 import 'package:tatacora_flutter/features/hebergement/domain/entities/periode_sejour.dart';
 import 'package:tatacora_flutter/features/hebergement/domain/entities/reservation.dart';
 import 'package:tatacora_flutter/features/hebergement/domain/entities/service_reservation.dart';
+import 'package:tatacora_flutter/features/synchronisation/data/documents_autres_postes.dart';
 import 'package:tatacora_flutter/features/synchronisation/domain/operation_sync.dart';
 
 import '../synchronisation/support/faux_transport.dart';
@@ -228,6 +229,65 @@ void main() {
     await accuser(renvoi.uuidOperation, 'synchronise');
     await dao.reconcilierStatutSync('res-1');
     expect(await badge(), StatutSynchronisation.synchronise);
+  });
+
+  test('une annulation REFUSÉE avant le 09/11/2026 par « ce document a été '
+      'saisi sur un autre poste » est RENVOYÉE d’elle-même, une seule fois : '
+      'plus rien ne bloque, personne n’a à cliquer « Relancer »', () async {
+    await creer();
+    await accuser((await ops()).single.uuidOperation, 'synchronise');
+    await b.db.transaction(
+      () => b.dao.enfiler(
+        table: TableSynchronisee.reservations,
+        entiteId: 'res-1',
+        type: TypeOperationSync.modification,
+        payload: {
+          'statut': 'annulee',
+          'taux': '50.00',
+          'mode_remboursement': 'montant',
+          'valeur_remboursement': '0.00',
+        },
+      ),
+    );
+    final ancienne = (await ops()).last;
+    await accuser(
+      ancienne.uuidOperation,
+      'rejete',
+      motif: DocumentsAutresPostes.refus,
+    );
+    await dao.reconcilierStatutSync('res-1');
+    expect(await badge(), StatutSynchronisation.rejete);
+
+    await dao.reconcilierTout();
+
+    final apres = await ops();
+    expect(
+      apres,
+      hasLength(3),
+      reason: 'création, ancienne annulation, renvoi',
+    );
+    final renvoi = apres.last;
+    expect(renvoi.statut, StatutOperationSync.enAttente);
+    expect(jsonDecode(renvoi.payload)['statut'], 'annulee');
+    expect(
+      (await b.dao.remplacees()).keys,
+      contains(ancienne.uuidOperation),
+      reason: 'l’ancien refus reste à l’historique, marqué remplacé',
+    );
+    expect(
+      await badge(),
+      StatutSynchronisation.local,
+      reason: 'le renvoi est en file : en attente d’envoi, plus « Refusée »',
+    );
+
+    // Une seconde passe ne renvoie PAS une seconde fois.
+    await dao.reconcilierTout();
+    expect(await ops(), hasLength(3));
+
+    // Le refus d'une AUTRE cause n'est jamais renvoyé tout seul.
+    await accuser(renvoi.uuidOperation, 'rejete', motif: 'Autre refus.');
+    await dao.reconcilierTout();
+    expect(await ops(), hasLength(3));
   });
 
   test(

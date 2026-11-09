@@ -228,6 +228,10 @@ return [
         'annulation_mode_montant' => 'FCFA',
         'annulation_remboursement_aide' => 'Ne peut jamais dépasser l\'acompte réellement encaissé. Saisissez l\'une des deux façons — l\'autre se déduit à l\'enregistrement.',
         'annulation_aucun_acompte' => 'Aucun acompte n\'a été encaissé sur cette réservation : rien à rembourser.',
+        // La règle du REMBOURSÉ, dite à l'écran (09/11/2026, constat du PO : « le remboursé n'est pas
+        // calculé »). Le remboursé n'est PAS « total − commission » : c'est ce que l'opérateur rend au
+        // client sur son acompte, plafonné à l'acompte ; la commission se retient sur le total.
+        'annulations_regle' => "Commission retenue = total × taux. Remboursé = ce qui a été rendu au client sur son acompte, saisi à l'annulation (en % de l'acompte ou en FCFA), jamais plus que l'acompte versé. Valeur proposée : acompte versé − commission retenue, ou 0 si l'acompte ne couvre pas la commission (un acompte de 0 ne rembourse rien).",
         'annulation_col_total' => 'Total',
         'annulation_col_taux' => 'Taux',
         'annulation_col_commission' => 'Commission retenue',

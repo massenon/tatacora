@@ -141,6 +141,13 @@ const tablesAjouteesEnV52 = <String>{
 const tablesAjouteesEnV53 = <String>{'affectations_resultat_local'};
 
 const _ajoutsParVersion = <int, List<String>>{
+  // La v58 (09/11/2026, l'auteur d'une annulation recue) AJOUTE une colonne nullable,
+  // `reservations_local.auteur_annulation_login`, ni indexee ni referencee : retour arriere
+  // symetrique.
+  58: <String>[
+    'ALTER TABLE reservations_local DROP COLUMN auteur_annulation_login',
+  ],
+
   // La v57 (09/11/2026, valeur d'achat de reference) AJOUTE une colonne nullable,
   // `articles_local.prix_achat_reference`, ni indexee ni referencee : retour arriere
   // symetrique.

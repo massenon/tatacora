@@ -569,6 +569,14 @@ class AppDatabase extends _$AppDatabase {
   /// peut les porter déjà. Le curseur de descente est oublié : les proformas déjà au serveur
   /// (autres postes, web) redescendent.
   ///
+  /// v58 (09/11/2026) — L'AUTEUR D'UNE ANNULATION REÇUE (PO : « Robert ISSA » annulée par un
+  /// autre poste s'affichait avec « — » partout) : UNE colonne NULLABLE,
+  /// `reservations_local.auteur_annulation_login` (le login que le serveur rend sous `par` ;
+  /// `utilisateur_annulation_id` est une clé étrangère vers les comptes de CE poste, que
+  /// l'auteur n'a pas forcément ici). Aucune table, aucune valeur fabriquée. Ajout
+  /// CONDITIONNEL (piège 3). Le curseur de descente est oublié : les annulations déjà au
+  /// serveur redescendent COMPLÈTES (taux, montants, date, auteur).
+  ///
   /// v57 (09/11/2026) — LA VALEUR D'ACHAT DE RÉFÉRENCE D'UN ARTICLE (PO : colonnes « Point
   /// Stock », « Seuil », « Valeur d'achat » des modèles d'import m4/m5/m6) : UNE colonne
   /// NULLABLE, `articles_local.prix_achat_reference` (dix-millièmes), aucune table, aucune
@@ -598,7 +606,7 @@ class AppDatabase extends _$AppDatabase {
   /// affectations déjà passées au serveur (web, autres postes) redescendent. Voir
   /// `tables/affectations_resultat_tables.dart`.
   @override
-  int get schemaVersion => 57;
+  int get schemaVersion => 58;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1916,6 +1924,27 @@ class AppDatabase extends _$AppDatabase {
         if (articles57.isNotEmpty &&
             !articles57.contains('prix_achat_reference')) {
           await m.addColumn(articlesLocal, articlesLocal.prixAchatReference);
+        }
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
+      }
+      if (from < 58) {
+        // L'AUTEUR D'UNE ANNULATION REÇUE (09/11/2026) : UNE colonne nullable, aucune valeur
+        // fabriquée. Conditionnel (piège 3) ; une table absente n'est pas touchée.
+        final reservations58 = {
+          for (final c
+              in await m.database
+                  .customSelect('PRAGMA table_info(reservations_local)')
+                  .get())
+            c.data['name'] as String,
+        };
+        if (reservations58.isNotEmpty &&
+            !reservations58.contains('auteur_annulation_login')) {
+          await m.addColumn(
+            reservationsLocal,
+            reservationsLocal.auteurAnnulationLogin,
+          );
         }
         await customStatement(
           "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",

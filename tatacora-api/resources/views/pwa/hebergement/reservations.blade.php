@@ -321,13 +321,14 @@
                       <td class="px-4 py-2.5 text-right font-mono-tatacora" style="color:#8C1D1D">{{ $ligne->montant_commission_annulation === null ? $tiret : MontantFcfa::format((string) $ligne->montant_commission_annulation) }}</td>
                       <td class="px-4 py-2.5 text-right font-mono-tatacora text-emerald-700">{{ $ligne->montant_rembourse_annulation === null ? $tiret : MontantFcfa::format((string) $ligne->montant_rembourse_annulation) }}</td>
                       <td class="px-4 py-2.5 whitespace-nowrap text-slate-500">{{ $ligne->date_annulation?->format('d/m/Y H:i') ?? $tiret }}</td>
-                      <td class="px-4 py-2.5 text-slate-500">{{ $ligne->utilisateurAnnulation?->libelleAuteur() ?? $tiret }}</td>
+                      <td class="px-4 py-2.5 text-slate-500">{{ $ligne->annulee_par_login ?? $ligne->utilisateurAnnulation?->libelleAuteur() ?? $tiret }}</td>
                     </tr>
                   @endforeach
                 </tbody>
               </table>
             </div>
           @endif
+          <p class="text-[11px] text-slate-400 mt-3" data-annulations-regle>{{ __('hebergement_pwa.reservations.annulations_regle') }}</p>
         @endif {{-- fin de la condition d'onglet ouverte plus haut --}}
 
         {{--
@@ -440,7 +441,7 @@
                           <p class="text-[11px] text-slate-400">{{ $ligne->client?->telephone ?? $tiret }}</p></td>
                         <td class="px-4 py-2.5 whitespace-nowrap">{{ $ligne->date_arrivee->format('d/m/Y') }} → {{ $ligne->date_depart->format('d/m/Y') }}</td>
                         <td class="px-4 py-2.5 text-right">{{ $ligne->nombreNuitees() }}</td>
-                        <td class="px-4 py-2.5 text-[12px] text-slate-600">{{ $ligne->unite?->numero ?? $tiret }}</td>
+                        <td class="px-4 py-2.5 text-[12px] text-slate-600">{{ $ligne->unite === null ? $tiret : $ligne->unite->numero.' — '.($ligne->unite->categorie?->libelle ?? $tiret) }}</td>
                         <td class="px-4 py-2.5 text-[11px] text-slate-500">{{ __('hebergement_pwa.reservations.service_hebergement') }}</td>
                         <td class="px-4 py-2.5 text-right font-semibold">{{ $tiret }}</td>
                         <td class="px-4 py-2.5 text-right text-slate-400">{{ $tiret }}</td>

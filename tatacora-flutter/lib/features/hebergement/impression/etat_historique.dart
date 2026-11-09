@@ -116,7 +116,7 @@ final class EtatHistorique {
     formaterDate(l.reservation.periode.arrivee),
     formaterDate(l.reservation.periode.depart),
     '${l.nuits}',
-    l.unites.join(' / '),
+    l.unitesAffichees.join(' / '),
     l.services.map((s) => s.nom).join(' / '),
     '${l.totalAPayer}',
     '${l.resteAPayer}',

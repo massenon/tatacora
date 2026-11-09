@@ -1334,6 +1334,8 @@ class AligneurCatalogue {
       int? commission,
       int? rembourse,
       DateTime? date,
+      String? mode,
+      String? auteur,
     })
     annulation;
     try {
@@ -1342,21 +1344,15 @@ class AligneurCatalogue {
       return RefuseParLePoste(erreur.message);
     }
 
-    if (existante != null) {
-      if (existante.statut == 'annulee') return const Aligne();
-      if (statut == 'annulee') {
-        await (_db.update(t)..where((r) => r.id.equals(id))).write(
-          ReservationsLocalCompanion(
-            statut: const Value('annulee'),
-            tauxAnnulationCentiemes: Value(annulation.taux),
-            montantTotalAnnulationCentimes: Value(annulation.total),
-            montantCommissionAnnulationCentimes: Value(annulation.commission),
-            montantRembourseAnnulationCentimes: Value(annulation.rembourse),
-            dateAnnulation: Value(annulation.date),
-          ),
-        );
-        return const Aligne();
-      }
+    // Une annulation REÇUE est celle qu'aucun compte de ce poste n'a faite
+    // (`utilisateur_annulation_id` nul) : le serveur en est l'autorité, jusqu'à sa FICHE.
+    // Une annulation faite ICI garde ce poste (sa pièce, son auteur) : rien ne change.
+    var annuleeRecue = false;
+    if (existante != null && existante.statut == 'annulee') {
+      annuleeRecue = existante.utilisateurAnnulationId == null;
+      if (!annuleeRecue || statut != 'annulee') return const Aligne();
+    }
+    if (existante != null && statut != 'annulee') {
       // Un refus du serveur reste visible (badge « Refusée », « À traiter ») : la
       // descente ne le fait pas disparaître en réécrivant la fiche.
       if (existante.statutSync == 'rejete') {
@@ -1410,17 +1406,22 @@ class AligneurCatalogue {
       clientServeur,
       _db.clientsLocal,
     );
-    if (client == null) {
-      return const EnAttenteDeDependance('client pas encore reçu');
-    }
     final unite = await _cite(
       TableDescendue.unitesHebergement,
       uniteServeur,
       _db.unitesHebergementLocal,
     );
-    if (unite == null) {
-      return const EnAttenteDeDependance(
-        'unité d’hébergement pas encore reçue',
+    if (client == null || unite == null) {
+      if (existante != null && statut == 'annulee') {
+        // Une annulation ne attend pas ses références : la réservation existe ici, le
+        // statut et les conditions s'écrivent TOUT DE SUITE (la fiche suivra).
+        await _ecrireAnnulationRecue(id, annulation);
+        return const Aligne();
+      }
+      return EnAttenteDeDependance(
+        client == null
+            ? 'client pas encore reçu'
+            : 'unité d’hébergement pas encore reçue',
       );
     }
 
@@ -1508,12 +1509,36 @@ class AligneurCatalogue {
           remiseValeur: Value(
             remiseType == 'aucune' ? null : remiseCentiemes / 100,
           ),
-          statut: _rangStatut[statut]! > rangLocal
-              ? Value(statut)
-              : const Value.absent(),
+          statut: statut == 'annulee'
+              ? const Value('annulee')
+              : (_rangStatut[statut]! > rangLocal
+                    ? Value(statut)
+                    : const Value.absent()),
           // Plus rien n'attend (l'appelant l'a vérifié) : la ligne EST celle du serveur.
           statutSync: const Value('synchronise'),
           motifRejet: const Value(null),
+          // Annulée au serveur : TOUT ce qu'il a fixé, sans compte local (l'auteur est un login).
+          tauxAnnulationCentiemes: statut == 'annulee'
+              ? Value(annulation.taux)
+              : const Value.absent(),
+          montantTotalAnnulationCentimes: statut == 'annulee'
+              ? Value(annulation.total)
+              : const Value.absent(),
+          montantCommissionAnnulationCentimes: statut == 'annulee'
+              ? Value(annulation.commission)
+              : const Value.absent(),
+          montantRembourseAnnulationCentimes: statut == 'annulee'
+              ? Value(annulation.rembourse)
+              : const Value.absent(),
+          modeSaisieRemboursement: statut == 'annulee'
+              ? Value(annulation.mode)
+              : const Value.absent(),
+          dateAnnulation: statut == 'annulee'
+              ? Value(annulation.date)
+              : const Value.absent(),
+          auteurAnnulationLogin: statut == 'annulee'
+              ? Value(annulation.auteur)
+              : const Value.absent(),
         ),
       );
       if (brutes is List) {
@@ -1564,7 +1589,9 @@ class AligneurCatalogue {
             montantTotalAnnulationCentimes: Value(annulation.total),
             montantCommissionAnnulationCentimes: Value(annulation.commission),
             montantRembourseAnnulationCentimes: Value(annulation.rembourse),
+            modeSaisieRemboursement: Value(annulation.mode),
             dateAnnulation: Value(annulation.date),
+            auteurAnnulationLogin: Value(annulation.auteur),
             dateCreationLocale: Value(_maintenant()),
           ),
         );
@@ -1662,13 +1689,17 @@ class AligneurCatalogue {
   }
 
   /// Les conditions d'annulation du serveur, dans les unités de la v19 :
-  /// taux en centièmes de pour cent, montants en centimes.
+  /// taux en centièmes de pour cent, montants en centimes. Le MODE de saisie et l'AUTEUR
+  /// (`par`, un login) descendent aussi (09/11/2026) : sans eux, une annulation reçue n'était
+  /// jamais complète et l'onglet « Annulations » la montrait avec des tirets.
   static ({
     int? taux,
     int? total,
     int? commission,
     int? rembourse,
     DateTime? date,
+    String? mode,
+    String? auteur,
   })
   _conditionsAnnulation(Map<String, Object?> d) {
     int? centiemes(String colonne) {
@@ -1682,12 +1713,14 @@ class AligneurCatalogue {
 
     DateTime? date;
     if (d['date_annulation'] != null) {
-      date = DateTime.tryParse(
-        '${d['date_annulation']}'.replaceFirst(' ', 'T'),
-      );
+      // Le serveur écrit l'instant en UTC (sans fuseau) : le poste l'affiche à son heure
+      // locale, la même que celle de l'annulation faite ici.
+      final brut = '${d['date_annulation']}'.trim().replaceFirst(' ', 'T');
+      date = DateTime.tryParse(brut.endsWith('Z') ? brut : '${brut}Z');
       if (date == null) {
         throw const FormatException('date d’annulation illisible');
       }
+      date = date.toLocal();
     }
     return (
       taux: centiemes('taux_annulation'),
@@ -1695,6 +1728,39 @@ class AligneurCatalogue {
       commission: centiemes('montant_commission_annulation'),
       rembourse: centiemes('montant_rembourse_annulation'),
       date: date,
+      mode: _texte(d['mode_saisie_remboursement']),
+      auteur: _texte(d['par']),
+    );
+  }
+
+  /// Écrit sur une réservation DÉJÀ ICI ce que le serveur a fixé en l'annulant (statut,
+  /// taux, montants, date, mode, auteur) — sans pièce : le serveur est le seul comptable.
+  Future<void> _ecrireAnnulationRecue(
+    String id,
+    ({
+      int? taux,
+      int? total,
+      int? commission,
+      int? rembourse,
+      DateTime? date,
+      String? mode,
+      String? auteur,
+    })
+    a,
+  ) async {
+    await (_db.update(
+      _db.reservationsLocal,
+    )..where((r) => r.id.equals(id))).write(
+      ReservationsLocalCompanion(
+        statut: const Value('annulee'),
+        tauxAnnulationCentiemes: Value(a.taux),
+        montantTotalAnnulationCentimes: Value(a.total),
+        montantCommissionAnnulationCentimes: Value(a.commission),
+        montantRembourseAnnulationCentimes: Value(a.rembourse),
+        modeSaisieRemboursement: Value(a.mode),
+        dateAnnulation: Value(a.date),
+        auteurAnnulationLogin: Value(a.auteur),
+      ),
     );
   }
 

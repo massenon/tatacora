@@ -371,6 +371,172 @@ void main() {
     });
 
     test(
+      'annulée au serveur par UN POSTE : l’annulation descend COMPLÈTE — mode, '
+      'date (à l’heure locale), AUTEUR (login, sans compte ici)',
+      () async {
+        await descendre(parcEtSejour());
+        await descendre(
+          parcEtSejour(
+            statut: 'annulee',
+            sejour: {
+              'taux_annulation': '50.00',
+              'montant_total_annulation': '80000.00',
+              'montant_commission_annulation': '40000.00',
+              'montant_rembourse_annulation': '0.00',
+              'mode_saisie_remboursement': 'montant',
+              'date_annulation': '2026-10-16 09:30:00',
+              'par': 'barman.a',
+            },
+          ),
+        );
+        final a = (await ReservationDao(b.db).parId(idReservation))!.annulation;
+        expect(a, isNotNull, reason: 'jamais « — » partout');
+        expect(a!.tauxCentiemes, 5000);
+        expect(a.totalCentimes, 8000000);
+        expect(a.commissionCentimes, 4000000);
+        expect(a.rembourseCentimes, 0);
+        expect(a.modeSaisie, 'montant');
+        expect(a.date.toUtc(), DateTime.utc(2026, 10, 16, 9, 30));
+        expect(a.auteurLogin, 'barman.a');
+        expect(a.auteurId, isNull, reason: 'aucun compte de ce poste');
+      },
+    );
+
+    test(
+      'annulée au serveur par un serveur qui ne dit pas le MODE : '
+      'l’annulation est quand même complète (le mode ne conditionne rien)',
+      () async {
+        await descendre(parcEtSejour());
+        await descendre(
+          parcEtSejour(
+            statut: 'annulee',
+            sejour: {
+              'taux_annulation': '20.00',
+              'montant_total_annulation': '90000.00',
+              'montant_commission_annulation': '18000.00',
+              'montant_rembourse_annulation': '0.00',
+              'date_annulation': '2026-10-16 09:30:00',
+            },
+          ),
+        );
+        final a = (await ReservationDao(b.db).parId(idReservation))!.annulation;
+        expect(a, isNotNull);
+        expect(a!.modeSaisie, isNull);
+        expect(
+          a.auteurLogin,
+          isNull,
+          reason: 'inconnu : « — », jamais inventé',
+        );
+      },
+    );
+
+    test('annulée au serveur APRÈS un changement de services : la FICHE '
+        'vient avec l’annulation (unité, lignes, total identiques)', () async {
+      await descendre(parcEtSejour());
+      expect(
+        (await ReservationDao(b.db).parId(idReservation))!.lignes,
+        isEmpty,
+        reason: 'reçue sans service : aucune ligne',
+      );
+      await descendre(
+        parcEtSejour(
+          statut: 'annulee',
+          sejour: {
+            'taux_annulation': '50.00',
+            'montant_total_annulation': '53000.00',
+            'montant_commission_annulation': '26500.00',
+            'montant_rembourse_annulation': '0.00',
+            'date_annulation': '2026-10-16 09:30:00',
+            'lignes': [
+              {
+                'service': 'tourisme',
+                'source_id': 'circuit-1',
+                'libelle': 'Tanougou',
+                'quantite': '1.00',
+                'prix_unitaire': '5000.00',
+                'montant': '5000.00',
+              },
+            ],
+          },
+        ),
+      );
+      final r = (await ReservationDao(b.db).parId(idReservation))!;
+      expect(r.statut.code, 'annulee');
+      expect(
+        r.lignes.map((l) => l.service.cle).toSet(),
+        containsAll(['hebergement', 'tourisme']),
+      );
+      // (24 000 × 2 nuits + 5 000 de service) moins la remise de 10 % de la fiche.
+      expect(r.recapitulatif.total, 47700);
+    });
+
+    test('REPARATION : une annulation reçue AVANT la v58 (annulée, sans taux '
+        'ni montants) se complète à la redescente', () async {
+      await descendre(parcEtSejour());
+      await b.db.customStatement(
+        "UPDATE reservations_local SET statut = 'annulee' WHERE id = ?",
+        [idReservation],
+      );
+      expect(
+        (await ReservationDao(b.db).parId(idReservation))!.annulation,
+        isNull,
+      );
+      await descendre(
+        parcEtSejour(
+          statut: 'annulee',
+          sejour: {
+            'taux_annulation': '50.00',
+            'montant_total_annulation': '48000.00',
+            'montant_commission_annulation': '24000.00',
+            'montant_rembourse_annulation': '0.00',
+            'date_annulation': '2026-10-16 09:30:00',
+            'par': 'barman.a',
+          },
+        ),
+      );
+      final a = (await ReservationDao(b.db).parId(idReservation))!.annulation;
+      expect(a, isNotNull);
+      expect(a!.commissionCentimes, 2400000);
+      expect(a.auteurLogin, 'barman.a');
+    });
+
+    test('annulée ICI (par un compte de ce poste) : la descente ne réécrit '
+        'rien de ce qu’elle a fixé', () async {
+      await descendre(parcEtSejour());
+      await b.semerAuteur(id: 'u-local');
+      await b.db.customStatement(
+        "UPDATE reservations_local SET statut = 'annulee', "
+        "taux_annulation_centiemes = 3000, "
+        "montant_total_annulation_centimes = 4800000, "
+        "montant_commission_annulation_centimes = 1440000, "
+        "montant_rembourse_annulation_centimes = 0, "
+        "mode_saisie_remboursement = 'pourcentage', "
+        "date_annulation = 1000, utilisateur_annulation_id = ? WHERE id = ?",
+        ['u-local', idReservation],
+      );
+      await descendre(
+        parcEtSejour(
+          statut: 'annulee',
+          sejour: {
+            'taux_annulation': '50.00',
+            'montant_total_annulation': '48000.00',
+            'montant_commission_annulation': '24000.00',
+            'montant_rembourse_annulation': '0.00',
+            'date_annulation': '2026-10-16 09:30:00',
+            'par': 'autre',
+          },
+        ),
+      );
+      final a = (await ReservationDao(b.db).parId(idReservation))!.annulation!;
+      expect(
+        a.tauxCentiemes,
+        3000,
+        reason: 'l’annulation locale est la sienne',
+      );
+      expect(a.auteurId, 'u-local');
+    });
+
+    test(
       'annulée ICI : un statut actif du serveur ne la ressuscite pas',
       () async {
         await descendre(parcEtSejour());
