@@ -698,7 +698,7 @@ class Facturation extends PageMetier
 
         // Registre vide SANS filtre : combien de factures existent hors de l'exercice consulté ? (elles ne sont pas
         // perdues : le sélecteur d'exercice les borne, et l'écran doit le dire plutôt que taire.)
-        $horsExercice = $total === 0 && $terme === '' && $activite === '' ? Facture::query()->count() : 0;
+        $horsExercice = ($total < 1 && $terme === '' && $activite === '') ? Facture::query()->count() : 0;
 
         return view('pwa.facturation.facturation', array_merge($this->socle(), [
             'horsExercice' => $horsExercice,

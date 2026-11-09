@@ -667,7 +667,10 @@ void main() {
     test('« Super Admin » (casse de la session) purge ; sans l’écriture sur '
         'Paramètres, non', () async {
       expect(
-        await purgerEn('super_admin', const {'PARAM': 'L', 'IMPORT_EXPORT': 'L'}),
+        await purgerEn('super_admin', const {
+          'PARAM': 'L',
+          'IMPORT_EXPORT': 'L',
+        }),
         MessagesArchives.droitManquant,
       );
       expect(await existe('U-OK'), isTrue);
