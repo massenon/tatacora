@@ -21,8 +21,9 @@ use App\Shared\Parametres\Services\ParametreSystemeService;
  * INDIVIDUELLE (le défaut du Gîte) — le sens le plus prudent, qui n'offre ni
  * dividende ni réserve légale.
  *
- * Paramètre système `forme_juridique`, réglé au serveur par un administrateur
- * (refusé tant qu'une affectation est active), descendu aux postes en lecture.
+ * Paramètre système `forme_juridique`, réglé par un administrateur — au web, ou sur
+ * un poste (09/11/2026) dont le compte d'appairage l'est —, refusé tant qu'une
+ * affectation est active, descendu aux postes.
  */
 enum FormeJuridique: string
 {

@@ -84,6 +84,9 @@ echo json_encode([
         StatutNormalisation::cases(),
     ),
     'urls' => ['defaut' => ReglagesMecef::URL_API_PAR_DEFAUT],
-    // Le mode, l'API, l'opérateur ET les neuf réglages des documents (07/11/2026) : réglés au serveur seul.
-    'cles_administrateur' => [...ReglagesMecef::CLES_ADMINISTRATEUR, ...\App\Domain\Facturation\Services\ReglagesDocuments::CLES, \App\Domain\Comptabilite\Support\FormeJuridique::CLE],
+    // Les CINQ réglages réservés aux Administrateurs (mode, API, opérateur ×2, forme juridique) : le poste
+    // les écrit depuis le 09/11/2026 (décision du PO), le serveur en réserve l'écriture au compte
+    // administrateur du jeton d'appairage. Les neuf réglages des documents n'en font PAS partie.
+    'cles_administrateur' => \App\Shared\Sync\Gestionnaires\GestionnaireParametres::CLES_ADMINISTRATEUR,
+    'cles_documents' => \App\Domain\Facturation\Services\ReglagesDocuments::CLES,
 ], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);

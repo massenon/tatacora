@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Shared\Sync\Gestionnaires;
 
+use App\Models\User;
 use App\Pwa\Support\ReglesDeLApi;
 use App\Shared\Sync\Contracts\GestionnaireSynchronisation;
 use App\Shared\Sync\Exceptions\DonneesSynchroniseesInvalidesException;
@@ -42,6 +43,12 @@ abstract class GestionnaireAbstrait implements GestionnaireSynchronisation
     public function modulesRequis(array $payload): array
     {
         return [$this->module()];
+    }
+
+    /** Par défaut : le droit du module suffit. */
+    public function refusDeDroit(array $payload, User $utilisateur): ?string
+    {
+        return null;
     }
 
     public function estFinanciere(): bool

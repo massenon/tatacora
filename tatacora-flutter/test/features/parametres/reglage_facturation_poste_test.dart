@@ -139,7 +139,7 @@ void main() {
     });
   });
 
-  group('le registre : le mode se règle au serveur', () {
+  group('le registre : le mode se règle ici (Administrateur), le JETON jamais', () {
     late AppDatabase db;
 
     setUp(() async {
@@ -163,27 +163,6 @@ void main() {
     });
 
     tearDown(() => db.close());
-
-    test('le poste n’écrit jamais le mode, l’adresse de l’API ni l’opérateur '
-        '— rien n’est écrit ni mis en file', () async {
-      final cas = EnregistrerParametres(ParametresDepotLocal(db));
-      for (final cle in const [
-        'facturation_mode',
-        'mecef_api_url',
-        'mecef_operateur_id',
-        'mecef_operateur_nom',
-      ]) {
-        final r = await cas.executer(
-          {cle: cle == 'facturation_mode' ? 'boitier' : 'x'},
-          peutEcrire: true,
-          auteurId: 'u-essai',
-        );
-        expect(r, isA<EcritureRefusee>(), reason: cle);
-        expect((r as EcritureRefusee).motif, contains('se règle au serveur'));
-      }
-      expect(await db.select(db.parametresSystemeLocal).get(), isEmpty);
-      expect(await db.select(db.operationsSyncLocal).get(), isEmpty);
-    });
 
     test('l’IFU compte 13 chiffres : refus à 12, accepté à 13', () async {
       final cas = EnregistrerParametres(ParametresDepotLocal(db));
@@ -499,7 +478,9 @@ void main() {
     });
 
     testWidgets('le jeton n’est jamais affiché, ni reçu, ni saisissable ici : '
-        'l’écran complet dit « géré au serveur »', (tester) async {
+        'l’écran complet dit « géré au serveur » (et le mode se modifie)', (
+      tester,
+    ) async {
       await db
           .into(db.parametresSystemeLocal)
           .insert(
@@ -518,25 +499,172 @@ void main() {
       expect(find.text('Facturation normalisée (MECeF)'), findsOneWidget);
       expect(find.text('Jeton JWT e-MECeF'), findsOneWidget);
       expect(find.textContaining('ne reçoit jamais le jeton'), findsOneWidget);
-      // Le mode reçu s'affiche en lecture : valeur, sans bouton « Modifier ».
+      // Le mode se dit par son LIBELLÉ de la vue, et un Administrateur le MODIFIE
+      // (09/11/2026 : « le poste fait ce que le web fait ») ; le jeton, lui, reste
+      // « géré au serveur », sans aucun bouton ni champ.
       expect(
         find.byKey(const Key('param-ligne-facturation_mode')),
         findsOneWidget,
       );
       expect(
-        find.byKey(const Key('param-modifier-facturation_mode')),
-        findsNothing,
+        find.descendant(
+          of: find.byKey(const Key('param-ligne-facturation_mode')),
+          matching: find.text('Boîtier CC300 (poste)'),
+        ),
+        findsOneWidget,
+        reason: 'le libellé de la vue, jamais le code « boitier »',
       );
-      expect(
-        find.byKey(const Key('param-modifier-mecef_api_url')),
-        findsNothing,
-      );
+      for (final cle in const [
+        'facturation_mode',
+        'mecef_api_url',
+        'mecef_operateur_id',
+        'mecef_operateur_nom',
+      ]) {
+        expect(
+          find.byKey(Key('param-modifier-$cle')),
+          findsOneWidget,
+          reason: 'un Administrateur modifie $cle',
+        );
+      }
+      expect(find.byKey(const Key('param-modifier-jeton')), findsNothing);
+      expect(find.textContaining('Modifier le jeton'), findsNothing);
       // Aucun champ de mot de passe sur tout l'écran.
       expect(
         find.byWidgetPredicate((w) => w is TextField && w.obscureText),
         findsNothing,
       );
       expect(find.textContaining('eyJ'), findsNothing);
+    });
+
+    testWidgets(
+      'un NON-administrateur voit les cinq réglages réservés sans bouton '
+      '« Modifier » ; les documents gardent le leur (droit PARAM)',
+      (tester) async {
+        await monter(tester, role: 'caissier', ecranComplet: true);
+        await tester.scrollUntilVisible(
+          find.byKey(const Key('param-mecef-jeton')),
+          200,
+          scrollable: find.byType(Scrollable).first,
+        );
+        for (final cle in const [
+          'facturation_mode',
+          'mecef_api_url',
+          'mecef_operateur_id',
+          'mecef_operateur_nom',
+          'forme_juridique',
+        ]) {
+          expect(
+            find.byKey(Key('param-ligne-$cle')),
+            findsOneWidget,
+            reason: '$cle se voit',
+          );
+          expect(
+            find.byKey(Key('param-modifier-$cle')),
+            findsNothing,
+            reason: '$cle : pas de « Modifier » hors administrateur',
+          );
+        }
+        expect(
+          find.byKey(const Key('param-modifier-entreprise_activites')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const Key('param-modifier-entreprise_ville_emission')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const Key('param-modifier-proforma_validite_jours')),
+          findsOneWidget,
+        );
+      },
+    );
+
+    testWidgets('un Administrateur modifie le mode : liste des trois libellés de '
+        'la vue, écriture enfilée, jamais de normalisation', (tester) async {
+      await db.transaction(() async {
+        for (final e in const {
+          'entreprise_ifu': '0202011344660',
+          'mecef_operateur_id': 'RECEPTION01',
+          'mecef_operateur_nom': 'Réception',
+        }.entries) {
+          await db
+              .into(db.parametresSystemeLocal)
+              .insert(
+                ParametresSystemeLocalCompanion.insert(
+                  cle: e.key,
+                  valeur: e.value,
+                  modifieLe: DateTime(2026, 11, 9),
+                ),
+              );
+        }
+        await db
+            .into(db.utilisateursLocal)
+            .insert(
+              UtilisateursLocalCompanion.insert(
+                id: 'u-1',
+                login: 'admin-essai',
+                nom: 'Essai',
+                role: 'administrateur',
+                droitsJson: '{}',
+                sel: 's',
+                empreinte: 'e',
+                iterations: 1,
+                dateCreation: DateTime(2026, 11, 9),
+                dateMotDePasse: DateTime(2026, 11, 9),
+              ),
+            );
+      });
+      await monter(tester, ecranComplet: true);
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('param-mecef-jeton')),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.ensureVisible(
+        find.byKey(const Key('param-modifier-facturation_mode')),
+      );
+      await tester.tap(
+        find.byKey(const Key('param-modifier-facturation_mode')),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(
+          of: find.byType(Dialog),
+          matching: find.text(
+            'Désactivé : factures de démonstration, sans valeur fiscale. '
+            'e-MECeF : le serveur certifie par l’API de la DGI (réseau exigé). '
+            'Boîtier CC300 : le poste de la réception certifie par le boîtier '
+            'branché en USB, même hors ligne. Réservé aux Administrateurs.',
+          ),
+        ),
+        findsOneWidget,
+        reason: 'la même aide que le web',
+      );
+      await tester.tap(find.byKey(const Key('param-champ-facturation_mode')));
+      await tester.pumpAndSettle();
+      for (final libelle in const [
+        'Désactivé',
+        'e-MECeF (en ligne)',
+        'Boîtier CC300 (poste)',
+      ]) {
+        expect(find.text(libelle), findsWidgets, reason: libelle);
+      }
+      await tester.tap(find.text('Boîtier CC300 (poste)').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('param-enregistrer')));
+      await laisserTourner(tester);
+
+      final valeurs = {
+        for (final r in await db.select(db.parametresSystemeLocal).get())
+          r.cle: r.valeur,
+      };
+      expect(valeurs['facturation_mode'], 'boitier');
+      final file = await db.select(db.operationsSyncLocal).get();
+      expect(file, hasLength(1), reason: 'une écriture, aucune normalisation');
+      expect(file.single.tableServeur, 'parametres_systeme');
+      expect(jsonDecode(file.single.payload), {
+        'valeurs': {'facturation_mode': 'boitier'},
+      });
     });
 
     for (final largeur in [320.0, 360.0, 480.0, 768.0, 1024.0, 1600.0]) {

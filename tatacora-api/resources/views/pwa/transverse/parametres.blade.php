@@ -310,6 +310,9 @@
                   <p class="text-[13px] mt-2 font-semibold" style="color:{{ $resultatTestEmail['succes'] ? '#1B5E20' : '#8C1D1D' }}">
                     {{ $resultatTestEmail['detail'] }}
                   </p>
+                  @if (! empty($resultatTestEmail['aide']))
+                    <p class="text-[13px] mt-1 text-slate-600">{{ $resultatTestEmail['aide'] }}</p>
+                  @endif
                 @endif
               </div>
             </div>

@@ -98,7 +98,7 @@ class _ChampParametreState extends State<ChampParametre> {
             decoration: InputDecoration(labelText: d.libelle, isDense: true),
             items: [
               for (final c in d.choix)
-                DropdownMenuItem(value: c, child: Text(c)),
+                DropdownMenuItem(value: c, child: Text(d.libelleDuChoix(c))),
             ],
             onChanged: widget.modifiable ? widget.onChange : null,
           ),

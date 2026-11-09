@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Shared\Sync\Contracts;
 
+use App\Models\User;
 use App\Shared\Sync\Support\ContexteSynchronisation;
 use App\Shared\Sync\Support\EcritureSynchronisee;
 
@@ -68,6 +69,18 @@ interface GestionnaireSynchronisation
 
     /** Niveau exigé sur ce module — `C` : toute opération synchronisée écrit. */
     public function niveauRequis(): string;
+
+    /**
+     * Le droit PARTICULIER d'une opération, en plus du module : la PHRASE du
+     * refus si le compte du jeton d'appairage n'y a pas droit, sinon `null`
+     * (09/11/2026 : les réglages de la facturation normalisée et la forme
+     * juridique n'acceptent d'un poste que le compte d'un administrateur). Le
+     * moteur rejette alors l'opération `droit_manquant`, trace l'accès refusé,
+     * et n'appelle pas `creer()`.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    public function refusDeDroit(array $payload, User $utilisateur): ?string;
 
     /**
      * Service de domaine par lequel passent les écritures.

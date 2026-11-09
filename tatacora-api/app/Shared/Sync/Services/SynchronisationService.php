@@ -267,6 +267,27 @@ class SynchronisationService
             ));
         }
 
+        // 09/11/2026 : le droit PARTICULIER d'une opération (en plus du module) — les
+        // réglages MECeF et la forme juridique n'acceptent d'un poste que le compte d'un
+        // administrateur. Refus DÉFINITIF et lisible (`droit_manquant`, « À traiter » du
+        // poste), tracé comme tout accès refusé, hors de la transaction de l'opération.
+        $refusDeDroit = $gestionnaire->refusDeDroit(
+            is_array($operation['payload'] ?? null) ? $operation['payload'] : [],
+            $utilisateur,
+        );
+
+        if ($refusDeDroit !== null) {
+            JournalSecurite::create([
+                'type_evenement' => 'acces_refuse_rbac',
+                'utilisateur_id' => $utilisateur->id,
+                'adresse_ip' => request()->ip(),
+                'module_concerne' => $gestionnaire->module(),
+            ]);
+            $this->extras['module'] = $gestionnaire->module();
+
+            return $this->memoriser($operation, $posteId, $utilisateurId, $this->rejet($operation, $refusDeDroit, 'droit_manquant'));
+        }
+
         // Refus explicite d'une table qui ne synchronise pas ses
         // modifications : il n'existe plus de repli brut (15/10/2026).
         if ($operation['type'] === 'modification' && ! $gestionnaire->accepteModification()) {

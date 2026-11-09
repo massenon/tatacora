@@ -787,6 +787,17 @@ class AffectationResultatLocale {
     return '${negatif ? '-' : ''}${abs ~/ 100}.${(abs % 100).toString().padLeft(2, '0')}';
   }
 
+  /// Une affectation est-elle ACTIVE, tous exercices confondus ? C'est la garde du
+  /// serveur sur la forme juridique (`AffectationResultat::whereNull('contrepassee_le')
+  /// ->exists()`), lue ici par le changement de forme (`EnregistrerParametres`) : la
+  /// forme ne se change pas sous une pièce passée sous l'ancienne.
+  Future<bool> existeUneActive() async {
+    for (final e in await _dao.exercices()) {
+      if (await active(e.id) != null) return true;
+    }
+    return false;
+  }
+
   /// L'affectation active de l'exercice [annee] ou `null` — lue par la
   /// RÉOUVERTURE (`ClotureExerciceLocale.rouvrir`).
   Future<AffectationPassee?> activePourAnnee(int annee) async {

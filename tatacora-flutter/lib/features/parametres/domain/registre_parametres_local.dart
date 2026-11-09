@@ -94,7 +94,8 @@ final class SpecParametre {
     this.format = FormatTexte.libre,
     this.videRefuse,
     this.lecteur,
-    this.serveurSeulement = false,
+    this.choixLibelles = const {},
+    this.reserveAdministrateur = false,
   });
 
   final String cle;
@@ -121,11 +122,25 @@ final class SpecParametre {
   /// Le fichier qui LIT cette clé sur ce poste, ou `null` si personne.
   final String? lecteur;
 
-  /// Réglé au SERVEUR par un administrateur et reçu ici en LECTURE : ce poste
-  /// n'écrit jamais cette clé (le mode de facturation normalisée, l'adresse de
-  /// l'API de la DGI, l'opérateur). Le serveur écarte d'ailleurs ces clés d'un
-  /// envoi de poste (`GestionnaireParametres`).
-  final bool serveurSeulement;
+  /// Le libellé affiché de chaque choix (`choixLibelles` de la définition du
+  /// serveur) : la valeur stockée est un code technique (`boitier`), l'écran dit
+  /// « Boîtier CC300 (poste) », comme la vue. Vide : la valeur stockée EST le
+  /// libellé.
+  final Map<String, String> choixLibelles;
+
+  /// RÉSERVÉ aux Administrateurs (09/11/2026, décision du PO : « le poste fait ce
+  /// que le web fait ») : le mode de facturation, l'adresse de l'API de la DGI,
+  /// l'opérateur et la forme juridique se règlent ici COMME au web — « Modifier »
+  /// n'apparaît que pour un administrateur (`peutAdministrerComptes`), et
+  /// `EnregistrerParametres` refuse tout autre auteur avec la phrase du serveur.
+  /// Le serveur rejoue la règle sur le compte du JETON D'APPAIRAGE
+  /// (`GestionnaireParametres::refusDeDroit`). Aucune clé du registre n'est
+  /// « serveur seulement » : le JETON e-MECeF, seul secret, n'y figure pas (il ne
+  /// descend ni ne se saisit jamais ici).
+  final bool reserveAdministrateur;
+
+  /// Le libellé affiché de [valeur] : celui de la vue, sinon la valeur elle-même.
+  String libelleDuChoix(String valeur) => choixLibelles[valeur] ?? valeur;
 }
 
 /// Le registre fermé.
@@ -248,19 +263,24 @@ abstract final class RegistreParametresLocal {
           'Fourni par la DGI. Identifiant, donc paramétrable — la CLÉ D’API MECeF, elle, vit en configuration serveur et n’apparaîtra jamais ici.',
       longueurMax: 30,
     ),
-    // --- Forme juridique (09/11/2026) : réglée au SERVEUR (administrateur), reçue ici en lecture.
+    // --- Forme juridique (09/11/2026) : réservée aux Administrateurs, au web comme sur ce poste.
     SpecParametre(
       cle: 'forme_juridique',
       groupe: 'entreprise',
       libelle: 'Forme juridique',
       type: TypeParametre.choix,
       choix: ['entreprise_individuelle', 'sarl', 'sa'],
+      choixLibelles: {
+        'entreprise_individuelle': 'Entreprise individuelle',
+        'sarl': 'SARL',
+        'sa': 'SA',
+      },
       aide:
           'Commande l’affectation du résultat. Entreprise individuelle (défaut du Gîte) : ni réserve légale, ni dividendes, ni procès-verbal d’assemblée ; le bénéfice revient à l’exploitant, au report à nouveau ou aux réserves. SARL et SA : réserve légale obligatoire, dividendes encadrés. Réservé aux Administrateurs ; refusé tant qu’une affectation du résultat est active.',
       lecteur: 'lib/features/comptabilite/domain/forme_juridique.dart',
-      serveurSeulement: true,
+      reserveAdministrateur: true,
     ),
-    // --- Documents commerciaux (factures A4, proformas), PO 07/11/2026 : réglés au SERVEUR, reçus ici en lecture.
+    // --- Documents commerciaux (factures A4, proformas), PO 07/11/2026 : modifiables ici depuis le 09/11/2026 (droit PARAM, comme au web).
     SpecParametre(
       cle: 'entreprise_activites',
       groupe: 'entreprise',
@@ -270,7 +290,6 @@ abstract final class RegistreParametresLocal {
           'Ligne en gras souligné de l’en-tête, ex. « Tourisme, Hébergement, Restauration ». Vide : absente.',
       longueurMax: 255,
       lecteur: 'lib/features/facturation/domain/reglages_documents.dart',
-      serveurSeulement: true,
     ),
     SpecParametre(
       cle: 'entreprise_facebook',
@@ -279,7 +298,6 @@ abstract final class RegistreParametresLocal {
       type: TypeParametre.texte,
       longueurMax: 150,
       lecteur: 'lib/features/facturation/domain/reglages_documents.dart',
-      serveurSeulement: true,
     ),
     SpecParametre(
       cle: 'entreprise_ville_emission',
@@ -289,7 +307,6 @@ abstract final class RegistreParametresLocal {
       aide: 'Imprimée avant la date, ex. « Natitingou, le 02 Novembre 2026 ».',
       longueurMax: 80,
       lecteur: 'lib/features/facturation/domain/reglages_documents.dart',
-      serveurSeulement: true,
     ),
     SpecParametre(
       cle: 'facture_reference',
@@ -301,7 +318,6 @@ abstract final class RegistreParametresLocal {
       longueurMax: 10,
       format: FormatTexte.alphanumerique,
       lecteur: 'lib/features/facturation/domain/reglages_documents.dart',
-      serveurSeulement: true,
     ),
     SpecParametre(
       cle: 'signataire_nom',
@@ -310,7 +326,6 @@ abstract final class RegistreParametresLocal {
       type: TypeParametre.texte,
       longueurMax: 100,
       lecteur: 'lib/features/facturation/domain/reglages_documents.dart',
-      serveurSeulement: true,
     ),
     SpecParametre(
       cle: 'signataire_fonction',
@@ -319,7 +334,6 @@ abstract final class RegistreParametresLocal {
       type: TypeParametre.texte,
       longueurMax: 100,
       lecteur: 'lib/features/facturation/domain/reglages_documents.dart',
-      serveurSeulement: true,
     ),
     SpecParametre(
       cle: 'facture_signature_affichee',
@@ -329,7 +343,6 @@ abstract final class RegistreParametresLocal {
       aide:
           'Vaut pour les proformas ET les factures (PDF A4 ; le ticket n’en porte jamais). Non : aucun bloc signature. Oui sans image déposée : nom et fonction seulement.',
       lecteur: 'lib/features/facturation/domain/reglages_documents.dart',
-      serveurSeulement: true,
     ),
     SpecParametre(
       cle: 'proforma_validite_affichee',
@@ -339,7 +352,6 @@ abstract final class RegistreParametresLocal {
       aide:
           'Défaut Non. Calculée à l’émission et enregistrée sur la proforma : changer ce réglage ne modifie pas les proformas déjà émises.',
       lecteur: 'lib/features/facturation/domain/reglages_documents.dart',
-      serveurSeulement: true,
     ),
     SpecParametre(
       cle: 'proforma_validite_jours',
@@ -350,20 +362,25 @@ abstract final class RegistreParametresLocal {
       minimum: '1',
       maximum: '365',
       lecteur: 'lib/features/facturation/domain/reglages_documents.dart',
-      serveurSeulement: true,
     ),
-    // --- Facturation normalisée (MECeF), 07/11/2026 : réglée au SERVEUR, reçue ici
-    // en lecture. Le JETON e-MECeF n'est PAS au registre et ne descend jamais.
+    // --- Facturation normalisée (MECeF), 07/11/2026 : modifiable ici par un
+    // Administrateur depuis le 09/11/2026. Le JETON e-MECeF n'est PAS au registre :
+    // il ne descend jamais et ne se saisit jamais sur ce poste.
     SpecParametre(
       cle: 'facturation_mode',
       groupe: 'mecef',
       libelle: 'Mode',
       type: TypeParametre.choix,
       choix: ['desactive', 'emecef', 'boitier'],
+      choixLibelles: {
+        'desactive': 'Désactivé',
+        'emecef': 'e-MECeF (en ligne)',
+        'boitier': 'Boîtier CC300 (poste)',
+      },
       aide:
           'Désactivé : factures de démonstration, sans valeur fiscale. e-MECeF : le serveur certifie par l’API de la DGI (réseau exigé). Boîtier CC300 : le poste de la réception certifie par le boîtier branché en USB, même hors ligne. Réservé aux Administrateurs.',
       lecteur: 'lib/features/facturation/domain/mode_facturation.dart',
-      serveurSeulement: true,
+      reserveAdministrateur: true,
     ),
     SpecParametre(
       cle: 'mecef_api_url',
@@ -375,7 +392,7 @@ abstract final class RegistreParametresLocal {
       longueurMax: 255,
       format: FormatTexte.urlHttps,
       // Aucun lecteur sur ce poste : seul le SERVEUR appelle l'API de la DGI.
-      serveurSeulement: true,
+      reserveAdministrateur: true,
     ),
     SpecParametre(
       cle: 'mecef_operateur_id',
@@ -384,7 +401,7 @@ abstract final class RegistreParametresLocal {
       type: TypeParametre.texte,
       longueurMax: 30,
       lecteur: 'lib/features/facturation/data/service_normalisation.dart',
-      serveurSeulement: true,
+      reserveAdministrateur: true,
     ),
     SpecParametre(
       cle: 'mecef_operateur_nom',
@@ -394,7 +411,7 @@ abstract final class RegistreParametresLocal {
       aide: '30 caractères au plus (limite du boîtier).',
       longueurMax: 30,
       lecteur: 'lib/features/facturation/data/service_normalisation.dart',
-      serveurSeulement: true,
+      reserveAdministrateur: true,
     ),
     SpecParametre(
       cle: 'tva_active',
@@ -429,6 +446,10 @@ abstract final class RegistreParametresLocal {
       libelle: 'Convention des prix du catalogue',
       type: TypeParametre.choix,
       choix: ['ht', 'ttc'],
+      choixLibelles: {
+        'ht': 'HT — la TVA s’ajoute aux tarifs',
+        'ttc': 'TTC — la TVA est extraite des tarifs',
+      },
       aide:
           '« ht » : la TVA s’ajoute aux tarifs. « ttc » : elle en est extraite.',
       lecteur: 'lib/features/comptabilite/domain/calcul_tva.dart',
@@ -439,6 +460,11 @@ abstract final class RegistreParametresLocal {
       libelle: 'Régime fiscal',
       type: TypeParametre.choix,
       choix: ['reel_normal', 'reel_simplifie', 'tpu'],
+      choixLibelles: {
+        'reel_normal': 'Réel normal',
+        'reel_simplifie': 'Réel simplifié',
+        'tpu': 'Taxe Professionnelle Unique',
+      },
       aide:
           'Imprimé avec l’IFU et le RCCM dans les mentions légales des états quand il est renseigné.',
       lecteur: 'lib/core/impression/entete_etablissement.dart',
@@ -585,6 +611,7 @@ abstract final class RegistreParametresLocal {
       libelle: 'Sécurité',
       type: TypeParametre.choix,
       choix: ['tls', 'ssl', 'aucune'],
+      choixLibelles: {'tls': 'TLS', 'ssl': 'SSL', 'aucune': 'Aucune'},
       lecteur: 'lib/features/transverse/data/envoi_messages_editeur.dart',
     ),
     SpecParametre(

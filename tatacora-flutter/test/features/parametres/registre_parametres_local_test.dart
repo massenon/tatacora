@@ -38,6 +38,17 @@ const Map<String, Set<String>> _nommeesSansLecture = {
     'tva_active',
     'taux_tva',
     'convention_prix',
+    // 09/11/2026 : le jugement du mode de facturation et de la forme juridique
+    // (`verifierFacturationNormalisee`, `ClesFacturation`) NOMME le mode, l'adresse
+    // de l'API, l'opérateur, l'IFU et la forme pour juger l'état RÉSULTANT d'un
+    // enregistrement — comme `etatTva` nomme `tva_active` : une règle d'écriture de
+    // Paramètres, aucun module n'y lit la valeur (leurs lecteurs restent déclarés).
+    'facturation_mode',
+    'mecef_api_url',
+    'mecef_operateur_id',
+    'mecef_operateur_nom',
+    'entreprise_ifu',
+    'forme_juridique',
   },
   // L'écran CLASSE ces clés par onglet (`_clesLegales`, `_clesCommunication`,
   // `_cleAdresse`) : il les nomme pour les placer, il ne les lit pas. Il
@@ -123,6 +134,27 @@ void main() {
         reason: l.cle,
       );
     }
+  });
+
+  test('les LIBELLÉS des choix sont ceux du serveur, clé par clé — le mode se '
+      'dit « Boîtier CC300 (poste) », jamais « boitier »', () {
+    var avecLibelles = 0;
+    for (final d in serveur.definitions) {
+      final l = RegistreParametresLocal.parCle(d['cle'] as String)!;
+      // PHP encode une carte vide en `[]` : c'est « aucun libellé ».
+      final brut = d['choix_libelles'];
+      final attendu = brut is Map
+          ? brut.map((k, v) => MapEntry('$k', '$v'))
+          : <String, String>{};
+      expect(l.choixLibelles, attendu, reason: l.cle);
+      if (attendu.isNotEmpty) avecLibelles++;
+    }
+    // Forme juridique, mode, convention des prix, régime fiscal, sécurité SMTP.
+    expect(avecLibelles, 5);
+    final mode = RegistreParametresLocal.parCle('facturation_mode')!;
+    expect(mode.libelleDuChoix('boitier'), 'Boîtier CC300 (poste)');
+    expect(mode.libelleDuChoix('emecef'), 'e-MECeF (en ligne)');
+    expect(mode.libelleDuChoix('desactive'), 'Désactivé');
   });
 
   test('bornes et formats déduits des règles du serveur, clé par clé', () {
@@ -392,7 +424,7 @@ void main() {
           exemptions++;
         }
       }
-      expect(exemptions, 12);
+      expect(exemptions, 18);
     });
   });
 

@@ -17,8 +17,8 @@ Un seul réglage, `facturation_mode` (paramètre système, groupe `mecef`), troi
 
 L'IFU est UNIQUE : la clé existante `entreprise_ifu` (13 chiffres, validée) sert aux deux voies.
 
-**Où se règle le mode.** Au serveur, par un administrateur (Paramètres → Identité & Légal →
-« Facturation normalisée (MECeF) »). Il descend aux postes en lecture seule avec les
+**Où se règle le mode.** Par un administrateur, au serveur OU sur un poste (Paramètres → Identité & Légal →
+« Facturation normalisée (MECeF) », §10.9). Il descend aux autres postes avec les
 autres paramètres. Un poste lit le mode du serveur quand il l'a, sinon garde le dernier
 connu (la ligne descendue reste en base). Un réglage LOCAL du poste peut le surcharger :
 « Ce poste certifie par : serveur / boîtier / rien » (`poste.json`, clé
@@ -205,6 +205,21 @@ service de normalisation, synchronisation vers le serveur, écran, PDF) · Lot 3
    ligne : « La normalisation e-MECeF se fait en ligne : reconnectez le poste au serveur », rien d'écrit. Avant ce lot, le
    serveur NE normalisait PAS une facture du poste à sa réception : seul le job de rejeu (toutes les 30 min) le faisait,
    automatiquement.
+
+9. **Réglages MECeF MODIFIABLES AU POSTE par l'administrateur (décision du PO du 09/11/2026, « le poste fait ce que le web fait, plus la
+   synchronisation »).** Le mode (Désactivé / e-MECeF (en ligne) / Boîtier CC300 (poste), mêmes libellés et même aide qu'au web), l'adresse
+   de l'API de la DGI (`https://` exigé, vide = adresse par défaut), l'identifiant et le nom de l'opérateur (30 caractères) et la forme
+   juridique se modifient sur le poste, comme au web : **administrateur seulement** (les autres voient la valeur, sans « Modifier »).
+   L'écriture passe par l'écrivain unique des paramètres, est ENFILÉE dans la même transaction (jamais de réseau, hors ligne
+   possible) et se synchronise : au serveur, `GestionnaireParametres` ne l'accepte que si le compte du JETON D'APPAIRAGE est
+   administrateur (sinon rejet `droit_manquant`, phrase de l'écran, lisible dans « À traiter » ; la valeur reste modifiée sur le
+   poste), rejoue les validations (mode admis, https, 30 caractères, forme sans affectation active, IFU et opérateur exigés par un
+   mode réel), applique le dernier écrit gagnant clé par clé, et la valeur redescend aux autres postes. Les neuf réglages des
+   documents (activités, ville, signataire, signature, validité…) se modifient avec le seul droit `PARAM`, comme au web. **Le JETON
+   e-MECeF ne descend ni ne monte JAMAIS** : il reste « géré au serveur », jamais saisissable au poste. Le mode e-MECeF sans jeton
+   est refusé par le serveur (le poste, qui ne connaît pas le jeton, ne peut pas le juger : refus lisible dans « À traiter »).
+   Passer au mode Boîtier CC300 ou e-MECeF depuis le poste ne déclenche JAMAIS de normalisation automatique (§10.1 : par bouton).
+   La surcharge locale « ce poste certifie par » (`poste.json`) est inchangée. Remplace « réglé au serveur seul, reçu en lecture ».
 
 ### Comportement mesuré, flux × mode
 

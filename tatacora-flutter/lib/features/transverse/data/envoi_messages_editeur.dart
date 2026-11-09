@@ -39,6 +39,7 @@ import 'package:mailer/smtp_server.dart';
 import '../../../core/config/environnement.dart';
 import '../../../core/impression/entete_etablissement.dart' show ClesEntete;
 import '../../parametres/data/parametres_dao.dart';
+import '../../parametres/domain/aide_echec_email.dart';
 import '../domain/messages_editeur.dart';
 import 'captures_editeur.dart';
 import 'configuration_poste.dart';
@@ -117,7 +118,10 @@ abstract final class TextesEmailDeTest {
 }
 
 /// L'issue d'un email de test : réussi ou non, et ce que l'écran dit.
-typedef ResultatEmailDeTest = ({bool succes, String detail});
+///
+/// [aide] : la phrase qui dit quoi vérifier sous un échec reconnu
+/// (`AideEchecEmail`) ; `null` sinon, et toujours `null` en cas de succès.
+typedef ResultatEmailDeTest = ({bool succes, String detail, String? aide});
 
 /// La configuration SMTP complète d'un envoi. Le mot de passe n'apparaît
 /// dans aucun `toString`.
@@ -323,10 +327,12 @@ class ServiceMessagesEditeur {
     final valeurs = await _parametres.lireTout();
     final adresse = valeurs[ClesEntete.email]?.trim() ?? '';
     if (adresse.isEmpty) {
-      return (succes: false, detail: TextesEmailDeTest.sansAdresse);
+      return (succes: false, detail: TextesEmailDeTest.sansAdresse, aide: null);
     }
     final configuration = await _lireConfiguration();
-    if (configuration is String) return (succes: false, detail: configuration);
+    if (configuration is String) {
+      return (succes: false, detail: configuration, aide: null);
+    }
     final smtp = configuration as ConfigurationSmtp;
     final courriel = Message()
       ..from = Address(smtp.utilisateur, nomExpediteurEditeur)
@@ -340,14 +346,20 @@ class ServiceMessagesEditeur {
         PolitiqueRelanceEditeur.delaiEnvoi,
       );
     } on Object catch (erreur) {
+      // Le message du transport reste TEL QUEL (fidèle), expurgé du mot de passe ;
+      // l'aide dessous est une phrase fixe, choisie sur ce message.
+      final raison = _expurger(_raison(erreur), smtp.motDePasse);
       return (
         succes: false,
-        detail: TextesEmailDeTest.echec(
-          _expurger(_raison(erreur), smtp.motDePasse),
-        ),
+        detail: TextesEmailDeTest.echec(raison),
+        aide: AideEchecEmail.pour(raison),
       );
     }
-    return (succes: true, detail: TextesEmailDeTest.envoye(adresse));
+    return (
+      succes: true,
+      detail: TextesEmailDeTest.envoye(adresse),
+      aide: null,
+    );
   }
 
   /// Relance les messages `en_attente`, le plus ancien d'abord. Sans

@@ -28,8 +28,10 @@ final class ReglagesMecef
     public const FORMAT_IFU = '/^[0-9]{13}$/';
 
     /**
-     * Les clés que seul un administrateur règle ET que le poste ne peut jamais
-     * écrire par la synchronisation : le mode se décide au serveur.
+     * Les clés que seul un administrateur règle. Depuis le 09/11/2026 un poste les
+     * écrit aussi (« le poste fait ce que le web fait »), SI le compte de son jeton
+     * d'appairage est administrateur (`GestionnaireParametres::refusDeDroit`). Le
+     * JETON e-MECeF, lui, n'est pas un paramètre : il ne descend ni ne monte jamais.
      *
      * @var list<string>
      */

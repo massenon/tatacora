@@ -38,8 +38,9 @@ class ReglagesDocuments
     public const CLE_VALIDITE_JOURS = 'proforma_validite_jours';
 
     /**
-     * Les neuf clés : réglées au SERVEUR (Paramètres > Identité & Légal), reçues en lecture par les postes.
-     * Un poste ne les écrit jamais (`GestionnaireParametres` les écarte d'un envoi).
+     * Les neuf clés : réglées par Paramètres > Identité & Légal (droit `PARAM`), au web ET, depuis le
+     * 09/11/2026, sur un poste (décision du PO : « le poste fait ce que le web fait ») ; elles
+     * descendent aux autres postes comme tout paramètre.
      *
      * @var list<string>
      */

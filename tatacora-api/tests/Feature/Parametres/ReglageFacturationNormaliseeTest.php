@@ -352,24 +352,45 @@ final class ReglageFacturationNormaliseeTest extends TestCase
         $this->assertSame(self::IFU, $parametres['entreprise_ifu'] ?? null);
     }
 
+    /**
+     * 09/11/2026 (décision du PO : « le poste fait ce que le web fait ») : un poste écrit le
+     * mode de facturation PAR LE MÊME service que l'écran — et le dernier écrit gagnant
+     * s'applique comme à toute clé. Le droit d'administrateur est exigé en amont, par le
+     * moteur (`ReglagesFacturationPosteSynchronisationTest`).
+     */
     #[Test]
-    public function un_poste_ne_peut_pas_ecrire_le_mode_par_la_synchronisation(): void
+    public function un_poste_ecrit_le_mode_par_la_synchronisation_comme_toute_cle(): void
     {
         $this->actingAs($this->compte('administrateur'));
-        app(EnregistrerParametreService::class)->enregistrer(['entreprise_ifu' => self::IFU]);
+        app(EnregistrerParametreService::class)->enregistrer([
+            'entreprise_ifu' => self::IFU,
+            ReglagesMecef::CLE_OPERATEUR_ID => 'R1',
+            ReglagesMecef::CLE_OPERATEUR_NOM => 'Réception',
+        ]);
 
         $gestionnaire = app(\App\Shared\Sync\Gestionnaires\GestionnaireParametres::class);
         $contexte = new \App\Shared\Sync\Support\ContexteSynchronisation(
             'poste-b',
             $this->compte('administrateur'),
-            \Illuminate\Support\Carbon::now()->subSeconds(5),
+            \Illuminate\Support\Carbon::now()->addSeconds(5),
             \Illuminate\Support\Carbon::now(),
         );
         $resultat = $gestionnaire->creer((string) \Illuminate\Support\Str::uuid(), ['valeurs' => [ModeFacturation::CLE => 'boitier', 'tolerance_reception_pct' => '4']], $contexte);
 
-        $this->assertContains(ModeFacturation::CLE, $resultat->complements['cles_conservees']);
-        $this->assertNull(ParametreSysteme::where('cle', ModeFacturation::CLE)->value('valeur'));
+        $this->assertContains(ModeFacturation::CLE, $resultat->complements['cles_modifiees']);
+        $this->assertSame('boitier', ParametreSysteme::where('cle', ModeFacturation::CLE)->value('valeur'));
         $this->assertSame('4', ParametreSysteme::where('cle', 'tolerance_reception_pct')->value('valeur'));
+
+        // Une saisie du poste ANTÉRIEURE à la dernière modification du serveur : le serveur garde.
+        $ancien = new \App\Shared\Sync\Support\ContexteSynchronisation(
+            'poste-b',
+            $this->compte('administrateur'),
+            \Illuminate\Support\Carbon::now()->subMinutes(10),
+            \Illuminate\Support\Carbon::now(),
+        );
+        $resultat = $gestionnaire->creer((string) \Illuminate\Support\Str::uuid(), ['valeurs' => [ModeFacturation::CLE => 'desactive']], $ancien);
+        $this->assertContains(ModeFacturation::CLE, $resultat->complements['cles_conservees']);
+        $this->assertSame('boitier', ParametreSysteme::where('cle', ModeFacturation::CLE)->value('valeur'));
     }
 
     #[Test]

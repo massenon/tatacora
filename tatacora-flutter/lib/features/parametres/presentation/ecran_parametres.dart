@@ -14,6 +14,8 @@ import '../../../core/theme/mesures_transverses.dart' show PaletteTransverse;
 import '../../../core/theme/mesures_transverses_complement.dart';
 import '../../../shared_widgets/bouton_standard.dart';
 import '../../comptabilite/data/comptabilite_dao.dart';
+import '../../comptabilite/presentation/providers_cloture.dart'
+    show affectationResultatLocaleProvider;
 import '../data/parametres_depot_local.dart';
 import '../domain/enregistrer_parametres.dart';
 import '../domain/entities/parametre.dart';
@@ -79,6 +81,11 @@ final enregistrerParametresProvider = Provider<EnregistrerParametres>(
     verifierCompte: ComptabiliteDao(
       ref.watch(baseLocaleProvider),
     ).verifierCompteDuRole,
+    // La forme juridique se juge sur les affectations de CE poste (les siennes et
+    // celles que le serveur a descendues) : lu au moment du changement seulement.
+    affectationActive: () async => (await ref.read(
+      affectationResultatLocaleProvider.future,
+    )).existeUneActive(),
   ),
 );
 
@@ -244,12 +251,18 @@ class _PageState extends ConsumerState<_Page> {
         if (d.groupe != 'comptes' && _ongletDe(d) == _onglet && f(d)) d,
     ];
 
+    final administrateur = peutAdministrerComptes(
+      ref.watch(sessionProvider)?.role,
+    );
+
     Widget ligne(DefinitionParametre d) => _LigneParametre(
       key: Key('param-ligne-${d.cle}'),
       definition: d,
-      // Le mode de facturation, l'adresse de l'API et l'opérateur se règlent au
-      // SERVEUR : ce poste les reçoit en lecture seule (pas de « Modifier »).
-      peutEcrire: peutEcrire && d.groupe != 'mecef',
+      // Le mode de facturation, l'adresse de l'API, l'opérateur et la forme
+      // juridique sont RÉSERVÉS aux Administrateurs, comme au web : les autres en
+      // voient la valeur, sans « Modifier » (décision du PO du 09/11/2026 : le poste
+      // fait ce que le web fait). Le jeton e-MECeF n'est pas ici : « Géré au serveur ».
+      peutEcrire: peutEcrire && (!d.reserveAdministrateur || administrateur),
       onModifier: () => _modifier(d),
     );
 
@@ -272,8 +285,9 @@ class _PageState extends ConsumerState<_Page> {
             const _TitreSection('Informations légales & fiscales', filet: true),
             for (final d in legal) _Cellule(enfant: ligne(d)),
             // FACTURATION NORMALISÉE (07/11/2026) : le mode et les réglages non
-            // secrets (reçus du serveur, en lecture), le jeton (jamais reçu), puis
-            // ce qui n'existe que sur ce poste : le réglage local et le boîtier.
+            // secrets (modifiables par un Administrateur depuis le 09/11/2026, comme
+            // au web), le jeton (jamais reçu : « géré au serveur »), puis ce qui
+            // n'existe que sur ce poste : le réglage local et le boîtier.
             const _TitreSection(
               TextesFacturationPoste.titreSection,
               filet: true,
@@ -429,6 +443,9 @@ class _PageState extends ConsumerState<_Page> {
                                 .read(droitsProvider)
                                 .peutEcrire(ModuleTatacora.parametres),
                             auteurId: ref.read(sessionProvider)?.utilisateurId,
+                            estAdministrateur: peutAdministrerComptes(
+                              ref.read(sessionProvider)?.role,
+                            ),
                           );
                       if (!ctx.mounted) return;
                       switch (r) {
@@ -817,6 +834,9 @@ class _LigneParametre extends StatelessWidget {
     final v = definition.valeur;
     if (v == null) return '—';
     if (definition.typeBrut == 'booleen') return v == 'true' ? 'Oui' : 'Non';
+    // Un choix se dit par son LIBELLÉ (« Boîtier CC300 (poste) »), jamais par son
+    // code stocké (`boitier`) — `DefinitionParametre::libelleDuChoix` de la vue.
+    if (definition.typeBrut == 'choix') return definition.libelleDuChoix(v);
     return v;
   }
 

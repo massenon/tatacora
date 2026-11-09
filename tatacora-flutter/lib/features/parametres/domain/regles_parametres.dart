@@ -280,6 +280,104 @@ String? verifierCoherence(Map<String, String> resultant) {
 }
 
 /* ====================================================================== */
+/* Les réglages réservés aux Administrateurs (09/11/2026)                  */
+/* ====================================================================== */
+
+/// Les phrases de `lang/fr/parametres.php`, MOT POUR MOT (le test
+/// `reglages_facturation_contre_serveur_test` les confronte au serveur) : le
+/// poste dit ce que dit l'écran web, jamais une variante.
+abstract final class MessagesReglagesAdministrateur {
+  /// `parametres.mecef_reserve_administrateur`.
+  static const String mecefReserve =
+      'Le mode de facturation normalisée et ses réglages sont réservés aux '
+      'Administrateurs.';
+
+  /// `parametres.forme_juridique_reservee_administrateur`.
+  static const String formeReservee =
+      'La forme juridique est réservée aux Administrateurs.';
+
+  /// `parametres.forme_juridique_affectation_active`.
+  static const String formeAffectationActive =
+      'La forme juridique ne peut pas être changée tant qu’une affectation du '
+      'résultat est active : contre-passez d’abord l’affectation (onglet '
+      'Clôtures de la Comptabilité), puis changez la forme.';
+
+  /// `parametres.forme_juridique_inconnue`.
+  static String formeInconnue(String valeur, List<String> admises) =>
+      'La forme juridique « $valeur » n’existe pas : choisissez parmi '
+      '${admises.join(', ')}.';
+
+  /// `parametres.mecef_manque_ifu`.
+  static const String manqueIfu =
+      'L’IFU de l’entreprise doit compter 13 chiffres (Identité & Légal).';
+
+  /// `parametres.mecef_manque_operateur`.
+  static const String manqueOperateur =
+      'L’identifiant et le nom de l’opérateur sont obligatoires.';
+
+  /// `parametres.mecef_mode_refuse`.
+  static String modeRefuse(String mode, String manques) =>
+      'Le mode « $mode » ne peut pas être choisi : $manques';
+}
+
+/// Les clés que nomme la cohérence de la facturation normalisée.
+abstract final class ClesFacturation {
+  static const String mode = 'facturation_mode';
+  static const String apiUrl = 'mecef_api_url';
+  static const String operateurId = 'mecef_operateur_id';
+  static const String operateurNom = 'mecef_operateur_nom';
+  static const String ifu = 'entreprise_ifu';
+  static const String formeJuridique = 'forme_juridique';
+
+  /// Les clés qui déclenchent le jugement du mode
+  /// (`EnregistrerParametreService::verifierFacturationNormalisee`).
+  static const List<String> concernees = [
+    mode,
+    ifu,
+    apiUrl,
+    operateurId,
+    operateurNom,
+  ];
+}
+
+/// La cohérence du réglage RÉSULTANT : un mode réel n'est accepté que si ce qu'il
+/// exige est là — l'IFU de l'entreprise (13 chiffres), l'identifiant ET le nom
+/// de l'opérateur. Même ordre des manques, même phrase que le serveur
+/// (`verifierFacturationNormalisee`).
+///
+/// ⚠ Ce que ce poste NE PEUT PAS juger : le JETON e-MECeF (jamais reçu ici). Le
+/// mode « e-MECeF » sans jeton est refusé par le SERVEUR à l'arrivée de
+/// l'opération (« Le jeton e-MECeF n’est pas enregistré. » dans « À traiter ») ;
+/// ce poste ne l'affirme ni ne le nie.
+///
+/// [soumises] : les clés de CE enregistrement ; sans aucune clé concernée, rien
+/// n'est jugé (comme le serveur).
+String? verifierFacturationNormalisee(
+  Map<String, String> resultant,
+  Iterable<String> soumises,
+) {
+  if (!soumises.any(ClesFacturation.concernees.contains)) return null;
+
+  final mode = ModeFacturation.depuisCode(resultant[ClesFacturation.mode]);
+  if (mode == ModeFacturation.desactive) return null;
+
+  String lu(String cle) => (resultant[cle] ?? '').trim();
+
+  final manques = <String>[
+    if (!RegExp(r'^[0-9]{13}$').hasMatch(lu(ClesFacturation.ifu)))
+      MessagesReglagesAdministrateur.manqueIfu,
+    if (lu(ClesFacturation.operateurId).isEmpty ||
+        lu(ClesFacturation.operateurNom).isEmpty)
+      MessagesReglagesAdministrateur.manqueOperateur,
+  ];
+  if (manques.isEmpty) return null;
+  return MessagesReglagesAdministrateur.modeRefuse(
+    mode.libelle,
+    manques.join(' '),
+  );
+}
+
+/* ====================================================================== */
 /* États DÉRIVÉS — les badges (PA-61)                                      */
 /* ====================================================================== */
 

@@ -17,6 +17,7 @@ use App\Shared\Mail\Services\ConfigurationMailService;
 use App\Shared\Parametres\Data\DefinitionParametre;
 use App\Shared\Parametres\Data\RegistreParametres;
 use App\Shared\Parametres\Services\ApparenceEtablissementService;
+use App\Shared\Parametres\Services\AideEchecEmail;
 use App\Shared\Parametres\Services\EnregistrerParametreService;
 use App\Shared\Parametres\Services\OptionsSystemeService;
 use App\Shared\Parametres\Services\ParametreSystemeService;
@@ -248,7 +249,7 @@ class Parametres extends PageTransverse
      * l'ancienne version répondait « envoyé avec succès » sans rien envoyer
      * (PA-59/60/61 sur le geste dont le seul but est de vérifier).
      *
-     * @var array{succes: bool, detail: string}|null
+     * @var array{succes: bool, detail: string, aide?: string|null}|null
      */
     public ?array $resultatTestEmail = null;
 
@@ -534,9 +535,19 @@ class Parametres extends PageTransverse
                 $courriel->to($adresse)->subject(__('pwa.parametres.email_test_objet'));
             });
         } catch (Throwable $erreur) {
+            // Le message du transport reste affiché TEL QUEL (il est fidèle), débarrassé du mot
+            // de passe s'il l'avait cité ; l'AIDE dessous est une phrase fixe (09/11/2026).
+            $message = $erreur->getMessage();
+            $motDePasse = app(SecretsConfigurationService::class)->lire(SecretsConfigurationService::SMTP_MOT_DE_PASSE);
+
+            if (is_string($motDePasse) && $motDePasse !== '') {
+                $message = str_replace($motDePasse, '***', $message);
+            }
+
             $this->resultatTestEmail = [
                 'succes' => false,
-                'detail' => __('pwa.parametres.email_test_echec', ['erreur' => $erreur->getMessage()]),
+                'detail' => __('pwa.parametres.email_test_echec', ['erreur' => $message]),
+                'aide' => AideEchecEmail::pour($message),
             ];
 
             return;

@@ -48,6 +48,20 @@ return [
     'mecef_test_ifu_different' => 'Le jeton appartient à l’IFU :compte, et l’IFU de l’entreprise est :reglage.',
     'mecef_test_ok' => 'Connexion réussie : la DGI répond et accepte le jeton.',
 
+    /*
+    | La FORME d'une valeur arrivée d'un poste (09/11/2026, `ControleValeurParametre`) :
+    | les mêmes phrases que le poste (`normaliser`), confrontées par un test.
+    */
+    'valeur_trop_longue' => '« :libelle » ne peut pas dépasser :max caractères.',
+    'valeur_https' => '« :libelle » doit commencer par https:// et ne contenir aucun espace.',
+    'valeur_alphanumerique' => '« :libelle » n’accepte que des lettres et des chiffres.',
+    'valeur_choix_inconnu' => '« :libelle » : la valeur « :valeur » n’est pas admise.',
+    'valeur_entier' => '« :libelle » doit être un nombre entier, sans signe ni décimale.',
+    'valeur_entre' => '« :libelle » doit être compris entre :min et :max.',
+    'valeur_au_moins' => '« :libelle » doit être au moins :min.',
+    'valeur_au_plus' => '« :libelle » doit être au plus :max.',
+    'valeur_booleen' => '« :libelle » est un interrupteur : choisissez Oui ou Non, il ne se vide pas.',
+
     'enregistre' => 'Paramètres enregistrés.',
     'aucun_changement' => 'Aucune valeur modifiée.',
 

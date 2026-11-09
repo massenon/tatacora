@@ -8,6 +8,7 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/theme/mesures_transverses.dart';
 import '../../../../core/theme/mesures_transverses_complement.dart';
 import '../../../transverse/data/envoi_messages_editeur.dart';
+import '../../domain/aide_echec_email.dart';
 import '../../../transverse/presentation/providers_contact_editeur.dart';
 
 /// Le libellé du bouton — `pwa.parametres.email_test_bouton`.
@@ -43,7 +44,12 @@ class _EtatBoutonEmailTest extends ConsumerState<BoutonEmailTest> {
           .read(serviceMessagesEditeurProvider)
           .envoyerEmailDeTest();
     } on Object catch (e) {
-      resultat = (succes: false, detail: TextesEmailDeTest.echec('$e'));
+      final raison = '$e';
+      resultat = (
+        succes: false,
+        detail: TextesEmailDeTest.echec(raison),
+        aide: AideEchecEmail.pour(raison),
+      );
     }
     if (!mounted) return;
     setState(() {
@@ -102,6 +108,21 @@ class _EtatBoutonEmailTest extends ConsumerState<BoutonEmailTest> {
                   : PaletteTransverse.texteRouge,
             ),
           ),
+          // L'AIDE sous un échec reconnu (09/11/2026) : ce qu'il faut vérifier,
+          // en français — la phrase du web, `pwa.parametres.email_test_aide_*`.
+          if (resultat.aide != null) ...[
+            const SizedBox(height: AppSpacing.xxs),
+            Text(
+              resultat.aide!,
+              key: const Key('param-email-test-aide'),
+              style: TextStyle(
+                fontFamily: AppTextStyles.police,
+                fontSize: TaillesContenu.t13,
+                height: 1.5,
+                color: AppColors.neutre600,
+              ),
+            ),
+          ],
         ],
       ],
     );

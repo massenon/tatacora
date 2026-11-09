@@ -594,12 +594,12 @@ void main() {
       // la vue ne porte que les clés.
       final langue = _normaliser(
         [
-          for (final f in const ['achats_pwa', 'pwa', 'achats'])
-            fichier(
-              '${VueBlade.racine}/lang/fr/$f.php',
-              'C’est le texte que la PWA affiche réellement.',
-            ),
-        ]
+              for (final f in const ['achats_pwa', 'pwa', 'achats'])
+                fichier(
+                  '${VueBlade.racine}/lang/fr/$f.php',
+                  'C’est le texte que la PWA affiche réellement.',
+                ),
+            ]
             .join('\n')
             .split('\n')
             .where((l) => !l.trimLeft().startsWith('//'))

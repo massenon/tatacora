@@ -97,25 +97,38 @@ void main() {
     );
   });
 
-  test('les clés réglées au serveur seul sont celles que le poste refuse '
-      'd’écrire', () {
-    final cles = (serveur['cles_administrateur'] as List).cast<String>();
-    expect(cles, isNotEmpty);
-    for (final cle in cles) {
+  test(
+    'les clés RÉSERVÉES aux administrateurs sont celles du serveur : cinq '
+    'réglages, ni plus ni moins — et AUCUNE clé n’est « serveur seulement »',
+    () {
+      final cles = (serveur['cles_administrateur'] as List).cast<String>();
+      expect(cles, hasLength(5));
+      for (final cle in cles) {
+        expect(
+          RegistreParametresLocal.parCle(cle)!.reserveAdministrateur,
+          isTrue,
+          reason: cle,
+        );
+      }
       expect(
-        RegistreParametresLocal.parCle(cle)!.serveurSeulement,
-        isTrue,
-        reason: cle,
+        [
+          for (final s in RegistreParametresLocal.definitions)
+            if (s.reserveAdministrateur) s.cle,
+        ]..sort(),
+        ([...cles]..sort()),
       );
-    }
-    expect(
-      [
-        for (final s in RegistreParametresLocal.definitions)
-          if (s.serveurSeulement) s.cle,
-      ]..sort(),
-      ([...cles]..sort()),
-    );
-  });
+      // Les neuf réglages des documents sont modifiables avec le seul droit PARAM.
+      final documents = (serveur['cles_documents'] as List).cast<String>();
+      expect(documents, hasLength(9));
+      for (final cle in documents) {
+        expect(
+          RegistreParametresLocal.parCle(cle)!.reserveAdministrateur,
+          isFalse,
+          reason: cle,
+        );
+      }
+    },
+  );
 
   test('l’IFU du CLIENT : facultatif, 13 chiffres s’il est rempli, séparateurs '
       'ôtés — comme le serveur', () {

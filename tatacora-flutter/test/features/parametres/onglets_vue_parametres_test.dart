@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:drift/drift.dart' show driftRuntimeOptions;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +13,7 @@ import 'package:tatacora_flutter/core/rbac/garde_acces.dart';
 import 'package:tatacora_flutter/core/theme/app_theme.dart';
 import 'package:tatacora_flutter/features/auth/domain/session.dart';
 import 'package:tatacora_flutter/features/parametres/data/parametres_dao.dart';
+import 'package:tatacora_flutter/features/parametres/domain/aide_echec_email.dart';
 import 'package:tatacora_flutter/features/parametres/presentation/ecran_parametres.dart';
 import 'package:tatacora_flutter/features/transverse/data/captures_editeur.dart';
 import 'package:tatacora_flutter/features/transverse/data/configuration_poste.dart';
@@ -259,6 +263,106 @@ void main() {
         startsWith('Échec de l\'envoi — le transport a répondu : '),
       );
       expect(texte, contains('relais indisponible'));
+    });
+
+    // 09/11/2026 : le message du transport reste TEL QUEL, une AIDE en français vient
+    // dessous (la phrase du web). Une chaîne par cas ; jamais un secret.
+    for (final cas in <(String, Object, String?, String)>[
+      (
+        'nom du serveur introuvable (le message exact obtenu par le PO)',
+        const SocketException(
+          "Failed host lookup: 'mail.logirestock.digitonpro.com'",
+        ),
+        AideEchecEmail.hote,
+        'Serveur SMTP injoignable (connexion absente ?) : Failed host lookup',
+      ),
+      (
+        'connexion refusée',
+        const SocketException('Connection refused, errno = 111'),
+        AideEchecEmail.connexion,
+        'Serveur SMTP injoignable (connexion absente ?) : Connection refused',
+      ),
+      (
+        'délai dépassé',
+        TimeoutException('trop long'),
+        AideEchecEmail.connexion,
+        'Le serveur SMTP n’a pas répondu à temps',
+      ),
+      (
+        'identifiants refusés',
+        SmtpClientAuthenticationException('535 Authentication failed'),
+        AideEchecEmail.authentification,
+        'Le serveur SMTP a refusé les identifiants',
+      ),
+      (
+        'échec non reconnu : le message seul, aucune aide devinée',
+        Exception('relais indisponible'),
+        null,
+        'Envoi refusé par le serveur SMTP : ',
+      ),
+    ]) {
+      testWidgets('échec « ${cas.$1} » : message intact, aide dessous', (
+        tester,
+      ) async {
+        erreurTransport = cas.$2 as Exception;
+        await poser({
+          ClesSmtp.hote: 'mail.essai.local',
+          ClesSmtp.utilisateur: 'contact@essai.local',
+          'entreprise_email': 'gite@essai.local',
+        });
+        await monter(tester);
+        await ouvrirOnglet(tester, 'email');
+        await tester.ensureVisible(find.byKey(const Key('param-email-test')));
+        await tester.tap(find.byKey(const Key('param-email-test')));
+        await tester.pumpAndSettle();
+
+        final texte = tester
+            .widget<Text>(find.byKey(const Key('param-email-test-resultat')))
+            .data!;
+        expect(
+          texte,
+          startsWith('Échec de l\'envoi — le transport a répondu : '),
+        );
+        expect(texte, contains(cas.$4));
+        final aide = cas.$3;
+        if (aide == null) {
+          expect(find.byKey(const Key('param-email-test-aide')), findsNothing);
+        } else {
+          expect(
+            tester
+                .widget<Text>(find.byKey(const Key('param-email-test-aide')))
+                .data,
+            aide,
+          );
+        }
+      });
+    }
+
+    testWidgets('l\'aide ne cite jamais le mot de passe SMTP ni le message du '
+        'transport', (tester) async {
+      await ParametresDao(db).ecrire({
+        ClesSmtp.hote: 'mail.essai.local',
+        ClesSmtp.utilisateur: 'contact@essai.local',
+        'entreprise_email': 'gite@essai.local',
+      }, auteurId: null);
+      erreurTransport = const SocketException(
+        "Failed host lookup: 'mail.essai.local' S3cret-Gite!",
+      );
+      await monter(tester);
+      await ouvrirOnglet(tester, 'email');
+      await tester.ensureVisible(find.byKey(const Key('param-email-test')));
+      await tester.tap(find.byKey(const Key('param-email-test')));
+      await tester.pumpAndSettle();
+      final texte = tester
+          .widget<Text>(find.byKey(const Key('param-email-test-resultat')))
+          .data!;
+      expect(texte, isNot(contains('S3cret-Gite!')));
+      final aide = tester
+          .widget<Text>(find.byKey(const Key('param-email-test-aide')))
+          .data!;
+      expect(aide, isNot(contains('S3cret-Gite!')));
+      expect(aide, isNot(contains('mail.essai.local')));
+      expect(aide, isNot(contains('contact@essai.local')));
     });
 
     testWidgets('sans le droit d\'écrire, le bouton n\'existe pas', (

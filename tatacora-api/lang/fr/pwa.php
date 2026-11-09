@@ -1498,6 +1498,15 @@ return [
             . 'Rien n\'a été envoyé.',
         'email_test_echec' => 'Échec de l\'envoi — le transport a répondu : :erreur',
         'email_test_envoye' => 'Email de test envoyé à :adresse.',
+        // L'AIDE sous un échec reconnu (09/11/2026) : le message du transport reste affiché tel quel.
+        'email_test_aide_hote' => 'Le nom du serveur de messagerie n\'existe pas ou n\'est pas joignable depuis ce poste. '
+            . 'Vérifiez le nom du serveur (Paramètres > Email (SMTP)), la connexion Internet du poste, et le nom indiqué '
+            . 'dans votre hébergeur (cPanel > Comptes de messagerie > Configurer le client de messagerie).',
+        'email_test_aide_connexion' => 'Le serveur de messagerie a refusé la connexion ou n\'a pas répondu à temps. '
+            . 'Vérifiez le port (465 avec le chiffrement SSL, 587 avec le chiffrement TLS) et le chiffrement choisi '
+            . '(Paramètres > Email (SMTP)), puis la connexion Internet du poste.',
+        'email_test_aide_authentification' => 'Le serveur de messagerie a refusé l\'identifiant ou le mot de passe. '
+            . 'Vérifiez l\'utilisateur SMTP (l\'adresse complète de la boîte) et le mot de passe (Paramètres > Email (SMTP)).',
 
         /*
          * ONGLET « LOGO & APPARENCE » — téléversement RÉEL (02/09/2026),
