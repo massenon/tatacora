@@ -16,58 +16,73 @@
 
   <ol class="etapes">
     <li>Cliquez sur <strong>+ Nouveau client</strong>.</li>
-    <li>Renseignez le <strong>Nom complet</strong>, le <strong>Téléphone</strong>, l'<strong>Email</strong> si vous l'avez, et le <strong>Type</strong> :
-      Particulier, Groupe, Agence partenaire ou Structure.</li>
-    <li>Cliquez sur <strong>Enregistrer</strong>.</li>
+    <li>Renseignez le <strong>Nom / Raison sociale</strong>, le <strong>Téléphone</strong> et le <strong>Type</strong> :
+      Particulier, Groupe, Agence partenaire ou Structure. Le nom, le téléphone et le type sont obligatoires :
+      le téléphone est le principal moyen de retrouver une fiche existante.</li>
+    <li>Cliquez sur <strong>Créer le client</strong>.</li>
   </ol>
 
   <span class="note attention">
     <span class="icone">⚠️</span>
     <span class="titre">Attention</span>
-    Si un client du même nom existe déjà, le logiciel <strong>signale le doublon</strong> et vous demande de
-    confirmer — il ne bloque pas. Vérifiez le numéro de téléphone avant de confirmer : deux fiches
+    Si un client au <strong>même numéro de téléphone</strong> existe déjà, le logiciel <strong>signale le doublon</strong> —
+    <em>« Un client au téléphone identique existe déjà »</em> — mais il ne bloque pas. Vérifiez avant de confirmer : deux fiches
     pour la même personne, ce sont deux soldes, et un client relancé pour une somme qu'il a déjà payée.
   </span>
+
+  <p>
+    Dans la liste, la case à gauche de chaque ligne et le bouton <strong>Supprimer</strong> (visible seulement si votre rôle y a droit et si la
+    suppression est ouverte aux Paramètres) <strong>archivent</strong> la fiche : un badge <em>Archivé</em> la signale et
+    <strong>Restaurer</strong> la remet en service. Un client ne peut pas être archivé tant qu'il a un séjour en cours ou à venir, une location de véhicule
+    non terminée, une réservation de circuit à venir ou une facture non soldée.
+  </p>
 
   <h2>5.2 Suivre les créances</h2>
   <p>
     L'écran <strong>Clients &amp; Créances</strong> ouvre sur cinq indicateurs — créances totales, dont plus de
-    90 jours, 0 à 30 jours, encaissé sur 30 jours, clients à relancer — puis quatre onglets.
+    90 jours, 0 à 30 jours, encaissé sur 30 jours, clients à relancer — puis quatre onglets. Le solde d'un client est
+    <strong>calculé</strong> : les factures non soldées, diminuées des règlements reçus.
   </p>
 
   <table>
     <thead><tr><th>Onglet</th><th>Ce que vous y faites</th></tr></thead>
     <tbody>
-      <tr><td><strong>Liste des clients</strong></td><td>Le fichier client, avec le solde dû, le nombre de pièces et l'ancienneté de la dette. Deux actions par ligne : <strong>Historique</strong> et <strong>Recouvrement</strong>.</td></tr>
-      <tr><td><strong>Suivi des dettes</strong></td><td>La balance âgée : 0-30, 31-60, 61-90, plus de 90 jours.</td></tr>
-      <tr><td><strong>Relances clients</strong></td><td>Les relances déjà tracées, leur canal et la promesse de règlement obtenue.</td></tr>
-      <tr><td><strong>Historique &amp; avances</strong></td><td>Les recouvrements enregistrés et les avances reçues.</td></tr>
+      <tr><td><strong>Liste des clients</strong></td><td>Le fichier client, avec le solde dû, le nombre de pièces et l'ancienneté de la dette. Une recherche et un filtre (<em>Tous les clients</em>, <em>Débiteurs uniquement</em>, <em>Sans dette</em>). Actions par ligne : <strong>Historique</strong>, <strong>Recouvrement</strong>, <strong>Relancer</strong>. Le bouton <strong>Exporter</strong> ne se trouve que sur cet onglet.</td></tr>
+      <tr><td><strong>Suivi des dettes</strong></td><td>La balance âgée : 0 à 30, 31 à 60, 61 à 90, plus de 90 jours. L'ancienneté se compte depuis la date d'émission de la facture.</td></tr>
+      <tr><td><strong>Relances clients</strong></td><td>La liste des <em>clients à relancer</em> (créances de plus de 30 jours sans relance récente) et l'<em>historique des relances</em> : date, canal, montant réclamé, promesse de règlement, auteur.</td></tr>
+      <tr><td><strong>Historique &amp; avances</strong></td><td>Les avances et acomptes reçus, et les recouvrements encaissés.</td></tr>
     </tbody>
   </table>
 
   <h3>Enregistrer un recouvrement</h3>
   <ol class="etapes">
-    <li>Sur la ligne du client, cliquez sur <strong>Recouvrement</strong>.</li>
-    <li>Choisissez la <strong>Pièce réglée</strong> — la réservation ou la note concernée.</li>
-    <li>Saisissez le <strong>Montant reçu (FCFA)</strong>, le <strong>Mode</strong> de règlement, la <strong>Référence</strong> si le
-      règlement en porte une, et un <strong>Commentaire</strong> si nécessaire.</li>
+    <li>Sur la ligne du client, cliquez sur <strong>Recouvrement</strong>. La fenêtre s'intitule « Ajouter un recouvrement ».</li>
+    <li>Choisissez la <strong>Pièce réglée</strong> — la facture non soldée concernée, avec son reste dû.</li>
+    <li>Saisissez le <strong>Montant reçu (FCFA)</strong>, le <strong>Mode</strong> de règlement (Espèces, Mobile Money, Carte, Virement bancaire), la <strong>Référence</strong>
+      (numéro de transaction Mobile Money, numéro de chèque…) et un <strong>Commentaire</strong> si nécessaire.</li>
     <li>Cliquez sur <strong>Enregistrer le recouvrement</strong>.</li>
   </ol>
-  <p>Le solde du client et la balance âgée se recalculent immédiatement.</p>
+  <p>Le solde du client et la balance âgée se recalculent immédiatement. Un client sans créance en cours n'a rien à recouvrer : le logiciel le dit.</p>
 
   <span class="note alerte">
     <span class="icone">🛑</span>
     <span class="titre">Alerte</span>
     Un <strong>trop-perçu est refusé</strong> : vous ne pouvez pas enregistrer un règlement supérieur au reste dû
-    sur la pièce. Si le client verse davantage, enregistrez le montant dû et traitez le surplus comme
-    une <strong>avance</strong>, dans l'onglet Historique &amp; avances.
+    sur la pièce (« Un montant supérieur au reste dû est refusé »). Si le client verse davantage, encaissez le reste dû exact
+    et gardez le surplus pour la prochaine pièce.
   </span>
 
   <h3>Tracer une relance</h3>
   <p>
-    Le bouton <strong>Relancer</strong> enregistre la relance : sa date, son canal et la promesse obtenue.
-    L'écran le dit sans ambiguïté — <strong>la relance est tracée, pas envoyée</strong>. C'est vous qui
-    téléphonez ou écrivez au client ; le logiciel conserve la trace de ce que vous avez fait.
+    Le bouton <strong>Relancer</strong> ouvre « Tracer une relance » : le <strong>Canal utilisé</strong> (appel téléphonique, WhatsApp, e-mail,
+    courrier remis en main propre, visite), le <strong>Montant réclamé</strong>, la <strong>Promesse de règlement</strong> obtenue et un
+    <strong>Compte rendu</strong> de ce que le client a répondu. L'écran le dit sans ambiguïté — <strong>la relance est tracée, pas
+    envoyée</strong>. C'est vous qui téléphonez ou écrivez au client ; le logiciel conserve la trace de ce que vous avez fait. Le même bouton
+    <strong>Relancer</strong> est offert dans la fenêtre d'alertes qui s'ouvre à la connexion (chapitre 2).
+  </p>
+  <p>
+    <strong>Historique</strong> montre, client par client, les encaissements et les relances ; le bouton <strong>Imprimer PDF</strong> en
+    tire le relevé de compte du client.
   </p>
   <figure>
     <img src="../captures/m3-clients-creances.png" alt="L'écran Clients &amp; Créances et sa balance âgée.">
@@ -81,22 +96,49 @@
     Menu latéral <span class="fleche">➔</span> Facturation
   </span>
   <p>
-    Le registre porte <strong>une seule séquence de numéros</strong>, toutes origines confondues : POS au
-    comptant, séjour client hébergé et facture directe. Un numéro n'est jamais réutilisé.
+    L'écran s'intitule <strong>Facturation &amp; Caisse MECeF</strong>. Le registre porte <strong>une seule séquence de numéros</strong>,
+    toutes origines confondues : POS au comptant, séjour client hébergé et facture directe. Un numéro n'est jamais réutilisé.
   </p>
   <ul class="puces">
-    <li>Filtrez par <strong>origine</strong> (POS au comptant, Séjour client hébergé, Facture directe) et par <strong>activité</strong> (Hébergement, Restaurant, Bar, Véhicules, Tourisme).</li>
-    <li>Les trois compteurs en tête donnent le nombre de <strong>Pièces</strong>, le nombre d'<strong>Avoirs</strong> et le <strong>Montant</strong> net de la période.</li>
-    <li><strong>Export Excel</strong> et <strong>Export PDF</strong> reprennent exactement la liste filtrée.</li>
+    <li>Recherchez par <strong>numéro ou client</strong> et filtrez par <strong>activité</strong> (Hébergement, Restaurant, Bar, Véhicules, Tourisme). Sur le <strong>poste Windows</strong>, un filtre d'<strong>origine</strong> (POS au comptant, séjour client hébergé, facture directe) s'ajoute ; sur le web la colonne « Origine » reste vide.</li>
+    <li>Les trois compteurs en tête donnent le nombre de <strong>Pièces</strong>, le nombre d'<strong>Avoirs</strong> et le <strong>Montant</strong> de la liste affichée.</li>
+    <li>Les cases à gauche des lignes sélectionnent des factures : l'export ne porte alors que cette sélection.</li>
+    <li><strong>Exporter</strong> ouvre le choix du format (PDF A4 ou tableur) et reprend exactement la liste filtrée. Le PDF est le <em>registre</em>, jamais une facture.</li>
+    <li><strong>Proformas</strong> ouvre l'écran des factures proforma, documents non fiscaux (voir le chapitre consacré à la facture proforma).</li>
   </ul>
+  <p>Chaque ligne propose, à droite :</p>
+  <ul class="puces">
+    <li><strong>Facture A4</strong> — le document à remettre au client : numéro, date d'émission, client (et son <strong>IFU</strong> s'il a été renseigné), lignes (désignation, activité, quantité, prix unitaire, montant), <strong>Total HT</strong>, <strong>TVA</strong>, <strong>Total TTC</strong>, avoirs rattachés, <strong>net après avoirs</strong>, encaissements reçus et <strong>reste dû</strong>. Si l'administrateur l'a prévu, la signature et le cachet de l'entreprise y figurent.</li>
+    <li><strong>Avoir</strong> — voir plus bas.</li>
+    <li><strong>Normaliser</strong> — selon le mode de facturation (voir plus bas).</li>
+  </ul>
+
+  <h3>Ce que dit le papier selon le mode de facturation</h3>
+  <p>
+    L'administrateur règle, dans les Paramètres du serveur, le mode de facturation : <strong>désactivé</strong>, <strong>e-MECeF</strong>
+    ou <strong>boîtier CC300</strong>. Le poste reçoit ce réglage en lecture seule.
+  </p>
+  <table>
+    <thead><tr><th>Mode</th><th>Ce que l'écran et le papier affichent</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Désactivé</strong></td><td>La facture est une <strong>facture simple</strong> : titre « Facture », numéro marqué <em>N°</em>, <strong>aucune mention</strong> de certification ni de démonstration, aucun bandeau MECeF dans le registre.</td></tr>
+      <tr><td><strong>e-MECeF</strong> ou <strong>boîtier</strong></td><td>Une facture non encore normalisée porte <em>« Facture en attente de normalisation »</em>. Normalisée, elle affiche « Facture normalisée MECeF », le numéro MECeF, le code MECeF, le NIM-TC et le <strong>code QR fiscal</strong>. Le registre dit <em>« MECeF — aucune pièce normalisée »</em> ou <em>« MECeF — n pièce(s) certifiée(s) sur N affichée(s) »</em>.</td></tr>
+    </tbody>
+  </table>
+  <p>
+    La normalisation est un <strong>bouton</strong>, jamais automatique : à l'émission d'une facture, la case <strong>Normaliser maintenant</strong>
+    est décochée par défaut, et une normalisation qui n'aboutit pas ne bloque jamais l'émission — la facture reste en attente et peut être
+    relancée avec <strong>Normaliser</strong> (ou <strong>Réessayer</strong> sur le poste). En mode e-MECeF, le bouton est offert sur le web et le poste
+    demande la normalisation au serveur. En mode boîtier, la normalisation se fait au <strong>poste de la réception</strong> : elle ne se fait pas depuis le web.
+    Une facture <strong>normalisée est figée</strong>. Le détail du fonctionnement se trouve au chapitre consacré à la facturation normalisée.
+  </p>
 
   <span class="note attention">
     <span class="icone">⚠️</span>
     <span class="titre">Attention</span>
-    Le bandeau <strong>« MECeF — non certifiées, démonstration »</strong> signifie ce qu'il écrit : l'inscription
-    à la plateforme fiscale de la DGI n'est pas encore effective, aucune facture ne porte de cachet
-    fiscal. Ne remettez pas ces documents comme des factures normalisées tant que la mention n'a pas
-    changé.
+    Ne remettez pas comme « normalisée » une facture qui n'affiche ni numéro MECeF ni code QR : tant que la mention
+    <em>« en attente de normalisation »</em> est là, la DGI n'a rien certifié. De même, une facture <strong>simple</strong> n'est pas une
+    facture normalisée : elle ne porte volontairement aucune mention fiscale.
   </span>
 
   <span class="note alerte">
@@ -105,6 +147,28 @@
     <strong>Une facture émise ne se modifie pas et ne se supprime pas.</strong> La seule correction possible est
     l'<strong>avoir</strong> : une pièce de sens inverse, qui laisse la facture d'origine dans le registre. C'est
     la règle sur laquelle repose la valeur probante de toute la facturation.
+  </span>
+
+  <h3>Émettre un avoir</h3>
+  <ol class="etapes">
+    <li>Sur la ligne de la facture, cliquez sur <strong>Avoir</strong>.</li>
+    <li>Saisissez le <strong>Montant de l'avoir (FCFA)</strong> — au plus le montant TTC de la facture, plafond rappelé à l'écran —
+      et le <strong>Motif de l'avoir</strong> (par exemple « Prestation non fournie — nuitée annulée »).</li>
+    <li>Cliquez sur <strong>Émettre l'avoir</strong>.</li>
+  </ol>
+  <p>
+    La facture d'origine reste inchangée et le registre indique « n avoir(s) » sur sa ligne ; les deux pièces coexistent.
+    Pour une facture déjà <strong>normalisée</strong>, l'avoir est lui aussi normalisé, et il ne se fait <strong>qu'en ligne</strong> : sur le poste,
+    reconnectez-le au serveur avant d'émettre l'avoir.
+  </p>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Sur le poste Windows</span>
+    Hors ligne, le poste émet la facture avec un <strong>numéro provisoire</strong> (<code>PROV-…</code>) ; le serveur lui donne son
+    numéro officiel à la synchronisation. L'<strong>IFU du client</strong> (facultatif, 13 chiffres) se
+    saisit à la validation de la facture — fenêtre de clôture d'un séjour, lien « IFU du client » au comptoir. Une réponse du boîtier perdue en route
+    est marquée <em>« à vérifier »</em> et n'est jamais rejouée toute seule.
   </span>
   <figure>
     <img src="../captures/m2-facturation.png" alt="Le registre des factures, toutes origines confondues.">
@@ -119,7 +183,8 @@
   </span>
   <p>
     C'est le <strong>journal des ventes</strong>, à ne pas confondre avec le registre des factures. On y cherche
-    un numéro de vente <code>V-2026-00016</code>, pas un numéro de facture <code>F-2026-00042</code>.
+    un numéro de vente <code>V-2026-00016</code>, pas un numéro de facture <code>F-2026-00042</code>. Une vente peut exister
+    sans facture si l'émission a échoué ; une vente annulée reste une vente, là où une facture annulée produit un avoir.
   </p>
   <table>
     <thead><tr><th>Indicateur</th><th>Ce qu'il compte</th></tr></thead>
@@ -127,13 +192,20 @@
       <tr><td><strong>Ventes</strong></td><td>Le nombre de ventes de la période, et combien ont été annulées.</td></tr>
       <tr><td><strong>Chiffre d'affaires</strong></td><td>Les ventes validées.</td></tr>
       <tr><td><strong>Encaissé</strong></td><td>Ce qui est réellement dans le tiroir.</td></tr>
-      <tr><td><strong>Porté en note</strong></td><td>Ce qui a été porté sur une note de chambre : une créance, réglée au départ du client.</td></tr>
+      <tr><td><strong>Porté en note</strong></td><td>Ce qui a été porté sur une note de chambre : une créance du client, réglée à son départ.</td></tr>
       <tr><td><strong>Sans impact stock</strong></td><td>Les ventes qui n'ont décrémenté aucun article, faute de lien à une fiche de stock.</td></tr>
     </tbody>
   </table>
   <p>
-    Les filtres portent sur le poste, l'activité, le mode de règlement et le statut. Chaque ligne
-    ouvre son <strong>Détail</strong> et, quand elle en a une, sa facture.
+    La recherche porte sur le numéro de vente, la table ou la chambre ; les filtres sur le poste, l'activité, le mode de règlement,
+    le statut (<em>Validées</em> ou <em>Annulées</em>) et deux dates. Chaque ligne affiche des pastilles — <em>encaissée</em>,
+    <em>en note</em>, <em>annulée</em>, <em>stock ✕</em> — et un bouton <strong>Détail</strong> qui ouvre les lignes de la vente, ses tickets
+    (<strong>Ticket 80 mm</strong>) et, quand elle en a une, sa facture. <strong>Exporter</strong> produit le journal filtré en PDF ou tableur.
+  </p>
+  <h3>Annuler une vente</h3>
+  <p>
+    Dans le <strong>Détail</strong>, <strong>Annuler la vente</strong> demande un <strong>motif</strong>, obligatoire : une vente annulée reste au journal,
+    et le journal doit dire pourquoi. Les sorties de stock correspondantes sont compensées par un mouvement inverse ; rien n'est effacé.
   </p>
   <figure>
     <img src="../captures/historique-ventes.png" alt="L'historique des ventes : le journal des ventes, pas des factures.">
@@ -149,20 +221,25 @@
   <p class="chapeau">
     Deux points de vente, une seule mécanique. Le <strong>Point de vente</strong> encaisse au comptant, table par
     table ou au comptoir. Le <strong>POS clients hébergés</strong> alimente le panier d'un séjour, qui reste ouvert
-    jusqu'au départ du client. La différence tient au client, pas à la manière de saisir.
+    jusqu'au départ du client. La différence tient au client, pas à la manière de saisir. Sur le poste Windows, les deux
+    fonctionnent sans internet.
   </p>
 
   <h2>6.1 Ouvrir la caisse</h2>
-  <p>Rien ne s'encaisse tant que la caisse du poste n'est pas ouverte.</p>
+  <p>
+    Rien ne s'encaisse au comptant tant que la caisse du poste n'est pas ouverte : le bouton d'encaissement affiche alors
+    <em>« Ouvrez la caisse pour encaisser »</em>. Dans la barre supérieure, <em>Caisse fermée</em> est un lien qui mène au point de vente.
+  </p>
   <ol class="etapes">
-    <li>Cliquez sur <strong>Ouvrir la caisse</strong>, dans la barre supérieure ou dans le bandeau du point de vente.</li>
-    <li>Choisissez le <strong>Poste de caisse</strong> — Réception, Restaurant ou Bar.</li>
+    <li>Ouvrez le <strong>Point de vente</strong> (bouton <strong>Vente</strong> de la barre supérieure).</li>
+    <li>Dans le bandeau <em>« Aucune caisse ouverte »</em>, cliquez sur <strong>Ouvrir la caisse</strong>. La fenêtre s'intitule « Ouvrir la caisse bar » : la caisse du point de vente est unique, il n'y a pas de poste de caisse à choisir.</li>
     <li>Saisissez le <strong>Fond de caisse (FCFA)</strong> : la monnaie présente dans le tiroir avant la première vente.</li>
-    <li>Validez par <strong>Ouvrir</strong>.</li>
+    <li>Validez par <strong>Ouvrir la caisse</strong>.</li>
   </ol>
   <p>
-    Le bandeau affiche alors, en continu : l'heure d'ouverture, le fond, le nombre de ventes,
-    le chiffre d'affaires, le montant <strong>Encaissé</strong> et le montant <strong>En note</strong>.
+    Le bandeau affiche alors, en continu : <em>Caisse bar ouverte depuis 08:15</em>, le fond, le nombre de ventes,
+    le chiffre d'affaires (CA), le montant <strong>Encaissé</strong> et le montant <strong>En note</strong>.
+    Une caisse ouverte depuis plus de 24 heures est signalée en rouge dans la barre supérieure : clôturez-la avant d'en ouvrir une autre.
   </p>
 
   <figure>
@@ -174,23 +251,28 @@
     </ul>
   </figure>
 
+  <p>
+    Le <strong>Journal du jour</strong> résume la session — chiffre d'affaires, encaissé, panier moyen, articles vendus — et liste chaque vente,
+    avec un lien <strong>annuler</strong> (motif obligatoire, voir le chapitre 5) ; une vente annulée y reste, marquée « annulée ».
+  </p>
+
   <h2>6.2 Vendre au comptoir ou à une table</h2>
   <span class="chemin">
     <span class="etiquette">Chemin</span>
-    Barre supérieure <span class="fleche">➔</span> Point de vente
+    Barre supérieure <span class="fleche">➔</span> Vente
   </span>
 
   <ol class="etapes">
-    <li>Dans la colonne <strong>Salle</strong>, choisissez la table (T1 à T6, J1 à J4, P1 à P3) ou
-      <strong>Vendre au comptoir</strong> si la vente n'est rattachée à aucune table.</li>
+    <li>Dans la colonne <strong>Salle</strong>, choisissez une table — regroupées par espace (restaurant, jardin, plage ; leur nombre se règle aux Paramètres) — ou
+      <strong>Vendre au comptoir</strong> si la vente n'est rattachée à aucune table. Chaque table indique son état : libre, ouverte, en cours.</li>
     <li>Filtrez le catalogue par famille — <strong>Tout</strong>, <strong>Bar</strong>, <strong>Restaurant</strong> — puis par catégorie,
       ou tapez directement dans <strong>Rechercher un article…</strong>.</li>
     <li>Cliquez sur l'article : il s'ajoute au <strong>Panier</strong>. Cliquez à nouveau pour augmenter la quantité,
-      ou utilisez les boutons <strong>−</strong> et <strong>+</strong> de la ligne.</li>
-    <li>Vérifiez le <strong>Total</strong>.</li>
-    <li>Choisissez le <strong>Mode de règlement</strong> : Espèces, Mobile Money, Carte bancaire, Virement ou
-      <strong>Porté sur la note de chambre</strong>.</li>
-    <li>Cliquez sur <strong>Encaisser</strong>.</li>
+      ou utilisez les boutons <strong>−</strong> et <strong>+</strong> de la ligne ; la croix retire la ligne.</li>
+    <li>Au besoin, appliquez une <strong>Remise</strong> au panier (aucune, en pourcentage ou en montant) : l'écran rappelle « Sur un total de … » puis le net.</li>
+    <li>Vérifiez le <strong>Total</strong>. Le champ <strong>Client (facultatif)</strong> sert à imprimer un nom sur le ticket ; il ne crée aucun compte client.</li>
+    <li>Choisissez le <strong>Mode de règlement</strong> : Espèces, Mobile Money, Carte bancaire ou Virement.</li>
+    <li>Cliquez sur <strong>Encaisser</strong>. La fenêtre « Vente encaissée » donne le numéro de la vente et propose <strong>Imprimer</strong>, <strong>Facture</strong> (A4) et <strong>Ticket 80 mm</strong>.</li>
   </ol>
 
   <figure>
@@ -205,6 +287,11 @@
     </ul>
   </figure>
 
+  <p>
+    Deux boutons dans l'en-tête du panier : <strong>Vider</strong> retire toutes les lignes mais laisse le panier <strong>ouvert</strong> ; <strong>Abandonner</strong>
+    ferme le panier de la table sans rien vendre (<em>« Panier abandonné »</em>).
+  </p>
+
   <span class="note info">
     <span class="icone">ℹ️</span>
     <span class="titre">Information</span>
@@ -216,17 +303,27 @@
   <span class="note attention">
     <span class="icone">⚠️</span>
     <span class="titre">Attention</span>
-    <strong>Porté sur la note de chambre n'est pas un encaissement.</strong> Ce montant n'entre pas dans le tiroir :
-    il devient une créance du client, réglée à son départ. Ne l'utilisez que pour un client
-    effectivement hébergé, et vérifiez que vous avez sélectionné le bon séjour.
+    <strong>« Porté sur la note de chambre » n'existe pas au comptoir</strong> : aucune chambre n'y porte de note. Un client hébergé se sert
+    au <strong>POS clients hébergés</strong> (6.3), dont la clôture porte les consommations sur sa fiche. Une consommation portée en note
+    n'entre pas dans le tiroir : elle devient une créance du client, réglée à son départ.
+  </span>
+
+  <span class="note alerte">
+    <span class="icone">🛑</span>
+    <span class="titre">Alerte</span>
+    Si le stock d'un article est insuffisant, la fenêtre <strong>« Stock insuffisant »</strong> propose <strong>Vendre quand même</strong> : la vente
+    est alors enregistrée avec un <strong>stock négatif</strong>, tracé comme rupture forcée. N'y recourez que si la bouteille est réellement
+    servie, puis signalez l'écart au magasinier. Un article sans prix à la carte (<em>« Prix à définir »</em>) ne peut pas être vendu : renseignez
+    d'abord son prix.
   </span>
 
   <span class="note astuce">
     <span class="icone">✅</span>
     <span class="titre">Astuce</span>
     Le point orange sur une vignette d'article signale un article qui <strong>ne décrémente aucun stock</strong>,
-    faute de fiche technique. La vente est correcte ; c'est le stock affiché qui reste inchangé.
-    Signalez ces articles au magasinier plutôt que de corriger le stock à la main.
+    faute de fiche technique : la vente est correcte, c'est le stock affiché qui reste inchangé. Un <strong>P</strong> sur un plat signale une
+    fiche technique <strong>provisoire</strong>, dont le stock décrémenté est approximatif. Signalez ces articles au magasinier plutôt que de
+    corriger le stock à la main.
   </span>
 
   <h2>6.3 Le panier d'un client hébergé</h2>
@@ -235,14 +332,16 @@
     Menu latéral <span class="fleche">➔</span> POS clients hébergés
   </span>
   <p>
-    Ici, le panier <strong>reste ouvert de l'arrivée au départ</strong>. Bar, restaurant, tourisme et location
-    y entrent ensemble : un seul panier par séjour, une seule facture à la clôture.
+    Ici, le panier <strong>reste ouvert de l'arrivée au départ</strong>. Bar et restaurant
+    y entrent ensemble : un seul panier par séjour, une seule facture à la clôture. L'écran affiche deux indicateurs,
+    <em>Paniers ouverts</em> et <em>En-cours séjours</em>.
   </p>
   <ol class="etapes">
     <li>Dans <strong>Séjours en cours</strong>, cliquez sur le séjour du client. La carte indique l'unité occupée,
-      la date de départ, le montant déjà porté et le nombre de lignes.</li>
-    <li>Ajoutez les articles consommés, exactement comme au point de vente comptant.</li>
-    <li>Laissez le panier ouvert : il se complète à chaque consommation, jour après jour.</li>
+      le départ prévu, le montant déjà porté et le nombre de lignes, avec le badge <em>PANIER OUVERT</em> ou <em>AUCUN PANIER</em>.</li>
+    <li>Ajoutez les articles consommés, exactement comme au point de vente comptant : catalogue <strong>Bar</strong> et <strong>Restauration</strong>,
+      recherche <em>« Rechercher une consommation ou une prestation… »</em>. Un article marqué « tarif manquant » ne peut pas être ajouté.</li>
+    <li>Laissez le panier ouvert : il se complète à chaque consommation, jour après jour. Une remise peut être appliquée au panier du séjour.</li>
     <li>Au départ du client, cliquez sur <strong>Clôturer et facturer</strong>.</li>
   </ol>
 
@@ -251,43 +350,58 @@
     <figcaption><b>Figure 6.3</b> — Le point de vente des clients hébergés.</figcaption>
     <ul class="reperes">
       <li><span class="n">1</span><strong>Séjours en cours</strong> — un panier par séjour, jamais deux.</li>
-      <li><span class="n">2</span>Le <strong>catalogue</strong>, complété d'un rayon <em>Tourisme &amp; location</em>.</li>
+      <li><span class="n">2</span>Le <strong>catalogue</strong>, par catégorie.</li>
       <li><span class="n">3</span>Le <strong>panier du séjour</strong>, ouvert jusqu'au départ.</li>
     </ul>
   </figure>
+
+  <p>
+    La fenêtre <strong>« Clôturer avant le départ ? »</strong> détaille la facture avant de l'émettre : un bloc <strong>Hébergement</strong> (nombre de nuitées × tarif) et
+    un bloc <strong>Consommations</strong>, puis le <strong>Total facturé</strong>. Elle précise qu'une vente en note de chambre est enregistrée au journal et que la facture du séjour
+    est émise — nuitées d'abord, consommations ensuite, un seul document. La case <strong>Payer séparément (l'hébergement sera facturé plus tard)</strong>
+    émet une facture des consommations <strong>seules</strong> : l'hébergement reste dû sur la fiche du client. Le champ <strong>IFU du client</strong> et la
+    case <strong>Normaliser maintenant</strong> (décochée par défaut) s'y trouvent aussi : voir le chapitre 5.
+  </p>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Information</span>
+    Le POS ne propose <strong>plus de rayon « Tourisme &amp; location »</strong> : le catalogue du comptoir comme celui des séjours se limite au bar et au
+    restaurant. Un contrat de location ou une réservation de circuit se règle par sa propre facture, jamais au point de vente : on n'encaisse pas deux fois. Une facture proforma peut les chiffrer
+    avant la prestation.
+  </span>
 
   <span class="note alerte">
     <span class="icone">🛑</span>
     <span class="titre">Alerte</span>
     <strong>La clôture est définitive.</strong> Un panier clôturé produit la facture et se ferme : plus aucune
     ligne ne peut y être ajoutée. Faites le tour du bar et de la cuisine <em>avant</em> de clôturer —
-    une consommation servie après la clôture ne pourra plus être rattachée au séjour.
+    une consommation servie après la clôture ne pourra plus être rattachée au séjour. Si la facturation échoue, rien n'est enregistré et le panier reste intact.
   </span>
 
   <span class="note attention">
     <span class="icone">⚠️</span>
     <span class="titre">Attention</span>
-    Une réservation dont le <strong>panier est encore ouvert</strong> ne peut pas être archivée. Le logiciel refuse
-    l'opération et le dit : les consommations existeraient encore, sans support pour les facturer, et
-    l'écart n'apparaîtrait qu'à la caisse — trop tard, le client étant parti.
+    Deux refus à connaître : un séjour qui <strong>porte déjà une facture</strong> ne peut pas être facturé une seconde fois (les nuitées seraient refacturées), et
+    la catégorie de l'unité doit porter un <strong>tarif</strong> — sinon la facture ne peut pas être émise tant que le tarif n'est pas renseigné.
   </span>
 
   <h2>6.4 Clôturer la caisse</h2>
   <ol class="etapes">
-    <li>Cliquez sur <strong>Clôturer la caisse</strong> dans le bandeau ou la barre supérieure.</li>
-    <li>Lisez le récapitulatif : <strong>Fond de caisse</strong>, <strong>Espèces encaissées</strong>, <strong>Théorique en caisse</strong>.</li>
+    <li>Cliquez sur <strong>Clôturer la caisse</strong> dans le bandeau du point de vente.</li>
+    <li>Lisez le récapitulatif : <strong>Fond de caisse</strong>, <strong>Espèces encaissées</strong>, <strong>Théorique en caisse</strong> (fond + ventes encaissées).</li>
     <li>Comptez le tiroir et saisissez le <strong>Montant réellement compté</strong>.</li>
-    <li>Validez par <strong>Clôturer</strong>.</li>
+    <li>Validez par <strong>Clôturer la caisse</strong>.</li>
   </ol>
   <p>
-    Le logiciel annonce alors <em>« Caisse clôturée — aucun écart »</em> ou <em>« Caisse clôturée — écart de … »</em>.
-    L'écart est conservé : il ne se corrige pas, il s'explique.
+    Le logiciel annonce alors <em>« Caisse bar clôturée — aucun écart »</em> ou <em>« Caisse bar clôturée — écart de … »</em>.
+    L'écart est conservé : il ne se corrige pas, il s'explique. Une clôture ne se refait pas.
   </p>
 
   <span class="note info">
     <span class="icone">ℹ️</span>
     <span class="titre">Information</span>
-    Le théorique ne compte que les <strong>espèces</strong>. Le Mobile Money, la carte et les montants portés en
+    Le théorique ne compte que les <strong>espèces</strong>. Le Mobile Money, la carte, le virement et les montants portés en
     note de chambre n'y figurent pas : ils ne passent pas par le tiroir.
   </span>
 
@@ -297,14 +411,18 @@
     Menu latéral <span class="fleche">➔</span> Restaurant &nbsp;·&nbsp; Menu latéral <span class="fleche">➔</span> Bar
   </span>
   <p>
-    Ces deux écrans portent la carte réellement vendue : catégories, prix, disponibilité du jour et
-    lien au stock. Six indicateurs les résument — articles à la carte, retirés du jour, liés au stock,
-    articles qui ne décrémentent rien, ruptures et <strong>prix provisoires</strong>.
+    Ces deux écrans portent la carte réellement vendue : catégories, prix TTC, disponibilité du jour et
+    lien au stock. Trois onglets : <strong>Carte du jour</strong>, <strong>Couverture du stock</strong> et <strong>Ventes du Restaurant</strong> (ou
+    <strong>Ventes du Bar</strong>), qui liste les lignes de vente du rayon avec le stock actuel de chaque article. Six indicateurs résument la carte —
+    articles à la carte, retirés du jour, liés au stock, articles qui ne décrémentent rien, ruptures et <strong>prix provisoires</strong> —
+    et la bande se replie pour gagner de la place.
   </p>
   <ul class="puces">
-    <li><strong>Rendre indispo.</strong> retire l'article de la carte du jour : il disparaît du point de vente.</li>
-    <li><strong>Lier au stock</strong> rattache l'article à une fiche de stock — c'est ce lien qui fait sortir la bouteille du casier à la vente.</li>
-    <li><strong>Imprimer la fiche des prix</strong> produit le document remis au client (chapitre 11).</li>
+    <li><strong>Rendre indispo.</strong> retire l'article de la carte du jour, avec un motif : il disparaît du point de vente. <strong>Remettre</strong> l'y ramène.</li>
+    <li><strong>Lier au stock</strong> rattache l'article à une fiche de stock en précisant combien d'unités vendables tiennent dans une unité de stock (un casier de 24 : saisissez 24) — c'est ce lien qui fait sortir la bouteille du casier à la vente. <strong>Rapprocher automatiquement</strong> rattache d'un coup les articles dont le nom correspond à un article de stock.</li>
+    <li><strong>Prix</strong> change le prix de vente (un prix à zéro est refusé) ; le changement est tracé dans l'<strong>Historique des prix</strong>. Pour suspendre une vente, utilisez « Rendre indispo. ».</li>
+    <li>Au bar, <strong>Nouvelle boisson</strong> crée une boisson à la carte, qui doit être rattachée à un article de stock, et <strong>Modifier</strong> corrige son libellé et sa catégorie. Au restaurant, <strong>Plats, fiches techniques &amp; menus</strong> ouvre l'écran « Restaurant &amp; Cuisine » : nouveau plat (avec une description facultative), fiches techniques et menus.</li>
+    <li><strong>Imprimer la fiche des prix</strong> produit le document remis au client (voir le chapitre consacré aux états et rapports).</li>
     <li>L'onglet <strong>Couverture du stock</strong> compte, catégorie par catégorie, les articles rattachés et
       ceux qui ne le sont pas : c'est là qu'un trou de rattachement se voit avant l'inventaire.</li>
   </ul>
@@ -329,8 +447,24 @@
   <span class="note info">
     <span class="icone">ℹ️</span>
     <span class="titre">Information</span>
-    Les écrans <strong>Restaurant &amp; Cuisine</strong> et <strong>Bar &amp; POS Boissons</strong> (accessibles par leur adresse)
-    portent les référentiels historiques des plats et des boissons — nom, catégorie, prix de vente,
-    disponibilité. La carte réellement vendue au point de vente est celle décrite ci-dessus.
+    Un plat <strong>sans fiche technique se vend</strong> quand même, sans mouvement de stock : la carte le signale par un point orange et le compte parmi les
+    articles « qui ne décrémentent rien ». Au restaurant, le stock vendable se calcule sur le stock de la <strong>cuisine</strong> et non sur celui du magasin.
+  </span>
+
+  <h3>La carte du Gîte et l'import par tableur</h3>
+  <p>
+    La carte du Gîte Chez Noël (affiches du 30 octobre 2026) a été transcrite en entier : les affiches comptent <strong>87 articles</strong> ; le doublon « Piron »
+    n'est enregistré qu'une fois, ce qui donne <strong>81 plats et 5 boissons</strong>. La rubrique « Sur commande », sans prix, a été supprimée de la carte. Les prix sont
+    tous <strong>TTC</strong>, et rien n'est lié au stock au départ : le stock s'ajoute ensuite. L'écran <strong>Import &amp; Export</strong> fournit des
+    <strong>modèles Excel</strong> à remplir (stocks, bar, restaurant) ; on importe d'abord les stocks, puis le bar, puis le restaurant. Voir le chapitre
+    consacré à l'import et à l'export.
+  </p>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Sur le poste Windows</span>
+    Tout ce chapitre fonctionne hors ligne : ouverture et clôture de caisse, ventes, paniers, annulations et retraits de la carte restent sur le poste puis partent à la
+    synchronisation. La sortie de stock d'une vente est écrite par le <strong>serveur</strong> à la réception de la vente : en attendant, l'écran Stocks du poste indique pour les
+    boissons « −X en attente d'envoi » sans toucher au stock affiché. Le ticket et la facture A4 s'impriment depuis le poste ; la facture porte alors un numéro provisoire.
   </span>
 </section>
