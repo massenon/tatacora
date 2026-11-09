@@ -40,7 +40,7 @@
   <h2>{{ __('comptabilite_pwa.archive_section_cloture') }}</h2>
   <table class="data-table">
     <tbody>
-      <tr><td class="text-left" style="width: 40%;">{{ __('comptabilite_pwa.archive_cloturee_le') }}</td><td class="text-left">{{ $cloture->cloturee_le->format('d/m/Y H:i') }}</td></tr>
+      <tr><td class="text-left" style="width: 40%;">{{ __('comptabilite_pwa.archive_cloturee_le') }}</td><td class="text-left">{{ \App\Shared\Support\HeureLocale::formater($cloture->cloturee_le, 'd/m/Y H:i') }}</td></tr>
       <tr><td class="text-left">{{ __('comptabilite_pwa.archive_piece_cloture') }}</td><td class="text-left">{{ $cloture->piece_cloture ?? \App\Pwa\Support\MontantFcfa::TIRET }}</td></tr>
       <tr><td class="text-left">{{ __('comptabilite_pwa.archive_piece_a_nouveaux') }}</td><td class="text-left">{{ $cloture->piece_a_nouveaux ?? \App\Pwa\Support\MontantFcfa::TIRET }}</td></tr>
       <tr><td class="text-left">{{ __('comptabilite_pwa.archive_resultat') }}</td><td class="text-left">{{ \App\Pwa\Support\MontantFcfa::format((string) $cloture->resultat) }}</td></tr>

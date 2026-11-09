@@ -112,7 +112,7 @@
     </tr>
     <tr>
         <td class="cle">{{ __('vehicules.pwa.recu_emis_le') }}</td>
-        <td>{{ now()->format('d/m/Y') }}</td>
+        <td>{{ \App\Shared\Support\HeureLocale::formater(now(), 'd/m/Y') }}</td>
     </tr>
     <tr>
         <td class="cle">{{ __('vehicules.pwa.recu_emis_par') }}</td>

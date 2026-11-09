@@ -83,7 +83,7 @@ class InventairesExport implements FromCollection, WithHeadings, WithMapping, Sh
     public function map($l): array
     {
         return [
-            CarbonImmutable::parse($l['date'])->format('d/m/Y H:i'),
+            \App\Shared\Support\HeureLocale::formater($l['date'], 'd/m/Y H:i'),
             $l['motif'],
             $l['entree'] > 0 ? (float)$l['entree'] : 0,
             $l['sortie'] > 0 ? (float)$l['sortie'] : 0,

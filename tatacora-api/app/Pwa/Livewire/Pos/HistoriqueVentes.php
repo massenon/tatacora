@@ -278,7 +278,7 @@ class HistoriqueVentes extends PageMetier
 
         $pdf = Pdf::loadView('pdf.facture-ticket', [
             'vente' => $vente,
-            'quand' => $vente->created_at?->format('d/m/Y H:i') ?? '',
+            'quand' => \App\Shared\Support\HeureLocale::formater($vente->created_at, 'd/m/Y H:i') ?? '',
             'auteur' => $this->auteur(),
             // En-tete etablissement — source unique RG-19, jamais recopiee en dur.
             'entete' => $entetes->genererEnTete(

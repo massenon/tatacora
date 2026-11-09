@@ -89,7 +89,7 @@ class VentesExport implements FromCollection, ShouldAutoSize, WithColumnFormatti
     {
         return [
             $row->numero,
-            CarbonImmutable::parse($row->created_at)->format('d/m/Y H:i'),
+            \App\Shared\Support\HeureLocale::formater($row->created_at, 'd/m/Y H:i'),
             $row->point_vente,
             $row->table ?? '',
             VenteService::MODES_PAIEMENT[$row->mode_paiement] ?? $row->mode_paiement,
@@ -124,7 +124,7 @@ class VentesExport implements FromCollection, ShouldAutoSize, WithColumnFormatti
 
         $sheet->setCellValue('A1', __('pwa.marque').' — '.__('pwa.enseigne_courte'));
         $sheet->setCellValue('A2', __('pos_pwa.document.journal_titre'));
-        $sheet->setCellValue('A3', __('pos_pwa.document.edite_le').' : '.date('d/m/Y H:i'));
+        $sheet->setCellValue('A3', __('pos_pwa.document.edite_le').' : '.\App\Shared\Support\HeureLocale::formater(now(), 'd/m/Y H:i'));
         // PA-119 — le filtre est ECRIT sur le document, pas seulement applique.
         $sheet->setCellValue('A4', __('pos_pwa.document.filtre').' : '.$this->filtre);
 

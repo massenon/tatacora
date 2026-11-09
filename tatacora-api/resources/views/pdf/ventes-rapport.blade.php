@@ -113,7 +113,7 @@
       @forelse ($ventes as $vente)
         <tr>
           <td class="text-left font-bold">{{ $vente->numero }}</td>
-          <td class="text-left">{{ $vente->created_at?->format('d/m/Y H:i') }}</td>
+          <td class="text-left">{{ \App\Shared\Support\HeureLocale::formater($vente->created_at, 'd/m/Y H:i') }}</td>
           <td class="text-left">{{ $vente->point_vente }}</td>
           <td class="text-left">{{ $vente->table ?? '' }}</td>
           <td class="text-left">{{ \App\Domain\Ventes\Services\VenteService::MODES_PAIEMENT[$vente->mode_paiement] ?? $vente->mode_paiement }}</td>

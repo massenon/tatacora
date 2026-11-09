@@ -139,7 +139,7 @@
       <tbody>
         @foreach ($fiche['lignes'] as $l)
           <tr>
-            <td class="text-left text-slate">{{ \Carbon\Carbon::parse($l['date'])->format('d/m/Y H:i') }}</td>
+            <td class="text-left text-slate">{{ \App\Shared\Support\HeureLocale::formater($l['date'], 'd/m/Y H:i') }}</td>
             <td class="text-left font-bold">{{ $l['motif'] }}</td>
             <td class="text-right text-emerald font-bold">{{ $l['entree'] > 0 ? '+'.$l['entree'] : '—' }}</td>
             <td class="text-right text-red font-bold">{{ $l['sortie'] > 0 ? '−'.$l['sortie'] : '—' }}</td>

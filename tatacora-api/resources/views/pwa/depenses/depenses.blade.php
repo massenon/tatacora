@@ -79,7 +79,7 @@
         {{-- En-tête d'impression : un `<h2>`, jamais un second `<h1>`. --}}
         <div class="hidden print:block mb-6 border-b-2 border-[var(--navy)] pb-4">
           <h2 class="text-xl font-bold" style="color:var(--navy)">{{ __('pwa.marque') }}</h2>
-          <p class="text-[12px] text-slate-600 mt-1">{{ __('depenses_pwa.export_document') }} — {{ now()->format('d/m/Y H:i') }}</p>
+          <p class="text-[12px] text-slate-600 mt-1">{{ __('depenses_pwa.export_document') }} — {{ \App\Shared\Support\HeureLocale::formater(now(), 'd/m/Y H:i') }}</p>
         </div>
 
         {{-- ================================================== HERO (l.24-40) --}}

@@ -1744,7 +1744,7 @@ final class PosPwaTest extends TestCase
         // rendue avec exactement les variables que le composant lui passe.
         $html = view('pdf.facture-ticket', [
             'vente' => $vente->load('lignes'),
-            'quand' => now()->format('d/m/Y H:i'),
+            'quand' => \App\Shared\Support\HeureLocale::formater(now(), 'd/m/Y H:i'),
             'auteur' => $this->gerant->login,
             'entete' => app(\App\Shared\ReportEngine\Services\ReportHeaderService::class)->genererEnTete(
                 typeRapport: (string) __('pos_pwa.document.ticket_titre'),

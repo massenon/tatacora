@@ -133,7 +133,7 @@
                        émetteur ne peut pas exister ; un repli serait du code
                        que rien n'exerce (même défaut que PA-150). --}}
                   <td class="px-5 py-3 text-slate-500">{{ $edition->utilisateur->libelleAuteur() }}</td>
-                  <td class="px-5 py-3 text-slate-500">{{ $edition->date_edition->format('d/m/Y H:i') }}</td>
+                  <td class="px-5 py-3 text-slate-500">{{ \App\Shared\Support\HeureLocale::formater($edition->date_edition, 'd/m/Y H:i') }}</td>
                   <td class="px-5 py-3 text-slate-500">{{ strtoupper($edition->format) }}</td>
                   {{-- L'action « Retélécharger » du maître n'est pas rendue :
                        `chemin_fichier_archive` vaut TOUJOURS `null` (PA-48), il

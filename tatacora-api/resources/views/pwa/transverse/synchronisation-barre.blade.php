@@ -37,7 +37,7 @@
 
         <p id="derniere-demande-barre" class="text-sm text-slate-600">
           @if ($demande)
-            {{ __('pwa.synchronisation_postes.derniere_demande', ['date' => $demande->demandee_le->format('d/m/Y H:i:s')]) }}
+            {{ __('pwa.synchronisation_postes.derniere_demande', ['date' => \App\Shared\Support\HeureLocale::formater($demande->demandee_le, 'd/m/Y H:i:s')]) }}
           @else
             {{ __('pwa.synchronisation_postes.aucune_demande') }}
           @endif
@@ -61,8 +61,8 @@
                   <tr class="border-t border-slate-100" wire:key="poste-barre-{{ $poste['poste_id'] }}">
                     <td class="px-4 py-2.5 font-medium text-slate-700">{{ $poste['poste_id'] }}</td>
                     <td class="px-4 py-2.5 text-slate-600">{{ $poste['jeton_utilise_le']?->locale('fr')->diffForHumans() ?? __('pwa.synchronisation_postes.jamais') }}</td>
-                    <td class="px-4 py-2.5 text-slate-600">{{ $poste['derniere_montee']?->format('d/m/Y H:i') ?? __('pwa.synchronisation_postes.jamais') }}</td>
-                    <td class="px-4 py-2.5 text-slate-600">{{ $poste['derniere_descente']?->format('d/m/Y H:i') ?? __('pwa.synchronisation_postes.jamais') }}</td>
+                    <td class="px-4 py-2.5 text-slate-600">{{ \App\Shared\Support\HeureLocale::formater($poste['derniere_montee'], 'd/m/Y H:i') ?? __('pwa.synchronisation_postes.jamais') }}</td>
+                    <td class="px-4 py-2.5 text-slate-600">{{ \App\Shared\Support\HeureLocale::formater($poste['derniere_descente'], 'd/m/Y H:i') ?? __('pwa.synchronisation_postes.jamais') }}</td>
                     <td class="px-4 py-2.5">
                       @if (! $poste['appaire'])
                         <span class="text-[11px] px-1.5 py-0.5 rounded font-semibold bg-red-50 text-red-700">{{ __('pwa.synchronisation_barre.revoque') }}</span>

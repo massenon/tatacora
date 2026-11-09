@@ -118,7 +118,7 @@ class SejourService
 
             if ($existant !== null) {
                 throw new RuntimeException(__('sejour.deja_arrive', [
-                    'date' => $existant->date_checkin_reel?->format('d/m/Y H:i') ?? '',
+                    'date' => \App\Shared\Support\HeureLocale::formater($existant->date_checkin_reel, 'd/m/Y H:i') ?? '',
                 ]));
             }
 
@@ -155,7 +155,7 @@ class SejourService
 
             if (! $verrouille->estEnCours()) {
                 throw new RuntimeException(__('sejour.deja_parti', [
-                    'date' => $verrouille->date_checkout_reel?->format('d/m/Y H:i') ?? '',
+                    'date' => \App\Shared\Support\HeureLocale::formater($verrouille->date_checkout_reel, 'd/m/Y H:i') ?? '',
                 ]));
             }
 

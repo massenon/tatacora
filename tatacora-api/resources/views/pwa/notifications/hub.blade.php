@@ -316,7 +316,7 @@
                     {{ __('notifications_pwa.file_meta', [
                         'longueur' => $message->longueur,
                         'limite' => $limite === null ? '' : __('notifications_pwa.file_meta_avec_limite', ['limite' => $limite]),
-                        'date' => $message->date_creation?->format('d/m/Y H:i'),
+                        'date' => \App\Shared\Support\HeureLocale::formater($message->date_creation, 'd/m/Y H:i'),
                         'reference' => $message->reference,
                     ]) }}
                   </p>
@@ -463,7 +463,7 @@
                 <tbody>
                   @foreach ($journalTraitement as $traite)
                     <tr class="border-t border-slate-100">
-                      <td class="px-3 py-2.5 text-left text-slate-600 whitespace-nowrap">{{ $traite->date_modification?->format('d/m/Y H:i') }}</td>
+                      <td class="px-3 py-2.5 text-left text-slate-600 whitespace-nowrap">{{ \App\Shared\Support\HeureLocale::formater($traite->date_modification, 'd/m/Y H:i') }}</td>
                       <td class="px-3 py-2.5 text-left font-semibold text-slate-800">{{ $traite->destinataire }}</td>
                       <td class="px-3 py-2.5 text-left text-slate-600">{{ $traite->modele->evenement ?? '' }}</td>
                       <td class="px-3 py-2.5 text-right text-slate-600">{{ RegistreCanaux::existe($traite->canal) ? RegistreCanaux::canal($traite->canal)['libelle'] : $traite->canal }}</td>
@@ -481,7 +481,7 @@
                   @endforeach
                   @forelse ($journal as $envoi)
                     <tr class="border-t border-slate-100">
-                      <td class="px-3 py-2.5 text-left text-slate-600 whitespace-nowrap">{{ $envoi->date_envoi->format('d/m/Y H:i') }}</td>
+                      <td class="px-3 py-2.5 text-left text-slate-600 whitespace-nowrap">{{ \App\Shared\Support\HeureLocale::formater($envoi->date_envoi, 'd/m/Y H:i') }}</td>
                       <td class="px-3 py-2.5 text-left font-semibold text-slate-800">{{ $envoi->destinataire }}</td>
                       <td class="px-3 py-2.5 text-left text-slate-600">{{ $envoi->modele->evenement ?? '' }}</td>
                       <td class="px-3 py-2.5 text-right text-slate-600">{{ $envoi->modele->canal ?? '' }}</td>

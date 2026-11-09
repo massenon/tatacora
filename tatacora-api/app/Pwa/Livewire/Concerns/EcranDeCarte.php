@@ -1417,7 +1417,7 @@ trait EcranDeCarte
             'id' => (string) $ligne->id,
             'nom' => (string) $ligne->nom,
             'numero' => (string) ($vente->numero ?? MontantFcfa::TIRET),
-            'quand' => $vente?->created_at?->format('d/m/Y H:i') ?? MontantFcfa::TIRET,
+            'quand' => \App\Shared\Support\HeureLocale::formater($vente?->created_at, 'd/m/Y H:i') ?? MontantFcfa::TIRET,
             'prix_unitaire' => MontantFcfa::format((string) $ligne->prix_unitaire),
             'quantite' => (int) $ligne->quantite,
             'montant' => MontantFcfa::format((string) $ligne->montant),
@@ -1547,7 +1547,7 @@ trait EcranDeCarte
             // dit avec les mots mêmes de l'écran, sinon un lecteur du fichier
             // la semaine suivante y verrait un relevé du jour de la vente.
             'aideStock' => __('carte_pwa.commun.ventes_stock_aide'),
-            'quand' => now()->format('d/m/Y à H:i'),
+            'quand' => \App\Shared\Support\HeureLocale::formater(now(), 'd/m/Y à H:i'),
             // PAYSAGE, contrairement à l'état de la carte : neuf colonnes dont
             // un horodatage, un numéro de ticket et deux libellés. En portrait,
             // les noms d'article se replient sur trois lignes et le tableau

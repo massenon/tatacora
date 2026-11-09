@@ -913,7 +913,7 @@
             <tbody>
               @foreach ($historiquePrix as $trace)
                 <tr class="border-t border-slate-100" wire:key="hist-prix-{{ $trace->id }}">
-                  <td class="px-3 py-2 text-slate-600 whitespace-nowrap">{{ $trace->created_at?->format('d/m/Y H:i') }}</td>
+                  <td class="px-3 py-2 text-slate-600 whitespace-nowrap">{{ \App\Shared\Support\HeureLocale::formater($trace->created_at, 'd/m/Y H:i') }}</td>
                   <td class="px-3 py-2 text-slate-700">{{ $libelleChampPrix($trace->champ) }}</td>
                   <td class="px-3 py-2 text-right text-slate-500">{{ $valeurAffichee($trace->ancien_prix, $trace->champ) }}</td>
                   <td class="px-3 py-2 text-right font-semibold" style="color:var(--navy)">{{ $valeurAffichee($trace->nouveau_prix, $trace->champ) }}</td>

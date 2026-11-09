@@ -67,7 +67,7 @@ final class GenerationDesDonnees
             $this->envoi->noterGenerationPerimee($this->posteDe($request));
             $reponse = response()->json([
                 'code' => self::CODE_PERIMEE,
-                'message' => __('sync.generation_perimee', ['date' => $courante->created_at->format('d/m/Y H:i')]),
+                'message' => __('sync.generation_perimee', ['date' => \App\Shared\Support\HeureLocale::formater($courante->created_at, 'd/m/Y H:i')]),
                 'generation' => $courante->generation,
                 'reinitialisee_le' => $courante->created_at->toIso8601String(),
             ], 409);

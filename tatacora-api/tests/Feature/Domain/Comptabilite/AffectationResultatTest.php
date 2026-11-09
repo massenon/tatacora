@@ -673,7 +673,7 @@ final class AffectationResultatTest extends TestCase
         // L'état : « Affectation passée le … par … (pièce n° …) » + contre-passation.
         $this->hub($this->n1->refresh())
             ->assertSee(__('comptabilite_pwa.affectation_passee', [
-                'date' => $affectation->affectee_le->format('d/m/Y H:i'),
+                'date' => \App\Shared\Support\HeureLocale::formater($affectation->affectee_le, 'd/m/Y H:i'),
                 'auteur' => $this->comptable->login,
                 'piece' => $affectation->piece_affectation,
             ]))

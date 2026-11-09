@@ -209,7 +209,7 @@
                 @error('jetonMecef') <p class="text-[12px] text-red-600 mt-1">{{ $message }}</p> @enderror
                 <p class="text-[13px] text-slate-600 mt-1.5">
                   @if ($etatJetonMecef['renseigne'])
-                    {{ __('pwa.parametres.mecef_jeton_renseigne', ['date' => $etatJetonMecef['modifie_le']?->format('d/m/Y H:i') ?? '—']) }}
+                    {{ __('pwa.parametres.mecef_jeton_renseigne', ['date' => \App\Shared\Support\HeureLocale::formater($etatJetonMecef['modifie_le'], 'd/m/Y H:i') ?? '—']) }}
                   @else
                     {{ __('pwa.parametres.mecef_jeton_absent') }}
                   @endif
@@ -282,7 +282,7 @@
                 @endif
                 <p class="text-[13px] text-slate-600 mt-1.5">
                   @if ($etatMotDePasseSmtp['renseigne'])
-                    {{ __('pwa.parametres.email_motdepasse_renseigne', ['date' => $etatMotDePasseSmtp['modifie_le']?->format('d/m/Y H:i') ?? '—', 'par' => $etatMotDePasseSmtp['par'] ?? '—']) }}
+                    {{ __('pwa.parametres.email_motdepasse_renseigne', ['date' => \App\Shared\Support\HeureLocale::formater($etatMotDePasseSmtp['modifie_le'], 'd/m/Y H:i') ?? '—', 'par' => $etatMotDePasseSmtp['par'] ?? '—']) }}
                   @else
                     {{ __('pwa.parametres.email_motdepasse_absent') }}
                   @endif

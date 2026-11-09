@@ -60,7 +60,7 @@ class SynchronisationPostes extends PageTransverse
     {
         $demande = $suivi->demander(Auth::user());
         $this->confirmation = __('pwa.synchronisation_postes.demande_faite', [
-            'date' => $demande->demandee_le->format('d/m/Y H:i:s'),
+            'date' => \App\Shared\Support\HeureLocale::formater($demande->demandee_le, 'd/m/Y H:i:s'),
         ]);
     }
 

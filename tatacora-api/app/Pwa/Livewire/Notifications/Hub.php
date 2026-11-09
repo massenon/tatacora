@@ -724,7 +724,7 @@ class Hub extends PageMetier
 
         if ($onglet === 'journal') {
             return $service->journal()->map(static fn ($envoi): array => [
-                $envoi->date_envoi->format('d/m/Y H:i'),
+                \App\Shared\Support\HeureLocale::formater($envoi->date_envoi, 'd/m/Y H:i'),
                 $envoi->destinataire,
                 (string) ($envoi->modele->evenement ?? ''),
                 (string) ($envoi->modele->canal ?? ''),

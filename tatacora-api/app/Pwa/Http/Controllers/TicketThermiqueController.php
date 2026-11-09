@@ -57,7 +57,7 @@ class TicketThermiqueController extends Controller
 
         return view('pwa.pos.ticket-thermique', [
             'vente' => $piece,
-            'quand' => $piece->created_at?->format('d/m/Y H:i') ?? now()->format('d/m/Y H:i'),
+            'quand' => \App\Shared\Support\HeureLocale::formater($piece->created_at, 'd/m/Y H:i') ?? \App\Shared\Support\HeureLocale::formater(now(), 'd/m/Y H:i'),
             // En-tête établissement — même source (RG-19) que les deux
             // autres papiers, jamais recopiée en dur.
             'entete' => $entetes->genererEnTete(

@@ -149,7 +149,7 @@ class ComptesUtilisateurs extends PageTransverse
         $this->resultat = [
             'login' => $fait['login'],
             'motDePasse' => $fait['motDePasse'],
-            'expireLe' => $fait['expireLe']->format('d/m/Y H:i'),
+            'expireLe' => \App\Shared\Support\HeureLocale::formater($fait['expireLe'], 'd/m/Y H:i'),
         ];
     }
 

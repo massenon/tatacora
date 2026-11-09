@@ -59,7 +59,7 @@
         {{-- En-tête institutionnel d'IMPRESSION — `<h2>`, jamais `<h1>`. --}}
         <div class="hidden print:block mb-6 border-b-2 border-[var(--navy)] pb-4">
           <h2 class="text-xl font-bold" style="color:var(--navy)">{{ __('pwa.marque') }} — {{ __('pwa.enseigne_courte') }}</h2>
-          <p class="text-xs text-slate-600 mt-1">{{ __('pwa.appro.titre') }} — {{ now()->format('d/m/Y H:i') }}</p>
+          <p class="text-xs text-slate-600 mt-1">{{ __('pwa.appro.titre') }} — {{ \App\Shared\Support\HeureLocale::formater(now(), 'd/m/Y H:i') }}</p>
         </div>
 
         {{-- ============================ EN-TÊTE (maître l.22-31) --}}

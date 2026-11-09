@@ -68,7 +68,7 @@
                         <p class="text-[15px] font-semibold text-slate-700">{{ $envoi->objet }}</p>
                         <p class="text-[13px] text-slate-500 mt-0.5 leading-relaxed">{{ \Illuminate\Support\Str::limit($envoi->corps, 180) }}</p>
                         <p class="text-[12px] text-slate-400 mt-1">
-                          {{ $envoi->date_creation?->format('d/m/Y H:i') }}
+                          {{ \App\Shared\Support\HeureLocale::formater($envoi->date_creation, 'd/m/Y H:i') }}
                           @if ($envoi->capture_nom)
                             · {{ __('pwa.contact.envois_capture') }}
                           @endif

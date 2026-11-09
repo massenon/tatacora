@@ -333,7 +333,7 @@
       @endif
       {{ __('facturation_pwa.document_normalisee_qr') }} : {{ $facture->qr_code_fiscal }}
       @if ($facture->normalisee_le !== null)
-        <br>{{ __('facturation_pwa.document_normalisee_le', ['date' => $facture->normalisee_le->format('d/m/Y H:i')]) }}
+        <br>{{ __('facturation_pwa.document_normalisee_le', ['date' => \App\Shared\Support\HeureLocale::formater($facture->normalisee_le, 'd/m/Y H:i')]) }}
       @endif
     </div>
   @endif

@@ -78,7 +78,7 @@
             <span class="flex items-center gap-1.5 text-[13px]">
               <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
               <strong style="color:var(--navy)">{{ __('pos_pwa.comptant.caisse_ouverte', ['point' => PosComptant::POINT_CAISSE]) }}</strong>
-              <span class="text-slate-400">{{ __('pos_pwa.comptant.caisse_depuis', ['heure' => $session->date_ouverture->format('H:i')]) }}</span>
+              <span class="text-slate-400">{{ __('pos_pwa.comptant.caisse_depuis', ['heure' => \App\Shared\Support\HeureLocale::formater($session->date_ouverture, 'H:i')]) }}</span>
               {{--
                   ⚠ BUG CORRIGÉ (01/09/2026) — cette durée était un horodatage
                   FIGÉ au rendu serveur : « depuis 07:00 » restait affiché tel
@@ -601,7 +601,7 @@
             @forelse ($ventesDeLaSession as $venteLigne)
               <tr class="border-b border-slate-100" wire:key="jour-{{ $venteLigne->id }}">
                 <td class="py-2 px-2 font-mono-tatacora text-[11px] text-slate-500">{{ $venteLigne->numero }}</td>
-                <td class="py-2 px-2 text-slate-500">{{ $venteLigne->created_at?->format('H:i') }}</td>
+                <td class="py-2 px-2 text-slate-500">{{ \App\Shared\Support\HeureLocale::formater($venteLigne->created_at, 'H:i') }}</td>
                 <td class="py-2 px-2 text-slate-500">{{ $venteLigne->table ?? '—' }}</td>
                 <td class="py-2 px-2 text-slate-500">{{ $modesPaiement[$venteLigne->mode_paiement] ?? $venteLigne->mode_paiement }}</td>
                 <td class="py-2 px-2 text-right font-medium tabular-nums text-slate-800">{{ MontantFcfa::format((string) $venteLigne->montant_total) }}</td>

@@ -320,7 +320,7 @@
                       <td class="px-4 py-2.5 text-right font-mono-tatacora">{{ $ligne->taux_annulation === null ? $tiret : rtrim(rtrim(number_format((float) $ligne->taux_annulation, 2), '0'), '.').' %' }}</td>
                       <td class="px-4 py-2.5 text-right font-mono-tatacora" style="color:#8C1D1D">{{ $ligne->montant_commission_annulation === null ? $tiret : MontantFcfa::format((string) $ligne->montant_commission_annulation) }}</td>
                       <td class="px-4 py-2.5 text-right font-mono-tatacora text-emerald-700">{{ $ligne->montant_rembourse_annulation === null ? $tiret : MontantFcfa::format((string) $ligne->montant_rembourse_annulation) }}</td>
-                      <td class="px-4 py-2.5 whitespace-nowrap text-slate-500">{{ $ligne->date_annulation?->format('d/m/Y H:i') ?? $tiret }}</td>
+                      <td class="px-4 py-2.5 whitespace-nowrap text-slate-500">{{ \App\Shared\Support\HeureLocale::formater($ligne->date_annulation, 'd/m/Y H:i') ?? $tiret }}</td>
                       <td class="px-4 py-2.5 text-slate-500">{{ $ligne->annulee_par_login ?? $ligne->utilisateurAnnulation?->libelleAuteur() ?? $tiret }}</td>
                     </tr>
                   @endforeach

@@ -61,7 +61,7 @@ class SynchronisationBarre extends Component
 
         $demande = $suivi->demander($utilisateur);
         $this->confirmation = __('pwa.synchronisation_postes.demande_faite', [
-            'date' => $demande->demandee_le->format('d/m/Y H:i:s'),
+            'date' => \App\Shared\Support\HeureLocale::formater($demande->demandee_le, 'd/m/Y H:i:s'),
         ]);
     }
 

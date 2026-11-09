@@ -408,7 +408,7 @@ class CarteRestaurant extends PageMetier
             'entetes' => $entetes,
             'lignes' => $matrice,
             'indicateurs' => $this->indicateurs($this->lignesDeLaCarte()),
-            'quand' => now()->format('d/m/Y à H:i'),
+            'quand' => \App\Shared\Support\HeureLocale::formater(now(), 'd/m/Y à H:i'),
         ])->setPaper('a4', 'portrait');
 
         return response()->streamDownload(
@@ -424,7 +424,7 @@ class CarteRestaurant extends PageMetier
     {
         $pdf = Pdf::loadView('pdf.fiche-prix', [
             // L'identité seulement : la fiche garde sa propre mise en page.
-            'entete' => $this->enTeteRapport(__('carte_pwa.fiche_prix_titre_restaurant'), now()->format('d/m/Y')),
+            'entete' => $this->enTeteRapport(__('carte_pwa.fiche_prix_titre_restaurant'), \App\Shared\Support\HeureLocale::formater(now(), 'd/m/Y')),
             'titre' => __('carte_pwa.fiche_prix_titre_restaurant'),
             'groupes' => $groupes,
             'total' => array_sum(array_map(
@@ -432,7 +432,7 @@ class CarteRestaurant extends PageMetier
                 $groupes,
             )),
             'sansPrix' => $sansPrix,
-            'quand' => now()->format('d/m/Y à H:i'),
+            'quand' => \App\Shared\Support\HeureLocale::formater(now(), 'd/m/Y à H:i'),
         ])->setPaper('a4', 'portrait');
 
         return response()->streamDownload(

@@ -81,7 +81,7 @@ class EtatVentes implements EtatInterface
 
             $lignes[] = [
                 $vente->numero,
-                (string) $vente->created_at?->format('d/m/Y H:i'),
+                (string) \App\Shared\Support\HeureLocale::formater($vente->created_at, 'd/m/Y H:i'),
                 $vente->point_vente,
                 (string) ($vente->client?->nomComplet() ?? '—'),
                 $vente->mode_paiement,

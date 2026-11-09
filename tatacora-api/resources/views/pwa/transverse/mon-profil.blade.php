@@ -43,7 +43,7 @@
               {{-- Article 7 : « — » quand la donnée n'existe pas. Un compte
                    jamais connecté a `derniere_connexion` à NULL ; écrire une
                    date là serait inventer une connexion. --}}
-              <p id="meta-connexion" class="text-[15px] font-semibold font-mono-tatacora mt-0.5" style="color:var(--navy)">{{ $utilisateur?->derniere_connexion?->format('d/m/Y H:i') ?? '—' }}</p>
+              <p id="meta-connexion" class="text-[15px] font-semibold font-mono-tatacora mt-0.5" style="color:var(--navy)">{{ \App\Shared\Support\HeureLocale::formater($utilisateur?->derniere_connexion, 'd/m/Y H:i') ?? '—' }}</p>
             </div>
             <div class="rounded-lg border border-slate-100 bg-slate-50 px-3.5 py-3">
               <p class="text-[12px] text-slate-500">{{ __('pwa.profil.adresse_ip') }}</p>
@@ -159,7 +159,7 @@
               <p class="text-[13px] text-slate-500 mb-2">{{ __('pwa.profil.code_secours_sous_titre') }}</p>
               <p id="etat-code-secours" class="text-[13px] text-slate-700 mb-4">
                 @if ($codeSecoursPoseLe)
-                  {{ __('pwa.profil.code_secours_present', ['date' => $codeSecoursPoseLe->format('d/m/Y H:i')]) }}
+                  {{ __('pwa.profil.code_secours_present', ['date' => \App\Shared\Support\HeureLocale::formater($codeSecoursPoseLe, 'd/m/Y H:i')]) }}
                 @else
                   {{ __('pwa.profil.code_secours_absent') }}
                 @endif
@@ -199,7 +199,7 @@
               <tbody id="corps-journal-profil">
                 @forelse ($traces as $trace)
                   <tr class="border-t border-slate-100">
-                    <td class="px-5 py-2.5 text-[13px] text-slate-500 font-mono-tatacora">{{ $trace->date_heure?->format('d/m/Y H:i:s') ?? '—' }}</td>
+                    <td class="px-5 py-2.5 text-[13px] text-slate-500 font-mono-tatacora">{{ \App\Shared\Support\HeureLocale::formater($trace->date_heure, 'd/m/Y H:i:s') ?? '—' }}</td>
                     <td class="px-5 py-2.5 text-[13px] text-slate-700">{{ JournalAudit::ACTIONS[$trace->action]['libelle'] ?? $trace->action }}</td>
                     <td class="px-5 py-2.5 text-[13px] text-slate-500">{{ $trace->entite_concernee }}</td>
                     <td class="px-5 py-2.5 text-[13px] text-slate-400 font-mono-tatacora">{{ $trace->adresse_poste ?? '—' }}</td>

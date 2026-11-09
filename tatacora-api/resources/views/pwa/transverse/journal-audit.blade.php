@@ -93,8 +93,8 @@
                         <span class="font-mono-tatacora text-[13px] text-slate-400">{{ $entree->entite_id }}</span>
                       @endif
                     </td>
-                    <td class="px-5 py-3 text-slate-500 font-mono-tatacora text-[15px]">{{ $entree->date_heure?->format('d/m/Y') ?? '—' }}</td>
-                    <td class="px-5 py-3 text-slate-500 font-mono-tatacora text-[15px]">{{ $entree->date_heure?->format('H:i:s') ?? '—' }}</td>
+                    <td class="px-5 py-3 text-slate-500 font-mono-tatacora text-[15px]">{{ \App\Shared\Support\HeureLocale::formater($entree->date_heure, 'd/m/Y') ?? '—' }}</td>
+                    <td class="px-5 py-3 text-slate-500 font-mono-tatacora text-[15px]">{{ \App\Shared\Support\HeureLocale::formater($entree->date_heure, 'H:i:s') ?? '—' }}</td>
                     <td class="px-5 py-3 text-slate-400 text-[15px]">{{ $entree->adresse_poste ?? '—' }}</td>
                   </tr>
                 @empty

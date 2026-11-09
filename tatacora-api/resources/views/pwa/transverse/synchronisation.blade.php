@@ -44,7 +44,7 @@
                 <tbody id="corps-mes-echecs">
                   @forelse ($mesEchecs as $echec)
                     <tr class="border-t border-slate-100" wire:key="echec-{{ $echec->id }}">
-                      <td class="px-5 py-3 text-slate-600">{{ $echec->recu_le?->format('d/m/Y H:i') }}</td>
+                      <td class="px-5 py-3 text-slate-600">{{ \App\Shared\Support\HeureLocale::formater($echec->recu_le, 'd/m/Y H:i') }}</td>
                       <td class="px-5 py-3 text-slate-700">{{ $echec->poste_id }}</td>
                       <td class="px-5 py-3 text-slate-600">{{ $journal->libelleTable((string) $echec->table_concernee) }}</td>
                       <td class="px-5 py-3 text-slate-600">{{ $libellesIssues[$echec->issue] ?? $echec->issue }}</td>

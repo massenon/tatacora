@@ -119,7 +119,7 @@
         {{-- EN-TÊTE INSTITUTIONNEL D'IMPRESSION — `<h2>`, jamais `<h1>` (G2). --}}
         <div class="hidden print:block mb-6 border-b-2 border-[var(--navy)] pb-4">
           <h2 class="text-xl font-bold" style="color:var(--navy)">TATACORA AFRIQUE — GÎTE CHEZ NOËL</h2>
-          <p class="text-xs text-slate-600 mt-1">{{ __('stocks_pwa.inventaires.titre') }} — {{ now()->format('d/m/Y H:i') }}</p>
+          <p class="text-xs text-slate-600 mt-1">{{ __('stocks_pwa.inventaires.titre') }} — {{ \App\Shared\Support\HeureLocale::formater(now(), 'd/m/Y H:i') }}</p>
         </div>
 
         {{-- ===================== EN-TÊTE DE PAGE — maître l.22-33 ===================== --}}
@@ -292,7 +292,7 @@
                     @endif
                     @foreach ($ficheConsolidee['lignes'] as $index => $mouvement)
                       <tr wire:key="mvt-tous-{{ $index }}" class="border-t border-slate-100">
-                        <td class="px-4 py-2.5 whitespace-nowrap">{{ \Carbon\CarbonImmutable::parse($mouvement['date'])->format('d/m/Y H:i') }}</td>
+                        <td class="px-4 py-2.5 whitespace-nowrap">{{ \App\Shared\Support\HeureLocale::formater($mouvement['date'], 'd/m/Y H:i') }}</td>
                         <td class="px-4 py-2.5 font-semibold text-slate-700">{{ $mouvement['article'] }}</td>
                         <td class="px-4 py-2.5"><span class="px-2 py-0.5 rounded text-[11px] font-semibold {{ $couleurType[$mouvement['type']] ?? 'bg-slate-100 text-slate-600' }}">{{ $libelleType[$mouvement['type']] ?? $mouvement['type'] }}</span></td>
                         <td class="px-4 py-2.5 text-slate-600">{{ $mouvement['motif'] }}</td>
@@ -397,7 +397,7 @@
                       @endif
                       @foreach ($fiche['lignes'] as $index => $mouvement)
                         <tr wire:key="mvt-{{ $index }}" class="border-t border-slate-100">
-                          <td class="px-4 py-2.5 whitespace-nowrap">{{ \Carbon\CarbonImmutable::parse($mouvement['date'])->format('d/m/Y H:i') }}</td>
+                          <td class="px-4 py-2.5 whitespace-nowrap">{{ \App\Shared\Support\HeureLocale::formater($mouvement['date'], 'd/m/Y H:i') }}</td>
                           <td class="px-4 py-2.5"><span class="px-2 py-0.5 rounded text-[11px] font-semibold {{ $couleurType[$mouvement['type']] ?? 'bg-slate-100 text-slate-600' }}">{{ $libelleType[$mouvement['type']] ?? $mouvement['type'] }}</span></td>
                           <td class="px-4 py-2.5 text-slate-600">{{ $mouvement['motif'] }}</td>
                           <td class="px-4 py-2.5 text-right {{ bccomp($mouvement['entree'], '0', 2) > 0 ? 'text-emerald-600 font-semibold' : 'text-slate-300' }}">{{ bccomp($mouvement['entree'], '0', 2) > 0 ? '+'.$mouvement['entree'] : MontantFcfa::TIRET }}</td>

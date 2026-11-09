@@ -43,13 +43,13 @@
                 <td class="px-4 py-3 font-medium text-slate-700">{{ $p['poste_id'] }}
                   <div class="text-[12px] font-normal text-slate-500">{{ $p['utilisateur'] ?? '—' }}</div>
                 </td>
-                <td class="px-4 py-3 text-slate-600 whitespace-nowrap">{{ $p['derniere_descente']?->format('d/m/Y H:i:s') ?? '—' }}</td>
+                <td class="px-4 py-3 text-slate-600 whitespace-nowrap">{{ \App\Shared\Support\HeureLocale::formater($p['derniere_descente'], 'd/m/Y H:i:s') ?? '—' }}</td>
                 <td class="px-4 py-3">
                   <span class="text-[11px] px-1.5 py-0.5 rounded font-semibold {{ $p['complete'] ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700' }}">{{ $p['complete'] ? $t('envoi_complet') : $t('envoi_en_cours') }}</span>
                   @if ($p['redescente_demandee_le'])
-                    <div class="text-[12px] text-amber-700 mt-1">{{ $t('envoi_redescente_demandee', ['date' => $p['redescente_demandee_le']->format('d/m/Y H:i:s')]) }}</div>
+                    <div class="text-[12px] text-amber-700 mt-1">{{ $t('envoi_redescente_demandee', ['date' => \App\Shared\Support\HeureLocale::formater($p['redescente_demandee_le'], 'd/m/Y H:i:s')]) }}</div>
                   @elseif ($p['redescente_faite_le'])
-                    <div class="text-[12px] text-slate-500 mt-1">{{ $t('envoi_redescente_faite', ['date' => $p['redescente_faite_le']->format('d/m/Y H:i:s')]) }}</div>
+                    <div class="text-[12px] text-slate-500 mt-1">{{ $t('envoi_redescente_faite', ['date' => \App\Shared\Support\HeureLocale::formater($p['redescente_faite_le'], 'd/m/Y H:i:s')]) }}</div>
                   @endif
                 </td>
                 <td class="px-4 py-3 text-right text-slate-700">{{ number_format($p['livres'], 0, ',', ' ') }}</td>
@@ -77,7 +77,7 @@
           @php($etatPoste = collect($postes)->firstWhere('poste_id', $detail['poste_id']))
           <p class="text-[13px] text-slate-600">
             @if ($etatPoste && $etatPoste['generation_perimee_nb'] > 0)
-              {{ $t('envoi_perime_le', ['date' => $etatPoste['generation_perimee_le']?->format('d/m/Y H:i:s') ?? '—', 'n' => $etatPoste['generation_perimee_nb']]) }}
+              {{ $t('envoi_perime_le', ['date' => \App\Shared\Support\HeureLocale::formater($etatPoste['generation_perimee_le'], 'd/m/Y H:i:s') ?? '—', 'n' => $etatPoste['generation_perimee_nb']]) }}
             @else
               {{ $t('envoi_aucun_refus') }}
             @endif
@@ -101,7 +101,7 @@
                     <tr class="border-t border-slate-100">
                       <td class="px-3 py-1.5 text-slate-800">{{ $libelleTable($ligne['table']) }}</td>
                       <td class="px-3 py-1.5 text-right">{{ number_format($ligne['livres'], 0, ',', ' ') }}</td>
-                      <td class="px-3 py-1.5 text-slate-600">{{ $ligne['derniere']?->format('d/m/Y H:i:s') ?? '—' }}</td>
+                      <td class="px-3 py-1.5 text-slate-600">{{ \App\Shared\Support\HeureLocale::formater($ligne['derniere'], 'd/m/Y H:i:s') ?? '—' }}</td>
                       <td class="px-3 py-1.5 text-right {{ $ligne['restants'] > 0 ? 'text-amber-700 font-semibold' : '' }}">{{ number_format($ligne['restants'], 0, ',', ' ') }}</td>
                       <td class="px-3 py-1.5 text-right {{ $ligne['droits'] > 0 ? 'text-amber-700 font-semibold' : '' }}">{{ number_format($ligne['droits'], 0, ',', ' ') }}</td>
                     </tr>

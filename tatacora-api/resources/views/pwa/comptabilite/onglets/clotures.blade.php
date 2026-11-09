@@ -219,7 +219,7 @@
                   @else
                     {{ $poste['derniere_descente'] === null
                         ? __('comptabilite_pwa.alerte_postes_jamais')
-                        : __('comptabilite_pwa.alerte_postes_silencieux', ['date' => $poste['derniere_descente']->format('d/m/Y H:i')]) }}
+                        : __('comptabilite_pwa.alerte_postes_silencieux', ['date' => \App\Shared\Support\HeureLocale::formater($poste['derniere_descente'], 'd/m/Y H:i')]) }}
                   @endif
                 </li>
               @endforeach
@@ -248,7 +248,7 @@
       @else
         @if ($clotureActive !== null)
           <p class="text-[13px] text-slate-600 mb-3">{{ __('comptabilite_pwa.cloture_passee', [
-              'date' => $clotureActive->cloturee_le->format('d/m/Y H:i'),
+              'date' => \App\Shared\Support\HeureLocale::formater($clotureActive->cloturee_le, 'd/m/Y H:i'),
               'cloture' => $clotureActive->piece_cloture ?? '—',
               'an' => $clotureActive->piece_a_nouveaux ?? '—',
           ]) }}</p>
@@ -334,7 +334,7 @@
 
       @if ($aff['active'] !== null)
         <p class="text-[13px] text-slate-600 mb-2">{{ __('comptabilite_pwa.affectation_passee', [
-            'date' => $aff['active']->affectee_le->format('d/m/Y H:i'),
+            'date' => \App\Shared\Support\HeureLocale::formater($aff['active']->affectee_le, 'd/m/Y H:i'),
             'auteur' => $aff['active']->auteur?->login ?? '—',
             'piece' => $aff['active']->piece_affectation,
         ]) }}</p>

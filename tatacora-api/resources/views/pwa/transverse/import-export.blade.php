@@ -318,7 +318,7 @@
                     <div class="px-5 py-3">
                       <p class="text-[15px] font-semibold text-slate-700">{{ \App\Shared\ImportExport\Data\ReferentielsImport::parCle($entree->module_cle)?->nom ?? $entree->module_cle }}</p>
                       <p class="text-[13px] text-slate-500">{{ __('pwa.import_export.historique_lignes', ['nombre' => $entree->nombre_lignes]) }}</p>
-                      <p class="text-[12px] text-slate-400 mt-0.5">{{ $entree->date_heure->format('d/m/Y H:i') }} · {{ $entree->utilisateur?->libelleAuteur() ?? '—' }}</p>
+                      <p class="text-[12px] text-slate-400 mt-0.5">{{ \App\Shared\Support\HeureLocale::formater($entree->date_heure, 'd/m/Y H:i') }} · {{ $entree->utilisateur?->libelleAuteur() ?? '—' }}</p>
                     </div>
                   @empty
                     <p class="px-5 py-8 text-center text-[13px] text-slate-400">{{ __('pwa.import_export.historique_vide') }}</p>
@@ -424,7 +424,7 @@
                         <span class="text-[13px] font-mono-tatacora font-semibold text-slate-700">{{ $fichier['nom'] }}</span>
                         <span class="block text-[12px] text-slate-400">{{ number_format($fichier['taille'] / 1024, 0, ',', ' ') }} Ko{{ $fichier['telechargee'] ? '' : ' · '.__('pwa.import_export.sauvegarde_non_telechargee') }}</span>
                       </td>
-                      <td class="px-5 py-3 text-[13px] text-slate-600 whitespace-nowrap">{{ $fichier['date']->format('d/m/Y') }}<span class="block text-[12px] text-slate-400">{{ $fichier['date']->format('H:i') }}</span></td>
+                      <td class="px-5 py-3 text-[13px] text-slate-600 whitespace-nowrap">{{ $fichier['date']->format('d/m/Y') }}<span class="block text-[12px] text-slate-400">{{ \App\Shared\Support\HeureLocale::formater($fichier['date'], 'H:i') }}</span></td>
                       <td class="px-5 py-3 text-[13px] text-slate-600">{{ __('pwa.import_export.sauvegarde_contenu') }}</td>
                       <td class="px-5 py-3 text-right whitespace-nowrap">
                         @if ($peutEcrire)
@@ -497,8 +497,8 @@
                       </td>
                       <td class="px-5 py-3 text-[13px] text-slate-600">{{ \App\Pwa\Livewire\Transverse\RolesPermissions::MODULES[$entree['module']] ?? $entree['module'] }}</td>
                       <td class="px-5 py-3 text-[13px] text-slate-600 whitespace-nowrap">
-                        {{ $entree['archive_le']?->format('d/m/Y') ?? '—' }}
-                        <span class="block text-[12px] text-slate-400">{{ $entree['archive_le']?->format('H:i') ?? '' }}</span>
+                        {{ \App\Shared\Support\HeureLocale::formater($entree['archive_le'], 'd/m/Y') ?? '—' }}
+                        <span class="block text-[12px] text-slate-400">{{ \App\Shared\Support\HeureLocale::formater($entree['archive_le'], 'H:i') ?? '' }}</span>
                       </td>
                       <td class="px-5 py-3 text-[13px] text-slate-600">{{ $entree['archive_par'] ?? '—' }}</td>
                       <td class="px-5 py-3 text-right whitespace-nowrap">

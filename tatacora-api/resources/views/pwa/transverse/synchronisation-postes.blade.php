@@ -34,7 +34,7 @@
 
         <p id="derniere-demande" class="mb-4 text-sm text-slate-600">
           @if ($demande)
-            {{ __('pwa.synchronisation_postes.derniere_demande', ['date' => $demande->demandee_le->format('d/m/Y H:i:s')]) }}
+            {{ __('pwa.synchronisation_postes.derniere_demande', ['date' => \App\Shared\Support\HeureLocale::formater($demande->demandee_le, 'd/m/Y H:i:s')]) }}
           @else
             {{ __('pwa.synchronisation_postes.aucune_demande') }}
           @endif
@@ -61,17 +61,17 @@
                   <tr class="border-t border-slate-100" wire:key="poste-{{ $poste['poste_id'] }}">
                     <td class="px-5 py-3 font-medium text-slate-700">{{ $poste['poste_id'] }}</td>
                     <td class="px-5 py-3 text-slate-600">{{ $poste['utilisateur'] ?? __('pwa.synchronisation_postes.jamais') }}</td>
-                    <td class="px-5 py-3 text-slate-600">{{ $poste['appaire_le']?->format('d/m/Y H:i') ?? __('pwa.synchronisation_postes.jamais') }}</td>
-                    <td class="px-5 py-3 text-slate-600">{{ $poste['jeton_utilise_le']?->format('d/m/Y H:i') ?? __('pwa.synchronisation_postes.jamais') }}</td>
+                    <td class="px-5 py-3 text-slate-600">{{ \App\Shared\Support\HeureLocale::formater($poste['appaire_le'], 'd/m/Y H:i') ?? __('pwa.synchronisation_postes.jamais') }}</td>
+                    <td class="px-5 py-3 text-slate-600">{{ \App\Shared\Support\HeureLocale::formater($poste['jeton_utilise_le'], 'd/m/Y H:i') ?? __('pwa.synchronisation_postes.jamais') }}</td>
                     <td class="px-5 py-3 text-slate-600">
                       @if (! $poste['appaire'])
                         {{ __('pwa.synchronisation_postes.jamais') }}
                       @else
-                        {{ $poste['expire_le']?->format('d/m/Y H:i') ?? __('pwa.synchronisation_postes.sans_expiration') }}
+                        {{ \App\Shared\Support\HeureLocale::formater($poste['expire_le'], 'd/m/Y H:i') ?? __('pwa.synchronisation_postes.sans_expiration') }}
                       @endif
                     </td>
-                    <td class="px-5 py-3 text-slate-600">{{ $poste['derniere_montee']?->format('d/m/Y H:i') ?? __('pwa.synchronisation_postes.jamais') }}</td>
-                    <td class="px-5 py-3 text-slate-600">{{ $poste['dernier_controle']?->format('d/m/Y H:i') ?? __('pwa.synchronisation_postes.jamais') }}</td>
+                    <td class="px-5 py-3 text-slate-600">{{ \App\Shared\Support\HeureLocale::formater($poste['derniere_montee'], 'd/m/Y H:i') ?? __('pwa.synchronisation_postes.jamais') }}</td>
+                    <td class="px-5 py-3 text-slate-600">{{ \App\Shared\Support\HeureLocale::formater($poste['dernier_controle'], 'd/m/Y H:i') ?? __('pwa.synchronisation_postes.jamais') }}</td>
                     <td class="px-5 py-3">
                       <span class="text-[11px] px-1.5 py-0.5 rounded font-semibold {{ match ($poste['etat']) {
                           'actif' => 'bg-emerald-50 text-emerald-700',
