@@ -234,6 +234,11 @@ void main() {
         // soldes de bilan sont déjà dans des pièces validées. Elle n'écrit
         // aucune ligne elle-même (`ecrivains_cloture_test.dart`).
         'cloture_exercice_locale.dart',
+        // 09/11/2026 : l'AFFECTATION DU RÉSULTAT (`AffectationResultatLocale`) passe
+        // sa pièce OD par `MoteurComptable.saisirPiece(affectation:)` (pièce saisie
+        // à la main, enfilée dans la même transaction) et demande la
+        // contre-passation : même statut que la clôture annuelle.
+        'affectation_resultat_locale.dart',
       });
       expect(qui('moteurComptableProvider'), {
         // Lot A3 : le geste « Envoyer mes anciennes pièces saisies ».

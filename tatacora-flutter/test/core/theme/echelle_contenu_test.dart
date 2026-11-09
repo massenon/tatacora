@@ -351,6 +351,9 @@ void main() {
     // (`comptabilite/correspondance-comptes`, `comptabilite/hub`).
     'lib/features/comptabilite/presentation/ecran_correspondance_comptes.dart',
     'lib/features/comptabilite/presentation/widgets/onglet_clotures.dart',
+    // Carte « Affectation du résultat » (09/11/2026) : corps de page de l'onglet
+    // « Clôtures », dans le `<main>` de `comptabilite/hub`.
+    'lib/features/comptabilite/presentation/widgets/carte_affectation.dart',
     // Onglet « Immobilisations » (21/10/2026) : corps de page, dans le `<main>`
     // de `comptabilite/hub` ; ses modales sont dans `modales_immobilisations.dart`.
     'lib/features/comptabilite/presentation/widgets/onglet_immobilisations.dart',
