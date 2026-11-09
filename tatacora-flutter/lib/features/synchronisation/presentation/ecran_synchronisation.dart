@@ -141,7 +141,9 @@ abstract final class TextesEcranSynchronisation {
       'Aucune opération rejetée, en conflit ou bloquée.';
   static const anomaliesVide = 'Aucun signalement du serveur.';
   static const reserveAdministrateurs =
-      '« Renvoyer » et « Débloquer » sont réservés aux Administrateurs.';
+      '« Renvoyer » et « Débloquer » sont réservés aux Administrateurs, '
+      'sauf « Renvoyer » d’un refus « Droit manquant » : ouvert à tous, '
+      'puisque le serveur rejuge avec le droit du compte d’appairage.';
   static const renvoyer = 'Renvoyer';
   static const debloquer = 'Débloquer';
   static const renvoyee =
@@ -754,6 +756,13 @@ class _ATraiter extends ConsumerWidget {
     final o = l.operation;
     final uuid = o.uuidOperation;
     final cause = causeDe(o, motif: motifOperation(o));
+    // « Renvoyer » un refus `droit_manquant` n'est PAS un geste d'administration :
+    // c'est la même écriture, sous un nouvel uuid d'opération, que le serveur rejuge
+    // avec le droit du compte d'appairage. Rien ne s'obtient par ce renvoi qu'un
+    // droit accordé depuis (ou une règle assouplie au serveur) ne donne déjà ; le
+    // barman qui a pris des tables peut donc relancer SES refus sans administrateur.
+    // « Corriger » (modifier la charge) reste réservé aux administrateurs.
+    final peutRenvoyer = admin || renvoiOuvertATous(o);
     final Widget action = Wrap(
       alignment: WrapAlignment.end,
       spacing: AppSpacing.xs,
@@ -776,7 +785,7 @@ class _ATraiter extends ConsumerWidget {
           _ => const SizedBox.shrink(),
         },
         switch (o.statut) {
-          StatutOperationSync.rejete when admin => BoutonStandard(
+          StatutOperationSync.rejete when peutRenvoyer => BoutonStandard(
             key: Key('sync-renvoyer-$uuid'),
             libelle: TextesEcranSynchronisation.renvoyer,
             compact: true,

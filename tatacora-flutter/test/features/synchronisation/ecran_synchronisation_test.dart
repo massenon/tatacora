@@ -240,6 +240,66 @@ void main() {
     expect(find.byKey(const Key('sync-ecran-reserve')), findsOneWidget);
   });
 
+  testWidgets(
+    '« Droit manquant » (09/11/2026, le barman du poste A) : « Renvoyer » est '
+    'OUVERT À TOUS pour ce code — nouvel uuid, même charge, l’ancienne reste '
+    'l’historique ; « Corriger » et les autres refus restent aux '
+    'Administrateurs',
+    (tester) async {
+      final f = await tester.runAsync(() async {
+        final ids = await b.enfilerClients(2);
+        await statut(ids[0], 'rejete');
+        await statut(ids[1], 'rejete');
+        await b.db.customStatement(
+          'UPDATE operations_sync_local SET resultat_json = ? '
+          'WHERE entite_id = ?',
+          [
+            '{"statut":"rejete","motif":"Vous n avez pas acces a ce module.",'
+                '"code_motif":"droit_manquant"}',
+            ids[0],
+          ],
+        );
+        await b.db.customStatement(
+          'UPDATE operations_sync_local SET resultat_json = ? '
+          'WHERE entite_id = ?',
+          [
+            '{"statut":"rejete","motif":"Refusée.","code_motif":"regle_metier"}',
+            ids[1],
+          ],
+        );
+        return (
+          droit: (await b.operationDe(ids[0])).uuidOperation,
+          regle: (await b.operationDe(ids[1])).uuidOperation,
+        );
+      });
+      await monter(tester, role: 'barman');
+
+      expect(texteDe(tester, Key('sync-cause-${f!.droit}')), 'Droit manquant');
+      expect(find.byKey(Key('sync-renvoyer-${f.droit}')), findsOneWidget);
+      expect(find.byKey(Key('sync-corriger-${f.droit}')), findsNothing);
+      expect(find.byKey(Key('sync-renvoyer-${f.regle}')), findsNothing);
+      expect(find.byKey(Key('sync-corriger-${f.regle}')), findsNothing);
+      expect(find.byKey(const Key('sync-ecran-reserve')), findsOneWidget);
+
+      await tester.ensureVisible(find.byKey(Key('sync-renvoyer-${f.droit}')));
+      await tester.tap(find.byKey(Key('sync-renvoyer-${f.droit}')));
+      await laisserTourner(tester);
+
+      expect(find.text(TextesEcranSynchronisation.renvoyee), findsOneWidget);
+      final ops = (await tester.runAsync(
+        () => b.dao.operations(table: TableSynchronisee.clients),
+      ))!;
+      final ancienne = ops.firstWhere((o) => o.uuidOperation == f.droit);
+      expect(ancienne.statut, StatutOperationSync.rejete, reason: 'historique');
+      final nouvel = (await tester.runAsync(b.dao.remplacees))![f.droit]!;
+      final remplacante = ops.firstWhere((o) => o.uuidOperation == nouvel);
+      expect(remplacante.statut, StatutOperationSync.enAttente);
+      expect(remplacante.payload, ancienne.payload);
+      expect(remplacante.entiteId, ancienne.entiteId);
+      expect(find.byKey(Key('sync-renvoyer-${f.droit}')), findsNothing);
+    },
+  );
+
   testWidgets('« Synchroniser maintenant » : grisé sans appairage ; appairé, '
       'il se grise PENDANT l’envoi (progression), puis le bilan s’affiche', (
     tester,

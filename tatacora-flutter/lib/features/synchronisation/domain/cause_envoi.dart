@@ -162,6 +162,17 @@ String? codeMotifDe(OperationSync o) {
   return c is String && c.isNotEmpty ? c : null;
 }
 
+/// Le code d'un refus que tout compte peut RENVOYER (09/11/2026) : `droit_manquant`.
+/// Le serveur juge sur le compte du JETON D'APPAIRAGE ; le renvoi (même document,
+/// nouvel uuid d'opération) est rejugé à l'identique tant que le droit manque, et
+/// accepté dès qu'il existe — rien à escalader, donc rien à réserver.
+const String codeRenvoiOuvertATous = 'droit_manquant';
+
+/// Cette opération REJETÉE se renvoie-t-elle sans être administrateur ?
+bool renvoiOuvertATous(OperationSync o) =>
+    o.statut == StatutOperationSync.rejete &&
+    codeMotifDe(o) == codeRenvoiOuvertATous;
+
 /// Les phrases du serveur, champ par champ (`erreurs`).
 List<ErreurChamp> erreursChampsDe(OperationSync o) {
   final e = _resultat(o)?['erreurs'];

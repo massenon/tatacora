@@ -118,6 +118,45 @@ void main() {
     );
   });
 
+  group('le renvoi ouvert à tous (09/11/2026)', () {
+    Map<String, Object?> refus(String code) => {
+      'statut': 'rejete',
+      'motif': 'x',
+      'code_motif': code,
+    };
+
+    test('seul un refus REJETÉ pour droit_manquant se renvoie sans être '
+        'administrateur', () {
+      expect(
+        renvoiOuvertATous(op({'a': 'b'}, resultat: refus('droit_manquant'))),
+        isTrue,
+      );
+      for (final autre in codesRefusServeur.where(
+        (c) => c != 'droit_manquant',
+      )) {
+        expect(
+          renvoiOuvertATous(op({'a': 'b'}, resultat: refus(autre))),
+          isFalse,
+          reason: autre,
+        );
+      }
+      expect(renvoiOuvertATous(op({'a': 'b'})), isFalse, reason: 'sans code');
+      for (final statut in [
+        StatutOperationSync.bloque,
+        StatutOperationSync.conflit,
+        StatutOperationSync.enAttente,
+      ]) {
+        expect(
+          renvoiOuvertATous(
+            op({'a': 'b'}, statut: statut, resultat: refus('droit_manquant')),
+          ),
+          isFalse,
+          reason: statut.code,
+        );
+      }
+    });
+  });
+
   group('causeDe', () {
     test(
       'refus : le titre du code, le motif du serveur, les phrases par champ',

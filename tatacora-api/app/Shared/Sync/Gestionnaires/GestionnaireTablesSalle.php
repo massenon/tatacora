@@ -22,8 +22,10 @@ use RuntimeException;
  * est unique ; une table du même espace et du même numéro saisie sur deux
  * postes FUSIONNE (`fusionne_avec`) au lieu de se doubler. Modification :
  * numéro (`renumeroter`), places (`changerPlaces`), activation (`basculer`,
- * qui refuse une table au panier ouvert). Module M5 (RG-16, la lecture du
- * plan) ; l'écriture exige EN PLUS `PARAM`, le droit de l'écran Paramètres.
+ * qui refuse une table au panier ouvert). Module M5 (RG-16, le point de
+ * vente) : citer une table qui existe déjà (usage) se fait avec M5 seul ; CONFIGURER
+ * le plan (table nouvelle, numéro, places, activation) exige EN PLUS `PARAM`,
+ * le droit de l'écran Paramètres.
  */
 final class GestionnaireTablesSalle extends GestionnaireAbstrait
 {
@@ -42,10 +44,43 @@ final class GestionnaireTablesSalle extends GestionnaireAbstrait
         return PosComptant::MODULE;
     }
 
-    /** L'ÉCRITURE exige en plus le droit de l'écran Paramètres, comme à la PWA. */
+    /**
+     * USAGE ou CONFIGURATION (09/11/2026, bogue du PO : le barman du poste A,
+     * trois « Droit manquant » sur les tables de salle).
+     *
+     * Le poste enfile une `creation` de table (`assurerConnueDuServeur`) au
+     * premier geste d'USAGE qui la cite — prendre une table au point de vente
+     * quand il ne l'a pas encore reçue du serveur. Si (espace, numéro) existe
+     * déjà, `creer()` ne fait que FUSIONNER (`fusionne_avec`) : rien n'est écrit,
+     * la salle ne change pas. Ce geste-là est un geste du POINT DE VENTE : M5
+     * en écriture suffit, comme l'ouverture du panier qui le suit (barman,
+     * gérant). Exiger `PARAM` le refusait à tout compte qui vend sans administrer
+     * (barman `-`, gérant `L`).
+     *
+     * La CONFIGURATION exige EN PLUS `PARAM`, le droit de l'écran Paramètres,
+     * comme à la PWA : une table NOUVELLE, ou toute `modification` (numéro,
+     * places, activation — jamais une clé `espace`, la modification la refuse).
+     * Le contrôle se fait AVANT l'opération (hors transaction, trace
+     * `journal_securite`), donc sur l'état du plan à cet instant.
+     */
     public function modulesRequis(array $payload): array
     {
-        return [PosComptant::MODULE, Parametres::MODULE];
+        return $this->citeUneTableExistante($payload)
+            ? [PosComptant::MODULE]
+            : [PosComptant::MODULE, Parametres::MODULE];
+    }
+
+    /** @param  array<string, mixed>  $payload */
+    private function citeUneTableExistante(array $payload): bool
+    {
+        if (! isset($payload['espace'], $payload['numero']) || ! is_string($payload['espace']) || ! is_numeric($payload['numero'])) {
+            return false;
+        }
+
+        return TableSalle::query()
+            ->where('espace', $payload['espace'])
+            ->where('numero', (int) $payload['numero'])
+            ->exists();
     }
 
     public function serviceDomaine(): string
