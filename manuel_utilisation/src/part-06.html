@@ -120,9 +120,9 @@
     Si le solde progressif ne retombe pas sur le stock théorique, l'écran affiche <strong>Incohérence détectée</strong> :
     ce document ne doit alors pas servir de justificatif, et il faut prévenir l'éditeur.
   </p>
-  <figure>
+  <figure class="compact">
     <img src="../captures/m6-inventaires.png" alt="La fiche de stock d'un article, sur la période choisie.">
-    <figcaption><b>Figure 7.3</b> — La <b>fiche de stock</b> d'un article, sur la période choisie.</figcaption>
+    <figcaption><b>Figure 7.1</b> — La <b>fiche de stock</b> d'un article, sur la période choisie.</figcaption>
   </figure>
 
 
@@ -143,9 +143,9 @@
     <em>« Inventaire ouvert — 32 article(s) à compter »</em>.
   </p>
 
-  <figure>
+  <figure class="compact">
     <img src="../captures/a-inventaire-ouvrir.png" alt="Ouverture d'un inventaire annotée">
-    <figcaption><b>Figure 7.1</b> — L'ouverture d'un inventaire physique.</figcaption>
+    <figcaption><b>Figure 7.2</b> — L'ouverture d'un inventaire physique.</figcaption>
     <ul class="reperes">
       <li><span class="n">1</span>Le <strong>point de stockage</strong> à inventorier.</li>
       <li><span class="n">2</span>Le bouton <strong>Lancer l'inventaire</strong>.</li>
@@ -162,9 +162,9 @@
     <li>Suivez l'avancement en tête de tableau : <em>0 / 32 article(s) comptés · 0 écart(s) · impact valorisé 0 F</em>.</li>
   </ol>
 
-  <figure>
+  <figure class="compact">
     <img src="../captures/a-inventaire-compter.png" alt="Saisie d'un inventaire annotée">
-    <figcaption><b>Figure 7.2</b> — La saisie des quantités comptées.</figcaption>
+    <figcaption><b>Figure 7.3</b> — La saisie des quantités comptées.</figcaption>
     <ul class="reperes">
       <li><span class="n">1</span>La colonne <strong>Compté</strong> — un bouton par article.</li>
       <li><span class="n">2</span>Le bouton <strong>Clôturer et régulariser</strong>.</li>
@@ -229,7 +229,7 @@
       <tr><td><strong>Dettes fournisseurs</strong></td><td>Les commandes non clôturées, avec le montant commandé, le réglé, le <strong>reste dû</strong> et l'ancienneté du bon de commande ; le bouton <strong>Régler</strong> enregistre un règlement.</td></tr>
     </tbody>
   </table>
-  <figure>
+  <figure class="compact">
     <img src="../captures/m7-approvisionnement.png" alt="L'écran Approvisionnement, onglet Besoins.">
     <figcaption><b>Figure 7.4</b> — L'écran <b>Approvisionnement</b>, onglet Besoins.</figcaption>
   </figure>
@@ -264,12 +264,22 @@
     laissent entendre l'inverse ; c'est la phrase du présent manuel qui décrit le comportement réel.
   </span>
 
+  <figure class="compact petit">
+    <img src="../captures/x-appro-reception.png" alt="La fenêtre de réception d'une commande.">
+    <figcaption><b>Figure 7.5</b> — La fenêtre <b>Réception</b> d'une commande : le <b>point de stockage</b> (ici Cuisine), les quantités commandées et celles reçues maintenant, puis <b>Valider la réception</b>. La phrase d'aide de cette fenêtre sur le coût moyen pondéré n'est pas fiable : voir l'attention ci-dessus.</figcaption>
+  </figure>
+
   <h3>Régler un fournisseur</h3>
   <ol class="etapes">
     <li>Sur la ligne de la commande (onglet Commandes ou Dettes fournisseurs), cliquez sur <strong>Régler</strong>.</li>
     <li>Saisissez le <strong>Montant réglé (FCFA)</strong> — un règlement partiel est possible — et choisissez la <strong>Trésorerie</strong> : Caisse, Mobile Money ou Banque.</li>
     <li>Cliquez sur <strong>Enregistrer le règlement</strong>. Le logiciel écrit le règlement et sa pièce comptable ensemble ; une commande déjà soldée refuse un nouveau règlement.</li>
   </ol>
+  <figure class="compact petit">
+    <img src="../captures/x-appro-reglement.png" alt="La fenêtre de règlement d'une commande fournisseur.">
+    <figcaption><b>Figure 7.6</b> — La fenêtre <b>Régler</b> une commande : le <b>montant réglé</b> (ici le reste dû, 62 000 FCFA, déjà proposé), la <b>trésorerie</b> (Caisse) et <b>Enregistrer le règlement</b>.</figcaption>
+  </figure>
+
   <span class="note info">
     <span class="icone">ℹ️</span>
     <span class="titre">Sur le poste Windows</span>
@@ -362,6 +372,11 @@
     c'est la source d'écart la plus fréquente entre le contrat et l'encaissement.
   </span>
 
+  <figure class="compact">
+    <img src="../captures/x-location-contrat.png" alt="La fenêtre Nouveau contrat de location.">
+    <figcaption><b>Figure 8.1</b> — La fenêtre <b>Nouveau contrat de location</b> : véhicule, dates de départ et de restitution, client, pièce d'identité et permis, remise, acompte, et l'aperçu « jours × tarif » avec le <b>reste à payer</b> avant <b>Établir le contrat</b>.</figcaption>
+  </figure>
+
   <h3>Reçu, annulation, archivage</h3>
   <ul class="puces">
     <li><strong>Reçu</strong> produit le reçu de location du contrat, à imprimer ou à enregistrer en PDF : numéro du contrat, client, véhicule, période, durée, tarif journalier, montant, acompte, reste dû, statut, date et auteur de l'émission.
@@ -383,7 +398,7 @@
 
   <figure>
     <img src="../captures/m8-locations.png" alt="Le parc de véhicules et sa disponibilité sur la période.">
-    <figcaption><b>Figure 8.1</b> — Le <b>parc de véhicules</b> et sa disponibilité sur la période.</figcaption>
+    <figcaption><b>Figure 8.2</b> — Le <b>parc de véhicules</b> et sa disponibilité sur la période.</figcaption>
   </figure>
 
   <span class="note info">
@@ -428,6 +443,11 @@
     Rien ne s'efface : une annulation conserve la ligne.
   </p>
 
+  <figure class="compact">
+    <img src="../captures/x-tourisme-reservation.png" alt="La fenêtre Réserver des places.">
+    <figcaption><b>Figure 8.3</b> — La fenêtre <b>Réserver des places</b> : capacité, places déjà vendues et restantes, prestation, date de départ, guide, client et nombre de personnes.</figcaption>
+  </figure>
+
   <h3>Le catalogue des circuits</h3>
   <p>
     L'onglet <strong>Catalogue</strong> liste les prestations avec leur type, leur durée, leur zone et thème, leur prix et leurs départs planifiés. <strong>+ Prestation</strong> (ou
@@ -444,7 +464,7 @@
   </span>
   <figure>
     <img src="../captures/m9-tourisme-departs.png" alt="Les départs planifiés et leur remplissage.">
-    <figcaption><b>Figure 8.2</b> — Les <b>départs planifiés</b> et leur remplissage.</figcaption>
+    <figcaption><b>Figure 8.4</b> — Les <b>départs planifiés</b> et leur remplissage.</figcaption>
   </figure>
 
   <span class="note info">

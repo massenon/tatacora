@@ -193,6 +193,9 @@ figcaption {
   padding-left: 2.5mm;
 }
 figcaption b { color: var(--navy); }
+/* Captures plein écran ajoutées en novembre 2026 : deux par page au lieu d'une demi-page blanche. */
+figure.compact img { max-height: 88mm; }
+figure.compact.petit img { max-height: 70mm; }
 figure.demi img { width: 72%; margin: 0 auto; }
 
 .reperes { margin: 2mm 0 0; padding: 0; list-style: none; font-size: 9pt; }

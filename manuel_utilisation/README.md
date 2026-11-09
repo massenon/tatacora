@@ -6,7 +6,7 @@
 | **Éditeur du logiciel** | Dr MASSENON Rhodes, Docteur en Génie Logiciel et Intelligence Artificielle |
 | **Maîtrise d'œuvre** | FAGUEZ SARL — accompagnement des PME dans le cadre du PAEB |
 | **Statut** | LogiRestock 1.0.0 — édition de novembre 2026 (mise à jour complète, chapitres 15 à 19 ajoutés) ; l'édition de septembre 2026 avait été approuvée en séance par le Promoteur et le Comptable, la présente édition ne l'a pas encore été |
-| **Livrable** | `MANUEL_UTILISATION_LOGIRESTOCK.pdf` (le nombre de pages est affiché par `generer.js`) |
+| **Livrable** | `MANUEL_UTILISATION_LOGIRESTOCK.pdf` (160 pages au 09/11/2026, couverture comprise — 159 numérotées ; `generer.js` affiche le nombre exact) |
 | **Source documentée** | ⚠ **La PWA de `tatacora-api`** depuis le 14/09/2026 — les écrans réellement servis, capturés en session sur le serveur. `prototype_v2/` était la source jusque-là : il est **archivé depuis le 10/09/2026** (PA-183) et le manuel montrait donc une interface qui ne fait plus foi. |
 
 ---
@@ -16,12 +16,13 @@
 | Chemin | Contenu |
 |---|---|
 | `MANUEL_UTILISATION_LOGIRESTOCK.pdf` | Le livrable. |
-| `src/part-01.html` … `part-14.html` | Le texte du manuel, découpé par lots de chapitres : `part-01` couverture et avant-propos, `part-02` sommaire, `part-03` à `part-09` chapitres 1 à 14 et annexes A et B, `part-10` à `part-14` chapitres 15 à 19 (poste Windows, synchronisation, facturation normalisée, proforma, comptes). |
-| `CAPTURES_A_PRENDRE.md` | Les 19 captures du poste Windows qui manquent aux chapitres 15 à 19 (figures `emplacement` en pointillés), avec le nom de fichier attendu et la façon de les prendre. |
+| `src/part-01.html` … `part-14.html` | Le texte du manuel (chapitres 1 à 19 et annexes A et B), découpé par lots de chapitres : `part-01` couverture et avant-propos, `part-02` sommaire, `part-03` à `part-09` chapitres 1 à 14 et annexes A et B, `part-10` à `part-14` chapitres 15 à 19 (poste Windows, synchronisation, facturation normalisée, proforma, comptes). |
+| `CAPTURES_A_PRENDRE.md` | Les 19 captures du poste Windows qui manquent aux chapitres 15 à 19 (figures `emplacement` en pointillés, **seules figures encore sans image**), avec le nom de fichier attendu et la façon de les prendre. `CAPTURES_A_PRENDRE_CHAP1-6.md` et `_CHAP7-14.md` portent le statut de chaque capture PWA (fait / non prise). |
 | `src/style.css` | La charte graphique appliquée au document (marine `#14213D`, or `#B8891E`, police Inter — les valeurs de `prototype_v2/assets/css/app.css`). |
 | `src/img/` | Les captures ré-encodées en JPEG à la génération. **Dérivé** : supprimez le dossier pour forcer sa reconstruction. |
 | `captures/*.png` | Les captures d'écran d'origine (1440 px, facteur 2), produites depuis le prototype. |
 | `assets/` | Logo, photo de couverture et polices Inter, copiés de `prototype_v2/assets/`. |
+| `capturer-nouveautes.js` | Produit les captures PWA ajoutées en novembre 2026 (`x-*.png`, `pwa-*.png` : chapitres 7 à 13 et écrans voisins du poste). **À ne lancer que sur une base jetable** : il crée et modifie des données (clôture d'un exercice d'essai, réinitialisation de la fenêtre, brouillons de proforma, comptes). Jamais sur la base d'exploitation. |
 | `capturer.js` | Produit une capture par écran **de la PWA**, en session réelle (63 figures, modales comprises). |
 | `inspecter.js` | Relève les points d'ancrage réellement rendus par chaque écran — ce sur quoi `annoter.js` pose ses repères. Écrit sur un sélecteur DEVINÉ, une annotation se pose à côté, ou sur la mauvaise fenêtre. |
 | `annoter.js` | Produit les captures **annotées** — cadres et pastilles rouges numérotées. |
@@ -57,6 +58,14 @@ PPTR_DIR=~/outils-pdf node generer.js
 Les deux scripts démarrent un serveur local sur `prototype_v2/`, se connectent réellement avec
 le compte administrateur, laissent les jeux de démonstration s'amorcer, puis capturent chaque
 page. Une capture prise sans session afficherait l'écran de connexion à la place du module.
+
+### Figures
+
+Une figure est `<figure><img src="../captures/NOM.png" alt="…"><figcaption><b>Figure N.M</b> — …</figcaption></figure>` ;
+`generer.js` remplace `../captures/NOM.png` par `img/NOM.jpg` (JPEG 1400 px, dans `src/img/`, versionné). Les captures plein écran
+des ajouts de novembre 2026 portent `class="compact"` (hauteur plafonnée à 88 mm, 70 mm avec `petit`) pour tenir deux par page.
+La numérotation « Figure N.M » suit l'ordre du chapitre ; elle a été recalculée aux chapitres 7 à 10 et 13 lors de l'ajout des
+figures `x-*` (les fichiers `CAPTURES_A_PRENDRE*.md` citent encore les anciens numéros). Restent en pointillés les 19 figures du poste Windows (chapitres 15 à 19).
 
 ## 4. Ordre des sections : les annexes ferment toujours le manuel
 

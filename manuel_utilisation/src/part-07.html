@@ -112,6 +112,11 @@
     et la première pièce datée du 1er janvier ouvre l'année si elle manque.
   </p>
 
+  <figure>
+    <img src="../captures/x-selecteur-exercice.png" alt="La barre supérieure avec le sélecteur d'exercice sur 2025, clôturé.">
+    <figcaption><b>Figure 9.4</b> — La barre supérieure avec le sélecteur <b>Exercice</b> sur « 2025 — clôturé » : la pastille « Vous consultez 2025 (clôturé) » et le lien « Revenir à 2026 ».</figcaption>
+  </figure>
+
   <h3>Passer une écriture</h3>
   <ol class="etapes">
     <li>Cliquez sur <strong>Nouvelle écriture</strong> (onglet Passer écriture).</li>
@@ -160,6 +165,16 @@
     et existe aussi sur le poste.
   </p>
 
+  <figure class="compact">
+    <img src="../captures/x-compta-correspondance.png" alt="L'écran Correspondance des comptes.">
+    <figcaption><b>Figure 9.5</b> — L'écran <b>Correspondance des comptes</b> : pour chaque rôle, le compte actuel, le compte par défaut et le bouton <b>Modifier</b>.</figcaption>
+  </figure>
+
+  <figure class="compact">
+    <img src="../captures/x-compta-correspondance-modale.png" alt="La fenêtre Modifier le compte du rôle.">
+    <figcaption><b>Figure 9.6</b> — La fenêtre <b>Modifier le compte du rôle</b> (ici « Produits du restaurant », compte 7061) : <b>Annuler</b>, <b>Rétablir le défaut</b>, <b>Enregistrer</b>.</figcaption>
+  </figure>
+
   <h3>Les immobilisations</h3>
   <p>
     L'onglet <strong>Immobilisations</strong> présente le tableau de l'exercice (code, immobilisation, durée, valeur d'origine, dotation, amortissements cumulés, valeur nette comptable). <strong>+ Immobilisation</strong> ouvre la fiche :
@@ -167,6 +182,16 @@
     donc elle est obligatoire et sans valeur pré-remplie. L'amortissement est linéaire, avec prorata de la première annuité en mois entamés ; <strong>Plan</strong> affiche le plan d'amortissement année par année
     (la dernière annuité absorbe l'arrondi, pour que la valeur nette finale tombe à zéro).
   </p>
+
+  <figure class="compact">
+    <img src="../captures/x-compta-immobilisations.png" alt="L'onglet Immobilisations de la comptabilité.">
+    <figcaption><b>Figure 9.7</b> — L'onglet <b>Immobilisations</b> : la mention « Durée d'utilité : une estimation de l'entité, jamais un défaut », le bouton <b>+ Immobilisation</b> et le tableau, vide dans cette base de démonstration.</figcaption>
+  </figure>
+
+  <figure class="compact">
+    <img src="../captures/x-compta-immobilisations-nouvelle.png" alt="La fenêtre Nouvelle immobilisation.">
+    <figcaption><b>Figure 9.8</b> — La fenêtre <b>Nouvelle immobilisation</b> : intitulé, compte, valeur d'origine, mise en service et durée d'utilité, laissée à décider (« à décider ») et sans valeur proposée.</figcaption>
+  </figure>
 
   <h2>9.3 Les écrans comptables</h2>
   <p>Les onze tuiles de la page d'accueil ouvrent, pour chacune, un écran de consultation :</p>
@@ -188,7 +213,7 @@
   </table>
   <figure>
     <img src="../captures/m10-comptabilite.png" alt="Le hub Comptabilité : les écrans comptables et les indicateurs de tête.">
-    <figcaption><b>Figure 9.4</b> — Le hub <b>Comptabilité</b> : les écrans comptables et les indicateurs de tête.</figcaption>
+    <figcaption><b>Figure 9.9</b> — Le hub <b>Comptabilité</b> : les écrans comptables et les indicateurs de tête.</figcaption>
   </figure>
 
   <span class="note attention">
@@ -215,6 +240,11 @@
     (jamais deux fois la même pièce) : un bandeau dit combien de pièces sont ainsi comptées en attendant. Une pièce <strong>refusée par le serveur</strong> reste validée, immuable et comptée dans les états du poste ; le bandeau la nomme
     avec son motif, et le refus se lit dans « À traiter » de l'écran de synchronisation. Le bouton Exporter n'y existe que sur l'onglet Journal.
   </span>
+
+  <figure class="compact">
+    <img src="../captures/x-compta-bilan-n1.png" alt="L'onglet Bilan avec la colonne de l'exercice précédent.">
+    <figcaption><b>Figure 9.10</b> — L'onglet <b>Bilan</b> avec la colonne « Exercice 2025 » (N−1) à côté du montant de l'exercice, sur des données de démonstration : le bandeau signale ici un bilan déséquilibré et la mention « Résultat AVANT impôt » est affichée.</figcaption>
+  </figure>
 
   <h2>9.4 La clôture de l'exercice</h2>
   <p>
@@ -263,13 +293,23 @@
   </span>
   <figure>
     <img src="../captures/m10-cloture.png" alt="L'écran Clôture Périodique et sa liste de contrôle.">
-    <figcaption><b>Figure 9.5</b> — La <b>clôture</b> : liste de contrôle et état des étapes.</figcaption>
+    <figcaption><b>Figure 9.11</b> — La <b>clôture</b> : liste de contrôle et état des étapes.</figcaption>
   </figure>
   <p>
     L'écran <strong>Clôture Périodique</strong> déroule six groupes de contrôles — vérification pré-clôture (balance équilibrée, aucun brouillon, inventaire physique réconcilié, rapprochement bancaire), passage « en clôture », écritures de clôture,
     contrôle post-clôture, passage « clôturé », bilan de référence — et marque chaque ligne <em>Conforme</em>, <em>Bloqué</em>, <em>Non vérifiable</em> (limite du domaine : l'inventaire physique appartient aux stocks) ou <em>Non atteint</em>
     (dépend d'une étape précédente). <em>Non vérifiable</em> et <em>Non atteint</em> ne sont pas des échecs. Cet écran ne déclenche rien : les boutons sont dans l'onglet Clôtures.
   </p>
+
+  <figure class="compact">
+    <img src="../captures/x-compta-clotures.png" alt="L'onglet Clôtures de la comptabilité, exercice 2026 ouvert.">
+    <figcaption><b>Figure 9.12</b> — L'onglet <b>Clôtures</b> sur l'exercice 2026 (démonstration) : blocage, avertissement « Des postes n'ont peut-être pas tout envoyé » et bouton <b>Démarrer la clôture de l'exercice 2026</b>.</figcaption>
+  </figure>
+
+  <figure class="compact">
+    <img src="../captures/x-selecteur-exercice-page.png" alt="L'onglet Clôtures sur un exercice clôturé, avec l'archive légale.">
+    <figcaption><b>Figure 9.13</b> — L'onglet <b>Clôtures</b> sur l'exercice 2025 clôturé : « Archive légale », empreinte SHA-256 et bouton <b>Télécharger l'archive (ZIP)</b>, puis <b>Rouvrir l'exercice 2025</b> réservé au comptable.</figcaption>
+  </figure>
 
 </section>
 
@@ -400,4 +440,15 @@
     <span class="titre">Sur le poste Windows</span>
     Plannings et congés se saisissent aussi sur le poste, avec les mêmes règles et les mêmes phrases. Le serveur rejoue les règles avec ses propres données à la synchronisation : une validation refusée là-bas revient dans « À traiter ».
   </span>
+
+  <figure class="compact">
+    <img src="../captures/x-conges-plannings.png" alt="L'onglet Congés de l'écran Congés & Plannings.">
+    <figcaption><b>Figure 10.2</b> — L'onglet <b>Congés</b> : deux demandes <em>En attente</em> avec <b>Valider</b> et <b>Refuser</b>, et le bouton <b>Demander un congé</b>.</figcaption>
+  </figure>
+
+  <figure class="compact">
+    <img src="../captures/x-conges-creneau.png" alt="La fenêtre Planifier un créneau.">
+    <figcaption><b>Figure 10.3</b> — La fenêtre <b>Planifier un créneau</b> de l'onglet Plannings : employé, service, date et heures <b>De</b> et <b>À</b>.</figcaption>
+  </figure>
+
 </section>

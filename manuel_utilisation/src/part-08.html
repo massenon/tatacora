@@ -262,7 +262,7 @@
   </span>
   <figure>
     <img src="../captures/roles-permissions.png" alt="La matrice des permissions : modules et rôles.">
-    <figcaption><b>Figure 13.2</b> — La <b>matrice des permissions</b>.</figcaption>
+    <figcaption><b>Figure 13.1</b> — La <b>matrice des permissions</b>.</figcaption>
   </figure>
 
   <p>
@@ -293,7 +293,7 @@
   </table>
   <figure>
     <img src="../captures/parametres.png" alt="L'écran Paramètres et ses sept onglets.">
-    <figcaption><b>Figure 13.3</b> — L'écran <b>Paramètres</b> et ses sept onglets.</figcaption>
+    <figcaption><b>Figure 13.2</b> — L'écran <b>Paramètres</b> et ses sept onglets.</figcaption>
   </figure>
 
   <h3>La facturation normalisée</h3>
@@ -304,12 +304,22 @@
     <strong>Tester la connexion</strong> vérifie l'accès. Les modes et réglages se règlent au serveur ; le poste les reçoit en lecture. Cette fonction n'a pas encore été éprouvée sur le terrain : voir le chapitre consacré à la facturation normalisée et le §14.5.
   </p>
 
+  <figure class="compact">
+    <img src="../captures/x-parametres-mecef.png" alt="La rubrique Facturation normalisée (MECeF) des Paramètres.">
+    <figcaption><b>Figure 13.3</b> — La rubrique <b>Facturation normalisée (MECeF)</b> : mode, adresse de l'API, identifiant et nom de l'opérateur, <b>Saisir un nouveau jeton</b> (« Aucun jeton enregistré ») et <b>Tester la connexion</b>.</figcaption>
+  </figure>
+
   <h3>Le serveur d'envoi d'e-mails</h3>
   <p>
     Dans l'onglet <strong>Email (SMTP)</strong>, renseignez le serveur, le port, la sécurité et l'utilisateur, puis saisissez le <strong>mot de passe SMTP</strong> avec <strong>Enregistrer le mot de passe</strong> (<strong>Effacer</strong> le retire). Ce mot de passe est
     <strong>enregistré chiffré, jamais réaffiché</strong> ; seul un administrateur peut le saisir. Sans mot de passe saisi ici, la configuration du serveur s'applique. <strong>Envoyer un email de test</strong> écrit à l'« Email de contact » de l'onglet Identité &amp; Légal
     et donne un résultat honnête : <em>Email de test envoyé à …</em>, <em>Échec de l'envoi — le transport a répondu …</em>, ou <em>Aucun transport réel n'est configuré</em>. Sur le poste Windows, le mot de passe SMTP est enregistré <strong>sur ce poste seulement</strong> (jamais dans la base) et jamais affiché.
   </p>
+
+  <figure class="compact">
+    <img src="../captures/x-parametres-email.png" alt="L'onglet Email (SMTP) des Paramètres.">
+    <figcaption><b>Figure 13.4</b> — L'onglet <b>Email (SMTP)</b> : serveur, port, sécurité, utilisateur, mot de passe SMTP (« Non renseigné ici », jamais réaffiché) et <b>Envoyer un email de test</b>.</figcaption>
+  </figure>
 
   <h3>Les trois bascules d'activation</h3>
   <table>
@@ -356,7 +366,7 @@
 
   <figure>
     <img src="../captures/a-import.png" alt="Écran Import &amp; Export annoté">
-    <figcaption><b>Figure 13.1</b> — L'import de données, en trois zones.</figcaption>
+    <figcaption><b>Figure 13.5</b> — L'import de données, en trois zones.</figcaption>
     <ul class="reperes">
       <li><span class="n">1</span>Le <strong>module</strong> à alimenter.</li>
       <li><span class="n">2</span><strong>Télécharger le modèle</strong> — colonnes exactes et ligne d'exemple.</li>
@@ -396,6 +406,11 @@
     <li><strong>Réinitialiser les données de test</strong> — voir ci-dessous.</li>
   </ul>
 
+  <figure class="compact">
+    <img src="../captures/x-sauvegardes.png" alt="L'onglet Sauvegardes de la base.">
+    <figcaption><b>Figure 13.6</b> — L'onglet <b>Sauvegardes de la base</b> : le bandeau « Sauvegarde en attente de téléchargement », quatre indicateurs (dont le rythme « Quotidien (02h00) »), <b>Générer une sauvegarde de la base</b> et la liste des fichiers « non téléchargée ».</figcaption>
+  </figure>
+
   <span class="note alerte">
     <span class="icone">🛑</span>
     <span class="titre">Alerte</span>
@@ -424,6 +439,16 @@
     <li>Cliquez sur <strong>Réinitialiser comme neuf</strong>, saisissez le mot <strong>VIDER</strong> et confirmez. Une sauvegarde complète est générée juste avant ; si elle échoue, rien n'est vidé.</li>
     <li><strong>Refermez la bascule</strong> dans Paramètres, onglet Activation &amp; Sécurité.</li>
   </ol>
+  <figure class="compact">
+    <img src="../captures/x-reinitialiser.png" alt="L'onglet Réinitialiser les données de test.">
+    <figcaption><b>Figure 13.7</b> — L'onglet <b>Réinitialiser les données de test</b> : « Ce qui sera vidé », « Ce qui sera conservé » et <b>Réinitialiser comme neuf</b>.</figcaption>
+  </figure>
+
+  <figure class="compact">
+    <img src="../captures/x-reinitialiser-modale.png" alt="La fenêtre de confirmation Réinitialiser comme neuf.">
+    <figcaption><b>Figure 13.8</b> — La fenêtre de confirmation : il faut saisir <b>VIDER</b> pour activer <b>Vider définitivement</b> (saisie non effectuée sur cette capture).</figcaption>
+  </figure>
+
   <span class="note alerte">
     <span class="icone">🛑</span>
     <span class="titre">Alerte</span>
@@ -445,7 +470,7 @@
   </p>
   <figure>
     <img src="../captures/journal-audit.png" alt="Le journal d'audit, en lecture seule pour tous.">
-    <figcaption><b>Figure 13.4</b> — Le <b>journal d'audit</b>, en lecture seule pour tous.</figcaption>
+    <figcaption><b>Figure 13.9</b> — Le <b>journal d'audit</b>, en lecture seule pour tous.</figcaption>
   </figure>
   <span class="note info">
     <span class="icone">ℹ️</span>
@@ -462,7 +487,7 @@
   </ul>
   <figure>
     <img src="../captures/aide-a-propos.png" alt="L'écran Aide &amp; À propos : les modules et la foire aux questions.">
-    <figcaption><b>Figure 13.5</b> — L'écran <b>Aide &amp; À propos</b> : les modules et la foire aux questions.</figcaption>
+    <figcaption><b>Figure 13.10</b> — L'écran <b>Aide &amp; À propos</b> : les modules et la foire aux questions.</figcaption>
   </figure>
 
 </section>
