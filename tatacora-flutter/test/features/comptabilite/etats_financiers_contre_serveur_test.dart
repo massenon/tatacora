@@ -82,6 +82,31 @@ void main() {
     (2031, 'OD', '465', '0.00', '40000.00', '2031-08-01'),
     (2031, 'OD', '465', '15000.00', '0.00', '2031-08-20'),
     (2031, 'OD', '521', '0.00', '15000.00', '2031-08-20'),
+    // Avis de l'expert-comptable (10/11/2026) : provision financière (697 / 19)
+    // puis reprise (19 / 797), subvention d'investissement reçue (14) et sa
+    // quote-part virée (14 / 799), compte de l'exploitant (104 : apport puis
+    // prélèvement), dette de participation (18), dotations HAO (851 / 15 et
+    // 852 / 281) et reprise d'amortissement (281 / 798).
+    (2031, 'OD', '697', '30000.00', '0.00', '2031-09-01'),
+    (2031, 'OD', '19', '0.00', '30000.00', '2031-09-01'),
+    (2031, 'OD', '19', '5000.00', '0.00', '2031-09-02'),
+    (2031, 'OD', '797', '0.00', '5000.00', '2031-09-02'),
+    (2031, 'OD', '5711', '200000.00', '0.00', '2031-09-03'),
+    (2031, 'OD', '14', '0.00', '200000.00', '2031-09-03'),
+    (2031, 'OD', '14', '40000.00', '0.00', '2031-12-31'),
+    (2031, 'OD', '799', '0.00', '40000.00', '2031-12-31'),
+    (2031, 'OD', '5711', '60000.00', '0.00', '2031-09-04'),
+    (2031, 'OD', '104', '0.00', '60000.00', '2031-09-04'),
+    (2031, 'OD', '104', '10000.00', '0.00', '2031-09-05'),
+    (2031, 'OD', '5711', '0.00', '10000.00', '2031-09-05'),
+    (2031, 'OD', '5711', '70000.00', '0.00', '2031-09-06'),
+    (2031, 'OD', '18', '0.00', '70000.00', '2031-09-06'),
+    (2031, 'OD', '851', '8000.00', '0.00', '2031-12-30'),
+    (2031, 'OD', '15', '0.00', '8000.00', '2031-12-30'),
+    (2031, 'OD', '852', '6000.00', '0.00', '2031-12-30'),
+    (2031, 'OD', '281', '0.00', '6000.00', '2031-12-30'),
+    (2031, 'OD', '281', '2000.00', '0.00', '2031-12-31'),
+    (2031, 'OD', '798', '0.00', '2000.00', '2031-12-31'),
     // 2032 — ouvert, une seule écriture : tout le reste est reporté.
     (2032, 'VTE', '5711', '10000.00', '0.00', '2032-01-05'),
     (2032, 'VTE', '706', '0.00', '10000.00', '2032-01-05'),
@@ -175,11 +200,21 @@ void main() {
     expect(RubriquesBilan.creances, rub['creances']);
     expect(RubriquesBilan.tresorerieActif, rub['tresorerie_actif']);
     expect(RubriquesBilan.capital, rub['capital']);
+    expect(
+      RubriquesBilan.subventionsInvestissement,
+      rub['subventions_investissement'],
+    );
+    expect(
+      RubriquesBilan.provisionsReglementees,
+      rub['provisions_reglementees'],
+    );
+    expect(RubriquesBilan.dettesFinancieres, rub['dettes_financieres']);
+    expect(RubriquesBilan.dettesParticipations, rub['dettes_participations']);
+    expect(RubriquesBilan.provisionsFinancieres, rub['provisions_financieres']);
     expect(RubriquesBilan.resultatReporte, rub['resultat_reporte']);
     expect(RubriquesBilan.dettesCirculantes, rub['dettes_circulantes']);
     expect(RubriquesBilan.dettesAssocies, rub['dettes_associes']);
     expect(RubriquesBilan.tresoreriePassif, rub['tresorerie_passif']);
-    expect(rubriqueDotations, rub['dotations_amortissements']);
   });
 
   // Note annexe 4 (10/11/2026) : le 465 est une ligne de la note, au libellé du
@@ -281,6 +316,14 @@ void main() {
         final poste = tafireDe(annee, donnees);
         expect(poste.resultatExerciceCentimes, cts(t['resultat']));
         expect(poste.dotationsCentimes, cts(t['dotations']));
+        expect(
+          poste.quotePartSubventionsCentimes,
+          cts(t['quote_part_subventions']),
+        );
+        expect(
+          poste.variationDettesParticipationsCentimes,
+          cts(t['dettes_participations']),
+        );
         expect(poste.cafgCentimes, cts(t['cafg']));
         expect(poste.augmentationCapitalCentimes, cts(t['capital']));
         expect(poste.totalRessourcesCentimes, cts(t['ressources']));
@@ -392,6 +435,7 @@ void main() {
           expect(poste.equilibre, b['equilibre']);
           expect(poste.ecartCentimes, cts(b['ecart']));
           expect(poste.resultatExerciceCentimes, cts(b['resultat_exercice']));
+          expect(poste.dividendesAPayerCentimes, cts(b['dividendes_a_payer']));
           expect(poste.impotNonComptabilise, b['impot_non_comptabilise']);
           final hors = (b['hors_rubrique'] as List)
               .cast<Map<String, dynamic>>();
@@ -424,6 +468,25 @@ void main() {
     expect(
       bilanDe(2031, donnees).comptesHorsRubrique.map((c) => c.numeroCompte),
       ['4811'],
+    );
+    // L'avis du 10/11/2026 : le 19, le 14, le 104, le 18 et le 15 ont leur
+    // rubrique (aucun n'est « hors nomenclature »), le bilan 2031 range le 465 au
+    // passif circulant avec son « dont ».
+    final b2031 = bilanDe(2031, donnees);
+    expect(b2031.dividendesAPayerCentimes, cts('25000.00'));
+    expect(
+      b2031.passif
+          .firstWhere((p) => p.code == 'dettes_financieres')
+          .netCentimes,
+      cts('95000.00'), // 18 : 70 000 + 19 : 30 000 − 5 000
+    );
+    expect(
+      tafireDe(2031, donnees).quotePartSubventionsCentimes,
+      cts('40000.00'),
+    );
+    expect(
+      tafireDe(2031, donnees).variationDettesParticipationsCentimes,
+      cts('70000.00'),
     );
     expect(balanceDe(2031, donnees).aNouveauxProvisoiresDe, 2030);
     expect(balanceDe(2032, donnees).aNouveauxProvisoiresDe, 2031);

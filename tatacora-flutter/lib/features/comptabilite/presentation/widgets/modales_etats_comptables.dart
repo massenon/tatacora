@@ -39,7 +39,8 @@ abstract final class TextesEtatsComptables {
   static const String emplois = 'EMPLOIS';
   static const String cafg = "Capacité d'Autofinancement Globale (CAFG)";
   static const String augmentationCapital = 'Augmentation de capital';
-  // Trois lignes (cessions, emprunts, dividendes versés) que la vue du flux de
+  // Les lignes (cessions, emprunts, dividendes versés et prélèvements de
+  // l'exploitant, dettes liées à des participations) que la vue du flux de
   // trésorerie du web rend désormais (10/11/2026) : sans elles les totaux ne
   // s'additionnaient plus à l'écran. Mêmes mots des deux côtés, relus de
   // `lang/fr/comptabilite_pwa.php` (`flux_*`) par `tafire_libelles_du_web_test`.
@@ -47,7 +48,10 @@ abstract final class TextesEtatsComptables {
       "Produits des cessions d'immobilisations";
   static const String variationEmprunts = 'Emprunts (variation nette)';
   static const String dividendesVerses =
-      'Dividendes versés (affectation du résultat N-1)';
+      "Dividendes versés et prélèvements de l'exploitant";
+  // Ligne NON affichée quand elle est nulle (sans groupe), comme sur le web.
+  static const String variationDettesParticipations =
+      'Dettes liées à des participations et comptes de liaison (variation nette)';
   static const String totalRessources = 'TOTAL RESSOURCES';
   static const String acquisitions = "Acquisitions d'immobilisations";
   static const String totalEmplois = 'TOTAL EMPLOIS';
@@ -364,6 +368,11 @@ class ContenuFlux extends ConsumerWidget {
               TextesEtatsComptables.variationEmprunts,
               _montantSigne(t.variationEmpruntsCentimes),
             ),
+            if (t.variationDettesParticipationsCentimes != 0)
+              _Ligne(
+                TextesEtatsComptables.variationDettesParticipations,
+                _montantSigne(t.variationDettesParticipationsCentimes),
+              ),
             _Ligne(
               TextesEtatsComptables.totalRessources,
               _montantSigne(t.totalRessourcesCentimes),

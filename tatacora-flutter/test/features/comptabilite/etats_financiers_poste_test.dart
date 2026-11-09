@@ -180,4 +180,28 @@ void main() {
     expect(find.textContaining('4811'), findsWidgets);
     expect(find.text(TextesEtatsFinanciers.horsRubriqueTitre), findsOneWidget);
   });
+
+  testWidgets('le 465 est au passif circulant avec son « dont dividendes à '
+      'payer », le 104 en capitaux propres, le 19 en ressources assimilées : '
+      'le bilan reste équilibré (avis du 10/11/2026)', (tester) async {
+    await recevoir(annee, 'OD', '5711', debit: 1000000);
+    await recevoir(annee, 'OD', '101', credit: 500000);
+    await recevoir(annee, 'OD', '104', credit: 200000);
+    await recevoir(annee, 'OD', '19', credit: 100000);
+    await recevoir(annee, 'OD', '465', credit: 200000);
+    await monter(tester, 'bilan');
+
+    expect(find.byKey(const Key('compta-bilan-desequilibre')), findsNothing);
+    expect(texteDe(tester, 'compta-bilan-total-actif'), fcfa(1000000));
+    expect(texteDe(tester, 'compta-bilan-total-passif'), fcfa(1000000));
+    // Le « dont » est écrit une fois ; son montant est celui du 465 et il est
+    // déjà dans le poste du passif circulant (200 000 aussi, aucun autre compte).
+    expect(
+      find.text(TextesEtatsFinanciers.dontDividendesAPayer),
+      findsOneWidget,
+    );
+    expect(find.text(fcfa(200000)), findsNWidgets(2));
+    expect(find.textContaining('Dettes financières'), findsOneWidget);
+    expect(find.textContaining('465'), findsWidgets);
+  });
 }

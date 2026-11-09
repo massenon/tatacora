@@ -14,6 +14,7 @@ import 'package:tatacora_flutter/features/comptabilite/data/ecritures_serveur_da
 import 'package:tatacora_flutter/features/comptabilite/data/moteur_comptable.dart';
 import 'package:tatacora_flutter/features/comptabilite/presentation/ecran_comptabilite.dart';
 import 'package:tatacora_flutter/features/comptabilite/presentation/providers_comptabilite.dart';
+import 'package:tatacora_flutter/features/comptabilite/presentation/widgets/modales_etats_comptables.dart';
 import 'package:tatacora_flutter/features/comptabilite/presentation/widgets/onglets_etats_financiers.dart';
 import 'package:tatacora_flutter/features/synchronisation/presentation/providers_synchronisation.dart';
 
@@ -253,6 +254,14 @@ void main() {
     expect(
       find.textContaining('Contrôle de cohérence réussi', findRichText: true),
       findsOneWidget,
+    );
+    // 10/11/2026 : les prélèvements se lisent avec les dividendes (même mots que
+    // le web) ; la ligne des dettes liées à des participations n'existe que si
+    // elle n'est pas nulle (sans groupe : absente).
+    expect(find.text(TextesEtatsComptables.dividendesVerses), findsOneWidget);
+    expect(
+      find.text(TextesEtatsComptables.variationDettesParticipations),
+      findsNothing,
     );
   });
 

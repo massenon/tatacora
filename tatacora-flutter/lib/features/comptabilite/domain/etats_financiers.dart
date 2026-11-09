@@ -224,7 +224,8 @@ const cascadeResultat = <RubriqueCascade>[
     'TJ',
     "Reprises d'amortissements, provisions et dépréciations",
     SensRubrique.produit,
-    prefixes: ['791', '798'],
+    // 799 : quote-part des subventions d'investissement virée au résultat.
+    prefixes: ['791', '798', '799'],
   ),
   RubriqueCascade(
     'RL',
@@ -256,17 +257,24 @@ const cascadeResultat = <RubriqueCascade>[
     SensRubrique.charge,
     prefixes: ['67'],
   ),
+  // 797 et 687 étaient hors cascade : le TAFIRE les lit (10/11/2026).
+  RubriqueCascade(
+    'TL',
+    'Reprises de provisions et dépréciations financières',
+    SensRubrique.produit,
+    prefixes: ['797'],
+  ),
   RubriqueCascade(
     'RN',
     'Dotations aux provisions et dépréciations financières',
     SensRubrique.charge,
-    prefixes: ['697'],
+    prefixes: ['687', '697'],
   ),
   RubriqueCascade(
     'XF',
     'RÉSULTAT FINANCIER',
     SensRubrique.solde,
-    composants: ['TK', 'TM', 'RM', 'RN'],
+    composants: ['TK', 'TL', 'TM', 'RM', 'RN'],
   ),
   RubriqueCascade(
     'XG',
@@ -334,7 +342,20 @@ abstract final class RubriquesBilan {
   // (09/11/2026) : sans elles, une TVA déductible tombait « hors nomenclature ».
   static const creances = ['411', '4449', '445'];
   static const tresorerieActif = ['521', '522', '55', '571', '572', '573'];
-  static const capital = ['101'];
+  // Capital (groupe 10, écrit compte par compte : le plan n'a pas de compte
+  // `10`) dont le COMPTE DE L'EXPLOITANT (104) d'une entreprise individuelle :
+  // un compte de capitaux propres, jamais une dette (avis du 10/11/2026).
+  static const capital = ['101', '102', '103', '104', '105', '106', '109'];
+  // Subventions d'investissement (14) et provisions réglementées (15) :
+  // capitaux propres.
+  static const subventionsInvestissement = ['14'];
+  static const provisionsReglementees = ['15'];
+  // Emprunts (16) et location-acquisition (17), dettes liées à des participations
+  // (18), PROVISIONS pour risques et charges (19, une provision financière, pas un
+  // emprunt) : le poste « Dettes financières et ressources assimilées ».
+  static const dettesFinancieres = ['16', '17'];
+  static const dettesParticipations = ['18'];
+  static const provisionsFinancieres = ['19'];
   // Réserves (groupe 11) et report à nouveau (groupe 12) : capitaux propres,
   // nets (un 129 débiteur diminue). Sans eux, l'AFFECTATION DU RÉSULTAT
   // (09/11/2026) créditait un compte hors nomenclature et le bilan de
@@ -358,9 +379,10 @@ abstract final class RubriquesBilan {
     '447',
   ];
   // `465` : dividendes à payer aux associés, dette créditée par l'affectation
-  // d'un bénéfice. À PART des dettes circulantes (comme le serveur) : le TAFIRE
-  // lit la variation de `dettesCirculantes` et traite les dividendes comme un
-  // mouvement des capitaux propres.
+  // d'un bénéfice. Au BILAN c'est une dette du passif circulant (« autres
+  // dettes », « dont dividendes à payer »). À PART des dettes circulantes (comme
+  // le serveur) : le TAFIRE lit la variation de `dettesCirculantes` et traite les
+  // dividendes comme un mouvement des capitaux propres.
   static const dettesAssocies = ['465'];
   static const tresoreriePassif = ['561', '564', '565', '566'];
 
@@ -371,9 +393,14 @@ abstract final class RubriquesBilan {
     ...creances,
     ...tresorerieActif,
     ...capital,
+    ...subventionsInvestissement,
+    ...provisionsReglementees,
     ...reserves,
     ...reportANouveau,
     ...resultatReporte,
+    ...dettesFinancieres,
+    ...dettesParticipations,
+    ...provisionsFinancieres,
     ...dettesCirculantes,
     ...dettesAssocies,
     ...tresoreriePassif,
@@ -467,6 +494,7 @@ final class BilanEtat {
     required this.comptesHorsRubrique,
     required this.resultatExerciceCentimes,
     required this.resultatReporteCentimes,
+    required this.dividendesAPayerCentimes,
     required this.impotNonComptabilise,
     required this.aNouveauxProvisoiresDe,
   });
@@ -483,6 +511,10 @@ final class BilanEtat {
   /// (journal AN ou à-nouveaux provisoires). Il entre dans les capitaux propres
   /// et ne se recompte pas dans le résultat de l'exercice (`Bilan::resultatReporte`).
   final int resultatReporteCentimes;
+
+  /// Le « dont dividendes à payer » (465) du passif circulant : DÉJÀ compris dans
+  /// le poste `passif_circulant`, jamais additionné (`Bilan::dividendesAPayer`).
+  final int dividendesAPayerCentimes;
   final bool impotNonComptabilise;
   final int? aNouveauxProvisoiresDe;
 
@@ -638,7 +670,7 @@ CompteResultatEtat compteResultatDe(int annee, DonneesEtats d) {
   );
 }
 
-/// `BilanService` : trois postes d'actif, trois de passif, par préfixe.
+/// `BilanService` : trois postes d'actif, quatre de passif, par préfixe.
 BilanEtat bilanDe(int annee, DonneesEtats d) {
   final balance = balanceDe(annee, d);
   final resultat = compteResultatDe(annee, d);
@@ -704,6 +736,23 @@ BilanEtat bilanDe(int annee, DonneesEtats d) {
     lignes,
     RubriquesBilan.reportANouveau,
   );
+  final subventions = _sommeCreditrice(
+    lignes,
+    RubriquesBilan.subventionsInvestissement,
+  );
+  final provisionsReglementees = _sommeCreditrice(
+    lignes,
+    RubriquesBilan.provisionsReglementees,
+  );
+  final prefixesDettesFinancieres = [
+    ...RubriquesBilan.dettesFinancieres,
+    ...RubriquesBilan.dettesParticipations,
+    ...RubriquesBilan.provisionsFinancieres,
+  ];
+  final dividendesAPayer = _sommeCreditrice(
+    lignes,
+    RubriquesBilan.dettesAssocies,
+  );
   final prefixesPassifCirculant = [
     ...RubriquesBilan.dettesCirculantes,
     ...RubriquesBilan.dettesAssocies,
@@ -714,16 +763,27 @@ BilanEtat bilanDe(int annee, DonneesEtats d) {
       'capitaux_propres',
       'Capitaux propres',
       capital +
+          subventions +
+          provisionsReglementees +
           reserves +
           reportANouveau +
           reporte +
           resultat.resultatNetCentimes,
       [
         ...RubriquesBilan.capital,
+        ...RubriquesBilan.subventionsInvestissement,
+        ...RubriquesBilan.provisionsReglementees,
         ...RubriquesBilan.reserves,
         ...RubriquesBilan.reportANouveau,
         ...RubriquesBilan.resultatReporte,
       ],
+    ),
+    sans(
+      SectionBilan.passif,
+      'dettes_financieres',
+      'Dettes financières et ressources assimilées',
+      _sommeCreditrice(lignes, prefixesDettesFinancieres),
+      prefixesDettesFinancieres,
     ),
     sans(
       SectionBilan.passif,
@@ -759,6 +819,7 @@ BilanEtat bilanDe(int annee, DonneesEtats d) {
     ],
     resultatExerciceCentimes: resultat.resultatNetCentimes,
     resultatReporteCentimes: reporte,
+    dividendesAPayerCentimes: dividendesAPayer,
     impotNonComptabilise: resultat.impotNonComptabilise,
     aNouveauxProvisoiresDe: balance.aNouveauxProvisoiresDe,
   );

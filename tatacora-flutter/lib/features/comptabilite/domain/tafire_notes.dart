@@ -3,47 +3,68 @@
 /// `TafireService` et `NotesAnnexesService` (confrontées au serveur par
 /// `tafire_notes_contre_serveur_test.dart`) : MÊMES rubriques, MÊMES signes.
 ///
-/// DÉFINITION du TAFIRE (10/11/2026, miroir exact de `TafireService`) : le
-/// résultat est celui de N SEUL (`bilan.resultatExerciceCentimes`, jamais le
-/// 131/139 reporté de N-1), et tout montant de bilan est une VARIATION
-/// (solde de clôture − solde d'ouverture, `reportOuverture`).
+/// DÉFINITION FINALE du TAFIRE (10/11/2026, avis de l'expert-comptable, miroir
+/// exact de `TafireService`) : le résultat est celui de N SEUL
+/// (`bilan.resultatExerciceCentimes`, jamais le 131/139 reporté de N-1), et tout
+/// montant de bilan est une VARIATION (solde de clôture − solde d'ouverture,
+/// `reportOuverture`).
 ///
-///   CAFG = résultat de N + dotations (681) − reprises (781) + VNC cédées (81)
-///          − produits des cessions (82)
-///   Exploitation = CAFG − variation du BFR
-///   Investissement = produits des cessions − acquisitions
-///   Financement = augmentation de capital (10, 14) + variation des emprunts
-///          (16 à 19) − dividendes versés, dividendes versés = −(variation des
-///          capitaux propres 11, 12, 13, 15 + variation des dividendes à payer 465)
+///   CAFG = résultat de N + DOTATIONS (681, 687, 691, 697, 85)
+///          − REPRISES (781, 787, 791, 797, 798, 86) + VNC cédées (81)
+///          − produits des cessions (82) − quote-part des subventions
+///          d'investissement virée au résultat (799, produit non encaissé)
+///   Exploitation = CAFG − variation du BFR (le 465 n'y est pas)
+///   Investissement = produits des cessions − acquisitions, acquisitions =
+///          variation des immobilisations NETTES + dotations aux AMORTISSEMENTS
+///          (681, 852) + VNC − reprises sur immobilisations (781, 787, 798, 862)
+///   Financement = apports (101, 102, 103, 105, 106, 109 + subventions
+///          d'investissement REÇUES : variation du 14 + quote-part 799)
+///          + emprunts (16 et 17) + dettes liées à des participations (18, ligne
+///          distincte) − dividendes versés, dividendes versés = −(variation des
+///          capitaux propres hors résultat : compte de l'exploitant 104, 11, 12,
+///          13 + variation des dividendes à payer 465)
 ///   Variation de trésorerie = les trois flux = variation constatée aux classes 5.
 ///
-/// L'affectation du résultat de N-1 est un mouvement de capitaux propres lu PAR
-/// COMPTES (classe 1), pas du résultat de N.
+/// Le compte 19 (provision financière pour risques et charges) et le 15
+/// (provisions réglementées) n'entrent dans AUCUN flux : leur variation passe par
+/// les dotations et les reprises de la CAFG. L'affectation du résultat de N-1 et
+/// les prélèvements de l'exploitant sont des mouvements de capitaux propres lus
+/// PAR COMPTES (classe 1), pas du résultat de N.
 library;
 
 import 'etats_financiers.dart';
 import 'grand_livre_analytique.dart';
 
-/// `RubriquesSyscohada::DOTATIONS_AMORTISSEMENTS` — relu du serveur par un test.
-const List<String> rubriqueDotations = ['681'];
-
 /// `RubriquesTafire` du serveur — relus de `RubriquesTafire.php` par un test.
 abstract final class RubriquesTafire {
-  static const reprises = ['781'];
+  // Dotations (charges non décaissées réintégrées à la CAFG) et reprises
+  // (produits non encaissés déduits).
+  static const dotations = ['681', '687', '691', '697', '85'];
+  static const reprises = ['781', '787', '791', '797', '798', '86'];
+  // La part dont la contrepartie est un AMORTISSEMENT ou une immobilisation : seule
+  // elle se compense dans les acquisitions (une dotation aux PROVISIONS n'a aucune
+  // contrepartie d'actif).
+  static const dotationsAmortissements = ['681', '852'];
+  static const reprisesSurImmobilisations = ['781', '787', '798', '862'];
+  // Quote-part des subventions d'investissement virée au résultat.
+  static const quotePartSubventions = ['799'];
   static const valeurComptableCessions = ['81'];
   static const produitsCessions = ['82'];
+  // Le 104 (compte de l'exploitant) n'est PAS un apport : voir
+  // `autresCapitauxPropres`.
   static const apportsCapital = [
     '101',
     '102',
     '103',
-    '104',
     '105',
     '106',
     '109',
     '14',
   ];
-  static const autresCapitauxPropres = ['11', '12', '13', '15'];
-  static const dettesFinancieres = ['16', '17', '18', '19'];
+  static const autresCapitauxPropres = ['104', '11', '12', '13'];
+  // Les « emprunts » : 16 et 17 SEULS (le 19 est une provision).
+  static const dettesFinancieres = ['16', '17'];
+  static const dettesParticipations = ['18'];
   static const dividendesAPayer = ['465'];
 }
 
@@ -54,10 +75,12 @@ final class TafireEtat {
     required this.dotationsCentimes,
     required this.reprisesCentimes,
     required this.valeurComptableCessionsCentimes,
+    required this.quotePartSubventionsCentimes,
     required this.cafgCentimes,
     required this.produitsCessionsCentimes,
     required this.augmentationCapitalCentimes,
     required this.variationEmpruntsCentimes,
+    required this.variationDettesParticipationsCentimes,
     required this.totalRessourcesCentimes,
     required this.acquisitionsCentimes,
     required this.variationAutresCapitauxPropresCentimes,
@@ -79,10 +102,12 @@ final class TafireEtat {
   final int dotationsCentimes;
   final int reprisesCentimes;
   final int valeurComptableCessionsCentimes;
+  final int quotePartSubventionsCentimes;
   final int cafgCentimes;
   final int produitsCessionsCentimes;
   final int augmentationCapitalCentimes;
   final int variationEmpruntsCentimes;
+  final int variationDettesParticipationsCentimes;
   final int totalRessourcesCentimes;
   final int acquisitionsCentimes;
   final int variationAutresCapitauxPropresCentimes;
@@ -136,20 +161,40 @@ TafireEtat tafireDe(int annee, DonneesEtats d) {
 
   // Le résultat de N SEUL, jamais le 131/139 reporté de N-1.
   final resultat = bilan.resultatExerciceCentimes;
-  final dotations = _debitrice(lignes, rubriqueDotations);
+  final dotations = _debitrice(lignes, RubriquesTafire.dotations);
   final reprises = _crediteur(lignes, RubriquesTafire.reprises);
+  final dotationsAmortissements = _debitrice(
+    lignes,
+    RubriquesTafire.dotationsAmortissements,
+  );
+  final reprisesSurImmobilisations = _crediteur(
+    lignes,
+    RubriquesTafire.reprisesSurImmobilisations,
+  );
   final vnc = _debitrice(lignes, RubriquesTafire.valeurComptableCessions);
   final cessions = _crediteur(lignes, RubriquesTafire.produitsCessions);
-  final cafg = resultat + dotations - reprises + vnc - cessions;
-  final capital = variationCrediteur(RubriquesTafire.apportsCapital);
+  final quotePart = _crediteur(lignes, RubriquesTafire.quotePartSubventions);
+  final cafg = resultat + dotations - reprises + vnc - cessions - quotePart;
+  // Apports : capital et subventions d'investissement REÇUES (variation du 14 +
+  // quote-part virée, qui l'a diminué sans trésorerie).
+  final capital =
+      variationCrediteur(RubriquesTafire.apportsCapital) + quotePart;
+  // Emprunts : 16 et 17 seuls. Le 19 est une provision : aucun flux.
   final emprunts = variationCrediteur(RubriquesTafire.dettesFinancieres);
-  final ressources = cafg + cessions + capital + emprunts;
+  final participations = variationCrediteur(
+    RubriquesTafire.dettesParticipations,
+  );
+  final ressources = cafg + cessions + capital + emprunts + participations;
   final variationBrut = variationDebitrice(
     RubriquesBilan.immobilisationsBrutes,
   );
   final variationAmort = variationCrediteur(RubriquesBilan.amortissements);
   final acquisitions =
-      variationBrut - variationAmort + dotations + vnc - reprises;
+      variationBrut -
+      variationAmort +
+      dotationsAmortissements +
+      vnc -
+      reprisesSurImmobilisations;
   final autres = variationCrediteur(RubriquesTafire.autresCapitauxPropres);
   final dividendesAPayer = variationCrediteur(RubriquesTafire.dividendesAPayer);
   final dividendesVerses = -(autres + dividendesAPayer);
@@ -167,10 +212,12 @@ TafireEtat tafireDe(int annee, DonneesEtats d) {
     dotationsCentimes: dotations,
     reprisesCentimes: reprises,
     valeurComptableCessionsCentimes: vnc,
+    quotePartSubventionsCentimes: quotePart,
     cafgCentimes: cafg,
     produitsCessionsCentimes: cessions,
     augmentationCapitalCentimes: capital,
     variationEmpruntsCentimes: emprunts,
+    variationDettesParticipationsCentimes: participations,
     totalRessourcesCentimes: ressources,
     acquisitionsCentimes: acquisitions,
     variationAutresCapitauxPropresCentimes: autres,
@@ -179,7 +226,8 @@ TafireEtat tafireDe(int annee, DonneesEtats d) {
     totalEmploisCentimes: emplois,
     fluxExploitationCentimes: cafg - bfr,
     fluxInvestissementCentimes: cessions - acquisitions,
-    fluxFinancementCentimes: capital + emprunts - dividendesVerses,
+    fluxFinancementCentimes:
+        capital + emprunts + participations - dividendesVerses,
     variationStocksCentimes: stocks,
     variationCreancesCentimes: creances,
     variationDettesCentimes: dettes,

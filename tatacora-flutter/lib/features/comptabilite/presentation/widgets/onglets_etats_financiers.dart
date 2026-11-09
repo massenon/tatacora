@@ -45,6 +45,10 @@ abstract final class TextesEtatsFinanciers {
       'Comptes mouvementés hors nomenclature';
   static const String horsRubriqueDetail =
       "Leur solde n'apparaît ni au Bilan ni au Compte de résultat. Sans cette liste, ils ne produiraient qu'un déséquilibre inexplicable.";
+  // « dont dividendes à payer » : le 465 est une dette du passif circulant, déjà
+  // compté dans le poste ; relu de `lang/fr/comptabilite_pwa.php`
+  // (`bilan_dont_dividendes_a_payer`) par `etats_financiers_contre_serveur_test`.
+  static const String dontDividendesAPayer = 'dont dividendes à payer';
   static const String totalActif = 'TOTAL ACTIF';
   static const String totalPassif = 'TOTAL PASSIF';
   static const String tiret = '—';
@@ -480,7 +484,7 @@ class OngletBilan extends ConsumerWidget {
         ],
         vide: TextesEtatsFinanciers.provenanceVide,
         lignes: [
-          for (final p in bilan.passif)
+          for (final p in bilan.passif) ...[
             [
               celluleTexte(
                 p.code,
@@ -504,6 +508,32 @@ class OngletBilan extends ConsumerWidget {
                   couleur: Ardoise.c500,
                 ),
             ],
+            // Le compte 465 (dividendes à payer) est une dette du passif
+            // circulant : son montant est DÉJÀ dans le poste ci-dessus, ce
+            // « dont » ne s'additionne pas (vue du web : onglets/bilan, même mot).
+            if (p.code == 'passif_circulant')
+              [
+                const SizedBox.shrink(),
+                celluleTexte(
+                  TextesEtatsFinanciers.dontDividendesAPayer,
+                  taille: TaillesContenu.t12,
+                  couleur: Ardoise.c500,
+                ),
+                celluleTexte(
+                  _montantOuTiret(bilan.dividendesAPayerCentimes),
+                  alignement: TextAlign.right,
+                  taille: TaillesContenu.t12,
+                  couleur: Ardoise.c500,
+                ),
+                if (precedent != null)
+                  celluleTexte(
+                    _montantOuTiret(avant!.dividendesAPayerCentimes),
+                    alignement: TextAlign.right,
+                    taille: TaillesContenu.t12,
+                    couleur: Ardoise.c500,
+                  ),
+              ],
+          ],
         ],
         pied: [
           Text(TextesEtatsFinanciers.totalPassif, style: blanc),

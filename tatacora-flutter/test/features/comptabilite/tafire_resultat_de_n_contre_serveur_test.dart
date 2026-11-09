@@ -18,6 +18,15 @@ import 'support/outils_comptabilite.dart';
 /// 465) et un règlement partiel des dividendes ; enfin un exercice de plus dont
 /// le précédent n'est pas clôturé (à-nouveaux provisoires). Tous les champs se
 /// comparent au centime, et le TAFIRE doit être ÉQUILIBRÉ partout.
+///
+/// Avis de l'expert-comptable (10/11/2026) : l'exercice 2031 porte aussi une
+/// provision financière dotée (697 / 19) puis reprise, une subvention
+/// d'investissement reçue (14) avec sa quote-part virée (14 / 799), le compte de
+/// l'exploitant (104 : apport, prélèvement, bénéfice de 2030 affecté), une dette
+/// de participation (18), des dotations HAO (851 / 15, 852 / 281, 854 / 19), une
+/// reprise d'amortissement (798) et un transfert de charges (781) porté à
+/// l'immobilisation. Le 19 n'est dans aucun flux de financement ; le 465 reste
+/// hors du BFR.
 typedef _L = (int, String, String, String, String, String);
 
 void main() {
@@ -73,6 +82,38 @@ void main() {
     // règlement partiel des dividendes
     (2031, 'OD', '465', '30000.00', '0.00', '2031-06-20'),
     (2031, 'OD', '521', '0.00', '30000.00', '2031-06-20'),
+    // provision financière dotée puis reprise : aucun flux de financement
+    (2031, 'OD', '697', '30000.00', '0.00', '2031-07-01'),
+    (2031, 'OD', '19', '0.00', '30000.00', '2031-07-01'),
+    (2031, 'OD', '19', '5000.00', '0.00', '2031-07-02'),
+    (2031, 'OD', '797', '0.00', '5000.00', '2031-07-02'),
+    // subvention d'investissement reçue, puis sa quote-part virée au résultat
+    (2031, 'OD', '521', '200000.00', '0.00', '2031-07-03'),
+    (2031, 'OD', '14', '0.00', '200000.00', '2031-07-03'),
+    (2031, 'OD', '14', '40000.00', '0.00', '2031-12-31'),
+    (2031, 'OD', '799', '0.00', '40000.00', '2031-12-31'),
+    // compte de l'exploitant : apport, prélèvement, bénéfice de 2030 (30 000 de report à nouveau en 121 ci-dessus)
+    (2031, 'OD', '521', '60000.00', '0.00', '2031-07-04'),
+    (2031, 'OD', '104', '0.00', '60000.00', '2031-07-04'),
+    (2031, 'OD', '104', '10000.00', '0.00', '2031-07-05'),
+    (2031, 'OD', '521', '0.00', '10000.00', '2031-07-05'),
+    // dette de participation (18)
+    (2031, 'OD', '521', '70000.00', '0.00', '2031-07-06'),
+    (2031, 'OD', '18', '0.00', '70000.00', '2031-07-06'),
+    // dotations HAO : provisions réglementées, amortissement, provision
+    (2031, 'OD', '851', '8000.00', '0.00', '2031-12-30'),
+    (2031, 'OD', '15', '0.00', '8000.00', '2031-12-30'),
+    (2031, 'OD', '852', '6000.00', '0.00', '2031-12-30'),
+    (2031, 'OD', '281', '0.00', '6000.00', '2031-12-30'),
+    (2031, 'OD', '854', '4000.00', '0.00', '2031-12-30'),
+    (2031, 'OD', '19', '0.00', '4000.00', '2031-12-30'),
+    // reprise d'amortissement (798) et transfert de charges (781) porté à l'actif
+    (2031, 'OD', '281', '2000.00', '0.00', '2031-12-31'),
+    (2031, 'OD', '798', '0.00', '2000.00', '2031-12-31'),
+    (2031, 'OD', '622', '9000.00', '0.00', '2031-12-31'),
+    (2031, 'OD', '521', '0.00', '9000.00', '2031-12-31'),
+    (2031, 'OD', '231', '9000.00', '0.00', '2031-12-31'),
+    (2031, 'OD', '781', '0.00', '9000.00', '2031-12-31'),
     // 2032 — ouvert, précédent non clôturé : à-nouveaux provisoires.
     (2032, 'VTE', '521', '10000.00', '0.00', '2032-01-05'),
     (2032, 'VTE', '706', '0.00', '10000.00', '2032-01-05'),
@@ -140,7 +181,18 @@ void main() {
 
   test('les préfixes propres au TAFIRE sont ceux du serveur', () {
     final r = serveur['rubriques'] as Map<String, dynamic>;
+    expect(RubriquesTafire.dotations, r['dotations']);
     expect(RubriquesTafire.reprises, r['reprises']);
+    expect(
+      RubriquesTafire.dotationsAmortissements,
+      r['dotations_amortissements'],
+    );
+    expect(
+      RubriquesTafire.reprisesSurImmobilisations,
+      r['reprises_sur_immobilisations'],
+    );
+    expect(RubriquesTafire.quotePartSubventions, r['quote_part_subventions']);
+    expect(RubriquesTafire.dettesParticipations, r['dettes_participations']);
     expect(
       RubriquesTafire.valeurComptableCessions,
       r['valeur_comptable_cessions'],
@@ -162,6 +214,11 @@ void main() {
       expect(p.dotationsCentimes, cts(t['dotations']));
       expect(p.reprisesCentimes, cts(t['reprises']));
       expect(p.valeurComptableCessionsCentimes, cts(t['vnc_cessions']));
+      expect(p.quotePartSubventionsCentimes, cts(t['quote_part_subventions']));
+      expect(
+        p.variationDettesParticipationsCentimes,
+        cts(t['dettes_participations']),
+      );
       expect(p.cafgCentimes, cts(t['cafg']));
       expect(p.produitsCessionsCentimes, cts(t['produits_cessions']));
       expect(p.augmentationCapitalCentimes, cts(t['capital']));
@@ -199,14 +256,28 @@ void main() {
 
   test('2031 : résultat de N seul, affectation de N-1 au financement', () {
     final p = tafireDe(2031, donnees);
-    // 200 000 − 60 000 − 130 000 + 50 000 − 40 000 : le 131 de 2030 n'y est pas.
-    expect(p.resultatExerciceCentimes, 2000000);
-    expect(p.cafgCentimes, 14000000);
-    // 131 −130 000, 121 +30 000, 111 +10 000, 118 +20 000 ; 465 : +70 000 − 30 000.
-    expect(p.variationAutresCapitauxPropresCentimes, -7000000);
+    // 200 000 − 60 000 − 130 000 + 50 000 − 40 000 : le 131 de 2030 n'y est pas ;
+    // puis l'avis du 10/11/2026 : −30 000 (697) + 5 000 (797) + 40 000 (799) −
+    // 8 000 (851) − 6 000 (852) − 4 000 (854) + 2 000 (798) − 9 000 (622) + 9 000
+    // (781) = −1 000.
+    expect(p.resultatExerciceCentimes, 1900000);
+    // CAFG = 19 000 + dotations 178 000 − reprises 16 000 + VNC 40 000 − cessions
+    // 50 000 − quote-part 40 000 (produit non encaissé).
+    expect(p.dotationsCentimes, 17800000);
+    expect(p.reprisesCentimes, 1600000);
+    expect(p.quotePartSubventionsCentimes, 4000000);
+    expect(p.cafgCentimes, 13100000);
+    // 131 −130 000, 121 +30 000, 111 +10 000, 118 +20 000, 104 +60 000 − 10 000 ;
+    // 465 : +70 000 − 30 000 ; le 15 (8 000) n'est PAS un dividende.
+    expect(p.variationAutresCapitauxPropresCentimes, -2000000);
     expect(p.variationDividendesAPayerCentimes, 4000000);
-    expect(p.dividendesVersesCentimes, 3000000);
+    expect(p.dividendesVersesCentimes, -2000000);
+    // Le 19 (+29 000) n'est ni un emprunt ni une acquisition ; le 18 a sa ligne.
+    expect(p.variationEmpruntsCentimes, 100000000);
+    expect(p.variationDettesParticipationsCentimes, 7000000);
+    // Subvention reçue 200 000 (14 : +200 000 − 40 000, + quote-part 40 000).
+    expect(p.augmentationCapitalCentimes, 20000000);
     expect(p.acquisitionsCentimes, 40000000);
-    expect(p.variationReelleCentimes, 86000000);
+    expect(p.variationReelleCentimes, 117100000);
   });
 }
