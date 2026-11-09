@@ -30,13 +30,15 @@
 
 ## D. Recette sur un vrai poste (par le PO, à signaler ici)
 
-- [ ] **D1** Installer `LogiReStock_Setup_<version>.exe` (`build_windows.bat`) sur un poste Windows.
-- [ ] **D2** Envoyer un vrai e-mail par le relais SMTP du Gîte (notification d'un client).
-- [ ] **D3** Essai à plusieurs postes avec coupures réseau, puis synchronisation désactivée.
+> 09/11/2026 : D1, D2, D3, D5, D6, D7 (et G5) FAITS ET VALIDÉS par le PO. Reste D4.
+
+- [x] **D1** Installer `LogiReStock_Setup_<version>.exe` (`build_windows.bat`) sur un poste Windows.
+- [x] **D2** Envoyer un vrai e-mail par le relais SMTP du Gîte (notification d'un client).
+- [x] **D3** Essai à plusieurs postes avec coupures réseau, puis synchronisation désactivée.
 - [ ] **D4** Déposer le reçu d'une dépense et le revoir sur un second poste.
-- [ ] **D6** Mot de passe perdu : réinitialiser un compte (temporaire affiché une fois, 24 h), se connecter avec lui (écran « Définissez votre nouveau mot de passe »), puis perdre le mot de passe administrateur et le retrouver avec le code de secours — au web et sur le poste Windows (impression du code comprise).
-- [ ] **D7** Facture proforma : émettre UNE proforma réelle sur un vrai poste (hors ligne), l'imprimer en A4 et la comparer au modèle papier (en-tête, ligne des activités, date longue, tableau vert, montant en lettres, bloc signature/cachet) ; rebrancher le réseau, vérifier le numéro `N°… FP-GCN/…` régularisé, puis la convertir en facture.
-- [ ] **D5** Désinstaller : l'avertissement Oui/Non s'affiche ; Non annule ; Oui supprime `%LOCALAPPDATA%\TATACORA` et `%APPDATA%\TATACORA` ; une mise à jour (même AppId) garde les données.
+- [x] **D6** Mot de passe perdu : réinitialiser un compte (temporaire affiché une fois, 24 h), se connecter avec lui (écran « Définissez votre nouveau mot de passe »), puis perdre le mot de passe administrateur et le retrouver avec le code de secours — au web et sur le poste Windows (impression du code comprise).
+- [x] **D7** Facture proforma : émettre UNE proforma réelle sur un vrai poste (hors ligne), l'imprimer en A4 et la comparer au modèle papier (en-tête, ligne des activités, date longue, tableau vert, montant en lettres, bloc signature/cachet) ; rebrancher le réseau, vérifier le numéro `N°… FP-GCN/…` régularisé, puis la convertir en facture.
+- [x] **D5** Désinstaller : l'avertissement Oui/Non s'affiche ; Non annule ; Oui supprime `%LOCALAPPDATA%\TATACORA` et `%APPDATA%\TATACORA` ; une mise à jour (même AppId) garde les données.
 
 ## E. Démarrage résilient (PRD `PRD_REINSTALLATION_ET_DEMARRAGE_RESILIENT.md`)
 
@@ -62,4 +64,4 @@
 - [x] **G2** Écran « Proformas » du poste (`ecran_proformas.dart`, route `/facturation/proformas`, lien depuis Facturation) : liste, filtre par statut, recherche, brouillon à lignes libres, émission, annulation avec motif, conversion confirmée, état « expirée », droits M2, libellés du web relus du serveur.
 - [x] **G3** PDF A4 du poste (`proforma_a4.dart`, vert = `PaletteMaitre.vert700`), impression par `Printing.layoutPdf`, classé dans `pdf_directive_test`.
 - [x] **G4** Boutons « Créer une proforma » (location, tourisme, hébergement, restauration pour événement : proforma vide, aucun module événement n'existe) avec le même préremplissage que le web ; signature et cachet sur la facture A4 du poste selon l'interrupteur.
-- [ ] **G5** Essai terrain D7 (une proforma réelle sur un vrai poste, comparée au modèle papier).
+- [x] **G5** Essai terrain D7 (une proforma réelle sur un vrai poste, comparée au modèle papier).
