@@ -289,6 +289,76 @@ class ReservationService
                 ]);
             }
 
+            // Les lignes sont des ENFANTS de la fiche : la descente du catalogue
+            // (`CatalogueDescendantService`) ne livre une fiche qu'à son propre
+            // `updated_at`. Sans cette retouche, ajouter un service SANS toucher au
+            // reste de la fiche ne ferait jamais descendre la réservation aux postes
+            // (09/11/2026 : un poste voyait 75 000, l'autre 80 000 pour la même fiche).
+            $reservation->touch();
+
+            return $reservation->refresh()->load('lignes');
+        });
+    }
+
+    /**
+     * Remplace les lignes de services d'une fiche par celles qu'un POSTE a saisies
+     * (synchronisation, 09/11/2026).
+     *
+     * À la différence de {@see self::remplacerLignes()}, le prix ET le libellé sont ceux
+     * du poste : ils ont été figés à SON ajout (une ligne dit ce qui a été vendu, pas ce
+     * que le catalogue dit aujourd'hui). Relire le catalogue du serveur ferait diverger
+     * le total d'un poste à l'autre dès qu'un prix a bougé entre la saisie et l'envoi.
+     * La source doit en revanche EXISTER (une ligne sans origine réelle est invérifiable) :
+     * un refus nomme le service.
+     *
+     * @param  list<array{service: string, source_id: string, libelle: string, quantite: string, prix_unitaire: string}>  $lignes
+     *
+     * @throws \InvalidArgumentException service inconnu, source inexistante, quantité ou prix invalide, fiche annulée
+     */
+    public function remplacerLignesFigees(Reservation $reservation, array $lignes): Reservation
+    {
+        if (! $reservation->estActive()) {
+            throw new \InvalidArgumentException(__('hebergement.annulee_non_modifiable'));
+        }
+
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($reservation, $lignes): Reservation {
+            $reservation->lignes()->delete();
+
+            foreach ($lignes as $ligne) {
+                $service = (string) $ligne['service'];
+                $catalogue = self::CATALOGUES[$service] ?? null;
+
+                if ($catalogue === null) {
+                    throw new \InvalidArgumentException(__('hebergement.ligne_service_inconnu', ['service' => $service]));
+                }
+
+                $existe = \Illuminate\Support\Facades\DB::table($catalogue['table'])
+                    ->where('id', (string) $ligne['source_id'])
+                    ->exists();
+
+                if (! $existe) {
+                    throw new \InvalidArgumentException(__('hebergement.ligne_source_inconnue', ['service' => $service]));
+                }
+
+                $quantite = (string) $ligne['quantite'];
+                $prix = (string) $ligne['prix_unitaire'];
+
+                if (bccomp($quantite, '0', 2) <= 0) {
+                    throw new \InvalidArgumentException(__('hebergement.ligne_quantite_invalide'));
+                }
+
+                $reservation->lignes()->create([
+                    'service' => $service,
+                    'source_id' => (string) $ligne['source_id'],
+                    'libelle' => (string) $ligne['libelle'],
+                    'quantite' => $quantite,
+                    'prix_unitaire' => $prix,
+                    'montant' => bcmul($quantite, $prix, 2),
+                ]);
+            }
+
+            $reservation->touch();
+
             return $reservation->refresh()->load('lignes');
         });
     }

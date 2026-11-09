@@ -4,6 +4,7 @@ import 'package:tatacora_flutter/features/hebergement/data/reservation_dao.dart'
 import 'package:tatacora_flutter/features/hebergement/domain/entities/periode_sejour.dart';
 import 'package:tatacora_flutter/features/synchronisation/data/descente_catalogue_dao.dart';
 import 'package:tatacora_flutter/features/synchronisation/domain/descente_catalogue.dart';
+import 'package:tatacora_flutter/features/synchronisation/domain/operation_sync.dart';
 
 import 'support/faux_transport.dart';
 
@@ -224,9 +225,12 @@ void main() {
     final lignes = await b.db
         .customSelect(
           'SELECT service, item_id, libelle, prix_unitaire, quantite '
-          "FROM lignes_reservation_local WHERE reservation_id = '$idReservation'",
+          'FROM lignes_reservation_local '
+          "WHERE reservation_id = '$idReservation' AND service <> 'hebergement'",
         )
         .get();
+    // 09/11/2026 : la ligne d'HÉBERGEMENT accompagne les services (sans elle le
+    // total ne compterait que les services) — elle n'est pas un service du serveur.
     expect(lignes.single.data, {
       'service': 'restauration',
       'item_id': 'plat-srv',
@@ -237,8 +241,8 @@ void main() {
     expect(await ligne('reservations_local', 'r-ligne-fausse'), isNull);
   });
 
-  group('une réservation déjà sur ce poste : le statut avance, jamais ne '
-      'recule', () {
+  group('une réservation déjà sur ce poste : la fiche du serveur, le statut '
+      'n’avance que', () {
     Future<void> statutLocal(String statut) => b.db.customStatement(
       'UPDATE reservations_local SET statut = ? WHERE id = ?',
       [statut, idReservation],
@@ -260,16 +264,85 @@ void main() {
       expect(await statut(), 'terminee');
     });
 
-    test('les dates d’une réservation existante ne sont pas réécrites (écart '
-        'nommé)', () async {
+    test('09/11/2026 : une réservation existante reprend la FICHE du serveur '
+        '(chambre, dates, tarif, acompte, remise, mode, services) — et devient '
+        '« Synchronisée »', () async {
       await descendre(parcEtSejour());
+      await b.db.customStatement(
+        "UPDATE reservations_local SET statut_sync = 'local' WHERE id = ?",
+        [idReservation],
+      );
       await descendre(
         parcEtSejour(
-          sejour: {'date_arrivee': '2026-12-01', 'date_depart': '2026-12-03'},
+          sejour: {
+            'date_arrivee': '2026-12-01',
+            'date_depart': '2026-12-03',
+            'tarif_nuit': '30000.00',
+            'acompte': '45000.00',
+            'remise_type': 'aucune',
+            'remise_valeur': '0.00',
+            'mode_paiement': 'especes',
+            'lignes': [
+              {
+                'service': 'tourisme',
+                'source_id': 'circ-srv',
+                'libelle': 'Tanougou',
+                'quantite': '1.00',
+                'prix_unitaire': '5000.00',
+                'montant': '5000.00',
+              },
+            ],
+          },
         ),
       );
       final r = (await ReservationDao(b.db).parId(idReservation))!;
-      expect(r.periode.arrivee, DateTime.utc(2026, 11, 2));
+      expect(r.periode.arrivee, DateTime.utc(2026, 12, 1));
+      expect(r.periode.depart, DateTime.utc(2026, 12, 3));
+      expect((r.tarifNuit, r.acompte), (30000, 45000));
+      expect(r.statutSynchronisation.code, 'synchronise');
+      // La chambre ET le service : sans la ligne d'hébergement, le total ne
+      // compterait que le service (5 000 au lieu de 65 000).
+      expect(r.lignes.map((l) => l.service.cle), ['hebergement', 'tourisme']);
+      expect(r.recapitulatif.total, 65000);
+      expect(r.resteAPayer, 20000);
+    });
+
+    test('09/11/2026 : une modification locale EN ATTENTE n’est jamais écrasée '
+        'par la descente', () async {
+      await descendre(parcEtSejour());
+      await b.db.transaction(
+        () => b.dao.enfiler(
+          table: TableSynchronisee.reservations,
+          entiteId: idReservation,
+          type: TypeOperationSync.modification,
+          payload: {'acompte': '1000.00'},
+        ),
+      );
+      await b.db.customStatement(
+        'UPDATE reservations_local SET acompte = 1000 WHERE id = ?',
+        [idReservation],
+      );
+      final bilan = await descendre(
+        parcEtSejour(sejour: {'acompte': '45000.00', 'tarif_nuit': '30000.00'}),
+      );
+      expect(bilan.refuses, 0);
+      final r = (await ReservationDao(b.db).parId(idReservation))!;
+      expect((r.acompte, r.tarifNuit), (1000, 24000));
+    });
+
+    test('09/11/2026 : un REFUS du serveur n’est pas effacé par la descente '
+        '(badge « Refusée » et « À traiter » restent)', () async {
+      await descendre(parcEtSejour());
+      await b.db.customStatement(
+        "UPDATE reservations_local SET statut_sync = 'rejete', "
+        "motif_rejet = 'Chevauchement', acompte = 1000 WHERE id = ?",
+        [idReservation],
+      );
+      await descendre(parcEtSejour(sejour: {'acompte': '45000.00'}));
+      final r = (await ReservationDao(b.db).parId(idReservation))!;
+      expect(r.statutSynchronisation.code, 'rejete');
+      expect(r.motifRejet, 'Chevauchement');
+      expect(r.acompte, 1000);
     });
 
     test('annulée AU SERVEUR : annulée ici avec ses conditions, sans pièce, '

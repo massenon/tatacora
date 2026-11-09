@@ -7,6 +7,7 @@ import '../../pos/data/panier_dao.dart';
 import '../../rh/data/employe_dao.dart';
 import '../../rh/data/paie_dao.dart';
 import '../../transverse/data/configuration_poste.dart';
+import '../../hebergement/data/reservation_dao.dart';
 import '../../vehicules/data/vehicule_dao.dart';
 import '../domain/bilan_synchronisation.dart';
 import '../domain/descente_catalogue.dart';
@@ -319,6 +320,15 @@ class SyncManager {
     // Une descente SEULE (l'époque du serveur a changé) ne touche ni aux baux ni à
     // la file : le passage complet, lui, envoie d'abord.
     if (!descenteSeule) await _dao.libererBauxExpires();
+    // Les badges de réservation d'aplomb avec la file, et le rattrapage des lignes
+    // modifiées par une version qui n'enfilait que le déplacement (jamais bloquant).
+    if (!descenteSeule) {
+      try {
+        await ReservationDao(_dao.attachedDatabase).reconcilierTout();
+      } on Object {
+        // Un badge de travers ne doit pas empêcher l'envoi : la file passe d'abord.
+      }
+    }
     var envoi = descenteSeule
         ? const BilanSynchronisation(etat: EtatSynchronisation.termine)
         : await _envoyerFile(appairage);
@@ -635,6 +645,15 @@ class SyncManager {
     );
     if (statut == 'synchronise' && o.table == TableSynchronisee.factures) {
       await _regulariserFacture(o, resultat);
+    }
+    // 09/11/2026 : le BADGE d'une réservation dit la vérité de la file — « Synchronisée »
+    // à l'accusé (plus aucune opération de cette ligne en attente), « Refusée » au rejet
+    // (motif du serveur). Avant, rien ne le posait en production : la ligne restait « En
+    // attente d'envoi » à vie.
+    if (o.table == TableSynchronisee.reservations) {
+      await ReservationDao(
+        _dao.attachedDatabase,
+      ).reconcilierStatutSync(o.entiteId);
     }
     // Audit de couverture (18/10/2026) : le matricule et le numéro de
     // bulletin attribués par le serveur remplacent ceux du poste.

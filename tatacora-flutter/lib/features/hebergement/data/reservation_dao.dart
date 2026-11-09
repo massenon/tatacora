@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import '../../../core/format/auteur_compte.dart';
 import 'package:drift/drift.dart';
 
@@ -337,6 +339,14 @@ class ReservationDao extends DatabaseAccessor<AppDatabase>
       final avant = await (select(
         reservationsLocal,
       )..where((x) => x.id.equals(r.id))).getSingleOrNull();
+      // La fiche telle que le serveur la reçoit, AVANT l'écriture : la différence
+      // avec la fiche écrite est ce qui doit PARTIR (clé par clé).
+      final ficheAvant = avant == null ? null : await _ficheEnvoyable(r.id);
+      // Une modification qui ne change RIEN de ce que le serveur connaît ne remet
+      // pas la ligne « en attente d'envoi » : aucune opération ne partira, le badge
+      // mentirait. Le statut de synchronisation (et le motif d'un refus) restent
+      // ceux d'avant.
+      final conserverLeStatut = avant != null && ficheAvant != null;
       await into(reservationsLocal).insertOnConflictUpdate(
         ReservationsLocalCompanion.insert(
           id: r.id,
@@ -388,38 +398,259 @@ class ReservationDao extends DatabaseAccessor<AppDatabase>
       );
       await _ecrireLignes(r);
 
-      // Lot F6 : un DÉPLACEMENT (chambre, dates) d'une réservation que le
-      // serveur détient part, champs changés seulement. Les autres
-      // retouches de la fiche (tarif, services, client) restent locales :
-      // le serveur n'offre aucune modification générique (écart nommé).
-      final avantPeriode = avant == null
-          ? null
-          : PeriodeSejour(arrivee: avant.dateArrivee, depart: avant.dateDepart);
-      if (avant != null &&
+      // 09/11/2026 (décision du PO : « toute modification se propage complètement
+      // et identiquement ») : une modification d'une réservation que le serveur
+      // détient part, CHAMPS CHANGÉS seulement — chambre, dates, client, tarif,
+      // acompte, remise, mode de paiement, canal ET services. Jusqu'ici seul le
+      // déplacement partait : un service ajouté ou un prix changé restait sur ce
+      // poste pour toujours, la ligne affichant « En attente d'envoi » sans qu'aucune
+      // opération ne soit en file.
+      var enfilee = false;
+      if (ficheAvant != null &&
           await DocumentsAutresPostes(
             attachedDatabase,
           ).connuDuServeur(TableSynchronisee.reservations, r.id)) {
-        await OperationsSyncDao(attachedDatabase).enfiler(
-          table: TableSynchronisee.reservations,
-          entiteId: r.id,
-          type: TypeOperationSync.modification,
-          payload: chargeDeplacementReservation(
-            uniteId: avant.uniteId == r.uniteId ? null : r.uniteId,
-            // Le serveur ne connaît que le JOUR (`Y-m-d`) : la comparaison
-            // se fait au jour, jamais à l'instant (un fuseau ou une heure
-            // relue ne déplace pas un séjour).
-            dateArrivee:
-                jourIso(avantPeriode!.arrivee) == jourIso(r.periode.arrivee)
-                ? null
-                : r.periode.arrivee,
-            dateDepart:
-                jourIso(avantPeriode.depart) == jourIso(r.periode.depart)
-                ? null
-                : r.periode.depart,
+        final changements = _changements(
+          ficheAvant,
+          await _ficheEnvoyable(r.id),
+        );
+        if (changements.isNotEmpty) {
+          enfilee =
+              await OperationsSyncDao(attachedDatabase).enfiler(
+                table: TableSynchronisee.reservations,
+                entiteId: r.id,
+                type: TypeOperationSync.modification,
+                payload: chargeModificationReservation(changements),
+              ) !=
+              null;
+        }
+      }
+      if (conserverLeStatut && !enfilee) {
+        await (update(
+          reservationsLocal,
+        )..where((x) => x.id.equals(r.id))).write(
+          ReservationsLocalCompanion(
+            statutSync: Value(avant.statutSync),
+            motifRejet: Value(avant.motifRejet),
           ),
         );
       }
     });
+  }
+
+  /* ================================================================== */
+  /* LE BADGE DIT LA VÉRITÉ DE LA FILE (09/11/2026)                      */
+  /* ================================================================== */
+
+  /// LA règle du badge de synchronisation d'une réservation — lue de la FILE
+  /// d'envoi, jamais posée « au jugé » :
+  ///
+  ///  * une opération de cette ligne REFUSÉE, en conflit ou bloquée (et non
+  ///    remplacée par un renvoi) → [StatutSynchronisation.rejete], avec le motif
+  ///    du serveur : c'est ce que « À traiter » montre aussi ;
+  ///  * sinon une opération `en_cours` → « Envoi en cours » ; `en_attente` →
+  ///    « En attente d'envoi » ;
+  ///  * sinon, au moins une opération ACCEPTÉE → [StatutSynchronisation.synchronise] ;
+  ///  * aucune opération du tout : la ligne n'est PAS touchée (une saisie d'avant
+  ///    la file n'est pas « synchronisée » parce qu'on ne sait rien d'elle).
+  ///
+  /// Appelée par le moteur d'envoi à CHAQUE accusé (`SyncManager`) et au début de
+  /// chaque passage ([reconcilierTout]). Avant le 09/11/2026 personne ne l'appelait
+  /// en production : seul un test posait `synchronise` (piège 1), et toute
+  /// réservation créée ou modifiée sur un poste restait « En attente d'envoi » à
+  /// vie, alors que le serveur l'avait acceptée et qu'un autre poste l'avait reçue.
+  Future<void> reconcilierStatutSync(String id) async {
+    final ligne = await (select(
+      reservationsLocal,
+    )..where((r) => r.id.equals(id))).getSingleOrNull();
+    if (ligne == null) return;
+    final file = OperationsSyncDao(attachedDatabase);
+    final remplacees = await file.remplacees();
+    final actives = [
+      for (final o in await file.operations(
+        table: TableSynchronisee.reservations,
+        entiteId: id,
+      ))
+        if (!remplacees.containsKey(o.uuidOperation)) o,
+    ];
+    if (actives.isEmpty) return;
+
+    final refusees = actives.where(
+      (o) =>
+          o.statut == StatutOperationSync.rejete ||
+          o.statut == StatutOperationSync.conflit ||
+          o.statut == StatutOperationSync.bloque,
+    );
+    if (refusees.isNotEmpty) {
+      final derniere = refusees.last;
+      await majStatutSync(
+        id,
+        StatutSynchronisation.rejete,
+        motifRejet: derniere.derniereErreur ?? _motifDuResultat(derniere),
+      );
+      return;
+    }
+    if (actives.any((o) => o.statut == StatutOperationSync.enCours)) {
+      await majStatutSync(id, StatutSynchronisation.enAttente);
+      return;
+    }
+    if (actives.any((o) => o.statut == StatutOperationSync.enAttente)) {
+      await majStatutSync(id, StatutSynchronisation.local);
+      return;
+    }
+    await majStatutSync(id, StatutSynchronisation.synchronise);
+  }
+
+  static String _motifDuResultat(OperationSync o) {
+    try {
+      final brut = o.resultatJson;
+      if (brut != null) {
+        final motif = (jsonDecode(brut) as Map)['motif'];
+        if (motif is String && motif.isNotEmpty) return motif;
+      }
+    } on FormatException {
+      // Un résultat illisible : le motif générique ci-dessous.
+    }
+    return 'Refusée par le serveur.';
+  }
+
+  /// Rattrape les lignes d'AVANT la correction, puis remet chaque badge d'aplomb
+  /// avec la file. Appelée au début de chaque passage complet du moteur.
+  ///
+  /// ## Le rattrapage
+  ///
+  /// Une réservation « en attente d'envoi », SANS opération en file ni refus, que
+  /// le serveur connaît (descendue, ou dont une opération a été acceptée) porte une
+  /// modification que l'ancienne version n'a jamais enfilée (service, prix,
+  /// acompte). La fiche est comparée à ce que le serveur a REÇU de ce poste (la
+  /// somme des opérations acceptées ; rien pour une ligne descendue : toute la
+  /// fiche) et la DIFFÉRENCE part — clé par clé, dernier écrit gagnant, sans
+  /// réécrire ce qu'un autre poste ou le web a changé sur d'autres champs. Une
+  /// ligne sans différence est simplement « Synchronisée ».
+  Future<void> reconcilierTout() => transaction(() async {
+    final lignes =
+        await (select(reservationsLocal)..where(
+              (r) => r.statutSync.isIn(const ['local', 'en_attente', 'rejete']),
+            ))
+            .get();
+    for (final l in lignes) {
+      if (l.statutSync == 'local' && l.statut != 'annulee') {
+        await _rattraper(l);
+      }
+      await reconcilierStatutSync(l.id);
+    }
+  });
+
+  Future<void> _rattraper(ReservationsLocalData l) async {
+    final file = OperationsSyncDao(attachedDatabase);
+    final remplacees = await file.remplacees();
+    final ops = [
+      for (final o in await file.operations(
+        table: TableSynchronisee.reservations,
+        entiteId: l.id,
+      ))
+        if (!remplacees.containsKey(o.uuidOperation)) o,
+    ];
+    final enSuspens = ops.any(
+      (o) =>
+          o.statut == StatutOperationSync.enAttente ||
+          o.statut == StatutOperationSync.enCours ||
+          o.statut == StatutOperationSync.bloque ||
+          o.statut == StatutOperationSync.rejete ||
+          o.statut == StatutOperationSync.conflit,
+    );
+    if (enSuspens) return;
+    final acceptees = ops
+        .where((o) => o.statut == StatutOperationSync.synchronise)
+        .toList();
+    if (acceptees.isEmpty &&
+        !await DocumentsAutresPostes(
+          attachedDatabase,
+        ).descendu(TableSynchronisee.reservations.nomServeur, l.id)) {
+      // Ni envoyée, ni reçue : une saisie d'avant la file, rien à rattraper.
+      return;
+    }
+    final recu = <String, Object?>{};
+    for (final o in acceptees) {
+      final charge = jsonDecode(o.payload);
+      if (charge is! Map) continue;
+      for (final cle in champsFicheReservation) {
+        if (charge.containsKey(cle)) recu[cle] = charge[cle];
+      }
+      // Une création d'avant la correction ne portait pas ses services : le
+      // serveur n'en a reçu aucun.
+      if (o.type == TypeOperationSync.creation) {
+        recu['lignes'] ??= const <Object?>[];
+      }
+    }
+    final changements = _changements(recu, await _ficheEnvoyable(l.id));
+    if (changements.isEmpty) return;
+    await OperationsSyncDao(attachedDatabase).enfiler(
+      table: TableSynchronisee.reservations,
+      entiteId: l.id,
+      type: TypeOperationSync.modification,
+      payload: chargeModificationReservation(changements),
+    );
+  }
+
+  /// Les champs de la fiche d'une réservation, dans la forme exacte que le
+  /// serveur reçoit (`GestionnaireReservations`) : de quoi comparer deux états
+  /// de la même fiche, et en tirer ce qui change.
+  ///
+  /// Les services sont les SEULS à être des lignes au serveur : l'hébergement vit
+  /// sur `unite_id` et `tarif_nuit`.
+  Future<Map<String, Object?>> _ficheEnvoyable(String id) async {
+    final r = await parId(id);
+    if (r == null) return const {};
+    final remise = r.remiseType ?? TypeRemise.aucune;
+    return {
+      'unite_id': r.uniteId,
+      'date_arrivee': jourIso(r.periode.arrivee),
+      'date_depart': jourIso(r.periode.depart),
+      'client_id': r.clientId,
+      'tarif_nuit': decimalExact(r.tarifNuit * 100, 2),
+      'acompte': decimalExact(r.acompte * 100, 2),
+      'remise_type': remise.name,
+      'remise_valeur': remise == TypeRemise.aucune || r.remiseValeur == null
+          ? '0.00'
+          : decimalExact((r.remiseValeur! * 100).round(), 2),
+      'mode_paiement': _modeServeur(r.modePaiement),
+      'canal': r.canal?.libelle,
+      'lignes': [
+        for (final l in r.lignes)
+          if (l.service != ServiceReservation.hebergement && l.estRenseignee)
+            chargeLigneReservation(
+              service: l.service.cle,
+              sourceId: l.itemId,
+              libelle: l.libelle,
+              quantite: l.quantite,
+              prixUnitaireFrancs: l.prixUnitaire,
+            ),
+      ],
+    };
+  }
+
+  static String? _modeServeur(ModePaiementReservation? mode) => switch (mode) {
+    null => null,
+    ModePaiementReservation.especes => 'especes',
+    ModePaiementReservation.mobileMoney => 'mobile_money',
+    ModePaiementReservation.virement => 'virement',
+    ModePaiementReservation.cheque => 'cheque',
+    ModePaiementReservation.credit => 'credit',
+  };
+
+  /// Les champs de [apres] qui diffèrent de [avant] (les `lignes` en bloc).
+  static Map<String, Object?> _changements(
+    Map<String, Object?> avant,
+    Map<String, Object?> apres,
+  ) {
+    final changes = <String, Object?>{};
+    for (final cle in champsFicheReservation) {
+      if (jsonEncode(avant[cle]) != jsonEncode(apres[cle])) {
+        changes[cle] = apres[cle];
+      }
+    }
+    return changes;
   }
 
   /// Crée la réservation ET la pièce de son acompte, dans la MÊME transaction —
@@ -468,15 +699,10 @@ class ReservationDao extends DatabaseAccessor<AppDatabase>
           tarifNuitFrancs: r.tarifNuit,
           remiseType: (r.remiseType ?? TypeRemise.aucune).name,
           remiseValeur: r.remiseValeur,
-          modePaiement: switch (r.modePaiement) {
-            null => null,
-            ModePaiementReservation.especes => 'especes',
-            ModePaiementReservation.mobileMoney => 'mobile_money',
-            ModePaiementReservation.virement => 'virement',
-            ModePaiementReservation.cheque => 'cheque',
-            ModePaiementReservation.credit => 'credit',
-          },
+          modePaiement: _modeServeur(r.modePaiement),
           canal: r.canal?.libelle,
+          lignes: ((await _ficheEnvoyable(r.id))['lignes']! as List)
+              .cast<Map<String, Object?>>(),
         ),
       );
     });

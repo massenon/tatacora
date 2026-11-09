@@ -264,7 +264,10 @@ return [
         // maitre — pos-heberges.html l.38-39
         'sejours' => 'Séjours en cours',
         'sejours_aide' => 'Un panier par séjour, jamais deux.',
-        'sejours_vide' => 'Aucun séjour en cours. Le POS hébergés n’a de sens que pour un client présent.',
+        // Un séjour n'est offert ici qu'avec le STATUT `confirmee` ou `en_cours` (`PosHeberges::STATUTS_EN_SEJOUR`) :
+        // une réservation créée est `en_attente`, et seul le check-in la passe `en_cours`. L'écran Réservations,
+        // lui, affiche « En cours » d'après les DATES — d'où un POS vide face à des réservations « En cours ».
+        'sejours_vide' => 'Aucun séjour en cours. Le POS hébergés n’a de sens que pour un client présent. Faites le check-in d’une réservation depuis Hébergement/Réservations : le séjour apparaît ici.',
         'badge_panier_ouvert' => 'PANIER OUVERT',
         'badge_aucun_panier' => 'AUCUN PANIER',
 

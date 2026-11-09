@@ -73,9 +73,9 @@ return [
     'annulation_autre_poste' => 'Annulation refusée : ce document a été saisi sur un autre poste (ou au serveur). '
         . 'Seuls l\'administration et le comptable peuvent l\'annuler.',
     'reservations' => [
-        'champ_non_modifiable' => 'Une réservation ne se modifie que par son annulation (avec ses conditions) ou par son '
-            . 'déplacement (chambre, dates) — champ(s) refusé(s) : :champs.',
-        'annulee' => 'Déplacement refusé : la réservation est annulée.',
+        'champ_non_modifiable' => 'Une réservation ne se modifie que par son annulation (avec ses conditions) ou par sa '
+            . 'fiche (chambre, dates, client, tarif, acompte, remise, mode de paiement, canal, services) — champ(s) refusé(s) : :champs.',
+        'annulee' => 'Modification refusée : la réservation est annulée.',
     ],
     'ventes_modification' => [
         'champ_non_modifiable' => 'Une vente ne se modifie que par son annulation (statut annulee + motif).',

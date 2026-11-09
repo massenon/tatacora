@@ -1283,20 +1283,24 @@ class AligneurCatalogue {
   /// serveur cite SES canaux) ; AUCUNE pièce comptable — le serveur a passé
   /// celle de l'acompte, il est le seul comptable (D246).
   ///
-  /// ## Déjà sur ce poste : seul le STATUT avance, jamais il ne recule
+  /// ## Déjà sur ce poste : la FICHE du serveur, le STATUT n'avance que
   ///
-  /// Le poste ne pousse que la CRÉATION d'une réservation (le serveur
-  /// refuse toute modification) : un séjour ouvert ou annulé ICI n'est pas
-  /// connu du serveur. Réécrire la fiche locale avec la version du serveur
-  /// effacerait ces gestes. Donc :
+  /// (09/11/2026, décision du PO : « toute modification se propage complètement
+  /// et identiquement à tous les postes »). Une réservation SANS opération en
+  /// attente reprend la fiche du serveur — chambre, dates, client, tarif,
+  /// acompte, remise, mode de paiement, canal ET services (avec la ligne
+  /// d'hébergement, sans laquelle le total ne compterait que les services) — et
+  /// devient « Synchronisée ». Jamais ici : une réservation dont une opération
+  /// attend encore (l'appelant, `aligner`, la conserve) ni une réservation
+  /// REFUSÉE par le serveur (son badge et « À traiter » portent le refus). Avant
+  /// cette date seul le statut avançait : un service ajouté ou un prix changé
+  /// ailleurs n'arrivait jamais (75 000 ici, 80 000 là-bas).
   ///  * annulée ici → rien ne change (l'annulation locale porte sa pièce) ;
   ///  * annulée au serveur → annulée ici, avec ses conditions (taux,
   ///    montants, date), sans pièce ;
   ///  * sinon le statut du serveur n'est pris que s'il est PLUS AVANCÉ dans
-  ///    le cycle (`en_attente` → `confirmee` → `en_cours` → `terminee`).
-  /// Les dates, l'unité, le client et les montants d'une réservation
-  /// existante ne sont pas réécrits — écart nommé : un séjour déplacé au
-  /// serveur garde ici ses anciennes dates.
+  ///    le cycle (`en_attente` → `confirmee` → `en_cours` → `terminee`) : un
+  ///    check-in fait ICI ne recule pas.
   Future<IssueAlignement> _reservation(String id, ElementCatalogue e) async {
     final d = e.donnees;
     final statut = _texte(d['statut']);
@@ -1338,13 +1342,13 @@ class AligneurCatalogue {
         );
         return const Aligne();
       }
-      final rangLocal = _rangStatut[existante.statut] ?? 0;
-      if (_rangStatut[statut]! > rangLocal) {
-        await (_db.update(t)..where((r) => r.id.equals(id))).write(
-          ReservationsLocalCompanion(statut: Value(statut)),
+      // Un refus du serveur reste visible (badge « Refusée », « À traiter ») : la
+      // descente ne le fait pas disparaître en réécrivant la fiche.
+      if (existante.statutSync == 'rejete') {
+        return const ConserveLocalement(
+          'un refus du serveur attend sa correction (« À traiter »)',
         );
       }
-      return const Aligne();
     }
 
     final clientServeur = _texte(d['client_id']);
@@ -1470,6 +1474,52 @@ class AligneurCatalogue {
                   )
                   .firstOrNull
                   ?.code);
+    if (existante != null) {
+      final rangLocal = _rangStatut[existante.statut] ?? 0;
+      await (_db.update(t)..where((r) => r.id.equals(id))).write(
+        ReservationsLocalCompanion(
+          clientId: Value(client),
+          uniteId: Value(unite),
+          dateArrivee: Value(arrivee),
+          dateDepart: Value(depart),
+          // Un tarif absent du serveur ne réécrit pas celui du poste.
+          tarifNuit: d['tarif_nuit'] == null
+              ? const Value.absent()
+              : Value(tarif),
+          acompte: Value(acompte.toDouble()),
+          modePaiement: Value(mode),
+          canal: Value(canalEcrit),
+          remiseType: Value(remiseType),
+          remiseValeur: Value(
+            remiseType == 'aucune' ? null : remiseCentiemes / 100,
+          ),
+          statut: _rangStatut[statut]! > rangLocal
+              ? Value(statut)
+              : const Value.absent(),
+          // Plus rien n'attend (l'appelant l'a vérifié) : la ligne EST celle du serveur.
+          statutSync: const Value('synchronise'),
+          motifRejet: const Value(null),
+        ),
+      );
+      if (brutes is List) {
+        final chambreAvant =
+            await (_db.select(_db.lignesReservationLocal)..where(
+                  (l) =>
+                      l.reservationId.equals(id) &
+                      l.service.equals('hebergement'),
+                ))
+                .get();
+        await _ecrireLignesDescendues(
+          id,
+          unite: unite,
+          tarif: d['tarif_nuit'] == null ? existante.tarifNuit : tarif,
+          nuits: depart.difference(arrivee).inDays,
+          services: lignesService,
+          avecChambre: lignesService.isNotEmpty || chambreAvant.isNotEmpty,
+        );
+      }
+      return const Aligne();
+    }
     await _db
         .into(t)
         .insert(
@@ -1504,27 +1554,86 @@ class AligneurCatalogue {
           ),
         );
     // Lot F6 (audit de couverture) : ses services, au prix et au libellé
-    // figés au serveur.
-    for (var i = 0; i < lignesService.length; i++) {
-      final l = lignesService[i];
+    // figés au serveur — et, depuis le 09/11/2026, la ligne d'hébergement qui les
+    // accompagne.
+    await _ecrireLignesDescendues(
+      id,
+      unite: unite,
+      tarif: tarif,
+      nuits: depart.difference(arrivee).inDays,
+      services: lignesService,
+      avecChambre: lignesService.isNotEmpty,
+    );
+    // Lot F6 : son origine (Q3, et « connue du serveur »).
+    await _retenirOrigine(e, id);
+    return const Aligne();
+  }
+
+  /// Réécrit les lignes d'une réservation REÇUE : ses services (au prix et au
+  /// libellé figés par le poste d'origine) et, quand il y en a, la ligne
+  /// d'HÉBERGEMENT — la fiche du poste calcule le total en SOMMANT ses lignes dès
+  /// qu'elle en a : des services sans la chambre feraient un séjour à 5 000 au lieu
+  /// de 80 000 (constaté le 09/11/2026).
+  Future<void> _ecrireLignesDescendues(
+    String reservationId, {
+    required String unite,
+    required int tarif,
+    required int nuits,
+    required List<
+      ({String service, String item, String libelle, int prix, int quantite})
+    >
+    services,
+    required bool avecChambre,
+  }) async {
+    await (_db.delete(
+      _db.lignesReservationLocal,
+    )..where((l) => l.reservationId.equals(reservationId))).go();
+    var ordre = 0;
+    if (avecChambre) {
+      final chambre = await (_db.select(_db.unitesHebergementLocal).join([
+        innerJoin(
+          _db.categoriesHebergementLocal,
+          _db.categoriesHebergementLocal.id.equalsExp(
+            _db.unitesHebergementLocal.categorieId,
+          ),
+        ),
+      ])..where(_db.unitesHebergementLocal.id.equals(unite))).getSingleOrNull();
+      final libelle = chambre == null
+          ? unite
+          : '${chambre.readTable(_db.categoriesHebergementLocal).libelle} '
+                '(${chambre.readTable(_db.unitesHebergementLocal).numero})';
       await _db
           .into(_db.lignesReservationLocal)
           .insert(
             LignesReservationLocalCompanion.insert(
-              id: '$id:$i',
-              reservationId: id,
+              id: '$reservationId:h',
+              reservationId: reservationId,
+              service: 'hebergement',
+              itemId: unite,
+              libelle: libelle,
+              prixUnitaire: tarif,
+              quantite: nuits,
+              ordre: ordre++,
+            ),
+          );
+    }
+    for (var i = 0; i < services.length; i++) {
+      final l = services[i];
+      await _db
+          .into(_db.lignesReservationLocal)
+          .insert(
+            LignesReservationLocalCompanion.insert(
+              id: '$reservationId:$i',
+              reservationId: reservationId,
               service: l.service,
               itemId: l.item,
               libelle: l.libelle,
               prixUnitaire: l.prix,
               quantite: l.quantite,
-              ordre: i,
+              ordre: ordre++,
             ),
           );
     }
-    // Lot F6 : son origine (Q3, et « connue du serveur »).
-    await _retenirOrigine(e, id);
-    return const Aligne();
   }
 
   /// Minuit UTC du jour d'une date du serveur — la convention de

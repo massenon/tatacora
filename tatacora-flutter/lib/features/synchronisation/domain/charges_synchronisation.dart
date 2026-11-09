@@ -330,6 +330,7 @@ Map<String, Object?> chargeReservation({
   required num? remiseValeur,
   required String? modePaiement,
   String? canal,
+  List<Map<String, Object?>> lignes = const [],
 }) => {
   'client_id': clientId,
   'unite_id': uniteId,
@@ -344,6 +345,28 @@ Map<String, Object?> chargeReservation({
       : decimalExact((remiseValeur * 100).round(), 2),
   'mode_paiement': modePaiement,
   'canal': canal,
+  // Les services (09/11/2026) : jamais laissés au poste. Sans eux, un autre poste
+  // et le web voyaient un séjour sans service (75 000 au lieu de 80 000).
+  'lignes': lignes,
+};
+
+/// Une ligne de SERVICE d'une réservation, telle que le serveur la reçoit
+/// (`GestionnaireReservations`) : le prix ET le libellé FIGÉS par le poste à
+/// l'ajout (jamais relus du catalogue du serveur), la quantité et le prix en
+/// décimales exactes. L'hébergement n'est PAS une ligne au serveur : il vit sur
+/// `unite_id` et `tarif_nuit`.
+Map<String, Object?> chargeLigneReservation({
+  required String service,
+  required String sourceId,
+  required String libelle,
+  required int quantite,
+  required int prixUnitaireFrancs,
+}) => {
+  'service': service,
+  'source_id': sourceId,
+  'libelle': libelle,
+  'quantite': decimalExact(quantite * 100, 2),
+  'prix_unitaire': decimalExact(prixUnitaireFrancs * 100, 2),
 };
 
 /// `commandes_achat` (création seule) — `GestionnaireCommandesAchat` : les
@@ -754,6 +777,41 @@ Map<String, Object?> chargeDeplacementReservation({
   if (dateArrivee != null) 'date_arrivee': jourIso(dateArrivee),
   if (dateDepart != null) 'date_depart': jourIso(dateDepart),
 };
+
+/// Les champs de la FICHE d'une réservation qu'une modification peut porter
+/// (`GestionnaireReservations::CHAMPS_DEPLACEMENT` + `CHAMPS_FICHE`), et eux seuls.
+const champsFicheReservation = [
+  'unite_id',
+  'date_arrivee',
+  'date_depart',
+  'client_id',
+  'tarif_nuit',
+  'acompte',
+  'remise_type',
+  'remise_valeur',
+  'mode_paiement',
+  'canal',
+  'lignes',
+];
+
+/// `reservations`, MODIFICATION de la fiche (09/11/2026, décision du PO : « toute
+/// modification se propage complètement et identiquement ») — SEULS les champs
+/// CHANGÉS (dernier écrit gagnant, clé par clé). Les `lignes`, quand elles
+/// changent, partent en bloc : c'est la composition courante qui est remplacée.
+Map<String, Object?> chargeModificationReservation(
+  Map<String, Object?> champsChanges,
+) {
+  for (final cle in champsChanges.keys) {
+    if (!champsFicheReservation.contains(cle)) {
+      throw ArgumentError.value(
+        cle,
+        'champsChanges',
+        'champ inconnu de la fiche d’une réservation',
+      );
+    }
+  }
+  return Map<String, Object?>.of(champsChanges);
+}
 
 /// `commandes_achat`, STATUT — `envoyee` ou `cloturee`, par leurs services.
 Map<String, Object?> chargeStatutCommande(String statut) => {'statut': statut};

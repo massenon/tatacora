@@ -294,6 +294,43 @@ final class ReservationsEcritureTest extends TestCase
         $this->assertSame(1, Reservation::count(), 'La modification a créé une seconde ligne au lieu de modifier.');
     }
 
+    /**
+     * 09/11/2026 : ajouter UN service sans toucher à rien d'autre doit faire redescendre la
+     * fiche aux postes. La descente du catalogue ne livre une réservation qu'à son propre
+     * `updated_at` ; les lignes sont ses enfants. Sans retouche, un poste gardait 75 000
+     * pendant que le web affichait 80 000.
+     */
+    #[Test]
+    public function ajouter_un_service_seul_fait_avancer_la_fiche_pour_la_descente_des_postes(): void
+    {
+        $this->actingAs($this->utilisateur($this->roleQuiEcritSurM1()));
+        $circuit = \App\Domain\Tourisme\Models\Circuit::create([
+            'nom' => 'Chutes de Kota', 'theme' => 'Nature', 'zone' => 'Atacora',
+            'duree' => '1 jour', 'prix' => '15000.00', 'capacite_max' => 12,
+        ]);
+        $reservation = app(ReservationService::class)->creer([
+            'id' => (string) Str::uuid(),
+            'client_id' => $this->client->id,
+            'unite_id' => $this->unite->id,
+            'date_arrivee' => '2026-09-10',
+            'date_depart' => '2026-09-14',
+        ]);
+        $avant = $reservation->fresh()->updated_at;
+
+        $this->travel(30)->seconds();
+
+        Livewire::test(Reservations::class)
+            ->call('ouvrirModificationReservation', $reservation->id)
+            ->call('basculerServiceFiche', 'tourisme')
+            ->set('rLignes.0.source_id', $circuit->id)
+            ->set('rLignes.0.quantite', '1')
+            ->call('enregistrerReservation')
+            ->assertHasNoErrors();
+
+        $this->assertSame(1, $reservation->fresh()->lignes()->count());
+        $this->assertTrue($reservation->fresh()->updated_at->gt($avant), 'la fiche n\'a pas avancé : le service n\'arrivera jamais aux postes');
+    }
+
     #[Test]
     public function une_reservation_annulee_ne_se_modifie_pas(): void
     {

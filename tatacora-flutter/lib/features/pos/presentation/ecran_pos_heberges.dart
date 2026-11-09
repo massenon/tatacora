@@ -375,7 +375,8 @@ class _ColonneSejours extends ConsumerWidget {
   /// `pos_pwa.heberges.sejours_vide`.
   static const String vide =
       'Aucun séjour en cours. Le POS hébergés n’a de sens que pour un client '
-      'présent.';
+      'présent. Faites le check-in d’une réservation depuis '
+      'Hébergement/Réservations : le séjour apparaît ici.';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

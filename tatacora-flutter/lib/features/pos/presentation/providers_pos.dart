@@ -12,6 +12,7 @@ import '../domain/entities/article_vendable.dart';
 import '../domain/entities/mode_reglement.dart';
 import '../domain/entities/panier.dart';
 import '../domain/entities/reference_catalogue.dart';
+import '../domain/entities/sejour_au_pos.dart';
 import '../domain/entities/table_pos.dart';
 import '../domain/repositories/panier_repository.dart';
 import '../domain/usecases/gerer_panier.dart';
@@ -250,13 +251,7 @@ final panierCourantProvider = FutureProvider<Panier?>((ref) {
 /// réservation annulée ou terminée n'en ouvre pas.
 final sejoursEnCoursProvider = FutureProvider<List<Reservation>>((ref) async {
   final toutes = await ref.watch(depotReservationProvider).reservations();
-  return toutes
-      .where(
-        (r) =>
-            r.statut == StatutReservation.enCours ||
-            r.statut == StatutReservation.confirmee,
-      )
-      .toList(growable: false);
+  return toutes.where(estSejourAuPos).toList(growable: false);
 });
 
 /// Le panier ouvert d'un séjour, s'il existe.

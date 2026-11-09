@@ -590,6 +590,8 @@ void main() {
         'remise_valeur': '10.00',
         'mode_paiement': 'mobile_money',
         'canal': 'Booking.com',
+        // 09/11/2026 : la création porte ses services (aucun ici).
+        'lignes': <Object?>[],
       });
     });
   });

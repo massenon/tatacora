@@ -11,6 +11,7 @@ import 'package:tatacora_flutter/features/comptabilite/data/comptabilite_dao.dar
 import 'package:tatacora_flutter/features/crm/data/client_dao.dart';
 import 'package:tatacora_flutter/features/hebergement/data/canaux_reservation_dao.dart';
 import 'package:tatacora_flutter/features/hebergement/data/reservation_dao.dart';
+import 'package:tatacora_flutter/features/synchronisation/data/operations_sync_dao.dart';
 import 'package:tatacora_flutter/features/hebergement/data/reservation_repository_local.dart';
 import 'package:tatacora_flutter/features/hebergement/domain/entities/periode_sejour.dart';
 import 'package:tatacora_flutter/features/hebergement/domain/entities/fiche_reservation.dart';
@@ -1194,6 +1195,13 @@ void main() {
 
     testWidgets('la modification repart au serveur', (tester) async {
       final r = await aModifier();
+      // Synchronisée = le serveur la connaît : ici, elle lui est venue de lui
+      // (descendue). C'est ce qui fait PARTIR la correction (09/11/2026).
+      await db.customStatement(
+        'INSERT INTO origines_documents_local '
+        "(table_serveur, entite_id, recu_le) VALUES ('reservations', ?, 0)",
+        [r.id],
+      );
       await monter(
         tester,
         const FicheReservation(reservationId: 'res-mod'),
@@ -1209,6 +1217,11 @@ void main() {
       // sinon l'écran affiche un état que le serveur ne porte pas.
       final relue = await depot.parId(r.id);
       expect(relue!.statutSynchronisation, StatutSynchronisation.local);
+      // Et c'est VRAI : une opération attend réellement dans la file.
+      expect(
+        await OperationsSyncDao(db).enSuspens('reservations', r.id),
+        isTrue,
+      );
     });
 
     testWidgets('une réservation introuvable le DIT', (tester) async {
