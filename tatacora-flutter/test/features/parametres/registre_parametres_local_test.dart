@@ -100,7 +100,7 @@ void main() {
     expect(locales.length, 64);
     expect(
       serveur.definitions.where((d) => d['groupe'] == 'comptes'),
-      hasLength(15),
+      hasLength(20),
     );
   });
 
