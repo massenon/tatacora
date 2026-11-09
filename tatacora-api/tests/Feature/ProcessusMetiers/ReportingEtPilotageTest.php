@@ -170,7 +170,7 @@ final class ReportingEtPilotageTest extends TestCase
         foreach ($entetes as $code => $entete) {
             $this->assertSame($reference->raisonSociale, $entete->raisonSociale, "État {$code}");
             $this->assertSame($reference->adresse, $entete->adresse, "État {$code}");
-            $this->assertSame($reference->mentionInstitutionnelle, $entete->mentionInstitutionnelle, "État {$code}");
+            $this->assertSame($reference->lignesIdentite(), $entete->lignesIdentite(), "État {$code}");
             $this->assertSame($reference->auteur, $entete->auteur, "État {$code}");
         }
 

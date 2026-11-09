@@ -99,24 +99,14 @@ class RenduCsv implements RenduDocument
      */
     private function lignesEnTete(EnTeteRapport $entete): array
     {
-        $lignes = [
-            [$entete->raisonSociale],
-            [str_replace("\n", ' — ', $entete->sousTitre)],
-            [$entete->adresse],
-            [$entete->telephone . ' — ' . $entete->email],
-            [$entete->siteWeb],
-        ];
-
-        foreach ($entete->mentionsLegales() as $intitule => $valeur) {
-            $lignes[] = [$intitule . ' : ' . $valeur];
-        }
+        // L'identité UNE fois, comme le PDF (EnTeteRapport::lignesIdentite, PO 10/11/2026).
+        $lignes = array_map(static fn (string $l): array => [$l], $entete->lignesIdentite());
 
         return [
             ...$lignes,
             [$entete->typeRapport, $entete->periode],
             [__('rapports.entete.genere_par', ['auteur' => $entete->auteur])],
             [__('rapports.entete.edite_le', ['date' => $entete->dateEdition])],
-            [$entete->mentionInstitutionnelle],
         ];
     }
 }

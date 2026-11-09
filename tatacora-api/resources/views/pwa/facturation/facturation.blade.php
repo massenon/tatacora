@@ -184,7 +184,7 @@
                            `numero_mecef` est `nullable` — « null tant que non
                            certifiée », dit la migration elle-même. --}}
                       @php($numeroRegistre = \App\Pwa\Support\NumeroRegistre::pour($facture))
-                      <td class="px-4 py-2.5 font-mono-tatacora text-[12px]">{{ $numeroRegistre['valeur'] }}@if ($numeroRegistre['interne']) <span class="ml-1 font-sans text-[10px] text-slate-400" title="{{ __('pwa.facturation.numero_interne') }}">{{ __('pwa.facturation.numero_interne') }}</span>@endif</td>
+                      <td class="px-4 py-2.5 font-mono-tatacora text-[12px] whitespace-nowrap">{{ $numeroRegistre['valeur'] }}@if ($numeroRegistre['interne']) <span class="ml-1 font-sans text-[10px] text-slate-400" title="{{ __('pwa.facturation.numero_interne') }}">{{ __('pwa.facturation.numero_interne') }}</span>@endif</td>
                       <td class="px-4 py-2.5 text-slate-500">{{ $facture->date_emission->format('d/m/Y') }}</td>
                       @php($client = $clients->get($facture->client_id))
                       <td class="px-4 py-2.5">{{ $client === null ? MontantFcfa::TIRET : trim(($client->prenom ?? '').' '.$client->nom) }}</td>

@@ -83,23 +83,20 @@ final class EnteteEtablissement {
     this.localite = 'Natitingou — Bénin',
     this.raisonSociale = 'TATACORA AFRIQUE',
     this.enseigne = 'Gîte Chez Noël',
-    // `rapports.entete.localisation`, la clé que l'en-tête des états du
-    // serveur imprime. Décision du PO du 14/10/2026 : « Système de gestion
-    // Intégré — Gîte Chez Noël, Natitingou (Bénin) », la même phrase que
-    // l'écran Aide (`ecran_aide_a_propos.dart`) et que `pwa.aide.enseigne`.
+    // `rapports.entete.localisation` : la phrase des ÉCRANS (Aide, démarrage). Elle n'est PLUS
+    // imprimée en tête des documents (PO 10/11/2026 : « trop de tautologie ») — voir [lignesA4].
     this.sousTitre =
         'Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)',
     this.adresse = 'Quartier Sountichirantikou, Natitingou, Bénin',
     this.telephone = '+229 01 97 35 59 74',
     this.email = 'nabogounoel@yahoo.fr',
-    this.siteWeb = 'www.tatacora.com',
+    this.siteWeb = 'https://tatacora.com',
     this.promoteur,
     this.whatsapp,
     this.ifu,
     this.rccm,
     this.regimeFiscal,
     this.logo,
-    this.mentionInstitutionnelle = 'Projet PAEB — Cabinet FAGUEZ SARL',
   });
 
   /// L'en-tête composé depuis les paramètres saisis sur ce poste
@@ -129,12 +126,6 @@ final class EnteteEtablissement {
           : libellesRegimeFiscal[codeRegime],
     );
   }
-
-  /// La mention du pied des états d'export — `rapports.entete.mention_institutionnelle`
-  /// côté serveur, au mot (grille `RESPECT_TABLEAU_RAPPORT.md` : « mention
-  /// PAEB/FAGUEZ SARL + date/heure d'édition »). Jamais sur un document remis
-  /// au client (PA-194).
-  final String mentionInstitutionnelle;
 
   /* ---------------- Ce que le rouleau 80 mm porte ------------------ */
 
@@ -193,36 +184,39 @@ final class EnteteEtablissement {
       if (_renseigne(rccm)) 'RCCM : ${rccm!.trim()}',
       if (_renseigne(regimeFiscal)) 'Régime fiscal : ${regimeFiscal!.trim()}',
     ];
-    return mentions.isEmpty ? null : mentions.join(' — ');
+    return mentions.isEmpty ? null : mentions.join(' - ');
   }
 
-  /// Les lignes de l'en-tête A4, dans l'ordre, **déjà normalisées**.
-  ///
-  /// L'ordre suit le gabarit serveur `pdf/partials/entete-rapport.blade.php` :
-  /// raison sociale, enseigne et localisation, promoteur, adresse, téléphone
-  /// et courriel, WhatsApp, site, puis les mentions légales. Une valeur
-  /// absente fait disparaître sa ligne entière, libellé compris.
-  List<String> get lignesA4 => [
-    for (final ligne in <String?>[
-      raisonSociale,
-      enseigne,
-      sousTitre,
-      if (_renseigne(promoteur)) 'Promoteur : ${promoteur!.trim()}',
-      adresse,
-      _ligneContact,
-      if (_renseigne(whatsapp)) 'WhatsApp : ${whatsapp!.trim()}',
-      siteWeb,
-      ligneIdentificationFiscale,
-    ])
-      if (ligne != null && ligne.trim().isNotEmpty) texteTicket(ligne),
-  ];
+  /// Les lignes de l'en-tête A4 — l'identité UNE SEULE FOIS (décision du PO du 10/11/2026 : « trop
+  /// de tautologie, trop de répétition »), la même liste que `EnTeteRapport::lignesIdentite()` du
+  /// serveur : « TATACORA AFRIQUE Gîte Chez Noël » / adresse / « Tél. … - courriel » / site /
+  /// « IFU : … - RCCM : … ». Plus d'enseigne répétée, de « Système de gestion Intégré… », de
+  /// promoteur ni de WhatsApp. Une valeur absente fait disparaître sa ligne entière.
+  List<String> get lignesA4 {
+    final raison = (raisonSociale ?? '').trim();
+    final nom = raison.isEmpty
+        ? 'TATACORA AFRIQUE $enseigne'
+        : raison.toLowerCase().contains(enseigne.toLowerCase())
+        ? raison
+        : '$raison $enseigne';
+    return [
+      for (final ligne in <String?>[
+        nom.replaceAll(RegExp(r'\s+[—-]\s+'), ' '),
+        adresse,
+        _ligneContact,
+        siteWeb?.trim().replaceFirst(RegExp(r'/+$'), ''),
+        ligneIdentificationFiscale,
+      ])
+        if (ligne != null && ligne.trim().isNotEmpty) texteTicket(ligne),
+    ];
+  }
 
   /// « Tél. … — courriel », ou ce qui en est renseigné.
   String? get _ligneContact {
     final tel = _renseigne(telephone) ? 'Tél. ${telephone!.trim()}' : null;
     final mel = _renseigne(email) ? email!.trim() : null;
     if (tel == null && mel == null) return null;
-    if (tel != null && mel != null) return '$tel — $mel';
+    if (tel != null && mel != null) return '$tel - $mel';
     return tel ?? mel;
   }
 
@@ -258,6 +252,5 @@ final class EnteteEtablissement {
     rccm: rccm,
     regimeFiscal: regimeFiscal,
     logo: octets,
-    mentionInstitutionnelle: mentionInstitutionnelle,
   );
 }

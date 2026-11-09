@@ -42,12 +42,6 @@ return [
         'enseigne' => 'Gîte Chez Noël',
         'localisation' => 'Système de gestion Intégré — Gîte Chez Noël, Natitingou (Bénin)',
 
-        /*
-         * Pied institutionnel exige par la grille RESPECT_TABLEAU_RAPPORT.md
-         * (« mention PAEB/FAGUEZ SARL + date/heure d'edition »).
-         */
-        'mention_institutionnelle' => 'Projet PAEB — Cabinet FAGUEZ SARL',
-
         'genere_par' => 'Généré par : :auteur',
         'edite_le' => 'Le :date',
 

@@ -647,6 +647,10 @@ class _Registre extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    return _corps(context, ref);
+  }
+
+  Widget _corps(BuildContext context, WidgetRef ref) {
     final selection = ref.watch(selectionFacturesProvider);
     final avoirs = ref.watch(avoirsParFactureProvider).value ?? const {};
     final peutEcrire = ref
@@ -959,6 +963,8 @@ class _BoutonLigne extends StatelessWidget {
                 ),
           child: Text(
             libelle,
+            softWrap: false,
+            maxLines: 1,
             style: _t(
               TaillesContenu.t11,
               poids: FontWeight.w600,
@@ -990,7 +996,14 @@ class _Rangee extends StatelessWidget {
           child: Align(alignment: Alignment.centerLeft, child: debut),
         ),
         for (var i = 0; i < cellules.length; i++)
-          Expanded(
+          _CelluleFixeOuSouple(
+            // N° et actions : largeur FIXE (le N° tient sur une ligne, « Facture A4 » et « Avoir » ne
+            // passent plus à la ligne lettre par lettre) ; les autres colonnes se partagent le reste.
+            largeurFixe: i == 0
+                ? AppLayout.colonneNumeroFacture
+                : i == 8
+                ? AppLayout.colonneActionsFacture
+                : null,
             flex: _Registre._parts[i],
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
@@ -1017,3 +1030,21 @@ Future<void> afficherTicket(BuildContext context, PieceFacturation piece) =>
       context: context,
       builder: (context) => VueTicket(piece: piece),
     );
+
+/// Une colonne du registre : [largeurFixe] si elle en a une, sinon une part (`flex`) du reste.
+class _CelluleFixeOuSouple extends StatelessWidget {
+  const _CelluleFixeOuSouple({
+    required this.largeurFixe,
+    required this.flex,
+    required this.child,
+  });
+
+  final double? largeurFixe;
+  final int flex;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => largeurFixe == null
+      ? Expanded(flex: flex, child: child)
+      : SizedBox(width: largeurFixe, child: child);
+}

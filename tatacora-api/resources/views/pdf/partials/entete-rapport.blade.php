@@ -32,28 +32,13 @@
             <td width="60"><img class="er-logo" src="{{ $entete->logo }}" alt=""></td>
         @endif
         <td>
-            <p class="er-raison-sociale">{{ $entete->raisonSociale }}</p>
+            <p class="er-raison-sociale">{{ $entete->lignesIdentite()[0] }}</p>
+            {{-- Les cinq lignes d'identité, UNE fois (EnTeteRapport::lignesIdentite, décision du PO du 10/11/2026). --}}
             <div class="er-coordonnees">
-                @foreach (explode("\n", $entete->sousTitre) as $ligne)
+                @foreach (array_slice($entete->lignesIdentite(), 1) as $ligne)
                     {{ $ligne }}<br>
                 @endforeach
-                @if ($entete->promoteur !== null)
-                    Promoteur : {{ $entete->promoteur }}<br>
-                @endif
-                {{ $entete->adresse }}<br>
-                {{ $entete->telephone }} — {{ $entete->email }}<br>
-                @if ($entete->whatsapp !== null)
-                    WhatsApp : {{ $entete->whatsapp }}<br>
-                @endif
-                {{ $entete->siteWeb }}
             </div>
-            @if ($entete->mentionsLegales() !== [])
-                <div class="er-mentions-legales">
-                    @foreach ($entete->mentionsLegales() as $intitule => $valeur)
-                        {{ $intitule }} : {{ $valeur }}@if (! $loop->last) &nbsp;—&nbsp; @endif
-                    @endforeach
-                </div>
-            @endif
         </td>
     </tr>
 </table>

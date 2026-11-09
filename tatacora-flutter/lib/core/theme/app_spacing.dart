@@ -237,6 +237,11 @@ abstract final class AppLayout {
   /// étroites seulement, la mesure se fait à 1 040 px de contenu.
   static const double enTeteReservationsEnRangee = 900;
 
+  /// Registre des factures (poste) : N° et actions ont une largeur FIXE — le N° tient sur une ligne, « Facture A4 » et
+  /// « Avoir » ne passent plus à la ligne lettre par lettre (PO 10/11/2026).
+  static const double colonneNumeroFacture = 150;
+  static const double colonneActionsFacture = 190;
+
   /// La colonne de la case de sélection d'un tableau de la vue (`th px-4
   /// w-10 no-print`) : 16 + 16 de marge autour d'une case de 16 px.
   static const double colonneSelection = 48;

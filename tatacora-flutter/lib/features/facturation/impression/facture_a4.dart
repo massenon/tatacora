@@ -660,10 +660,6 @@ final class FactureA4 {
         ),
       ],
       piedDePage: [
-        _t(
-          'TATACORA AFRIQUE — Gîte Chez Noël · Projet PAEB · '
-          'Cabinet FAGUEZ SARL',
-        ),
         _t('Édité le ${_horodatage(dateEdition)} par ${auteur.libelle}'),
       ],
       gabaritPagination: _t('Page {page} / {total}'),

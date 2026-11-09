@@ -226,7 +226,6 @@ final class GenerateurEchantillons
             periode: '',
             auteur: 'Réception (exemple)',
             dateEdition: '07/11/2026 à 12:00',
-            mentionInstitutionnelle: $e->mentionInstitutionnelle,
             promoteur: null,
             whatsapp: null,
             regimeFiscal: null,

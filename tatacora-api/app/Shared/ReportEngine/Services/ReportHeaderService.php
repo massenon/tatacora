@@ -96,7 +96,7 @@ class ReportHeaderService
         self::CLE_ADRESSE => 'Quartier Sountichirantikou, Natitingou, Bénin',
         self::CLE_TELEPHONE => '+229 01 97 35 59 74',
         self::CLE_EMAIL => 'nabogounoel@yahoo.fr',
-        self::CLE_SITE_WEB => 'www.tatacora.com',
+        self::CLE_SITE_WEB => 'https://tatacora.com',
     ];
 
     /**

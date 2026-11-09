@@ -44,21 +44,9 @@
 
 @if ($mono)
   <div class="tc-entete tc-entete--mono">
-    <div class="tc-raison-sociale">{{ $entete->raisonSociale }}</div>
-    {{-- L'enseigne EN MINUSCULES sous la raison sociale — directive PO du
-         02/09/2026, dérivée par `ReportHeaderService::identite()` (l'auteur
-         unique), jamais écrite en dur ici. --}}
-    @if (filled($entete->enseigne))
-      <div class="tc-enseigne">{{ $entete->enseigne }}</div>
-    @endif
-    <div class="tc-coordonnees">{{ $entete->adresse }}<br>{{ $entete->telephone }}</div>
-    @if ($entete->mentionsLegales() !== [])
-      <div class="tc-mentions-legales">
-        @foreach ($entete->mentionsLegales() as $libelleMention => $valeurMention)
-          {{ $libelleMention }} : {{ $valeurMention }}@if (! $loop->last)&nbsp;·&nbsp;@endif
-        @endforeach
-      </div>
-    @endif
+    {{-- Identité UNE fois (EnTeteRapport::lignesIdentite) — jamais d'enseigne ni de mention répétées. --}}
+    <div class="tc-raison-sociale">{{ $entete->lignesIdentite()[0] }}</div>
+    <div class="tc-coordonnees">@foreach (array_slice($entete->lignesIdentite(), 1) as $ligneIdentite){{ $ligneIdentite }}@if (! $loop->last)<br>@endif @endforeach</div>
     <div class="tc-titre-document">{{ $titreDocument }}</div>
     <div class="tc-meta-ligne">{{ $numeroLabel }} : {{ $numero ?? \App\Pwa\Support\MontantFcfa::TIRET }}</div>
     <div class="tc-meta-ligne">{{ $dateLabel }} : {{ $date }}</div>
@@ -71,22 +59,13 @@
         <td class="tc-logo-cell"><img src="{{ $entete->logo }}" alt=""></td>
       @endif
       <td class="tc-identite-cell">
-        <div class="tc-raison-sociale">{{ $entete->raisonSociale }}</div>
-        {{-- L'enseigne EN MINUSCULES — même dérivation que la variante mono. --}}
-        @if (filled($entete->enseigne))
-          <div class="tc-enseigne">{{ $entete->enseigne }}</div>
-        @endif
+        {{-- Identité UNE fois (EnTeteRapport::lignesIdentite, décision du PO du 10/11/2026). --}}
+        <div class="tc-raison-sociale">{{ $entete->lignesIdentite()[0] }}</div>
         <div class="tc-coordonnees">
-          {{ $entete->adresse }}<br>
-          {{ $entete->telephone }}
+          @foreach (array_slice($entete->lignesIdentite(), 1) as $ligneIdentite)
+            {{ $ligneIdentite }}<br>
+          @endforeach
         </div>
-        @if ($entete->mentionsLegales() !== [])
-          <div class="tc-mentions-legales">
-            @foreach ($entete->mentionsLegales() as $libelleMention => $valeurMention)
-              {{ $libelleMention }} : {{ $valeurMention }}@if (! $loop->last)&nbsp;·&nbsp;@endif
-            @endforeach
-          </div>
-        @endif
       </td>
       <td class="tc-meta-cell">
         <div class="tc-titre-document">{{ $titreDocument }}</div>

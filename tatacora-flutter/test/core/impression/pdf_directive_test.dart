@@ -317,12 +317,36 @@ void main() {
       ]);
     });
 
-    test('la mention du pied est celle du serveur', () {
-      expect(
-        const EnteteEtablissement().mentionInstitutionnelle,
-        VueBlade.libelle('rapports.entete.mention_institutionnelle'),
-      );
-    });
+    test(
+      'l’en-tête s’imprime UNE fois, en cinq lignes, sans PAEB (PO 10/11/2026)',
+      () {
+        expect(const EnteteEtablissement().lignesA4, [
+          'TATACORA AFRIQUE Gîte Chez Noël',
+          'Quartier Sountichirantikou, Natitingou, Bénin',
+          'Tél. +229 01 97 35 59 74 - nabogounoel@yahoo.fr',
+          'https://tatacora.com',
+        ]);
+        final tout = const EnteteEtablissement(
+          ifu: '0202011344660',
+          rccm: 'RB/NAT/2020-A-137',
+          promoteur: 'NABOGOU Noel',
+          whatsapp: '0197355974',
+        ).lignesA4.join('\n');
+        expect(
+          tout,
+          contains('IFU : 0202011344660 - RCCM : RB/NAT/2020-A-137'),
+        );
+        for (final interdit in [
+          'PAEB',
+          'FAGUEZ',
+          'Promoteur',
+          'WhatsApp',
+          'Système de gestion',
+        ]) {
+          expect(tout, isNot(contains(interdit)));
+        }
+      },
+    );
 
     // Chaque liste de [Visas] contre le gabarit serveur du même document.
     final correspondances = <String, List<String>>{
@@ -398,7 +422,6 @@ void main() {
         for (final attendu in [
           'Visa Ordonnateur / Caissier :',
           'Visa Direction / Contr',
-          'Projet PAEB',
           '11/09/2026 16:05',
           '1 / 1',
         ]) {

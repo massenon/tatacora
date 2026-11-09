@@ -169,7 +169,7 @@ void main() {
       );
       expect(a4.texteBrut, contains('+229 01 97 35 59 74'));
       expect(a4.texteBrut, contains('nabogounoel@yahoo.fr'));
-      expect(a4.texteBrut, contains('www.tatacora.com'));
+      expect(a4.texteBrut, contains('https://tatacora.com'));
     });
 
     test(
@@ -499,11 +499,11 @@ void main() {
       expect(a4.texteBrut, isNot(contains('Administrateur')));
     });
 
-    test('le pied porte la mention institutionnelle PAEB / FAGUEZ', () {
+    test('le pied ne porte PLUS la mention PAEB / FAGUEZ (PO 10/11/2026)', () {
       final a4 = composer();
 
-      expect(a4.texteBrut, contains('Projet PAEB'));
-      expect(a4.texteBrut, contains('Cabinet FAGUEZ SARL'));
+      expect(a4.texteBrut, isNot(contains('PAEB')));
+      expect(a4.texteBrut, isNot(contains('FAGUEZ')));
     });
   });
 

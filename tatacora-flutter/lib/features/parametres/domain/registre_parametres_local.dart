@@ -1018,7 +1018,7 @@ const List<ParametreInitial> parametresEtablissementInitiaux = [
   (cle: 'communication_whatsapp', valeur: '0197355974', description: null),
   (
     cle: 'entreprise_site_web',
-    valeur: 'https://tatacora.com/',
+    valeur: 'https://tatacora.com',
     description: null,
   ),
   (
