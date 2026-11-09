@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart' show kPrimaryButton;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -150,6 +151,117 @@ class ZoneDeplacementFenetre extends ConsumerWidget {
       onPanStart: (_) => controle.deplacer(),
       onDoubleTap: () => controle.basculerAgrandissement(),
       child: child,
+    );
+  }
+}
+
+/// Les zones de saisie INVISIBLES du bord HAUT de la fenêtre et de ses deux
+/// coins (haut-gauche, haut-droit) : sans barre de titre native, le haut n'a
+/// plus de cadre à saisir (`WM_NCCALCSIZE` du plugin ne retire rien en haut).
+/// Les bords gauche, droit et bas, avec leurs coins, gardent le cadre natif.
+///
+/// À poser en dernier dans la pile de la coquille, en haut de la fenêtre. Trois
+/// zones de [MesuresFenetre.epaisseurBordRedimensionnement] px (les coins de
+/// [MesuresFenetre.tailleCoinRedimensionnement] px) ; le curseur annonce le
+/// redimensionnement, le contact commence le geste dans le système.
+///
+/// Le bord haut s'arrête à gauche des trois boutons de fenêtre : ils restent
+/// cliquables jusqu'au pixel du haut ; seul l'angle de la croix (le coin
+/// haut-droit) redimensionne. Rien n'est posé hors du poste Windows (aucun
+/// contrôle), ni quand la fenêtre est agrandie (rien à redimensionner).
+class ZonesRedimensionnementFenetre extends ConsumerWidget {
+  const ZonesRedimensionnementFenetre({this.compacte = false, super.key});
+
+  /// Barre compacte : les boutons de fenêtre sont plus étroits.
+  final bool compacte;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final controle = ref.watch(controleFenetreProvider);
+    if (controle == null) return const SizedBox.shrink();
+    return ValueListenableBuilder<bool>(
+      valueListenable: controle.agrandie,
+      builder: (context, agrandie, _) {
+        if (agrandie) return const SizedBox.shrink();
+        const epaisseur = MesuresFenetre.epaisseurBordRedimensionnement;
+        const coin = MesuresFenetre.tailleCoinRedimensionnement;
+        final boutons =
+            3 *
+            (compacte
+                ? MesuresFenetre.largeurBoutonCompact
+                : MesuresFenetre.largeurBouton);
+        return Stack(
+          children: [
+            Positioned(
+              top: 0,
+              left: coin,
+              right: boutons,
+              height: epaisseur,
+              child: _Zone(
+                cle: const Key('zone-redimensionnement-haut'),
+                bord: BordFenetre.haut,
+                curseur: SystemMouseCursors.resizeUpDown,
+                controle: controle,
+              ),
+            ),
+            Positioned(
+              top: 0,
+              left: 0,
+              width: coin,
+              height: coin,
+              child: _Zone(
+                cle: const Key('zone-redimensionnement-haut-gauche'),
+                bord: BordFenetre.hautGauche,
+                curseur: SystemMouseCursors.resizeUpLeftDownRight,
+                controle: controle,
+              ),
+            ),
+            Positioned(
+              top: 0,
+              right: 0,
+              width: coin,
+              height: coin,
+              child: _Zone(
+                cle: const Key('zone-redimensionnement-haut-droit'),
+                bord: BordFenetre.hautDroite,
+                curseur: SystemMouseCursors.resizeUpRightDownLeft,
+                controle: controle,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _Zone extends StatelessWidget {
+  const _Zone({
+    required this.cle,
+    required this.bord,
+    required this.curseur,
+    required this.controle,
+  });
+
+  final Key cle;
+  final BordFenetre bord;
+  final MouseCursor curseur;
+  final ControleFenetre controle;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: curseur,
+      opaque: true,
+      child: Listener(
+        key: cle,
+        behavior: HitTestBehavior.opaque,
+        // Dès l'appui, comme le cadre natif : le système prend le geste.
+        onPointerDown: (e) {
+          if (e.buttons == kPrimaryButton) controle.redimensionner(bord);
+        },
+        child: const SizedBox.expand(),
+      ),
     );
   }
 }

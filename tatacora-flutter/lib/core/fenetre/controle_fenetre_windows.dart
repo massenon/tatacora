@@ -78,4 +78,18 @@ final class ControleFenetreWindows
 
   @override
   Future<void> deplacer() => windowManager.startDragging();
+
+  /// `window_manager` ne trace aucune zone de saisie : il envoie seulement
+  /// `WM_NCLBUTTONDOWN` au bord demandé (`startResizing`). Les bords GAUCHE,
+  /// DROIT et BAS, ainsi que leurs coins, restent redimensionnables par le
+  /// cadre natif (`WS_THICKFRAME` ; `WM_NCCALCSIZE` du plugin retire 8 px à
+  /// gauche, à droite et en bas de la zone client, JAMAIS en haut) : seuls le
+  /// haut et ses deux coins n'ont plus de cadre, d'où ces trois bords.
+  @override
+  Future<void> redimensionner(BordFenetre bord) =>
+      windowManager.startResizing(switch (bord) {
+        BordFenetre.haut => ResizeEdge.top,
+        BordFenetre.hautGauche => ResizeEdge.topLeft,
+        BordFenetre.hautDroite => ResizeEdge.topRight,
+      });
 }

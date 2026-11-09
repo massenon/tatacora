@@ -24,4 +24,14 @@ abstract interface class ControleFenetre {
   /// Commence le déplacement de la fenêtre (glisser dans la zone libre de la
   /// barre supérieure).
   Future<void> deplacer();
+
+  /// Commence le REDIMENSIONNEMENT de la fenêtre par le [bord] saisi. Sans
+  /// barre de titre native, la fenêtre n'a plus de cadre sur son bord HAUT :
+  /// la coquille pose des zones de saisie invisibles qui appellent cette
+  /// méthode (voir `ZonesRedimensionnementFenetre`).
+  Future<void> redimensionner(BordFenetre bord);
 }
+
+/// Le bord ou le coin de la fenêtre saisi pour la redimensionner. Un type du
+/// seam, pour que l'interface ne connaisse aucun plugin.
+enum BordFenetre { haut, hautGauche, hautDroite }

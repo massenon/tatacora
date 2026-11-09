@@ -12,6 +12,9 @@ abstract final class LibellesFenetre {
   static const String agrandir = 'Agrandir';
   static const String restaurer = 'Restaurer';
   static const String fermer = 'Fermer';
+
+  /// La croix du champ de recherche déplié (fenêtre étroite, mode icône).
+  static const String fermerRecherche = 'Fermer la recherche';
 }
 
 /// Les tracés (`viewBox="0 0 24 24"`, lus par `IconeTrace`).

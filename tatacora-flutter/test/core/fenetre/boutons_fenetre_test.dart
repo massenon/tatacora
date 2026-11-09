@@ -1,9 +1,12 @@
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RendererBinding;
 import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tatacora_flutter/core/database/app_database.dart';
 import 'package:tatacora_flutter/core/di/providers.dart';
@@ -13,6 +16,12 @@ import 'package:tatacora_flutter/core/fenetre/controle_fenetre_windows.dart';
 import 'package:tatacora_flutter/core/fenetre/libelles_fenetre.dart';
 import 'package:tatacora_flutter/core/fenetre/providers_fenetre.dart';
 import 'package:tatacora_flutter/core/navigation/trace_svg.dart';
+import 'package:tatacora_flutter/core/responsive/breakpoints.dart';
+import 'package:tatacora_flutter/core/router/disposition_barre.dart';
+import 'package:tatacora_flutter/features/caisse/domain/indicateur_caisse.dart';
+import 'package:tatacora_flutter/features/caisse/presentation/providers_caisse.dart';
+import 'package:tatacora_flutter/features/comptabilite/domain/entities/comptabilite.dart';
+import 'package:tatacora_flutter/features/comptabilite/presentation/exercice_consulte.dart';
 import 'package:tatacora_flutter/core/theme/app_spacing.dart';
 import 'package:tatacora_flutter/core/theme/mesures_fenetre.dart';
 
@@ -49,7 +58,20 @@ class _FauxControleFenetre implements ControleFenetre {
 
   @override
   Future<void> deplacer() async => actions.add('deplacer');
+
+  @override
+  Future<void> redimensionner(BordFenetre bord) async =>
+      actions.add('redimensionner:${bord.name}');
 }
+
+ExerciceComptable _exercice(int annee, StatutExercice statut) =>
+    ExerciceComptable(
+      id: 'ex-$annee',
+      annee: annee,
+      dateDebut: '$annee-01-01',
+      dateFin: '$annee-12-31',
+      statut: statut,
+    );
 
 const _droits = {
   'M1': 'C', 'M2': 'C', 'M3': 'C', 'M4': 'C', 'M5': 'C', 'M6': 'C', //
@@ -66,6 +88,9 @@ Future<void> _monter(
   WidgetTester tester, {
   _FauxControleFenetre? controle,
   Size taille = const Size(1600, 900),
+  String route = '/stocks',
+  String? login,
+  List<Override> autres = const [],
 }) async {
   final base = AppDatabase.enMemoire();
   addTearDown(base.close);
@@ -73,11 +98,13 @@ Future<void> _monter(
     tester,
     role: 'administrateur',
     droits: _droits,
-    routeActive: '/stocks',
+    routeActive: route,
     taille: taille,
+    login: login,
     surcharges: [
       baseLocaleProvider.overrideWithValue(base),
       controleFenetreProvider.overrideWithValue(controle),
+      ...autres,
     ],
   );
 }
@@ -102,6 +129,48 @@ void main() {
       expect(find.byKey(_zone), findsNothing);
       // La barre, elle, est celle de la vue.
       expect(find.byKey(const Key('bouton-vente')), findsOneWidget);
+    });
+  });
+
+  group('disposition de la barre (fonction pure de la largeur)', () {
+    DispositionBarre pour(double l, {bool boutons = true}) =>
+        DispositionBarre.pour(l, avecBoutonsFenetre: boutons);
+
+    test('large : rien n\'est replié', () {
+      final d = pour(2560);
+      expect(d.compacte, isFalse);
+      expect(d.rechercheIcone, isFalse);
+      expect(d.caisseIcone, isFalse);
+      expect(d.exerciceReduit, isFalse);
+      expect(d.exerciceMasque, isFalse);
+      expect(d.venteIcone, isFalse);
+      expect(d.logoMasque, isFalse);
+      expect(d.synchroMasquee, isFalse);
+    });
+
+    test('le repli est MONOTONE : un élément replié le reste plus étroit', () {
+      var precedent = pour(2560);
+      for (var l = 2560.0; l >= 320; l -= 8) {
+        final d = pour(l);
+        for (final (avant, apres) in [
+          (precedent.compacte, d.compacte),
+          (precedent.rechercheIcone, d.rechercheIcone),
+          (precedent.caisseIcone, d.caisseIcone),
+          (precedent.exerciceReduit, d.exerciceReduit),
+          (precedent.exerciceMasque, d.exerciceMasque),
+          (precedent.venteIcone, d.venteIcone),
+          (precedent.logoMasque, d.logoMasque),
+          (precedent.synchroMasquee, d.synchroMasquee),
+        ]) {
+          if (avant) expect(apres, isTrue, reason: 'à $l px');
+        }
+        precedent = d;
+      }
+    });
+
+    test('sans boutons de fenêtre, la barre n\'est jamais « compacte »', () {
+      expect(pour(500, boutons: false).compacte, isFalse);
+      expect(pour(500).compacte, isTrue);
     });
   });
 
@@ -242,24 +311,325 @@ void main() {
       }
     });
 
-    testWidgets('aucun débordement non plus aux petites largeurs (560 à '
-        '740 px)', (tester) async {
-      // Hors de la plage du poste (le runner interdit < 1024 px), mais la
-      // fenêtre étroite ne doit pas être pire AVEC les boutons. ⚠ Entre 800 et
-      // 1000 px la barre SEULE déborde déjà (mesuré le 09/11/2026, 34 à 178 px,
-      // antérieur à ce lot, hors poste) : ces largeurs ne sont pas balayées.
-      for (final largeur in <double>[560, 640, 740]) {
+    testWidgets('la barre ne déborde JAMAIS, de 320 à 2560 px, dans les cas '
+        'les plus larges (caisse à clôturer, exercice autre que le défaut, '
+        'login long)', (tester) async {
+      // Le runner borne le poste à 1024 px ; la barre doit pourtant tenir de
+      // 320 à 2560 px (demande du PO du 09/11/2026 : « déborde déjà à 320 px
+      // et à 400 px »). Pas de 24 px, plus les deux côtés de chaque seuil.
+      final largeurs = <double>{
+        for (var l = 320.0; l <= 2560; l += 24) l,
+        2560,
+        for (final seuil in [
+          MesuresFenetre.seuilBarreCompacte,
+          MesuresFenetre.seuilRechercheIcone,
+          MesuresFenetre.seuilCaisseIcone,
+          MesuresFenetre.seuilExerciceReduit,
+          MesuresFenetre.seuilExerciceMasque,
+          MesuresFenetre.seuilVenteIcone,
+          MesuresFenetre.seuilLogoMasque,
+          MesuresFenetre.seuilSynchroMasquee,
+          Breakpoints.tablette,
+          Breakpoints.desktop,
+        ]) ...[seuil - 1, seuil, seuil + 1],
+      }.toList()..sort();
+
+      final defaut = _exercice(2027, StatutExercice.ouvert);
+      final autre = _exercice(2026, StatutExercice.enCloture);
+      final cas = <(String, String, String?, List<Override>)>[
+        ('caisse fermée', '/stocks', null, const []),
+        (
+          'caisse à clôturer, exercice autre, login long',
+          '/facturation',
+          'utilisateur.au.login.tres.long',
+          [
+            indicateurCaisseProvider.overrideWith(
+              (ref) async => const IndicateurCaisse(etat: EtatCaisse.tardive),
+            ),
+            exercicesDuPosteProvider.overrideWith(
+              (ref) async => [defaut, autre],
+            ),
+            exerciceConsulteProvider.overrideWith((ref) => autre),
+          ],
+        ),
+      ];
+      for (final (nom, route, login, autres) in cas) {
+        for (final largeur in largeurs) {
+          // Démonte : le nombre de surcharges change d'un cas à l'autre.
+          await tester.pumpWidget(const SizedBox());
+          await _monter(
+            tester,
+            controle: _FauxControleFenetre(),
+            taille: Size(largeur, 900),
+            route: route,
+            login: login,
+            autres: autres,
+          );
+          await tester.pump();
+          await tester.pump();
+          expect(
+            tester.takeException(),
+            isNull,
+            reason: 'débordement de la barre à $largeur px ($nom)',
+          );
+          // Toujours visibles, à toute largeur.
+          expect(find.byKey(_reduire), findsOneWidget, reason: '$largeur px');
+          expect(find.byKey(_agrandir), findsOneWidget, reason: '$largeur px');
+          expect(find.byKey(_fermer), findsOneWidget, reason: '$largeur px');
+          expect(
+            tester.getRect(find.byKey(_fermer)).right,
+            largeur,
+            reason: 'la croix reste au bord droit à $largeur px ($nom)',
+          );
+          expect(
+            find.byType(PopupMenuButton<String>),
+            findsOneWidget,
+            reason: 'menu de compte à $largeur px',
+          );
+          expect(
+            find.byKey(
+              Key(
+                largeur >= Breakpoints.desktop
+                    ? 'bouton-plein-ecran'
+                    : 'bouton-menu-mobile',
+              ),
+            ),
+            findsOneWidget,
+            reason: 'bouton de menu à $largeur px',
+          );
+        }
+      }
+    });
+
+    testWidgets('les cibles de la barre font au moins 32 px, à toute largeur', (
+      tester,
+    ) async {
+      final cles = <Key>[
+        _reduire,
+        _agrandir,
+        _fermer,
+        const Key('bouton-vente'),
+        const Key('bouton-synchronisation'),
+        const Key('bouton-cloche-notifications'),
+        const Key('indicateur-caisse'),
+        const Key('bouton-menu-mobile'),
+        const Key('bouton-plein-ecran'),
+        const Key('recherche-globale-icone'),
+      ];
+      for (final largeur in <double>[320, 400, 640, 800, 1000, 1100, 1600]) {
         await _monter(
           tester,
           controle: _FauxControleFenetre(),
           taille: Size(largeur, 900),
         );
-        expect(
-          tester.takeException(),
-          isNull,
-          reason: 'débordement à $largeur px',
-        );
+        for (final cle in cles) {
+          final f = find.byKey(cle);
+          if (f.evaluate().isEmpty) continue;
+          final t = tester.getSize(f.first);
+          // Au repos sur un grand écran, ces deux-là gardent la mesure de la
+          // vue (tracé de 22 px) : la contrainte vaut sous le seuil compact.
+          if (largeur >= MesuresFenetre.seuilBarreCompacte &&
+              cle == const Key('bouton-plein-ecran')) {
+            continue;
+          }
+          expect(
+            t.shortestSide,
+            greaterThanOrEqualTo(MesuresFenetre.hauteurMinimale),
+            reason: '$cle à $largeur px : $t',
+          );
+        }
       }
+    });
+
+    testWidgets('priorité du repli : recherche et caisse en icône, '
+        '« Vente » en icône plus bas, logo et synchronisation ensuite', (
+      tester,
+    ) async {
+      Future<void> a(double largeur) => _monter(
+        tester,
+        controle: _FauxControleFenetre(),
+        taille: Size(largeur, 900),
+      );
+      final recherche = find.byKey(const Key('recherche-globale'));
+      final rechercheIcone = find.byKey(const Key('recherche-globale-icone'));
+      final libelleVente = find.descendant(
+        of: find.byKey(const Key('bouton-vente')),
+        matching: find.text('Vente'),
+      );
+      final logo = find.byKey(const Key('logo-barre-superieure'));
+      final synchro = find.byKey(const Key('bouton-synchronisation'));
+
+      await a(1600);
+      expect(recherche, findsOneWidget);
+      expect(rechercheIcone, findsNothing);
+      expect(libelleVente, findsOneWidget);
+      expect(logo, findsOneWidget);
+      expect(synchro, findsOneWidget);
+
+      await a(1300);
+      expect(recherche, findsNothing);
+      expect(rechercheIcone, findsOneWidget);
+      expect(libelleVente, findsOneWidget);
+
+      await a(1000);
+      expect(libelleVente, findsNothing);
+
+      await a(1010);
+      expect(logo, findsOneWidget);
+
+      await a(500);
+      expect(libelleVente, findsNothing);
+      expect(find.byKey(const Key('bouton-vente')), findsOneWidget);
+      expect(logo, findsNothing);
+
+      await a(320);
+      expect(synchro, findsNothing);
+      expect(find.byKey(const Key('bouton-vente')), findsOneWidget);
+      expect(
+        find.byKey(const Key('bouton-cloche-notifications')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('la recherche en icône ouvre le champ par-dessus la barre, '
+        'qui se referme', (tester) async {
+      await _monter(
+        tester,
+        controle: _FauxControleFenetre(),
+        taille: const Size(900, 900),
+      );
+      expect(find.byKey(const Key('recherche-globale-champ')), findsNothing);
+      await tester.tap(find.byKey(const Key('recherche-globale-icone')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('recherche-globale-champ')), findsOneWidget);
+      await tester.enterText(
+        find.byKey(const Key('recherche-globale-champ')),
+        'zz',
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      await tester.tap(find.byKey(const Key('recherche-globale-fermer')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('recherche-globale-champ')), findsNothing);
+    });
+
+    group('redimensionnement par le haut (barre de titre native masquée)', () {
+      const haut = Key('zone-redimensionnement-haut');
+      const hautGauche = Key('zone-redimensionnement-haut-gauche');
+      const hautDroit = Key('zone-redimensionnement-haut-droit');
+
+      testWidgets('trois zones invisibles, minces, au bord haut ; aucune hors '
+          'du poste', (tester) async {
+        await _monter(tester);
+        expect(find.byKey(haut), findsNothing);
+        expect(find.byKey(hautGauche), findsNothing);
+        expect(find.byKey(hautDroit), findsNothing);
+
+        await _monter(tester, controle: _FauxControleFenetre());
+        final h = tester.getRect(find.byKey(haut));
+        expect(h.top, 0);
+        expect(h.height, MesuresFenetre.epaisseurBordRedimensionnement);
+        expect(h.height, lessThanOrEqualTo(6));
+        final g = tester.getRect(find.byKey(hautGauche));
+        expect(g.topLeft, Offset.zero);
+        expect(
+          g.size,
+          const Size.square(MesuresFenetre.tailleCoinRedimensionnement),
+        );
+        final d = tester.getRect(find.byKey(hautDroit));
+        expect(d.topRight, const Offset(1600, 0));
+        // Le bord s'arrête au coin gauche et AVANT les trois boutons.
+        expect(h.left, g.right);
+        expect(h.right, tester.getRect(find.byKey(_reduire)).left);
+      });
+
+      testWidgets('chaque zone appelle le BON bord et le bon curseur', (
+        tester,
+      ) async {
+        final controle = _FauxControleFenetre();
+        await _monter(tester, controle: controle);
+        final souris = await tester.createGesture(
+          kind: PointerDeviceKind.mouse,
+        );
+        addTearDown(souris.removePointer);
+        for (final (cle, bord, curseur) in [
+          (haut, 'haut', SystemMouseCursors.resizeUpDown),
+          (hautGauche, 'hautGauche', SystemMouseCursors.resizeUpLeftDownRight),
+          (hautDroit, 'hautDroite', SystemMouseCursors.resizeUpRightDownLeft),
+        ]) {
+          final centre = tester.getCenter(find.byKey(cle));
+          await souris.moveTo(centre);
+          await tester.pump();
+          expect(
+            RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1),
+            curseur,
+            reason: bord,
+          );
+          await souris.down(centre);
+          await souris.up();
+          expect(controle.actions.last, 'redimensionner:$bord');
+        }
+        expect(controle.actions, hasLength(3));
+      });
+
+      testWidgets('les boutons restent cliquables jusqu\'au pixel du haut', (
+        tester,
+      ) async {
+        final controle = _FauxControleFenetre();
+        await _monter(tester, controle: controle);
+        for (final (cle, action) in [
+          (_reduire, 'reduire'),
+          (_agrandir, 'basculer'),
+          (_fermer, 'fermer'),
+        ]) {
+          final r = tester.getRect(find.byKey(cle));
+          // Au centre de la rangée du haut (y = 0,5 px), hors de l'angle.
+          await tester.tapAt(Offset(r.center.dx - 4, 0.5));
+          expect(controle.actions.last, action, reason: '$cle');
+        }
+        expect(
+          controle.actions.where((a) => a.startsWith('redimensionner')),
+          isEmpty,
+        );
+      });
+
+      testWidgets('inactives fenêtre agrandie, actives de nouveau restaurée', (
+        tester,
+      ) async {
+        final controle = _FauxControleFenetre()..agrandir(true);
+        await _monter(tester, controle: controle);
+        expect(find.byKey(haut), findsNothing);
+        expect(find.byKey(hautGauche), findsNothing);
+        expect(find.byKey(hautDroit), findsNothing);
+        controle.agrandir(false);
+        await tester.pump();
+        expect(find.byKey(haut), findsOneWidget);
+      });
+
+      testWidgets('barre compacte : le bord s\'arrête devant les boutons de '
+          '32 px', (tester) async {
+        await _monter(
+          tester,
+          controle: _FauxControleFenetre(),
+          taille: const Size(900, 900),
+        );
+        expect(
+          tester.getRect(find.byKey(haut)).right,
+          tester.getRect(find.byKey(_reduire)).left,
+        );
+      });
+
+      testWidgets('le clic droit ne redimensionne pas', (tester) async {
+        final controle = _FauxControleFenetre();
+        await _monter(tester, controle: controle);
+        final souris = await tester.createGesture(
+          kind: PointerDeviceKind.mouse,
+          buttons: kSecondaryButton,
+        );
+        await souris.down(tester.getCenter(find.byKey(haut)));
+        await souris.up();
+        expect(controle.actions, isEmpty);
+      });
     });
 
     testWidgets('fenêtre étroite : boutons de 32 px et identité du compte '
@@ -397,6 +767,21 @@ void main() {
       final greffons = source.indexOf('HandleTopLevelWindowProc');
       expect(minmax, greaterThan(0));
       expect(greffons, greaterThan(minmax));
+    });
+
+    test('le Windows réel mappe chaque bord sur le BON ResizeEdge', () {
+      final source = lire('lib/core/fenetre/controle_fenetre_windows.dart');
+      for (final (bord, arete) in [
+        ('haut', 'top'),
+        ('hautGauche', 'topLeft'),
+        ('hautDroite', 'topRight'),
+      ]) {
+        expect(
+          source,
+          contains('BordFenetre.$bord => ResizeEdge.$arete,'),
+          reason: bord,
+        );
+      }
     });
 
     test('la fenêtre est préparée AVANT runApp, au poste comme en démo', () {
