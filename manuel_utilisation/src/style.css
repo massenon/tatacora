@@ -1,0 +1,372 @@
+/* ---------------------------------------------------------------------------
+ * LogiRestock — Manuel d'utilisation
+ * Charte graphique TATACORA AFRIQUE : marine #14213D, or #B8891E, Inter.
+ * Les valeurs de couleur sont celles de `prototype_v2/assets/css/app.css`.
+ * ------------------------------------------------------------------------- */
+
+@font-face { font-family: 'Inter'; src: url('../assets/fonts/Inter-400-latin.woff2') format('woff2'); font-weight: 400; font-display: block; }
+@font-face { font-family: 'Inter'; src: url('../assets/fonts/Inter-500-latin.woff2') format('woff2'); font-weight: 500; font-display: block; }
+@font-face { font-family: 'Inter'; src: url('../assets/fonts/Inter-600-latin.woff2') format('woff2'); font-weight: 600; font-display: block; }
+@font-face { font-family: 'Inter'; src: url('../assets/fonts/Inter-700-latin.woff2') format('woff2'); font-weight: 700; font-display: block; }
+
+:root {
+  --navy: #14213D;
+  --gold: #B8891E;
+  --succes: #059669;
+  --alerte: #DC2626;
+  --ardoise: #64748B;
+  --trait: #E2E8F0;
+  --fond-doux: #F8FAFC;
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+body {
+  font-family: 'Inter', Arial, Helvetica, sans-serif;
+  font-size: 11pt;
+  line-height: 1.55;
+  color: #1E293B;
+  margin: 0;
+}
+
+/* ---------------------------------------------------------------- Titres */
+
+h1, h2, h3, h4 { font-weight: 700; color: var(--navy); margin: 0; }
+
+h1.chapitre {
+  font-size: 21pt;
+  line-height: 1.2;
+  padding-bottom: 6mm;
+  margin-bottom: 6mm;
+  border-bottom: 3px solid var(--gold);
+}
+h1.chapitre .numero {
+  display: block;
+  font-size: 10pt;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 2mm;
+}
+
+h2 { font-size: 14pt; margin: 7mm 0 3mm; }
+h2::before {
+  content: '';
+  display: inline-block;
+  width: 4px; height: 14pt;
+  background: var(--gold);
+  margin-right: 3mm;
+  vertical-align: -2px;
+}
+h3 { font-size: 11.5pt; margin: 6mm 0 2mm; color: var(--navy); }
+h4 { font-size: 10.5pt; margin: 4mm 0 1.5mm; color: var(--ardoise); text-transform: uppercase; letter-spacing: .08em; }
+
+p { margin: 0 0 3mm; }
+strong { font-weight: 600; color: var(--navy); }
+em { font-style: normal; color: var(--gold); font-weight: 600; }
+
+a { color: var(--navy); text-decoration: none; }
+
+.chapeau {
+  font-size: 11.5pt;
+  color: var(--ardoise);
+  margin-bottom: 6mm;
+}
+
+/* Chemin d'accès : Menu ➔ Écran ➔ Bouton */
+.chemin {
+  display: block;
+  background: var(--fond-doux);
+  border-left: 4px solid var(--navy);
+  padding: 2.5mm 4mm;
+  margin: 0 0 4mm;
+  font-size: 10.5pt;
+  font-weight: 600;
+  color: var(--navy);
+  page-break-inside: avoid;
+}
+.chemin .fleche { color: var(--gold); font-weight: 700; padding: 0 1.5mm; }
+.chemin .etiquette {
+  font-size: 8.5pt;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ardoise);
+  display: block;
+  font-weight: 600;
+}
+
+/* ------------------------------------------------------------- Étapes 1,2,3 */
+
+ol.etapes { counter-reset: etape; list-style: none; margin: 0 0 5mm; padding: 0; }
+ol.etapes > li {
+  counter-increment: etape;
+  position: relative;
+  padding: 0 0 3mm 11mm;
+  page-break-inside: avoid;
+}
+ol.etapes > li::before {
+  content: counter(etape);
+  position: absolute;
+  left: 0; top: -0.4mm;
+  width: 7mm; height: 7mm;
+  border-radius: 50%;
+  background: var(--navy);
+  color: #fff;
+  font-size: 10pt;
+  font-weight: 700;
+  text-align: center;
+  line-height: 7mm;
+}
+ol.etapes ul { margin: 1.5mm 0 0; padding-left: 5mm; }
+
+ul.puces { list-style: none; margin: 0 0 4mm; padding: 0; }
+ul.puces > li { position: relative; padding: 0 0 1.5mm 6mm; }
+ul.puces > li::before {
+  content: '';
+  position: absolute; left: 1mm; top: 2.2mm;
+  width: 2mm; height: 2mm; border-radius: 50%;
+  background: var(--gold);
+}
+
+/* --------------------------------------------------------------- Encadrés */
+
+.note {
+  display: block;
+  page-break-inside: avoid;
+  margin: 0 0 4mm;
+  padding: 3mm 4mm 3mm 12mm;
+  border-radius: 2mm;
+  border-left: 4px solid var(--ardoise);
+  background: var(--fond-doux);
+  font-size: 10.5pt;
+  position: relative;
+}
+.note .icone {
+  position: absolute;
+  left: 3.5mm; top: 2.6mm;
+  font-size: 12pt;
+  line-height: 1;
+}
+.note .titre {
+  display: block;
+  font-weight: 700;
+  font-size: 9pt;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  margin-bottom: 1mm;
+}
+.note.info { border-left-color: #2563EB; background: #EFF6FF; }
+.note.info .titre { color: #1D4ED8; }
+.note.attention { border-left-color: var(--gold); background: #FEF9EC; }
+.note.attention .titre { color: #92600F; }
+.note.alerte { border-left-color: var(--alerte); background: #FEF2F2; }
+.note.alerte .titre { color: #B91C1C; }
+.note.astuce { border-left-color: var(--succes); background: #ECFDF5; }
+.note.astuce .titre { color: #047857; }
+
+/* --------------------------------------------------------------- Captures */
+
+figure {
+  margin: 0 0 5mm;
+  page-break-inside: avoid;
+}
+figure img {
+  display: block;
+  max-width: 100%;
+  /* Hauteur plafonnée : sans cela, une capture de 1440 x 1500 occupe 185 mm et
+     laisse une demi-page blanche derrière elle. */
+  max-height: 120mm;
+  width: auto;
+  height: auto;
+  margin: 0 auto;
+  border: 1px solid var(--trait);
+  border-radius: 2mm;
+}
+figcaption {
+  font-size: 9pt;
+  color: var(--ardoise);
+  margin-top: 1.5mm;
+  padding-left: 1mm;
+  border-left: 3px solid var(--gold);
+  padding-left: 2.5mm;
+}
+figcaption b { color: var(--navy); }
+figure.demi img { width: 72%; margin: 0 auto; }
+
+.reperes { margin: 2mm 0 0; padding: 0; list-style: none; font-size: 9pt; }
+.reperes li { padding: .6mm 0 .6mm 8mm; position: relative; }
+.reperes li .n {
+  position: absolute; left: 0; top: .6mm;
+  width: 5mm; height: 5mm; border-radius: 50%;
+  background: var(--alerte); color: #fff;
+  font-size: 8pt; font-weight: 700; text-align: center; line-height: 5mm;
+}
+
+/* --------------------------------------------------------------- Tableaux */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9.5pt;
+  margin: 0 0 5mm;
+  page-break-inside: auto;
+}
+thead th {
+  background: var(--navy);
+  color: #fff;
+  text-align: left;
+  font-weight: 600;
+  font-size: 8.5pt;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: 2mm 2.5mm;
+}
+tbody td {
+  padding: 1.8mm 2.5mm;
+  border-bottom: 1px solid var(--trait);
+  vertical-align: top;
+}
+tbody tr:nth-child(even) td { background: var(--fond-doux); }
+tr { page-break-inside: avoid; }
+td.num, th.num { text-align: right; }
+td code, p code, li code {
+  font-family: 'Inter', Arial, sans-serif;
+  font-size: 9pt;
+  background: #EEF2F7;
+  border-radius: 1mm;
+  padding: .3mm 1.2mm;
+  color: var(--navy);
+}
+.pastille {
+  display: inline-block;
+  font-size: 8pt;
+  font-weight: 700;
+  padding: .4mm 1.6mm;
+  border-radius: 1mm;
+  color: #fff;
+  background: var(--navy);
+}
+.pastille.or { background: var(--gold); }
+.pastille.vert { background: var(--succes); }
+.pastille.rouge { background: var(--alerte); }
+.pastille.gris { background: var(--ardoise); }
+
+/* ------------------------------------------------------------- Couverture */
+
+.couverture {
+  width: 210mm;
+  height: 297mm;
+  background: var(--navy);
+  color: #fff;
+  padding: 0;
+  page-break-after: always;
+  position: relative;
+  overflow: hidden;
+}
+.couverture .bandeau-image {
+  height: 118mm;
+  width: 100%;
+  object-fit: cover;
+  display: block;
+  opacity: .5;
+}
+.couverture .voile {
+  position: absolute; top: 0; left: 0; right: 0; height: 118mm;
+  background: linear-gradient(180deg, rgba(20,33,61,.30) 0%, rgba(20,33,61,.80) 60%, rgba(20,33,61,1) 92%);
+}
+.couverture .contenu { position: absolute; top: 0; left: 0; right: 0; bottom: 0; padding: 20mm 18mm 16mm; display: block; }
+.couverture .marque { display: flex; align-items: center; gap: 5mm; }
+.couverture .marque img { width: 20mm; height: 20mm; border-radius: 3mm; border: 2px solid var(--gold); object-fit: cover; }
+.couverture .marque .nom { font-size: 15pt; font-weight: 700; letter-spacing: .02em; }
+.couverture .marque .lieu { font-size: 9.5pt; color: rgba(255,255,255,.6); }
+.couverture .etiquette-manuel {
+  margin-top: 78mm;
+  font-size: 10pt;
+  letter-spacing: .3em;
+  text-transform: uppercase;
+  color: var(--gold);
+  font-weight: 600;
+}
+.couverture h1 {
+  color: #fff;
+  font-size: 44pt;
+  line-height: 1;
+  margin: 4mm 0 0;
+  letter-spacing: -.02em;
+}
+.couverture .sous-titre {
+  font-size: 13pt;
+  color: rgba(255,255,255,.82);
+  margin-top: 6mm;
+  max-width: 135mm;
+  line-height: 1.5;
+}
+.couverture .filet { width: 40mm; height: 3px; background: var(--gold); margin: 8mm 0; }
+.couverture .reference-couverture {
+  margin-top: 10mm;
+  font-size: 10pt;
+  color: rgba(255,255,255,.6);
+}
+.couverture .pied {
+  position: absolute; left: 18mm; right: 18mm; bottom: 16mm;
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 8mm;
+  font-size: 9pt; color: rgba(255,255,255,.7);
+  border-top: 1px solid rgba(255,255,255,.2);
+  padding-top: 4mm;
+}
+.couverture .bloc-pied { display: block; line-height: 1.45; flex: 1 1 98mm; }
+.couverture .bloc-pied.droite { flex: 0 1 72mm; }
+.couverture .bloc-pied.droite { text-align: right; }
+.couverture .bloc-pied span { display: block; }
+.couverture .bloc-pied strong { color: #fff; font-weight: 700; display: block; font-size: 10.5pt; }
+.couverture .etiquette-pied {
+  font-size: 7.5pt;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  color: var(--gold);
+  font-weight: 700;
+  margin-bottom: 1.5mm;
+}
+.couverture .bloc-pied .contact { color: rgba(255,255,255,.58); font-size: 8pt; white-space: nowrap; }
+.couverture .bloc-pied .version {
+  color: var(--gold);
+  font-weight: 700;
+  font-size: 9.5pt;
+  margin-top: 1.5mm;
+}
+
+/* --------------------------------------------------------------- Sommaire */
+
+.sommaire { margin: 0; padding: 0; list-style: none; }
+.sommaire > li { padding: 1.6mm 0; border-bottom: 1px dotted var(--trait); font-size: 10.5pt; }
+.sommaire > li .n { color: var(--gold); font-weight: 700; display: inline-block; width: 12mm; }
+.sommaire > li .t { font-weight: 600; color: var(--navy); }
+.sommaire > li .p { float: right; color: var(--ardoise); font-weight: 600; }
+.sommaire li.sous { padding-left: 12mm; font-size: 9.5pt; border-bottom: none; padding-top: .6mm; padding-bottom: .6mm; }
+.sommaire li.sous .t { font-weight: 400; color: #334155; }
+
+/* --------------------------------------------------------- Blocs de page */
+
+section.chapitre { page-break-before: always; }
+section.chapitre:first-of-type { page-break-before: avoid; }
+.eviter-coupure { page-break-inside: avoid; }
+
+.bloc-approbation {
+  border: 1px solid var(--gold);
+  border-top: 4px solid var(--gold);
+  border-radius: 2mm;
+  padding: 6mm;
+  background: #FEFCF6;
+}
+.bloc-approbation .mention {
+  font-size: 8.5pt;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--gold);
+  font-weight: 700;
+  margin-bottom: 3mm;
+}
+
+.legende-icones td:first-child { font-size: 13pt; text-align: center; width: 12mm; }

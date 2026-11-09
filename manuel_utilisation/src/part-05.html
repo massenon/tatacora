@@ -1,0 +1,336 @@
+<!-- ============================ CHAPITRE 5 ============================ -->
+<section class="chapitre" id="ch5">
+  <h1 class="chapitre"><span class="numero">Chapitre 5</span>Clients, créances et facturation</h1>
+
+  <p class="chapeau">
+    Un client, une fiche. Tous les modules — réservations, bar, restaurant, tourisme, véhicules —
+    pointent vers la même fiche, et son solde est calculé depuis les pièces. Vous ne saisissez
+    jamais un solde à la main.
+  </p>
+
+  <h2>5.1 Créer et tenir une fiche client</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Menu latéral <span class="fleche">➔</span> Clients &amp; Créances <span class="fleche">➔</span> + Nouveau client
+  </span>
+
+  <ol class="etapes">
+    <li>Cliquez sur <strong>+ Nouveau client</strong>.</li>
+    <li>Renseignez le <strong>Nom complet</strong>, le <strong>Téléphone</strong>, l'<strong>Email</strong> si vous l'avez, et le <strong>Type</strong> :
+      Particulier, Groupe, Agence partenaire ou Structure.</li>
+    <li>Cliquez sur <strong>Enregistrer</strong>.</li>
+  </ol>
+
+  <span class="note attention">
+    <span class="icone">⚠️</span>
+    <span class="titre">Attention</span>
+    Si un client du même nom existe déjà, le logiciel <strong>signale le doublon</strong> et vous demande de
+    confirmer — il ne bloque pas. Vérifiez le numéro de téléphone avant de confirmer : deux fiches
+    pour la même personne, ce sont deux soldes, et un client relancé pour une somme qu'il a déjà payée.
+  </span>
+
+  <h2>5.2 Suivre les créances</h2>
+  <p>
+    L'écran <strong>Clients &amp; Créances</strong> ouvre sur cinq indicateurs — créances totales, dont plus de
+    90 jours, 0 à 30 jours, encaissé sur 30 jours, clients à relancer — puis quatre onglets.
+  </p>
+
+  <table>
+    <thead><tr><th>Onglet</th><th>Ce que vous y faites</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Liste des clients</strong></td><td>Le fichier client, avec le solde dû, le nombre de pièces et l'ancienneté de la dette. Deux actions par ligne : <strong>Historique</strong> et <strong>Recouvrement</strong>.</td></tr>
+      <tr><td><strong>Suivi des dettes</strong></td><td>La balance âgée : 0-30, 31-60, 61-90, plus de 90 jours.</td></tr>
+      <tr><td><strong>Relances clients</strong></td><td>Les relances déjà tracées, leur canal et la promesse de règlement obtenue.</td></tr>
+      <tr><td><strong>Historique &amp; avances</strong></td><td>Les recouvrements enregistrés et les avances reçues.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Enregistrer un recouvrement</h3>
+  <ol class="etapes">
+    <li>Sur la ligne du client, cliquez sur <strong>Recouvrement</strong>.</li>
+    <li>Choisissez la <strong>Pièce réglée</strong> — la réservation ou la note concernée.</li>
+    <li>Saisissez le <strong>Montant reçu (FCFA)</strong>, le <strong>Mode</strong> de règlement, la <strong>Référence</strong> si le
+      règlement en porte une, et un <strong>Commentaire</strong> si nécessaire.</li>
+    <li>Cliquez sur <strong>Enregistrer le recouvrement</strong>.</li>
+  </ol>
+  <p>Le solde du client et la balance âgée se recalculent immédiatement.</p>
+
+  <span class="note alerte">
+    <span class="icone">🛑</span>
+    <span class="titre">Alerte</span>
+    Un <strong>trop-perçu est refusé</strong> : vous ne pouvez pas enregistrer un règlement supérieur au reste dû
+    sur la pièce. Si le client verse davantage, enregistrez le montant dû et traitez le surplus comme
+    une <strong>avance</strong>, dans l'onglet Historique &amp; avances.
+  </span>
+
+  <h3>Tracer une relance</h3>
+  <p>
+    Le bouton <strong>Relancer</strong> enregistre la relance : sa date, son canal et la promesse obtenue.
+    L'écran le dit sans ambiguïté — <strong>la relance est tracée, pas envoyée</strong>. C'est vous qui
+    téléphonez ou écrivez au client ; le logiciel conserve la trace de ce que vous avez fait.
+  </p>
+  <figure>
+    <img src="../captures/m3-clients-creances.png" alt="L'écran Clients &amp; Créances et sa balance âgée.">
+    <figcaption><b>Figure 5.1</b> — L'écran <b>Clients &amp; Créances</b> et sa balance âgée.</figcaption>
+  </figure>
+
+
+  <h2>5.3 Le registre des factures</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Menu latéral <span class="fleche">➔</span> Facturation
+  </span>
+  <p>
+    Le registre porte <strong>une seule séquence de numéros</strong>, toutes origines confondues : POS au
+    comptant, séjour client hébergé et facture directe. Un numéro n'est jamais réutilisé.
+  </p>
+  <ul class="puces">
+    <li>Filtrez par <strong>origine</strong> (POS au comptant, Séjour client hébergé, Facture directe) et par <strong>activité</strong> (Hébergement, Restaurant, Bar, Véhicules, Tourisme).</li>
+    <li>Les trois compteurs en tête donnent le nombre de <strong>Pièces</strong>, le nombre d'<strong>Avoirs</strong> et le <strong>Montant</strong> net de la période.</li>
+    <li><strong>Export Excel</strong> et <strong>Export PDF</strong> reprennent exactement la liste filtrée.</li>
+  </ul>
+
+  <span class="note attention">
+    <span class="icone">⚠️</span>
+    <span class="titre">Attention</span>
+    Le bandeau <strong>« MECeF — non certifiées, démonstration »</strong> signifie ce qu'il écrit : l'inscription
+    à la plateforme fiscale de la DGI n'est pas encore effective, aucune facture ne porte de cachet
+    fiscal. Ne remettez pas ces documents comme des factures normalisées tant que la mention n'a pas
+    changé.
+  </span>
+
+  <span class="note alerte">
+    <span class="icone">🛑</span>
+    <span class="titre">Alerte</span>
+    <strong>Une facture émise ne se modifie pas et ne se supprime pas.</strong> La seule correction possible est
+    l'<strong>avoir</strong> : une pièce de sens inverse, qui laisse la facture d'origine dans le registre. C'est
+    la règle sur laquelle repose la valeur probante de toute la facturation.
+  </span>
+  <figure>
+    <img src="../captures/m2-facturation.png" alt="Le registre des factures, toutes origines confondues.">
+    <figcaption><b>Figure 5.2</b> — Le <b>registre des factures</b>, toutes origines confondues.</figcaption>
+  </figure>
+
+
+  <h2>5.4 L'historique des ventes</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Menu latéral <span class="fleche">➔</span> Historique des ventes
+  </span>
+  <p>
+    C'est le <strong>journal des ventes</strong>, à ne pas confondre avec le registre des factures. On y cherche
+    un numéro de vente <code>V-2026-00016</code>, pas un numéro de facture <code>F-2026-00042</code>.
+  </p>
+  <table>
+    <thead><tr><th>Indicateur</th><th>Ce qu'il compte</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Ventes</strong></td><td>Le nombre de ventes de la période, et combien ont été annulées.</td></tr>
+      <tr><td><strong>Chiffre d'affaires</strong></td><td>Les ventes validées.</td></tr>
+      <tr><td><strong>Encaissé</strong></td><td>Ce qui est réellement dans le tiroir.</td></tr>
+      <tr><td><strong>Porté en note</strong></td><td>Ce qui a été porté sur une note de chambre : une créance, réglée au départ du client.</td></tr>
+      <tr><td><strong>Sans impact stock</strong></td><td>Les ventes qui n'ont décrémenté aucun article, faute de lien à une fiche de stock.</td></tr>
+    </tbody>
+  </table>
+  <p>
+    Les filtres portent sur le poste, l'activité, le mode de règlement et le statut. Chaque ligne
+    ouvre son <strong>Détail</strong> et, quand elle en a une, sa facture.
+  </p>
+  <figure>
+    <img src="../captures/historique-ventes.png" alt="L'historique des ventes : le journal des ventes, pas des factures.">
+    <figcaption><b>Figure 5.3</b> — L'<b>historique des ventes</b> : le journal des ventes, pas des factures.</figcaption>
+  </figure>
+
+</section>
+
+<!-- ============================ CHAPITRE 6 ============================ -->
+<section class="chapitre" id="ch6">
+  <h1 class="chapitre"><span class="numero">Chapitre 6</span>Point de vente : caisse, tables et panier</h1>
+
+  <p class="chapeau">
+    Deux points de vente, une seule mécanique. Le <strong>Point de vente</strong> encaisse au comptant, table par
+    table ou au comptoir. Le <strong>POS clients hébergés</strong> alimente le panier d'un séjour, qui reste ouvert
+    jusqu'au départ du client. La différence tient au client, pas à la manière de saisir.
+  </p>
+
+  <h2>6.1 Ouvrir la caisse</h2>
+  <p>Rien ne s'encaisse tant que la caisse du poste n'est pas ouverte.</p>
+  <ol class="etapes">
+    <li>Cliquez sur <strong>Ouvrir la caisse</strong>, dans la barre supérieure ou dans le bandeau du point de vente.</li>
+    <li>Choisissez le <strong>Poste de caisse</strong> — Réception, Restaurant ou Bar.</li>
+    <li>Saisissez le <strong>Fond de caisse (FCFA)</strong> : la monnaie présente dans le tiroir avant la première vente.</li>
+    <li>Validez par <strong>Ouvrir</strong>.</li>
+  </ol>
+  <p>
+    Le bandeau affiche alors, en continu : l'heure d'ouverture, le fond, le nombre de ventes,
+    le chiffre d'affaires, le montant <strong>Encaissé</strong> et le montant <strong>En note</strong>.
+  </p>
+
+  <figure>
+    <img src="../captures/a-caisse.png" alt="Bandeau de session de caisse annoté">
+    <figcaption><b>Figure 6.1</b> — Le bandeau de caisse, en haut de l'écran du point de vente.</figcaption>
+    <ul class="reperes">
+      <li><span class="n">1</span>L'état de la session : poste, heure d'ouverture, fond, ventes, encaissé, en note.</li>
+      <li><span class="n">2</span><strong>Journal du jour</strong> — le détail des ventes de la session en cours.</li>
+    </ul>
+  </figure>
+
+  <h2>6.2 Vendre au comptoir ou à une table</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Barre supérieure <span class="fleche">➔</span> Point de vente
+  </span>
+
+  <ol class="etapes">
+    <li>Dans la colonne <strong>Salle</strong>, choisissez la table (T1 à T6, J1 à J4, P1 à P3) ou
+      <strong>Vendre au comptoir</strong> si la vente n'est rattachée à aucune table.</li>
+    <li>Filtrez le catalogue par famille — <strong>Tout</strong>, <strong>Bar</strong>, <strong>Restaurant</strong> — puis par catégorie,
+      ou tapez directement dans <strong>Rechercher un article…</strong>.</li>
+    <li>Cliquez sur l'article : il s'ajoute au <strong>Panier</strong>. Cliquez à nouveau pour augmenter la quantité,
+      ou utilisez les boutons <strong>−</strong> et <strong>+</strong> de la ligne.</li>
+    <li>Vérifiez le <strong>Total</strong>.</li>
+    <li>Choisissez le <strong>Mode de règlement</strong> : Espèces, Mobile Money, Carte bancaire, Virement ou
+      <strong>Porté sur la note de chambre</strong>.</li>
+    <li>Cliquez sur <strong>Encaisser</strong>.</li>
+  </ol>
+
+  <figure>
+    <img src="../captures/a-pos.png" alt="Écran Point de vente annoté">
+    <figcaption><b>Figure 6.2</b> — L'écran <b>Point de vente</b>, une table par panier.</figcaption>
+    <ul class="reperes">
+      <li><span class="n">1</span>La <strong>Salle</strong> : le comptoir et les tables, par espace.</li>
+      <li><span class="n">2</span>Le <strong>catalogue</strong>, filtré par famille et par catégorie.</li>
+      <li><span class="n">3</span>Le <strong>Panier</strong> de la table sélectionnée.</li>
+      <li><span class="n">4</span>Le <strong>Mode de règlement</strong>.</li>
+      <li><span class="n">5</span>Le bouton <strong>Encaisser</strong>.</li>
+    </ul>
+  </figure>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Information</span>
+    <strong>Une table, un panier.</strong> Tant que la table n'est pas encaissée, son panier reste ouvert et
+    vous pouvez y revenir : rien n'est perdu si vous passez à une autre table entre-temps. Le comptoir,
+    lui, n'exige aucune table.
+  </span>
+
+  <span class="note attention">
+    <span class="icone">⚠️</span>
+    <span class="titre">Attention</span>
+    <strong>Porté sur la note de chambre n'est pas un encaissement.</strong> Ce montant n'entre pas dans le tiroir :
+    il devient une créance du client, réglée à son départ. Ne l'utilisez que pour un client
+    effectivement hébergé, et vérifiez que vous avez sélectionné le bon séjour.
+  </span>
+
+  <span class="note astuce">
+    <span class="icone">✅</span>
+    <span class="titre">Astuce</span>
+    Le point orange sur une vignette d'article signale un article qui <strong>ne décrémente aucun stock</strong>,
+    faute de fiche technique. La vente est correcte ; c'est le stock affiché qui reste inchangé.
+    Signalez ces articles au magasinier plutôt que de corriger le stock à la main.
+  </span>
+
+  <h2>6.3 Le panier d'un client hébergé</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Menu latéral <span class="fleche">➔</span> POS clients hébergés
+  </span>
+  <p>
+    Ici, le panier <strong>reste ouvert de l'arrivée au départ</strong>. Bar, restaurant, tourisme et location
+    y entrent ensemble : un seul panier par séjour, une seule facture à la clôture.
+  </p>
+  <ol class="etapes">
+    <li>Dans <strong>Séjours en cours</strong>, cliquez sur le séjour du client. La carte indique l'unité occupée,
+      la date de départ, le montant déjà porté et le nombre de lignes.</li>
+    <li>Ajoutez les articles consommés, exactement comme au point de vente comptant.</li>
+    <li>Laissez le panier ouvert : il se complète à chaque consommation, jour après jour.</li>
+    <li>Au départ du client, cliquez sur <strong>Clôturer et facturer</strong>.</li>
+  </ol>
+
+  <figure>
+    <img src="../captures/a-pos-heberges.png" alt="POS clients hébergés annoté">
+    <figcaption><b>Figure 6.3</b> — Le point de vente des clients hébergés.</figcaption>
+    <ul class="reperes">
+      <li><span class="n">1</span><strong>Séjours en cours</strong> — un panier par séjour, jamais deux.</li>
+      <li><span class="n">2</span>Le <strong>catalogue</strong>, complété d'un rayon <em>Tourisme &amp; location</em>.</li>
+      <li><span class="n">3</span>Le <strong>panier du séjour</strong>, ouvert jusqu'au départ.</li>
+    </ul>
+  </figure>
+
+  <span class="note alerte">
+    <span class="icone">🛑</span>
+    <span class="titre">Alerte</span>
+    <strong>La clôture est définitive.</strong> Un panier clôturé produit la facture et se ferme : plus aucune
+    ligne ne peut y être ajoutée. Faites le tour du bar et de la cuisine <em>avant</em> de clôturer —
+    une consommation servie après la clôture ne pourra plus être rattachée au séjour.
+  </span>
+
+  <span class="note attention">
+    <span class="icone">⚠️</span>
+    <span class="titre">Attention</span>
+    Une réservation dont le <strong>panier est encore ouvert</strong> ne peut pas être archivée. Le logiciel refuse
+    l'opération et le dit : les consommations existeraient encore, sans support pour les facturer, et
+    l'écart n'apparaîtrait qu'à la caisse — trop tard, le client étant parti.
+  </span>
+
+  <h2>6.4 Clôturer la caisse</h2>
+  <ol class="etapes">
+    <li>Cliquez sur <strong>Clôturer la caisse</strong> dans le bandeau ou la barre supérieure.</li>
+    <li>Lisez le récapitulatif : <strong>Fond de caisse</strong>, <strong>Espèces encaissées</strong>, <strong>Théorique en caisse</strong>.</li>
+    <li>Comptez le tiroir et saisissez le <strong>Montant réellement compté</strong>.</li>
+    <li>Validez par <strong>Clôturer</strong>.</li>
+  </ol>
+  <p>
+    Le logiciel annonce alors <em>« Caisse clôturée — aucun écart »</em> ou <em>« Caisse clôturée — écart de … »</em>.
+    L'écart est conservé : il ne se corrige pas, il s'explique.
+  </p>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Information</span>
+    Le théorique ne compte que les <strong>espèces</strong>. Le Mobile Money, la carte et les montants portés en
+    note de chambre n'y figurent pas : ils ne passent pas par le tiroir.
+  </span>
+
+  <h2>6.5 Les cartes du restaurant et du bar</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Menu latéral <span class="fleche">➔</span> Restaurant &nbsp;·&nbsp; Menu latéral <span class="fleche">➔</span> Bar
+  </span>
+  <p>
+    Ces deux écrans portent la carte réellement vendue : catégories, prix, disponibilité du jour et
+    lien au stock. Six indicateurs les résument — articles à la carte, retirés du jour, liés au stock,
+    articles qui ne décrémentent rien, ruptures et <strong>prix provisoires</strong>.
+  </p>
+  <ul class="puces">
+    <li><strong>Rendre indispo.</strong> retire l'article de la carte du jour : il disparaît du point de vente.</li>
+    <li><strong>Lier au stock</strong> rattache l'article à une fiche de stock — c'est ce lien qui fait sortir la bouteille du casier à la vente.</li>
+    <li><strong>Imprimer la fiche des prix</strong> produit le document remis au client (chapitre 11).</li>
+    <li>L'onglet <strong>Couverture du stock</strong> compte, catégorie par catégorie, les articles rattachés et
+      ceux qui ne le sont pas : c'est là qu'un trou de rattachement se voit avant l'inventaire.</li>
+  </ul>
+
+  <figure>
+    <img src="../captures/a-fiche-prix.png" alt="Carte du bar annotée">
+    <figcaption><b>Figure 6.4</b> — La carte du bar, son édition et son contrôle de couverture.</figcaption>
+    <ul class="reperes">
+      <li><span class="n">1</span><strong>Imprimer la fiche des prix</strong>.</li>
+      <li><span class="n">2</span>L'onglet <strong>Couverture du stock</strong>.</li>
+    </ul>
+  </figure>
+
+  <span class="note alerte">
+    <span class="icone">🛑</span>
+    <span class="titre">Alerte</span>
+    Au bar, la <strong>contenance doit correspondre</strong> : une 33 cl ne sort jamais du casier de 66 cl.
+    Un mauvais rattachement ne se voit pas à la vente — il n'apparaît qu'à l'inventaire, sous la forme
+    d'un écart que personne ne sait expliquer.
+  </span>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Information</span>
+    Les écrans <strong>Restaurant &amp; Cuisine</strong> et <strong>Bar &amp; POS Boissons</strong> (accessibles par leur adresse)
+    portent les référentiels historiques des plats et des boissons — nom, catégorie, prix de vente,
+    disponibilité. La carte réellement vendue au point de vente est celle décrite ci-dessus.
+  </span>
+</section>

@@ -1,0 +1,74 @@
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const MODULES = process.env.PPTR_DIR || path.join(__dirname, 'node_modules');
+const puppeteer = require(path.join(MODULES, 'node_modules', 'puppeteer-core'));
+
+const RACINE = 'C:/Projects/tatacora_laravel/prototype_v2';
+const SORTIE = 'C:/Projects/tatacora_laravel/manuel_utilisation/captures';
+const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
+const PORT = 8099;
+const TYPES = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8',
+  '.png':'image/png', '.jpg':'image/jpeg', '.jpeg':'image/jpeg', '.svg':'image/svg+xml', '.woff2':'font/woff2', '.woff':'font/woff', '.ttf':'font/ttf', '.json':'application/json' };
+
+const serveur = http.createServer((req, res) => {
+  let p = decodeURIComponent(req.url.split('?')[0]);
+  if (p === '/') p = '/index.html';
+  const f = path.join(RACINE, p);
+  fs.readFile(f, (e, d) => {
+    if (e) { res.writeHead(404); res.end('404'); return; }
+    res.writeHead(200, { 'Content-Type': TYPES[path.extname(f).toLowerCase()] || 'application/octet-stream' });
+    res.end(d);
+  });
+});
+
+const attendre = (ms) => new Promise((r) => setTimeout(r, ms));
+
+(async () => {
+  await new Promise((r) => serveur.listen(PORT, r));
+  const navigateur = await puppeteer.launch({
+    executablePath: CHROME, headless: 'new',
+    args: ['--no-sandbox', '--disable-dev-shm-usage', '--force-device-scale-factor=1', '--hide-scrollbars'],
+    defaultViewport: { width: 1440, height: 900, deviceScaleFactor: 2 },
+  });
+  const page = await navigateur.newPage();
+  page.on('pageerror', (e) => console.log('  [erreur page]', String(e).slice(0, 120)));
+
+  // 1. Session : connexion réelle par l'écran de login.
+  await page.goto(`http://localhost:${PORT}/pages/login.html`, { waitUntil: 'networkidle0' });
+  await attendre(800);
+  await page.screenshot({ path: path.join(SORTIE, 'login.png'), clip: { x:0, y:0, width:1440, height:900 } });
+  await page.evaluate(() => { RBAC.connecter('admin', 'admin123'); });
+
+  // 2. Amorçage des jeux de données : une visite du tableau de bord exécute tous les seeds.
+  await page.goto(`http://localhost:${PORT}/pages/tableau-de-bord.html`, { waitUntil: 'networkidle0' });
+  await attendre(2500);
+
+  const pages = fs.readdirSync(path.join(RACINE, 'pages')).filter((f) => f.endsWith('.html'));
+  const rapport = [];
+  for (const f of pages) {
+    if (f === 'login.html') continue;
+    const url = `http://localhost:${PORT}/pages/${f}${f === 'splash.html' ? '' : ''}`;
+    try {
+      await page.goto(url, { waitUntil: 'networkidle0', timeout: 30000 });
+      await attendre(f === 'splash.html' ? 900 : 1800);
+      const info = await page.evaluate(() => ({
+        h: document.documentElement.scrollHeight,
+        titre: (document.querySelector('h1') || {}).textContent || document.title,
+        texte: document.body.innerText.length,
+        url: location.pathname,
+      }));
+      const hauteur = Math.min(Math.max(info.h, 700), 1500);
+      await page.setViewport({ width: 1440, height: hauteur, deviceScaleFactor: 2 });
+      await attendre(500);
+      await page.screenshot({ path: path.join(SORTIE, f.replace('.html', '.png')), clip: { x:0, y:0, width:1440, height:hauteur } });
+      await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: 2 });
+      rapport.push(`${f}\t${info.texte} car.\t${info.url}\t${(info.titre||'').trim().slice(0,40)}`);
+    } catch (e) {
+      rapport.push(`${f}\tECHEC ${String(e).slice(0, 80)}`);
+    }
+  }
+  console.log(rapport.join('\n'));
+  await navigateur.close();
+  serveur.close();
+})();

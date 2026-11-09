@@ -1,0 +1,261 @@
+<!-- ============================ CHAPITRE 1 ============================ -->
+<section class="chapitre" id="ch1">
+  <h1 class="chapitre"><span class="numero">Chapitre 1</span>Présentation générale de LogiRestock</h1>
+
+  <p class="chapeau">
+    LogiRestock réunit dans une seule application les métiers du Gîte Chez Noël : le stock,
+    les réservations, la vente au comptoir, la facturation, le suivi client, la comptabilité et la paie.
+    Vous saisissez une information une fois ; tous les écrans qui en dépendent se mettent à jour.
+  </p>
+
+  <h2>1.1 Ce que fait le logiciel</h2>
+  <p>Quatre gestes structurent la journée de travail.</p>
+  <ol class="etapes">
+    <li><strong>Vous enregistrez ce qui se passe</strong> — une réservation, une consommation au bar, une réception de marchandise, une dépense de marché.</li>
+    <li><strong>Le logiciel calcule</strong> — le stock restant, le solde du client, le nombre de nuits, le net à payer, le résultat comptable.</li>
+    <li><strong>Vous consultez</strong> — le tableau de bord, la fiche d'un article, la balance âgée des créances.</li>
+    <li><strong>Vous éditez</strong> — une facture, un état PDF ou Excel, la fiche des prix remise au client.</li>
+  </ol>
+
+  <h2>1.2 Les seize modules</h2>
+  <p>
+    Quatorze modules métier et deux modules d'administration. Chaque module porte un code
+    (M1 à M14) que vous retrouvez sur les écrans, les états et les droits d'accès.
+  </p>
+
+  <table>
+    <thead><tr><th>Code</th><th>Module</th><th>Ce que vous y faites</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pastille">M1</span></td><td><strong>Hébergement &amp; Réservations</strong></td><td>Unités, disponibilités, séjours. Deux réservations ne peuvent pas occuper la même chambre aux mêmes dates.</td></tr>
+      <tr><td><span class="pastille">M2</span></td><td><strong>Facturation</strong></td><td>Registre des factures, avoirs, suivi de certification MECeF. Une facture émise ne se modifie pas.</td></tr>
+      <tr><td><span class="pastille">M3</span></td><td><strong>Clients &amp; Créances</strong></td><td>Fiche client unique, balance âgée, recouvrements et relances.</td></tr>
+      <tr><td><span class="pastille">M4</span></td><td><strong>Restaurant</strong></td><td>Carte, composition des plats, disponibilité du jour.</td></tr>
+      <tr><td><span class="pastille">M5</span></td><td><strong>Bar &amp; Point de vente</strong></td><td>Carte des boissons et encaissement. Une boisson vendue sort du stock.</td></tr>
+      <tr><td><span class="pastille">M6</span></td><td><strong>Stocks</strong></td><td>Articles, mouvements, inventaires, seuils d'alerte, valorisation au coût moyen pondéré.</td></tr>
+      <tr><td><span class="pastille">M7</span></td><td><strong>Achats &amp; Fournisseurs</strong></td><td>Besoins, bons de commande, réceptions, dettes fournisseurs.</td></tr>
+      <tr><td><span class="pastille">M8</span></td><td><strong>Véhicules &amp; Locations</strong></td><td>Parc, contrats, planning, immobilisations pour entretien.</td></tr>
+      <tr><td><span class="pastille">M9</span></td><td><strong>Tourisme</strong></td><td>Circuits, départs, guides et capacités.</td></tr>
+      <tr><td><span class="pastille">M10</span></td><td><strong>Comptabilité SYSCOHADA</strong></td><td>Plan comptable, écritures, grand livre, balance, résultat, bilan, clôture.</td></tr>
+      <tr><td><span class="pastille">M11</span></td><td><strong>Tableau de bord</strong></td><td>Indicateurs consolidés de toute l'exploitation.</td></tr>
+      <tr><td><span class="pastille">M12</span></td><td><strong>Notifications</strong></td><td>Modèles de messages WhatsApp, e-mail et Android, et leurs déclencheurs.</td></tr>
+      <tr><td><span class="pastille">M13</span></td><td><strong>Personnel &amp; Paie</strong></td><td>Employés, bulletins, livre de paie, déclarations sociales.</td></tr>
+      <tr><td><span class="pastille">M14</span></td><td><strong>États &amp; Rapports</strong></td><td>Catalogue d'états exportables en PDF et Excel, en-tête normalisée unique.</td></tr>
+      <tr><td><span class="pastille gris">RÔLES</span></td><td><strong>Rôles &amp; Permissions</strong></td><td>Matrice des droits par module et par rôle.</td></tr>
+      <tr><td><span class="pastille gris">PARAM</span></td><td><strong>Paramètres, Import &amp; Export</strong></td><td>Identité de l'entreprise, canaux, sécurité, sauvegardes et restauration.</td></tr>
+    </tbody>
+  </table>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Information</span>
+    Vous ne voyez au menu que les modules sur lesquels votre profil a un droit. L'écran
+    <strong>Aide &amp; À propos</strong> affiche en revanche les seize modules, ceux auxquels vous n'avez pas
+    accès étant grisés : savoir qu'un module existe n'est pas y accéder.
+  </span>
+
+  <h2>1.3 Les six principes de fonctionnement</h2>
+  <p>Ils expliquent la plupart des questions que se posent les nouveaux utilisateurs.</p>
+
+  <h3>Principe 1 — Rien de calculable ne se saisit</h3>
+  <p>
+    Le stock disponible, le solde d'un client, le nombre de nuits, le net à payer d'un salarié
+    et le résultat comptable sont <strong>calculés</strong>. Vous ne pouvez pas les taper.
+    Un champ grisé n'est pas une limitation : c'est la garantie que le chiffre affiché correspond
+    aux pièces enregistrées.
+  </p>
+
+  <h3>Principe 2 — Supprimer, c'est archiver</h3>
+  <p>
+    Une ligne « supprimée » part aux archives et se restaure depuis
+    <strong>Import &amp; Export ➔ Restaurer</strong>. Rien n'est effacé.
+  </p>
+
+  <h3>Principe 3 — Les actions destructrices sont fermées par défaut</h3>
+  <p>
+    Les boutons <strong>Supprimer</strong> et <strong>Dupliquer</strong> n'apparaissent pas tant qu'un
+    administrateur ne les a pas ouverts dans <strong>Paramètres ➔ Activation &amp; Sécurité</strong>.
+    Une action désactivée est retirée de l'écran, jamais grisée.
+  </p>
+
+  <h3>Principe 4 — La couleur porte une décision</h3>
+  <table>
+    <thead><tr><th>Couleur</th><th>Signification à l'écran</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pastille vert">Vert</span></td><td>Confirmé, disponible, encaissé, équilibré.</td></tr>
+      <tr><td><span class="pastille or">Or / ambre</span></td><td>Réservé, en attente, incomplet, provisoire.</td></tr>
+      <tr><td><span class="pastille rouge">Rouge</span></td><td>Refus, rupture de stock, déséquilibre, écart négatif.</td></tr>
+      <tr><td><span class="pastille">Marine</span></td><td>Identité, en-têtes, totaux et action principale de l'écran.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Principe 5 — Le logiciel déclare ce qu'il ne sait pas</h3>
+  <p>
+    Certains chiffres reposent sur un taux ou une donnée qui n'est pas encore arrêtée.
+    Le logiciel ne les devine pas : il les <strong>annonce</strong>, dans un encadré ambre ou dans la
+    section « Ce que ces chiffres ne disent pas » du tableau de bord. Le chapitre 14 les récapitule.
+  </p>
+
+  <h3>Principe 6 — Toute action sensible est tracée</h3>
+  <p>
+    Connexion, sauvegarde, modification de droits, réinitialisation : chaque action part au
+    <strong>Journal d'Audit</strong>, en lecture seule pour tous les profils, administrateur compris.
+  </p>
+
+  <span class="note attention">
+    <span class="icone">⚠️</span>
+    <span class="titre">Attention</span>
+    Deux fonctions sont <strong>volontairement inactives</strong> à ce stade et le disent à l'écran :
+    l'<strong>envoi</strong> des notifications (aucun canal WhatsApp, e-mail ou SMS n'est encore contracté) et la
+    <strong>certification fiscale MECeF</strong> des factures (l'inscription DGI n'est pas effectuée).
+    Les écrans correspondants fonctionnent, mais aucun message ne part et aucune facture n'est certifiée.
+  </span>
+</section>
+
+<!-- ============================ CHAPITRE 2 ============================ -->
+<section class="chapitre" id="ch2">
+  <h1 class="chapitre"><span class="numero">Chapitre 2</span>Se connecter et se repérer dans l'écran</h1>
+
+  <p class="chapeau">
+    Tous les écrans partagent la même ossature : une barre supérieure marine, un menu latéral
+    filtré par vos droits, et la zone de travail. Une fois ce chapitre lu, vous savez où cliquer
+    dans n'importe quel module.
+  </p>
+
+  <h2>2.1 Démarrer le logiciel</h2>
+  <p>
+    À l'ouverture, l'écran de démarrage affiche le logo TATACORA AFRIQUE et la mention
+    <strong>Natitingou, Bénin — LogiRestock</strong>, puis bascule automatiquement sur l'écran de connexion.
+    Vous n'avez rien à cliquer.
+  </p>
+
+  <h2>2.2 Se connecter</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Écran de démarrage <span class="fleche">➔</span> Connexion <span class="fleche">➔</span> Se connecter
+  </span>
+
+  <ol class="etapes">
+    <li>Saisissez votre <strong>Identifiant</strong> — celui que l'administrateur vous a remis.</li>
+    <li>Saisissez votre <strong>Mot de passe</strong>.</li>
+    <li>Cliquez sur <strong>Se connecter</strong>.</li>
+  </ol>
+  <p>Le logiciel vous ouvre le premier écran auquel votre profil a droit.</p>
+
+  <figure>
+    <img src="../captures/a-connexion.png" alt="Écran de connexion annoté">
+    <figcaption><b>Figure 2.1</b> — L'écran de connexion.</figcaption>
+    <ul class="reperes">
+      <li><span class="n">1</span>Champ <strong>Identifiant</strong>.</li>
+      <li><span class="n">2</span>Champ <strong>Mot de passe</strong>.</li>
+      <li><span class="n">3</span>Bouton <strong>Se connecter</strong>.</li>
+    </ul>
+  </figure>
+
+  <span class="note alerte">
+    <span class="icone">🛑</span>
+    <span class="titre">Alerte</span>
+    Votre identifiant est <strong>nominatif</strong>. Toutes vos saisies — ventes, encaissements, écritures —
+    portent votre nom au journal d'audit. Ne prêtez jamais votre compte : la vente encaissée par un
+    collègue sur votre session vous sera imputée.
+  </span>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Information</span>
+    Si le message <strong>« Identifiants incorrects »</strong> s'affiche, vérifiez d'abord la casse du mot de
+    passe et la touche <em>Verr. Maj</em>. Après plusieurs échecs, adressez-vous à l'administrateur :
+    lui seul peut réinitialiser un compte.
+  </span>
+
+  <h2>2.3 La barre supérieure</h2>
+  <p>Elle ne change jamais, quel que soit l'écran ouvert.</p>
+
+  <figure>
+    <img src="../captures/a-navigation.png" alt="Barre supérieure et menu latéral annotés">
+    <figcaption><b>Figure 2.2</b> — L'ossature commune à tous les écrans.</figcaption>
+    <ul class="reperes">
+      <li><span class="n">1</span>Le <strong>logo</strong> : un clic vous ramène au tableau de bord depuis n'importe quel écran.</li>
+      <li><span class="n">2</span>Le bouton <strong>Vente</strong>, or sur marine : l'accès le plus rapide à la caisse.</li>
+      <li><span class="n">3</span>Le <strong>menu latéral</strong>, filtré selon vos droits.</li>
+    </ul>
+  </figure>
+
+  <p>La barre supérieure porte également, de gauche à droite :</p>
+  <ul class="puces">
+    <li><strong>Rechercher partout…</strong> — la recherche globale, qui atteint les clients, les articles, les ventes et les réservations ;</li>
+    <li>la pastille <strong>Réseau</strong>, verte quand le poste joint le serveur ;</li>
+    <li>l'état de la <strong>caisse</strong> du poste — <em>Ouvrir la caisse</em> ou <em>Clôturer la caisse</em> selon la situation ;</li>
+    <li>le bouton <strong>Vente</strong>, qui ouvre le point de vente ;</li>
+    <li>la <strong>cloche des notifications</strong>, avec le nombre de messages non lus ;</li>
+    <li>votre <strong>avatar</strong> : il ouvre Mon profil, Paramètres du compte, Import &amp; Export, <strong>Journal d'Audit</strong>, Aide &amp; À propos, Contactez l'éditeur et Déconnexion.</li>
+  </ul>
+
+  <h2>2.4 Le menu latéral</h2>
+  <p>
+    Le menu commence par <strong>cinq raccourcis épinglés</strong> — ceux que l'on ouvre plusieurs fois par jour —
+    puis huit groupes thématiques, soit <strong>24 entrées</strong> au total pour un administrateur.
+  </p>
+
+  <table>
+    <thead><tr><th>Groupe</th><th>Entrées</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Épinglés</strong></td><td>Tableau de bord · Point de vente · POS clients hébergés · Historique des ventes · Dépense courante</td></tr>
+      <tr><td><strong>Réservations &amp; séjours</strong></td><td>Réservations · Hébergement</td></tr>
+      <tr><td><strong>Clients &amp; facturation</strong></td><td>Clients &amp; Créances · Facturation</td></tr>
+      <tr><td><strong>Stocks &amp; achats</strong></td><td>Stocks · Inventaires &amp; Fiches · Approvisionnement · Fournisseurs</td></tr>
+      <tr><td><strong>Restauration &amp; bar</strong></td><td>Restaurant · Bar</td></tr>
+      <tr><td><strong>Tourisme &amp; véhicules</strong></td><td>Tourisme · Véhicules &amp; Locations</td></tr>
+      <tr><td><strong>Finance</strong></td><td>Comptabilité</td></tr>
+      <tr><td><strong>Ressources humaines</strong></td><td>Personnel &amp; Paie</td></tr>
+      <tr><td><strong>Pilotage &amp; administration</strong></td><td>États &amp; Rapports · Notifications · Import &amp; Export · Rôles &amp; Permissions · Paramètres</td></tr>
+    </tbody>
+  </table>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Information</span>
+    <strong>Une entrée absente n'est pas une panne.</strong> Le menu n'affiche que les modules ouverts à votre
+    profil. Un barman ne voit ni la comptabilité ni la paie. Si un écran vous manque pour travailler,
+    demandez le droit à l'administrateur — ne cherchez pas un contournement.
+  </span>
+
+  <span class="note astuce">
+    <span class="icone">✅</span>
+    <span class="titre">Astuce</span>
+    Le raccourci clavier <strong>Alt + A</strong> ouvre le <strong>panneau d'accès rapide</strong> : une liste de
+    raccourcis vers les écrans les plus utilisés, sans passer par le menu. Le bouton rond en bas à droite
+    de l'écran fait la même chose à la souris.
+  </span>
+
+  <h2>2.5 Mon profil</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Avatar (en haut à droite) <span class="fleche">➔</span> Mon profil
+  </span>
+  <p>Cet écran regroupe trois blocs.</p>
+  <ul class="puces">
+    <li><strong>Informations personnelles</strong> — nom, e-mail, téléphone. Modifiez, puis cliquez sur <strong>Enregistrer les informations</strong>.</li>
+    <li><strong>Modifier le mot de passe</strong> — ancien mot de passe, nouveau (8 caractères minimum, une majuscule, un chiffre), confirmation, puis <strong>Mettre à jour le mot de passe</strong>.</li>
+    <li><strong>Journal d'audit — 10 dernières actions</strong> — vos actions seulement. Le journal complet est réservé aux profils qui y ont droit.</li>
+  </ul>
+  <figure>
+    <img src="../captures/mon-profil.png" alt="L'écran Mon profil.">
+    <figcaption><b>Figure 2.3</b> — L'écran <b>Mon profil</b>.</figcaption>
+  </figure>
+
+
+  <span class="note attention">
+    <span class="icone">⚠️</span>
+    <span class="titre">Attention</span>
+    Vous ne pouvez pas modifier votre propre <strong>fonction</strong> ni vos droits : ils sont gérés par
+    l'administrateur, dans <strong>Rôles &amp; Permissions</strong>. Un utilisateur qui pourrait s'attribuer un droit
+    contournerait toute la matrice en un clic.
+  </span>
+
+  <h2>2.6 Se déconnecter</h2>
+  <p>
+    Cliquez sur <strong>Déconnexion</strong>, en bas du menu latéral ou dans le menu de votre avatar.
+    Déconnectez-vous systématiquement en quittant un poste partagé : la réception, le bar et le
+    magasin utilisent souvent le même ordinateur.
+  </p>
+</section>

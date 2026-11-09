@@ -1,0 +1,273 @@
+<!-- ============================ CHAPITRE 14 ============================ -->
+<section class="chapitre" id="ch14">
+  <h1 class="chapitre"><span class="numero">Chapitre 14</span>Bonnes pratiques et points de vigilance</h1>
+
+  <p class="chapeau">
+    Ce chapitre rassemble ce qui, en exploitation, fait la différence entre des chiffres exacts et des
+    chiffres plausibles. À lire une fois en entier, puis à relire après un mois d'utilisation.
+  </p>
+
+  <h2>14.1 Protéger les paniers ouverts</h2>
+  <p>
+    Le panier d'un séjour reste ouvert de l'arrivée au départ du client. C'est sa raison d'être — et
+    c'est aussi ce qui le rend fragile.
+  </p>
+  <ul class="puces">
+    <li><strong>Un panier par séjour, jamais deux.</strong> Si vous ne retrouvez pas le panier d'un client, cherchez son séjour dans <strong>Séjours en cours</strong> plutôt que d'ouvrir une vente au comptoir : la consommation manquerait à sa facture.</li>
+    <li><strong>Ne clôturez pas avant le départ.</strong> La clôture est définitive : aucune ligne ne s'ajoute ensuite.</li>
+    <li><strong>Faites le tour avant de clôturer</strong> — bar, restaurant, excursion du matin. Une consommation servie mais non saisie ne sera jamais facturée.</li>
+    <li><strong>Une réservation à panier ouvert ne s'archive pas.</strong> Le refus est volontaire : il évite des consommations orphelines, invisibles jusqu'à la caisse.</li>
+  </ul>
+
+  <span class="note alerte">
+    <span class="icone">🛑</span>
+    <span class="titre">Alerte</span>
+    Le montant <strong>Porté sur la note de chambre</strong> n'est <strong>pas</strong> dans le tiroir. C'est une créance.
+    Vérifiez au départ du client que la note est bien soldée : c'est le moment — et le seul — où elle
+    est encore récupérable sans relance.
+  </span>
+
+  <h2>14.2 Saisir un inventaire correctement</h2>
+  <ul class="puces">
+    <li><strong>Comptez d'abord, saisissez ensuite.</strong> La colonne <em>Théorique</em> est visible en face de votre saisie : recopiez-la et l'inventaire ne sert plus à rien.</li>
+    <li><strong>N'inventez pas un zéro.</strong> Une case laissée vide signifie « non compté », pas « stock nul ». Les deux ne produisent pas le même effet à la clôture.</li>
+    <li><strong>Ne clôturez jamais un comptage incomplet.</strong> Reprenez plus tard : les valeurs déjà saisies sont conservées.</li>
+    <li><strong>Inventoriez magasin par magasin</strong> plutôt que tous les points à la fois : un inventaire court se termine, un inventaire long s'interrompt.</li>
+    <li><strong>Expliquez les écarts, ne les effacez pas.</strong> L'écart valorisé est une information de gestion : il révèle une casse, un vol, une erreur de rattachement de la carte au stock, ou une contenance mal reliée.</li>
+  </ul>
+
+  <span class="note attention">
+    <span class="icone">⚠️</span>
+    <span class="titre">Attention</span>
+    Un écart systématiquement négatif sur une boisson vient souvent d'un <strong>mauvais rattachement de la
+    carte au stock</strong> — une 33 cl qui sort d'un casier de 66 cl. Vérifiez le lien dans la carte du bar
+    avant de conclure à une perte.
+  </span>
+
+  <h2>14.3 Supprimer, archiver, restaurer</h2>
+  <ul class="puces">
+    <li>Le bouton <strong>Supprimer</strong> n'apparaît que si l'administrateur a ouvert la bascule correspondante.</li>
+    <li>Supprimer <strong>archive</strong> : la ligne complète part aux archives et se restaure depuis <strong>Import &amp; Export ➔ Restaurer</strong>.</li>
+    <li>La restauration <strong>refuse d'écraser</strong> un enregistrement existant portant le même identifiant.</li>
+    <li>Un élément <strong>engagé ailleurs</strong> — une chambre prise dans une réservation, un article vendu — ne s'archive pas.</li>
+  </ul>
+
+  <h2>14.4 Exporter : ce qui est affiché, rien d'autre</h2>
+  <p>
+    Un export porte sur <strong>ce que vous voyez à l'écran</strong>, filtres compris. Filtrez, vérifiez, puis
+    exportez. Vérifiez la période et les filtres actifs avant de transmettre un document à un tiers —
+    comptable, banque, administration.
+  </p>
+
+  <span class="note astuce">
+    <span class="icone">✅</span>
+    <span class="titre">Astuce</span>
+    Tous les états portent la <strong>même en-tête normalisée</strong> : établissement, période, auteur et
+    horodatage. Si un document reçu n'a pas cette en-tête, il ne vient pas du logiciel.
+  </span>
+
+  <h2>14.5 Les chiffres que le logiciel déclare incomplets</h2>
+  <p>
+    Six chiffres reposent sur une donnée qui n'est pas arrêtée. Le logiciel les affiche en le disant.
+    Reprenez la mention quand vous les transmettez.
+  </p>
+  <table>
+    <thead><tr><th>Chiffre</th><th>Ce qui manque</th><th>Conséquence pratique</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Résultat net</strong></td><td>Le taux d'impôt sur les sociétés.</td><td>Le résultat affiché est <strong>avant impôt</strong>. Le résultat réel sera inférieur.</td></tr>
+      <tr><td><strong>Coût employeur</strong></td><td>Le taux CNSS « risques professionnels » (1 % à 4 %).</td><td>Affiché en fourchette. Ne communiquez pas la borne basse comme un coût.</td></tr>
+      <tr><td><strong>Marges par activité</strong></td><td>La clé de répartition des charges de structure.</td><td>Ce sont des marges sur coûts directs, pas des résultats nets.</td></tr>
+      <tr><td><strong>Valeur du stock</strong></td><td>Les fiches techniques des plats.</td><td>Les ventes sans lien au stock ne décrémentent rien : la valeur est surévaluée d'autant.</td></tr>
+      <tr><td><strong>Six prix de bar</strong></td><td>Le relevé de l'ardoise.</td><td>Signalés <em>provisoires</em> à l'écran, et encaissés à chaque service. À confronter à la carte affichée au bar.</td></tr>
+      <tr><td><strong>Certification MECeF</strong></td><td>L'inscription à la plateforme de la DGI.</td><td>Aucune facture ne porte de cachet fiscal aujourd'hui.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>14.6 Sécurité au quotidien</h2>
+  <ul class="puces">
+    <li><strong>Un compte par personne.</strong> Tout ce que vous saisissez porte votre nom.</li>
+    <li><strong>Déconnectez-vous</strong> en quittant un poste partagé.</li>
+    <li><strong>Ne demandez pas un droit « pour dépanner ».</strong> Un droit ouvert en urgence ne se referme jamais.</li>
+    <li><strong>Téléchargez les sauvegardes</strong> et rangez-les hors du bureau.</li>
+    <li><strong>Refermez la bascule de réinitialisation</strong> des données de test dès le démarrage de l'exploitation réelle.</li>
+  </ul>
+
+  <h2>14.7 Le rythme conseillé</h2>
+  <table>
+    <thead><tr><th>Fréquence</th><th>À faire</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Chaque service</strong></td><td>Ouvrir la caisse avec son fond · encaisser au fur et à mesure · clôturer la caisse et compter le tiroir.</td></tr>
+      <tr><td><strong>Chaque jour</strong></td><td>Saisir les dépenses courantes du jour · vérifier les alertes de la connexion (stocks critiques, créances échues) · contrôler les paniers ouverts des clients qui partent le lendemain.</td></tr>
+      <tr><td><strong>Chaque semaine</strong></td><td>Traiter les besoins de réapprovisionnement · relancer les créances de plus de 30 jours · télécharger la sauvegarde.</td></tr>
+      <tr><td><strong>Chaque mois</strong></td><td>Réaliser l'inventaire des magasins · établir les bulletins de paie · reverser le VPS avant le 10 · éditer les états du mois pour le Comptable.</td></tr>
+    </tbody>
+  </table>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Information</span>
+    Une question sans réponse dans ce manuel ? Ouvrez <strong>Aide &amp; À propos</strong> : la foire aux questions
+    reprend les cas rencontrés en formation. Si la réponse ne s'y trouve pas, utilisez
+    <strong>Contactez l'éditeur</strong> — la page d'où vous écrivez et la version du logiciel sont jointes
+    automatiquement à votre message.
+  </span>
+</section>
+
+<!-- ============================ ANNEXE A ============================ -->
+<section class="chapitre" id="annexeA">
+  <h1 class="chapitre"><span class="numero">Annexe A</span>Index des écrans du logiciel</h1>
+
+  <p class="chapeau">
+    Tous les écrans de LogiRestock, dans l'ordre de leur adresse, avec le chapitre qui les décrit.
+    Les adresses sont celles du logiciel en service : elles commencent toutes par <code>/pwa</code>.
+  </p>
+
+  <table>
+    <thead><tr><th>Adresse de l'écran</th><th>Titre affiché</th><th>Décrit au</th></tr></thead>
+    <tbody>
+      <tr><td><code>/pwa</code></td><td>Tableau de bord</td><td>3.1 à 3.5</td></tr>
+      <tr><td><code>/pwa/achats</code></td><td>Fournisseurs &amp; Achats</td><td>7.5</td></tr>
+      <tr><td><code>/pwa/achats/approvisionnement</code></td><td>Approvisionnement</td><td>7.4</td></tr>
+      <tr><td><code>/pwa/aide-a-propos</code></td><td>Aide &amp; À propos</td><td>13.6</td></tr>
+      <tr><td><code>/pwa/bar/carte</code></td><td>Carte du bar</td><td>6.5</td></tr>
+      <tr><td><code>/pwa/clients</code></td><td>Clients &amp; Créances</td><td>5.1 · 5.2</td></tr>
+      <tr><td><code>/pwa/comptabilite</code></td><td>Comptabilité — SYSCOHADA révisé</td><td>9.2 · 9.3</td></tr>
+      <tr><td><code>/pwa/comptabilite/analytique</code></td><td>Comptabilité Analytique</td><td>9.3</td></tr>
+      <tr><td><code>/pwa/comptabilite/balance</code></td><td>Balance Générale</td><td>9.3</td></tr>
+      <tr><td><code>/pwa/comptabilite/bilan</code></td><td>Bilan de l'Entreprise</td><td>9.3</td></tr>
+      <tr><td><code>/pwa/comptabilite/cloture</code></td><td>Clôture Périodique</td><td>9.4</td></tr>
+      <tr><td><code>/pwa/comptabilite/compte-resultat</code></td><td>Compte de Résultat</td><td>9.3</td></tr>
+      <tr><td><code>/pwa/comptabilite/etats-financiers</code></td><td>États Financiers</td><td>9.3</td></tr>
+      <tr><td><code>/pwa/comptabilite/flux-tresorerie</code></td><td>Tableau des Flux de Trésorerie</td><td>9.3</td></tr>
+      <tr><td><code>/pwa/comptabilite/grand-livre</code></td><td>Grand Livre</td><td>9.3</td></tr>
+      <tr><td><code>/pwa/comptabilite/journal</code></td><td>Journal Comptable</td><td>9.3</td></tr>
+      <tr><td><code>/pwa/comptabilite/notes-annexes</code></td><td>Notes Annexes</td><td>9.3</td></tr>
+      <tr><td><code>/pwa/comptabilite/plan-comptable</code></td><td>Plan Comptable</td><td>9.3</td></tr>
+      <tr><td><code>/pwa/connexion</code></td><td>Connexion</td><td>2.2</td></tr>
+      <tr><td><code>/pwa/contact-editeur</code></td><td>Contactez l'éditeur</td><td>13.6</td></tr>
+      <tr><td><code>/pwa/demarrage</code></td><td>Écran de démarrage</td><td>2.1</td></tr>
+      <tr><td><code>/pwa/depenses</code></td><td>Dépense courante</td><td>9.1</td></tr>
+      <tr><td><code>/pwa/etats</code></td><td>États &amp; Rapports</td><td>11.1 · 11.2</td></tr>
+      <tr><td><code>/pwa/etats/bibliotheque</code></td><td>États, Rapports &amp; Exports <em>(maquette remplacée)</em></td><td>11.3</td></tr>
+      <tr><td><code>/pwa/facturation</code></td><td>Facturation &amp; Caisse MECeF</td><td>5.3</td></tr>
+      <tr><td><code>/pwa/hebergement</code></td><td>Hébergement &amp; Réservations</td><td>4.5</td></tr>
+      <tr><td><code>/pwa/historique-ventes</code></td><td>Historique des ventes</td><td>5.4</td></tr>
+      <tr><td><code>/pwa/hors-connexion</code></td><td>Hors connexion</td><td>2.1</td></tr>
+      <tr><td><code>/pwa/import-export</code></td><td>Import &amp; Export</td><td>13.3 · 13.4</td></tr>
+      <tr><td><code>/pwa/journal-audit</code></td><td>Journal d'Audit</td><td>13.5</td></tr>
+      <tr><td><code>/pwa/mon-profil</code></td><td>Mon profil</td><td>2.5</td></tr>
+      <tr><td><code>/pwa/notifications</code></td><td>Notifications</td><td>12.1 · 12.2</td></tr>
+      <tr><td><code>/pwa/paie</code></td><td>Personnel &amp; Paie</td><td>10.1 · 10.2</td></tr>
+      <tr><td><code>/pwa/parametres</code></td><td>Paramètres</td><td>13.2</td></tr>
+      <tr><td><code>/pwa/pos/comptant</code></td><td>Point de vente comptant</td><td>6.1 · 6.2 · 6.4</td></tr>
+      <tr><td><code>/pwa/pos/heberges</code></td><td>Point de vente — clients hébergés</td><td>6.3</td></tr>
+      <tr><td><code>/pwa/reservations</code></td><td>Réservations</td><td>4.1 à 4.4</td></tr>
+      <tr><td><code>/pwa/restaurant/carte</code></td><td>Carte du restaurant</td><td>6.5</td></tr>
+      <tr><td><code>/pwa/restaurant/plats</code></td><td>Restaurant &amp; Cuisine</td><td>6.5</td></tr>
+      <tr><td><code>/pwa/roles-permissions</code></td><td>Rôles &amp; Permissions</td><td>13.1</td></tr>
+      <tr><td><code>/pwa/stocks</code></td><td>Gestion des Stocks</td><td>7.1</td></tr>
+      <tr><td><code>/pwa/stocks/inventaires</code></td><td>Inventaires &amp; Fiches de stock</td><td>7.2 · 7.3</td></tr>
+      <tr><td><code>/pwa/tourisme</code></td><td>Tourisme</td><td>8.2</td></tr>
+      <tr><td><code>/pwa/vehicules</code></td><td>Véhicules &amp; Locations</td><td>8.1</td></tr>
+    </tbody>
+  </table>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Information</span>
+    Deux adresses traitent les états sous deux angles : <code>/pwa/etats</code>, le catalogue en service, et
+    <code>/pwa/etats/bibliotheque</code>, une <strong>maquette remplacée</strong> que son propre bandeau signale et qui
+    ne figure plus au menu. Elle n'est pas retirée : une adresse mise en favori ne doit pas tomber dans le vide.
+  </span>
+
+  <span class="note astuce">
+    <span class="icone">✅</span>
+    <span class="titre">Astuce</span>
+    L'ouverture du logiciel passe par sa page d'accueil, qui redirige seule vers l'écran de démarrage
+    puis vers la connexion. Vous n'avez jamais à saisir l'adresse d'un écran : le menu latéral et le
+    panneau d'accès rapide (<strong>Alt + A</strong>) y mènent tous.
+  </span>
+</section>
+
+<!-- ============================ ANNEXE B ============================ -->
+<section class="chapitre" id="annexeB">
+  <h1 class="chapitre"><span class="numero">Annexe B</span>Repères rapides et glossaire</h1>
+
+  <h2>B.1 Les onze profils et leurs droits</h2>
+  <p><span class="pastille vert">C</span> accès complet &nbsp;·&nbsp; <span class="pastille or">L</span> lecture seule &nbsp;·&nbsp; <span class="pastille gris">—</span> aucun accès</p>
+  <table>
+    <thead>
+      <tr><th>Module</th><th>Admin.</th><th>Gérant</th><th>Récept.</th><th>Cuisine</th><th>Barman</th><th>Magas.</th><th>Achats</th><th>Véhic.</th><th>Guide</th><th>RH</th><th>Compt.</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Hébergement</td><td>C</td><td>L</td><td>C</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>L</td></tr>
+      <tr><td>Facturation</td><td>C</td><td>L</td><td>C</td><td>C</td><td>C</td><td>—</td><td>—</td><td>C</td><td>—</td><td>—</td><td>L</td></tr>
+      <tr><td>CRM</td><td>C</td><td>L</td><td>C</td><td>L</td><td>—</td><td>—</td><td>—</td><td>L</td><td>—</td><td>—</td><td>L</td></tr>
+      <tr><td>Restaurant</td><td>C</td><td>L</td><td>—</td><td>C</td><td>—</td><td>L</td><td>—</td><td>—</td><td>—</td><td>—</td><td>L</td></tr>
+      <tr><td>Bar</td><td>C</td><td>L</td><td>—</td><td>—</td><td>C</td><td>L</td><td>—</td><td>—</td><td>—</td><td>—</td><td>L</td></tr>
+      <tr><td>Stocks</td><td>C</td><td>L</td><td>—</td><td>C</td><td>C</td><td>C</td><td>C</td><td>C</td><td>—</td><td>—</td><td>L</td></tr>
+      <tr><td>Achats</td><td>C</td><td>L</td><td>—</td><td>—</td><td>—</td><td>C</td><td>C</td><td>—</td><td>—</td><td>—</td><td>L</td></tr>
+      <tr><td>Véhicules</td><td>C</td><td>L</td><td>C</td><td>—</td><td>—</td><td>—</td><td>—</td><td>C</td><td>—</td><td>—</td><td>L</td></tr>
+      <tr><td>Tourisme</td><td>C</td><td>L</td><td>C</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>C</td><td>—</td><td>L</td></tr>
+      <tr><td>Comptabilité</td><td>C</td><td>L</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>C</td></tr>
+      <tr><td>Tableau de bord</td><td>C</td><td>C</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>L</td></tr>
+      <tr><td>Notifications</td><td>C</td><td>L</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+      <tr><td>RH</td><td>C</td><td>L</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>C</td><td>L</td></tr>
+      <tr><td>États</td><td>C</td><td>C</td><td>L</td><td>L</td><td>L</td><td>L</td><td>L</td><td>L</td><td>L</td><td>L</td><td>C</td></tr>
+      <tr><td>Rôles</td><td>C</td><td>L</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+      <tr><td>Paramètres</td><td>C</td><td>C</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:9.5pt;color:var(--ardoise)">
+    Cette matrice est le socle contractuel. L'administrateur peut l'amender écran par écran
+    (chapitre 13.1) ; le bouton <strong>Rétablir le socle du CdCF</strong> la remet dans cet état.
+  </p>
+
+  <h2>B.2 Modes de règlement</h2>
+  <table>
+    <thead><tr><th>Mode</th><th>Entre dans le tiroir ?</th><th>Remarque</th></tr></thead>
+    <tbody>
+      <tr><td>Espèces</td><td><span class="pastille vert">Oui</span></td><td>Seul mode compté à la clôture de caisse.</td></tr>
+      <tr><td>Mobile Money</td><td><span class="pastille gris">Non</span></td><td>Encaissé, mais sur un compte de trésorerie distinct.</td></tr>
+      <tr><td>Carte bancaire</td><td><span class="pastille gris">Non</span></td><td>Encaissé sur le compte bancaire.</td></tr>
+      <tr><td>Virement</td><td><span class="pastille gris">Non</span></td><td>Encaissé sur le compte bancaire.</td></tr>
+      <tr><td>Porté sur la note de chambre</td><td><span class="pastille rouge">Non</span></td><td><strong>Créance</strong> du client, réglée à son départ.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>B.3 Raccourcis</h2>
+  <ul class="puces">
+    <li><strong>Alt + A</strong> — ouvre le panneau d'accès rapide (également accessible par le bouton rond en bas à droite).</li>
+    <li><strong>Clic sur le logo</strong> — retour au tableau de bord depuis n'importe quel écran.</li>
+    <li><strong>Bouton Point de vente</strong> (barre supérieure) — la caisse, en un clic, depuis n'importe où.</li>
+  </ul>
+
+  <h2>B.4 Glossaire</h2>
+  <table>
+    <thead><tr><th>Terme</th><th>Définition</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Avoir</strong></td><td>Pièce de sens inverse qui corrige une facture émise. Seule correction possible : une facture ne se modifie pas.</td></tr>
+      <tr><td><strong>Balance âgée</strong></td><td>Répartition des créances clients par ancienneté : 0-30, 31-60, 61-90, plus de 90 jours.</td></tr>
+      <tr><td><strong>CMP</strong></td><td>Coût moyen pondéré. Valeur unitaire d'un article, recalculée à chaque entrée en stock.</td></tr>
+      <tr><td><strong>Centre analytique</strong></td><td>Filière à laquelle une charge ou un produit est rattaché : Hébergement, Restaurant, Bar, Tourisme, Véhicules, Administration.</td></tr>
+      <tr><td><strong>Contre-passation</strong></td><td>Écriture inverse passée pour corriger une écriture validée, qui reste au journal.</td></tr>
+      <tr><td><strong>Gros stock / petit stock</strong></td><td>Suivi permanent (inventorié, décrémenté) ou suivi journalier (racheté chaque matin, non inventorié).</td></tr>
+      <tr><td><strong>ITS</strong></td><td>Impôt sur les traitements et salaires, retenu sur le bulletin selon un barème progressif.</td></tr>
+      <tr><td><strong>MECeF</strong></td><td>Machine électronique certifiée de facturation. Dispositif de la DGI du Bénin qui certifie les factures normalisées.</td></tr>
+      <tr><td><strong>Note de chambre</strong></td><td>Consommations portées au compte d'un client hébergé, réglées à son départ.</td></tr>
+      <tr><td><strong>RBAC</strong></td><td>Contrôle d'accès par rôle. Chaque profil reçoit un niveau (C, L ou —) sur chaque module.</td></tr>
+      <tr><td><strong>SYSCOHADA</strong></td><td>Référentiel comptable de l'espace OHADA, dans sa version révisée (AUDCIF).</td></tr>
+      <tr><td><strong>TAFIRE</strong></td><td>Tableau financier des ressources et emplois : le tableau des flux de trésorerie du référentiel SYSCOHADA.</td></tr>
+      <tr><td><strong>VPS</strong></td><td>Versement patronal sur salaires : 4 % du brut, à la charge de l'employeur, à reverser au plus tard le 10 du mois suivant.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="bloc-approbation eviter-coupure" style="margin-top:8mm">
+    <div class="mention">Fin du manuel</div>
+    <p style="margin-bottom:0">
+      <strong>LogiRestock — Manuel d'utilisation.</strong> Document approuvé en séance par le Promoteur et le
+      Comptable de TATACORA AFRIQUE. Toute évolution du logiciel donnant lieu à une modification d'écran
+      appelle une mise à jour de ce manuel avant sa diffusion au personnel.
+    </p>
+  </div>
+</section>

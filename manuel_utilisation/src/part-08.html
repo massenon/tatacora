@@ -1,0 +1,348 @@
+<!-- ============================ CHAPITRE 11 ============================ -->
+<section class="chapitre" id="ch11">
+  <h1 class="chapitre"><span class="numero">Chapitre 11</span>États, rapports et fiche des prix</h1>
+
+  <p class="chapeau">
+    Vingt-cinq états, une seule en-tête. Tous les exports du logiciel — PDF comme Excel — passent par
+    le même générateur : un état ne dessine jamais sa propre en-tête, et deux états ne peuvent donc pas
+    afficher l'établissement différemment.
+  </p>
+
+  <h2>11.1 Générer un état</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Menu latéral <span class="fleche">➔</span> États &amp; Rapports
+  </span>
+
+  <ol class="etapes">
+    <li>Cherchez l'état par son nom — la touche <strong>/</strong> place le curseur dans <strong>Rechercher un état…</strong> — ou filtrez le catalogue par module : <strong>Tous</strong>, M1, M3, M5, M6, M7, M8, M9, M10, M11, M13.</li>
+    <li>Cliquez sur l'état voulu. <strong>L'aperçu s'affiche immédiatement</strong> à droite : vous n'imprimez que ce que vous avez déjà vu.</li>
+    <li>Fixez la <strong>période</strong> de l'aperçu, puis éditez-le : <strong>Imprimer</strong>, <strong>Excel</strong> ou <strong>PDF</strong>.</li>
+  </ol>
+
+  <figure>
+    <img src="../captures/a-etats.png" alt="Écran États &amp; Rapports annoté">
+    <figcaption><b>Figure 11.1</b> — Le catalogue des états.</figcaption>
+    <ul class="reperes">
+      <li><span class="n">1</span>La <strong>recherche</strong> d'un état par son nom.</li>
+      <li><span class="n">2</span>Les <strong>filtres par module</strong>.</li>
+      <li><span class="n">3</span>Le <strong>catalogue</strong>, groupé par module.</li>
+      <li><span class="n">4</span>La zone d'<strong>aperçu</strong> : tant qu'aucun état n'est choisi, elle le dit.</li>
+    </ul>
+  </figure>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Information</span>
+    <strong>Le droit d'éditer un état suit son module source</strong>, pas l'écran des états. Un magasinier ne lit
+    pas le livre de paie parce qu'il a accès à « États &amp; Rapports ». Le catalogue n'affiche que les états
+    que votre profil a le droit de produire.
+  </span>
+
+  <h2>11.2 Le catalogue des états</h2>
+  <p>
+    Le catalogue liste les états que le moteur produit <strong>réellement</strong>, groupés par module source.
+    Un administrateur, qui a droit sur tous les modules, en voit <strong>douze</strong> ; votre profil en voit
+    d'autant moins que ses droits sont étroits, et le pied du catalogue rappelle le compte.
+  </p>
+  <table>
+    <thead><tr><th>Module</th><th>État</th></tr></thead>
+    <tbody>
+      <tr><td><strong>M1 — Hébergement</strong></td><td>État des réservations</td></tr>
+      <tr><td><strong>M3 — Clients &amp; créances</strong></td><td>État des créances clients</td></tr>
+      <tr><td><strong>M5 — Point de vente</strong></td><td>État des ventes</td></tr>
+      <tr><td><strong>M6 — Stocks</strong></td><td>État des stocks — tous points de stockage</td></tr>
+      <tr><td><strong>M7 — Achats</strong></td><td>État des achats et dettes fournisseurs</td></tr>
+      <tr><td><strong>M8 — Véhicules</strong></td><td>État du parc de véhicules · État des locations de véhicules</td></tr>
+      <tr><td><strong>M9 — Tourisme</strong></td><td>État des réservations de circuits</td></tr>
+      <tr><td><strong>M10 — Comptabilité</strong></td><td>État des dépenses · Balance générale de l'exercice ouvert</td></tr>
+      <tr><td><strong>M11 — Pilotage</strong></td><td>Tableau de bord — synthèse consolidée</td></tr>
+      <tr><td><strong>M13 — Ressources humaines</strong></td><td>État Paie &amp; Effectif</td></tr>
+    </tbody>
+  </table>
+
+  <span class="note attention">
+    <span class="icone">⚠️</span>
+    <span class="titre">Attention</span>
+    Un état <strong>sans données sur la période</strong> le dit — « Aucune donnée à ce jour » — et ne produit pas
+    une page blanche. Si un état vous paraît vide à tort, vérifiez d'abord la <strong>période</strong> sélectionnée.
+  </span>
+
+  <h2>11.3 La bibliothèque d'états par module</h2>
+  <p>
+    Un second écran, <strong>États, Rapports &amp; Exports</strong>, présente les mêmes états sous forme de
+    <strong>cartes par module</strong> — une par état, avec son en-tête normalisée et son export PDF/Excel —
+    et, dessous, le tableau <strong>Historique des éditions</strong> : un journal d'audit en lecture seule, qui
+    conserve la trace de qui a édité quoi, quand et dans quel format.
+  </p>
+
+  <span class="note attention">
+    <span class="icone">⚠️</span>
+    <span class="titre">Attention</span>
+    <strong>Cet écran est une maquette remplacée.</strong> Il le dit lui-même en bandeau : la page reste
+    consultable parce qu'elle a été validée par le client, mais <strong>elle n'est plus au menu</strong> et la
+    version fonctionnelle est <strong>États &amp; Rapports</strong> (§11.1). Produisez vos états là-bas.
+  </span>
+  <figure>
+    <img src="../captures/m14-etats.png" alt="La bibliothèque d'états par module.">
+    <figcaption><b>Figure 11.2</b> — La <b>bibliothèque d'états</b> par module.</figcaption>
+  </figure>
+
+
+  <h2>11.4 Imprimer la fiche des prix</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Menu latéral <span class="fleche">➔</span> Restaurant (ou Bar) <span class="fleche">➔</span> Imprimer la fiche des prix
+  </span>
+  <p>
+    La fiche des prix est le document remis au client. Ce n'est pas un tableau de gestion : les
+    catégories deviennent des sections — entrées, plats, sauces, boissons — et se lisent d'un bout à
+    l'autre.
+  </p>
+  <ol class="etapes">
+    <li>Ouvrez la carte du <strong>Restaurant</strong> ou celle du <strong>Bar</strong>.</li>
+    <li>Cliquez sur <strong>Imprimer la fiche des prix</strong>.</li>
+    <li>Dans la fenêtre d'impression du navigateur, choisissez votre imprimante — ou
+      <strong>Enregistrer au format PDF</strong> pour l'envoyer par message.</li>
+  </ol>
+
+  <span class="note attention">
+    <span class="icone">⚠️</span>
+    <span class="titre">Attention</span>
+    <strong>Un article sans prix n'est pas imprimé</strong> sur la fiche remise au client — il est compté et annoncé
+    en pied de page. Un tarif absent d'un document officiel devient négociable au comptoir. Complétez le
+    prix dans la carte avant d'éditer la fiche.
+  </span>
+</section>
+
+<!-- ============================ CHAPITRE 12 ============================ -->
+<section class="chapitre" id="ch12">
+  <h1 class="chapitre"><span class="numero">Chapitre 12</span>Notifications</h1>
+
+  <p class="chapeau">
+    Le module compose les messages destinés aux clients, aux salariés et à l'équipe — avec les vrais
+    noms, les vrais montants et les vraies dates. Il ne les envoie pas.
+  </p>
+
+  <span class="note alerte">
+    <span class="icone">🛑</span>
+    <span class="titre">Alerte</span>
+    <strong>Aucun message ne part aujourd'hui.</strong> L'API WhatsApp Business n'est pas contractée, aucun relais
+    e-mail n'est configuré et l'application Android n'est pas déployée. Les messages sont composés,
+    mis en file et consultables — mais le client n'a rien reçu. <strong>Ne considérez jamais un client comme
+    prévenu par le logiciel</strong> : appelez-le, puis tracez l'envoi à la main.
+  </span>
+
+  <h2>12.1 Le hub Notifications</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Menu latéral <span class="fleche">➔</span> Notifications
+  </span>
+  <p>
+    Six compteurs — en file d'attente, réellement envoyés, transmis à la main, abandonnés, modèles
+    actifs, canaux branchés — puis cinq onglets.
+  </p>
+  <table>
+    <thead><tr><th>Onglet</th><th>Ce que vous y faites</th></tr></thead>
+    <tbody>
+      <tr><td><strong>File d'attente</strong></td><td>Les messages composés, avec leur destinataire, leur canal et leur texte complet. Trois actions par message : <strong>Envoyer</strong> (inactif tant qu'aucun canal n'est branché), <strong>Transmis à la main</strong> et <strong>Abandonner</strong>, avec motif.</td></tr>
+      <tr><td><strong>Modèles</strong></td><td>Les modèles de messages et leur formulation. Le bouton <strong>+ Modèle</strong> en crée un.</td></tr>
+      <tr><td><strong>Déclencheurs</strong></td><td>L'événement qui produit chaque message — confirmation de réservation, facture émise, seuil de stock atteint, congé validé, synthèse quotidienne.</td></tr>
+      <tr><td><strong>Journal</strong></td><td>La trace de tout ce qui a été composé, transmis ou abandonné.</td></tr>
+      <tr><td><strong>Canaux</strong></td><td>L'état des quatre canaux : WhatsApp, e-mail, Android (push) et SMS.</td></tr>
+    </tbody>
+  </table>
+  <p>Le bouton <strong>Détecter maintenant</strong> relance la composition à partir des données du jour.</p>
+  <figure>
+    <img src="../captures/m12-notifications-hub.png" alt="Le hub Notifications : composés, jamais envoyés.">
+    <figcaption><b>Figure 12.1</b> — Le hub <b>Notifications</b> : composés, jamais envoyés.</figcaption>
+  </figure>
+
+
+  <span class="note astuce">
+    <span class="icone">✅</span>
+    <span class="titre">Astuce</span>
+    Profitez de cette période pour <strong>relire les formulations</strong>. Un message composé avec de vraies données
+    montre mieux qu'une maquette ce que le client va lire. Signalez à l'éditeur toute tournure à corriger :
+    elle sera figée le jour où les canaux seront ouverts.
+  </span>
+
+  <h2>12.2 Les modèles de messages</h2>
+  <p>
+    Un second écran présente les modèles sous forme de tableau : événement déclencheur, canal, aperçu
+    du message et statut (Actif, Inactif). Les variables entre accolades — <code>{nom}</code>,
+    <code>{date}</code>, <code>{numero}</code>, <code>{montant}</code> — sont remplacées par les valeurs réelles
+    au moment de la composition.
+  </p>
+</section>
+
+<!-- ============================ CHAPITRE 13 ============================ -->
+<section class="chapitre" id="ch13">
+  <h1 class="chapitre"><span class="numero">Chapitre 13</span>Administration : droits, paramètres et données</h1>
+
+  <p class="chapeau">
+    Ce chapitre s'adresse à l'administrateur et au gérant. Il décrit qui a le droit de faire quoi,
+    comment paramétrer l'établissement, comment charger des données et comment sauvegarder.
+  </p>
+
+  <h2>13.1 Rôles &amp; Permissions</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Menu latéral <span class="fleche">➔</span> Rôles &amp; Permissions
+  </span>
+  <p>
+    Onze rôles, seize modules, trois niveaux : <strong>C</strong> accès complet, <strong>L</strong> lecture seule,
+    <strong>—</strong> aucun accès. L'écran affiche une carte par rôle — avec le compte de démonstration rattaché
+    quand il en existe un — puis la <strong>matrice complète des permissions</strong>.
+  </p>
+
+  <h3>Modifier les droits d'un rôle</h3>
+  <ol class="etapes">
+    <li>Sur la carte du rôle, cliquez sur <strong>Modifier les droits</strong>.</li>
+    <li>Pour chaque module, choisissez <strong>C</strong>, <strong>L</strong> ou <strong>—</strong>.</li>
+    <li>Enregistrez. La matrice et les menus de tous les utilisateurs de ce rôle sont mis à jour.</li>
+  </ol>
+  <p>
+    Le bouton <strong>+ Nouveau rôle</strong> crée un profil supplémentaire. Le bouton
+    <strong>Rétablir le socle du CdCF</strong> remet la matrice dans son état contractuel d'origine.
+  </p>
+
+  <span class="note alerte">
+    <span class="icone">🛑</span>
+    <span class="titre">Alerte</span>
+    <strong>N'élargissez jamais un droit « pour dépanner ».</strong> Un accès ouvert en urgence reste ouvert :
+    personne ne le referme. Si un utilisateur a besoin d'un écran, créez ou ajustez son <strong>rôle</strong> —
+    la modification part au journal d'audit et reste explicable.
+  </span>
+  <figure>
+    <img src="../captures/roles-permissions.png" alt="La matrice des permissions : 16 modules, 11 rôles.">
+    <figcaption><b>Figure 13.2</b> — La <b>matrice des permissions</b> : 16 modules, 11 rôles.</figcaption>
+  </figure>
+
+
+  <h2>13.2 Paramètres</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Menu latéral <span class="fleche">➔</span> Paramètres
+  </span>
+  <table>
+    <thead><tr><th>Onglet</th><th>Contenu</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Identité &amp; Légal</strong></td><td>Raison sociale, promoteur, adresse, téléphone, e-mail, puis IFU, RCCM, n° contribuable MECeF et régime fiscal (Réel normal, Réel simplifié, Taxe Professionnelle Unique).</td></tr>
+      <tr><td><strong>Communication</strong></td><td>Les coordonnées utilisées dans les messages et les documents.</td></tr>
+      <tr><td><strong>Email (SMTP)</strong></td><td>Le serveur d'envoi et le bouton <strong>Envoyer un email de test</strong>.</td></tr>
+      <tr><td><strong>Logo &amp; Apparence</strong></td><td><strong>Changer le logo</strong> et <strong>Changer le favicon</strong>.</td></tr>
+      <tr><td><strong>Canaux de réservation</strong></td><td>La liste des canaux proposés à la prise de réservation : <strong>Ajouter un canal</strong>, <strong>Renommer</strong>, <strong>Désactiver</strong>.</td></tr>
+      <tr><td><strong>Espaces &amp; tables</strong></td><td>Les espaces (Restaurant, Jardin, Plage) et leurs tables : <strong>Ajouter une table</strong>, <strong>Renuméroter</strong>, <strong>Rétablir le jeu initial</strong>.</td></tr>
+      <tr><td><strong>Activation &amp; Sécurité</strong></td><td>Les six bascules décrites ci-dessous.</td></tr>
+    </tbody>
+  </table>
+  <p>Terminez toujours par <strong>Enregistrer les paramètres</strong>.</p>
+  <figure>
+    <img src="../captures/parametres.png" alt="L'écran Paramètres et ses sept onglets.">
+    <figcaption><b>Figure 13.3</b> — L'écran <b>Paramètres</b> et ses sept onglets.</figcaption>
+  </figure>
+
+
+  <h3>Les six bascules d'activation</h3>
+  <table>
+    <thead><tr><th>Bascule</th><th>Effet</th><th>Par défaut</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Suppression d'un enregistrement</strong></td><td>Affiche le bouton <em>Supprimer</em> dans tous les modules. La suppression reste un archivage.</td><td><span class="pastille rouge">Fermée</span></td></tr>
+      <tr><td><strong>Duplication d'un enregistrement</strong></td><td>Affiche le bouton <em>Dupliquer</em>. Utile, mais source de doublons si ouvert à tous.</td><td><span class="pastille rouge">Fermée</span></td></tr>
+      <tr><td><strong>Suppression groupée</strong></td><td>Archivage de plusieurs lignes à la fois. Exige que la suppression simple soit activée.</td><td><span class="pastille rouge">Fermée</span></td></tr>
+      <tr><td><strong>Réinitialisation des données de test</strong></td><td>Ouvre l'onglet qui vide les jeux de démonstration.</td><td><span class="pastille rouge">Fermée</span></td></tr>
+      <tr><td><strong>Sauvegarde automatique hebdomadaire</strong></td><td>Produit une sauvegarde chaque semaine et rappelle de la télécharger.</td><td><span class="pastille vert">Ouverte</span></td></tr>
+      <tr><td><strong>Alertes à l'ouverture de session</strong></td><td>Affiche les stocks critiques et les créances échues dès la connexion.</td><td><span class="pastille vert">Ouverte</span></td></tr>
+    </tbody>
+  </table>
+
+  <span class="note alerte">
+    <span class="icone">🛑</span>
+    <span class="titre">Alerte</span>
+    Refermez la bascule <strong>Réinitialisation des données de test</strong> dès que l'exploitation réelle a
+    commencé. Cet onglet vide les jeux de démonstration — et il ne fait pas la différence entre une
+    donnée de test et une donnée de production saisie depuis.
+  </span>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Information</span>
+    Les droits (RBAC) et ces bascules ne se remplacent pas, ils <strong>se superposent</strong> : le RBAC dit ce que
+    <em>votre profil</em> peut faire, les bascules disent ce que <em>l'application propose à tout le monde</em>.
+    La règle la plus restrictive gagne.
+  </span>
+
+  <h2>13.3 Importer des données</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Avatar <span class="fleche">➔</span> Import &amp; Export <span class="fleche">➔</span> onglet Importer les données
+  </span>
+  <ol class="etapes">
+    <li><strong>Choisissez le module</strong> à alimenter. Les colonnes attendues s'affichent.</li>
+    <li><strong>Téléchargez le modèle</strong> et remplissez-le sans modifier la ligne d'en-tête.</li>
+    <li><strong>Enregistrez en CSV UTF-8.</strong> Sans cet encodage, les accents deviennent illisibles à la relecture.</li>
+    <li><strong>Déposez le fichier</strong> et lancez le contrôle. Rien n'est importé à ce stade.</li>
+    <li><strong>Corrigez les erreurs</strong> signalées, redéposez, puis confirmez l'import.</li>
+  </ol>
+
+  <figure>
+    <img src="../captures/a-import.png" alt="Écran Import &amp; Export annoté">
+    <figcaption><b>Figure 13.1</b> — L'import de données, en trois zones.</figcaption>
+    <ul class="reperes">
+      <li><span class="n">1</span>Le <strong>module</strong> à alimenter.</li>
+      <li><span class="n">2</span><strong>Télécharger le modèle</strong> — colonnes exactes et ligne d'exemple.</li>
+      <li><span class="n">3</span>La zone de <strong>dépôt</strong> du fichier rempli.</li>
+    </ul>
+  </figure>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Information</span>
+    <strong>Aucun import partiel.</strong> Tant qu'une erreur subsiste, rien n'entre en base. Importer « ce qui
+    passe » laisserait un jeu incomplet dont personne ne saurait dire ce qui manque.
+  </span>
+
+  <h2>13.4 Sauvegarder, restaurer, réinitialiser</h2>
+  <p>Le même écran porte trois autres onglets.</p>
+  <ul class="puces">
+    <li><strong>Sauvegardes de la base</strong> — <strong>Générer une sauvegarde de la base</strong>, la télécharger, ou <strong>Exporter une table existante</strong>.</li>
+    <li><strong>Restaurer</strong> — remet en place un enregistrement archivé. La restauration <strong>refuse d'écraser</strong> : si un enregistrement porte déjà le même identifiant, elle s'arrête et le dit.</li>
+    <li><strong>Réinitialiser les données de test</strong> — visible seulement si la bascule correspondante est ouverte. L'écran annonce <em>ce qui sera vidé</em> et <em>ce qui sera conservé</em> avant toute action.</li>
+  </ul>
+
+  <span class="note alerte">
+    <span class="icone">🛑</span>
+    <span class="titre">Alerte</span>
+    <strong>Téléchargez vos sauvegardes.</strong> Une sauvegarde qui reste sur la machine ne protège de rien :
+    le jour où le poste tombe en panne, elle tombe avec lui. Copiez-la sur une clé ou un disque externe,
+    et rangez-la ailleurs que dans le bureau.
+  </span>
+
+  <h2>13.5 Le journal d'audit</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Barre supérieure <span class="fleche">➔</span> Journal d'Audit
+  </span>
+  <p>
+    Chaque action sensible y figure : utilisateur, action, détail, date, heure et poste. Les filtres
+    portent sur le type d'action. Le journal est en <strong>lecture seule pour tous les profils</strong>,
+    y compris l'administrateur : il ne peut être ni modifié ni purgé.
+  </p>
+  <figure>
+    <img src="../captures/journal-audit.png" alt="Le journal d'audit, en lecture seule pour tous.">
+    <figcaption><b>Figure 13.4</b> — Le <b>journal d'audit</b>, en lecture seule pour tous.</figcaption>
+  </figure>
+
+
+  <h2>13.6 Aide, FAQ et contact éditeur</h2>
+  <ul class="puces">
+    <li><strong>Aide &amp; À propos</strong> — la présentation des seize modules, une foire aux questions classée par thème (prise en main, données, import/export, comptabilité, hors connexion, sécurité) et les ressources utiles, dont les modèles d'import.</li>
+    <li><strong>Contactez l'éditeur</strong> — deux formulaires : <strong>Envoyer un message</strong> et <strong>Signaler un bug</strong>. Votre nom, votre rôle, la page d'où vous écrivez et la version du logiciel sont joints automatiquement. Les coordonnées directes de l'éditeur y figurent également, pour toute demande urgente.</li>
+  </ul>
+  <figure>
+    <img src="../captures/aide-a-propos.png" alt="L'écran Aide &amp; À propos : les seize modules et la foire aux questions.">
+    <figcaption><b>Figure 13.5</b> — L'écran <b>Aide &amp; À propos</b> : les seize modules et la foire aux questions.</figcaption>
+  </figure>
+
+</section>
