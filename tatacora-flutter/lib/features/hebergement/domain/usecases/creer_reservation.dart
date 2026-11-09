@@ -70,7 +70,15 @@ final class CreerReservation {
     }
 
     final maintenant = _maintenant();
-    if (periode.arrivee.isBefore(
+    // On compare des JOURS (année/mois/jour tels que saisis), jamais des instants : le
+    // sélecteur rend minuit LOCAL, qui à Cotonou (UTC+1) précède minuit UTC — une
+    // arrivée « aujourd'hui » était refusée comme « dans le passé » (constat du PO).
+    final jourArrivee = DateTime.utc(
+      periode.arrivee.year,
+      periode.arrivee.month,
+      periode.arrivee.day,
+    );
+    if (jourArrivee.isBefore(
       DateTime.utc(maintenant.year, maintenant.month, maintenant.day),
     )) {
       throw ArgumentError.value(

@@ -82,9 +82,12 @@ final enCongeAujourdhuiProvider = FutureProvider<int>((ref) {
       .enCongeLe(DateTime(n.year, n.month, n.day));
 });
 
-final employesEnPosteProvider = FutureProvider<List<EmployePlanifiable>>(
-  (ref) => ref.watch(congesPlanningsDaoProvider).employesEnPoste(),
-);
+/// `autoDispose` : relue à CHAQUE ouverture de la modale — un employé arrivé par la
+/// synchronisation après une première lecture vide doit apparaître dans « Choisir… ».
+final employesEnPosteProvider =
+    FutureProvider.autoDispose<List<EmployePlanifiable>>(
+      (ref) => ref.watch(congesPlanningsDaoProvider).employesEnPoste(),
+    );
 
 final servicesRhProvider = FutureProvider<List<({String id, String libelle})>>(
   (ref) => ref.watch(congesPlanningsDaoProvider).services(),
