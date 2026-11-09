@@ -767,12 +767,20 @@ class _Table extends StatelessWidget {
           for (var i = 0; i < cellules.length; i++)
             Expanded(
               flex: parts[i],
-              child: Text(
-                cellules[i],
-                textAlign: droite.contains(i) ? TextAlign.right : null,
-                style: couleurs.containsKey(i)
-                    ? style.copyWith(color: couleurs[i])
-                    : style,
+              // `px-4` de chaque `<th>`/`<td>` de la vue (reservations.blade.php
+              // l.303-311) : sans cette marge, une colonne alignée à droite
+              // (« Remboursé ») touchait la suivante (« Annulée le »).
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                ),
+                child: Text(
+                  cellules[i],
+                  textAlign: droite.contains(i) ? TextAlign.right : null,
+                  style: couleurs.containsKey(i)
+                      ? style.copyWith(color: couleurs[i])
+                      : style,
+                ),
               ),
             ),
         ],
