@@ -5,8 +5,15 @@
   <p class="chapeau">
     Deux niveaux de saisie cohabitent. La <strong>dépense courante</strong> est l'écran du quotidien : le marché
     du matin, un transport, un dépannage. La <strong>comptabilité SYSCOHADA</strong> est l'écran du Comptable :
-    écritures, journaux et états financiers.
+    écritures, journaux, états financiers, immobilisations et clôture annuelle de l'exercice.
   </p>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Sur le poste Windows</span>
+    La dépense courante et la comptabilité fonctionnent <strong>sans réseau</strong> sur le poste : les pièces sont passées sur le poste, puis envoyées au serveur
+    à la synchronisation. Là où le poste ne fait pas la même chose que le web, c'est dit dans les encadrés « Sur le poste Windows » de ce chapitre.
+  </span>
 
   <h2>9.1 Enregistrer une dépense courante</h2>
   <span class="chemin">
@@ -18,10 +25,12 @@
     <li>Cliquez sur <strong>Nouvelle Dépense</strong>.</li>
     <li>Saisissez la <strong>Date de la transaction</strong>.</li>
     <li>Saisissez le <strong>Libellé de la dépense</strong> — soyez précis : « Marché du matin — légumes » se retrouve, « divers » non.</li>
-    <li>Renseignez les <strong>Lignes de la dépense</strong> : une dépense peut porter plusieurs achats, et chaque ligne a son libellé, sa <strong>Catégorie des charges (SYSCOHADA)</strong>, sa <strong>Catégorie de dépenses</strong> et son <strong>Prix</strong>. <strong>+ Ajouter une ligne</strong> en ajoute autant que nécessaire.</li>
-    <li>Le <strong>Montant décaissé (FCFA)</strong> <strong>ne se saisit pas</strong> : c'est le total des lignes, recalculé à chaque frappe, et c'est ce total que le serveur écrit en comptabilité à l'enregistrement.</li>
+    <li>Renseignez les <strong>Lignes de la dépense</strong> : une dépense peut porter plusieurs achats, et chaque ligne a son libellé, sa <strong>Catégorie des charges (SYSCOHADA)</strong> et son <strong>Prix</strong>. <strong>+ Ajouter une ligne</strong> en ajoute autant que nécessaire. Une ligne à zéro ne s'enregistre pas : retirez-la ou saisissez son montant.</li>
+    <li>Le <strong>Montant décaissé (FCFA)</strong> <strong>ne se saisit pas</strong> : c'est le total des lignes, recalculé à chaque frappe, et c'est ce total qui est écrit en comptabilité à l'enregistrement.</li>
     <li>Choisissez le <strong>Compte de trésorerie</strong> — Caisse, Mobile Money ou Compte bancaire — c'est-à-dire d'où l'argent est sorti.</li>
-    <li>Choisissez la <strong>Catégorie de dépenses</strong> (Marché, Services…) et, si vous l'avez, joignez le <strong>Reçu / facture (photo)</strong>.</li>
+    <li>Choisissez le <strong>Centre de coût</strong> de la pièce (par défaut, celui du compte de charge) et la <strong>Catégorie de dépenses</strong>
+      (famille <em>Marché</em> : oignon, tomate, piment, viande, poisson, igname, riz ; famille <em>Services</em> : transport, électricité / eau, entretien et réparations, communication, blanchisserie).</li>
+    <li>Si vous l'avez, joignez le <strong>Reçu / facture (photo)</strong> : une image de plus de 400 Ko est réduite automatiquement avant l'enregistrement, elle n'est pas refusée pour son poids.</li>
     <li>Cliquez sur <strong>Enregistrer la dépense</strong>.</li>
   </ol>
 
@@ -49,9 +58,15 @@
   <h3>Suivre les dépenses</h3>
   <p>
     L'écran affiche six indicateurs — total décaissé, dépense moyenne, marché, services, caisse et
-    <strong>sans écriture</strong> (les dépenses qui n'ont pas encore produit d'écriture comptable). Filtrez par
-    dates, par compte de trésorerie et par catégorie ; <strong>Réinitialiser</strong> efface tous les filtres.
-    <strong>Export PDF</strong> et <strong>Export Excel</strong> reprennent la liste affichée, filtres compris.
+    <strong>sans écriture</strong> (les dépenses qui n'ont pas encore produit d'écriture comptable) ; la bande se replie pour gagner de la hauteur de tableau.
+    Le tableau donne la date, le libellé, la nature, la charge SYSCOHADA, la trésorerie, le montant et les pièces (<em>reçu</em> ou <em>sans reçu</em>).
+    Filtrez par recherche, par dates (<strong>À partir du</strong>, <strong>Jusqu'au</strong>), par compte de trésorerie et par catégorie ; <strong>Réinitialiser</strong> efface tous les filtres.
+    <strong>Export PDF</strong> et <strong>Export Excel</strong> reprennent la liste affichée, filtres compris, avec une colonne indiquant si chaque dépense est comptabilisée.
+    La période proposée par défaut est celle de l'<strong>exercice consulté</strong> (voir §9.2).
+  </p>
+  <p>
+    Une dépense marquée <strong>non comptabilisée</strong> manque au grand livre, à la balance et au compte de résultat. Le bouton <strong>Comptabiliser</strong> de sa ligne
+    passe la pièce : choisissez le centre de coût de la pièce, puis validez.
   </p>
   <figure>
     <img src="../captures/depenses.png" alt="Le suivi des dépenses courantes.">
@@ -65,31 +80,52 @@
     Menu latéral <span class="fleche">➔</span> Comptabilité
   </span>
   <p>
-    L'écran ouvre sur six indicateurs de l'exercice : chiffre d'affaires (XB), valeur ajoutée (XC),
-    excédent brut d'exploitation (XD), résultat net (XI, <strong>avant impôt</strong>), trésorerie et total du bilan.
-    Une barre d'accès mène aux dix écrans comptables, et les filtres portent sur la période, le journal
-    et le centre analytique.
+    L'écran ouvre sur six indicateurs de l'exercice : chiffre d'affaires (hors TVA), valeur ajoutée,
+    excédent brut d'exploitation, résultat net (<strong>avant impôt</strong> tant qu'aucun impôt n'est comptabilisé), trésorerie et total du bilan.
+    Dix onglets suivent — <strong>Passer écriture</strong>, <strong>Journal</strong>, <strong>Grand livre</strong>, <strong>Balance générale</strong>,
+    <strong>Compte de résultat</strong>, <strong>Bilan</strong>, <strong>Analytique</strong>, <strong>Immobilisations</strong>, <strong>Plan comptable</strong> et <strong>Clôtures</strong> —
+    puis onze tuiles d'accès aux écrans de pilotage financier (§9.3). Les filtres portent sur le journal, sur l'inclusion des brouillons et sur les écritures retenues
+    (toutes, brouillons seuls, validées seules).
   </p>
   <figure>
-    <img src="../captures/m10-syscohada.png" alt="Le poste de travail comptable et sa barre d'accès aux dix écrans.">
-    <figcaption><b>Figure 9.3</b> — Le poste de travail comptable et sa barre d'accès aux dix écrans.</figcaption>
+    <img src="../captures/m10-syscohada.png" alt="Le poste de travail comptable : indicateurs, onglets et tuiles d'accès.">
+    <figcaption><b>Figure 9.3</b> — Le poste de travail comptable : indicateurs, onglets et tuiles d'accès.</figcaption>
   </figure>
 
+  <h3>Le sélecteur d'exercice</h3>
+  <p>
+    La <strong>barre supérieure</strong> porte, sur les écrans qui consultent une année (comptabilité, tableau de bord, états, dépenses, factures, achats, paie), le sélecteur
+    <strong>Exercice</strong> : il liste les exercices existants, du plus récent au plus ancien, avec leur statut (<em>ouvert</em>, <em>en clôture</em>, <em>clôturé</em>). Choisissez l'année une fois : les écrans
+    qui suivent le sélecteur la reprennent, et leur en-tête rappelle l'exercice consulté. Quand l'année choisie n'est pas l'exercice ouvert le plus récent, une pastille
+    (« Vous consultez 2025 (clôturé) », ambrée pour un exercice en clôture) et le lien <strong>Revenir à 2026</strong> vous évitent de rester sur la mauvaise année sans le savoir.
+    Dans la comptabilité, des boutons de navigation passent de l'exercice N à N−1 ou N+1.
+  </p>
+  <span class="note attention">
+    <span class="icone">⚠️</span>
+    <span class="titre">Attention</span>
+    <strong>Choisir un exercice ne déplace aucune écriture.</strong> Une vente, une dépense ou une écriture s'enregistre toujours dans l'exercice de <strong>sa date</strong>, quelle que soit l'année consultée.
+    Dans les écrans de saisie des modules, la date proposée reste celle du jour ; seule la saisie d'une écriture à la main propose, si le jour n'est pas dans l'exercice consulté, le 31 décembre de cet exercice.
+  </span>
+  <p>
+    Un <strong>bandeau de statut</strong> rappelle l'état de l'exercice consulté : <em>en clôture</em> (les ventes, les dépenses et les autres modules n'y écrivent plus ; seul le comptable y passe encore ses écritures d'inventaire),
+    ou <em>clôturé</em> (lecture seule ; seule la réouverture par le comptable permet de corriger). L'<strong>exercice suivant s'ouvre tout seul</strong> : le serveur ouvre l'année en cours chaque nuit et, en décembre, l'année suivante,
+    et la première pièce datée du 1er janvier ouvre l'année si elle manque.
+  </p>
 
   <h3>Passer une écriture</h3>
   <ol class="etapes">
-    <li>Cliquez sur <strong>Passer écriture</strong>.</li>
-    <li>Choisissez le <strong>Journal</strong> : AC — Achats, VE — Ventes, BQ — Banque, CA — Caisse ou OD — Opérations diverses.</li>
+    <li>Cliquez sur <strong>Nouvelle écriture</strong> (onglet Passer écriture).</li>
+    <li>Choisissez le <strong>Journal</strong> : journal des ventes (VTE), des achats (ACH), de banque (BQ), de caisse (CAI) ou des opérations diverses (OD). Les journaux de clôture (CL) et d'à-nouveaux (AN) ne se choisissent pas : seule la clôture les écrit.</li>
     <li>Saisissez la <strong>Date</strong> et le <strong>Libellé de la pièce</strong>.</li>
-    <li>Sur chaque ligne : le <strong>compte</strong>, le <strong>libellé de la ligne</strong>, le <strong>centre</strong> analytique, puis le montant au <strong>débit</strong> ou au <strong>crédit</strong>.</li>
-    <li>Cliquez sur <strong>+ Ajouter une ligne</strong> autant de fois que nécessaire. Les totaux se cumulent en bas du tableau.</li>
+    <li>Sur chaque ligne : le <strong>compte</strong>, le <strong>libellé de la ligne</strong>, le <strong>centre</strong> analytique, puis le montant au <strong>débit</strong> ou au <strong>crédit</strong> (pas les deux sur la même ligne).</li>
+    <li>Cliquez sur <strong>+ Ajouter une ligne</strong> autant de fois que nécessaire. Les totaux se cumulent en bas du tableau, avec la mention « Pièce équilibrée » ou l'écart restant.</li>
     <li>Terminez par <strong>Enregistrer en brouillon</strong> ou par <strong>Enregistrer et valider</strong>.</li>
   </ol>
 
   <p>Quatre contrôles s'appliquent à l'enregistrement :</p>
   <ul class="puces">
     <li><strong>débit = crédit</strong> — une pièce déséquilibrée n'est jamais enregistrée ;</li>
-    <li>la <strong>date</strong> doit être dans l'exercice et hors période clôturée ;</li>
+    <li>la <strong>date</strong> doit tomber dans un exercice ouvert ou en clôture, jamais dans un exercice clôturé ;</li>
     <li>le <strong>compte</strong> doit exister au plan comptable ;</li>
     <li>le <strong>centre analytique</strong> est obligatoire sur les classes 6, 7 et 8.</li>
   </ul>
@@ -98,32 +134,69 @@
     <span class="icone">🛑</span>
     <span class="titre">Alerte</span>
     <strong>Valider, c'est rendre immuable.</strong> Une écriture validée ne peut plus être ni modifiée ni supprimée.
-    La seule correction est la <strong>contre-passation</strong> : une écriture de sens inverse, qui laisse la trace des
-    deux. Utilisez <strong>Enregistrer en brouillon</strong> tant que la pièce n'est pas certaine — un brouillon reste
-    corrigeable, mais il bloque la clôture tant qu'il n'est pas tranché.
+    La seule correction est une écriture de sens inverse, qui laisse la trace des deux. Le journal est en consultation :
+    <strong>aucun bouton « Valider » ni « Contre-passer » n'y figure</strong>, donc corrigez en passant une nouvelle pièce de sens inverse, puis la bonne pièce.
+    Utilisez <strong>Enregistrer en brouillon</strong> seulement si vous devez vraiment différer la pièce : un brouillon bloque la clôture tant qu'il n'est pas tranché.
   </span>
 
-  <h2>9.3 Les dix écrans comptables</h2>
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Sur le poste Windows</span>
+    Le poste passe ses écritures par son propre moteur comptable, sous le droit d'écriture sur la comptabilité. <strong>Seuls les comptes du plan et les pièces saisies à la main sont envoyés au serveur</strong> ;
+    les pièces produites par les modules (ventes, dépenses, règlements, clôture) ne partent jamais : le serveur passe les siennes à la réception de chaque document.
+    Dans l'onglet <em>Passer écriture</em>, un administrateur ou le comptable dispose du geste confirmé <strong>Envoyer mes anciennes pièces saisies</strong> pour les pièces saisies à la main avant la version qui a introduit l'envoi :
+    rien n'est jamais envoyé en silence ; sans ce geste, ces pièces restent comptées sur le poste.
+  </span>
+
+  <h3>Les comptes du plan et leur correspondance</h3>
+  <p>
+    L'onglet <strong>Plan comptable</strong> liste les comptes SYSCOHADA révisé par classe, avec une recherche par numéro ou libellé. <strong>+ Créer un compte</strong> ajoute un compte (<strong>Numéro</strong>, <strong>Intitulé</strong>,
+    <strong>Type</strong> : Actif, Passif, Charge ou Produit). Choisissez le type avec soin : il commande le poste du bilan, et un type faux rend le compte invisible au bilan.
+  </p>
+  <p>
+    Le bouton <strong>Correspondance des comptes</strong> ouvre l'écran qui dit, pour chaque pièce automatique, <em>quel compte</em> chaque rôle utilise : produits du restaurant, du bar, de la location, des circuits ; TVA facturée et récupérable ;
+    Caisse, Banque, Mobile Money ; Clients, Fournisseurs, avances clients ; comptes du résultat de l'exercice (131 et 139 par défaut). <strong>Modifier</strong> remplace le compte d'un rôle (le compte doit exister au plan et convenir au rôle) ;
+    <strong>Rétablir le défaut</strong> remet le compte d'origine. <strong>Un changement vaut pour les pièces futures</strong> : une pièce déjà passée n'est jamais réécrite. La modification est réservée aux profils qui ont le droit d'écriture sur la comptabilité,
+    et existe aussi sur le poste.
+  </p>
+
+  <h3>Les immobilisations</h3>
+  <p>
+    L'onglet <strong>Immobilisations</strong> présente le tableau de l'exercice (code, immobilisation, durée, valeur d'origine, dotation, amortissements cumulés, valeur nette comptable). <strong>+ Immobilisation</strong> ouvre la fiche :
+    <strong>Compte d'immobilisation</strong>, <strong>Valeur d'origine (FCFA)</strong>, <strong>Mise en service</strong> et <strong>Durée d'utilité (années)</strong>. <strong>Aucune durée n'est proposée</strong> : c'est une estimation propre à l'entreprise, pas un barème,
+    donc elle est obligatoire et sans valeur pré-remplie. L'amortissement est linéaire, avec prorata de la première annuité en mois entamés ; <strong>Plan</strong> affiche le plan d'amortissement année par année
+    (la dernière annuité absorbe l'arrondi, pour que la valeur nette finale tombe à zéro).
+  </p>
+
+  <h2>9.3 Les écrans comptables</h2>
+  <p>Les onze tuiles de la page d'accueil ouvrent, pour chacune, un écran de consultation :</p>
   <table>
     <thead><tr><th>Écran</th><th>Ce qu'il donne</th></tr></thead>
     <tbody>
-      <tr><td><strong>Plan Comptable</strong></td><td>Les comptes SYSCOHADA révisé, filtrables par classe (1 à 7), avec leur nature (actif, passif, charge, produit).</td></tr>
-      <tr><td><strong>Journal Comptable</strong></td><td>Toutes les écritures, dans l'ordre chronologique, filtrables par journal.</td></tr>
-      <tr><td><strong>Grand Livre</strong></td><td>Les écritures d'un compte choisi, avec leur solde progressif.</td></tr>
-      <tr><td><strong>Balance Générale</strong></td><td>Les soldes de tous les comptes mouvementés. Le bandeau confirme l'équilibre : <em>Total Débit = Total Crédit</em>.</td></tr>
-      <tr><td><strong>Compte de Résultat</strong></td><td>Produits, charges, résultat d'exploitation, financier, HAO, puis le résultat <strong>avant impôt</strong>.</td></tr>
-      <tr><td><strong>Bilan de l'Entreprise</strong></td><td>Actif et passif, avec contrôle d'équilibre.</td></tr>
+      <tr><td><strong>Plan Comptable</strong></td><td>Les comptes SYSCOHADA révisé, filtrables par classe, avec leur nature (actif, passif, charge, produit).</td></tr>
+      <tr><td><strong>Journal Comptable</strong></td><td>Toutes les écritures, dans l'ordre chronologique, filtrables par journal. Seul écran comptable qui s'exporte (Excel ou PDF).</td></tr>
+      <tr><td><strong>Grand Livre</strong></td><td>Les écritures d'un compte choisi, avec leur solde progressif, puis le <strong>solde d'ouverture</strong> (l'à-nouveau) et le <strong>solde de clôture</strong>. Une ouverture « provisoire » est calculée à chaque lecture tant que l'exercice précédent n'est pas clôturé ; elle est dite « inconnue », jamais zéro, quand aucun report n'existe.</td></tr>
+      <tr><td><strong>Balance Générale</strong></td><td>Les soldes de tous les comptes mouvementés. Le bandeau confirme l'équilibre : <em>Total Débit = Total Crédit</em>. Quand l'exercice précédent n'est pas encore clôturé, un encadré signale que la balance comprend ses <strong>à-nouveaux provisoires</strong>.</td></tr>
+      <tr><td><strong>Compte de Résultat</strong></td><td>Produits, charges, résultat d'exploitation, financier, HAO, puis le résultat. Une colonne <strong>Exercice N−1</strong> permet la comparaison quand l'exercice précédent existe.</td></tr>
+      <tr><td><strong>Bilan de l'Entreprise</strong></td><td>Actif et passif en présentation brut / amortissements / net, avec contrôle d'équilibre et la même colonne de comparaison N−1.</td></tr>
       <tr><td><strong>Tableau des Flux de Trésorerie</strong></td><td>Le TAFIRE : ressources, emplois, variation du besoin en fonds de roulement, variation de trésorerie, et le contrôle de cohérence entre variation calculée et variation réelle.</td></tr>
-      <tr><td><strong>Notes Annexes</strong></td><td>Les sept notes réglementaires : règles et méthodes, immobilisations, amortissements, créances et dettes, stocks, effectif, événements postérieurs.</td></tr>
-      <tr><td><strong>États Financiers</strong></td><td>La vue consolidée des quatre documents, et le bouton <strong>Exporter les 4 documents (PDF)</strong>.</td></tr>
-      <tr><td><strong>Comptabilité Analytique</strong></td><td>La marge par filière : Hébergement, Restauration, Bar, Tourisme, Véhicules, Structure.</td></tr>
+      <tr><td><strong>Notes Annexes</strong></td><td>Les sept notes : règles et méthodes, immobilisations, amortissements, créances et dettes, stocks, effectif, événements postérieurs.</td></tr>
+      <tr><td><strong>États Financiers</strong></td><td>La vue consolidée des quatre documents (bilan, résultat, flux, notes annexes), en consultation.</td></tr>
+      <tr><td><strong>Comptabilité Analytique</strong></td><td>La marge par centre : Hébergement, Restaurant, Bar, Tourisme, Véhicules, RH, Structure.</td></tr>
+      <tr><td><strong>Clôture Périodique</strong></td><td>La liste de contrôle de la clôture (§9.4) — un tableau d'état, sans bouton d'action.</td></tr>
     </tbody>
   </table>
   <figure>
-    <img src="../captures/m10-comptabilite.png" alt="Le hub Comptabilité : les dix écrans et les quatre indicateurs de tête.">
-    <figcaption><b>Figure 9.4</b> — Le hub <b>Comptabilité</b> : les dix écrans et les quatre indicateurs de tête.</figcaption>
+    <img src="../captures/m10-comptabilite.png" alt="Le hub Comptabilité : les écrans comptables et les indicateurs de tête.">
+    <figcaption><b>Figure 9.4</b> — Le hub <b>Comptabilité</b> : les écrans comptables et les indicateurs de tête.</figcaption>
   </figure>
 
+  <span class="note attention">
+    <span class="icone">⚠️</span>
+    <span class="titre">Attention</span>
+    <strong>Le résultat est un résultat « avant impôt » tant qu'aucun impôt n'est comptabilisé.</strong> Le logiciel ne calcule pas l'impôt sur les sociétés : il restitue ce qui est enregistré en classe 89.
+    Tant que le Comptable n'y a rien passé, le compte de résultat et les indicateurs l'indiquent (« Résultat affiché avant Impôt sur les Sociétés »). Ne communiquez pas ce chiffre comme un résultat net d'impôt.
+  </span>
 
   <span class="note attention">
     <span class="icone">⚠️</span>
@@ -133,28 +206,70 @@
     La ligne <em>Structure</em> les regroupe et son taux de marge n'est pas applicable — il affiche « — ».
   </span>
 
-  <h2>9.4 La clôture périodique</h2>
-  <p>L'écran <strong>Clôture Périodique</strong> déroule la procédure en cinq étapes et affiche, à chacune, si la condition est remplie :</p>
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Sur le poste Windows</span>
+    Le poste présente la comptabilité dans <strong>un seul écran</strong> : les dix onglets, les six indicateurs et les onze tuiles. Le journal, le grand livre, la balance, l'analytique,
+    le compte de résultat et le bilan (avec leur colonne N−1) y sont calculés sans réseau ; le TAFIRE, les notes annexes et les états financiers s'ouvrent dans une fenêtre.
+    Le <strong>compte de résultat, le bilan, la balance et les indicateurs</strong> du poste comptent les écritures validées que le serveur a transmises <em>et</em> les <strong>pièces saisies à la main sur ce poste que le serveur n'a pas encore reprises</strong>
+    (jamais deux fois la même pièce) : un bandeau dit combien de pièces sont ainsi comptées en attendant. Une pièce <strong>refusée par le serveur</strong> reste validée, immuable et comptée dans les états du poste ; le bandeau la nomme
+    avec son motif, et le refus se lit dans « À traiter » de l'écran de synchronisation. Le bouton Exporter n'y existe que sur l'onglet Journal.
+  </span>
+
+  <h2>9.4 La clôture de l'exercice</h2>
+  <p>
+    La clôture est <strong>annuelle</strong>. Ses gestes se font dans l'onglet <strong>Clôtures</strong> de la comptabilité ; l'écran <strong>Clôture Périodique</strong> n'en est que la liste de contrôle. Avant de commencer,
+    l'onglet liste les <strong>postes dont l'envoi n'est peut-être pas terminé</strong> (opérations à envoyer, ou état inconnu) : faites d'abord « Synchroniser les postes », car une fois l'exercice en clôture, le serveur refuse leurs pièces datées de cette année.
+    C'est un avertissement, il ne bloque pas.
+  </p>
+  <table>
+    <thead><tr><th>Étape</th><th>Bouton</th><th>Effet</th></tr></thead>
+    <tbody>
+      <tr><td>ouvert ➔ <strong>en clôture</strong></td><td>Démarrer la clôture</td><td>Les modules n'écrivent plus dans l'exercice ; leurs pièces vont dans l'exercice suivant. Seules les écritures d'inventaire du comptable y passent encore.</td></tr>
+      <tr><td>en clôture ➔ ouvert</td><td>Reprendre la saisie</td><td>Retour en arrière, tant que rien n'est clôturé.</td></tr>
+      <tr><td>en clôture ➔ <strong>clôturé</strong></td><td>Clôturer définitivement</td><td>Voir ci-dessous.</td></tr>
+      <tr><td>clôturé ➔ en clôture</td><td>Rouvrir (<strong>le comptable seul</strong>, avec un motif d'au moins dix caractères)</td><td>Les pièces de clôture et d'à-nouveaux sont contre-passées — rien ne s'efface — et le motif est tracé.</td></tr>
+    </tbody>
+  </table>
+  <p>
+    La clôture définitive est refusée tant que la liste de contrôle n'est pas réunie : <strong>aucune écriture en brouillon</strong>, <strong>balance équilibrée</strong>, <strong>exercice précédent clôturé</strong>.
+    Quand elle passe, elle produit dans l'ordre :
+  </p>
   <ol class="etapes">
-    <li><strong>Vérification pré-clôture</strong> — balance équilibrée, inventaire physique réconcilié, rapprochement bancaire à jour.</li>
-    <li><strong>Passage en statut « en clôture »</strong> — bloque toute nouvelle saisie sur l'exercice.</li>
-    <li><strong>Écritures de clôture</strong> — dotations aux amortissements, calcul du résultat net, solde des comptes de gestion.</li>
-    <li><strong>Contrôle post-clôture</strong> — comptes de classes 6 et 7 à zéro, compte de résultat conforme.</li>
-    <li><strong>Passage en statut « clôturé »</strong> — verrou définitif.</li>
+    <li><strong>La pièce de clôture</strong>, datée du 31 décembre au <strong>journal CL</strong> : elle solde les comptes de gestion (classes 6, 7 et 8) ; la contrepartie va en <strong>131</strong> (bénéfice) ou en <strong>139</strong> (perte).</li>
+    <li><strong>La pièce d'à-nouveaux</strong>, datée du 1er janvier suivant au <strong>journal AN</strong> : elle reporte les soldes des comptes de bilan, résultat compris. Les à-nouveaux, <em>provisoires</em> tant que l'exercice n'est pas clôturé, deviennent définitifs.</li>
+    <li><strong>Le verrou</strong> : l'exercice passe au statut « clôturé ».</li>
+    <li><strong>L'archive légale</strong> : le fichier des écritures, la balance, les états de clôture en PDF, et un manifeste. Son <strong>empreinte SHA-256</strong> est affichée dans l'onglet ; <strong>notez-la</strong> sur le registre ou le procès-verbal de clôture : elle prouvera plus tard
+      qu'aucun fichier n'a changé. <strong>Télécharger l'archive (ZIP)</strong> vérifie l'archive avant de la délivrer et refuse si un fichier a été modifié. Si la génération échoue après la clôture, la clôture tient et <strong>Générer l'archive</strong> est proposé.</li>
   </ol>
+  <p>
+    La colonne <em>Résultat reporté</em> de l'onglet donne, pour chaque exercice clôturé, le résultat que sa clôture a écrit en 131 ou 139. Les états de l'exercice clôturé (balance, compte de résultat, bilan) restent ceux d'<strong>avant</strong> la clôture :
+    le compte de résultat montre le résultat de l'année, pas zéro.
+  </p>
 
   <span class="note alerte">
     <span class="icone">🛑</span>
     <span class="titre">Alerte</span>
-    <strong>La clôture s'arrête aujourd'hui à l'étape 3</strong>, et c'est délibéré : le taux d'impôt sur les sociétés
-    applicable au Gîte n'est pas encore fixé. Le logiciel <strong>refuse de clore</strong> avec un taux supposé plutôt
-    que de produire un résultat net faux. La clôture annuelle ne pourra être menée à son terme qu'une fois
-    ce taux arrêté et paramétré.
+    <strong>Conservez l'archive de clôture hors du serveur.</strong> Elle est rangée sur le serveur, à côté de la base, mais la sauvegarde de la base ne la contient pas : copiez-la, avec son empreinte, sur un support externe.
+    Le format exact attendu par l'administration fiscale pour le fichier des écritures reste à confirmer avec l'expert-comptable.
+  </span>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Sur le poste Windows</span>
+    Le poste mène aussi la clôture (mêmes quatre gestes, mêmes contrôles, mêmes pièces CL et AN, même archive et même empreinte) <strong>sur les écritures passées par ce poste</strong>. Mais <strong>le serveur reste le seul comptable</strong> : chaque geste envoie une <em>demande</em>
+    au serveur, qui rejoue ses propres règles. Si le serveur refuse (un brouillon sur un autre poste, un exercice précédent non clôturé de son côté…), la clôture locale demeure et la raison se lit dans « À traiter ».
+    La clôture légale de l'établissement est donc celle du serveur : faites-la sur le web.
   </span>
   <figure>
-    <img src="../captures/m10-cloture.png" alt="La clôture périodique, étape par étape, avec le point de blocage annoncé.">
-    <figcaption><b>Figure 9.5</b> — La <b>clôture périodique</b>, étape par étape, avec le point de blocage annoncé.</figcaption>
+    <img src="../captures/m10-cloture.png" alt="L'écran Clôture Périodique et sa liste de contrôle.">
+    <figcaption><b>Figure 9.5</b> — La <b>clôture</b> : liste de contrôle et état des étapes.</figcaption>
   </figure>
+  <p>
+    L'écran <strong>Clôture Périodique</strong> déroule six groupes de contrôles — vérification pré-clôture (balance équilibrée, aucun brouillon, inventaire physique réconcilié, rapprochement bancaire), passage « en clôture », écritures de clôture,
+    contrôle post-clôture, passage « clôturé », bilan de référence — et marque chaque ligne <em>Conforme</em>, <em>Bloqué</em>, <em>Non vérifiable</em> (limite du domaine : l'inventaire physique appartient aux stocks) ou <em>Non atteint</em>
+    (dépend d'une étape précédente). <em>Non vérifiable</em> et <em>Non atteint</em> ne sont pas des échecs. Cet écran ne déclenche rien : les boutons sont dans l'onglet Clôtures.
+  </p>
 
 </section>
 
@@ -174,29 +289,42 @@
     Menu latéral <span class="fleche">➔</span> Personnel &amp; Paie
   </span>
   <p>
-    Six indicateurs ouvrent l'écran : effectif actif, masse salariale, coût employeur (en fourchette),
-    net du mois, VPS à reverser et bulletins manquants. Cinq onglets suivent.
+    Six indicateurs ouvrent l'écran (la bande se replie) : effectif actif, masse salariale, coût employeur (en fourchette),
+    net du mois, VPS à reverser et bulletins manquants. Cinq onglets suivent, avec une <strong>Période</strong> mensuelle, une recherche (nom, matricule, poste) et des filtres par service, contrat et statut
+    (<em>Actifs</em>, <em>Tous</em>, <em>Sortis</em>, <em>Sans n° CNSS</em>). Les boutons <strong>Excel</strong> et <strong>PDF</strong> exportent l'onglet affiché.
   </p>
 
   <table>
     <thead><tr><th>Onglet</th><th>Ce que vous y faites</th></tr></thead>
     <tbody>
-      <tr><td><strong>Personnel</strong></td><td>L'effectif : matricule, contrat, date d'embauche, numéro CNSS, salaire de base et coût employeur. Le bouton <strong>+ Employé</strong> crée une fiche ; <strong>Établir</strong> génère le bulletin du mois.</td></tr>
-      <tr><td><strong>Bulletins de paie</strong></td><td>Les bulletins établis, avec le détail des retenues.</td></tr>
-      <tr><td><strong>Livre de paie</strong></td><td>La récapitulation du mois, tous salariés confondus.</td></tr>
-      <tr><td><strong>Déclarations</strong></td><td>CNSS, VPS et ITS à reverser pour la période.</td></tr>
-      <tr><td><strong>Barèmes &amp; taux</strong></td><td>Les taux appliqués et leur source.</td></tr>
+      <tr><td><strong>Personnel</strong></td><td>L'effectif : matricule, contrat, date d'embauche, numéro CNSS, salaire de base et coût employeur. Le bouton <strong>+ Employé</strong> crée une fiche ; <strong>Établir</strong> génère le bulletin du mois ; <strong>Modifier</strong> corrige la fiche.</td></tr>
+      <tr><td><strong>Bulletins de paie</strong></td><td>Les bulletins établis, avec le brut, la CNSS 3,6 %, l'ITS, les autres retenues, le net à payer et les charges patronales. <strong>Voir</strong> ouvre le bulletin imprimable ; <strong>Annuler</strong> l'annule avec un motif. <strong>Générer les bulletins manquants</strong> établit d'un coup ceux de la période.</td></tr>
+      <tr><td><strong>Livre de paie</strong></td><td>La récapitulation du mois, tous salariés confondus : brut, retenues, net, charges patronales (pension 6,4 %, prestations familiales 9 %, VPS 4 %, risques professionnels) et coût total employeur.</td></tr>
+      <tr><td><strong>Déclarations</strong></td><td>CNSS, VPS et ITS à reverser pour la période, leur échéance et leur état (<em>Montant arrêté</em> ou <em>Incomplet</em>).</td></tr>
+      <tr><td><strong>Barèmes &amp; taux</strong></td><td>Le barème ITS par tranches, les taux appliqués avec leur source (<em>confirmé</em> ou <em>non confirmé</em>) et un <strong>simulateur</strong> : saisissez un salaire brut mensuel pour voir retenues, net et coût employeur entre deux bornes.</td></tr>
     </tbody>
   </table>
+
+  <h3>Créer ou modifier un employé</h3>
+  <ol class="etapes">
+    <li>Cliquez sur <strong>+ Employé</strong> (onglet Personnel).</li>
+    <li>Renseignez le <strong>Nom</strong>, les <strong>Prénoms</strong>, le <strong>Poste</strong>, le <strong>Service</strong>, le <strong>Contrat</strong>, la date d'<strong>Embauche</strong> (et la <strong>Fin de contrat</strong> s'il y en a une), le <strong>Salaire de base (FCFA)</strong> et le <strong>Statut</strong>.</li>
+    <li>Le <strong>Numéro CNSS</strong> est facultatif à l'embauche, indispensable pour déclarer. L'<strong>Email</strong> est facultatif : il permet d'informer le salarié que son bulletin du mois est établi.</li>
+    <li>Si un employé existant porte déjà le même nom, le logiciel le signale : cochez la case de confirmation seulement s'il s'agit bien d'une <strong>personne différente</strong>.</li>
+    <li>Cliquez sur <strong>Créer</strong> (ou <strong>Enregistrer</strong>). Un aperçu du coût employeur s'affiche, en fourchette.</li>
+  </ol>
 
   <h3>Établir un bulletin</h3>
   <ol class="etapes">
     <li>Ouvrez l'onglet <strong>Personnel</strong> et choisissez la <strong>Période</strong> en haut de l'écran.</li>
-    <li>Sur la ligne du salarié, cliquez sur <strong>Établir</strong>.</li>
-    <li>Vérifiez le brut, les retenues calculées et le net à payer.</li>
+    <li>Sur la ligne du salarié, cliquez sur <strong>Établir</strong> (le salaire de base est repris automatiquement).</li>
+    <li>Vérifiez le brut soumis à cotisations, les retenues calculées et le net à payer.</li>
     <li>Validez. Le bulletin rejoint l'onglet <strong>Bulletins de paie</strong> et le <strong>Livre de paie</strong>.</li>
   </ol>
-  <p>Un second bulletin sur la même période pour le même salarié est refusé.</p>
+  <p>
+    Un second bulletin sur la même période pour le même salarié est refusé. Un salarié <strong>parti</strong> n'a plus de bulletin. Le bulletin affiche le brut, la CNSS salariale, le revenu imposable, l'ITS, les autres retenues, le <strong>NET À PAYER</strong>,
+    puis, à part, les charges patronales — qui ne sont jamais retenues sur le salaire.
+  </p>
   <figure>
     <img src="../captures/m13-paie.png" alt="L'écran Personnel &amp; Paie : le coût employeur est affiché en fourchette.">
     <figcaption><b>Figure 10.1</b> — L'écran <b>Personnel &amp; Paie</b> : le coût employeur est affiché en fourchette.</figcaption>
@@ -207,18 +335,25 @@
     <span class="icone">⚠️</span>
     <span class="titre">Attention</span>
     <strong>Un salarié sans numéro CNSS</strong> reste calculable : son bulletin s'établit normalement. En revanche,
-    il ne peut pas figurer à la déclaration CNSS. L'écran le signale en tête — régularisez le numéro avant
+    il ne peut pas figurer à la déclaration CNSS. L'écran le signale en tête (indicateur « Bulletins manquants », livre de paie) — régularisez le numéro avant
     l'échéance déclarative.
   </span>
 
   <span class="note alerte">
     <span class="icone">🛑</span>
     <span class="titre">Alerte</span>
-    <strong>Le coût employeur est affiché en fourchette, et il faut le lire ainsi.</strong> Le taux CNSS
-    « risques professionnels » va de 1 % à 4 % selon le niveau de risque de l'entreprise, et la catégorie
-    applicable à l'hôtellerie-restauration n'est pas confirmée. Le logiciel <strong>refuse de retenir un taux moyen</strong> :
+    <strong>Tant que le taux CNSS « risques professionnels » n'est pas renseigné, le coût employeur est affiché en fourchette, et il faut le lire ainsi.</strong> Ce taux va de 1 % à 4 % selon le niveau de risque de l'entreprise,
+    et la catégorie applicable à l'hôtellerie-restauration n'est pas confirmée par la CNSS. Le logiciel <strong>refuse de retenir un taux moyen</strong> :
     sur une masse salariale annuelle, l'écart entre 1 % et 4 % est un redressement. Ne communiquez jamais
-    la borne basse comme un coût réel.
+    la borne basse comme un coût réel. Seul un administrateur peut renseigner ce taux (Paramètres, onglet Activation &amp; Sécurité, rubrique Charges sociales), une fois la catégorie confirmée.
+    Les cotisations confirmées — pension 6,4 %, prestations familiales 9 %, VPS 4 % — sont, elles, calculées.
+  </span>
+
+  <span class="note alerte">
+    <span class="icone">🛑</span>
+    <span class="titre">Alerte</span>
+    <strong>Aucun calcul de paie n'est possible tant que les taux confirmés ne sont pas paramétrés</strong> : l'écran affiche alors « Les taux de paie ne sont pas paramétrés » et nomme les taux manquants.
+    De même, un salaire dont le revenu imposable dépasse le plafond confirmé du barème ITS est <strong>refusé plutôt qu'extrapolé</strong> : la structure du barème au-delà de ce plafond n'est pas tranchée. Dans ces deux cas, ne contournez pas : prévenez l'administrateur.
   </span>
 
   <span class="note info">
@@ -228,18 +363,41 @@
     Elle ne descend jamais en retenue salariale et se reverse <strong>au plus tard le 10 du mois suivant</strong>.
   </span>
 
-  <h2>10.2 L'écran Ressources Humaines</h2>
+  <h3>Quitter l'entreprise : archiver, jamais effacer</h3>
   <p>
-    Un second écran, accessible par son adresse, regroupe le dossier du personnel sous cinq onglets :
-    <strong>Employés</strong>, <strong>Paie</strong>, <strong>Présences</strong>, <strong>Congés</strong> et <strong>Départs</strong>. Il porte les statuts
-    (Actif, Congé, Inactif), le poste, le service et le salaire de base, avec l'import et l'export du
-    référentiel.
+    Un salarié qui quitte le Gîte passe au statut <strong>parti</strong> : c'est ce que fait <strong>Archiver</strong> (sur la ligne, ou pour une sélection), proposé à l'administrateur ou, aux autres profils habilités, quand la bascule de suppression est ouverte (§13.2).
+    La fiche et les bulletins restent lisibles. Si un salarié archivé n'a pas de bulletin sur la période, la fenêtre le signale : établissez d'abord son solde de tout compte s'il est dû, car une fois parti, la génération de bulletins l'ignore.
+    L'archivage est réversible : la fiche permet de repasser le statut à « actif ».
   </p>
 
-  <span class="note attention">
-    <span class="icone">⚠️</span>
-    <span class="titre">Attention</span>
-    Un salarié qui quitte le Gîte se met en statut <strong>Inactif</strong> ou passe par l'onglet <strong>Départs</strong> :
-    il ne se supprime pas. Une paie versée doit continuer de porter le nom de son bénéficiaire.
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Sur le poste Windows</span>
+    Le personnel et la paie fonctionnent sur le poste, sans réseau, avec les mêmes calculs. Les taux de paie se saisissent dans les Paramètres du poste. Le coût employeur reste affiché en fourchette tant que le taux « risques professionnels » n'est pas renseigné,
+    et le poste n'additionne jamais les charges patronales en un total unique tant que ce taux manque. Le poste ne compose pas le message d'information « bulletin disponible » : il remonte l'adresse e-mail de l'employé au serveur, qui compose et envoie (chapitre 12).
+  </span>
+
+  <h2>10.2 Congés &amp; Plannings</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Menu latéral <span class="fleche">➔</span> Congés &amp; Plannings
+  </span>
+  <p>
+    Cet écran, du groupe Ressources humaines, regroupe les <strong>plannings d'équipe par jour</strong> et les <strong>demandes de congé avec leur validation</strong>. Trois indicateurs — créneaux du jour, demandes en attente, personnes en congé aujourd'hui —
+    et deux onglets, <strong>Plannings</strong> et <strong>Congés</strong>. (L'ancien écran « Ressources Humaines » à cinq onglets n'existe plus : le dossier du personnel est dans Personnel &amp; Paie.)
+  </p>
+  <ul class="puces">
+    <li><strong>Plannings</strong> — choisissez le <strong>Jour</strong> et, au besoin, un service ; <strong>Planifier un créneau</strong> demande l'<strong>Employé</strong>, le <strong>Service</strong>, la <strong>Date</strong> et les heures (<strong>De</strong> … <strong>À</strong>). Un employé ne peut pas être planifié sur deux créneaux qui se recouvrent, ni s'il n'est pas en poste, ni un jour où il est en congé validé.</li>
+    <li><strong>Congés</strong> — <strong>Demander un congé</strong> demande l'<strong>Employé</strong>, la <strong>Nature</strong> (Congé annuel, Maladie, Congé exceptionnel, Maternité) et les dates <strong>Du</strong> et <strong>Au</strong>. La demande est enregistrée <em>En attente</em> ; <strong>Valider</strong> ou <strong>Refuser</strong> la demande.
+      Une demande refusée est conservée, et une demande déjà décidée ne se rouvre pas.</li>
+  </ul>
+  <p>
+    <strong>Valider</strong> applique deux règles : un <strong>préavis</strong> minimal (« Préavis insuffisant : n jour(s) au lieu des n exigés ») et une <strong>couverture minimale par service</strong> (« Couverture de service compromise : n employé(s) resteraient en poste pour un minimum de n »).
+    Ces deux seuils sont des paramètres de l'administrateur (Paramètres, rubrique Exploitation : <em>Préavis de congé (jours)</em> et <em>Effectif minimal présent par service</em>) ; <strong>tant qu'ils ne sont pas renseignés, aucune validation de congé n'est possible</strong>.
+  </p>
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Sur le poste Windows</span>
+    Plannings et congés se saisissent aussi sur le poste, avec les mêmes règles et les mêmes phrases. Le serveur rejoue les règles avec ses propres données à la synchronisation : une validation refusée là-bas revient dans « À traiter ».
   </span>
 </section>
