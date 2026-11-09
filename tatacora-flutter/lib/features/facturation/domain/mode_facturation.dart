@@ -103,7 +103,7 @@ ModeFacturation modeDesParametres(Map<String, String> valeurs) =>
 String phraseCertifiePar(CertifiePar c, {required bool surchargeLocale}) {
   final base = switch (c) {
     CertifiePar.rien =>
-      'Ce poste ne certifie pas : les factures restent des documents de démonstration.',
+      'Ce poste ne normalise pas : les factures sont des factures simples, sans mention de normalisation.',
     CertifiePar.serveur =>
       'Ce poste laisse le serveur certifier (e-MECeF) : la normalisation arrive après la synchronisation.',
     CertifiePar.boitier =>
