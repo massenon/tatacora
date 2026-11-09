@@ -1,0 +1,374 @@
+<!-- ============================ CHAPITRE 15 ============================ -->
+<section class="chapitre" id="ch15">
+  <h1 class="chapitre"><span class="numero">Chapitre 15</span>Le poste Windows : installer, mettre à jour, désinstaller</h1>
+
+  <p class="chapeau">
+    Le <strong>poste</strong> est le logiciel LogiRestock installé sur un ordinateur Windows du Gîte :
+    celui de la réception, du comptable ou du gérant. Il garde toutes vos saisies <strong>sur son propre
+    disque</strong> et travaille <strong>sans Internet</strong>. Ce chapitre dit comment l'installer, le
+    mettre à jour, le désinstaller sans rien perdre, et que faire quand il refuse de démarrer.
+  </p>
+
+  <h2>15.1 Ce qu'est le poste, et ce qu'il n'est pas</h2>
+  <p>
+    LogiRestock existe sous deux formes qui se complètent : le <strong>poste Windows</strong> (le logiciel
+    décrit dans ce manuel) et l'<strong>espace web</strong>, hébergé sur Internet. Chaque poste a <strong>sa
+    propre base de données</strong>, rangée sur son disque. Le web n'est pas nécessaire pour travailler :
+    il sert à réunir les saisies de plusieurs postes (chapitre 16) et à quelques gestes qui exigent Internet
+    par nature (chapitre 17).
+  </p>
+
+  <table>
+    <thead><tr><th>Question</th><th>Réponse</th></tr></thead>
+    <tbody>
+      <tr><td>Faut-il Internet pour vendre, réserver, facturer, encaisser, clôturer la caisse ?</td><td><strong>Non.</strong> Tout se fait sur le poste, des jours durant s'il le faut.</td></tr>
+      <tr><td>Où sont mes saisies ?</td><td>Sur le disque de ce poste, dans un dossier caché du compte Windows (section 15.6).</td></tr>
+      <tr><td>Que se passe-t-il si le poste n'a jamais été relié au web ?</td><td>Il fonctionne seul. Ses saisies restent sur lui : <strong>c'est alors la seule copie qui existe</strong>.</td></tr>
+      <tr><td>À quoi sert la synchronisation ?</td><td>À envoyer les saisies du poste vers le serveur et à recevoir celles des autres postes. C'est un <strong>plus</strong>, jamais une condition.</td></tr>
+    </tbody>
+  </table>
+
+  <span class="note alerte">
+    <span class="icone">🛑</span>
+    <span class="titre">Alerte</span>
+    Tant qu'une saisie n'est pas arrivée au serveur, la copie qui est sur le poste est <strong>la seule</strong>.
+    Un disque qui tombe en panne, une désinstallation avec suppression des données ou un dossier effacé
+    à la main la détruit sans retour. La sauvegarde (section 15.7) est votre assurance.
+  </span>
+
+  <h2>15.2 Installer le logiciel</h2>
+
+  <h3>Ce qu'il faut avoir</h3>
+  <ul class="puces">
+    <li>un ordinateur <strong>Windows 10 ou 11, 64 bits</strong> ;</li>
+    <li>un <strong>compte Windows administrateur</strong> pour lancer l'installation (l'installateur le demande) ;</li>
+    <li>le fichier <code>LogiReStock_Setup_&lt;version&gt;.exe</code>, remis par l'éditeur (clé USB, partage réseau) — par exemple <code>LogiReStock_Setup_1.0.0.exe</code>.</li>
+  </ul>
+
+  <h3>Les étapes</h3>
+  <ol class="etapes">
+    <li>Copiez le fichier d'installation sur le poste, puis <strong>double-cliquez</strong> dessus. Autorisez Windows à lancer le programme quand il le demande.</li>
+    <li>Si Windows affiche un écran bleu <strong>« Windows a protégé votre ordinateur »</strong> (éditeur inconnu), cliquez sur <strong>Informations complémentaires</strong>, puis sur <strong>Exécuter quand même</strong>. L'installateur n'est pas signé : cet avertissement est normal.</li>
+    <li>Suivez l'assistant, qui est <strong>en français</strong>. Le dossier proposé est <code>C:\Program Files\LogiReStock</code> : gardez-le.</li>
+    <li>Cochez, si vous le souhaitez, <strong>Créer une icône sur le Bureau</strong> (case décochée par défaut). Un raccourci est de toute façon créé dans le menu Démarrer.</li>
+    <li>Terminez l'assistant. La case <strong>Lancer LogiReStock</strong> ouvre le logiciel tout de suite.</li>
+  </ol>
+
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Fichier d'installation <span class="fleche">➔</span> Exécuter quand même <span class="fleche">➔</span> Assistant en français <span class="fleche">➔</span> Terminer
+  </span>
+
+  <figure class="emplacement">
+    <div class="cadre">
+      <strong>Capture à insérer</strong>
+      <code>captures/c15-installateur-assistant.png</code><br>
+      L'assistant d'installation, page « Dossier de destination ».
+    </div>
+    <figcaption><b>Figure 15.1</b> — L'assistant d'installation de LogiReStock.</figcaption>
+  </figure>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Information</span>
+    Les composants dont le logiciel a besoin (dont le moteur de base de données) sont <strong>dans le dossier
+    d'installation</strong> : il n'y a rien d'autre à installer en principe. Cette affirmation n'a pas encore
+    été éprouvée sur chaque ordinateur du Gîte : si le logiciel ne s'ouvre pas du tout après l'installation,
+    ne cherchez pas à le réparer seul et prévenez l'éditeur (voir la couverture de ce manuel).
+  </span>
+
+  <h2>15.3 Le premier lancement</h2>
+  <p>
+    Un poste neuf ne contient <strong>aucun compte</strong>, et il n'existe <strong>aucun mot de passe par
+    défaut</strong> : c'est voulu. Au premier lancement, l'écran de démarrage laisse donc la place à un
+    écran <strong>« Premier démarrage »</strong> qui dit : <em>« Ce poste ne contient aucun compte. Créez
+    celui de l'administrateur pour commencer. »</em>
+  </p>
+
+  <ol class="etapes">
+    <li>Saisissez l'<strong>Identifiant</strong> de l'administrateur et son <strong>Nom complet</strong>.</li>
+    <li>Choisissez un <strong>Mot de passe</strong> (8 caractères au minimum) et recopiez-le dans <strong>Confirmer le mot de passe</strong>. Si les deux saisies diffèrent, le logiciel répond « Les deux saisies ne correspondent pas. »</li>
+    <li>Cliquez sur <strong>Créer le compte administrateur</strong>.</li>
+    <li>Une fenêtre affiche alors un <strong>code de secours</strong> (voir le chapitre 19). Copiez-le ou imprimez-le, rangez-le dans un endroit sûr, puis cliquez sur <strong>J'ai rangé ce code</strong>.</li>
+  </ol>
+
+  <figure class="emplacement">
+    <div class="cadre">
+      <strong>Capture à insérer</strong>
+      <code>captures/c15-premier-demarrage.png</code><br>
+      L'écran « Premier démarrage » d'un poste neuf, champs vides.
+    </div>
+    <figcaption><b>Figure 15.2</b> — La création du compte administrateur sur un poste neuf.</figcaption>
+  </figure>
+
+  <span class="note alerte">
+    <span class="icone">🛑</span>
+    <span class="titre">Alerte</span>
+    Le logiciel le rappelle sous le formulaire : le mot de passe <strong>n'est enregistré nulle part en clair
+    et ne peut pas être récupéré</strong>. Notez-le, avec le code de secours, dans un lieu sûr (coffre, cahier
+    fermé à clé). Ne le collez jamais dans un courriel ni un message.
+  </span>
+
+  <h3>Ce qui reste à faire ensuite</h3>
+  <ol class="etapes">
+    <li><strong>Créer les autres comptes</strong>, un par personne, avec le bon rôle (chapitre 19, section 19.4).</li>
+    <li>Dans <strong>Paramètres</strong>, vérifier ou renseigner : onglet <strong>Identité &amp; Légal</strong> (raison sociale, <strong>IFU</strong>, RCCM, régime fiscal) ; onglet <strong>Activation &amp; Sécurité</strong>, section « Charges sociales », le champ <strong>CNSS risques professionnels (%)</strong> — le taux figurant sur l'avis de la CNSS du Gîte (entre 1 et 4 %). Tant qu'il est vide, la charge patronale de la paie n'est annoncée qu'en fourchette.</li>
+    <li>Si le poste doit envoyer des courriels (« Contactez l'éditeur », notifications) : renseigner l'onglet <strong>Email (SMTP)</strong> (chapitre 16, section 16.2).</li>
+    <li>Si le poste doit échanger avec les autres postes : l'<strong>appairer</strong> au serveur (chapitre 16, section 16.3).</li>
+  </ol>
+
+  <h2>15.4 Mettre le logiciel à jour</h2>
+  <p>
+    Une mise à jour <strong>remplace le programme au même endroit</strong> et <strong>garde toutes les
+    données</strong> : la base et la configuration vivent en dehors du dossier du programme (section 15.6).
+    Le même fichier d'installation, avec un numéro de version plus récent, sert à la fois à installer et à
+    mettre à jour.
+  </p>
+
+  <ol class="etapes">
+    <li><strong>Faites une sauvegarde</strong> et copiez-la hors du PC (section 15.7).</li>
+    <li>Si le voyant de synchronisation n'est pas vert, laissez le poste envoyer ses saisies avant de continuer (chapitre 16).</li>
+    <li>Fermez LogiRestock. (Si vous l'oubliez, l'installateur ferme lui-même l'application ouverte avant de remplacer ses fichiers.)</li>
+    <li>Lancez le nouveau <code>LogiReStock_Setup_&lt;version&gt;.exe</code> et suivez l'assistant : il se place dans le dossier existant.</li>
+    <li>Au premier lancement, un écran d'attente <strong>« Mise à jour de la base du poste… »</strong> apparaît, avec la mention <em>« Cela peut prendre un moment après une mise à jour du logiciel. Ne fermez pas la fenêtre. »</em> Patientez : la base se met à niveau sans perdre une ligne.</li>
+  </ol>
+
+  <span class="note attention">
+    <span class="icone">⚠️</span>
+    <span class="titre">Attention</span>
+    <strong>Ne réinstallez jamais une version plus ancienne</strong> du logiciel sur un poste déjà mis à jour :
+    la base a été transformée par la version récente et l'ancienne ne saurait pas la lire.
+  </span>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Information</span>
+    Un poste installé <strong>avant le 17 octobre 2026</strong> rangeait sa base dans le dossier Documents.
+    Au premier lancement d'une version récente, elle est copiée automatiquement dans le nouveau dossier
+    et l'ancien fichier est renommé <code>tatacora.sqlite.deplacee-vers-appdata</code>. Il n'est jamais
+    effacé : une fois les saisies vérifiées, vous pouvez l'archiver.
+  </span>
+
+  <h2>15.5 Désinstaller le logiciel</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Paramètres Windows <span class="fleche">➔</span> Applications <span class="fleche">➔</span> LogiReStock <span class="fleche">➔</span> Désinstaller
+  </span>
+  <p>
+    Vous pouvez aussi utiliser le raccourci <strong>Désinstaller LogiReStock</strong> du groupe LogiReStock du
+    menu Démarrer. Avant de retirer quoi que ce soit, le désinstallateur affiche un <strong>avertissement
+    rouge</strong>. En voici le sens :
+  </p>
+
+  <span class="note alerte">
+    <span class="icone">🛑</span>
+    <span class="titre">Ce que dit l'avertissement</span>
+    <em>Désinstaller LogiReStock supprimera aussi TOUTES les données de ce poste</em> : la base locale
+    (réservations, ventes, factures, stocks, comptabilité…), la configuration (jeton d'appairage, messagerie
+    SMTP), les archives de clôture et les reçus de dépenses, les sauvegardes et la copie avant restauration,
+    le logo et l'icône de l'entreprise, le journal de démarrage. <strong>Les saisies non encore
+    synchronisées avec le serveur seront perdues, définitivement.</strong> Cette action est irréversible.
+  </span>
+
+  <table>
+    <thead><tr><th>Votre réponse</th><th>Ce qui se passe</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Non</strong> (bouton sélectionné par défaut)</td><td>La désinstallation est <strong>annulée</strong>. Rien n'est retiré, ni le logiciel ni les données.</td></tr>
+      <tr><td><strong>Oui</strong></td><td>Le logiciel est désinstallé <strong>et</strong> les dossiers de données sont supprimés (section 15.6). Le poste repart comme neuf.</td></tr>
+      <tr><td>Désinstallation « silencieuse » (lancée par un technicien, sans fenêtre)</td><td>Aucune question n'est posée, donc <strong>aucune donnée n'est supprimée</strong> : le logiciel est retiré, la base reste.</td></tr>
+    </tbody>
+  </table>
+
+  <figure class="emplacement">
+    <div class="cadre">
+      <strong>Capture à insérer</strong>
+      <code>captures/c15-desinstallation-avertissement.png</code><br>
+      La fenêtre d'avertissement de la désinstallation (boutons Oui / Non).
+    </div>
+    <figcaption><b>Figure 15.3</b> — L'avertissement affiché avant toute désinstallation.</figcaption>
+  </figure>
+
+  <span class="note astuce">
+    <span class="icone">✅</span>
+    <span class="titre">Astuce</span>
+    Avant de répondre <strong>Oui</strong> (poste mis au rebut, ordinateur remplacé) : 1) vérifiez que le voyant de
+    synchronisation est vert, c'est-à-dire que tout est arrivé au serveur ; 2) faites une sauvegarde et copiez-la
+    sur une clé USB ; 3) seulement ensuite, désinstallez. Si vous répondez <strong>Non</strong> par réflexe, vous
+    ne perdez rien.
+  </span>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Information</span>
+    Un poste désinstallé avec « Oui » puis réinstallé est un poste <strong>neuf</strong> : il faut recréer le
+    compte administrateur et, si besoin, l'appairer de nouveau. Ce qui avait déjà été envoyé au serveur peut
+    lui être renvoyé ; ce qui n'avait pas été envoyé est perdu.
+  </span>
+
+  <h2>15.6 Où sont les données</h2>
+  <p>
+    Les données sont <strong>en dehors du dossier du programme</strong>, dans des dossiers cachés du compte
+    Windows. C'est ce qui permet à une mise à jour de ne jamais les toucher.
+  </p>
+
+  <table>
+    <thead><tr><th>Quoi</th><th>Où</th></tr></thead>
+    <tbody>
+      <tr><td>Le <strong>logiciel</strong></td><td><code>C:\Program Files\LogiReStock\</code></td></tr>
+      <tr><td>La <strong>base de données</strong> (toutes les saisies)</td><td><code>%LOCALAPPDATA%\TATACORA\donnees\tatacora.sqlite</code></td></tr>
+      <tr><td>Le <strong>journal de démarrage</strong></td><td><code>%LOCALAPPDATA%\TATACORA\donnees\demarrage.log</code></td></tr>
+      <tr><td>La <strong>configuration du poste</strong> (appairage, adresse du serveur, mot de passe de la messagerie, réglages propres au poste)</td><td><code>%APPDATA%\TATACORA\poste.json</code></td></tr>
+      <tr><td>Les <strong>archives de clôture</strong>, les <strong>reçus de dépenses</strong>, les <strong>sauvegardes</strong></td><td>dans le dossier <code>%APPDATA%\TATACORA\</code>, à côté de <code>poste.json</code></td></tr>
+    </tbody>
+  </table>
+
+  <p>
+    Pour ouvrir un de ces dossiers : appuyez sur les touches <strong>Windows + R</strong>, tapez
+    <code>%LOCALAPPDATA%\TATACORA</code> (ou <code>%APPDATA%\TATACORA</code>), puis <strong>Entrée</strong>.
+    Les noms de dossiers restent <code>TATACORA</code> même si le logiciel s'appelle LogiReStock : ne les
+    renommez pas.
+  </p>
+
+  <span class="note attention">
+    <span class="icone">⚠️</span>
+    <span class="titre">Trois règles à respecter</span>
+    <strong>1.</strong> La base est propre au <strong>compte Windows</strong> : deux comptes Windows sur le même
+    PC auraient deux bases différentes. Utilisez toujours le <strong>même compte Windows</strong> pour LogiRestock
+    sur un poste donné. <strong>2.</strong> Ne placez jamais ces dossiers dans OneDrive ou un autre dossier
+    synchronisé : une base ainsi partagée se corrompt. <strong>3.</strong> Ne copiez jamais la base d'un PC sur
+    un autre : chaque poste a la sienne, et la synchronisation fait le reste.
+  </span>
+
+  <h2>15.7 Sauvegarder</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Menu latéral <span class="fleche">➔</span> Import &amp; Export <span class="fleche">➔</span> onglet Sauvegardes de la base <span class="fleche">➔</span> Générer une sauvegarde de la base
+  </span>
+  <ol class="etapes">
+    <li>Cliquez sur <strong>Générer une sauvegarde de la base</strong>. Le logiciel range une copie complète et cohérente de la base dans le dossier <code>sauvegardes</code> du poste, sous un nom daté.</li>
+    <li>Dans la liste, cliquez sur <strong>Télécharger</strong> en face de la copie : une fenêtre <strong>« Enregistrer sous »</strong> s'ouvre. Enregistrez-la <strong>hors du PC</strong> — clé USB ou disque externe.</li>
+    <li>Gardez plusieurs copies datées et rangez-les ailleurs que sur le poste.</li>
+  </ol>
+
+  <p>
+    Une copie jamais téléchargée reste signalée <em>« non téléchargée »</em> : tant qu'elle ne quitte pas ce
+    disque, elle ne protège pas d'une panne du disque. Le logiciel garde les copies <strong>trente jours</strong>
+    puis les efface lui-même ; le bouton <strong>Retirer de la liste</strong> permet de les ôter plus tôt (il
+    demande une confirmation si la copie n'a jamais été téléchargée).
+  </p>
+
+  <figure class="emplacement">
+    <div class="cadre">
+      <strong>Capture à insérer</strong>
+      <code>captures/c15-sauvegardes-poste.png</code><br>
+      L'onglet « Sauvegardes de la base » d'Import &amp; Export, avec au moins une sauvegarde listée.
+    </div>
+    <figcaption><b>Figure 15.4</b> — Générer, puis télécharger une sauvegarde.</figcaption>
+  </figure>
+
+  <span class="note attention">
+    <span class="icone">⚠️</span>
+    <span class="titre">Ce que le poste ne fait pas à votre place</span>
+    Une application de bureau n'est pas allumée à 2 heures du matin : <strong>il n'y a pas de sauvegarde
+    automatique chaque nuit</strong>. Il n'y en a pas non plus <strong>avant une mise à jour</strong> ni <strong>avant
+    une désinstallation</strong>. Faites-la <strong>chaque jour de travail</strong>, et toujours avant une mise à
+    jour. Seule exception : le logiciel range lui-même une copie de sûreté juste avant <em>Réinitialiser comme neuf</em>.
+  </span>
+
+  <h2>15.8 Travailler hors ligne</h2>
+  <p>
+    Le poste n'a <strong>aucun écran qui attende le serveur</strong>. Toutes les listes que vous voyez viennent de
+    la base du poste. Quand le réseau tombe, vous ne remarquez rien d'autre que la pastille du voyant de
+    synchronisation (chapitre 16). Vous pouvez donc, sans connexion :
+  </p>
+  <ul class="puces">
+    <li>réserver, encaisser, vendre au comptoir et à table, ouvrir et clôturer la caisse ;</li>
+    <li>facturer, imprimer, enregistrer des règlements, établir des proformas (chapitre 18) ;</li>
+    <li>enregistrer des dépenses, des mouvements de stock, des inventaires, des bulletins de paie ;</li>
+    <li>passer les écritures comptables et lire les états financiers du poste.</li>
+  </ul>
+  <p>
+    Quand le réseau revient, le poste envoie <strong>dans l'ordre</strong> tout ce qui attendait. Un document créé
+    hors ligne peut porter un <strong>numéro provisoire</strong> (par exemple <code>PROV-FP-2026-00012</code> pour une
+    proforma) : le serveur le remplace par le numéro définitif à la première synchronisation.
+  </p>
+
+  <h3>Ce qui exige Internet, par nature</h3>
+  <table>
+    <thead><tr><th>Geste</th><th>Pourquoi</th></tr></thead>
+    <tbody>
+      <tr><td>Appairer le poste, tester la connexion, révoquer un autre poste, demander la synchronisation des postes</td><td>Ces gestes parlent au serveur (chapitre 16).</td></tr>
+      <tr><td>Le <strong>contrôle de cohérence</strong> entre le serveur et le poste</td><td>Il compare ce que détient le serveur à ce que détient le poste.</td></tr>
+      <tr><td>Un <strong>avoir sur une facture normalisée</strong> ; la <strong>normalisation e-MECeF</strong></td><td>Ils naissent au serveur (chapitre 17).</td></tr>
+      <tr><td>Un <strong>message à l'éditeur</strong> (« Contactez l'éditeur »)</td><td>Il est enregistré sur le poste, puis part dès que la connexion revient.</td></tr>
+    </tbody>
+  </table>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Information</span>
+    Un administrateur peut aussi <strong>couper volontairement</strong> tout échange avec le serveur, avec
+    l'interrupteur <strong>Synchronisation activée</strong> (chapitre 16, section 16.4). Le poste continue de
+    travailler comme s'il était hors ligne ; ses saisies s'accumulent et partent à la réactivation.
+  </span>
+
+  <h2>15.9 Quand le logiciel ne démarre pas</h2>
+  <p>
+    Le poste est construit pour ne <strong>jamais rester muet</strong>. Si quelque chose empêche son démarrage,
+    vous voyez toujours l'un de ces deux écrans.
+  </p>
+
+  <h3>L'écran d'attente</h3>
+  <p>
+    <em>« Mise à jour de la base du poste… »</em> : le logiciel prépare sa base, ce qui peut prendre un moment
+    après une mise à jour. Ne fermez pas la fenêtre. Si cela dure plus de <strong>45 secondes</strong>, il
+    affiche <strong>« Préparation bloquée »</strong> : <em>la préparation de la base du poste dure plus longtemps
+    que prévu. Patientez encore un peu, ou copiez le détail et quittez.</em>
+  </p>
+
+  <h3>L'écran « L'application ne peut pas démarrer »</h3>
+  <p>
+    Il apparaît quand la base est illisible, incomplète ou qu'un fichier du poste est inaccessible. Il porte
+    cette phrase rassurante : <em>« Vos données n'ont pas été effacées. Copiez le détail ci-dessous et
+    transmettez-le à l'éditeur. »</em> Il indique la <strong>Cause</strong> en français et le chemin du
+    <strong>Journal</strong>. Trois boutons :
+  </p>
+  <ul class="puces">
+    <li><strong>Copier le détail</strong> — place le texte de la panne dans le presse-papiers, prêt à être collé dans un message à l'éditeur ;</li>
+    <li><strong>Ouvrir le dossier des données</strong> — ouvre le dossier où se trouve le journal <code>demarrage.log</code> ;</li>
+    <li><strong>Quitter</strong> — ferme le logiciel.</li>
+  </ul>
+
+  <figure class="emplacement">
+    <div class="cadre">
+      <strong>Capture à insérer</strong>
+      <code>captures/c15-ecran-panne.png</code><br>
+      L'écran « L'application ne peut pas démarrer » (provoqué sur un poste d'essai : procédure dans
+      CAPTURES_A_PRENDRE.md).
+    </div>
+    <figcaption><b>Figure 15.5</b> — L'écran de panne au démarrage.</figcaption>
+  </figure>
+
+  <p>
+    Le <strong>journal de démarrage</strong> (<code>demarrage.log</code>) note chaque démarrage et chaque erreur.
+    Il garde les <strong>cinq derniers fichiers</strong> et <strong>ne contient jamais</strong> de mot de passe ni
+    de jeton. Par ailleurs, au démarrage, le logiciel <strong>remet en ordre une base incomplète</strong> (une table
+    ou une colonne manquante après une mise à jour interrompue, par exemple) <strong>sans jamais rien effacer</strong>.
+  </p>
+
+  <span class="note alerte">
+    <span class="icone">🛑</span>
+    <span class="titre">Alerte</span>
+    Devant un écran de panne : <strong>ne désinstallez pas avec « Oui »</strong>, ne supprimez aucun dossier
+    <code>TATACORA</code> et ne cherchez pas à « réparer » en effaçant la base. Vos données sont intactes. Copiez le
+    détail, envoyez-le à l'éditeur et attendez ses instructions.
+  </span>
+
+  <h2>15.10 Ce qui n'est pas encore éprouvé</h2>
+  <p>Le manuel déclare ce qu'il ne sait pas, comme le logiciel.</p>
+  <ul class="puces">
+    <li>L'installation, la mise à jour et la désinstallation ont été vérifiées par des essais automatiques ; la <strong>recette sur un poste réel du Gîte</strong> (installer, mettre à jour, désinstaller avec Oui puis avec Non) reste à faire.</li>
+    <li>L'installateur <strong>n'est pas signé</strong> : Windows avertit à chaque nouvelle machine (étape 2 de la section 15.2).</li>
+    <li>Il n'existe <strong>pas encore</strong> de sauvegarde automatique avant une mise à jour ou une désinstallation (section 15.7).</li>
+  </ul>
+</section>

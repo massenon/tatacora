@@ -56,6 +56,13 @@ const document = (corps) => `<!DOCTYPE html><html lang="fr"><head><meta charset=
     .filter(Boolean)
     .map((html) => ({ html, id: (html.match(/<section class="chapitre" id="([^"]+)"/) || [])[1] || '?' }));
 
+  // Les ANNEXES ferment toujours le manuel : les chapitres ajoutés après coup
+  // (part-10.html et suivants, chapitres 15 et suivants) s'insèrent avant elles,
+  // sans qu'il faille déplacer le texte des annexes d'un fichier à l'autre.
+  // Tri stable : l'ordre des fichiers est conservé à l'intérieur de chaque groupe.
+  const estAnnexe = (s) => /^annexe/i.test(s.id);
+  sections.splice(0, sections.length, ...sections.filter((s) => !estAnnexe(s)), ...sections.filter(estAnnexe));
+
   const navigateur = await puppeteer.launch({
     executablePath: CHROME, headless: 'new',
     args: ['--no-sandbox', '--allow-file-access-from-files'],
@@ -162,7 +169,7 @@ const document = (corps) => `<!DOCTYPE html><html lang="fr"><head><meta charset=
     p.drawText(droite, { x: width - marge - normal.widthOfTextAtSize(droite, 7.5), y: height - 34, size: 7.5, font: normal, color: ARDOISE });
     p.drawLine({ start: { x: marge, y: height - 40 }, end: { x: width - marge, y: height - 40 }, thickness: 0.6, color: OR });
 
-    const gauche = 'LogiRestock version 1.0.0 - Septembre 2026';
+    const gauche = 'LogiRestock version 1.0.0 - Novembre 2026';
     p.drawText(gauche, { x: marge, y: 30, size: 7.5, font: normal, color: ARDOISE });
     const pagination = 'Page ' + numero + ' / ' + totalCorps;
     p.drawText(pagination, { x: width - marge - gras.widthOfTextAtSize(pagination, 7.5), y: 30, size: 7.5, font: gras, color: MARINE });

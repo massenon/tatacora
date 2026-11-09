@@ -1,0 +1,287 @@
+<!-- ============================ CHAPITRE 19 ============================ -->
+<section class="chapitre" id="ch19">
+  <h1 class="chapitre"><span class="numero">Chapitre 19</span>Comptes, sécurité et profil</h1>
+
+  <p class="chapeau">
+    Chaque personne qui travaille dans LogiRestock a un <strong>compte nominatif</strong>. Ce chapitre explique comment créer un compte,
+    corriger son profil, retrouver l'accès quand un mot de passe est perdu — <strong>sans courriel</strong> —, désactiver ou supprimer un compte,
+    et comment le <strong>journal d'audit</strong> garde la trace de ces gestes.
+  </p>
+
+  <h2>19.1 Les principes à connaître</h2>
+  <ul class="puces">
+    <li><strong>Un compte, une personne.</strong> L'identifiant est nominatif : toutes vos saisies portent votre nom. Ne prêtez jamais votre compte (chapitre 2).</li>
+    <li><strong>Les comptes du poste et ceux du web sont distincts.</strong> Un mot de passe, ou un dérivé de mot de passe, <strong>ne voyage jamais</strong> d'un poste au serveur ni de l'un à l'autre. Un compte créé au poste n'existe pas au web, et inversement. Seule exception : la <strong>suppression</strong> d'un compte (section 19.7).</li>
+    <li><strong>Aucun mot de passe par défaut.</strong> Un poste neuf fait créer le compte administrateur (chapitre 15, section 15.3).</li>
+    <li><strong>Aucun mot de passe n'est stocké tel quel</strong> : seule une empreinte irréversible l'est. C'est pourquoi un mot de passe perdu ne se « retrouve » jamais ; il se <strong>remplace</strong>.</li>
+    <li><strong>Pas de « mot de passe oublié » automatique par courriel.</strong> Le lien de l'écran de connexion dit <em>« Contactez l'administrateur »</em> : c'est lui, ou un code de secours, qui vous dépanne (sections 19.5 et 19.6).</li>
+  </ul>
+
+  <h2>19.2 Qui fait quoi</h2>
+  <table>
+    <thead><tr><th>Geste</th><th>Qui peut le faire</th></tr></thead>
+    <tbody>
+      <tr><td>Créer un compte, désactiver / réactiver, réinitialiser un mot de passe</td><td>Les <strong>administrateurs</strong> (rôles « administrateur » et « super administrateur »).</td></tr>
+      <tr><td>Supprimer un compte</td><td>Le <strong>super administrateur</strong> seulement (section 19.7).</td></tr>
+      <tr><td>Changer son propre mot de passe, modifier son profil</td><td>Chaque utilisateur, pour son propre compte (section 19.3).</td></tr>
+      <tr><td>Générer un code de secours</td><td>Les administrateurs, pour leur propre compte (section 19.6).</td></tr>
+    </tbody>
+  </table>
+
+  <h2>19.3 Mon profil</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Avatar (en haut à droite) <span class="fleche">➔</span> Mon profil
+  </span>
+  <p>
+    Mon profil regroupe vos <strong>métadonnées de session</strong> (dernière connexion, statut du compte), vos
+    <strong>informations personnelles</strong>, le <strong>changement de mot de passe</strong> et vos 10 dernières actions au journal d'audit.
+    Les informations personnelles se modifient <strong>sous droit</strong> :
+  </p>
+
+  <table>
+    <thead><tr><th>Champ</th><th>Qui peut le modifier</th><th>Règle</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Nom complet</strong></td><td>Tous les rôles</td><td>120 caractères au plus, sans caractère de contrôle. Si le compte est rattaché à une fiche employé, le nom vient de la fiche ; sinon l'écran dit « Aucune fiche employé n'est rattachée à ce compte ».</td></tr>
+      <tr><td><strong>Email</strong> <span class="pastille gris">facultatif</span></td><td>Tous les rôles</td><td>Adresse valide ou vide. Elle sert aux notifications par courriel qui vous concernent (par exemple « bulletin disponible » pour un salarié). Sans adresse, aucun courriel ne part et aucune erreur n'apparaît.</td></tr>
+      <tr><td><strong>Téléphone</strong></td><td>Tous les rôles</td><td>Chiffres, « + », espaces et tirets, 30 caractères au plus.</td></tr>
+      <tr><td><strong>Intitulé de poste</strong></td><td>Les rôles d'administration</td><td>Texte libre de 120 caractères au plus, <strong>sans effet sur vos droits</strong>.</td></tr>
+      <tr><td><strong>Fonction</strong></td><td>Personne ici</td><td>En lecture seule : c'est le <strong>rôle</strong> (ou la fiche RH) ; il se gère dans Rôles &amp; Permissions.</td></tr>
+    </tbody>
+  </table>
+
+  <ol class="etapes">
+    <li>Modifiez les champs accessibles.</li>
+    <li>Cliquez sur <strong>Enregistrer les informations</strong> : « Informations enregistrées. » Si rien n'a changé : « Aucune modification à enregistrer. »</li>
+  </ol>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Information</span>
+    Un champ que votre rôle ne peut pas modifier est grisé et l'écran dit : <em>« Votre rôle ne permet pas de modifier ce champ — demandez à
+    l'administrateur (Rôles &amp; Permissions). »</em> Même une demande forgée est refusée. Chaque modification est tracée au journal d'audit
+    (« Profil modifié », avec l'ancienne et la nouvelle valeur).
+  </span>
+
+  <h3>Changer son mot de passe</h3>
+  <p>
+    Dans le bloc <strong>Modifier le mot de passe</strong>, cliquez sur <strong>Modifier le mot de passe</strong>, saisissez l'<strong>Ancien mot de
+    passe</strong>, le <strong>Nouveau mot de passe</strong> (8 caractères au minimum) et sa <strong>confirmation</strong>, puis <strong>Mettre à jour le
+    mot de passe</strong>. Le changement est immédiat et ne ferme pas votre session. Refus possibles : « L'ancien mot de passe est incorrect. », « Le
+    nouveau mot de passe est identique à l'ancien. », « Le nouveau mot de passe et sa confirmation ne correspondent pas. »
+  </p>
+
+  <figure class="emplacement">
+    <div class="cadre">
+      <strong>Capture à insérer</strong>
+      <code>captures/c19-mon-profil-poste.png</code><br>
+      « Mon profil » sur le poste, compte administrateur : champs modifiables, bloc « Code de secours » visible.
+    </div>
+    <figcaption><b>Figure 19.1</b> — L'écran Mon profil du poste.</figcaption>
+  </figure>
+
+  <h2>19.4 Créer et gérer les comptes</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Menu latéral <span class="fleche">➔</span> Pilotage &amp; administration <span class="fleche">➔</span> Comptes utilisateurs
+  </span>
+  <p>
+    L'écran <strong>Comptes utilisateurs</strong> liste les comptes du poste : <strong>Nom complet</strong>, <strong>Identifiant</strong>, <strong>Rôle</strong>,
+    <strong>Statut</strong> (Actif / Désactivé), <strong>Créé le</strong>, <strong>Mot de passe modifié le</strong>, et les <strong>Actions</strong>. Votre propre ligne porte la mention « (vous) ».
+  </p>
+
+  <h3>Créer un compte</h3>
+  <ol class="etapes">
+    <li>Cliquez sur <strong>+ Nouveau compte</strong>.</li>
+    <li>Remplissez <strong>Nom complet</strong>, <strong>Identifiant</strong> (minuscules sans accent, chiffres, point, tiret ou souligné, de 3 à 50 caractères ; il sert à la connexion et <strong>ne se modifie plus ensuite</strong>), <strong>Email</strong> (facultatif), <strong>Rôle</strong>, <strong>Mot de passe</strong> et sa confirmation.</li>
+    <li>Cliquez sur <strong>Créer le compte</strong> et transmettez à la personne son identifiant et son mot de passe.</li>
+  </ol>
+  <p>
+    Chaque compte reçoit <strong>les droits de son rôle</strong>, réglés dans <strong>Rôles &amp; Permissions</strong> (chapitre 13) : « Comptable » pour le comptable,
+    « Gérant / Direction » pour le gérant, etc. L'écran le rappelle : un compte <strong>administrateur se désactive</strong> ; un super administrateur peut supprimer
+    les autres, et ce qu'ils ont saisi garde leur nom.
+  </p>
+
+  <figure class="emplacement">
+    <div class="cadre">
+      <strong>Capture à insérer</strong>
+      <code>captures/c19-comptes-utilisateurs.png</code><br>
+      L'écran « Comptes utilisateurs » du poste avec plusieurs comptes (dont un « Changement requis »).
+    </div>
+    <figcaption><b>Figure 19.2</b> — La liste des comptes du poste.</figcaption>
+  </figure>
+
+  <h3>Désactiver, réactiver</h3>
+  <p>
+    <strong>Désactiver</strong> empêche le compte de se connecter. Il <strong>reste en base avec tout ce qu'il a saisi</strong> (traçabilité) et peut être
+    <strong>réactivé</strong> à tout moment. C'est le geste à utiliser pour une personne qui part, ou pour un compte administrateur.
+  </p>
+
+  <h2>19.5 Mot de passe perdu : la réinitialisation par un administrateur</h2>
+  <p>
+    Quand un employé perd son mot de passe, <strong>un administrateur</strong> lui en donne un <strong>temporaire</strong>. Il n'y a pas d'envoi de
+    courriel : le mot de passe temporaire est <strong>affiché une seule fois</strong> à l'administrateur, qui le transmet de vive voix ou par écrit.
+  </p>
+
+  <h3>Côté administrateur</h3>
+  <ol class="etapes">
+    <li>Ouvrez <strong>Comptes utilisateurs</strong> et cliquez sur <strong>Réinitialiser le mot de passe</strong> sur la ligne du compte.</li>
+    <li>La fenêtre explique : <em>« Un mot de passe temporaire va être généré. Il sera valable 24 heures et n'ouvrira que l'écran de choix d'un nouveau mot de passe. Les sessions ouvertes de ce compte seront fermées. »</em> Cliquez sur <strong>Générer le mot de passe temporaire</strong>.</li>
+    <li>La fenêtre <strong>Mot de passe temporaire de « … »</strong> montre le mot de passe (14 caractères, sans les caractères ambigus comme 0, O, 1, l, I) avec un bouton <strong>Copier</strong>. <strong>Il ne sera plus affiché</strong> : « Communiquez-le à son titulaire. Valable jusqu'au … ».</li>
+    <li>Communiquez-le à son titulaire, puis cliquez sur <strong>Fermer</strong>.</li>
+  </ol>
+
+  <figure class="emplacement">
+    <div class="cadre">
+      <strong>Capture à insérer</strong>
+      <code>captures/c19-temporaire-affiche.png</code><br>
+      La fenêtre « Mot de passe temporaire de … » (utiliser un compte d'essai ; masquer le mot de passe si la capture est diffusée).
+    </div>
+    <figcaption><b>Figure 19.3</b> — Le mot de passe temporaire, affiché une seule fois.</figcaption>
+  </figure>
+
+  <h3>Côté employé</h3>
+  <ol class="etapes">
+    <li>À l'écran de connexion, saisissez votre identifiant et le <strong>mot de passe temporaire</strong>.</li>
+    <li>Un écran <strong>« Définissez votre nouveau mot de passe »</strong> s'ouvre — et aucun autre écran n'est accessible : <em>« Votre mot de passe a été réinitialisé par un administrateur. Choisissez maintenant un mot de passe que vous seul connaissez. »</em></li>
+    <li>Saisissez le <strong>nouveau mot de passe</strong> et sa <strong>confirmation</strong>, puis <strong>Enregistrer</strong>. Règle : 8 caractères au minimum, <strong>différent du mot de passe temporaire et de l'ancien</strong>.</li>
+    <li>Le logiciel confirme « Mot de passe défini. Connectez-vous avec votre nouveau mot de passe. » : connectez-vous avec le nouveau.</li>
+  </ol>
+
+  <table>
+    <thead><tr><th>Ce que l'on voit</th><th>Sens</th></tr></thead>
+    <tbody>
+      <tr><td>Statut <strong>Changement requis</strong> dans la liste des comptes</td><td>Le temporaire a été généré et n'a pas encore été remplacé.</td></tr>
+      <tr><td>Statut <strong>Temporaire expiré</strong></td><td>Les 24 heures sont passées : « Ce mot de passe temporaire a expiré. Demandez-en un nouveau à l'administrateur. » L'administrateur recommence la réinitialisation.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Ce que le logiciel refuse</h3>
+  <ul class="puces">
+    <li>Un administrateur <strong>ne réinitialise pas son propre mot de passe</strong> par ce chemin : « Utilisez « Mon profil » avec votre ancien mot de passe. »</li>
+    <li>Un simple administrateur <strong>ne réinitialise pas un super administrateur</strong> : « Seul un super administrateur peut réinitialiser le mot de passe d'un super administrateur. » (Il lirait le temporaire et se connecterait avant lui.)</li>
+    <li>Un compte inconnu : « Ce compte est introuvable. » ; un geste réservé : « Ce geste est réservé à l'Administrateur. »</li>
+  </ul>
+
+  <span class="note attention">
+    <span class="icone">⚠️</span>
+    <span class="titre">Attention</span>
+    Après la réinitialisation, les <strong>sessions ouvertes</strong> du compte sont fermées et son ancien mot de passe ne fonctionne plus. Transmettez le
+    temporaire de façon discrète, et assurez-vous que la personne le change tout de suite. Ne le notez pas dans un message de groupe.
+  </span>
+
+  <h2>19.6 L'administrateur perd son propre mot de passe : le code de secours</h2>
+  <p>
+    Si c'est le <strong>dernier administrateur</strong> qui perd son mot de passe, personne ne peut le réinitialiser. Pour ce cas,
+    chaque administrateur dispose d'un <strong>code de secours</strong> : 25 caractères en cinq groupes (<code>XXXXX-XXXXX-…</code>), à <strong>usage unique</strong>,
+    que le logiciel ne stocke jamais en clair.
+  </p>
+
+  <h3>Le poser et le ranger</h3>
+  <ul class="puces">
+    <li>Au <strong>premier démarrage</strong> d'un poste, une fenêtre affiche le code du premier administrateur avec <strong>Copier</strong>, <strong>Imprimer</strong> et <strong>J'ai rangé ce code</strong>.</li>
+    <li>Plus tard, dans <strong>Mon profil ➔ Code de secours</strong> : le bloc indique « Un code de secours est enregistré (posé le …) » ou « Aucun code de secours n'est enregistré ». <strong>Générer un code de secours</strong> demande votre mot de passe actuel (<em>Mot de passe actuel</em>), puis <strong>Générer le code</strong> : « Votre code de secours — ce code ne sera plus affiché. Notez-le ou imprimez-le et rangez-le au coffre. » <strong>Le code précédent ne fonctionne alors plus.</strong></li>
+    <li>Les comptes créés avant cette fonction n'ont pas de code : l'administrateur en génère un.</li>
+  </ul>
+
+  <h3>L'utiliser</h3>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Écran de connexion <span class="fleche">➔</span> J'ai perdu mon mot de passe administrateur
+  </span>
+  <ol class="etapes">
+    <li>Saisissez votre <strong>Nom d'utilisateur</strong>, le <strong>Code de secours</strong> rangé au coffre et un nouveau mot de passe (8 caractères au minimum).</li>
+    <li>Cliquez sur <strong>Réinitialiser le mot de passe</strong> : « Mot de passe réinitialisé. »</li>
+    <li>Le logiciel affiche aussitôt <strong>« Votre nouveau code de secours »</strong> : le code utilisé est consommé, un <strong>nouveau</strong> vous est remis, une seule fois. Rangez-le comme le premier.</li>
+  </ol>
+
+  <figure class="emplacement">
+    <div class="cadre">
+      <strong>Capture à insérer</strong>
+      <code>captures/c19-code-secours-connexion.png</code><br>
+      L'écran « J'ai perdu mon mot de passe administrateur » (code de secours d'essai, jamais un code réel).
+    </div>
+    <figcaption><b>Figure 19.4</b> — L'écran du code de secours.</figcaption>
+  </figure>
+
+  <span class="note alerte">
+    <span class="icone">🛑</span>
+    <span class="titre">Alerte : cinq essais, puis quinze minutes</span>
+    Après <strong>5 essais</strong> ratés, l'écran dit <em>« Trop de tentatives. Réessayez dans … minute(s). »</em> et se ferme pendant <strong>15 minutes</strong>.
+    Le refus est <strong>toujours le même</strong> — « Nom d'utilisateur ou code de secours incorrect. » — que le compte existe ou non, qu'il soit
+    administrateur ou non : un curieux ne peut pas deviner quels comptes existent. Le code ne se récupère pas : <strong>sans code et sans autre
+    administrateur, le compte est perdu</strong>. Conservez-le au coffre.
+  </span>
+
+  <h2>19.7 Supprimer un compte</h2>
+  <p>
+    <strong>Supprimer</strong> est plus fort que Désactiver, et réservé. La suppression est <strong>logique</strong> : le compte ne peut plus jamais
+    se connecter, mais <strong>rien de ce qu'il a saisi ne disparaît</strong> et chaque saisie continue d'afficher son auteur, sous la forme
+    <strong>« identifiant (compte supprimé) »</strong>.
+  </p>
+
+  <table>
+    <thead><tr><th>Règle</th><th>Message du logiciel si elle n'est pas respectée</th></tr></thead>
+    <tbody>
+      <tr><td>Seul un <strong>super administrateur</strong> supprime.</td><td>« Seul un super administrateur peut supprimer un compte. »</td></tr>
+      <tr><td>Jamais <strong>soi-même</strong>.</td><td>« Vous ne pouvez pas supprimer votre propre compte. »</td></tr>
+      <tr><td>Jamais un <strong>administrateur</strong> (ni un super administrateur).</td><td>« Un compte administrateur ne se supprime pas : désactivez-le. »</td></tr>
+    </tbody>
+  </table>
+
+  <ol class="etapes">
+    <li>Dans <strong>Comptes utilisateurs</strong>, cliquez sur <strong>Supprimer</strong> sur la ligne du compte (le bouton n'apparaît que si vous en avez le droit et si le compte est supprimable).</li>
+    <li>La fenêtre demande : <em>« Supprimer le compte « … » ? Il ne pourra plus se connecter. Ce qu'il a saisi garde son nom. »</em> Cliquez sur <strong>Supprimer le compte</strong>.</li>
+    <li>Confirmation : « Le compte « … » est supprimé. »</li>
+  </ol>
+
+  <h3>La suppression se propage, par l'identifiant</h3>
+  <p>
+    C'est la <strong>seule</strong> chose sur les comptes qui se synchronise. Un compte supprimé sur le poste part au serveur ; un compte supprimé au web
+    descend vers les postes. Le rapprochement se fait par l'<strong>identifiant</strong> : un poste ne crée jamais de compte à partir de ce qu'il reçoit, et refuse
+    d'appliquer une suppression sur un homonyme administrateur. Pour qu'une suppression faite au poste soit acceptée par le serveur, le compte qui a
+    <strong>appairé</strong> le poste doit être super administrateur au serveur ; sinon la suppression reste valable sur le poste et apparaît dans <strong>À traiter</strong>
+    avec la cause « Droit manquant » (chapitre 16).
+  </p>
+
+  <span class="note attention">
+    <span class="icone">⚠️</span>
+    <span class="titre">Attention</span>
+    Il n'existe <strong>pas de liste des comptes supprimés</strong> à consulter : un compte supprimé disparaît de l'écran Comptes utilisateurs. Si une
+    personne revient, créez-lui un nouveau compte ; les saisies de l'ancien resteront à son nom d'origine, suivi de « (compte supprimé) ».
+  </span>
+
+  <h2>19.8 Le journal d'audit, et ce qu'on n'y trouve jamais</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Avatar <span class="fleche">➔</span> Journal d'Audit
+  </span>
+  <p>
+    Le <strong>Journal d'Audit</strong> est en <strong>lecture seule pour tous</strong>, administrateurs compris (chapitre 13). Il garde, pour chaque action sensible, qui l'a faite,
+    quoi, sur quel élément, quand, et depuis quel poste (le <strong>nom de la machine</strong>). Les gestes sur les comptes y ont leur libellé :
+  </p>
+  <table>
+    <thead><tr><th>Action</th><th>Libellé au journal</th></tr></thead>
+    <tbody>
+      <tr><td>Un administrateur génère un temporaire</td><td>Réinitialisation du mot de passe</td></tr>
+      <tr><td>Un code de secours est posé, utilisé, refusé, ou le compte bloqué après 5 essais</td><td>Code de secours généré · Réinitialisation par code de secours · Code de secours refusé · Code de secours bloqué</td></tr>
+      <tr><td>Un compte est supprimé</td><td>Compte supprimé</td></tr>
+      <tr><td>Un profil est modifié</td><td>Profil modifié (ancien ➔ nouveau)</td></tr>
+      <tr><td>L'adresse du serveur est changée sur le poste</td><td>Adresse du serveur modifiée</td></tr>
+    </tbody>
+  </table>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Information</span>
+    Le journal <strong>ne contient jamais</strong> de mot de passe, de code de secours, ni même d'empreinte : seulement <em>qui</em>, <em>quel compte</em>, <em>quand</em> et
+    <em>depuis quelle machine</em>. Les gestes de sécurité du poste sont consignés sur le poste et ne partent pas dans la file de synchronisation.
+  </span>
+
+  <h2>19.9 Ce qui n'est pas encore éprouvé ou pas encore possible</h2>
+  <ul class="puces">
+    <li>La <strong>recette</strong> du mot de passe perdu sur un vrai poste reste à faire : réinitialiser un compte, se connecter avec le temporaire, puis perdre le mot de passe administrateur et le retrouver avec le code de secours, au web et sur le poste Windows, <strong>impression du code comprise</strong>.</li>
+    <li>La <strong>connexion par mot de passe du poste</strong> n'a <strong>pas de limite d'essais</strong> (le web limite à 5 par identifiant et par adresse) : un administrateur doit donc choisir des mots de passe solides et verrouiller le poste en son absence. La limite de 5 essais puis 15 minutes ne s'applique qu'au <strong>code de secours</strong>.</li>
+    <li>Un compte créé <strong>avant</strong> l'ajout de l'e-mail n'a d'adresse que si son titulaire la saisit dans Mon profil : un administrateur ne peut pas la saisir à sa place pour un compte déjà créé.</li>
+  </ul>
+</section>

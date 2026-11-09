@@ -370,3 +370,20 @@ section.chapitre:first-of-type { page-break-before: avoid; }
 }
 
 .legende-icones td:first-child { font-size: 13pt; text-align: center; width: 12mm; }
+
+
+/* ------------------------------------------------ Capture à prendre (provisoire)
+ * Emplacement d'une figure dont l'image n'existe pas encore : le cadre nomme le
+ * fichier attendu (voir CAPTURES_A_PRENDRE.md). Une fois la capture déposée dans
+ * `captures/`, remplacer le cadre par une balise <img src="../captures/NOM.png">. */
+figure.emplacement .cadre {
+  border: 1.5px dashed var(--gold);
+  background: var(--fond-doux);
+  border-radius: 2mm;
+  padding: 9mm 6mm;
+  text-align: center;
+  font-size: 9pt;
+  color: var(--ardoise);
+  line-height: 1.5;
+}
+figure.emplacement .cadre strong { display: block; color: var(--gold); letter-spacing: .08em; text-transform: uppercase; font-size: 8.5pt; margin-bottom: 1mm; }

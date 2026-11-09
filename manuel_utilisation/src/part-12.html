@@ -1,0 +1,302 @@
+<!-- ============================ CHAPITRE 17 ============================ -->
+<section class="chapitre" id="ch17">
+  <h1 class="chapitre"><span class="numero">Chapitre 17</span>Facturation normalisée : e-MECeF et boîtier CC300</h1>
+
+  <p class="chapeau">
+    Au Bénin, une facture « normalisée » est une facture à laquelle l'administration fiscale (la DGI) a attribué un
+    numéro et un code QR, soit par Internet (<strong>e-MECeF</strong>), soit par un petit appareil branché au poste
+    de réception (le <strong>boîtier CC300</strong>). LogiRestock sait faire les deux. Ce chapitre dit comment cela se règle,
+    comment on normalise une facture, et ce que le logiciel refuse.
+  </p>
+
+  <span class="note alerte">
+    <span class="icone">🛑</span>
+    <span class="titre">À lire avant tout : ce n'est pas encore éprouvé sur le terrain</span>
+    Le dialogue avec un <strong>vrai boîtier</strong> et avec le <strong>vrai service e-MECeF de la DGI</strong> n'a été essayé
+    que contre de <strong>faux appareils et de faux serveurs</strong> de test. Aucune facture réelle n'a encore été normalisée au Gîte.
+    C'est pourquoi le mode livré est <strong>Désactivé</strong> : <strong>facture simple, sans aucune mention fiscale</strong>.
+    N'activez un autre mode qu'après l'essai prévu avec le technicien (section 17.12), et jamais pendant une phase d'essais : une facture
+    normalisée par la DGI ne s'efface pas.
+  </span>
+
+  <h2>17.1 Les trois modes</h2>
+  <p>Un seul réglage décide du comportement de toute la facturation : le <strong>mode de facturation normalisée</strong>.</p>
+
+  <table>
+    <thead><tr><th>Mode</th><th>Qui normalise</th><th>Où</th><th>Besoin d'Internet</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pastille gris">Désactivé</span> <em>(mode livré)</em></td><td><strong>Personne.</strong> La facture est une facture simple : « Facture », sans numéro MECeF, sans QR, <strong>sans aucune mention</strong> (ni « démonstration », ni bandeau, ni filigrane).</td><td>—</td><td>Non</td></tr>
+      <tr><td><span class="pastille or">e-MECeF (en ligne)</span></td><td>Le <strong>serveur</strong>, par le service de la DGI.</td><td>Serveur</td><td>Oui</td></tr>
+      <tr><td><span class="pastille">Boîtier CC300 (poste)</span></td><td>Le <strong>poste de réception</strong>, par le boîtier branché en USB (le boîtier transmet lui-même à la DGI).</td><td>Poste de réception</td><td>Non, pour le poste</td></tr>
+    </tbody>
+  </table>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Information</span>
+    En mode <strong>boîtier</strong>, le serveur ne normalise jamais lui-même : une facture créée sur le web reste
+    « en attente de normalisation par le poste » jusqu'à ce que le poste muni du boîtier la reprenne. Le serveur
+    n'appelle jamais le boîtier.
+  </span>
+
+  <h2>17.2 Qui règle le mode, et où</h2>
+  <p>
+    Le mode se règle <strong>sur le web, par un administrateur</strong>. Il descend ensuite sur les postes, qui le reçoivent
+    <strong>en lecture seule</strong> avec les autres réglages.
+  </p>
+
+  <span class="chemin">
+    <span class="etiquette">Chemin (web)</span>
+    Paramètres <span class="fleche">➔</span> onglet Identité &amp; Légal <span class="fleche">➔</span> section Facturation normalisée (MECeF)
+  </span>
+
+  <table>
+    <thead><tr><th>Réglage</th><th>Règle</th></tr></thead>
+    <tbody>
+      <tr><td><strong>IFU (Identifiant Fiscal Unique)</strong> de l'entreprise</td><td>Onglet Identité &amp; Légal, « Informations légales &amp; fiscales ». <strong>13 chiffres</strong>. Il sert aux deux voies. Passer en e-MECeF ou en boîtier est <strong>refusé</strong> tant qu'il manque.</td></tr>
+      <tr><td><strong>Mode</strong></td><td>Désactivé, e-MECeF (en ligne) ou Boîtier CC300 (poste).</td></tr>
+      <tr><td><strong>Adresse de l'API de la DGI</strong></td><td>e-MECeF seulement ; doit commencer par <code>https://</code>.</td></tr>
+      <tr><td><strong>Identifiant de l'opérateur</strong> et <strong>Nom de l'opérateur</strong></td><td>Le vendeur déclaré sur chaque facture ; le nom fait <strong>30 caractères au plus</strong> (limite du boîtier).</td></tr>
+      <tr><td><strong>Jeton JWT e-MECeF</strong></td><td>Le « mot de passe » délivré par la DGI pour e-MECeF. Saisi <strong>au web seulement</strong>, en champ masqué ; il est rangé <strong>chiffré</strong> et affiché ensuite sous la forme « ••• enregistré le … ». <strong>Il ne descend jamais sur un poste</strong>, n'apparaît dans aucun journal et ne se réaffiche jamais. Pour le remplacer, on en saisit un nouveau ; on peut l'effacer, après confirmation.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Sur le poste : « Ce poste certifie par »</h3>
+  <p>
+    Comme le boîtier n'existe que sur <strong>un</strong> poste, celui-ci a un réglage local dans la même section
+    (réservé aux administrateurs du poste) :
+  </p>
+  <ul class="puces">
+    <li><strong>Mode reçu du serveur</strong> : rappelle le mode réglé au web.</li>
+    <li><strong>Ce poste certifie par</strong> : <em>Comme le réglage du serveur</em> (défaut), <em>Le serveur (e-MECeF)</em>, <em>Le boîtier CC300 de ce poste</em> ou <em>Rien (démonstration)</em>. Ce dernier choix veut dire que ce poste ne normalise pas : ses factures restent des factures simples.</li>
+    <li><strong>Adresse du pilote du boîtier</strong> : le petit programme du boîtier installé sur ce poste, à <code>http://localhost:38917</code> par défaut. Boutons <strong>Enregistrer</strong>, <strong>Tester le boîtier</strong> (le boîtier met environ 4 secondes à répondre) et <strong>Adresse par défaut</strong>. Si l'IFU du boîtier n'est pas celui de l'entreprise, le test le signale.</li>
+  </ul>
+  <p>
+    Une phrase résume ce que fait le poste, par exemple <em>« Ce poste certifie par son boîtier CC300, même hors ligne. »</em>
+    Un poste dont le mode effectif n'est pas « boîtier » n'envoie <strong>aucune requête</strong> au pilote.
+  </p>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Information</span>
+    Sur le poste, quand rien ne normalise, la phrase peut encore dire <em>« Ce poste ne certifie pas : les factures restent
+    des documents de démonstration »</em>. Ces mots sont plus anciens que la décision du mode « facture simple » : ils veulent
+    dire simplement « sans normalisation ». Aucune mention de démonstration n'est imprimée sur la facture.
+  </span>
+
+  <figure class="emplacement">
+    <div class="cadre">
+      <strong>Capture à insérer</strong>
+      <code>captures/c17-parametres-facturation-normalisee.png</code><br>
+      Paramètres, onglet Identité &amp; Légal, section « Facturation normalisée (MECeF) » sur le poste.
+    </div>
+    <figcaption><b>Figure 17.1</b> — La section « Facturation normalisée (MECeF) » du poste.</figcaption>
+  </figure>
+
+  <h2>17.3 Émettre, puis normaliser : un bouton, jamais en automatique</h2>
+  <p>
+    Une facture <strong>émise</strong> est <strong>figée</strong> : on ne la modifie plus. La normalisation est une étape
+    <strong>distincte, voulue par vous</strong> :
+  </p>
+  <ul class="puces">
+    <li>elle ne se fait <strong>jamais toute seule</strong> à l'émission ;</li>
+    <li>elle se demande par le bouton <strong>Normaliser</strong> (sur la ligne de la facture, écran Facturation), ou en cochant la case <strong>Normaliser maintenant</strong> à la validation (case <strong>décochée</strong> par défaut) ;</li>
+    <li>un <strong>échec ne bloque jamais</strong> la facture ni l'encaissement : la facture reste émise, le motif est noté, et vous pourrez recommencer ;</li>
+    <li>le rejeu automatique de 30 minutes ne reprend que ce qu'un bouton a <strong>déjà demandé</strong> ; une facture neuve n'est jamais normalisée par lui.</li>
+  </ul>
+
+  <table>
+    <thead><tr><th>Mode</th><th>Sur le poste</th><th>Sur le web</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Désactivé</strong></td><td>Aucun bouton, aucune case. Facture simple.</td><td>Idem.</td></tr>
+      <tr><td><strong>e-MECeF</strong></td><td>Le bouton <strong>Normaliser</strong> demande <strong>au serveur</strong>, qui parle à la DGI avec son jeton. <strong>En ligne seulement</strong> : hors ligne, « La normalisation e-MECeF se fait en ligne : reconnectez le poste au serveur. » et rien n'est écrit de faux.</td><td>Bouton <strong>Normaliser</strong> sur la ligne de la facture.</td></tr>
+      <tr><td><strong>Boîtier CC300</strong></td><td>Le bouton <strong>Normaliser</strong> fait parler le poste au boîtier ; <strong>possible hors ligne</strong>.</td><td>Aucun bouton : « En mode boîtier, la normalisation se fait au poste de la réception (boîtier CC300) : elle ne se fait pas depuis le web. »</td></tr>
+    </tbody>
+  </table>
+
+  <p>Le bouton change de nom selon l'état de la facture : <strong>Normaliser</strong> (jamais tentée), <strong>Réessayer</strong> (en attente ou refusée), <strong>Vérifier</strong> (à vérifier, voir 17.7).</p>
+
+  <h2>17.4 L'IFU du client : facultatif, 13 chiffres</h2>
+  <p>
+    L'IFU de l'<strong>entreprise</strong> vient de Paramètres. L'IFU du <strong>client</strong>, lui, est demandé à la validation de
+    la facture, et il est <strong>facultatif</strong> : un client sans IFU est parfaitement admis.
+  </p>
+
+  <table>
+    <thead><tr><th>Champ (modale de validation)</th><th>Règle</th></tr></thead>
+    <tbody>
+      <tr><td><strong>IFU du client</strong></td><td>Facultatif : 13 chiffres. S'il est rempli, il doit compter <strong>exactement 13 chiffres</strong> (les espaces, points et tirets que vous tapez sont ôtés). Sinon : « L'IFU du client doit compter exactement 13 chiffres (laissez vide pour un client sans IFU). »</td></tr>
+      <tr><td><strong>Nom du client</strong></td><td>Le nom imprimé. S'il est vide, le nom de la fiche client est utilisé, à défaut « Client divers ».</td></tr>
+      <tr><td><strong>Retenir pour ce client</strong></td><td>Case décochée par défaut : range l'IFU sur la fiche du client pour les prochaines fois (jamais sur la fiche partagée « Client de passage »).</td></tr>
+      <tr><td><strong>Normaliser maintenant</strong></td><td>Voir 17.3. Présente seulement quand ce poste peut normaliser.</td></tr>
+    </tbody>
+  </table>
+
+  <p>
+    Où le trouver : à la <strong>clôture d'un séjour</strong> (POS clients hébergés, au web et au poste), et au comptoir du poste par le
+    lien <strong>IFU du client</strong>. L'IFU saisi est <strong>figé avec la facture</strong> et prérempli depuis la fiche client la fois suivante.
+  </p>
+
+  <figure class="emplacement">
+    <div class="cadre">
+      <strong>Capture à insérer</strong>
+      <code>captures/c17-modale-ifu-client.png</code><br>
+      La fenêtre de validation d'une facture avec les champs IFU du client, Nom du client, Retenir pour ce client
+      et Normaliser maintenant (poste en mode boîtier ou e-MECeF).
+    </div>
+    <figcaption><b>Figure 17.2</b> — Les champs de l'acheteur à la validation d'une facture.</figcaption>
+  </figure>
+
+  <h2>17.5 Ce que montre la facture, et ce qu'elle ne montre pas</h2>
+  <table>
+    <thead><tr><th>Situation de la facture</th><th>Sur le papier (A4 et ticket)</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Mode Désactivé</strong> (facture simple)</td><td>Aucun numéro MECeF, aucun QR, <strong>aucune mention</strong> de normalisation.</td></tr>
+      <tr><td>Mode e-MECeF ou boîtier, <strong>pas encore normalisée</strong></td><td>« Facture en attente de normalisation ». Jamais de QR ni de numéro fiscal.</td></tr>
+      <tr><td><strong>Normalisée</strong></td><td>Le <strong>numéro</strong> (NIM suivi du compteur), le <strong>code MECeF</strong>, la <strong>date</strong> de normalisation et le <strong>QR code</strong> dessiné.</td></tr>
+    </tbody>
+  </table>
+  <p>
+    Le logiciel n'affiche « normalisée » que si la facture porte à la fois un <strong>statut</strong> « normalisée », un <strong>numéro
+    réel</strong> et un <strong>QR</strong>. Si l'un manque, il écrit « à vérifier » plutôt que d'affirmer une chose qu'il n'a pas vérifiée.
+  </p>
+  <p>
+    Des <strong>exemples fictifs</strong> de factures simple et normalisée (A4 du serveur, A4 du poste, tickets 80 mm) existent dans le dossier
+    <code>presentation</code> remis par l'éditeur. Ils portent le filigrane « ÉCHANTILLON — SANS VALEUR FISCALE » : ne les remettez jamais à un client.
+  </p>
+
+  <span class="note attention">
+    <span class="icone">⚠️</span>
+    <span class="titre">Écarts connus entre les papiers</span>
+    À la date de ce manuel, le A4 imprimé par le <strong>poste</strong> n'imprime pas l'<strong>IFU du client</strong> (celui du serveur le fait) et
+    affiche les quantités sans décimales alors que le serveur les affiche avec deux décimales. Ces écarts de présentation sont
+    connus et ne changent ni les montants ni la valeur de la facture.
+  </span>
+
+  <figure class="emplacement">
+    <div class="cadre">
+      <strong>Capture à insérer</strong>
+      <code>captures/c17-facture-normalisee-a4.png</code><br>
+      Une facture normalisée imprimée en A4 (numéro, code MECeF, QR). Source possible : l'échantillon
+      <code>presentation/02_facture_normalisee_A4.pdf</code> (voir CAPTURES_A_PRENDRE.md).
+    </div>
+    <figcaption><b>Figure 17.3</b> — Une facture normalisée : numéro, code MECeF, date et QR.</figcaption>
+  </figure>
+
+  <h2>17.6 Les états d'une facture</h2>
+  <p>L'écran Facturation affiche, à côté de chaque facture, une pastille d'état :</p>
+  <table>
+    <thead><tr><th>État</th><th>Sens</th><th>Que faire</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pastille vert">Normalisée</span></td><td>La DGI ou le boîtier a rendu un code : la facture a une valeur fiscale. Elle est <strong>immuable</strong>.</td><td>Rien. Pour la corriger : un avoir (17.8).</td></tr>
+      <tr><td><span class="pastille or">En attente de normalisation</span></td><td>Rien n'a été enregistré : boîtier débranché, délai dépassé, réponse invalide, DGI injoignable…</td><td>Corrigez la cause (message affiché), puis <strong>Réessayer</strong>.</td></tr>
+      <tr><td><span class="pastille rouge">Refusée</span></td><td>Le boîtier ou la DGI a explicitement refusé la facture. Le motif est noté.</td><td>Lisez le motif, corrigez ce qui peut l'être, puis <strong>Réessayer</strong>.</td></tr>
+      <tr><td><span class="pastille or">À vérifier</span></td><td>On ne peut pas savoir si la facture a été enregistrée par le boîtier ou la DGI.</td><td><strong>Ne rejouez pas</strong> : voir 17.7.</td></tr>
+      <tr><td><em>(aucune pastille)</em></td><td>Facture simple (mode Désactivé), avoir ou facture annulée : rien à normaliser.</td><td>—</td></tr>
+    </tbody>
+  </table>
+
+  <h2>17.7 « À vérifier » : une facture jamais retransmise</h2>
+  <p>
+    Il arrive que le boîtier <strong>enregistre</strong> une facture et que sa réponse se <strong>perde</strong> en route. Pour ne
+    jamais facturer deux fois, le poste lit le <strong>compteur</strong> du boîtier avant l'envoi et le note sur la facture, puis le relit après :
+  </p>
+  <ul class="puces">
+    <li>compteur inchangé : rien n'a été facturé ; la facture reste « en attente » et peut être renvoyée ;</li>
+    <li>compteur avancé alors que la réponse manque : la facture est peut-être enregistrée. Elle devient <strong>« À vérifier »</strong> et le poste <strong>ne la rejoue jamais automatiquement</strong>.</li>
+  </ul>
+  <p>
+    Il en va de même pour e-MECeF : une confirmation sans réponse exploitable (réseau coupé, erreur du serveur) rend l'issue incertaine :
+    « à vérifier », <strong>jamais retransmise</strong>. Le logiciel affiche alors, par exemple : <em>« Le boîtier a enregistré une facture
+    (compteur … → …) mais sa réponse n'a pas été reçue : ne la rejouez pas, vérifiez le boîtier. »</em>
+  </p>
+
+  <span class="note alerte">
+    <span class="icone">🛑</span>
+    <span class="titre">Alerte</span>
+    Devant une facture « à vérifier », <strong>ne cliquez pas au hasard</strong> sur <em>Vérifier</em> ni sur <em>Réessayer</em> : relevez
+    les compteurs du boîtier, comparez-les à ceux affichés, et appelez l'éditeur. Rejouer à l'aveugle risquerait de créer deux factures
+    normalisées pour une seule vente, ce qu'on ne peut pas défaire.
+  </span>
+
+  <h2>17.8 Corriger une facture normalisée : l'avoir, et lui seul</h2>
+  <p>
+    Une facture normalisée ne se modifie <strong>jamais</strong> et ne s'écrase jamais. Sa correction est un <strong>avoir</strong> (note de
+    crédit), qui se normalise lui aussi par la même voie (pour le boîtier, l'avoir est une pièce de type « avoir » rattachée au numéro de
+    la facture d'origine).
+  </p>
+
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Menu latéral <span class="fleche">➔</span> Facturation <span class="fleche">➔</span> ligne de la facture <span class="fleche">➔</span> Avoir
+  </span>
+  <p>
+    La fenêtre <strong>Émettre un avoir</strong> dit : <em>« La facture d'origine reste inchangée : l'avoir la neutralise, en tout ou
+    partie. Les deux pièces coexistent. »</em> Elle demande le <strong>Montant de l'avoir (FCFA)</strong> — au plus le montant TTC de la
+    facture — et le <strong>Motif de l'avoir</strong> (obligatoire, 255 caractères au plus), puis <strong>Émettre l'avoir</strong>.
+  </p>
+
+  <span class="note attention">
+    <span class="icone">⚠️</span>
+    <span class="titre">Attention : un avoir sur une facture normalisée se fait EN LIGNE</span>
+    Au poste, l'avoir d'une facture <strong>normalisée</strong> est créé <strong>au serveur</strong>, pas sur le poste. Hors ligne, le poste refuse :
+    <em>« Un avoir sur une facture normalisée se fait en ligne : reconnectez le poste au serveur. »</em> <strong>Rien n'est écrit</strong> sur le poste.
+    L'avoir d'une facture <strong>simple</strong>, lui, peut toujours se faire hors ligne.
+  </span>
+
+  <h2>17.9 Ce que le boîtier exige (et refuse)</h2>
+  <table>
+    <thead><tr><th>Règle</th><th>Ce que le logiciel répond</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Prix TTC.</strong> Le boîtier ne reçoit que des prix toutes taxes comprises, en francs entiers.</td><td>Une convention de prix hors taxes est refusée ; un prix ou une quantité nuls aussi : « Une ligne a un prix ou une quantité nuls : corrigez avant de normaliser. »</td></tr>
+      <tr><td><strong>La facture doit être réglée.</strong> Un reste dû est un <strong>crédit</strong>, que le boîtier ne connaît pas.</td><td>« La facture n'est pas réglée : enregistrez le règlement avant de la normaliser. » Si les règlements ne couvrent pas exactement le total : « Les montants ne concordent pas (lignes … FCFA, paiements … FCFA) : corrigez avant de normaliser. »</td></tr>
+      <tr><td><strong>Au moins une ligne.</strong></td><td>« La facture n'a aucune ligne : rien à normaliser. »</td></tr>
+      <tr><td><strong>Montants plafonnés</strong> à 16 777 215 FCFA par ligne et au total (limite de précision du boîtier).</td><td>Refus avant tout envoi.</td></tr>
+      <tr><td><strong>Modes de règlement connus</strong> : espèces, mobile money, carte, chèque, virement, autre.</td><td>Un mode inconnu : la facture n'est pas normalisée.</td></tr>
+      <tr><td><strong>Taxe de séjour</strong> : une ligne de ce nom est classée dans son propre groupe de taxe.</td><td>Point à confirmer avec le boîtier réel (17.12).</td></tr>
+      <tr><td><strong>Libellés simplifiés.</strong> Le boîtier n'a pas de table d'accents.</td><td>Les accents sont transcrits (« é » devient « e ») et les caractères spéciaux remplacés par des espaces sur le ticket du boîtier ; les libellés sont raccourcis (60 caractères pour une ligne). Votre facture du logiciel, elle, garde les accents.</td></tr>
+      <tr><td><strong>IFU du boîtier = IFU de l'entreprise.</strong></td><td>« L'IFU du boîtier (…) n'est pas celui de l'entreprise (…). » Refus avant tout envoi.</td></tr>
+      <tr><td><strong>Une seule normalisation à la fois</strong> par poste.</td><td>« Une normalisation est déjà en cours sur ce poste : attendez qu'elle se termine. »</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Les messages du boîtier et de la DGI, et que faire</h3>
+  <table>
+    <thead><tr><th>Message</th><th>Que faire</th></tr></thead>
+    <tbody>
+      <tr><td>Le boîtier de facturation n'est pas branché, ou son pilote ne le voit pas.</td><td>Vérifiez le câble USB, puis réessayez.</td></tr>
+      <tr><td>Le pilote du boîtier ne répond pas à l'adresse …</td><td>Vérifiez que le pilote est démarré sur ce poste ; vérifiez l'adresse dans Paramètres.</td></tr>
+      <tr><td>Le boîtier n'a pas répondu en 30 secondes. La facture a peut-être été enregistrée…</td><td>Le poste vérifie le compteur avant tout nouvel essai. Si la facture passe « à vérifier », voir 17.7.</td></tr>
+      <tr><td>Le boîtier a répondu sans code de facture valide : la facture n'est pas normalisée.</td><td>Réessayez ; si cela se répète, prévenez l'éditeur.</td></tr>
+      <tr><td>Le boîtier a refusé la facture : …</td><td>Lisez le détail et corrigez.</td></tr>
+      <tr><td>La DGI a refusé le jeton e-MECeF : vérifiez-le dans Paramètres.</td><td>Un administrateur ressaisit le jeton, au web.</td></tr>
+      <tr><td>La DGI limite les envois : nouvel essai dans … s.</td><td>Patientez ; le logiciel respecte le délai demandé.</td></tr>
+      <tr><td>La DGI est injoignable : nouvel essai automatique.</td><td>Vérifiez la connexion Internet du serveur.</td></tr>
+      <tr><td>Facturation e-MECeF incomplète : renseignez l'IFU, l'adresse et le jeton.</td><td>Un administrateur complète la section Facturation normalisée, au web.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>17.10 Le cas du poste sans boîtier</h2>
+  <p>
+    Si le serveur est réglé en mode <strong>boîtier</strong> mais qu'un poste n'a pas de boîtier, les factures de ce poste restent
+    <strong>« en attente de normalisation »</strong> : elles sont normalisées quand le poste muni du boîtier les reprend à son passage.
+    Aucune facture n'est perdue ni bloquée.
+  </p>
+
+  <h2>17.11 Deux flux sans facture enregistrée</h2>
+  <p>
+    La normalisation s'applique aux <strong>factures enregistrées</strong>. Au moment de ce manuel, la <strong>réservation d'hôtel</strong> (le
+    papier remis « ne vaut pas facture »), la <strong>vente au comptoir de l'espace web</strong> (un ticket de vente, pas une facture),
+    la <strong>location</strong> et le <strong>tourisme</strong> (un contrat, sans facture) n'émettent pas de facture : il n'y a donc rien à
+    normaliser, ni champ d'IFU, tant qu'une vraie facture n'est pas émise (par exemple à la clôture d'un séjour). Le <strong>poste</strong>,
+    lui, émet bien une facture d'encaissement au comptoir.
+  </p>
+
+  <h2>17.12 Ce qui reste à éprouver</h2>
+  <ul class="puces">
+    <li><strong>L'essai du boîtier réel</strong> avec un technicien : un kit d'essai est prêt (trois factures types et une fiche de résultats à remplir). Attention : avec un <strong>boîtier réel</strong>, les documents créés pendant l'essai sont <strong>réels</strong> ; l'essai pas à pas du poste peut aussi se faire avec un faux pilote, qui ne produit aucun document fiscal.</li>
+    <li><strong>L'essai e-MECeF réel</strong> sur un compte DGI.</li>
+    <li>Plusieurs <strong>questions ouvertes</strong>, non testables sans le matériel : le compteur exact des avoirs sur le boîtier ; le format du numéro imprimé ; le traitement d'une facture à crédit ou d'un acompte (aujourd'hui : refus tant que non réglée) ; la taxe de séjour ; l'AIB (non géré) ; la retrouvaille du QR après une réponse perdue.</li>
+    <li>Tant que ces points ne sont pas levés, <strong>gardez le mode Désactivé</strong> pour l'exploitation courante.</li>
+  </ul>
+</section>
