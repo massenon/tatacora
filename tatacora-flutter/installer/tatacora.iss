@@ -81,6 +81,10 @@ WizardStyle=modern
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=admin
+; Les dossiers de donnees (%LOCALAPPDATA%, %APPDATA%) ne sont touches qu'a la
+; DESINSTALLATION, par l'utilisateur qui la lance (apres avertissement Oui/Non) :
+; l'avertissement d'Inno Setup sur les dossiers utilisateur est connu et voulu.
+UsedUserAreasWarning=no
 ; Une mise à jour ferme l'application ouverte avant de remplacer ses fichiers.
 CloseApplications=yes
 RestartApplications=no
