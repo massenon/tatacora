@@ -134,33 +134,26 @@ bool Win32Window::Create(const std::wstring& title,
   UINT dpi = FlutterDesktopGetDpiForMonitor(monitor);
   double scale_factor = dpi / 96.0;
 
-  // Fenetre SANS les trois boutons systeme — demande du Product Owner,
-  // 24/08/2026 : « enlever les trois boutons (fermer, reduire, agrandir) pour
-  // eviter de fermer l'appli involontairement, surtout quand des paniers sont
-  // ouverts ».
+  // Fenetre avec ses TROIS boutons systeme DANS LE STYLE, mais sans barre de
+  // titre visible : le Dart la masque (`TitleBarStyle.hidden`, plugin
+  // `window_manager`, voir `ControleFenetreWindows.preparer`) et la barre
+  // superieure de l'application porte ses propres boutons reduire / agrandir /
+  // fermer (demande du Product Owner, 09/11/2026).
   //
-  // Le risque est reel et il est metier : un panier ouvert n'est PAS envoye au
-  // serveur — `paniers` n'est pas au registre `TABLES_SYNCHRONISABLES`. La
-  // saisie du comptoir n'existe donc nulle part ailleurs que sur ce poste, et
-  // un clic de trop sur la croix pendant le service perd une addition en
-  // cours. Ce n'est pas une preference d'affichage, c'est la protection de la
-  // seule copie d'une donnee.
+  // HISTORIQUE. Le 24/08/2026 le PO avait demande "enlever les trois
+  // boutons pour eviter de fermer l'appli involontairement" : le style
+  // retirait `WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX`. Le 09/11/2026 il
+  // demande l'inverse, dans l'interface. Ces trois bits sont donc RETABLIS
+  // parce que le plugin commande la fenetre par `WM_SYSCOMMAND` (`SC_CLOSE`,
+  // `SC_MINIMIZE`, `SC_MAXIMIZE`, `SC_RESTORE`), et que `DefWindowProc` ne
+  // repond a ces commandes que si le style les porte : sans eux les boutons
+  // dessines en Dart ne feraient rien. Ils retablissent aussi Alt+F4 et le
+  // menu systeme (Alt+Espace) nativement.
   //
-  // `WS_SYSMENU` porte les TROIS a la fois : le retirer supprime la croix, et
-  // `WS_MINIMIZEBOX`/`WS_MAXIMIZEBOX` les deux autres. On conserve
-  // `WS_CAPTION` (la barre de titre, qui reste saisissable pour deplacer la
-  // fenetre) et `WS_THICKFRAME` (le redimensionnement, borne par
-  // `WM_GETMINMAXINFO` ci-dessous).
-  //
-  // ## Ce que ce retrait emporte, et qu'il faut savoir
-  //
-  // Sans `WS_SYSMENU`, `DefWindowProc` cesse aussi de repondre a **Alt+F4** :
-  // la fenetre deviendrait impossible a fermer autrement que par le
-  // Gestionnaire des taches. Une application qu'on ne peut plus quitter n'est
-  // pas plus sure, elle est cassee. La sortie deliberee est donc retablie a la
-  // main dans `MessageHandler` — voir `WM_SYSKEYDOWN`.
-  const DWORD style =
-      WS_OVERLAPPEDWINDOW & ~(WS_SYSMENU | WS_MINIMIZEBOX | WS_MAXIMIZEBOX);
+  // Si le plugin ne se charge pas, la barre de titre native reste visible et
+  // porte alors, elle, les trois boutons : le poste reste fermable et
+  // reductible, jamais coince.
+  const DWORD style = WS_OVERLAPPEDWINDOW;
 
   HWND window = CreateWindow(
       window_class, title.c_str(), style,
@@ -274,26 +267,18 @@ Win32Window::MessageHandler(HWND hwnd,
       return 0;
     }
 
-    // La sortie deliberee, retablie a la main.
+    // Alt+F4, conserve tel quel.
     //
-    // Les trois boutons systeme ont ete retires (voir `CreateAndShow`), ce qui
-    // prive aussi `DefWindowProc` de sa reponse a Alt+F4 : sans ce cas, la
-    // fenetre ne se fermerait plus que par le Gestionnaire des taches.
+    // Depuis le 09/11/2026 le style de la fenetre porte de nouveau
+    // `WS_SYSMENU` (voir `Create`) : `DefWindowProc` repondrait de lui-meme a
+    // Alt+F4. Ce cas est GARDE, il emet le meme `WM_CLOSE` : c'est le chemin
+    // que le Dart voit pour toute fermeture (bouton "Fermer" de la barre
+    // superieure, croix du menu systeme, Alt+F4).
     //
-    // Alt+F4 est conserve parce qu'il ne se declenche pas par megarde — c'est
-    // exactement la difference avec la croix, qui se trouve sous le curseur au
-    // moment ou l'on vise autre chose. Le geste reste possible, il cesse
-    // d'etre accidentel.
-    //
-    // ## Ce que ce cas ne fait PAS, et qui reste a faire
-    //
-    // Il ne consulte pas les paniers ouverts. La protection posee ici est
-    // physique — on ne peut plus fermer d'un clic — et non metier : Alt+F4
-    // ferme sans rien demander. La garde metier (« deux paniers sont ouverts,
-    // voulez-vous vraiment quitter ? ») appartient au cote Dart, qui seul
-    // connait l'etat des paniers ; elle n'existe pas encore et ne doit pas
-    // etre supposee ici. Ecrire l'inverse ferait de ce commentaire un
-    // indicateur affirmant un controle qui n'a pas lieu.
+    // Il ne consulte pas les paniers ouverts : aucune garde de fermeture
+    // n'existe cote Dart a ce jour, et ce commentaire ne doit pas laisser
+    // croire le contraire. Les donnees du poste sont dans SQLite (rien a
+    // vider a la fermeture).
     case WM_SYSKEYDOWN:
       if (wparam == VK_F4 && (GetKeyState(VK_MENU) & 0x8000) != 0) {
         PostMessage(hwnd, WM_CLOSE, 0, 0);

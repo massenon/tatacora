@@ -6,6 +6,7 @@ import 'core/config/environnement.dart';
 import 'core/database/app_database.dart';
 import 'core/dev/mode_demo.dart';
 import 'core/di/providers.dart';
+import 'core/fenetre/controle_fenetre_windows.dart';
 import 'core/router/app_router.dart';
 import 'features/auth/presentation/voile_verrou_session.dart';
 import 'core/theme/app_theme.dart';
@@ -74,6 +75,9 @@ Future<void> main() async {
     maintenant: DateTime.now(),
   );
   await amorcerModeDemo(base);
+  // Même fenêtre que le poste (barre native masquée, boutons dans la barre
+  // supérieure) ; ne lève jamais, sans effet hors Windows.
+  await ControleFenetreWindows.preparer();
 
   runApp(
     ProviderScope(

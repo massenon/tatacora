@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../di/providers.dart';
+import '../fenetre/boutons_fenetre.dart';
+import '../fenetre/providers_fenetre.dart';
 import '../../features/alertes/presentation/cloche_notifications.dart';
 import '../../features/alertes/presentation/modales_ouverture.dart';
 import '../../features/synchronisation/presentation/bouton_synchronisation.dart';
@@ -25,6 +27,7 @@ import '../theme/app_colors.dart';
 import '../theme/app_shadows.dart';
 import '../theme/app_spacing.dart';
 import '../theme/app_text_styles.dart';
+import '../theme/mesures_fenetre.dart';
 import '../theme/mesures_transverses_complement.dart';
 import 'panneau_acces_rapide.dart';
 
@@ -196,12 +199,24 @@ class _BarreSuperieure extends ConsumerWidget implements PreferredSizeWidget {
     // route au registre — M5 —, masqué sur `-` seulement (comme la barre
     // latérale). `IndicateurCaisse::pour()` applique la MÊME règle.
     final peutVendre = droits.peutLire(ModuleTatacora.m5Bar);
+    // ÉCART À LA VUE (poste Windows seulement, 09/11/2026) : les trois boutons
+    // de fenêtre — voir `BoutonsFenetre`. `null` : la barre est celle de la vue.
+    final avecBoutonsFenetre = ref.watch(controleFenetreProvider) != null;
+    final margeHorizontale = moyen ? AppSpacing.lg : AppSpacing.md;
+    // Fenêtre étroite : boutons de 32 px, identité du compte masquée (voir
+    // `MesuresFenetre.seuilBarreCompacte`).
+    final compacte =
+        avecBoutonsFenetre &&
+        MediaQuery.sizeOf(context).width < MesuresFenetre.seuilBarreCompacte;
 
     return Container(
       height: AppLayout.hauteurBarreSuperieure,
       color: AppColors.navy,
-      padding: EdgeInsets.symmetric(
-        horizontal: moyen ? AppSpacing.lg : AppSpacing.md,
+      // Les boutons de fenêtre touchent le bord droit, comme ceux de Windows :
+      // la marge droite de la vue (`px-4 sm:px-6`) disparaît à leur profit.
+      padding: EdgeInsets.only(
+        left: margeHorizontale,
+        right: avecBoutonsFenetre ? 0 : margeHorizontale,
       ),
       child: Row(
         children: [
@@ -315,112 +330,121 @@ class _BarreSuperieure extends ConsumerWidget implements PreferredSizeWidget {
           // Flutter).
           if (moyen)
             Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // ⚠ Défaut corrigé le 14/10/2026 (passe finale) : le badge
-                  // était INFLEXIBLE — quand la recherche globale (lot B) a
-                  // réduit la place de l'identité, la marque se réduisait à
-                  // rien et le badge DÉBORDAIT (erreur de rendu, contenu
-                  // coupé), contrairement à l'ellipse promise ci-dessus. Les
-                  // deux sont désormais flexibles, chacun au prorata de sa
-                  // largeur NATURELLE : à largeur suffisante, chacun reçoit au
-                  // moins sa largeur (rendu identique) ; sinon, les deux se
-                  // coupent par une ellipse, sans jamais déborder.
-                  Builder(
-                    builder: (context) {
-                      final echelle = MediaQuery.textScalerOf(context);
-                      double largeur(String texte, TextStyle style) =>
-                          (TextPainter(
-                            text: TextSpan(text: texte, style: style),
-                            textDirection: TextDirection.ltr,
-                            textScaler: echelle,
-                            maxLines: 1,
-                          )..layout()).width;
-                      final styleMarque = TextStyle(
-                        // `tracking-tight` : −0,025 em.
-                        letterSpacing: AppTextStyles.suiviSerre * Tailles.t14,
-                        color: AppColors.neutre0,
-                        fontFamily: AppTextStyles.police,
-                        fontSize: Tailles.t14,
-                        fontWeight: FontWeight.bold,
-                      );
-                      const styleBadge = TextStyle(
-                        color: AppColors.gold,
-                        fontFamily: AppTextStyles.police,
-                        fontSize: Tailles.t10,
-                        fontWeight: FontWeight.w600,
-                      );
-                      // Badge : texte + `px-1.5` des deux côtés + bordure 1 px.
-                      final lMarque = largeur(
-                        LibellesCoquille.marque,
-                        styleMarque,
-                      );
-                      final lBadge =
-                          largeur(LibellesCoquille.enseigneCourte, styleBadge) +
-                          2 * AppSpacing.xxs +
-                          2 * AppLayout.bordureControle;
-                      int flex(double l) => math.max(1, l.ceil());
-                      return Row(
-                        children: [
-                          Flexible(
-                            flex: flex(lMarque),
-                            child: Text(
-                              LibellesCoquille.marque,
+              child: ZoneDeplacementFenetre(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ⚠ Défaut corrigé le 14/10/2026 (passe finale) : le badge
+                    // était INFLEXIBLE — quand la recherche globale (lot B) a
+                    // réduit la place de l'identité, la marque se réduisait à
+                    // rien et le badge DÉBORDAIT (erreur de rendu, contenu
+                    // coupé), contrairement à l'ellipse promise ci-dessus. Les
+                    // deux sont désormais flexibles, chacun au prorata de sa
+                    // largeur NATURELLE : à largeur suffisante, chacun reçoit au
+                    // moins sa largeur (rendu identique) ; sinon, les deux se
+                    // coupent par une ellipse, sans jamais déborder.
+                    Builder(
+                      builder: (context) {
+                        final echelle = MediaQuery.textScalerOf(context);
+                        double largeur(String texte, TextStyle style) =>
+                            (TextPainter(
+                              text: TextSpan(text: texte, style: style),
+                              textDirection: TextDirection.ltr,
+                              textScaler: echelle,
                               maxLines: 1,
-                              softWrap: false,
-                              overflow: TextOverflow.ellipsis,
-                              style: styleMarque,
-                            ),
-                          ),
-                          const SizedBox(width: AppSpacing.xs), // gap-2
-                          // Le badge doré « Gîte Chez Noël » — bordure, pas un
-                          // fond.
-                          Flexible(
-                            flex: flex(lBadge),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AppSpacing.xxs,
-                                vertical: AppSpacing.demi,
-                              ),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: AppColors.gold),
-                                borderRadius: BorderRadius.circular(
-                                  AppRadius.sm,
-                                ),
-                              ),
+                            )..layout()).width;
+                        final styleMarque = TextStyle(
+                          // `tracking-tight` : −0,025 em.
+                          letterSpacing: AppTextStyles.suiviSerre * Tailles.t14,
+                          color: AppColors.neutre0,
+                          fontFamily: AppTextStyles.police,
+                          fontSize: Tailles.t14,
+                          fontWeight: FontWeight.bold,
+                        );
+                        const styleBadge = TextStyle(
+                          color: AppColors.gold,
+                          fontFamily: AppTextStyles.police,
+                          fontSize: Tailles.t10,
+                          fontWeight: FontWeight.w600,
+                        );
+                        // Badge : texte + `px-1.5` des deux côtés + bordure 1 px.
+                        final lMarque = largeur(
+                          LibellesCoquille.marque,
+                          styleMarque,
+                        );
+                        final lBadge =
+                            largeur(
+                              LibellesCoquille.enseigneCourte,
+                              styleBadge,
+                            ) +
+                            2 * AppSpacing.xxs +
+                            2 * AppLayout.bordureControle;
+                        int flex(double l) => math.max(1, l.ceil());
+                        return Row(
+                          children: [
+                            Flexible(
+                              flex: flex(lMarque),
                               child: Text(
-                                LibellesCoquille.enseigneCourte,
+                                LibellesCoquille.marque,
                                 maxLines: 1,
                                 softWrap: false,
                                 overflow: TextOverflow.ellipsis,
-                                style: styleBadge,
+                                style: styleMarque,
                               ),
                             ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                  Text(
-                    LibellesCoquille.localisation,
-                    maxLines: 1,
-                    softWrap: false,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: AppColors.neutre0.withValues(
-                        alpha: OpacitesCoquille.texteSecondaire,
-                      ),
-                      fontFamily: AppTextStyles.police,
-                      fontSize: Tailles.t11,
+                            const SizedBox(width: AppSpacing.xs), // gap-2
+                            // Le badge doré « Gîte Chez Noël » — bordure, pas un
+                            // fond.
+                            Flexible(
+                              flex: flex(lBadge),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppSpacing.xxs,
+                                  vertical: AppSpacing.demi,
+                                ),
+                                decoration: BoxDecoration(
+                                  border: Border.all(color: AppColors.gold),
+                                  borderRadius: BorderRadius.circular(
+                                    AppRadius.sm,
+                                  ),
+                                ),
+                                child: Text(
+                                  LibellesCoquille.enseigneCourte,
+                                  maxLines: 1,
+                                  softWrap: false,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: styleBadge,
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
-                  ),
-                ],
+                    Text(
+                      LibellesCoquille.localisation,
+                      maxLines: 1,
+                      softWrap: false,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: AppColors.neutre0.withValues(
+                          alpha: OpacitesCoquille.texteSecondaire,
+                        ),
+                        fontFamily: AppTextStyles.police,
+                        fontSize: Tailles.t11,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             )
           else
-            const Spacer(), // `<div class="flex-1"></div>`, sans identité
+            // `<div class="flex-1"></div>`, sans identité (zone de déplacement
+            // de la fenêtre quand le poste porte ses boutons).
+            const Expanded(
+              child: ZoneDeplacementFenetre(child: SizedBox.expand()),
+            ),
           // La recherche globale (`<livewire:pwa.recherche-globale />`,
           // `partials/barre-superieure` l.162, ajout du PO du 01/09/2026) —
           // PORTÉE le 14/10/2026 (lot B) : `hidden md:block mr-3`. Elle lit
@@ -465,7 +489,11 @@ class _BarreSuperieure extends ConsumerWidget implements PreferredSizeWidget {
           // sait ce qui attend de partir.
           if (session != null) const BoutonSynchronisation(),
           if (session != null) ClocheNotifications(routeActive: routeActive),
-          if (session != null) _MenuProfil(session: session),
+          if (session != null)
+            _MenuProfil(session: session, sansIdentite: compacte),
+          // Extrême droite, après le menu de compte : réduire, agrandir /
+          // restaurer, fermer. Rien hors du poste Windows.
+          BoutonsFenetre(compacte: compacte),
         ],
       ),
     );
@@ -713,9 +741,13 @@ final class _EntreeCompte {
 /// `PopupMenuButton` n'accepte qu'une élévation Material, qui ne reproduit pas
 /// l'ombre de la vue ; le filet `border-slate-100` tient le contour.
 class _MenuProfil extends ConsumerWidget {
-  const _MenuProfil({required this.session});
+  const _MenuProfil({required this.session, this.sansIdentite = false});
 
   final Session session;
+
+  /// Barre compacte (poste Windows, fenêtre étroite) : ni login ni rôle à
+  /// côté de l'avatar ; le menu les porte toujours en en-tête.
+  final bool sansIdentite;
 
   static const _compte = [
     _EntreeCompte(
@@ -962,7 +994,7 @@ class _MenuProfil extends ConsumerWidget {
             children: [
               _Avatar(initiales: initialesDeLogin(session.login)),
               // `hidden sm:block`
-              if (moyen) ...[
+              if (moyen && !sansIdentite) ...[
                 const SizedBox(width: AppSpacing.xs),
                 Column(
                   mainAxisAlignment: MainAxisAlignment.center,

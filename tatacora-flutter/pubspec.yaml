@@ -96,6 +96,15 @@ dependencies:
   # statut de chaque reponse lui-meme. Seul consommateur :
   # features/synchronisation/data/transport_synchronisation.dart.
   http: ^1.6.0
+  # Les trois boutons de FENETRE du poste (reduire, agrandir/restaurer, fermer)
+  # et la zone de deplacement de la barre superieure (PO, 09/11/2026) : la
+  # barre de titre native est masquee (`TitleBarStyle.hidden`), l'interface les
+  # porte. Plugin Windows de leanflutter, MIT, aucun reseau. VERSION 0.5.x
+  # EXPRES : la 0.6.0 (01/11/2026) reecrit le plugin sur `nativeapi` /
+  # `cnativeapi` (une pile native de plus, non eprouvee) et releve le SDK
+  # Flutter a 3.47 ; la 0.5.2 ne tire que `screen_retriever` (Dart + C++ du
+  # plugin). Seul consommateur : core/fenetre/controle_fenetre_windows.dart.
+  window_manager: ^0.5.2
 
 dev_dependencies:
   integration_test:

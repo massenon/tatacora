@@ -8,6 +8,7 @@ import 'core/database/app_database.dart';
 import 'core/demarrage/demarrage_resilient.dart';
 import 'core/demarrage/journal_demarrage.dart';
 import 'core/di/providers.dart';
+import 'core/fenetre/controle_fenetre_windows.dart';
 import 'core/router/app_router.dart';
 import 'features/auth/presentation/voile_verrou_session.dart';
 import 'core/theme/app_theme.dart';
@@ -42,6 +43,12 @@ void main() {
     } on Object catch (e, s) {
       controleur.signaler('dossier des données', e, s);
     }
+    // La fenêtre du poste Windows : barre de titre native masquée, la barre
+    // supérieure porte réduire / agrandir / fermer (PO, 09/11/2026). AVANT
+    // `runApp`, la fenêtre étant encore cachée (le runner la montre à la
+    // première image) : aucun clignotement. Ne lève jamais ; en cas d'échec la
+    // barre native reste, et c'est elle qui porte alors les trois boutons.
+    await ControleFenetreWindows.preparer();
     runApp(
       DemarrageResilient(
         controleur: controleur,
