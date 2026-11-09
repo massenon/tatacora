@@ -162,7 +162,7 @@
 <main class="carte" @if ($statut === 503) role="status" @endif>
 
   <div class="marque">
-    <img src="{{ asset('assets/img/logo.png') }}" alt="{{ __('pwa.alt_logo') }}" width="48" height="48">
+    <img src="{{ asset('assets/img/logo.png') }}" alt="{{ __('pwa.alt_logo') }}" width="48" height="48" class="object-contain">
     <span>{{ __('erreurs.marque') }}</span>
   </div>
 
