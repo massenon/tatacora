@@ -303,15 +303,13 @@ final class ErreursPwaTest extends TestCase
     }
 
     /**
-     * Le 419 d'une requête HTML ordinaire est REDIRIGÉ vers la connexion avec
-     * le bandeau « Votre session a expiré » (`bootstrap/app.php`, garde
-     * `SessionExpireeTest`) : la page 419 est donc servie quand la redirection
-     * ne s'applique pas — requête Livewire non JSON, ou 419 levé hors du
-     * gestionnaire. Les cas 419 passent l'en-tête `X-Livewire` pour la voir.
+     * Le 419 d'une requête HTML ordinaire sert la page 419 (décision du PO,
+     * 09/11/2026 ; `bootstrap/app.php`, garde `SessionExpireeTest`) : aucun
+     * en-tête particulier n'est donc nécessaire pour la voir.
      */
     private function entetes(): array
     {
-        return ['X-Livewire' => '1'];
+        return [];
     }
 
     private function assertAucuneFuite(string $contenu, string $contexte): void

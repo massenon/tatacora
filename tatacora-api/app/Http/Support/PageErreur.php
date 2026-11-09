@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Support;
 
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
@@ -59,6 +60,25 @@ final class PageErreur
     {
         try {
             return Auth::check();
+        } catch (Throwable) {
+            return false;
+        }
+    }
+
+    /**
+     * Vrai si la requête fautive vient de l'écran de connexion (adresse
+     * demandée ou page d'origine, du même site). Sert à mettre « Retour à la
+     * connexion » en bouton principal de la page 419.
+     */
+    public static function venaitDeLaConnexion(Request $request): bool
+    {
+        try {
+            $connexion = parse_url(route('pwa.connexion'), PHP_URL_PATH);
+            $origine = (string) $request->headers->get('referer', '');
+            $memeSite = $origine !== '' && str_starts_with($origine, url('/'));
+
+            return $request->path() === ltrim((string) $connexion, '/')
+                || ($memeSite && parse_url($origine, PHP_URL_PATH) === $connexion);
         } catch (Throwable) {
             return false;
         }

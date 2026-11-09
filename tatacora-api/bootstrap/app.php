@@ -68,13 +68,20 @@ return Application::configure(basePath: dirname(__DIR__))
         // sans que rien de technique ne soit montre.
         $exceptions->context(fn (\Throwable $e): array => ['incident' => PageErreur::incident($e)]);
 
-        // Jeton CSRF/session expire HORS Livewire (formulaire de repli, bouton
-        // de deconnexion d'un onglet perime) : renvoi vers la connexion avec le
-        // message « Votre session a expire », jamais la page « Page Expired ».
-        // Les requetes Livewire gardent leur 419 : leur script
-        // (`pwa.partials.session-expiree`) l'intercepte et recharge la page ;
-        // une redirection suivie par `fetch` donnerait une page HTML a la place
-        // du JSON attendu. L'API (jetons Sanctum, pas de CSRF) n'est pas touchee.
+        // Jeton CSRF/session expire HORS Livewire (formulaire HTML ordinaire,
+        // bouton de deconnexion d'un onglet perime) : la page 419 « premium »
+        // (decision du PO, 09/11/2026) — statut 419, « Recharger la page » et
+        // « Retour a la connexion » — au lieu de l'ancienne redirection
+        // silencieuse vers la connexion. Si le formulaire venait de la
+        // connexion elle-meme, « Retour a la connexion » devient le bouton
+        // principal (la page de connexion est rechargee avec un jeton neuf).
+        // Aucun message d'exception n'est lu par la vue.
+        // Les requetes Livewire gardent leur 419 (page 419 servie par Laravel) :
+        // leur script (`pwa.partials.session-expiree`) l'intercepte, recharge
+        // la page et la connexion affiche alors le bandeau « Votre session a
+        // expire » (drapeau `sessionStorage`, seul usage restant du bandeau :
+        // le middleware `auth` ne le pose pas). L'API (jetons Sanctum, pas de
+        // CSRF) et tout `Accept: application/json` gardent le rendu JSON.
         // Laravel convertit TokenMismatchException en HttpException(419) AVANT
         // les rendus personnalises : c'est celle-ci qu'il faut attraper.
         $exceptions->render(function (HttpExceptionInterface $e, Request $request) {
@@ -85,6 +92,9 @@ return Application::configure(basePath: dirname(__DIR__))
                 return null;
             }
 
-            return redirect()->route('pwa.connexion')->with('session_expiree', true);
+            return response()->view('errors.419', [
+                'exception' => $e,
+                'versConnexion' => PageErreur::venaitDeLaConnexion($request),
+            ], 419);
         });
     })->create();
