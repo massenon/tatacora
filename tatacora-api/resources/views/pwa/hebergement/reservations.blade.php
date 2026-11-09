@@ -442,8 +442,16 @@
                         <td class="px-4 py-2.5 text-right">{{ $ligne->nombreNuitees() }}</td>
                         <td class="px-4 py-2.5 text-[12px] text-slate-600">{{ $ligne->unite === null ? $tiret : $ligne->unite->numero.' — '.($ligne->unite->categorie?->libelle ?? $tiret) }}</td>
                         <td class="px-4 py-2.5 text-[11px] text-slate-500">{{ __('hebergement_pwa.reservations.service_hebergement') }}</td>
-                        <td class="px-4 py-2.5 text-right font-semibold">{{ $tiret }}</td>
-                        <td class="px-4 py-2.5 text-right text-slate-400">{{ $tiret }}</td>
+                        @php
+                          // TOTAL = sous-total − remise ; RESTE DÛ = total − acompte, jamais négatif — la
+                          // formule du poste (`RecapitulatifReservation`), en bcmath. `null` (aucun tarif
+                          // figé) reste un tiret : jamais un 0 qui se lirait « séjour gratuit / soldé ».
+                          $totalLigne = $ligne->montantTotal();
+                          $resteLigne = $totalLigne === null ? null : bcsub($totalLigne, (string) $ligne->acompte, 2);
+                          if ($resteLigne !== null && bccomp($resteLigne, '0', 2) < 0) { $resteLigne = '0.00'; }
+                        @endphp
+                        <td class="px-4 py-2.5 text-right font-semibold" data-hist-total>{{ $totalLigne === null ? $tiret : \App\Pwa\Support\MontantFcfa::format($totalLigne) }}</td>
+                        <td class="px-4 py-2.5 text-right {{ $resteLigne !== null && bccomp($resteLigne, '0', 2) > 0 ? 'text-red-600 font-semibold' : 'text-slate-400' }}" data-hist-reste>{{ $resteLigne === null ? $tiret : \App\Pwa\Support\MontantFcfa::format($resteLigne) }}</td>
                         <td class="px-4 py-2.5"><span class="px-2 py-0.5 rounded text-[11px] font-semibold {{ $etatLigne['classe'] ?? '' }}">{{ $etatLigne['libelle'] ?? $tiret }}</span></td>
                       </tr>
                     @endforeach

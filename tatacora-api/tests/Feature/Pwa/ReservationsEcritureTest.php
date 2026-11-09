@@ -805,4 +805,38 @@ final class ReservationsEcritureTest extends TestCase
         $this->assertStringContainsString('barman.local', $html, 'le login LOCAL de l\'auteur, pas le compte d\'appairage');
         $this->assertStringContainsString($admin->login, $html, 'une annulation du web garde son compte');
     }
+
+    /**
+     * Décision du PO (09/11/2026) : le web ET le poste affichent le TOTAL et le RESTE DÛ dans
+     * l'historique. Total = sous-total − remise ; reste = total − acompte, jamais négatif.
+     */
+    #[Test]
+    public function l_historique_affiche_le_total_et_le_reste_du_comme_le_poste(): void
+    {
+        $this->actingAs($this->utilisateur('administrateur'));
+        $creer = fn (string $arrivee, string $depart, string $acompte, string $remise) => app(ReservationService::class)->creer([
+            'id' => (string) Str::uuid(), 'client_id' => $this->client->id, 'unite_id' => $this->unite->id,
+            'date_arrivee' => $arrivee, 'date_depart' => $depart, 'tarif_nuit' => '40000', 'acompte' => $acompte,
+            'remise_type' => $remise === '' ? 'aucune' : 'pourcentage', 'remise_valeur' => $remise === '' ? 0 : $remise,
+            'mode_paiement' => 'especes',
+        ]);
+        // 2 nuits × 40 000 = 80 000, remise 10 % → total 72 000, acompte 30 000 → reste dû 42 000.
+        $creer('2026-12-10', '2026-12-12', '30000', '10');
+        // Acompte supérieur au total : le reste dû est 0, jamais négatif.
+        $creer('2026-12-20', '2026-12-21', '60000', '');
+
+        $html = (string) Livewire::test(Reservations::class)->set('vue', 'historique')->html();
+
+        $this->assertStringContainsString(\App\Pwa\Support\MontantFcfa::format('72000'), $html);
+        $this->assertStringContainsString(\App\Pwa\Support\MontantFcfa::format('42000'), $html);
+        $this->assertStringContainsString(\App\Pwa\Support\MontantFcfa::format('40000'), $html);
+        $this->assertSame(2, substr_count($html, 'data-hist-reste'));
+        // Les cellules « Reste dû » de l'historique, et elles seules : jamais un montant négatif.
+        preg_match_all('/data-hist-reste[^>]*>([^<]*)</', $html, $restes);
+        $this->assertCount(2, $restes[1]);
+        foreach ($restes[1] as $cellule) {
+            $this->assertStringNotContainsString('-', $cellule);
+        }
+        $this->assertContains(\App\Pwa\Support\MontantFcfa::format('0'), array_map('trim', $restes[1]));
+    }
 }

@@ -129,6 +129,43 @@ void main() {
     });
   });
 
+  group('TOTAL et RESTE DÛ de l’historique — mêmes chiffres que le web (PO, '
+      '09/11/2026)', () {
+    test('2 nuits × 40 000, remise 10 %, acompte 30 000 : total 72 000, reste '
+        '42 000', () {
+      final l = historique([
+        reservation(
+          id: 'r-total',
+          arrivee: DateTime(2026, 12, 10),
+          depart: DateTime(2026, 12, 12),
+          tarifNuit: 40000,
+          acompte: 30000,
+          remiseType: TypeRemise.pourcentage,
+          remiseValeur: 10,
+        ),
+      ]).single;
+      expect(l.totalAPayer, 72000);
+      expect(l.resteAPayer, 42000);
+    });
+
+    test(
+      'un acompte supérieur au total : le reste dû est 0, jamais négatif',
+      () {
+        final l = historique([
+          reservation(
+            id: 'r-trop',
+            arrivee: DateTime(2026, 12, 20),
+            depart: DateTime(2026, 12, 21),
+            tarifNuit: 40000,
+            acompte: 60000,
+          ),
+        ]).single;
+        expect(l.totalAPayer, 40000);
+        expect(l.resteAPayer, 0);
+      },
+    );
+  });
+
   group('L’état se déduit des dates, jamais d’une colonne', () {
     test('un séjour à venir', () {
       final l = historique([

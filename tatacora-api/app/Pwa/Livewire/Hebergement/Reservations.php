@@ -934,7 +934,7 @@ final class Reservations extends PageMetier
     private function historique(): EloquentCollection
     {
         $requete = Reservation::query()
-            ->with(['client', 'unite.categorie'])
+            ->with(['client', 'unite.categorie', 'lignes'])
             ->when(
                 $this->histTerme !== '',
                 fn ($q) => $q->whereHas(
