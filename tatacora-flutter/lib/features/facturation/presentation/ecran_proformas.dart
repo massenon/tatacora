@@ -10,6 +10,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../shared_widgets/bouton_standard.dart';
+import '../../../shared_widgets/liste_paginee.dart';
 import '../data/prefill_proforma_poste.dart';
 import '../data/proforma_dao.dart';
 import '../domain/mise_en_page_proforma.dart';
@@ -254,33 +255,59 @@ class _EcranProformasState extends ConsumerState<EcranProformas> {
                           return Padding(
                             padding: const EdgeInsets.all(AppSpacing.xl),
                             child: Center(
-                              child: Text(
-                                key: const Key('proformas-vide'),
-                                TextesProforma.ui['vide']!,
-                                style: _t(
-                                  TaillesContenu.t13,
-                                  couleur: AppColors.neutre400,
-                                ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    key: const Key('proformas-vide'),
+                                    TextesProforma.ui['vide']!,
+                                    style: _t(
+                                      TaillesContenu.t13,
+                                      couleur: AppColors.neutre400,
+                                    ),
+                                  ),
+                                  // Sans filtre seulement : une réservation ne
+                                  // crée ni facture ni proforma (PO, 09/11/2026).
+                                  if (_statut.isEmpty && _terme.trim().isEmpty)
+                                    Text(
+                                      key: const Key('proformas-vide-aide'),
+                                      TextesProforma.ui['vide_aide']!,
+                                      textAlign: TextAlign.center,
+                                      style: _t(
+                                        TaillesContenu.t13,
+                                        couleur: AppColors.neutre400,
+                                      ),
+                                    ),
+                                ],
                               ),
                             ),
                           );
                         }
-                        return Column(
-                          children: [
-                            for (final p in vues)
-                              _Ligne(
-                                proforma: p,
-                                expiree: dao.estExpiree(p),
-                                peutEcrire: peutEcrire,
-                                onImprimer: () =>
-                                    ref.read(imprimerProformaProvider)(p.id),
-                                onModifier: () =>
-                                    _ouvrirFormulaire(existante: p),
-                                onEmettre: () => _emettre(p),
-                                onConvertir: () => _convertir(p),
-                                onAnnuler: () => _annuler(p),
-                              ),
-                          ],
+                        // Dix proformas par page (comme le registre des
+                        // factures) : la liste PAGINE, elle ne tronque pas.
+                        return ListePaginee<ProformasLocalData>(
+                          elements: vues,
+                          prefixeCle: 'proformas-pagination',
+                          // Comme la vue (`hasPages()`) : pas de liens sous une page.
+                          masquerSansPages: true,
+                          cleRemiseAZero: (_statut, _terme),
+                          constructeur: (_, page) => Column(
+                            children: [
+                              for (final p in page)
+                                _Ligne(
+                                  proforma: p,
+                                  expiree: dao.estExpiree(p),
+                                  peutEcrire: peutEcrire,
+                                  onImprimer: () =>
+                                      ref.read(imprimerProformaProvider)(p.id),
+                                  onModifier: () =>
+                                      _ouvrirFormulaire(existante: p),
+                                  onEmettre: () => _emettre(p),
+                                  onConvertir: () => _convertir(p),
+                                  onAnnuler: () => _annuler(p),
+                                ),
+                            ],
+                          ),
                         );
                       },
                     ),

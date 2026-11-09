@@ -541,6 +541,8 @@ final class PwaActionsReluesTest extends TestCase
             'ouvrirCreation', 'ouvrirModification', 'ajouterLigne', 'retirerLigne', 'enregistrer', 'emettre',
             'ouvrirAnnulation', 'confirmerAnnulation', 'ouvrirConversion', 'confirmerConversion',
             'imprimer', 'fermerModales',
+            // Pagination (09/11/2026) : crochet du cadre, il ne remet que la page à 1 quand un filtre change.
+            'updated',
         ],
 
         Facturation::class => [
@@ -576,6 +578,9 @@ final class PwaActionsReluesTest extends TestCase
             'ouvrirModificationPrix', 'enregistrerModificationPrix', 'fermerModales',
             'ouvrirHistoriquePrix',
             'genererExport', 'imprimerFichePrix',
+            // Rattrapage « Rapprocher les plats du stock » (PO 09/11/2026) :
+            // ecrit des liens (M4) et des articles (M6) — exigerEcriture des deux.
+            'rapprocherLesPlatsDuStock',
             // Onglet « Ventes du Restaurant » (03/09/2026, Product Owner) :
             // `updated()` est le crochet du CADRE Livewire qui remet la
             // pagination a 1 quand un filtre de l'onglet change. Il n'ecrit

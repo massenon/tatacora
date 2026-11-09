@@ -242,6 +242,14 @@
                         {{ __('facturation_pwa.aucun_resultat_detail') }}
                         @unless ($filtreApplique)
                           <br>{{ __('pwa.facturation.registre_vide') }}
+                          {{-- Écart daté du PO (09/11/2026) : une réservation ne crée pas de facture ; on le dit, avec le
+                               chemin vers les proformas. Mêmes mots au poste. --}}
+                          <br><span id="registre-vide-aide">{{ __('pwa.facturation.registre_vide_aide') }}</span>
+                          <br><a href="{{ route('pwa.facturation.proformas') }}" wire:navigate id="registre-vide-proformas"
+                                 class="inline-block mt-2 text-[13px] px-3 py-1.5 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50">{{ __('pwa.facturation.registre_vide_lien') }}</a>
+                          @if ($horsExercice > 0)
+                            <br><span id="registre-hors-exercice" class="text-amber-700">{{ __('pwa.facturation.registre_hors_exercice', ['nombre' => $horsExercice, 'annee' => $exerciceAnnee]) }}</span>
+                          @endif
                         @endunless
                       </td>
                     </tr>

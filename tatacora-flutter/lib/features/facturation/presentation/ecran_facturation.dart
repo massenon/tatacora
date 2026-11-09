@@ -16,6 +16,7 @@ import '../../../shared_widgets/tableau_tatacora.dart';
 import '../../../shared_widgets/toast_export.dart';
 import '../domain/certification_mecef.dart';
 import '../domain/textes_proforma.dart';
+import '../domain/textes_registre_facture.dart';
 import '../domain/entities/piece_facturation.dart';
 import '../impression/etat_registre_factures.dart';
 import '../impression/ticket_facture.dart';
@@ -654,6 +655,14 @@ class _Registre extends ConsumerWidget {
         .peutEcrire;
     final idsPage = [for (final p in pieces) p.id];
     final toutCoche = idsPage.isNotEmpty && idsPage.every(selection.contains);
+    final filtreApplique =
+        ref.watch(origineFiltreeProvider) != null ||
+        ref.watch(moduleFiltreProvider) != null ||
+        ref.watch(rechercheFactureProvider).trim().isNotEmpty;
+    // Lu seulement quand le registre est vide et sans filtre.
+    final horsExercice = pieces.isEmpty && !filtreApplique
+        ? ref.watch(facturesHorsExerciceProvider).value
+        : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -718,11 +727,45 @@ class _Registre extends ConsumerWidget {
                   'Essayez de modifier votre recherche ou vos filtres.',
                   style: _t(TaillesContenu.t13, couleur: AppColors.neutre400),
                 ),
-                Text(
-                  'Aucune facture émise. Encaissez au point de vente ou '
-                  'clôturez un séjour.',
-                  style: _t(TaillesContenu.t13, couleur: AppColors.neutre400),
-                ),
+                // Sans filtre seulement, comme au web : « aucune facture » et
+                // « aucun résultat pour ce filtre » appellent des gestes opposés.
+                if (!filtreApplique) ...[
+                  Text(
+                    'Aucune facture émise. Encaissez au point de vente ou '
+                    'clôturez un séjour.',
+                    style: _t(TaillesContenu.t13, couleur: AppColors.neutre400),
+                  ),
+                  // Écart daté du PO (09/11/2026) : une réservation ne crée pas
+                  // de facture ; on le dit, avec le chemin vers les proformas.
+                  Text(
+                    TextesRegistreFacture.registreVideAide,
+                    key: const Key('facturation-registre-vide-aide'),
+                    textAlign: TextAlign.center,
+                    style: _t(TaillesContenu.t13, couleur: AppColors.neutre400),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  _Bouton(
+                    cle: const Key('facturation-registre-vide-proformas'),
+                    libelle: TextesRegistreFacture.registreVideLien,
+                    onTap: () => context.go('/facturation/proformas'),
+                  ),
+                  if (horsExercice != null && horsExercice.nombre > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(top: AppSpacing.xs),
+                      child: Text(
+                        TextesRegistreFacture.horsExercice(
+                          nombre: horsExercice.nombre,
+                          annee: horsExercice.annee,
+                        ),
+                        key: const Key('facturation-registre-hors-exercice'),
+                        textAlign: TextAlign.center,
+                        style: _t(
+                          TaillesContenu.t13,
+                          couleur: PaletteMaitre.ambre700,
+                        ),
+                      ),
+                    ),
+                ],
               ],
             ),
           )

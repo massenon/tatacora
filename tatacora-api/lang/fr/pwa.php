@@ -2261,6 +2261,11 @@ return [
 
         // maquette — l.117-118
         'registre_vide' => 'Aucune facture émise. Encaissez au point de vente ou clôturez un séjour.',
+        // Écart daté du PO (09/11/2026, « j'ai enregistré une réservation et je ne vois ni facture ni proforma ») :
+        // le registre dit aussi ce qu'une réservation ne fait PAS, et où trouver les proformas. Mêmes mots au poste.
+        'registre_vide_aide' => 'Une réservation ne crée pas de facture : clôturez le séjour pour facturer, ou créez une proforma depuis la réservation.',
+        'registre_vide_lien' => 'Voir les proformas',
+        'registre_hors_exercice' => ':nombre facture(s) émise(s) en dehors de l\'exercice consulté (:annee) : choisissez un autre exercice dans la barre supérieure.',
 
         // maquette — les sept colonnes, l.124-131, dans son ordre
         'col_numero' => 'N°',

@@ -101,11 +101,28 @@
                       </td>
                     </tr>
                   @empty
-                    <tr><td colspan="7" class="px-4 py-6 text-center text-slate-400">{{ __('proforma.ui.vide') }}</td></tr>
+                    <tr><td colspan="7" class="px-4 py-6 text-center text-slate-400">
+                      {{ __('proforma.ui.vide') }}
+                      @unless ($filtreApplique)
+                        {{-- Écart daté du PO (09/11/2026) : une réservation ne crée ni facture ni proforma. --}}
+                        <br><span id="proformas-vide-aide">{{ __('proforma.ui.vide_aide') }}</span>
+                      @endunless
+                    </td></tr>
                   @endforelse
                 </tbody>
               </table>
             </div>
+
+            @if ($proformas->hasPages())
+              <div class="flex items-center justify-between px-4 py-3 border-t border-slate-100 no-print">
+                <p class="text-xs text-slate-500">{!! __('facturation_pwa.affichage', [
+                    'debut' => '<strong>' . $proformas->firstItem() . '</strong>',
+                    'fin' => '<strong>' . $proformas->lastItem() . '</strong>',
+                    'total' => '<strong>' . $proformas->total() . '</strong>',
+                ]) !!}</p>
+                {{ $proformas->onEachSide(1)->links() }}
+              </div>
+            @endif
           </div>
         </section>
       </div>

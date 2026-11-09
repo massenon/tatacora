@@ -43,6 +43,21 @@ class Proformas extends PageMetier
     #[Url(as: 'statut')]
     public string $statut = '';
 
+    /** Proformas par page : la liste PAGINE, elle ne tronque pas (un plafond silencieux masquerait des pièces). */
+    public const PAR_PAGE = 10;
+
+    /** La page courante — propriété `#[Url]` passée à `paginate()`, comme le registre des factures. */
+    #[Url(as: 'page')]
+    public int $pageCourante = 1;
+
+    /** Un filtre qui change remet la liste à sa première page. */
+    public function updated(string $propriete): void
+    {
+        if (in_array($propriete, ['recherche', 'statut'], true)) {
+            $this->pageCourante = 1;
+        }
+    }
+
     public string $proformaId = '';
 
     public string $clientId = '';
@@ -286,7 +301,8 @@ class Proformas extends PageMetier
         }
 
         return view('pwa.facturation.proformas', array_merge($this->socle(), [
-            'proformas' => $requete->limit(100)->get(),
+            'proformas' => $requete->paginate(self::PAR_PAGE, ['*'], 'page', max(1, $this->pageCourante)),
+            'filtreApplique' => $terme !== '' || in_array($this->statut, Proforma::STATUTS, true),
             'peutEcrire' => $this->peutEcrire(),
         ]))->layout('layouts.pwa', ['module' => self::MODULE]);
     }

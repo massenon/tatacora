@@ -52,6 +52,8 @@ return [
         'col_total' => 'Total',
         'col_statut' => 'Statut',
         'vide' => 'Aucune proforma.',
+        // Écart daté du PO (09/11/2026) : une réservation ne crée ni facture ni proforma ; on le dit ici, avec le chemin.
+        'vide_aide' => 'Une réservation ne crée pas de facture : clôturez le séjour pour facturer, ou créez une proforma depuis la réservation (bouton « Proforma » de la carte) ou avec « Nouvelle facture proforma ».',
         'brouillon_sans_numero' => 'Brouillon',
         'valable' => 'Valable jusqu’au :date',
         'modifier' => 'Modifier',

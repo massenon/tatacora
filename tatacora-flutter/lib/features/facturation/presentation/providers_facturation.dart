@@ -565,6 +565,26 @@ final registreProvider = FutureProvider<List<PieceFacturation>>((ref) async {
       .toList(growable: false);
 });
 
+/// Combien de factures existent HORS de l'exercice consulté — l'explication d'un registre vide qui n'est pas
+/// « aucune facture » : le sélecteur d'exercice borne ce qui se lit, et l'écran doit le dire plutôt que taire.
+/// Les avoirs ne comptent pas (au web, ils sont une autre table). `annee` : celle de l'exercice consulté.
+final facturesHorsExerciceProvider = FutureProvider<({int nombre, int annee})?>(
+  (ref) async {
+    ref.watch(registreProvider);
+    final exercice = ref.watch(exerciceConsulteProvider);
+    if (exercice == null) return null;
+    final pieces = await ref.watch(depotFactureProvider).pieces();
+    final nombre = pieces
+        .where(
+          (p) =>
+              p.avoirDe == null &&
+              !dansLExercice(exercice, p.dateEmission.toIso8601String()),
+        )
+        .length;
+    return (nombre: nombre, annee: exercice.annee);
+  },
+);
+
 final kpisFacturationProvider = FutureProvider<KpisFacturation>(
   (ref) => KpisFacturation.calculer(ref.watch(depotFactureProvider)),
 );

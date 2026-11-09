@@ -24,6 +24,8 @@ abstract final class TextesProforma {
     'col_total': 'Total',
     'col_statut': 'Statut',
     'vide': 'Aucune proforma.',
+    'vide_aide':
+        'Une réservation ne crée pas de facture : clôturez le séjour pour facturer, ou créez une proforma depuis la réservation (bouton « Proforma » de la carte) ou avec « Nouvelle facture proforma ».',
     'brouillon_sans_numero': 'Brouillon',
     'valable': 'Valable jusqu’au :date',
     'modifier': 'Modifier',

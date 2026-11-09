@@ -537,8 +537,11 @@ class Facturation extends PageMetier
                 ->orWhere('prenom', 'like', '%' . $terme . '%')
                 ->pluck('id');
 
+            // Le numéro de la facture (`F-AAAA-NNNNN`, celui que le client cite et que le poste affiche) ET le
+            // numéro fiscal : une facture non normalisée n'a que le premier, et ne doit pas se perdre à la recherche.
             $requete->where(function ($sous) use ($terme, $clientsTrouves): void {
                 $sous->where('numero_mecef', 'like', '%' . $terme . '%')
+                    ->orWhere('numero', 'like', '%' . $terme . '%')
                     ->orWhereIn('client_id', $clientsTrouves);
             });
         }
@@ -693,7 +696,13 @@ class Facturation extends PageMetier
             'montant' => $montant,
         ] = $this->facturesEtClients();
 
+        // Registre vide SANS filtre : combien de factures existent hors de l'exercice consulté ? (elles ne sont pas
+        // perdues : le sélecteur d'exercice les borne, et l'écran doit le dire plutôt que taire.)
+        $horsExercice = $total === 0 && $terme === '' && $activite === '' ? Facture::query()->count() : 0;
+
         return view('pwa.facturation.facturation', array_merge($this->socle(), [
+            'horsExercice' => $horsExercice,
+            'exerciceAnnee' => (string) (ExerciceConsulte::exercice()?->annee ?? ''),
             'clients' => $clients,
             'factures' => $factures,
             'total' => $total,
