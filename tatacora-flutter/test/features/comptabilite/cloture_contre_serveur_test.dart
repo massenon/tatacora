@@ -570,6 +570,38 @@ void main() {
     );
   });
 
+  test('le résultat à reporter de N est celui de N SEUL, N-1 clôturé étant '
+      'déjà reporté en 131/139 (09/11/2026) — serveur ET poste', () {
+    // 2030 (clôturé, bénéfice) est reporté au journal AN de 2031 : le 131 de la
+    // balance de 2031 n'est PAS le résultat de 2031. 2031 : ventes 50 000 −
+    // gros achats 120 000 − brouillon 1 000 = −71 000 (le brouillon est compté
+    // dans l'exercice jugé, validé ensuite à l'événement `valider_brouillons`).
+    var vus = 0;
+    var apresClotureDe2030 = false;
+    for (var i = 0; i < scenario.length; i++) {
+      final ev = scenario[i];
+      if (ev['t'] == 'geste' &&
+          ev['action'] == 'cloturer' &&
+          ev['annee'] == 2030 &&
+          (serveurResultats[i] as Map).containsKey('cloture')) {
+        apresClotureDe2030 = true;
+      }
+      if (ev['t'] != 'etat' || ev['annee'] != 2031 || !apresClotureDe2030) {
+        continue;
+      }
+      vus++;
+      for (final cote in [serveurResultats[i] as Map, poste[i]]) {
+        expect(
+          cote['resultat_a_reporter'],
+          '-71000.00',
+          reason: 'état $i : le résultat de 2030 ne se recompte pas',
+        );
+        expect(cote['compte_destination'], '139');
+      }
+    }
+    expect(vus, greaterThanOrEqualTo(2));
+  });
+
   test('la balance est la même, à-nouveaux provisoires et clôture compris', () {
     var vues = 0;
     for (var i = 0; i < scenario.length; i++) {

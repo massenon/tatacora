@@ -71,7 +71,14 @@ class TafireService
         // MEME grandeur qui equilibre le bilan et qui ouvre la CAFG. Deux
         // formules finiraient par diverger et les deux etats afficheraient deux
         // resultats sur le meme exercice (PA-121).
-        $resultatExercice = $bilan->resultatExercice;
+        //
+        // Cette grandeur est le resultat CUMULE des capitaux propres (131/139 :
+        // resultat de N-1 deja reporte + resultat net de N), pas le seul
+        // resultat de N (`Bilan::resultatExercice`) : le TAFIRE ci-dessous
+        // raisonne sur des NIVEAUX de comptes (stocks, creances, dettes,
+        // tresorerie), et son identite ne tient qu'avec les capitaux propres
+        // entiers. Le resultat de N seul se lit au Bilan.
+        $resultatExercice = bcadd($bilan->resultatReporte, $bilan->resultatExercice, self::PRECISION);
 
         // Charge NON DECAISSEE : elle a diminue le resultat sans sortir de
         // tresorerie, on la reintegre. Debitrice par nature (compte 681).

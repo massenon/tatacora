@@ -219,7 +219,9 @@ final class EtatClotureLocal {
   final List<BlocageCloture> blocages;
   final List<AvertissementCloture> avertissements;
 
-  /// Le résultat de l'exercice, signé, en centimes (`bilan->resultatExercice`).
+  /// Le résultat de l'exercice, signé, en centimes (`bilan->resultatExercice`) :
+  /// produits − charges de CET exercice, jamais le résultat de N-1 déjà
+  /// reporté en 131/139.
   final int resultatAReporterCentimes;
 
   /// 131 (bénéfice, zéro compris) ou 139 (perte).

@@ -75,6 +75,7 @@ final readonly class Bilan
         public bool $equilibre,
         public string $ecart,
         public string $resultatExercice,
+        public string $resultatReporte,
         public bool $impotNonComptabilise,
         public ?string $motifResultatAvantImpot,
         public RepartitionStatuts $statuts,

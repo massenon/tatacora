@@ -452,6 +452,7 @@ final class BilanEtat {
     required this.passif,
     required this.comptesHorsRubrique,
     required this.resultatExerciceCentimes,
+    required this.resultatReporteCentimes,
     required this.impotNonComptabilise,
     required this.aNouveauxProvisoiresDe,
   });
@@ -459,7 +460,15 @@ final class BilanEtat {
   final List<PosteBilanEtat> actif;
   final List<PosteBilanEtat> passif;
   final List<CompteHorsRubrique> comptesHorsRubrique;
+
+  /// Le résultat de CET exercice : produits − charges des classes 6 à 8, rien
+  /// d'autre (`Bilan::resultatExercice`). Jamais les à-nouveaux.
   final int resultatExerciceCentimes;
+
+  /// Le 131/139 de la balance : résultat de l'exercice PRÉCÉDENT déjà reporté
+  /// (journal AN ou à-nouveaux provisoires). Il entre dans les capitaux propres
+  /// et ne se recompte pas dans le résultat de l'exercice (`Bilan::resultatReporte`).
+  final int resultatReporteCentimes;
   final bool impotNonComptabilise;
   final int? aNouveauxProvisoiresDe;
 
@@ -676,13 +685,12 @@ BilanEtat bilanDe(int annee, DonneesEtats d) {
 
   final capital = _sommeCreditrice(lignes, RubriquesBilan.capital);
   final reporte = _sommeCreditrice(lignes, RubriquesBilan.resultatReporte);
-  final resultatExercice = reporte + resultat.resultatNetCentimes;
   final passif = [
     sans(
       SectionBilan.passif,
       'capitaux_propres',
       'Capitaux propres',
-      capital + resultatExercice,
+      capital + reporte + resultat.resultatNetCentimes,
       [...RubriquesBilan.capital, ...RubriquesBilan.resultatReporte],
     ),
     sans(
@@ -717,7 +725,8 @@ BilanEtat bilanDe(int annee, DonneesEtats d) {
             soldeCentimes: l.debitCentimes - l.creditCentimes,
           ),
     ],
-    resultatExerciceCentimes: resultatExercice,
+    resultatExerciceCentimes: resultat.resultatNetCentimes,
+    resultatReporteCentimes: reporte,
     impotNonComptabilise: resultat.impotNonComptabilise,
     aNouveauxProvisoiresDe: balance.aNouveauxProvisoiresDe,
   );

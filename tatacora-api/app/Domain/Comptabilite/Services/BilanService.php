@@ -103,11 +103,18 @@ class BilanService
         // toujours nul, donc l'addition est juste dans les deux etats — et elle
         // reste juste pendant la cloture elle-meme, ou les deux coexistent
         // partiellement (`comptabilite-engine.js` l.632-636).
+        //
+        // ATTENTION : le 131/139 de la balance porte AUSSI le resultat de
+        // l'exercice PRECEDENT, deja reporte (journal AN, ou a-nouveaux
+        // provisoires). Il entre dans les capitaux propres — le bilan reste
+        // equilibre —, mais il n'est PAS le resultat de l'exercice : celui-ci
+        // est `produits - charges` des classes 6 a 8 de CET exercice, rien de
+        // plus (`$resultat->resultatNet`). Defaut du 09/11/2026 : les deux
+        // etaient additionnes dans `resultatExercice`, que la cloture lisait
+        // comme « resultat a reporter » (N-1 compte deux fois).
         $capital = $this->sommeCreditrice($lignes, RubriquesSyscohada::CAPITAL);
         $resultatReporte = $this->sommeCreditrice($lignes, RubriquesSyscohada::RESULTAT_REPORTE);
-        $resultatExercice = bcadd($resultatReporte, $resultat->resultatNet, self::PRECISION);
-
-        $capitauxPropres = bcadd($capital, $resultatExercice, self::PRECISION);
+        $capitauxPropres = bcadd($capital, bcadd($resultatReporte, $resultat->resultatNet, self::PRECISION), self::PRECISION);
         $passifCirculant = $this->sommeCreditrice($lignes, RubriquesSyscohada::DETTES_CIRCULANTES);
         $tresoreriePassif = $this->sommeCreditrice($lignes, RubriquesSyscohada::TRESORERIE_PASSIF);
 
@@ -154,7 +161,8 @@ class BilanService
             // dizaine de termes est le piege d'arrondi classique.
             equilibre: bccomp($totalActif, $totalPassif, self::PRECISION) === 0,
             ecart: bcsub($totalActif, $totalPassif, self::PRECISION),
-            resultatExercice: $resultatExercice,
+            resultatExercice: $resultat->resultatNet,
+            resultatReporte: $resultatReporte,
             impotNonComptabilise: $resultat->impotNonComptabilise,
             motifResultatAvantImpot: $resultat->motifResultatAvantImpot,
             statuts: $balance->statuts,

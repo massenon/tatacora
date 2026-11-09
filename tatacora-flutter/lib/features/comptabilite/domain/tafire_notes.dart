@@ -69,7 +69,12 @@ int _crediteur(List<LigneBalanceEtat> lignes, List<String> prefixes) =>
 TafireEtat tafireDe(int annee, DonneesEtats d) {
   final lignes = balanceDe(annee, d).lignes;
   final bilan = bilanDe(annee, d);
-  final resultat = bilan.resultatExerciceCentimes;
+  // Résultat CUMULÉ des capitaux propres (131/139 : N-1 déjà reporté + résultat
+  // net de N), comme `TafireService` : le TAFIRE raisonne sur des niveaux de
+  // comptes, son identité exige les capitaux propres entiers. Le résultat de N
+  // seul est `bilan.resultatExerciceCentimes`.
+  final resultat =
+      bilan.resultatReporteCentimes + bilan.resultatExerciceCentimes;
   final dotations = _debitrice(lignes, rubriqueDotations);
   final cafg = resultat + dotations;
   final capital = _crediteur(lignes, RubriquesBilan.capital);
