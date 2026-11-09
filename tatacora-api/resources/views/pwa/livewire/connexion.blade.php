@@ -8,6 +8,21 @@
     (`login.html`) n'existe plus. La vue Blade reste le maître du poste Windows,
     qui la traduit à l'identique (`ecran_connexion.dart`).
 
+    TYPOGRAPHIE (demande du PO du 09/11/2026 : « uniformiser la police et la
+    taille des contenus de la connexion et de l'inscription avec la taille par
+    défaut du projet ») : Inter, comme tout le projet, et l'échelle des écrans
+    hors `<main>` (aucun remappage) — texte de base `text-[13px]` pour
+    l'accroche, les saisies, le bouton, les liens, les bandeaux et le pied ;
+    étiquette de champ `text-[13px] font-semibold text-slate-700` (celle des
+    formulaires du projet) ; bouton `text-[13px] font-semibold` ; seuls
+    la marque, « Bienvenue ! » et le titre du panneau photo montent à
+    `text-xl` (20 px, le titre de page du projet), le sous-titre de marque et le
+    slogan restent des légendes (`text-[11px]`, `text-[12px]`). Avant : 28 px
+    (marque, accueil), 30 px (panneau), 16 px (saisie, bouton), 15 px (texte
+    courant), 12 px gras interlettré (étiquette). Mêmes tailles dans
+    `code-secours`, `changement-mot-de-passe-obligatoire` et les partiels
+    `carte-invite-entete` et `champ-invite`.
+
     Couleurs : uniquement les jetons de la feuille de style (`--navy` en
     couleur primaire, `--gold` en accent, `--erreur`, échelle `slate`). Aucun
     hexadécimal ici.
@@ -51,8 +66,8 @@
       <img src="{{ app(\App\Shared\Parametres\Services\ApparenceEtablissementService::class)->urlLogo() }}" alt="{{ __('pwa.alt_logo') }}" class="w-16 h-16 rounded-xl mb-6 ring-2 ring-[var(--gold)] object-contain">
       {{-- `<h2>` et non `<h1>` : le `<h1>` de la page est « Connexion »
            (masqué), dont l'onglet reprend le nom (BaliseTitrePwaTest). --}}
-      <h2 class="text-3xl font-bold mb-2 leading-tight">{!! __('pwa.connexion.titre_panneau') !!}</h2>
-      <p class="text-white/70 text-sm max-w-md">{{ __('pwa.connexion.accroche_panneau') }}</p>
+      <h2 class="text-xl font-bold mb-2 leading-tight">{!! __('pwa.connexion.titre_panneau') !!}</h2>
+      <p class="text-white/70 text-[13px] max-w-md">{{ __('pwa.connexion.accroche_panneau') }}</p>
     </div>
   </div>
 
@@ -98,8 +113,8 @@
                }
              }"
              x-init="ajuster(); if (document.fonts) document.fonts.ready.then(() => ajuster())">
-          <p class="text-[28px] font-extrabold leading-none whitespace-nowrap"><span x-ref="nom" class="inline-block"><span style="color:var(--navy)">{{ __('pwa.connexion.marque_logi') }}</span><span style="color:var(--gold)">{{ __('pwa.connexion.marque_restock') }}</span></span></p>
-          <p class="text-[15px] font-bold uppercase tracking-widest text-slate-500 mt-1 leading-none whitespace-nowrap"><span x-ref="sous" class="inline-block">{{ __('pwa.marque') }}</span></p>
+          <p class="text-xl font-extrabold leading-none whitespace-nowrap"><span x-ref="nom" class="inline-block"><span style="color:var(--navy)">{{ __('pwa.connexion.marque_logi') }}</span><span style="color:var(--gold)">{{ __('pwa.connexion.marque_restock') }}</span></span></p>
+          <p class="text-[11px] font-bold uppercase tracking-widest text-slate-500 mt-1 leading-none whitespace-nowrap"><span x-ref="sous" class="inline-block">{{ __('pwa.marque') }}</span></p>
         </div>
       </div>
 
@@ -118,13 +133,13 @@
       <hr class="border-slate-200 mb-4">
 
       {{-- 5. Accueil. --}}
-      <h2 class="text-[28px] font-extrabold leading-tight" style="color:var(--navy)">{{ __('pwa.connexion.bienvenue') }}</h2>
-      <p class="text-[15px] text-slate-500 mt-1 mb-4">{{ __('pwa.connexion.accroche') }}</p>
+      <h2 class="text-xl font-extrabold leading-tight" style="color:var(--navy)">{{ __('pwa.connexion.bienvenue') }}</h2>
+      <p class="text-[13px] text-slate-500 mt-1 mb-4">{{ __('pwa.connexion.accroche') }}</p>
 
       {{-- Un changement de mot de passe vient d'aboutir (ou un temporaire a expiré) :
            l'information est dite UNE fois, au retour sur la connexion. --}}
       @if (session('pwa-connexion-info'))
-        <p id="information-connexion" role="status" class="mb-4 text-[15px] text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">{{ session('pwa-connexion-info') }}</p>
+        <p id="information-connexion" role="status" class="mb-4 text-[13px] text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">{{ session('pwa-connexion-info') }}</p>
       @endif
 
       {{-- ⚠ `method="post"` + `onsubmit="return false"` : sans eux, un navigateur dont
@@ -160,12 +175,12 @@
 
         {{-- 6. Identifiant. --}}
         <div class="groupe-champ">
-          <label for="champ-identifiant" class="block text-[12px] font-bold tracking-wider text-slate-800 mb-1.5">{{ __('pwa.connexion.login') }}</label>
+          <label for="champ-identifiant" class="block text-[13px] font-semibold text-slate-700 mb-1.5">{{ __('pwa.connexion.login') }}</label>
           <div class="relative">
             <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">@include('pwa.partials.pictogramme-connexion', ['nom' => 'utilisateur', 'taille' => 20])</span>
             <input id="champ-identifiant" x-ref="identifiant" name="identifiant" type="text" wire:model="login" autocomplete="username" autofocus aria-required="true"
                    @error('login') aria-invalid="true" aria-describedby="erreur-login" @enderror
-                   class="champ w-full h-[52px] border border-slate-300 hover:border-slate-400 rounded-xl pl-11 pr-3.5 text-base truncate @error('login') champ-erreur @enderror">
+                   class="champ w-full h-[52px] border border-slate-300 hover:border-slate-400 rounded-xl pl-11 pr-3.5 text-[13px] truncate @error('login') champ-erreur @enderror">
           </div>
           <p id="erreur-login" class="message-erreur" @error('login') role="alert" @enderror>@error('login'){{ $message }}@enderror</p>
         </div>
@@ -173,12 +188,12 @@
         {{-- 7. Mot de passe + œil (Alpine, purement client : ne touche ni au
              binding `wire:model` ni à la valeur, seulement à l'attribut `type`). --}}
         <div class="groupe-champ">
-          <label for="champ-motdepasse" class="block text-[12px] font-bold tracking-wider text-slate-800 mb-1.5">{{ __('pwa.connexion.mot_de_passe') }}</label>
+          <label for="champ-motdepasse" class="block text-[13px] font-semibold text-slate-700 mb-1.5">{{ __('pwa.connexion.mot_de_passe') }}</label>
           <div class="relative" x-data="{ visible: false }">
             <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">@include('pwa.partials.pictogramme-connexion', ['nom' => 'cadenas', 'taille' => 20])</span>
             <input id="champ-motdepasse" name="motdepasse" type="password" :type="visible ? 'text' : 'password'" wire:model="motDePasse" autocomplete="current-password" aria-required="true"
                    @error('motDePasse') aria-invalid="true" aria-describedby="erreur-motdepasse" @enderror
-                   class="champ w-full h-[52px] border border-slate-300 hover:border-slate-400 rounded-xl pl-11 pr-12 text-base @error('motDePasse') champ-erreur @enderror">
+                   class="champ w-full h-[52px] border border-slate-300 hover:border-slate-400 rounded-xl pl-11 pr-12 text-[13px] @error('motDePasse') champ-erreur @enderror">
             <button type="button" @click="visible = !visible" :aria-pressed="visible ? 'true' : 'false'" :aria-label="visible ? '{{ __('pwa.connexion.masquer_mot_de_passe') }}' : '{{ __('pwa.connexion.afficher_mot_de_passe') }}'" aria-label="{{ __('pwa.connexion.afficher_mot_de_passe') }}" aria-pressed="false"
                     class="absolute right-1.5 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-lg text-slate-500 hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--navy)]">
               <span x-show="!visible">@include('pwa.partials.pictogramme-connexion', ['nom' => 'oeil', 'taille' => 20])</span>
@@ -190,14 +205,14 @@
 
         {{-- 8. « Se souvenir de moi » · « Mot de passe oublié ? ». --}}
         <div class="flex items-center justify-between gap-3 flex-wrap">
-          <label class="inline-flex items-center gap-2 text-[15px] text-slate-700 cursor-pointer">
+          <label class="inline-flex items-center gap-2 text-[13px] text-slate-700 cursor-pointer">
             <input type="checkbox" x-model="souvenir" class="w-4 h-4 rounded border-slate-300" style="accent-color:var(--navy)">
             {{ __('pwa.connexion.se_souvenir') }}
           </label>
           <button type="button" @click="aide = !aide" :aria-expanded="aide ? 'true' : 'false'" aria-expanded="false" aria-controls="aide-mot-de-passe-oublie"
-                  class="text-[15px] font-semibold underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--navy)] rounded" style="color:var(--navy)">{{ __('pwa.connexion.mot_de_passe_oublie') }}</button>
+                  class="text-[13px] font-semibold underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--navy)] rounded" style="color:var(--navy)">{{ __('pwa.connexion.mot_de_passe_oublie') }}</button>
         </div>
-        <div id="aide-mot-de-passe-oublie" x-show="aide" x-cloak role="status" class="text-[15px] text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+        <div id="aide-mot-de-passe-oublie" x-show="aide" x-cloak role="status" class="text-[13px] text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
           <p>{{ __('pwa.connexion.mot_de_passe_oublie_aide') }}</p>
           {{-- 29/10/2026 (PO, option A) : le recours du DERNIER administrateur.
                Un compte ordinaire s'adresse à un administrateur, qui lui génère
@@ -212,12 +227,12 @@
             « mot de passe incorrect » permettrait d'énumérer les comptes.
         --}}
         @error('identifiants')
-          <p id="erreur-identifiants" role="alert" class="text-[15px] text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">⚠ {{ $message }}</p>
+          <p id="erreur-identifiants" role="alert" class="text-[13px] text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">⚠ {{ $message }}</p>
         @enderror
 
         {{-- 9. Bouton plein. --}}
         <button type="submit" wire:loading.attr="disabled" wire:target="seConnecter"
-                class="btn w-full h-[52px] rounded-xl text-white text-base font-bold tracking-wider inline-flex items-center justify-center gap-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--navy)]" style="background:var(--navy)">
+                class="btn w-full h-[52px] rounded-xl text-white text-[13px] font-semibold inline-flex items-center justify-center gap-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--navy)]" style="background:var(--navy)">
           <span class="inline-flex items-center gap-2" wire:loading.remove wire:target="seConnecter">@include('pwa.partials.pictogramme-connexion', ['nom' => 'cadenas_ouvert', 'taille' => 20]){{ __('pwa.connexion.valider') }}</span>
           <span class="hidden items-center gap-2" wire:loading.class.remove="hidden" wire:loading.class="inline-flex" wire:target="seConnecter" role="status">{{ __('pwa.connexion.connexion_en_cours') }}</span>
         </button>

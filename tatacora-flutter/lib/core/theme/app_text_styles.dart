@@ -155,7 +155,7 @@ abstract final class AppTextStyles {
 /// | 20 px | 48 | `text-xl` |
 /// | 16 px | 25 | `text-base` |
 /// | 10 px | 23 | `text-[10px]` |
-/// | 30 px | 2 | `text-3xl` — le titre de la colonne image de connexion |
+/// | 30 px | 2 | `text-3xl` — le titre de l'écran de démarrage (la colonne image de connexion est passée à 20 px le 09/11/2026) |
 ///
 /// **Ce que ce tableau apprend, et qui ne se devine pas :** le maître n'emploie
 /// presque pas l'échelle nommée de Tailwind. Neuf de ses dix tailles les plus
@@ -205,13 +205,8 @@ abstract final class Tailles {
   /// `text-xl` — titres de page et de modale.
   static const double t20 = 20;
 
-  /// `text-[28px]` — la marque « LogiReStock » et le titre « Bienvenue ! » de
-  /// l'écran de connexion (sa vue Blade, refonte du
-  /// 29/10/2026). JETON AJOUTÉ pour cet écran : aucun palier existant ne
-  /// valait 28, et le poste ne doit pas l'écrire en dur.
-  static const double t28 = 28;
-
-  /// `text-3xl` — le seul très grand titre du maître, en colonne image.
+  /// `text-3xl` — le seul très grand titre du maître : l'écran de DÉMARRAGE.
+  /// La connexion n'en emploie plus depuis le 09/11/2026 ([MesuresConnexion.tailleTitre]).
   static const double t30 = 30;
 
   /// `leading-tight` de Tailwind, employé sur le titre 30 px.

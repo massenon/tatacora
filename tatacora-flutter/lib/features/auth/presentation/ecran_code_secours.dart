@@ -135,7 +135,7 @@ class _EtatEcranCodeSecours extends ConsumerState<EcranCodeSecours> {
             ? TextesCodeSecours.titre
             : TextesCodeSecours.nouveauCodeTitre,
         style: theme.textTheme.headlineMedium?.copyWith(
-          fontSize: Tailles.t28,
+          fontSize: MesuresConnexion.tailleTitre,
           fontWeight: FontWeight.w800,
           height: Tailles.interligneSerre,
           color: AppColors.navy,
@@ -149,8 +149,8 @@ class _EtatEcranCodeSecours extends ConsumerState<EcranCodeSecours> {
         style: TextButton.styleFrom(
           foregroundColor: AppColors.navy,
           textStyle: const TextStyle(
-            fontSize: Tailles.t15,
-            fontWeight: FontWeight.w600,
+            fontSize: MesuresConnexion.tailleBouton,
+            fontWeight: MesuresConnexion.poidsBouton,
           ),
         ),
         child: const Text(TextesCodeSecours.retourConnexion),
@@ -160,7 +160,7 @@ class _EtatEcranCodeSecours extends ConsumerState<EcranCodeSecours> {
       TextesConnexion.piedDePage,
       textAlign: TextAlign.center,
       style: theme.textTheme.bodySmall?.copyWith(
-        fontSize: Tailles.t13,
+        fontSize: MesuresConnexion.tailleTexte,
         color: AppColors.neutre500,
       ),
     );
@@ -179,7 +179,7 @@ class _EtatEcranCodeSecours extends ConsumerState<EcranCodeSecours> {
             child: Text(
               MessagesMotDePassePerdu.mdpReinitialise,
               style: theme.textTheme.bodyMedium?.copyWith(
-                fontSize: Tailles.t15,
+                fontSize: MesuresConnexion.tailleTexte,
                 color: AppColors.neutre500,
               ),
             ),
@@ -217,7 +217,7 @@ class _EtatEcranCodeSecours extends ConsumerState<EcranCodeSecours> {
         Text(
           TextesCodeSecours.accroche,
           style: theme.textTheme.bodyMedium?.copyWith(
-            fontSize: Tailles.t15,
+            fontSize: MesuresConnexion.tailleTexte,
             color: AppColors.neutre500,
           ),
         ),
@@ -270,7 +270,7 @@ class _EtatEcranCodeSecours extends ConsumerState<EcranCodeSecours> {
         Text(
           TextesCodeSecours.regle,
           style: theme.textTheme.bodySmall?.copyWith(
-            fontSize: Tailles.t13,
+            fontSize: MesuresConnexion.tailleTexte,
             color: AppColors.neutre500,
           ),
         ),

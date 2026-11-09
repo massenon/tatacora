@@ -1,5 +1,7 @@
 import 'package:flutter/painting.dart';
 
+import 'app_text_styles.dart';
+
 /// Les mesures et les pictogrammes de l'ÉCRAN DE CONNEXION —
 /// la vue Blade de connexion (refonte du 29/10/2026, demande du PO,
 /// `docs/HANDOFF_ECRAN_CONNEXION_LOGIRESTOCK.md`). L'écran est HORS `<main>` :
@@ -8,6 +10,43 @@ import 'package:flutter/painting.dart';
 /// Les couleurs ne sont pas ici : l'écran emploie `AppColors` (navy en couleur
 /// primaire, gold en accent, ardoise, erreur) — aucun hexadécimal nouveau.
 abstract final class MesuresConnexion {
+  // -------------------------------------------------------------------------
+  // TYPOGRAPHIE — l'échelle du PROJET, pas une échelle propre à la connexion
+  // (demande du PO du 09/11/2026 : « uniformiser la police et la taille des
+  // contenus sur l'écran de connexion et d'inscription avec la taille par
+  // défaut du projet »). Ces écrans sont HORS `<main>` : ils emploient
+  // l'échelle DÉCLARÉE ([Tailles]), celle des modales, où `text-[13px]` vaut
+  // 13 px. La police est Inter partout (`AppTextStyles.police`, héritée du
+  // thème). Jusqu'au 09/11/2026 la saisie et le bouton valaient 16 px, le
+  // texte courant 15, le titre et la marque 28 : plus gros que tout le reste
+  // de l'application, dont le texte de base est à 13 px.
+  // -------------------------------------------------------------------------
+
+  /// `text-[13px]` — le TEXTE DE BASE du projet (1 198 emplois dans les vues) :
+  /// accroche, saisie, bouton, lien, case à cocher, bandeaux, pied de page.
+  static const double tailleTexte = Tailles.t13;
+
+  /// `text-[13px] font-semibold` — l'étiquette de champ des formulaires du
+  /// projet (`block text-[13px] font-semibold text-slate-700 mb-1.5`).
+  static const double tailleEtiquette = Tailles.t13;
+  static const FontWeight poidsEtiquette = FontWeight.w600;
+
+  /// `text-[13px] font-semibold` — le bouton du projet (plein ou lien).
+  static const double tailleBouton = Tailles.t13;
+  static const FontWeight poidsBouton = FontWeight.w600;
+
+  /// `text-xl` — titre de page et de modale : « Bienvenue ! », le titre des
+  /// écrans invités, la marque « LogiReStock » et le titre du panneau photo.
+  /// Le SEUL palier plus grand que le texte de base.
+  static const double tailleTitre = Tailles.t20;
+
+  /// `text-[11px] font-bold uppercase tracking-widest` — « TATACORA AFRIQUE »,
+  /// dont la largeur est ensuite ajustée à celle de la marque.
+  static const double tailleSousMarque = Tailles.t11;
+
+  /// `text-[12px] font-semibold tracking-[0.2em]` — le slogan en capitales.
+  static const double tailleSlogan = Tailles.t12;
+
   /// `max-w-[560px]` — la carte.
   static const double largeurCarte = 560;
 

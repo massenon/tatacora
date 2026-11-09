@@ -10,13 +10,13 @@
 --}}
 @props([])
 <div class="groupe-champ" @if ($secret ?? false) x-data="{ visible: false }" @endif>
-  <label for="{{ $id }}" class="block text-[12px] font-bold tracking-wider text-slate-800 mb-1.5">{{ $etiquette }}</label>
+  <label for="{{ $id }}" class="block text-[13px] font-semibold text-slate-700 mb-1.5">{{ $etiquette }}</label>
   <div class="relative">
     <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none">@include('pwa.partials.pictogramme-connexion', ['nom' => $icone, 'taille' => 20])</span>
     <input id="{{ $id }}" name="{{ $id }}" wire:model="{{ $modele }}" autocomplete="{{ $autocomplete ?? 'off' }}" aria-required="true"
            @if ($secret ?? false) type="password" :type="visible ? 'text' : 'password'" @else type="text" @endif
            @error($modele) aria-invalid="true" aria-describedby="erreur-{{ $id }}" @enderror
-           class="champ w-full h-[52px] border border-slate-300 hover:border-slate-400 rounded-xl pl-11 {{ ($secret ?? false) ? 'pr-12' : 'pr-3.5' }} text-base @error($modele) champ-erreur @enderror">
+           class="champ w-full h-[52px] border border-slate-300 hover:border-slate-400 rounded-xl pl-11 {{ ($secret ?? false) ? 'pr-12' : 'pr-3.5' }} text-[13px] @error($modele) champ-erreur @enderror">
     @if ($secret ?? false)
       <button type="button" @click="visible = !visible" :aria-pressed="visible ? 'true' : 'false'" :aria-label="visible ? '{{ __('pwa.connexion.masquer_mot_de_passe') }}' : '{{ __('pwa.connexion.afficher_mot_de_passe') }}'" aria-label="{{ __('pwa.connexion.afficher_mot_de_passe') }}" aria-pressed="false"
               class="absolute right-1.5 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-lg text-slate-500 hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--navy)]">

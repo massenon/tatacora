@@ -10,6 +10,7 @@ import 'package:tatacora_flutter/core/database/app_database.dart';
 import 'package:tatacora_flutter/core/di/providers.dart';
 import 'package:tatacora_flutter/core/navigation/trace_svg.dart';
 import 'package:tatacora_flutter/core/theme/app_colors.dart';
+import 'package:tatacora_flutter/core/theme/app_text_styles.dart';
 import 'package:tatacora_flutter/core/theme/app_theme.dart';
 import 'package:tatacora_flutter/core/theme/mesures_connexion.dart';
 import 'package:tatacora_flutter/features/auth/data/identifiant_memorise.dart';
@@ -110,6 +111,200 @@ void main() {
   String vue() => VueBlade.brute(
     'livewire/connexion',
   ).replaceAll(RegExp(r'\{\{--.*?--\}\}', dotAll: true), '');
+
+  group('Typographie — l\'échelle du PROJET, web et poste (PO, 09/11/2026)', () {
+    // Demande du PO : « uniformiser la police et la taille des contenus sur
+    // l'écran de connexion et d'inscription avec la taille par défaut du
+    // projet ». Le texte de base du projet est `text-[13px]` (la classe la
+    // plus employée des vues) ; les écrans invités sont hors `<main>`, donc à
+    // 13 px réels. L'ancrage est EXTÉRIEUR : une vue CONNECTÉE (la modale de
+    // liaison au stock) donne le champ et l'étiquette du projet, relus ici.
+
+    String sansCommentaires(String s) =>
+        s.replaceAll(RegExp(r'\{\{--.*?--\}\}', dotAll: true), '');
+
+    final vuesInvitees = <String, String>{
+      'livewire/connexion': 'livewire/connexion',
+      'livewire/code-secours': 'livewire/code-secours',
+      'livewire/changement-mot-de-passe-obligatoire':
+          'livewire/changement-mot-de-passe-obligatoire',
+      'partials/champ-invite': 'partials/champ-invite',
+      'partials/carte-invite-entete': 'partials/carte-invite-entete',
+    };
+
+    test(
+      'les jetons de la connexion SONT ceux du projet (relus de la vue connectée)',
+      () {
+        final projet = VueBlade.fichier(
+          'resources/views/components/pwa/modal-lieraustock.blade.php',
+          role: 'une vue connectée : le champ et l\'étiquette du projet',
+        );
+        final base = '${MesuresConnexion.tailleTexte.toStringAsFixed(0)}px';
+        expect(
+          projet,
+          contains('w-full text-[$base] border border-slate-300 rounded-lg'),
+          reason:
+              'le champ du projet n\'est plus à $base : la connexion a dérivé',
+        );
+        expect(
+          VueBlade.fichier(
+            'resources/views/pwa/transverse/comptes-utilisateurs.blade.php',
+          ),
+          contains('text-[$base] px-4 py-2 rounded-lg'),
+          reason: 'le bouton du projet n\'est plus à $base',
+        );
+        expect(MesuresConnexion.tailleBouton, MesuresConnexion.tailleTexte);
+        expect(MesuresConnexion.tailleEtiquette, MesuresConnexion.tailleTexte);
+        expect(MesuresConnexion.tailleTexte, Tailles.t13);
+        expect(MesuresConnexion.tailleTitre, Tailles.t20);
+        // La seule marche plus haute que le texte de base : le titre de page.
+        expect(
+          MesuresConnexion.tailleTitre,
+          lessThanOrEqualTo(Tailles.t20),
+          reason: 'plus gros que le titre de page du projet',
+        );
+      },
+    );
+
+    test(
+      'la vue WEB : aucune taille de l\'ancienne échelle (28, 30, 16, 15 px)',
+      () {
+        for (final entree in vuesInvitees.entries) {
+          final v = sansCommentaires(VueBlade.brute(entree.value));
+          for (final ancien in const [
+            'text-base',
+            'text-sm',
+            'text-3xl',
+            'text-[15px]',
+            'text-[16px]',
+            'text-[28px]',
+            'tracking-wider',
+          ]) {
+            expect(
+              v.contains(ancien),
+              isFalse,
+              reason: '${entree.key} emploie encore `$ancien`',
+            );
+          }
+        }
+        final connexion = sansCommentaires(
+          VueBlade.brute('livewire/connexion'),
+        );
+        // Saisies, étiquettes, bouton : le texte de base du projet.
+        expect(
+          connexion,
+          contains('block text-[13px] font-semibold text-slate-700 mb-1.5'),
+        );
+        expect(connexion, contains('pr-3.5 text-[13px] truncate'));
+        expect(connexion, contains('text-white text-[13px] font-semibold'));
+        expect(connexion, contains('<h2 class="text-xl font-extrabold'));
+        expect(
+          connexion,
+          contains('<p class="text-xl font-extrabold leading-none'),
+        );
+        expect(connexion, contains('<h2 class="text-xl font-bold mb-2'));
+        expect(
+          sansCommentaires(VueBlade.brute('partials/champ-invite')),
+          contains('block text-[13px] font-semibold text-slate-700 mb-1.5'),
+        );
+        expect(
+          sansCommentaires(VueBlade.brute('partials/champ-invite')),
+          contains('text-[13px] @error'),
+        );
+      },
+    );
+
+    test(
+      'le POSTE : chaque taille des écrans invités est un jeton, jamais une valeur',
+      () {
+        const fichiers = [
+          'lib/features/auth/presentation/ecran_connexion.dart',
+          'lib/features/auth/presentation/ecran_changement_mot_de_passe.dart',
+          'lib/features/auth/presentation/ecran_code_secours.dart',
+          'lib/features/auth/presentation/formulaire_premier_compte.dart',
+        ];
+        var tailles = 0;
+        for (final chemin in fichiers) {
+          final f = File(chemin);
+          expect(f.existsSync(), isTrue, reason: '$chemin introuvable');
+          for (final ligne in f.readAsLinesSync()) {
+            final t = ligne.trim();
+            if (t.startsWith('//')) continue;
+            if (t.contains('fontSize:')) {
+              tailles++;
+              expect(
+                t.contains('MesuresConnexion.taille') || t.contains('reduit'),
+                isTrue,
+                reason: '$chemin : taille hors jeton : $t',
+              );
+            }
+            if (t.contains('fontFamily:')) {
+              expect(
+                t.contains('AppTextStyles.police'),
+                isTrue,
+                reason: '$chemin : police hors Inter : $t',
+              );
+            }
+          }
+        }
+        expect(tailles, greaterThan(20), reason: 'balayage vide');
+      },
+    );
+
+    testWidgets(
+      'rendu : saisie, bouton, étiquette, accroche, liens à 13 px ; titre et marque à 20 px',
+      (tester) async {
+        for (final largeur in const [320.0, 1280.0]) {
+          await monter(tester, largeur);
+          final base = MesuresConnexion.tailleTexte;
+          for (final champ in tester.widgetList<TextField>(
+            find.byType(TextField),
+          )) {
+            expect(champ.style!.fontSize, base, reason: 'saisie à $largeur px');
+          }
+          double taille(String texte) =>
+              tester.widget<Text>(find.text(texte)).style!.fontSize!;
+          expect(taille(TextesConnexion.login), base);
+          expect(taille(TextesConnexion.motDePasse), base);
+          expect(taille(TextesConnexion.accroche), base);
+          expect(taille(TextesConnexion.seSouvenir), base);
+          expect(taille(TextesConnexion.piedDePage), base);
+          expect(
+            taille(TextesConnexion.bienvenue),
+            MesuresConnexion.tailleTitre,
+          );
+          expect(taille('Logi'), MesuresConnexion.tailleTitre);
+          expect(taille('ReStock'), MesuresConnexion.tailleTitre);
+          expect(
+            tester
+                .widget<Text>(find.text(TextesConnexion.login))
+                .style!
+                .fontWeight,
+            FontWeight.w600,
+          );
+          // Les cibles tactiles restent ≥ 48 px : seul le TEXTE a rétréci.
+          expect(
+            tester.getSize(find.byType(ElevatedButton)).height,
+            greaterThanOrEqualTo(48),
+          );
+          for (final champ in find.byType(TextField).evaluate()) {
+            expect(
+              tester.getSize(find.byWidget(champ.widget)).height,
+              greaterThanOrEqualTo(48),
+            );
+          }
+          // Le bouton, lu dans son style résolu.
+          final bouton = tester.widget<ElevatedButton>(
+            find.byType(ElevatedButton),
+          );
+          final style = bouton.style!.textStyle!.resolve(<WidgetState>{})!;
+          expect(style.fontSize, base);
+          expect(style.fontWeight, FontWeight.w600);
+          expect(tester.takeException(), isNull, reason: 'à $largeur px');
+        }
+      },
+    );
+  });
 
   group(
     'Structure — deux panneaux dès 1024 px, la carte dans l\'ordre de la vue',

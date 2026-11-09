@@ -6,6 +6,7 @@ import '../../../core/rbac/garde_acces.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/theme/mesures_connexion.dart';
 import '../../parametres/data/parametres_depot_local.dart';
 import '../../transverse/presentation/widgets/modale_secret_unique.dart';
 import '../impression/feuille_code_secours.dart';
@@ -193,7 +194,7 @@ class _EtatFormulairePremierCompte
             style: TextStyle(
               color: AppColors.navy,
               fontFamily: AppTextStyles.police,
-              fontSize: Tailles.t20,
+              fontSize: MesuresConnexion.tailleTitre,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -205,7 +206,7 @@ class _EtatFormulairePremierCompte
             style: TextStyle(
               color: AppColors.neutre500,
               fontFamily: AppTextStyles.police,
-              fontSize: Tailles.t15,
+              fontSize: MesuresConnexion.tailleTexte,
             ),
           ),
 
@@ -268,7 +269,7 @@ class _EtatFormulairePremierCompte
                 style: TextStyle(
                   color: AppColors.erreur,
                   fontFamily: AppTextStyles.police,
-                  fontSize: Tailles.t15,
+                  fontSize: MesuresConnexion.tailleTexte,
                 ),
               ),
             ),
@@ -277,6 +278,13 @@ class _EtatFormulairePremierCompte
           const SizedBox(height: AppSpacing.md),
           ElevatedButton(
             onPressed: _enCours ? null : _creer,
+            style: ElevatedButton.styleFrom(
+              textStyle: TextStyle(
+                fontFamily: AppTextStyles.police,
+                fontSize: MesuresConnexion.tailleBouton,
+                fontWeight: MesuresConnexion.poidsBouton,
+              ),
+            ),
             child: _enCours
                 ? const SizedBox(
                     height: 18,
@@ -297,7 +305,7 @@ class _EtatFormulairePremierCompte
             style: TextStyle(
               color: AppColors.neutre500,
               fontFamily: AppTextStyles.police,
-              fontSize: Tailles.t13,
+              fontSize: MesuresConnexion.tailleTexte,
             ),
           ),
         ],
@@ -328,15 +336,34 @@ class _EtatFormulairePremierCompte
           style: TextStyle(
             color: AppColors.neutre700,
             fontFamily: AppTextStyles.police,
-            fontSize: Tailles.t15,
-            fontWeight: FontWeight.w600,
+            fontSize: MesuresConnexion.tailleEtiquette,
+            fontWeight: MesuresConnexion.poidsEtiquette,
           ),
         ),
         const SizedBox(height: 6),
         TextFormField(
           controller: controleur,
           obscureText: masque,
-          decoration: InputDecoration(hintText: indication),
+          // Texte de base du projet (13 px) : sans `style`, Material rend la
+          // saisie à 16 px (09/11/2026, demande du PO).
+          style: TextStyle(
+            fontFamily: AppTextStyles.police,
+            fontSize: MesuresConnexion.tailleTexte,
+            color: AppColors.neutre900,
+          ),
+          decoration: InputDecoration(
+            hintText: indication,
+            hintStyle: TextStyle(
+              fontFamily: AppTextStyles.police,
+              fontSize: MesuresConnexion.tailleTexte,
+              color: AppColors.neutre500,
+            ),
+            errorStyle: TextStyle(
+              fontFamily: AppTextStyles.police,
+              fontSize: MesuresConnexion.tailleTexte,
+              color: AppColors.erreur,
+            ),
+          ),
           validator: valider,
         ),
       ],

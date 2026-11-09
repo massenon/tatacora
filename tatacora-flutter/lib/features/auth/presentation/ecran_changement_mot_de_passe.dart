@@ -124,13 +124,14 @@ class _EtatEcranChangementMotDePasse
         const SizedBox(height: AppSpacing.md),
         const FiletConnexion(),
         const SizedBox(height: AppSpacing.md),
-        // `text-[28px] font-extrabold leading-tight` navy.
+        // `text-xl font-extrabold leading-tight` navy (20 px, le titre de page du
+        // projet ; 28 px jusqu'au 09/11/2026).
         Semantics(
           header: true,
           child: Text(
             TextesChangementMotDePasse.titre,
             style: theme.textTheme.headlineMedium?.copyWith(
-              fontSize: Tailles.t28,
+              fontSize: MesuresConnexion.tailleTitre,
               fontWeight: FontWeight.w800,
               height: Tailles.interligneSerre,
               color: AppColors.navy,
@@ -141,7 +142,7 @@ class _EtatEcranChangementMotDePasse
         Text(
           TextesChangementMotDePasse.accroche,
           style: theme.textTheme.bodyMedium?.copyWith(
-            fontSize: Tailles.t15,
+            fontSize: MesuresConnexion.tailleTexte,
             color: AppColors.neutre500,
           ),
         ),
@@ -174,7 +175,7 @@ class _EtatEcranChangementMotDePasse
         Text(
           TextesChangementMotDePasse.regle,
           style: theme.textTheme.bodySmall?.copyWith(
-            fontSize: Tailles.t13,
+            fontSize: MesuresConnexion.tailleTexte,
             color: AppColors.neutre500,
           ),
         ),
@@ -199,8 +200,8 @@ class _EtatEcranChangementMotDePasse
             style: TextButton.styleFrom(
               foregroundColor: AppColors.navy,
               textStyle: const TextStyle(
-                fontSize: Tailles.t15,
-                fontWeight: FontWeight.w600,
+                fontSize: MesuresConnexion.tailleBouton,
+                fontWeight: MesuresConnexion.poidsBouton,
               ),
             ),
             child: const Text(TextesChangementMotDePasse.seDeconnecter),
@@ -211,7 +212,7 @@ class _EtatEcranChangementMotDePasse
           TextesConnexion.piedDePage,
           textAlign: TextAlign.center,
           style: theme.textTheme.bodySmall?.copyWith(
-            fontSize: Tailles.t13,
+            fontSize: MesuresConnexion.tailleTexte,
             color: AppColors.neutre500,
           ),
         ),

@@ -14,7 +14,7 @@
          `pwa.partials.session-expiree` (rechargement après un 419) ou par le
          drapeau posé par le gestionnaire d'exceptions (419 hors Livewire). --}}
     <div id="bandeau-session-expiree" role="alert" @unless (session('session_expiree')) hidden @endunless
-         style="position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:50;max-width:calc(100vw - 32px);padding:10px 16px;border-radius:8px;background:var(--navy);color:white;font-size:14px">
+         style="position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:50;max-width:calc(100vw - 32px);padding:10px 16px;border-radius:8px;background:var(--navy);color:white;font-size:13px">
         {{ __('pwa.connexion.session_expiree') }}
     </div>
     {{ $slot }}

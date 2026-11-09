@@ -24,14 +24,30 @@ Carte de connexion unique, centrée, une colonne, de haut en bas :
 |---|---|---|
 | couleur de marque (primaire) | vert profond ≈ #0B5D45 | bouton, lien, « Logi », pictogrammes de marque |
 | couleur d'accent | doré/olive ≈ #8A6D0B | « ReStock » (2ᵉ ton de la marque) |
-| texte fort | quasi noir vert ≈ #10261C | titre, libellés de champ (capitales, gras, 12 px) |
+| texte fort | quasi noir vert ≈ #10261C | titre, libellés de champ (13 px, semi-gras ; voir §3) |
 | texte secondaire | gris ≈ #6B7280 | phrase d'accroche, icônes du bandeau, placeholders |
 | bordure | gris clair ≈ #D1D5DB | champs, filets |
 | fond | blanc | carte |
 Règle : si le thème TATACORA a déjà un jeton équivalent (primaire, accent, bordure…), **on l'utilise** et on n'ajoute pas de hex. Contraste texte/fond ≥ 4,5:1 ; le bouton blanc sur vert primaire ≥ 4,5:1 (à vérifier avec la teinte réelle).
 
 ## 3. Typographie et mesures
-- Police : celle du thème (sans empattement, type Inter). Marque ≈ 28 px/800 ; sous-titre marque 11 px/700 capitales ; slogan 12 px/600 capitales, interlettrage large ; « Bienvenue ! » 28 px/800 ; accroche 15 px/400 ; libellés 12 px/700 capitales ; saisie 16 px ; bouton 16 px/700 capitales.
+- **Police et tailles — révision du 09/11/2026 (demande du PO : « uniformiser la police et la taille des contenus sur l'écran de connexion et d'inscription avec la taille par défaut du projet »).** Police : Inter, celle du projet, partout (web et poste, tous les écrans invités). Échelle : celle des écrans HORS `<main>` (aucun remappage), où le texte de base du projet, `text-[13px]`, vaut 13 px.
+
+  | Élément | Avant (29/10/2026) | Depuis le 09/11/2026 | Web | Poste (jeton) |
+  |---|---|---|---|---|
+  | Marque « LogiReStock » | 28 px / 800 | **20 px** / 800 | `text-xl` | `MesuresConnexion.tailleTitre` |
+  | Sous-titre marque | 15 px / 700 capitales (ajusté à la largeur de la marque) | **11 px** / 700 capitales (idem) | `text-[11px]` | `tailleSousMarque` |
+  | Slogan | 12 px / 600, interlettrage 0,2 em | inchangé (légende) | `text-[12px]` | `tailleSlogan` |
+  | « Bienvenue ! » et titres des écrans invités | 28 px / 800 | **20 px** / 800 | `text-xl` | `tailleTitre` |
+  | Titre du panneau photo | 30 px / 700 | **20 px** / 700 | `text-xl` | `tailleTitre` |
+  | Accroche du panneau photo | 14 px | **13 px** | `text-[13px]` | `tailleTexte` |
+  | Accroche, aide, bandeaux, liens, case, pied | 15 px (pied 13) | **13 px** | `text-[13px]` | `tailleTexte` |
+  | Libellé de champ | 12 px / 700 capitales interlettrées | **13 px / 600**, sans interlettrage (étiquette de formulaire du projet) | `text-[13px] font-semibold text-slate-700` | `tailleEtiquette`, `poidsEtiquette` |
+  | Saisie | 16 px | **13 px** | `text-[13px]` | `tailleTexte` |
+  | Message d'erreur de champ | 13 px | inchangé | `.message-erreur` (13 px) | `tailleTexte` |
+  | Bouton plein et boutons-liens | 16 px / 700, interlettrage 0,05 em | **13 px / 600** (bouton du projet) | `text-[13px] font-semibold` | `tailleBouton`, `poidsBouton` |
+
+  Les hauteurs de champ et de bouton (52 px) ne changent pas : seul le texte rétrécit, la cible tactile reste ≥ 48 px. Ancrage : le champ (`w-full text-[13px] border border-slate-300 rounded-lg`), l'étiquette (`block text-[13px] font-semibold text-slate-700 mb-1.5`) et le bouton (`text-[13px] … font-semibold`) des vues connectées. Garde : `test/features/auth/ecran_connexion_test.dart`, groupe « Typographie ».
 - Carte : largeur max ≈ 560 px, marges internes ≈ 24 px ; champs hauteur ≈ 52 px, rayon ≈ 12 px, bordure 1 px ; bouton hauteur ≈ 52 px, rayon ≈ 12 px, pleine largeur ; espacement vertical entre blocs ≈ 16–24 px.
 - Bandeau d'icônes : 7 pictogrammes de 24–28 px, répartis à égale distance sur toute la largeur, couleur secondaire.
 

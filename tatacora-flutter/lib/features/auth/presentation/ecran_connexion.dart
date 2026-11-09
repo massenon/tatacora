@@ -254,9 +254,10 @@ class _EtatEcranConnexion extends ConsumerState<EcranConnexion> {
           TextesConnexion.slogan,
           textAlign: TextAlign.center,
           style: theme.textTheme.bodySmall?.copyWith(
-            fontSize: Tailles.t12,
+            fontSize: MesuresConnexion.tailleSlogan,
             fontWeight: FontWeight.w600,
-            letterSpacing: AppTextStyles.suiviSlogan * Tailles.t12,
+            letterSpacing:
+                AppTextStyles.suiviSlogan * MesuresConnexion.tailleSlogan,
             color: AppColors.neutre500,
           ),
         ),
@@ -265,13 +266,14 @@ class _EtatEcranConnexion extends ConsumerState<EcranConnexion> {
       const _BandeauModules(),
       const FiletConnexion(),
       const SizedBox(height: MesuresConnexion.filetBas), // mb-6
-      // `text-[28px] font-extrabold leading-tight` navy.
+      // `text-xl font-extrabold leading-tight` navy (20 px, le titre de page du
+      // projet : 28 px jusqu'au 09/11/2026).
       Semantics(
         header: true,
         child: Text(
           TextesConnexion.bienvenue,
           style: theme.textTheme.headlineMedium?.copyWith(
-            fontSize: Tailles.t28,
+            fontSize: MesuresConnexion.tailleTitre,
             fontWeight: FontWeight.w800,
             height: Tailles.interligneSerre,
             color: AppColors.navy,
@@ -279,11 +281,11 @@ class _EtatEcranConnexion extends ConsumerState<EcranConnexion> {
         ),
       ),
       const SizedBox(height: MesuresConnexion.ecartPetit), // mt-1
-      // `text-[15px] text-slate-500 mt-1 mb-6`
+      // `text-[13px] text-slate-500 mt-1 mb-4`
       Text(
         TextesConnexion.accroche,
         style: theme.textTheme.bodyMedium?.copyWith(
-          fontSize: Tailles.t15,
+          fontSize: MesuresConnexion.tailleTexte,
           color: AppColors.neutre500,
         ),
       ),
@@ -309,7 +311,7 @@ class _EtatEcranConnexion extends ConsumerState<EcranConnexion> {
             child: Text(
               info,
               style: theme.textTheme.bodyMedium?.copyWith(
-                fontSize: Tailles.t15,
+                fontSize: MesuresConnexion.tailleTexte,
                 color: AppColors.neutre700,
               ),
             ),
@@ -393,8 +395,8 @@ class _EtatEcranConnexion extends ConsumerState<EcranConnexion> {
                 minimumSize: Size.zero,
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 textStyle: const TextStyle(
-                  fontSize: Tailles.t15,
-                  fontWeight: FontWeight.w600,
+                  fontSize: MesuresConnexion.tailleBouton,
+                  fontWeight: MesuresConnexion.poidsBouton,
                 ),
               ),
               child: const Text(TextesConnexion.motDePasseOublie),
@@ -423,7 +425,7 @@ class _EtatEcranConnexion extends ConsumerState<EcranConnexion> {
                 Text(
                   TextesConnexion.motDePasseOublieAide,
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    fontSize: Tailles.t15,
+                    fontSize: MesuresConnexion.tailleTexte,
                     color: AppColors.neutre700,
                   ),
                 ),
@@ -437,7 +439,7 @@ class _EtatEcranConnexion extends ConsumerState<EcranConnexion> {
                   child: Text(
                     TextesConnexion.motDePasseAdministrateurPerdu,
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      fontSize: Tailles.t15,
+                      fontSize: MesuresConnexion.tailleTexte,
                       fontWeight: FontWeight.w600,
                       color: AppColors.navy,
                       decoration: TextDecoration.underline,
@@ -470,7 +472,7 @@ class _EtatEcranConnexion extends ConsumerState<EcranConnexion> {
         TextesConnexion.piedDePage,
         textAlign: TextAlign.center,
         style: theme.textTheme.bodySmall?.copyWith(
-          fontSize: Tailles.t13,
+          fontSize: MesuresConnexion.tailleTexte,
           color: AppColors.neutre500,
         ),
       ),
@@ -698,7 +700,7 @@ class PanneauImageConnexion extends ConsumerWidget {
                     Text(
                       TextesConnexion.titrePanneau,
                       style: theme.textTheme.headlineMedium?.copyWith(
-                        fontSize: Tailles.t30,
+                        fontSize: MesuresConnexion.tailleTitre,
                         fontWeight: FontWeight.bold,
                         height: Tailles.interligneSerre,
                         color: AppColors.neutre0,
@@ -712,7 +714,7 @@ class PanneauImageConnexion extends ConsumerWidget {
                       child: Text(
                         TextesConnexion.accrochePanneau,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          fontSize: Tailles.t14,
+                          fontSize: MesuresConnexion.tailleTexte,
                           color: AppColors.neutre0.withValues(alpha: 0.70),
                         ),
                       ),
@@ -728,7 +730,7 @@ class PanneauImageConnexion extends ConsumerWidget {
   }
 }
 
-/// Le bandeau d'alerte de la carte : `text-[15px] text-red-600 bg-red-50 border
+/// Le bandeau d'alerte de la carte : `text-[13px] text-red-600 bg-red-50 border
 /// border-red-100 rounded-lg px-3 py-2`, préfixé d'un « ⚠ » (le signe porte
 /// l'alerte pour qui distingue mal le rouge), `role="alert"`.
 class BandeauAlerteConnexion extends StatelessWidget {
@@ -754,7 +756,7 @@ class BandeauAlerteConnexion extends StatelessWidget {
         child: Text(
           '⚠ $message',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            fontSize: Tailles.t15,
+            fontSize: MesuresConnexion.tailleTexte,
             color: AppColors.erreur,
           ),
         ),
@@ -851,12 +853,12 @@ class MarqueConnexion extends ConsumerWidget {
         ? null
         : ref.watch(logoTeleverseProvider).value;
     final styleMarque = theme.textTheme.headlineMedium?.copyWith(
-      fontSize: Tailles.t28,
+      fontSize: MesuresConnexion.tailleTitre,
       fontWeight: FontWeight.w800,
       height: Tailles.interligneAucun,
     );
     final styleSous = theme.textTheme.bodySmall?.copyWith(
-      fontSize: Tailles.t15,
+      fontSize: MesuresConnexion.tailleSousMarque,
       fontWeight: FontWeight.w700,
       color: AppColors.neutre500,
     );
@@ -884,7 +886,9 @@ class MarqueConnexion extends ConsumerWidget {
     final lettres = TextesConnexion.sousMarque.length;
     final reduit = largeurSous0 > largeurNom;
     final styleSousAjuste = styleSous?.copyWith(
-      fontSize: reduit ? Tailles.t15 * largeurNom / largeurSous0 : Tailles.t15,
+      fontSize: reduit
+          ? MesuresConnexion.tailleSousMarque * largeurNom / largeurSous0
+          : MesuresConnexion.tailleSousMarque,
       letterSpacing: reduit ? 0 : (largeurNom - largeurSous0) / (lettres - 1),
     );
 
@@ -930,7 +934,7 @@ class MarqueConnexion extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // `text-[28px] font-extrabold leading-none` : « Logi » navy
+                  // `text-xl font-extrabold leading-none` : « Logi » navy
                   // (primaire), « ReStock » gold (accent). Deux `Text` côte à
                   // côte (la vue pose deux `<span>`), mot collé.
                   Row(
@@ -1112,16 +1116,16 @@ class _EtatChampConnexion extends State<ChampConnexion> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // `block text-[12px] font-bold tracking-wider text-slate-800 mb-1.5`.
+        // `block text-[13px] font-semibold text-slate-700 mb-1.5` : l'étiquette
+        // de formulaire du projet (12 px gras interlettré, 800, jusqu'au 09/11/2026).
         // Le libellé est porté par le champ (sémantique), pas lu deux fois.
         ExcludeSemantics(
           child: Text(
             widget.etiquette,
             style: theme.textTheme.bodySmall?.copyWith(
-              fontSize: Tailles.t12,
-              fontWeight: FontWeight.w700,
-              letterSpacing: AppTextStyles.suiviPlusLarge * Tailles.t12,
-              color: AppColors.neutre800,
+              fontSize: MesuresConnexion.tailleEtiquette,
+              fontWeight: MesuresConnexion.poidsEtiquette,
+              color: AppColors.neutre700,
             ),
           ),
         ),
@@ -1148,7 +1152,7 @@ class _EtatChampConnexion extends State<ChampConnexion> {
                 onFieldSubmitted: (_) => widget.onSoumis(),
                 validator: widget.validateur,
                 style: theme.textTheme.bodyLarge?.copyWith(
-                  fontSize: Tailles.t16,
+                  fontSize: MesuresConnexion.tailleTexte,
                   color: AppColors.neutre900,
                 ),
                 decoration: InputDecoration(
@@ -1196,7 +1200,7 @@ class _EtatChampConnexion extends State<ChampConnexion> {
                   focusedErrorBorder: _bordure(AppColors.erreur),
                   // `.message-erreur` : 13 px, rouge, 4 px sous le champ.
                   errorStyle: theme.textTheme.bodySmall?.copyWith(
-                    fontSize: Tailles.t13,
+                    fontSize: MesuresConnexion.tailleTexte,
                     color: AppColors.erreur,
                   ),
                 ),
@@ -1247,7 +1251,7 @@ class _CaseSeSouvenir extends StatelessWidget {
               child: Text(
                 TextesConnexion.seSouvenir,
                 style: theme.textTheme.bodyMedium?.copyWith(
-                  fontSize: Tailles.t15,
+                  fontSize: MesuresConnexion.tailleTexte,
                   color: AppColors.neutre700,
                 ),
               ),
@@ -1319,9 +1323,8 @@ class BoutonPleinConnexion extends StatelessWidget {
               ),
               textStyle: WidgetStatePropertyAll(
                 TextStyle(
-                  fontSize: Tailles.t16,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: AppTextStyles.suiviPlusLarge * Tailles.t16,
+                  fontSize: MesuresConnexion.tailleBouton,
+                  fontWeight: MesuresConnexion.poidsBouton,
                 ),
               ),
             ),
