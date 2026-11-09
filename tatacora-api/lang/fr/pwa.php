@@ -2265,6 +2265,9 @@ return [
         // le registre dit aussi ce qu'une réservation ne fait PAS, et où trouver les proformas. Mêmes mots au poste.
         'registre_vide_aide' => 'Une réservation ne crée pas de facture : clôturez le séjour pour facturer, ou créez une proforma depuis la réservation.',
         'registre_vide_lien' => 'Voir les proformas',
+        // Écart daté du PO (09/11/2026) : la colonne « N° » porte le numéro fiscal quand il existe, sinon le numéro interne
+        // de la facture, suivi de cette légende discrète. Aucune mention de normalisation (facture simple). Mêmes mots au poste.
+        'numero_interne' => 'n° interne',
         'registre_hors_exercice' => ':nombre facture(s) émise(s) en dehors de l\'exercice consulté (:annee) : choisissez un autre exercice dans la barre supérieure.',
 
         // maquette — les sept colonnes, l.124-131, dans son ordre

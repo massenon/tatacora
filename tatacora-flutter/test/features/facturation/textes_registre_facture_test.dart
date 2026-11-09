@@ -19,6 +19,9 @@ void main() {
     expect(web['registre_vide_aide'], isNotNull);
     expect(TextesRegistreFacture.registreVideAide, web['registre_vide_aide']);
     expect(TextesRegistreFacture.registreVideLien, web['registre_vide_lien']);
+    // La légende du numéro INTERNE (colonne « N° », PO 09/11/2026) : mêmes mots au web et au poste.
+    expect(TextesRegistreFacture.numeroInterne, web['numero_interne']);
+    expect(web['numero_interne'], 'n° interne');
     expect(
       TextesRegistreFacture.registreHorsExercice,
       web['registre_hors_exercice'],

@@ -829,7 +829,8 @@ class _Registre extends ConsumerWidget {
         : const PastilleStatut.succes('émise');
 
     return [
-      CelluleTableau(piece.numero, monospace: true),
+      // PO (09/11/2026) : le numéro fiscal quand la pièce est normalisée, sinon le numéro interne et sa légende.
+      _CelluleNumero(piece),
       CelluleTableau(formaterDate(piece.dateEmission), secondaire: true),
       CelluleTableau(piece.clientNom),
       CelluleTableau(piece.origine.libelle, secondaire: true),
@@ -887,6 +888,39 @@ class _Registre extends ConsumerWidget {
         ],
       ),
     ];
+  }
+}
+
+/// La colonne « N° » : le numéro fiscal seul, ou le numéro interne suivi de la légende discrète « n° interne »
+/// (`pwa.facturation.numero_interne`, au web comme ici).
+class _CelluleNumero extends StatelessWidget {
+  const _CelluleNumero(this.piece);
+
+  final PieceFacturation piece;
+
+  @override
+  Widget build(BuildContext context) {
+    final numero = CelluleTableau(
+      piece.numeroRegistre,
+      monospace: true,
+      key: Key('facturation-numero-${piece.id}'),
+    );
+    if (!piece.numeroRegistreEstInterne) return numero;
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: AppSpacing.unit,
+      children: [
+        numero,
+        Tooltip(
+          message: TextesRegistreFacture.numeroInterne,
+          child: Text(
+            TextesRegistreFacture.numeroInterne,
+            key: Key('facturation-numero-interne-${piece.id}'),
+            style: _t(TaillesContenu.t10, couleur: AppColors.neutre400),
+          ),
+        ),
+      ],
+    );
   }
 }
 

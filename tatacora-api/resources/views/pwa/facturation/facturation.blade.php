@@ -183,7 +183,8 @@
                       {{-- Article 7 : « — » quand la donnée n'existe pas.
                            `numero_mecef` est `nullable` — « null tant que non
                            certifiée », dit la migration elle-même. --}}
-                      <td class="px-4 py-2.5 font-mono-tatacora text-[12px]">{{ $facture->numero_mecef ?? MontantFcfa::TIRET }}</td>
+                      @php($numeroRegistre = \App\Pwa\Support\NumeroRegistre::pour($facture))
+                      <td class="px-4 py-2.5 font-mono-tatacora text-[12px]">{{ $numeroRegistre['valeur'] }}@if ($numeroRegistre['interne']) <span class="ml-1 font-sans text-[10px] text-slate-400" title="{{ __('pwa.facturation.numero_interne') }}">{{ __('pwa.facturation.numero_interne') }}</span>@endif</td>
                       <td class="px-4 py-2.5 text-slate-500">{{ $facture->date_emission->format('d/m/Y') }}</td>
                       @php($client = $clients->get($facture->client_id))
                       <td class="px-4 py-2.5">{{ $client === null ? MontantFcfa::TIRET : trim(($client->prenom ?? '').' '.$client->nom) }}</td>
@@ -273,7 +274,7 @@
               <table class="w-full text-[12px]">
                 <thead>
                   <tr class="text-left text-[11px] font-semibold text-slate-500 uppercase border-b-2 border-slate-400">
-                    <th class="text-left px-2 py-1.5">{{ __('facturation_pwa.registre_col_numero_mecef') }}</th>
+                    <th class="text-left px-2 py-1.5">{{ __('pwa.facturation.col_numero') }}</th>
                     <th class="text-left px-2 py-1.5">{{ __('pwa.facturation.col_client') }}</th>
                     <th class="text-left px-2 py-1.5">{{ __('facturation_pwa.registre_col_services') }}</th>
                     <th class="text-left px-2 py-1.5">{{ __('pwa.facturation.col_date') }}</th>
@@ -288,7 +289,7 @@
                     @php($activitesDoc = $facture->lignes->pluck('source_module')->unique()->map(fn (string $m): string => Facturation::ACTIVITES[$m] ?? $m)->implode(', '))
                     @php($clientDoc = $clients->get($facture->client_id))
                     <tr class="border-b border-slate-200" wire:key="doc-facture-{{ $facture->id }}">
-                      <td class="px-2 py-1.5 font-mono-tatacora text-[11px]">{{ $facture->numero_mecef ?? MontantFcfa::TIRET }}</td>
+                      <td class="px-2 py-1.5 font-mono-tatacora text-[11px]">{{ \App\Pwa\Support\NumeroRegistre::valeur($facture) }}</td>
                       <td class="px-2 py-1.5">{{ $clientDoc === null ? MontantFcfa::TIRET : trim(($clientDoc->prenom ?? '').' '.$clientDoc->nom) }}</td>
                       <td class="px-2 py-1.5">{{ $activitesDoc !== '' ? $activitesDoc : MontantFcfa::TIRET }}</td>
                       <td class="px-2 py-1.5">{{ $facture->date_emission->format('d/m/Y') }}</td>
@@ -350,7 +351,7 @@
       <form wire:submit.prevent="enregistrerAvoir" class="space-y-4">
         <div class="rounded-lg bg-slate-50 px-3 py-2 text-[13px] text-slate-600">
           <span class="font-semibold">{{ __('facturation_pwa.avoir_facture') }}</span>
-          <span class="font-mono-tatacora">{{ $avoirFacture->numero_mecef ?? MontantFcfa::TIRET }}</span>
+          <span class="font-mono-tatacora">{{ \App\Pwa\Support\NumeroRegistre::valeur($avoirFacture) }}</span>
           — {{ MontantFcfa::format((string) $avoirFacture->montant_ttc) }}
         </div>
 

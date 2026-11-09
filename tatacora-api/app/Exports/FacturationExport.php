@@ -7,6 +7,7 @@ namespace App\Exports;
 use App\Domain\Facturation\Models\Facture;
 use App\Pwa\Livewire\Facturation\Facturation;
 use App\Pwa\Support\MontantFcfa;
+use App\Pwa\Support\NumeroRegistre;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
@@ -98,7 +99,7 @@ class FacturationExport implements FromCollection, ShouldAutoSize, WithHeadings,
         $habillage = Facturation::STATUTS[$facture->statut] ?? null;
 
         return [
-            $facture->numero_mecef ?? MontantFcfa::TIRET,
+            NumeroRegistre::valeur($facture),
             $facture->date_emission->format('d/m/Y'),
             $client === null ? MontantFcfa::TIRET : trim(($client->prenom ?? '').' '.$client->nom),
             $activites !== '' ? $activites : MontantFcfa::TIRET,

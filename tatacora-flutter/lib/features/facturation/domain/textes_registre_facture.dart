@@ -10,6 +10,10 @@ abstract final class TextesRegistreFacture {
       'Une réservation ne crée pas de facture : clôturez le séjour pour facturer, '
       'ou créez une proforma depuis la réservation.';
 
+  /// `pwa.facturation.numero_interne` : la légende discrète qui suit le numéro INTERNE de la colonne « N° »
+  /// (le numéro fiscal, lui, s'affiche seul). Aucune mention de normalisation : une facture simple n'en dit rien.
+  static const String numeroInterne = 'n° interne';
+
   /// `pwa.facturation.registre_vide_lien` : le bouton qui mène aux proformas.
   static const String registreVideLien = 'Voir les proformas';
 

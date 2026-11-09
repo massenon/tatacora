@@ -552,7 +552,10 @@ final registreProvider = FutureProvider<List<PieceFacturation>>((ref) async {
           return false;
         }
         if (terme.isNotEmpty) {
-          final champs = '${p.numero} ${p.clientNom}'.toLowerCase();
+          // Le numéro interne ET le numéro fiscal : une facture non normalisée n'a que le premier, une normalisée
+          // est citée par le second (comme la recherche du registre web).
+          final champs = '${p.numero} ${p.numeroMecef ?? ''} ${p.clientNom}'
+              .toLowerCase();
           if (!champs.contains(terme)) return false;
         }
         // `any` et non `every` : une facture qui recouvre une chambre ET des

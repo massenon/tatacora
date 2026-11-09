@@ -23,10 +23,13 @@ if ($api === false || ! is_file($api . '/vendor/autoload.php')) {
 
 require $api . '/vendor/autoload.php';
 
+use App\Domain\Facturation\Models\Avoir;
+use App\Domain\Facturation\Models\Facture;
 use App\Domain\Facturation\Services\ModeFacturation;
 use App\Domain\Facturation\Services\ReglagesMecef;
 use App\Domain\Facturation\Services\StatutNormalisation;
 use App\Domain\Facturation\Support\IfuClient;
+use App\Pwa\Support\NumeroRegistre;
 
 $echantillonsMode = ['boitier', 'BOITIER', ' emecef ', 'desactive', '', 'nimportequoi', 'e-mecef', 'Boîtier'];
 $echantillonsIfu = [
@@ -43,7 +46,28 @@ $echantillonsIfuClient = [
 // Les phrases communes au web et au poste (lang/fr/facturation.php), résolues par le vrai PHP.
 $phrases = require $api . '/lang/fr/facturation.php';
 
+// Le numéro de la colonne « N° » du registre (PO, 09/11/2026) : fiscal si réel, sinon interne. Échantillons
+// [numero interne, numero fiscal] ; modèles NON enregistrés (aucune base). Les valeurs de démonstration testées sont
+// celles que les DEUX côtés reconnaissent (`MECEF-DEMO-…`) ; le poste en reconnaît davantage (marqueurs DEMO, NON-CERTIFIE).
+$echantillonsNumero = [
+    ['F-2026-00001', null], ['F-2026-00001', ''], ['F-2026-00001', 'ED04000999-42'],
+    ['PROV-2026-00007', null], ['AV-2026-00002', 'ED04000999-43'], ['F-2026-00001', 'MECEF-DEMO-0001'],
+];
+$numeroRegistre = [];
+
+foreach ($echantillonsNumero as [$interne, $fiscal]) {
+    foreach ([Facture::class, Avoir::class] as $classe) {
+        $piece = new $classe();
+        $piece->forceFill(['numero' => $interne, 'numero_mecef' => $fiscal]);
+        $numeroRegistre[] = ['numero' => $interne, 'numero_mecef' => $fiscal] + NumeroRegistre::pour($piece);
+    }
+}
+
+$pwa = require $api . '/lang/fr/pwa.php';
+
 echo json_encode([
+    'numero_registre' => $numeroRegistre,
+    'numero_interne_legende' => $pwa['facturation']['numero_interne'],
     'ifu_client_valide' => array_combine(
         $echantillonsIfuClient,
         array_map(static fn (string $v): bool => IfuClient::valide($v), $echantillonsIfuClient),

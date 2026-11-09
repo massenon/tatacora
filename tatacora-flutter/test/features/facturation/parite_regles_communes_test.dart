@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tatacora_flutter/features/facturation/domain/entities/piece_facturation.dart';
 import 'package:tatacora_flutter/features/facturation/domain/ifu_client.dart';
 import 'package:tatacora_flutter/features/pos/presentation/widgets/modale_cloture_sejour.dart';
 import 'package:tatacora_flutter/features/facturation/domain/mode_facturation.dart';
@@ -78,6 +79,31 @@ void main() {
         expect(accepte, isTrue, reason: 'rognée : « ${brut.trim()} »');
       }
     });
+  });
+
+  test('la colonne « N° » du registre : même numéro et même nature que '
+      '`NumeroRegistre::pour` du serveur (fiscal si réel, sinon interne)', () {
+    final cas = serveur['numero_registre'] as List;
+    expect(cas.length, greaterThanOrEqualTo(10));
+    for (final c in cas) {
+      final m = c as Map<String, dynamic>;
+      final p = PieceFacturation(
+        id: 'x',
+        numero: m['numero'] as String,
+        origine: OrigineFacture.posComptant,
+        dateEmission: DateTime(2026, 11, 9),
+        clientNom: 'C',
+        statut: StatutPiece.emise,
+        numeroMecef: m['numero_mecef'] as String?,
+        lignes: const [],
+      );
+      expect(p.numeroRegistre, m['valeur'], reason: '$m');
+      expect(p.numeroRegistreEstInterne, m['interne'], reason: '$m');
+    }
+    // Au moins un cas de chaque nature : sinon la parité serait verte à vide.
+    expect(cas.where((c) => (c as Map)['interne'] == true), isNotEmpty);
+    expect(cas.where((c) => (c as Map)['interne'] == false), isNotEmpty);
+    expect(serveur['numero_interne_legende'], 'n° interne');
   });
 
   test('les statuts de normalisation : mêmes codes, mêmes libellés, même '

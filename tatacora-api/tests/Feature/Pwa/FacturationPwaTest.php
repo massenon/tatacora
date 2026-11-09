@@ -250,7 +250,12 @@ final class FacturationPwaTest extends TestCase
         // RENDUE. Une colonne du maitre absente et tue est le defaut que
         // `ColonnesDesTableauxPwaTest` traque ; une colonne rendue vide, elle,
         // dit ce que le serveur ne detient pas (Article 7).
-        $this->assertSame(3, substr_count($ligne, '—'), 'Le numero absent, l origine et le mode de paiement doivent rendre « — », et eux seuls.');
+        //
+        // ⚠ Le compte est repassé de 3 à 2 le 09/11/2026 (PO) : le numéro absent ne rend plus « — » — la colonne « N° »
+        // porte alors le numéro INTERNE de la facture, avec la légende « n° interne ».
+        $this->assertSame(2, substr_count($ligne, '—'), 'L origine et le mode de paiement doivent rendre « — », et eux seuls.');
+        $this->assertStringContainsString((string) $brouillon->numero, $ligne);
+        $this->assertStringContainsString('n° interne', $ligne);
     }
 
     /**

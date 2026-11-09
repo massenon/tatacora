@@ -105,7 +105,7 @@ final class EtatRegistreFactures {
 
   /// Une ligne du tableau — **source unique** des deux rendus.
   List<String> cellules(PieceFacturation p) => [
-    p.numero,
+    p.numeroRegistre,
     formaterDate(p.dateEmission),
     p.clientNom,
     p.origine.libelle,

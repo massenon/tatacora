@@ -361,6 +361,18 @@ final class PieceFacturation {
   /// synchronisation le pose ici. Le papier le dit (« Facture provisoire »).
   bool get estProvisoire => numero.startsWith(prefixeNumeroProvisoire);
 
+  /// La pièce porte-t-elle un numéro FISCAL réel (NIM-TC / numéro MECeF, hors démonstration) ?
+  bool get aNumeroFiscal => CertificationMecef.estReelle(numeroMecef);
+
+  /// Le numéro de la colonne « N° » du registre (PO, 09/11/2026) : le numéro FISCAL quand la pièce est normalisée,
+  /// SINON le numéro INTERNE ([numero] : `F-…` régularisé par le serveur, ou `PROV-…` tant qu'il ne l'a pas fait ;
+  /// `AV-…` pour un avoir) — jamais « — ». Même règle que `NumeroRegistre::pour` au web, confrontée au vrai PHP
+  /// par `numero_registre_test.dart`. Écran, PDF et tableur du registre lisent cette seule valeur.
+  String get numeroRegistre => aNumeroFiscal ? numeroMecef!.trim() : numero;
+
+  /// La valeur affichée est le numéro interne : l'écran la fait suivre de la légende « n° interne ».
+  bool get numeroRegistreEstInterne => !aNumeroFiscal;
+
   bool get estEmise => statut == StatutPiece.emise;
 
   bool get estAnnulee => statut == StatutPiece.annulee;
