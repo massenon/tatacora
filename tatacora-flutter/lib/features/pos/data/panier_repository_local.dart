@@ -107,6 +107,10 @@ final class PanierRepositoryLocal implements PanierRepository {
   ) => _dao.appliquerRemise(panierId, type, valeurSaisie);
 
   @override
+  Future<Panier> definirMentionClient(String panierId, String? saisie) =>
+      _dao.definirMentionClient(panierId, saisie);
+
+  @override
   Future<Panier> annuler(String panierId, String motif) =>
       _dao.annuler(panierId, motif);
 }

@@ -84,6 +84,12 @@ abstract interface class PanierRepository {
     String valeurSaisie,
   );
 
+  /// Pose la MENTION client (texte libre, facultatif) du panier au comptant
+  /// OUVERT : normalisée comme le serveur (`MentionClient.normaliser`), elle
+  /// suit la vente (ticket, charge de synchronisation). Un panier de séjour est
+  /// refusé (`ArgumentError`), un panier fermé aussi (`PanierNonModifiable`).
+  Future<Panier> definirMentionClient(String panierId, String? saisie);
+
   Future<Panier> annuler(String panierId, String motif);
 
   /// « Abandonner » du comptoir (`PanierService::abandonner`) : ferme le panier

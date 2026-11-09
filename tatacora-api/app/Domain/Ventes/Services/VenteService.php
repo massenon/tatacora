@@ -280,6 +280,31 @@ class VenteService
         return array_diff_key(self::MODES_PAIEMENT, [self::MODE_NOTE_CHAMBRE => null]);
     }
 
+    /** Longueur maximale de la mention client : la colonne `ventes.client_mention` (string, 255). */
+    public const MENTION_CLIENT_MAX = 255;
+
+    /**
+     * La MENTION client telle qu'elle est conservée et imprimée : texte libre,
+     * jamais de caractère de contrôle (un saut de ligne ou un octet de commande
+     * casserait le ticket thermique), bornée à la colonne. Chaque caractère de
+     * contrôle (C0, DEL, C1) devient une espace, les espaces de bord tombent,
+     * le vide devient `null` (« aucune mention » et « mention vide » ne se
+     * distinguent pas). Le poste en porte la réplique exacte
+     * (`MentionClient.normaliser`, confrontée à ce code par
+     * `mention_client_contre_serveur_test`).
+     */
+    public static function normaliserMentionClient(mixed $brut): ?string
+    {
+        if ($brut === null) {
+            return null;
+        }
+
+        $texte = preg_replace('/[\x00-\x1F\x7F\x{80}-\x{9F}]/u', ' ', (string) $brut) ?? '';
+        $texte = trim(mb_substr(trim($texte, ' '), 0, self::MENTION_CLIENT_MAX), ' ');
+
+        return $texte === '' ? null : $texte;
+    }
+
     /** Le mode « note de chambre » est-il celui-ci ? — pour le refus du comptoir. */
     public static function estModeNoteChambre(string $mode): bool
     {
@@ -440,9 +465,7 @@ class VenteService
                 // MENTION imprimée, jamais une FK — décision PO du 02/09/2026,
                 // vente au comptoir anonyme par nature : ce nom n'alimente
                 // aucun registre client (voir la migration du 07/09).
-                'client_mention' => blank($donnees['client_mention'] ?? null)
-                    ? null
-                    : trim((string) $donnees['client_mention']),
+                'client_mention' => self::normaliserMentionClient($donnees['client_mention'] ?? null),
                 'table' => $donnees['table'] ?? null,
                 'table_id' => $donnees['table_id'] ?? null,
                 // Lot F5 (17/10/2026) : le séjour d'une vente en note de

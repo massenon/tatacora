@@ -28,6 +28,7 @@ import '../domain/entities/article_vendable.dart';
 import '../domain/entities/mode_reglement.dart';
 import '../domain/entities/panier.dart';
 import '../domain/entities/reference_catalogue.dart';
+import '../domain/mention_client.dart';
 import '../domain/messages_ventes.dart';
 import '../domain/remise_panier.dart';
 import '../domain/repositories/panier_repository.dart';
@@ -745,6 +746,37 @@ class PanierDao extends DatabaseAccessor<AppDatabase> with _$PanierDaoMixin {
         PaniersLocalCompanion(
           remiseType: Value(type.name),
           remiseValeurCentiemes: Value(valeur),
+        ),
+      );
+    });
+    return (await parId(panierId))!;
+  }
+
+  /// Pose la MENTION client du panier AU COMPTANT ouvert — « Client
+  /// (facultatif) » de la vue du comptoir (`PosComptant::$clientMention`).
+  ///
+  /// Un texte libre, jamais une fiche : [saisie] est normalisée comme le fait
+  /// le serveur ([MentionClient.normaliser] : contrôles en espaces, bords
+  /// rognés, 255 caractères au plus, vide = aucune mention). Elle vit dans
+  /// `paniers_local.client_nom` ; à la clôture elle est recopiée sur la vente
+  /// (ticket « Client : … ») et part dans la charge de la vente — ici, rien
+  /// n'est mis en file. Un panier abandonné ou annulé l'emporte avec lui. Un
+  /// panier de SÉJOUR est refusé : son `client_nom` est le client de la
+  /// réservation, jamais une mention saisie. Un panier fermé : [PanierNonModifiable].
+  Future<Panier> definirMentionClient(String panierId, String? saisie) async {
+    await transaction(() async {
+      final entete = await _enteteModifiable(panierId);
+      if (TypeVente.depuisCode(entete.typeVente) != TypeVente.comptant) {
+        throw ArgumentError.value(
+          panierId,
+          'panierId',
+          'La mention client ne se pose que sur un panier au comptant : '
+              'celui d’un séjour porte le client de la réservation.',
+        );
+      }
+      await (update(paniersLocal)..where((p) => p.id.equals(entete.id))).write(
+        PaniersLocalCompanion(
+          clientNom: Value(MentionClient.normaliser(saisie)),
         ),
       );
     });

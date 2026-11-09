@@ -296,6 +296,26 @@ void main() {
     expect(serveur('ventes', s.venteRemise)['montant_total'], '2970.00');
   });
 
+  test('MENTION client du comptoir : la charge porte `client_nom`, le serveur '
+      'l’accepte et la range en `ventes.client_mention`, telle quelle', () {
+    final charge =
+        operations.singleWhere(
+              (o) => o['entite_id'] == s.venteRemise,
+            )['payload']
+            as Map;
+    expect(charge['client_nom'], mentionDuComptoir);
+    expect(
+      resultatDe('ventes', 'creation', s.venteRemise)['statut'],
+      'synchronise',
+    );
+    expect(
+      serveur('ventes', s.venteRemise)['client_mention'],
+      mentionDuComptoir,
+    );
+    // Une vente sans mention n'en reçoit pas : `null`, jamais une chaîne vide.
+    expect(serveur('ventes', s.vente)['client_mention'], isNull);
+  });
+
   test('règlement fournisseur (audit) : écrit par le service, à la date du '
       'poste, la commande en tient compte', () {
     final r = resultatDe('reglements_fournisseur', 'creation', s.reglement);

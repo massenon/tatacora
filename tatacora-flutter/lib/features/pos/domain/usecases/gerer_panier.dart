@@ -114,6 +114,11 @@ final class GererPanier {
     String valeurSaisie,
   ) => _depot.appliquerRemise(panierId, type, valeurSaisie);
 
+  /// Pose la mention client du panier — voir
+  /// [PanierRepository.definirMentionClient].
+  Future<Panier> definirMentionClient(String panierId, String? saisie) =>
+      _depot.definirMentionClient(panierId, saisie);
+
   /// Diminue d'une unité, ou retire la ligne si elle tombe à zéro.
   ///
   /// Le geste du comptoir est « moins » ; à une unité, il vaut « retirer ».

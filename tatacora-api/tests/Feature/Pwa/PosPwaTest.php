@@ -22,6 +22,7 @@ use App\Domain\Stocks\Services\MouvementStockService;
 use App\Domain\Stocks\Services\StockTheoriqueService;
 use App\Domain\Ventes\Models\Panier;
 use App\Domain\Ventes\Models\Vente;
+use App\Domain\Ventes\Services\VenteService;
 use App\Exports\VentesExport;
 use App\Models\User;
 use App\Pwa\Livewire\Pos\HistoriqueVentes;
@@ -1632,6 +1633,33 @@ final class PosPwaTest extends TestCase
         $panierClos = Panier::where('vente_id', $vente->id)->firstOrFail();
         $this->assertSame('montant', $panierClos->remise_type);
         $this->assertSame(0, bccomp((string) $panierClos->remise_valeur, '500.00', 2));
+    }
+
+    /**
+     * La mention est NORMALISEE a l'enregistrement (aucun caractere de controle,
+     * 255 au plus, vide = aucune) : meme regle que le poste
+     * (`MentionClient.normaliser`). Mutation : retirer le remplacement des
+     * controles ou la troncature dans `normaliserMentionClient` → ROUGE.
+     */
+    #[Test]
+    public function la_mention_client_est_normalisee_comme_au_poste(): void
+    {
+        $this->ouvrirLaCaisse();
+        $this->actingAs($this->gerant);
+
+        Livewire::test(PosComptant::class)
+            ->set('comptoirChoisi', true)
+            ->call('ajouterAuPanier', 'M5', $this->biere->id)
+            ->set('clientMention', "  Jean\nDupont\x00\x1B ".str_repeat('x', 300))
+            ->call('encaisser')
+            ->assertSet('toastType', 'success');
+
+        $mention = Vente::firstOrFail()->client_mention;
+
+        $this->assertSame(255, mb_strlen($mention));
+        $this->assertStringStartsWith('Jean Dupont', $mention);
+        $this->assertSame(0, preg_match('/[\x00-\x1F\x7F]/', $mention));
+        $this->assertNull(VenteService::normaliserMentionClient("  \n\t "));
     }
 
     /**

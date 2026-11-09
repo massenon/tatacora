@@ -106,6 +106,10 @@ final class ScenarioFile {
   late String venteRemise;
 }
 
+/// La mention client de la vente au comptoir avec remise (apostrophe, accents,
+/// tiret long : ce que le papier et la colonne du serveur doivent garder).
+const String mentionDuComptoir = "Mme Aïssatou N'DOUR — Société Sahel";
+
 /// Une journée complète du poste, PAR SES VRAIS ÉCRIVAINS — chacun dépose son
 /// document dans la file d'envoi. Rien n'est écrit à la main dans la file.
 ///
@@ -685,6 +689,10 @@ Future<ScenarioFile> jouerJourneeComplete(AppDatabase db) async {
     quantite: 3,
   );
   await paniersRemise.appliquerRemise(remise.id, TypeRemise.pourcentage, '10');
+  // La MENTION client du comptoir (« Client (facultatif) ») : posée sur le
+  // panier, elle part avec la vente (`client_nom`) et se range en
+  // `ventes.client_mention`.
+  await paniersRemise.definirMentionClient(remise.id, mentionDuComptoir);
   s.venteRemise = (await paniersRemise.cloturer(
     remise.id,
     modePaiement: 'especes',

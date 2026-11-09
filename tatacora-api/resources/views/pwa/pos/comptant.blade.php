@@ -441,7 +441,7 @@
                     registre client. Voir `PosComptant::$clientMention`.
                 --}}
                 <label for="client-vente" class="block text-[11px] font-semibold text-slate-500 mb-1">{{ __('pos_pwa.comptant.client') }}</label>
-                <input id="client-vente" type="text" wire:model="clientMention"
+                <input id="client-vente" type="text" wire:model="clientMention" maxlength="255"
                        placeholder="{{ __('pos_pwa.comptant.client_mention_aide') }}"
                        class="w-full text-[13px] border border-slate-300 rounded-lg px-3 py-2 bg-white">
               </div>

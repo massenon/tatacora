@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show LengthLimitingTextInputFormatter;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/di/providers.dart'
@@ -27,6 +28,7 @@ import '../../../comptabilite/domain/refus_comptable.dart' show RefusComptable;
 import '../../domain/entities/mode_reglement.dart';
 import '../../domain/entities/panier.dart';
 import '../../domain/entities/table_pos.dart' show RayonSalle;
+import '../../domain/mention_client.dart';
 import '../../domain/messages_ventes.dart' show MessagesVentes, RefusVente;
 import '../../../hebergement/domain/entities/fiche_reservation.dart'
     show TypeRemise;
@@ -431,7 +433,7 @@ class _Pied extends ConsumerWidget {
                     children: [
                       Text(TextesPanierComptant.client, style: etiquette),
                       const SizedBox(height: AppSpacing.unit),
-                      const ChampClientComptant(),
+                      ChampClientComptant(panier: panier),
                     ],
                   ),
                 ),
@@ -764,12 +766,6 @@ abstract final class TextesPanierComptant {
   /// `pos_pwa.comptant.client_mention_aide` (le `placeholder`).
   static const String clientAide =
       'Nom à imprimer sur le ticket — aucun compte client n\'est créé.';
-
-  /// Ce que dit le champ « Client » quand on le touche : la mention n'est
-  /// conservée nulle part sur ce poste et ne s'imprime pas sur le ticket.
-  static const String clientNonDisponible =
-      'La mention client n’est pas encore enregistrée sur ce poste : elle ne '
-      's’imprimerait pas sur le ticket. Rien n’a été enregistré.';
 }
 
 /// `px-4 py-3 border-b border-slate-200 flex items-center justify-between`
@@ -1255,71 +1251,85 @@ class _EtatLigneRemiseComptant extends ConsumerState<LigneRemiseComptant> {
   }
 }
 
-/// Le champ « Client (facultatif) » (l.448-451) : son `placeholder`, et,
-/// touché, la raison pour laquelle rien n'y est saisi sur ce poste.
-class ChampClientComptant extends StatelessWidget {
-  const ChampClientComptant({super.key});
+/// Le champ « Client (facultatif) » (l.444-448) : un `<input type="text"
+/// wire:model="clientMention" placeholder=… maxlength="255">`. Une MENTION
+/// imprimée sur le ticket, jamais une fiche client : elle est posée sur le
+/// panier ouvert (`PanierDao.definirMentionClient`, normalisée comme le serveur)
+/// à chaque frappe — le panier est la seule copie, une fenêtre fermée en pleine
+/// saisie ne la perd pas — puis suit la vente (ticket, synchronisation). Un
+/// autre panier (autre client, panier clôturé ou abandonné) repart d'un champ
+/// vide : la mention appartient à la vente, pas à l'écran.
+class ChampClientComptant extends ConsumerStatefulWidget {
+  const ChampClientComptant({required this.panier, super.key});
+
+  final Panier panier;
 
   @override
-  Widget build(BuildContext context) {
-    return _ChampDisant(
-      cle: const Key('pos-client-mention'),
-      texte: TextesPanierComptant.clientAide,
-      taille: TaillesContenu.t13,
-      indication: true,
-      onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text(TextesPanierComptant.clientNonDisponible)),
-      ),
-    );
-  }
+  ConsumerState<ChampClientComptant> createState() =>
+      _EtatChampClientComptant();
 }
 
-/// Le gabarit d'un `<select>` / `<input>` de la vue (`border border-slate-300
-/// rounded-lg bg-white`) qui, touché, DIT pourquoi il n'agit pas.
-class _ChampDisant extends StatelessWidget {
-  const _ChampDisant({
-    required this.cle,
-    required this.texte,
-    required this.taille,
-    required this.onTap,
-    this.indication = false,
-  });
+class _EtatChampClientComptant extends ConsumerState<ChampClientComptant> {
+  late final TextEditingController _texte = TextEditingController(
+    text: widget.panier.clientNom ?? '',
+  );
+  final FocusNode _focus = FocusNode();
 
-  final Key cle;
-  final String texte;
-  final double taille;
-  final VoidCallback onTap;
+  @override
+  void initState() {
+    super.initState();
+    // Comme la remise : l'écran relit le panier quand le champ perd le focus.
+    _focus.addListener(() {
+      if (!_focus.hasFocus && mounted) rafraichirPaniers(ref);
+    });
+  }
 
-  /// Vrai : [texte] est un `placeholder` (gris), pas une valeur.
-  final bool indication;
+  @override
+  void didUpdateWidget(ChampClientComptant ancien) {
+    super.didUpdateWidget(ancien);
+    if (ancien.panier.id != widget.panier.id) {
+      _texte.text = widget.panier.clientNom ?? '';
+    }
+  }
+
+  @override
+  void dispose() {
+    _texte.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  Future<void> _poser(String saisie) async {
+    try {
+      await ref
+          .read(gererPanierProvider)
+          .definirMentionClient(widget.panier.id, saisie);
+    } on PanierNonModifiable {
+      // Le panier a été clôturé ou abandonné pendant la frappe : la mention
+      // part avec lui, il n'y a plus rien à poser.
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      key: cle,
-      borderRadius: BorderRadius.circular(AppRadius.roundedLg),
-      onTap: onTap,
-      child: Container(
-        constraints: const BoxConstraints(minWidth: LargeursPos.montantLigne),
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.xs,
-          vertical: AppSpacing.xxs,
-        ),
-        decoration: BoxDecoration(
-          color: AppColors.neutre0,
-          border: Border.all(color: Ardoise.c300),
-          borderRadius: BorderRadius.circular(AppRadius.roundedLg),
-        ),
-        child: Text(
-          texte,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: styleContenuCarte(
-            taille,
-            couleur: indication ? Ardoise.c400 : AppColors.anthracite,
-          ),
-        ),
+    return TextField(
+      key: const Key('pos-client-mention'),
+      controller: _texte,
+      focusNode: _focus,
+      maxLines: 1,
+      inputFormatters: [
+        LengthLimitingTextInputFormatter(MentionClient.longueurMax),
+      ],
+      style: styleContenuCarte(
+        TaillesContenu.t13,
+        couleur: AppColors.anthracite,
       ),
+      decoration: _decorationChamp().copyWith(
+        hintText: TextesPanierComptant.clientAide,
+        hintMaxLines: 1,
+        hintStyle: styleContenuCarte(TaillesContenu.t13, couleur: Ardoise.c400),
+      ),
+      onChanged: _poser,
     );
   }
 }

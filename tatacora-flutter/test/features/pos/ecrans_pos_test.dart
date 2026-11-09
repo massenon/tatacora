@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
@@ -31,6 +33,8 @@ import 'package:tatacora_flutter/features/pos/presentation/ecran_pos_heberges.da
 import 'package:tatacora_flutter/features/pos/presentation/providers_pos.dart';
 import 'package:tatacora_flutter/features/pos/presentation/widgets/modale_cloture_sejour.dart';
 import 'package:tatacora_flutter/features/pos/presentation/widgets/panier_heberges.dart';
+import 'package:tatacora_flutter/features/synchronisation/data/operations_sync_dao.dart';
+import 'package:tatacora_flutter/features/synchronisation/domain/operation_sync.dart';
 
 import '../facturation/support/outils_encaissement.dart'
     show ouvrirLaCaisseDuComptoir;
@@ -308,6 +312,63 @@ void main() {
         session.id,
       );
     });
+
+    testWidgets(
+      '« Client (facultatif) » SE SAISIT : la mention est posée sur le '
+      'panier, suit la vente (charge de synchronisation) et le panier '
+      'suivant repart d’un champ vide — plus aucun message d’écart',
+      (tester) async {
+        await ouvrirLaCaisseDuComptoir(db);
+        await monter(tester, const EcranPosComptant());
+        await tester.tap(find.byKey(const Key('pos-comptant-ouvrir')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('pos-article-M5:bsn-33')));
+        await tester.pumpAndSettle();
+
+        // Un champ ÉDITABLE (un vrai `TextField`, pas un bouton qui s'excuse).
+        final champ = find.byKey(const Key('pos-client-mention'));
+        expect(tester.widget(champ), isA<TextField>());
+        await tester.tap(champ);
+        await tester.pump();
+        expect(find.byType(SnackBar), findsNothing);
+        expect(find.textContaining('pas encore enregistrée'), findsNothing);
+
+        // Saisie puis ENCAISSEMENT sans quitter le champ : le clic sur
+        // « Encaisser » ne doit rien perdre.
+        await tester.enterText(champ, '  Mme Aïssatou N’DOUR  ');
+        await tester.pump();
+        expect(
+          (await depotPanier.paniers()).single.clientNom,
+          'Mme Aïssatou N’DOUR',
+        );
+
+        await tester.tap(find.byKey(const Key('pos-cloturer')));
+        await tester.pumpAndSettle();
+
+        final cloture = (await depotPanier.paniers()).single;
+        expect(cloture.clientNom, 'Mme Aïssatou N’DOUR');
+        final vente = (await OperationsSyncDao(
+          db,
+        ).operations()).singleWhere((o) => o.table == TableSynchronisee.ventes);
+        expect(
+          (jsonDecode(vente.payload) as Map<String, Object?>)['client_nom'],
+          'Mme Aïssatou N’DOUR',
+        );
+        await tester.tap(find.byKey(const Key('vente-encaissee-fermer')));
+        await tester.pumpAndSettle();
+
+        // Le client suivant n'hérite de rien.
+        await tester.tap(find.byKey(const Key('pos-comptant-ouvrir')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('pos-article-M5:bsn-33')));
+        await tester.pumpAndSettle();
+        expect(tester.widget<TextField>(champ).controller!.text, isEmpty);
+        final suivant = (await depotPanier.paniers()).firstWhere(
+          (p) => p.estOuvert,
+        );
+        expect(suivant.clientNom, isNull);
+      },
+    );
 
     testWidgets('l’encaissement OUVRE « Vente encaissée » (total, 3 boutons), '
         'puis le journal du jour liste la vente et l’ANNULE avec son '
