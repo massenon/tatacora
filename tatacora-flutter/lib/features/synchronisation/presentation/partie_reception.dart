@@ -31,8 +31,6 @@ abstract final class TextesReception {
   static const String relancerToutExplication =
       '« Relancer tout » rejoue les éléments refusés ou gardés, puis reprend '
       'la réception depuis le dernier point acquis.';
-  static const String reserveAdministrateurs =
-      '« Relancer » et « Corriger » sont réservés aux Administrateurs.';
   static const String listeVide = 'Aucun élément reçu ne correspond.';
   static const String lectureImpossible =
       'Lecture du journal de réception impossible sur ce poste.';
@@ -109,13 +107,11 @@ Widget _texte(
 /// contrôle de cohérence). [surVoirEnvoi] ramène à la partie Envoi.
 class PartieReception extends ConsumerWidget {
   const PartieReception({
-    required this.admin,
     required this.surVoirEnvoi,
     this.apres = const [],
     super.key,
   });
 
-  final bool admin;
   final VoidCallback surVoirEnvoi;
   final List<Widget> apres;
 
@@ -125,9 +121,9 @@ class PartieReception extends ConsumerWidget {
       key: const Key('recep-partie'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _CarteBilan(admin: admin),
+        const _CarteBilan(),
         const SizedBox(height: AppSpacing.md),
-        _CarteJournal(admin: admin, surVoirEnvoi: surVoirEnvoi),
+        _CarteJournal(surVoirEnvoi: surVoirEnvoi),
         const SizedBox(height: AppSpacing.md),
         const _CarteAnnonces(),
         for (final c in apres) ...[const SizedBox(height: AppSpacing.md), c],
@@ -141,9 +137,7 @@ class PartieReception extends ConsumerWidget {
 /* ==================================================================== */
 
 class _CarteBilan extends ConsumerStatefulWidget {
-  const _CarteBilan({required this.admin});
-
-  final bool admin;
+  const _CarteBilan();
 
   @override
   ConsumerState<_CarteBilan> createState() => _EtatCarteBilan();
@@ -231,16 +225,9 @@ class _EtatCarteBilan extends ConsumerState<_CarteBilan> {
               key: const Key('recep-relancer-tout'),
               libelle: TextesReception.relancerTout,
               variante: VarianteBouton.primaire,
-              onPressed: widget.admin && !_enCours ? _relancerTout : null,
+              onPressed: !_enCours ? _relancerTout : null,
             ),
           ),
-          if (!widget.admin) ...[
-            const SizedBox(height: AppSpacing.xxs),
-            _texte(
-              TextesReception.reserveAdministrateurs,
-              cle: const Key('recep-reserve'),
-            ),
-          ],
         ],
       ),
     );
@@ -252,9 +239,8 @@ class _EtatCarteBilan extends ConsumerState<_CarteBilan> {
 /* ==================================================================== */
 
 class _CarteJournal extends ConsumerWidget {
-  const _CarteJournal({required this.admin, required this.surVoirEnvoi});
+  const _CarteJournal({required this.surVoirEnvoi});
 
-  final bool admin;
   final VoidCallback surVoirEnvoi;
 
   Future<void> _relancer(
@@ -309,7 +295,7 @@ class _CarteJournal extends ConsumerWidget {
             .lire(e.tableServeur, e.elementId) ??
         e;
     if (!context.mounted) return;
-    final geste = await ouvrirDetailReception(context, complete, gestes: admin);
+    final geste = await ouvrirDetailReception(context, complete, gestes: true);
     if (!context.mounted) return;
     switch (geste) {
       case GesteReception.relancer:
@@ -405,7 +391,7 @@ class _CarteJournal extends ConsumerWidget {
             compact: true,
             onPressed: () => _detail(context, ref, e),
           ),
-          if (admin && e.issue.ouverte) ...[
+          if (e.issue.ouverte) ...[
             BoutonStandard(
               key: Key('recep-relancer-$k'),
               libelle: TextesModalesReception.relancer,

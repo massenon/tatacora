@@ -220,8 +220,8 @@ void main() {
     expect(find.byKey(Key('sync-statut-${f.bloquee}')), findsNothing);
   });
 
-  testWidgets('NON administrateur : la liste se lit, aucun geste n’est offert '
-      '— et l’écran le dit', (tester) async {
+  testWidgets('NON administrateur : la liste se lit ET « Renvoyer » est offert '
+      '(PO 10/11/2026 : ouvert à tous)', (tester) async {
     final f = await tester.runAsync(() async {
       final r = await semerFile();
       final nouvel = await b.dao.renvoyer(r.rejetee);
@@ -234,17 +234,14 @@ void main() {
     });
     await monter(tester, role: 'caissier');
     expect(find.byKey(Key('sync-statut-${f!.$2}')), findsOneWidget);
-    expect(find.byKey(Key('sync-renvoyer-${f.$2}')), findsNothing);
-    expect(find.text(TextesEcranSynchronisation.renvoyer), findsNothing);
-    expect(find.text(TextesEcranSynchronisation.debloquer), findsNothing);
-    expect(find.byKey(const Key('sync-ecran-reserve')), findsOneWidget);
+    expect(find.byKey(Key('sync-renvoyer-${f.$2}')), findsOneWidget);
+    expect(find.byKey(const Key('sync-ecran-reserve')), findsNothing);
   });
 
   testWidgets(
-    '« Opération réservée » (`droit_manquant`, 09/11/2026) : « Renvoyer » est '
-    'OUVERT À TOUS pour ce code — nouvel uuid, même charge, l’ancienne reste '
-    'l’historique ; « Corriger » et les autres refus restent aux '
-    'Administrateurs',
+    '« Opération réservée » (`droit_manquant`) : « Renvoyer » et « Corriger » '
+    'sont OUVERTS À TOUS (10/11/2026) — nouvel uuid, même charge, l’ancienne '
+    'reste l’historique',
     (tester) async {
       final f = await tester.runAsync(() async {
         final ids = await b.enfilerClients(2);
@@ -281,10 +278,10 @@ void main() {
         'Opération réservée',
       );
       expect(find.byKey(Key('sync-renvoyer-${f.droit}')), findsOneWidget);
-      expect(find.byKey(Key('sync-corriger-${f.droit}')), findsNothing);
-      expect(find.byKey(Key('sync-renvoyer-${f.regle}')), findsNothing);
-      expect(find.byKey(Key('sync-corriger-${f.regle}')), findsNothing);
-      expect(find.byKey(const Key('sync-ecran-reserve')), findsOneWidget);
+      expect(find.byKey(Key('sync-corriger-${f.droit}')), findsOneWidget);
+      expect(find.byKey(Key('sync-renvoyer-${f.regle}')), findsOneWidget);
+      expect(find.byKey(Key('sync-corriger-${f.regle}')), findsOneWidget);
+      expect(find.byKey(const Key('sync-ecran-reserve')), findsNothing);
 
       await tester.ensureVisible(find.byKey(Key('sync-renvoyer-${f.droit}')));
       await tester.tap(find.byKey(Key('sync-renvoyer-${f.droit}')));

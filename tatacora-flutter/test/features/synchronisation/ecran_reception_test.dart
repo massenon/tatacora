@@ -344,8 +344,10 @@ void main() {
     );
   });
 
-  testWidgets('un NON-administrateur lit le journal : aucun geste ne lui '
-      'est offert, et l’écran le dit', (tester) async {
+  testWidgets('un NON-administrateur lit le journal ET relance, corrige, '
+      'relance tout (PO 10/11/2026 : ouverts à tous les rôles)', (
+    tester,
+  ) async {
     await descendre(tester, varie());
     await monter(tester, role: 'caissier');
 
@@ -355,19 +357,19 @@ void main() {
     );
     expect(
       find.byKey(const Key('recep-relancer-articles-art-9')),
-      findsNothing,
+      findsOneWidget,
     );
     expect(
       find.byKey(const Key('recep-corriger-articles-art-9')),
-      findsNothing,
+      findsOneWidget,
     );
     expect(
       tester
           .widget<BoutonStandard>(find.byKey(const Key('recep-relancer-tout')))
           .onPressed,
-      isNull,
+      isNotNull,
     );
-    expect(find.byKey(const Key('recep-reserve')), findsOneWidget);
+    expect(find.byKey(const Key('recep-reserve')), findsNothing);
   });
 
   testWidgets('annonces du serveur, dernier contrôle de cohérence et ses '
@@ -544,7 +546,7 @@ void main() {
       expect(find.byKey(Key('sync-corriger-$uuid')), findsNothing);
     });
 
-    testWidgets('un non-administrateur ne voit pas « Corriger »', (
+    testWidgets('un non-administrateur voit « Corriger » (ouvert à tous)', (
       tester,
     ) async {
       final uuid = (await tester.runAsync(semerRejet))!;
@@ -552,7 +554,7 @@ void main() {
       await tester.tap(find.byKey(const Key('sync-onglet-envoi')));
       await laisserTourner(tester);
       expect(find.byKey(Key('sync-detail-$uuid')), findsOneWidget);
-      expect(find.byKey(Key('sync-corriger-$uuid')), findsNothing);
+      expect(find.byKey(Key('sync-corriger-$uuid')), findsOneWidget);
     });
   });
 

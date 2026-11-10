@@ -62,11 +62,16 @@ class CorrectionReceptionService
     // Droits
     // ------------------------------------------------------------------
 
-    /** Administrateurs et Comptable : les seuls à lire ces journaux. */
+    /**
+     * TOUT compte connecté lit ces journaux et peut relancer, corriger, ignorer (décision du PO du
+     * 10/11/2026 : « rejouer et voir la synchronisation doivent être accessibles à tous les
+     * rôles »). Ce que chacun voit et rejoue reste borné par le droit de SES modules
+     * (`tablesVisibles`, `moduleRefuse`) ; seules la redescente et la révocation restent à
+     * l'administration.
+     */
     public function estAutorise(?User $utilisateur): bool
     {
-        return $utilisateur !== null
-            && ($utilisateur->estAdministrateur() || (string) $utilisateur->role?->libelle === 'comptable');
+        return $utilisateur !== null;
     }
 
     /**

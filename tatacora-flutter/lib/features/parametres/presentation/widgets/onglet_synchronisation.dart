@@ -169,8 +169,8 @@ class _OngletSynchronisationState extends ConsumerState<OngletSynchronisation> {
   }
 
   /// Le lien vers l'écran de synchronisation (lot F2b) — offert à qui voit
-  /// l'onglet, administrateur ou non : l'écran se LIT avec le droit sur
-  /// Paramètres, ses gestes restent réservés aux Administrateurs.
+  /// l'onglet, administrateur ou non : l'écran est ouvert à TOUS les rôles (10/11/2026) :
+  /// relancer, corriger et débloquer y sont ouverts à tous ; seul l'appairage reste administrateur.
   Widget _lienEcran(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [

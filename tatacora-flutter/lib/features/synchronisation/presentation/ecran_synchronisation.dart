@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/di/providers.dart';
 import '../../../core/format/formats.dart';
 import '../../../core/navigation/navigation_tatacora.dart';
 import '../../../core/theme/app_colors.dart';
@@ -11,7 +10,6 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/mesures_transverses.dart';
 import '../../../shared_widgets/bouton_standard.dart';
 import '../../../shared_widgets/liste_paginee.dart';
-import '../../transverse/domain/comptes_utilisateurs.dart';
 import '../../transverse/presentation/widgets/briques_transverses.dart';
 import '../domain/reinitialisation_serveur.dart';
 import '../domain/bilan_synchronisation.dart';
@@ -140,12 +138,6 @@ abstract final class TextesEcranSynchronisation {
   static const aTraiterVide =
       'Aucune opération rejetée, en conflit ou bloquée.';
   static const anomaliesVide = 'Aucun signalement du serveur.';
-  static const reserveAdministrateurs =
-      '« Renvoyer » et « Débloquer » sont réservés aux Administrateurs, '
-      'sauf « Renvoyer » d’une opération réservée, d’un élément cité pas '
-      'encore reçu ou d’une erreur imprévue du serveur : ouvert à tous, '
-      'puisque le serveur rejuge la même opération et que rien ne s’y '
-      'obtient par ce geste que le serveur n’accorde déjà.';
   static const renvoyer = 'Renvoyer';
   static const debloquer = 'Débloquer';
   static const renvoyee =
@@ -178,8 +170,9 @@ abstract final class TextesEcranSynchronisation {
 /// (décision du PO du 15/10/2026, `classification-exemptions.json`). On y
 /// arrive par le lien de Paramètres → Synchronisation ; la route est gardée
 /// par le module Paramètres (`modulesDesRoutesHorsMenu`). Les gestes qui
-/// changent la file (« Renvoyer », « Débloquer ») sont réservés aux
-/// Administrateurs, comme l'appairage. « Synchroniser maintenant » est
+/// changent la file (« Renvoyer », « Corriger », « Débloquer ») sont ouverts
+/// à TOUS les rôles (décision du PO du 10/11/2026) ; seul l'appairage reste
+/// aux Administrateurs. « Synchroniser maintenant » est
 /// ouvert à qui voit l'écran : il ne fait que hâter ce que le réveil
 /// automatique fera dans cinq minutes.
 class EcranSynchronisation extends ConsumerStatefulWidget {
@@ -196,7 +189,6 @@ class _EtatEcranSynchronisation extends ConsumerState<EcranSynchronisation> {
 
   @override
   Widget build(BuildContext context) {
-    final admin = peutAdministrerComptes(ref.watch(sessionProvider)?.role);
     final lus = ref.watch(etatFileSynchronisationProvider);
     final aTraiterReception =
         ref.watch(compteursReceptionProvider).value?.aTraiter ?? 0;
@@ -235,7 +227,6 @@ class _EtatEcranSynchronisation extends ConsumerState<EcranSynchronisation> {
         const SizedBox(height: AppSpacing.md),
         switch (lus) {
           AsyncData(:final value) when _reception => PartieReception(
-            admin: admin,
             surVoirEnvoi: () => setState(() => _reception = false),
             apres: [
               _CarteDescente(bilan: value.derniereDescente),
@@ -247,7 +238,7 @@ class _EtatEcranSynchronisation extends ConsumerState<EcranSynchronisation> {
             children: [
               _Compteurs(etat: value),
               const SizedBox(height: AppSpacing.md),
-              _ATraiter(lignes: value.aTraiter, admin: admin),
+              _ATraiter(lignes: value.aTraiter),
               const SizedBox(height: AppSpacing.md),
               _Anomalies(operations: value.anomalies),
             ],
@@ -604,10 +595,9 @@ class _EtatCarteCoherence extends ConsumerState<_CarteCoherence> {
 /* ==================================================================== */
 
 class _ATraiter extends ConsumerWidget {
-  const _ATraiter({required this.lignes, required this.admin});
+  const _ATraiter({required this.lignes});
 
   final List<OperationATraiter> lignes;
-  final bool admin;
 
   Future<void> _geste(
     BuildContext context,
@@ -635,14 +625,6 @@ class _ATraiter extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _titreSection(TextesEcranSynchronisation.sectionATraiter),
-          if (!admin && lignes.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-              child: _ligneTexte(
-                TextesEcranSynchronisation.reserveAdministrateurs,
-                cle: const Key('sync-ecran-reserve'),
-              ),
-            ),
           ListePaginee<OperationATraiter>(
             elements: lignes,
             prefixeCle: 'sync-a-traiter-pagination',
@@ -758,13 +740,11 @@ class _ATraiter extends ConsumerWidget {
     final o = l.operation;
     final uuid = o.uuidOperation;
     final cause = causeDe(o, motif: motifOperation(o));
-    // « Renvoyer » un refus `droit_manquant` (opération réservée), `dependance_manquante`
-    // ou `erreur_serveur` n'est PAS un geste d'administration : c'est la même écriture,
-    // sous un nouvel uuid d'opération, que le serveur rejuge. Rien ne s'obtient par ce
-    // renvoi qu'un droit accordé depuis, un élément arrivé depuis ou une règle assouplie
-    // au serveur ne donne déjà ; l'utilisateur du poste peut donc relancer SES refus sans
-    // administrateur. « Corriger » (modifier la charge) reste réservé aux administrateurs.
-    final peutRenvoyer = admin || renvoiOuvertATous(o);
+    // Décision du PO du 10/11/2026 : « Renvoyer », « Corriger » et « Débloquer » sont ouverts à
+    // TOUS les rôles — c'est la même écriture, sous un nouvel uuid d'opération, que le serveur
+    // rejuge (il ne juge plus les modules) ; rien ne s'obtient par ces gestes que le serveur
+    // n'accorde déjà. Seuls révoquer, appairer, dissocier et l'adresse du serveur restent
+    // réservés aux administrateurs (écran « Appairage Postes »).
     final Widget action = Wrap(
       alignment: WrapAlignment.end,
       spacing: AppSpacing.xs,
@@ -777,7 +757,7 @@ class _ATraiter extends ConsumerWidget {
           onPressed: detail,
         ),
         switch (o.statut) {
-          StatutOperationSync.rejete when admin => BoutonStandard(
+          StatutOperationSync.rejete => BoutonStandard(
             key: Key('sync-corriger-$uuid'),
             libelle: TextesEcranSynchronisation.corriger,
             compact: true,
@@ -787,19 +767,18 @@ class _ATraiter extends ConsumerWidget {
           _ => const SizedBox.shrink(),
         },
         switch (o.statut) {
-          StatutOperationSync.rejete when peutRenvoyer => BoutonStandard(
+          StatutOperationSync.rejete => BoutonStandard(
             key: Key('sync-renvoyer-$uuid'),
             libelle: TextesEcranSynchronisation.renvoyer,
             compact: true,
             onPressed: renvoyer,
           ),
-          StatutOperationSync.bloque when admin && l.debloquable =>
-            BoutonStandard(
-              key: Key('sync-debloquer-$uuid'),
-              libelle: TextesEcranSynchronisation.debloquer,
-              compact: true,
-              onPressed: debloquer,
-            ),
+          StatutOperationSync.bloque when l.debloquable => BoutonStandard(
+            key: Key('sync-debloquer-$uuid'),
+            libelle: TextesEcranSynchronisation.debloquer,
+            compact: true,
+            onPressed: debloquer,
+          ),
           _ => const SizedBox.shrink(),
         },
       ],

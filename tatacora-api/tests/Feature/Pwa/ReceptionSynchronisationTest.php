@@ -217,23 +217,22 @@ final class ReceptionSynchronisationTest extends TestCase
     }
 
     #[Test]
-    public function seuls_les_administrateurs_et_le_comptable_lisent_et_chaque_geste_exige_son_module(): void
+    public function tous_les_roles_lisent_et_chaque_geste_exige_son_module(): void
     {
         $operation = $this->vente($this->uuid(), remise: 5000);
         $this->pousser([$operation], $this->barman);
         $ligne = Journal::where('uuid_operation', $operation['uuid_operation'])->sole();
 
-        // Rôle non autorisé : rien n'est lisible, chaque geste est un 403.
+        // Décision du PO du 10/11/2026 : « rejouer et voir la synchronisation » sont ouverts à TOUS
+        // les rôles — la page se lit pour chacun, sans la phrase de réserve ; ce que chacun rejoue
+        // reste borné par SES modules (voir plus bas).
         foreach (['gerant', 'receptionniste', 'barman'] as $role) {
             $this->app['auth']->forgetGuards();
             $this->actingAs($this->creerUtilisateur($role));
             Livewire::test(ReceptionSynchronisation::class)
-                ->assertSee('réservés aux Administrateurs et au Comptable')
-                ->assertDontSee('poste-windows-1')
-                ->call('relancer', $ligne->id)->assertForbidden();
-            Livewire::test(ReceptionSynchronisation::class)->call('ouvrirOperation', $ligne->id)->assertForbidden();
-            Livewire::test(ReceptionSynchronisation::class)->set('motifIgnorer', 'x')->call('ignorer')->assertForbidden();
-            Livewire::test(EnvoiSynchronisation::class)->call('voirPoste', 'poste-windows-1')->assertForbidden();
+                ->assertOk()
+                ->assertDontSee('réservés aux Administrateurs et au Comptable');
+            Livewire::test(EnvoiSynchronisation::class)->assertOk();
         }
         $this->assertSame(Journal::A_TRAITER, $ligne->fresh()->traitement);
 
@@ -252,7 +251,7 @@ final class ReceptionSynchronisationTest extends TestCase
     }
 
     #[Test]
-    public function l_onglet_se_choisit_dans_la_page_synchronisation_et_retombe_sur_reception_sans_le_droit(): void
+    public function l_onglet_se_choisit_dans_la_page_synchronisation_pour_tout_role(): void
     {
         // 09/11/2026 : les journaux sont la page « Synchronisation » (ex-onglets de la
         // page des postes appairés).
@@ -267,14 +266,13 @@ final class ReceptionSynchronisationTest extends TestCase
             ->call('changerOnglet', 'nimportequoi')
             ->assertSet('onglet', 'reception');
 
+        // Tout rôle choisit l'onglet (10/11/2026) : les journaux lui sont ouverts.
         $this->app['auth']->forgetGuards();
         $this->actingAs($this->creerUtilisateur('gerant'));
         Livewire::test(Synchronisation::class)
-            ->assertDontSee('onglets-synchronisation', false)
             ->call('changerOnglet', 'envoi')
-            ->assertSet('onglet', 'reception')
-            ->assertDontSeeLivewire(ReceptionSynchronisation::class)
-            ->assertDontSeeLivewire(EnvoiSynchronisation::class);
+            ->assertSet('onglet', 'envoi')
+            ->assertSeeLivewire(EnvoiSynchronisation::class);
     }
 
     #[Test]

@@ -441,6 +441,23 @@ void main() {
       }
     });
 
+    testWidgets('une fenêtre de 1900, 1600 ou 1536 px (1920 à 125 %) garde la '
+        'recherche COMPLÈTE et « Caisse » avec son libellé (constat du PO du '
+        '10/11/2026 : une loupe et un point)', (tester) async {
+      for (final largeur in <double>[1900, 1600, 1536, 1440]) {
+        final d = DispositionBarre.pour(largeur, avecBoutonsFenetre: true);
+        expect(d.rechercheIcone, isFalse, reason: '$largeur px : recherche');
+        expect(d.caisseIcone, isFalse, reason: '$largeur px : caisse');
+        await _monter(
+          tester,
+          controle: _FauxControleFenetre(),
+          taille: Size(largeur, 900),
+        );
+        expect(find.byKey(const Key('recherche-globale')), findsOneWidget);
+        expect(find.byKey(const Key('recherche-globale-icone')), findsNothing);
+      }
+    });
+
     testWidgets('priorité du repli : recherche et caisse en icône, '
         '« Vente » en icône plus bas, logo et synchronisation ensuite', (
       tester,

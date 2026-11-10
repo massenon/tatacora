@@ -60,10 +60,13 @@ abstract final class MesuresFenetre {
 
   /// En dessous : la recherche globale devient une icône (le champ s'ouvre
   /// par-dessus la barre).
-  static const double seuilRechercheIcone = 1560;
+  // 10/11/2026 (PO, capture d'une fenêtre de 1900 px — soit 1536 px logiques à 125 % —
+  // où ne restaient qu'une loupe et un point) : abaissé de 1560 à 1440, le plus bas qui garde
+  // la barre sans débordement dans le pire cas (caisse « Clôturer », exercice autre, login long).
+  static const double seuilRechercheIcone = 1440;
 
   /// En dessous : l'indicateur de caisse devient sa seule pastille.
-  static const double seuilCaisseIcone = 1560;
+  static const double seuilCaisseIcone = 1440;
 
   /// En dessous : le sélecteur d'exercice perd son libellé et son lien « Revenir ».
   static const double seuilExerciceReduit = 1800;
