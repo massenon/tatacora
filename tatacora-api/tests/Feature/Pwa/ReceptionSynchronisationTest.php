@@ -238,7 +238,7 @@ final class ReceptionSynchronisationTest extends TestCase
 
         // Le comptable lit (M5 en lecture) mais n'écrit pas sur M5 : 403 + trace.
         $this->app['auth']->forgetGuards();
-        $comptable = $this->creerUtilisateur('comptable');
+        $comptable = $this->creerUtilisateur('lecteur');
         $this->actingAs($comptable);
         Livewire::test(ReceptionSynchronisation::class)
             ->assertSee('Rejetée')
@@ -298,7 +298,7 @@ final class ReceptionSynchronisationTest extends TestCase
         $this->assertDatabaseCount('demandes_synchronisation', 1);
 
         $this->app['auth']->forgetGuards();
-        $this->actingAs($this->creerUtilisateur('comptable'));
+        $this->actingAs($this->creerUtilisateur('lecteur'));
         Livewire::test(EnvoiSynchronisation::class)
             ->assertSee('poste-bar')
             ->assertDontSee('Redescendre depuis le début</button>', false)

@@ -200,7 +200,7 @@ final class ApprovisionnementReglementTest extends TestCase
     public function un_role_en_lecture_ne_peut_pas_ouvrir_le_reglement(): void
     {
         // `comptable` porte M7 = 'L' : la lecture, jamais l'écriture.
-        $comptable = $this->utilisateur('comptable');
+        $comptable = $this->utilisateur('lecteur');
         $this->assertSame('L', $comptable->niveauSurModule('M7'));
 
         $refusAvant = JournalSecurite::where('type_evenement', 'acces_refuse_rbac')->count();

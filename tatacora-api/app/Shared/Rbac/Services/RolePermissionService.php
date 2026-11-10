@@ -150,14 +150,22 @@ class RolePermissionService
      * Rétablit la matrice du CdCF sur les rôles du SOCLE — jamais ceux
      * ajoutés depuis cet écran (voir l'en-tête).
      *
+     * `$seulement` (10/11/2026) borne le rétablissement à des rôles NOMMÉS du
+     * socle (commande `roles:realigner-socle --role=barman`) ; `null` = tous.
+     *
+     * @param  list<string>|null  $seulement  libellés de rôles du socle
      * @return int le nombre de rôles réellement rétablis
      */
-    public function retablirSocle(): int
+    public function retablirSocle(?array $seulement = null): int
     {
-        return DB::transaction(function (): int {
+        return DB::transaction(function () use ($seulement): int {
             $restaures = 0;
 
             foreach (RolePermissionSeeder::MATRICE as $libelle => $droits) {
+                if ($seulement !== null && ! in_array($libelle, $seulement, true)) {
+                    continue;
+                }
+
                 $role = Role::query()->where('libelle', $libelle)->lockForUpdate()->first();
 
                 if ($role === null) {
@@ -175,6 +183,32 @@ class RolePermissionService
 
             return $restaures;
         });
+    }
+
+    /**
+     * L'ÉCART d'un rôle au socle : `module => [niveau_actuel, niveau_du_socle]`
+     * pour chaque colonne qui diffère ; `[]` si conforme ; `null` si le rôle
+     * n'appartient pas au socle (rôle créé à l'écran).
+     *
+     * @return array<string, array{0: string, 1: string}>|null
+     */
+    public function ecartAuSocle(Role $role): ?array
+    {
+        $matrice = RolePermissionSeeder::MATRICE[$role->libelle] ?? null;
+
+        if ($matrice === null) {
+            return null;
+        }
+
+        $ecart = [];
+        foreach ($matrice as $module => $niveau) {
+            $actuel = $role->niveauSurModule($module);
+            if ($actuel !== $niveau) {
+                $ecart[$module] = [$actuel, $niveau];
+            }
+        }
+
+        return $ecart;
     }
 
     /**

@@ -29,8 +29,9 @@ class RolePermissionSeeder extends Seeder
      *
      * Choix retenu, à réviser par le Product Owner si besoin :
      * `administrateur`/`gerant` en `C` (le geste engage réellement la
-     * caisse) ; `receptionniste` — qui garde `M1 = C` — et `comptable` en
-     * `L` : ils VOIENT l'onglet Annulations et son historique, mais
+     * caisse) ; `receptionniste` — qui garde `M1 = C` — en `L` (le `comptable`
+     * a les MÊMES droits que le `gerant` depuis le 10/11/2026, décision du PO) :
+     * ils VOIENT l'onglet Annulations et son historique, mais
      * n'exécutent pas eux-mêmes un remboursement, qui reste un arbitrage de
      * direction. Tous les autres rôles restent à `-`, comme sur `M1`.
      */
@@ -93,7 +94,7 @@ class RolePermissionSeeder extends Seeder
         'vehicules'      => ['M1'=>'-','M2'=>'-','M3'=>'L','M4'=>'-','M5'=>'-','M6'=>'-','M7'=>'-','M8'=>'C','M9'=>'L','M10'=>'-','M11'=>'L','M12'=>'-','M13'=>'-','M14'=>'L','ROLES'=>'-','PARAM'=>'-','ANNULATIONS'=>'-','PROFIL_NOM'=>'C','PROFIL_TELEPHONE'=>'C','PROFIL_INTITULE'=>'-','SYNCHRO'=>'L','APPAIRAGE'=>'L','IMPORT_EXPORT'=>'L'],
         'guide'          => ['M1'=>'-','M2'=>'-','M3'=>'L','M4'=>'-','M5'=>'-','M6'=>'-','M7'=>'-','M8'=>'L','M9'=>'C','M10'=>'-','M11'=>'-','M12'=>'-','M13'=>'-','M14'=>'-','ROLES'=>'-','PARAM'=>'-','ANNULATIONS'=>'-','PROFIL_NOM'=>'C','PROFIL_TELEPHONE'=>'C','PROFIL_INTITULE'=>'-','SYNCHRO'=>'L','APPAIRAGE'=>'L','IMPORT_EXPORT'=>'L'],
         'rh'             => ['M1'=>'-','M2'=>'-','M3'=>'-','M4'=>'-','M5'=>'-','M6'=>'-','M7'=>'-','M8'=>'-','M9'=>'-','M10'=>'L','M11'=>'L','M12'=>'-','M13'=>'C','M14'=>'L','ROLES'=>'-','PARAM'=>'-','ANNULATIONS'=>'-','PROFIL_NOM'=>'C','PROFIL_TELEPHONE'=>'C','PROFIL_INTITULE'=>'-','SYNCHRO'=>'L','APPAIRAGE'=>'L','IMPORT_EXPORT'=>'L'],
-        'comptable'      => ['M1'=>'L','M2'=>'L','M3'=>'L','M4'=>'L','M5'=>'L','M6'=>'L','M7'=>'L','M8'=>'L','M9'=>'L','M10'=>'C','M11'=>'L','M12'=>'-','M13'=>'L','M14'=>'C','ROLES'=>'-','PARAM'=>'-','ANNULATIONS'=>'L','PROFIL_NOM'=>'C','PROFIL_TELEPHONE'=>'C','PROFIL_INTITULE'=>'-','SYNCHRO'=>'L','APPAIRAGE'=>'L','IMPORT_EXPORT'=>'L'],
+        'comptable'      => ['M1'=>'C','M2'=>'C','M3'=>'C','M4'=>'C','M5'=>'C','M6'=>'C','M7'=>'C','M8'=>'C','M9'=>'C','M10'=>'C','M11'=>'C','M12'=>'C','M13'=>'C','M14'=>'C','ROLES'=>'L','PARAM'=>'L','ANNULATIONS'=>'C','PROFIL_NOM'=>'C','PROFIL_TELEPHONE'=>'C','PROFIL_INTITULE'=>'-','SYNCHRO'=>'L','APPAIRAGE'=>'L','IMPORT_EXPORT'=>'L'],
     ];
 
     public function run(): void

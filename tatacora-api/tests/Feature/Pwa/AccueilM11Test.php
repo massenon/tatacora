@@ -348,7 +348,7 @@ final class AccueilM11Test extends TestCase
     #[Test]
     public function les_raccourcis_d_ecriture_sont_masques_pour_un_role_en_lecture(): void
     {
-        $this->actingAs($this->utilisateur('comptable'));
+        $this->actingAs($this->utilisateur('lecteur'));
 
         $htmlLecture = (string) Livewire::test(Accueil::class)->html();
         $this->assertStringNotContainsString('wire:click="ouvrirReservationRapide"', $htmlLecture);
@@ -606,7 +606,7 @@ final class AccueilM11Test extends TestCase
     #[Test]
     public function un_role_en_lecture_peut_exporter_la_synthese(): void
     {
-        $this->actingAs($this->utilisateur('comptable'));
+        $this->actingAs($this->utilisateur('lecteur'));
 
         $reponse = Livewire::test(Accueil::class)
             ->set('etatFormulaire', 'rapport')

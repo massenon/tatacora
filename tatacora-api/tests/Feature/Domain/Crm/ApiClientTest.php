@@ -190,7 +190,7 @@ final class ApiClientTest extends TestCase
     #[Test]
     public function rg16_un_comptable_consulte_mais_ne_cree_pas(): void
     {
-        Sanctum::actingAs($this->utilisateur('comptable'));
+        Sanctum::actingAs($this->utilisateur('lecteur'));
 
         $this->getJson('/api/v1/crm/clients')->assertOk();
 

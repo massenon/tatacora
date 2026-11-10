@@ -86,7 +86,7 @@ final class ApiReservationTest extends TestCase
     #[Test]
     public function rg16_un_comptable_en_lecture_seule_ne_peut_pas_creer(): void
     {
-        Sanctum::actingAs($this->utilisateur('comptable'));
+        Sanctum::actingAs($this->utilisateur('lecteur'));
 
         $this->postJson('/api/v1/hebergement/reservations', [
             'client_id' => $this->clientId,
@@ -101,7 +101,7 @@ final class ApiReservationTest extends TestCase
     #[Test]
     public function rg16_un_comptable_peut_consulter(): void
     {
-        Sanctum::actingAs($this->utilisateur('comptable'));
+        Sanctum::actingAs($this->utilisateur('lecteur'));
 
         $this->getJson('/api/v1/hebergement/reservations')->assertOk();
     }

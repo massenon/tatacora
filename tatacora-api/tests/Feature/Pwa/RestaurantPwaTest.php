@@ -575,7 +575,7 @@ final class RestaurantPwaTest extends TestCase
     public function un_role_en_lecture_seule_ne_peut_pas_creer_de_plat(): void
     {
         $this->jeuDeDonnees();
-        $comptable = $this->utilisateur('comptable');
+        $comptable = $this->utilisateur('lecteur');
         $this->assertSame('L', $comptable->niveauSurModule('M4'));
 
         $avant = Plat::count();
@@ -843,7 +843,7 @@ final class RestaurantPwaTest extends TestCase
     {
         $this->jeuDeDonnees();
 
-        $comptable = $this->utilisateur('comptable');
+        $comptable = $this->utilisateur('lecteur');
         $this->assertSame('L', $comptable->niveauSurModule('M4'));
 
         $menusAvant = Menu::count();

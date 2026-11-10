@@ -808,7 +808,7 @@ final class PosPwaTest extends TestCase
     public function afficher_les_deux_ecrans_n_ouvre_aucun_panier(): void
     {
         $reservation = $this->reservationEnCours();
-        $comptable = $this->utilisateur('comptable');   // M5 = 'L'
+        $comptable = $this->utilisateur('lecteur');   // M5 = 'L'
 
         $this->actingAs($comptable)->get('/pwa/pos/comptant')->assertOk();
         $this->actingAs($comptable)->get('/pwa/pos/heberges')->assertOk();
@@ -908,7 +908,7 @@ final class PosPwaTest extends TestCase
     #[Test]
     public function un_role_sans_droit_d_ecriture_sur_m5_ne_peut_rien_porter_au_panier(): void
     {
-        $comptable = $this->utilisateur('comptable');   // M5 = 'L'
+        $comptable = $this->utilisateur('lecteur');   // M5 = 'L'
 
         $this->actingAs($comptable);
 
@@ -974,7 +974,7 @@ final class PosPwaTest extends TestCase
             ->call('encaisser');
 
         $vente = Vente::firstOrFail();
-        $comptable = $this->utilisateur('comptable');   // M5 = 'L'
+        $comptable = $this->utilisateur('lecteur');   // M5 = 'L'
 
         // 1. Il ATTEINT l'ecran, et le bouton d'export unique y est rendu.
         //

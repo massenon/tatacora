@@ -176,7 +176,7 @@ final class ReservationsEcritureTest extends TestCase
     {
         // `comptable` porte `M1 = 'L'` : la lecture d'un module ne donne
         // aucun droit d'y écrire.
-        $comptable = $this->utilisateur('comptable');
+        $comptable = $this->utilisateur('lecteur');
         $this->assertSame('L', $comptable->niveauSurModule('M1'));
 
         $this->assertLOuvertureEstRefuseeEtTracee(
@@ -520,7 +520,7 @@ final class ReservationsEcritureTest extends TestCase
     #[Test]
     public function un_role_sans_droit_n_ecrit_rien_et_le_refus_est_trace(): void
     {
-        $comptable = $this->utilisateur('comptable');
+        $comptable = $this->utilisateur('lecteur');
         $this->actingAs($comptable);
 
         Livewire::test(Reservations::class)
@@ -568,7 +568,7 @@ final class ReservationsEcritureTest extends TestCase
         // 1er niveau du RBAC — il ne protège rien (les cas ci-dessus le
         // prouvent côté serveur), mais un bouton offert puis refusé ferait
         // perdre la saisie.
-        $this->actingAs($this->utilisateur('comptable'));
+        $this->actingAs($this->utilisateur('lecteur'));
         $htmlLecture = (string) Livewire::test(Reservations::class)->html();
         $this->assertStringNotContainsString('wire:click="ouvrirCreationReservation"', $htmlLecture);
 

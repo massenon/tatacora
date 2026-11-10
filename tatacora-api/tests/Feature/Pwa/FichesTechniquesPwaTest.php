@@ -362,7 +362,7 @@ final class FichesTechniquesPwaTest extends TestCase
     {
         $this->jeuDeDonnees();
 
-        $comptable = $this->utilisateur('comptable');
+        $comptable = $this->utilisateur('lecteur');
         $this->assertSame('L', $comptable->niveauSurModule('M4'));
 
         $lignesAvant = DB::table('ingredients_recette')->count();

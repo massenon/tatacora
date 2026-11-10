@@ -180,9 +180,9 @@ final class FacturationEcritureTest extends TestCase
     {
         // `comptable` porte `M2 = 'L'` : il consulte le registre, il n'écrit
         // pas dedans. C'est le cas le plus utile — un rôle qui VOIT l'écran.
-        $this->assertSame('L', Role::where('libelle', 'comptable')->firstOrFail()->niveauSurModule('M2'));
+        $this->assertSame('L', Role::where('libelle', 'lecteur')->firstOrFail()->niveauSurModule('M2'));
 
-        $this->actingAs($this->utilisateur('comptable'));
+        $this->actingAs($this->utilisateur('lecteur'));
         $facture = $this->facture();
 
         Livewire::test(Facturation::class)

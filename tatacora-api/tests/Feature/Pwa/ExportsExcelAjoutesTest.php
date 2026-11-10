@@ -96,7 +96,7 @@ final class ExportsExcelAjoutesTest extends TestCase
     {
         // `comptable` porte `M3 = 'L'` : la lecture seule doit suffire —
         // l'export ne produit rien de neuf.
-        $comptable = $this->utilisateur('comptable');
+        $comptable = $this->utilisateur('lecteur');
         $this->assertSame('L', $comptable->niveauSurModule('M3'));
         $this->actingAs($comptable);
 
@@ -133,7 +133,7 @@ final class ExportsExcelAjoutesTest extends TestCase
     #[Test]
     public function clients_genererexport_produit_le_pdf_du_registre(): void
     {
-        $comptable = $this->utilisateur('comptable');
+        $comptable = $this->utilisateur('lecteur');
         $this->actingAs($comptable);
 
         $client = Client::create([
@@ -169,7 +169,7 @@ final class ExportsExcelAjoutesTest extends TestCase
     #[Test]
     public function clients_genererexport_refuse_une_liste_vide(): void
     {
-        $this->actingAs($this->utilisateur('comptable'));
+        $this->actingAs($this->utilisateur('lecteur'));
 
         Livewire::test(ClientsCreances::class)
             ->set('recherche', 'aucun-client-ne-porte-ce-nom')
@@ -180,7 +180,7 @@ final class ExportsExcelAjoutesTest extends TestCase
     #[Test]
     public function clients_export_refuse_les_onglets_hors_liste_des_clients(): void
     {
-        $this->actingAs($this->utilisateur('comptable'));
+        $this->actingAs($this->utilisateur('lecteur'));
 
         // Le refus tombe DÈS L'OUVERTURE : ouvrir une modale qui refusera
         // toujours de générer laisserait l'utilisateur deviner pourquoi.
@@ -233,7 +233,7 @@ final class ExportsExcelAjoutesTest extends TestCase
     public function facturation_genererexport_produit_le_registre_excel(): void
     {
         // `comptable` porte `M2 = 'L'`.
-        $comptable = $this->utilisateur('comptable');
+        $comptable = $this->utilisateur('lecteur');
         $this->assertSame('L', $comptable->niveauSurModule('M2'));
         $this->actingAs($comptable);
 
@@ -273,7 +273,7 @@ final class ExportsExcelAjoutesTest extends TestCase
     #[Test]
     public function facturation_genererexport_produit_le_pdf_du_registre(): void
     {
-        $comptable = $this->utilisateur('comptable');
+        $comptable = $this->utilisateur('lecteur');
         $this->actingAs($comptable);
 
         $client = Client::create([
@@ -306,7 +306,7 @@ final class ExportsExcelAjoutesTest extends TestCase
     #[Test]
     public function facturation_genererexport_refuse_une_liste_vide(): void
     {
-        $this->actingAs($this->utilisateur('comptable'));
+        $this->actingAs($this->utilisateur('lecteur'));
 
         Livewire::test(Facturation::class)
             ->set('recherche', 'MECEF-INEXISTANT')
@@ -364,7 +364,7 @@ final class ExportsExcelAjoutesTest extends TestCase
     public function hub_exporterexcel_refuse_les_autres_onglets(): void
     {
         $exercice = $this->comptabiliteJeu();
-        $this->actingAs($this->utilisateur('comptable'));
+        $this->actingAs($this->utilisateur('lecteur'));
 
         Livewire::test(Hub::class, ['exercice' => $exercice->id])
             ->set('exerciceId', $exercice->id)
@@ -377,7 +377,7 @@ final class ExportsExcelAjoutesTest extends TestCase
     public function hub_exporterexcel_refuse_sans_exercice_choisi(): void
     {
         $this->comptabiliteJeu();
-        $this->actingAs($this->utilisateur('comptable'));
+        $this->actingAs($this->utilisateur('lecteur'));
 
         // Depuis le sélecteur d'exercice global (20/10/2026), l'écran a
         // toujours un exercice par défaut : le refus porte sur un exercice

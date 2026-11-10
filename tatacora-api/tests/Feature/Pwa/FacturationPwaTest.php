@@ -79,7 +79,7 @@ final class FacturationPwaTest extends TestCase
         $this->assertSame('-', $barman->niveauSurModule('M2'));
         $this->actingAs($barman)->get('/pwa/facturation')->assertForbidden();
 
-        $comptable = $this->utilisateur('comptable');
+        $comptable = $this->utilisateur('lecteur');
         $this->assertSame('L', $comptable->niveauSurModule('M2'));
         $this->actingAs($comptable)->get('/pwa/facturation')->assertOk();
     }

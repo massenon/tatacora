@@ -276,7 +276,7 @@ final class AchatsEcritureFournisseurTest extends TestCase
     #[Test]
     public function la_modale_ne_s_ouvre_pas_pour_un_role_en_lecture_et_le_refus_est_trace(): void
     {
-        $comptable = $this->utilisateur('comptable');
+        $comptable = $this->utilisateur('lecteur');
         $this->assertSame(
             'L',
             $comptable->niveauSurModule('M7'),

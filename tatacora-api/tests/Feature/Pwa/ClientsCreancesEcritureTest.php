@@ -132,7 +132,7 @@ final class ClientsCreancesEcritureTest extends TestCase
 
         // `comptable` porte M3 = 'L' ET M2 = 'L' : la lecture, jamais
         // l'écriture — les deux droits exigés par cette action (PA-65).
-        $comptable = $this->utilisateur('comptable');
+        $comptable = $this->utilisateur('lecteur');
         $this->assertSame('L', $comptable->niveauSurModule('M3'));
         $this->assertSame('L', $comptable->niveauSurModule('M2'));
 
