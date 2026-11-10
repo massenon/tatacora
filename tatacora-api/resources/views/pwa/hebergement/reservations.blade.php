@@ -440,7 +440,7 @@
                           <p class="text-[11px] text-slate-400">{{ $ligne->client?->telephone ?? $tiret }}</p></td>
                         <td class="px-4 py-2.5 whitespace-nowrap">{{ $ligne->date_arrivee->format('d/m/Y') }} → {{ $ligne->date_depart->format('d/m/Y') }}</td>
                         <td class="px-4 py-2.5 text-right">{{ $ligne->nombreNuitees() }}</td>
-                        <td class="px-4 py-2.5 text-[12px] text-slate-600">{{ $ligne->unite === null ? $tiret : $ligne->unite->numero.' — '.($ligne->unite->categorie?->libelle ?? $tiret) }}</td>
+                        <td class="px-4 py-2.5 text-[12px] text-slate-600">{{ $ligne->unite === null ? $tiret : (count($ligne->uniteIds()) > 1 ? $ligne->numerosDesChambres() : $ligne->unite->numero.' — '.($ligne->unite->categorie?->libelle ?? $tiret)) }}</td>
                         <td class="px-4 py-2.5 text-[11px] text-slate-500">{{ __('hebergement_pwa.reservations.service_hebergement') }}</td>
                         @php
                           // TOTAL = sous-total − remise ; RESTE DÛ = total − acompte, jamais négatif — la
@@ -603,6 +603,11 @@
           <div class="border border-slate-200 rounded-lg p-3.5" style="border-left:3px solid {{ \App\Pwa\Support\CouleursServices::texte('hebergement') }}">
             <div class="flex items-center justify-between mb-2.5">
               <span class="text-[15px] font-bold" style="color:{{ \App\Pwa\Support\CouleursServices::texte('hebergement') }}">{{ __('accueil_pwa.services.hebergement') }}</span>
+              <button type="button" wire:click="ajouterChambre" data-ajouter-chambre
+                      class="text-[13px] font-semibold flex items-center gap-1" style="color:var(--navy)">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path stroke-linecap="round" d="M12 5v14M5 12h14"/></svg>
+                {{ __('pwa.reservations.ligne_ajouter') }} {{ \App\Pwa\Support\CouleursServices::labelLigne('hebergement') }}
+              </button>
             </div>
             <p class="text-[12px] mb-2 px-2.5 py-1.5 rounded-lg" style="background:#F1F5F9;color:#334155">
               @if (\App\Pwa\Support\FicheReservationServices::nuits($rDateArrivee, $rDateDepart) === null)
@@ -623,6 +628,23 @@
               <span class="font-mono-tatacora text-[15px] font-semibold w-24 text-right shrink-0" style="color:{{ \App\Pwa\Support\CouleursServices::texte('hebergement') }}">{{ \App\Pwa\Support\MontantFcfa::format(\App\Pwa\Support\FicheReservationServices::sousTotalHebergement($unites, $rUniteId, $rDateArrivee, $rDateDepart)) }}</span>
             </div>
             @error('rUniteId') <p class="message-erreur text-[12px] text-red-600 mt-1">{{ $message }}</p> @enderror
+            {{-- Chambres SUPPLÉMENTAIRES (multi-chambres, 10/11/2026) : une ligne par chambre, même
+                 markup que la première (sélecteur, nuits en lecture seule, montant, retrait). --}}
+            @foreach ($rChambres as $indexChambre => $chambre)
+              <div class="flex items-center gap-2 mt-2" data-chambre-supplementaire>
+                <select wire:model.live="rChambres.{{ $indexChambre }}.unite_id" class="champ flex-1 border border-slate-200 rounded-lg px-2.5 py-2 text-[15px] bg-white">
+                  <option value="">{{ __('pwa.reservations.champ_unite_invite') }}</option>
+                  @foreach ($unites as $unite)
+                    @continue($unite->id === $rUniteId || collect($rChambres)->where('unite_id', $unite->id)->isNotEmpty() && $unite->id !== ($chambre['unite_id'] ?? ''))
+                    <option value="{{ $unite->id }}">{{ $unite->numero }} — {{ $unite->categorie?->libelle ?? $tiret }} — {{ \App\Pwa\Support\MontantFcfa::format((string) ($unite->categorie?->tarif_base ?? '0')) }}</option>
+                  @endforeach
+                </select>
+                <input type="text" value="{{ \App\Pwa\Support\FicheReservationServices::nuits($rDateArrivee, $rDateDepart) ?? $tiret }}" title="{{ __('pwa.reservations.qte_nuits') }}" readonly tabindex="-1"
+                       class="w-20 border border-slate-200 rounded-lg px-2 py-2 text-[15px] text-center bg-slate-100 text-slate-600 font-semibold cursor-not-allowed">
+                <span class="font-mono-tatacora text-[15px] font-semibold w-24 text-right shrink-0" style="color:{{ \App\Pwa\Support\CouleursServices::texte('hebergement') }}">{{ \App\Pwa\Support\MontantFcfa::format(\App\Pwa\Support\FicheReservationServices::sousTotalHebergement($unites, ($chambre['unite_id'] ?? '') === '' ? null : $chambre['unite_id'], $rDateArrivee, $rDateDepart)) }}</span>
+                <button type="button" wire:click="retirerChambre({{ $indexChambre }})" class="text-slate-400 hover:text-red-600" aria-label="{{ __('pwa.reservations.ligne_retirer') }}">✕</button>
+              </div>
+            @endforeach
             <p class="text-right text-[13px] text-slate-500 mt-2 pt-2 border-t border-slate-100">
               {{ __('pwa.reservations.sous_total_service', ['service' => __('accueil_pwa.services.hebergement')]) }}
               <span class="font-mono-tatacora font-bold" style="color:{{ \App\Pwa\Support\CouleursServices::texte('hebergement') }}">{{ \App\Pwa\Support\MontantFcfa::format(\App\Pwa\Support\FicheReservationServices::sousTotalHebergement($unites, $rUniteId, $rDateArrivee, $rDateDepart)) }}</span>

@@ -83,6 +83,15 @@ class ReservationService
                 // à payer ». Un appelant qui envoie déjà son tarif (la fiche,
                 // un lot Flutter futur) garde le sien : figé une fois, jamais
                 // réécrit.
+                // Multi-chambres (10/11/2026) : la chambre principale ne doit pas non plus être
+                // l'une des chambres SUPPLÉMENTAIRES d'une autre réservation.
+                $this->refuserSiChambreOccupee(
+                    [(string) $donnees['unite_id']],
+                    (string) $donnees['date_arrivee'],
+                    (string) $donnees['date_depart'],
+                    null,
+                );
+
                 if (! array_key_exists('tarif_nuit', $donnees) || $donnees['tarif_nuit'] === null || $donnees['tarif_nuit'] === '') {
                     $donnees['tarif_nuit'] = \App\Domain\Hebergement\Models\UniteHebergement::with('categorie')
                         ->findOrFail((string) $donnees['unite_id'])
@@ -169,7 +178,16 @@ class ReservationService
             colonneFin: 'date_depart',
             debut: $arrivee,
             fin: $depart,
-            ecriture: function () use ($reservation, $donnees): Reservation {
+            ecriture: function () use ($reservation, $donnees, $uniteId, $arrivee, $depart): Reservation {
+                // Multi-chambres : la chambre principale (éventuellement changée) ET toutes les
+                // chambres supplémentaires doivent être libres sur les nouvelles dates.
+                $this->refuserSiChambreOccupee(
+                    [$uniteId, ...$this->chambresSupplementaires($reservation)],
+                    $arrivee,
+                    $depart,
+                    $reservation->id,
+                );
+
                 $reservation->update($donnees);
 
                 return $reservation->refresh();
@@ -218,6 +236,9 @@ class ReservationService
         'bar' => ['table' => 'cartes_boisson', 'libelle' => ['libelle'], 'prix' => 'prix_vente'],
         'tourisme' => ['table' => 'circuits', 'libelle' => ['nom'], 'prix' => 'prix'],
         'vehicule' => ['table' => 'vehicules', 'libelle' => ['categorie', 'immatriculation'], 'prix' => 'tarif_jour'],
+        // Chambres SUPPLÉMENTAIRES (10/11/2026) : la source est l'unité ; le libellé et le prix
+        // (tarif de nuit de la catégorie) sont composés à part, voir `remplacerLignes()`.
+        'hebergement' => ['table' => 'unites_hebergement', 'libelle' => ['numero'], 'prix' => 'numero'],
     ];
 
     /**
@@ -248,6 +269,8 @@ class ReservationService
             throw new \InvalidArgumentException(__('hebergement.annulee_non_modifiable'));
         }
 
+        $this->verifierChambresDesLignes($reservation, $lignes);
+
         return \Illuminate\Support\Facades\DB::transaction(function () use ($reservation, $lignes): Reservation {
             $reservation->lignes()->delete();
 
@@ -265,6 +288,25 @@ class ReservationService
 
                 if ($source === null) {
                     throw new \InvalidArgumentException(__('hebergement.ligne_source_inconnue', ['service' => $service]));
+                }
+
+                if ($service === \App\Domain\Hebergement\Models\LigneReservation::CHAMBRE) {
+                    // Une chambre supplémentaire : tarif de nuit de SA catégorie, libellé
+                    // « numéro — catégorie », quantité = les nuitées de la fiche (jamais saisie).
+                    $categorie = \Illuminate\Support\Facades\DB::table('categories_hebergement')->where('id', $source->categorie_id)->first();
+                    $prixNuit = (string) ($categorie->tarif_base ?? '0');
+                    $nuits = (string) $reservation->nombreNuitees();
+
+                    $reservation->lignes()->create([
+                        'service' => $service,
+                        'source_id' => (string) $ligne['source_id'],
+                        'libelle' => trim((string) $source->numero.' — '.(string) ($categorie->libelle ?? '')),
+                        'quantite' => $nuits,
+                        'prix_unitaire' => $prixNuit,
+                        'montant' => bcmul($nuits, $prixNuit, 2),
+                    ]);
+
+                    continue;
                 }
 
                 $quantite = (string) $ligne['quantite'];
@@ -295,6 +337,7 @@ class ReservationService
             // reste de la fiche ne ferait jamais descendre la réservation aux postes
             // (09/11/2026 : un poste voyait 75 000, l'autre 80 000 pour la même fiche).
             $reservation->touch();
+            $this->verifierChambresLibres($reservation);
 
             return $reservation->refresh()->load('lignes');
         });
@@ -320,6 +363,8 @@ class ReservationService
         if (! $reservation->estActive()) {
             throw new \InvalidArgumentException(__('hebergement.annulee_non_modifiable'));
         }
+
+        $this->verifierChambresDesLignes($reservation, $lignes);
 
         return \Illuminate\Support\Facades\DB::transaction(function () use ($reservation, $lignes): Reservation {
             $reservation->lignes()->delete();
@@ -358,8 +403,126 @@ class ReservationService
             }
 
             $reservation->touch();
+            $this->verifierChambresLibres($reservation);
 
             return $reservation->refresh()->load('lignes');
         });
+    }
+    // =====================================================================
+    // Réservation MULTI-CHAMBRES (décision du PO du 10/11/2026)
+    // =====================================================================
+
+    /**
+     * Les chambres SUPPLÉMENTAIRES d'une réservation (la principale vit sur `unite_id`) : les
+     * `source_id` de ses lignes de service `hebergement`.
+     *
+     * @return list<string>
+     */
+    public function chambresSupplementaires(Reservation $reservation): array
+    {
+        return $reservation->lignes()
+            ->where('service', \App\Domain\Hebergement\Models\LigneReservation::CHAMBRE)
+            ->pluck('source_id')
+            ->map(static fn ($id): string => (string) $id)
+            ->all();
+    }
+
+    /**
+     * Refuse si UNE des chambres est déjà prise sur [arrivée, départ[ — soit comme chambre
+     * principale (`reservations.unite_id`), soit comme chambre supplémentaire (ligne
+     * `hebergement`) d'une réservation active. Les unités sont verrouillées dans l'ordre de
+     * leur identifiant (jamais deux verrous croisés), et le message dit QUELLE chambre est prise.
+     *
+     * @param  list<string>  $uniteIds
+     *
+     * @throws \App\Shared\Integrite\Exceptions\ChevauchementDetecteException
+     */
+    public function refuserSiChambreOccupee(array $uniteIds, string $arrivee, string $depart, ?string $exclureReservationId): void
+    {
+        $uniteIds = array_values(array_unique($uniteIds));
+        sort($uniteIds);
+
+        foreach ($uniteIds as $uniteId) {
+            \Illuminate\Support\Facades\DB::table('unites_hebergement')->where('id', $uniteId)->lockForUpdate()->first();
+
+            $conflits = \Illuminate\Support\Facades\DB::table('reservations')
+                ->whereNot('statut', 'annulee')
+                ->when($exclureReservationId !== null, fn ($q) => $q->where('id', '!=', $exclureReservationId))
+                ->where('date_arrivee', '<', $depart)
+                ->where('date_depart', '>', $arrivee)
+                ->where(function ($q) use ($uniteId): void {
+                    $q->where('unite_id', $uniteId)
+                        ->orWhereExists(function ($sous) use ($uniteId): void {
+                            $sous->select(\Illuminate\Support\Facades\DB::raw(1))
+                                ->from('lignes_reservation')
+                                ->whereColumn('lignes_reservation.reservation_id', 'reservations.id')
+                                ->where('lignes_reservation.service', \App\Domain\Hebergement\Models\LigneReservation::CHAMBRE)
+                                ->where('lignes_reservation.source_id', $uniteId);
+                        });
+                })
+                ->pluck('id')
+                ->map(static fn ($id): string => (string) $id)
+                ->all();
+
+            if ($conflits !== []) {
+                $numero = (string) (\Illuminate\Support\Facades\DB::table('unites_hebergement')->where('id', $uniteId)->value('numero') ?? $uniteId);
+
+                throw new \App\Shared\Integrite\Exceptions\ChevauchementDetecteException(
+                    __('hebergement.chambre_occupee', ['unite' => $numero]),
+                    $uniteId,
+                    $conflits,
+                );
+            }
+        }
+    }
+
+    /**
+     * Les lignes `hebergement` d'un lot de lignes : au moins… aucune règle de nombre (la chambre
+     * principale existe déjà) ; jamais deux fois la même chambre, jamais la chambre principale
+     * redite. Refus nommé.
+     *
+     * @param  list<array<string, mixed>>  $lignes
+     *
+     * @throws \InvalidArgumentException
+     */
+    private function verifierChambresDesLignes(Reservation $reservation, array $lignes): void
+    {
+        $vues = [(string) $reservation->unite_id => true];
+
+        foreach ($lignes as $ligne) {
+            if ((string) $ligne['service'] !== \App\Domain\Hebergement\Models\LigneReservation::CHAMBRE) {
+                continue;
+            }
+
+            $id = (string) $ligne['source_id'];
+
+            if (isset($vues[$id])) {
+                $numero = (string) (\Illuminate\Support\Facades\DB::table('unites_hebergement')->where('id', $id)->value('numero') ?? $id);
+
+                throw new \InvalidArgumentException(__('hebergement.chambre_en_double', ['unite' => $numero]));
+            }
+
+            $vues[$id] = true;
+        }
+    }
+
+    /**
+     * Après remplacement des lignes : les chambres supplémentaires doivent être LIBRES sur les
+     * dates de la fiche (hors elle-même). Appelée DANS la transaction de remplacement.
+     */
+    private function verifierChambresLibres(Reservation $reservation): void
+    {
+        $supplementaires = $this->chambresSupplementaires($reservation);
+
+        if ($supplementaires === []) {
+            return;
+        }
+
+        $this->refuserSiChambreOccupee(
+            $supplementaires,
+            $reservation->date_arrivee->toDateString(),
+            $reservation->date_depart->toDateString(),
+            $reservation->id,
+        );
     }
 }

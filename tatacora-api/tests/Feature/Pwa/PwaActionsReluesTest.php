@@ -683,6 +683,9 @@ final class PwaActionsReluesTest extends TestCase
             // `M1 = C` en toutes lettres.
             'basculerServiceFiche',
             'ajouterLigneFiche',
+            // Multi-chambres (10/11/2026) : état du formulaire, M1 = C exigé, rien n'est écrit en base.
+            'ajouterChambre',
+            'retirerChambre',
             'retirerLigneFiche',
             'annulerReservation',
             'confirmerAnnulation',

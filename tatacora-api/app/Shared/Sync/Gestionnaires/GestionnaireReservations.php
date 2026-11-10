@@ -102,6 +102,9 @@ final class GestionnaireReservations extends GestionnaireAbstrait
         'bar' => 'cartes_boisson',
         'tourisme' => 'circuits',
         'vehicule' => 'vehicules',
+        // Chambres SUPPLÉMENTAIRES d'une réservation multi-chambres (10/11/2026) : la source est
+        // l'unité d'hébergement ; la première chambre reste dans `unite_id`.
+        'hebergement' => 'unites_hebergement',
     ];
 
     /** Les champs d'une ANNULATION. */

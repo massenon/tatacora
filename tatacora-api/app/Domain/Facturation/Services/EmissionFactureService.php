@@ -43,6 +43,21 @@ class EmissionFactureService
 
         return DB::transaction(function () use ($reservation, $prixUnitaire, $acheteurIfu, $acheteurNom) {
             $nuitees = (string) $reservation->nombreNuitees();
+
+            // Réservation MULTI-CHAMBRES (10/11/2026) : la ligne d'hébergement porte TOUTES les
+            // chambres — le tarif de nuit facturé est la somme des tarifs figés de chaque
+            // chambre (la principale : `$prixUnitaire` ; les suivantes : leur ligne
+            // `hebergement`), le libellé les nomme toutes.
+            $chambresSupplementaires = $reservation->lignes()
+                ->where('service', \App\Domain\Hebergement\Models\LigneReservation::CHAMBRE)
+                ->get();
+            $numeros = [(string) $reservation->unite->numero];
+
+            foreach ($chambresSupplementaires as $chambre) {
+                $prixUnitaire = bcadd($prixUnitaire, (string) $chambre->prix_unitaire, self::PRECISION);
+                $numeros[] = (string) (DB::table('unites_hebergement')->where('id', $chambre->source_id)->value('numero') ?? $chambre->libelle);
+            }
+
             $montantCatalogue = bcmul($nuitees, $prixUnitaire, self::PRECISION);
 
             // Ventilation par le service de TVA — l'émission ne décide jamais
@@ -69,10 +84,10 @@ class EmissionFactureService
                 'source_module' => 'M1',
                 'source_id' => $reservation->id,
                 'libelle' => sprintf(
-                    'Hébergement — unité %s, du %s au %s',
+                    count($numeros) > 1 ? 'Hébergement — unités %s, du %s au %s' : 'Hébergement — unité %s, du %s au %s',
                     // `unite_id` est NOT NULL avec FK RESTRICT : la relation
                     // ne peut pas être absente sur une réservation persistée.
-                    $reservation->unite->numero,
+                    implode(', ', $numeros),
                     $reservation->date_arrivee->toDateString(),
                     $reservation->date_depart->toDateString(),
                 ),
