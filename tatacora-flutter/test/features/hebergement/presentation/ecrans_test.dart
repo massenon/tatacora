@@ -1160,6 +1160,101 @@ void main() {
     );
 
     testWidgets(
+      'DEBUG PO 10/11/2026 : rouvrir une réservation multi-chambres avec un service '
+      'bar rend TOUS les champs REMPLIS (chambres, boisson) — rien à ressélectionner',
+      (tester) async {
+        await db
+            .into(db.unitesHebergementLocal)
+            .insert(
+              UnitesHebergementLocalCompanion.insert(
+                id: 'u-bng-02',
+                categorieId: 'cat-1',
+                numero: 'BNG-02',
+                statut: 'libre',
+              ),
+            );
+        await db
+            .into(db.cartesBoissonLocal)
+            .insert(
+              CartesBoissonLocalCompanion.insert(
+                id: 'b-cafe',
+                articleId: 'art-cafe',
+                libelle: 'Café expresso',
+                categorie: 'maison',
+                prixVente: 1000,
+              ),
+            );
+        await depot.enregistrer(
+          Reservation(
+            id: 'res-mc',
+            reference: 'LOC-MC',
+            clientId: 'cli-comptoir',
+            clientNom: 'Comptoir',
+            uniteId: uniteId,
+            periode: periode(10, 12),
+            tarifNuit: 28000,
+            statut: StatutReservation.confirmee,
+            statutSynchronisation: StatutSynchronisation.synchronise,
+            creeeLe: DateTime(2026, 8, 1),
+            lignes: [
+              LigneService(
+                id: 'l-h1',
+                service: ServiceReservation.hebergement,
+                itemId: uniteId,
+                libelle: 'Bungalow (BNG-01)',
+                prixUnitaire: 28000,
+                quantite: 2,
+              ),
+              LigneService(
+                id: 'l-h2',
+                service: ServiceReservation.hebergement,
+                itemId: 'u-bng-02',
+                libelle: 'Bungalow (BNG-02)',
+                prixUnitaire: 28000,
+                quantite: 2,
+              ),
+              LigneService(
+                id: 'l-b1',
+                service: ServiceReservation.bar,
+                itemId: 'b-cafe',
+                libelle: 'Café expresso',
+                prixUnitaire: 1000,
+                quantite: 1,
+              ),
+            ],
+          ),
+        );
+        await monter(
+          tester,
+          const FicheReservation(reservationId: 'res-mc'),
+          periodeInitiale: periode(1, 2),
+        );
+
+        // Chaque ligne affiche SON choix (jamais l'invite « Choisir… »).
+        expect(find.textContaining('BNG-01'), findsWidgets);
+        expect(find.textContaining('BNG-02'), findsWidgets);
+        expect(find.textContaining('Café expresso'), findsWidgets);
+        expect(find.text('Choisir une unité…'), findsNothing);
+        expect(find.text('Choisissez un élément du catalogue'), findsNothing);
+
+        // Enregistrer SANS rien toucher ne perd aucune ligne.
+        final bouton = find.byKey(const Key('bouton-enregistrer'));
+        await tester.ensureVisible(bouton);
+        await tester.pumpAndSettle();
+        await tester.tap(bouton);
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('bouton-plus-tard')));
+        await tester.pumpAndSettle();
+        final relue = await depot.parId('res-mc');
+        expect(relue!.lignes.map((l) => l.itemId).toSet(), {
+          uniteId,
+          'u-bng-02',
+          'b-cafe',
+        });
+      },
+    );
+
+    testWidgets(
       'sa propre chambre reste retenue, sans conflit avec elle-même',
       (tester) async {
         // LE cas qui commande tout : sans exclusion, la chambre apparaîtrait

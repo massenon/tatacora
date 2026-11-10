@@ -259,6 +259,14 @@ class VueCarteReservation extends ConsumerWidget {
     );
   }
 
+  /// Les chambres SUPPLÉMENTAIRES d'une réservation multi-chambres (10/11/2026, PO) : la carte
+  /// les dit toutes, pas seulement la principale (`unite_id`).
+  List<String> get _autresChambres => [
+    for (final l in _r.lignes)
+      if (l.service == ServiceReservation.hebergement && l.itemId != _r.uniteId)
+        l.libelle,
+  ];
+
   /// « Unité : BNG-01 — Bungalow » — la vue, l.229-230.
   Widget _unite(TextTheme textes) {
     final unite = carte.unite;
@@ -270,7 +278,8 @@ class VueCarteReservation extends ConsumerWidget {
         border: Border(top: BorderSide(color: AppColors.neutre200)),
       ),
       child: Text(
-        'Unité : ${unite?.numero ?? '—'} — ${unite?.categorieLibelle ?? '—'}',
+        'Unité : ${unite?.numero ?? '—'} — ${unite?.categorieLibelle ?? '—'}'
+        '${_autresChambres.isEmpty ? '' : ' + ${_autresChambres.join(', ')}'}',
         key: Key('unite-${_r.id}'),
         style: textes.labelSmall?.copyWith(color: AppColors.neutre500),
       ),

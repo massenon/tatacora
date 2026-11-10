@@ -231,7 +231,7 @@
                 </div>
 
                 <div class="space-y-1 text-[13px] text-slate-500 border-t border-slate-100 pt-2.5">
-                  <p>{{ __('pwa.reservations.unite') }} : <strong class="text-slate-700">{{ $reservation->unite?->numero ?? $tiret }}</strong>
+                  <p>{{ __('pwa.reservations.unite') }} : <strong class="text-slate-700">{{ count($reservation->uniteIds()) > 1 ? $reservation->numerosDesChambres() : ($reservation->unite?->numero ?? $tiret) }}</strong>
                      — {{ $reservation->unite?->categorie?->libelle ?? $tiret }}</p>
                 </div>
 
@@ -941,7 +941,7 @@
                   largeur="480px"
                   fermer="$set('detailId', null)">
       <dl class="text-[13px] space-y-2">
-        <div class="flex justify-between"><dt class="text-slate-400">{{ __('pwa.reservations.champ_unite') }}</dt><dd class="font-semibold">{{ $detail->unite?->numero ?? $tiret }}</dd></div>
+        <div class="flex justify-between"><dt class="text-slate-400">{{ __('pwa.reservations.champ_unite') }}</dt><dd class="font-semibold">{{ count($detail->uniteIds()) > 1 ? $detail->numerosDesChambres() : ($detail->unite?->numero ?? $tiret) }}</dd></div>
         <div class="flex justify-between"><dt class="text-slate-400">{{ __('pwa.reservations.champ_arrivee') }}</dt><dd class="font-semibold">{{ $detail->date_arrivee->format('d/m/Y') }}</dd></div>
         <div class="flex justify-between"><dt class="text-slate-400">{{ __('pwa.reservations.champ_depart') }}</dt><dd class="font-semibold">{{ $detail->date_depart->format('d/m/Y') }}</dd></div>
         <div class="flex justify-between"><dt class="text-slate-400">{{ __('pwa.reservations.hist_col_nuits') }}</dt><dd class="font-semibold">{{ $detail->nombreNuitees() }}</dd></div>

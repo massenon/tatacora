@@ -2154,3 +2154,10 @@ Décision du PO (« ça ne doit pas refuser à la vente ») : après « un plat 
 
 **Preuves.** PHP `ReservationMultiChambresTest` (9 cas : total, refus nommé, doublon, disponibilité/planning, arrivée/départ, annulation, modification, écran) ; Flutter `reservation_multi_chambres_test`, `modifier_reservation_test`, `ecrans_test`, et le cas 7 de `reservations_deux_postes_serveur_reel_test` contre le VRAI serveur. **À appliquer en production : `php artisan migrate --force`** (migration `2026_11_10_100000`).
 
+
+## 10/11/2026 — Tâche Q : cartes multi-chambres, occupation, test de réouverture
+
+- **Cartes de réservation** (poste `carte_reservation.dart`, web `reservations.blade.php` carte + détail) : toutes les chambres d'une réservation multi-chambres sont dites (« Unité : BNG-01 — Bungalow + Bungalow (BNG-02) » au poste ; `numerosDesChambres()` au web).
+- **Taux d'occupation du serveur** (`TableauDeBordService::tauxOccupation`) : chaque chambre SUPPLÉMENTAIRE (ligne `hebergement` ≠ `unite_id`) compte ses nuits, comme le poste (`nuiteesVendues`).
+- **« Voir le détail »** : déjà inconditionnel (jamais sous droit d'écriture) sur carte de réservation, plats, boissons, commandes d'achat, fournisseurs ; seuls Modifier/Supprimer suivent `peutEcrire`.
+- **Réouverture d'une réservation** : test `ecrans_test` « DEBUG PO 10/11/2026 » (deux chambres + une boisson, réouverture puis enregistrement sans rien toucher : aucune ligne perdue). Il passe : la perte constatée par le PO n'est PAS reproduite par la relecture locale d'une réservation créée au poste.

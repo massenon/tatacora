@@ -189,7 +189,12 @@ class TableauDeBordService
             ->where('date_arrivee', '<', $periode->fin)
             ->where('date_depart', '>', $periode->debut)
             ->selectRaw(
-                'COALESCE(SUM(DATEDIFF(LEAST(date_depart, ?), GREATEST(date_arrivee, ?))), 0) AS nuitees',
+                // Multi-chambres (PO 10/11/2026) : chaque chambre SUPPLÉMENTAIRE (ligne `hebergement` dont
+                // l'unité n'est pas la principale) occupe ses nuits : une réservation de deux chambres
+                // pèse deux fois ses nuits dans le taux d'occupation.
+                'COALESCE(SUM(DATEDIFF(LEAST(date_depart, ?), GREATEST(date_arrivee, ?)) * (1 + ('
+                .'SELECT COUNT(*) FROM lignes_reservation lr WHERE lr.reservation_id = reservations.id '
+                ."AND lr.service = 'hebergement' AND lr.source_id <> reservations.unite_id))), 0) AS nuitees",
                 [$periode->fin->toDateString(), $periode->debut->toDateString()],
             )
             ->value('nuitees');
