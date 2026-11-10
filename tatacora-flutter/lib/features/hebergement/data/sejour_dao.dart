@@ -223,7 +223,27 @@ class SejourDao extends DatabaseAccessor<AppDatabase> {
         (await (select(_reservations)
                   ..where(
                     (r) =>
-                        r.uniteId.equals(uniteId) &
+                        (r.uniteId.equals(uniteId) |
+                            r.id.isInQuery(
+                              selectOnly(
+                                  attachedDatabase.lignesReservationLocal,
+                                )
+                                ..addColumns([
+                                  attachedDatabase
+                                      .lignesReservationLocal
+                                      .reservationId,
+                                ])
+                                ..where(
+                                  attachedDatabase
+                                          .lignesReservationLocal
+                                          .service
+                                          .equals('hebergement') &
+                                      attachedDatabase
+                                          .lignesReservationLocal
+                                          .itemId
+                                          .equals(uniteId),
+                                ),
+                            )) &
                         r.statut.equals('annulee').not(),
                   )
                   ..orderBy([
@@ -258,10 +278,20 @@ class SejourDao extends DatabaseAccessor<AppDatabase> {
       _sejours,
     )..where((s) => s.dateCheckoutReel.isNull())).get();
     if (ouverts.isEmpty) return null;
+    final commeSupplementaire =
+        selectOnly(attachedDatabase.lignesReservationLocal)
+          ..addColumns([attachedDatabase.lignesReservationLocal.reservationId])
+          ..where(
+            attachedDatabase.lignesReservationLocal.service.equals(
+                  'hebergement',
+                ) &
+                attachedDatabase.lignesReservationLocal.itemId.equals(uniteId),
+          );
     final reservations =
         await (select(_reservations)..where(
               (r) =>
-                  r.uniteId.equals(uniteId) &
+                  (r.uniteId.equals(uniteId) |
+                      r.id.isInQuery(commeSupplementaire)) &
                   r.id.isIn(ouverts.map((s) => s.reservationId)),
             ))
             .get();
@@ -347,7 +377,10 @@ class SejourDao extends DatabaseAccessor<AppDatabase> {
     await (update(_reservations)..where((r) => r.id.equals(reservationId)))
         .write(const ReservationsLocalCompanion(statut: Value('en_cours')));
 
-    await _changerStatutUnite(reservation.uniteId, StatutUniteLocal.occupee);
+    // Multi-chambres (10/11/2026) : l'arrivée occupe TOUTES les chambres de la réservation.
+    for (final uniteId in await _chambresDe(reservation)) {
+      await _changerStatutUnite(uniteId, StatutUniteLocal.occupee);
+    }
 
     // Lot F5 : l'arrivée part au serveur (`SejourService::checkin`), à
     // l'heure réelle du poste.
@@ -401,7 +434,10 @@ class SejourDao extends DatabaseAccessor<AppDatabase> {
     await (update(_reservations)..where((r) => r.id.equals(reservationId)))
         .write(const ReservationsLocalCompanion(statut: Value('terminee')));
 
-    await _changerStatutUnite(reservation.uniteId, StatutUniteLocal.nettoyage);
+    // Le départ passe TOUTES les chambres au ménage.
+    for (final uniteId in await _chambresDe(reservation)) {
+      await _changerStatutUnite(uniteId, StatutUniteLocal.nettoyage);
+    }
 
     // Lot F5 : le départ part au serveur (`SejourService::checkout`).
     await OperationsSyncDao(attachedDatabase).enfiler(
@@ -415,6 +451,22 @@ class SejourDao extends DatabaseAccessor<AppDatabase> {
 
   /// `SejourService::changerStatutUnite` — une unité hors service n'est
   /// JAMAIS touchée : la maintenance prime, et le refus emporte la transaction.
+  /// Les unités de la réservation : la principale, puis les chambres SUPPLÉMENTAIRES (lignes
+  /// d'hébergement dont l'unité diffère) — multi-chambres, 10/11/2026.
+  Future<List<String>> _chambresDe(ReservationsLocalData reservation) async {
+    final supplementaires =
+        await (select(attachedDatabase.lignesReservationLocal)..where(
+              (l) =>
+                  l.reservationId.equals(reservation.id) &
+                  l.service.equals('hebergement'),
+            ))
+            .get();
+    return {
+      reservation.uniteId,
+      ...supplementaires.map((l) => l.itemId),
+    }.toList();
+  }
+
   Future<void> _changerStatutUnite(String uniteId, String statut) async {
     final unite = await (select(
       _unites,

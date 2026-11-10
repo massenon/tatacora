@@ -179,7 +179,7 @@ class _EtatModaleClotureSejour extends State<ModaleClotureSejour> {
     // La MÊME composition que la facture de départ : ce que la modale affiche
     // est ce que `Facturer` portera, jamais une seconde arithmétique de vue.
     final composition = CompositionFactureSejour.composer(
-      montantHebergement: reservation.tarifNuit * reservation.nuits,
+      montantHebergement: reservation.tarifNuitTotal * reservation.nuits,
       totalPanier: panier.total,
     );
     final separement = _separement.value;
@@ -227,7 +227,7 @@ class _EtatModaleClotureSejour extends State<ModaleClotureSejour> {
             const SizedBox(height: AppSpacing.unit),
             Text(
               '${reservation.nuits} nuitée(s) × '
-              '${formaterFcfa(reservation.tarifNuit)}',
+              '${formaterFcfa(reservation.tarifNuitTotal)}',
               key: const Key('cloture-nuitees'),
               style: _petit,
             ),
@@ -269,7 +269,7 @@ class _EtatModaleClotureSejour extends State<ModaleClotureSejour> {
                 ),
                 child: Text(
                   // `cloture_rappel_hebergement`, au mot.
-                  "L'hébergement n'est pas réglé : ${reservation.nuits} nuitée(s) × ${formaterFcfa(reservation.tarifNuit)} resteront dues sur la fiche du client.",
+                  "L'hébergement n'est pas réglé : ${reservation.nuits} nuitée(s) × ${formaterFcfa(reservation.tarifNuitTotal)} resteront dues sur la fiche du client.",
                   style: _petit.copyWith(color: PaletteMaitre.ambre800),
                 ),
               ),

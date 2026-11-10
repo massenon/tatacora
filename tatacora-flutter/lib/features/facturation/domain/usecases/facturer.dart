@@ -135,7 +135,8 @@ final class Facturer {
         // Tarif FIGÉ à la réservation (PA-55). Il ne vient pas de la grille du
         // jour : un changement de grille ne doit pas réécrire le montant d'un
         // séjour déjà pris.
-        prixUnitaire: reservation.tarifNuit,
+        // Multi-chambres (10/11/2026) : la somme des tarifs figés de TOUTES les chambres.
+        prixUnitaire: reservation.tarifNuitTotal,
         quantite: reservation.nuits,
       ),
       ..._lignesDuPanier(panier),

@@ -784,14 +784,11 @@ void main() {
       expect(await depot.reservations(), isEmpty);
     });
 
-    testWidgets('deux chambres sur une fiche sont REFUSÉES, et nommées', (
+    testWidgets('deux chambres sur UNE fiche sont ACCEPTÉES (PO, 10/11/2026)', (
       tester,
     ) async {
-      // Écart assumé avec le maître, qui les accepte : `reservations.unite_id`
-      // est une colonne unique et NOT NULL. Deux chambres partiraient au
-      // serveur comme une seule, et la seconde serait perdue en silence —
-      // elle resterait libre au planning, et le double-booking que M1 existe
-      // pour empêcher se produirait à la réception suivante.
+      // « Pour UNE SEULE réservation un client peut réserver UNE ou PLUSIEURS chambres » : la
+      // première chambre vit sur `unite_id`, la seconde part comme ligne d'hébergement.
       await db
           .into(db.unitesHebergementLocal)
           .insert(
@@ -817,9 +814,11 @@ void main() {
       );
       await enregistrer(tester);
 
-      expect(find.byKey(const Key('message-erreur')), findsOneWidget);
-      expect(find.textContaining('une seule chambre'), findsOneWidget);
-      expect(await depot.reservations(), isEmpty);
+      expect(find.byKey(const Key('message-erreur')), findsNothing);
+      final enregistrees = await depot.reservations();
+      expect(enregistrees, hasLength(1));
+      expect(enregistrees.single.uniteIds, hasLength(2));
+      expect(enregistrees.single.uniteIds, contains('u-bng-02'));
     });
 
     testWidgets('un chevauchement est refusé et NOMME le conflit', (

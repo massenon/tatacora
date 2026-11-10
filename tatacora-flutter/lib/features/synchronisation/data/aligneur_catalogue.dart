@@ -1441,6 +1441,9 @@ class AligneurCatalogue {
       'bar': TableDescendue.cartesBoisson,
       'tourisme': TableDescendue.circuits,
       'vehicule': null,
+      // Chambres SUPPLÉMENTAIRES d'une réservation multi-chambres (10/11/2026) : la source est
+      // l'unité d'hébergement ; la chambre principale est `unite_id`.
+      'hebergement': TableDescendue.unitesHebergement,
     };
     final lignesService =
         <

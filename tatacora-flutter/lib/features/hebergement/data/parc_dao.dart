@@ -128,11 +128,24 @@ class ParcDao extends DatabaseAccessor<AppDatabase> with _$ParcDaoMixin {
   Future<List<EngagementUnite>> engagements(String uniteId) async {
     final aujourdHui = _jour(_maintenant());
 
+    // Multi-chambres (10/11/2026) : l'unité est aussi engagée quand elle est une chambre
+    // SUPPLÉMENTAIRE (ligne `hebergement`) d'une réservation.
+    final commeSupplementaire =
+        selectOnly(attachedDatabase.lignesReservationLocal)
+          ..addColumns([attachedDatabase.lignesReservationLocal.reservationId])
+          ..where(
+            attachedDatabase.lignesReservationLocal.service.equals(
+                  'hebergement',
+                ) &
+                attachedDatabase.lignesReservationLocal.itemId.equals(uniteId),
+          );
+
     final lignes =
         await (select(reservationsLocal)
               ..where(
                 (r) =>
-                    r.uniteId.equals(uniteId) &
+                    (r.uniteId.equals(uniteId) |
+                        r.id.isInQuery(commeSupplementaire)) &
                     r.statut.equals('annulee').not() &
                     r.dateDepart.isBiggerOrEqualValue(aujourdHui),
               )
@@ -498,12 +511,26 @@ class ParcDao extends DatabaseAccessor<AppDatabase> with _$ParcDaoMixin {
     });
   }
 
-  Future<bool> _citeeParUneReservation(String uniteId) async =>
-      (await (select(reservationsLocal)
-                ..where((r) => r.uniteId.equals(uniteId))
-                ..limit(1))
-              .get())
-          .isNotEmpty;
+  Future<bool> _citeeParUneReservation(String uniteId) async {
+    final commeSupplementaire =
+        selectOnly(attachedDatabase.lignesReservationLocal)
+          ..addColumns([attachedDatabase.lignesReservationLocal.reservationId])
+          ..where(
+            attachedDatabase.lignesReservationLocal.service.equals(
+                  'hebergement',
+                ) &
+                attachedDatabase.lignesReservationLocal.itemId.equals(uniteId),
+          );
+    return (await (select(reservationsLocal)
+              ..where(
+                (r) =>
+                    r.uniteId.equals(uniteId) |
+                    r.id.isInQuery(commeSupplementaire),
+              )
+              ..limit(1))
+            .get())
+        .isNotEmpty;
+  }
 
   /// La file d'envoi (lot F1). Son propre générateur d'UUID : celui de ce DAO
   /// est injectable.

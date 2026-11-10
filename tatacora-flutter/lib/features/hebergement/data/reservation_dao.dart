@@ -304,10 +304,11 @@ class ReservationDao extends DatabaseAccessor<AppDatabase>
     ])..where(condition);
 
     final lignes = await requete.get();
-    // Sans leurs lignes de service, délibérément : l'appelant est le contrôle
-    // de chevauchement, qui ne regarde que les dates et l'unité. Les charger
-    // ici ferait une requête de plus à chaque saisie de date, pour une donnée
-    // que personne ne lit.
+    // Les lignes sont chargées : une réservation MULTI-CHAMBRES (10/11/2026) occupe aussi ses
+    // chambres supplémentaires (lignes `hebergement`), que le contrôle de chevauchement doit voir.
+    final lignesParReservation = await _lignesDe(
+      lignes.map((l) => l.readTable(reservationsLocal).id),
+    );
     final canaux = await CanauxReservationDao(attachedDatabase).lus();
     return lignes
         .map(
@@ -315,6 +316,9 @@ class ReservationDao extends DatabaseAccessor<AppDatabase>
             l.readTable(reservationsLocal),
             l.readTable(clientsLocal),
             canaux,
+            lignes:
+                lignesParReservation[l.readTable(reservationsLocal).id] ??
+                const [],
           ),
         )
         .toList();
@@ -637,7 +641,11 @@ class ReservationDao extends DatabaseAccessor<AppDatabase>
       'canal': r.canal?.libelle,
       'lignes': [
         for (final l in r.lignes)
-          if (l.service != ServiceReservation.hebergement && l.estRenseignee)
+          // L'hébergement PRINCIPAL vit sur `unite_id` ; les chambres SUPPLÉMENTAIRES
+          // (multi-chambres, 10/11/2026) partent comme lignes `hebergement`.
+          if ((l.service != ServiceReservation.hebergement ||
+                  l.itemId != r.uniteId) &&
+              l.estRenseignee)
             chargeLigneReservation(
               service: l.service.cle,
               sourceId: l.itemId,

@@ -20,6 +20,8 @@ import 'package:tatacora_flutter/features/hebergement/domain/entities/periode_se
 import 'package:tatacora_flutter/features/hebergement/domain/entities/reservation.dart';
 import 'package:tatacora_flutter/features/hebergement/domain/entities/service_reservation.dart';
 import 'package:tatacora_flutter/features/hebergement/domain/entities/unite_hebergement.dart';
+import 'package:tatacora_flutter/features/hebergement/domain/repositories/reservation_repository.dart'
+    show ChevauchementDetecte;
 import 'package:tatacora_flutter/features/hebergement/domain/usecases/creer_reservation.dart';
 import 'package:tatacora_flutter/features/hebergement/domain/usecases/modifier_reservation.dart';
 import 'package:tatacora_flutter/features/pos/domain/entities/sejour_au_pos.dart';
@@ -72,6 +74,7 @@ void main() {
   late _Poste a;
   late _Poste b;
   late String uniteId;
+  late String uniteId2;
   late String circuitId;
   late String clientId;
 
@@ -180,6 +183,11 @@ void main() {
     )).id;
     uniteId = await parc.creerUnite(
       numero: 'E2E-$suffixe',
+      categorieId: categorie,
+    );
+    // Une SECONDE chambre, pour la réservation multi-chambres (10/11/2026).
+    uniteId2 = await parc.creerUnite(
+      numero: 'E2F-$suffixe',
       categorieId: categorie,
     );
     clientId = (await ClientDao(a.db).creer(
@@ -481,6 +489,81 @@ void main() {
           b.db,
         ).reservations()).where(estSejourAuPos).map((r) => r.id),
         contains(reservationId),
+      );
+    },
+  );
+  test(
+    '7. MULTI-CHAMBRES (PO 10/11/2026) : A réserve DEUX chambres sur UNE réservation — le '
+    'serveur les range, B reçoit les deux, le total est identique, la seconde chambre est '
+    'prise chez B, et une autre réservation sur elle est refusée',
+    () async {
+      await a.synchroniser();
+      await attendreHorizon();
+      await b.synchroniser();
+
+      final debut = DateTime.utc(arrivee.year, arrivee.month, arrivee.day + 90);
+      final sejour = PeriodeSejour(
+        arrivee: debut,
+        depart: DateTime.utc(debut.year, debut.month, debut.day + 2),
+      );
+      LigneService chambreDe(String id, String libelle) => LigneService(
+        id: 'l-${const Uuid().v4()}',
+        service: ServiceReservation.hebergement,
+        itemId: id,
+        libelle: libelle,
+        prixUnitaire: 37500,
+        quantite: 2,
+      );
+
+      final creee = await CreerReservation(_depot(a))(
+        unite: await uniteDe(a),
+        clientId: clientId,
+        clientNom: 'Robert Issa',
+        periode: sejour,
+        lignes: [
+          chambreDe(uniteId, 'Studio (E2E)'),
+          chambreDe(uniteId2, 'Studio (E2F)'),
+        ],
+        auteurId: caissierDeVente,
+      );
+      expect(creee.uniteIds, [uniteId, uniteId2]);
+      expect(creee.recapitulatif.total, 150000);
+
+      await a.synchroniser();
+      final operation = (await OperationsSyncDao(a.db).operations(
+        table: TableSynchronisee.reservations,
+        entiteId: creee.id,
+      )).single;
+      expect(
+        operation.statut,
+        StatutOperationSync.synchronise,
+        reason: '${operation.resultatJson}\n$journal',
+      );
+
+      await attendreHorizon();
+      await b.synchroniser();
+      final chezB = (await ReservationDao(b.db).parId(creee.id))!;
+      expect(chezB.uniteIds.toSet(), {uniteId, uniteId2});
+      expect(chezB.recapitulatif.total, 150000);
+
+      // La seconde chambre est PRISE chez B sur ces dates.
+      final dispo = await _depot(b).consulterDisponibilites(sejour);
+      expect(
+        dispo.firstWhere((d) => d.unite.id == uniteId2).disponible,
+        isFalse,
+      );
+
+      // Et une autre réservation sur elle est refusée localement (chevauchement nommé).
+      await expectLater(
+        CreerReservation(_depot(b))(
+          unite: (await _depot(b).unites()).firstWhere((u) => u.id == uniteId2),
+          clientId: clientId,
+          clientNom: 'Robert Issa',
+          periode: sejour,
+          lignes: [chambreDe(uniteId2, 'Studio (E2F)')],
+          auteurId: caissierDeVente,
+        ),
+        throwsA(isA<ChevauchementDetecte>()),
       );
     },
   );

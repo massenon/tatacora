@@ -880,24 +880,27 @@ class _FicheReservationState extends ConsumerState<FicheReservation> {
     final chambres = lignes
         .where((l) => l.service == ServiceReservation.hebergement)
         .toList();
-    if (chambres.length != 1) {
-      // Voir l'en-tête de classe : le schéma serveur ne représente qu'une
-      // unité par réservation. On refuse et on dit pourquoi.
+    if (chambres.isEmpty) {
+      // Le serveur écrit `unite_id` NOT NULL : une fiche sans chambre ne peut pas exister.
+      // Plusieurs chambres sont permises (décision du PO du 10/11/2026) ; zéro, non.
       setState(
-        () => _erreur = chambres.isEmpty
-            ? 'Une réservation doit porter exactement une chambre : le serveur '
-                  'l’enregistre sur une unité d’hébergement. Pour un circuit '
-                  'ou une location seuls, passez par leur module.'
-            : 'Une réservation ne peut porter qu’une seule chambre : le '
-                  'serveur n’en enregistre qu’une, et les suivantes seraient '
-                  'perdues sans que rien ne le signale. Créez une réservation '
-                  'par chambre.',
+        () => _erreur =
+            'Une réservation doit porter au moins une chambre : le serveur '
+            'l’enregistre sur une unité d’hébergement. Pour un circuit ou une '
+            'location seuls, passez par leur module.',
       );
       return;
     }
 
     final unites = await ref.read(depotReservationProvider).unites();
-    final visees = unites.where((u) => u.id == chambres.single.itemId);
+    // La chambre PRINCIPALE (`unite_id`) : celle que la fiche avait déjà si elle y est encore,
+    // sinon la première de la liste.
+    final existanteAvant = _existante;
+    final principale = chambres.firstWhere(
+      (l) => existanteAvant != null && l.itemId == existanteAvant.uniteId,
+      orElse: () => chambres.first,
+    );
+    final visees = unites.where((u) => u.id == principale.itemId);
     if (visees.isEmpty) {
       setState(() => _erreur = 'Chambre introuvable sur ce poste.');
       return;

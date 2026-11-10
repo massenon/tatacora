@@ -103,44 +103,33 @@ final class CreerReservation {
       );
     }
 
-    // ⚠ ECART ASSUME AVEC LE MAITRE, ET IL EST REFUSE PLUTOT QUE DEVINE.
-    //
-    // Le maitre accepte plusieurs chambres sur une meme fiche : le bouton
-    // « Ajouter une chambre » ne se desactive jamais. Le schema SERVEUR ne
-    // peut pas le representer — `reservations.unite_id` est une colonne
-    // unique et NOT NULL (`FULL_MIGRATIONS_DATABASE.md` l.411). Deux chambres
-    // sur une fiche partiraient donc au serveur comme une seule, et la
-    // seconde serait perdue en silence : elle resterait libre au planning, et
-    // le double-booking que M1 existe pour empecher se produirait a la
-    // reception suivante.
-    //
-    // On refuse, on le dit, et on l'inscrit au registre. Deviner laquelle des
-    // deux chambres compte serait le seul choix vraiment dangereux.
+    // RÉSERVATION MULTI-CHAMBRES (décision du PO du 10/11/2026 : « pour UNE SEULE réservation un
+    // client peut réserver UNE ou PLUSIEURS chambres »). La PREMIÈRE chambre vit sur
+    // `reservations.unite_id` ; les suivantes partent comme lignes de service `hebergement` (le
+    // serveur les range, les verrouille et les rend à tous les postes). Il faut au moins une
+    // chambre — le serveur écrit `unite_id` NOT NULL, une fiche de circuit seul ne passe pas par
+    // ici — et jamais deux fois la même.
     final chambres = renseignees
         .where((l) => l.service == ServiceReservation.hebergement)
         .toList();
     if (renseignees.isNotEmpty && chambres.isEmpty) {
-      // Meme cause que le refus suivant, vue de l'autre cote : le maitre
-      // accepte une fiche SANS hebergement — un circuit seul —, et
-      // `reservations.unite_id` est NOT NULL. Une telle reservation ne peut
-      // pas exister au serveur ; l'ecrire localement creerait une saisie qui
-      // ne partirait jamais et que personne ne verrait echouer.
       throw ArgumentError.value(
         0,
         'lignes',
-        'Une reservation doit porter exactement une chambre : le serveur '
-            'l enregistre sur une unite d hebergement.',
+        'Une réservation doit porter au moins une chambre : le serveur '
+            'l’enregistre sur une unité d’hébergement.',
       );
     }
-
-    if (chambres.length > 1) {
-      throw ArgumentError.value(
-        chambres.length,
-        'lignes',
-        'Une reservation ne peut porter qu une seule chambre : le serveur '
-            'n en enregistre qu une, et les suivantes seraient perdues sans '
-            'que rien ne le signale. Creez une reservation par chambre.',
-      );
+    final vues = <String>{};
+    for (final chambre in chambres) {
+      if (!vues.add(chambre.itemId)) {
+        throw ArgumentError.value(
+          chambre.itemId,
+          'lignes',
+          'La chambre « ${chambre.libelle} » figure deux fois dans la '
+              'réservation : une chambre ne se réserve qu’une fois.',
+        );
+      }
     }
 
     if (acompte < 0) {
@@ -166,22 +155,27 @@ final class CreerReservation {
       );
     }
 
-    // Contrôle local — voir le docblock de classe sur sa portée.
+    // Contrôle local — voir le docblock de classe sur sa portée. Il vise CHAQUE chambre de la
+    // réservation, la principale comme les supplémentaires, et nomme celle qui est prise.
     final conflits = await _depot.consulterDisponibilites(periode);
-    final surCetteUnite = conflits
-        .where((d) => d.unite.id == unite.id)
-        .toList();
-    if (surCetteUnite.isNotEmpty && !surCetteUnite.first.disponible) {
-      final conflit = surCetteUnite.first.reservationEnConflit;
-      if (conflit != null) {
-        throw ChevauchementDetecte(
-          uniteId: unite.id,
-          reservationEnConflit: conflit,
+    final chambresVisees = <String>{unite.id, ...chambres.map((l) => l.itemId)};
+    for (final uniteId in chambresVisees) {
+      final surCetteUnite = conflits
+          .where((d) => d.unite.id == uniteId)
+          .toList();
+      if (surCetteUnite.isNotEmpty && !surCetteUnite.first.disponible) {
+        final conflit = surCetteUnite.first.reservationEnConflit;
+        if (conflit != null) {
+          throw ChevauchementDetecte(
+            uniteId: uniteId,
+            reservationEnConflit: conflit,
+          );
+        }
+        throw UniteIndisponible(
+          'L’unité ${surCetteUnite.first.unite.numero} n’est pas disponible '
+          'sur cette période.',
         );
       }
-      throw UniteIndisponible(
-        'L’unité ${unite.numero} n’est pas disponible sur cette période.',
-      );
     }
 
     final reservation = Reservation(
