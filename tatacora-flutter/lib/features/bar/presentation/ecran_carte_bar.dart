@@ -1,4 +1,7 @@
 // Vue Blade maîtresse (PA-183) : pwa/bar/carte.blade.php
+// Écart (PO 09/11/2026) : le badge « illimité » de la vue (carte.badge_illimite) ne qualifie
+// que les PLATS (jamais en rupture) ; une boisson, elle, peut être en rupture : le bar
+// ne le rend jamais.
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';

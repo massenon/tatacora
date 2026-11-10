@@ -66,7 +66,7 @@ final class RevocationAppairageTest extends TestCase
         Livewire::test(SynchronisationPostes::class)
             ->assertSee('Appairé le')
             ->assertSee('PC-RECEPTION')
-            ->assertSee('19/10/2026 09:00')
+            ->assertSee('19/10/2026 10:00')
             ->assertSee('Actif')
             ->call('demanderRevocation', 'PC-RECEPTION')
             ->assertSet('posteARevoquer', 'PC-RECEPTION')

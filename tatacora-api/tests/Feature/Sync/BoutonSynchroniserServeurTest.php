@@ -47,7 +47,7 @@ final class BoutonSynchroniserServeurTest extends TestCase
         $this->actingAs($pwa);
         Livewire::test(SynchronisationPostes::class)
             ->call('synchroniser')
-            ->assertSee('Demande envoyée le 18/10/2026 10:00:00')
+            ->assertSee('Demande envoyée le 18/10/2026 11:00:00') // heure locale du Bénin (UTC+1), 10 h UTC
             ->call('synchroniser');
         $this->assertSame(1, DemandeSynchronisation::count());
 

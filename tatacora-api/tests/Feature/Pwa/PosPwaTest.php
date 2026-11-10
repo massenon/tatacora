@@ -1754,10 +1754,10 @@ final class PosPwaTest extends TestCase
         ])->render();
 
         $this->assertStringContainsString('M. HOUNSOU', $html);
-        // L'en-tete de TOUS les documents (PO 02/09/2026) : raison sociale
-        // puis enseigne EN MINUSCULES, derivees par l'auteur unique.
+        // L'en-tete de TOUS les documents (PO 10/11/2026) : l'identite UNE fois, sans
+        // enseigne repetee, derivee par l'auteur unique.
         $this->assertStringContainsString('TATACORA AFRIQUE', $html);
-        $this->assertStringContainsString('gîte chez noël', $html);
+        $this->assertStringNotContainsString('gîte chez noël', $html);
         // Meme regle que le 80 mm : ni emplacement de cachet, ni « Ne vaut
         // pas facture normalisee » tant que MECeF n'est pas configuree.
         $this->assertStringNotContainsString('Emplacement réservé au cachet fiscal MECeF', $html);
