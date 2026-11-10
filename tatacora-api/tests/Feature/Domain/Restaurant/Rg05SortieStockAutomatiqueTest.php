@@ -138,25 +138,19 @@ final class Rg05SortieStockAutomatiqueTest extends TestCase
     }
 
     /**
-     * Le cas central : une rupture d'ingrédient doit annuler la commande
-     * ENTIÈRE, pas la laisser à moitié transmise.
+     * Décision du PO du 10/11/2026 : un ingrédient manquant ne refuse plus la transmission d'un
+     * plat. La commande part, les sorties se font, le poulet passe sous zéro.
      */
     #[Test]
-    public function rg06_une_rupture_d_ingredient_annule_toute_la_transmission(): void
+    public function rg06_une_rupture_d_ingredient_ne_refuse_plus_la_transmission(): void
     {
         // 11 portions demanderaient 4,400 kg de poulet ; il n'y en a que 4.
         $commande = $this->commandes->creer([['plat_id' => $this->poulletDg->id, 'quantite' => 11]]);
 
-        $this->assertThrows(
-            fn () => $this->commandes->transmettreEnCuisine($commande),
-            RuptureStockException::class,
-        );
+        $this->commandes->transmettreEnCuisine($commande);
 
-        // Rien n'a bougé : ni le riz (pourtant suffisant et traité en premier),
-        // ni le statut de la commande. La transaction a tout annulé.
-        $this->assertSame('10.00', $this->stockRiz());
-        $this->assertSame('4.00', $this->stock->stock($this->poulet->id, $this->cuisine->id));
-        $this->assertSame('en_preparation', $commande->fresh()->statut);
+        $this->assertSame('transmise_cuisine', $commande->fresh()->statut);
+        $this->assertSame('-0.40', $this->stock->stock($this->poulet->id, $this->cuisine->id));
     }
 
     #[Test]

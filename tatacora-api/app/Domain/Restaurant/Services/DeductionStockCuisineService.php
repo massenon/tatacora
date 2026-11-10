@@ -236,7 +236,11 @@ class DeductionStockCuisineService
                     pointId: ($pointCuisine ??= $this->pointCuisine())->id,
                     quantite: $quantite,
                     motif: __('restaurant.motif_vente', ['plat' => $plat->libelle, 'quantite' => $nombre]),
-                    validationRupture: $validationRupture,
+                    // 10/11/2026 (PO : « ça ne doit pas refuser à la vente ») : la vente d'un PLAT n'est
+                    // JAMAIS refusée pour manque de stock, ingrédient de fiche compris (RG-06 levée pour
+                    // les plats ; les boissons, `VenteBarService`, restent refusées en rupture). La sortie
+                    // se fait, le stock de l'ingrédient peut passer sous zéro : l'inventaire le corrige.
+                    validationRupture: true,
                     dateMouvement: $dateMouvement,
                 );
 

@@ -122,11 +122,12 @@ final class RestaurationTest extends TestCase
     }
 
     /**
-     * La rupture de chaîne critique : un ingrédient manquant doit remonter
-     * jusqu'à la prise de commande, pas se découvrir en cuisine.
+     * Décision du PO du 10/11/2026 (« ça ne doit pas refuser à la vente ») : un ingrédient
+     * manquant ne refuse JAMAIS la transmission d'un plat (RG-06 levée pour les plats). Les
+     * sorties se font, le stock de l'ingrédient passe sous zéro, l'inventaire le corrige.
      */
     #[Test]
-    public function une_rupture_d_ingredient_empeche_la_transmission_et_ne_laisse_aucune_trace(): void
+    public function une_rupture_d_ingredient_ne_refuse_plus_la_transmission_du_plat(): void
     {
         $commandes = app(CommandeRestaurantService::class);
         $stock = app(StockTheoriqueService::class);
@@ -134,17 +135,11 @@ final class RestaurationTest extends TestCase
         // 11 portions demandent 4,40 kg de poulet ; il n'y en a que 4.
         $commande = $commandes->creer([['plat_id' => $this->plat->id, 'quantite' => 11]]);
 
-        $this->assertThrows(
-            fn () => $commandes->transmettreEnCuisine($commande),
-            RuptureStockException::class,
-        );
+        $commandes->transmettreEnCuisine($commande);
 
-        // Le riz, pourtant suffisant et traité en premier, n'a pas bougé : la
-        // transaction a tout annulé. Une déduction partielle laisserait un
-        // stock faux que seul l'inventaire révélerait.
-        $this->assertSame('10.00', $stock->stock($this->riz->id, $this->cuisine->id));
-        $this->assertSame('4.00', $stock->stock($this->poulet->id, $this->cuisine->id));
-        $this->assertSame('en_preparation', $commande->fresh()->statut);
+        $this->assertSame('transmise_cuisine', $commande->fresh()->statut);
+        $this->assertSame('-0.40', $stock->stock($this->poulet->id, $this->cuisine->id));
+        $this->assertNotSame('10.00', $stock->stock($this->riz->id, $this->cuisine->id));
     }
 
     /**

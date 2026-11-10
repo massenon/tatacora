@@ -1054,27 +1054,17 @@ final class ApiRestaurantTest extends TestCase
      * pas assumée.
      */
     #[Test]
-    public function rg06_une_rupture_est_refusee_avec_son_drapeau_de_confirmation(): void
+    public function rg06_une_rupture_d_ingredient_ne_refuse_plus_la_transmission(): void
     {
         Sanctum::actingAs($this->cuisinier());
 
-        // 20 portions demandent 8 kg de poulet ; il n'en reste que 4.
+        // 20 portions demandent 8 kg de poulet ; il n'en reste que 4 (PO 10/11/2026 : la vente
+        // d'un plat n'est jamais refusée pour manque de stock).
         $id = $this->postJson('/api/v1/restaurant/commandes', [
             'lignes' => [['plat_id' => $this->pouletDg->id, 'quantite' => 20]],
         ])->assertCreated()->json('data.id');
 
         $this->patchJson("/api/v1/restaurant/commandes/{$id}/transmission")
-            ->assertStatus(422)
-            ->assertJsonPath('necessite_validation_rupture', true);
-
-        $this->assertSame('en_preparation', CommandeRestaurant::findOrFail($id)->statut);
-        // La transaction a tout annulé : même le riz, pourtant suffisant, n'a
-        // pas bougé. Une commande transmise à moitié laisserait la cuisine avec
-        // un bon qu'elle ne peut pas honorer.
-        $this->assertSame('10.00', $this->stockRiz());
-
-        // Assumée par un utilisateur habilité, elle passe.
-        $this->patchJson("/api/v1/restaurant/commandes/{$id}/transmission", ['validation_rupture' => true])
             ->assertOk()
             ->assertJsonPath('data.statut', 'transmise_cuisine');
 
