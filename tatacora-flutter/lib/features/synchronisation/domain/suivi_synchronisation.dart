@@ -217,6 +217,9 @@ const Map<String, String> libellesAnomalies = {
   'paiement_session_inconnue':
       'Encaissement d\'une caisse que le serveur ne connaît pas : rattaché à '
       'la caisse ouverte du serveur',
+  'paiement_arrondi_plafonne':
+      'Encaissement plafonné au reste dû (écart d\'un centime d\'arrondi) : '
+      'enregistré pour le reste dû, la synchronisation n\'est pas bloquée',
 };
 
 /// Le libellé d'une anomalie ; une anomalie inconnue est rendue par son

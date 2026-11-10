@@ -417,8 +417,10 @@ void main() {
         if (scenario[i]['op'] == 'droits_recouvrement')
           (serveur[i] as Map<String, dynamic>)['statut'],
     ];
-    expect(droits.where((s) => s == 200), hasLength(4));
-    expect(droits.where((s) => s == 403), hasLength(8));
+    // Le comptable a les droits du gérant (PO 10/11/2026) : il encaisse (5 rôles : super_admin,
+    // administrateur, gérant, réceptionniste, comptable), les 7 autres sont refusés.
+    expect(droits.where((s) => s == 200), hasLength(5));
+    expect(droits.where((s) => s == 403), hasLength(7));
     // La balance âgée a de quoi comparer : plusieurs clients, une facture de plus
     // de 90 jours, et un filtre par prénom qui ne garde qu'une ligne.
     final dettes = [

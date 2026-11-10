@@ -130,6 +130,9 @@ foreach ([
     'CREATE TABLE unites_hebergement (id TEXT PRIMARY KEY, statut TEXT, numero TEXT, categorie_id TEXT)',
     'CREATE TABLE categories_hebergement (id TEXT PRIMARY KEY, libelle TEXT, tarif_base NUMERIC)',
     'CREATE TABLE reservations (id TEXT PRIMARY KEY, statut TEXT, date_arrivee TEXT, date_depart TEXT, date_creation TEXT, unite_id TEXT)',
+    // Multi-chambres (10/11/2026) : `DisponibiliteService::chambresSupplementairesOccupees` lit les
+    // lignes de service « hebergement » (chambres supplementaires d'une reservation) — table vide ici.
+    'CREATE TABLE lignes_reservation (id TEXT PRIMARY KEY, reservation_id TEXT, service TEXT, source_id TEXT)',
     // Les colonnes que lit `Accueil::recapDuJour` sur `ventes` — et elles seules.
     'CREATE TABLE ventes (id INTEGER PRIMARY KEY AUTOINCREMENT, statut TEXT, encaisse INTEGER, created_at TEXT, montant_total NUMERIC)',
     'CREATE TABLE employes (id INTEGER PRIMARY KEY AUTOINCREMENT, statut TEXT)',
