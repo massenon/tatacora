@@ -167,7 +167,7 @@ void main() {
   );
 
   group('fréquence de la synchronisation automatique', () {
-    test('le défaut est 5 minutes, comme la période livrée', () {
+    test('le défaut est 1 minute, comme la période livrée (PO 10/11/2026)', () {
       expect(
         FrequenceSynchronisation.parDefaut.periode,
         periodeSynchronisation,

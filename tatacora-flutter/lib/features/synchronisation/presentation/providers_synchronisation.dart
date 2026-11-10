@@ -359,7 +359,7 @@ final controleCoherenceProvider = Provider<ControleCoherence>(
 
 /// La période PAR DÉFAUT du réveil automatique (réglable par poste :
 /// [FrequenceSynchronisation]).
-const Duration periodeSynchronisation = Duration(minutes: 5);
+const Duration periodeSynchronisation = Duration(minutes: 1);
 
 /// La période du PASSAGE COURT (décision PO du 18/10/2026) : la lecture de
 /// la demande « Synchroniser » faite au serveur — une requête légère, rien
@@ -390,7 +390,7 @@ final declencheurSynchronisationProvider = Provider<void Function()>(
 );
 
 /// Le réveil AUTOMATIQUE : une synchronisation au démarrage, puis toutes les
-/// 5 minutes par défaut (ou la fréquence choisie dans Paramètres, jusqu'à
+/// minutes par défaut (ou la fréquence choisie dans Paramètres, jusqu'à
 /// « Manuelle seulement ») tant que l'application tourne — sans requête
 /// quand aucune opération n'est échue (le moteur s'arrête sur une file vide
 /// ou en repli). Démarré par `main.dart` après la première image, PAS par
@@ -400,7 +400,7 @@ final synchronisationAutomatiqueProvider = Provider<void>((ref) {
   final manager = ref.watch(syncManagerProvider);
   lancerSynchronisationSansAttendre(() => manager);
   // La période vient de `poste.json` (Paramètres → Synchronisation) : le
-  // défaut de 5 minutes court tant que le fichier n'est pas lu, puis le
+  // défaut d'une minute court tant que le fichier n'est pas lu, puis le
   // minuteur est réarmé quand le choix change — sans nouvelle synchronisation.
   Timer? minuteur;
   Duration? armee;

@@ -12,9 +12,9 @@
 library;
 
 enum FrequenceSynchronisation {
-  uneMinute(1, 'Toutes les minutes'),
+  uneMinute(1, 'Toutes les minutes (défaut)'),
   deuxMinutes(2, 'Toutes les 2 minutes'),
-  cinqMinutes(5, 'Toutes les 5 minutes (défaut)'),
+  cinqMinutes(5, 'Toutes les 5 minutes'),
   dixMinutes(10, 'Toutes les 10 minutes'),
   quinzeMinutes(15, 'Toutes les 15 minutes'),
   trenteMinutes(30, 'Toutes les 30 minutes'),
@@ -27,7 +27,7 @@ enum FrequenceSynchronisation {
   final int minutes;
   final String libelle;
 
-  static const FrequenceSynchronisation parDefaut = cinqMinutes;
+  static const FrequenceSynchronisation parDefaut = uneMinute;
 
   /// La période du réveil, `null` en manuel.
   Duration? get periode => minutes == 0 ? null : Duration(minutes: minutes);
@@ -47,7 +47,7 @@ enum FrequenceSynchronisation {
 /// `bilan_synchronisation.dart`, `sync_manager.dart`).
 abstract final class TextesFrequenceSynchronisation {
   static const aide =
-      'Toutes les 5 minutes par défaut. Le poste se synchronise aussi au '
+      'Toutes les minutes par défaut (décision du PO du 10/11/2026 : « automatique, toutes les minutes »). Le poste se synchronise aussi au '
       'démarrage de l’application, après chaque clôture de caisse, à la '
       'réactivation de la synchronisation et au bouton « Synchroniser '
       'maintenant ». Il demande aussi au serveur, toutes les 30 secondes, si '

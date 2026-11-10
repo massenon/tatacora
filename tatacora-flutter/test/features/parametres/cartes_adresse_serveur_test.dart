@@ -343,11 +343,11 @@ void main() {
   });
 
   group('synchronisation automatique', () {
-    testWidgets('liste les options supportées, 5 minutes par défaut', (
+    testWidgets('liste les options supportées, minutes par défaut', (
       tester,
     ) async {
       await monter(tester, serveur());
-      expect(find.text('Toutes les 5 minutes (défaut)'), findsOneWidget);
+      expect(find.text('Toutes les minutes (défaut)'), findsOneWidget);
       await tester.tap(find.byKey(const Key('sync-frequence')));
       await tester.pumpAndSettle();
       for (final f in FrequenceSynchronisation.values) {
@@ -380,7 +380,7 @@ void main() {
       final aide = tester
           .widget<Text>(find.byKey(const Key('sync-frequence-aide')))
           .data!;
-      expect(aide, startsWith('Toutes les 5 minutes par défaut.'));
+      expect(aide, startsWith('Toutes les minutes par défaut'));
       expect(aide, contains('clôture de caisse'));
       expect(
         aide,

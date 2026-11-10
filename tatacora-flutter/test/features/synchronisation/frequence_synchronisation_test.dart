@@ -111,7 +111,7 @@ void main() {
     c.dispose();
   });
 
-  testWidgets('sans fichier : 5 minutes, comme avant', (tester) async {
+  testWidgets('sans fichier : 1 minute (défaut, PO 10/11/2026)', (tester) async {
     final t = FauxTransport(reponseLot);
     final c = ProviderContainer(overrides: surcharges(t));
     c.read(synchronisationAutomatiqueProvider);
