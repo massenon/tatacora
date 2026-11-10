@@ -1,105 +1,121 @@
 <div align="center">
 
-<img src="docs/readme/social-preview.png" alt="LogiReStock — TATACORA AFRIQUE" width="100%">
+<img src="docs/readme/social-preview.png" alt="LogiReStock — Gestion intégrée du Gîte Chez Noël" width="100%">
 
 # LogiReStock
 
-**Le logiciel de gestion intégrée pour l'hébergement, la restauration, le tourisme, les stocks et la comptabilité.**
+**Le logiciel de gestion d'un gîte-restaurant, de la réservation jusqu'au bilan comptable.**
 
-Conçu pour le Gîte Chez Noël (Natitingou, Bénin) — pensé pour les PME qui travaillent avec une connexion qui tombe.
+Hébergement · Restaurant et bar · Stocks · Facturation normalisée e-MECeF · Comptabilité SYSCOHADA · RH et paie
 
 </div>
 
 ---
 
-## En une phrase
+## Le projet
 
-LogiReStock réunit dans **une seule application** tout ce qu'un gîte-restaurant fait au quotidien : réserver une chambre, encaisser au comptoir, tenir le stock, facturer, payer le personnel et tenir une comptabilité aux normes **SYSCOHADA**. Il existe en **version web** et en **poste Windows qui continue de travailler sans connexion Internet**, puis se synchronise tout seul.
+LogiReStock est un projet personnel : un système de gestion intégrée conçu pour le **Gîte Chez Noël** (Natitingou, Bénin).
 
-## Pourquoi ce logiciel
+Il remplace les cahiers, les tableurs et les calculs à la main. On y enregistre chaque réservation, chaque vente au bar ou au restaurant, chaque achat et chaque paie, et le logiciel en déduit **les stocks, les factures, les écritures comptables et les états de gestion**, sans ressaisie.
 
-- **La connexion tombe, la caisse ne s'arrête pas.** Le poste Windows fonctionne entièrement hors ligne : réservations, ventes, factures, stocks, comptabilité. La synchronisation est un plus, jamais une condition.
-- **Un seul outil, des chiffres cohérents.** Une vente au bar, une nuitée, un achat fournisseur ou une paie alimentent le même stock et la même comptabilité.
-- **Fait pour le terrain.** Interface en français, prix en FCFA toutes taxes comprises, vocabulaire du métier, droits d'accès par rôle.
+Il s'utilise de deux façons :
 
-## Aperçu
+- **sur le web**, dans un navigateur, pour le bureau, la comptabilité et l'administration ;
+- **sur un poste Windows**, installé à la réception, au bar et au restaurant.
 
-<table>
-<tr>
-<td width="50%"><img src="docs/readme/login.jpg" alt="Écran de connexion"><br><sub><b>Connexion</b> — web et poste Windows</sub></td>
-<td width="50%"><img src="docs/readme/tableau-de-bord.jpg" alt="Tableau de bord"><br><sub><b>Tableau de bord</b> — la performance de chaque activité</sub></td>
-</tr>
-<tr>
-<td width="50%"><img src="docs/readme/pos.jpg" alt="Point de vente"><br><sub><b>Point de vente</b> — salle, comptoir, panier, encaissement</sub></td>
-<td width="50%"><img src="docs/readme/m1-hebergement.jpg" alt="Hébergement"><br><sub><b>Hébergement</b> — plan, check-in, disponibilités</sub></td>
-</tr>
-<tr>
-<td width="50%"><img src="docs/readme/m6-stocks.jpg" alt="Stocks"><br><sub><b>Stocks</b> — valorisés au coût moyen pondéré</sub></td>
-<td width="50%"><img src="docs/readme/pwa-proformas-liste.jpg" alt="Factures proforma"><br><sub><b>Factures proforma</b> — devis convertibles en facture</sub></td>
-</tr>
-</table>
-
-## Fonctionnalités principales
-
-### Hébergement et réservations
-Plan des bungalows, chambres et tentes, réservation rapide, calendrier d'occupation, check-in et check-out, règle anti-double réservation, annulations avec remboursement plafonné, clôture de séjour et paiement séparé.
-
-### Restauration, bar et point de vente
-Caisse unique avec salle et tables, panier, remises, encaissement en espèces, Mobile Money, virement ou crédit, historique des ventes, annulation avec motif. La **carte du Gîte** (plats, boissons, tarifs) est gérée avec son historique de prix.
-
-### Stocks, inventaires et achats
-Stock calculé depuis les mouvements (jamais saisi à la main), alertes de seuil, inventaires par magasin, fiches de stock, approvisionnement, réception des commandes avec tolérance, règlement des fournisseurs.
-
-### Facturation
-Factures A4 et tickets, avoirs, registre des factures, **factures proforma** (numéro `N°… FP-GCN/…`, montant en lettres, signature et cachet, conversion en facture). **Facturation normalisée** prévue pour les trois modes : désactivée (facture simple), e-MECeF (DGI Bénin) ou boîtier CC300 — *mode livré : désactivé, en cours de validation terrain*.
-
-### Clients et créances
-Fiches clients, historique, recouvrement et relances, IFU du client facultatif pour les factures normalisées.
-
-### Tourisme, véhicules et locations
-Circuits et départs, réservations de places, parc de véhicules, contrats de location, entretiens, reçu de location imprimable.
-
-### Comptabilité SYSCOHADA
-Plan comptable, journaux, grand livre, balance, compte de résultat, bilan, flux de trésorerie, notes annexes, immobilisations, analytique. **Sélecteur d'exercice** (N / N-1), passage automatique à l'année suivante, **clôture annuelle** avec archive légale à empreinte SHA-256. Une pièce validée est immuable : on corrige par contre-passation.
-
-### Ressources humaines et paie
-Fiches du personnel, bulletins de paie, congés et plannings.
-
-### Notifications, états et import
-Notifications par e-mail, états et rapports, import et export Excel (modèles fournis), sauvegardes, journal d'audit.
-
-### Comptes, sécurité et profil
-Rôles et permissions par module, « Mon profil », mot de passe perdu **sans e-mail** (réinitialisation par un administrateur, code de secours), suppression logique des comptes, journal d'audit.
-
-## Le poste Windows
-
-Une application de bureau **hors ligne d'abord** :
-
-- **Elle travaille sans serveur** : toutes les lectures viennent de sa base locale.
-- **Elle se synchronise** avec le serveur quand le réseau est là : envoi des saisies dans l'ordre, réception des nouveautés des autres postes, écran des échecs avec causes et corrections.
-- **Plusieurs postes** peuvent travailler en même temps (réception, restaurant, bar) et se retrouvent cohérents.
-- **Installateur Windows** avec mise à jour sur place (les données sont conservées) et désinstallation sécurisée.
-- **Démarrage résilient** : une base abîmée ou une migration qui échoue affichent un écran clair, jamais un blocage muet.
-
-## Documentation
-
-Un **manuel d'utilisation de 160 pages** (PDF illustré) décrit chaque écran, chaque règle et chaque limite connue du logiciel.
-
-## Informations
-
-| | |
-|---|---|
-| **Éditeur** | Dr MASSENON Rhodes — Docteur en Génie Logiciel et Intelligence Artificielle |
-| **Conçu pour** | Gîte Chez Noël, Natitingou (Bénin) |
-| **Accompagnement des PME** | FAGUEZ SARL — dans le cadre du PAEB |
-| **Technologies** | Application web Laravel et Livewire · poste Windows Flutter · bases MySQL et SQLite |
-
-## Contact
-
-Pour un **usage commercial**, une **démonstration** ou une **collaboration** :
-
-**rarhodes06@gmail.com**
+La connexion Internet tombe parfois, donc le poste fonctionne **entièrement hors ligne** et se synchronise tout seul, **toutes les minutes**, dès que le réseau est là. Plusieurs postes travaillent en même temps et se retrouvent cohérents.
 
 ---
 
-<sub>© Tous droits réservés. Projet personnel : le code source n'est ni libre de droits ni ouvert à la réutilisation sans accord écrit de l'éditeur.</sub>
+## Fonctionnalités principales
+
+### 📊 Tableau de bord
+
+Chiffre d'affaires, trésorerie, dépenses, résultat, créances clients, dettes fournisseurs et stock critique, d'un seul coup d'œil, avec les alertes en tête.
+
+<img src="docs/readme/tableau-de-bord.jpg" alt="Tableau de bord" width="100%">
+
+### 🛏️ Hébergement et réservations
+
+Plan des chambres, bungalows et tentes, calendrier d'occupation, check-in et check-out, règle anti-double réservation par chambre. Une réservation peut porter **une ou plusieurs chambres**, avec services inclus (restauration, bar, tourisme, véhicule), remise et acompte. Les **annulations** suivent une règle paramétrable selon le délai (par exemple 50 % de commission sous 24 heures), avec remboursement calculé et historique complet.
+
+<img src="docs/readme/m1-hebergement.jpg" alt="Hébergement" width="100%">
+
+### 🍽️ Restaurant, bar et point de vente
+
+Caisse avec salle et tables, panier, remises, encaissement en espèces, Mobile Money, virement ou crédit. La **carte du Gîte** (plats, boissons, tarifs) garde l'historique de ses prix. Les plats sont toujours vendables ; les boissons décrémentent leur stock et passent en rupture à zéro. Point de vente dédié aux **clients hébergés**, avec une note unique pour le séjour.
+
+<img src="docs/readme/pos.jpg" alt="Point de vente" width="100%">
+
+### 📦 Stocks et achats
+
+Stock calculé depuis les mouvements (jamais saisi à la main), valorisé au **coût moyen pondéré**, alertes de seuil, inventaires par magasin, approvisionnement, réception des commandes, règlement des fournisseurs, et **import Excel** avec modèles fournis.
+
+<img src="docs/readme/m6-stocks.jpg" alt="Stocks" width="100%">
+
+### 🧾 Facturation
+
+Factures A4 et tickets, avoirs, registre des factures et **factures proforma** (devis convertibles en facture, montant en lettres, signature et cachet). Trois modes de facturation normalisée : **désactivée** (facture simple), **e-MECeF** (DGI Bénin) ou **boîtier CC300**. Une facture normalisée est verrouillée : on la corrige par un avoir.
+
+<img src="docs/readme/pwa-proformas-liste.jpg" alt="Factures proforma" width="100%">
+
+### 👥 Clients et créances
+
+Fiches clients, historique, soldes calculés, recouvrement et relances.
+
+### 🧭 Tourisme, véhicules et locations
+
+Circuits et départs, réservations de places, parc de véhicules, contrats de location, entretiens, reçu de location imprimable.
+
+### 📒 Comptabilité SYSCOHADA
+
+Chaque opération génère ses écritures au plan comptable SYSCOHADA : journaux, grand livre, balance, compte de résultat, bilan, flux de trésorerie, **TAFIRE**, notes annexes, immobilisations, analytique. **Sélecteur d'exercice** (N / N-1), **clôture annuelle** avec archive légale à empreinte SHA-256, et **affectation du résultat** selon la forme juridique de l'entreprise. Une pièce validée est immuable : on corrige par contre-passation.
+
+### 🧑‍💼 Ressources humaines et paie
+
+Fiches du personnel, bulletins de paie, congés et plannings.
+
+### ⚙️ Et aussi
+
+- **Droits d'accès par rôle**, modifiables par l'administrateur et appliqués à tous les postes sans redémarrage.
+- **Notifications** par e-mail, états et rapports PDF, sauvegardes et journal d'audit.
+- **Heure du Bénin** à l'écran, **prix toutes taxes comprises**, vocabulaire du métier.
+- **Un manuel d'utilisation** illustré.
+
+---
+
+## Le poste Windows
+
+- **Il travaille sans serveur** : toutes les lectures viennent de sa base locale.
+- **Il se synchronise** avec le serveur : envoi des saisies dans l'ordre, réception des nouveautés des autres postes, écran des opérations à traiter avec leurs causes et leurs corrections.
+- **Aucune opération ne bloque la synchronisation** : un refus ne retient que son élément, et le reste passe.
+- **Installateur Windows** avec mise à jour sur place (les données sont conservées).
+- **Démarrage résilient** : une base abîmée ou une migration qui échoue affichent un écran clair, jamais un blocage muet.
+
+<img src="docs/readme/login.jpg" alt="Écran de connexion" width="100%">
+
+---
+
+## Sous le capot
+
+| | |
+|---|---|
+| **Serveur web** | Laravel 12, Livewire 4, Tailwind, MySQL |
+| **Poste** | Flutter (Windows), base locale SQLite (Drift) |
+| **Synchronisation** | Hors ligne d'abord, envoi ordonné par file, aucune saisie perdue ni écrasée |
+| **Qualité** | Environ 2 700 tests côté serveur et 5 800 côté poste |
+| **Langue** | Tout le logiciel est en français |
+
+---
+
+## Contact et usage commercial
+
+Ce projet est **privé et personnel**. Tous droits réservés.
+
+Pour toute utilisation commerciale, une démonstration ou une collaboration, écrivez à :
+
+📧 **[rarhodes06@gmail.com](mailto:rarhodes06@gmail.com)**
+
+---
+
+<sub>© Tous droits réservés. Le code source n'est ni libre de droits ni ouvert à la réutilisation sans accord écrit de l'éditeur.</sub>
