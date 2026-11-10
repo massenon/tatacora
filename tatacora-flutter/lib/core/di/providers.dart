@@ -129,6 +129,23 @@ final class SessionNotifier extends Notifier<Session?> {
     if (courante == null) return;
     state = await ref.read(depotSessionProvider).relire(courante.login);
   }
+
+  /// Après une DESCENTE du serveur (10/11/2026, PO : « si l'admin modifie le RBAC, l'application
+  /// doit prendre en compte le rôle modifié ») : un rôle reçu est recopié sur les comptes du
+  /// poste ; la session OUVERTE relit ses droits sans que l'utilisateur se reconnecte. Ne change
+  /// l'état QUE si les droits ou le rôle ont changé (aucune reconstruction inutile toutes les
+  /// 30 s) et ne ferme JAMAIS la session : un compte introuvable reste l'affaire de `restaurer()`.
+  Future<void> relireDroitsSiChange() async {
+    final courante = state;
+    if (courante == null) return;
+    final relue = await ref.read(depotSessionProvider).relire(courante.login);
+    if (relue == null || state != courante) return;
+    if (relue.role == courante.role &&
+        relue.droits.memesDroitsQue(courante.droits)) {
+      return;
+    }
+    state = relue;
+  }
 }
 
 /// Le drapeau « modales d'ouverture de session en attente » — le

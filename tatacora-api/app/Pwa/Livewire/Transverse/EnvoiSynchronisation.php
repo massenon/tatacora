@@ -21,14 +21,16 @@ use RuntimeException;
  * qui reste à livrer, ce qui n'est pas livré faute de droit, les refus
  * « données réinitialisées ».
  *
- * « Redescendre depuis le début » — réservé aux Administrateurs — pose une
+ * « Redescendre depuis le début » — ouvert à TOUS les rôles (10/11/2026, PO : « la redescente doit
+ * être automatique et accessible ») ; elle est d'abord AUTOMATIQUE : un changement accepté fait avancer
+ * l'époque (battement de 30 s) et chaque poste redescend de lui-même, le passage complet de 5 minutes
+ * rattrape le reste. Ce bouton ne sert plus qu'à repartir du début. Il pose une
  * demande que le serveur consomme au prochain passage du poste : il ignore
  * alors le curseur du poste et le fait repartir du début. La demande de
  * synchronisation existante (`SuiviPostesService::demander`) l'invite à passer
  * dans la minute.
  *
- * Composant imbriqué (voir `ReceptionSynchronisation`) ; lecture réservée aux
- * Administrateurs et au Comptable.
+ * Composant imbriqué (voir `ReceptionSynchronisation`) ; lecture ouverte à tout compte connecté.
  */
 class EnvoiSynchronisation extends Component
 {
@@ -59,10 +61,10 @@ class EnvoiSynchronisation extends Component
         $this->detailPoste = null;
     }
 
-    /** Ouvre la confirmation ; n'écrit rien. Réservé aux Administrateurs. */
+    /** Ouvre la confirmation ; n'écrit rien. Ouvert à tous les rôles. */
     public function demanderRedescente(string $poste): void
     {
-        $this->exigerAdministration();
+        $this->exigerLecture();
         $this->refus = null;
         $this->posteARedescendre = $poste;
     }
@@ -74,7 +76,7 @@ class EnvoiSynchronisation extends Component
 
     public function redescendre(JournalEnvoiService $envoi, SuiviPostesService $suivi): void
     {
-        $auteur = $this->exigerAdministration();
+        $auteur = $this->exigerLecture();
         $poste = $this->posteARedescendre;
         $this->posteARedescendre = null;
 
@@ -109,13 +111,6 @@ class EnvoiSynchronisation extends Component
         return $utilisateur;
     }
 
-    private function exigerAdministration(): User
-    {
-        $utilisateur = Auth::user();
-        abort_unless($utilisateur instanceof User && $utilisateur->estAdministrateur(), 403);
-
-        return $utilisateur;
-    }
 
     public function render(JournalEnvoiService $envoi, CorrectionReceptionService $corrections, CatalogueDescendantService $catalogue): View
     {
@@ -129,7 +124,7 @@ class EnvoiSynchronisation extends Component
             'autorise' => true,
             'postes' => $envoi->resume(),
             'detail' => $this->detailPoste !== null ? $envoi->detail($this->detailPoste, $catalogue) : null,
-            'peutRedescendre' => $utilisateur->estAdministrateur(),
+            'peutRedescendre' => true,
         ]);
     }
 }

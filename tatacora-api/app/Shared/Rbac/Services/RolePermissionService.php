@@ -7,6 +7,7 @@ namespace App\Shared\Rbac\Services;
 use App\Shared\Rbac\Models\Permission;
 use App\Shared\Rbac\Models\Role;
 use Database\Seeders\RolePermissionSeeder;
+use App\Shared\Sync\Services\EpoqueSynchronisation;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -70,7 +71,7 @@ class RolePermissionService
             throw new RuntimeException(__('pwa.roles.libelle_requis'));
         }
 
-        return DB::transaction(function () use ($libellePropre, $description, $id): Role {
+        $cree = DB::transaction(function () use ($libellePropre, $description, $id): Role {
             $existe = Role::query()
                 ->where('libelle', $libellePropre)
                 ->lockForUpdate()
@@ -103,6 +104,10 @@ class RolePermissionService
 
             return $role->refresh();
         });
+
+        $this->annoncerAuxPostes();
+
+        return $cree;
     }
 
     /**
@@ -121,7 +126,7 @@ class RolePermissionService
             throw new RuntimeException(__('pwa.roles.verrouillage_administrateur'));
         }
 
-        return DB::transaction(function () use ($role, $module, $niveau): Role {
+        $modifie = DB::transaction(function () use ($role, $module, $niveau): Role {
             $actions = self::ACTIONS_PAR_NIVEAU[$niveau];
 
             $idsAGarder = [];
@@ -144,6 +149,10 @@ class RolePermissionService
 
             return $role->refresh();
         });
+
+        $this->annoncerAuxPostes();
+
+        return $modifie;
     }
 
     /**
@@ -158,7 +167,7 @@ class RolePermissionService
      */
     public function retablirSocle(?array $seulement = null): int
     {
-        return DB::transaction(function () use ($seulement): int {
+        $restaures = DB::transaction(function () use ($seulement): int {
             $restaures = 0;
 
             foreach (RolePermissionSeeder::MATRICE as $libelle => $droits) {
@@ -183,6 +192,12 @@ class RolePermissionService
 
             return $restaures;
         });
+
+        if ($restaures > 0) {
+            $this->annoncerAuxPostes();
+        }
+
+        return $restaures;
     }
 
     /**
@@ -239,6 +254,17 @@ class RolePermissionService
      * `administrateur`, ce que la garde autorise déjà — mais l'appeler ICI
      * évite toute dépendance d'ordre dans la boucle du dessus.
      */
+    /**
+     * Un rôle vient de changer au serveur (10/11/2026, PO : « si l'admin modifie le RBAC, l'application
+     * doit prendre en compte le rôle modifié et le synchroniser ») : l'ÉPOQUE de synchronisation
+     * avance, les postes la lisent au battement de 30 s et DESCENDENT tout de suite le rôle (et
+     * le recopient sur leurs comptes) au lieu d'attendre le passage complet de 5 minutes.
+     */
+    private function annoncerAuxPostes(): void
+    {
+        app(EpoqueSynchronisation::class)->incrementer();
+    }
+
     private function synchroniserSansGarde(Role $role, string $module, string $niveau): void
     {
         $actions = self::ACTIONS_PAR_NIVEAU[$niveau] ?? [];

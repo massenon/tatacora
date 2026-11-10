@@ -125,4 +125,14 @@ final class GardeAcces {
       ModuleTatacora.values.where(peutLire).toList(growable: false);
 
   bool get estVide => _droits.isEmpty;
+
+  /// Les MÊMES droits, clé pour clé (aucune égalité de valeur sur la garde elle-même : une
+  /// session relue sans changement ne doit pas reconstruire tout l'écran).
+  bool memesDroitsQue(GardeAcces autre) {
+    if (_droits.length != autre._droits.length) return false;
+    for (final e in _droits.entries) {
+      if (autre._droits[e.key] != e.value) return false;
+    }
+    return true;
+  }
 }

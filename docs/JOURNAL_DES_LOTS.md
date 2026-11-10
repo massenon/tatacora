@@ -2111,3 +2111,15 @@ Décision du PO (« ça ne doit pas refuser à la vente ») : après « un plat 
 **Appliquer sur une base existante.** Le seeder ne touche pas les rôles déjà semés : `php artisan roles:realigner-socle --role=barman --dry-run` montre l'écart module par module sans rien écrire, puis `php artisan roles:realigner-socle --role=barman` (et `--role=comptable`) l'applique. Sans `--role`, tous les rôles du socle ; un rôle créé à l'écran est refusé/jamais touché ; idempotent (un rôle conforme n'est pas réécrit ni tracé) ; chaque rôle réécrit est tracé au journal d'audit (`roles:realigner-socle`, avant/après) ; la mise à jour du rôle le fait redescendre aux postes (`roles` → `roles_local`). Le bouton « Rétablir le socle » de l'écran fait la même chose pour TOUS les rôles à la fois.
 
 **Tests.** `RealignerSocleRolesTest` (comptable = gérant, barman = socle, simulation sans écriture, ciblage + idempotence + rôle hors socle intact). Les ~40 cas qui prenaient le comptable pour « le rôle en lecture seule » utilisent le rôle d'ESSAI `lecteur` (ancienne matrice du comptable), posé par `Tests\TestCase::seed()` et jamais semé en production.
+
+## 10/11/2026 — Un rôle modifié est pris en compte tout de suite ; la redescente est automatique et ouverte à tous
+
+**Décision du PO.** « Si l'admin modifie le RBAC, l'application doit prendre en compte le rôle modifié et le synchroniser » ; « la redescente doit être automatique et accessible ».
+
+**Serveur.** `RolePermissionService` (`creerRole`, `definirNiveau`, `retablirSocle`, donc aussi `roles:realigner-socle`) fait avancer l'ÉPOQUE de synchronisation : les postes la lisent au battement de 30 s et redescendent le rôle dans la minute, sans attendre le passage complet de 5 minutes. Une modification faite AU POSTE (écran Rôles) était déjà enfilée, acceptée (`GestionnaireRoles`) et annoncée aux autres postes par l'époque d'une opération acceptée.
+
+**Poste.** `SessionNotifier.relireDroitsSiChange()` est appelé après chaque bilan de synchronisation : le rôle reçu est recopié sur les comptes (`RolesDao.inscrireDescendu`) et la session OUVERTE relit ses droits (menu, gardes) sans reconnexion ; l'état ne change que si le rôle ou les droits changent, et la session n'est jamais fermée par ce chemin.
+
+**Redescente.** Automatique (époque + passage complet de 5 minutes). Le bouton « Redescendre depuis le début » du web est ouvert à TOUS les rôles (`EnvoiSynchronisation`) ; révoquer, appairer, dissocier et l'adresse du serveur restent aux administrateurs.
+
+**Tests.** PHP `RolesModifiesDescendentTest` (l'époque avance à chaque écriture d'un rôle), `ReceptionSynchronisationTest` (barman, gérant, lecteur redescendent), `EntreesMenuOuvertesATousTest` ; Flutter `droits_relus_apres_descente_test` (rôle descendu → droits de la session ouverte, aucune reconstruction sans changement).

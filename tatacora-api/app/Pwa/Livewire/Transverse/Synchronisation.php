@@ -32,12 +32,10 @@ use Livewire\Attributes\Url;
  *
  * ## Ce que voit chaque rôle
  *
- * - Administrateurs et Comptable : les deux journaux, comme avant (lecture,
- *   corrections, relances, redescente réservée aux administrateurs — gardes
- *   des composants imbriqués, inchangées).
- * - Tout autre rôle : la page, en LECTURE, et SES PROPRES échecs (les
- *   opérations rejetées, en conflit ou en erreur reçues sous son compte), sans
- *   aucun bouton d'action : ni correction, ni relance, ni redescente.
+ * Tous les rôles (10/11/2026, PO : « rejouer et voir la synchronisation doivent être accessibles à tous
+ * les rôles ») : les deux journaux, les corrections, les relances et la redescente. La redescente est de
+ * toute façon AUTOMATIQUE (époque au battement de 30 s, passage complet de 5 minutes) ; révoquer,
+ * appairer, dissocier et l'adresse du serveur restent aux administrateurs (page Appairage Postes).
  */
 #[Title('Synchronisation — LogiReStock — TATACORA AFRIQUE')]
 class Synchronisation extends PageTransverse

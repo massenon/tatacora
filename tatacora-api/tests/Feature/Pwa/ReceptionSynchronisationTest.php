@@ -276,7 +276,7 @@ final class ReceptionSynchronisationTest extends TestCase
     }
 
     #[Test]
-    public function l_onglet_envoi_montre_les_postes_et_la_redescente_est_reservee_aux_administrateurs(): void
+    public function l_onglet_envoi_montre_les_postes_et_la_redescente_est_ouverte_a_tous_les_roles(): void
     {
         EtatPosteSynchronisation::create([
             'poste_id' => 'poste-bar', 'utilisateur_id' => $this->barman->id, 'derniere_descente_le' => now(),
@@ -297,13 +297,17 @@ final class ReceptionSynchronisationTest extends TestCase
         // La demande de synchronisation existante invite les postes à passer.
         $this->assertDatabaseCount('demandes_synchronisation', 1);
 
-        $this->app['auth']->forgetGuards();
-        $this->actingAs($this->creerUtilisateur('lecteur'));
-        Livewire::test(EnvoiSynchronisation::class)
-            ->assertSee('poste-bar')
-            ->assertDontSee('Redescendre depuis le début</button>', false)
-            ->call('demanderRedescente', 'poste-bar')->assertForbidden();
-        Livewire::test(EnvoiSynchronisation::class)->call('redescendre')->assertForbidden();
+        // 10/11/2026 (PO : « la redescente doit être automatique et accessible ») : ouverte à TOUS les
+        // rôles — le barman, le gérant, un rôle en simple lecture la demandent aussi.
+        foreach ([$this->barman, $this->creerUtilisateur('gerant'), $this->creerUtilisateur('lecteur')] as $compte) {
+            $this->app['auth']->forgetGuards();
+            $this->actingAs($compte);
+            Livewire::test(EnvoiSynchronisation::class)
+                ->assertSee('poste-bar')
+                ->assertSee('Redescendre depuis le début')
+                ->call('demanderRedescente', 'poste-bar')->assertOk()
+                ->call('redescendre')->assertOk();
+        }
     }
 
     /** L'index du champ dans le formulaire (même ordre que `champs()`). */

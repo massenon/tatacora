@@ -256,8 +256,12 @@ final syncManagerProvider = Provider<SyncManager>((ref) {
     demonstration: ref.watch(synchronisationInterditeProvider),
     lecteur: LecteurConfigurationPoste(chemin: chemin),
     ecrivain: EcrivainConfigurationPoste(chemin: chemin),
-    surBilan: (bilan) =>
-        ref.read(dernierBilanSynchronisationProvider.notifier).poser(bilan),
+    surBilan: (bilan) {
+      ref.read(dernierBilanSynchronisationProvider.notifier).poser(bilan);
+      // Un rôle modifié au serveur est descendu et recopié sur les comptes : la session
+      // ouverte le prend en compte tout de suite (menu, gardes), sans reconnexion.
+      unawaited(ref.read(sessionProvider.notifier).relireDroitsSiChange());
+    },
     descente: ref.watch(descenteCatalogueProvider),
     recus: ref.watch(envoiRecusDepensesProvider),
     images: TelechargementImagesDocument(

@@ -168,7 +168,7 @@ final class EntreesMenuOuvertesATousTest extends TestCase
     }
 
     #[Test]
-    public function un_non_admin_voit_ses_propres_echecs_en_lecture_sans_aucune_action(): void
+    public function un_non_admin_voit_la_synchronisation_complete_et_peut_rejouer(): void
     {
         $guide = $this->compte('guide');
         $autre = $this->compte('barman');
@@ -185,13 +185,10 @@ final class EntreesMenuOuvertesATousTest extends TestCase
 
         $this->actingAs($guide);
         Livewire::test(Synchronisation::class)
-            ->assertSee('poste-guide')
-            ->assertSee('Cause de test poste-guide')
-            ->assertDontSee('poste-autre')
-            ->assertDontSee('Corriger')
-            ->assertDontSee('Relancer')
-            ->assertDontSee('onglets-synchronisation', false)
-            ->assertDontSeeLivewire(\App\Pwa\Livewire\Transverse\ReceptionSynchronisation::class);
+            // 10/11/2026 (PO : « le REJOUER et voir la synchronisation doivent être accessibles à tous
+            // les rôles ») : tout compte voit la page complète, journaux de réception compris.
+            ->assertSee('onglets-synchronisation', false)
+            ->assertSeeLivewire(\App\Pwa\Livewire\Transverse\ReceptionSynchronisation::class);
     }
 
     #[Test]
