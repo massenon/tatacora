@@ -1,0 +1,227 @@
+<!-- ============================ CHAPITRE 20 ============================ -->
+<section class="chapitre" id="ch20">
+  <h1 class="chapitre"><span class="numero">Chapitre 20</span>Annuler une réservation : délai, commission et remboursement</h1>
+
+  <p class="chapeau">
+    Quand un client annule, le logiciel applique la <strong>règle d'annulation</strong> du Gîte : il regarde <strong>combien de temps</strong> il reste avant l'arrivée,
+    en déduit un <strong>taux</strong>, calcule la <strong>commission</strong> retenue et propose le <strong>montant à rendre</strong> au client. Tout est enregistré dans
+    l'historique et dans la comptabilité. La règle est la <strong>même au web et au poste Windows</strong>.
+  </p>
+
+  <h2>20.1 Les trois réglages</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Paramètres <span class="fleche">➔</span> Exploitation (administrateur, web ou poste)
+  </span>
+  <table>
+    <thead><tr><th>Réglage</th><th>Valeur de départ</th><th>Sens</th></tr></thead>
+    <tbody>
+      <tr><td>Seuil d'heures</td><td>24 h</td><td>Au-dessous de ce délai avant l'arrivée, l'annulation est « tardive ».</td></tr>
+      <tr><td>Taux sous le seuil (moins de 24 h)</td><td>50 %</td><td>Part du total retenue quand l'annulation est tardive.</td></tr>
+      <tr><td>Taux au-delà du seuil</td><td>0 %</td><td>Part du total retenue quand le client prévient à temps.</td></tr>
+    </tbody>
+  </table>
+  <p>
+    Ces réglages se modifient au web comme au poste, par un <strong>administrateur</strong>, et se synchronisent. Les changer ne modifie
+    <strong>jamais</strong> une annulation déjà enregistrée : le taux, la commission et le remboursé sont <strong>figés</strong> sur chaque annulation.
+  </p>
+
+  <h2>20.2 Le calcul</h2>
+  <ol class="etapes">
+    <li>Le logiciel mesure le <strong>délai</strong> entre l'annulation et le début du jour d'arrivée. Une arrivée déjà passée compte comme « sous le seuil ».</li>
+    <li>À l'ouverture du formulaire d'annulation, le <strong>taux</strong> correspondant est <strong>posé automatiquement</strong>. L'opérateur peut le corriger au cas par cas.</li>
+    <li><strong>Commission retenue = taux × total de la réservation</strong> (le total, remise comprise : le « montant initial »).</li>
+    <li><strong>Remboursé = ce qui a été payé − la commission</strong>, jamais moins de 0 et <strong>jamais plus que ce qui a été payé</strong>. L'opérateur peut saisir une autre valeur (en % de l'acompte ou en FCFA), plafonnée à l'acompte versé.</li>
+  </ol>
+  <table>
+    <thead><tr><th>Situation</th><th>Exemple</th><th>Remboursé</th></tr></thead>
+    <tbody>
+      <tr><td>Payée en totalité, annulation tardive</td><td>Total 80 000, payé 80 000, taux 50 % ➔ commission 40 000</td><td>40 000 FCFA</td></tr>
+      <tr><td>Acompte partiel couvrant la commission</td><td>Total 80 000, payé 60 000, taux 50 % ➔ commission 40 000</td><td>20 000 FCFA</td></tr>
+      <tr><td>Acompte partiel ne couvrant pas la commission</td><td>Total 80 000, payé 30 000, taux 50 % ➔ commission 40 000</td><td>0 FCFA (le client ne doit rien de plus)</td></tr>
+      <tr><td>Rien payé</td><td>Total 90 000, payé 0</td><td>Rien à rembourser, aucune écriture</td></tr>
+    </tbody>
+  </table>
+
+  <span class="note info">
+    <span class="icone">ℹ️</span>
+    <span class="titre">Information</span>
+    La commission se calcule sur le <strong>total</strong>, pas sur ce qui a été payé : un client qui n'a versé qu'un petit acompte ne « gagne » donc pas une annulation gratuite.
+    Le remboursé, lui, ne dépasse jamais l'argent réellement encaissé.
+  </span>
+
+  <h2>20.3 Ce qui est enregistré</h2>
+  <ul class="puces">
+    <li>Sur la réservation : le <strong>taux</strong>, le <strong>total</strong>, la <strong>commission</strong>, le <strong>remboursé</strong>, le mode de saisie, la <strong>date</strong>, l'<strong>auteur</strong> et le <strong>poste</strong>. Ils s'affichent dans l'onglet <strong>Annulations</strong> et dans l'historique.</li>
+    <li>En comptabilité : si le remboursé est supérieur à 0, la pièce <strong>Dr 4191 / Cr 5711</strong> est passée dans la même opération que l'annulation. Un remboursé de 0 n'écrit rien.</li>
+    <li>Sur la fiche du client : la situation financière (solde, pièces) se met à jour tout de suite.</li>
+  </ul>
+
+  <h2>20.4 L'onglet Annulations et l'historique</h2>
+  <p>
+    L'onglet <strong>Annulations</strong> liste, pour chaque annulation : le client, l'unité, le <strong>total</strong>, le <strong>taux</strong>, la <strong>commission retenue</strong>,
+    le <strong>remboursé</strong>, la date et l'auteur. Une annulation faite <strong>avant</strong> la règle actuelle n'a pas ces montants : elle montre des <strong>tirets</strong>, jamais un
+    faux « 0 FCFA ». L'<strong>historique</strong> des réservations affiche aussi le <strong>Total</strong> et le <strong>Reste dû</strong> (total − acompte, jamais négatif), au web comme au poste.
+  </p>
+  <figure class="emplacement">
+    <div class="cadre">
+      <strong>Capture à fournir</strong>
+      <code>captures/c20-annulations-onglet.png</code><br>
+      L'onglet Annulations : total, taux, commission, remboursé, date, auteur.
+    </div>
+    <figcaption><b>Figure 20.1</b> — L'onglet Annulations.</figcaption>
+  </figure>
+
+  <h2>20.5 Qui peut annuler</h2>
+  <p>
+    Le contrôle se fait <strong>au poste</strong>, sur l'utilisateur connecté : il faut le droit d'écriture sur le module Hébergement <strong>et</strong> le droit
+    <strong>Annulations</strong>. Le <strong>serveur n'en juge plus</strong> : une annulation faite au poste est acceptée quel que soit le compte qui a appairé le poste (chapitre 22).
+    Le poste peut aussi annuler, comme les réservations, les <strong>factures, paiements, ventes et règlements</strong> saisis sur un autre poste ou au web.
+  </p>
+</section>
+
+<!-- ============================ CHAPITRE 21 ============================ -->
+<section class="chapitre" id="ch21">
+  <h1 class="chapitre"><span class="numero">Chapitre 21</span>Comptabilité : forme juridique, affectation du résultat, TAFIRE</h1>
+
+  <p class="chapeau">
+    Après la clôture d'un exercice, l'entreprise décide de l'<strong>affectation du résultat</strong> : que devient le bénéfice (ou la perte) ? La règle dépend de la
+    <strong>forme juridique</strong>. Le Gîte Chez Noël est une <strong>entreprise individuelle</strong> : c'est la valeur de départ du logiciel.
+  </p>
+
+  <span class="note alerte">
+    <span class="icone">🛑</span>
+    <span class="titre">À faire valider par l'expert-comptable</span>
+    Les comptes proposés par défaut et l'ordre d'imputation d'une perte sont <strong>à valider par l'expert-comptable du Gîte</strong> avant la première affectation réelle.
+  </span>
+
+  <h2>21.1 Choisir la forme juridique</h2>
+  <span class="chemin">
+    <span class="etiquette">Chemin</span>
+    Paramètres <span class="fleche">➔</span> Exploitation (administrateur, web ou poste)
+  </span>
+  <p>
+    Trois valeurs : <strong>Entreprise individuelle</strong> (par défaut), <strong>SARL</strong>, <strong>SA</strong>. Le changement est refusé tant qu'une affectation est active (il faut d'abord la
+    contre-passer). Il se synchronise entre le web et les postes.
+  </p>
+
+  <h2>21.2 Ce que la forme juridique change</h2>
+  <table>
+    <thead><tr><th>Forme</th><th>Réserve légale</th><th>Dividendes</th><th>Destination du bénéfice</th></tr></thead>
+    <tbody>
+      <tr><td>Entreprise individuelle</td><td>Aucune</td><td>Aucun (refusés)</td><td>Tout au <strong>compte de l'exploitant</strong> (compte 1041)</td></tr>
+      <tr><td>SARL ou SA</td><td>Obligatoire : 10 % du bénéfice diminué des pertes antérieures, jusqu'à 20 % du capital</td><td>Possibles, bornés par les capitaux propres (alerte sous la moitié du capital)</td><td>Réserves, report à nouveau, dividendes à payer (compte 465)</td></tr>
+    </tbody>
+  </table>
+  <p>En cas de <strong>perte</strong>, les sociétés l'imputent dans l'ordre : report à nouveau créditeur, réserves libres, report à nouveau débiteur.</p>
+
+  <h2>21.3 Passer l'affectation</h2>
+  <ol class="etapes">
+    <li>Clôturer l'exercice (chapitre 11), puis ouvrir la page <strong>Affectation du résultat de l'exercice</strong> de cet exercice.</li>
+    <li>Saisir la ventilation ; elle doit <strong>totaliser exactement le résultat</strong> à affecter.</li>
+    <li>Valider : la pièce est passée dans l'exercice ouvert (N+1). Une affectation passée au <strong>web</strong> apparaît sur le <strong>poste</strong>, et inversement.</li>
+  </ol>
+  <p>
+    Pour <strong>corriger</strong>, on <strong>contre-passe</strong> : la contre-passation se date du jour dans l'exercice ouvert, jamais avant la pièce, et est refusée si un dividende a déjà été réglé.
+    Une affectation passée ailleurs se contre-passe là où elle a été passée.
+  </p>
+  <figure class="emplacement">
+    <div class="cadre">
+      <strong>Capture à fournir</strong>
+      <code>captures/c21-affectation-resultat.png</code><br>
+      La page Affectation du résultat de l'exercice.
+    </div>
+    <figcaption><b>Figure 21.1</b> — L'affectation du résultat.</figcaption>
+  </figure>
+
+  <h2>21.4 Le TAFIRE</h2>
+  <p>
+    Le <strong>TAFIRE</strong> (tableau financier des ressources et des emplois) se lit dans les états de fin d'année, au web et au poste. Il est calculé par <strong>variations</strong> :
+    capacité d'autofinancement globale, emprunts, apports en capital, dividendes, variation du besoin de financement. Le compte <strong>465 « dividendes à payer »</strong> figure au
+    <strong>passif circulant</strong> du bilan, en dehors du besoin de financement d'exploitation.
+  </p>
+  <figure class="emplacement">
+    <div class="cadre">
+      <strong>Capture à fournir</strong>
+      <code>captures/c21-tafire.png</code><br>
+      Le TAFIRE dans les états de fin d'année.
+    </div>
+    <figcaption><b>Figure 21.2</b> — Le TAFIRE.</figcaption>
+  </figure>
+</section>
+
+<!-- ============================ CHAPITRE 22 ============================ -->
+<section class="chapitre" id="ch22">
+  <h1 class="chapitre"><span class="numero">Chapitre 22</span>Nouveautés d'exploitation : stock, menus, droits, impressions</h1>
+
+  <p class="chapeau">
+    Ce chapitre rassemble les changements d'exploitation de novembre 2026 qui ne tiennent pas dans un chapitre précis.
+  </p>
+
+  <h2>22.1 Stock du restaurant : plats illimités, boissons en rupture</h2>
+  <ul class="puces">
+    <li>Un <strong>plat</strong> n'est <strong>jamais en rupture</strong> : il est toujours vendable et son stock est <strong>illimité</strong> par défaut (l'écran affiche « illimité » quand le stock lié est à 0).</li>
+    <li>La vente d'un plat <strong>n'est jamais refusée</strong> pour manque de stock, <strong>même si un ingrédient de sa fiche manque</strong> : la vente passe, le stock d'ingrédient peut descendre sous zéro et se corrige à la prochaine entrée ou au prochain inventaire.</li>
+    <li>Une <strong>boisson</strong>, elle, <strong>peut être en rupture</strong> : sans stock, elle ne se vend pas.</li>
+    <li>Un plat vendu tel quel se relie à l'article de <strong>même nom</strong> du point « Cuisine » (bouton <strong>Rapprocher les plats du stock</strong> de la carte, ou à l'import) ; un plat à fiche composée n'est jamais relié.</li>
+  </ul>
+
+  <h2>22.2 Les imports Excel</h2>
+  <p>
+    Les modèles d'import du stock, des boissons et du restaurant portent trois colonnes facultatives : <strong>Point Stock</strong>, <strong>Seuil</strong> et <strong>Valeur d'achat</strong>.
+    La valeur d'achat n'est posée que si elle est <strong>vide</strong> : un import n'écrase jamais une valeur existante. Importée au poste, elle <strong>remonte au serveur</strong> et
+    <strong>redescend sur tous les postes appairés</strong>. Elle n'est ni un mouvement de stock ni le coût moyen pondéré. Les modèles se téléchargent depuis <strong>Import &amp; Export</strong>.
+  </p>
+
+  <h2>22.3 Menus Synchronisation, Appairage Postes, Import &amp; Export</h2>
+  <p>
+    Ces trois entrées sont <strong>visibles de tous les rôles</strong>, gérant compris. La visibilité n'ouvre pas tous les gestes : révoquer, appairer, dissocier ou changer l'adresse du serveur
+    restent réservés aux administrateurs ; l'import demande l'écriture sur le module choisi. L'onglet de réglage de l'appairage s'appelle désormais <strong>Appairage Postes</strong>
+    (il a quitté Paramètres) ; la page <strong>Synchronisation</strong> montre la file, l'envoi, la réception et les échecs.
+  </p>
+  <p>
+    <strong>Réinitialiser les données de test</strong> se trouve dans <strong>Paramètres ➔ Activation &amp; Sécurité</strong> (web et poste), avec ses verrous habituels ; elle n'est plus dans Import &amp; Export.
+  </p>
+
+  <h2>22.4 Le serveur ne juge plus les droits du compte d'appairage</h2>
+  <p>
+    Un poste est appairé par <strong>un</strong> compte, mais utilisé par plusieurs personnes. Le droit de faire une opération est donc contrôlé <strong>au poste</strong>, sur la personne connectée.
+    Le serveur accepte ce qui vient d'un poste appairé par un administrateur et ne garde que les contrôles de <strong>cohérence</strong> (référence inconnue, chevauchement, montant).
+    Rien ne bloque la file : une opération en échec n'arrête que <strong>elle-même</strong>, et peut être <strong>renvoyée</strong> par tous. Restent réservées, rejetées <strong>seules</strong> avec
+    le message « Opération réservée » : la suppression d'un compte (super administrateur), les réglages de facturation normalisée et la forme juridique (administrateur), la clôture d'exercice,
+    l'affectation du résultat et sa contre-passation (comptable), la purge définitive (super administrateur).
+  </p>
+
+  <h2>22.5 Numéro de registre des factures</h2>
+  <p>Dans le registre, la colonne <strong>N°</strong> montre le <strong>numéro fiscal</strong> s'il existe, <strong>sinon le numéro interne</strong> (web et poste). Une facture simple porte donc son numéro interne.</p>
+
+  <h2>22.6 Heure locale du Bénin (web)</h2>
+  <p>
+    Toutes les <strong>heures</strong> affichées au web sont en <strong>heure du Bénin (UTC+1)</strong> : écrans, PDF, exports. Les <strong>dates seules</strong> (arrivée, départ, échéance)
+    ne sont jamais décalées. Les noms de fichiers exportés gardent leur horodatage en UTC.
+  </p>
+
+  <h2>22.7 Le poste Windows : boutons de fenêtre</h2>
+  <p>
+    La barre de titre Windows est masquée : la barre supérieure du logiciel porte les boutons <strong>Réduire</strong>, <strong>Agrandir / Restaurer</strong> et <strong>Fermer</strong>, et sert à
+    déplacer la fenêtre. Sur une fenêtre étroite, la barre se compacte ; ces trois boutons et le menu de compte restent toujours visibles.
+  </p>
+
+  <h2>22.8 Impressions : l'en-tête unique et le pied</h2>
+  <p>L'<strong>en-tête</strong> de tous les documents imprimés (états, factures A4, tickets, exports) donne l'identité du Gîte <strong>une seule fois</strong>, en cinq lignes :</p>
+  <ul class="puces">
+    <li>TATACORA AFRIQUE Gîte Chez Noël</li>
+    <li>Quartier Sountichirantikou, Natitingou, Bénin</li>
+    <li>Tél. +229 01 97 35 59 74 - nabogounoel@yahoo.fr</li>
+    <li>https://tatacora.com</li>
+    <li>IFU : 0202011344660 - RCCM : RB/NAT/2020-A-137</li>
+  </ul>
+  <p>Le <strong>pied de page</strong> ne porte que la date d'édition et « Page x / y » : plus aucune mention de projet ou de cabinet.</p>
+
+  <h2>22.9 Ce qui reste à éprouver</h2>
+  <ul class="puces">
+    <li>Les captures du poste de ces chapitres sont à fournir (voir <code>CAPTURES_A_PRENDRE_NOUVEAUTES.md</code>).</li>
+    <li>Les comptes d'affectation par défaut sont à valider par l'expert-comptable.</li>
+    <li>Le rendu des boutons de fenêtre et des en-têtes d'impression est à confirmer sur un vrai poste Windows.</li>
+  </ul>
+</section>

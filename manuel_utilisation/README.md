@@ -5,8 +5,8 @@
 | **Rôle** | Manuel d'utilisation destiné au personnel du Gîte Chez Noël |
 | **Éditeur du logiciel** | Dr MASSENON Rhodes, Docteur en Génie Logiciel et Intelligence Artificielle |
 | **Maîtrise d'œuvre** | FAGUEZ SARL — accompagnement des PME dans le cadre du PAEB |
-| **Statut** | LogiRestock 1.0.0 — édition de novembre 2026 (mise à jour complète, chapitres 15 à 19 ajoutés) ; l'édition de septembre 2026 avait été approuvée en séance par le Promoteur et le Comptable, la présente édition ne l'a pas encore été |
-| **Livrable** | `MANUEL_UTILISATION_LOGIRESTOCK.pdf` (166 pages au 09/11/2026, couverture comprise — 165 numérotées ; `generer.js` affiche le nombre exact) |
+| **Statut** | LogiRestock 1.0.0 — édition de novembre 2026 (mise à jour complète, chapitres 15 à 22 ajoutés) ; l'édition de septembre 2026 avait été approuvée en séance par le Promoteur et le Comptable, la présente édition ne l'a pas encore été |
+| **Livrable** | `MANUEL_UTILISATION_LOGIRESTOCK.pdf` (174 pages au 10/11/2026, couverture comprise — 173 numérotées ; `generer.js` affiche le nombre exact) |
 | **Source documentée** | ⚠ **La PWA de `tatacora-api`** depuis le 14/09/2026 — les écrans réellement servis, capturés en session sur le serveur. `prototype_v2/` était la source jusque-là : il est **archivé depuis le 10/09/2026** (PA-183) et le manuel montrait donc une interface qui ne fait plus foi. |
 
 ---
@@ -16,7 +16,7 @@
 | Chemin | Contenu |
 |---|---|
 | `MANUEL_UTILISATION_LOGIRESTOCK.pdf` | Le livrable. |
-| `src/part-01.html` … `part-14.html` | Le texte du manuel (chapitres 1 à 19 et annexes A et B), découpé par lots de chapitres : `part-01` couverture et avant-propos, `part-02` sommaire, `part-03` à `part-09` chapitres 1 à 14 et annexes A et B, `part-10` à `part-14` chapitres 15 à 19 (poste Windows, synchronisation, facturation normalisée, proforma, comptes). |
+| `src/part-01.html` … `part-15.html` | Le texte du manuel (chapitres 1 à 22 et annexes A et B), découpé par lots de chapitres : `part-01` couverture et avant-propos, `part-02` sommaire, `part-03` à `part-09` chapitres 1 à 14 et annexes A et B, `part-10` à `part-15` chapitres 15 à 22 (poste Windows, synchronisation, facturation normalisée, proforma, comptes, annulations, comptabilité, nouveautés d'exploitation). |
 | `CAPTURES_A_PRENDRE.md` | Les 19 captures du poste Windows des chapitres 15 à 19 : 17 sont intégrées (rendus du poste par le moteur Flutter, à confirmer par le PO sur Windows) ; **2 restent en cadre pointillé, à prendre par le PO** (assistant d'installation et avertissement de désinstallation, fenêtres Inno Setup), avec le nom de fichier attendu et la façon de les prendre. `CAPTURES_A_PRENDRE_CHAP1-6.md` et `_CHAP7-14.md` portent le statut de chaque capture PWA (fait / non prise). |
 | `src/style.css` | La charte graphique appliquée au document (marine `#14213D`, or `#B8891E`, police Inter — les valeurs de `prototype_v2/assets/css/app.css`). |
 | `src/img/` | Les captures ré-encodées en JPEG à la génération. **Dérivé** : supprimez le dossier pour forcer sa reconstruction. |
