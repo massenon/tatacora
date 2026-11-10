@@ -1079,4 +1079,21 @@ final class ConformiteMaquettePwaTest extends TestCase
             'statut' => $statut,
         ]);
     }
+
+    #[\PHPUnit\Framework\Attributes\Test]
+    public function import_export_synchronisation_et_appairage_ont_trois_icones_distinctes(): void
+    {
+        $noms = ['Import & Export', 'Synchronisation', 'Appairage Postes'];
+        $icones = [];
+        foreach (MenuLateral::NAVIGATION as $groupe) {
+            foreach ($groupe['items'] ?? [] as $entree) {
+                if (in_array($entree['nom'] ?? null, $noms, true)) {
+                    $icones[$entree['nom']] = $entree['icone'];
+                }
+            }
+        }
+
+        $this->assertCount(3, $icones, 'Les trois entrées existent au menu.');
+        $this->assertCount(3, array_unique($icones), 'Trois icônes distinctes : '.json_encode($icones));
+    }
 }

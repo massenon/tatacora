@@ -813,6 +813,24 @@ class Parametres extends PageTransverse
         $this->deposerImageDocument('cachet', 'cachetTeleverse', $apparence);
     }
 
+    public function retirerSignature(ApparenceEtablissementService $apparence): void
+    {
+        $this->exigerEcriture(self::MODULE);
+        $this->retirerImageDocument('signature', $apparence);
+    }
+
+    public function retirerCachet(ApparenceEtablissementService $apparence): void
+    {
+        $this->exigerEcriture(self::MODULE);
+        $this->retirerImageDocument('cachet', $apparence);
+    }
+
+    private function retirerImageDocument(string $type, ApparenceEtablissementService $apparence): void
+    {
+        $apparence->retirerImageDocument($type);
+        session()->flash('pwa-succes', __('pwa.parametres.apparence_'.$type.'_retire'));
+    }
+
     private function deposerImageDocument(string $type, string $champ, ApparenceEtablissementService $apparence): void
     {
         try {

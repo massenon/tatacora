@@ -99,6 +99,20 @@ class ApparenceEtablissementService
         $disque->put(self::REPERTOIRE . '/' . $type . '.' . $prepare['extension'], $prepare['octets']);
     }
 
+    /** Retire la SIGNATURE ou le CACHET (le document n'imprime alors que le nom et la fonction). */
+    public function retirerImageDocument(string $type): void
+    {
+        if (! in_array($type, self::IMAGES_DOCUMENT, true)) {
+            throw new \InvalidArgumentException('Type d’image inconnu.');
+        }
+
+        $existant = $this->fichierDe($type);
+
+        if ($existant !== null) {
+            Storage::disk(self::DISQUE)->delete($existant);
+        }
+    }
+
     /** Octets de l'image de document, ou `null` — pour dompdf (`data:` URI) et la descente au poste. */
     public function octetsImageDocument(string $type): ?string
     {

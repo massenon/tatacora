@@ -291,6 +291,21 @@ void main() {
       },
     );
 
+    test('« Import & Export », « Synchronisation » et « Appairage Postes » '
+        'ont trois icônes DISTINCTES (PO 10/11/2026)', () {
+      final noms = ['Import & Export', 'Synchronisation', 'Appairage Postes'];
+      final traces = <String>{};
+      for (final nom in noms) {
+        final d = destinationsDeLaVue().firstWhere((d) => d.nom == nom);
+        expect(
+          traces.add(d.icone.trace),
+          isTrue,
+          reason: '$nom partage une icône',
+        );
+      }
+      expect(traces, hasLength(3));
+    });
+
     test('chaque tracé du registre est lisible par le dessinateur', () {
       for (final i in IconeModule.values) {
         expect(icones[i.cleVue], i.trace, reason: i.name);

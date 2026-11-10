@@ -1,4 +1,5 @@
 // Vue Blade maîtresse (PA-183) : pwa/transverse/parametres.blade.php
+import '../../facturation/domain/reglages_documents.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -274,8 +275,15 @@ class _PageState extends ConsumerState<_Page> {
             // Apostrophe DROITE, comme la vue (le panneau supprimé le 09/10/2026 la portait
             // seul, et la comparaison par sous-chaîne la comptait présente à tort).
             const _TitreSection("Identité de l'entreprise"),
-            for (final d in identite)
+            for (final d in identite) ...[
               _Cellule(pleine: d.cle == _cleAdresse, enfant: ligne(d)),
+              // Juste SOUS l'interrupteur de signature : les images (PO 10/11/2026).
+              if (d.cle == ClesReglagesDocuments.signatureAffichee)
+                const _Cellule(
+                  pleine: true,
+                  enfant: BlocSignatureCachetRecus(),
+                ),
+            ],
             const _TitreSection('Informations légales & fiscales', filet: true),
             for (final d in legal) _Cellule(enfant: ligne(d)),
             // FACTURATION NORMALISÉE (07/11/2026) : le mode et les réglages non

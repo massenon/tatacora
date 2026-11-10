@@ -165,6 +165,15 @@
                       'colspan' => $ligne['definition']->cle === ReportHeaderService::CLE_ADRESSE,
                   ])
                 @endif
+                @if ($ligne['definition']->cle === 'facture_signature_affichee')
+                  <div class="sm:col-span-2 rounded-lg border border-slate-100 p-4" id="signature-cachet" data-bloc="signature-cachet">
+                    <p class="text-[15px] font-semibold text-slate-700">{{ __('pwa.parametres.signature_cachet_bloc_titre') }}</p>
+                    <p class="text-[13px] text-slate-500 mt-1 mb-3">{{ __('pwa.parametres.signature_cachet_bloc_aide') }}</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      @include('pwa.transverse.partials.images-signature-cachet')
+                    </div>
+                  </div>
+                @endif
               @endforeach
 
               <div class="sm:col-span-2 pt-3 mt-1 border-t border-slate-100"><h3 class="text-sm font-bold text-slate-700 mb-1">{{ __('pwa.parametres.section_legal') }}</h3></div>
@@ -346,24 +355,7 @@
                   @endif
                 </div>
               </div>
-              {{-- Signature et cachet des factures et proformas (PO, 07/11/2026) : images déposées ici,
-                   réduites à 400 Ko ; l'interrupteur d'affichage est dans Identité & Légal. --}}
-              @foreach (['signature' => $apercuSignature, 'cachet' => $apercuCachet] as $typeImage => $apercuImage)
-                <div>
-                  <p class="block text-[15px] font-semibold text-slate-700 mb-2">{{ __('pwa.parametres.apparence_'.$typeImage.'_titre') }}</p>
-                  <div class="flex items-center gap-4">
-                    @if ($apercuImage !== null)
-                      <img src="{{ $apercuImage }}" class="w-20 h-20 rounded-xl object-contain ring-2 ring-slate-100" alt="{{ __('pwa.parametres.apparence_'.$typeImage.'_titre') }}">
-                    @else
-                      <p class="text-[13px] text-slate-400">{{ __('pwa.parametres.apparence_image_absente') }}</p>
-                    @endif
-                    @if ($peutEcrire)
-                      <button type="button" wire:click="ouvrirChangement{{ ucfirst($typeImage) }}"
-                              class="btn px-3.5 py-2 rounded-lg border border-slate-200 text-[15px] font-semibold">{{ __('pwa.parametres.apparence_'.$typeImage.'_bouton') }}</button>
-                    @endif
-                  </div>
-                </div>
-              @endforeach
+              @include('pwa.transverse.partials.images-signature-cachet')
               {{-- maquette l.121-130 — la charte, DÉJÀ en lecture seule au
                    maître, couleurs en dur comme chez lui (chap. 9.3.1). --}}
               <div class="sm:col-span-2 pt-2">
@@ -681,7 +673,7 @@
         largeur="440px">
       <form wire:submit.prevent="{{ $etatFormulaire === 'signature' ? 'enregistrerSignature' : 'enregistrerCachet' }}" class="space-y-4">
         <div>
-          <input type="file" wire:model="{{ $champImage }}" accept="image/png,image/jpeg"
+          <input type="file" wire:model="{{ $champImage }}" accept="image/png,image/jpeg,image/webp"
                  class="champ w-full border border-slate-200 rounded-lg px-3 py-2.5 text-sm">
           <div wire:loading wire:target="{{ $champImage }}" class="text-[12px] text-slate-400 mt-1">{{ __('pwa.parametres.apparence_televersement') }}</div>
           @error($champImage) <p class="text-[12px] text-red-600 mt-1">{{ $message }}</p> @enderror

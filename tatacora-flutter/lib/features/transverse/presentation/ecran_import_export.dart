@@ -34,9 +34,10 @@ import 'widgets/briques_transverses.dart';
 
 /// L'écran **Import & Export** — lot D du plan du Product Owner (14/10/2026).
 ///
-/// Les QUATRE onglets de la vue, cliquables, dans son ordre : Importer les
-/// données, Sauvegardes de la base, Restaurer, Réinitialiser les données de
-/// test. Chaque panneau reprend les blocs, titres et aides de la vue.
+/// Les TROIS onglets de la vue, cliquables, dans son ordre : Importer les
+/// données, Sauvegardes de la base, Restaurer. « Réinitialiser les données de test »
+/// n'est plus un onglet d'ici : elle est dans Paramètres › Activation & Sécurité
+/// (PO, 09/11/2026). Chaque panneau reprend les blocs, titres et aides de la vue.
 ///
 /// ## Ce que le poste détient, et ce qu'il n'a pas (D419)
 ///

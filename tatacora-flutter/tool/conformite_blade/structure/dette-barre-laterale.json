@@ -9,10 +9,10 @@
       "inertes": 0
     },
     "administrateur": {
-      "jetons": 43,
-      "ordonnes": 43,
+      "jetons": 44,
+      "ordonnes": 44,
       "manquantes": 0,
-      "enTrop": 1,
+      "enTrop": 0,
       "inertes": 0
     },
     "barman": {
@@ -72,10 +72,10 @@
       "inertes": 0
     },
     "super_admin": {
-      "jetons": 43,
-      "ordonnes": 43,
+      "jetons": 44,
+      "ordonnes": 44,
       "manquantes": 0,
-      "enTrop": 1,
+      "enTrop": 0,
       "inertes": 0
     },
     "vehicules": {
@@ -91,8 +91,8 @@
     "absents": 0
   },
   "actif": {
-    "visitees": 27,
-    "concordent": 27
+    "visitees": 28,
+    "concordent": 28
   },
   "icones": {
     "identique": 1

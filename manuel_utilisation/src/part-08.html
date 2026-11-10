@@ -282,7 +282,7 @@
   <table>
     <thead><tr><th>Onglet</th><th>Contenu</th></tr></thead>
     <tbody>
-      <tr><td><strong>Identité &amp; Légal</strong></td><td>Raison sociale, promoteur, adresse, téléphone, e-mail de contact, activités (en-tête des factures), ville du lieu d'émission, référence facture, signataire (nom et fonction), affichage de la signature et du cachet, durée de validité des proformas ; puis IFU, RCCM, n° contribuable MECeF et régime fiscal (Réel normal, Réel simplifié, Taxe Professionnelle Unique) ; assujettissement à la TVA, taux de TVA, convention des prix du catalogue ; enfin la rubrique <strong>Facturation normalisée (MECeF)</strong> (ci-dessous).</td></tr>
+      <tr><td><strong>Identité &amp; Légal</strong></td><td><em>Sous l'interrupteur « Afficher la signature et le cachet sur les factures », le bloc <strong>Signature et cachet</strong> permet de déposer (PNG, JPG ou WebP, réduites à 400 Ko), remplacer ou retirer les deux images ; le poste Windows les reçoit en lecture seule.</em> Raison sociale, promoteur, adresse, téléphone, e-mail de contact, activités (en-tête des factures), ville du lieu d'émission, référence facture, signataire (nom et fonction), affichage de la signature et du cachet, durée de validité des proformas ; puis IFU, RCCM, n° contribuable MECeF et régime fiscal (Réel normal, Réel simplifié, Taxe Professionnelle Unique) ; assujettissement à la TVA, taux de TVA, convention des prix du catalogue ; enfin la rubrique <strong>Facturation normalisée (MECeF)</strong> (ci-dessous).</td></tr>
       <tr><td><strong>Communication</strong></td><td>Site web, numéro WhatsApp Business, état des canaux de notification : les coordonnées utilisées dans les messages et les documents.</td></tr>
       <tr><td><strong>Email (SMTP)</strong></td><td>Serveur SMTP, port, sécurité (TLS, SSL ou aucune), utilisateur et <strong>mot de passe SMTP</strong>, puis le bouton <strong>Envoyer un email de test</strong> (ci-dessous).</td></tr>
       <tr><td><strong>Logo &amp; Apparence</strong></td><td><strong>Changer le logo</strong>, <strong>Changer le favicon</strong>, et — pour les documents commerciaux — <strong>Changer la signature</strong> et <strong>Changer le cachet</strong>. Une image de plus de 400 Ko est réduite automatiquement ; l'ancien fichier n'est pas conservé.</td></tr>
@@ -396,14 +396,13 @@
   </span>
 
   <h2>13.4 Sauvegarder, restaurer, réinitialiser</h2>
-  <p>Le même écran porte trois autres onglets.</p>
+  <p>Le même écran porte deux autres onglets ; la réinitialisation des données de test, elle, se trouve dans <strong>Paramètres › Activation &amp; Sécurité</strong>.</p>
   <ul class="puces">
     <li><strong>Sauvegardes de la base</strong> — le serveur sauvegarde <strong>automatiquement chaque nuit à 02 h 00</strong> et conserve les trente derniers jours. <strong>Générer une sauvegarde de la base</strong> en produit une à la demande ; chaque ligne se <strong>Télécharge</strong>.
       Un bandeau vert annonce la sauvegarde générée, un bandeau doré rappelle la plus récente <em>jamais téléchargée</em> ; <strong>Retirer de la liste</strong> demande une confirmation forte quand la sauvegarde n'a jamais été téléchargée, car il n'en existe alors aucune copie ailleurs.
       <strong>Exporter une table existante</strong> sort le contenu d'une table au format JSON.</li>
     <li><strong>Restaurer</strong> — remet en place un <strong>logement ou un véhicule archivé</strong> (les autres éléments archivés — articles, fournisseurs… — se restaurent depuis leur propre écran, bouton <strong>Restaurer</strong>). Filtres : À restaurer, Toutes les entrées, Déjà restaurées. La restauration <strong>refuse d'écraser</strong> un élément existant.
       Une <strong>purge définitive</strong> existe, réservée à l'administrateur : c'est le seul endroit de l'application où une donnée disparaît vraiment, sans retour, et elle est refusée si des enregistrements passés référencent encore l'élément.</li>
-    <li><strong>Réinitialiser les données de test</strong> — voir ci-dessous.</li>
   </ul>
 
   <figure class="compact">
@@ -440,8 +439,8 @@
     <li><strong>Refermez la bascule</strong> dans Paramètres, onglet Activation &amp; Sécurité.</li>
   </ol>
   <figure class="compact">
-    <img src="../captures/x-reinitialiser.png" alt="L'onglet Réinitialiser les données de test.">
-    <figcaption><b>Figure 13.7</b> — L'onglet <b>Réinitialiser les données de test</b> : « Ce qui sera vidé », « Ce qui sera conservé » et <b>Réinitialiser comme neuf</b>.</figcaption>
+    <img src="../captures/x-reinitialiser.png" alt="La section Réinitialiser les données de test.">
+    <figcaption><b>Figure 13.7</b> — La section <b>Réinitialiser les données de test</b> (Paramètres › Activation &amp; Sécurité) : « Ce qui sera vidé », « Ce qui sera conservé » et <b>Réinitialiser comme neuf</b>.</figcaption>
   </figure>
 
   <figure class="compact">
@@ -453,7 +452,7 @@
     <span class="icone">🛑</span>
     <span class="titre">Alerte</span>
     <strong>Réinitialisez aussi chaque poste Windows.</strong> Après la réinitialisation du serveur, un poste qui n'a pas été réinitialisé est refusé à la synchronisation (voyant rouge : « Le serveur a été réinitialisé… ») et ne renvoie pas ses essais : connectez-vous en administrateur sur le poste,
-    ouvrez Import &amp; Export, onglet Réinitialiser les données de test, puis resynchronisez. Les numéros de factures, de ventes et de pièces repartent de 00001. Un exercice comptable démarré en clôture ou clôturé pendant les essais redevient ouvert, et ses archives d'essai sont effacées.
+    ouvrez Paramètres › Activation &amp; Sécurité, section Réinitialiser les données de test, puis resynchronisez. Les numéros de factures, de ventes et de pièces repartent de 00001. Un exercice comptable démarré en clôture ou clôturé pendant les essais redevient ouvert, et ses archives d'essai sont effacées.
     Les opérations réelles d'une installation en exploitation ne se réinitialisent jamais.
   </span>
 

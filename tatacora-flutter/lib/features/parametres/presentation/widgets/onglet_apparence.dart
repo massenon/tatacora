@@ -26,6 +26,16 @@ abstract final class TextesOngletApparence {
   static const cachetTitre = "Cachet de l'entreprise";
   static const imageAbsente = 'Aucune image déposée.';
 
+  /// Le bloc sous l'interrupteur « Afficher la signature et le cachet sur les factures »
+  /// (`pwa.parametres.signature_cachet_bloc_titre`). Écart ASSUMÉ avec la vue (PO 10/11/2026) :
+  /// le web DÉPOSE les images (import, remplacer, retirer) ; le poste ne dépose rien, il montre
+  /// ce qu'il a reçu et dit où se déposent les images.
+  static const blocSignatureCachetTitre = 'Signature et cachet';
+  static const blocSignatureCachetAide =
+      "Images des factures A4 et des proformas, jamais du ticket : PNG, JPG ou WebP, réduites à 400 Ko. Elles ne s'impriment que si l'interrupteur ci-dessus est activé.";
+  static const blocSignatureCachetDepot =
+      'Elles se déposent depuis la version web ; ce poste les reçoit par la synchronisation.';
+
   static const logoTitre = "Logo de l'entreprise";
   static const logoBouton = 'Changer le logo';
   static const logoAide =
@@ -495,5 +505,67 @@ class _ModaleImageState extends ConsumerState<_ModaleImage> {
         _refus = r.message;
       });
     }
+  }
+}
+
+/// Sous l'interrupteur de signature (Paramètres › Identité & Légal) : signature et cachet REÇUS du
+/// serveur, en lecture, avec la phrase qui dit où les déposer.
+class BlocSignatureCachetRecus extends ConsumerWidget {
+  const BlocSignatureCachetRecus({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final signature = ref.watch(signatureDocumentProvider).value;
+    final cachet = ref.watch(cachetDocumentProvider).value;
+    return Container(
+      key: const Key('bloc-signature-cachet'),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(AppRadius.roundedLg),
+        border: Border.all(color: Ardoise.c100),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            TextesOngletApparence.blocSignatureCachetTitre,
+            style: styleContenuCarte(
+              TaillesContenu.t15,
+              poids: FontWeight.w600,
+              couleur: Ardoise.c700,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            TextesOngletApparence.blocSignatureCachetAide,
+            key: const Key('bloc-signature-cachet-aide'),
+            style: styleContenuCarte(TaillesContenu.t13, couleur: Ardoise.c500),
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            TextesOngletApparence.blocSignatureCachetDepot,
+            key: const Key('bloc-signature-cachet-depot'),
+            style: styleContenuCarte(TaillesContenu.t13, couleur: Ardoise.c500),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Wrap(
+            spacing: AppSpacing.lg,
+            runSpacing: AppSpacing.md,
+            children: [
+              _BlocImageRecue(
+                cle: 'signature-sous-interrupteur',
+                titre: TextesOngletApparence.signatureTitre,
+                octets: signature,
+              ),
+              _BlocImageRecue(
+                cle: 'cachet-sous-interrupteur',
+                titre: TextesOngletApparence.cachetTitre,
+                octets: cachet,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }

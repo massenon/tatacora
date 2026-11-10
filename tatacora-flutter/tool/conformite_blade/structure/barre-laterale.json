@@ -113,7 +113,7 @@
                         "actif": false,
                         "cliquable": true,
                         "href": "/pwa/synchronisation",
-                        "icone": "a4e5b27c"
+                        "icone": "c672eee1"
                     },
                     {
                         "type": "entree",
@@ -123,7 +123,7 @@
                         "actif": false,
                         "cliquable": true,
                         "href": "/pwa/synchronisation-postes",
-                        "icone": "a4e5b27c"
+                        "icone": "73660c21"
                     }
                 ],
                 "pied": {
@@ -443,6 +443,16 @@
                     {
                         "type": "entree",
                         "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Comptes utilisateurs",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/comptes-utilisateurs",
+                        "icone": "f3c7b1b9"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
                         "nom": "Paramètres",
                         "badge": null,
                         "actif": false,
@@ -458,7 +468,7 @@
                         "actif": false,
                         "cliquable": true,
                         "href": "/pwa/synchronisation",
-                        "icone": "a4e5b27c"
+                        "icone": "c672eee1"
                     },
                     {
                         "type": "entree",
@@ -468,7 +478,7 @@
                         "actif": false,
                         "cliquable": true,
                         "href": "/pwa/synchronisation-postes",
-                        "icone": "a4e5b27c"
+                        "icone": "73660c21"
                     }
                 ],
                 "pied": {
@@ -623,7 +633,7 @@
                         "actif": false,
                         "cliquable": true,
                         "href": "/pwa/synchronisation",
-                        "icone": "a4e5b27c"
+                        "icone": "c672eee1"
                     },
                     {
                         "type": "entree",
@@ -633,7 +643,7 @@
                         "actif": false,
                         "cliquable": true,
                         "href": "/pwa/synchronisation-postes",
-                        "icone": "a4e5b27c"
+                        "icone": "73660c21"
                     }
                 ],
                 "pied": {
@@ -938,7 +948,7 @@
                         "actif": false,
                         "cliquable": true,
                         "href": "/pwa/synchronisation",
-                        "icone": "a4e5b27c"
+                        "icone": "c672eee1"
                     },
                     {
                         "type": "entree",
@@ -948,7 +958,7 @@
                         "actif": false,
                         "cliquable": true,
                         "href": "/pwa/synchronisation-postes",
-                        "icone": "a4e5b27c"
+                        "icone": "73660c21"
                     }
                 ],
                 "pied": {
@@ -1083,7 +1093,7 @@
                         "actif": false,
                         "cliquable": true,
                         "href": "/pwa/synchronisation",
-                        "icone": "a4e5b27c"
+                        "icone": "c672eee1"
                     },
                     {
                         "type": "entree",
@@ -1093,7 +1103,7 @@
                         "actif": false,
                         "cliquable": true,
                         "href": "/pwa/synchronisation-postes",
-                        "icone": "a4e5b27c"
+                        "icone": "73660c21"
                     }
                 ],
                 "pied": {
@@ -1313,7 +1323,7 @@
                         "actif": false,
                         "cliquable": true,
                         "href": "/pwa/synchronisation",
-                        "icone": "a4e5b27c"
+                        "icone": "c672eee1"
                     },
                     {
                         "type": "entree",
@@ -1323,7 +1333,7 @@
                         "actif": false,
                         "cliquable": true,
                         "href": "/pwa/synchronisation-postes",
-                        "icone": "a4e5b27c"
+                        "icone": "73660c21"
                     }
                 ],
                 "pied": {
@@ -1423,7 +1433,7 @@
                         "actif": false,
                         "cliquable": true,
                         "href": "/pwa/synchronisation",
-                        "icone": "a4e5b27c"
+                        "icone": "c672eee1"
                     },
                     {
                         "type": "entree",
@@ -1433,7 +1443,7 @@
                         "actif": false,
                         "cliquable": true,
                         "href": "/pwa/synchronisation-postes",
-                        "icone": "a4e5b27c"
+                        "icone": "73660c21"
                     }
                 ],
                 "pied": {
@@ -1603,7 +1613,7 @@
                         "actif": false,
                         "cliquable": true,
                         "href": "/pwa/synchronisation",
-                        "icone": "a4e5b27c"
+                        "icone": "c672eee1"
                     },
                     {
                         "type": "entree",
@@ -1613,7 +1623,7 @@
                         "actif": false,
                         "cliquable": true,
                         "href": "/pwa/synchronisation-postes",
-                        "icone": "a4e5b27c"
+                        "icone": "73660c21"
                     }
                 ],
                 "pied": {
@@ -1858,7 +1868,7 @@
                         "actif": false,
                         "cliquable": true,
                         "href": "/pwa/synchronisation",
-                        "icone": "a4e5b27c"
+                        "icone": "c672eee1"
                     },
                     {
                         "type": "entree",
@@ -1868,7 +1878,7 @@
                         "actif": false,
                         "cliquable": true,
                         "href": "/pwa/synchronisation-postes",
-                        "icone": "a4e5b27c"
+                        "icone": "73660c21"
                     }
                 ],
                 "pied": {
@@ -1998,7 +2008,7 @@
                         "actif": false,
                         "cliquable": true,
                         "href": "/pwa/synchronisation",
-                        "icone": "a4e5b27c"
+                        "icone": "c672eee1"
                     },
                     {
                         "type": "entree",
@@ -2008,7 +2018,7 @@
                         "actif": false,
                         "cliquable": true,
                         "href": "/pwa/synchronisation-postes",
-                        "icone": "a4e5b27c"
+                        "icone": "73660c21"
                     }
                 ],
                 "pied": {
@@ -2328,6 +2338,16 @@
                     {
                         "type": "entree",
                         "groupe": "PILOTAGE & ADMINISTRATION",
+                        "nom": "Comptes utilisateurs",
+                        "badge": null,
+                        "actif": false,
+                        "cliquable": true,
+                        "href": "/pwa/comptes-utilisateurs",
+                        "icone": "f3c7b1b9"
+                    },
+                    {
+                        "type": "entree",
+                        "groupe": "PILOTAGE & ADMINISTRATION",
                         "nom": "Paramètres",
                         "badge": null,
                         "actif": false,
@@ -2343,7 +2363,7 @@
                         "actif": false,
                         "cliquable": true,
                         "href": "/pwa/synchronisation",
-                        "icone": "a4e5b27c"
+                        "icone": "c672eee1"
                     },
                     {
                         "type": "entree",
@@ -2353,7 +2373,7 @@
                         "actif": false,
                         "cliquable": true,
                         "href": "/pwa/synchronisation-postes",
-                        "icone": "a4e5b27c"
+                        "icone": "73660c21"
                     }
                 ],
                 "pied": {
@@ -2473,7 +2493,7 @@
                         "actif": false,
                         "cliquable": true,
                         "href": "/pwa/synchronisation",
-                        "icone": "a4e5b27c"
+                        "icone": "c672eee1"
                     },
                     {
                         "type": "entree",
@@ -2483,7 +2503,7 @@
                         "actif": false,
                         "cliquable": true,
                         "href": "/pwa/synchronisation-postes",
-                        "icone": "a4e5b27c"
+                        "icone": "73660c21"
                     }
                 ],
                 "pied": {
@@ -2569,6 +2589,9 @@
         ],
         "Rôles & Permissions": [
             "Rôles & Permissions"
+        ],
+        "Comptes utilisateurs": [
+            "Comptes utilisateurs"
         ],
         "Paramètres": [
             "Paramètres"
