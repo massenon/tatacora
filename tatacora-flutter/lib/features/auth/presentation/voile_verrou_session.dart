@@ -176,15 +176,20 @@ class _EtatContenuVoile extends ConsumerState<_ContenuVoile> {
       constraints: const BoxConstraints(
         maxWidth: MesuresVerrouSession.largeurCarte,
       ),
-      child: Material(
+      // `bg-white rounded-2xl shadow-2xl` : l'OMBRE se pose sur le fond BLANC lui-même (une seule
+      // décoration, le blanc DEVANT l'ombre). Avant (constat du PO, capture du 10/11/2026) l'ombre
+      // était une décoration enfant d'un Material blanc : elle se peignait PAR-DESSUS le blanc et
+      // grisait l'intérieur de la carte en dégradé.
+      child: DecoratedBox(
         key: const Key('verrou-carte'),
-        color: AppColors.neutre0,
-        borderRadius: BorderRadius.circular(AppRadius.rounded2xl),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.rounded2xl),
-            boxShadow: AppShadows.tailwind2xl,
-          ),
+        decoration: BoxDecoration(
+          color: AppColors.neutre0,
+          borderRadius: BorderRadius.circular(AppRadius.rounded2xl),
+          boxShadow: AppShadows.tailwind2xl,
+        ),
+        child: Material(
+          type: MaterialType.transparency,
+          borderRadius: BorderRadius.circular(AppRadius.rounded2xl),
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.lg), // p-6
             child: Column(
