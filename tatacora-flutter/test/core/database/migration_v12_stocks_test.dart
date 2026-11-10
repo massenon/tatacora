@@ -165,6 +165,7 @@ void main() {
         'actif',
         // v57 (09/11/2026) : la valeur d'achat de référence (ajoutée en dernier).
         'prix_achat_reference',
+        'cmp_reference',
       ]);
       expect(await colonnes(apres, 'mouvements_stock_local'), [
         'id',

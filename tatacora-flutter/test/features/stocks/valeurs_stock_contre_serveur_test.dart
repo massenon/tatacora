@@ -346,10 +346,13 @@ void main() {
         isNull,
         reason: 'valeur d’achat « — »',
       );
+      // v59 (10/11/2026) : sans coût de mouvement, le CMP du serveur tient lieu de référence —
+      // jamais « — » là où le web affiche un chiffre (16 × 525 = 8 400).
+      expect(avant['Café double']!.cmpDeReference, isTrue);
       expect(
         int.parse(avant['Café double']!.valeurStock),
-        0,
-        reason: 'valeur du stock « — »',
+        8400,
+        reason: 'valeur du stock = celle du web, par la référence',
       );
 
       // La mise à jour oublie le curseur (migration v56) ; la descente complète les lignes.

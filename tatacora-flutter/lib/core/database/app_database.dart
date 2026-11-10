@@ -569,6 +569,12 @@ class AppDatabase extends _$AppDatabase {
   /// peut les porter déjà. Le curseur de descente est oublié : les proformas déjà au serveur
   /// (autres postes, web) redescendent.
   ///
+  /// v59 (10/11/2026) — LE CMP DU SERVEUR COMME RÉFÉRENCE (PO : postes A et B en « — » pour la
+  /// Valeur d'achat, le CMP et la Valeur stock alors que le web les affiche) : UNE colonne
+  /// NULLABLE, `articles_local.cmp_reference` (dix-millièmes), aucune table, aucune valeur
+  /// fabriquée. Ajout CONDITIONNEL (piège 3). Le curseur de descente est oublié : les articles
+  /// déjà reçus redescendent avec leur `prix_achat` et leur `cout_moyen_pondere`.
+  ///
   /// v58 (09/11/2026) — L'AUTEUR D'UNE ANNULATION REÇUE (PO : « Robert ISSA » annulée par un
   /// autre poste s'affichait avec « — » partout) : UNE colonne NULLABLE,
   /// `reservations_local.auteur_annulation_login` (le login que le serveur rend sous `par` ;
@@ -606,7 +612,7 @@ class AppDatabase extends _$AppDatabase {
   /// affectations déjà passées au serveur (web, autres postes) redescendent. Voir
   /// `tables/affectations_resultat_tables.dart`.
   @override
-  int get schemaVersion => 58;
+  int get schemaVersion => 59;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -1924,6 +1930,23 @@ class AppDatabase extends _$AppDatabase {
         if (articles57.isNotEmpty &&
             !articles57.contains('prix_achat_reference')) {
           await m.addColumn(articlesLocal, articlesLocal.prixAchatReference);
+        }
+        await customStatement(
+          "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",
+        );
+      }
+      if (from < 59) {
+        // LE CMP DU SERVEUR COMME RÉFÉRENCE (10/11/2026) : UNE colonne nullable, aucune valeur
+        // fabriquée. Conditionnel (piège 3) ; une table absente n'est pas touchée.
+        final articles59 = {
+          for (final c
+              in await m.database
+                  .customSelect('PRAGMA table_info(articles_local)')
+                  .get())
+            c.data['name'] as String,
+        };
+        if (articles59.isNotEmpty && !articles59.contains('cmp_reference')) {
+          await m.addColumn(articlesLocal, articlesLocal.cmpReference);
         }
         await customStatement(
           "DELETE FROM etat_synchronisation_local WHERE cle = 'descente.curseur'",

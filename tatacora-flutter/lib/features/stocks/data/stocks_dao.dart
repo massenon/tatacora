@@ -130,6 +130,7 @@ class StocksDao extends DatabaseAccessor<AppDatabase> {
     suivi: SuiviArticle.depuisCode(a.suivi) ?? SuiviArticle.permanent,
     pointStockageId: a.pointStockageId,
     prixAchatReference: a.prixAchatReference,
+    cmpReference: a.cmpReference,
     // v35 : `null` (fichier ramené d'avant la colonne) ou `true` = actif ; seul
     // `false` archive. Jamais l'inverse : un `null` archiverait tout le parc.
     actif: a.actif != false,

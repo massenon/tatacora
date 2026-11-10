@@ -314,7 +314,7 @@ void main() {
       // v56 (09/11/2026) : le coût des entrées de stock descend — aucune table ni colonne.
       // v57 (09/11/2026) : valeur d'achat de référence — une colonne nullable.
       // v58 (09/11/2026) : l'auteur d'une annulation reçue — une colonne nullable.
-      expect(db.select('PRAGMA user_version').first.values.first, 58);
+      expect(db.select('PRAGMA user_version').first.values.first, 59);
       db.close();
     }, timeout: const Timeout(Duration(minutes: 2)));
   }

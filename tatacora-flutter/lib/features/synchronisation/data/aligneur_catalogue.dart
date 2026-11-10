@@ -629,6 +629,12 @@ class AligneurCatalogue {
         (luAchat != null && luAchat > 0 && existant?.prixAchatReference == null)
         ? luAchat
         : null;
+    // v59 : le CMP du serveur, comme RÉFÉRENCE seulement (affiché tant que ce poste n'a aucune
+    // entrée valorisée). Le serveur fait foi : il se remplace à chaque descente ; illisible ou
+    // nul, il est laissé tel quel (jamais effacé).
+    final luCmp = d['cout_moyen_pondere'] == null
+        ? null
+        : entierDepuisDecimal(d['cout_moyen_pondere'], 4);
     await _db
         .into(t)
         .insertOnConflictUpdate(
@@ -655,6 +661,9 @@ class AligneurCatalogue {
             prixAchatReference: valeurAchat == null
                 ? const Value.absent()
                 : Value(valeurAchat),
+            cmpReference: luCmp == null || luCmp <= 0
+                ? const Value.absent()
+                : Value(luCmp),
           ),
         );
     return const Aligne();

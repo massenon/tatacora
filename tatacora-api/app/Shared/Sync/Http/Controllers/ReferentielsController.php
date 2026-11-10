@@ -152,6 +152,6 @@ class ReferentielsController
                 'complet' => $page['complet'],
                 'limite' => $limite,
             ],
-        ]);
+        ])->header('X-Tatacora-Descente', CatalogueDescendantService::empreinte());
     }
 }

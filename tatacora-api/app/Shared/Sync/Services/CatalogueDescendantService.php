@@ -120,12 +120,28 @@ class CatalogueDescendantService
     public const SUPPRESSIONS = 'suppressions';
 
     /**
+     * L'EMPREINTE de la définition descendue (tables et colonnes). Annoncée à chaque page
+     * (`X-Tatacora-Descente`) : un poste qui en retient une AUTRE repart du début de la
+     * descente, une fois. C'est ce qui rend une colonne ajoutée ici (coût d'une entrée, valeur
+     * d'achat, CMP) visible pour les lignes DÉJÀ descendues, quel que soit l'ordre de mise à
+     * jour du serveur et des postes (constat du PO, 10/11/2026 : postes à jour, valeurs « — »).
+     */
+    public static function empreinte(): string
+    {
+        return substr(hash('sha256', json_encode(self::COLONNES, JSON_THROW_ON_ERROR)), 0, 16);
+    }
+
+    /**
      * Les colonnes de DÉFINITION descendues, table par table, dans l'ordre où
      * un poste doit les écrire (un élément cité avant celui qui le cite).
      *
-     * Écartées délibérément : `articles.prix_achat` et `cout_moyen_pondere` (le poste les RECALCULE
-     * du coût des mouvements, `mouvements_stock.cout_unitaire`, qui descend),
-     * `recettes.cout_matiere_calcule` (calculs), les colonnes
+     * `articles.prix_achat` et `articles.cout_moyen_pondere` descendent depuis le 10/11/2026 comme
+     * VALEURS DE RÉFÉRENCE (poste v57 et v59) : un poste rejoue le CMP des mouvements qui portent un
+     * coût (`mouvements_stock.cout_unitaire`), mais une entrée saisie au web AVANT la colonne n'a
+     * jamais conservé son coût — sans la référence, le poste affichait « — » là où le web dit
+     * 4 000 FCFA. La référence ne sert que tant que le poste n'a AUCUNE entrée valorisée.
+     *
+     * Écartées délibérément : `recettes.cout_matiere_calcule` (calculs), les colonnes
      * d'audit (le poste n'a pas les utilisateurs du serveur).
      *
      * @var array<string, list<string>>
@@ -134,7 +150,7 @@ class CatalogueDescendantService
         'points_stockage' => ['libelle', 'type'],
         // 09/11/2026 (poste v57) : `prix_achat` descend — la valeur d'achat de référence qu'un
         // import web a posée s'affiche aussi sur les postes (jamais écrasée localement).
-        'articles' => ['libelle', 'categorie', 'unite_mesure', 'point_stockage_id', 'suivi', 'seuil_alerte', 'seuil_reappro', 'actif', 'prix_achat'],
+        'articles' => ['libelle', 'categorie', 'unite_mesure', 'point_stockage_id', 'suivi', 'seuil_alerte', 'seuil_reappro', 'actif', 'prix_achat', 'cout_moyen_pondere'],
         'cartes_boisson' => ['article_id', 'libelle', 'categorie', 'prix_vente', 'unites_vendables_par_unite_stock', 'prix_provisoire', 'prix_corrige_main'],
         'menus' => ['libelle', 'type', 'date_debut', 'date_fin'],
         'recettes' => ['libelle', 'composition_provisoire'],

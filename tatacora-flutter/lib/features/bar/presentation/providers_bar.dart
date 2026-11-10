@@ -12,6 +12,7 @@ import '../../pos/data/dto/catalogue_dto.dart';
 import '../../pos/data/indisponibilites_carte_dao.dart';
 import '../../pos/domain/entities/reference_catalogue.dart';
 import '../../pos/presentation/providers_pos.dart';
+import '../../stocks/domain/entities/etat_stock.dart' show LigneStock;
 import '../../stocks/presentation/providers_stocks.dart' show stocksDaoProvider;
 import '../data/boissons_api.dart';
 import '../domain/apercu_lien.dart';
@@ -55,18 +56,54 @@ final carteLocaleProvider = FutureProvider<List<LigneCarte>>((ref) async {
       articleId: await dao.articleDeStock(articleId),
   };
 
+  // Le STOCK VENDABLE, calculé ICI depuis les mouvements répliqués (10/11/2026, constat du PO :
+  // « non consulté » alors que la synchronisation est faite). Même règle que la carte du web
+  // (`StockDeCarteService::etat`) : le solde de l'article lié AU POINT « bar », converti en unités
+  // vendables par le facteur de la boisson ; sous seuil = solde ≤ seuil d'alerte ; rupture = solde ≤ 0.
+  // « non consulté » ne reste que si le poste n'a AUCUN point de type bar (ou pas encore l'article).
+  final stocksDao = ref.watch(stocksDaoProvider);
+  final points = await stocksDao.points();
+  final pointsBar = points.where((p) => p.type == 'bar').toList()
+    ..sort((a, b) => a.libelle.compareTo(b.libelle));
+  final etat = pointsBar.isEmpty
+      ? null
+      : await stocksDao.etat(pointId: pointsBar.first.id);
+  final soldes = <String, LigneStock>{
+    for (final l in etat?.lignes ?? const <LigneStock>[]) l.id: l,
+  };
+
   return bar
       .expand((r) => r.articles)
       .map((a) {
         final article = articles[liens[a.reference.code]];
         final facteur = facteurs[a.reference.code];
+        final ligneStock = liens[a.reference.code] == null
+            ? null
+            : soldes[liens[a.reference.code]];
+        final solde = ligneStock == null
+            ? null
+            : double.tryParse(ligneStock.stock);
+        final multiplicateur = facteur == null
+            ? null
+            : double.tryParse(facteur);
+        final calculable =
+            solde != null && multiplicateur != null && facteur != null;
+        final lieSansPoint =
+            liens[a.reference.code] != null &&
+            multiplicateur != null &&
+            etat == null;
         return LigneCarte(
           id: a.reference.code,
           libelle: a.libelle,
           categorie: a.categorie ?? '',
           prix: a.prix ?? 0,
           articleId: liens[a.reference.code],
-          stock: null,
+          stock: calculable ? solde * multiplicateur : null,
+          rupture: calculable ? solde <= 0 : null,
+          sousSeuil:
+              calculable &&
+              solde <= (double.tryParse(ligneStock!.seuilAlerte) ?? 0),
+          stockNonConsulte: lieSansPoint,
           indisponibilite: retraits[a.reference.code],
           disponibiliteConnue: true,
           lienLibelle: article?.libelle,

@@ -34,8 +34,13 @@ final class LigneStock {
     required this.prixAchat,
     required this.deriveCmp,
     this.valeurAchatReference,
+    this.cmpDeReference = false,
     this.actif = true,
   });
+
+  /// `true` : aucune entrée valorisée sur ce poste, le CMP et la valeur viennent du CMP du
+  /// serveur (v59, le chiffre que le web affiche). Alors ni l'un ni l'autre n'est inconnu.
+  final bool cmpDeReference;
 
   final String id;
   final String libelle;
@@ -102,13 +107,16 @@ final class LigneStock {
 
   /// Aucune entrée valorisée : le coût moyen pondéré n'est pas « 0 », il est
   /// INCONNU (le 0 n'est que la valeur de départ du calcul). Il s'affiche « — ».
-  bool get cmpInconnu => prixAchat == null;
+  bool get cmpInconnu => prixAchat == null && !cmpDeReference;
 
   /// Du stock (positif ou négatif) mais AUCUNE entrée valorisée : le coût est
   /// inconnu, donc la valeur l'est aussi. Elle s'affiche « — », jamais « 0 » —
   /// un zéro se somme, et le total du stock passerait pour exhaustif.
   bool get valeurInconnue =>
-      !estJournalier && prixAchat == null && _stockCentiemes != 0;
+      !estJournalier &&
+      prixAchat == null &&
+      !cmpDeReference &&
+      _stockCentiemes != 0;
 
   // Les seuils et le stock sont des chaînes de CENTIÈMES exacts (« 12.50 ») que
   // `calculerEtat` vient d'écrire : on les compare par leurs chiffres, jamais

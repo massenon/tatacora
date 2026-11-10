@@ -159,6 +159,8 @@ class DescenteCatalogue {
     final generation = await _dao.generation();
     var curseurOublie = false;
     var complet = false;
+    final empreinteLue = await _dao.empreinteLue();
+    String? empreinteAnnoncee;
     _Echec? echec;
     for (var n = 0; n < maxPages; n++) {
       final url = urlServeur(appairage.serveur, '/referentiels').replace(
@@ -221,8 +223,21 @@ class DescenteCatalogue {
             codeHttp: statut,
             retryAfter: lireRetryAfter(entetes['retry-after'], _maintenant()),
           );
-        case ReponseHttp(:final statut, :final corps)
+        case ReponseHttp(:final statut, :final corps, :final entetes)
             when statut >= 200 && statut < 300:
+          empreinteAnnoncee = entetes['x-tatacora-descente'];
+          // L'empreinte du serveur n'est pas celle que ce poste a lue en entier : on repart
+          // du début, une fois (10/11/2026) — sinon une colonne ajoutée côté serveur
+          // n'arriverait jamais sur les lignes déjà descendues.
+          if (empreinteAnnoncee != null &&
+              empreinteAnnoncee != empreinteLue &&
+              curseur != null &&
+              !curseurOublie) {
+            await _dao.effacerCurseur();
+            curseur = null;
+            curseurOublie = true;
+            continue;
+          }
           final page = _Page.lire(corps);
           if (page == null) {
             echec = _Echec(EtatDescente.alerte, codeHttp: statut);
@@ -244,6 +259,9 @@ class DescenteCatalogue {
     await _reprendre(c);
     final BilanDescente bilan;
     if (echec == null) {
+      if (empreinteAnnoncee != null) {
+        await _dao.retenirEmpreinte(empreinteAnnoncee);
+      }
       await _dao.poserRepli(echecs: 0);
       bilan = c.bilan(EtatDescente.aJour, maintenant: _maintenant());
     } else {

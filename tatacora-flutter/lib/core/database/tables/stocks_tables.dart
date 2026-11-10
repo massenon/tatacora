@@ -92,6 +92,14 @@ class ArticlesLocal extends Table {
   /// effacer une valeur locale.
   IntColumn get prixAchatReference => integer().nullable()();
 
+  /// v59 (10/11/2026) — le COÛT MOYEN PONDÉRÉ du serveur (`articles.cout_moyen_pondere`),
+  /// en dix-millièmes ; `null` = inconnu. Une entrée saisie au web AVANT la colonne
+  /// `mouvements_stock.cout_unitaire` n'a jamais conservé son coût : sans cette référence le
+  /// poste affichait « — » en CMP et en Valeur stock là où le web dit 4 000 FCFA. Elle ne sert
+  /// QUE tant que l'article n'a aucune entrée valorisée sur ce poste (alors le CMP est rejoué
+  /// des mouvements, comme avant) ; écrite par la seule descente, jamais saisie.
+  IntColumn get cmpReference => integer().nullable()();
+
   @override
   Set<Column> get primaryKey => {id};
 

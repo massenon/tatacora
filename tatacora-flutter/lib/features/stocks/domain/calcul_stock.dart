@@ -304,11 +304,16 @@ final class ArticleCalcul {
     required this.suivi,
     this.pointStockageId,
     this.prixAchatReference,
+    this.cmpReference,
     this.actif = true,
   });
 
   final String id;
   final String libelle;
+
+  /// Le CMP du serveur (v59), en dix-millièmes — `null` : inconnu. Ne sert que s'il n'y a
+  /// AUCUNE entrée valorisée sur ce poste.
+  final int? cmpReference;
 
   /// La valeur d'achat de référence (v57), en dix-millièmes — `null` : aucune.
   final int? prixAchatReference;
@@ -373,8 +378,12 @@ EtatStock calculerEtat({
   for (final a in ordonnes) {
     final siens = parArticle[a.id] ?? const <MouvementCalcul>[];
     final stock = stockDe(siens, pointId: pointId);
-    final cmp = coutMoyenPondereDe(siens);
     final prix = dernierPrixAchatDe(siens);
+    // Aucune entrée valorisée ici : le CMP du serveur (v59) tient lieu de référence — le web
+    // affiche ce même chiffre. Dès qu'une entrée valorisée existe, le CMP est REJOUÉ.
+    final deReference =
+        prix == null && a.cmpReference != null && a.cmpReference! > 0;
+    final cmp = deReference ? a.cmpReference! : coutMoyenPondereDe(siens);
     final valeur = a.estSuiviEnStock ? valeurEnFrancs(stock, cmp) : 0;
 
     if (a.estSuiviEnStock) {
@@ -390,7 +399,9 @@ EtatStock calculerEtat({
     // Du stock, mais jamais un coût : sa valeur n'est pas zéro, elle est
     // INCONNUE. (Compté sur tout le référentiel de la portée, comme les
     // alarmes : filtrer l'affichage ne rend pas le coût connu.)
-    if (a.estSuiviEnStock && stock != 0 && prix == null) sansValorisation++;
+    if (a.estSuiviEnStock && stock != 0 && prix == null && !deReference) {
+      sansValorisation++;
+    }
 
     if (filtre == EtatStockFiltre.sousSeuil && !estSousSeuil) continue;
 
@@ -415,6 +426,7 @@ EtatStock calculerEtat({
             : (libellesPoints[rattache] ?? rattache),
         prixAchat: prix == null ? null : ecrireCout(prix),
         deriveCmp: deriveCoutMoyenPondere(cmp: cmp, prixAchat: prix),
+        cmpDeReference: deReference,
         valeurAchatReference: a.prixAchatReference == null
             ? null
             : ecrireCout(a.prixAchatReference!),

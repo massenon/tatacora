@@ -177,7 +177,7 @@ void main() {
     // (`articles_local.prix_achat_reference`), AUCUNE table — 82.
     // v58 (09/11/2026, l'auteur d'une annulation reçue) : UNE colonne nullable
     // (`reservations_local.auteur_annulation_login`), AUCUNE table — 82.
-    expect(base.schemaVersion, 58);
+    expect(base.schemaVersion, 59);
     expect(
       base.allTables.map((t) => t.actualTableName).toSet().containsAll({
         'origines_documents_local',
