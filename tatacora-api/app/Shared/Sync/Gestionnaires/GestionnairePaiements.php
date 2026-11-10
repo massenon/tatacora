@@ -106,9 +106,22 @@ final class GestionnairePaiements extends GestionnaireDocumentAbstrait
         $sessionCitee = empty($donnees['session_id']) ? null : (string) $this->resoudre('sessions_caisse', $donnees['session_id']);
         $sessionConnue = $sessionCitee !== null && SessionCaisse::query()->whereKey($sessionCitee)->exists();
 
+        $montant = $this->centiemes((int) $donnees['montant']);
+        $plafonne = false;
+        $resteDu = $facture->resteDu();
+
+        // Un centime d'arrondi ne bloque jamais la file (PO : « aucune opération ne doit bloquer ») : un
+        // encaissement qui dépasse le reste dû de 0,01 F AU PLUS est plafonné au reste dû, la facture
+        // est soldée et l'écart est signalé. Au-delà, le refus du service garde sa phrase.
+        if (bccomp($resteDu, '0.00', 2) > 0 && bccomp($montant, $resteDu, 2) > 0
+            && bccomp(bcsub($montant, $resteDu, 2), '0.01', 2) <= 0) {
+            $montant = $resteDu;
+            $plafonne = true;
+        }
+
         $this->encaissement->encaisser(
             facture: $facture,
-            montant: $this->centiemes((int) $donnees['montant']),
+            montant: $montant,
             modePaiement: (string) $donnees['mode_paiement'],
             id: $entiteId,
             sessionId: $sessionConnue ? $sessionCitee : null,
@@ -120,6 +133,14 @@ final class GestionnairePaiements extends GestionnaireDocumentAbstrait
             $this->anomalies->signaler($contexte, $this->table(), $entiteId, AnomalieSynchronisation::PAIEMENT_FACTURE_NON_CERTIFIEE, details: [
                 'facture_id' => $facture->id,
                 'statut_facture' => (string) $facture->statut,
+            ]);
+        }
+
+        if ($plafonne) {
+            $this->anomalies->signaler($contexte, $this->table(), $entiteId, AnomalieSynchronisation::PAIEMENT_ARRONDI_PLAFONNE, details: [
+                'facture_id' => $facture->id,
+                'montant_poste' => $this->centiemes((int) $donnees['montant']),
+                'reste_du_serveur' => $resteDu,
             ]);
         }
 

@@ -247,6 +247,7 @@ return [
         'bulletin_ecart_net' => 'Bulletin recalculé avec un net différent de celui du poste',
         'paiement_facture_non_certifiee' => 'Encaissement d\'une facture non certifiée',
         'paiement_session_inconnue' => 'Encaissement d\'une caisse inconnue du serveur',
+        'paiement_arrondi_plafonne' => 'Encaissement plafonné au reste dû (écart d\'un centime d\'arrondi)',
     ],
 
     // Les libellés des champs de la charge, pour le formulaire de correction.

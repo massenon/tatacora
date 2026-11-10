@@ -215,11 +215,35 @@ class EmissionFactureService
         // HT → TVA, y compris quand le catalogue est saisi en TTC : la
         // conversion a déjà eu lieu à la création de chaque ligne.
         $tva = $this->tva->estActive() ? $this->tva->depuisHt($totalHt) : '0.00';
+        $ttc = bcadd($totalHt, $tva, self::PRECISION);
+
+        // Tous les prix sont TTC (PO) : le TTC de la facture est la SOMME des prix VENDUS, au centime
+        // près, comme au poste. Chaque HT de ligne est arrondi au centime : reconstituer le TTC depuis
+        // le HT total dérivait de ±0,01 (deux lignes de 15 000 → 29 999,99) et l'encaissement exact du
+        // poste était refusé (« Le montant dépasse le reste dû »). La TVA est alors le COMPLÉMENT.
+        if ($this->tva->estActive() && $this->tva->convention() === CalculTvaService::CONVENTION_TTC) {
+            $vendus = '0.00';
+            $complet = $facture->lignes()->count() > 0;
+
+            foreach ($facture->lignes()->get() as $ligne) {
+                if ($ligne->prix_catalogue === null) {
+                    $complet = false;
+                    break;
+                }
+
+                $vendus = bcadd($vendus, bcmul((string) $ligne->quantite, (string) $ligne->prix_catalogue, self::PRECISION), self::PRECISION);
+            }
+
+            if ($complet) {
+                $ttc = $vendus;
+                $tva = bcsub($vendus, $totalHt, self::PRECISION);
+            }
+        }
 
         $facture->update([
             'montant_ht' => $totalHt,
             'montant_tva' => $tva,
-            'montant_ttc' => bcadd($totalHt, $tva, self::PRECISION),
+            'montant_ttc' => $ttc,
         ]);
 
         return $facture->refresh();

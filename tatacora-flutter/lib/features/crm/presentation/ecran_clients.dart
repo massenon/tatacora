@@ -11,7 +11,8 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../shared_widgets/bouton_standard.dart';
 import '../../../shared_widgets/liste_paginee.dart';
-import '../../caisse/domain/montant_caisse.dart' show formaterCentimesEnFcfa;
+import '../../caisse/domain/montant_caisse.dart'
+    show formaterCentimesEnFcfa, formaterCentimesExact;
 import '../../facturation/domain/creances.dart';
 import '../../facturation/domain/entities/paiement_facture.dart';
 import '../../facturation/domain/messages_encaissement.dart';
@@ -599,7 +600,7 @@ class _Kpis extends StatelessWidget {
     final cartes = <(String, String, String, Color?)>[
       (
         'Créances totales',
-        formaterCentimesEnFcfa(kpis.totalDuCentimes),
+        formaterCentimesExact(kpis.totalDuCentimes),
         '${kpis.nbPieces} pièce(s) · ${kpis.nbDebiteurs} client(s)',
         kpis.totalDuCentimes > 0 ? AppColors.erreur : null,
       ),
@@ -1134,7 +1135,7 @@ class _TableauDettes extends StatelessWidget {
                         ),
                       ),
                     _cellule(
-                      formaterCentimesEnFcfa(ligne.totalCentimes),
+                      formaterCentimesExact(ligne.totalCentimes),
                       droite: true,
                       style: _t(
                         TaillesContenu.t13,
@@ -1193,7 +1194,7 @@ class _TableauDettes extends StatelessWidget {
                   _cellule(
                     totalDuCentimes == null
                         ? '—'
-                        : formaterCentimesEnFcfa(totalDuCentimes!),
+                        : formaterCentimesExact(totalDuCentimes!),
                     droite: true,
                     style: _t(
                       TaillesContenu.t13,
@@ -1393,7 +1394,7 @@ class _OngletRelances extends ConsumerWidget {
           ),
         ),
         Text(
-          formaterCentimesEnFcfa(c.soldeCentimes),
+          formaterCentimesExact(c.soldeCentimes),
           style: _t(
             TaillesContenu.t13,
             poids: FontWeight.w600,
@@ -1446,7 +1447,7 @@ class _OngletRelances extends ConsumerWidget {
         style: _t(TaillesContenu.t13, couleur: Ardoise.c600),
       ),
       Text(
-        formaterCentimesEnFcfa(r.montantReclameCentimes),
+        formaterCentimesExact(r.montantReclameCentimes),
         style: _t(TaillesContenu.t13, couleur: Ardoise.c700),
       ),
       Text(

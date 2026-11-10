@@ -518,7 +518,7 @@ class Facturation extends PageMetier
         // un `Client::find()` dans la boucle ferait une requete par facture.
         // L'absence de relation est signalee au rapport, pas comblee ici —
         // `app/Domain/**` est hors du perimetre de ce lot.
-        $requete = Facture::query()->with(['lignes', 'avoirs']);
+        $requete = Facture::query()->with(['lignes', 'avoirs', 'paiements']);
         // Sélecteur d'exercice global (PO, 20/10/2026) : le registre porte sur
         // les factures ÉMISES dans l'exercice consulté.
         ExerciceConsulte::borner($requete, 'date_emission');

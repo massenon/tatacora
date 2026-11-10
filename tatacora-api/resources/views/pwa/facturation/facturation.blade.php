@@ -188,9 +188,8 @@
                       <td class="px-4 py-2.5 text-slate-500">{{ $facture->date_emission->format('d/m/Y') }}</td>
                       @php($client = $clients->get($facture->client_id))
                       <td class="px-4 py-2.5">{{ $client === null ? MontantFcfa::TIRET : trim(($client->prenom ?? '').' '.$client->nom) }}</td>
-                      {{-- Colonne « Origine » : aucune colonne au schéma, et
-                           l'activité ne la dit pas. Voir le bloc de refus. --}}
-                      <td class="px-4 py-2.5 text-slate-300">{{ MontantFcfa::TIRET }}</td>
+                      {{-- Colonne « Origine » : `factures.origine`, envoyée par le poste. --}}
+                      <td class="px-4 py-2.5 text-slate-500">{{ \App\Pwa\Support\OrigineEtModeFacture::origine($facture) }}</td>
                       <td class="px-4 py-2.5 text-slate-500">{{ $activites !== '' ? $activites : MontantFcfa::TIRET }}</td>
                       <td class="px-4 py-2.5 text-right font-semibold">{{ MontantFcfa::format((string) $facture->montant_ttc) }}</td>
                       {{-- Article 7 : « — » quand la donnée n'existe pas. Le
@@ -198,7 +197,7 @@
                            serveur ; en déduire un d'un statut de certification
                            l'inventerait sur l'écran même où l'on rapproche la
                            caisse. --}}
-                      <td class="px-4 py-2.5 text-slate-300">{{ MontantFcfa::TIRET }}</td>
+                      <td class="px-4 py-2.5 text-slate-500">{{ \App\Pwa\Support\OrigineEtModeFacture::mode($facture) }}</td>
                       <td class="px-4 py-2.5">
                         @if ($habillage !== null)
                           <span class="px-2 py-0.5 rounded text-[11px] font-semibold" style="background:{{ $habillage['fond'] }};color:{{ $habillage['texte'] }}">{{ $habillage['libelle'] }}</span>
@@ -294,9 +293,8 @@
                       <td class="px-2 py-1.5">{{ $activitesDoc !== '' ? $activitesDoc : MontantFcfa::TIRET }}</td>
                       <td class="px-2 py-1.5">{{ $facture->date_emission->format('d/m/Y') }}</td>
                       <td class="px-2 py-1.5 text-right font-semibold tabular-nums">{{ MontantFcfa::format((string) $facture->montant_ttc) }}</td>
-                      {{-- Article 7 : « — » quand la donnée n'existe pas —
-                           même refus que la colonne du tableau d'écran. --}}
-                      <td class="px-2 py-1.5">{{ MontantFcfa::TIRET }}</td>
+                      {{-- Article 7 : « — » quand la donnée n'existe pas. --}}
+                      <td class="px-2 py-1.5">{{ \App\Pwa\Support\OrigineEtModeFacture::mode($facture) }}</td>
                       <td class="px-2 py-1.5">{{ $habillageDoc !== null ? $habillageDoc['libelle'] : $facture->statut }}</td>
                     </tr>
                   @empty

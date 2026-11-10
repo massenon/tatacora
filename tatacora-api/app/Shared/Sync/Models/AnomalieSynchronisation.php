@@ -99,6 +99,13 @@ class AnomalieSynchronisation extends Model
     public const PAIEMENT_SESSION_INCONNUE = 'paiement_session_inconnue';
 
     /**
+     * 10/11/2026 : un poste a encaissé 0,01 F de PLUS que le reste dû du serveur (arrondi d'une
+     * facture émise avant la règle « TTC = somme des prix vendus »). L'encaissement est plafonné au
+     * reste dû — la facture est soldée — et l'écart d'un centime est signalé ici, jamais refusé.
+     */
+    public const PAIEMENT_ARRONDI_PLAFONNE = 'paiement_arrondi_plafonne';
+
+    /**
      * Lot 10f (18/10/2026) : une sortie (ou perte) faite sur un poste, que le
      * stock du SERVEUR ne couvrait pas, sans que le poste l'ait forcée. Le
      * mouvement est physique : il est enregistré (rupture tracée), et

@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
-import '../../../caisse/domain/montant_caisse.dart' show formaterCentimesEnFcfa;
+import '../../../caisse/domain/montant_caisse.dart' show formaterCentimesExact;
 import '../../../caisse/presentation/widgets/modale_ouverture_caisse.dart'
     show BoutonActionCaisse, BoutonAnnulerCaisse, ChampMontantCaisse;
 import '../../../comptabilite/domain/montant_comptable.dart'
@@ -242,7 +242,7 @@ class _EtatModaleRecouvrement extends ConsumerState<ModaleRecouvrement> {
                   value: f.id,
                   // `{{ libelle }} — dû {{ MontantFcfa::format(reste) }}`.
                   child: Text(
-                    '${f.libelle} — dû ${formaterCentimesEnFcfa(f.resteCentimes)}',
+                    '${f.libelle} — dû ${formaterCentimesExact(f.resteCentimes)}',
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),

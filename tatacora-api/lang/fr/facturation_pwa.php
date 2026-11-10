@@ -25,6 +25,12 @@ return [
     // ne le dise — et vide, parce que la donnée n'existe pas côté serveur.
 
     'col_mode_paiement' => 'Mode de paiement',
+    // Origine d'une facture (colonne `factures.origine`) — mêmes mots que le poste.
+    'origine' => [
+        'pos_comptant' => 'POS au comptant',
+        'pos_sejour' => 'Séjour client hébergé',
+        'facture_directe' => 'Facture directe',
+    ],
 
     // --- Avoir (RG-03) ----------------------------------------------------
 

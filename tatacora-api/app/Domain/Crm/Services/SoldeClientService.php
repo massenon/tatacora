@@ -60,6 +60,9 @@ use Illuminate\Support\Facades\DB;
  */
 class SoldeClientService
 {
+    /** L'origine d'un ticket de vente au comptant du poste : encaissé à la vente, jamais une créance. */
+    public const ORIGINE_TICKET_COMPTOIR = 'pos_comptant';
+
     /** Le statut MECeF qui rend une facture opposable — jamais un statut de paiement (PA-49). */
     public const STATUT_CERTIFIEE = 'certifiee';
 
@@ -83,8 +86,15 @@ class SoldeClientService
      */
     public static function appliquerPredicatImpayee(Builder $requete): Builder
     {
+        // Un TICKET du comptoir (origine `pos_comptant`) a été encaissé à la vente, dans une session de
+        // caisse : ce n'est jamais une créance (même règle que le poste, `estUneCreance`, D228). Le poste
+        // envoie ce ticket au serveur comme facture SANS paiement ; sans cette exclusion, chaque vente du
+        // comptoir devenait une dette du « Client de passage » (écart web 35 850 / poste 30 000, 10/11/2026).
         return $requete
             ->where('factures.statut', self::STATUT_CERTIFIEE)
+            ->where(static function (Builder $origine): void {
+                $origine->whereNull('factures.origine')->orWhere('factures.origine', '<>', self::ORIGINE_TICKET_COMPTOIR);
+            })
             ->whereRaw(self::SQL_RESTE_DU . ' > 0');
     }
 

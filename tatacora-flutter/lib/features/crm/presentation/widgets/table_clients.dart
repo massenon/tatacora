@@ -6,7 +6,7 @@ import '../../../../core/theme/app_text_styles.dart';
 import '../../../../shared_widgets/tableau_tatacora.dart' show PastilleStatut;
 import '../../../achats/presentation/widgets/composants_crud_achats.dart'
     show BoutonLigneAchats;
-import '../../../caisse/domain/montant_caisse.dart' show formaterCentimesEnFcfa;
+import '../../../caisse/domain/montant_caisse.dart' show formaterCentimesExact;
 import '../../domain/entities/registre_clients.dart';
 
 /// Le tableau de la vue — `pwa/crm/clients-creances.blade.php`, onglet « Liste des
@@ -258,7 +258,7 @@ class TableClients extends StatelessWidget {
   /// Le tiret de la vue : un zéro se lit comme un montant calculé à zéro, le
   /// tiret dit qu'il n'y a rien à devoir (`MontantFcfa::TIRET`).
   static String _montant(int centimes) =>
-      centimes > 0 ? formaterCentimesEnFcfa(centimes) : '—';
+      centimes > 0 ? formaterCentimesExact(centimes) : '—';
 }
 
 /// L'ancienneté de la plus ancienne facture impayée : « 45 j », rouge au-delà de

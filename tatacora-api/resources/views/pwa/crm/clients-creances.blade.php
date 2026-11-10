@@ -199,7 +199,7 @@
         <div id="kpis" class="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-5">
           <div class="bg-white rounded-xl border border-slate-200 p-3.5">
             <div class="text-[11px] uppercase tracking-wide text-slate-400 font-semibold">{{ __('pwa.clients.kpi_creances') }}</div>
-            <div class="text-lg font-bold mt-1" style="color:var(--navy)">{{ MontantFcfa::format($totaux['total_du']) }}</div>
+            <div class="text-lg font-bold mt-1" style="color:var(--navy)">{{ MontantFcfa::formatExact($totaux['total_du']) }}</div>
             <div class="text-[11px] text-slate-400 mt-0.5">{{ __('pwa.clients.kpi_creances_detail', ['pieces' => $totaux['nb_pieces'], 'clients' => $totaux['nb_clients']]) }}</div>
           </div>
           <div class="bg-white rounded-xl border border-slate-200 p-3.5">
@@ -320,7 +320,7 @@
                           <td class="px-3 py-2.5 text-right text-slate-600">{{ $ligne->telephone !== '' ? $ligne->telephone : MontantFcfa::TIRET }}</td>
                           <td class="px-3 py-2.5 text-right text-slate-600">{{ ClientsCreances::TYPES_CLIENT[$ligne->type_client] ?? $ligne->type_client }}</td>
                           <td class="px-3 py-2.5 text-right font-semibold {{ $ligne->solde !== '0.00' ? 'text-red-600' : 'text-slate-400' }}">
-                            {{ $ligne->solde === '0.00' ? MontantFcfa::TIRET : MontantFcfa::format($ligne->solde) }}
+                            {{ $ligne->solde === '0.00' ? MontantFcfa::TIRET : MontantFcfa::formatExact($ligne->solde) }}
                           </td>
                           <td class="px-3 py-2.5 text-right text-slate-600">{{ $ligne->pieces > 0 ? $ligne->pieces : MontantFcfa::TIRET }}</td>
                           {{-- Ancienneté de la plus ancienne impayée — même
@@ -392,7 +392,7 @@
                         @foreach (\App\Pwa\Livewire\Crm\ClientsCreances::TRANCHES as $cle => $bornes)
                           <td class="px-3 py-2.5 text-right {{ $ligne['tranches'][$cle] !== '0.00' ? 'font-semibold text-slate-700' : 'text-slate-300' }}">{{ MontantFcfa::formatOuTiret($ligne['tranches'][$cle]) }}</td>
                         @endforeach
-                        <td class="px-3 py-2.5 text-right font-bold" style="color:var(--navy)">{{ MontantFcfa::format($ligne['total']) }}</td>
+                        <td class="px-3 py-2.5 text-right font-bold" style="color:var(--navy)">{{ MontantFcfa::formatExact($ligne['total']) }}</td>
                         <td class="px-3 py-2.5 text-right">
                           <button type="button" wire:click="ouvrirHistoriqueClient('{{ $ligne['client_id'] }}')" class="text-[12px] px-2.5 py-1 rounded-lg border border-slate-300 hover:bg-white">{{ __('pwa.clients.action_detail') }}</button>
                         </td>
@@ -408,7 +408,7 @@
                       @foreach (array_keys(\App\Pwa\Livewire\Crm\ClientsCreances::TRANCHES) as $tranche)
                         <td class="px-3 py-2.5 text-right">{{ MontantFcfa::formatOuTiret(collect($detteAgee)->reduce(fn ($t, $l) => bcadd((string) $t, $l['tranches'][$tranche], 2), '0.00')) }}</td>
                       @endforeach
-                      <td class="px-3 py-2.5 text-right" style="color:var(--navy)">{{ MontantFcfa::format($totaux['total_du']) }}</td>
+                      <td class="px-3 py-2.5 text-right" style="color:var(--navy)">{{ MontantFcfa::formatExact($totaux['total_du']) }}</td>
                       <td></td>
                     </tr>
                   </tfoot>
@@ -432,7 +432,7 @@
                     @forelse ($aRelancer as $ligne)
                       <tr class="border-t border-slate-100 hover:bg-slate-50" wire:key="arelancer-{{ $ligne['id'] }}">
                         <td class="px-3 py-2.5 font-semibold text-slate-800">{{ $ligne['nom'] }}</td>
-                        <td class="px-3 py-2.5 text-right font-semibold text-red-600">{{ MontantFcfa::format($ligne['solde']) }}</td>
+                        <td class="px-3 py-2.5 text-right font-semibold text-red-600">{{ MontantFcfa::formatExact($ligne['solde']) }}</td>
                         {{-- Seuils de couleur du maitre (m3-clients-creances.js l.212) : rouge au-dela de 90 j, ambre sinon. --}}
                         <td class="px-3 py-2.5 text-right {{ $ligne['anciennete_max'] > 90 ? 'text-red-600 font-semibold' : 'text-amber-600' }}">{{ __('pwa.clients.anciennete_jours', ['jours' => $ligne['anciennete_max']]) }}</td>
                         <td class="px-3 py-2.5 text-slate-600">{{ $ligne['derniere_relance'] === null ? __('pwa.clients.relance_jamais') : \Illuminate\Support\Carbon::parse($ligne['derniere_relance'])->format('d/m/Y') }}</td>
@@ -486,7 +486,7 @@
                         <td class="px-3 py-2.5 text-slate-600">{{ $reservation->canal?->nom ?? MontantFcfa::TIRET }}</td>
                         <td class="px-3 py-2.5 text-right font-semibold text-emerald-600">{{ MontantFcfa::format((string) $reservation->acompte) }}</td>
                         @php $reste = $reservation->resteAPayer(); @endphp
-                        <td class="px-3 py-2.5 text-right {{ $reste !== null && $reste !== '0.00' ? 'text-red-600 font-semibold' : 'text-slate-400' }}">{{ $reste === null ? MontantFcfa::TIRET : ($reste === '0.00' ? __('pwa.clients.solde_paye') : MontantFcfa::format($reste)) }}</td>
+                        <td class="px-3 py-2.5 text-right {{ $reste !== null && $reste !== '0.00' ? 'text-red-600 font-semibold' : 'text-slate-400' }}">{{ $reste === null ? MontantFcfa::TIRET : ($reste === '0.00' ? __('pwa.clients.solde_paye') : MontantFcfa::formatExact($reste)) }}</td>
                       </tr>
                     @empty
                       {!! $ligneVide('avances', __('pwa.clients.avances_vide')) !!}
@@ -645,7 +645,7 @@
         <label class="block text-[13px] font-semibold text-slate-700 mb-1.5">{{ __('pwa.clients.champ_piece_reglee') }} <span class="text-red-500">*</span></label>
         <select wire:model.live="recouvrementFactureId" class="w-full text-[13px] border border-slate-300 rounded-lg px-3 py-2.5">
           @foreach ($recouvrementFactures as $facture)
-            <option value="{{ $facture['id'] }}">{{ $facture['libelle'] }} — {{ __('pwa.clients.champ_du') }} {{ MontantFcfa::format($facture['reste']) }}</option>
+            <option value="{{ $facture['id'] }}">{{ $facture['libelle'] }} — {{ __('pwa.clients.champ_du') }} {{ MontantFcfa::formatExact($facture['reste']) }}</option>
           @endforeach
         </select>
       </div>
