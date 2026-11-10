@@ -737,9 +737,18 @@
         <table class="w-full text-[13px]">
           {!! $thead('historique_client') !!}
           <tbody>
-            @if ($historique['relances']->isEmpty() && $historique['paiements']->isEmpty())
+            @if ($historique['relances']->isEmpty() && $historique['paiements']->isEmpty() && $historique['factures']->isEmpty())
               {!! $ligneVide('historique_client', __('pwa.clients.historique_vide')) !!}
             @endif
+            @foreach ($historique['factures'] as $facture)
+              <tr class="border-t border-slate-100" wire:key="hist-facture-{{ $facture->id }}">
+                <td class="px-3 py-2 text-slate-600 whitespace-nowrap">{{ $facture->date_emission?->format('d/m/Y') }}</td>
+                <td class="px-3 py-2"><span class="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-700">{{ __('pwa.clients.historique_type_facture') }}</span></td>
+                <td class="px-3 py-2 text-slate-700">{{ $facture->numero_mecef ?? $facture->numero ?? MontantFcfa::TIRET }}</td>
+                <td class="px-3 py-2 text-slate-600">{{ __('pwa.clients.historique_type_facture') }}</td>
+                <td class="px-3 py-2 text-right font-semibold text-slate-700">{{ MontantFcfa::format($facture->montant_ttc) }}</td>
+              </tr>
+            @endforeach
             @foreach ($historique['paiements'] as $paiement)
               <tr class="border-t border-slate-100" wire:key="hist-paiement-{{ $paiement->id }}">
                 <td class="px-3 py-2 text-slate-600 whitespace-nowrap">{{ $paiement->date_paiement?->format('d/m/Y') }}</td>

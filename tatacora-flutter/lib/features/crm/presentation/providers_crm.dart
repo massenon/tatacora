@@ -137,6 +137,7 @@ final historiqueClientProvider = FutureProvider.autoDispose
         paiements: paiements,
         creances: creances,
         relances: relances,
+        avecFactures: true,
       );
     });
 

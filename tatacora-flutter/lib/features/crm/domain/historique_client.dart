@@ -33,6 +33,10 @@ final class MouvementClient {
 /// Le type d'un encaissement (`pwa.clients.historique_type_encaissement`).
 const String typeEncaissement = 'Encaissement';
 
+/// Le type d'une facture émise (`pwa.clients.historique_type_facture`) : le DÉBIT du client
+/// (PO 10/11/2026 : l'historique d'un client qui doit 30 000 n'était pas vide de mouvements).
+const String typeFacture = 'Facture';
+
 /// Le type d'une relance (`pwa.clients.historique_type_relance`) — aussi son
 /// libellé dans la colonne « Libellé » (maître, l.360).
 const String typeRelance = 'Relance';
@@ -50,6 +54,7 @@ List<MouvementClient> composerHistoriqueClient({
   required List<PaiementFacture> paiements,
   required List<CreanceFacture> creances,
   List<Relance> relances = const [],
+  bool avecFactures = false,
 }) {
   final pieces = {for (final c in creances) c.piece.id: c.piece};
 
@@ -65,6 +70,18 @@ List<MouvementClient> composerHistoriqueClient({
         ),
   ]..sort((a, b) => b.date.compareTo(a.date));
 
+  final factures = <MouvementClient>[
+    for (final c in creances)
+      if (avecFactures && c.piece.clientId == clientId)
+        MouvementClient(
+          date: c.piece.dateEmission,
+          type: typeFacture,
+          libelle: c.piece.numero,
+          detail: typeFacture,
+          montantCentimes: c.ttcCentimes,
+        ),
+  ]..sort((a, b) => b.date.compareTo(a.date));
+
   final lesRelances = <MouvementClient>[
     for (final r in relances)
       if (r.clientId == clientId)
@@ -77,5 +94,5 @@ List<MouvementClient> composerHistoriqueClient({
         ),
   ]..sort((a, b) => b.date.compareTo(a.date));
 
-  return [...encaissements, ...lesRelances];
+  return [...factures, ...encaissements, ...lesRelances];
 }

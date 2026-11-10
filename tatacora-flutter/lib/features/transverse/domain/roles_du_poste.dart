@@ -482,7 +482,7 @@ List<String> get codesModulesSocle =>
 /// (`lang/fr/pwa.php` `roles.*`, `lang/fr/validation.php`, `auth.php`).
 abstract final class MessagesRoles {
   /// `auth.module_refuse` — `exigerEcriture('ROLES')`.
-  static const String refusDroit = 'Vous n avez pas acces a ce module.';
+  static const String refusDroit = "Vous n'avez pas accès à ce module.";
 
   /// `validation.required` sur `libelleRoleSaisi` : Laravel n'a pas de nom
   /// d'attribut pour ce champ et affiche le nom technique (« libelle role

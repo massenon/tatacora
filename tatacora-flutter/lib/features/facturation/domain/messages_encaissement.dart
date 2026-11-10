@@ -58,7 +58,7 @@ abstract final class MessagesEncaissement {
   /// `auth.module_refuse` — le serveur répond 403 avant toute validation, et le
   /// droit exigé est celui de DEUX modules : M3 (l'écran) puis M2 (l'écriture
   /// d'un encaissement de facture).
-  static const String refusDroit = 'Vous n avez pas acces a ce module.';
+  static const String refusDroit = "Vous n'avez pas accès à ce module.";
 
   /// `pwa.clients.recouvrement_aucune_creance`.
   static const String aucuneCreance = 'Ce client n\'a aucune créance en cours.';

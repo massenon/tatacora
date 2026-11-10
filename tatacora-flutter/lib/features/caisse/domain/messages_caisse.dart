@@ -179,5 +179,5 @@ abstract final class MessagesCaisse {
             'pré-rempli peut être inférieur à ce qu\'il contient.';
 
   /// Le serveur répond 403 (`auth.module_refuse`) avant toute validation.
-  static const String refusDroit = 'Vous n avez pas acces a ce module.';
+  static const String refusDroit = "Vous n'avez pas accès à ce module.";
 }

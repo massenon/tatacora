@@ -2801,6 +2801,7 @@ return [
         // ---- Modale « Historique d'un client » ----
         'historique_vide' => 'Aucun mouvement pour ce client.',
         'historique_type_encaissement' => 'Encaissement',
+        'historique_type_facture' => 'Facture',
         'historique_type_relance' => 'Relance',
         // maquette — ouvrirHistorique(), m3-clients-creances.js l.564-569 et
         // son état PDF l.597 (« Libellé », « Détail »).

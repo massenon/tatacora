@@ -151,6 +151,37 @@ final class CrmPwaTest extends TestCase
 
     /* --------------------------------------- le solde vient du SERVICE */
 
+    /**
+     * 10/11/2026 (PO : « l'historique de DOSSOU Nice, 30 000 dus, est VIDE ») : une facture émise est
+     * un MOUVEMENT du client (le débit) — sans encaissement ni relance, l'historique n'est pas vide.
+     */
+    #[Test]
+    public function l_historique_d_un_client_montre_sa_facture_emise_meme_sans_encaissement_ni_relance(): void
+    {
+        $this->actingAs($this->utilisateur('administrateur'));
+
+        $client = Client::create([
+            'nom' => 'DOSSOU', 'prenom' => 'Nice', 'telephone' => '01 90 00 00 09', 'type_client' => 'structure',
+        ]);
+
+        DB::table('factures')->insert([
+            'id' => (string) Str::uuid(),
+            'client_id' => $client->id,
+            'date_emission' => now()->subDays(1)->toDateString(),
+            'montant_ht' => '30000.00', 'montant_tva' => '0.00', 'montant_ttc' => '30000.00',
+            'statut' => 'certifiee',
+            'numero_mecef' => 'MECEF-HIST-001',
+            'utilisateur_creation_id' => auth()->id(),
+            'date_creation' => now(), 'created_at' => now(), 'updated_at' => now(),
+        ]);
+
+        \Livewire\Livewire::test(ClientsCreances::class)
+            ->call('ouvrirHistoriqueClient', $client->id)
+            ->assertSee(__('pwa.clients.historique_type_facture'))
+            ->assertSee('MECEF-HIST-001')
+            ->assertDontSee(__('pwa.clients.historique_vide'));
+    }
+
     #[Test]
     public function le_solde_affiche_est_celui_des_factures_certifiees_non_soldees(): void
     {

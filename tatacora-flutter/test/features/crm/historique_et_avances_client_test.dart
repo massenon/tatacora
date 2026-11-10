@@ -88,7 +88,9 @@ void main() {
         matching: find.text(texte),
       );
       expect(dansLaModale('Encaissement'), findsOneWidget);
-      expect(dansLaModale(f.numero), findsOneWidget);
+      // La facture émise (débit) ET son encaissement portent le même numéro (PO 10/11/2026).
+      expect(dansLaModale('Facture'), findsWidgets);
+      expect(dansLaModale(f.numero), findsNWidgets(2));
       expect(dansLaModale('Mobile Money'), findsOneWidget);
       expect(dansLaModale('12 000 FCFA'), findsOneWidget);
       expect(find.byKey(const Key('historique-client-vide')), findsNothing);

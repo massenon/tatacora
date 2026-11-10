@@ -48,5 +48,5 @@ return [
     'requise' => 'Authentification requise.',
 
     // Jeton valide mais droit absent sur le module demande (403) — RG-16.
-    'module_refuse' => 'Vous n avez pas acces a ce module.',
+    'module_refuse' => "Vous n'avez pas accès à ce module.",
 ];

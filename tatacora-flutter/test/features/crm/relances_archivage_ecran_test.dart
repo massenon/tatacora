@@ -357,8 +357,9 @@ void main() {
           findsOneWidget,
         );
         expect(
+          // la facture (débit) ET la relance (somme réclamée) disent 50 000 FCFA
           find.descendant(of: modale, matching: find.text('50 000 FCFA')),
-          findsOneWidget,
+          findsNWidgets(2),
         );
         expect(find.byKey(const Key('historique-client-vide')), findsNothing);
 

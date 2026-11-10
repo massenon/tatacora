@@ -204,10 +204,12 @@ class ModaleHistoriqueClient extends ConsumerWidget {
     // `bg-emerald-50 text-emerald-700` pour un encaissement, `bg-amber-50
     // text-amber-700` pour une relance ; le montant d'une relance est en
     // `text-slate-700` (c'est une somme RÉCLAMÉE, pas reçue).
+    // Une facture est neutre (ardoise) : ce n'est ni une somme reçue ni une somme réclamée.
+    final facture = m.type == typeFacture;
     final relance = m.type == typeRelance;
     return DecoratedBox(
       key: Key(
-        'historique-client-ligne-${m.date.microsecondsSinceEpoch}-${m.libelle}',
+        'historique-client-ligne-${m.date.microsecondsSinceEpoch}-${m.type}-${m.libelle}',
       ),
       decoration: const BoxDecoration(
         border: Border(top: BorderSide(color: Ardoise.c100)),
@@ -225,7 +227,11 @@ class ModaleHistoriqueClient extends ConsumerWidget {
               vertical: AppSpacing.demi,
             ),
             decoration: BoxDecoration(
-              color: relance ? PaletteMaitre.ambre50 : PaletteMaitre.emeraude50,
+              color: facture
+                  ? Ardoise.c100
+                  : relance
+                  ? PaletteMaitre.ambre50
+                  : PaletteMaitre.emeraude50,
               borderRadius: BorderRadius.circular(AppRadius.rounded),
             ),
             child: Text(
@@ -233,7 +239,9 @@ class ModaleHistoriqueClient extends ConsumerWidget {
               style: TextStyle(
                 fontFamily: AppTextStyles.police,
                 fontSize: Tailles.t10,
-                color: relance
+                color: facture
+                    ? Ardoise.c700
+                    : relance
                     ? PaletteMaitre.ambre700
                     : PaletteMaitre.emeraude700,
               ),
@@ -245,7 +253,9 @@ class ModaleHistoriqueClient extends ConsumerWidget {
             formaterCentimesEnFcfa(m.montantCentimes),
             style: _celluleBase.copyWith(
               fontWeight: FontWeight.w600,
-              color: relance ? Ardoise.c700 : PaletteMaitre.emeraude600,
+              color: relance || facture
+                  ? Ardoise.c700
+                  : PaletteMaitre.emeraude600,
             ),
           ),
         ],
@@ -261,8 +271,11 @@ class ModaleHistoriqueClient extends ConsumerWidget {
     final releve = ReleveClient(
       clientNom: clientNom,
       mouvements: [
+        // Le relevé remis au client reste celui des encaissements et relances : la facture
+        // est un mouvement d'AFFICHAGE de l'historique (PO 10/11/2026).
         for (final m in mouvements)
-          (date: m.date, type: m.type, montantCentimes: m.montantCentimes),
+          if (m.type != typeFacture)
+            (date: m.date, type: m.type, montantCentimes: m.montantCentimes),
       ],
       editeLe: ref.read(horlogeCreancesProvider)(),
     );
