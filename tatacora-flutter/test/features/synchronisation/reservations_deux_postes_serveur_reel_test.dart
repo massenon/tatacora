@@ -450,7 +450,7 @@ void main() {
 
   test(
     '6. POS hébergés : une réservation créée en A, check-in en A — visible '
-    'au POS hébergés de B après synchronisation ; sans check-in, non',
+    'au POS hébergés de B après synchronisation, avec ou sans check-in',
     () async {
       await attendreHorizon();
       await a.synchroniser();
@@ -458,14 +458,15 @@ void main() {
       expect(
         (await lire(b)).statut,
         isNot(StatutReservation.enCours),
-        reason:
-            'pas de check-in : une réservation « en attente » n’est pas un séjour',
+        reason: 'pas de check-in : le statut reste celui de la création',
       );
+      // PO 10/11/2026 : AUCUNE règle de période — une réservation en attente est offerte au
+      // POS hébergés dès qu'elle est descendue, sans check-in.
       expect(
-        [
-          for (final r in await ReservationDao(b.db).reservations()) r,
-        ].where(estSejourAuPos).map((r) => r.id),
-        isNot(contains(reservationId)),
+        (await ReservationDao(
+          b.db,
+        ).reservations()).where(estSejourAuPos).map((r) => r.id),
+        contains(reservationId),
       );
 
       await SejourDao(a.db).checkin(reservationId);

@@ -2123,3 +2123,9 @@ Décision du PO (« ça ne doit pas refuser à la vente ») : après « un plat 
 **Redescente.** Automatique (époque + passage complet de 5 minutes). Le bouton « Redescendre depuis le début » du web est ouvert à TOUS les rôles (`EnvoiSynchronisation`) ; révoquer, appairer, dissocier et l'adresse du serveur restent aux administrateurs.
 
 **Tests.** PHP `RolesModifiesDescendentTest` (l'époque avance à chaque écriture d'un rôle), `ReceptionSynchronisationTest` (barman, gérant, lecteur redescendent), `EntreesMenuOuvertesATousTest` ; Flutter `droits_relus_apres_descente_test` (rôle descendu → droits de la session ouverte, aucune reconstruction sans changement).
+
+## 10/11/2026 — POS clients hébergés : aucune règle de période (PO)
+
+**Constat du PO** : « Aucun séjour en cours… pourtant il y a des réservations en cours ». Cause : le POS n'offrait que les statuts `confirmee`/`en_cours` ; une réservation créée est `en_attente` et seul le check-in la passe `en_cours`, alors que l'écran Réservations dit « En cours » d'après les dates.
+
+**Décision (corrigée le même jour)** : aucune condition sur les dates — un séjour peut être rallongé, raccourci ou décalé. Toute réservation ni `annulee` ni `terminee` est offerte, web (`PosHeberges::STATUTS_EN_SEJOUR` = en_attente, confirmee, en_cours) ET poste (`estSejourAuPos`). État vide réécrit (`pos_pwa.heberges.sejours_vide`, même phrase au poste). Preuve : `PosPwaTest` (dates passées, futures, annulée, terminée), `sejour_au_pos_test`, essai 6 à deux postes.

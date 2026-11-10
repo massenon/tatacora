@@ -115,8 +115,12 @@ class PosHeberges extends PageMetier
     /** Le module d'hebergement, dont ce POS porte le poste de vente. */
     public const MODULE_HEBERGEMENT = 'M1';
 
-    /** Les statuts de sejour qui peuvent recevoir une consommation. */
-    private const STATUTS_EN_SEJOUR = ['confirmee', 'en_cours'];
+    /**
+     * Les statuts de sejour qui peuvent recevoir une consommation (PO 10/11/2026 : AUCUNE regle de
+     * periode — un sejour peut etre rallonge, raccourci ou decale ; seules `annulee` et `terminee`
+     * en sont exclues).
+     */
+    private const STATUTS_EN_SEJOUR = ['en_attente', 'confirmee', 'en_cours'];
 
     #[Url(as: 'sejour')]
     public ?string $selectedReservationId = null;

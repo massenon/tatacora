@@ -669,33 +669,38 @@ final class PosPwaTest extends TestCase
      * visible ne peut donc venir que de la base.
      */
     /**
-     * 09/11/2026 (PO : « le POS hébergés ne montre aucun client alors que des séjours sont en
-     * cours »). LA règle est le STATUT enregistré (`confirmee`, `en_cours`), jamais les dates
-     * du jour : une réservation créée est `en_attente`, seul le check-in la passe `en_cours`.
-     * L'écran Réservations, lui, dit « En cours » d'après les DATES. L'état vide DIT quoi faire.
+     * 10/11/2026 (PO : « aucun séjour en cours, pourtant il y a des réservations en cours »).
+     * AUCUNE règle de période : toute réservation ni annulée ni terminée est offerte, quel que soit
+     * le rapport de ses dates avec aujourd'hui (un séjour peut être rallongé, raccourci, décalé).
      */
     #[Test]
-    public function un_sejour_n_est_offert_qu_apres_son_check_in_et_l_etat_vide_dit_quoi_faire(): void
+    public function un_sejour_est_offert_quelles_que_soient_ses_dates_sauf_annule_ou_termine(): void
     {
         $reservation = $this->reservationEnCours();
         $reservation->update(['statut' => 'en_attente']);
+        $aujourdhui = \App\Shared\Support\HeureLocale::maintenant();
 
         $this->actingAs($this->gerant);
 
-        // Les dates couvrent aujourd'hui, la fiche dit « En cours » à l'écran Réservations…
-        $this->assertSame('en_cours', $reservation->fresh()->etatDerive(\Carbon\CarbonImmutable::today()));
-        // … mais sans check-in, le POS n'a aucun séjour — et le dit avec la marche à suivre.
-        Livewire::test(PosHeberges::class)
-            ->assertSet('selectedReservationId', null)
-            ->assertSee(__('pos_pwa.heberges.sejours_vide'))
-            ->assertSee('check-in', false);
-
-        $this->assertStringContainsString('check-in', __('pos_pwa.heberges.sejours_vide'));
-        $this->assertStringContainsString('Hébergement/Réservations', __('pos_pwa.heberges.sejours_vide'));
-
-        // Le check-in passe la réservation `en_cours` : elle est offerte.
-        $reservation->update(['statut' => 'en_cours']);
+        // En attente : offerte, sans check-in.
         Livewire::test(PosHeberges::class)->assertSet('selectedReservationId', $reservation->id);
+
+        // Arrivée demain : offerte aussi (décalée) ; passée : offerte (rallongée).
+        foreach ([[1, 3], [-9, -5]] as [$du, $au]) {
+            $reservation->update([
+                'date_arrivee' => $aujourdhui->addDays($du)->toDateString(),
+                'date_depart' => $aujourdhui->addDays($au)->toDateString(),
+            ]);
+            Livewire::test(PosHeberges::class)->assertSet('selectedReservationId', $reservation->id);
+        }
+
+        // Annulée ou terminée : jamais — et l'état vide DIT pourquoi.
+        foreach (['annulee', 'terminee'] as $statut) {
+            $reservation->update(['statut' => $statut]);
+            Livewire::test(PosHeberges::class)
+                ->assertSet('selectedReservationId', null)
+                ->assertSee(__('pos_pwa.heberges.sejours_vide'));
+        }
     }
 
     #[Test]
