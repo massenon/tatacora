@@ -376,6 +376,23 @@ class _LigneSaisie extends StatelessWidget {
                   prix: o.prix,
                 ),
     ];
+    // Une ligne dont l'article n'est PLUS au catalogue de ce poste (réservation reçue d'un
+    // autre poste avant la descente du catalogue, plat/boisson/circuit/véhicule retiré, menu
+    // absent de la jointure des plats) garde son choix : le sélecteur porte la ligne telle
+    // qu'elle est en base, libellé et prix FIGÉS. Sans cela le sélecteur retombait sur
+    // l'invite (« Choisissez un élément… ») alors que la ligne comptait encore au total — et
+    // l'utilisateur devait tout ressélectionner (constat du PO du 10/11/2026).
+    if (ligne.itemId.isNotEmpty &&
+        !proposees.any((o) => o.id == ligne.itemId)) {
+      proposees.add(
+        OptionService(
+          id: ligne.itemId,
+          libelle: '${ligne.libelle} — plus au catalogue, déjà retenu',
+          prix: ligne.prixUnitaire,
+          disponible: false,
+        ),
+      );
+    }
     final choisies = proposees.where((o) => o.id == ligne.itemId);
 
     return Padding(

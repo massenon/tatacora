@@ -1255,6 +1255,108 @@ void main() {
     );
 
     testWidgets(
+      'DEBUG PO 10/11/2026 (cause prouvée) : une ligne dont l’ARTICLE n’est plus au '
+      'catalogue du poste (plat, boisson, circuit, véhicule) reste AFFICHÉE avec son libellé '
+      'figé — jamais un sélecteur vide à ressélectionner — et survit à l’enregistrement',
+      (tester) async {
+        // Aucune ligne de catalogue n'est semée pour ces quatre identifiants : le poste ne les
+        // porte pas (réservation reçue d'un autre poste avant la descente du catalogue, article
+        // retiré, menu absent de la jointure des plats).
+        await depot.enregistrer(
+          Reservation(
+            id: 'res-orph',
+            reference: 'LOC-ORPH',
+            clientId: 'cli-comptoir',
+            clientNom: 'Comptoir',
+            uniteId: uniteId,
+            periode: periode(10, 12),
+            tarifNuit: 28000,
+            statut: StatutReservation.confirmee,
+            statutSynchronisation: StatutSynchronisation.synchronise,
+            creeeLe: DateTime(2026, 8, 1),
+            lignes: [
+              LigneService(
+                id: 'l-o-h',
+                service: ServiceReservation.hebergement,
+                itemId: uniteId,
+                libelle: 'Bungalow (BNG-01)',
+                prixUnitaire: 28000,
+                quantite: 2,
+              ),
+              LigneService(
+                id: 'l-o-r',
+                service: ServiceReservation.restauration,
+                itemId: 'plat-retire',
+                libelle: 'Demi-pintade',
+                prixUnitaire: 5500,
+                quantite: 1,
+              ),
+              LigneService(
+                id: 'l-o-b',
+                service: ServiceReservation.bar,
+                itemId: 'boisson-retiree',
+                libelle: 'Café expresso',
+                prixUnitaire: 1000,
+                quantite: 1,
+              ),
+              LigneService(
+                id: 'l-o-t',
+                service: ServiceReservation.tourisme,
+                itemId: 'circuit-retire',
+                libelle: 'Ornithologique',
+                prixUnitaire: 5000,
+                quantite: 2,
+              ),
+              LigneService(
+                id: 'l-o-v',
+                service: ServiceReservation.vehicule,
+                itemId: 'vehicule-retire',
+                libelle: 'scooter AB 1357 RB',
+                prixUnitaire: 6000,
+                quantite: 1,
+              ),
+            ],
+          ),
+        );
+        await monter(
+          tester,
+          const FicheReservation(reservationId: 'res-orph'),
+          periodeInitiale: periode(1, 2),
+        );
+
+        // Chaque ligne montre SON libellé figé (le sélecteur n'est pas vide).
+        expect(find.textContaining('Demi-pintade'), findsWidgets);
+        expect(find.textContaining('Café expresso'), findsWidgets);
+        expect(find.textContaining('Ornithologique'), findsWidgets);
+        expect(find.textContaining('scooter AB 1357 RB'), findsWidgets);
+        expect(find.text('Choisissez un élément du catalogue'), findsNothing);
+
+        // Enregistrer SANS rien toucher ne perd ni ne change aucune ligne.
+        final bouton = find.byKey(const Key('bouton-enregistrer'));
+        await tester.ensureVisible(bouton);
+        await tester.pumpAndSettle();
+        await tester.tap(bouton);
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('bouton-plus-tard')));
+        await tester.pumpAndSettle();
+        final relue = await depot.parId('res-orph');
+        expect(relue!.lignes.map((l) => l.itemId).toSet(), {
+          uniteId,
+          'plat-retire',
+          'boisson-retiree',
+          'circuit-retire',
+          'vehicule-retire',
+        });
+        expect(
+          relue.lignes
+              .firstWhere((l) => l.itemId == 'plat-retire')
+              .prixUnitaire,
+          5500,
+        );
+      },
+    );
+
+    testWidgets(
       'sa propre chambre reste retenue, sans conflit avec elle-même',
       (tester) async {
         // LE cas qui commande tout : sans exclusion, la chambre apparaîtrait

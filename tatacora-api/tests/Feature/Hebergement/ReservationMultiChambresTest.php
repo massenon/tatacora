@@ -248,4 +248,55 @@ final class ReservationMultiChambresTest extends TestCase
         $rendu->assertHasErrors(['rUniteId']);
         $this->assertStringContainsString('BNG-4', (string) $rendu->errors()->first('rUniteId'));
     }
+
+    /**
+     * DEBUG PO 10/11/2026 : « une réservation enregistrée puis ÉDITÉE perd ses données ».
+     * Rouvrir (chambres supplémentaires ET services), puis enregistrer SANS rien toucher, ne
+     * change ni ne perd aucune ligne, et aucun doublon n'apparaît.
+     */
+    #[Test]
+    public function rouvrir_puis_enregistrer_sans_rien_toucher_ne_perd_ni_ne_duplique_aucune_ligne(): void
+    {
+        $role = Role::where('libelle', 'gerant')->firstOrFail();
+        $this->actingAs(User::create([
+            'login' => 'gerant.edit', 'mot_de_passe_hash' => Hash::make('mot-de-passe-de-test'),
+            'role_id' => $role->id, 'statut' => 'actif',
+        ]));
+        $circuit = \App\Domain\Tourisme\Models\Circuit::create([
+            'nom' => 'Chutes de Kota', 'theme' => 'Nature', 'zone' => 'Atacora',
+            'duree' => '1 jour', 'prix' => '15000.00', 'capacite_max' => 12,
+        ]);
+
+        Livewire::test(Reservations::class)
+            ->call('ouvrirCreationReservation')
+            ->set('rClientId', $this->client->id)
+            ->set('rUniteId', $this->a->id)
+            ->set('rDateArrivee', '2026-12-10')
+            ->set('rDateDepart', '2026-12-12')
+            ->set('rRemiseType', 'aucune')
+            ->call('ajouterChambre')
+            ->set('rChambres.0.unite_id', $this->b->id)
+            ->call('basculerServiceFiche', 'tourisme')
+            ->set('rLignes.0.source_id', $circuit->id)
+            ->set('rLignes.0.quantite', '2')
+            ->call('enregistrerReservation')
+            ->assertHasNoErrors();
+
+        $reservation = Reservation::with('lignes')->firstOrFail();
+        $avant = $reservation->lignes->map(fn ($l) => [$l->service, $l->source_id, (string) $l->quantite, (string) $l->prix_unitaire])->sortBy(fn ($x) => $x[0].$x[1])->values()->all();
+        $this->assertCount(2, $avant);
+
+        Livewire::test(Reservations::class)
+            ->call('ouvrirModificationReservation', $reservation->id)
+            ->assertSet('rUniteId', $this->a->id)
+            ->assertSet('rChambres', [['unite_id' => $this->b->id]])
+            ->assertSet('rServices', ['tourisme'])
+            ->assertSet('rLignes.0.source_id', $circuit->id)
+            ->call('enregistrerReservation')
+            ->assertHasNoErrors();
+
+        $apres = $reservation->fresh()->lignes->map(fn ($l) => [$l->service, $l->source_id, (string) $l->quantite, (string) $l->prix_unitaire])->sortBy(fn ($x) => $x[0].$x[1])->values()->all();
+        $this->assertSame($avant, $apres);
+        $this->assertSame(1, Reservation::count());
+    }
 }
