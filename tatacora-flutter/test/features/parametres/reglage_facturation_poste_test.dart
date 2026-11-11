@@ -631,7 +631,7 @@ void main() {
         find.descendant(
           of: find.byType(Dialog),
           matching: find.text(
-            'Désactivé : factures de démonstration, sans valeur fiscale. '
+            'Désactivé : factures simples, sans valeur fiscale ni mention de normalisation. '
             'e-MECeF : le serveur certifie par l’API de la DGI (réseau exigé). '
             'Boîtier CC300 : le poste de la réception certifie par le boîtier '
             'branché en USB, même hors ligne. Réservé aux Administrateurs.',

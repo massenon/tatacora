@@ -378,7 +378,7 @@ abstract final class RegistreParametresLocal {
         'boitier': 'Boîtier CC300 (poste)',
       },
       aide:
-          'Désactivé : factures de démonstration, sans valeur fiscale. e-MECeF : le serveur certifie par l’API de la DGI (réseau exigé). Boîtier CC300 : le poste de la réception certifie par le boîtier branché en USB, même hors ligne. Réservé aux Administrateurs.',
+          'Désactivé : factures simples, sans valeur fiscale ni mention de normalisation. e-MECeF : le serveur certifie par l’API de la DGI (réseau exigé). Boîtier CC300 : le poste de la réception certifie par le boîtier branché en USB, même hors ligne. Réservé aux Administrateurs.',
       lecteur: 'lib/features/facturation/domain/mode_facturation.dart',
       reserveAdministrateur: true,
     ),

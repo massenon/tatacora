@@ -35,7 +35,6 @@ Le serveur NE certifie PAS en mode `boitier` : la facture créée au web reste �
 de normalisation par le poste » ; un poste avec boîtier la reprend à son passage (la
 descente la lui apporte). Le serveur n'appelle JAMAIS le boîtier.
 
-> Écart connu du code, constaté le 11/11/2026 : le texte d'aide du réglage « Mode » (web `RegistreParametres` et poste `registre_parametres_local.dart`) dit encore « Désactivé : factures de démonstration, sans valeur fiscale » ; le comportement réel est celui du §1 (facture simple, aucune mention). Le texte d'aide n'a pas été corrigé ici (code hors périmètre de ce passage).
 
 ## 2. Réglages (clés et règles)
 

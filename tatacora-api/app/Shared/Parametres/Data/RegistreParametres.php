@@ -350,7 +350,7 @@ final class RegistreParametres
                     ModeFacturation::Emecef->value => 'e-MECeF (en ligne)',
                     ModeFacturation::Boitier->value => 'Boîtier CC300 (poste)',
                 ],
-                aide: 'Désactivé : factures de démonstration, sans valeur fiscale. '
+                aide: 'Désactivé : factures simples, sans valeur fiscale ni mention de normalisation. '
                     . 'e-MECeF : le serveur certifie par l’API de la DGI (réseau exigé). '
                     . 'Boîtier CC300 : le poste de la réception certifie par le boîtier branché en USB, '
                     . 'même hors ligne. Réservé aux Administrateurs.',

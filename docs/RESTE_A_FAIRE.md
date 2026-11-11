@@ -60,7 +60,7 @@
 
 ## G. Facture proforma — poste (livré le 07/11/2026)
 
-- [x] **G1** Régularisation du numéro à l'accusé (`SyncManager`), descente des proformas (`TableDescendue.proformas`, `AligneurCatalogue._proforma`) et des images signature/cachet (`TelechargementImagesDocument`, `GET /api/v1/sync/apparence-documents`, dossier d'apparence du poste).
+- [x] **G1** Régularisation du numéro à l'accusé (`SyncManager`), descente des proformas (`TableDescendue.proformas`, `AligneurCatalogue._proforma`) et des images signature/cachet (`TelechargementImagesDocument`, `GET /api/v1/sync/apparence-documents`, dossier d'apparence du poste) ; depuis le 11/11/2026 elles se déposent aussi depuis le poste (administrateur, opération `depots_images_document`, migration serveur `depots_images_document`).
 - [x] **G2** Écran « Proformas » du poste (`ecran_proformas.dart`, route `/facturation/proformas`, lien depuis Facturation) : liste, filtre par statut, recherche, brouillon à lignes libres, émission, annulation avec motif, conversion confirmée, état « expirée », droits M2, libellés du web relus du serveur.
 - [x] **G3** PDF A4 du poste (`proforma_a4.dart`, vert = `PaletteMaitre.vert700`), impression par `Printing.layoutPdf`, classé dans `pdf_directive_test`.
 - [x] **G4** Boutons « Créer une proforma » (location, tourisme, hébergement, restauration pour événement : proforma vide, aucun module événement n'existe) avec le même préremplissage que le web ; signature et cachet sur la facture A4 du poste selon l'interrupteur.
