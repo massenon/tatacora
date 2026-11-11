@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tatacora_flutter/core/rbac/regles_roles.dart';
 import 'package:tatacora_flutter/core/database/app_database.dart';
 import 'package:tatacora_flutter/core/impression/entete_etablissement.dart';
 import 'package:tatacora_flutter/features/comptabilite/data/archive_cloture_locale.dart';
@@ -811,6 +812,10 @@ void main() {
     expect(journauxReserves, c['journaux_reserves']);
     expect(centreDeCloture, c['centre']);
     expect(roleReouverture, c['role_reouverture']);
+    expect(
+      rolesComptabiliteSensible,
+      (c['roles_comptabilite_sensible'] as List).cast<String>().toSet(),
+    );
     expect(longueurMinMotifReouverture, c['motif_min']);
     expect(classesDeGestion, c['classes_gestion']);
     expect(classesDeBilan, c['classes_bilan']);

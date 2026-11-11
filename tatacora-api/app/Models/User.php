@@ -126,6 +126,13 @@ class User extends Authenticatable
      */
     public function niveauSurModule(string $module): string
     {
+        // Droit IMPLICITE des utilisateurs système (11/11/2026, PO) : voir
+        // `MODULES_IMPLICITES_SYSTEME`. Un seul endroit, relu par le menu, les gardes, la page et
+        // la réponse de connexion que le poste mémorise.
+        if (in_array($module, self::MODULES_IMPLICITES_SYSTEME, true) && $this->estRoleSystemeImportExport()) {
+            return 'C';
+        }
+
         return $this->role?->niveauSurModule($module) ?? '-';
     }
 
@@ -159,6 +166,40 @@ class User extends Authenticatable
      * @var list<string>
      */
     public const ROLES_ADMINISTRATION = ['administrateur', 'super_admin'];
+
+    /**
+     * Les rôles « SYSTÈME » d'Import & Export (PO, 11/11/2026) : `super_admin`, `administrateur`,
+     * `comptable`, `gerant` ET `barman` ont TOUJOURS l'accès complet à l'écran, quelle que soit la
+     * ligne `IMPORT_EXPORT` en base. Les autres rôles du socle (réceptionniste, cuisine, magasinier,
+     * achats, véhicules, guide, rh) restent pilotés par leur droit. Auteur unique de la liste ; le
+     * poste la miroite (`rolesSystemeImportExport`). La sauvegarde étant la copie intégrale de la
+     * base, le barman y accède par décision du PO.
+     *
+     * @var list<string>
+     */
+    public const ROLES_SYSTEME_IMPORT_EXPORT = ['super_admin', 'administrateur', 'comptable', 'gerant', 'barman'];
+
+    /**
+     * Les modules dont les rôles `ROLES_SYSTEME_IMPORT_EXPORT` ont TOUJOURS l'écriture,
+     * même sans RBAC (ligne absente, `-` ou `L` en base) — directive PO du 11/11/2026 : « Import &
+     * Export, avec ses trois onglets ». Droit implicite documenté, pas un masquage : il est servi
+     * par `niveauSurModule()`, donc par le menu, `VerifierAccesModule`, la page et la connexion.
+     * La matrice stockée n'est pas modifiée (l'écran Rôles & Permissions montre la ligne réelle).
+     * La purge reste réservée au `super_admin` (`estSuperAdmin()`).
+     *
+     * @var list<string>
+     */
+    public const MODULES_IMPLICITES_SYSTEME = ['IMPORT_EXPORT'];
+
+    /**
+     * Les rôles qui passent les gestes comptables réservés (réouverture d'exercice, affectation du
+     * résultat et sa contre-passation) : le comptable ET le gérant (11/11/2026, PO : « le gérant a
+     * par défaut tous les écrans du comptable »). Un seul endroit ; le poste le miroite
+     * (`rolesComptabiliteSensible`). L'administrateur n'y figure PAS : ce n'est pas un droit de plus.
+     *
+     * @var list<string>
+     */
+    public const ROLES_COMPTABILITE_SENSIBLE = ['comptable', 'gerant'];
 
     /**
      * Un compte suspendu ou désactivé n'accède à rien, quel que soit son rôle.
@@ -202,6 +243,18 @@ class User extends Authenticatable
     public function estAdministrateur(): bool
     {
         return in_array((string) $this->role?->libelle, self::ROLES_ADMINISTRATION, true);
+    }
+
+    /** Rôle « système » d'Import & Export — voir `ROLES_SYSTEME_IMPORT_EXPORT`. */
+    public function estRoleSystemeImportExport(): bool
+    {
+        return in_array((string) $this->role?->libelle, self::ROLES_SYSTEME_IMPORT_EXPORT, true);
+    }
+
+    /** Le comptable OU le gérant — voir `ROLES_COMPTABILITE_SENSIBLE`. */
+    public function estComptableOuGerant(): bool
+    {
+        return in_array((string) $this->role?->libelle, self::ROLES_COMPTABILITE_SENSIBLE, true);
     }
 
     /**

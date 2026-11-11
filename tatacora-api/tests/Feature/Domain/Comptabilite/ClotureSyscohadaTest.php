@@ -240,6 +240,25 @@ final class ClotureSyscohadaTest extends TestCase
     }
 
     #[Test]
+    public function le_gerant_rouvre_comme_le_comptable_et_la_page_le_propose(): void
+    {
+        $this->exploiter();
+        $this->service()->demarrer($this->n, $this->comptable);
+        $this->service()->cloturer($this->n->refresh(), $this->comptable);
+
+        $gerant = $this->utilisateur('gerant');
+        $this->service()->rouvrir($this->n->refresh(), $gerant, 'Correction d’une facture oubliée');
+        $this->assertSame('en_cloture', $this->n->refresh()->statut);
+        $this->assertSame($gerant->id, JournalAudit::query()->where('action', 'exercice_rouvert')->firstOrFail()->utilisateur_id);
+
+        $this->assertTrue($gerant->estComptableOuGerant());
+        $this->assertTrue($this->comptable->estComptableOuGerant());
+        $this->assertFalse($this->utilisateur('administrateur')->estComptableOuGerant());
+        $this->assertFalse($this->utilisateur('super_admin')->estComptableOuGerant());
+        $this->assertSame(['comptable', 'gerant'], \App\Models\User::ROLES_COMPTABILITE_SENSIBLE);
+    }
+
+    #[Test]
     public function la_reouverture_est_au_comptable_seul_contre_passe_et_permet_une_re_cloture(): void
     {
         $this->exploiter();
@@ -249,7 +268,7 @@ final class ClotureSyscohadaTest extends TestCase
         $soldes2027 = $this->soldes($n1->id);
         $this->assertSame(['131' => '-70000.00', '5711' => '70000.00'], $soldes2027);
 
-        // Un administrateur ne rouvre pas (décision du PO : le comptable).
+        // Un administrateur ne rouvre pas (PO : le comptable, et le gérant depuis le 11/11/2026).
         try {
             $this->service()->rouvrir($this->n->refresh(), $this->utilisateur('administrateur'), 'Correction d’une facture oubliée');
             $this->fail('Un administrateur ne doit pas rouvrir.');

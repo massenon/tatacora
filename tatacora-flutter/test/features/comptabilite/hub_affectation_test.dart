@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:drift/drift.dart' show driftRuntimeOptions;
+import 'package:drift/drift.dart' show Variable, driftRuntimeOptions;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -559,11 +559,34 @@ void main() {
       );
       expect(
         texte(
-          'Seul le comptable peut passer ou contre-passer l’affectation du résultat.',
+          'Seul le comptable ou le gérant peut passer ou contre-passer l’affectation du résultat.',
         ),
         findsOneWidget,
       );
     });
+
+    testWidgets(
+      'le GÉRANT affecte comme le comptable (équivalence 11/11/2026) : '
+      'bouton offert, pièce passée',
+      (tester) async {
+        await exploiter();
+        await cloturer();
+        await db.customUpdate(
+          "UPDATE utilisateurs_local SET role = 'gerant' WHERE id = ?",
+          variables: [Variable.withString(auteurEssai)],
+          updates: {db.utilisateursLocal},
+        );
+        await monter(tester, role: 'gerant');
+
+        expect(
+          find.byKey(const Key('compta-affectation-reservee')),
+          findsNothing,
+        );
+        await taper(tester, 'compta-affectation-passer');
+        await taper(tester, 'compta-affectation-confirmer');
+        expect(await pieceAffectation(), hasLength(2));
+      },
+    );
 
     testWidgets('le comptable SANS droit d’écriture M10 : le geste DIT le '
         'refus, rien n’est écrit', (tester) async {

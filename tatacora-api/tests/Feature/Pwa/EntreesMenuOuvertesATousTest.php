@@ -85,7 +85,9 @@ final class EntreesMenuOuvertesATousTest extends TestCase
                 $attendu = in_array($role, ['administrateur', 'super_admin'], true)
                     || ($code === 'IMPORT_EXPORT' && in_array($role, ['gerant', 'comptable'], true)) ? 'C' : 'L';
                 $this->assertSame($attendu, $droits[$code], "$role / $code");
-                $this->assertSame($attendu, $this->compte($role)->niveauSurModule($code), "$role / $code en base");
+                // Niveau EFFECTIF : les rôles système d'Import & Export (dont le barman) ont toujours C.
+                $effectif = $code === 'IMPORT_EXPORT' && in_array($role, \App\Models\User::ROLES_SYSTEME_IMPORT_EXPORT, true) ? 'C' : $attendu;
+                $this->assertSame($effectif, $this->compte($role)->niveauSurModule($code), "$role / $code en base");
             }
         }
     }
@@ -124,8 +126,9 @@ final class EntreesMenuOuvertesATousTest extends TestCase
         // MUTATION : le droit par défaut d'un rôle retiré (comme le ferait une
         // matrice sans la colonne) — l'entrée disparaît et la route refuse.
         foreach (self::ENTREES as $code => $entree) {
-            $role = Role::where('libelle', 'barman')->firstOrFail();
-            $compte = $this->compte('barman');
+            // Le barman est un rôle système d'Import & Export : la mutation vise un rôle hors liste.
+            $role = Role::where('libelle', 'receptionniste')->firstOrFail();
+            $compte = $this->compte('receptionniste');
             $this->assertContains($entree['route'], $this->routes($compte));
 
             app(RolePermissionService::class)->definirNiveau($role, $code, '-');
@@ -198,7 +201,7 @@ final class EntreesMenuOuvertesATousTest extends TestCase
     #[Test]
     public function un_non_admin_n_a_ni_sauvegarde_ni_reinitialisation_dans_import_export(): void
     {
-        foreach (['receptionniste', 'guide', 'barman', 'cuisine'] as $role) {
+        foreach (['receptionniste', 'guide', 'cuisine'] as $role) {
             $this->app['auth']->forgetGuards();
             $this->actingAs($this->compte($role));
 

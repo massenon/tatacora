@@ -107,8 +107,8 @@
     Dans les écrans de saisie des modules, la date proposée reste celle du jour ; seule la saisie d'une écriture à la main propose, si le jour n'est pas dans l'exercice consulté, le 31 décembre de cet exercice.
   </span>
   <p>
-    Un <strong>bandeau de statut</strong> rappelle l'état de l'exercice consulté : <em>en clôture</em> (les ventes, les dépenses et les autres modules n'y écrivent plus ; seul le comptable y passe encore ses écritures d'inventaire),
-    ou <em>clôturé</em> (lecture seule ; seule la réouverture par le comptable permet de corriger). L'<strong>exercice suivant s'ouvre tout seul</strong> : le serveur ouvre l'année en cours chaque nuit et, en décembre, l'année suivante,
+    Un <strong>bandeau de statut</strong> rappelle l'état de l'exercice consulté : <em>en clôture</em> (les ventes, les dépenses et les autres modules n'y écrivent plus ; seuls le comptable et le gérant y passent encore leurs écritures d'inventaire),
+    ou <em>clôturé</em> (lecture seule ; seule la réouverture par le comptable ou le gérant permet de corriger). L'<strong>exercice suivant s'ouvre tout seul</strong> : le serveur ouvre l'année en cours chaque nuit et, en décembre, l'année suivante,
     et la première pièce datée du 1er janvier ouvre l'année si elle manque.
   </p>
 
@@ -263,7 +263,7 @@
       <tr><td>ouvert ➔ <strong>en clôture</strong></td><td>Démarrer la clôture</td><td>Les modules n'écrivent plus dans l'exercice ; leurs pièces vont dans l'exercice suivant. Seules les écritures d'inventaire du comptable y passent encore.</td></tr>
       <tr><td>en clôture ➔ ouvert</td><td>Reprendre la saisie</td><td>Retour en arrière, tant que rien n'est clôturé.</td></tr>
       <tr><td>en clôture ➔ <strong>clôturé</strong></td><td>Clôturer définitivement</td><td>Voir ci-dessous.</td></tr>
-      <tr><td>clôturé ➔ en clôture</td><td>Rouvrir (<strong>le comptable seul</strong>, avec un motif d'au moins dix caractères)</td><td>Les pièces de clôture et d'à-nouveaux sont contre-passées — rien ne s'efface — et le motif est tracé.</td></tr>
+      <tr><td>clôturé ➔ en clôture</td><td>Rouvrir (<strong>le comptable ou le gérant</strong>, avec un motif d'au moins dix caractères)</td><td>Les pièces de clôture et d'à-nouveaux sont contre-passées — rien ne s'efface — et le motif est tracé.</td></tr>
     </tbody>
   </table>
   <p>

@@ -134,7 +134,7 @@ return [
     'reouvrir' => 'Rouvrir l’exercice :annee',
     'reouvrir_note' => 'Réservé au comptable. Les pièces de clôture et d’à-nouveaux sont contre-passées (rien ne s’efface) et l’exercice repasse en clôture.',
     'reouvrir_motif' => 'Motif de la réouverture',
-    'reouvrir_reserve' => 'Seul le comptable peut rouvrir un exercice clôturé.',
+    'reouvrir_reserve' => 'Seul le comptable ou le gérant peut rouvrir un exercice clôturé.',
     'exercice_rouvert' => 'Exercice :annee rouvert : il repasse en clôture.',
 
     // --- Navigation N-1 / N+1 et comparatif (lot 3, 20/10/2026) ----------
@@ -220,7 +220,7 @@ return [
     'affectation_contrepasser_note' => 'Réservé au comptable. La pièce d’affectation est inversée (rien ne s’efface) ; le résultat pourra être affecté de nouveau.',
     'affectation_contrepasser_motif' => 'Motif de la contre-passation',
     'affectation_contrepasser_reference' => 'Référence de la décision (PV d’assemblée / décision de l’exploitant)',
-    'affectation_reserve_comptable' => 'Seul le comptable peut passer ou contre-passer l’affectation du résultat.',
+    'affectation_reserve_comptable' => 'Seul le comptable ou le gérant peut passer ou contre-passer l’affectation du résultat.',
     'affectation_non_affectable' => 'L’affectation se passe dans l’exercice :suivant, qui doit exister et être ouvert.',
     'affectation_faite' => 'Affectation du résultat de l’exercice :annee passée (pièce :piece).',
     'affectation_contrepassee' => 'Affectation du résultat de l’exercice :annee contre-passée.',

@@ -2,11 +2,14 @@ import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart' show StateProvider;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tatacora_flutter/core/database/app_database.dart';
 import 'package:tatacora_flutter/core/di/providers.dart';
 import 'package:tatacora_flutter/core/rbac/garde_acces.dart';
+import 'package:tatacora_flutter/core/rbac/regles_roles.dart';
 import 'package:tatacora_flutter/core/theme/app_theme.dart';
+import 'package:tatacora_flutter/features/auth/data/session_repository_local.dart';
 import 'package:tatacora_flutter/features/auth/domain/session.dart';
 import 'package:tatacora_flutter/features/synchronisation/presentation/providers_synchronisation.dart'
     show cheminConfigurationPosteProvider;
@@ -18,7 +21,7 @@ import 'support/outils_import.dart';
 
 /// 11/11/2026 (PO) : le CRUD d'« Import & Export » est piloté par le droit `IMPORT_EXPORT`
 /// (modifiable à l'écran Rôles & Permissions), pas par `Paramètres` ni par un nom de rôle :
-/// `C` (gérant, comptable) agit ; `L` (barman) voit la page en lecture seule ; un droit passé de
+/// `C` (gérant, comptable) agit ; `L` (réceptionniste) voit la page en lecture seule ; un droit passé de
 /// `C` à `L` change la page à la descente du rôle, sans reconnexion.
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
@@ -82,35 +85,110 @@ void main() {
     });
   }
 
+  // 11/11/2026 (PO) : les utilisateurs SYSTÈME ont TOUJOURS l'accès complet, même sans RBAC. La
+  // session est bâtie par le dépôt local (le chemin réel : ligne `utilisateurs_local`), pas à la main.
+  for (final role in rolesSystemeImportExport) {
+    for (final ligne in const ['absente', '-', 'L']) {
+      testWidgets('$role, ligne IMPORT_EXPORT $ligne : trois onglets et '
+          'tous les gestes', (tester) async {
+        FlutterSecureStorage.setMockInitialValues({});
+        final droits = {...socle(role)};
+        if (ligne == 'absente') {
+          droits.remove('IMPORT_EXPORT');
+        } else {
+          droits['IMPORT_EXPORT'] = ligne;
+        }
+        final depot = SessionRepositoryLocal(db);
+        final Session connectee = (await tester.runAsync(() async {
+          await depot.creerCompte(
+            login: 'sys-$role',
+            nom: 'Système',
+            motDePasse: 'motdepasse123',
+            role: role,
+            droits: droits,
+          );
+          return depot.connecter('sys-$role', 'motdepasse123');
+        }))!;
+        expect(
+          connectee.droits.peutEcrire(ModuleTatacora.importExport),
+          isTrue,
+        );
+        await monter(tester, connectee);
+        expect(find.byKey(const Key('ie-onglet-importer')), findsOneWidget);
+        expect(find.byKey(const Key('ie-onglet-sauvegardes')), findsOneWidget);
+        expect(find.byKey(const Key('ie-onglet-restaurer')), findsOneWidget);
+        expect(find.byKey(const Key('ie-modele')), findsOneWidget);
+      });
+    }
+  }
+
+  testWidgets(
+    'le réceptionniste dont la ligne est à L reste en lecture seule (le '
+    'droit implicite ne le concerne pas)',
+    (tester) async {
+      FlutterSecureStorage.setMockInitialValues({});
+      final depot = SessionRepositoryLocal(db);
+      final Session connectee = (await tester.runAsync(() async {
+        await depot.creerCompte(
+          login: 'g1',
+          nom: 'Réception',
+          motDePasse: 'motdepasse123',
+          role: 'receptionniste',
+          droits: {...socle('receptionniste'), 'IMPORT_EXPORT': 'L'},
+        );
+        return depot.connecter('g1', 'motdepasse123');
+      }))!;
+      await monter(tester, connectee);
+      expect(find.byKey(const Key('ie-onglet-sauvegardes')), findsNothing);
+      expect(find.byKey(const Key('ie-modele')), findsNothing);
+    },
+  );
+
   mainRolesEnLecture();
 
-  testWidgets('barman (IMPORT_EXPORT = L au socle) : la page est en lecture '
-      'seule, sans onglet de sauvegarde ni geste d\'import', (tester) async {
-    expect(socle('barman')['IMPORT_EXPORT'], 'L');
-    await monter(tester, session('barman', socle('barman')));
-    expect(find.byKey(const Key('ie-onglet-importer')), findsOneWidget);
-    expect(find.byKey(const Key('ie-onglet-sauvegardes')), findsNothing);
-    expect(find.byKey(const Key('ie-onglet-restaurer')), findsNothing);
-    expect(find.byKey(const Key('ie-modele')), findsNothing);
-  });
+  testWidgets(
+    'réceptionniste (IMPORT_EXPORT = L au socle) : la page est en lecture '
+    'seule, sans onglet de sauvegarde ni geste d\'import',
+    (tester) async {
+      expect(socle('receptionniste')['IMPORT_EXPORT'], 'L');
+      await monter(tester, session('receptionniste', socle('receptionniste')));
+      expect(find.byKey(const Key('ie-onglet-importer')), findsOneWidget);
+      expect(find.byKey(const Key('ie-onglet-sauvegardes')), findsNothing);
+      expect(find.byKey(const Key('ie-onglet-restaurer')), findsNothing);
+      expect(find.byKey(const Key('ie-modele')), findsNothing);
+    },
+  );
 
-  testWidgets('le droit du gérant passe de C à L (descente du rôle) : la page '
-      'devient lecture seule SANS reconnexion, puis revient', (tester) async {
-    final c = await monter(tester, session('gerant', socle('gerant')));
-    expect(find.byKey(const Key('ie-onglet-sauvegardes')), findsOneWidget);
+  testWidgets(
+    'le droit du réceptionniste passe de C à L (descente du rôle) : la page '
+    'devient lecture seule SANS reconnexion, puis revient',
+    (tester) async {
+      final cDuReceptionniste = {
+        ...socle('receptionniste'),
+        'IMPORT_EXPORT': 'C',
+      };
+      final c = await monter(
+        tester,
+        session('receptionniste', cDuReceptionniste),
+      );
+      expect(find.byKey(const Key('ie-onglet-sauvegardes')), findsOneWidget);
 
-    c.read(_posee.notifier).state = session('gerant', {
-      ...socle('gerant'),
-      'IMPORT_EXPORT': 'L',
-    });
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('ie-onglet-sauvegardes')), findsNothing);
-    expect(find.byKey(const Key('ie-modele')), findsNothing);
+      c.read(_posee.notifier).state = session('receptionniste', {
+        ...socle('receptionniste'),
+        'IMPORT_EXPORT': 'L',
+      });
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('ie-onglet-sauvegardes')), findsNothing);
+      expect(find.byKey(const Key('ie-modele')), findsNothing);
 
-    c.read(_posee.notifier).state = session('gerant', socle('gerant'));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('ie-onglet-sauvegardes')), findsOneWidget);
-  });
+      c.read(_posee.notifier).state = session(
+        'receptionniste',
+        cDuReceptionniste,
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('ie-onglet-sauvegardes')), findsOneWidget);
+    },
+  );
 }
 
 late StateProvider<Session?> _posee;

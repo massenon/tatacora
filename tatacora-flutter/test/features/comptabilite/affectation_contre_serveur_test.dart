@@ -4,6 +4,7 @@ library;
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tatacora_flutter/core/rbac/regles_roles.dart';
 import 'package:tatacora_flutter/core/database/app_database.dart';
 import 'package:tatacora_flutter/features/comptabilite/data/comptabilite_dao.dart';
 import 'package:tatacora_flutter/features/comptabilite/domain/affectation_resultat.dart';
@@ -396,6 +397,10 @@ void main() {
     final c = serveur['constantes'] as Map<String, dynamic>;
     expect(journalAffectation, c['journal']);
     expect(roleAffectation, c['role']);
+    expect(
+      rolesComptabiliteSensible,
+      (c['roles_comptabilite_sensible'] as List).cast<String>().toSet(),
+    );
     expect(longueurMinMotifAffectation, c['motif_min']);
     expect(postesAffectation, c['postes']);
     expect(postesBenefice, c['postes_benefice']);

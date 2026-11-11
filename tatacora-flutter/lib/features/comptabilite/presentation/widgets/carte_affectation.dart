@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/di/providers.dart';
 import '../../../../core/format/formats.dart';
 import '../../../../core/rbac/garde_acces.dart';
+import '../../../../core/rbac/regles_roles.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
@@ -111,7 +112,8 @@ class _CarteAffectationResultatState
   bool get _peutEcrire =>
       ref.read(droitsProvider).peutEcrire(ModuleTatacora.m10Comptabilite);
 
-  bool get _estComptable => ref.read(sessionProvider)?.role == roleAffectation;
+  bool get _estComptable =>
+      estComptableOuGerant(ref.read(sessionProvider)?.role);
 
   /// Les montants lisibles saisis, en centimes (un champ illisible compte pour
   /// zéro dans le contrôle en direct ; le serveur — et le moteur — le refusent

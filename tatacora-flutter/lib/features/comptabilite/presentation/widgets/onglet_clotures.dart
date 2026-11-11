@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/di/providers.dart';
 import '../../../../core/format/formats.dart';
 import '../../../../core/rbac/garde_acces.dart';
+import '../../../../core/rbac/regles_roles.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../core/theme/app_text_styles.dart';
@@ -709,7 +710,7 @@ class _CarteGeste extends ConsumerWidget {
       couleur: AppColors.navy,
     );
     final note = styleTransverse(TaillesContenu.t12, couleur: Ardoise.c500);
-    final peutRouvrir = ref.watch(sessionProvider)?.role == roleReouverture;
+    final peutRouvrir = estComptableOuGerant(ref.watch(sessionProvider)?.role);
 
     Widget bouton(
       Key cle,

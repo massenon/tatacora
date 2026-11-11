@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/database/app_database.dart';
+import '../../../core/rbac/regles_roles.dart';
 import '../../synchronisation/data/operations_sync_dao.dart';
 import '../../synchronisation/domain/charges_synchronisation.dart';
 import '../../synchronisation/domain/operation_sync.dart';
@@ -337,7 +338,7 @@ class ClotureExerciceLocale {
               ..where((u) => u.id.equals(auteurId)))
             .map((u) => u.role)
             .getSingleOrNull();
-    if (role != roleReouverture) {
+    if (!estComptableOuGerant(role)) {
       throw _refus(
         MotifRefus.reouvertureReservee,
         'comptabilite.reouverture_reservee',

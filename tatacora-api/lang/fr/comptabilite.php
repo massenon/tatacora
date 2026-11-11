@@ -136,7 +136,7 @@ return [
     'libelle_piece_cloture' => 'Clôture :annee — solde des comptes de gestion',
     'libelle_piece_a_nouveaux' => 'À-nouveaux de l\'exercice :annee',
     'libelle_reouverture' => 'Réouverture de l\'exercice :annee — :motif',
-    'reouverture_reservee' => 'Seul le comptable peut rouvrir un exercice clôturé.',
+    'reouverture_reservee' => 'Seul le comptable ou le gérant peut rouvrir un exercice clôturé.',
     'reouverture_non_cloture' => "L'exercice :annee n'est pas clôturé : il n'y a rien à rouvrir.",
     'reouverture_motif' => 'Le motif de la réouverture est obligatoire (:min caractères au moins) : il est écrit au journal d\'audit et sur les contre-passations.',
     'reouverture_suivant_clos' => "L'exercice :annee ne peut pas être rouvert : l'exercice :suivant, qui porte ses à-nouveaux, est déjà clôturé. Rouvrez d'abord :suivant.",
@@ -153,7 +153,7 @@ return [
     // --- Affectation du résultat d'un exercice clôturé (09/11/2026) ------------
     // `AffectationResultatService`. Le poste Windows reprend ces phrases AU MOT
     // (`messages_affectation.dart`), confrontées au vrai PHP par un test.
-    'affectation_reservee' => "Seul le comptable peut passer ou contre-passer l'affectation du résultat.",
+    'affectation_reservee' => "Seul le comptable ou le gérant peut passer ou contre-passer l'affectation du résultat.",
     'affectation_exige_cloture' => "L'exercice :annee n'est pas clôturé : son résultat ne peut pas être affecté avant sa clôture.",
     'affectation_resultat_nul' => "Le résultat de l'exercice :annee est nul : il n'y a rien à affecter.",
     'affectation_deja_passee' => "Le résultat de l'exercice :annee est déjà affecté (pièce :piece). Contre-passez cette affectation avant d'en passer une autre.",
